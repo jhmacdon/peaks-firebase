@@ -1056,4 +1056,26 @@ export const avyData = functions.https.onCall(async (data, context) => {
   return {}
 })
 
+export const openMeteoForecast = functions.https.onCall(async (data, context) => {
+  const lat = data.lat;
+  const lng = data.lng;
+  const elevation = data.elevation; // optional, in meters
+
+  if (!lat || !lng) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "lat and lng are required"
+    );
+  }
+
+  const { getOpenMeteoForecast } = require("./openMeteo");
+  const forecast = await getOpenMeteoForecast(
+    parseFloat(lat),
+    parseFloat(lng),
+    elevation ? parseFloat(elevation) : undefined
+  );
+
+  return forecast;
+});
+
 exports.friends = require('./friends')
