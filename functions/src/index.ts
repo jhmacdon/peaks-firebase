@@ -85,7 +85,6 @@ const firestore = firebase.firestore
 
 const ALGOLIA_ID = functions.config().algolia.app_id;
 const ALGOLIA_ADMIN_KEY = functions.config().algolia.api_key;
-const SLACK_WEBHOOK_URL = functions.config().slack.webhook_url;
 const ALGOLIA_DESTINATION_INDEX = 'destinations';
 
 const client = algoliasearch(ALGOLIA_ID, ALGOLIA_ADMIN_KEY);
@@ -161,34 +160,8 @@ export const onSessionCreated = functions.firestore.document('/sessions/{session
     promises = promises.concat(updatePromises)
   }
 
-  promises.push(request.post(
-    SLACK_WEBHOOK_URL,
-    {
-      json: {
-        text: "Someone recorded a new session with Peaks!"
-      }
-    }
-  ))
-
   return Promise.all(promises)
 
-})
-
-export const onPlanCreated = functions.firestore.document('/plans/{planId}').onCreate(async (snap, context) => {
-  const plan = snap.data()
-
-  if (plan!.userId == "QzmvJRt5E5eTV4fAsuyLDrc4PEq1" || plan!.userId == "FYVeL2RAOGMNFaMYBI87aHabzWB3") {
-    return
-  }
-
-  return await request.post(
-    SLACK_WEBHOOK_URL,
-    {
-      json: {
-        text: "Someone created a new plan with Peaks!"
-      }
-    }
-  )
 })
 
 // Listen for updates to any `user` document.
@@ -635,19 +608,6 @@ export function getUserSessions(id: string): Promise<QuerySnapshot> {
 export function getUserPlans(id: string): Promise<QuerySnapshot> {
   return firestore.collection("plans").where("userId", "==", id).get()
 }
-
-export const notifyNewSignup = functions.auth.user().onCreate(async (user) => {
-  const email = (typeof user.email === 'undefined' || user.email == "null" || user.email == undefined) ? "An anonymous user" : user.email
-
-  return request.post(
-    SLACK_WEBHOOK_URL,
-    {
-      json: {
-        text: email + " has joined peaks!"
-      }
-    }
-  )
-})
 
 export const deleteSession = functions.https.onCall( async (data, context) => {
   if (!context.auth) {
@@ -1096,5 +1056,4 @@ export const avyData = functions.https.onCall(async (data, context) => {
   return {}
 })
 
-exports.weather = require('./weather')
 exports.friends = require('./friends')
