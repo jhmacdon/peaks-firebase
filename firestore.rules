@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+	match /databases/{database}/documents {
+    match /sessions/{document=**} {
+    
+      allow read: if signedInOrPublic();
+      allow write, update, create: if request.resource.data.userId == request.auth.uid;
+      
+      function signedInOrPublic() {
+        return request.auth.uid != null || resource.data.status.public == true;
+    	}
+    }
+    match /feedback/{document=**} {
+      allow read, write: if request.auth.uid != null;
+    }
+    match /points/{document=**} {
+      allow read: if signedInOrPublic();
+      allow write: if request.auth.uid != null;
+      
+      function signedInOrPublic() {
+        return request.auth.uid != null || get(/databases/$(database)/documents/sessions/$(document)).data.status.public == true
+    	}
+    }
+    match /destinations/{document=**} {
+    	allow read: if true;
+      allow write: if request.auth.uid != null;
+    }
+    match /averages/{document=**} {
+    	allow read: if true;
+      allow write: if request.auth.uid != null;
+    }
+    match /users/{document=**} {
+    	allow read: if request.auth.uid != null;
+      allow write: if request.auth.uid == request.resource.id;
+    }
+    match /plans/{document=**} {
+    	allow read: if true;
+      allow write: if isAtLeastMember();
+      allow delete: if request.auth.uid == request.resource.data.userId;
+      
+			function isAtLeastMember() {
+				return (request.auth.uid == request.resource.data.userId) || (request.auth.uid in resource.data.party)
+			}
+    }
+    match /routes/{document=**} {
+    	allow read: if true;
+      allow write, delete: if request.resource.data.owner == request.auth.uid;
+    }
+    match /lists/{document=**} {
+    	allow read: if true;
+      allow write, delete: if request.resource.data.owner == request.auth.uid;
+    }
+    match /weather/{document=**} {
+    	allow read: if true;
+      allow write, delete: if false;
+    }
+    match /invites/{document=**} {
+    	allow read: if request.auth.uid != null;
+      allow write: if forSelfOrOwned();
+      
+      function forSelfOrOwned() {
+        return request.auth.uid == request.resource.data.userId || get(/databases/$(database)/documents/plans/$(request.resource.data.planId)).data.userId == request.auth.uid
+    	}
+    }
+    match /tripReports/{document=**} {
+    	allow read: if true;
+      allow write: if true;
+    }
+  }
+}
