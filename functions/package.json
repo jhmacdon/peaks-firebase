@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "lint": "eslint --ext .js,.ts .",
+    "lint": "eslint .",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
@@ -15,29 +15,18 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@google-cloud/storage": "^5.6.0",
-    "@turf/turf": "^5.1.6",
-    "@types/algoliasearch": "^3.34.10",
-    "@types/imagemin": "^7.0.0",
-    "@types/request-promise-native": "^1.0.17",
-    "algoliasearch": "^3.35.1",
-    "firebase-admin": "^11.0.0",
-    "firebase-functions": "^4.9.0",
-    "gpx-builder": "^2.5.0",
-    "imagemin": "^7.0.1",
-    "imagemin-jpeg-recompress": "^7.0.0",
-    "request": "^2.88.2",
-    "request-promise-native": "^1.0.9",
-    "strava-v3": "^2.0.9",
-    "stream": "0.0.2"
+    "@turf/turf": "^7.0.0",
+    "algoliasearch": "^5.0.0",
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0",
+    "gpx-builder": "^6.0.0",
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.12.0",
-    "@typescript-eslint/parser": "^5.12.0",
-    "eslint": "^8.9.0",
-    "eslint-config-google": "^0.14.0",
-    "eslint-plugin-import": "^2.25.4",
+    "typescript-eslint": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-import-x": "^4.0.0",
     "firebase-functions-test": "^3.4.1",
     "typescript": "^5.7.3"
   },

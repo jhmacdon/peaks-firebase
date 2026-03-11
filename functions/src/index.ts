@@ -1,17 +1,13 @@
-import * as functions from 'firebase-functions'
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https'
+import { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from 'firebase-functions/v2/firestore'
+import { onSchedule } from 'firebase-functions/v2/scheduler'
+import { defineSecret } from 'firebase-functions/params'
 import * as firAdmin from 'firebase-admin'
-// var serviceAccount = require("./admin-service-account.json");
+
 const firebase = require('./firebase')
 const admin = firebase.admin
 
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-//   databaseURL: "https://donner-a8608.firebaseio.com"
-// });
-
-const algoliasearch = require('algoliasearch');
-import * as request from "request-promise-native";
-//import Query = admin.firestore.Query
+const { algoliasearch } = require('algoliasearch');
 import QuerySnapshot = firAdmin.firestore.QuerySnapshot
 import DocumentReference = firAdmin.firestore.DocumentReference
 import WriteResult = firAdmin.firestore.WriteResult
@@ -19,23 +15,43 @@ import CollectionReference = firAdmin.firestore.CollectionReference
 import FieldValue = firAdmin.firestore.FieldValue
 import DocumentSnapshot = firAdmin.firestore.DocumentSnapshot
 import * as turf from '@turf/turf'
-// import * as sharp from 'sharp';
-import * as imagemin from 'imagemin'
+const sharp = require('sharp');
 const destinationHelpers = require('./destinationHelpers')
-const imageminJpegRecompress 	= require('imagemin-jpeg-recompress');
-// const spawn = require('child-process-promise').spawn;
-
 
 const { buildGPX, BaseBuilder } = require('gpx-builder');
 const { Point } = BaseBuilder.MODELS;
 const { Segment } = BaseBuilder.MODELS;
 const { Track } = BaseBuilder.MODELS;
 
-// const { Readable } = require('stream')
+import fs = require("fs");
+import os = require('os');
+import stream = require('stream')
+const path = require('path');
+
+// Secrets
+const STRAVA_CLIENT = defineSecret('STRAVA_CLIENT')
+const STRAVA_SECRET = defineSecret('STRAVA_SECRET')
+const ALGOLIA_APP_ID = defineSecret('ALGOLIA_APP_ID')
+const ALGOLIA_API_KEY = defineSecret('ALGOLIA_API_KEY')
+// const REVENUECAT_WEBHOOK_KEY = defineSecret('REVENUECAT_WEBHOOK_KEY')
+const APPLE_IAP_SECRET = defineSecret('APPLE_IAP_SECRET')
+
+const firestore = firebase.firestore
+
+const ALGOLIA_DESTINATION_INDEX = 'destinations';
+
+// Lazy Algolia client — initialized inside function bodies after secrets are available
+let _algoliaClient: any = null
+function getAlgoliaClient() {
+  if (!_algoliaClient) {
+    _algoliaClient = algoliasearch(ALGOLIA_APP_ID.value(), ALGOLIA_API_KEY.value())
+  }
+  return _algoliaClient
+}
 
 const fsClient = new admin.firestore.v1.FirestoreAdminClient();
 
-exports.scheduledFirestoreExport = functions.pubsub.schedule('every 168 hours').onRun((_context) => {
+export const scheduledFirestoreExport = onSchedule({ schedule: 'every 168 hours' }, async (_event) => {
   const bucket = 'gs://peaks-backups';
   const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
   const databaseName =
@@ -44,9 +60,6 @@ exports.scheduledFirestoreExport = functions.pubsub.schedule('every 168 hours').
   return fsClient.exportDocuments({
     name: databaseName,
     outputUriPrefix: bucket,
-    // Leave collectionIds empty to export all collections
-    // or set to a list of collection IDs to export,
-    // collectionIds: ['users', 'posts']
     collectionIds: []
     })
   .then(responses => {
@@ -59,40 +72,9 @@ exports.scheduledFirestoreExport = functions.pubsub.schedule('every 168 hours').
   });
 });
 
-import fs = require("fs");
-import os = require('os');
-import stream = require('stream')
-// import { Bucket, File } from '@google-cloud/storage';
-// import requestPromise = require('request-promise-native');
-// import requestPromise = require('request-promise-native');
-const path = require('path');
-const strava = require('strava-v3')
-
-strava.config({
-  "access_token"  : functions.config().strava.access_token,
-  "client_id"     : functions.config().strava.client,
-  "client_secret" : functions.config().strava.secret,
-  "redirect_uri"  : "https://us-central1-donner-a8608.cloudfunctions.net/exchange_token",
-});
-
-
-//import Task = algoliasearch.Task
-
-// The Firebase Admin SDK to access the Firebase Realtime Database.
-
-
-const firestore = firebase.firestore
-
-const ALGOLIA_ID = functions.config().algolia.app_id;
-const ALGOLIA_ADMIN_KEY = functions.config().algolia.api_key;
-const ALGOLIA_DESTINATION_INDEX = 'destinations';
-
-const client = algoliasearch(ALGOLIA_ID, ALGOLIA_ADMIN_KEY);
-const destinationIndex = client.initIndex(ALGOLIA_DESTINATION_INDEX);
-
-// Listens for new messages added to /messages/:pushId/original and creates an
-// uppercase version of the message to /messages/:pushId/uppercase
-export const onSessionCreated = functions.firestore.document('/sessions/{sessionId}').onCreate(async (snap, _context) => {
+export const onSessionCreated = onDocumentCreated('/sessions/{sessionId}', async (event) => {
+  const snap = event.data;
+  if (!snap) return;
 
   let promises:Promise<WriteResult>[] = []
   const session = snap.data()
@@ -110,7 +92,7 @@ export const onSessionCreated = functions.firestore.document('/sessions/{session
       plannedIds = session.destinationGoals
     }
 
-    const destinationIds: (string)[] = reachedIds.concat(plannedIds.filter((item) => reachedIds.indexOf(item) < 0)) 
+    const destinationIds: (string)[] = reachedIds.concat(plannedIds.filter((item) => reachedIds.indexOf(item) < 0))
 
     const date = new Date(session.lastUpdated * 1000);
     const dayOfWeek = date.getDay()
@@ -125,7 +107,7 @@ export const onSessionCreated = functions.firestore.document('/sessions/{session
 
     for (const destinationId in destinationIds) {
       const docResults = await (await firestore.collection("averages").where("destinationId", "==", destinationId).limit(1).get()).docs
-      
+
       let avgDoc: DocumentReference
       if (docResults.length == 0) {
         avgDoc = await firestore.collection("averages").doc()
@@ -161,17 +143,14 @@ export const onSessionCreated = functions.firestore.document('/sessions/{session
   }
 
   return Promise.all(promises)
-
 })
 
-// Listen for updates to any `user` document.
-export const onSessionUpdated = functions.firestore.document('/sessions/{sessionId}').onUpdate(async (change, _context) => {
-      // Retrieve the current and previous value
+export const onSessionUpdated = onDocumentUpdated('/sessions/{sessionId}', async (event) => {
+      const change = event.data;
+      if (!change) return null;
       const session = change.after.data();
       const oldSession = change.before.data();
 
-      // We'll only update if the ended status has changed.
-      // This is crucial to prevent infinite loops.
       if (session!.status!.ended == oldSession!.status!.ended) {
         return null
       }
@@ -234,22 +213,12 @@ export async function updateDestinationStats(goalIds: Array<string>, reachedIds:
   return promises
 }
 
-// avg updates go here
-// export async function updateDestinationAverages(reachedIds: Array<string>) {
-//   const collectionRef: CollectionReference = await firestore.collection("averages")
-
-//   const promises:Promise<WriteResult>[] = []
-
-//   // reachedIds.forEach(async id => {
-//   //   const average: DocumentSnapshot? = await (await collectionRef.where("destinationId", "==", id).get()).docs[0]
-//   //   if (!average) {
-//   //     return
-//   //   }
-
-//   // })
-// }
-
-export const onDestinationUpdated = functions.firestore.document('/destinations/{id}').onUpdate(async (change, _context) => {
+export const onDestinationUpdated = onDocumentUpdated({
+  document: '/destinations/{id}',
+  secrets: [ALGOLIA_APP_ID, ALGOLIA_API_KEY]
+}, async (event) => {
+  const change = event.data;
+  if (!change) return;
   const algDestination = change.after.data()
   algDestination!.objectID = change.after.id
   algDestination!._geoloc = {
@@ -261,12 +230,13 @@ export const onDestinationUpdated = functions.firestore.document('/destinations/
     algDestination!.recency = algDestination!.recency!._seconds
   }
 
-  return destinationIndex.saveObject(algDestination!)
+  return getAlgoliaClient().saveObject({ indexName: ALGOLIA_DESTINATION_INDEX, body: algDestination! })
 })
 
-export const onListUpdated = functions.firestore.document('/lists/{id}').onUpdate(async (change, _context) => {
+export const onListUpdated = onDocumentUpdated('/lists/{id}', async (event) => {
+  const change = event.data;
+  if (!change) return null;
   const list = change.after.data()
-
 
   const oldList = change.before.data();
 
@@ -311,7 +281,9 @@ export const onListUpdated = functions.firestore.document('/lists/{id}').onUpdat
   }, { merge: true })
 })
 
-export const onListAdded = functions.firestore.document('/lists/{id}').onCreate(async (snap, _context) => {
+export const onListAdded = onDocumentCreated('/lists/{id}', async (event) => {
+  const snap = event.data;
+  if (!snap) return null;
   const list = snap.data();
   const oldMeta = list.meta || {}
 
@@ -343,7 +315,12 @@ export const onListAdded = functions.firestore.document('/lists/{id}').onCreate(
   }, { merge: true })
 })
 
-export const onDestinationAdded = functions.firestore.document('/destinations/{id}').onCreate(async (snap, _context) => {
+export const onDestinationAdded = onDocumentCreated({
+  document: '/destinations/{id}',
+  secrets: [ALGOLIA_APP_ID, ALGOLIA_API_KEY]
+}, async (event) => {
+  const snap = event.data;
+  if (!snap) return;
   const algDestination = snap.data()
   algDestination!.objectID = snap.id
   algDestination!._geoloc = {
@@ -353,43 +330,59 @@ export const onDestinationAdded = functions.firestore.document('/destinations/{i
   if (algDestination!.recency) {
     algDestination!.recency = algDestination!.recency!._seconds
   }
-  return destinationIndex.addObject(algDestination!)
+  return getAlgoliaClient().saveObject({ indexName: ALGOLIA_DESTINATION_INDEX, body: algDestination! })
 })
 
-export const onDestinationRemoved = functions.firestore.document('/destinations/{id}').onDelete(async (snap, _context) => {
-  return destinationIndex.deleteObject(snap.id)
+export const onDestinationRemoved = onDocumentDeleted({
+  document: '/destinations/{id}',
+  secrets: [ALGOLIA_APP_ID, ALGOLIA_API_KEY]
+}, async (event) => {
+  const snap = event.data;
+  if (!snap) return;
+  return getAlgoliaClient().deleteObject({ indexName: ALGOLIA_DESTINATION_INDEX, objectID: snap.id })
 })
 
-export const onPointsCreated = functions.firestore.document('/points/{id}').onCreate(async (snap, _context) => {
+export const onPointsCreated = onDocumentCreated({
+  document: '/points/{id}',
+  secrets: [STRAVA_CLIENT, STRAVA_SECRET]
+}, async (event) => {
+  const snap = event.data;
+  if (!snap) return;
   const id = snap.id
 
   return uploadGPXIfNeeded(id, snap)
 })
 
-export const onPointsUpdated = functions.firestore.document('/points/{id}').onUpdate(async (change, _context) => {
+export const onPointsUpdated = onDocumentUpdated({
+  document: '/points/{id}',
+  secrets: [STRAVA_CLIENT, STRAVA_SECRET]
+}, async (event) => {
+  const change = event.data;
+  if (!change) return;
   const id = change.after.id
 
   return uploadGPXIfNeeded(id, change.after)
-
 })
 
-export const uploadSessionToStrava = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const uploadSessionToStrava = onCall({
+  secrets: [STRAVA_CLIENT, STRAVA_SECRET]
+}, async (request) => {
+  if (!request.auth) {
       console.log("no auth!")
-      throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+      throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
-  const sessionId = data.sessionId
-  const userId = context.auth.uid
-  const force: boolean = data.force || false
+  const sessionId = request.data.sessionId
+  const userId = request.auth.uid
+  const force: boolean = request.data.force || false
 
   const sessionRef = await firestore.collection("sessions").doc(sessionId).get()
   const session = sessionRef.data()
-  
+
   if (session!.userId != userId) {
     console.log("no auth!")
-    throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+    throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
@@ -456,19 +449,10 @@ export async function uploadGPXIfNeeded(sessionId: string, pointData: DocumentSn
     const accessToken = await getStravaAccessToken(user!.strava, userId)
 
     console.log(accessToken)
-    //var s = new Readable()
-    // s._read = () => {};
-    // s.push(gpxString)    // the string you want
-    // s.push(null)
 
     const tempFilePath = path.join(os.tmpdir(), `${sessionId}.gpx`);
 
     console.log(tempFilePath)
-
-
-    // const url = "https://www.strava.com/api/v3/uploads"
-
-    // TODO naming logic
 
     let name = "Peaks - A Day Climbing"
 
@@ -500,16 +484,21 @@ export async function uploadGPXIfNeeded(sessionId: string, pointData: DocumentSn
 
     fs.writeFileSync(tempFilePath, gpxString);
 
-    const payload = await strava.uploads.post({
-      access_token: accessToken,
-      activity_type: "hike",
-      external_id: sessionId,
-      data_type: 'gpx',
-      file: tempFilePath,
-      name: name
-    }, (a,b,c) => {
-      console.log(a,b,c)
+    const formData = new FormData();
+    formData.append('activity_type', 'hike');
+    formData.append('external_id', sessionId);
+    formData.append('data_type', 'gpx');
+    formData.append('name', name);
+    const fileBuffer = fs.readFileSync(tempFilePath);
+    formData.append('file', new Blob([fileBuffer]), `${sessionId}.gpx`);
+
+    const uploadResp = await fetch('https://www.strava.com/api/v3/uploads', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      body: formData
     });
+    if (!uploadResp.ok) throw new Error(`Strava upload failed: ${uploadResp.status}`);
+    const payload = await uploadResp.json();
 
     const status = {
       uploadedToStrava: true
@@ -531,8 +520,10 @@ export async function getStravaAccessToken(stravaBlock: any, userId: string): Pr
     return accessToken
   }
 
-  const url = `https://www.strava.com/oauth/token?client_id=${functions.config().strava.client}&client_secret=${functions.config().strava.secret}&refresh_token=${refreshToken}&grant_type=refresh_token`
-  const response = await request.post(url, {})
+  const url = `https://www.strava.com/oauth/token?client_id=${STRAVA_CLIENT.value()}&client_secret=${STRAVA_SECRET.value()}&refresh_token=${refreshToken}&grant_type=refresh_token`
+  const fetchResp = await fetch(url, {method: 'POST'})
+  if (!fetchResp.ok) throw new Error(`Strava token refresh failed: ${fetchResp.status}`)
+  const response = await fetchResp.text()
 
   interface StravaResponse {
     expires_at: number,
@@ -554,16 +545,16 @@ export async function getPlan(id: string): Promise<DocumentSnapshot> {
   return firestore.collection("plans").doc(id).get()
 }
 
-export const linkAnonToPermAccount = functions.https.onCall( async (data, context) => {
+export const linkAnonToPermAccount = onCall(async (request) => {
 
-    if (!context.auth) {
+    if (!request.auth) {
         console.log("no auth!")
-        throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+        throw new HttpsError('failed-precondition', 'The function must be called ' +
       'while authenticated.')
     }
 
-    const newUid = context.auth.uid
-    const oldUid = data.oldUid
+    const newUid = request.auth.uid
+    const oldUid = request.data.oldUid
 
     const oldSessionSnap = await getUserSessions(oldUid)
 
@@ -609,21 +600,21 @@ export function getUserPlans(id: string): Promise<QuerySnapshot> {
   return firestore.collection("plans").where("userId", "==", id).get()
 }
 
-export const deleteSession = functions.https.onCall( async (data, context) => {
-  if (!context.auth) {
+export const deleteSession = onCall(async (request) => {
+  if (!request.auth) {
       console.log("no auth!")
-      throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+      throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
-  const sessionId = data.sessionId
-  const userId = context.auth.uid
+  const sessionId = request.data.sessionId
+  const userId = request.auth.uid
 
   const session: DocumentSnapshot = await firestore.collection("sessions").doc(sessionId)!.get()
   const sessionData = session.data()!
 
   if (sessionData.userId != userId) {
-    throw new functions.https.HttpsError('failed-precondition', 'The user calling this function cannnot delete this session')
+    throw new HttpsError('failed-precondition', 'The user calling this function cannnot delete this session')
   }
 
   let status = sessionData.status
@@ -639,14 +630,14 @@ export const deleteSession = functions.https.onCall( async (data, context) => {
   }, {merge: true})
 })
 
-export const acquireStravaToken = functions.https.onCall( async (data, context) => {
-  if (!context.auth) {
+export const acquireStravaToken = onCall(async (request) => {
+  if (!request.auth) {
       console.log("no auth!")
-      throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+      throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
-  const userId = context.auth.uid
+  const userId = request.auth.uid
 
   const codeRef: CollectionReference = firestore.collection("codes")
 
@@ -661,10 +652,14 @@ export const acquireStravaToken = functions.https.onCall( async (data, context) 
   return codeDec.id
 })
 
-export const exchange_token = functions.https.onRequest(async (req, res) => {
+export const exchange_token = onRequest({
+  secrets: [STRAVA_CLIENT, STRAVA_SECRET]
+}, async (req, res) => {
   const peaksCode = req.query.peaksCode as string
-  const url = `https://www.strava.com/oauth/token?client_id=${functions.config().strava.client}&client_secret=${functions.config().strava.secret}&code=${req.query.code}&grant_type=authorization_code`
-  const response = await request.post(url, {})
+  const url = `https://www.strava.com/oauth/token?client_id=${STRAVA_CLIENT.value()}&client_secret=${STRAVA_SECRET.value()}&code=${req.query.code}&grant_type=authorization_code`
+  const fetchResp = await fetch(url, {method: 'POST'})
+  if (!fetchResp.ok) throw new Error(`Strava OAuth exchange failed: ${fetchResp.status}`)
+  const response = await fetchResp.text()
 
 
 
@@ -697,26 +692,24 @@ export const exchange_token = functions.https.onRequest(async (req, res) => {
     strava: stravaResponse
   }, {merge: true})
 
-  //const collectionRef: CollectionReference = await firestore.collection("destinations")
-
   res.status(200).send("Aye")
 });
 
-export const deletePlan = functions.https.onCall( async (data, context) => {
+export const deletePlan = onCall(async (request) => {
 
-  if (!context.auth) {
+  if (!request.auth) {
       console.log("no auth!")
-      throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+      throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
-  const uid = context.auth.uid
-  const pid = data.planId
+  const uid = request.auth.uid
+  const pid = request.data.planId
 
   const plan: DocumentSnapshot = await getPlan(pid)
 
   if (plan!.data()!.userId !== uid) {
-    throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+    throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
@@ -725,13 +718,18 @@ export const deletePlan = functions.https.onCall( async (data, context) => {
 })
 
 
-export const appleIAPNotification = functions.https.onRequest(async (req, res) => {
-  const revenueCatResp = await request.post(`https://api.revenuecat.com/v1/incoming-webhooks/apple-server-to-server-notification/${functions.config().revenuecat.webhook_key}`, {
-    json: req.body
-  })
-
-  console.log("RevenueCat Resp:")
-  console.log(revenueCatResp)
+export const appleIAPNotification = onRequest({
+  secrets: [APPLE_IAP_SECRET]
+}, async (req, res) => {
+  // TODO: Re-enable RevenueCat forwarding once webhook key is available
+  // const rcFetchResp = await fetch(`https://api.revenuecat.com/v1/incoming-webhooks/apple-server-to-server-notification/${REVENUECAT_WEBHOOK_KEY.value()}`, {
+  //   method: 'POST',
+  //   headers: {'Content-Type': 'application/json'},
+  //   body: JSON.stringify(req.body)
+  // })
+  // const revenueCatResp = await rcFetchResp.json()
+  // console.log("RevenueCat Resp:")
+  // console.log(revenueCatResp)
 
   console.log("Notification Type " + req.body!.notification_type)
 
@@ -777,16 +775,18 @@ export const appleIAPNotification = functions.https.onRequest(async (req, res) =
   return
 })
 
-export const processAppleReceipt = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
+export const processAppleReceipt = onCall({
+  secrets: [APPLE_IAP_SECRET]
+}, async (request) => {
+  if (!request.auth) {
       console.log("no auth!")
-      throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+      throw new HttpsError('failed-precondition', 'The function must be called ' +
     'while authenticated.')
   }
 
-  const uid = context.auth.uid
+  const uid = request.auth.uid
 
-  const appleResponse = await verifyAppleReceipt(data!.receipt as string)
+  const appleResponse = await verifyAppleReceipt(request.data!.receipt as string)
 
   const userCollectionRef: DocumentReference = await firestore.collection("users").doc(uid)
 
@@ -803,55 +803,46 @@ export const processAppleReceipt = functions.https.onCall(async (data, context) 
 })
 
 export async function verifyAppleReceipt(data: string): Promise<any> {
-  let appleResponse = await request.post('https://buy.itunes.apple.com/verifyReceipt', {
-    json: {
-      "password": functions.config().apple.iap_secret,
-      "receipt-data": data
-    }
+  const appleBody = JSON.stringify({
+    "password": APPLE_IAP_SECRET.value(),
+    "receipt-data": data
   })
+  const appleHeaders = {'Content-Type': 'application/json'}
+
+  let appleFetchResp = await fetch('https://buy.itunes.apple.com/verifyReceipt', {
+    method: 'POST', headers: appleHeaders, body: appleBody
+  })
+  if (!appleFetchResp.ok) throw new Error(`Apple verify failed: ${appleFetchResp.status}`)
+  let appleResponse = await appleFetchResp.json()
 
   if (appleResponse!.status === 21007) {
     console.log("Checking sandbox receipt")
-    // This is a sandbox receipt, test against the sandbox server
-    appleResponse = await request.post('https://sandbox.itunes.apple.com/verifyReceipt', {
-      json: {
-        "password": functions.config().apple.iap_secret,
-        "receipt-data": data
-      }
+    appleFetchResp = await fetch('https://sandbox.itunes.apple.com/verifyReceipt', {
+      method: 'POST', headers: appleHeaders, body: appleBody
     })
+    if (!appleFetchResp.ok) throw new Error(`Apple sandbox verify failed: ${appleFetchResp.status}`)
+    appleResponse = await appleFetchResp.json()
   }
 
   return appleResponse
 }
 
-export const isPremium = functions.https.onCall(async(data, context) => {
-  // interface PremiumResponse {
-  //   premium: boolean,
-  //   expires?: number, // unix time, seconds
-  //   method?: string
-  // }
-
-  if (!context.auth) {
+export const isPremium = onCall(async (request) => {
+  if (!request.auth) {
       console.log("no auth!")
       return {premium: false}
   }
 
-  const uid = context.auth.uid
+  const uid = request.auth.uid
 
   const userCollectionRef: DocumentReference = await firestore.collection("users").doc(uid)
 
   const userDoc: DocumentSnapshot = await userCollectionRef.get()
 
-  // if (!userDoc) {
-  //   return {premium: false}
-  // }
-
   if (userDoc?.data()?.premium?.method == "apple") {
     const expires = +(userDoc!.data()!.premium!.receipt!.expires_date_ms)/1000 // We don't want ms
     const renews = userDoc!.data()!.premium!.renews
     const currentTime = Math.floor(Date.now() / 1000)
-
-
 
     return {premium: expires + 3600 > currentTime, method: "apple", expires: expires, renews: renews, receipt: userDoc!.data()!.premium!.receipt}
   } else {
@@ -859,84 +850,34 @@ export const isPremium = functions.https.onCall(async(data, context) => {
   }
 })
 
-exports.updateHeroImage = functions.https.onCall(async(data, context) => {
+export const updateHeroImage = onCall(async (request) => {
   console.log("HECK YA")
-  const uid = context?.auth?.uid
+  const uid = request.auth?.uid
 
-  const destinationId = data.destinationId as string
+  const destinationId = request.data.destinationId as string
 
   if (!uid) {
-    throw new functions.https.HttpsError('failed-precondition', 'The function must be called while authenticated.')
+    throw new HttpsError('failed-precondition', 'The function must be called while authenticated.')
   }
 
   if (!destinationId) {
-    throw new functions.https.HttpsError('failed-precondition', 'destinationID is required for this function')
+    throw new HttpsError('failed-precondition', 'destinationID is required for this function')
   }
 
-  let imgData = data.imgData as string 
-  const imgUrl = data.imgUrl as string 
+  let imgData = request.data.imgData as string
+  const imgUrl = request.data.imgUrl as string
 
   if (imgUrl) {
-    // console.log(imgUrl)
     imgData = await toDataURL(imgUrl) as string
-    // console.log(data)
-
   } else {
     console.log("FUCK")
   }
 
-    // Download file from bucket.
   const fileBucket = "donner-a8608.appspot.com"
   const fileName = `destinations/${destinationId}.jpg`
-  // const filePath = `${fileBucket}/${fileName}`
   const bucket = admin.storage().bucket(fileBucket);
-  // const file = bucket.file(fileName);
-
-  // const tempFilePath = path.join(os.tmpdir(), fileName);
-  // const metadata = {
-  //   contentType: "image/jpeg",
-  // }
 
   await uploadPicture(imgData, destinationId, bucket, fileName)
-
-  // let bufferStream = new stream.PassThrough();
-  // bufferStream.end(Buffer.from(imgData, 'base64'));
-
-  // bufferStream.pipe(file.createWriteStream({
-  //   metadata: {
-  //     contentType: 'image/jpeg'
-  //   }
-  // }))
-  // .on('error', error => {
-  //   console.log(error)
-  // })
-  // .on('finish', (file) => {
-  //   // The file upload is complete.
-  //   console.log("news.provider#uploadPicture - Image successfully uploaded: ", JSON.stringify(file));
-  // });
-
-  // const streamRes = await pipeline(
-  //   bufferStream.pipe(file.createWriteStream({
-  //     metadata: metadata
-  //   }))
-  // );
-
-  // await file.save(imgData, {
-  //   metadata: metadata,
-  //   predefinedAcl: 'publicRead'
-  // })
-
-  // const urlResponse = await file.getMetadata()
-  // const url = urlResponse[0].mediaLink
-
-  // const signedURL = await file.getSignedUrl({
-  //   action: 'read',
-  //   expires: '03-09-2491'
-  // })
-  // Once the thumbnail has been uploaded delete the local file to free up disk space.
-  // return fs.unlinkSync(tempFilePath);
-  // console.log(url)
-  // console.log(signedURL)
 
   const storageRoot = 'https://storage.googleapis.com/';
   const downloadUrl = storageRoot + fileBucket + "/" + encodeURIComponent(fileName);
@@ -954,47 +895,26 @@ exports.updateHeroImage = functions.https.onCall(async(data, context) => {
 
 })
 
-function toDataURL(url) {
-  return new Promise((resolve, _reject) => {
-    request.get({ url, encoding: null }, async function(error, response, body) {
-        if (!error && response.statusCode === 200) {
-            // const resizedImage = await sharp(body)
-            //   .jpeg()
-            //   .toBuffer();
-            console.log("Original size: " + body.length)
+async function toDataURL(url) {
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error(`Image download failed: ${resp.status}`)
+  const arrayBuf = await resp.arrayBuffer()
+  const body = Buffer.from(arrayBuf)
 
-            const imageminOptions = {
-              plugins: [
-                imageminJpegRecompress({
-                  progressive: true,
-                  quality: 'high',
-                  accuracy: true,
-                  target: 0.995,
-                  min: 60,
-                  max: 95
-                })
-              ]
-            };
+  console.log("Original size: " + body.length)
 
-            const min = await imagemin.buffer(body, imageminOptions)
+  const min = await sharp(body).jpeg({ quality: 80, progressive: true }).toBuffer()
 
-            console.log('Prev Size', Math.round(body.toString().length / 1000) + 'KB');
-            console.log('New Size', Math.round(min.toString().length / 1000) + 'KB\n');
+  console.log('Prev Size', Math.round(body.toString().length / 1000) + 'KB');
+  console.log('New Size', Math.round(min.toString().length / 1000) + 'KB\n');
 
-            console.log("New Size: " + min.length)
-            // const data = 'data:' + "image/jpeg" + ';base64,' + new Buffer(min).toString('base64');
+  console.log("New Size: " + min.length)
 
-            const data = min.toString('base64');
-            resolve(data);
-            return data;
-        } else {
-          throw error;
-        }
-      });
-  });
+  const data = min.toString('base64');
+  return data;
 }
 
-const uploadPicture = async (base64: string, destinationId: string, bucket: any, fileName: string) => {
+const uploadPicture = async (base64: string, _destinationId: string, bucket: any, fileName: string) => {
   return new Promise((resolve, reject) => {
     if (!base64) {
       reject("news.provider#uploadPicture - Could not upload picture because at least one param is missing.");
@@ -1018,16 +938,16 @@ const uploadPicture = async (base64: string, destinationId: string, bucket: any,
       reject(`news.provider#uploadPicture - Error while uploading picture ${JSON.stringify(error)}`);
     })
     .on('finish', (fileResp) => {
-      // The file upload is complete.
       resolve(fileResp)
-      // console.log("news.provider#uploadPicture - Image successfully uploaded: ", JSON.stringify(file));
     });
   })
 };
 
-exports.avyUpdate = functions.pubsub.schedule('every 4 hours').onRun(async (_context) => {
+export const avyUpdate = onSchedule({ schedule: 'every 4 hours' }, async (_event) => {
   const url = `https://api.avalanche.org/v2/public/products/map-layer`
-  const response = await request.get(url, {})
+  const avyFetchResp = await fetch(url)
+  if (!avyFetchResp.ok) throw new Error(`Avalanche API failed: ${avyFetchResp.status}`)
+  const response = await avyFetchResp.text()
 
   const avy: DocumentReference = await firestore.collection("updates").doc("avalanche")
 
@@ -1036,11 +956,9 @@ exports.avyUpdate = functions.pubsub.schedule('every 4 hours').onRun(async (_con
   }, {merge: true})
 });
 
-export const avyData = functions.https.onCall(async (data, _context) => {
-
-
-  const lat = data.lat
-  const lng = data.lng
+export const avyData = onCall(async (request) => {
+  const lat = request.data.lat
+  const lng = request.data.lng
 
   const avyDoc: DocumentSnapshot = await firestore.collection("updates").doc("avalanche").get()
   const avyStatus: string = avyDoc.data()!.status

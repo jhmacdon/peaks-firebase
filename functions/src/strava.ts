@@ -1,28 +1,33 @@
-import * as functions from "firebase-functions";
-import * as request from "request-promise-native";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 
 const firebase = require("./firebase");
 const admin = firebase.admin;
 const firestore = admin.firestore();
 
+const STRAVA_CLIENT = defineSecret("STRAVA_CLIENT");
+const STRAVA_SECRET = defineSecret("STRAVA_SECRET");
+
 /**
  * Callable: returns a valid Strava access token for the authenticated user.
  * Called by iOS StravaImportAdapter.
  */
-exports.getStravaToken = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+exports.getStravaToken = onCall({
+  secrets: [STRAVA_CLIENT, STRAVA_SECRET],
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
       "unauthenticated",
       "Must be authenticated"
     );
   }
 
-  const userId = context.auth.uid;
+  const userId = request.auth.uid;
   const userDoc = await firestore.collection("users").doc(userId).get();
   const strava = userDoc.data()?.strava;
 
   if (!strava || !strava.access_token) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Strava not connected"
     );
@@ -37,9 +42,10 @@ exports.getStravaToken = functions.https.onCall(async (data, context) => {
 
   // Token expired — refresh it
   try {
-    const url = `https://www.strava.com/oauth/token?client_id=${functions.config().strava.client}&client_secret=${functions.config().strava.secret}&refresh_token=${strava.refresh_token}&grant_type=refresh_token`;
-    const response = await request.post(url, {});
-    const tokenData = JSON.parse(response);
+    const url = `https://www.strava.com/oauth/token?client_id=${STRAVA_CLIENT.value()}&client_secret=${STRAVA_SECRET.value()}&refresh_token=${strava.refresh_token}&grant_type=refresh_token`;
+    const fetchResp = await fetch(url, {method: "POST"});
+    if (!fetchResp.ok) throw new Error(`Strava token refresh failed: ${fetchResp.status}`);
+    const tokenData = JSON.parse(await fetchResp.text());
 
     await firestore.collection("users").doc(userId).set({
       strava: {
@@ -52,7 +58,7 @@ exports.getStravaToken = functions.https.onCall(async (data, context) => {
     return {accessToken: tokenData.access_token};
   } catch (err) {
     console.error("Strava token refresh failed:", err);
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "internal",
       "Failed to refresh Strava token"
     );
@@ -69,7 +75,7 @@ exports.getStravaToken = functions.https.onCall(async (data, context) => {
  *   -F callback_url=https://us-central1-donner-a8608.cloudfunctions.net/stravaWebhook \
  *   -F verify_token=PEAKS_STRAVA_VERIFY
  */
-exports.stravaWebhook = functions.https.onRequest(async (req, res) => {
+exports.stravaWebhook = onRequest(async (req, res) => {
   // GET: Strava webhook subscription validation
   if (req.method === "GET") {
     const mode = req.query["hub.mode"];
