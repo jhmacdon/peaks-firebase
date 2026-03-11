@@ -680,11 +680,13 @@ export const exchange_token = functions.https.onRequest(async (req, res) => {
     refresh_token: string,
     access_token: string,
     athlete: StravaAthlete,
-    enabled: boolean
+    enabled: boolean,
+    athlete_id?: number
   }
 
   const stravaResponse: StravaResponse = JSON.parse(response)
   stravaResponse.enabled = true
+  stravaResponse.athlete_id = stravaResponse.athlete.id
 
   const doc: DocumentSnapshot = await firestore.collection("codes").doc(peaksCode).get()!
   const userId = doc.data()!.userId!
@@ -1057,3 +1059,7 @@ export const avyData = functions.https.onCall(async (data, context) => {
 })
 
 exports.friends = require('./friends')
+
+const stravaImport = require('./strava')
+exports.getStravaToken = stravaImport.getStravaToken
+exports.stravaWebhook = stravaImport.stravaWebhook
