@@ -113,7 +113,7 @@ exports.listFriends = functions.https.onCall(async (data, context) => {
     return friends.filter(friend => friend !== undefined)
 })
 
-exports.getProfiles = functions.https.onCall(async (data, context) => {
+exports.getProfiles = functions.https.onCall(async (data, _context) => {
     const ids: string[] = (data.ids as string).split(",")
     const promises: Promise<UserProfile | undefined>[] = []
 

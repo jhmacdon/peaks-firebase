@@ -35,7 +35,7 @@ const { Track } = BaseBuilder.MODELS;
 
 const fsClient = new admin.firestore.v1.FirestoreAdminClient();
 
-exports.scheduledFirestoreExport = functions.pubsub.schedule('every 168 hours').onRun((context) => {
+exports.scheduledFirestoreExport = functions.pubsub.schedule('every 168 hours').onRun((_context) => {
   const bucket = 'gs://peaks-backups';
   const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
   const databaseName =
@@ -92,7 +92,7 @@ const destinationIndex = client.initIndex(ALGOLIA_DESTINATION_INDEX);
 
 // Listens for new messages added to /messages/:pushId/original and creates an
 // uppercase version of the message to /messages/:pushId/uppercase
-export const onSessionCreated = functions.firestore.document('/sessions/{sessionId}').onCreate(async (snap, context) => {
+export const onSessionCreated = functions.firestore.document('/sessions/{sessionId}').onCreate(async (snap, _context) => {
 
   let promises:Promise<WriteResult>[] = []
   const session = snap.data()
@@ -165,7 +165,7 @@ export const onSessionCreated = functions.firestore.document('/sessions/{session
 })
 
 // Listen for updates to any `user` document.
-export const onSessionUpdated = functions.firestore.document('/sessions/{sessionId}').onUpdate(async (change, context) => {
+export const onSessionUpdated = functions.firestore.document('/sessions/{sessionId}').onUpdate(async (change, _context) => {
       // Retrieve the current and previous value
       const session = change.after.data();
       const oldSession = change.before.data();
@@ -249,7 +249,7 @@ export async function updateDestinationStats(goalIds: Array<string>, reachedIds:
 //   // })
 // }
 
-export const onDestinationUpdated = functions.firestore.document('/destinations/{id}').onUpdate(async (change, context) => {
+export const onDestinationUpdated = functions.firestore.document('/destinations/{id}').onUpdate(async (change, _context) => {
   const algDestination = change.after.data()
   algDestination!.objectID = change.after.id
   algDestination!._geoloc = {
@@ -264,7 +264,7 @@ export const onDestinationUpdated = functions.firestore.document('/destinations/
   return destinationIndex.saveObject(algDestination!)
 })
 
-export const onListUpdated = functions.firestore.document('/lists/{id}').onUpdate(async (change, context) => {
+export const onListUpdated = functions.firestore.document('/lists/{id}').onUpdate(async (change, _context) => {
   const list = change.after.data()
 
 
@@ -311,7 +311,7 @@ export const onListUpdated = functions.firestore.document('/lists/{id}').onUpdat
   }, { merge: true })
 })
 
-export const onListAdded = functions.firestore.document('/lists/{id}').onCreate(async (snap, context) => {
+export const onListAdded = functions.firestore.document('/lists/{id}').onCreate(async (snap, _context) => {
   const list = snap.data();
   const oldMeta = list.meta || {}
 
@@ -343,7 +343,7 @@ export const onListAdded = functions.firestore.document('/lists/{id}').onCreate(
   }, { merge: true })
 })
 
-export const onDestinationAdded = functions.firestore.document('/destinations/{id}').onCreate(async (snap, context) => {
+export const onDestinationAdded = functions.firestore.document('/destinations/{id}').onCreate(async (snap, _context) => {
   const algDestination = snap.data()
   algDestination!.objectID = snap.id
   algDestination!._geoloc = {
@@ -356,17 +356,17 @@ export const onDestinationAdded = functions.firestore.document('/destinations/{i
   return destinationIndex.addObject(algDestination!)
 })
 
-export const onDestinationRemoved = functions.firestore.document('/destinations/{id}').onDelete(async (snap, context) => {
+export const onDestinationRemoved = functions.firestore.document('/destinations/{id}').onDelete(async (snap, _context) => {
   return destinationIndex.deleteObject(snap.id)
 })
 
-export const onPointsCreated = functions.firestore.document('/points/{id}').onCreate(async (snap, context) => {
+export const onPointsCreated = functions.firestore.document('/points/{id}').onCreate(async (snap, _context) => {
   const id = snap.id
 
   return uploadGPXIfNeeded(id, snap)
 })
 
-export const onPointsUpdated = functions.firestore.document('/points/{id}').onUpdate(async (change, context) => {
+export const onPointsUpdated = functions.firestore.document('/points/{id}').onUpdate(async (change, _context) => {
   const id = change.after.id
 
   return uploadGPXIfNeeded(id, change.after)
@@ -955,7 +955,7 @@ exports.updateHeroImage = functions.https.onCall(async(data, context) => {
 })
 
 function toDataURL(url) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     request.get({ url, encoding: null }, async function(error, response, body) {
         if (!error && response.statusCode === 200) {
             // const resizedImage = await sharp(body)
@@ -1025,7 +1025,7 @@ const uploadPicture = async (base64: string, destinationId: string, bucket: any,
   })
 };
 
-exports.avyUpdate = functions.pubsub.schedule('every 4 hours').onRun(async (context) => {
+exports.avyUpdate = functions.pubsub.schedule('every 4 hours').onRun(async (_context) => {
   const url = `https://api.avalanche.org/v2/public/products/map-layer`
   const response = await request.get(url, {})
 
@@ -1036,7 +1036,7 @@ exports.avyUpdate = functions.pubsub.schedule('every 4 hours').onRun(async (cont
   }, {merge: true})
 });
 
-export const avyData = functions.https.onCall(async (data, context) => {
+export const avyData = functions.https.onCall(async (data, _context) => {
 
 
   const lat = data.lat
