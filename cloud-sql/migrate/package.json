@@ -1,0 +1,28 @@
+{
+  "name": "peaks-migrate",
+  "version": "1.0.0",
+  "description": "Firestore → PostGIS backfill migration",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "migrate": "tsx src/index.ts",
+    "migrate:destinations": "tsx src/index.ts --only destinations",
+    "migrate:lists": "tsx src/index.ts --only lists",
+    "migrate:routes": "tsx src/index.ts --only routes",
+    "migrate:sessions": "tsx src/index.ts --only sessions",
+    "migrate:points": "tsx src/index.ts --only points",
+    "import:cai-huts": "tsx src/import-cai-huts.ts",
+    "normalize:search-names": "tsx src/normalize-search-names.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3"
+  },
+  "private": true
+}

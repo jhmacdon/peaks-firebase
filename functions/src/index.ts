@@ -976,6 +976,48 @@ export const avyData = onCall(async (request) => {
   return {}
 })
 
+// Admin claims management
+export const setAdminClaim = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('failed-precondition', 'Must be authenticated.')
+  }
+
+  // Only existing admins can grant admin
+  const callerClaims = request.auth.token
+  if (!callerClaims.admin) {
+    throw new HttpsError('permission-denied', 'Only admins can grant admin access.')
+  }
+
+  const targetUid = request.data.uid as string
+  if (!targetUid) {
+    throw new HttpsError('invalid-argument', 'uid is required.')
+  }
+
+  await admin.auth().setCustomUserClaims(targetUid, { admin: true })
+  return { success: true }
+})
+
+// Bootstrap: set admin claim via CLI (run once, then remove or guard)
+// Usage: firebase functions:shell → setInitialAdmin({ uid: "YOUR_UID" })
+export const setInitialAdmin = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('failed-precondition', 'Must be authenticated.')
+  }
+
+  const targetUid = request.data.uid as string
+  if (!targetUid) {
+    throw new HttpsError('invalid-argument', 'uid is required.')
+  }
+
+  // Safety: only allow setting yourself as admin
+  if (request.auth.uid !== targetUid) {
+    throw new HttpsError('permission-denied', 'Can only bootstrap yourself as admin.')
+  }
+
+  await admin.auth().setCustomUserClaims(targetUid, { admin: true })
+  return { success: true }
+})
+
 exports.friends = require('./friends')
 
 const stravaImport = require('./strava')
