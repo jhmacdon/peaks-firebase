@@ -7,13 +7,23 @@
 - `firebase.json` — Firebase project configuration
 
 ## Build & Lint
-After making changes to functions, always verify:
+After making changes, always verify the affected project compiles and lints cleanly before finishing:
+
+**Functions:**
 ```bash
 cd functions && npm run build && npm run lint
 ```
 - **Build**: `npm run build` (runs `tsc`)
 - **Lint**: `npm run lint` (runs `eslint --ext .js,.ts .`)
 - Lint must pass with zero errors. Warnings for unused `context` params in Firebase function signatures are acceptable.
+
+**Web:**
+```bash
+cd web && npm run build && npm run lint
+```
+- **Build**: `npm run build` (runs `next build`)
+- **Lint**: `npm run lint` (runs `eslint`)
+- Both must pass with zero errors before considering work complete. Pre-existing warnings (e.g. `<img>` vs `<Image />`) are acceptable.
 
 ## Deployment
 - **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — deploys on push to `main`
