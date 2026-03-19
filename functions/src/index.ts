@@ -35,6 +35,7 @@ const ALGOLIA_APP_ID = defineSecret('ALGOLIA_APP_ID')
 const ALGOLIA_API_KEY = defineSecret('ALGOLIA_API_KEY')
 // const REVENUECAT_WEBHOOK_KEY = defineSecret('REVENUECAT_WEBHOOK_KEY')
 const APPLE_IAP_SECRET = defineSecret('APPLE_IAP_SECRET')
+const SLACK_WEBHOOK_URL = defineSecret('SLACK_WEBHOOK_URL')
 
 const firestore = firebase.firestore
 
@@ -1017,6 +1018,107 @@ export const setInitialAdmin = onCall(async (request) => {
   await admin.auth().setCustomUserClaims(targetUid, { admin: true })
   return { success: true }
 })
+
+// ---------------------------------------------------------------------------
+// Slack notifications
+// ---------------------------------------------------------------------------
+
+async function sendSlackNotification(text: string) {
+  const url = SLACK_WEBHOOK_URL.value()
+  if (!url) return
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+  } catch (err) {
+    console.error('Slack notification failed:', err)
+  }
+}
+
+export const onNewUser = onDocumentCreated(
+  { document: '/users/{userId}', secrets: [SLACK_WEBHOOK_URL] },
+  async (event) => {
+    const snap = event.data
+    if (!snap) return
+    const user = snap.data()
+    const name = user.name || 'Unknown'
+    const email = user.email || ''
+    await sendSlackNotification(`👤 *New user:* ${name} (${email})`)
+  }
+)
+
+export const onNewSessionNotify = onDocumentCreated(
+  { document: '/sessions/{sessionId}', secrets: [SLACK_WEBHOOK_URL] },
+  async (event) => {
+    const snap = event.data
+    if (!snap) return
+    const session = snap.data()
+    const userId = session.userId || 'unknown'
+
+    // Look up user name
+    let userName = userId
+    try {
+      const userDoc = await firestore.collection('users').doc(userId).get()
+      if (userDoc.exists) {
+        const userData = userDoc.data()
+        userName = userData?.name || userId
+      }
+    } catch { /* fallback to userId */ }
+
+    // Build destination list
+    const destinations: string[] = []
+    const reached = session.destinationsReached || []
+    for (const destId of reached.slice(0, 5)) {
+      try {
+        const destDoc = await firestore.collection('destinations').doc(destId).get()
+        if (destDoc.exists) {
+          destinations.push(destDoc.data()?.name || destId)
+        }
+      } catch { /* skip */ }
+    }
+
+    const destText = destinations.length > 0
+      ? `\nPeaks: ${destinations.join(', ')}`
+      : ''
+    const distance = session.overview?.distance
+      ? ` • ${(session.overview.distance / 1609.34).toFixed(1)} mi`
+      : ''
+    const gain = session.overview?.gain
+      ? ` • ${Math.round(session.overview.gain * 3.28084).toLocaleString()} ft gain`
+      : ''
+
+    await sendSlackNotification(
+      `🥾 *New session* by ${userName}${distance}${gain}${destText}`
+    )
+  }
+)
+
+export const onNewPlan = onDocumentCreated(
+  { document: '/plans/{planId}', secrets: [SLACK_WEBHOOK_URL] },
+  async (event) => {
+    const snap = event.data
+    if (!snap) return
+    const plan = snap.data()
+    const userId = plan.userId || 'unknown'
+
+    let userName = userId
+    try {
+      const userDoc = await firestore.collection('users').doc(userId).get()
+      if (userDoc.exists) {
+        const userData = userDoc.data()
+        userName = userData?.name || userId
+      }
+    } catch { /* fallback to userId */ }
+
+    const name = plan.name || 'Untitled'
+    const destCount = (plan.destinations || []).length
+    await sendSlackNotification(
+      `📋 *New plan:* "${name}" by ${userName} (${destCount} destination${destCount !== 1 ? 's' : ''})`
+    )
+  }
+)
 
 exports.friends = require('./friends')
 
