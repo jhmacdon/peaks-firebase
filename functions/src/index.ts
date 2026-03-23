@@ -521,8 +521,16 @@ export async function getStravaAccessToken(stravaBlock: any, userId: string): Pr
     return accessToken
   }
 
-  const url = `https://www.strava.com/oauth/token?client_id=${STRAVA_CLIENT.value()}&client_secret=${STRAVA_SECRET.value()}&refresh_token=${refreshToken}&grant_type=refresh_token`
-  const fetchResp = await fetch(url, {method: 'POST'})
+  const fetchResp = await fetch("https://www.strava.com/oauth/token", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: new URLSearchParams({
+      client_id: STRAVA_CLIENT.value(),
+      client_secret: STRAVA_SECRET.value(),
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }).toString(),
+  })
   if (!fetchResp.ok) throw new Error(`Strava token refresh failed: ${fetchResp.status}`)
   const response = await fetchResp.text()
 
@@ -536,9 +544,11 @@ export async function getStravaAccessToken(stravaBlock: any, userId: string): Pr
   const stravaResponse: StravaResponse = JSON.parse(response)
 
   const userRef: DocumentReference = firestore.collection("users").doc(userId)
-  await userRef.set({
-    strava: stravaResponse
-  }, {merge: true})
+  await userRef.update({
+    "strava.access_token": stravaResponse.access_token,
+    "strava.refresh_token": stravaResponse.refresh_token,
+    "strava.expires_at": stravaResponse.expires_at,
+  })
   return stravaResponse.access_token
 }
 
@@ -657,8 +667,16 @@ export const exchange_token = onRequest({
   secrets: [STRAVA_CLIENT, STRAVA_SECRET]
 }, async (req, res) => {
   const peaksCode = req.query.peaksCode as string
-  const url = `https://www.strava.com/oauth/token?client_id=${STRAVA_CLIENT.value()}&client_secret=${STRAVA_SECRET.value()}&code=${req.query.code}&grant_type=authorization_code`
-  const fetchResp = await fetch(url, {method: 'POST'})
+  const fetchResp = await fetch("https://www.strava.com/oauth/token", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: new URLSearchParams({
+      client_id: STRAVA_CLIENT.value(),
+      client_secret: STRAVA_SECRET.value(),
+      code: req.query.code as string,
+      grant_type: "authorization_code",
+    }).toString(),
+  })
   if (!fetchResp.ok) throw new Error(`Strava OAuth exchange failed: ${fetchResp.status}`)
   const response = await fetchResp.text()
 
