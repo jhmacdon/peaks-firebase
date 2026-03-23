@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { getUid } from "../auth";
 import db from "../db";
 import { processSession } from "../processing";
+import { notifySessionProcessed } from "../slack";
 
 const router = Router();
 
@@ -174,6 +175,8 @@ router.post("/:id/process", async (req, res: Response) => {
 
   try {
     const result = await processSession(id, uid);
+    notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)
+      .catch((err) => console.error("Slack notify failed:", err));
     res.json(result);
   } catch (err) {
     console.error("Error processing session:", err);
@@ -505,9 +508,13 @@ router.post("/:id/points", async (req, res: Response) => {
 
     // Auto-trigger processing (fire-and-forget) if session is ended
     if (session.rows[0].ended) {
-      processSession(id, uid).catch((err) =>
-        console.error("Auto-processing failed for session", id, err)
-      );
+      processSession(id, uid)
+        .then((result) =>
+          notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)
+        )
+        .catch((err) =>
+          console.error("Auto-processing failed for session", id, err)
+        );
     }
   } catch (err) {
     await client.query("ROLLBACK");
