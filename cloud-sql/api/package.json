@@ -15,15 +15,17 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "pg": "^8.13.0",
-    "firebase-admin": "^13.0.0"
+    "firebase-admin": "^13.0.0",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^20.0.0",
     "@types/pg": "^8.11.0",
+    "eslint": "^9.39.4",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.57.2"
   },
   "private": true
 }

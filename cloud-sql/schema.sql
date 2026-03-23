@@ -172,6 +172,18 @@ CREATE TABLE route_destinations (
 );
 
 -- ---------------------------------------------------------------------------
+-- session_groups
+-- Groups repeated attempts of the same climb/route by a user.
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_groups (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    name            TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
 -- tracking_sessions
 -- A recorded activity (hike, climb, ski tour).
 -- Health data stored as JSONB since it's variable-length time series.
@@ -202,6 +214,10 @@ CREATE TABLE tracking_sessions (
 
     -- health metrics time series
     health_data     JSONB,             -- { calories: [{date, calories}], heartRates: [{date, heartRate}] }
+
+    -- processing
+    group_id        TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
+    processed_at    TIMESTAMPTZ,
 
     -- status flags
     ended           BOOLEAN NOT NULL DEFAULT FALSE,
@@ -244,6 +260,7 @@ CREATE TABLE session_destinations (
     session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
     destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
     relation        session_destination_relation NOT NULL,  -- 'reached' or 'goal'
+    source          TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto')),
     PRIMARY KEY (session_id, destination_id)
 );
 
@@ -254,6 +271,8 @@ CREATE TABLE session_destinations (
 CREATE TABLE session_routes (
     session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
     route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    source          TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto')),
+    coverage        DOUBLE PRECISION,
     PRIMARY KEY (session_id, route_id)
 );
 
@@ -294,7 +313,9 @@ CREATE INDEX idx_destinations_type          ON destinations (type);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
 
+CREATE INDEX idx_session_groups_user_id     ON session_groups (user_id);
 CREATE INDEX idx_tracking_sessions_user_id  ON tracking_sessions (user_id, start_time DESC);
+CREATE INDEX idx_tracking_sessions_group    ON tracking_sessions (group_id) WHERE group_id IS NOT NULL;
 CREATE INDEX idx_tracking_sessions_dedup    ON tracking_sessions (source, external_id)
     WHERE source IS NOT NULL AND external_id IS NOT NULL;
 
@@ -321,6 +342,7 @@ CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       F
 CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- =============================================================================
 -- Example Queries (reference, not executed)

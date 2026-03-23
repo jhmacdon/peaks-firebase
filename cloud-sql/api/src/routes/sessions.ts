@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { getUid } from "../auth";
 import db from "../db";
+import { processSession } from "../processing";
 
 const router = Router();
 
@@ -144,6 +145,75 @@ router.get("/:id/markers", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
+});
+
+// POST /api/sessions/:id/process — trigger server-side session processing
+router.post("/:id/process", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  // Verify ownership
+  const session = await db.query(
+    `SELECT id, ended FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (session.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  // Verify session has tracking points
+  const pointCount = await db.query(
+    `SELECT COUNT(*) AS cnt FROM tracking_points WHERE session_id = $1`,
+    [id]
+  );
+  if (parseInt(pointCount.rows[0].cnt) === 0) {
+    res.status(400).json({ error: "Session has no tracking points" });
+    return;
+  }
+
+  try {
+    const result = await processSession(id, uid);
+    res.json(result);
+  } catch (err) {
+    console.error("Error processing session:", err);
+    res.status(500).json({ error: "Failed to process session" });
+  }
+});
+
+// GET /api/sessions/:id/group — get previous attempts (group members)
+router.get("/:id/group", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  // Get session's group_id
+  const session = await db.query(
+    `SELECT group_id FROM tracking_sessions
+     WHERE id = $1 AND (user_id = $2 OR is_public = true)`,
+    [id, uid]
+  );
+  if (session.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const groupId = session.rows[0].group_id;
+  if (!groupId) {
+    res.json({ group_id: null, sessions: [] });
+    return;
+  }
+
+  const result = await db.query(
+    `SELECT id, name, start_time, end_time,
+            distance, total_time, gain, highest_point,
+            activity_type, created_at
+     FROM tracking_sessions
+     WHERE group_id = $1
+     ORDER BY start_time DESC`,
+    [groupId]
+  );
+
+  res.json({ group_id: groupId, sessions: result.rows });
 });
 
 // GET /api/sessions/dedup — check if session already imported
@@ -394,7 +464,7 @@ router.post("/:id/points", async (req, res: Response) => {
 
   // Verify ownership
   const session = await db.query(
-    `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    `SELECT id, ended FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
     [id, uid]
   );
   if (session.rows.length === 0) {
@@ -432,6 +502,13 @@ router.post("/:id/points", async (req, res: Response) => {
 
     await client.query("COMMIT");
     res.status(201).json({ inserted: points.length });
+
+    // Auto-trigger processing (fire-and-forget) if session is ended
+    if (session.rows[0].ended) {
+      processSession(id, uid).catch((err) =>
+        console.error("Auto-processing failed for session", id, err)
+      );
+    }
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error inserting points:", err);
