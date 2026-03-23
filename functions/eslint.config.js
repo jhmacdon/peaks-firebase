@@ -3,7 +3,7 @@ const importX = require("eslint-plugin-import-x");
 
 module.exports = tseslint.config(
   {
-    ignores: ["lib/**/*", "generated/**/*", "eslint.config.js"],
+    ignores: ["lib/**/*", "generated/**/*", "eslint.config.js", "jest.config.js"],
   },
   ...tseslint.configs.recommended,
   {

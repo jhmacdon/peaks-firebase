@@ -8,6 +8,51 @@ const firestore = admin.firestore();
 const STRAVA_CLIENT = defineSecret("STRAVA_CLIENT");
 const STRAVA_SECRET = defineSecret("STRAVA_SECRET");
 
+export interface StravaTokenResult {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+}
+
+/**
+ * Refresh a Strava access token using the refresh token.
+ * Extracted for testability — no Firebase dependencies.
+ */
+export async function refreshStravaToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string,
+  fetchFn: typeof fetch = fetch
+): Promise<StravaTokenResult> {
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+
+  const resp = await fetchFn("https://www.strava.com/oauth/token", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: body.toString(),
+  });
+
+  const respBody = await resp.text();
+
+  if (!resp.ok) {
+    throw new Error(
+      `Strava token refresh failed: ${resp.status} — ${respBody}`
+    );
+  }
+
+  const data = JSON.parse(respBody);
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: data.expires_at,
+  };
+}
+
 /**
  * Callable: returns a valid Strava access token for the authenticated user.
  * Called by iOS StravaImportAdapter.
@@ -42,18 +87,11 @@ exports.getStravaToken = onCall({
 
   // Token expired — refresh it
   try {
-    const fetchResp = await fetch("https://www.strava.com/oauth/token", {
-      method: "POST",
-      headers: {"Content-Type": "application/x-www-form-urlencoded"},
-      body: new URLSearchParams({
-        client_id: STRAVA_CLIENT.value(),
-        client_secret: STRAVA_SECRET.value(),
-        refresh_token: strava.refresh_token,
-        grant_type: "refresh_token",
-      }).toString(),
-    });
-    if (!fetchResp.ok) throw new Error(`Strava token refresh failed: ${fetchResp.status}`);
-    const tokenData = JSON.parse(await fetchResp.text());
+    const tokenData = await refreshStravaToken(
+      STRAVA_CLIENT.value(),
+      STRAVA_SECRET.value(),
+      strava.refresh_token
+    );
 
     await firestore.collection("users").doc(userId).update({
       "strava.access_token": tokenData.access_token,

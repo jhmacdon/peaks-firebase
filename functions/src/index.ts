@@ -521,35 +521,20 @@ export async function getStravaAccessToken(stravaBlock: any, userId: string): Pr
     return accessToken
   }
 
-  const fetchResp = await fetch("https://www.strava.com/oauth/token", {
-    method: "POST",
-    headers: {"Content-Type": "application/x-www-form-urlencoded"},
-    body: new URLSearchParams({
-      client_id: STRAVA_CLIENT.value(),
-      client_secret: STRAVA_SECRET.value(),
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }).toString(),
-  })
-  if (!fetchResp.ok) throw new Error(`Strava token refresh failed: ${fetchResp.status}`)
-  const response = await fetchResp.text()
-
-  interface StravaResponse {
-    expires_at: number,
-    expires_in: number,
-    refresh_token: string,
-    access_token: string,
-  }
-
-  const stravaResponse: StravaResponse = JSON.parse(response)
+  const { refreshStravaToken } = require("./strava")
+  const tokenData = await refreshStravaToken(
+    STRAVA_CLIENT.value(),
+    STRAVA_SECRET.value(),
+    refreshToken
+  )
 
   const userRef: DocumentReference = firestore.collection("users").doc(userId)
   await userRef.update({
-    "strava.access_token": stravaResponse.access_token,
-    "strava.refresh_token": stravaResponse.refresh_token,
-    "strava.expires_at": stravaResponse.expires_at,
+    "strava.access_token": tokenData.access_token,
+    "strava.refresh_token": tokenData.refresh_token,
+    "strava.expires_at": tokenData.expires_at,
   })
-  return stravaResponse.access_token
+  return tokenData.access_token
 }
 
 export async function getPlan(id: string): Promise<DocumentSnapshot> {
@@ -677,8 +662,8 @@ export const exchange_token = onRequest({
       grant_type: "authorization_code",
     }).toString(),
   })
-  if (!fetchResp.ok) throw new Error(`Strava OAuth exchange failed: ${fetchResp.status}`)
   const response = await fetchResp.text()
+  if (!fetchResp.ok) throw new Error(`Strava OAuth exchange failed: ${fetchResp.status} — ${response}`)
 
 
 
@@ -1041,6 +1026,10 @@ export const setInitialAdmin = onCall(async (request) => {
 // Slack notifications
 // ---------------------------------------------------------------------------
 
+const SLACK_IGNORE_USERS = new Set([
+  'QzmvJRt5E5eTV4fAsuyLDrc4PEq1',
+])
+
 async function sendSlackNotification(text: string) {
   const url = SLACK_WEBHOOK_URL.value()
   if (!url) return
@@ -1074,6 +1063,7 @@ export const onNewSessionNotify = onDocumentCreated(
     if (!snap) return
     const session = snap.data()
     const userId = session.userId || 'unknown'
+    if (SLACK_IGNORE_USERS.has(userId)) return
 
     // Look up user name
     let userName = userId
@@ -1120,6 +1110,7 @@ export const onNewPlan = onDocumentCreated(
     if (!snap) return
     const plan = snap.data()
     const userId = plan.userId || 'unknown'
+    if (SLACK_IGNORE_USERS.has(userId)) return
 
     let userName = userId
     try {
