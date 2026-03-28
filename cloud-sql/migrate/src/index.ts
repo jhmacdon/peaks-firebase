@@ -3,6 +3,7 @@ import { migrateLists } from "./migrate-lists";
 import { migrateRoutes } from "./migrate-routes";
 import { migrateSessions } from "./migrate-sessions";
 import { migratePoints } from "./migrate-points";
+import { migratePlans } from "./migrate-plans";
 import db from "./db";
 
 /**
@@ -52,6 +53,11 @@ async function main() {
 
     if (!only || only === "points") {
       await migratePoints();
+      console.log();
+    }
+
+    if (!only || only === "plans") {
+      await migratePlans();
       console.log();
     }
 

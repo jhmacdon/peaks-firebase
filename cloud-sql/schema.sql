@@ -172,6 +172,54 @@ CREATE TABLE route_destinations (
 );
 
 -- ---------------------------------------------------------------------------
+-- plans
+-- Trip plans with destinations, routes, and party members.
+-- ---------------------------------------------------------------------------
+CREATE TABLE plans (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    description     TEXT,
+    date            TIMESTAMPTZ,
+
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
+-- plan_destinations
+-- Join table: which destinations are included in a plan.
+-- ---------------------------------------------------------------------------
+CREATE TABLE plan_destinations (
+    plan_id         TEXT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (plan_id, destination_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- plan_routes
+-- Join table: which routes are included in a plan.
+-- ---------------------------------------------------------------------------
+CREATE TABLE plan_routes (
+    plan_id         TEXT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (plan_id, route_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- plan_party
+-- Join table: party members (friends invited to the plan).
+-- ---------------------------------------------------------------------------
+CREATE TABLE plan_party (
+    plan_id         TEXT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    user_id         TEXT NOT NULL,
+    joined_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (plan_id, user_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- session_groups
 -- Groups repeated attempts of the same climb/route by a user.
 -- ---------------------------------------------------------------------------
@@ -313,6 +361,11 @@ CREATE INDEX idx_destinations_type          ON destinations (type);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
 
+CREATE INDEX idx_plans_user_id              ON plans (user_id, updated_at DESC);
+CREATE INDEX idx_plan_destinations_dest     ON plan_destinations (destination_id);
+CREATE INDEX idx_plan_routes_route          ON plan_routes (route_id);
+CREATE INDEX idx_plan_party_user            ON plan_party (user_id);
+
 CREATE INDEX idx_session_groups_user_id     ON session_groups (user_id);
 CREATE INDEX idx_tracking_sessions_user_id  ON tracking_sessions (user_id, start_time DESC);
 CREATE INDEX idx_tracking_sessions_group    ON tracking_sessions (group_id) WHERE group_id IS NOT NULL;
@@ -338,6 +391,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER trg_plans_updated           BEFORE UPDATE ON plans               FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();

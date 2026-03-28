@@ -109,7 +109,7 @@ router.get("/:id/destinations", async (req, res: Response) => {
     `SELECT d.id, d.name, d.elevation, d.features,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
-            sd.relation
+            sd.relation, sd.source
      FROM destinations d
      JOIN session_destinations sd ON sd.destination_id = d.id
      WHERE sd.session_id = $1`,
@@ -123,7 +123,8 @@ router.get("/:id/routes", async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6,
-            r.distance, r.gain, r.gain_loss
+            r.distance, r.gain, r.gain_loss,
+            sr.source, sr.coverage
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
      WHERE sr.session_id = $1`,

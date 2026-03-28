@@ -4,6 +4,7 @@ import destinations from "./routes/destinations";
 import routes from "./routes/routes";
 import sessions from "./routes/sessions";
 import lists from "./routes/lists";
+import plans from "./routes/plans";
 import search from "./routes/search";
 
 const app = express();
@@ -21,6 +22,7 @@ app.use("/api/destinations", destinations);
 app.use("/api/routes", routes);
 app.use("/api/sessions", sessions);
 app.use("/api/lists", lists);
+app.use("/api/plans", plans);
 app.use("/api/search", search);
 
 const port = parseInt(process.env.PORT || "8080");
