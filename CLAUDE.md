@@ -27,9 +27,15 @@ cd web && npm run build && npm run lint
 
 ## Deployment
 - **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — deploys on push to `main`
+  - `deploy-functions` job: builds + deploys Cloud Functions and Firestore rules
+  - `deploy-api` job: builds + deploys Cloud Run API (`cloud-sql/api`) via multi-stage Dockerfile
 - Deploy uses `--force` to auto-delete stale functions removed from source
 - Service account credentials: stored as `FIREBASE_SERVICE_ACCOUNT` GitHub secret
 - `firebase.ts` uses application default credentials in CI (falls back when `admin-service-account.json` is absent)
+
+**After every `git push`**: monitor the triggered workflow run with `gh run list --limit 1` and `gh run watch <id>`. If a job fails, check logs with `gh run view <id> --log-failed`, fix the issue, and push again. Do not consider a push complete until CI is green.
+
+**Cloud Run secrets/env vars**: All required env vars and secrets for the Cloud Run API are pinned in `deploy.yml`. **NEVER use `gcloud run services update --set-secrets` or `--set-env-vars`** — these flags REPLACE all existing values, silently dropping any not listed. Instead, update the `env_vars` and `secrets` fields in `deploy.yml` and redeploy via CI. The post-deploy verification step will catch DB connectivity failures.
 
 ## Key Details
 - Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11

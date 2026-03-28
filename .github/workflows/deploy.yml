@@ -70,3 +70,34 @@ jobs:
           service: peaks-api
           region: us-central1
           source: cloud-sql/api
+          # Pin all required env vars and secrets so deploys can never drop them
+          env_vars: |
+            INSTANCE_CONNECTION_NAME=donner-a8608:us-central1:peaks-db
+            DB_NAME=peaks
+            DB_USER=peaks-api
+          secrets: |
+            DB_PASS=peaks-db-password:latest
+            SLACK_WEBHOOK_URL=SLACK_WEBHOOK_URL:latest
+
+      - name: Verify deployment
+        run: |
+          URL=$(gcloud run services describe peaks-api --region=us-central1 --format="value(status.url)")
+          echo "Service URL: $URL"
+
+          # Health check
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Health check failed with HTTP $STATUS"
+            exit 1
+          fi
+          echo "Health check passed"
+
+          # Database connectivity check — /api/* requires auth so a 401 means
+          # the app booted and connected to the DB. A 503 means DB is unreachable.
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/lists")
+          if [ "$STATUS" = "503" ]; then
+            echo "::error::Database connectivity check failed — got 503 (service crash, likely missing DB_PASS)"
+            gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="peaks-api" AND severity>=ERROR' --limit=5 --format="table(timestamp, textPayload)"
+            exit 1
+          fi
+          echo "Database connectivity check passed (HTTP $STATUS)"
