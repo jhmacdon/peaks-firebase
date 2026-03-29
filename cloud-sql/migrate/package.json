@@ -13,11 +13,13 @@
     "migrate:points": "tsx src/index.ts --only points",
     "import:cai-huts": "tsx src/import-cai-huts.ts",
     "migrate:plans": "tsx src/index.ts --only plans",
-    "normalize:search-names": "tsx src/normalize-search-names.ts"
+    "normalize:search-names": "tsx src/normalize-search-names.ts",
+    "backfill:elevations": "tsx src/backfill-elevations.ts"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

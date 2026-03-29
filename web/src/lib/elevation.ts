@@ -122,30 +122,104 @@ export async function fetchElevations(points: LatLng[]): Promise<number[]> {
 }
 
 /**
- * Compute elevation stats from an elevation profile.
+ * Smooth an elevation profile to remove DEM sampling noise.
+ *
+ * Uses a two-pass approach:
+ *   1. Exponential moving average (EMA) with configurable alpha — dampens
+ *      high-frequency noise while preserving real terrain features.
+ *   2. Preserves first and last elevations exactly (trail start/end are anchors).
+ *
+ * Alpha controls responsiveness: lower = smoother (0.3 works well for ~10m DEM
+ * at hiking-trail point densities of 10–50m spacing).
  */
-export function computeElevationStats(elevations: number[]): {
+export function smoothElevations(elevations: number[], alpha = 0.3): number[] {
+  if (elevations.length <= 2) return [...elevations];
+
+  const smoothed = new Array<number>(elevations.length);
+  smoothed[0] = elevations[0];
+
+  // Forward pass
+  for (let i = 1; i < elevations.length; i++) {
+    smoothed[i] = alpha * elevations[i] + (1 - alpha) * smoothed[i - 1];
+  }
+
+  // Backward pass (bidirectional EMA removes phase lag)
+  const backward = new Array<number>(elevations.length);
+  backward[elevations.length - 1] = elevations[elevations.length - 1];
+  for (let i = elevations.length - 2; i >= 0; i--) {
+    backward[i] = alpha * smoothed[i] + (1 - alpha) * backward[i + 1];
+  }
+
+  // Preserve endpoints exactly
+  backward[0] = elevations[0];
+  backward[elevations.length - 1] = elevations[elevations.length - 1];
+
+  return backward;
+}
+
+/**
+ * Compute elevation stats from an elevation profile.
+ *
+ * Applies smoothing and a dead-band threshold to avoid overcounting gain/loss
+ * from DEM noise and simplified-line artifacts. The threshold ignores
+ * accumulated elevation changes smaller than the given value before counting
+ * them as real gain or loss — this is the same approach used by GPS devices
+ * and hiking apps (typically 3–5m for ~10m DEM resolution).
+ *
+ * @param elevations Raw elevation values in meters
+ * @param options.smooth Apply EMA smoothing (default true)
+ * @param options.threshold Dead-band threshold in meters (default 4)
+ */
+export function computeElevationStats(
+  elevations: number[],
+  options?: { smooth?: boolean; threshold?: number }
+): {
   gain: number;
   loss: number;
   min: number;
   max: number;
 } {
+  if (elevations.length === 0) {
+    return { gain: 0, loss: 0, min: 0, max: 0 };
+  }
+
+  const doSmooth = options?.smooth ?? true;
+  const threshold = options?.threshold ?? 4;
+
+  const profile = doSmooth ? smoothElevations(elevations) : elevations;
+
   let gain = 0;
   let loss = 0;
   let min = Infinity;
   let max = -Infinity;
 
-  for (let i = 0; i < elevations.length; i++) {
-    const e = elevations[i];
+  // Dead-band accumulator: track pending elevation change and only commit
+  // it once it exceeds the threshold. This filters out noise where the
+  // DEM oscillates within a small range.
+  let pending = 0;
+
+  for (let i = 0; i < profile.length; i++) {
+    const e = profile[i];
     if (e < min) min = e;
     if (e > max) max = e;
 
     if (i > 0) {
-      const diff = e - elevations[i - 1];
-      if (diff > 0) gain += diff;
-      else loss += Math.abs(diff);
+      const diff = e - profile[i - 1];
+      // Same direction as pending — accumulate
+      if ((pending >= 0 && diff >= 0) || (pending <= 0 && diff <= 0)) {
+        pending += diff;
+      } else {
+        // Direction changed — commit pending if it exceeds threshold
+        if (pending > threshold) gain += pending;
+        else if (pending < -threshold) loss += Math.abs(pending);
+        pending = diff;
+      }
     }
   }
+
+  // Commit final pending
+  if (pending > threshold) gain += pending;
+  else if (pending < -threshold) loss += Math.abs(pending);
 
   return {
     gain: Math.round(gain * 10) / 10,
