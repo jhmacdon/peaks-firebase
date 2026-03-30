@@ -12,7 +12,6 @@ import {
   getRouteSegments,
   getRouteSessionCount,
   updateRoute,
-  acceptRoute,
   rejectRoute,
   analyzePendingRoute,
   acceptRouteWithSegments,
@@ -64,6 +63,18 @@ function RouteDetailContent() {
       if (r) {
         setEditName(r.name || "");
         setEditCompletion(r.completion);
+
+        // Auto-analyze pending routes
+        if (r.status === "pending") {
+          setReviewAction("analyzing");
+          try {
+            const result = await analyzePendingRoute(id);
+            setDecomposition(result.decomposition);
+          } catch (err) {
+            console.error("Segment analysis failed:", err);
+          }
+          setReviewAction(null);
+        }
       }
       setLoading(false);
     }
@@ -80,19 +91,7 @@ function RouteDetailContent() {
     setSaving(false);
   };
 
-  const handleAnalyze = async () => {
-    setReviewAction("analyzing");
-    try {
-      const result = await analyzePendingRoute(id);
-      setDecomposition(result.decomposition);
-    } catch (err) {
-      console.error("Segment analysis failed:", err);
-      alert("Segment analysis failed. You can still accept without dedup.");
-    }
-    setReviewAction(null);
-  };
-
-  const handleAcceptWithSegments = async () => {
+  const handleAccept = async () => {
     if (!decomposition) return;
     setReviewAction("accepting");
     await acceptRouteWithSegments(id, decomposition);
@@ -102,13 +101,6 @@ function RouteDetailContent() {
     // Reload segments to show the new decomposition
     const segs = await getRouteSegments(id);
     setSegments(segs);
-  };
-
-  const handleAcceptSimple = async () => {
-    setReviewAction("accepting");
-    await acceptRoute(id);
-    setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
-    setReviewAction(null);
   };
 
   const handleReject = async () => {
@@ -212,7 +204,11 @@ function RouteDetailContent() {
                     Pending Review
                   </div>
                   <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">
-                    Review the route details below, then accept or reject.
+                    {reviewAction === "analyzing"
+                      ? "Analyzing segments..."
+                      : decomposition
+                        ? "Review the segment analysis below, then accept or reject."
+                        : "Review the route details below."}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0 ml-4">
@@ -223,33 +219,17 @@ function RouteDetailContent() {
                   >
                     {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
                   </button>
-                  {!decomposition ? (
-                    <>
-                      <button
-                        onClick={handleAnalyze}
-                        disabled={reviewAction !== null}
-                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        {reviewAction === "analyzing" ? "Analyzing..." : "Analyze Segments"}
-                      </button>
-                      <button
-                        onClick={handleAcceptSimple}
-                        disabled={reviewAction !== null}
-                        className="px-4 py-2 text-sm border border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 disabled:opacity-50 transition-colors"
-                        title="Accept without segment deduplication"
-                      >
-                        {reviewAction === "accepting" ? "Accepting..." : "Quick Accept"}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleAcceptWithSegments}
-                      disabled={reviewAction !== null}
-                      className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                    >
-                      {reviewAction === "accepting" ? "Accepting..." : "Accept with Segments"}
-                    </button>
-                  )}
+                  <button
+                    onClick={handleAccept}
+                    disabled={reviewAction !== null || !decomposition}
+                    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {reviewAction === "accepting"
+                      ? "Accepting..."
+                      : reviewAction === "analyzing"
+                        ? "Analyzing..."
+                        : "Accept Route"}
+                  </button>
                 </div>
               </div>
             </div>
