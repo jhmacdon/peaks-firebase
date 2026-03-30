@@ -54,7 +54,7 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
         FROM tracking_points WHERE session_id = $1
     )
     SELECT r.id FROM routes r, session_track st
-    WHERE ST_DWithin(r.path, st.track, 100)`,
+    WHERE ST_DWithin(r.path, st.track, 100) AND r.status = 'active'`,
     [sessionId]
   );
 

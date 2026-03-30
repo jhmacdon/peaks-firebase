@@ -127,7 +127,7 @@ router.get("/:id/routes", async (req, res: Response) => {
             sr.source, sr.coverage
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
-     WHERE sr.session_id = $1`,
+     WHERE sr.session_id = $1 AND r.status = 'active'`,
     [id]
   );
   res.json(result.rows);

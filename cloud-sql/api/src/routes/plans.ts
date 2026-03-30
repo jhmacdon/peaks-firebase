@@ -72,7 +72,7 @@ router.get("/:id/routes", async (req, res: Response) => {
             pr.ordinal
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
-     WHERE pr.plan_id = $1
+     WHERE pr.plan_id = $1 AND r.status = 'active'
      ORDER BY pr.ordinal`,
     [id]
   );

@@ -47,7 +47,7 @@ router.get("/:id/elevation", async (req, res: Response) => {
             ST_Y((dp).geom) AS lat,
             ST_Z((dp).geom) AS elevation
      FROM (SELECT ST_DumpPoints(path::geometry) AS dp
-           FROM routes WHERE id = $1) sub
+           FROM routes WHERE id = $1 AND status = 'active') sub
      ORDER BY vertex_index`,
     [id]
   );

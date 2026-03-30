@@ -91,7 +91,7 @@ router.get("/:id/routes", async (req, res: Response) => {
             r.external_links, r.completion
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id
-     WHERE rd.destination_id = $1
+     WHERE rd.destination_id = $1 AND r.status = 'active'
      ORDER BY r.name`,
     [id]
   );
