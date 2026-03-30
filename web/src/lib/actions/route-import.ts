@@ -9,7 +9,7 @@ import { normalizeSearchName } from "@/lib/search-utils";
 
 // ─── Validation constraints ────────────────────────────────────────────────
 
-const SUMMIT_REACH_RADIUS = 100;     // meters — route endpoint must be this close to a summit
+const SUMMIT_REACH_RADIUS = 250;     // meters — route endpoint must be this close to a summit
 const TRAILHEAD_RADIUS = 300;        // meters — route start must be this close to a trailhead/road
 const MIN_ROUTE_DISTANCE = 800;      // meters (~0.5 mi)
 const MIN_ROUTE_GAIN = 50;           // meters — must have meaningful elevation gain
