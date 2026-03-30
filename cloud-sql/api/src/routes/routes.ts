@@ -11,7 +11,7 @@ router.get("/:id", async (req, res: Response) => {
             r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.external_links, r.completion,
             r.created_at, r.updated_at
-     FROM routes r WHERE r.id = $1`,
+     FROM routes r WHERE r.id = $1 AND r.status = 'active'`,
     [id]
   );
   if (result.rows.length === 0) {
@@ -76,6 +76,7 @@ router.get("/near", async (req, res: Response) => {
             ST_Distance(path, ST_MakePoint($2, $1)::geography) AS distance_to_point
      FROM routes
      WHERE ST_DWithin(path, ST_MakePoint($2, $1)::geography, $3)
+       AND status = 'active'
      ORDER BY distance_to_point
      LIMIT $4`,
     [lat, lng, radius, limit]

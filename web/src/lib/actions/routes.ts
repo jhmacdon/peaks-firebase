@@ -14,6 +14,7 @@ export interface RouteRow {
   external_links: any[] | null;
   completion: string;
   shape: string | null;
+  status: string;
   destination_count: number;
   created_at: string;
   updated_at: string;
@@ -41,10 +42,16 @@ export interface RouteElevationPoint {
   elevation: number;
 }
 
-export async function getRoutes(search?: string, limit = 50, offset = 0): Promise<{ routes: RouteRow[]; total: number }> {
+export async function getRoutes(search?: string, limit = 50, offset = 0, status?: string): Promise<{ routes: RouteRow[]; total: number }> {
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIdx = 1;
+
+  if (status) {
+    conditions.push(`r.status = $${paramIdx}`);
+    params.push(status);
+    paramIdx++;
+  }
 
   if (search && search.trim()) {
     conditions.push(`r.name ILIKE $${paramIdx}`);
@@ -59,7 +66,7 @@ export async function getRoutes(search?: string, limit = 50, offset = 0): Promis
   const [result, countResult] = await Promise.all([
     db.query(
       `SELECT r.id, r.name, r.owner, r.distance, r.gain, r.gain_loss,
-              r.elevation_string, r.external_links, r.completion, r.shape,
+              r.elevation_string, r.external_links, r.completion, r.shape, r.status,
               (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
               r.created_at, r.updated_at
        FROM routes r
@@ -84,7 +91,7 @@ export async function getRoute(id: string): Promise<RouteDetail | null> {
   const result = await db.query(
     `SELECT r.id, r.name, r.owner, r.polyline6, r.geohashes,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion, r.shape,
+            r.external_links, r.completion, r.shape, r.status,
             (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
             r.created_at, r.updated_at
      FROM routes r
@@ -188,4 +195,56 @@ export async function updateRoute(
     `UPDATE routes SET ${sets.join(", ")} WHERE id = $${paramIdx}`,
     params
   );
+}
+
+/**
+ * Accept a pending route — sets status to 'active'.
+ */
+export async function acceptRoute(id: string): Promise<void> {
+  await db.query(
+    `UPDATE routes SET status = 'active' WHERE id = $1 AND status = 'pending'`,
+    [id]
+  );
+}
+
+/**
+ * Reject a pending route — deletes the route and its standalone segments.
+ * CASCADE handles route_segments, route_destinations.
+ */
+export async function rejectRoute(id: string): Promise<void> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Find segments that ONLY belong to this route (don't delete shared segments)
+    const orphanSegments = await client.query(
+      `SELECT s.id FROM segments s
+       JOIN route_segments rs ON rs.segment_id = s.id
+       WHERE rs.route_id = $1
+         AND (SELECT COUNT(*) FROM route_segments rs2 WHERE rs2.segment_id = s.id) = 1`,
+      [id]
+    );
+
+    // Delete the route (cascades to route_segments, route_destinations)
+    await client.query(`DELETE FROM routes WHERE id = $1`, [id]);
+
+    // Delete orphan segments
+    for (const seg of orphanSegments.rows) {
+      await client.query(`DELETE FROM segments WHERE id = $1`, [seg.id]);
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getPendingRouteCount(): Promise<number> {
+  const result = await db.query(
+    `SELECT COUNT(*)::int AS count FROM routes WHERE status = 'pending'`
+  );
+  return result.rows[0].count;
 }

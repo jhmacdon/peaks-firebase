@@ -142,6 +142,7 @@ CREATE TABLE routes (
 
     completion      completion_mode NOT NULL DEFAULT 'none',
     shape           route_shape,       -- out_and_back, loop, point_to_point, lollipop
+    status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active')),
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import AdminGuard from "@/components/admin-guard";
 import AdminNav from "@/components/admin-nav";
-import { getRoutes, type RouteRow } from "@/lib/actions/routes";
+import { getRoutes, getPendingRouteCount, type RouteRow } from "@/lib/actions/routes";
 
 export default function RoutesPage() {
   return (
@@ -17,37 +17,53 @@ export default function RoutesPage() {
 function RoutesContent() {
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"active" | "pending">("active");
   const pageSize = 50;
 
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
-    const result = await getRoutes(search, pageSize, page * pageSize);
+    const [result, pending] = await Promise.all([
+      getRoutes(search, pageSize, page * pageSize, tab),
+      getPendingRouteCount(),
+    ]);
     setRoutes(result.routes);
     setTotal(result.total);
+    setPendingCount(pending);
     setLoading(false);
-  }, [search, page]);
+  }, [search, page, tab]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const result = await getRoutes(search, pageSize, page * pageSize);
+      const [result, pending] = await Promise.all([
+        getRoutes(search, pageSize, page * pageSize, tab),
+        getPendingRouteCount(),
+      ]);
       if (!cancelled) {
         setRoutes(result.routes);
         setTotal(result.total);
+        setPendingCount(pending);
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [search, page]);
+  }, [search, page, tab]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
     fetchRoutes();
+  };
+
+  const handleTabChange = (newTab: "active" | "pending") => {
+    setTab(newTab);
+    setPage(0);
+    setSearch("");
   };
 
   return (
@@ -58,14 +74,51 @@ function RoutesContent() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-semibold">Routes</h2>
-            <p className="text-sm text-gray-500 mt-1">{total} total routes</p>
+            <p className="text-sm text-gray-500 mt-1">{total} {tab} routes</p>
           </div>
-          <Link
-            href="/admin/routes/new"
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          <div className="flex gap-2">
+            <Link
+              href="/admin/routes/import"
+              className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Import GPX
+            </Link>
+            <Link
+              href="/admin/routes/new"
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Create Route
+            </Link>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg w-fit">
+          <button
+            onClick={() => handleTabChange("active")}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
+              tab === "active"
+                ? "bg-white dark:bg-gray-800 font-medium shadow-sm"
+                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            }`}
           >
-            Create Route
-          </Link>
+            Active
+          </button>
+          <button
+            onClick={() => handleTabChange("pending")}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors flex items-center gap-2 ${
+              tab === "pending"
+                ? "bg-white dark:bg-gray-800 font-medium shadow-sm"
+                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            }`}
+          >
+            Pending Review
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                {pendingCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <form onSubmit={handleSearch} className="mb-6">
@@ -81,7 +134,9 @@ function RoutesContent() {
         {loading ? (
           <div className="text-gray-500 py-12 text-center">Loading...</div>
         ) : routes.length === 0 ? (
-          <div className="text-gray-500 py-12 text-center">No routes found</div>
+          <div className="text-gray-500 py-12 text-center">
+            {tab === "pending" ? "No routes pending review" : "No routes found"}
+          </div>
         ) : (
           <>
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -93,7 +148,9 @@ function RoutesContent() {
                     <th className="px-4 py-3 font-medium text-gray-500">Gain</th>
                     <th className="px-4 py-3 font-medium text-gray-500">Destinations</th>
                     <th className="px-4 py-3 font-medium text-gray-500">Owner</th>
-                    <th className="px-4 py-3 font-medium text-gray-500">Completion</th>
+                    <th className="px-4 py-3 font-medium text-gray-500">
+                      {tab === "pending" ? "Status" : "Completion"}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,8 +191,16 @@ function RoutesContent() {
                           {route.owner === "peaks" ? "Peaks" : "User"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400 capitalize">
-                        {route.completion}
+                      <td className="px-4 py-3">
+                        {tab === "pending" ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 dark:text-gray-400 capitalize">
+                            {route.completion}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

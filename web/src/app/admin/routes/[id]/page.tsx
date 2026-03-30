@@ -12,6 +12,8 @@ import {
   getRouteSegments,
   getRouteSessionCount,
   updateRoute,
+  acceptRoute,
+  rejectRoute,
   type RouteDetail,
   type RouteDestination,
   type RouteSegment,
@@ -41,6 +43,7 @@ function RouteDetailContent() {
   const [editName, setEditName] = useState("");
   const [editCompletion, setEditCompletion] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reviewAction, setReviewAction] = useState<"accepting" | "rejecting" | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -71,6 +74,20 @@ function RouteDetailContent() {
     );
     setEditing(false);
     setSaving(false);
+  };
+
+  const handleAccept = async () => {
+    setReviewAction("accepting");
+    await acceptRoute(id);
+    setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
+    setReviewAction(null);
+  };
+
+  const handleReject = async () => {
+    if (!confirm("Delete this pending route? This cannot be undone.")) return;
+    setReviewAction("rejecting");
+    await rejectRoute(id);
+    window.location.href = "/admin/routes";
   };
 
   if (loading) {
@@ -156,6 +173,36 @@ function RouteDetailContent() {
             )}
           </div>
         </div>
+
+        {/* Pending Review Banner */}
+        {route.status === "pending" && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center justify-between">
+            <div>
+              <div className="font-medium text-amber-800 dark:text-amber-200">
+                Pending Review
+              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">
+                This route was imported and needs review before it goes live.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0 ml-4">
+              <button
+                onClick={handleReject}
+                disabled={reviewAction !== null}
+                className="px-4 py-2 text-sm border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
+              >
+                {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
+              </button>
+              <button
+                onClick={handleAccept}
+                disabled={reviewAction !== null}
+                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {reviewAction === "accepting" ? "Accepting..." : "Accept Route"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
