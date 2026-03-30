@@ -242,6 +242,240 @@ export async function rejectRoute(id: string): Promise<void> {
   }
 }
 
+/**
+ * Analyze a pending route's segments against the existing segment graph.
+ * Returns the decomposition for admin review before accepting.
+ */
+export async function analyzePendingRoute(id: string): Promise<{
+  decomposition: import("./segment-matcher").RouteDecomposition;
+  points: import("@/lib/route-utils").TrackPoint[];
+}> {
+  // Get the route's points from its geometry
+  const pointsResult = await db.query(
+    `SELECT (dp).path[1] AS vertex_index,
+            ST_X((dp).geom) AS lng,
+            ST_Y((dp).geom) AS lat,
+            ST_Z((dp).geom) AS elevation
+     FROM (SELECT ST_DumpPoints(path::geometry) AS dp FROM routes WHERE id = $1) sub
+     ORDER BY vertex_index`,
+    [id]
+  );
+
+  if (pointsResult.rows.length < 2) {
+    throw new Error("Route has insufficient points");
+  }
+
+  const { haversineDistance } = await import("@/lib/gpx");
+
+  // Build TrackPoints with cumulative distance
+  const points: import("@/lib/route-utils").TrackPoint[] = [];
+  let cumDist = 0;
+  for (let i = 0; i < pointsResult.rows.length; i++) {
+    const row = pointsResult.rows[i];
+    if (i > 0) {
+      const prev = pointsResult.rows[i - 1];
+      cumDist += haversineDistance(
+        Number(prev.lat), Number(prev.lng),
+        Number(row.lat), Number(row.lng)
+      );
+    }
+    points.push({
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      ele: Number(row.elevation),
+      dist: Math.round(cumDist * 10) / 10,
+    });
+  }
+
+  const { analyzeRouteSegments } = await import("./segment-matcher");
+  const decomposition = await analyzeRouteSegments(points);
+
+  return { decomposition, points };
+}
+
+/**
+ * Accept a pending route with segment deduplication.
+ * Replaces the route's standalone segment with the analyzed decomposition,
+ * then sets status to 'active'.
+ */
+export async function acceptRouteWithSegments(
+  id: string,
+  decomposition: import("./segment-matcher").RouteDecomposition
+): Promise<void> {
+  const { haversineDistance, totalDistance } = await import("@/lib/gpx");
+  const { encodePolyline6, pointsToLineStringZ, generateId } = await import("@/lib/route-utils");
+  const { computeElevationStats } = await import("@/lib/elevation");
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Get existing route data
+    const routeResult = await client.query(
+      `SELECT name, shape, completion FROM routes WHERE id = $1 AND status = 'pending'`,
+      [id]
+    );
+    if (routeResult.rows.length === 0) {
+      throw new Error("Pending route not found");
+    }
+
+    // Find and delete the old standalone segments (only those used exclusively by this route)
+    const oldSegs = await client.query(
+      `SELECT s.id FROM segments s
+       JOIN route_segments rs ON rs.segment_id = s.id
+       WHERE rs.route_id = $1`,
+      [id]
+    );
+
+    // Clear old route_segments
+    await client.query(`DELETE FROM route_segments WHERE route_id = $1`, [id]);
+
+    // Delete orphan standalone segments
+    for (const seg of oldSegs.rows) {
+      const refCount = await client.query(
+        `SELECT COUNT(*)::int AS cnt FROM route_segments WHERE segment_id = $1`,
+        [seg.id]
+      );
+      if (refCount.rows[0].cnt === 0) {
+        await client.query(`DELETE FROM segments WHERE id = $1`, [seg.id]);
+      }
+    }
+
+    // Execute splits (same logic as saveRouteWithSegments)
+    const splitResults = new Map<string, string[]>();
+
+    for (const split of decomposition.splits) {
+      const segResult = await client.query(
+        `SELECT ST_AsGeoJSON(path::geometry) AS geojson, name FROM segments WHERE id = $1`,
+        [split.originalSegmentId]
+      );
+      if (segResult.rows.length === 0) continue;
+
+      const geo = JSON.parse(segResult.rows[0].geojson);
+      const origPoints = (geo.coordinates as number[][]).map(
+        (c: number[], i: number, arr: number[][]) => {
+          let d = 0;
+          if (i > 0) {
+            for (let j = 1; j <= i; j++) {
+              d += haversineDistance(arr[j-1][1], arr[j-1][0], arr[j][1], arr[j][0]);
+            }
+          }
+          return { lat: c[1], lng: c[0], ele: c[2] || 0, dist: d };
+        }
+      );
+
+      const totalDist = origPoints[origPoints.length - 1].dist;
+      const cuts = [0, ...split.fractions, 1];
+      const subSegIds: string[] = [];
+
+      for (let i = 0; i < cuts.length - 1; i++) {
+        const startDist = cuts[i] * totalDist;
+        const endDist = cuts[i + 1] * totalDist;
+
+        const subPoints = origPoints.filter(
+          (p: { dist: number }) => p.dist >= startDist && p.dist <= endDist
+        );
+        if (subPoints.length < 2) continue;
+
+        const subId = generateId();
+        subSegIds.push(subId);
+        const subWkt = pointsToLineStringZ(subPoints);
+        const subPoly = encodePolyline6(subPoints);
+        const subDist = totalDistance(subPoints);
+        const subElev = computeElevationStats(subPoints.map((p: { ele: number }) => p.ele));
+
+        await client.query(
+          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
+           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
+          [subId, segResult.rows[0].name, subWkt, subPoly, Math.round(subDist), subElev.gain, subElev.loss]
+        );
+      }
+
+      splitResults.set(split.originalSegmentId, subSegIds);
+
+      // Update affected routes
+      const affected = await client.query(
+        `SELECT route_id, ordinal, direction FROM route_segments
+         WHERE segment_id = $1 AND route_id != $2 ORDER BY route_id, ordinal`,
+        [split.originalSegmentId, id]
+      );
+
+      for (const ar of affected.rows) {
+        await client.query(
+          `DELETE FROM route_segments WHERE route_id = $1 AND segment_id = $2 AND ordinal = $3`,
+          [ar.route_id, split.originalSegmentId, ar.ordinal]
+        );
+        if (subSegIds.length > 1) {
+          await client.query(
+            `UPDATE route_segments SET ordinal = ordinal + $1 WHERE route_id = $2 AND ordinal > $3`,
+            [subSegIds.length - 1, ar.route_id, Number(ar.ordinal)]
+          );
+        }
+        const orderedIds = ar.direction === "reverse" ? [...subSegIds].reverse() : subSegIds;
+        for (let j = 0; j < orderedIds.length; j++) {
+          await client.query(
+            `INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES ($1, $2, $3, $4)`,
+            [ar.route_id, orderedIds[j], Number(ar.ordinal) + j, ar.direction]
+          );
+        }
+      }
+
+      await client.query(`DELETE FROM segments WHERE id = $1`, [split.originalSegmentId]);
+    }
+
+    // Build new segment references for this route
+    const routeSegRefs: { segmentId: string; direction: string }[] = [];
+
+    for (const seg of decomposition.segments) {
+      if (seg.type === "existing") {
+        routeSegRefs.push({ segmentId: seg.existingSegmentId!, direction: seg.direction || "forward" });
+      } else if (seg.type === "split") {
+        const subIds = splitResults.get(seg.parentSegmentId!);
+        if (subIds) {
+          const split = decomposition.splits.find(s => s.originalSegmentId === seg.parentSegmentId);
+          if (split) {
+            const cuts = [0, ...split.fractions, 1];
+            for (let i = 0; i < cuts.length - 1; i++) {
+              if (seg.startFraction! >= cuts[i] - 0.01 && seg.endFraction! <= cuts[i + 1] + 0.01 && i < subIds.length) {
+                routeSegRefs.push({ segmentId: subIds[i], direction: seg.direction || "forward" });
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        const newId = generateId();
+        const wkt = pointsToLineStringZ(seg.points);
+        const poly = encodePolyline6(seg.points);
+        await client.query(
+          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
+           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
+          [newId, seg.name, wkt, poly, seg.distance, seg.gain, seg.loss]
+        );
+        routeSegRefs.push({ segmentId: newId, direction: "forward" });
+      }
+    }
+
+    // Insert route_segments
+    for (let i = 0; i < routeSegRefs.length; i++) {
+      await client.query(
+        `INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES ($1, $2, $3, $4)`,
+        [id, routeSegRefs[i].segmentId, i, routeSegRefs[i].direction]
+      );
+    }
+
+    // Set route to active
+    await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getPendingRouteCount(): Promise<number> {
   const result = await db.query(
     `SELECT COUNT(*)::int AS count FROM routes WHERE status = 'pending'`

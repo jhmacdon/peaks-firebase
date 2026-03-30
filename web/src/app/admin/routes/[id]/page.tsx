@@ -14,10 +14,13 @@ import {
   updateRoute,
   acceptRoute,
   rejectRoute,
+  analyzePendingRoute,
+  acceptRouteWithSegments,
   type RouteDetail,
   type RouteDestination,
   type RouteSegment,
 } from "@/lib/actions/routes";
+import type { RouteDecomposition } from "@/lib/actions/segment-matcher";
 import UserPopover from "@/components/user-popover";
 
 const RouteMap = dynamic(() => import("@/components/route-map"), { ssr: false });
@@ -43,7 +46,8 @@ function RouteDetailContent() {
   const [editName, setEditName] = useState("");
   const [editCompletion, setEditCompletion] = useState("");
   const [saving, setSaving] = useState(false);
-  const [reviewAction, setReviewAction] = useState<"accepting" | "rejecting" | null>(null);
+  const [reviewAction, setReviewAction] = useState<"analyzing" | "accepting" | "rejecting" | null>(null);
+  const [decomposition, setDecomposition] = useState<RouteDecomposition | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -76,7 +80,31 @@ function RouteDetailContent() {
     setSaving(false);
   };
 
-  const handleAccept = async () => {
+  const handleAnalyze = async () => {
+    setReviewAction("analyzing");
+    try {
+      const result = await analyzePendingRoute(id);
+      setDecomposition(result.decomposition);
+    } catch (err) {
+      console.error("Segment analysis failed:", err);
+      alert("Segment analysis failed. You can still accept without dedup.");
+    }
+    setReviewAction(null);
+  };
+
+  const handleAcceptWithSegments = async () => {
+    if (!decomposition) return;
+    setReviewAction("accepting");
+    await acceptRouteWithSegments(id, decomposition);
+    setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
+    setDecomposition(null);
+    setReviewAction(null);
+    // Reload segments to show the new decomposition
+    const segs = await getRouteSegments(id);
+    setSegments(segs);
+  };
+
+  const handleAcceptSimple = async () => {
     setReviewAction("accepting");
     await acceptRoute(id);
     setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
@@ -176,31 +204,101 @@ function RouteDetailContent() {
 
         {/* Pending Review Banner */}
         {route.status === "pending" && (
-          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center justify-between">
-            <div>
-              <div className="font-medium text-amber-800 dark:text-amber-200">
-                Pending Review
+          <div className="mb-6 space-y-4">
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-amber-800 dark:text-amber-200">
+                    Pending Review
+                  </div>
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">
+                    Review the route details below, then accept or reject.
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0 ml-4">
+                  <button
+                    onClick={handleReject}
+                    disabled={reviewAction !== null}
+                    className="px-4 py-2 text-sm border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
+                  >
+                    {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
+                  </button>
+                  {!decomposition ? (
+                    <>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={reviewAction !== null}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        {reviewAction === "analyzing" ? "Analyzing..." : "Analyze Segments"}
+                      </button>
+                      <button
+                        onClick={handleAcceptSimple}
+                        disabled={reviewAction !== null}
+                        className="px-4 py-2 text-sm border border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 disabled:opacity-50 transition-colors"
+                        title="Accept without segment deduplication"
+                      >
+                        {reviewAction === "accepting" ? "Accepting..." : "Quick Accept"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleAcceptWithSegments}
+                      disabled={reviewAction !== null}
+                      className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {reviewAction === "accepting" ? "Accepting..." : "Accept with Segments"}
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">
-                This route was imported and needs review before it goes live.
-              </p>
             </div>
-            <div className="flex gap-2 shrink-0 ml-4">
-              <button
-                onClick={handleReject}
-                disabled={reviewAction !== null}
-                className="px-4 py-2 text-sm border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
-              >
-                {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
-              </button>
-              <button
-                onClick={handleAccept}
-                disabled={reviewAction !== null}
-                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {reviewAction === "accepting" ? "Accepting..." : "Accept Route"}
-              </button>
-            </div>
+
+            {/* Segment Analysis Results */}
+            {decomposition && (
+              <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
+                <h3 className="font-semibold mb-3">Segment Analysis</h3>
+                <div className="space-y-2 text-sm">
+                  {decomposition.segments.map((seg, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 dark:border-gray-800"
+                    >
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          seg.type === "existing"
+                            ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                            : seg.type === "split"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                              : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        }`}
+                      >
+                        {seg.type === "existing" ? "Reuse" : seg.type === "split" ? "Split" : "New"}
+                      </span>
+                      <span className="flex-1">
+                        {seg.existingSegmentName || seg.name || "Unnamed"}
+                      </span>
+                      <span className="text-gray-500">
+                        {(seg.distance / 1609.34).toFixed(1)} mi
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {decomposition.splits.length > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
+                    {decomposition.splits.length} existing segment{decomposition.splits.length !== 1 ? "s" : ""} will be split.
+                    {decomposition.affectedRoutes.length > 0 && (
+                      <> {decomposition.affectedRoutes.length} other route{decomposition.affectedRoutes.length !== 1 ? "s" : ""} will be updated.</>
+                    )}
+                  </p>
+                )}
+                {decomposition.splits.length === 0 && decomposition.segments.some(s => s.type === "existing") && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-3">
+                    No splits needed — reuses existing segments cleanly.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
