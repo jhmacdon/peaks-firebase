@@ -62,7 +62,11 @@ function ImportContent() {
         newResults.push({
           name: result.name,
           routeId: result.routeId,
-          stats: result.stats,
+          stats: {
+            distance: result.validation.stats.distance,
+            gain: result.validation.stats.gain,
+            loss: result.validation.stats.loss,
+          },
         });
       } catch (err: unknown) {
         newResults.push({ name, error: err instanceof Error ? err.message : "Unknown error" });
