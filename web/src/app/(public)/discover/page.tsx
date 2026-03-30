@@ -37,7 +37,7 @@ function DiscoverContent() {
 
   // Request geolocation once on mount
   useEffect(() => {
-    if (locationStatus === "denied") return;
+    if (typeof window === "undefined" || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLocation({
@@ -51,7 +51,7 @@ function DiscoverContent() {
       },
       { timeout: 10000, maximumAge: 600000 }
     );
-  }, [locationStatus]);
+  }, []);
 
   // Load search results when query changes
   useEffect(() => {
