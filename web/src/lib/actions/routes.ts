@@ -306,6 +306,17 @@ export async function acceptRouteWithSegments(
   const { encodePolyline6, pointsToLineStringZ, generateId } = await import("@/lib/route-utils");
   const { computeElevationStats } = await import("@/lib/elevation");
 
+  // If decomposition is all "new" segments with no splits or reuses,
+  // the existing standalone segment is already correct — just flip status.
+  const hasExistingOrSplit = decomposition.segments.some(
+    s => s.type === "existing" || s.type === "split"
+  );
+
+  if (!hasExistingOrSplit) {
+    await db.query(`UPDATE routes SET status = 'active' WHERE id = $1 AND status = 'pending'`, [id]);
+    return;
+  }
+
   const client = await db.connect();
   try {
     await client.query("BEGIN");

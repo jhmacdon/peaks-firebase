@@ -125,6 +125,53 @@ function encV(v: number): string {
   r += String.fromCharCode(n + 63); return r;
 }
 
+/**
+ * Format route name: "<Peak> via <Trail>" or "<Peak> Trail" if same name.
+ * Input like "Mount Elbert - North Mount Elbert Trail" or "Pikes Peak - Barr Trail"
+ */
+function formatRouteName(raw: string): string {
+  // Split on " - " separator (from filename -- convention)
+  const parts = raw.split(" - ").map(s => s.trim());
+  if (parts.length < 2) return raw;
+
+  const peak = parts[0];
+  const trail = parts.slice(1).join(" ");
+
+  // Normalize for comparison: strip "Mount", "Peak", "Mountain", "Trail", "Route", etc.
+  const normalize = (s: string) =>
+    s.toLowerCase()
+      .replace(/\b(mount|mt\.?|peak|mountain|trail|route|standard|climber'?s?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const peakNorm = normalize(peak);
+  const trailNorm = normalize(trail);
+
+  // If the trail name is essentially the peak name, just use "<Peak> Trail"
+  if (peakNorm === trailNorm || trailNorm.includes(peakNorm) || peakNorm.includes(trailNorm)) {
+    return `${peak} Trail`;
+  }
+
+  // Clean up trail name: remove peak name if it's redundantly included
+  let cleanTrail = trail;
+  // Remove the peak name from the start of the trail name
+  const peakWords = peak.split(" ");
+  for (const word of peakWords) {
+    if (word.length > 2) {
+      const re = new RegExp(`\\b${word}\\b`, "gi");
+      cleanTrail = cleanTrail.replace(re, "").trim();
+    }
+  }
+  // Remove leading/trailing junk
+  cleanTrail = cleanTrail.replace(/^\s*[-–—]\s*/, "").replace(/\s+/g, " ").trim();
+
+  if (!cleanTrail || cleanTrail.toLowerCase() === "trail" || cleanTrail.toLowerCase() === "route") {
+    return `${peak} Trail`;
+  }
+
+  return `${peak} via ${cleanTrail}`;
+}
+
 function parseGPX(content: string): { name: string | null; points: { lat: number; lng: number }[] } {
   const nm = content.match(/<name>([^<]+)<\/name>/);
   const pts: { lat: number; lng: number }[] = [];
@@ -152,7 +199,8 @@ async function main() {
     const parsed = parseGPX(content);
     if (parsed.points.length < 5) { skipped++; continue; }
 
-    const name = file.replace(/\.gpx$/, "").replace(/--/g, " - ").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+    const rawName = file.replace(/\.gpx$/, "").replace(/--/g, " - ").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+    const name = formatRouteName(rawName);
 
     try {
       // Fetch elevations

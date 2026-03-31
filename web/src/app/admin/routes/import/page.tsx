@@ -13,6 +13,27 @@ interface ImportResult {
   stats?: { distance: number; gain: number; loss: number };
 }
 
+function formatRouteName(raw: string): string {
+  const parts = raw.split(" - ").map(s => s.trim());
+  if (parts.length < 2) return raw;
+  const peak = parts[0];
+  const trail = parts.slice(1).join(" ");
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/\b(mount|mt\.?|peak|mountain|trail|route|standard|climber'?s?)\b/g, "").replace(/\s+/g, " ").trim();
+  const peakNorm = normalize(peak);
+  const trailNorm = normalize(trail);
+  if (peakNorm === trailNorm || trailNorm.includes(peakNorm) || peakNorm.includes(trailNorm)) {
+    return `${peak} Trail`;
+  }
+  let cleanTrail = trail;
+  for (const word of peak.split(" ")) {
+    if (word.length > 2) cleanTrail = cleanTrail.replace(new RegExp(`\\b${word}\\b`, "gi"), "").trim();
+  }
+  cleanTrail = cleanTrail.replace(/^\s*[-–—]\s*/, "").replace(/\s+/g, " ").trim();
+  if (!cleanTrail || cleanTrail.toLowerCase() === "trail" || cleanTrail.toLowerCase() === "route") return `${peak} Trail`;
+  return `${peak} via ${cleanTrail}`;
+}
+
 export default function ImportRoutesPage() {
   return (
     <AdminGuard>
@@ -54,7 +75,8 @@ function ImportContent() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const name = file.name.replace(/\.gpx$/i, "").replace(/--/g, " - ").replace(/-/g, " ");
+      const rawName = file.name.replace(/\.gpx$/i, "").replace(/--/g, " - ").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+      const name = formatRouteName(rawName);
 
       try {
         const content = await file.text();
