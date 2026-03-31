@@ -23,8 +23,8 @@ if (!MAPBOX_TOKEN) { console.error("MAPBOX_TOKEN required"); process.exit(1); }
 
 const SUMMIT_REACH_RADIUS = 250;
 const TRAILHEAD_RADIUS = 300;
-const MIN_DISTANCE = 800;
-const MIN_GAIN = 50;
+const MIN_DISTANCE = 1600;   // ~1 mi — real hike, not a ridge traverse
+const MIN_GAIN = 200;        // ~650 ft — must climb substantially
 const DEDUP_THRESHOLD_DEG = 0.002; // ~200m at mid-latitudes
 
 // ─── Elevation ───
@@ -232,7 +232,14 @@ async function main() {
         rejected++; continue;
       }
 
-      // Summit check: endpoint OR start must be within 100m of a summit
+      // Route must go UP more than DOWN
+      if (stats.loss > stats.gain * 1.5 && stats.loss > 100) {
+        const reason = `Descends more than climbs (${Math.round(stats.gain)}m up, ${Math.round(stats.loss)}m down)`;
+        rejectionReasons.set(reason, (rejectionReasons.get(reason) || 0) + 1);
+        rejected++; continue;
+      }
+
+      // Summit check: endpoint OR start must be within 250m of a summit
       const endPt = points[points.length - 1];
       const startPt = points[0];
 
@@ -267,8 +274,21 @@ async function main() {
 
       const summit = summitResult.rows[0];
 
-      // Reverse route if summit is at start
-      const finalPoints = reverseRoute ? [...points].reverse() : points;
+      // Reverse route if summit is at start, and recompute stats
+      let finalPoints = points;
+      let finalStats = stats;
+      if (reverseRoute) {
+        finalPoints = [...points].reverse();
+        const reversedElevations = finalPoints.map(p => p.ele);
+        finalStats = computeStats(reversedElevations);
+
+        // After reversal, re-check that gain > loss
+        if (finalStats.loss > finalStats.gain * 1.5 && finalStats.loss > 100) {
+          const reason = `Still descends after reversal (${Math.round(finalStats.gain)}m up, ${Math.round(finalStats.loss)}m down)`;
+          rejectionReasons.set(reason, (rejectionReasons.get(reason) || 0) + 1);
+          rejected++; continue;
+        }
+      }
 
       // Dedup check
       const wkt = `LINESTRING Z(${finalPoints.map(p => `${p.lng} ${p.lat} ${p.ele}`).join(", ")})`;
@@ -298,13 +318,13 @@ async function main() {
         await client.query(
           `INSERT INTO routes (id, name, path, polyline6, owner, distance, gain, gain_loss, completion, shape, status)
            VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, 'peaks', $5, $6, $7, 'none', 'out_and_back', 'pending')`,
-          [routeId, name, wkt, polyline6, Math.round(distance), stats.gain, stats.loss]
+          [routeId, name, wkt, polyline6, Math.round(distance), finalStats.gain, finalStats.loss]
         );
 
         await client.query(
           `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
            VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
-          [segId, name, wkt, polyline6, Math.round(distance), stats.gain, stats.loss]
+          [segId, name, wkt, polyline6, Math.round(distance), finalStats.gain, finalStats.loss]
         );
 
         await client.query(
@@ -336,7 +356,7 @@ async function main() {
 
         await client.query("COMMIT");
         const summitDist = Math.round(Number(summit.dist));
-        console.log(`  ✓ ${name} → ${summit.name} (${summitDist}m) — ${(distance / 1609.34).toFixed(1)}mi, +${Math.round(stats.gain)}m${reverseRoute ? " [reversed]" : ""}`);
+        console.log(`  ✓ ${name} → ${summit.name} (${summitDist}m) — ${(distance / 1609.34).toFixed(1)}mi, +${Math.round(finalStats.gain)}m${reverseRoute ? " [reversed]" : ""}`);
         imported++;
       } catch (err: any) {
         await client.query("ROLLBACK");

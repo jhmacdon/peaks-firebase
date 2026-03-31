@@ -11,8 +11,8 @@ import { normalizeSearchName } from "@/lib/search-utils";
 
 const SUMMIT_REACH_RADIUS = 250;     // meters — route endpoint must be this close to a summit
 const TRAILHEAD_RADIUS = 300;        // meters — route start must be this close to a trailhead/road
-const MIN_ROUTE_DISTANCE = 800;      // meters (~0.5 mi)
-const MIN_ROUTE_GAIN = 50;           // meters — must have meaningful elevation gain
+const MIN_ROUTE_DISTANCE = 1600;     // meters (~1 mi) — must be a real hike, not a ridge traverse
+const MIN_ROUTE_GAIN = 200;          // meters (~650 ft) — must climb substantially
 const DEDUP_HAUSDORFF_THRESHOLD = 200; // meters — routes closer than this are duplicates
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -89,6 +89,11 @@ export async function validateRouteCandidate(
   // Check minimum gain
   if (elevStats.gain < MIN_ROUTE_GAIN) {
     errors.push(`Insufficient elevation gain: ${Math.round(elevStats.gain)}m (minimum ${MIN_ROUTE_GAIN}m)`);
+  }
+
+  // Route must go UP more than DOWN — it's a climb, not a descent
+  if (elevStats.loss > elevStats.gain * 1.5 && elevStats.loss > 100) {
+    errors.push(`Route descends more than it climbs (${Math.round(elevStats.gain)}m gain vs ${Math.round(elevStats.loss)}m loss) — may be reversed`);
   }
 
   // Check for summit at route endpoint
