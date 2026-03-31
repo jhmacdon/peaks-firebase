@@ -333,13 +333,14 @@ export async function acceptRouteWithSegments(
       throw new Error("Pending route not found");
     }
 
-    // Find and delete the old standalone segments (only those used exclusively by this route)
+    // Find the old standalone segment IDs (before deleting them)
     const oldSegs = await client.query(
       `SELECT s.id FROM segments s
        JOIN route_segments rs ON rs.segment_id = s.id
        WHERE rs.route_id = $1`,
       [id]
     );
+    const oldSegIds = new Set(oldSegs.rows.map((r: { id: string }) => r.id));
 
     // Clear old route_segments
     await client.query(`DELETE FROM route_segments WHERE route_id = $1`, [id]);
@@ -442,7 +443,20 @@ export async function acceptRouteWithSegments(
 
     for (const seg of decomposition.segments) {
       if (seg.type === "existing") {
-        routeSegRefs.push({ segmentId: seg.existingSegmentId!, direction: seg.direction || "forward" });
+        // If this references our own deleted standalone segment, create a new one instead
+        if (oldSegIds.has(seg.existingSegmentId!)) {
+          const newId = generateId();
+          const wkt = pointsToLineStringZ(seg.points);
+          const poly = encodePolyline6(seg.points);
+          await client.query(
+            `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
+             VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
+            [newId, seg.name || seg.existingSegmentName, wkt, poly, seg.distance, seg.gain, seg.loss]
+          );
+          routeSegRefs.push({ segmentId: newId, direction: seg.direction || "forward" });
+        } else {
+          routeSegRefs.push({ segmentId: seg.existingSegmentId!, direction: seg.direction || "forward" });
+        }
       } else if (seg.type === "split") {
         const subIds = splitResults.get(seg.parentSegmentId!);
         if (subIds) {
