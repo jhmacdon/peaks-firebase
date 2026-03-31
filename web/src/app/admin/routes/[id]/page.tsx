@@ -94,11 +94,11 @@ function RouteDetailContent() {
   const handleAccept = async () => {
     if (!decomposition) return;
     setReviewAction("accepting");
-    await acceptRouteWithSegments(id, decomposition);
+    // Server re-analyzes with full point data — client decomposition is just for preview
+    await acceptRouteWithSegments(id);
     setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
     setDecomposition(null);
     setReviewAction(null);
-    // Reload segments to show the new decomposition
     const segs = await getRouteSegments(id);
     setSegments(segs);
   };

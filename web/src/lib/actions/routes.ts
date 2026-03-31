@@ -295,16 +295,19 @@ export async function analyzePendingRoute(id: string): Promise<{
 
 /**
  * Accept a pending route with segment deduplication.
- * Replaces the route's standalone segment with the analyzed decomposition,
- * then sets status to 'active'.
+ * Re-analyzes segments server-side (don't rely on client-serialized decomposition
+ * which may lose large points arrays), then replaces the standalone segment with
+ * the decomposed segments and sets status to 'active'.
  */
 export async function acceptRouteWithSegments(
-  id: string,
-  decomposition: import("./segment-matcher").RouteDecomposition
+  id: string
 ): Promise<void> {
   const { haversineDistance, totalDistance } = await import("@/lib/gpx");
   const { encodePolyline6, pointsToLineStringZ, generateId } = await import("@/lib/route-utils");
   const { computeElevationStats } = await import("@/lib/elevation");
+
+  // Re-analyze server-side to get fresh decomposition with full points arrays
+  const { decomposition } = await analyzePendingRoute(id);
 
   // If decomposition is all "new" segments with no splits or reuses,
   // the existing standalone segment is already correct — just flip status.
