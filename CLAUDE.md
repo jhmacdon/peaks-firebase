@@ -40,6 +40,12 @@ cd web && npm run build && npm run lint
 ## GPX Files
 When downloading GPX files for the project (e.g. from Hiking Project, Wikiloc, AllTrails), **always verify the files are legitimate GPX** before considering the task complete. Many sources return HTML login pages instead of actual GPX data. Check that files start with `<?xml` and contain `<trkpt>` or `<rtept>` elements. Delete any invalid files immediately.
 
+## React useEffect Rules
+When writing or modifying `useEffect` hooks in the web app:
+- **NEVER use objects or arrays as dependencies** — they create new references every render, causing infinite re-render loops. Use primitive values (strings, numbers, booleans) instead. For example, use `[userLat, userLng]` not `[userLocation]`.
+- **NEVER set state inside an effect that re-triggers that same effect** — e.g. setting `locationStatus` inside an effect that depends on `[locationStatus]`.
+- After modifying any page with useEffect, **verify the page doesn't infinite-loop** by loading it in the browser and confirming network requests stop after initial load.
+
 ## Key Details
 - Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11
 - Node 20 runtime

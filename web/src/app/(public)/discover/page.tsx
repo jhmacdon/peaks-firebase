@@ -20,14 +20,13 @@ function DiscoverContent() {
   const [nearby, setNearby] = useState<SearchDestination[]>([]);
   const [popular, setPopular] = useState<SearchDestination[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
   const [locationStatus, setLocationStatus] = useState<
     "pending" | "granted" | "denied"
   >(typeof window !== "undefined" && navigator.geolocation ? "pending" : "denied");
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
+  const hasLocation = userLat !== null && userLng !== null;
 
   const [searchResults, setSearchResults] = useState<{
     query: string;
@@ -40,10 +39,8 @@ function DiscoverContent() {
     if (typeof window === "undefined" || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
         setLocationStatus("granted");
       },
       () => {
@@ -61,8 +58,8 @@ function DiscoverContent() {
       setSearchLoading(true);
       const res = await searchDestinations(
         query,
-        userLocation?.lat,
-        userLocation?.lng
+        userLat ?? undefined,
+        userLng ?? undefined
       );
       if (!cancelled) {
         setSearchResults({ query, results: res });
@@ -73,7 +70,7 @@ function DiscoverContent() {
     return () => {
       cancelled = true;
     };
-  }, [query, userLocation]);
+  }, [query, userLat, userLng]);
 
   // Derive displayed results: show results matching current query, or empty if no query
   const displayResults = useMemo(() => {
@@ -109,12 +106,12 @@ function DiscoverContent() {
 
   // Load nearby when location becomes available
   useEffect(() => {
-    if (query || !userLocation) return;
+    if (query || !hasLocation) return;
     let cancelled = false;
     async function loadNearby() {
       const near = await getNearbyDestinations(
-        userLocation!.lat,
-        userLocation!.lng,
+        userLat!,
+        userLng!,
         50000,
         12
       );
@@ -126,7 +123,7 @@ function DiscoverContent() {
     return () => {
       cancelled = true;
     };
-  }, [query, userLocation]);
+  }, [query, hasLocation, userLat, userLng]);
 
   const loading = !query && !sectionsLoaded;
 
@@ -181,7 +178,7 @@ function DiscoverContent() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Nearby</h2>
               </div>
-              {!userLocation ? (
+              {!hasLocation ? (
                 <div className="text-sm text-gray-500 py-6 text-center bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
                   Requesting your location...
                 </div>
