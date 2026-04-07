@@ -8,17 +8,25 @@ const router = Router();
 router.get("/:id", async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
-    `SELECT id, name, elevation, prominence, type,
-            activities, features, owner,
-            country_code, state_code,
-            hero_image, hero_image_attribution, hero_image_attribution_url,
-            averages, explicitly_saved, recency,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng,
-            ST_Z(location::geometry) AS elev_z,
-            bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng,
-            created_at, updated_at
-     FROM destinations WHERE id = $1`,
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features, d.owner,
+            d.country_code, d.state_code,
+            d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
+            d.averages, d.explicitly_saved, d.recency,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            ST_Z(d.location::geometry) AS elev_z,
+            d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
+            d.created_at, d.updated_at,
+            COALESCE(stats.session_count, 0) AS session_count,
+            COALESCE(stats.success_count, 0) AS success_count
+     FROM destinations d
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) AS session_count,
+              COUNT(*) FILTER (WHERE sd.relation = 'reached') AS success_count
+       FROM session_destinations sd WHERE sd.destination_id = d.id
+     ) stats ON true
+     WHERE d.id = $1`,
     [id]
   );
   if (result.rows.length === 0) {

@@ -224,6 +224,56 @@ async function assignGroup(
 }
 
 /**
+ * Update destination averages (popular times) based on the session's start date.
+ * Increments the month and day-of-week counters in the JSONB averages column
+ * for all destinations matched (reached) by the session.
+ */
+async function updateDestinationAverages(
+  client: PoolClient,
+  sessionId: string
+): Promise<void> {
+  // Get session start time
+  const sessionResult = await client.query(
+    `SELECT start_time FROM tracking_sessions WHERE id = $1`,
+    [sessionId]
+  );
+  if (sessionResult.rows.length === 0) return;
+
+  const startTime = new Date(sessionResult.rows[0].start_time);
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const days = ["su", "mo", "tu", "we", "th", "fr", "sa"];
+  const month = months[startTime.getMonth()];
+  const day = days[startTime.getDay()];
+
+  // Get all reached destinations for this session
+  const destResult = await client.query(
+    `SELECT destination_id FROM session_destinations
+     WHERE session_id = $1 AND relation = 'reached'`,
+    [sessionId]
+  );
+  if (destResult.rows.length === 0) return;
+
+  const destIds = destResult.rows.map((r: { destination_id: string }) => r.destination_id);
+
+  // Atomically increment month and day counters in the JSONB averages column.
+  // Initializes the averages object if null, and initializes individual counters if missing.
+  await client.query(
+    `UPDATE destinations SET averages = jsonb_set(
+        jsonb_set(
+          COALESCE(averages, '{"months":{},"days":{}}'),
+          ARRAY['months', $2],
+          to_jsonb(COALESCE((averages->'months'->>$2)::int, 0) + 1)
+        ),
+        ARRAY['days', $3],
+        to_jsonb(COALESCE((averages->'days'->>$3)::int, 0) + 1)
+      ),
+      recency = NOW()
+     WHERE id = ANY($1)`,
+    [destIds, month, day]
+  );
+}
+
+/**
  * Process a session: match destinations, routes, and group previous attempts.
  * Runs all steps in a single transaction. Idempotent — clears auto-tags first.
  */
@@ -251,14 +301,17 @@ export async function processSession(
     // Step 2: Route matching
     const routesMatched = await matchRoutes(client, sessionId);
 
-    // Step 3: Previous attempt grouping
+    // Step 3: Update destination averages (popular times)
+    await updateDestinationAverages(client, sessionId);
+
+    // Step 4: Previous attempt grouping
     const { group_id, group_session_count } = await matchPreviousAttempts(
       client,
       sessionId,
       userId
     );
 
-    // Step 4: Mark as processed
+    // Step 5: Mark as processed
     await client.query(
       `UPDATE tracking_sessions SET processed_at = NOW() WHERE id = $1`,
       [sessionId]
