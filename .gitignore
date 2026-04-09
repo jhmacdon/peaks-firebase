@@ -75,6 +75,8 @@ node_modules/
 
 # Build output
 **/lib/
+!web/src/lib/
+!web/src/lib/**
 
 # dataconnect generated files
 .dataconnect
