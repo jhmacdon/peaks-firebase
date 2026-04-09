@@ -1,55 +1,335 @@
 import { Router, Response } from "express";
+import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
 import { processSession } from "../processing";
 import { notifySessionProcessed } from "../slack";
 
 const router = Router();
+const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
+
+const DESTINATIONS_REACHED_SQL = `COALESCE(
+  (SELECT json_agg(json_build_object(
+    'id', d.id, 'name', d.name, 'elevation', d.elevation,
+    'features', d.features,
+    'lat', ST_Y(d.location::geometry),
+    'lng', ST_X(d.location::geometry)
+  ) ORDER BY d.name, d.id)
+  FROM session_destinations sd
+  JOIN destinations d ON d.id = sd.destination_id
+  WHERE sd.session_id = s.id AND sd.relation = 'reached'),
+  '[]'::json
+)`;
+
+const DESTINATION_GOALS_SQL = `COALESCE(
+  (SELECT json_agg(json_build_object(
+    'id', d.id, 'name', d.name, 'elevation', d.elevation,
+    'features', d.features,
+    'lat', ST_Y(d.location::geometry),
+    'lng', ST_X(d.location::geometry)
+  ) ORDER BY d.name, d.id)
+  FROM session_destinations sd
+  JOIN destinations d ON d.id = sd.destination_id
+  WHERE sd.session_id = s.id AND sd.relation = 'goal'),
+  '[]'::json
+)`;
+
+const SESSION_ROUTES_SQL = `COALESCE(
+  (SELECT json_agg(json_build_object(
+    'id', r.id, 'name', r.name, 'polyline6', r.polyline6,
+    'distance', r.distance, 'gain', r.gain, 'gain_loss', r.gain_loss,
+    'source', sr.source, 'coverage', sr.coverage
+  ) ORDER BY r.name, r.id)
+  FROM session_routes sr
+  JOIN routes r ON r.id = sr.route_id
+  WHERE sr.session_id = s.id AND r.status = 'active'),
+  '[]'::json
+)`;
+
+function parseLimit(raw: unknown, fallback = 200, max = 1000): number {
+  const parsed = typeof raw === "string" ? parseInt(raw, 10) : NaN;
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(parsed, max);
+}
+
+function parseOffset(raw: unknown): number {
+  const parsed = typeof raw === "string" ? parseInt(raw, 10) : NaN;
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
+function parseUpdatedSince(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return null;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("updated_since must be a valid ISO-8601 timestamp");
+  }
+
+  return parsed.toISOString();
+}
+
+function parseProcessingStates(raw: unknown): string[] | null {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return null;
+  }
+
+  const states = raw
+    .split(",")
+    .map((state) => state.trim())
+    .filter((state) => state.length > 0);
+
+  if (states.length === 0) {
+    return null;
+  }
+
+  const invalid = states.filter(
+    (state) => !PROCESSING_STATES.includes(state as typeof PROCESSING_STATES[number])
+  );
+  if (invalid.length > 0) {
+    throw new Error(`Invalid processing_state value: ${invalid.join(", ")}`);
+  }
+
+  return states;
+}
+
+async function markSessionPendingIfReady(client: PoolClient, sessionId: string): Promise<boolean> {
+  const result = await client.query(
+    `UPDATE tracking_sessions s
+     SET processing_state = 'pending',
+         processing_error = NULL
+     WHERE s.id = $1
+       AND s.ended = true
+       AND s.processing_state <> 'processing'
+       AND EXISTS (
+         SELECT 1
+         FROM tracking_points tp
+         WHERE tp.session_id = s.id
+       )
+     RETURNING id`,
+    [sessionId]
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}
+
+async function touchSession(client: PoolClient, sessionId: string): Promise<void> {
+  await client.query(
+    `UPDATE tracking_sessions
+     SET server_updated_at = NOW()
+     WHERE id = $1`,
+    [sessionId]
+  );
+}
+
+function buildPointInsertQuery(sessionId: string, points: any[]) {
+  const values: any[] = [];
+  const placeholders: string[] = [];
+  let parameterIndex = 1;
+
+  for (const point of points) {
+    if (point.lat == null || point.lng == null || point.time == null) {
+      continue;
+    }
+
+    const elevation = point.elevation ?? 0;
+
+    placeholders.push(
+      `($${parameterIndex}, $${parameterIndex + 1}, $${parameterIndex + 2}, ` +
+      `ST_SetSRID(ST_MakePoint($${parameterIndex + 4}, $${parameterIndex + 3}, $${parameterIndex + 5}), 4326)::geography, ` +
+      `$${parameterIndex + 5}, $${parameterIndex + 6}, $${parameterIndex + 7}, $${parameterIndex + 8}, $${parameterIndex + 9})`
+    );
+
+    values.push(
+      sessionId,
+      point.time,
+      point.segment_number ?? point.segmentNumber ?? 0,
+      point.lat,
+      point.lng,
+      elevation,
+      point.speed ?? null,
+      point.azimuth ?? null,
+      point.hdop ?? null,
+      point.speed_accuracy ?? point.speedAccuracy ?? null
+    );
+
+    parameterIndex += 10;
+  }
+
+  return { values, placeholders };
+}
 
 // GET /api/sessions — current user's sessions with inline destinations
 router.get("/", async (req, res: Response) => {
   const uid = getUid(req);
-  const limit = parseInt(req.query.limit as string) || 200;
-  const offset = parseInt(req.query.offset as string) || 0;
+  const limit = parseLimit(req.query.limit);
+  const offset = parseOffset(req.query.offset);
+
+  let processingStates: string[] | null;
+  try {
+    processingStates = parseProcessingStates(req.query.processing_state);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+    return;
+  }
 
   const result = await db.query(
     `SELECT s.id, s.user_id, s.name, s.start_time, s.end_time,
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
+            s.group_id, s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
-            s.created_at, s.updated_at,
-            COALESCE(
-              (SELECT json_agg(json_build_object(
-                'id', d.id, 'name', d.name, 'elevation', d.elevation,
-                'features', d.features,
-                'lat', ST_Y(d.location::geometry),
-                'lng', ST_X(d.location::geometry)
-              ))
-              FROM session_destinations sd
-              JOIN destinations d ON d.id = sd.destination_id
-              WHERE sd.session_id = s.id AND sd.relation = 'reached'),
-              '[]'::json
-            ) AS destinations_reached,
-            COALESCE(
-              (SELECT json_agg(json_build_object(
-                'id', d.id, 'name', d.name, 'elevation', d.elevation,
-                'features', d.features,
-                'lat', ST_Y(d.location::geometry),
-                'lng', ST_X(d.location::geometry)
-              ))
-              FROM session_destinations sd
-              JOIN destinations d ON d.id = sd.destination_id
-              WHERE sd.session_id = s.id AND sd.relation = 'goal'),
-              '[]'::json
-            ) AS destination_goals
+            s.created_at, s.updated_at, s.server_updated_at,
+            ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
+            ${DESTINATION_GOALS_SQL} AS destination_goals
      FROM tracking_sessions s
      WHERE s.user_id = $1
+       AND ($2::text[] IS NULL OR s.processing_state = ANY($2))
      ORDER BY s.start_time DESC
-     LIMIT $2 OFFSET $3`,
-    [uid, limit, offset]
+     LIMIT $3 OFFSET $4`,
+    [uid, processingStates, limit, offset]
   );
   res.json(result.rows);
+});
+
+// GET /api/sessions/changes — incremental session sync feed
+router.get("/changes", async (req, res: Response) => {
+  const uid = getUid(req);
+  const limit = parseLimit(req.query.limit);
+  const afterId =
+    typeof req.query.after_id === "string" && req.query.after_id.trim() !== ""
+      ? req.query.after_id
+      : null;
+
+  let updatedSince: string | null;
+  try {
+    updatedSince = parseUpdatedSince(req.query.updated_since);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+    return;
+  }
+
+  if (afterId && !updatedSince) {
+    res.status(400).json({ error: "after_id requires updated_since" });
+    return;
+  }
+
+  const result = await db.query(
+    `WITH changed_sessions AS (
+        SELECT
+          s.id,
+          'upsert'::text AS change_type,
+          s.server_updated_at,
+          NULL::timestamptz AS deleted_at,
+          json_build_object(
+            'id', s.id,
+            'user_id', s.user_id,
+            'name', s.name,
+            'start_time', s.start_time,
+            'end_time', s.end_time,
+            'distance', s.distance,
+            'total_time', s.total_time,
+            'pace', s.pace,
+            'gain', s.gain,
+            'highest_point', s.highest_point,
+            'ascent_time', s.ascent_time,
+            'descent_time', s.descent_time,
+            'still_time', s.still_time,
+            'activity_type', s.activity_type,
+            'source', s.source,
+            'external_id', s.external_id,
+            'group_id', s.group_id,
+            'processed_at', s.processed_at,
+            'processing_state', s.processing_state,
+            'processing_error', s.processing_error,
+            'ended', s.ended,
+            'is_public', s.is_public,
+            'created_at', s.created_at,
+            'updated_at', s.updated_at,
+            'server_updated_at', s.server_updated_at,
+            'destinations_reached', ${DESTINATIONS_REACHED_SQL},
+            'destination_goals', ${DESTINATION_GOALS_SQL},
+            'routes', ${SESSION_ROUTES_SQL}
+          ) AS session
+        FROM tracking_sessions s
+        WHERE s.user_id = $1
+          AND (
+            $2::timestamptz IS NULL
+            OR s.server_updated_at > $2
+            OR (s.server_updated_at = $2 AND $3::text IS NOT NULL AND s.id > $3)
+          )
+    ),
+    changed_deletions AS (
+        SELECT
+          st.session_id AS id,
+          'delete'::text AS change_type,
+          st.server_updated_at,
+          st.deleted_at,
+          NULL::json AS session
+        FROM session_tombstones st
+        WHERE st.user_id = $1
+          AND (
+            $2::timestamptz IS NULL
+            OR st.server_updated_at > $2
+            OR (st.server_updated_at = $2 AND $3::text IS NOT NULL AND st.session_id > $3)
+          )
+    )
+    SELECT id, change_type, server_updated_at, deleted_at, session
+    FROM (
+      SELECT * FROM changed_sessions
+      UNION ALL
+      SELECT * FROM changed_deletions
+    ) changes
+    ORDER BY server_updated_at ASC, id ASC
+    LIMIT $4`,
+    [uid, updatedSince, afterId, limit]
+  );
+
+  const changes = result.rows.map((row) => ({
+    id: row.id,
+    change_type: row.change_type,
+    server_updated_at: row.server_updated_at,
+    deleted_at: row.deleted_at,
+    session: row.session,
+  }));
+
+  const last = result.rows[result.rows.length - 1];
+  res.json({
+    changes,
+    next_cursor: last
+      ? {
+          updated_since: last.server_updated_at,
+          after_id: last.id,
+        }
+      : null,
+    has_more: result.rows.length === limit,
+  });
+});
+
+// GET /api/sessions/dedup — check if session already imported
+router.get("/dedup", async (req, res: Response) => {
+  const uid = getUid(req);
+  const source = req.query.source as string;
+  const externalId = req.query.externalId as string;
+
+  if (!source || !externalId) {
+    res.status(400).json({ error: "source and externalId are required" });
+    return;
+  }
+
+  const result = await db.query(
+    `SELECT id FROM tracking_sessions
+     WHERE user_id = $1 AND source = $2 AND external_id = $3`,
+    [uid, source, externalId]
+  );
+  res.json({ exists: result.rows.length > 0, sessionId: result.rows[0]?.id || null });
 });
 
 // GET /api/sessions/:id
@@ -62,8 +342,9 @@ router.get("/:id", async (req, res: Response) => {
             distance, total_time, pace, gain, highest_point,
             ascent_time, descent_time, still_time,
             activity_type, source, external_id,
-            health_data, ended, is_public,
-            created_at, updated_at
+            health_data, group_id, processed_at, processing_state, processing_error,
+            ended, is_public,
+            created_at, updated_at, server_updated_at
      FROM tracking_sessions
      WHERE id = $1 AND (user_id = $2 OR is_public = true)`,
     [id, uid]
@@ -179,9 +460,11 @@ router.post("/process-all", async (req, res: Response) => {
 
   const unprocessed = await db.query(
     `SELECT s.id FROM tracking_sessions s
-     WHERE s.user_id = $1 AND s.ended = true AND s.processed_at IS NULL
+     WHERE s.user_id = $1
+       AND s.ended = true
+       AND s.processing_state IN ('pending', 'failed')
        AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
-     ORDER BY s.start_time DESC`,
+     ORDER BY s.server_updated_at ASC, s.id ASC`,
     [uid]
   );
 
@@ -209,7 +492,9 @@ router.post("/:id/process", async (req, res: Response) => {
 
   // Verify ownership
   const session = await db.query(
-    `SELECT id, ended FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    `SELECT id, ended, processing_state
+     FROM tracking_sessions
+     WHERE id = $1 AND user_id = $2`,
     [id, uid]
   );
   if (session.rows.length === 0) {
@@ -273,25 +558,6 @@ router.get("/:id/group", async (req, res: Response) => {
   res.json({ group_id: groupId, sessions: result.rows });
 });
 
-// GET /api/sessions/dedup — check if session already imported
-router.get("/dedup", async (req, res: Response) => {
-  const uid = getUid(req);
-  const source = req.query.source as string;
-  const externalId = req.query.externalId as string;
-
-  if (!source || !externalId) {
-    res.status(400).json({ error: "source and externalId are required" });
-    return;
-  }
-
-  const result = await db.query(
-    `SELECT id FROM tracking_sessions
-     WHERE user_id = $1 AND source = $2 AND external_id = $3`,
-    [uid, source, externalId]
-  );
-  res.json({ exists: result.rows.length > 0, sessionId: result.rows[0]?.id || null });
-});
-
 // POST /api/sessions — create a new session
 router.post("/", async (req, res: Response) => {
   const uid = getUid(req);
@@ -312,6 +578,16 @@ router.post("/", async (req, res: Response) => {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+
+    const existingSession = await client.query(
+      `SELECT ended
+       FROM tracking_sessions
+       WHERE id = $1 AND user_id = $2
+       FOR UPDATE`,
+      [id, uid]
+    );
+    const wasEnded = existingSession.rows[0]?.ended ?? false;
+    const nextEnded = ended ?? false;
 
     await client.query(
       `INSERT INTO tracking_sessions
@@ -380,8 +656,22 @@ router.post("/", async (req, res: Response) => {
       }
     }
 
+    await client.query(
+      `DELETE FROM session_tombstones
+       WHERE session_id = $1 AND user_id = $2`,
+      [id, uid]
+    );
+
+    const queuedForProcessing =
+      (!existingSession.rows[0] && nextEnded) || (!wasEnded && nextEnded)
+        ? await markSessionPendingIfReady(client, id)
+        : false;
+
     await client.query("COMMIT");
-    res.status(201).json({ id });
+    res.status(201).json({
+      id,
+      processing_state: queuedForProcessing ? "pending" : null,
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error creating session:", err);
@@ -405,7 +695,9 @@ router.put("/:id", async (req, res: Response) => {
 
   // Verify ownership
   const session = await db.query(
-    `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    `SELECT id, ended, processing_state
+     FROM tracking_sessions
+     WHERE id = $1 AND user_id = $2`,
     [id, uid]
   );
   if (session.rows.length === 0) {
@@ -481,8 +773,16 @@ router.put("/:id", async (req, res: Response) => {
       }
     }
 
+    const queuedForProcessing =
+      session.rows[0].ended === false && ended === true
+        ? await markSessionPendingIfReady(client, id)
+        : false;
+
     await client.query("COMMIT");
-    res.json({ id });
+    res.json({
+      id,
+      processing_state: queuedForProcessing ? "pending" : null,
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error updating session:", err);
@@ -497,15 +797,46 @@ router.delete("/:id", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
-  const result = await db.query(
-    `DELETE FROM tracking_sessions WHERE id = $1 AND user_id = $2 RETURNING id`,
-    [id, uid]
-  );
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "Session not found" });
-    return;
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `DELETE FROM tracking_sessions
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [id, uid]
+    );
+    if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    const tombstone = await client.query(
+      `INSERT INTO session_tombstones (session_id, user_id, deleted_at, server_updated_at)
+       VALUES ($1, $2, NOW(), NOW())
+       ON CONFLICT (session_id, user_id) DO UPDATE SET
+         deleted_at = EXCLUDED.deleted_at,
+         server_updated_at = EXCLUDED.server_updated_at
+       RETURNING deleted_at, server_updated_at`,
+      [id, uid]
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      deleted: true,
+      id,
+      deleted_at: tombstone.rows[0].deleted_at,
+      server_updated_at: tombstone.rows[0].server_updated_at,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting session:", err);
+    res.status(500).json({ error: "Failed to delete session" });
+  } finally {
+    client.release();
   }
-  res.json({ deleted: true, id });
 });
 
 // POST /api/sessions/:id/points — batch insert GPS points
@@ -533,35 +864,43 @@ router.post("/:id/points", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
-    for (const pt of points) {
-      await client.query(
+    const chunkSize = 250;
+    let inserted = 0;
+    let queuedForProcessing = false;
+
+    for (let i = 0; i < points.length; i += chunkSize) {
+      const chunk = points.slice(i, i + chunkSize);
+      const { placeholders, values } = buildPointInsertQuery(id, chunk);
+
+      if (placeholders.length === 0) {
+        continue;
+      }
+
+      const insertResult = await client.query(
         `INSERT INTO tracking_points
           (session_id, time, segment_number, location, elevation,
            speed, azimuth, hdop, speed_accuracy)
-         VALUES ($1, $2, $3,
-                 ST_SetSRID(ST_MakePoint($5, $4, $6), 4326)::geography,
-                 $6, $7, $8, $9, $10)
+         VALUES ${placeholders.join(", ")}
          ON CONFLICT (session_id, time) DO NOTHING`,
-        [
-          id,
-          pt.time,
-          pt.segment_number ?? 0,
-          pt.lat,
-          pt.lng,
-          pt.elevation ?? 0,
-          pt.speed ?? null,
-          pt.azimuth ?? null,
-          pt.hdop ?? null,
-          pt.speed_accuracy ?? null,
-        ]
+        values
       );
+
+      inserted += insertResult.rowCount ?? 0;
+    }
+
+    let processingState: string | null = null;
+    if (inserted > 0 && session.rows[0].ended) {
+      queuedForProcessing = await markSessionPendingIfReady(client, id);
+      processingState = queuedForProcessing ? "pending" : session.rows[0].processing_state;
+    } else if (inserted > 0) {
+      await touchSession(client, id);
     }
 
     await client.query("COMMIT");
-    res.status(201).json({ inserted: points.length });
+    res.status(201).json({ inserted, processing_state: processingState });
 
     // Auto-trigger processing (fire-and-forget) if session is ended
-    if (session.rows[0].ended) {
+    if (queuedForProcessing) {
       processSession(id, uid)
         .then((result) =>
           notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)

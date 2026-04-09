@@ -272,6 +272,9 @@ CREATE TABLE tracking_sessions (
     -- processing
     group_id        TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
     processed_at    TIMESTAMPTZ,
+    processing_state TEXT NOT NULL DEFAULT 'idle'
+        CHECK (processing_state IN ('idle', 'pending', 'processing', 'completed', 'failed')),
+    processing_error TEXT,
 
     -- status flags
     ended           BOOLEAN NOT NULL DEFAULT FALSE,
@@ -279,7 +282,8 @@ CREATE TABLE tracking_sessions (
     uploaded_to_strava BOOLEAN NOT NULL DEFAULT FALSE,
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    server_updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ---------------------------------------------------------------------------
@@ -344,6 +348,18 @@ CREATE TABLE session_markers (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ---------------------------------------------------------------------------
+-- session_tombstones
+-- Deletion log for incremental client sync.
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_tombstones (
+    session_id       TEXT NOT NULL,
+    user_id          TEXT NOT NULL,
+    deleted_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    server_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, user_id)
+);
+
 -- =============================================================================
 -- Indexes
 -- =============================================================================
@@ -377,8 +393,11 @@ CREATE INDEX idx_tracking_sessions_user_id  ON tracking_sessions (user_id, start
 CREATE INDEX idx_tracking_sessions_group    ON tracking_sessions (group_id) WHERE group_id IS NOT NULL;
 CREATE INDEX idx_tracking_sessions_dedup    ON tracking_sessions (source, external_id)
     WHERE source IS NOT NULL AND external_id IS NOT NULL;
+CREATE INDEX idx_tracking_sessions_sync     ON tracking_sessions (user_id, server_updated_at ASC, id ASC);
+CREATE INDEX idx_tracking_sessions_processing ON tracking_sessions (user_id, processing_state, server_updated_at DESC);
 
 CREATE INDEX idx_session_markers_session    ON session_markers (session_id);
+CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, server_updated_at ASC, session_id ASC);
 
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
@@ -397,12 +416,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION update_tracking_session_timestamps()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    NEW.server_updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER trg_plans_updated           BEFORE UPDATE ON plans               FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE OR REPLACE FUNCTION touch_related_tracking_session()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_session_id TEXT;
+BEGIN
+    target_session_id := COALESCE(NEW.session_id, OLD.session_id);
+
+    UPDATE tracking_sessions
+    SET server_updated_at = now()
+    WHERE id = target_session_id;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_session_destinations_touch_session
+AFTER INSERT OR UPDATE OR DELETE ON session_destinations
+FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
+
+CREATE TRIGGER trg_session_routes_touch_session
+AFTER INSERT OR UPDATE OR DELETE ON session_routes
+FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
+
+CREATE TRIGGER trg_session_markers_touch_session
+AFTER INSERT OR UPDATE OR DELETE ON session_markers
+FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 
 -- =============================================================================
 -- Auto-link sessions when a new destination is inserted

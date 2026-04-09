@@ -41,6 +41,18 @@ export async function migrateSessions() {
 
       const startTime = toDate(overview.startDate);
       const endTime = toDate(overview.endDate);
+      const lastUpdated = toDate(d.lastUpdated) || endTime || startTime || new Date();
+      const hasDerivedMatches =
+        status.destinationsSynced === true ||
+        (d.destinationsReached?.length ?? 0) > 0 ||
+        (d.destinationGoals?.length ?? 0) > 0 ||
+        (d.routes?.length ?? 0) > 0;
+      const processingState = hasDerivedMatches
+        ? "completed"
+        : status.ended
+          ? "pending"
+          : "idle";
+      const processedAt = processingState === "completed" ? lastUpdated : null;
 
       if (!d.userId) {
         console.warn(`  Skipping session ${id} — no userId`);
@@ -57,20 +69,27 @@ export async function migrateSessions() {
           distance, total_time, pace, gain, highest_point,
           ascent_time, descent_time, still_time,
           activity_type, source, external_id,
-          health_data, ended, is_public
+          health_data, ended, is_public,
+          processed_at, processing_state,
+          created_at, updated_at, server_updated_at
         ) VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9, $10,
           $11, $12, $13,
           $14::activity_type, $15, $16,
-          $17::jsonb, $18, $19
+          $17::jsonb, $18, $19,
+          $20, $21,
+          $22, $23, $24
         ) ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           distance = EXCLUDED.distance,
           total_time = EXCLUDED.total_time,
           gain = EXCLUDED.gain,
           highest_point = EXCLUDED.highest_point,
-          updated_at = now()`,
+          processed_at = EXCLUDED.processed_at,
+          processing_state = EXCLUDED.processing_state,
+          updated_at = EXCLUDED.updated_at,
+          server_updated_at = EXCLUDED.server_updated_at`,
         [
           id,
           d.userId,
@@ -91,6 +110,11 @@ export async function migrateSessions() {
           d.healthData ? JSON.stringify(d.healthData) : null,
           status.ended ?? false,
           status.public ?? false,
+          processedAt,
+          processingState,
+          startTime || lastUpdated,
+          lastUpdated,
+          lastUpdated,
         ]
       );
 

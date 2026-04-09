@@ -46,6 +46,7 @@ export async function migratePoints() {
 
     // Batch insert points (chunks of 500 to stay under query size limits)
     const chunkSize = 500;
+    let insertedForSession = 0;
     for (let i = 0; i < points.length; i += chunkSize) {
       const chunk = points.slice(i, i + chunkSize);
 
@@ -93,9 +94,23 @@ export async function migratePoints() {
           values
         );
         totalPoints += placeholders.length;
+        insertedForSession += placeholders.length;
       } catch (err: any) {
         console.error(`  Error inserting points for session ${sessionId} chunk ${i}: ${err.message}`);
       }
+    }
+
+    if (insertedForSession > 0) {
+      await db.query(
+        `UPDATE tracking_sessions
+         SET server_updated_at = NOW(),
+             processing_state = CASE
+               WHEN ended = true THEN 'pending'
+               ELSE processing_state
+             END
+         WHERE id = $1`,
+        [sessionId]
+      );
     }
 
     docsProcessed++;

@@ -127,11 +127,14 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/search/features?features=&activities=&lat=&lng=&radius=` | Filter by features/activities |
 | GET | `/api/routes/...` | Route queries |
 | GET | `/api/sessions/...` | Session queries |
+| GET | `/api/sessions/changes?updated_since=&after_id=&limit=` | Incremental session sync feed with tombstones |
 | GET | `/api/lists/...` | List queries |
 
 ## Migration
 
 One-time Firestore → PostGIS backfill. Reads from Firestore, writes to PostgreSQL.
+
+Schema changes for existing databases live in `cloud-sql/migrations/`.
 
 ```bash
 cd migrate

@@ -281,6 +281,14 @@ export async function processSession(
   sessionId: string,
   userId: string
 ): Promise<ProcessingResult> {
+  await db.query(
+    `UPDATE tracking_sessions
+     SET processing_state = 'processing',
+         processing_error = NULL
+     WHERE id = $1 AND user_id = $2`,
+    [sessionId, userId]
+  );
+
   const client = await db.connect();
   try {
     await client.query("BEGIN");
@@ -313,7 +321,11 @@ export async function processSession(
 
     // Step 5: Mark as processed
     await client.query(
-      `UPDATE tracking_sessions SET processed_at = NOW() WHERE id = $1`,
+      `UPDATE tracking_sessions
+       SET processed_at = NOW(),
+           processing_state = 'completed',
+           processing_error = NULL
+       WHERE id = $1`,
       [sessionId]
     );
 
@@ -327,6 +339,14 @@ export async function processSession(
     };
   } catch (err) {
     await client.query("ROLLBACK");
+    const message = err instanceof Error ? err.message.slice(0, 500) : "Unknown processing error";
+    await db.query(
+      `UPDATE tracking_sessions
+       SET processing_state = 'failed',
+           processing_error = $2
+       WHERE id = $1`,
+      [sessionId, message]
+    );
     throw err;
   } finally {
     client.release();
