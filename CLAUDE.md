@@ -37,6 +37,12 @@ cd web && npm run build && npm run lint
 
 **Cloud Run secrets/env vars**: All required env vars and secrets for the Cloud Run API are pinned in `deploy.yml`. **NEVER use `gcloud run services update --set-secrets` or `--set-env-vars`** — these flags REPLACE all existing values, silently dropping any not listed. Instead, update the `env_vars` and `secrets` fields in `deploy.yml` and redeploy via CI. The post-deploy verification step will catch DB connectivity failures.
 
+## Adding Destinations
+When looking up coordinates for a new destination (shelter, summit, trailhead, etc.):
+- **Primary source: OpenStreetMap** — use the OSM API (`https://nominatim.openstreetmap.org/search?q=<name>&format=json`) or OSM-derived sources (Gaia GPS, Mapbox). OSM is crowd-sourced and GPS-surveyed, giving accurate placement of physical structures.
+- **Avoid GNIS-based sources** (TopoZone, some AllTrails entries) — GNIS coordinates are digitized from old paper topo maps and can be 100–200m off for backcountry features like shelters and huts.
+- If the user has GPS tracks near the location, cross-check: query the centroid of tracking points within 300m and snap to it if sessions fall within a close radius.
+
 ## GPX Files
 When downloading GPX files for the project (e.g. from Hiking Project, Wikiloc, AllTrails), **always verify the files are legitimate GPX** before considering the task complete. Many sources return HTML login pages instead of actual GPX data. Check that files start with `<?xml` and contain `<trkpt>` or `<rtept>` elements. Delete any invalid files immediately.
 

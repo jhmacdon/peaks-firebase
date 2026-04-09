@@ -60,6 +60,11 @@ CREATE TABLE destinations (
     -- activity averages (denormalized stats: popularity by month/day)
     averages        JSONB,             -- { months: {jan: 5, ...}, days: {mo: 3, ...}, lastUpdated: "..." }
 
+    -- historical offsets from Firestore (pre-migration data not in session_destinations)
+    session_count_offset INT NOT NULL DEFAULT 0,
+    success_count_offset INT NOT NULL DEFAULT 0,
+    averages_offset      JSONB,        -- same shape as averages; merged with averages in API responses
+
     -- source-specific metadata (e.g. CAI shelter details, import provenance)
     metadata        JSONB,
 
@@ -398,6 +403,37 @@ CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              F
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- =============================================================================
+-- Auto-link sessions when a new destination is inserted
+-- Mirrors the destination-matching logic in processSession so that adding a
+-- destination retroactively links all ended sessions whose GPS track passes
+-- within the feature-appropriate threshold distance.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION link_sessions_on_destination_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO session_destinations (session_id, destination_id, relation, source)
+    SELECT DISTINCT tp.session_id, NEW.id, 'reached'::session_destination_relation, 'auto'
+    FROM tracking_points tp
+    JOIN tracking_sessions ts ON ts.id = tp.session_id
+    WHERE ts.ended = true
+      AND ST_DWithin(
+            NEW.location,
+            tp.location,
+            CASE WHEN 'summit'    = ANY(NEW.features) THEN 50
+                 WHEN 'trailhead' = ANY(NEW.features) THEN 150
+                 ELSE 100 END
+          )
+    ON CONFLICT (session_id, destination_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_destination_link_sessions
+AFTER INSERT ON destinations
+FOR EACH ROW EXECUTE FUNCTION link_sessions_on_destination_insert();
 
 -- =============================================================================
 -- Example Queries (reference, not executed)

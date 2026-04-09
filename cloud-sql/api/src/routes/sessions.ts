@@ -6,22 +6,46 @@ import { notifySessionProcessed } from "../slack";
 
 const router = Router();
 
-// GET /api/sessions — current user's sessions
+// GET /api/sessions — current user's sessions with inline destinations
 router.get("/", async (req, res: Response) => {
   const uid = getUid(req);
-  const limit = parseInt(req.query.limit as string) || 50;
+  const limit = parseInt(req.query.limit as string) || 200;
   const offset = parseInt(req.query.offset as string) || 0;
 
   const result = await db.query(
-    `SELECT id, name, start_time, end_time,
-            distance, total_time, pace, gain, highest_point,
-            ascent_time, descent_time, still_time,
-            activity_type, source, external_id,
-            ended, is_public,
-            created_at, updated_at
-     FROM tracking_sessions
-     WHERE user_id = $1
-     ORDER BY start_time DESC
+    `SELECT s.id, s.user_id, s.name, s.start_time, s.end_time,
+            s.distance, s.total_time, s.pace, s.gain, s.highest_point,
+            s.ascent_time, s.descent_time, s.still_time,
+            s.activity_type, s.source, s.external_id,
+            s.ended, s.is_public,
+            s.created_at, s.updated_at,
+            COALESCE(
+              (SELECT json_agg(json_build_object(
+                'id', d.id, 'name', d.name, 'elevation', d.elevation,
+                'features', d.features,
+                'lat', ST_Y(d.location::geometry),
+                'lng', ST_X(d.location::geometry)
+              ))
+              FROM session_destinations sd
+              JOIN destinations d ON d.id = sd.destination_id
+              WHERE sd.session_id = s.id AND sd.relation = 'reached'),
+              '[]'::json
+            ) AS destinations_reached,
+            COALESCE(
+              (SELECT json_agg(json_build_object(
+                'id', d.id, 'name', d.name, 'elevation', d.elevation,
+                'features', d.features,
+                'lat', ST_Y(d.location::geometry),
+                'lng', ST_X(d.location::geometry)
+              ))
+              FROM session_destinations sd
+              JOIN destinations d ON d.id = sd.destination_id
+              WHERE sd.session_id = s.id AND sd.relation = 'goal'),
+              '[]'::json
+            ) AS destination_goals
+     FROM tracking_sessions s
+     WHERE s.user_id = $1
+     ORDER BY s.start_time DESC
      LIMIT $2 OFFSET $3`,
     [uid, limit, offset]
   );
@@ -147,6 +171,35 @@ router.get("/:id/markers", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
+});
+
+// POST /api/sessions/process-all — batch process all unprocessed sessions for this user
+router.post("/process-all", async (req, res: Response) => {
+  const uid = getUid(req);
+
+  const unprocessed = await db.query(
+    `SELECT s.id FROM tracking_sessions s
+     WHERE s.user_id = $1 AND s.ended = true AND s.processed_at IS NULL
+       AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
+     ORDER BY s.start_time DESC`,
+    [uid]
+  );
+
+  const results: Array<{ id: string; destinations: number; routes: number }> = [];
+  for (const row of unprocessed.rows) {
+    try {
+      const result = await processSession(row.id, uid);
+      results.push({
+        id: row.id,
+        destinations: result.destinations_matched,
+        routes: result.routes_matched,
+      });
+    } catch (err) {
+      console.error(`Failed to process session ${row.id}:`, err);
+    }
+  }
+
+  res.json({ processed: results.length, results });
 });
 
 // POST /api/sessions/:id/process — trigger server-side session processing

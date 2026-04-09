@@ -4,6 +4,40 @@ import db from "../db";
 
 const router = Router();
 
+/**
+ * Merge averages and averages_offset by summing month/day counters.
+ * Either or both may be null.
+ */
+function mergeAverages(
+  averages: any | null,
+  offset: any | null
+): any | null {
+  if (!offset) return averages;
+  if (!averages) return offset;
+
+  const merged: any = { months: {}, days: {} };
+
+  // Merge months
+  const allMonths = new Set([
+    ...Object.keys(averages.months || {}),
+    ...Object.keys(offset.months || {}),
+  ]);
+  for (const m of allMonths) {
+    merged.months[m] =
+      ((averages.months || {})[m] || 0) + ((offset.months || {})[m] || 0);
+  }
+
+  // Merge days (handle both "days" and "weekdays" keys from Firestore)
+  const avgDays = averages.days || averages.weekdays || {};
+  const offDays = offset.days || offset.weekdays || {};
+  const allDays = new Set([...Object.keys(avgDays), ...Object.keys(offDays)]);
+  for (const d of allDays) {
+    merged.days[d] = (avgDays[d] || 0) + (offDays[d] || 0);
+  }
+
+  return merged;
+}
+
 // GET /api/destinations/:id
 router.get("/:id", async (req, res: Response) => {
   const { id } = req.params;
@@ -12,14 +46,14 @@ router.get("/:id", async (req, res: Response) => {
             d.activities, d.features, d.owner,
             d.country_code, d.state_code,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
-            d.averages, d.explicitly_saved, d.recency,
+            d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             ST_Z(d.location::geometry) AS elev_z,
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
             d.created_at, d.updated_at,
-            COALESCE(stats.session_count, 0) AS session_count,
-            COALESCE(stats.success_count, 0) AS success_count
+            COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
+            COALESCE(stats.success_count, 0) + d.success_count_offset AS success_count
      FROM destinations d
      LEFT JOIN LATERAL (
        SELECT COUNT(*) AS session_count,
@@ -33,7 +67,10 @@ router.get("/:id", async (req, res: Response) => {
     res.status(404).json({ error: "Destination not found" });
     return;
   }
-  res.json(result.rows[0]);
+  const row = result.rows[0];
+  row.averages = mergeAverages(row.averages, row.averages_offset);
+  delete row.averages_offset;
+  res.json(row);
 });
 
 // GET /api/destinations/nearby?lat=46.85&lng=-121.7&radius=10000&limit=50
