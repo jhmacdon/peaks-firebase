@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getFriends,
   createFriendInvite,
   acceptFriendInvite,
   removeFriend,
-} from "@/lib/actions/profile";
-import type { Friend } from "@/lib/actions/profile";
-import FriendCard from "@/components/friend-card";
+} from "../../../../lib/actions/profile";
+import type { Friend } from "../../../../lib/actions/profile";
+import FriendCard from "../../../../components/friend-card";
 
 export default function FriendsPage() {
   const { getIdToken } = useAuth();

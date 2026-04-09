@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "../../../../lib/auth-context";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -10,19 +10,19 @@ import {
   getSessionPoints,
   getSessionDestinations,
   getSessionRoutes,
-} from "@/lib/actions/sessions";
+} from "../../../../lib/actions/sessions";
 import type {
   SessionDetail,
   SessionPoint,
   SessionDestination,
   SessionRoute,
-} from "@/lib/actions/sessions";
+} from "../../../../lib/actions/sessions";
 
-const SessionMap = dynamic(() => import("@/components/session-map"), {
+const SessionMap = dynamic(() => import("../../../../components/session-map"), {
   ssr: false,
 });
 const ElevationProfile = dynamic(
-  () => import("@/components/elevation-profile"),
+  () => import("../../../../components/elevation-profile"),
   { ssr: false }
 );
 

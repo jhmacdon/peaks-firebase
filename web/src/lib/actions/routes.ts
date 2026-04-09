@@ -1,7 +1,7 @@
 "use server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import db from "@/lib/db";
+import db from "../db";
 
 export interface RouteRow {
   id: string;
@@ -248,7 +248,7 @@ export async function rejectRoute(id: string): Promise<void> {
  */
 export async function analyzePendingRoute(id: string): Promise<{
   decomposition: import("./segment-matcher").RouteDecomposition;
-  points: import("@/lib/route-utils").TrackPoint[];
+  points: import("../route-utils").TrackPoint[];
 }> {
   // Get the route's points from its geometry
   const pointsResult = await db.query(
@@ -265,10 +265,10 @@ export async function analyzePendingRoute(id: string): Promise<{
     throw new Error("Route has insufficient points");
   }
 
-  const { haversineDistance } = await import("@/lib/gpx");
+  const { haversineDistance } = await import("../gpx");
 
   // Build TrackPoints with cumulative distance
-  const points: import("@/lib/route-utils").TrackPoint[] = [];
+  const points: import("../route-utils").TrackPoint[] = [];
   let cumDist = 0;
   for (let i = 0; i < pointsResult.rows.length; i++) {
     const row = pointsResult.rows[i];
@@ -302,9 +302,9 @@ export async function analyzePendingRoute(id: string): Promise<{
 export async function acceptRouteWithSegments(
   id: string
 ): Promise<void> {
-  const { haversineDistance, totalDistance } = await import("@/lib/gpx");
-  const { encodePolyline6, pointsToLineStringZ, generateId } = await import("@/lib/route-utils");
-  const { computeElevationStats } = await import("@/lib/elevation");
+  const { haversineDistance, totalDistance } = await import("../gpx");
+  const { encodePolyline6, pointsToLineStringZ, generateId } = await import("../route-utils");
+  const { computeElevationStats } = await import("../elevation");
 
   // Re-analyze server-side to get fresh decomposition with full points arrays
   const { decomposition } = await analyzePendingRoute(id);

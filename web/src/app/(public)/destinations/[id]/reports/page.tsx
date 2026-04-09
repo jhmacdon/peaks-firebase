@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getTripReportsForDestination } from "@/lib/actions/trip-reports";
-import { getDestination, type DestinationDetail } from "@/lib/actions/destinations";
-import TripReportCard from "@/components/trip-report-card";
-import type { TripReport } from "@/lib/actions/trip-reports";
-import { useAuth } from "@/lib/auth-context";
+import { getTripReportsForDestination } from "../../../../../lib/actions/trip-reports";
+import { getDestination, type DestinationDetail } from "../../../../../lib/actions/destinations";
+import TripReportCard from "../../../../../components/trip-report-card";
+import type { TripReport } from "../../../../../lib/actions/trip-reports";
+import { useAuth } from "../../../../../lib/auth-context";
 
 export default function DestinationReportsPage() {
   const params = useParams();

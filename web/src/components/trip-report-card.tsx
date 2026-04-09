@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { TripReport } from "@/lib/actions/trip-reports";
+import type { TripReport } from "../lib/actions/trip-reports";
 
 interface TripReportCardProps {
   report: TripReport;

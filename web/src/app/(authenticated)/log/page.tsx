@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { getUserSessions, getUserStats } from "@/lib/actions/sessions";
-import type { SessionRow, UserStats } from "@/lib/actions/sessions";
-import StatsBanner from "@/components/stats-banner";
-import SessionCard from "@/components/session-card";
+import { useAuth } from "../../../lib/auth-context";
+import { getUserSessions, getUserStats } from "../../../lib/actions/sessions";
+import type { SessionRow, UserStats } from "../../../lib/actions/sessions";
+import StatsBanner from "../../../components/stats-banner";
+import SessionCard from "../../../components/session-card";
 
 const LIMIT = 20;
 

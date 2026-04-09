@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Avatar from "./avatar";
-import type { Friend } from "@/lib/actions/profile";
+import type { Friend } from "../lib/actions/profile";
 
 interface FriendCardProps {
   friend: Friend;

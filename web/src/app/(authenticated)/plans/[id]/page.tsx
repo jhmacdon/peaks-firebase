@@ -4,21 +4,21 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getPlan,
   updatePlan,
   deletePlan,
   inviteToPlan,
   type Plan,
-} from "@/lib/actions/plans";
-import { getDestination, type DestinationDetail } from "@/lib/actions/destinations";
-import { getRoute, type RouteDetail } from "@/lib/actions/routes";
-import PartyList from "@/components/party-list";
-import DestinationPicker from "@/components/destination-picker";
-import RoutePicker from "@/components/route-picker";
+} from "../../../../lib/actions/plans";
+import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
+import { getRoute, type RouteDetail } from "../../../../lib/actions/routes";
+import PartyList from "../../../../components/party-list";
+import DestinationPicker from "../../../../components/destination-picker";
+import RoutePicker from "../../../../components/route-picker";
 
-const RouteMap = dynamic(() => import("@/components/route-map"), {
+const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getRoutes, type RouteRow } from "@/lib/actions/routes";
+import { getRoutes, type RouteRow } from "../lib/actions/routes";
 
 interface RoutePickerProps {
   selectedIds: string[];

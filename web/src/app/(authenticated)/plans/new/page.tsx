@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import { createPlan } from "@/lib/actions/plans";
-import DestinationPicker from "@/components/destination-picker";
-import RoutePicker from "@/components/route-picker";
+import { useAuth } from "../../../../lib/auth-context";
+import { createPlan } from "../../../../lib/actions/plans";
+import DestinationPicker from "../../../../components/destination-picker";
+import RoutePicker from "../../../../components/route-picker";
 
 export default function NewPlanPage() {
   const { getIdToken } = useAuth();

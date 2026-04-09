@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "../../lib/auth-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider } from "../../lib/auth-context";
 
 export default function RegisterPage() {
   return (

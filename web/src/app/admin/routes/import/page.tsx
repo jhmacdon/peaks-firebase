@@ -2,9 +2,9 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
-import { importRouteAsPending } from "@/lib/actions/route-import";
+import AdminGuard from "../../../../components/admin-guard";
+import AdminNav from "../../../../components/admin-nav";
+import { importRouteAsPending } from "../../../../lib/actions/route-import";
 
 interface ImportResult {
   name: string;

@@ -7,9 +7,9 @@ import {
   getRoutesInViewport,
   type SearchDestination,
   type ViewportRoute,
-} from "@/lib/actions/search";
+} from "../../../lib/actions/search";
 
-const ExploreMap = dynamic(() => import("@/components/explore-map"), {
+const ExploreMap = dynamic(() => import("../../../components/explore-map"), {
   ssr: false,
   loading: () => (
     <div

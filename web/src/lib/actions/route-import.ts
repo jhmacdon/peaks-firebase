@@ -1,11 +1,11 @@
 "use server";
 
 import { PoolClient } from "pg";
-import db from "@/lib/db";
-import { fetchElevations, computeElevationStats } from "@/lib/elevation";
-import { parseGPX, simplifyTrack, totalDistance, haversineDistance } from "@/lib/gpx";
-import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "@/lib/route-utils";
-import { normalizeSearchName } from "@/lib/search-utils";
+import db from "../db";
+import { fetchElevations, computeElevationStats } from "../elevation";
+import { parseGPX, simplifyTrack, totalDistance, haversineDistance } from "../gpx";
+import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "../route-utils";
+import { normalizeSearchName } from "../search-utils";
 
 // ─── Validation constraints ────────────────────────────────────────────────
 
@@ -408,7 +408,7 @@ async function createAndLinkTrailhead(
 ): Promise<void> {
   let name = "Trailhead";
   try {
-    const { reverseGeocodePointName } = await import("@/lib/actions/destinations");
+    const { reverseGeocodePointName } = await import("./destinations");
     const geo = await reverseGeocodePointName(startPoint.lat, startPoint.lng);
     if (geo.suggestedName) name = geo.suggestedName;
   } catch { /* non-fatal */ }

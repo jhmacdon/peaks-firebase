@@ -1,8 +1,8 @@
 "use server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import db from "@/lib/db";
-import { normalizeSearchName } from "@/lib/search-utils";
+import db from "../db";
+import { normalizeSearchName } from "../search-utils";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {

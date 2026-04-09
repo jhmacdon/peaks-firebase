@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "../../../lib/auth-context";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -27,7 +27,7 @@ export default function LoginPage() {
       await signIn(email, password);
       // Auth state change will trigger re-check of admin claim
       // If not admin, show error
-      const { auth } = await import("@/lib/firebase");
+      const { auth } = await import("../../../lib/firebase");
       const tokenResult = await auth.currentUser?.getIdTokenResult();
       if (tokenResult?.claims.admin !== true) {
         setError("Access denied. Admin privileges required.");

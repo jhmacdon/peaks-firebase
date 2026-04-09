@@ -3,33 +3,33 @@
 import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
+import AdminGuard from "../../../../components/admin-guard";
+import AdminNav from "../../../../components/admin-nav";
 import dynamic from "next/dynamic";
-import ElevationProfile from "@/components/elevation-profile";
+import ElevationProfile from "../../../../components/elevation-profile";
 import {
   processGPX,
   chopOutAndBack,
   type RouteAnalysis,
   type TrackPoint,
   type NearbyDestination,
-} from "@/lib/actions/route-builder";
+} from "../../../../lib/actions/route-builder";
 import {
   analyzeRouteSegments,
   saveRouteWithSegments,
   type RouteDecomposition,
   type ProposedSegment,
-} from "@/lib/actions/segment-matcher";
+} from "../../../../lib/actions/segment-matcher";
 import {
   reverseGeocodePointName,
   createDestination,
-} from "@/lib/actions/destinations";
-import type { SegmentOverlay } from "@/components/route-builder-map";
+} from "../../../../lib/actions/destinations";
+import type { SegmentOverlay } from "../../../../components/route-builder-map";
 
-const RouteBuilderMap = dynamic(() => import("@/components/route-builder-map"), {
+const RouteBuilderMap = dynamic(() => import("../../../../components/route-builder-map"), {
   ssr: false,
 });
-const LocationPickerMap = dynamic(() => import("@/components/location-picker-map"), {
+const LocationPickerMap = dynamic(() => import("../../../../components/location-picker-map"), {
   ssr: false,
 });
 

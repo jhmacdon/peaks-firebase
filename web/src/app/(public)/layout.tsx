@@ -1,7 +1,7 @@
 "use client";
 
-import { AuthProvider } from "@/lib/auth-context";
-import AppNav from "@/components/app-nav";
+import { AuthProvider } from "../../lib/auth-context";
+import AppNav from "../../components/app-nav";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -12,13 +12,13 @@ import {
   type RouteDetail,
   type RouteDestination,
   type RouteElevationPoint,
-} from "@/lib/actions/routes";
+} from "../../../../lib/actions/routes";
 
-const RouteMap = dynamic(() => import("@/components/route-map"), {
+const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
 });
 const ElevationProfile = dynamic(
-  () => import("@/components/elevation-profile"),
+  () => import("../../../../components/elevation-profile"),
   { ssr: false }
 );
 

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getTripReport, type TripReport } from "@/lib/actions/trip-reports";
+import { getTripReport, type TripReport } from "../../../../lib/actions/trip-reports";
 import {
   getDestination,
   type DestinationDetail,
-} from "@/lib/actions/destinations";
+} from "../../../../lib/actions/destinations";
 
 export default function TripReportDetailPage() {
   const params = useParams();

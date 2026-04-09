@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
+import AdminGuard from "../../../../components/admin-guard";
+import AdminNav from "../../../../components/admin-nav";
 import dynamic from "next/dynamic";
 import {
   getRoute,
@@ -18,11 +18,11 @@ import {
   type RouteDetail,
   type RouteDestination,
   type RouteSegment,
-} from "@/lib/actions/routes";
-import type { RouteDecomposition } from "@/lib/actions/segment-matcher";
-import UserPopover from "@/components/user-popover";
+} from "../../../../lib/actions/routes";
+import type { RouteDecomposition } from "../../../../lib/actions/segment-matcher";
+import UserPopover from "../../../../components/user-popover";
 
-const RouteMap = dynamic(() => import("@/components/route-map"), { ssr: false });
+const RouteMap = dynamic(() => import("../../../../components/route-map"), { ssr: false });
 
 export default function RouteDetailPage() {
   return (

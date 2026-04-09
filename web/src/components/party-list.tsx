@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getUser, type UserInfo } from "@/lib/actions/users";
+import { getUser, type UserInfo } from "../lib/actions/users";
 
 interface PartyListProps {
   partyIds: string[];

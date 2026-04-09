@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { createTripReport, type TripReportBlock } from "@/lib/actions/trip-reports";
-import { searchDestinations, type SearchDestination } from "@/lib/actions/search";
-import { getDestination } from "@/lib/actions/destinations";
-import BlockEditor from "@/components/block-editor";
+import { useAuth } from "../../../../lib/auth-context";
+import { createTripReport, type TripReportBlock } from "../../../../lib/actions/trip-reports";
+import { searchDestinations, type SearchDestination } from "../../../../lib/actions/search";
+import { getDestination } from "../../../../lib/actions/destinations";
+import BlockEditor from "../../../../components/block-editor";
 
 interface SelectedDestination {
   id: string;

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   searchDestinations,
   type SearchDestination,
-} from "@/lib/actions/search";
+} from "../lib/actions/search";
 
 interface DestinationPickerProps {
   selectedIds: string[];

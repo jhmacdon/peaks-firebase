@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getUser, type UserInfo } from "@/lib/actions/users";
+import { getUser, type UserInfo } from "../lib/actions/users";
 
 interface UserPopoverProps {
   uid: string;

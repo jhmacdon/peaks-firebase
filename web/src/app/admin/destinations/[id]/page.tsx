@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
-import UserPopover from "@/components/user-popover";
+import AdminGuard from "../../../../components/admin-guard";
+import AdminNav from "../../../../components/admin-nav";
+import UserPopover from "../../../../components/user-popover";
 import dynamic from "next/dynamic";
 import {
   getDestination,
@@ -17,9 +17,9 @@ import {
   type DestinationDetail,
   type DestinationRoute,
   type DestinationList,
-} from "@/lib/actions/destinations";
+} from "../../../../lib/actions/destinations";
 
-const DestinationMap = dynamic(() => import("@/components/destination-map"), {
+const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
 });
 

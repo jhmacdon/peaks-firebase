@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import DestinationCard from "@/components/destination-card";
-import ProgressBar from "@/components/progress-bar";
-import { useAuth } from "@/lib/auth-context";
+import DestinationCard from "../../../../components/destination-card";
+import ProgressBar from "../../../../components/progress-bar";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getList,
   getListDestinations,
@@ -13,7 +13,7 @@ import {
   type ListDetail,
   type ListDestination,
   type ListProgress,
-} from "@/lib/actions/lists";
+} from "../../../../lib/actions/lists";
 
 export default function ListDetailPage() {
   const params = useParams();

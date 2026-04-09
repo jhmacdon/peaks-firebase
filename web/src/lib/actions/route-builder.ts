@@ -1,14 +1,14 @@
 "use server";
 
-import db from "@/lib/db";
-import { fetchElevations, computeElevationStats } from "@/lib/elevation";
-import { parseGPX, detectRouteShape, simplifyTrack, totalDistance, haversineDistance } from "@/lib/gpx";
-import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "@/lib/route-utils";
-import { createDestination, reverseGeocodePointName } from "@/lib/actions/destinations";
-import { normalizeSearchName } from "@/lib/search-utils";
+import db from "../db";
+import { fetchElevations, computeElevationStats } from "../elevation";
+import { parseGPX, detectRouteShape, simplifyTrack, totalDistance, haversineDistance } from "../gpx";
+import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "../route-utils";
+import { createDestination, reverseGeocodePointName } from "./destinations";
+import { normalizeSearchName } from "../search-utils";
 
 // Re-export TrackPoint so existing consumers don't break
-export type { TrackPoint } from "@/lib/route-utils";
+export type { TrackPoint } from "../route-utils";
 
 export interface RouteAnalysis {
   name: string | null;

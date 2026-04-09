@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { getUserPlans, type Plan } from "@/lib/actions/plans";
-import PlanCard from "@/components/plan-card";
+import { useAuth } from "../../../lib/auth-context";
+import { getUserPlans, type Plan } from "../../../lib/actions/plans";
+import PlanCard from "../../../components/plan-card";
 
 export default function PlansPage() {
   const { getIdToken } = useAuth();

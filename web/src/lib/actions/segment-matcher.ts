@@ -1,15 +1,15 @@
 "use server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import db from "@/lib/db";
-import { computeElevationStats } from "@/lib/elevation";
-import { haversineDistance, totalDistance } from "@/lib/gpx";
+import db from "../db";
+import { computeElevationStats } from "../elevation";
+import { haversineDistance, totalDistance } from "../gpx";
 import {
   type TrackPoint,
   encodePolyline6,
   pointsToLineStringZ,
   generateId,
-} from "@/lib/route-utils";
+} from "../route-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

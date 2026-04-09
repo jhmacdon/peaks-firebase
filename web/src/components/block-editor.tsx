@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { TripReportBlock } from "@/lib/actions/trip-reports";
+import type { TripReportBlock } from "../lib/actions/trip-reports";
 
 interface BlockEditorProps {
   blocks: TripReportBlock[];

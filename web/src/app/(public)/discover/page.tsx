@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import SearchBar from "@/components/search-bar";
-import DestinationCard from "@/components/destination-card";
+import SearchBar from "../../../components/search-bar";
+import DestinationCard from "../../../components/destination-card";
 import {
   searchDestinations,
   getNearbyDestinations,
   getPopularDestinations,
   type SearchDestination,
-} from "@/lib/actions/search";
-import { getLists, type ListRow } from "@/lib/actions/lists";
+} from "../../../lib/actions/search";
+import { getLists, type ListRow } from "../../../lib/actions/lists";
 
 function DiscoverContent() {
   const searchParams = useSearchParams();

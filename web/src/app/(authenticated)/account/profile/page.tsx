@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { getProfile, updateProfile } from "@/lib/actions/profile";
-import { uploadAvatar } from "@/lib/storage";
-import type { UserProfile } from "@/lib/actions/profile";
-import Avatar from "@/components/avatar";
+import { useAuth } from "../../../../lib/auth-context";
+import { getProfile, updateProfile } from "../../../../lib/actions/profile";
+import { uploadAvatar } from "../../../../lib/storage";
+import type { UserProfile } from "../../../../lib/actions/profile";
+import Avatar from "../../../../components/avatar";
 import Link from "next/link";
 
 export default function EditProfilePage() {

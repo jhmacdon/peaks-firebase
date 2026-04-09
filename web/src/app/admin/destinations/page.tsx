@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
+import AdminGuard from "../../../components/admin-guard";
+import AdminNav from "../../../components/admin-nav";
 import {
   getDestinations,
   bulkImportDestinations,
@@ -12,8 +12,8 @@ import {
   type SortDir,
   type BulkImportWaypoint,
   type BulkImportResult,
-} from "@/lib/actions/destinations";
-import { parseGPX, type GPXWaypoint } from "@/lib/gpx";
+} from "../../../lib/actions/destinations";
+import { parseGPX, type GPXWaypoint } from "../../../lib/gpx";
 
 export default function DestinationsPage() {
   return (

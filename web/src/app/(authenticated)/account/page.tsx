@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { getProfile } from "@/lib/actions/profile";
-import type { UserProfile } from "@/lib/actions/profile";
-import Avatar from "@/components/avatar";
+import { useAuth } from "../../../lib/auth-context";
+import { getProfile } from "../../../lib/actions/profile";
+import type { UserProfile } from "../../../lib/actions/profile";
+import Avatar from "../../../components/avatar";
 
 export default function AccountPage() {
   const { user, signOut, getIdToken } = useAuth();

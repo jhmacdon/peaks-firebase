@@ -12,10 +12,10 @@ import {
   type DestinationDetail,
   type DestinationRoute,
   type DestinationList,
-} from "@/lib/actions/destinations";
-import { getTripReportsForDestination, type TripReport } from "@/lib/actions/trip-reports";
+} from "../../../../lib/actions/destinations";
+import { getTripReportsForDestination, type TripReport } from "../../../../lib/actions/trip-reports";
 
-const DestinationMap = dynamic(() => import("@/components/destination-map"), {
+const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
 });
 

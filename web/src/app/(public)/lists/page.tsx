@@ -3,8 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import SearchBar from "@/components/search-bar";
-import { getLists, type ListRow } from "@/lib/actions/lists";
+import SearchBar from "../../../components/search-bar";
+import { getLists, type ListRow } from "../../../lib/actions/lists";
 
 function ListsContent() {
   const searchParams = useSearchParams();

@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import AdminGuard from "@/components/admin-guard";
-import AdminNav from "@/components/admin-nav";
-import { getRoutes, getPendingRouteCount, type RouteRow } from "@/lib/actions/routes";
+import AdminGuard from "../../../components/admin-guard";
+import AdminNav from "../../../components/admin-nav";
+import { getRoutes, getPendingRouteCount, type RouteRow } from "../../../lib/actions/routes";
 
 export default function RoutesPage() {
   return (

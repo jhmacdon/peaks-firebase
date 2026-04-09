@@ -1,8 +1,8 @@
 "use client";
 
-import { AuthProvider } from "@/lib/auth-context";
-import AppNav from "@/components/app-nav";
-import UserAuthGuard from "@/components/user-auth-guard";
+import { AuthProvider } from "../../lib/auth-context";
+import AppNav from "../../components/app-nav";
+import UserAuthGuard from "../../components/user-auth-guard";
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
