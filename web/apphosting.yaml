@@ -1,0 +1,15 @@
+runConfig:
+  # Cloud SQL connection — makes the Unix socket available at
+  # /cloudsql/donner-a8608:us-central1:peaks-db
+  cloudSqlInstances:
+    - donner-a8608:us-central1:peaks-db
+
+env:
+  - variable: INSTANCE_CONNECTION_NAME
+    value: donner-a8608:us-central1:peaks-db
+  - variable: DB_NAME
+    value: peaks
+  - variable: DB_USER
+    value: peaks-api
+  - variable: DB_PASS
+    secret: peaks-db-password
