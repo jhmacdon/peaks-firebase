@@ -8,9 +8,10 @@ interface DestinationMapProps {
   lat: number;
   lng: number;
   name?: string | null;
+  boundary?: GeoJSON.Polygon | null;
 }
 
-export default function DestinationMap({ lat, lng, name }: DestinationMapProps) {
+export default function DestinationMap({ lat, lng, name, boundary }: DestinationMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
 
@@ -42,13 +43,21 @@ export default function DestinationMap({ lat, lng, name }: DestinationMapProps) 
     const marker = L.marker([lat, lng], { icon }).addTo(map);
     if (name) marker.bindPopup(name);
 
-    map.setView([lat, lng], 13);
+    if (boundary) {
+      const polygon = L.geoJSON(
+        { type: "Feature", geometry: boundary, properties: {} } as GeoJSON.Feature,
+        { style: { color: "#2563eb", weight: 2, fillOpacity: 0.15 } }
+      ).addTo(map);
+      map.fitBounds(polygon.getBounds().pad(0.3));
+    } else {
+      map.setView([lat, lng], 13);
+    }
 
     return () => {
       map.remove();
       mapInstance.current = null;
     };
-  }, [lat, lng, name]);
+  }, [lat, lng, name, boundary]);
 
   return <div ref={mapRef} className="h-80 rounded-xl z-0" />;
 }

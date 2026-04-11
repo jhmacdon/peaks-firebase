@@ -26,15 +26,19 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
     candidate_destinations AS (
         SELECT d.* FROM destinations d, session_bbox b
         WHERE d.location::geometry && b.bbox
+           OR (d.boundary IS NOT NULL AND d.boundary::geometry && b.bbox)
     )
     INSERT INTO session_destinations (session_id, destination_id, relation, source)
     SELECT DISTINCT ON (d.id) $1, d.id, 'reached', 'auto'
     FROM candidate_destinations d
     JOIN tracking_points tp ON tp.session_id = $1
-    WHERE ST_DWithin(d.location, tp.location,
-        CASE WHEN 'summit' = ANY(d.features) THEN 50
-             WHEN 'trailhead' = ANY(d.features) THEN 150
-             ELSE 100 END)
+    WHERE CASE WHEN d.boundary IS NOT NULL
+            THEN ST_DWithin(d.boundary, tp.location, 10)
+            ELSE ST_DWithin(d.location, tp.location,
+                CASE WHEN 'summit' = ANY(d.features) THEN 30
+                     WHEN 'trailhead' = ANY(d.features) THEN 100
+                     ELSE 50 END)
+          END
     ON CONFLICT (session_id, destination_id) DO NOTHING`,
     [sessionId]
   );

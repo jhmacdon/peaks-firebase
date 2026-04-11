@@ -13,6 +13,8 @@ import {
   getDestinationLists,
   getDestinationSessionCount,
   updateDestination,
+  updateDestinationBoundary,
+  deleteDestinationBoundary,
   reverseGeocodeDestination,
   type DestinationDetail,
   type DestinationRoute,
@@ -20,6 +22,10 @@ import {
 } from "../../../../lib/actions/destinations";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
+  ssr: false,
+});
+
+const BoundaryEditorMap = dynamic(() => import("../../../../components/boundary-editor-map"), {
   ssr: false,
 });
 
@@ -46,6 +52,9 @@ function DestinationDetailContent() {
   const [editFeatures, setEditFeatures] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
+  const [editingBoundary, setEditingBoundary] = useState(false);
+  const [pendingBoundary, setPendingBoundary] = useState<GeoJSON.Polygon | null>(null);
+  const [savingBoundary, setSavingBoundary] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -97,6 +106,25 @@ function DestinationDetailContent() {
     } finally {
       setGeocoding(false);
     }
+  };
+
+  const handleSaveBoundary = async () => {
+    if (!pendingBoundary) return;
+    setSavingBoundary(true);
+    await updateDestinationBoundary(id, pendingBoundary);
+    setDest((prev) => prev ? { ...prev, boundary: pendingBoundary } : prev);
+    setEditingBoundary(false);
+    setPendingBoundary(null);
+    setSavingBoundary(false);
+  };
+
+  const handleDeleteBoundary = async () => {
+    setSavingBoundary(true);
+    await deleteDestinationBoundary(id);
+    setDest((prev) => prev ? { ...prev, boundary: null } : prev);
+    setEditingBoundary(false);
+    setPendingBoundary(null);
+    setSavingBoundary(false);
   };
 
   if (loading) {
@@ -238,11 +266,63 @@ function DestinationDetailContent() {
           </div>
         )}
 
-        {/* Map */}
+        {/* Map + Boundary */}
         {dest.lat != null && dest.lng != null && (
           <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-            <h3 className="font-semibold mb-3">Location</h3>
-            <DestinationMap lat={dest.lat} lng={dest.lng} name={dest.name} />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Location</h3>
+              <div className="flex items-center gap-2">
+                {dest.boundary && !editingBoundary && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                    Boundary set
+                  </span>
+                )}
+                {editingBoundary ? (
+                  <>
+                    <button
+                      onClick={() => { setEditingBoundary(false); setPendingBoundary(null); }}
+                      className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    {(dest.boundary || pendingBoundary) && (
+                      <button
+                        onClick={handleDeleteBoundary}
+                        disabled={savingBoundary}
+                        className="text-xs px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
+                      >
+                        Clear Boundary
+                      </button>
+                    )}
+                    <button
+                      onClick={handleSaveBoundary}
+                      disabled={!pendingBoundary || savingBoundary}
+                      className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {savingBoundary ? "Saving..." : "Save Boundary"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => { setEditingBoundary(true); setPendingBoundary(null); }}
+                    className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    {dest.boundary ? "Edit Boundary" : "Draw Boundary"}
+                  </button>
+                )}
+              </div>
+            </div>
+            {editingBoundary ? (
+              <BoundaryEditorMap
+                lat={dest.lat}
+                lng={dest.lng}
+                name={dest.name}
+                boundary={dest.boundary}
+                onBoundaryChange={setPendingBoundary}
+              />
+            ) : (
+              <DestinationMap lat={dest.lat} lng={dest.lng} name={dest.name} boundary={dest.boundary} />
+            )}
           </div>
         )}
 

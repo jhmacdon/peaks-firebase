@@ -13,7 +13,8 @@ const DESTINATIONS_REACHED_SQL = `COALESCE(
     'id', d.id, 'name', d.name, 'elevation', d.elevation,
     'features', d.features,
     'lat', ST_Y(d.location::geometry),
-    'lng', ST_X(d.location::geometry)
+    'lng', ST_X(d.location::geometry),
+    'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
   JOIN destinations d ON d.id = sd.destination_id
@@ -26,7 +27,8 @@ const DESTINATION_GOALS_SQL = `COALESCE(
     'id', d.id, 'name', d.name, 'elevation', d.elevation,
     'features', d.features,
     'lat', ST_Y(d.location::geometry),
-    'lng', ST_X(d.location::geometry)
+    'lng', ST_X(d.location::geometry),
+    'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
   JOIN destinations d ON d.id = sd.destination_id

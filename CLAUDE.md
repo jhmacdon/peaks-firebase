@@ -52,6 +52,11 @@ When writing or modifying `useEffect` hooks in the web app:
 - **NEVER set state inside an effect that re-triggers that same effect** — e.g. setting `locationStatus` inside an effect that depends on `[locationStatus]`.
 - After modifying any page with useEffect, **verify the page doesn't infinite-loop** by loading it in the browser and confirming network requests stop after initial load.
 
+## Owner
+- **Josiah's Firebase UID**: `QzmvJRt5E5eTV4fAsuyLDrc4PEq1`
+  - Use this when querying sessions, destinations, or any user-scoped data to identify Josiah's records
+  - Sessions/data prefixed with `deleted_QzmvJRt5E5eTV4fAsuyLDrc4PEq1` are from a prior account migration — the live records use the bare UID
+
 ## Key Details
 - Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11
 - Node 20 runtime

@@ -38,6 +38,7 @@ CREATE TABLE destinations (
     elevation       DOUBLE PRECISION,  -- meters
     prominence      DOUBLE PRECISION,  -- meters
     location        geography(PointZ, 4326),
+    boundary        geography(Polygon, 4326),  -- optional shape for area destinations (lakes, camps, etc.)
     geohash         TEXT,
     type            destination_type NOT NULL DEFAULT 'point',
     activities      activity_type[] NOT NULL DEFAULT '{}',
@@ -366,6 +367,7 @@ CREATE TABLE session_tombstones (
 
 -- Spatial (GIST) on all geography columns
 CREATE INDEX idx_destinations_location      ON destinations USING GIST (location);
+CREATE INDEX idx_destinations_boundary      ON destinations USING GIST (boundary) WHERE boundary IS NOT NULL;
 CREATE INDEX idx_routes_path                ON routes       USING GIST (path);
 CREATE INDEX idx_tracking_points_location   ON tracking_points USING GIST (location);
 CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (location);
@@ -474,13 +476,16 @@ BEGIN
     FROM tracking_points tp
     JOIN tracking_sessions ts ON ts.id = tp.session_id
     WHERE ts.ended = true
-      AND ST_DWithin(
-            NEW.location,
-            tp.location,
-            CASE WHEN 'summit'    = ANY(NEW.features) THEN 50
-                 WHEN 'trailhead' = ANY(NEW.features) THEN 150
-                 ELSE 100 END
-          )
+      AND CASE WHEN NEW.boundary IS NOT NULL
+            THEN ST_DWithin(NEW.boundary, tp.location, 10)
+            ELSE ST_DWithin(
+                   NEW.location,
+                   tp.location,
+                   CASE WHEN 'summit'    = ANY(NEW.features) THEN 30
+                        WHEN 'trailhead' = ANY(NEW.features) THEN 100
+                        ELSE 50 END
+                 )
+          END
     ON CONFLICT (session_id, destination_id) DO NOTHING;
     RETURN NEW;
 END;

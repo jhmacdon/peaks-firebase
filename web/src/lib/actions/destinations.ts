@@ -44,6 +44,7 @@ export interface DestinationDetail {
   state_code: string | null;
   lat: number | null;
   lng: number | null;
+  boundary: GeoJSON.Polygon | null;
   hero_image: string | null;
   hero_image_attribution: string | null;
   hero_image_attribution_url: string | null;
@@ -166,6 +167,8 @@ export async function getDestination(
             d.country_code, d.state_code,
             ST_Y(d.location::geometry) as lat,
             ST_X(d.location::geometry) as lng,
+            CASE WHEN d.boundary IS NOT NULL
+                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.averages, d.explicitly_saved, d.geohash,
             d.created_at, d.updated_at
@@ -183,6 +186,7 @@ export async function getDestination(
     prominence: r.prominence ? Number(r.prominence) : null,
     lat: r.lat ? Number(r.lat) : null,
     lng: r.lng ? Number(r.lng) : null,
+    boundary: r.boundary || null,
     features: parseArray(r.features),
     activities: parseArray(r.activities),
     created_at: r.created_at.toISOString(),
@@ -508,4 +512,25 @@ export async function reverseGeocodeDestination(
   }
 
   return { country_code, state_code };
+}
+
+export async function updateDestinationBoundary(
+  id: string,
+  geojson: GeoJSON.Polygon
+): Promise<void> {
+  await db.query(
+    `UPDATE destinations
+     SET boundary = ST_GeomFromGeoJSON($2)::geography
+     WHERE id = $1`,
+    [id, JSON.stringify(geojson)]
+  );
+}
+
+export async function deleteDestinationBoundary(
+  id: string
+): Promise<void> {
+  await db.query(
+    `UPDATE destinations SET boundary = NULL WHERE id = $1`,
+    [id]
+  );
 }

@@ -50,6 +50,8 @@ router.get("/:id", async (req, res: Response) => {
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             ST_Z(d.location::geometry) AS elev_z,
+            CASE WHEN d.boundary IS NOT NULL
+                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
             d.created_at, d.updated_at,
             COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
