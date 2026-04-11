@@ -139,9 +139,15 @@ function DestinationsContent() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Link
+              href="/admin/destinations/new"
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Add Destination
+            </Link>
             <button
               onClick={() => { setShowImport(true); setImportWaypoints([]); setImportResult(null); }}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               Import GPX
             </button>
@@ -280,6 +286,7 @@ function DestinationsContent() {
                               <option value="fire-lookout">Fire Lookout</option>
                               <option value="hut">Hut</option>
                               <option value="lookout">Lookout</option>
+                              <option value="lake">Lake</option>
                             </select>
                           </td>
                           <td className="px-3 py-2 text-gray-500">
@@ -344,6 +351,7 @@ function DestinationsContent() {
             <option value="fire-lookout">Fire Lookout</option>
             <option value="hut">Hut</option>
             <option value="lookout">Lookout</option>
+            <option value="lake">Lake</option>
           </select>
         </div>
 

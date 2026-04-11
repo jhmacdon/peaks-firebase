@@ -3,6 +3,7 @@
 
 import db from "../db";
 import { normalizeSearchName } from "../search-utils";
+import { fetchElevations } from "../elevation";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -361,9 +362,11 @@ export async function createDestination(input: {
   lng: number;
   elevation: number | null;
   features: string[];
+  type?: string;
 }): Promise<{ id: string }> {
   const id = generateId();
   const searchName = normalizeSearchName(input.name);
+  const destType = input.type || "point";
 
   // Reverse geocode for country/state
   let country_code: string | null = null;
@@ -381,11 +384,144 @@ export async function createDestination(input: {
   await db.query(
     `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type, country_code, state_code)
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, COALESCE($6::double precision, 0)), 4326)::geography,
-             $6, $7::destination_feature[], 'peaks', 'point', $8, $9)`,
-    [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, country_code, state_code]
+             $6, $7::destination_feature[], 'peaks', $8::destination_type, $9, $10)`,
+    [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, destType, country_code, state_code]
   );
 
   return { id };
+}
+
+export interface NearbyDestination {
+  id: string;
+  name: string | null;
+  lat: number;
+  lng: number;
+  elevation: number | null;
+  features: string[];
+  type: string;
+  distance: number;
+}
+
+export async function searchNearbyExisting(
+  lat: number,
+  lng: number,
+  radiusM: number = 2000
+): Promise<NearbyDestination[]> {
+  const result = await db.query(
+    `SELECT d.id, d.name, d.type, d.features, d.elevation,
+            ST_Y(d.location::geometry) as lat,
+            ST_X(d.location::geometry) as lng,
+            ROUND(ST_Distance(d.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography)::numeric) as distance
+     FROM destinations d
+     WHERE ST_DWithin(d.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
+     ORDER BY distance
+     LIMIT 20`,
+    [lng, lat, radiusM]
+  );
+
+  return result.rows.map((r: any) => ({
+    ...r,
+    elevation: r.elevation ? Number(r.elevation) : null,
+    lat: Number(r.lat),
+    lng: Number(r.lng),
+    distance: Number(r.distance),
+    features: parseArray(r.features),
+  }));
+}
+
+export interface OSMSuggestion {
+  osm_id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  elevation: number | null;
+  feature: string;
+  osm_tags: string;
+  distance: number;
+}
+
+export async function searchOSMNearby(
+  lat: number,
+  lng: number,
+  radiusM: number = 2000
+): Promise<OSMSuggestion[]> {
+  const query = `
+[out:json][timeout:10];
+(
+  node["natural"="peak"](around:${radiusM},${lat},${lng});
+  node["natural"="volcano"](around:${radiusM},${lat},${lng});
+  node["natural"="saddle"](around:${radiusM},${lat},${lng});
+  node["tourism"="alpine_hut"](around:${radiusM},${lat},${lng});
+  node["tourism"="wilderness_hut"](around:${radiusM},${lat},${lng});
+  node["man_made"="tower"]["tower:type"="observation"](around:${radiusM},${lat},${lng});
+  node["information"="trailhead"](around:${radiusM},${lat},${lng});
+  node["highway"="trailhead"](around:${radiusM},${lat},${lng});
+  node["amenity"="shelter"](around:${radiusM},${lat},${lng});
+  node["tourism"="camp_site"](around:${radiusM},${lat},${lng});
+  node["natural"="water"]["name"](around:${radiusM},${lat},${lng});
+  way["natural"="water"]["name"](around:${radiusM},${lat},${lng});
+);
+out body center;`;
+
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: `data=${encodeURIComponent(query)}`,
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const elements: any[] = data.elements || [];
+
+  // Haversine distance
+  function dist(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function mapFeature(tags: Record<string, string>): { feature: string; label: string } {
+    if (tags.natural === "volcano") return { feature: "volcano", label: "volcano" };
+    if (tags.natural === "peak") return { feature: "summit", label: "peak" };
+    if (tags.natural === "saddle") return { feature: "", label: "saddle" };
+    if (tags.tourism === "alpine_hut" || tags.tourism === "wilderness_hut")
+      return { feature: "hut", label: tags.tourism.replace("_", " ") };
+    if (tags["tower:type"] === "observation")
+      return { feature: "lookout", label: "observation tower" };
+    if (tags.information === "trailhead" || tags.highway === "trailhead")
+      return { feature: "trailhead", label: "trailhead" };
+    if (tags.amenity === "shelter") return { feature: "hut", label: "shelter" };
+    if (tags.tourism === "camp_site") return { feature: "", label: "campsite" };
+    if (tags.natural === "water") return { feature: "lake", label: "lake" };
+    return { feature: "", label: "poi" };
+  }
+
+  return elements
+    .filter((el: any) => el.tags?.name && (el.lat != null || el.center))
+    .map((el: any) => {
+      const tags = el.tags || {};
+      const mapped = mapFeature(tags);
+      const elLat = el.lat ?? el.center?.lat;
+      const elLng = el.lon ?? el.center?.lon;
+      return {
+        osm_id: el.id,
+        name: tags.name,
+        lat: elLat,
+        lng: elLng,
+        elevation: tags.ele ? parseFloat(tags.ele) : null,
+        feature: mapped.feature,
+        osm_tags: mapped.label,
+        distance: Math.round(dist(lat, lng, elLat, elLng)),
+      };
+    })
+    .sort((a: OSMSuggestion, b: OSMSuggestion) => a.distance - b.distance);
 }
 
 function generateId(): string {
@@ -533,4 +669,16 @@ export async function deleteDestinationBoundary(
     `UPDATE destinations SET boundary = NULL WHERE id = $1`,
     [id]
   );
+}
+
+export async function lookupElevation(
+  lat: number,
+  lng: number
+): Promise<number | null> {
+  try {
+    const [ele] = await fetchElevations([{ lat, lng }]);
+    return Math.round(ele);
+  } catch {
+    return null;
+  }
 }
