@@ -235,7 +235,11 @@ function DestinationDetailContent() {
             }
           />
           <StatCard label="Routes" value={routes.length.toString()} />
-          <StatCard label="Sessions" value={sessionCount.toString()} />
+          <StatCard
+            label="Sessions"
+            value={sessionCount.toString()}
+            href={sessionCount > 0 ? `/admin/sessions?destination=${id}` : undefined}
+          />
         </div>
 
         {/* Hero Image */}
@@ -536,11 +540,34 @@ function DestinationDetailContent() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+function StatCard({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+}) {
+  const content = (
+    <>
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-sm text-gray-500">{label}</div>
+    </>
+  );
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+      >
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+      {content}
     </div>
   );
 }

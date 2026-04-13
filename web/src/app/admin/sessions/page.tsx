@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import AdminGuard from "../../../components/admin-guard";
 import AdminNav from "../../../components/admin-nav";
 import UserPopover from "../../../components/user-popover";
@@ -11,6 +12,7 @@ import {
   type AdminSessionSort,
   type SortDir,
 } from "../../../lib/actions/admin-sessions";
+import { getDestination } from "../../../lib/actions/destinations";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -37,6 +39,10 @@ export default function AdminSessionsPage() {
 }
 
 function SessionsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const destinationId = searchParams.get("destination") || "";
+
   const [sessions, setSessions] = useState<AdminSessionRow[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -44,6 +50,7 @@ function SessionsContent() {
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<AdminSessionSort>("start_time");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [destinationName, setDestinationName] = useState<string | null>(null);
   const pageSize = 50;
 
   const toggleSort = (field: AdminSessionSort) => {
@@ -62,12 +69,35 @@ function SessionsContent() {
       search,
       pageSize,
       page * pageSize,
-      { field: sortField, dir: sortDir }
+      { field: sortField, dir: sortDir },
+      destinationId ? { destination_id: destinationId } : undefined
     );
     setSessions(result.sessions);
     setTotal(result.total);
     setLoading(false);
-  }, [search, page, sortField, sortDir]);
+  }, [search, page, sortField, sortDir, destinationId]);
+
+  useEffect(() => {
+    if (!destinationId) {
+      setDestinationName(null);
+      return;
+    }
+    let cancelled = false;
+    getDestination(destinationId).then((d) => {
+      if (!cancelled) setDestinationName(d?.name || "Unnamed");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [destinationId]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [destinationId]);
+
+  const clearDestinationFilter = () => {
+    router.push("/admin/sessions");
+  };
 
   useEffect(() => {
     fetchSessions();
@@ -92,6 +122,27 @@ function SessionsContent() {
             </p>
           </div>
         </div>
+
+        {destinationId && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              <span className="text-xs text-blue-500 dark:text-blue-400">Destination:</span>
+              <Link
+                href={`/admin/destinations/${destinationId}`}
+                className="font-medium hover:underline"
+              >
+                {destinationName || "Loading..."}
+              </Link>
+              <button
+                onClick={clearDestinationFilter}
+                className="text-blue-500 hover:text-red-500 ml-1"
+                aria-label="Clear filter"
+              >
+                &times;
+              </button>
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3 mb-6">
           <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">

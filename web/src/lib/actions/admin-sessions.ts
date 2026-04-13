@@ -36,7 +36,7 @@ export async function getAdminSessions(
   limit: number = 50,
   offset: number = 0,
   sort?: { field: AdminSessionSort; dir: SortDir },
-  filters?: { user_id?: string }
+  filters?: { user_id?: string; destination_id?: string }
 ): Promise<{ sessions: AdminSessionRow[]; total: number }> {
   const conditions: string[] = [];
   const params: any[] = [];
@@ -45,6 +45,14 @@ export async function getAdminSessions(
   if (filters?.user_id) {
     conditions.push(`ts.user_id = $${paramIndex}`);
     params.push(filters.user_id);
+    paramIndex++;
+  }
+
+  if (filters?.destination_id) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM session_destinations sd WHERE sd.session_id = ts.id AND sd.destination_id = $${paramIndex})`
+    );
+    params.push(filters.destination_id);
     paramIndex++;
   }
 

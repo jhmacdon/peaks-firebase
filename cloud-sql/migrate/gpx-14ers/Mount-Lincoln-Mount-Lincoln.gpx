@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="osm-overpass">
+<trk><name>Mount Lincoln</name><trkseg>
+<trkpt lat="39.3513945" lon="-106.1121609"></trkpt>
+<trkpt lat="39.3514371" lon="-106.1119685"></trkpt>
+<trkpt lat="39.3514621" lon="-106.1118029"></trkpt>
+<trkpt lat="39.3514974" lon="-106.1117465"></trkpt>
+<trkpt lat="39.3514946" lon="-106.1117044"></trkpt>
+<trkpt lat="39.3515183" lon="-106.1116491"></trkpt>
+<trkpt lat="39.351423" lon="-106.1115692"></trkpt>
+<trkpt lat="39.3513713" lon="-106.1115237"></trkpt>
+</trkseg></trk>
+</gpx>

@@ -10,6 +10,7 @@ import {
   searchNearbyExisting,
   searchOSMNearby,
   createDestination,
+  updateDestinationBoundary,
   lookupElevation,
   type NearbyDestination,
   type OSMSuggestion,
@@ -17,6 +18,14 @@ import {
 
 const DestinationSearchMap = dynamic(
   () => import("../../../../components/destination-search-map"),
+  { ssr: false }
+);
+const LocationPickerMap = dynamic(
+  () => import("../../../../components/location-picker-map"),
+  { ssr: false }
+);
+const BoundaryEditorMap = dynamic(
+  () => import("../../../../components/boundary-editor-map"),
   { ssr: false }
 );
 
@@ -75,6 +84,8 @@ function NewDestinationContent() {
   const [confirm, setConfirm] = useState<ConfirmData | null>(null);
   const [saving, setSaving] = useState(false);
   const [lookingUpElevation, setLookingUpElevation] = useState(false);
+  const [boundary, setBoundary] = useState<GeoJSON.Polygon | null>(null);
+  const [showBoundaryEditor, setShowBoundaryEditor] = useState(false);
 
   // Toast state
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -120,6 +131,8 @@ function NewDestinationContent() {
       type: "point",
       source: `OSM (${s.osm_tags})`,
     });
+    setBoundary(null);
+    setShowBoundaryEditor(false);
     setStep("confirm");
   };
 
@@ -138,6 +151,8 @@ function NewDestinationContent() {
       type: "point",
       source: "Manual",
     });
+    setBoundary(null);
+    setShowBoundaryEditor(false);
     setStep("confirm");
   };
 
@@ -168,12 +183,17 @@ function NewDestinationContent() {
         features: confirm.features,
         type: confirm.type,
       });
+      if (boundary) {
+        await updateDestinationBoundary(result.id, boundary);
+      }
       const name = confirm.name.trim();
       setToasts((prev) => [
         ...prev,
         { id: result.id, name, destId: result.id },
       ]);
       setConfirm(null);
+      setBoundary(null);
+      setShowBoundaryEditor(false);
       setStep("pick");
       setSaving(false);
     } catch (err: unknown) {
@@ -349,37 +369,66 @@ function NewDestinationContent() {
               )}
             </div>
 
-            {/* Coordinates */}
+            {/* Location */}
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Coordinates
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="any"
-                  value={confirm.lat}
-                  onChange={(e) =>
-                    setConfirm({
-                      ...confirm,
-                      lat: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="w-36 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="number"
-                  step="any"
-                  value={confirm.lng}
-                  onChange={(e) =>
-                    setConfirm({
-                      ...confirm,
-                      lng: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="w-36 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">
+                  Location
+                </label>
+                <span className="text-xs text-gray-400 font-mono">
+                  {confirm.lat.toFixed(5)}, {confirm.lng.toFixed(5)}
+                </span>
               </div>
+              <p className="text-xs text-gray-500 mb-2">
+                Drag the marker to adjust the exact position
+              </p>
+              <LocationPickerMap
+                lat={confirm.lat}
+                lng={confirm.lng}
+                onChange={(lat, lng) =>
+                  setConfirm({ ...confirm, lat, lng })
+                }
+              />
+            </div>
+
+            {/* Boundary */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">
+                  Boundary
+                </label>
+                <div className="flex items-center gap-2">
+                  {boundary && !showBoundaryEditor && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      Boundary set
+                    </span>
+                  )}
+                  {showBoundaryEditor ? (
+                    <button
+                      onClick={() => setShowBoundaryEditor(false)}
+                      className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Done
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowBoundaryEditor(true)}
+                      className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      {boundary ? "Edit Boundary" : "Draw Boundary"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {showBoundaryEditor && (
+                <BoundaryEditorMap
+                  lat={confirm.lat}
+                  lng={confirm.lng}
+                  name={confirm.name || undefined}
+                  boundary={boundary}
+                  onBoundaryChange={setBoundary}
+                />
+              )}
             </div>
 
             {/* Actions */}
