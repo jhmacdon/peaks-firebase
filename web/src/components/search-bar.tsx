@@ -25,7 +25,8 @@ export default function SearchBar({
       } else {
         params.delete(paramName);
       }
-      router.replace(`${pathname}?${params.toString()}`);
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
     [searchParams, router, pathname, paramName]
   );

@@ -18,10 +18,17 @@ export default function DestinationCard({
   return (
     <Link
       href={`/destinations/${id}`}
-      className="block p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+      className="group block rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-blue-700"
     >
-      <div className="font-medium">{name || "Unnamed"}</div>
-      <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-lg font-semibold tracking-tight text-gray-950 transition-colors group-hover:text-blue-700 dark:text-gray-50 dark:group-hover:text-blue-300">
+          {name || "Unnamed"}
+        </div>
+        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+          View
+        </span>
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
         {elevation != null && (
           <span>{Math.round(elevation * 3.28084).toLocaleString()} ft</span>
         )}
@@ -37,11 +44,11 @@ export default function DestinationCard({
         )}
       </div>
       {features.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {features.map((f) => (
             <span
               key={f}
-              className="inline-block px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+              className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300"
             >
               {f}
             </span>

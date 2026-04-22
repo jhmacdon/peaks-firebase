@@ -35,6 +35,23 @@ export interface ViewportRoute {
   gain: number | null;
 }
 
+export interface SearchRouteResult {
+  id: string;
+  name: string | null;
+  distance: number | null;
+  gain: number | null;
+  completion: string;
+  shape: string | null;
+  destination_count: number;
+  session_count: number;
+}
+
+export interface DiscoverStats {
+  destinationCount: number;
+  routeCount: number;
+  listCount: number;
+}
+
 /**
  * Composite-scored text search with optional geo-biasing.
  *
@@ -193,6 +210,90 @@ export async function getPopularDestinations(
   }));
 }
 
+export async function searchRoutes(
+  query: string,
+  limit: number = 8
+): Promise<SearchRouteResult[]> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const result = await db.query(
+    `SELECT r.id, r.name, r.distance, r.gain, r.completion, r.shape,
+            (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
+            (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id)::int AS session_count
+     FROM routes r
+     WHERE r.owner = 'peaks'
+       AND r.status = 'active'
+       AND r.name ILIKE $1
+     ORDER BY
+       CASE WHEN r.name ILIKE $2 THEN 0 ELSE 1 END,
+       (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id) DESC,
+       (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id) DESC,
+       r.distance ASC NULLS LAST,
+       r.name ASC NULLS LAST
+     LIMIT $3`,
+    [`%${q}%`, `${q}%`, limit]
+  );
+
+  return result.rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    distance: r.distance != null ? Number(r.distance) : null,
+    gain: r.gain != null ? Number(r.gain) : null,
+    completion: r.completion,
+    shape: r.shape,
+    destination_count: Number(r.destination_count),
+    session_count: Number(r.session_count),
+  }));
+}
+
+export async function getPopularRoutes(
+  limit: number = 8
+): Promise<SearchRouteResult[]> {
+  const result = await db.query(
+    `SELECT r.id, r.name, r.distance, r.gain, r.completion, r.shape,
+            (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
+            COUNT(sr.route_id)::int AS session_count
+     FROM routes r
+     LEFT JOIN session_routes sr ON sr.route_id = r.id
+     WHERE r.owner = 'peaks'
+       AND r.status = 'active'
+     GROUP BY r.id, r.name, r.distance, r.gain, r.completion, r.shape
+     ORDER BY session_count DESC, destination_count DESC, r.distance ASC NULLS LAST, r.name ASC NULLS LAST
+     LIMIT $1`,
+    [limit]
+  );
+
+  return result.rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    distance: r.distance != null ? Number(r.distance) : null,
+    gain: r.gain != null ? Number(r.gain) : null,
+    completion: r.completion,
+    shape: r.shape,
+    destination_count: Number(r.destination_count),
+    session_count: Number(r.session_count),
+  }));
+}
+
+export async function getDiscoverStats(): Promise<DiscoverStats> {
+  const [destinations, routes, lists] = await Promise.all([
+    db.query(`SELECT COUNT(*)::int AS count FROM destinations`),
+    db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM routes
+       WHERE owner = 'peaks' AND status = 'active'`
+    ),
+    db.query(`SELECT COUNT(*)::int AS count FROM lists`),
+  ]);
+
+  return {
+    destinationCount: Number(destinations.rows[0].count),
+    routeCount: Number(routes.rows[0].count),
+    listCount: Number(lists.rows[0].count),
+  };
+}
+
 /**
  * Destinations the given user has never reached (not in session_destinations).
  * If lat/lng provided, ordered by proximity; otherwise by elevation descending.
@@ -319,6 +420,8 @@ export async function getRoutesInViewport(
     `SELECT id, name, polyline6, distance, gain
      FROM routes
      WHERE path IS NOT NULL
+       AND owner = 'peaks'
+       AND status = 'active'
        AND ST_Intersects(
          path,
          ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography

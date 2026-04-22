@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../lib/auth-context";
 
-const navItems = [
+const authenticatedNavItems = [
   { href: "/discover", label: "Discover" },
   { href: "/map", label: "Map" },
   { href: "/log", label: "Log" },
@@ -12,17 +12,25 @@ const navItems = [
   { href: "/account", label: "Account" },
 ];
 
+const guestNavItems = [
+  { href: "/discover", label: "Discover" },
+  { href: "/map", label: "Map" },
+  { href: "/lists", label: "Lists" },
+  { href: "/login", label: "Sign In" },
+];
+
 export default function AppNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const navItems = user ? authenticatedNavItems : guestNavItems;
 
   return (
     <>
       {/* Desktop top nav */}
-      <header className="hidden md:block border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <header className="hidden md:block border-b border-gray-200 dark:border-gray-800 bg-white/90 backdrop-blur dark:bg-gray-900/90">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/discover" className="text-lg font-bold">
+            <Link href="/discover" className="text-lg font-bold tracking-tight">
               Peaks
             </Link>
             <nav className="flex gap-1">
@@ -30,7 +38,9 @@ export default function AppNav() {
                 const isActive =
                   item.href === "/discover"
                     ? pathname === "/discover" || pathname === "/"
-                    : pathname.startsWith(item.href);
+                    : item.href === "/login"
+                      ? pathname === "/login" || pathname === "/register"
+                      : pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
@@ -53,12 +63,20 @@ export default function AppNav() {
                 {user.displayName || user.email}
               </span>
             ) : (
-              <Link
-                href="/login"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-              >
-                Sign In
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  Create Account
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -71,7 +89,9 @@ export default function AppNav() {
             const isActive =
               item.href === "/discover"
                 ? pathname === "/discover" || pathname === "/"
-                : pathname.startsWith(item.href);
+                : item.href === "/login"
+                  ? pathname === "/login" || pathname === "/register"
+                  : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -119,6 +139,17 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       );
+    case "Lists":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <path d="M3 6h.01" />
+          <path d="M3 12h.01" />
+          <path d="M3 18h.01" />
+        </svg>
+      );
     case "Plans":
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -133,6 +164,14 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
+        </svg>
+      );
+    case "Sign In":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" y1="12" x2="3" y2="12" />
         </svg>
       );
     default:

@@ -87,7 +87,14 @@ export async function getRoutes(search?: string, limit = 50, offset = 0, status?
   };
 }
 
-export async function getRoute(id: string): Promise<RouteDetail | null> {
+export async function getRoute(
+  id: string,
+  options?: { publicOnly?: boolean }
+): Promise<RouteDetail | null> {
+  const publicFilter = options?.publicOnly
+    ? ` AND r.owner = 'peaks' AND r.status = 'active'`
+    : "";
+
   const result = await db.query(
     `SELECT r.id, r.name, r.owner, r.polyline6, r.geohashes,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
@@ -95,13 +102,23 @@ export async function getRoute(id: string): Promise<RouteDetail | null> {
             (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
             r.created_at, r.updated_at
      FROM routes r
-     WHERE r.id = $1`,
+     WHERE r.id = $1${publicFilter}`,
     [id]
   );
   return result.rows[0] || null;
 }
 
-export async function getRouteDestinations(routeId: string): Promise<RouteDestination[]> {
+export async function getRouteDestinations(
+  routeId: string,
+  options?: { publicOnly?: boolean }
+): Promise<RouteDestination[]> {
+  const publicJoin = options?.publicOnly
+    ? `JOIN routes r ON r.id = rd.route_id`
+    : "";
+  const publicFilter = options?.publicOnly
+    ? ` AND r.owner = 'peaks' AND r.status = 'active'`
+    : "";
+
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.features,
             ST_Y(d.location::geometry) AS lat,
@@ -109,7 +126,8 @@ export async function getRouteDestinations(routeId: string): Promise<RouteDestin
             rd.ordinal
      FROM destinations d
      JOIN route_destinations rd ON rd.destination_id = d.id
-     WHERE rd.route_id = $1
+     ${publicJoin}
+     WHERE rd.route_id = $1${publicFilter}
      ORDER BY rd.ordinal`,
     [routeId]
   );
@@ -128,37 +146,68 @@ export interface RouteSegment {
   route_count: number;
 }
 
-export async function getRouteSegments(routeId: string): Promise<RouteSegment[]> {
+export async function getRouteSegments(
+  routeId: string,
+  options?: { publicOnly?: boolean }
+): Promise<RouteSegment[]> {
+  const publicJoin = options?.publicOnly
+    ? `JOIN routes r ON r.id = rs.route_id`
+    : "";
+  const publicFilter = options?.publicOnly
+    ? ` AND r.owner = 'peaks' AND r.status = 'active'`
+    : "";
+
   const result = await db.query(
     `SELECT s.id, s.name, rs.ordinal, rs.direction,
             s.distance, s.gain, s.gain_loss, s.polyline6,
             (SELECT COUNT(*) FROM route_segments rs2 WHERE rs2.segment_id = s.id)::int AS route_count
      FROM segments s
      JOIN route_segments rs ON rs.segment_id = s.id
-     WHERE rs.route_id = $1
+     ${publicJoin}
+     WHERE rs.route_id = $1${publicFilter}
      ORDER BY rs.ordinal`,
     [routeId]
   );
   return result.rows;
 }
 
-export async function getRouteElevation(routeId: string): Promise<RouteElevationPoint[]> {
+export async function getRouteElevation(
+  routeId: string,
+  options?: { publicOnly?: boolean }
+): Promise<RouteElevationPoint[]> {
+  const publicFilter = options?.publicOnly
+    ? ` WHERE id = $1 AND owner = 'peaks' AND status = 'active'`
+    : ` WHERE id = $1`;
+
   const result = await db.query(
     `SELECT (dp).path[1] AS vertex_index,
             ST_X((dp).geom) AS lng,
             ST_Y((dp).geom) AS lat,
             ST_Z((dp).geom) AS elevation
      FROM (SELECT ST_DumpPoints(path::geometry) AS dp
-           FROM routes WHERE id = $1) sub
+           FROM routes${publicFilter}) sub
      ORDER BY vertex_index`,
     [routeId]
   );
   return result.rows;
 }
 
-export async function getRouteSessionCount(routeId: string): Promise<number> {
+export async function getRouteSessionCount(
+  routeId: string,
+  options?: { publicOnly?: boolean }
+): Promise<number> {
+  const publicJoin = options?.publicOnly
+    ? `JOIN routes r ON r.id = sr.route_id`
+    : "";
+  const publicFilter = options?.publicOnly
+    ? ` AND r.owner = 'peaks' AND r.status = 'active'`
+    : "";
+
   const result = await db.query(
-    `SELECT COUNT(*)::int AS count FROM session_routes WHERE route_id = $1`,
+    `SELECT COUNT(*)::int AS count
+     FROM session_routes sr
+     ${publicJoin}
+     WHERE sr.route_id = $1${publicFilter}`,
     [routeId]
   );
   return result.rows[0].count;

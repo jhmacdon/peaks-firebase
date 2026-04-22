@@ -114,7 +114,12 @@ export async function acceptFriendInvite(
   const auth = await verifyToken(token);
   if (!auth) return { success: false, error: "Not authenticated" };
 
-  const inviteRef = adminDb.collection("invites").doc(inviteCode);
+  const normalizedInviteCode = extractInviteCode(inviteCode);
+  if (!normalizedInviteCode) {
+    return { success: false, error: "Invalid invite code" };
+  }
+
+  const inviteRef = adminDb.collection("invites").doc(normalizedInviteCode);
   const inviteDoc = await inviteRef.get();
 
   if (!inviteDoc.exists) {
@@ -153,6 +158,18 @@ export async function acceptFriendInvite(
   await inviteRef.delete();
 
   return { success: true };
+}
+
+function extractInviteCode(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    return url.searchParams.get("invite");
+  } catch {
+    return trimmed;
+  }
 }
 
 export async function removeFriend(

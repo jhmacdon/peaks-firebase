@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import SearchBar from "../../../components/search-bar";
+import ListCard from "../../../components/list-card";
 import { getLists, type ListRow } from "../../../lib/actions/lists";
 
 function ListsContent() {
@@ -48,7 +48,10 @@ function ListsContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-6">Browse Lists</h1>
+      <h1 className="text-3xl font-semibold tracking-tight mb-2">Browse Lists</h1>
+      <p className="mb-6 text-sm text-gray-500">
+        Explore curated destination collections and public peak lists.
+      </p>
 
       <div className="mb-6">
         <SearchBar placeholder="Search lists..." />
@@ -67,24 +70,9 @@ function ListsContent() {
           <div className="text-sm text-gray-500 mb-4">
             Showing {lists.length} of {total} list{total !== 1 ? "s" : ""}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {lists.map((list) => (
-              <Link
-                key={list.id}
-                href={`/lists/${list.id}`}
-                className="block p-5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-              >
-                <div className="font-medium text-lg">{list.name}</div>
-                {list.description && (
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                    {list.description}
-                  </p>
-                )}
-                <div className="text-xs text-gray-400 mt-3">
-                  {list.destination_count} destination
-                  {list.destination_count !== 1 ? "s" : ""}
-                </div>
-              </Link>
+              <ListCard key={list.id} list={list} />
             ))}
           </div>
 

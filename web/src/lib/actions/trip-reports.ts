@@ -21,6 +21,169 @@ export interface TripReportBlock {
   caption?: string; // photo caption
 }
 
+type FirestoreTimestampLike = {
+  toDate?: () => Date;
+  _seconds?: number;
+  _nanoseconds?: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isTimestampLike(value: unknown): value is FirestoreTimestampLike {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.toDate === "function" ||
+    typeof value._seconds === "number"
+  );
+}
+
+function toIsoString(value: unknown): string | null {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (isTimestampLike(value)) {
+    if (typeof value.toDate === "function") {
+      return value.toDate().toISOString();
+    }
+
+    const millis =
+      value._seconds! * 1000 +
+      Math.floor((value._nanoseconds ?? 0) / 1_000_000);
+    return new Date(millis).toISOString();
+  }
+
+  return null;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function normalizePhotoBlocks(value: unknown): TripReportBlock[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+
+    const content =
+      typeof item.image === "string"
+        ? item.image
+        : typeof item.url === "string"
+          ? item.url
+          : typeof item.content === "string"
+            ? item.content
+            : null;
+
+    if (!content) return [];
+
+    const caption =
+      typeof item.caption === "string"
+        ? item.caption
+        : typeof item.text === "string"
+          ? item.text
+          : undefined;
+
+    return [
+      {
+        type: "photo" as const,
+        content,
+        caption,
+      },
+    ];
+  });
+}
+
+function normalizeBlocks(data: Record<string, unknown>): TripReportBlock[] {
+  if (Array.isArray(data.blocks)) {
+    const blocks = data.blocks.flatMap((block) => {
+      if (!isRecord(block)) return [];
+
+      const type: TripReportBlock["type"] =
+        block.type === "photo" ? "photo" : "text";
+      const content =
+        typeof block.content === "string"
+          ? block.content
+          : typeof block.text === "string"
+            ? block.text
+            : null;
+
+      if (!content) return [];
+
+      const caption =
+        typeof block.caption === "string" ? block.caption : undefined;
+
+      return [{ type, content, caption }];
+    });
+
+    if (blocks.length > 0) return blocks;
+  }
+
+  const fallbackBlocks: TripReportBlock[] = [];
+
+  if (typeof data.content === "string" && data.content.trim()) {
+    fallbackBlocks.push({
+      type: "text",
+      content: data.content,
+    });
+  }
+
+  fallbackBlocks.push(...normalizePhotoBlocks(data.headerPhotos));
+  fallbackBlocks.push(...normalizePhotoBlocks(data.attachments));
+
+  return fallbackBlocks;
+}
+
+function normalizeTripReport(
+  id: string,
+  raw: Record<string, unknown> | undefined
+): TripReport {
+  const data = raw ?? {};
+  const blocks = normalizeBlocks(data);
+
+  return {
+    id,
+    userId: typeof data.userId === "string" ? data.userId : "",
+    userName:
+      typeof data.userName === "string"
+        ? data.userName
+        : typeof data.authorName === "string"
+          ? data.authorName
+          : "Unknown User",
+    date:
+      toIsoString(data.date) ??
+      toIsoString(data.createdAt) ??
+      new Date(0).toISOString(),
+    title:
+      typeof data.title === "string"
+        ? data.title
+        : typeof data.name === "string"
+          ? data.name
+          : "Trip Report",
+    destinations: toStringArray(data.destinations),
+    blocks,
+    createdAt:
+      toIsoString(data.createdAt) ??
+      toIsoString(data.date) ??
+      new Date(0).toISOString(),
+    updatedAt:
+      toIsoString(data.updatedAt) ??
+      toIsoString(data.createdAt) ??
+      toIsoString(data.date) ??
+      new Date(0).toISOString(),
+  };
+}
+
 /**
  * Get trip reports for a destination.
  * Queries tripReports collection where destinations array-contains destinationId.
@@ -36,10 +199,37 @@ export async function getTripReportsForDestination(
     .limit(limit)
     .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as TripReport[];
+  return snapshot.docs.map((doc) =>
+    normalizeTripReport(doc.id, doc.data())
+  );
+}
+
+export async function getRecentTripReports(
+  limit: number = 6
+): Promise<TripReport[]> {
+  const snapshot = await adminDb
+    .collection("tripReports")
+    .orderBy("date", "desc")
+    .limit(limit)
+    .get();
+
+  return snapshot.docs.map((doc) =>
+    normalizeTripReport(doc.id, doc.data())
+  );
+}
+
+/**
+ * Count trip reports for a destination.
+ */
+export async function getTripReportCountForDestination(
+  destinationId: string
+): Promise<number> {
+  const snapshot = await adminDb
+    .collection("tripReports")
+    .where("destinations", "array-contains", destinationId)
+    .get();
+
+  return snapshot.size;
 }
 
 /**
@@ -51,10 +241,7 @@ export async function getTripReport(
   const doc = await adminDb.collection("tripReports").doc(reportId).get();
   if (!doc.exists) return null;
 
-  return {
-    id: doc.id,
-    ...doc.data(),
-  } as TripReport;
+  return normalizeTripReport(doc.id, doc.data());
 }
 
 /**

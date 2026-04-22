@@ -8,7 +8,10 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile,
   User,
   IdTokenResult,
@@ -24,6 +27,7 @@ interface AuthState {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   createAccount: (email: string, password: string, displayName: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
 }
@@ -36,6 +40,7 @@ const AuthContext = createContext<AuthState>({
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   createAccount: async () => {},
+  resetPassword: async () => {},
   signOut: async () => {},
   getIdToken: async () => null,
 });
@@ -51,6 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await ensureUserProfile(result.user);
+        }
+      })
+      .catch(() => {
+        // Auth state listener below will still reconcile the signed-in user.
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const tokenResult: IdTokenResult = await firebaseUser.getIdTokenResult();
@@ -70,13 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const handleSignInWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
-    await ensureUserProfile(result.user);
+    await signInWithProvider(googleProvider);
   };
 
   const handleSignInWithApple = async () => {
-    const result = await signInWithPopup(auth, appleProvider);
-    await ensureUserProfile(result.user);
+    await signInWithProvider(appleProvider);
   };
 
   const createAccount = async (email: string, password: string, displayName: string) => {
@@ -87,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       createdAt: new Date().toISOString(),
     });
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
   };
 
   const signOut = async () => {
@@ -108,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle: handleSignInWithGoogle,
         signInWithApple: handleSignInWithApple,
         createAccount,
+        resetPassword,
         signOut,
         getIdToken,
       }}
@@ -128,6 +146,24 @@ async function ensureUserProfile(user: User) {
       email: user.email || "",
       createdAt: new Date().toISOString(),
     });
+  }
+}
+
+async function signInWithProvider(provider: GoogleAuthProvider | OAuthProvider) {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    await ensureUserProfile(result.user);
+  } catch (error) {
+    const firebaseError = error as { code?: string };
+    if (
+      firebaseError?.code === "auth/popup-blocked" ||
+      firebaseError?.code === "auth/operation-not-supported-in-this-environment"
+    ) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
+    throw error;
   }
 }
 

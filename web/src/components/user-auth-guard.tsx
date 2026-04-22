@@ -1,18 +1,22 @@
 "use client";
 
 import { useAuth } from "../lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 export default function UserAuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/login");
+      const next = `${pathname}${search ? `?${search}` : ""}`;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
     }
-  }, [user, loading, router]);
+  }, [loading, pathname, router, search, user]);
 
   if (loading) {
     return (

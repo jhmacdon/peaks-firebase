@@ -4,6 +4,7 @@
 import db from "../db";
 import { normalizeSearchName } from "../search-utils";
 import { fetchElevations } from "../elevation";
+import { mergeDestinationAverages } from "../destination-detail";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -50,6 +51,7 @@ export interface DestinationDetail {
   hero_image_attribution: string | null;
   hero_image_attribution_url: string | null;
   averages: any | null;
+  averages_offset: any | null;
   explicitly_saved: boolean;
   geohash: string | null;
   created_at: string;
@@ -171,7 +173,7 @@ export async function getDestination(
             CASE WHEN d.boundary IS NOT NULL
                  THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
-            d.averages, d.explicitly_saved, d.geohash,
+            d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
             d.created_at, d.updated_at
      FROM destinations d
      WHERE d.id = $1`,
@@ -188,6 +190,8 @@ export async function getDestination(
     lat: r.lat ? Number(r.lat) : null,
     lng: r.lng ? Number(r.lng) : null,
     boundary: r.boundary || null,
+    averages: mergeDestinationAverages(r.averages, r.averages_offset),
+    averages_offset: r.averages_offset || null,
     features: parseArray(r.features),
     activities: parseArray(r.activities),
     created_at: r.created_at.toISOString(),
@@ -196,13 +200,18 @@ export async function getDestination(
 }
 
 export async function getDestinationRoutes(
-  destinationId: string
+  destinationId: string,
+  options?: { publicOnly?: boolean }
 ): Promise<DestinationRoute[]> {
+  const publicFilter = options?.publicOnly
+    ? ` AND r.owner = 'peaks' AND r.status = 'active'`
+    : ` AND r.owner = 'peaks'`;
+
   const result = await db.query(
     `SELECT r.id, r.name, r.distance, r.gain, rd.ordinal
      FROM route_destinations rd
      JOIN routes r ON r.id = rd.route_id
-     WHERE rd.destination_id = $1 AND r.owner = 'peaks'
+     WHERE rd.destination_id = $1${publicFilter}
      ORDER BY r.name ASC NULLS LAST`,
     [destinationId]
   );

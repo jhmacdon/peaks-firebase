@@ -45,7 +45,7 @@ export default function NewPlanPage() {
         date: date || undefined,
       });
 
-      router.push(`/app/plans/${id}`);
+      router.push(`/plans/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create plan");
       setSubmitting(false);

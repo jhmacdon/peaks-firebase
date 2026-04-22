@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -8,11 +9,25 @@ import {
   getRoute,
   getRouteDestinations,
   getRouteElevation,
+  getRouteSegments,
   getRouteSessionCount,
   type RouteDetail,
   type RouteDestination,
   type RouteElevationPoint,
+  type RouteSegment,
 } from "../../../../lib/actions/routes";
+import RouteSegmentList from "../../../../components/route-segment-list";
+import RouteExternalLinks from "../../../../components/route-external-links";
+import {
+  describeCompletionMode,
+  describeRouteShape,
+  formatDistanceMeters,
+  formatDurationHours,
+  formatDurationRange,
+  formatElevationMeters,
+  summarizeRouteGuide,
+  summarizeSegments,
+} from "../../../../lib/route-guide";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -28,6 +43,7 @@ export default function RouteDetailPage() {
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [destinations, setDestinations] = useState<RouteDestination[]>([]);
+  const [segments, setSegments] = useState<RouteSegment[]>([]);
   const [elevationPoints, setElevationPoints] = useState<
     RouteElevationPoint[]
   >([]);
@@ -36,16 +52,18 @@ export default function RouteDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const [r, dests, elev, sessions] = await Promise.all([
-        getRoute(id),
-        getRouteDestinations(id),
-        getRouteElevation(id),
-        getRouteSessionCount(id),
+      const [r, dests, elev, sessions, routeSegments] = await Promise.all([
+        getRoute(id, { publicOnly: true }),
+        getRouteDestinations(id, { publicOnly: true }),
+        getRouteElevation(id, { publicOnly: true }),
+        getRouteSessionCount(id, { publicOnly: true }),
+        getRouteSegments(id, { publicOnly: true }),
       ]);
       setRoute(r);
       setDestinations(dests);
       setElevationPoints(elev);
       setSessionCount(sessions);
+      setSegments(routeSegments);
       setLoading(false);
     }
     load();
@@ -69,9 +87,12 @@ export default function RouteDetailPage() {
 
   // Build elevation profile data (cumulative distance + elevation)
   const profilePoints = buildProfilePoints(elevationPoints);
+  const guide = summarizeRouteGuide(route, segments.length);
+  const segmentSummary = summarizeSegments(segments);
+  const externalLinks = route.external_links;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="mx-auto max-w-7xl px-6 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link
@@ -87,112 +108,184 @@ export default function RouteDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">
-          {route.name || "Unnamed Route"}
-        </h1>
+      <div className="relative mb-8 overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-900 dark:to-slate-950">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_32%)]" />
+        <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
+              Public route guide
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {route.name || "Unnamed Route"}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+              {guide.routeNarrative || "A public route overview with destinations, geometry, and route-level details."}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <Pill>{describeRouteShape(route.shape)}</Pill>
+              <Pill>
+                {route.completion === "none"
+                  ? "Any direction"
+                  : route.completion.replace(/_/g, " ")}
+              </Pill>
+              <Pill>{sessionCount} sessions</Pill>
+              <Pill>{segmentSummary.count} segments</Pill>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Difficulty
+              </div>
+              <div className="mt-2 text-2xl font-semibold">
+                {guide.difficultyLabel}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Driven by {guide.difficultyReason}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Estimated time
+              </div>
+              <div className="mt-2 text-2xl font-semibold">
+                {formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                {formatDurationHours(guide.estimatedHoursMid)} midpoint hike
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label="Distance"
-          value={
-            route.distance
-              ? `${(route.distance / 1609.34).toFixed(1)} mi`
-              : "\u2014"
-          }
+          value={formatDistanceMeters(route.distance)}
+          detail={guide.routeShapeLabel}
         />
         <StatCard
           label="Elevation Gain"
-          value={
-            route.gain
-              ? `${Math.round(route.gain * 3.28084).toLocaleString()} ft`
-              : "\u2014"
+          value={formatElevationMeters(route.gain)}
+          detail={
+            guide.climbingDensityFeetPerMile != null
+              ? `${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`
+              : "Climbing density"
           }
         />
         <StatCard
           label="Elevation Loss"
-          value={
-            route.gain_loss
-              ? `${Math.round(route.gain_loss * 3.28084).toLocaleString()} ft`
-              : "\u2014"
-          }
+          value={formatElevationMeters(route.gain_loss)}
+          detail="Descent"
         />
         <StatCard
-          label="Shape"
-          value={route.shape?.replace(/_/g, " ") || "\u2014"}
+          label="Est. time"
+          value={formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)}
+          detail={formatDurationHours(guide.estimatedHoursMid)}
         />
-        <StatCard label="Sessions" value={sessionCount.toString()} />
+        <StatCard
+          label="Difficulty"
+          value={guide.difficultyLabel}
+          detail={guide.difficultyReason}
+        />
+        <StatCard
+          label="Destinations"
+          value={destinations.length.toString()}
+          detail={`${route.destination_count} linked in data`}
+        />
       </div>
 
       {/* Map */}
       {route.polyline6 && (
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <h3 className="font-semibold mb-3">Route Map</h3>
+        <div className="mb-8 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h3 className="font-semibold">Route Map</h3>
+            <span className="text-xs text-gray-500">
+              {guide.routeShapeLabel}
+            </span>
+          </div>
           <RouteMap polyline6={route.polyline6} />
         </div>
       )}
 
       {/* Elevation Profile */}
       {profilePoints.length >= 2 && (
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <h3 className="font-semibold mb-3">Elevation Profile</h3>
+        <div className="mb-8 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h3 className="font-semibold">Elevation Profile</h3>
+            <span className="text-xs text-gray-500">
+              {guide.climbingDensityFeetPerMile != null
+                ? `${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`
+                : "Derived from route geometry"}
+            </span>
+          </div>
           <ElevationProfile points={profilePoints} />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Details */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h3 className="font-semibold mb-4">Details</h3>
           <dl className="space-y-3 text-sm">
+            <DetailRow label="Guide summary">
+              <span className="text-right text-gray-600 dark:text-gray-300">
+                {guide.routeNarrative}
+              </span>
+            </DetailRow>
             <DetailRow label="Shape">
               <span className="capitalize">
-                {route.shape?.replace(/_/g, " ") || "\u2014"}
+                {describeRouteShape(route.shape)}
               </span>
             </DetailRow>
             <DetailRow label="Completion">
-              <span className="capitalize">{route.completion}</span>
+              <span>{describeCompletionMode(route.completion)}</span>
             </DetailRow>
             {route.elevation_string && (
               <DetailRow label="Elevation">{route.elevation_string}</DetailRow>
             )}
-            {route.external_links && route.external_links.length > 0 && (
-              <DetailRow label="External Links">
-                <div className="flex gap-2">
-                  {route.external_links.map((link: { type: string; id: string }, i: number) => (
-                    <span
-                      key={i}
-                      className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800"
-                    >
-                      {link.type.toUpperCase()}: {link.id}
-                    </span>
-                  ))}
-                </div>
-              </DetailRow>
-            )}
+            <DetailRow label="Sessions">
+              <span>{sessionCount.toLocaleString()}</span>
+            </DetailRow>
+            <DetailRow label="Segments">
+              <span>{segmentSummary.count}</span>
+            </DetailRow>
+            <DetailRow label="External Links">
+              <span>{Array.isArray(externalLinks) ? externalLinks.length : 0}</span>
+            </DetailRow>
           </dl>
         </div>
 
         {/* Destinations */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h3 className="font-semibold mb-4">
             Destinations ({destinations.length})
           </h3>
           {destinations.length === 0 ? (
             <p className="text-sm text-gray-500">No destinations linked</p>
           ) : (
-            <div className="space-y-2">
-              {destinations.map((dest) => (
+            <div className="space-y-3">
+              {destinations.map((dest, index) => (
                 <Link
                   key={dest.id}
                   href={`/destinations/${dest.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/30 dark:border-gray-800 dark:hover:border-blue-700 dark:hover:bg-blue-950/10"
                 >
                   <div>
-                    <div className="font-medium text-sm">
-                      {dest.name || "Unknown"}
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm">
+                        {dest.name || "Unknown"}
+                      </div>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                        {index === 0
+                          ? "Start"
+                          : index === destinations.length - 1
+                            ? "Finish"
+                            : `Waypoint ${index + 1}`}
+                      </span>
                     </div>
                     <div className="text-xs text-gray-500">
                       {dest.elevation
@@ -204,12 +297,35 @@ export default function RouteDetailPage() {
                     </div>
                   </div>
                   <span className="text-xs text-gray-400">
-                    #{dest.ordinal}
+                    #{dest.ordinal + 1}
                   </span>
                 </Link>
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h3 className="font-semibold">Segment breakdown</h3>
+            <span className="text-xs text-gray-500">
+              {segmentSummary.mostSharedCount > 1
+                ? `Most reused on ${segmentSummary.mostSharedCount} routes`
+                : "Route-specific geometry"}
+            </span>
+          </div>
+          {segments.length === 0 ? (
+            <p className="text-sm text-gray-500">No segment data available</p>
+          ) : (
+            <RouteSegmentList segments={segments} />
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <h3 className="font-semibold mb-4">External resources</h3>
+          <RouteExternalLinks links={externalLinks} />
         </div>
       </div>
     </div>
@@ -240,6 +356,14 @@ function buildProfilePoints(
   return result;
 }
 
+function Pill({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-blue-200 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm dark:border-blue-900 dark:bg-gray-900/80 dark:text-blue-300">
+      {children}
+    </span>
+  );
+}
+
 /** Haversine distance in meters between two lat/lng points */
 function haversine(
   lat1: number,
@@ -259,11 +383,24 @@ function haversine(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-sm text-gray-500">{label}</div>
+      {detail && (
+        <div className="mt-1 text-xs text-gray-400">
+          {detail}
+        </div>
+      )}
     </div>
   );
 }
@@ -273,7 +410,7 @@ function DetailRow({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex justify-between items-start">
