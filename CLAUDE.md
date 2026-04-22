@@ -57,6 +57,9 @@ When writing or modifying `useEffect` hooks in the web app:
   - Use this when querying sessions, destinations, or any user-scoped data to identify Josiah's records
   - Sessions/data prefixed with `deleted_QzmvJRt5E5eTV4fAsuyLDrc4PEq1` are from a prior account migration — the live records use the bare UID
 
+## Postgres → wire type policy (cloud-sql API)
+`node-postgres` has surprising defaults for `BIGINT` and `NUMERIC` — both come over the wire as JS strings by default to preserve precision. That silently zeroed every tracking point's `time` on iOS once already (`d["time"] as? Int` fails on a numeric string). The API now registers a global `types.setTypeParser(20, parseInt)` in `cloud-sql/api/src/db.ts`. Do not remove it, do not move it below the `new Pool(...)` call, and do not convert more columns to `BIGINT` / `NUMERIC` without verifying that every client handles the wire format or that you've added a column-specific parser / `::text` cast. See `cloud-sql/CLAUDE.md` "Postgres → wire type policy" for the full contract + the regression test at `cloud-sql/api/src/__tests__/bigint-parser.test.ts`.
+
 ## Key Details
 - Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11
 - Node 20 runtime

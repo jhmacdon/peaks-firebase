@@ -88,6 +88,16 @@ ARRAY[$1]::destination_feature[]
 COALESCE($1::double precision, 0)
 ```
 
+## Postgres → wire type policy (do not regress)
+
+`node-postgres` has default type parsers that are safe for JS but surprising for any typed client (Swift, Kotlin, Dart, older JS code paths that assume numbers). The API has had one catastrophic outage from this class of bug and the mitigation **must** stay in place:
+
+- **`BIGINT` (OID 20, `INT8`) returns as a JS String by default** to preserve 64-bit precision. We register `types.setTypeParser(20, parseInt)` in `api/src/db.ts` so `BIGINT` comes over as a `Number`. The only BIGINT column in use today is `tracking_points.time` (a unix-seconds timestamp well below 2^53), so precision loss is impossible. Do NOT remove this parser without auditing every client — iOS parses the points endpoint with `d["time"] as? Int`, which silently produces `0` for every point when the API emits a string, which collapses the entire session timeline + flyover day/night pipeline to nonsense times.
+- **`TIMESTAMPTZ` returns as a JS Date** — fine, serializes to ISO8601 via `res.json`, iOS reads it via `PeaksAPI.parseDate` which handles ISO.
+- **`NUMERIC` / `DECIMAL` returns as a JS String** (also for precision). If you ever add a NUMERIC column, register a parser or cast to `::float8` in the query, or clients that don't expect a string *will* silently break.
+- **If a new BIGINT column needs true >2^53 precision** (sequence IDs, file sizes), give it its own targeted parser or return it via `::text` in the specific SELECT. Don't remove the global BIGINT → Number parser without auditing every existing consumer first.
+- **Regression test**: `api/src/__tests__/bigint-parser.test.ts` (Node's built-in test runner) registers the parsers, runs a dummy BIGINT value through `types.getTypeParser(20)`, and asserts it comes out as a `number`. Wired into the deploy workflow's `test` step so a parser regression is caught before Cloud Run rollout.
+
 ## API
 
 Express app deployed to Cloud Run. Node 20, Firebase Admin for auth.
