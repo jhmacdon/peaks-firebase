@@ -38,6 +38,95 @@ function mergeAverages(
   return merged;
 }
 
+// GET /api/destinations/averages?ids=id1,id2,id3
+// Bulk merged averages (live aggregation from session_destinations +
+// tracking_sessions, merged with averages_offset for pre-migration historical
+// data). Replaces the legacy Firestore "averages" collection lookup on iOS.
+// Must precede /:id so the literal "averages" segment isn't captured as an id.
+router.get("/averages", async (req, res: Response) => {
+  const idsParam = (req.query.ids as string) || "";
+  const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) {
+    res.json({});
+    return;
+  }
+
+  const liveResult = await db.query(
+    `SELECT
+       sd.destination_id,
+       EXTRACT(MONTH FROM ts.start_time)::int AS month,
+       EXTRACT(DOW FROM ts.start_time)::int AS dow,
+       COUNT(*)::int AS cnt,
+       MAX(ts.start_time) AS last_session_at
+     FROM session_destinations sd
+     JOIN tracking_sessions ts ON ts.id = sd.session_id
+     WHERE sd.destination_id = ANY($1::text[])
+       AND sd.relation = 'reached'
+       AND ts.start_time IS NOT NULL
+     GROUP BY sd.destination_id, month, dow`,
+    [ids]
+  );
+
+  const offsetResult = await db.query(
+    `SELECT id, averages_offset FROM destinations WHERE id = ANY($1::text[])`,
+    [ids]
+  );
+
+  const monthNames = [
+    "",
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+  ];
+  const dayNames = ["su", "mo", "tu", "we", "th", "fr", "sa"];
+
+  const live: Record<
+    string,
+    {
+      months: Record<string, number>;
+      days: Record<string, number>;
+      lastUpdated: string | null;
+    }
+  > = {};
+  for (const row of liveResult.rows) {
+    const id = row.destination_id;
+    if (!live[id]) live[id] = { months: {}, days: {}, lastUpdated: null };
+    const m = monthNames[row.month];
+    const d = dayNames[row.dow];
+    if (m) live[id].months[m] = (live[id].months[m] || 0) + row.cnt;
+    if (d) live[id].days[d] = (live[id].days[d] || 0) + row.cnt;
+    const ts = row.last_session_at
+      ? new Date(row.last_session_at).toISOString()
+      : null;
+    if (ts && (!live[id].lastUpdated || ts > live[id].lastUpdated)) {
+      live[id].lastUpdated = ts;
+    }
+  }
+
+  const offsetMap = new Map<string, any>(
+    offsetResult.rows.map((r: any) => [r.id, r.averages_offset])
+  );
+
+  const out: Record<string, any> = {};
+  for (const id of ids) {
+    const liveData = live[id] || null;
+    const offsetData = offsetMap.get(id) || null;
+    const merged = mergeAverages(liveData, offsetData);
+    if (!merged) continue;
+    const liveTs = liveData?.lastUpdated;
+    const offsetTs = offsetData?.lastUpdated;
+    if (liveTs && offsetTs) {
+      merged.lastUpdated = liveTs > offsetTs ? liveTs : offsetTs;
+    } else if (liveTs) {
+      merged.lastUpdated = liveTs;
+    } else if (offsetTs) {
+      merged.lastUpdated = offsetTs;
+    }
+    out[id] = merged;
+  }
+
+  res.json(out);
+});
+
 // GET /api/destinations/:id
 router.get("/:id", async (req, res: Response) => {
   const { id } = req.params;
