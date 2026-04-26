@@ -39,8 +39,38 @@ export async function migrateSessions() {
       const overview = d.overview || {};
       const status = d.status || {};
 
-      const startTime = toDate(overview.startDate);
-      const endTime = toDate(overview.endDate);
+      let startTime = toDate(overview.startDate);
+      let endTime = toDate(overview.endDate);
+
+      // Fallback: derive start/end from the session's tracking points.
+      // Older / aborted Firestore sessions can be missing overview.startDate
+      // (recording started but no overview written) yet still have a populated
+      // points doc. min/max of point.time is the authoritative window.
+      // Without this, those sessions hit the NOT NULL constraint on
+      // tracking_sessions.start_time and get silently dropped.
+      if (!startTime || !endTime) {
+        const ptsDoc = await firestore.collection("points").doc(id).get();
+        if (ptsDoc.exists) {
+          const pts: any[] = ptsDoc.data()?.points || [];
+          const times = pts
+            .map((p) => p?.time)
+            .filter((t): t is number => typeof t === "number" && t > 0);
+          if (times.length > 0) {
+            if (!startTime) startTime = new Date(Math.min(...times) * 1000);
+            if (!endTime) endTime = new Date(Math.max(...times) * 1000);
+          }
+        }
+      }
+
+      // Last-resort: lastUpdated as start_time so we don't silently drop a
+      // session that has no overview, no points, but does have a timestamp.
+      if (!startTime) startTime = toDate(d.lastUpdated);
+      if (!startTime) {
+        console.warn(`  Skipping session ${id} — no startDate, no points, no lastUpdated`);
+        skipped++;
+        continue;
+      }
+
       const lastUpdated = toDate(d.lastUpdated) || endTime || startTime || new Date();
       const hasDerivedMatches =
         status.destinationsSynced === true ||
