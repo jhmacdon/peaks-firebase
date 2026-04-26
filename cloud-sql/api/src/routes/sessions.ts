@@ -101,6 +101,37 @@ function parseProcessingStates(raw: unknown): string[] | null {
   return states;
 }
 
+/**
+ * Inline auto-process a session that markSessionPendingIfReady just queued.
+ * Runs synchronously so the response carries the final processing_state — iOS
+ * doesn't have to poll for the typical case. Maps the concurrency-guard race
+ * (`already_processing` thrown by processSession) and any other failure to a
+ * non-throwing string so the surrounding handler can still respond 200.
+ */
+async function autoProcessIfQueued(
+  queued: boolean,
+  sessionId: string,
+  uid: string
+): Promise<string | null> {
+  if (!queued) return null;
+  try {
+    const result = await processSession(sessionId, uid);
+    notifySessionProcessed(
+      sessionId,
+      uid,
+      result.destinations_matched,
+      result.routes_matched
+    ).catch((err) => console.error("Slack notify failed:", err));
+    return "completed";
+  } catch (err) {
+    if (err instanceof Error && err.message === "already_processing") {
+      return "processing";
+    }
+    console.error("Auto-processing failed for session", sessionId, err);
+    return "failed";
+  }
+}
+
 async function markSessionPendingIfReady(client: PoolClient, sessionId: string): Promise<boolean> {
   const result = await client.query(
     `UPDATE tracking_sessions s
@@ -675,9 +706,11 @@ router.post("/", async (req, res: Response) => {
         : false;
 
     await client.query("COMMIT");
+
+    const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
     res.status(201).json({
       id,
-      processing_state: queuedForProcessing ? "pending" : null,
+      processing_state: finalState ?? (queuedForProcessing ? "pending" : null),
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -786,9 +819,11 @@ router.put("/:id", async (req, res: Response) => {
         : false;
 
     await client.query("COMMIT");
+
+    const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
     res.json({
       id,
-      processing_state: queuedForProcessing ? "pending" : null,
+      processing_state: finalState ?? (queuedForProcessing ? "pending" : null),
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -904,18 +939,11 @@ router.post("/:id/points", async (req, res: Response) => {
     }
 
     await client.query("COMMIT");
-    res.status(201).json({ inserted, processing_state: processingState });
 
-    // Auto-trigger processing (fire-and-forget) if session is ended
-    if (queuedForProcessing) {
-      processSession(id, uid)
-        .then((result) =>
-          notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)
-        )
-        .catch((err) =>
-          console.error("Auto-processing failed for session", id, err)
-        );
-    }
+    // Auto-process inline. Inline await (vs fire-and-forget) so iOS gets the
+    // final state in the response and Cloud Run can't kill the worker mid-process.
+    const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
+    res.status(201).json({ inserted, processing_state: finalState ?? processingState });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error inserting points:", err);

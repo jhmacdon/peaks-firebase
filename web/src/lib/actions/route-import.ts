@@ -6,6 +6,7 @@ import { fetchElevations, computeElevationStats } from "../elevation";
 import { parseGPX, simplifyTrack, totalDistance, haversineDistance } from "../gpx";
 import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "../route-utils";
 import { normalizeSearchName } from "../search-utils";
+import { backfillDestinationToSessions } from "../destination-backfill";
 
 // ─── Validation constraints ────────────────────────────────────────────────
 
@@ -443,5 +444,11 @@ async function createAndLinkTrailhead(
     `INSERT INTO route_destinations (route_id, destination_id, ordinal)
      VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
     [routeId, thId, ordinal]
+  );
+
+  // Tag any existing sessions whose track passes through the new trailhead.
+  // Non-fatal — the route import shouldn't fail if the backfill query stumbles.
+  backfillDestinationToSessions(thId).catch((err) =>
+    console.error("backfillDestinationToSessions failed for trailhead", thId, err)
   );
 }

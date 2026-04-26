@@ -5,6 +5,7 @@ import db from "../db";
 import { normalizeSearchName } from "../search-utils";
 import { fetchElevations } from "../elevation";
 import { mergeDestinationAverages } from "../destination-detail";
+import { backfillDestinationToSessions } from "../destination-backfill";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -358,6 +359,12 @@ export async function bulkImportDestinations(
       [id, wpt.name.trim(), normalizeSearchName(wpt.name.trim()), wpt.lng, wpt.lat, ele, wpt.feature, country_code, state_code]
     );
 
+    // Tag any existing sessions whose track passes through the new destination.
+    // Non-fatal — a backfill failure shouldn't block the import response.
+    backfillDestinationToSessions(id).catch((err) =>
+      console.error("backfillDestinationToSessions failed for", id, err)
+    );
+
     results.push({ name: wpt.name, status: "imported" });
     imported++;
   }
@@ -395,6 +402,12 @@ export async function createDestination(input: {
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, COALESCE($6::double precision, 0)), 4326)::geography,
              $6, $7::destination_feature[], 'peaks', $8::destination_type, $9, $10)`,
     [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, destType, country_code, state_code]
+  );
+
+  // Tag any existing sessions whose track passes through the new destination.
+  // Non-fatal — backfill failure shouldn't block the create response.
+  backfillDestinationToSessions(id).catch((err) =>
+    console.error("backfillDestinationToSessions failed for", id, err)
   );
 
   return { id };

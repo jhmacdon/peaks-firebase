@@ -282,10 +282,19 @@ CREATE TABLE tracking_sessions (
     is_public       BOOLEAN NOT NULL DEFAULT FALSE,
     uploaded_to_strava BOOLEAN NOT NULL DEFAULT FALSE,
 
+    -- Materialized GPS track (LineStringZ from tracking_points ORDER BY time).
+    -- Populated by processSession; used for destination matching, route
+    -- matching, and reverse-matching new destinations against historical
+    -- sessions in a single GIST-indexed query.
+    path            GEOGRAPHY(LineStringZ, 4326),
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     server_updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_tracking_sessions_path
+    ON tracking_sessions USING GIST (path);
 
 -- ---------------------------------------------------------------------------
 -- tracking_points

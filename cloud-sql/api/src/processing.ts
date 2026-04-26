@@ -15,31 +15,31 @@ export interface ProcessingResult {
 
 /**
  * Match destinations within proximity of the session's GPS track.
- * Uses bbox pre-filter + feature-aware distance thresholds.
+ *
+ * Reads the materialized linestring from tracking_sessions.path (set by
+ * processSession Step 0) and uses GIST-indexed ST_DWithin in a single query.
+ * Per-feature thresholds: summit 30m, trailhead 100m, else 50m, or 10m to
+ * a destination's polygon boundary if one is defined.
+ *
+ * Owner scope: a destination owned by 'peaks' is system-global; a
+ * user-owned destination only matches that user's own sessions.
  */
 async function matchDestinations(client: PoolClient, sessionId: string): Promise<number> {
   const result = await client.query(
-    `WITH session_bbox AS (
-        SELECT ST_Expand(ST_Envelope(ST_Collect(location::geometry)), 0.002) AS bbox
-        FROM tracking_points WHERE session_id = $1
-    ),
-    candidate_destinations AS (
-        SELECT d.* FROM destinations d, session_bbox b
-        WHERE d.location::geometry && b.bbox
-           OR (d.boundary IS NOT NULL AND d.boundary::geometry && b.bbox)
-    )
-    INSERT INTO session_destinations (session_id, destination_id, relation, source)
-    SELECT DISTINCT ON (d.id) $1, d.id, 'reached', 'auto'
-    FROM candidate_destinations d
-    JOIN tracking_points tp ON tp.session_id = $1
-    WHERE CASE WHEN d.boundary IS NOT NULL
-            THEN ST_DWithin(d.boundary, tp.location, 10)
-            ELSE ST_DWithin(d.location, tp.location,
-                CASE WHEN 'summit' = ANY(d.features) THEN 30
-                     WHEN 'trailhead' = ANY(d.features) THEN 100
-                     ELSE 50 END)
-          END
-    ON CONFLICT (session_id, destination_id) DO NOTHING`,
+    `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+     SELECT s.id, d.id, 'reached', 'auto'
+     FROM tracking_sessions s
+     JOIN destinations d ON (d.owner = 'peaks' OR d.owner = s.user_id)
+     WHERE s.id = $1
+       AND s.path IS NOT NULL
+       AND CASE WHEN d.boundary IS NOT NULL
+             THEN ST_DWithin(s.path, d.boundary, 10)
+             ELSE ST_DWithin(s.path, d.location,
+                 CASE WHEN 'summit' = ANY(d.features) THEN 30
+                      WHEN 'trailhead' = ANY(d.features) THEN 100
+                      ELSE 50 END)
+           END
+     ON CONFLICT (session_id, destination_id) DO NOTHING`,
     [sessionId]
   );
   return result.rowCount ?? 0;
@@ -47,18 +47,18 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
 
 /**
  * Match routes the session followed using two-phase approach:
- * 1. Find candidate routes within 100m of session track
- * 2. Compute vertex coverage — insert routes with >= 70% coverage
+ * 1. Find candidate routes within 100m of the session's stored linestring.
+ * 2. Compute vertex coverage — insert routes with >= 70% coverage.
+ *
+ * Reads tracking_sessions.path (set by processSession Step 0) so both
+ * phases run as indexed lookups instead of rebuilding the line per query.
  */
 async function matchRoutes(client: PoolClient, sessionId: string): Promise<number> {
   // Phase 1: find candidate routes near the session track
   const candidates = await client.query(
-    `WITH session_track AS (
-        SELECT ST_MakeLine(location::geometry ORDER BY time)::geography AS track
-        FROM tracking_points WHERE session_id = $1
-    )
-    SELECT r.id FROM routes r, session_track st
-    WHERE ST_DWithin(r.path, st.track, 100) AND r.status = 'active'`,
+    `SELECT r.id FROM routes r, tracking_sessions s
+     WHERE s.id = $1 AND s.path IS NOT NULL
+       AND ST_DWithin(r.path, s.path, 100) AND r.status = 'active'`,
     [sessionId]
   );
 
@@ -71,8 +71,7 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
   // Phase 2: compute coverage and insert matches
   const result = await client.query(
     `WITH session_track AS (
-        SELECT ST_MakeLine(location::geometry ORDER BY time)::geography AS track
-        FROM tracking_points WHERE session_id = $1
+        SELECT s.path AS track FROM tracking_sessions s WHERE s.id = $1
     ),
     route_points AS (
         SELECT r.id AS route_id, (ST_DumpPoints(r.path::geometry)).geom AS pt
@@ -280,24 +279,48 @@ async function updateDestinationAverages(
 /**
  * Process a session: match destinations, routes, and group previous attempts.
  * Runs all steps in a single transaction. Idempotent — clears auto-tags first.
+ *
+ * Concurrency: the opening UPDATE is gated on `processing_state IS DISTINCT
+ * FROM 'processing'` so a second concurrent caller (e.g. iOS poll racing
+ * with the inline auto-process from PUT /api/sessions/:id) bails out with
+ * `already_processing` instead of running matching twice.
  */
 export async function processSession(
   sessionId: string,
   userId: string
 ): Promise<ProcessingResult> {
-  await db.query(
+  const claim = await db.query(
     `UPDATE tracking_sessions
      SET processing_state = 'processing',
          processing_error = NULL
-     WHERE id = $1 AND user_id = $2`,
+     WHERE id = $1 AND user_id = $2
+       AND processing_state IS DISTINCT FROM 'processing'`,
     [sessionId, userId]
   );
+  if ((claim.rowCount ?? 0) === 0) {
+    throw new Error("already_processing");
+  }
 
   const client = await db.connect();
   try {
     await client.query("BEGIN");
 
-    // Step 0: Clear previous auto-tags (idempotent re-processing)
+    // Step 0: Materialize the session's GPS track as a single linestring.
+    // Used by destination/route matching here AND by reverse-match queries
+    // when a new destination is created. Stored on tracking_sessions.path
+    // so subsequent reads hit a GIST index instead of rebuilding the line.
+    await client.query(
+      `UPDATE tracking_sessions s
+       SET path = (
+         SELECT ST_MakeLine(tp.location::geometry ORDER BY tp.time)::geography
+         FROM tracking_points tp
+         WHERE tp.session_id = s.id
+       )
+       WHERE s.id = $1`,
+      [sessionId]
+    );
+
+    // Step 1: Clear previous auto-tags (idempotent re-processing)
     await client.query(
       `DELETE FROM session_destinations WHERE session_id = $1 AND source = 'auto'`,
       [sessionId]
@@ -307,23 +330,23 @@ export async function processSession(
       [sessionId]
     );
 
-    // Step 1: Destination matching
+    // Step 2: Destination matching
     const destinationsMatched = await matchDestinations(client, sessionId);
 
-    // Step 2: Route matching
+    // Step 3: Route matching
     const routesMatched = await matchRoutes(client, sessionId);
 
-    // Step 3: Update destination averages (popular times)
+    // Step 4: Update destination averages (popular times)
     await updateDestinationAverages(client, sessionId);
 
-    // Step 4: Previous attempt grouping
+    // Step 5: Previous attempt grouping
     const { group_id, group_session_count } = await matchPreviousAttempts(
       client,
       sessionId,
       userId
     );
 
-    // Step 5: Mark as processed
+    // Step 6: Mark as processed
     await client.query(
       `UPDATE tracking_sessions
        SET processed_at = NOW(),
