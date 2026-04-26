@@ -339,16 +339,21 @@ router.get("/:id", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
+  // Inline destinations and routes match the shape returned by /changes and /api/sessions
+  // so iOS pollProcessingSessions doesn't wipe locally-known destinations on every refresh.
   const result = await db.query(
-    `SELECT id, user_id, name, start_time, end_time,
-            distance, total_time, pace, gain, highest_point,
-            ascent_time, descent_time, still_time,
-            activity_type, source, external_id,
-            health_data, group_id, processed_at, processing_state, processing_error,
-            ended, is_public,
-            created_at, updated_at, server_updated_at
-     FROM tracking_sessions
-     WHERE id = $1 AND (user_id = $2 OR is_public = true)`,
+    `SELECT s.id, s.user_id, s.name, s.start_time, s.end_time,
+            s.distance, s.total_time, s.pace, s.gain, s.highest_point,
+            s.ascent_time, s.descent_time, s.still_time,
+            s.activity_type, s.source, s.external_id,
+            s.health_data, s.group_id, s.processed_at, s.processing_state, s.processing_error,
+            s.ended, s.is_public,
+            s.created_at, s.updated_at, s.server_updated_at,
+            ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
+            ${DESTINATION_GOALS_SQL} AS destination_goals,
+            ${SESSION_ROUTES_SQL} AS routes
+     FROM tracking_sessions s
+     WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     [id, uid]
   );
   if (result.rows.length === 0) {
