@@ -8,12 +8,19 @@ import { notifySessionProcessed } from "../slack";
 const router = Router();
 const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
 
+// `boundary` is included as GeoJSON so iOS can compute point-to-polygon
+// distance (Destination.distance(to:) prefers boundary over centroid). Without
+// it, large polygon destinations like lakes — where the user's GPS track
+// follows the shoreline rather than the centroid — get dropped from
+// timeline rendering even though they're correctly stored as reached.
 const DESTINATIONS_REACHED_SQL = `COALESCE(
   (SELECT json_agg(json_build_object(
     'id', d.id, 'name', d.name, 'elevation', d.elevation,
     'features', d.features,
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
+    'boundary', CASE WHEN d.boundary IS NOT NULL
+                     THEN ST_AsGeoJSON(d.boundary)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
@@ -28,6 +35,8 @@ const DESTINATION_GOALS_SQL = `COALESCE(
     'features', d.features,
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
+    'boundary', CASE WHEN d.boundary IS NOT NULL
+                     THEN ST_AsGeoJSON(d.boundary)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
