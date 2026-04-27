@@ -461,6 +461,8 @@ router.get("/:id/destinations", async (req, res: Response) => {
     `SELECT d.id, d.name, d.elevation, d.features,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
+            CASE WHEN d.boundary IS NOT NULL
+                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
             sd.relation, sd.source
      FROM destinations d
      JOIN session_destinations sd ON sd.destination_id = d.id
