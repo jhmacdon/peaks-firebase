@@ -516,6 +516,7 @@ function NewRouteContent() {
                       <option value="hut">Hut</option>
                       <option value="lookout">Lookout</option>
                       <option value="lake">Lake</option>
+                      <option value="landform">Landform</option>
                     </select>
                   </div>
                   <button

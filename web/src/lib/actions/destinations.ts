@@ -512,7 +512,7 @@ out body center;`;
   function mapFeature(tags: Record<string, string>): { feature: string; label: string } {
     if (tags.natural === "volcano") return { feature: "volcano", label: "volcano" };
     if (tags.natural === "peak") return { feature: "summit", label: "peak" };
-    if (tags.natural === "saddle") return { feature: "", label: "saddle" };
+    if (tags.natural === "saddle") return { feature: "landform", label: "saddle" };
     if (tags.tourism === "alpine_hut" || tags.tourism === "wilderness_hut")
       return { feature: "hut", label: tags.tourism.replace("_", " ") };
     if (tags["tower:type"] === "observation")

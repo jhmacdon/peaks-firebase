@@ -135,6 +135,7 @@ function mapFeatures(arr: string[]): string[] {
     "fire-lookout": "fire-lookout",
     "summit": "summit",
     "trailhead": "trailhead",
+    "landform": "landform",
   };
   return arr.map(f => mapping[f]).filter(Boolean);
 }

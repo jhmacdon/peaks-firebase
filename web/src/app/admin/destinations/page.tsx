@@ -287,6 +287,7 @@ function DestinationsContent() {
                               <option value="hut">Hut</option>
                               <option value="lookout">Lookout</option>
                               <option value="lake">Lake</option>
+                              <option value="landform">Landform</option>
                             </select>
                           </td>
                           <td className="px-3 py-2 text-gray-500">
@@ -352,6 +353,7 @@ function DestinationsContent() {
             <option value="hut">Hut</option>
             <option value="lookout">Lookout</option>
             <option value="lake">Lake</option>
+            <option value="landform">Landform</option>
           </select>
         </div>
 
