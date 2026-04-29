@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import { Router, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
@@ -605,6 +606,125 @@ router.get("/:id/group", async (req, res: Response) => {
   );
 
   res.json({ group_id: groupId, sessions: result.rows });
+});
+
+// POST /api/sessions/groups — create a group containing two or more sessions
+router.post("/groups", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { session_ids, manually_linked } = req.body as { session_ids?: string[]; manually_linked?: boolean };
+
+  if (!Array.isArray(session_ids) || session_ids.length < 2) {
+    res.status(400).json({ error: "session_ids must be an array of at least 2 ids" });
+    return;
+  }
+
+  // Verify all sessions belong to the caller
+  const owned = await db.query(
+    `SELECT id FROM tracking_sessions WHERE id = ANY($1) AND user_id = $2`,
+    [session_ids, uid]
+  );
+  if (owned.rows.length !== session_ids.length) {
+    res.status(403).json({ error: "One or more sessions not owned or not found" });
+    return;
+  }
+
+  const groupId = crypto.randomUUID();
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO session_groups (id, user_id, manually_linked) VALUES ($1, $2, $3)`,
+      [groupId, uid, manually_linked === true]
+    );
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = ANY($2)`,
+      [groupId, session_ids]
+    );
+    await client.query("COMMIT");
+    res.json({ id: groupId, manually_linked: manually_linked === true, member_ids: session_ids });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating session group:", err);
+    res.status(500).json({ error: "Failed to create session group" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/sessions/:id/group/:groupId — join an existing group
+router.post("/:id/group/:groupId", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id, groupId } = req.params;
+
+  const owned = await db.query(
+    `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (owned.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  const group = await db.query(
+    `SELECT id FROM session_groups WHERE id = $1 AND user_id = $2`,
+    [groupId, uid]
+  );
+  if (group.rows.length === 0) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+
+  await db.query(
+    `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = $2`,
+    [groupId, id]
+  );
+  res.json({ ok: true });
+});
+
+// DELETE /api/sessions/:id/group — leave the current group; auto-link will skip this session going forward
+router.delete("/:id/group", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Read old group_id BEFORE the update (post-update subselect would return NULL)
+    const pre = await client.query(
+      `SELECT group_id FROM tracking_sessions WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      [id, uid]
+    );
+    if (pre.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    const oldGroupId: string | null = pre.rows[0].group_id;
+
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = NULL, link_opt_out = true WHERE id = $1`,
+      [id]
+    );
+
+    if (oldGroupId) {
+      // Delete the group if it's now empty
+      await client.query(
+        `DELETE FROM session_groups
+           WHERE id = $1
+             AND NOT EXISTS (SELECT 1 FROM tracking_sessions WHERE group_id = $1)`,
+        [oldGroupId]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error leaving session group:", err);
+    res.status(500).json({ error: "Failed to leave session group" });
+  } finally {
+    client.release();
+  }
 });
 
 // POST /api/sessions — create a new session
