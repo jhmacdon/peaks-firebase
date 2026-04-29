@@ -35,9 +35,9 @@ async function createSession(id: string, userId: string, startISO: string): Prom
 }
 
 async function cleanupTestData(): Promise<void> {
-  // Delete in dependency order: tracking_sessions first (they reference
-  // session_groups via group_id FK), then session_groups. The LIKE pattern
-  // targets only rows created by this test run, never touching real data.
+  // The session_groups FK is ON DELETE SET NULL so order doesn't matter for
+  // correctness; we delete tracking_sessions first to keep cleanup explicit
+  // (no group_id columns left dangling at NULL after a group row is gone).
   await db.query(
     `DELETE FROM tracking_sessions WHERE user_id LIKE $1`,
     [`${runPrefix}-%`]

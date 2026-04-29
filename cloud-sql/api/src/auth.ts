@@ -25,6 +25,13 @@ export function getUid(req: Request): string {
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (process.env.NODE_ENV === "test") {
+    // Defense-in-depth: refuse to bypass auth if we're running inside Cloud
+    // Run, even if NODE_ENV is somehow set to "test". K_SERVICE / K_REVISION
+    // are injected by the Cloud Run runtime and never set in local dev.
+    if (process.env.K_SERVICE || process.env.K_REVISION) {
+      res.status(500).json({ error: "Auth shim refuses to run in Cloud Run" });
+      return;
+    }
     const testUid = req.headers["x-test-user"];
     if (typeof testUid === "string" && testUid.length > 0) {
       (req as AuthRequest).uid = testUid;
