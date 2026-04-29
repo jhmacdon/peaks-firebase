@@ -590,7 +590,7 @@ router.get("/:id/group", async (req, res: Response) => {
 
   const groupId = session.rows[0].group_id;
   if (!groupId) {
-    res.json({ group_id: null, sessions: [] });
+    res.json({ group_id: null, group: null, sessions: [] });
     return;
   }
 
