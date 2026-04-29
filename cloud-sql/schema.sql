@@ -234,6 +234,7 @@ CREATE TABLE session_groups (
     id              TEXT PRIMARY KEY,
     user_id         TEXT NOT NULL,
     name            TEXT,
+    manually_linked boolean NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -266,6 +267,7 @@ CREATE TABLE tracking_sessions (
     -- import deduplication
     source          TEXT,              -- 'apple-health', 'strava', 'gpx-garmin', 'gpx-gaia', etc.
     external_id     TEXT,              -- ID from source system
+    link_opt_out    boolean NOT NULL DEFAULT false,
 
     -- health metrics time series
     health_data     JSONB,             -- { calories: [{date, calories}], heartRates: [{date, heartRate}] }
@@ -406,6 +408,7 @@ CREATE INDEX idx_tracking_sessions_dedup    ON tracking_sessions (source, extern
     WHERE source IS NOT NULL AND external_id IS NOT NULL;
 CREATE INDEX idx_tracking_sessions_sync     ON tracking_sessions (user_id, server_updated_at ASC, id ASC);
 CREATE INDEX idx_tracking_sessions_processing ON tracking_sessions (user_id, processing_state, server_updated_at DESC);
+CREATE INDEX idx_tracking_sessions_link_opt_out ON tracking_sessions (user_id) WHERE link_opt_out = true;
 
 CREATE INDEX idx_session_markers_session    ON session_markers (session_id);
 CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, server_updated_at ASC, session_id ASC);
