@@ -2,7 +2,7 @@ import { PoolClient } from "pg";
 import crypto from "crypto";
 import db from "./db";
 
-function generateId(): string {
+export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
 }
 

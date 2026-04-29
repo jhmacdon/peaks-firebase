@@ -1,9 +1,8 @@
-import * as crypto from "crypto";
 import { Router, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
-import { processSession } from "../processing";
+import { generateId, processSession } from "../processing";
 import { notifySessionProcessed } from "../slack";
 
 const router = Router();
@@ -628,7 +627,7 @@ router.post("/groups", async (req, res: Response) => {
     return;
   }
 
-  const groupId = crypto.randomUUID();
+  const groupId = generateId();
   const client = await db.connect();
   try {
     await client.query("BEGIN");
@@ -656,28 +655,49 @@ router.post("/:id/group/:groupId", async (req, res: Response) => {
   const uid = getUid(req);
   const { id, groupId } = req.params;
 
-  const owned = await db.query(
-    `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
-    [id, uid]
-  );
-  if (owned.rows.length === 0) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
-  const group = await db.query(
-    `SELECT id FROM session_groups WHERE id = $1 AND user_id = $2`,
-    [groupId, uid]
-  );
-  if (group.rows.length === 0) {
-    res.status(404).json({ error: "Group not found" });
-    return;
-  }
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
 
-  await db.query(
-    `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = $2`,
-    [groupId, id]
-  );
-  res.json({ ok: true });
+    const owned = await client.query(
+      `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      [id, uid]
+    );
+    if (owned.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    const group = await client.query(
+      `SELECT id FROM session_groups WHERE id = $1 AND user_id = $2`,
+      [groupId, uid]
+    );
+    if (group.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Group not found" });
+      return;
+    }
+
+    const result = await client.query(
+      `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = $2`,
+      [groupId, id]
+    );
+    if (result.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("[POST /:id/group/:groupId]", e);
+    res.status(500).json({ error: "Internal error" });
+  } finally {
+    client.release();
+  }
 });
 
 // DELETE /api/sessions/:id/group — leave the current group; auto-link will skip this session going forward
