@@ -768,30 +768,38 @@ router.post("/groups/:id/merge", async (req, res: Response) => {
     return;
   }
 
-  const groups = await db.query(
-    `SELECT id, created_at, manually_linked
-       FROM session_groups
-       WHERE id IN ($1, $2) AND user_id = $3`,
-    [id, other_group_id, uid]
-  );
-  if (groups.rows.length !== 2) {
-    res.status(404).json({ error: "Both groups must exist and be owned by the caller" });
+  if (other_group_id === id) {
+    res.status(400).json({ error: "other_group_id must differ from the URL :id" });
     return;
   }
-
-  // Pick survivor: older created_at, then lex id
-  const sorted = groups.rows.sort((a, b) => {
-    const t = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    if (t !== 0) return t;
-    return a.id < b.id ? -1 : 1;
-  });
-  const survivor = sorted[0];
-  const loser = sorted[1];
-  const survivorManually = survivor.manually_linked || loser.manually_linked;
 
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+
+    const groups = await client.query(
+      `SELECT id, created_at, manually_linked
+         FROM session_groups
+         WHERE id IN ($1, $2) AND user_id = $3
+         FOR UPDATE`,
+      [id, other_group_id, uid]
+    );
+    if (groups.rows.length !== 2) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Both groups must exist and be owned by the caller" });
+      return;
+    }
+
+    // Pick survivor: older created_at, then lex id
+    const sorted = groups.rows.sort((a, b) => {
+      const t = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (t !== 0) return t;
+      return a.id < b.id ? -1 : 1;
+    });
+    const survivor = sorted[0];
+    const loser = sorted[1];
+    const survivorManually = survivor.manually_linked || loser.manually_linked;
+
     await client.query(
       `UPDATE tracking_sessions SET group_id = $1 WHERE group_id = $2 AND user_id = $3`,
       [survivor.id, loser.id, uid]
@@ -801,6 +809,7 @@ router.post("/groups/:id/merge", async (req, res: Response) => {
       [survivorManually, survivor.id]
     );
     await client.query(`DELETE FROM session_groups WHERE id = $1`, [loser.id]);
+
     await client.query("COMMIT");
     res.json({ survivor_id: survivor.id, manually_linked: survivorManually });
   } catch (e) {
@@ -832,7 +841,7 @@ router.patch("/groups/:id", async (req, res: Response) => {
   const result = await db.query(
     `UPDATE session_groups SET ${updates.join(", ")}, updated_at = now()
        WHERE id = $${i++} AND user_id = $${i++}
-       RETURNING id, name, manually_linked, updated_at`,
+       RETURNING id, name, manually_linked, created_at, updated_at`,
     values
   );
   if (result.rows.length === 0) {
