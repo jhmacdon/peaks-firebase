@@ -7,7 +7,7 @@ import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
 
-const app = express();
+export const app = express();
 app.use(express.json());
 
 // Health check (unauthenticated — used by Cloud Run)
@@ -25,7 +25,10 @@ app.use("/api/lists", lists);
 app.use("/api/plans", plans);
 app.use("/api/search", search);
 
-const port = parseInt(process.env.PORT || "8080");
-app.listen(port, () => {
-  console.log(`Peaks API listening on port ${port}`);
-});
+// Don't bind a port when imported by tests.
+if (process.env.NODE_ENV !== "test") {
+  const port = parseInt(process.env.PORT || "8080");
+  app.listen(port, () => {
+    console.log(`Peaks API listening on port ${port}`);
+  });
+}
