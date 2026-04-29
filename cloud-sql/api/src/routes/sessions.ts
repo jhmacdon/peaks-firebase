@@ -595,16 +595,25 @@ router.get("/:id/group", async (req, res: Response) => {
   }
 
   const result = await db.query(
-    `SELECT id, name, start_time, end_time,
-            distance, total_time, gain, highest_point,
-            activity_type, created_at
-     FROM tracking_sessions
-     WHERE group_id = $1
-     ORDER BY start_time DESC`,
+    `SELECT s.id, s.name, s.start_time, s.end_time,
+            s.distance, s.total_time, s.gain, s.highest_point,
+            s.activity_type, s.created_at, s.link_opt_out
+     FROM tracking_sessions s
+     WHERE s.group_id = $1
+     ORDER BY s.start_time ASC`,
+    [groupId]
+  );
+  const groupMeta = await db.query(
+    `SELECT id, name, manually_linked, created_at, updated_at
+       FROM session_groups WHERE id = $1`,
     [groupId]
   );
 
-  res.json({ group_id: groupId, sessions: result.rows });
+  res.json({
+    group_id: groupId,
+    group: groupMeta.rows[0] ?? null,
+    sessions: result.rows,
+  });
 });
 
 // POST /api/sessions/groups — create a group containing two or more sessions
@@ -745,6 +754,92 @@ router.delete("/:id/group", async (req, res: Response) => {
   } finally {
     client.release();
   }
+});
+
+// POST /api/sessions/groups/:id/merge — merge another group into this one
+// Body: { other_group_id: string }
+// Survivor is the group with older created_at; tie-break on lex id.
+router.post("/groups/:id/merge", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { other_group_id } = req.body as { other_group_id?: string };
+  if (!other_group_id) {
+    res.status(400).json({ error: "other_group_id required" });
+    return;
+  }
+
+  const groups = await db.query(
+    `SELECT id, created_at, manually_linked
+       FROM session_groups
+       WHERE id IN ($1, $2) AND user_id = $3`,
+    [id, other_group_id, uid]
+  );
+  if (groups.rows.length !== 2) {
+    res.status(404).json({ error: "Both groups must exist and be owned by the caller" });
+    return;
+  }
+
+  // Pick survivor: older created_at, then lex id
+  const sorted = groups.rows.sort((a, b) => {
+    const t = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    if (t !== 0) return t;
+    return a.id < b.id ? -1 : 1;
+  });
+  const survivor = sorted[0];
+  const loser = sorted[1];
+  const survivorManually = survivor.manually_linked || loser.manually_linked;
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = $1 WHERE group_id = $2 AND user_id = $3`,
+      [survivor.id, loser.id, uid]
+    );
+    await client.query(
+      `UPDATE session_groups SET manually_linked = $1 WHERE id = $2`,
+      [survivorManually, survivor.id]
+    );
+    await client.query(`DELETE FROM session_groups WHERE id = $1`, [loser.id]);
+    await client.query("COMMIT");
+    res.json({ survivor_id: survivor.id, manually_linked: survivorManually });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("[POST /groups/:id/merge]", e);
+    res.status(500).json({ error: "Internal error" });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/sessions/groups/:id — rename or toggle manually_linked
+router.patch("/groups/:id", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { name, manually_linked } = req.body as { name?: string | null; manually_linked?: boolean };
+
+  const updates: string[] = [];
+  const values: any[] = [];
+  let i = 1;
+  if (name !== undefined) { updates.push(`name = $${i++}`); values.push(name); }
+  if (manually_linked !== undefined) { updates.push(`manually_linked = $${i++}`); values.push(manually_linked); }
+  if (updates.length === 0) {
+    res.status(400).json({ error: "Nothing to update" });
+    return;
+  }
+
+  values.push(id, uid);
+  const result = await db.query(
+    `UPDATE session_groups SET ${updates.join(", ")}, updated_at = now()
+       WHERE id = $${i++} AND user_id = $${i++}
+       RETURNING id, name, manually_linked, updated_at`,
+    values
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+  res.json(result.rows[0]);
 });
 
 // POST /api/sessions — create a new session
