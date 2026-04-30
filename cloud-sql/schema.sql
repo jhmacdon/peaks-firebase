@@ -228,13 +228,34 @@ CREATE TABLE plan_party (
 
 -- ---------------------------------------------------------------------------
 -- session_groups
--- Groups repeated attempts of the same climb/route by a user.
+-- Smart-link multi-day chains. Client-driven (iOS), opt-in under
+-- SmartLinkFlag. A group represents a continuous adventure split across
+-- multiple recordings (e.g. day 1 of a Glacier Peak attempt + day 2 from
+-- camp to summit). Created either by user action ("Combine with another
+-- recording" → manually_linked = true) or by auto-link rules at import
+-- time (manually_linked = false). Distinct from session_attempt_groups
+-- below, which groups repeat attempts of the same climb regardless of
+-- continuity in time.
 -- ---------------------------------------------------------------------------
 CREATE TABLE session_groups (
     id              TEXT PRIMARY KEY,
     user_id         TEXT NOT NULL,
     name            TEXT,
     manually_linked boolean NOT NULL DEFAULT false,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------------------
+-- session_attempt_groups
+-- Repeat attempts of the same climb/route by a user. Server-side, populated
+-- on every session import by processSession's matchPreviousAttempts. Groups
+-- sessions sharing 2+ reached destinations (or sufficiently similar GPS
+-- tracks if <2 destinations). Spans years; not surfaced as merged log rows.
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_attempt_groups (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -273,8 +294,9 @@ CREATE TABLE tracking_sessions (
     health_data     JSONB,             -- { calories: [{date, calories}], heartRates: [{date, heartRate}] }
 
     -- processing
-    group_id        TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
-    processed_at    TIMESTAMPTZ,
+    group_id            TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
+    attempt_group_id    TEXT REFERENCES session_attempt_groups(id) ON DELETE SET NULL,
+    processed_at        TIMESTAMPTZ,
     processing_state TEXT NOT NULL DEFAULT 'idle'
         CHECK (processing_state IN ('idle', 'pending', 'processing', 'completed', 'failed')),
     processing_error TEXT,
@@ -401,9 +423,11 @@ CREATE INDEX idx_plan_destinations_dest     ON plan_destinations (destination_id
 CREATE INDEX idx_plan_routes_route          ON plan_routes (route_id);
 CREATE INDEX idx_plan_party_user            ON plan_party (user_id);
 
-CREATE INDEX idx_session_groups_user_id     ON session_groups (user_id);
-CREATE INDEX idx_tracking_sessions_user_id  ON tracking_sessions (user_id, start_time DESC);
-CREATE INDEX idx_tracking_sessions_group    ON tracking_sessions (group_id) WHERE group_id IS NOT NULL;
+CREATE INDEX idx_session_groups_user_id          ON session_groups (user_id);
+CREATE INDEX idx_session_attempt_groups_user_id  ON session_attempt_groups (user_id);
+CREATE INDEX idx_tracking_sessions_user_id       ON tracking_sessions (user_id, start_time DESC);
+CREATE INDEX idx_tracking_sessions_group         ON tracking_sessions (group_id) WHERE group_id IS NOT NULL;
+CREATE INDEX idx_tracking_sessions_attempt_group ON tracking_sessions (attempt_group_id) WHERE attempt_group_id IS NOT NULL;
 CREATE INDEX idx_tracking_sessions_dedup    ON tracking_sessions (source, external_id)
     WHERE source IS NOT NULL AND external_id IS NOT NULL;
 CREATE INDEX idx_tracking_sessions_sync     ON tracking_sessions (user_id, server_updated_at ASC, id ASC);
@@ -445,6 +469,7 @@ CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              F
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_session_attempt_groups_updated BEFORE UPDATE ON session_attempt_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE OR REPLACE FUNCTION touch_related_tracking_session()
 RETURNS TRIGGER AS $$
