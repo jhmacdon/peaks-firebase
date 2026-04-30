@@ -2,15 +2,15 @@ import { PoolClient } from "pg";
 import crypto from "crypto";
 import db from "./db";
 
-function generateId(): string {
+export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
 }
 
 export interface ProcessingResult {
   destinations_matched: number;
   routes_matched: number;
-  group_id: string | null;
-  group_session_count: number;
+  attempt_group_id: string | null;
+  attempt_group_session_count: number;
 }
 
 /**
@@ -97,6 +97,13 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
 /**
  * Group sessions that represent repeated attempts of the same climb.
  *
+ * Writes to tracking_sessions.attempt_group_id and session_attempt_groups.
+ * Distinct from tracking_sessions.group_id, which is reserved for smart-link
+ * multi-day chains (client-driven, opt-in under SmartLinkFlag). This function
+ * runs unconditionally on every session import; the iOS log-row collapse is
+ * gated on group_id (smart-link only), so previous-attempts groupings are
+ * stored but never surfaced as merged log rows.
+ *
  * Primary: destination-based — sessions sharing 2+ reached destinations.
  * Secondary: spatial — for sessions with <2 destinations, compare simplified
  * GPS tracks using Hausdorff distance (pre-filter by start-point proximity).
@@ -105,25 +112,25 @@ async function matchPreviousAttempts(
   client: PoolClient,
   sessionId: string,
   userId: string
-): Promise<{ group_id: string | null; group_session_count: number }> {
+): Promise<{ attempt_group_id: string | null; attempt_group_session_count: number }> {
   // Primary: find sessions sharing 2+ reached destinations
   const destMatches = await client.query(
     `WITH current_dests AS (
         SELECT destination_id FROM session_destinations
         WHERE session_id = $1 AND relation = 'reached'
     )
-    SELECT sd.session_id, ts.group_id, COUNT(DISTINCT sd.destination_id) AS shared
+    SELECT sd.session_id, ts.attempt_group_id, COUNT(DISTINCT sd.destination_id) AS shared
     FROM session_destinations sd
     JOIN tracking_sessions ts ON ts.id = sd.session_id
     WHERE sd.destination_id IN (SELECT destination_id FROM current_dests)
       AND sd.relation = 'reached' AND ts.user_id = $2 AND sd.session_id != $1
-    GROUP BY sd.session_id, ts.group_id
+    GROUP BY sd.session_id, ts.attempt_group_id
     HAVING COUNT(DISTINCT sd.destination_id) >= 2`,
     [sessionId, userId]
   );
 
   if (destMatches.rows.length > 0) {
-    return await assignGroup(client, sessionId, userId, destMatches.rows);
+    return await assignAttemptGroup(client, sessionId, userId, destMatches.rows);
   }
 
   // Check how many reached destinations this session has
@@ -135,7 +142,7 @@ async function matchPreviousAttempts(
 
   if (parseInt(destCount.rows[0].cnt) >= 2) {
     // Has destinations but no matches — no group needed
-    return { group_id: null, group_session_count: 0 };
+    return { attempt_group_id: null, attempt_group_session_count: 0 };
   }
 
   // Secondary: spatial matching for sessions with <2 destinations
@@ -155,74 +162,75 @@ async function matchPreviousAttempts(
           AND ST_DWithin(tp2.location, ct.start_pt, 10000)
     ),
     other_tracks AS (
-        SELECT tp3.session_id, ts3.group_id,
+        SELECT tp3.session_id, ts3.attempt_group_id,
                ST_Simplify(ST_MakeLine(tp3.location::geometry ORDER BY tp3.time), 0.0005) AS track
         FROM tracking_points tp3
         JOIN tracking_sessions ts3 ON ts3.id = tp3.session_id
         WHERE tp3.session_id IN (SELECT session_id FROM candidate_sessions)
-        GROUP BY tp3.session_id, ts3.group_id
+        GROUP BY tp3.session_id, ts3.attempt_group_id
     )
-    SELECT ot.session_id, ot.group_id
+    SELECT ot.session_id, ot.attempt_group_id
     FROM other_tracks ot, current_track ct
     WHERE ST_HausdorffDistance(ot.track, ct.track) < 0.003`,
     [sessionId, userId]
   );
 
   if (spatialMatches.rows.length > 0) {
-    return await assignGroup(client, sessionId, userId, spatialMatches.rows);
+    return await assignAttemptGroup(client, sessionId, userId, spatialMatches.rows);
   }
 
-  return { group_id: null, group_session_count: 0 };
+  return { attempt_group_id: null, attempt_group_session_count: 0 };
 }
 
 /**
- * Assign the current session to a group based on matched sessions.
- * If any match already has a group_id, use that. Otherwise create a new group.
+ * Assign the current session to a previous-attempts group based on matched
+ * sessions. If any match already has an attempt_group_id, use that.
+ * Otherwise create a new session_attempt_groups row.
  */
-async function assignGroup(
+async function assignAttemptGroup(
   client: PoolClient,
   sessionId: string,
   userId: string,
-  matches: Array<{ session_id: string; group_id: string | null }>
-): Promise<{ group_id: string; group_session_count: number }> {
+  matches: Array<{ session_id: string; attempt_group_id: string | null }>
+): Promise<{ attempt_group_id: string; attempt_group_session_count: number }> {
   // Find an existing group from matched sessions
-  const existingGroupId = matches.find((m) => m.group_id)?.group_id;
+  const existingGroupId = matches.find((m) => m.attempt_group_id)?.attempt_group_id;
 
   let groupId: string;
 
   if (existingGroupId) {
     groupId = existingGroupId;
   } else {
-    // Create a new group
+    // Create a new previous-attempts group
     groupId = generateId();
     await client.query(
-      `INSERT INTO session_groups (id, user_id) VALUES ($1, $2)`,
+      `INSERT INTO session_attempt_groups (id, user_id) VALUES ($1, $2)`,
       [groupId, userId]
     );
 
     // Assign all matched sessions to the new group
     const matchedIds = matches.map((m) => m.session_id);
     await client.query(
-      `UPDATE tracking_sessions SET group_id = $1 WHERE id = ANY($2)`,
+      `UPDATE tracking_sessions SET attempt_group_id = $1 WHERE id = ANY($2)`,
       [groupId, matchedIds]
     );
   }
 
   // Assign current session to the group
   await client.query(
-    `UPDATE tracking_sessions SET group_id = $1 WHERE id = $2`,
+    `UPDATE tracking_sessions SET attempt_group_id = $1 WHERE id = $2`,
     [groupId, sessionId]
   );
 
   // Count total sessions in the group
   const countResult = await client.query(
-    `SELECT COUNT(*) AS cnt FROM tracking_sessions WHERE group_id = $1`,
+    `SELECT COUNT(*) AS cnt FROM tracking_sessions WHERE attempt_group_id = $1`,
     [groupId]
   );
 
   return {
-    group_id: groupId,
-    group_session_count: parseInt(countResult.rows[0].cnt),
+    attempt_group_id: groupId,
+    attempt_group_session_count: parseInt(countResult.rows[0].cnt),
   };
 }
 
@@ -340,7 +348,7 @@ export async function processSession(
     await updateDestinationAverages(client, sessionId);
 
     // Step 5: Previous attempt grouping
-    const { group_id, group_session_count } = await matchPreviousAttempts(
+    const { attempt_group_id, attempt_group_session_count } = await matchPreviousAttempts(
       client,
       sessionId,
       userId
@@ -361,8 +369,8 @@ export async function processSession(
     return {
       destinations_matched: destinationsMatched,
       routes_matched: routesMatched,
-      group_id,
-      group_session_count,
+      attempt_group_id,
+      attempt_group_session_count,
     };
   } catch (err) {
     await client.query("ROLLBACK");

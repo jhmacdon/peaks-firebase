@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
-import { processSession } from "../processing";
+import { generateId, processSession } from "../processing";
 import { notifySessionProcessed } from "../slack";
 
 const router = Router();
@@ -226,7 +226,8 @@ router.get("/", async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
-            s.group_id, s.processed_at, s.processing_state, s.processing_error,
+            s.group_id, s.attempt_group_id,
+            s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
@@ -288,6 +289,7 @@ router.get("/changes", async (req, res: Response) => {
             'source', s.source,
             'external_id', s.external_id,
             'group_id', s.group_id,
+            'attempt_group_id', s.attempt_group_id,
             'processed_at', s.processed_at,
             'processing_state', s.processing_state,
             'processing_error', s.processing_error,
@@ -386,7 +388,8 @@ router.get("/:id", async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
-            s.health_data, s.group_id, s.processed_at, s.processing_state, s.processing_error,
+            s.health_data, s.group_id, s.attempt_group_id,
+            s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
@@ -590,21 +593,265 @@ router.get("/:id/group", async (req, res: Response) => {
 
   const groupId = session.rows[0].group_id;
   if (!groupId) {
-    res.json({ group_id: null, sessions: [] });
+    res.json({ group_id: null, group: null, sessions: [] });
     return;
   }
 
   const result = await db.query(
-    `SELECT id, name, start_time, end_time,
-            distance, total_time, gain, highest_point,
-            activity_type, created_at
-     FROM tracking_sessions
-     WHERE group_id = $1
-     ORDER BY start_time DESC`,
+    `SELECT s.id, s.name, s.start_time, s.end_time,
+            s.distance, s.total_time, s.gain, s.highest_point,
+            s.activity_type, s.created_at, s.link_opt_out
+     FROM tracking_sessions s
+     WHERE s.group_id = $1
+     ORDER BY s.start_time ASC`,
+    [groupId]
+  );
+  const groupMeta = await db.query(
+    `SELECT id, name, manually_linked, created_at, updated_at
+       FROM session_groups WHERE id = $1`,
     [groupId]
   );
 
-  res.json({ group_id: groupId, sessions: result.rows });
+  res.json({
+    group_id: groupId,
+    group: groupMeta.rows[0] ?? null,
+    sessions: result.rows,
+  });
+});
+
+// POST /api/sessions/groups — create a group containing two or more sessions
+router.post("/groups", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { session_ids, manually_linked } = req.body as { session_ids?: string[]; manually_linked?: boolean };
+
+  if (!Array.isArray(session_ids) || session_ids.length < 2) {
+    res.status(400).json({ error: "session_ids must be an array of at least 2 ids" });
+    return;
+  }
+
+  // Verify all sessions belong to the caller
+  const owned = await db.query(
+    `SELECT id FROM tracking_sessions WHERE id = ANY($1) AND user_id = $2`,
+    [session_ids, uid]
+  );
+  if (owned.rows.length !== session_ids.length) {
+    res.status(403).json({ error: "One or more sessions not owned or not found" });
+    return;
+  }
+
+  const groupId = generateId();
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO session_groups (id, user_id, manually_linked) VALUES ($1, $2, $3)`,
+      [groupId, uid, manually_linked === true]
+    );
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = ANY($2)`,
+      [groupId, session_ids]
+    );
+    await client.query("COMMIT");
+    res.json({ id: groupId, manually_linked: manually_linked === true, member_ids: session_ids });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error creating session group:", err);
+    res.status(500).json({ error: "Failed to create session group" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/sessions/:id/group/:groupId — join an existing group
+router.post("/:id/group/:groupId", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id, groupId } = req.params;
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    const owned = await client.query(
+      `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      [id, uid]
+    );
+    if (owned.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    const group = await client.query(
+      `SELECT id FROM session_groups WHERE id = $1 AND user_id = $2`,
+      [groupId, uid]
+    );
+    if (group.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Group not found" });
+      return;
+    }
+
+    const result = await client.query(
+      `UPDATE tracking_sessions SET group_id = $1, link_opt_out = false WHERE id = $2`,
+      [groupId, id]
+    );
+    if (result.rowCount !== 1) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("[POST /:id/group/:groupId]", e);
+    res.status(500).json({ error: "Internal error" });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/sessions/:id/group — leave the current group; auto-link will skip this session going forward
+router.delete("/:id/group", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Read old group_id BEFORE the update (post-update subselect would return NULL)
+    const pre = await client.query(
+      `SELECT group_id FROM tracking_sessions WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      [id, uid]
+    );
+    if (pre.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    const oldGroupId: string | null = pre.rows[0].group_id;
+
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = NULL, link_opt_out = true WHERE id = $1`,
+      [id]
+    );
+
+    if (oldGroupId) {
+      // Delete the group if it's now empty
+      await client.query(
+        `DELETE FROM session_groups
+           WHERE id = $1
+             AND NOT EXISTS (SELECT 1 FROM tracking_sessions WHERE group_id = $1)`,
+        [oldGroupId]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error leaving session group:", err);
+    res.status(500).json({ error: "Failed to leave session group" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/sessions/groups/:id/merge — merge another group into this one
+// Body: { other_group_id: string }
+// Survivor is the group with older created_at; tie-break on lex id.
+router.post("/groups/:id/merge", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { other_group_id } = req.body as { other_group_id?: string };
+  if (!other_group_id) {
+    res.status(400).json({ error: "other_group_id required" });
+    return;
+  }
+
+  if (other_group_id === id) {
+    res.status(400).json({ error: "other_group_id must differ from the URL :id" });
+    return;
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    const groups = await client.query(
+      `SELECT id, created_at, manually_linked
+         FROM session_groups
+         WHERE id IN ($1, $2) AND user_id = $3
+         FOR UPDATE`,
+      [id, other_group_id, uid]
+    );
+    if (groups.rows.length !== 2) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Both groups must exist and be owned by the caller" });
+      return;
+    }
+
+    // Pick survivor: older created_at, then lex id
+    const sorted = groups.rows.sort((a, b) => {
+      const t = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (t !== 0) return t;
+      return a.id < b.id ? -1 : 1;
+    });
+    const survivor = sorted[0];
+    const loser = sorted[1];
+    const survivorManually = survivor.manually_linked || loser.manually_linked;
+
+    await client.query(
+      `UPDATE tracking_sessions SET group_id = $1 WHERE group_id = $2 AND user_id = $3`,
+      [survivor.id, loser.id, uid]
+    );
+    await client.query(
+      `UPDATE session_groups SET manually_linked = $1 WHERE id = $2`,
+      [survivorManually, survivor.id]
+    );
+    await client.query(`DELETE FROM session_groups WHERE id = $1`, [loser.id]);
+
+    await client.query("COMMIT");
+    res.json({ survivor_id: survivor.id, manually_linked: survivorManually });
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.error("[POST /groups/:id/merge]", e);
+    res.status(500).json({ error: "Internal error" });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/sessions/groups/:id — rename or toggle manually_linked
+router.patch("/groups/:id", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { name, manually_linked } = req.body as { name?: string | null; manually_linked?: boolean };
+
+  const updates: string[] = [];
+  const values: any[] = [];
+  let i = 1;
+  if (name !== undefined) { updates.push(`name = $${i++}`); values.push(name); }
+  if (manually_linked !== undefined) { updates.push(`manually_linked = $${i++}`); values.push(manually_linked); }
+  if (updates.length === 0) {
+    res.status(400).json({ error: "Nothing to update" });
+    return;
+  }
+
+  values.push(id, uid);
+  const result = await db.query(
+    `UPDATE session_groups SET ${updates.join(", ")}, updated_at = now()
+       WHERE id = $${i++} AND user_id = $${i++}
+       RETURNING id, name, manually_linked, created_at, updated_at`,
+    values
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+  res.json(result.rows[0]);
 });
 
 // POST /api/sessions — create a new session
