@@ -56,6 +56,8 @@ const ALL_FEATURES = [
   "lookout",
   "lake",
   "landform",
+  "viewpoint",
+  "waterfall",
 ] as const;
 
 const TOAST_DURATION = 8000;

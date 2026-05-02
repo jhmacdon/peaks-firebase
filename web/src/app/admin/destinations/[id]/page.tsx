@@ -385,7 +385,7 @@ function DestinationDetailContent() {
                       className="px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-700 rounded bg-transparent"
                     >
                       <option value="">+ Add</option>
-                      {["summit", "trailhead", "volcano", "fire-lookout", "hut", "lookout", "lake", "landform"]
+                      {["summit", "trailhead", "volcano", "fire-lookout", "hut", "lookout", "lake", "landform", "viewpoint", "waterfall"]
                         .filter((f) => !editFeatures.includes(f))
                         .map((f) => (
                           <option key={f} value={f}>{f}</option>
