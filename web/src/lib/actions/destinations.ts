@@ -482,6 +482,9 @@ export async function searchOSMNearby(
   node["tourism"="camp_site"](around:${radiusM},${lat},${lng});
   node["natural"="water"]["name"](around:${radiusM},${lat},${lng});
   way["natural"="water"]["name"](around:${radiusM},${lat},${lng});
+  node["tourism"="viewpoint"](around:${radiusM},${lat},${lng});
+  node["waterway"="waterfall"](around:${radiusM},${lat},${lng});
+  way["waterway"="waterfall"](around:${radiusM},${lat},${lng});
 );
 out body center;`;
 
@@ -522,6 +525,8 @@ out body center;`;
     if (tags.amenity === "shelter") return { feature: "hut", label: "shelter" };
     if (tags.tourism === "camp_site") return { feature: "", label: "campsite" };
     if (tags.natural === "water") return { feature: "lake", label: "lake" };
+    if (tags.tourism === "viewpoint") return { feature: "viewpoint", label: "viewpoint" };
+    if (tags.waterway === "waterfall") return { feature: "waterfall", label: "waterfall" };
     return { feature: "", label: "poi" };
   }
 
