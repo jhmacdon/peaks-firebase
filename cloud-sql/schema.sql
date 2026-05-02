@@ -16,7 +16,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TYPE destination_type AS ENUM ('point', 'region');
 CREATE TYPE activity_type AS ENUM ('outdoor-trek', 'outdoor-moto', 'ski');
-CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform');
+CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall');
 CREATE TYPE completion_mode AS ENUM ('none', 'straight', 'reverse');
 CREATE TYPE route_shape AS ENUM ('out_and_back', 'loop', 'point_to_point', 'lollipop');
 CREATE TYPE session_destination_relation AS ENUM ('reached', 'goal');
