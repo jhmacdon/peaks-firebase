@@ -36,7 +36,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 
 ### Enums
 - `destination_type`: point, region
-- `destination_feature`: volcano, fire-lookout, summit, trailhead, hut, lookout, lake, landform
+- `destination_feature`: volcano, fire-lookout, summit, trailhead, hut, lookout, lake, landform, viewpoint, waterfall
 - `activity_type`: outdoor-trek, outdoor-moto, ski
 - `completion_mode`: none, straight, reverse
 - `route_shape`: out_and_back, loop, point_to_point, lollipop
