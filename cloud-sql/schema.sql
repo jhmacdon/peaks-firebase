@@ -513,6 +513,22 @@ FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 -- within the feature-appropriate threshold distance.
 -- =============================================================================
 
+-- Per-feature reach threshold (meters). IMMUTABLE so Postgres inlines the
+-- function during planning — no per-row overhead vs an inline CASE.
+-- Source of truth for: link_sessions_on_destination_insert (this file),
+-- matchDestinations (cloud-sql/api/src/processing.ts), and
+-- backfillDestinationToSessions (web/src/lib/destination-backfill.ts).
+CREATE OR REPLACE FUNCTION destination_match_radius(features destination_feature[])
+RETURNS INT LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE
+    WHEN 'summit'    = ANY(features) THEN 30
+    WHEN 'trailhead' = ANY(features) THEN 100
+    WHEN 'waterfall' = ANY(features) THEN 200
+    WHEN 'viewpoint' = ANY(features) THEN 200
+    ELSE 50
+  END;
+$$;
+
 CREATE OR REPLACE FUNCTION link_sessions_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -523,13 +539,7 @@ BEGIN
     WHERE ts.ended = true
       AND CASE WHEN NEW.boundary IS NOT NULL
             THEN ST_DWithin(NEW.boundary, tp.location, 10)
-            ELSE ST_DWithin(
-                   NEW.location,
-                   tp.location,
-                   CASE WHEN 'summit'    = ANY(NEW.features) THEN 30
-                        WHEN 'trailhead' = ANY(NEW.features) THEN 100
-                        ELSE 50 END
-                 )
+            ELSE ST_DWithin(NEW.location, tp.location, destination_match_radius(NEW.features))
           END
     ON CONFLICT (session_id, destination_id) DO NOTHING;
     RETURN NEW;
