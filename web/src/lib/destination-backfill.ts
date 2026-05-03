@@ -10,11 +10,9 @@ import db from "./db";
  * matches all users' sessions; a user-owned destination only matches
  * that user's sessions.
  *
- * Per-feature radius matches matchDestinations() in cloud-sql/api/src/processing.ts:
- *   summit    → 30m
- *   trailhead → 100m
- *   else      → 50m
- *   boundary  → 10m of the polygon
+ * Per-feature radius is delegated to the SQL function destination_match_radius()
+ * (see cloud-sql/schema.sql). Boundary destinations use a 10m polygon match
+ * regardless of feature.
  *
  * Idempotent via ON CONFLICT — safe to call repeatedly.
  *
@@ -32,10 +30,7 @@ export async function backfillDestinationToSessions(
        AND s.path IS NOT NULL
        AND CASE WHEN d.boundary IS NOT NULL
              THEN ST_DWithin(s.path, d.boundary, 10)
-             ELSE ST_DWithin(s.path, d.location,
-                 CASE WHEN 'summit' = ANY(d.features) THEN 30
-                      WHEN 'trailhead' = ANY(d.features) THEN 100
-                      ELSE 50 END)
+             ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
     [destinationId]

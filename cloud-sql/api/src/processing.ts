@@ -18,8 +18,9 @@ export interface ProcessingResult {
  *
  * Reads the materialized linestring from tracking_sessions.path (set by
  * processSession Step 0) and uses GIST-indexed ST_DWithin in a single query.
- * Per-feature thresholds: summit 30m, trailhead 100m, else 50m, or 10m to
- * a destination's polygon boundary if one is defined.
+ * Per-feature thresholds live in the SQL function destination_match_radius()
+ * (see cloud-sql/schema.sql). Boundary destinations use a 10m polygon match
+ * regardless of feature.
  *
  * Owner scope: a destination owned by 'peaks' is system-global; a
  * user-owned destination only matches that user's own sessions.
@@ -34,10 +35,7 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
        AND s.path IS NOT NULL
        AND CASE WHEN d.boundary IS NOT NULL
              THEN ST_DWithin(s.path, d.boundary, 10)
-             ELSE ST_DWithin(s.path, d.location,
-                 CASE WHEN 'summit' = ANY(d.features) THEN 30
-                      WHEN 'trailhead' = ANY(d.features) THEN 100
-                      ELSE 50 END)
+             ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
     [sessionId]
