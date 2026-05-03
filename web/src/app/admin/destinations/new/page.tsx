@@ -46,6 +46,7 @@ interface Toast {
   id: string;
   name: string;
   destId: string;
+  kind: "created" | "duplicate";
 }
 
 const ALL_FEATURES = [
@@ -194,8 +195,9 @@ function NewDestinationContent() {
           ...prev,
           {
             id: result.duplicate.id,
-            name: `Already exists: ${result.duplicate.name ?? "(unnamed)"}`,
+            name: result.duplicate.name ?? "(unnamed)",
             destId: result.duplicate.id,
+            kind: "duplicate",
           },
         ]);
         setSaving(false);
@@ -207,7 +209,7 @@ function NewDestinationContent() {
       const name = confirm.name.trim();
       setToasts((prev) => [
         ...prev,
-        { id: result.id, name, destId: result.id },
+        { id: result.id, name, destId: result.id, kind: "created" },
       ]);
       setConfirm(null);
       setBoundary(null);
@@ -510,8 +512,8 @@ function NewDestinationContent() {
                 key={t.id}
                 className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 animate-[fadeIn_0.2s_ease-out]"
               >
-                <span className="text-green-600 dark:text-green-400 text-sm font-medium shrink-0">
-                  Created
+                <span className={`text-sm font-medium shrink-0 ${t.kind === "duplicate" ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                  {t.kind === "duplicate" ? "Exists" : "Created"}
                 </span>
                 <Link
                   href={`/admin/destinations/${t.destId}`}
