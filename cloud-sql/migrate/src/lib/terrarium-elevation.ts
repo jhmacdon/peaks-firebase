@@ -1,4 +1,4 @@
-import { PNG } from "pngjs";
+import sharp from "sharp";
 
 const TILE_ENDPOINT = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
 const ZOOM = 12;
@@ -27,7 +27,7 @@ async function fetchTileWithRetry(z: number, x: number, y: number, retries = 3):
   const url = `${TILE_ENDPOINT}/${z}/${x}/${y}.png`;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (res.ok) {
         return new Uint8Array(await res.arrayBuffer());
       }
@@ -44,14 +44,10 @@ async function fetchTileWithRetry(z: number, x: number, y: number, retries = 3):
   return null;
 }
 
-function decodePng(bytes: Uint8Array): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const png = new PNG();
-    png.parse(Buffer.from(bytes), (err, data) => {
-      if (err) return reject(err);
-      resolve(new Uint8Array(data.data));
-    });
-  });
+async function decodePng(bytes: Uint8Array): Promise<Uint8Array> {
+  // ensureAlpha() forces 4-channel RGBA output so the TILE_SIZE*4 stride below stays correct.
+  const { data } = await sharp(Buffer.from(bytes)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return new Uint8Array(data);
 }
 
 async function getTile(z: number, x: number, y: number): Promise<DecodedTile | null> {
@@ -76,6 +72,7 @@ async function getTile(z: number, x: number, y: number): Promise<DecodedTile | n
  * the caller decides whether to skip the row.
  */
 export async function lookupElevation(lat: number, lng: number): Promise<number | null> {
+  if (lat > 85.05 || lat < -85.05 || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const { x, y, px, py } = lngLatToTile(lat, lng, ZOOM);
   const tile = await getTile(ZOOM, x, y);
   if (!tile) return null;
