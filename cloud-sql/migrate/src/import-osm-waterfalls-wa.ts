@@ -152,6 +152,9 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
 
     try {
       if (path === "update") {
+        // Re-import is authoritative on name/elevation/location/features/state.
+        // Admin edits to these fields will be CLOBBERED on next run; only
+        // external_ids is merged (so admin-added gnis/wikidata IDs survive).
         const id = existingByOsmId.get(w.osmId)!;
         await db.query(
           `UPDATE destinations SET
