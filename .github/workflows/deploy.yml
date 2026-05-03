@@ -5,6 +5,13 @@ on:
     branches: [main]
 
 jobs:
+  check-cross-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run cross-reference checks
+        run: ./scripts/check-cross-refs.sh
+
   deploy-functions:
     runs-on: ubuntu-latest
 
