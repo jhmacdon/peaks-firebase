@@ -45,7 +45,12 @@ async function fetchOverpassWithRetry(retries = 3): Promise<OverpassResponse> {
       const res = await fetch(OVERPASS_ENDPOINT, {
         method: "POST",
         body: `data=${encodeURIComponent(QUERY)}`,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          // Overpass returns HTTP 406 to requests with the default Node fetch
+          // User-Agent. Set an identifying UA per Overpass etiquette.
+          "User-Agent": "peaks-migrate-bulk-import (https://github.com/jhmacdon/peaks-firebase)",
+        },
       });
       if (res.ok) return res.json();
       if (res.status === 429 || res.status >= 500) {
