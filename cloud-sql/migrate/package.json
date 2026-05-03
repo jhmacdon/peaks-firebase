@@ -12,6 +12,7 @@
     "migrate:sessions": "tsx src/index.ts --only sessions",
     "migrate:points": "tsx src/index.ts --only points",
     "import:cai-huts": "tsx src/import-cai-huts.ts",
+    "import:wa-waterfalls": "tsx src/import-osm-waterfalls-wa.ts",
     "migrate:plans": "tsx src/index.ts --only plans",
     "normalize:search-names": "tsx src/normalize-search-names.ts",
     "backfill:elevations": "tsx src/backfill-elevations.ts",
