@@ -6,6 +6,7 @@ import { normalizeSearchName } from "../search-utils";
 import { fetchElevations } from "../elevation";
 import { mergeDestinationAverages } from "../destination-detail";
 import { backfillDestinationToSessions } from "../destination-backfill";
+import type { ExternalIds } from "../destination-types";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -379,7 +380,27 @@ export async function createDestination(input: {
   elevation: number | null;
   features: string[];
   type?: string;
-}): Promise<{ id: string }> {
+  external_ids?: ExternalIds;
+}): Promise<{ id: string } | { duplicate: { id: string; name: string | null } }> {
+  // Duplicate guard: if any external_ids key matches an existing row, surface
+  // the existing destination instead of creating a duplicate. The @> jsonb
+  // containment form uses the destinations_external_ids_idx GIN index;
+  // an `external_ids->>$1 = $2` form would force a sequential scan.
+  if (input.external_ids) {
+    for (const [provider, providerId] of Object.entries(input.external_ids)) {
+      if (!providerId) continue;
+      const existing = await db.query<{ id: string; name: string | null }>(
+        `SELECT id, name FROM destinations
+         WHERE external_ids @> jsonb_build_object($1::text, $2::text)
+         LIMIT 1`,
+        [provider, providerId]
+      );
+      if (existing.rows.length > 0) {
+        return { duplicate: existing.rows[0] };
+      }
+    }
+  }
+
   const id = generateId();
   const searchName = normalizeSearchName(input.name);
   const destType = input.type || "point";
@@ -396,12 +417,13 @@ export async function createDestination(input: {
   }
 
   const roundedEle = input.elevation != null ? Math.round(input.elevation) : null;
+  const externalIdsJson = JSON.stringify(input.external_ids ?? {});
 
   await db.query(
-    `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type, country_code, state_code)
+    `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type, country_code, state_code, external_ids)
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, COALESCE($6::double precision, 0)), 4326)::geography,
-             $6, $7::destination_feature[], 'peaks', $8::destination_type, $9, $10)`,
-    [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, destType, country_code, state_code]
+             $6, $7::destination_feature[], 'peaks', $8::destination_type, $9, $10, $11::jsonb)`,
+    [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, destType, country_code, state_code, externalIdsJson]
   );
 
   // Tag any existing sessions whose track passes through the new destination.

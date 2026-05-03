@@ -39,6 +39,7 @@ interface ConfirmData {
   features: string[];
   type: string;
   source: string;
+  osmId?: string;
 }
 
 interface Toast {
@@ -133,6 +134,7 @@ function NewDestinationContent() {
       features: s.feature ? [s.feature] : [],
       type: "point",
       source: `OSM (${s.osm_tags})`,
+      osmId: String(s.osm_id),
     });
     setBoundary(null);
     setShowBoundaryEditor(false);
@@ -185,7 +187,20 @@ function NewDestinationContent() {
         elevation: confirm.elevation,
         features: confirm.features,
         type: confirm.type,
+        external_ids: confirm.osmId ? { osm: confirm.osmId } : undefined,
       });
+      if ("duplicate" in result) {
+        setToasts((prev) => [
+          ...prev,
+          {
+            id: result.duplicate.id,
+            name: `Already exists: ${result.duplicate.name ?? "(unnamed)"}`,
+            destId: result.duplicate.id,
+          },
+        ]);
+        setSaving(false);
+        return;
+      }
       if (boundary) {
         await updateDestinationBoundary(result.id, boundary);
       }

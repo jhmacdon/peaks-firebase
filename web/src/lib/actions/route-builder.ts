@@ -195,13 +195,17 @@ async function ensureTrailhead(
       return;
     }
 
-    const { id } = await createDestination({
+    const created = await createDestination({
       name,
       lat: start.lat,
       lng: start.lng,
       elevation: Math.round(start.ele),
       features: ["trailhead"],
     });
+    if ("duplicate" in created) {
+      return;
+    }
+    const { id } = created;
 
     nearbyDestinations.unshift({
       id,

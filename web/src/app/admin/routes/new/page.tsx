@@ -203,6 +203,9 @@ function NewRouteContent() {
         elevation: ele,
         features: [trailheadFeature],
       });
+      if ("duplicate" in result) {
+        throw new Error(`Duplicate destination: ${result.duplicate.name ?? result.duplicate.id}`);
+      }
       // Add the new destination to the nearby list and auto-select it
       setNearbyDests((prev) => [
         {
