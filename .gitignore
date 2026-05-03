@@ -77,6 +77,8 @@ node_modules/
 **/lib/
 !web/src/lib/
 !web/src/lib/**
+!cloud-sql/migrate/src/lib/
+!cloud-sql/migrate/src/lib/**
 
 # dataconnect generated files
 .dataconnect
