@@ -16,7 +16,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TYPE destination_type AS ENUM ('point', 'region');
 CREATE TYPE activity_type AS ENUM ('outdoor-trek', 'outdoor-moto', 'ski');
-CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall');
+CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall', 'campsite');
 CREATE TYPE completion_mode AS ENUM ('none', 'straight', 'reverse');
 CREATE TYPE route_shape AS ENUM ('out_and_back', 'loop', 'point_to_point', 'lollipop');
 CREATE TYPE session_destination_relation AS ENUM ('reached', 'goal');
@@ -72,6 +72,12 @@ CREATE TABLE destinations (
     -- IDs from external providers (osm, gnis, wikidata, alltrails, ...).
     -- Used by bulk imports for dedup and by admin tooling to link rows to sources.
     external_ids    JSONB NOT NULL DEFAULT '{}',
+
+    -- Feature-specific facts about the place (toilet type, drinking water,
+    -- fee, capacity, etc.). Schema is feature-dependent and validated in
+    -- TypeScript via the CampsiteAmenities discriminated union; the DB
+    -- only enforces JSONB validity. Imported from OSM tags by bulk scripts.
+    amenities       JSONB,
 
     explicitly_saved BOOLEAN NOT NULL DEFAULT FALSE,
     recency         TIMESTAMPTZ,
@@ -420,6 +426,10 @@ CREATE INDEX idx_destinations_activities    ON destinations USING GIN (activitie
 CREATE INDEX IF NOT EXISTS destinations_external_ids_idx
   ON destinations USING gin (external_ids);
 
+-- GIN on amenities JSONB for filtered queries (e.g. "campsites with toilets")
+CREATE INDEX IF NOT EXISTS destinations_amenities_idx
+  ON destinations USING gin (amenities);
+
 -- B-tree for common lookups and foreign keys
 CREATE INDEX idx_destinations_owner         ON destinations (owner);
 CREATE INDEX idx_destinations_type          ON destinations (type);
@@ -525,6 +535,7 @@ RETURNS INT LANGUAGE sql IMMUTABLE AS $$
     WHEN 'trailhead' = ANY(features) THEN 100
     WHEN 'waterfall' = ANY(features) THEN 200
     WHEN 'viewpoint' = ANY(features) THEN 200
+    WHEN 'campsite'  = ANY(features) THEN 100
     ELSE 50
   END;
 $$;

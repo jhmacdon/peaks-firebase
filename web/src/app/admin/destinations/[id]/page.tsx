@@ -20,6 +20,7 @@ import {
   type DestinationRoute,
   type DestinationList,
 } from "../../../../lib/actions/destinations";
+import type { Amenities } from "../../../../lib/amenities";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -385,7 +386,7 @@ function DestinationDetailContent() {
                       className="px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-700 rounded bg-transparent"
                     >
                       <option value="">+ Add</option>
-                      {["summit", "trailhead", "volcano", "fire-lookout", "hut", "lookout", "lake", "landform", "viewpoint", "waterfall"]
+                      {["summit", "trailhead", "volcano", "fire-lookout", "hut", "lookout", "lake", "landform", "viewpoint", "waterfall", "campsite"]
                         .filter((f) => !editFeatures.includes(f))
                         .map((f) => (
                           <option key={f} value={f}>{f}</option>
@@ -418,6 +419,20 @@ function DestinationDetailContent() {
                         className="inline-block px-1.5 py-0.5 rounded text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
                       >
                         {a}
+                      </span>
+                    ))}
+                  </div>
+                </DetailRow>
+              )}
+              {dest.amenities && Object.keys(dest.amenities).length > 0 && (
+                <DetailRow label="Amenities">
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {formatAmenityBadges(dest.amenities).map((b) => (
+                      <span
+                        key={b}
+                        className="inline-block px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                      >
+                        {b}
                       </span>
                     ))}
                   </div>
@@ -585,4 +600,28 @@ function DetailRow({
       <dd className="text-right">{children}</dd>
     </div>
   );
+}
+
+function formatAmenityBadges(a: Amenities): string[] {
+  const out: string[] = [];
+  if (a.toilet === "flush") out.push("flush toilet");
+  else if (a.toilet === "pit") out.push("pit toilet");
+  else if (a.toilet === "vault") out.push("vault toilet");
+  else if (a.toilet === "none") out.push("no toilet");
+  if (a.drinking_water === "yes") out.push("water");
+  else if (a.drinking_water === "seasonal") out.push("seasonal water");
+  else if (a.drinking_water === "no") out.push("no water");
+  if (a.shower) out.push("shower");
+  if (a.fee?.required) out.push(a.fee.amount ? `fee (${a.fee.amount})` : "fee");
+  else if (a.fee && a.fee.required === false) out.push("free");
+  if (a.reservation === "required") out.push("reservation required");
+  else if (a.reservation === "recommended") out.push("reservation recommended");
+  if (a.capacity != null) out.push(`${a.capacity} sites`);
+  if (a.fire_pit) out.push("fire pit");
+  if (a.tents === false) out.push("no tents");
+  if (a.caravans) out.push("RVs ok");
+  if (a.max_length != null) out.push(`max ${a.max_length}m`);
+  if (a.backcountry) out.push("backcountry");
+  if (a.power_supply) out.push("power");
+  return out;
 }

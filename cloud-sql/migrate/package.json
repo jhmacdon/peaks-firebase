@@ -16,7 +16,8 @@
     "migrate:plans": "tsx src/index.ts --only plans",
     "normalize:search-names": "tsx src/normalize-search-names.ts",
     "backfill:elevations": "tsx src/backfill-elevations.ts",
-    "import:14ers": "tsx src/import-14er-routes.ts"
+    "import:14ers": "tsx src/import-14er-routes.ts",
+    "import:wa-campsites": "tsx src/import-osm-campsites-wa.ts"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

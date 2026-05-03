@@ -7,6 +7,7 @@ import { fetchElevations } from "../elevation";
 import { mergeDestinationAverages } from "../destination-detail";
 import { backfillDestinationToSessions } from "../destination-backfill";
 import type { ExternalIds } from "../destination-types";
+import type { Amenities } from "../amenities";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -56,6 +57,7 @@ export interface DestinationDetail {
   averages_offset: any | null;
   explicitly_saved: boolean;
   geohash: string | null;
+  amenities: Amenities | null;
   created_at: string;
   updated_at: string;
 }
@@ -176,6 +178,7 @@ export async function getDestination(
                  THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
+            d.amenities,
             d.created_at, d.updated_at
      FROM destinations d
      WHERE d.id = $1`,
@@ -192,6 +195,7 @@ export async function getDestination(
     lat: r.lat ? Number(r.lat) : null,
     lng: r.lng ? Number(r.lng) : null,
     boundary: r.boundary || null,
+    amenities: r.amenities ?? null,
     averages: mergeDestinationAverages(r.averages, r.averages_offset),
     averages_offset: r.averages_offset || null,
     features: parseArray(r.features),
@@ -545,7 +549,7 @@ out body center;`;
     if (tags.information === "trailhead" || tags.highway === "trailhead")
       return { feature: "trailhead", label: "trailhead" };
     if (tags.amenity === "shelter") return { feature: "hut", label: "shelter" };
-    if (tags.tourism === "camp_site") return { feature: "", label: "campsite" };
+    if (tags.tourism === "camp_site") return { feature: "campsite", label: "campsite" };
     if (tags.natural === "water") return { feature: "lake", label: "lake" };
     if (tags.tourism === "viewpoint") return { feature: "viewpoint", label: "viewpoint" };
     if (tags.waterway === "waterfall") return { feature: "waterfall", label: "waterfall" };

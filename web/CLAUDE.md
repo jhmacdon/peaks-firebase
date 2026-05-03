@@ -126,7 +126,7 @@ PostgreSQL with PostGIS. Schema at `../cloud-sql/schema.sql`.
 
 ### Custom enums
 - `destination_type`: point, region
-- `destination_feature`: volcano, fire-lookout, summit, trailhead, hut, lookout, lake, landform, viewpoint, waterfall
+- `destination_feature`: volcano, fire-lookout, summit, trailhead, hut, lookout, lake, landform, viewpoint, waterfall, campsite
 - `activity_type`: outdoor-trek, outdoor-moto, ski
 - `completion_mode`: none, straight, reverse
 - `route_shape`: out_and_back, loop, point_to_point, lollipop

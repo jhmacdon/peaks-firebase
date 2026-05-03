@@ -60,6 +60,7 @@ const ALL_FEATURES = [
   "landform",
   "viewpoint",
   "waterfall",
+  "campsite",
 ] as const;
 
 const TOAST_DURATION = 8000;

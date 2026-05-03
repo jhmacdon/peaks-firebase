@@ -522,6 +522,7 @@ function NewRouteContent() {
                       <option value="landform">Landform</option>
                       <option value="viewpoint">Viewpoint</option>
                       <option value="waterfall">Waterfall</option>
+                      <option value="campsite">Campsite</option>
                     </select>
                   </div>
                   <button
