@@ -132,7 +132,7 @@ PostgreSQL with PostGIS. Schema at `../cloud-sql/schema.sql`.
 - `route_shape`: out_and_back, loop, point_to_point, lollipop
 
 ### Key tables
-- `destinations` — peaks, trailheads, POIs (PointZ geography, features array, activities array)
+- `destinations` — peaks, trailheads, POIs (PointZ geography, features array, activities array, external_ids JSONB for cross-source linking)
 - `routes` — composed from segments, materialized path/stats
 - `segments` — atomic trail sections, one-way geometry
 - `route_segments` — ordered join with direction (forward/reverse)

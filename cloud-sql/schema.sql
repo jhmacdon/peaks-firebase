@@ -69,6 +69,10 @@ CREATE TABLE destinations (
     -- source-specific metadata (e.g. CAI shelter details, import provenance)
     metadata        JSONB,
 
+    -- IDs from external providers (osm, gnis, wikidata, alltrails, ...).
+    -- Used by bulk imports for dedup and by admin tooling to link rows to sources.
+    external_ids    JSONB NOT NULL DEFAULT '{}',
+
     explicitly_saved BOOLEAN NOT NULL DEFAULT FALSE,
     recency         TIMESTAMPTZ,
 
@@ -411,6 +415,10 @@ CREATE INDEX idx_destinations_search_name   ON destinations USING GIN (search_na
 -- GIN on array columns for containment queries (e.g. WHERE features @> '{summit}')
 CREATE INDEX idx_destinations_features      ON destinations USING GIN (features);
 CREATE INDEX idx_destinations_activities    ON destinations USING GIN (activities);
+
+-- GIN on external_ids JSONB for efficient dedup lookups by provider key
+CREATE INDEX IF NOT EXISTS destinations_external_ids_idx
+  ON destinations USING gin (external_ids);
 
 -- B-tree for common lookups and foreign keys
 CREATE INDEX idx_destinations_owner         ON destinations (owner);
