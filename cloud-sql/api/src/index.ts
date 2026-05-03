@@ -8,7 +8,10 @@ import plans from "./routes/plans";
 import search from "./routes/search";
 
 export const app = express();
-app.use(express.json());
+// 5mb covers the iOS chunked points uploader (3000 pts/chunk ≈ 150KB) with
+// generous headroom. Default express.json() limit is 100kb, which silently
+// 413s real sessions before they reach the handler.
+app.use(express.json({ limit: "5mb" }));
 
 // Health check (unauthenticated — used by Cloud Run)
 app.get("/health", (_req, res) => {
