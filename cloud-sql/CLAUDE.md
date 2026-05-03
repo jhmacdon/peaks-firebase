@@ -88,6 +88,12 @@ ARRAY[$1]::destination_feature[]
 COALESCE($1::double precision, 0)
 ```
 
+## Database role conventions
+
+All schema objects (tables, indexes, functions, triggers) **must be owned by `postgres`**. The `peaks-api` role is the runtime user — it has DML rights (SELECT/INSERT/UPDATE/DELETE) on application tables, but no DDL rights. Migrations run as `postgres`.
+
+This convention exists because Cloud SQL's `postgres` is `cloudsqlsuperuser`, not a true superuser, so it cannot bypass the "must be owner of object" rule for `CREATE OR REPLACE FUNCTION` or `ALTER FUNCTION`. If a function gets accidentally created as `peaks-api` (this happened once during initial bootstrap with `link_sessions_on_destination_insert`), every subsequent migration touching it must `SET ROLE peaks-api` first or the apply fails with `must be owner of function`. Fix the ownership instead — see `cloud-sql/migrations/20260503_fix_trigger_function_owner.sql` for the three-step ownership-transfer dance (Cloud SQL forbids both directions of cross-role membership at once, so direct connection as the current owner is required, not `SET ROLE`).
+
 ## Postgres → wire type policy (do not regress)
 
 `node-postgres` has default type parsers that are safe for JS but surprising for any typed client (Swift, Kotlin, Dart, older JS code paths that assume numbers). The API has had one catastrophic outage from this class of bug and the mitigation **must** stay in place:

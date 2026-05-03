@@ -1,0 +1,25 @@
+-- One-time fix: the link_sessions_on_destination_insert trigger function was
+-- created during initial bootstrap by the peaks-api role rather than postgres.
+-- That ownership prevented postgres (the standard migration role) from running
+-- CREATE OR REPLACE on the function — every migration touching the trigger had
+-- to SET ROLE peaks-api first. Reassign ownership to postgres so future
+-- migrations don't need that workaround.
+--
+-- Cloud SQL's postgres role is cloudsqlsuperuser, not a true superuser, so
+-- transferring ownership requires a three-step dance (the standard
+-- "must be member of both roles" rule applies):
+--
+--   1. As postgres: GRANT postgres TO "peaks-api";
+--   2. As peaks-api (direct connection, NOT via SET ROLE — postgres lacks
+--      the membership needed to SET ROLE while the grant is pending):
+--      ALTER FUNCTION link_sessions_on_destination_insert() OWNER TO postgres;
+--   3. As postgres: REVOKE postgres FROM "peaks-api";
+--
+-- This file is documentation of the operation performed. If running on a
+-- fresh DB (e.g., schema.sql build), the ALTER below is a no-op because
+-- the function is owned by whoever ran schema.sql.
+--
+-- See cloud-sql/CLAUDE.md "Database role conventions" for the standard.
+
+-- Idempotent re-application: succeeds silently if already owned by postgres.
+ALTER FUNCTION link_sessions_on_destination_insert() OWNER TO postgres;
