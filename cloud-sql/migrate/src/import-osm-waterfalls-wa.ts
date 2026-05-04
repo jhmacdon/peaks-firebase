@@ -2,11 +2,11 @@ import db from "./db";
 import { lookupElevation } from "./lib/terrarium-elevation";
 
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
-const QUERY = `[out:json][timeout:60];
-area["ISO3166-2"="US-WA"]->.wa;
+const buildQuery = (stateCode: string) => `[out:json][timeout:60];
+area["ISO3166-2"="US-${stateCode}"]->.region;
 (
-  node["waterway"="waterfall"](area.wa);
-  way["waterway"="waterfall"](area.wa);
+  node["waterway"="waterfall"](area.region);
+  way["waterway"="waterfall"](area.region);
 );
 out tags center;`;
 
@@ -39,12 +39,12 @@ function generateId(): string {
   return s;
 }
 
-async function fetchOverpassWithRetry(retries = 3): Promise<OverpassResponse> {
+async function fetchOverpassWithRetry(query: string, retries = 3): Promise<OverpassResponse> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const res = await fetch(OVERPASS_ENDPOINT, {
         method: "POST",
-        body: `data=${encodeURIComponent(QUERY)}`,
+        body: `data=${encodeURIComponent(query)}`,
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           // Overpass returns HTTP 406 to requests with the default Node fetch
@@ -84,9 +84,10 @@ async function parallelMap<T, R>(
   return results;
 }
 
-export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
-  console.log("Fetching WA waterfalls from Overpass...");
-  const data = await fetchOverpassWithRetry();
+export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: string }) {
+  const stateCode = opts.stateCode.toUpperCase();
+  console.log(`Fetching ${stateCode} waterfalls from Overpass...`);
+  const data = await fetchOverpassWithRetry(buildQuery(stateCode));
   console.log(`  Got ${data.elements.length} elements`);
 
   const skippedReasons: Record<string, number> = {};
@@ -165,7 +166,7 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
           `UPDATE destinations SET
              name = $2, search_name = $3, elevation = $4,
              location = ST_SetSRID(ST_MakePoint($5, $6, $7), 4326)::geography,
-             country_code = 'US', state_code = 'WA',
+             country_code = 'US', state_code = $9,
              features = ARRAY['waterfall']::destination_feature[],
              external_ids = external_ids || $8::jsonb,
              updated_at = NOW()
@@ -179,6 +180,7 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
             w.lat,
             w.elevation,
             JSON.stringify({ osm: w.osmId }),
+            stateCode,
           ]
         );
         updated++;
@@ -197,7 +199,7 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
              $1, $2, $3, $4, NULL,
              ST_SetSRID(ST_MakePoint($5, $6, $7), 4326)::geography, NULL,
              'point', '{outdoor-trek}', '{waterfall}',
-             'US', 'WA',
+             'US', $10,
              NULL,
              $8::jsonb, $9::jsonb, 'peaks',
              NOW(), NOW()
@@ -212,6 +214,7 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
             w.elevation,
             JSON.stringify({ osm: w.osmId }),
             JSON.stringify({ source: "osm" }),
+            stateCode,
           ]
         );
         inserted++;
@@ -229,7 +232,7 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
   }
 
   console.log("");
-  console.log(opts.dryRun ? "WA waterfall import (dry-run) summary:" : "WA waterfall import complete:");
+  console.log(opts.dryRun ? `${stateCode} waterfall import (dry-run) summary:` : `${stateCode} waterfall import complete:`);
   console.log(`  Imported: ${inserted + updated} (${inserted} new, ${updated} updated)`);
   const skippedTotal = Object.values(skippedReasons).reduce((a, b) => a + b, 0);
   console.log(`  Skipped:  ${skippedTotal}`);
@@ -240,7 +243,10 @@ export async function importOsmWaterfallsWa(opts: { dryRun: boolean }) {
 
 if (process.argv[1]?.includes("import-osm-waterfalls-wa")) {
   const dryRun = process.argv.includes("--dry-run");
-  importOsmWaterfallsWa({ dryRun })
+  // --state=XX overrides the default WA. ISO3166-2 second part (US-WA, US-OR, ...).
+  const stateArg = process.argv.find((a) => a.startsWith("--state="));
+  const stateCode = stateArg ? stateArg.slice("--state=".length) : "WA";
+  importOsmWaterfalls({ dryRun, stateCode })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(err);
