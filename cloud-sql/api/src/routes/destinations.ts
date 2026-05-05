@@ -127,44 +127,12 @@ router.get("/averages", async (req, res: Response) => {
   res.json(out);
 });
 
-// GET /api/destinations/:id
-router.get("/:id", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-            d.activities, d.features, d.owner,
-            d.country_code, d.state_code,
-            d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
-            d.averages, d.averages_offset, d.explicitly_saved, d.recency,
-            ST_Y(d.location::geometry) AS lat,
-            ST_X(d.location::geometry) AS lng,
-            ST_Z(d.location::geometry) AS elev_z,
-            CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
-            d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
-            d.created_at, d.updated_at,
-            COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
-            COALESCE(stats.success_count, 0) + d.success_count_offset AS success_count
-     FROM destinations d
-     LEFT JOIN LATERAL (
-       SELECT COUNT(*) AS session_count,
-              COUNT(*) FILTER (WHERE sd.relation = 'reached') AS success_count
-       FROM session_destinations sd WHERE sd.destination_id = d.id
-     ) stats ON true
-     WHERE d.id = $1`,
-    [id]
-  );
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "Destination not found" });
-    return;
-  }
-  const row = result.rows[0];
-  row.averages = mergeAverages(row.averages, row.averages_offset);
-  delete row.averages_offset;
-  res.json(row);
-});
-
 // GET /api/destinations/nearby?lat=46.85&lng=-121.7&radius=10000&limit=50
+//
+// IMPORTANT: keep the static `/nearby` and `/viewport` routes registered
+// before the bare `/:id` handler. Express matches in declaration order, and
+// a wildcard `/:id` declared first will swallow these as if "nearby" and
+// "viewport" were destination IDs and 404 with "Destination not found".
 router.get("/nearby", async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
@@ -216,6 +184,43 @@ router.get("/viewport", async (req, res: Response) => {
     [minLng, minLat, maxLng, maxLat, limit]
   );
   res.json(result.rows);
+});
+
+// GET /api/destinations/:id
+router.get("/:id", async (req, res: Response) => {
+  const { id } = req.params;
+  const result = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features, d.owner,
+            d.country_code, d.state_code,
+            d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
+            d.averages, d.averages_offset, d.explicitly_saved, d.recency,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            ST_Z(d.location::geometry) AS elev_z,
+            CASE WHEN d.boundary IS NOT NULL
+                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+            d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
+            d.created_at, d.updated_at,
+            COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
+            COALESCE(stats.success_count, 0) + d.success_count_offset AS success_count
+     FROM destinations d
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) AS session_count,
+              COUNT(*) FILTER (WHERE sd.relation = 'reached') AS success_count
+       FROM session_destinations sd WHERE sd.destination_id = d.id
+     ) stats ON true
+     WHERE d.id = $1`,
+    [id]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Destination not found" });
+    return;
+  }
+  const row = result.rows[0];
+  row.averages = mergeAverages(row.averages, row.averages_offset);
+  delete row.averages_offset;
+  res.json(row);
 });
 
 // GET /api/destinations/:id/routes — routes for this destination
