@@ -126,7 +126,56 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
   for (const row of existing.rows) {
     existingByOsmId.set(row.osm_id, row.id);
   }
-  console.log(`  Found ${existingByOsmId.size} existing rows to update`);
+  console.log(`  Found ${existingByOsmId.size} existing rows to update by OSM id`);
+
+  // Pre-load same-name same-state waterfalls in this state for proximity
+  // dedup. A different OSM mapper may have added the same physical waterfall
+  // under a different OSM id but ≤200m away — without this guard, the second
+  // import would create a duplicate row. See dedupe-destinations.ts for the
+  // backfill that cleaned the existing data.
+  const PROXIMITY_M = 200;
+  console.log(`Pre-loading same-state waterfalls for proximity dedup (${PROXIMITY_M}m)...`);
+  const sameStateRows = await db.query<{ id: string; norm_name: string; lat: string; lng: string }>(
+    `SELECT id,
+            lower(trim(name)) AS norm_name,
+            ST_Y(location::geometry)::text AS lat,
+            ST_X(location::geometry)::text AS lng
+     FROM destinations
+     WHERE 'waterfall'::destination_feature = ANY(features)
+       AND state_code = $1
+       AND name IS NOT NULL
+       AND location IS NOT NULL`,
+    [stateCode]
+  );
+  // Bucket existing rows by normalized name so the per-incoming-row check is
+  // O(rows-with-same-name) instead of O(all-rows-in-state).
+  const existingByName = new Map<string, Array<{ id: string; lat: number; lng: number }>>();
+  for (const row of sameStateRows.rows) {
+    const list = existingByName.get(row.norm_name);
+    const entry = { id: row.id, lat: parseFloat(row.lat), lng: parseFloat(row.lng) };
+    if (list) list.push(entry);
+    else existingByName.set(row.norm_name, [entry]);
+  }
+  console.log(`  Loaded ${sameStateRows.rows.length} same-state waterfalls`);
+
+  function findProximityMatch(name: string, lat: number, lng: number): string | null {
+    const candidates = existingByName.get(name.trim().toLowerCase());
+    if (!candidates) return null;
+    for (const c of candidates) {
+      // Inline haversine; same formula as dedupe-destinations.ts.
+      const R = 6371000;
+      const dLat = ((c.lat - lat) * Math.PI) / 180;
+      const dLng = ((c.lng - lng) * Math.PI) / 180;
+      const s =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat * Math.PI) / 180) *
+          Math.cos((c.lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2;
+      const d = R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+      if (d <= PROXIMITY_M) return c.id;
+    }
+    return null;
+  }
 
   // Look up elevation in parallel with caching.
   console.log(`Looking up elevations (concurrency=${ELEVATION_CONCURRENCY})...`);
@@ -138,6 +187,7 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
 
   let inserted = 0;
   let updated = 0;
+  let proximityMerged = 0;
   const sampleRows: Array<{ name: string; lat: number; lng: number; elevation: number; path: "insert" | "update" }> = [];
 
   for (const w of withElevation) {
@@ -145,7 +195,18 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
       skip("elevation-failed");
       continue;
     }
-    const path: "insert" | "update" = existingByOsmId.has(w.osmId) ? "update" : "insert";
+    // Resolve target id: OSM-id match wins (re-import of same OSM feature),
+    // then proximity match (different OSM id, same physical waterfall),
+    // then INSERT a new row.
+    let targetId = existingByOsmId.get(w.osmId);
+    if (!targetId) {
+      const proximate = findProximityMatch(w.name, w.lat, w.lng);
+      if (proximate) {
+        targetId = proximate;
+        proximityMerged++;
+      }
+    }
+    const path: "insert" | "update" = targetId ? "update" : "insert";
     if (sampleRows.length < 10) {
       sampleRows.push({ name: w.name, lat: w.lat, lng: w.lng, elevation: w.elevation, path });
     }
@@ -161,7 +222,7 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
         // Re-import is authoritative on name/elevation/location/features/state.
         // Admin edits to these fields will be CLOBBERED on next run; only
         // external_ids is merged (so admin-added gnis/wikidata IDs survive).
-        const id = existingByOsmId.get(w.osmId)!;
+        const id = targetId!;
         await db.query(
           `UPDATE destinations SET
              name = $2, search_name = $3, elevation = $4,
@@ -233,7 +294,7 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
 
   console.log("");
   console.log(opts.dryRun ? `${stateCode} waterfall import (dry-run) summary:` : `${stateCode} waterfall import complete:`);
-  console.log(`  Imported: ${inserted + updated} (${inserted} new, ${updated} updated)`);
+  console.log(`  Imported: ${inserted + updated} (${inserted} new, ${updated} updated, ${proximityMerged} merged into existing same-name within ${PROXIMITY_M}m)`);
   const skippedTotal = Object.values(skippedReasons).reduce((a, b) => a + b, 0);
   console.log(`  Skipped:  ${skippedTotal}`);
   for (const [reason, count] of Object.entries(skippedReasons).sort((a, b) => b[1] - a[1])) {
