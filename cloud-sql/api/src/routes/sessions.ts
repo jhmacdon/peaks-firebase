@@ -3,6 +3,7 @@ import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
 import { generateId, processSession } from "../processing";
+import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
 
 const router = Router();
@@ -108,6 +109,10 @@ function parseProcessingStates(raw: unknown): string[] | null {
   }
 
   return states;
+}
+
+function jsonbParam(value: unknown): string | null {
+  return value === undefined || value === null ? null : JSON.stringify(value);
 }
 
 /**
@@ -226,6 +231,7 @@ router.get("/", async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
+            s.health_data, s.source_contributions,
             s.group_id, s.attempt_group_id,
             s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
@@ -288,6 +294,8 @@ router.get("/changes", async (req, res: Response) => {
             'activity_type', s.activity_type,
             'source', s.source,
             'external_id', s.external_id,
+            'health_data', s.health_data,
+            'source_contributions', s.source_contributions,
             'group_id', s.group_id,
             'attempt_group_id', s.attempt_group_id,
             'processed_at', s.processed_at,
@@ -388,7 +396,7 @@ router.get("/:id", async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
-            s.health_data, s.group_id, s.attempt_group_id,
+            s.health_data, s.source_contributions, s.group_id, s.attempt_group_id,
             s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
             s.created_at, s.updated_at, s.server_updated_at,
@@ -862,6 +870,7 @@ router.post("/", async (req, res: Response) => {
     distance, total_time, pace, gain, high_point,
     ascent_time, descent_time, still_time,
     activity_type, source, external_id,
+    health_data, source_contributions,
     ended, is_public,
     destinations_reached, destination_goals, routes: routeIds,
   } = req.body;
@@ -876,14 +885,21 @@ router.post("/", async (req, res: Response) => {
     await client.query("BEGIN");
 
     const existingSession = await client.query(
-      `SELECT ended
+      `SELECT ended, health_data, source_contributions
        FROM tracking_sessions
        WHERE id = $1 AND user_id = $2
        FOR UPDATE`,
       [id, uid]
     );
-    const wasEnded = existingSession.rows[0]?.ended ?? false;
+    const existingRow = existingSession.rows[0];
+    const wasEnded = existingRow?.ended ?? false;
     const nextEnded = ended ?? false;
+    const mergedHealthData = health_data === undefined
+      ? null
+      : mergeHealthData(existingRow?.health_data, health_data);
+    const mergedSourceContributions = source_contributions === undefined
+      ? null
+      : mergeSourceContributions(existingRow?.source_contributions, source_contributions);
 
     await client.query(
       `INSERT INTO tracking_sessions
@@ -891,8 +907,9 @@ router.post("/", async (req, res: Response) => {
          distance, total_time, pace, gain, highest_point,
          ascent_time, descent_time, still_time,
          activity_type, source, external_id,
+         health_data, source_contributions,
          ended, is_public)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,COALESCE($18::jsonb, '[]'::jsonb),$19,$20)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
@@ -903,6 +920,11 @@ router.post("/", async (req, res: Response) => {
          still_time = EXCLUDED.still_time,
          activity_type = EXCLUDED.activity_type,
          source = EXCLUDED.source, external_id = EXCLUDED.external_id,
+         health_data = COALESCE(EXCLUDED.health_data, tracking_sessions.health_data),
+         source_contributions = CASE
+           WHEN $18::jsonb IS NULL THEN tracking_sessions.source_contributions
+           ELSE EXCLUDED.source_contributions
+         END,
          ended = EXCLUDED.ended, is_public = EXCLUDED.is_public`,
       [
         id, uid, name || null,
@@ -911,6 +933,7 @@ router.post("/", async (req, res: Response) => {
         gain || null, high_point || null,
         ascent_time || null, descent_time || null, still_time || null,
         activity_type || null, source || null, external_id || null,
+        jsonbParam(mergedHealthData), jsonbParam(mergedSourceContributions),
         ended ?? false, is_public ?? false,
       ]
     );
@@ -988,24 +1011,34 @@ router.put("/:id", async (req, res: Response) => {
     distance, total_time, pace, gain, high_point,
     ascent_time, descent_time, still_time,
     activity_type, ended, is_public,
+    health_data, source_contributions,
     destinations_reached, destination_goals, routes: routeIds,
   } = req.body;
-
-  // Verify ownership
-  const session = await db.query(
-    `SELECT id, ended, processing_state
-     FROM tracking_sessions
-     WHERE id = $1 AND user_id = $2`,
-    [id, uid]
-  );
-  if (session.rows.length === 0) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
 
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+
+    const session = await client.query(
+      `SELECT id, ended, processing_state, health_data, source_contributions
+       FROM tracking_sessions
+       WHERE id = $1 AND user_id = $2
+       FOR UPDATE`,
+      [id, uid]
+    );
+    if (session.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+
+    const currentSession = session.rows[0];
+    const mergedHealthData = health_data === undefined
+      ? null
+      : mergeHealthData(currentSession.health_data, health_data);
+    const mergedSourceContributions = source_contributions === undefined
+      ? null
+      : mergeSourceContributions(currentSession.source_contributions, source_contributions);
 
     await client.query(
       `UPDATE tracking_sessions SET
@@ -1022,7 +1055,9 @@ router.put("/:id", async (req, res: Response) => {
          still_time = COALESCE($12, still_time),
          activity_type = COALESCE($13, activity_type),
          ended = COALESCE($14, ended),
-         is_public = COALESCE($15, is_public)
+         is_public = COALESCE($15, is_public),
+         health_data = COALESCE($16::jsonb, health_data),
+         source_contributions = COALESCE($17::jsonb, source_contributions)
        WHERE id = $1`,
       [
         id,
@@ -1031,6 +1066,7 @@ router.put("/:id", async (req, res: Response) => {
         gain ?? null, high_point ?? null,
         ascent_time ?? null, descent_time ?? null, still_time ?? null,
         activity_type ?? null, ended ?? null, is_public ?? null,
+        jsonbParam(mergedHealthData), jsonbParam(mergedSourceContributions),
       ]
     );
 
