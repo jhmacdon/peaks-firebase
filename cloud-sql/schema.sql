@@ -302,6 +302,7 @@ CREATE TABLE tracking_sessions (
 
     -- health metrics time series
     health_data     JSONB,             -- { calories: [{date, calories}], heartRates: [{date, heartRate}] }
+    source_contributions JSONB NOT NULL DEFAULT '[]'::jsonb,
 
     -- processing
     group_id            TEXT REFERENCES session_groups(id) ON DELETE SET NULL,
