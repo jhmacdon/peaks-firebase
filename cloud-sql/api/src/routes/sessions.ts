@@ -175,6 +175,44 @@ async function touchSession(client: PoolClient, sessionId: string): Promise<void
   );
 }
 
+/**
+ * Reconcile the client-supplied reached/goal destinations for a session.
+ *
+ * CRITICAL: only client-owned ('manual') rows are deleted here — server
+ * auto-detected rows ('auto', written by processSession.matchDestinations) are
+ * NEVER touched by a client write. iOS `TrackingSession.toAPIBody()` resends its
+ * local `destinations_reached` on every create/update PUT; before this scoping a
+ * stale/empty local list would `DELETE` the whole set and permanently wipe an
+ * auto-detected summit (the "imported climb shows no peak" bug). Reinserts use
+ * `ON CONFLICT DO NOTHING` so a dest already present as 'auto' stays 'auto'.
+ */
+async function reconcileClientDestinations(
+  client: PoolClient,
+  sessionId: string,
+  reached: string[] | undefined,
+  goals: string[] | undefined
+): Promise<void> {
+  await client.query(
+    `DELETE FROM session_destinations
+     WHERE session_id = $1 AND source = 'manual'`,
+    [sessionId]
+  );
+  for (const destId of reached || []) {
+    await client.query(
+      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+       VALUES ($1, $2, 'reached', 'manual') ON CONFLICT DO NOTHING`,
+      [sessionId, destId]
+    );
+  }
+  for (const destId of goals || []) {
+    await client.query(
+      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+       VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
+      [sessionId, destId]
+    );
+  }
+}
+
 function buildPointInsertQuery(sessionId: string, points: any[]) {
   const values: any[] = [];
   const placeholders: string[] = [];
@@ -938,26 +976,9 @@ router.post("/", async (req, res: Response) => {
       ]
     );
 
-    // Set destinations
+    // Set destinations (client-owned 'manual' rows only; auto detections preserved)
     if (destinations_reached || destination_goals) {
-      await client.query(
-        `DELETE FROM session_destinations WHERE session_id = $1`,
-        [id]
-      );
-      for (const destId of destinations_reached || []) {
-        await client.query(
-          `INSERT INTO session_destinations (session_id, destination_id, relation)
-           VALUES ($1, $2, 'reached') ON CONFLICT DO NOTHING`,
-          [id, destId]
-        );
-      }
-      for (const destId of destination_goals || []) {
-        await client.query(
-          `INSERT INTO session_destinations (session_id, destination_id, relation)
-           VALUES ($1, $2, 'goal') ON CONFLICT DO NOTHING`,
-          [id, destId]
-        );
-      }
+      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
     }
 
     // Set routes
@@ -1070,26 +1091,9 @@ router.put("/:id", async (req, res: Response) => {
       ]
     );
 
-    // Update destinations if provided
+    // Update destinations if provided (client-owned 'manual' rows only; auto preserved)
     if (destinations_reached || destination_goals) {
-      await client.query(
-        `DELETE FROM session_destinations WHERE session_id = $1`,
-        [id]
-      );
-      for (const destId of destinations_reached || []) {
-        await client.query(
-          `INSERT INTO session_destinations (session_id, destination_id, relation)
-           VALUES ($1, $2, 'reached') ON CONFLICT DO NOTHING`,
-          [id, destId]
-        );
-      }
-      for (const destId of destination_goals || []) {
-        await client.query(
-          `INSERT INTO session_destinations (session_id, destination_id, relation)
-           VALUES ($1, $2, 'goal') ON CONFLICT DO NOTHING`,
-          [id, destId]
-        );
-      }
+      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
     }
 
     // Update routes if provided
@@ -1267,26 +1271,7 @@ router.post("/:id/destinations", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
-    await client.query(
-      `DELETE FROM session_destinations WHERE session_id = $1`,
-      [id]
-    );
-
-    for (const destId of reached || []) {
-      await client.query(
-        `INSERT INTO session_destinations (session_id, destination_id, relation)
-         VALUES ($1, $2, 'reached') ON CONFLICT DO NOTHING`,
-        [id, destId]
-      );
-    }
-
-    for (const destId of goals || []) {
-      await client.query(
-        `INSERT INTO session_destinations (session_id, destination_id, relation)
-         VALUES ($1, $2, 'goal') ON CONFLICT DO NOTHING`,
-        [id, destId]
-      );
-    }
+    await reconcileClientDestinations(client, id, reached, goals);
 
     await client.query("COMMIT");
     res.json({ session_id: id });
