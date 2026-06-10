@@ -311,6 +311,8 @@ CREATE TABLE tracking_sessions (
     processing_state TEXT NOT NULL DEFAULT 'idle'
         CHECK (processing_state IN ('idle', 'pending', 'processing', 'completed', 'failed')),
     processing_error TEXT,
+    processing_started_at TIMESTAMPTZ,  -- when the current 'processing' claim was taken; lets a dead claim be recovered
+
 
     -- status flags
     ended           BOOLEAN NOT NULL DEFAULT FALSE,

@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
-import { generateId, processSession } from "../processing";
+import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
 
@@ -153,7 +153,9 @@ async function markSessionPendingIfReady(client: PoolClient, sessionId: string):
          processing_error = NULL
      WHERE s.id = $1
        AND s.ended = true
-       AND s.processing_state <> 'processing'
+       AND (s.processing_state <> 'processing'
+            OR s.processing_started_at IS NULL
+            OR s.processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))
        AND EXISTS (
          SELECT 1
          FROM tracking_points tp

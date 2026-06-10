@@ -6,6 +6,12 @@ export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
 }
 
+// A 'processing' claim older than this is considered dead and re-claimable.
+// processSession runs in seconds; this is far longer than any real run (and any
+// Cloud Run request timeout), so a live run is never re-claimed. Shared by
+// processSession's claim and markSessionPendingIfReady so the two guards agree.
+export const STALE_PROCESSING_MINUTES = 10;
+
 export interface ProcessingResult {
   destinations_matched: number;
   routes_matched: number;
@@ -295,12 +301,22 @@ export async function processSession(
   sessionId: string,
   userId: string
 ): Promise<ProcessingResult> {
+  // Claim the session. A row already 'processing' is normally off-limits (a
+  // concurrent run owns it), but a claim older than STALE_PROCESSING_MINUTES is
+  // treated as dead — a prior run that died between here and Step 6 without
+  // hitting the catch (e.g. Cloud Run killed the worker), which would otherwise
+  // wedge the session at 'processing' forever. processSession is idempotent, so
+  // re-claiming a truly-dead run is safe; the window is far longer than any real
+  // run so a live run is never stolen.
   const claim = await db.query(
     `UPDATE tracking_sessions
      SET processing_state = 'processing',
-         processing_error = NULL
+         processing_error = NULL,
+         processing_started_at = now()
      WHERE id = $1 AND user_id = $2
-       AND processing_state IS DISTINCT FROM 'processing'`,
+       AND (processing_state IS DISTINCT FROM 'processing'
+            OR processing_started_at IS NULL
+            OR processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))`,
     [sessionId, userId]
   );
   if ((claim.rowCount ?? 0) === 0) {
