@@ -43,6 +43,7 @@ export interface ImportPadusDependencies {
 }
 
 export const PADUS_IMPORT_INSERT_CHUNK_SIZE = 250;
+export const MAX_BUFFERED_GEOJSON_BYTES = 50 * 1024 * 1024;
 const INSERT_PART_PARAM_COUNT = 15;
 
 interface ImportAudit {
@@ -85,10 +86,10 @@ export function parseArgs(argv: string[]): Args {
 function usage(): string {
   return [
     "Usage:",
-    "  tsx src/import-padus-areas.ts --input=/path/padus.geojson --dry-run",
-    "  tsx src/import-padus-areas.ts --input=/path/padus.geojson --apply",
-    "  tsx src/import-padus-areas.ts --input=/path/padus.geojson --apply --link-destinations",
-    "  tsx src/import-padus-areas.ts --input=/path/padus.geojson --apply --link-destinations --replace-links",
+    "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --dry-run",
+    "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply",
+    "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --link-destinations",
+    "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --link-destinations --replace-links",
   ].join("\n");
 }
 
@@ -171,6 +172,16 @@ function isNdjsonPath(inputPath: string): boolean {
   return /\.(?:ndjson|geojsonl|jsonl)$/i.test(inputPath);
 }
 
+function assertBufferedGeoJsonSize(inputPath: string): void {
+  const size = fs.statSync(inputPath).size;
+  if (size > MAX_BUFFERED_GEOJSON_BYTES) {
+    throw new Error(
+      `Large GeoJSON imports must be converted to NDJSON or GeoJSONL before running this importer. ` +
+      `${inputPath} is ${size} bytes; buffered GeoJSON is limited to ${MAX_BUFFERED_GEOJSON_BYTES} bytes.`
+    );
+  }
+}
+
 async function scanNdjsonFile(
   inputPath: string,
   sourceVersion: string,
@@ -211,6 +222,7 @@ async function scanInputFeatures(
     return audit;
   }
 
+  assertBufferedGeoJsonSize(inputPath);
   const contents = fs.readFileSync(inputPath, "utf8");
   await scanParsedFeatures(parseGeoJsonFeatures(contents), sourceVersion, audit, onArea);
   return audit;
@@ -414,6 +426,23 @@ async function upsertAreas(client: QueryExecutor): Promise<number> {
   return result.rowCount ?? 0;
 }
 
+async function countEmptyGeometryGroups(client: QueryExecutor): Promise<number> {
+  const result = await client.query<{ empty_geometry_groups: number | string }>(`
+    WITH dissolved AS (
+      SELECT
+        group_key,
+        ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_Union(geom)), 3)) AS geom
+      FROM padus_area_import_parts
+      GROUP BY group_key
+    )
+    SELECT count(*)::int AS empty_geometry_groups
+    FROM dissolved
+    WHERE ST_IsEmpty(geom)
+  `);
+  const value = result.rows[0]?.empty_geometry_groups ?? 0;
+  return typeof value === "number" ? value : parseInt(value, 10);
+}
+
 async function linkDestinations(client: QueryExecutor, replaceLinks: boolean): Promise<number> {
   const result = await client.query<{ inserted_count: number | string }>(
     buildLinkDestinationsSql(replaceLinks)
@@ -516,6 +545,9 @@ export async function importPadusAreas(
     });
     await flushPendingAreas();
     logImportAudit(logger, audit);
+
+    const emptyGeometryGroups = await countEmptyGeometryGroups(client);
+    logger.log(`Skipped empty geometry groups after PostGIS validation: ${emptyGeometryGroups}`);
 
     const upserted = await upsertAreas(client);
     logger.log(`Upserted inserted or changed areas: ${upserted}`);

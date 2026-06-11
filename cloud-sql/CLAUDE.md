@@ -181,7 +181,7 @@ npm run import:cai-huts
 
 Protected-area and land-management context is imported from USGS PAD-US into `areas`, then linked to summit destinations through `destination_areas`.
 
-Input should be GeoJSON or NDJSON exported from PAD-US 4.1. The importer intentionally does not depend on local GIS CLIs such as `ogr2ogr`; export PAD-US data outside the script, then run:
+Input should be NDJSON or GeoJSONL exported from PAD-US 4.1 for production-size imports; small GeoJSON FeatureCollections are accepted for fixtures and ad hoc checks. The importer intentionally does not depend on local GIS CLIs such as `ogr2ogr`; export PAD-US data outside the script, then run:
 
 ```bash
 cd migrate

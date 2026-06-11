@@ -107,6 +107,9 @@ class FakeClient {
     if (normalized.includes("link_summit_destinations_to_areas")) {
       return { rows: [{ inserted_count: "7" } as T], rowCount: 1 };
     }
+    if (normalized.includes("empty_geometry_groups")) {
+      return { rows: [{ empty_geometry_groups: 0 } as T], rowCount: 1 };
+    }
     if (normalized.startsWith("WITH dissolved AS")) {
       return { rows: [], rowCount: 3 };
     }
@@ -266,6 +269,46 @@ test("dry-run streams NDJSON files instead of using readFileSync", async () => {
   ]);
 });
 
+test("dry-run rejects oversized buffered GeoJSON imports with NDJSON guidance", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "padus-geojson-"));
+  const inputPath = path.join(tmpDir, "padus.geojson");
+  fs.writeFileSync(inputPath, JSON.stringify({
+    type: "FeatureCollection",
+    features: [JSON.parse(samplePadusNdjson(1))],
+  }), "utf8");
+  const logger = silentLogger();
+  const forbiddenDb = {
+    async connect(): Promise<never> {
+      throw new Error("dry-run must not connect");
+    },
+    async query(): Promise<never> {
+      throw new Error("dry-run must not query");
+    },
+  };
+
+  const originalStatSync = fs.statSync;
+  (fs as unknown as { statSync: typeof fs.statSync }).statSync = ((targetPath, options) => {
+    const stats = originalStatSync(targetPath, options as never);
+    if (targetPath === inputPath) {
+      return { ...stats, size: 75 * 1024 * 1024 };
+    }
+    return stats;
+  }) as typeof fs.statSync;
+
+  try {
+    await assert.rejects(
+      () => importPadusAreas(args({ input: inputPath, apply: false, dryRun: true }), {
+        db: forbiddenDb,
+        console: logger,
+      }),
+      /Large GeoJSON imports must be converted to NDJSON or GeoJSONL/
+    );
+  } finally {
+    (fs as unknown as { statSync: typeof fs.statSync }).statSync = originalStatSync;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("apply mode uses one checked-out client for transaction work and reports after commit", async () => {
   const calls: QueryCall[] = [];
   const client = new FakeClient(calls);
@@ -285,16 +328,18 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.equal(clientSql[0], "BEGIN");
   assert.match(clientSql[1], /^CREATE TEMP TABLE padus_area_import_parts/);
   assert.match(clientSql[2], /^INSERT INTO padus_area_import_parts/);
-  assert.match(clientSql[3], /^WITH dissolved AS/);
-  assert.match(clientSql[3], /jsonb_agg\(DISTINCT source_record_id ORDER BY source_record_id\)/);
-  assert.match(clientSql[3], /jsonb_agg\(metadata ORDER BY source_record_id\)/);
-  assert.match(clientSql[3], /IS DISTINCT FROM/);
-  assert.equal(clientSql[4], "SELECT link_summit_destinations_to_areas(false) AS inserted_count;");
-  assert.equal(clientSql[5], "COMMIT");
+  assert.match(clientSql[3], /empty_geometry_groups/);
+  assert.match(clientSql[4], /^WITH dissolved AS/);
+  assert.match(clientSql[4], /jsonb_agg\(DISTINCT source_record_id ORDER BY source_record_id\)/);
+  assert.match(clientSql[4], /jsonb_agg\(metadata ORDER BY source_record_id\)/);
+  assert.match(clientSql[4], /IS DISTINCT FROM/);
+  assert.equal(clientSql[5], "SELECT link_summit_destinations_to_areas(false) AS inserted_count;");
+  assert.equal(clientSql[6], "COMMIT");
 
   const commitIndex = calls.findIndex((call) => call.sql === "COMMIT");
   const firstPoolQueryIndex = calls.findIndex((call) => call.target === "pool");
   assert.ok(firstPoolQueryIndex > commitIndex);
+  assert.ok(logger.logs.includes("Skipped empty geometry groups after PostGIS validation: 0"));
   assert.ok(logger.logs.includes("Upserted inserted or changed areas: 3"));
   assert.ok(logger.logs.includes("Inserted destination-area links: 7"));
   assert.match(
