@@ -16,7 +16,7 @@ BEGIN
       'other_federal_area'
     );
   END IF;
-END
+END;
 $$;
 
 CREATE TABLE IF NOT EXISTS areas (
