@@ -174,8 +174,25 @@ function canonicalAgencyName(value: unknown): string | null {
   return null;
 }
 
-function canonicalManagerName(manager: string | null): string {
-  return canonicalAgencyName(manager) ?? normalizeSearchName(manager ?? "");
+function groupingAgencyName(props: Record<string, unknown>): string {
+  const values = [
+    props.Mang_Name,
+    props.Own_Name,
+    props.Mang_Type,
+    props.Own_Type,
+  ];
+
+  for (const value of values) {
+    const agency = canonicalAgencyName(value);
+    if (agency) return agency;
+  }
+
+  for (const value of values) {
+    const s = text(value);
+    if (s) return normalizeSearchName(s);
+  }
+
+  return "";
 }
 
 function canonicalDesignationName(designation: string | null, kind: AreaKind): string {
@@ -335,7 +352,7 @@ export function normalizePadusFeature(
     kind,
     searchName,
     canonicalDesignationName(designation, kind),
-    canonicalManagerName(manager),
+    groupingAgencyName(props),
   ].join("|");
 
   const sourceRecordId =
@@ -361,18 +378,5 @@ export function normalizePadusFeature(
 }
 
 export function buildLinkDestinationsSql(replaceExisting: boolean): string {
-  const insertSql = `INSERT INTO destination_areas (destination_id, area_id, relation, source)
-SELECT d.id, a.id, 'contained_by', 'postgis'
-FROM destinations d
-JOIN areas a ON ST_Covers(a.boundary, d.location)
-WHERE d.location IS NOT NULL
-  AND 'summit'::destination_feature = ANY(d.features)
-ON CONFLICT (destination_id, area_id) DO NOTHING;`;
-  if (!replaceExisting) return insertSql;
-
-  return `WITH deleted AS (
-  DELETE FROM destination_areas WHERE source = 'postgis'
-  RETURNING 1
-)
-${insertSql}`;
+  return `SELECT link_summit_destinations_to_areas(${replaceExisting ? "true" : "false"}) AS inserted_count;`;
 }

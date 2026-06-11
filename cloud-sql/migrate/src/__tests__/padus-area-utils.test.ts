@@ -101,18 +101,18 @@ test("converts polygons to multipolygons and preserves multipolygons", () => {
   assert.deepEqual(geometryToMultiPolygon(multi), multi);
 });
 
-test("builds ST_Covers destination-area link SQL with optional replacement", () => {
+test("builds destination-area link SQL through the schema helper function", () => {
   const keep = buildLinkDestinationsSql(false);
+  assert.equal(keep, "SELECT link_summit_destinations_to_areas(false) AS inserted_count;");
   assert.doesNotMatch(keep, /DELETE FROM destination_areas/);
-  assert.match(keep, /ST_Covers\(a\.boundary, d\.location\)/);
-  assert.match(keep, /'summit'::destination_feature = ANY\(d\.features\)/);
+  assert.doesNotMatch(keep, /WITH deleted AS/i);
   assert.equal(sqlStatementCount(keep), 1);
 
   const replace = buildLinkDestinationsSql(true);
+  assert.equal(replace, "SELECT link_summit_destinations_to_areas(true) AS inserted_count;");
   assert.equal(sqlStatementCount(replace), 1);
-  assert.match(replace, /^WITH deleted AS \(/);
-  assert.match(replace, /DELETE FROM destination_areas WHERE source = 'postgis'/);
-  assert.match(replace, /ON CONFLICT \(destination_id, area_id\) DO NOTHING/);
+  assert.doesNotMatch(replace, /WITH deleted AS/i);
+  assert.doesNotMatch(replace, /DELETE FROM destination_areas/i);
 });
 
 test("recognizes federal PAD-US agency and owner domain codes", () => {
@@ -228,6 +228,40 @@ test("uses version-independent source IDs from canonical grouping fields", () =>
   assert.doesNotMatch(fullManager?.sourceId ?? "", /^padus\d+-/);
   assert.equal(managerCode?.sourceVersion, "5.0");
   assert.equal(managerCode?.groupKey, "national_park|mount rainier national park|national park|national park service");
+});
+
+test("uses owner agency for grouping when manager agency is absent", () => {
+  const managerCode = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Hood National Forest",
+    Des_Tp: "National Forest",
+    Mang_Name: "USFS",
+  }), "4.1");
+  const ownerCode = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Hood National Forest",
+    Des_Tp: "National Forest",
+    Own_Name: "USFS",
+  }), "4.1");
+
+  assert.equal(managerCode?.groupKey, "national_forest|mount hood national forest|national forest|forest service");
+  assert.equal(ownerCode?.groupKey, managerCode?.groupKey);
+  assert.equal(ownerCode?.sourceId, managerCode?.sourceId);
+});
+
+test("uses manager and owner type agency codes for grouping when names are absent", () => {
+  const managerType = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mojave National Preserve",
+    Des_Tp: "National Preserve",
+    Mang_Type: "FED",
+  }), "4.1");
+  const ownerType = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mojave National Preserve",
+    Des_Tp: "National Preserve",
+    Own_Type: "FED",
+  }), "4.1");
+
+  assert.equal(managerType?.groupKey, "other_federal_area|mojave national preserve|national preserve|federal");
+  assert.equal(ownerType?.groupKey, managerType?.groupKey);
+  assert.equal(ownerType?.sourceId, managerType?.sourceId);
 });
 
 test("prefers documented PAD-US source record IDs before object IDs", () => {
