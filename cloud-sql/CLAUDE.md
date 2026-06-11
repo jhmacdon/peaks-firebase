@@ -177,6 +177,37 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Protected area imports
+
+Protected-area and land-management context is imported from USGS PAD-US into `areas`, then linked to summit destinations through `destination_areas`.
+
+Input should be GeoJSON or NDJSON exported from PAD-US 4.1. The importer intentionally does not depend on local GIS CLIs such as `ogr2ogr`; export PAD-US data outside the script, then run:
+
+```bash
+cd cloud-sql/migrate
+npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --dry-run
+npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --apply --link-destinations
+```
+
+Use `--replace-links` only when intentionally rebuilding all `source='postgis'` destination-area links:
+
+```bash
+npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --apply --link-destinations --replace-links
+```
+
+Post-import smoke check:
+
+```sql
+SELECT d.name AS destination, a.name AS area, a.kind
+FROM destinations d
+JOIN destination_areas da ON da.destination_id = d.id
+JOIN areas a ON a.id = da.area_id
+WHERE lower(d.name) IN ('mount rainier', 'mt rainier')
+ORDER BY a.kind, a.name;
+```
+
+Expected: Mount Rainier links to Mount Rainier National Park.
+
 ## Local Development
 
 ```bash
