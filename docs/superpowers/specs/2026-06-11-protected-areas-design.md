@@ -121,7 +121,6 @@ CREATE INDEX idx_areas_boundary ON areas USING GIST (boundary);
 CREATE INDEX idx_areas_centroid ON areas USING GIST (centroid);
 CREATE INDEX idx_areas_search_name ON areas USING GIN (search_name gin_trgm_ops);
 CREATE INDEX idx_areas_kind ON areas (kind);
-CREATE INDEX idx_areas_source ON areas (source, source_id);
 ```
 
 Create a join table:
