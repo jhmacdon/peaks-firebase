@@ -502,7 +502,6 @@ CREATE INDEX IF NOT EXISTS destinations_amenities_idx
 CREATE INDEX idx_destinations_owner         ON destinations (owner);
 CREATE INDEX idx_destinations_type          ON destinations (type);
 CREATE INDEX idx_areas_kind                 ON areas (kind);
-CREATE INDEX idx_areas_source               ON areas (source, source_id);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
 

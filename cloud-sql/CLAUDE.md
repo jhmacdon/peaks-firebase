@@ -53,7 +53,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 - **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geography(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
 - **Text IDs**: all PKs are `TEXT` (20-char alphanumeric, matching Firebase document ID style)
 - **`search_name`**: lowercased/normalized copy of `name` for trigram search (indexed with `gin_trgm_ops`)
-- **`updated_at` triggers**: automatic on destinations, lists, routes, tracking_sessions
+- **`updated_at` triggers**: automatic on destinations, areas, lists, routes, tracking_sessions
 
 ### PostGIS patterns
 ```sql

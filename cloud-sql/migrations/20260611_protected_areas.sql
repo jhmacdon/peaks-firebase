@@ -70,9 +70,6 @@ CREATE INDEX IF NOT EXISTS idx_areas_search_name
 CREATE INDEX IF NOT EXISTS idx_areas_kind
   ON areas (kind);
 
-CREATE INDEX IF NOT EXISTS idx_areas_source
-  ON areas (source, source_id);
-
 CREATE INDEX IF NOT EXISTS idx_destination_areas_area
   ON destination_areas (area_id);
 
