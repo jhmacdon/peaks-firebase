@@ -184,8 +184,13 @@ Protected-area and land-management context is imported from USGS PAD-US into `ar
 Input should be GeoJSON or NDJSON exported from PAD-US 4.1. The importer intentionally does not depend on local GIS CLIs such as `ogr2ogr`; export PAD-US data outside the script, then run:
 
 ```bash
-cd cloud-sql/migrate
+cd migrate
 npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --dry-run
+```
+
+Before applying and linking, point the Cloud SQL Auth Proxy and DB env vars from the Migration section at the target DB, and confirm `cloud-sql/migrations/20260611_protected_areas.sql` has already been applied. The dry run only parses and normalizes input; it does not verify DB schema or helper-function readiness.
+
+```bash
 npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --apply --link-destinations
 ```
 
@@ -206,7 +211,7 @@ WHERE lower(d.name) IN ('mount rainier', 'mt rainier')
 ORDER BY a.kind, a.name;
 ```
 
-Expected: Mount Rainier links to Mount Rainier National Park.
+Run this against the same DB target used for the import. Expected: Mount Rainier links to Mount Rainier National Park.
 
 ## Local Development
 
