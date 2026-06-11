@@ -384,7 +384,8 @@ test("normalizes a PAD-US national park feature", () => {
   assert.equal(area?.source, "padus");
   assert.equal(area?.sourceVersion, "4.1");
   assert.equal(area?.sourceRecordId, "NPS-MORA");
-  assert.match(area?.sourceId ?? "", /^padus41-/);
+  assert.match(area?.sourceId ?? "", /^padus-/);
+  assert.doesNotMatch(area?.sourceId ?? "", /^padus41-/);
   assert.equal(area?.groupKey, "national_park|mount rainier national park|national park|national park service");
 });
 
@@ -429,15 +430,18 @@ test("converts polygons to multipolygons and preserves multipolygons", () => {
   assert.deepEqual(geometryToMultiPolygon(multi), multi);
 });
 
-test("builds ST_Covers destination-area link SQL with optional replacement", () => {
+test("builds destination-area link SQL through the schema helper function", () => {
   const keep = buildLinkDestinationsSql(false);
+  assert.equal(keep.trim(), "SELECT link_summit_destinations_to_areas(false) AS inserted_count;");
   assert.doesNotMatch(keep, /DELETE FROM destination_areas/);
-  assert.match(keep, /ST_Covers\(a\.boundary, d\.location\)/);
-  assert.match(keep, /'summit'::destination_feature = ANY\(d\.features\)/);
+  assert.doesNotMatch(keep, /INSERT INTO destination_areas/);
+  assert.doesNotMatch(keep, /WITH /);
 
   const replace = buildLinkDestinationsSql(true);
-  assert.match(replace, /DELETE FROM destination_areas WHERE source = 'postgis'/);
-  assert.match(replace, /ON CONFLICT \(destination_id, area_id\) DO NOTHING/);
+  assert.equal(replace.trim(), "SELECT link_summit_destinations_to_areas(true) AS inserted_count;");
+  assert.doesNotMatch(replace, /DELETE FROM destination_areas/);
+  assert.doesNotMatch(replace, /INSERT INTO destination_areas/);
+  assert.doesNotMatch(replace, /WITH /);
 });
 ```
 
@@ -575,10 +579,6 @@ export function normalizeSearchName(name: string): string {
     .trim();
 }
 
-function sourceVersionSlug(sourceVersion: string): string {
-  return sourceVersion.replace(/[^0-9a-z]/gi, "").toLowerCase();
-}
-
 function stableId(prefix: string, parts: string[]): string {
   const hash = crypto.createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 20);
   return `${prefix}-${hash}`;
@@ -694,7 +694,7 @@ export function normalizePadusFeature(
     stateCodes: stateCodes(props),
     source: "padus",
     sourceVersion,
-    sourceId: stableId(`padus${sourceVersionSlug(sourceVersion)}`, [groupKey]),
+    sourceId: stableId("padus", [groupKey]),
     sourceRecordId,
     groupKey,
     geometry: geometryToMultiPolygon(feature.geometry),
@@ -703,16 +703,7 @@ export function normalizePadusFeature(
 }
 
 export function buildLinkDestinationsSql(replaceExisting: boolean): string {
-  const deleteSql = replaceExisting
-    ? "DELETE FROM destination_areas WHERE source = 'postgis';\n\n"
-    : "";
-  return `${deleteSql}INSERT INTO destination_areas (destination_id, area_id, relation, source)
-SELECT d.id, a.id, 'contained_by', 'postgis'
-FROM destinations d
-JOIN areas a ON ST_Covers(a.boundary, d.location)
-WHERE d.location IS NOT NULL
-  AND 'summit'::destination_feature = ANY(d.features)
-ON CONFLICT (destination_id, area_id) DO NOTHING;`;
+  return `SELECT link_summit_destinations_to_areas(${replaceExisting ? "true" : "false"}) AS inserted_count;`;
 }
 ```
 
@@ -1040,8 +1031,11 @@ async function upsertAreas(): Promise<number> {
 }
 
 async function linkDestinations(replaceLinks: boolean): Promise<number> {
-  const result = await db.query(buildLinkDestinationsSql(replaceLinks));
-  return result.rowCount ?? 0;
+  const result = await db.query<{ inserted_count: number | string }>(
+    buildLinkDestinationsSql(replaceLinks)
+  );
+  const value = result.rows[0]?.inserted_count ?? 0;
+  return typeof value === "number" ? value : parseInt(value, 10);
 }
 
 async function report(): Promise<void> {
