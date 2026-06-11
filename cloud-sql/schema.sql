@@ -17,6 +17,18 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TYPE destination_type AS ENUM ('point', 'region');
 CREATE TYPE activity_type AS ENUM ('outdoor-trek', 'outdoor-moto', 'ski');
 CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall', 'campsite');
+CREATE TYPE area_kind AS ENUM (
+  'national_park',
+  'national_monument',
+  'national_forest',
+  'national_grassland',
+  'wilderness',
+  'national_recreation_area',
+  'national_conservation_area',
+  'wildlife_refuge',
+  'wild_and_scenic_river',
+  'other_federal_area'
+);
 CREATE TYPE completion_mode AS ENUM ('none', 'straight', 'reverse');
 CREATE TYPE route_shape AS ENUM ('out_and_back', 'loop', 'point_to_point', 'lollipop');
 CREATE TYPE session_destination_relation AS ENUM ('reached', 'goal');
@@ -109,6 +121,56 @@ CREATE TABLE list_destinations (
     destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
     ordinal         INT NOT NULL DEFAULT 0,
     PRIMARY KEY (list_id, destination_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- areas
+-- Official land-management and protected-area units from authoritative sources
+-- such as USGS PAD-US. Areas are context around destinations, not destinations
+-- themselves, and can overlap each other.
+-- ---------------------------------------------------------------------------
+CREATE TABLE areas (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    search_name     TEXT NOT NULL,
+    kind            area_kind NOT NULL,
+    designation     TEXT,
+    manager         TEXT,
+    owner           TEXT,
+    country_code    TEXT NOT NULL DEFAULT 'US',
+    state_codes     TEXT[] NOT NULL DEFAULT '{}',
+
+    source          TEXT NOT NULL,
+    source_id       TEXT NOT NULL,
+    source_version  TEXT NOT NULL,
+    source_updated_at TIMESTAMPTZ,
+
+    boundary        geography(MultiPolygon, 4326) NOT NULL,
+    centroid        geography(Point, 4326) NOT NULL,
+    bbox_min_lat    DOUBLE PRECISION NOT NULL,
+    bbox_max_lat    DOUBLE PRECISION NOT NULL,
+    bbox_min_lng    DOUBLE PRECISION NOT NULL,
+    bbox_max_lng    DOUBLE PRECISION NOT NULL,
+
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE (source, source_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- destination_areas
+-- Join table linking destinations, primarily summits, to containing official
+-- areas. A destination can be contained by multiple overlapping areas.
+-- ---------------------------------------------------------------------------
+CREATE TABLE destination_areas (
+    destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    relation        TEXT NOT NULL DEFAULT 'contained_by',
+    source          TEXT NOT NULL DEFAULT 'postgis',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (destination_id, area_id)
 );
 
 -- ---------------------------------------------------------------------------
@@ -414,12 +476,15 @@ CREATE TABLE session_tombstones (
 -- Spatial (GIST) on all geography columns
 CREATE INDEX idx_destinations_location      ON destinations USING GIST (location);
 CREATE INDEX idx_destinations_boundary      ON destinations USING GIST (boundary) WHERE boundary IS NOT NULL;
+CREATE INDEX idx_areas_boundary             ON areas USING GIST (boundary);
+CREATE INDEX idx_areas_centroid             ON areas USING GIST (centroid);
 CREATE INDEX idx_routes_path                ON routes       USING GIST (path);
 CREATE INDEX idx_tracking_points_location   ON tracking_points USING GIST (location);
 CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (location);
 
 -- Trigram (GIN) for fuzzy text search on destinations
 CREATE INDEX idx_destinations_search_name   ON destinations USING GIN (search_name gin_trgm_ops);
+CREATE INDEX idx_areas_search_name          ON areas USING GIN (search_name gin_trgm_ops);
 
 -- GIN on array columns for containment queries (e.g. WHERE features @> '{summit}')
 CREATE INDEX idx_destinations_features      ON destinations USING GIN (features);
@@ -436,6 +501,8 @@ CREATE INDEX IF NOT EXISTS destinations_amenities_idx
 -- B-tree for common lookups and foreign keys
 CREATE INDEX idx_destinations_owner         ON destinations (owner);
 CREATE INDEX idx_destinations_type          ON destinations (type);
+CREATE INDEX idx_areas_kind                 ON areas (kind);
+CREATE INDEX idx_areas_source               ON areas (source, source_id);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
 
@@ -459,6 +526,7 @@ CREATE INDEX idx_session_markers_session    ON session_markers (session_id);
 CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, server_updated_at ASC, session_id ASC);
 
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
+CREATE INDEX idx_destination_areas_area     ON destination_areas (area_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
 CREATE INDEX idx_session_destinations_dest  ON session_destinations (destination_id);
 CREATE INDEX idx_session_routes_route       ON session_routes (route_id);
@@ -486,6 +554,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_plans_updated           BEFORE UPDATE ON plans               FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_areas_updated           BEFORE UPDATE ON areas              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_lists_updated           BEFORE UPDATE ON lists              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
@@ -518,6 +587,28 @@ FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 CREATE TRIGGER trg_session_markers_touch_session
 AFTER INSERT OR UPDATE OR DELETE ON session_markers
 FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
+
+CREATE OR REPLACE FUNCTION link_summit_destinations_to_areas(replace_existing BOOLEAN DEFAULT false)
+RETURNS INTEGER AS $$
+DECLARE
+  inserted_count INTEGER;
+BEGIN
+  IF replace_existing THEN
+    DELETE FROM destination_areas WHERE source = 'postgis';
+  END IF;
+
+  INSERT INTO destination_areas (destination_id, area_id, relation, source)
+  SELECT d.id, a.id, 'contained_by', 'postgis'
+  FROM destinations d
+  JOIN areas a ON ST_Covers(a.boundary, d.location)
+  WHERE d.location IS NOT NULL
+    AND 'summit'::destination_feature = ANY(d.features)
+  ON CONFLICT (destination_id, area_id) DO NOTHING;
+
+  GET DIAGNOSTICS inserted_count = ROW_COUNT;
+  RETURN inserted_count;
+END;
+$$ LANGUAGE plpgsql;
 
 -- =============================================================================
 -- Auto-link sessions when a new destination is inserted
