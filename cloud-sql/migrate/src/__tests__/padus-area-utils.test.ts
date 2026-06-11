@@ -18,6 +18,18 @@ const square = {
   ]],
 };
 
+function padusFeature(properties: Record<string, unknown>) {
+  return {
+    type: "Feature" as const,
+    geometry: square,
+    properties,
+  };
+}
+
+function sqlStatementCount(sql: string): number {
+  return sql.split(";").map((statement) => statement.trim()).filter(Boolean).length;
+}
+
 test("normalizes a PAD-US national park feature", () => {
   const area = normalizePadusFeature({
     type: "Feature",
@@ -43,7 +55,8 @@ test("normalizes a PAD-US national park feature", () => {
   assert.equal(area?.source, "padus");
   assert.equal(area?.sourceVersion, "4.1");
   assert.equal(area?.sourceRecordId, "NPS-MORA");
-  assert.match(area?.sourceId ?? "", /^padus41-/);
+  assert.match(area?.sourceId ?? "", /^padus-/);
+  assert.doesNotMatch(area?.sourceId ?? "", /^padus\d+-/);
   assert.equal(area?.groupKey, "national_park|mount rainier national park|national park|national park service");
 });
 
@@ -93,8 +106,182 @@ test("builds ST_Covers destination-area link SQL with optional replacement", () 
   assert.doesNotMatch(keep, /DELETE FROM destination_areas/);
   assert.match(keep, /ST_Covers\(a\.boundary, d\.location\)/);
   assert.match(keep, /'summit'::destination_feature = ANY\(d\.features\)/);
+  assert.equal(sqlStatementCount(keep), 1);
 
   const replace = buildLinkDestinationsSql(true);
+  assert.equal(sqlStatementCount(replace), 1);
+  assert.match(replace, /^WITH deleted AS \(/);
   assert.match(replace, /DELETE FROM destination_areas WHERE source = 'postgis'/);
   assert.match(replace, /ON CONFLICT \(destination_id, area_id\) DO NOTHING/);
+});
+
+test("recognizes federal PAD-US agency and owner domain codes", () => {
+  const cases = [
+    {
+      name: "FED manager type",
+      props: { Unit_Nm: "Mojave National Preserve", Des_Tp: "National Preserve", Mang_Type: "FED" },
+      expectedKind: "other_federal_area",
+    },
+    {
+      name: "NPS manager code",
+      props: { Unit_Nm: "Point Reyes National Seashore", Des_Tp: "National Seashore", Mang_Name: "NPS" },
+      expectedKind: "other_federal_area",
+    },
+    {
+      name: "USFS owner code",
+      props: { Unit_Nm: "Mount Hood National Forest", Des_Tp: "National Forest", Own_Name: "USFS" },
+      expectedKind: "national_forest",
+    },
+    {
+      name: "BLM manager code",
+      props: { Unit_Nm: "Red Rock Canyon ACEC", Des_Tp: "Area of Critical Environmental Concern", Mang_Name: "BLM" },
+      expectedKind: "other_federal_area",
+    },
+    {
+      name: "FWS owner code",
+      props: { Unit_Nm: "Nisqually National Wildlife Refuge", Des_Tp: "National Wildlife Refuge", Own_Name: "FWS" },
+      expectedKind: "wildlife_refuge",
+    },
+  ];
+
+  for (const { name, props, expectedKind } of cases) {
+    const area = normalizePadusFeature(padusFeature(props), "4.1");
+    assert.equal(area?.kind, expectedKind, name);
+  }
+});
+
+test("recognizes outdoor-relevant federal units beyond narrow park and forest regexes", () => {
+  const cases = [
+    {
+      designation: "National Preserve",
+      unitName: "Mojave National Preserve",
+      manager: "National Park Service",
+      expectedKind: "other_federal_area",
+    },
+    {
+      designation: "National Seashore",
+      unitName: "Point Reyes National Seashore",
+      manager: "NPS",
+      expectedKind: "other_federal_area",
+    },
+    {
+      designation: "National Lakeshore",
+      unitName: "Apostle Islands National Lakeshore",
+      manager: "NPS",
+      expectedKind: "other_federal_area",
+    },
+    {
+      designation: "Wilderness Study Area",
+      unitName: "Steens Mountain Wilderness Study Area",
+      manager: "FED",
+      expectedKind: "wilderness",
+    },
+    {
+      designation: "Area of Critical Environmental Concern",
+      unitName: "Red Rock Canyon ACEC",
+      manager: "FED",
+      expectedKind: "other_federal_area",
+    },
+    {
+      designation: "National Monument",
+      unitName: "Craters of the Moon National Monument",
+      manager: "NPS",
+      expectedKind: "national_monument",
+    },
+  ];
+
+  for (const { designation, unitName, manager, expectedKind } of cases) {
+    const area = normalizePadusFeature(padusFeature({
+      Unit_Nm: unitName,
+      Des_Tp: designation,
+      Mang_Name: manager,
+    }), "4.1");
+
+    assert.equal(area?.kind, expectedKind, designation);
+  }
+});
+
+test("recognizes the U.S. Fish & Wildlife Service ampersand manager form", () => {
+  const area = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Billy Frank Jr. Nisqually National Wildlife Refuge",
+    Des_Tp: "National Wildlife Refuge",
+    Mang_Name: "U.S. Fish & Wildlife Service",
+  }), "4.1");
+
+  assert.equal(area?.kind, "wildlife_refuge");
+});
+
+test("uses version-independent source IDs from canonical grouping fields", () => {
+  const fullManager = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Rainier National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "National Park Service",
+  }), "4.1");
+  const managerCode = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Rainier National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "NPS",
+  }), "5.0");
+
+  assert.equal(fullManager?.sourceId, managerCode?.sourceId);
+  assert.match(fullManager?.sourceId ?? "", /^padus-/);
+  assert.doesNotMatch(fullManager?.sourceId ?? "", /^padus\d+-/);
+  assert.equal(managerCode?.sourceVersion, "5.0");
+  assert.equal(managerCode?.groupKey, "national_park|mount rainier national park|national park|national park service");
+});
+
+test("prefers documented PAD-US source record IDs before object IDs", () => {
+  const cases = [
+    { field: "Source_PAID", value: "SRC-PAID-1" },
+    { field: "SOURCE_PAID", value: "SRC-PAID-2" },
+    { field: "source_paid", value: "SRC-PAID-3" },
+  ];
+
+  for (const { field, value } of cases) {
+    const area = normalizePadusFeature(padusFeature({
+      Unit_Nm: "Mount Rainier National Park",
+      Des_Tp: "National Park",
+      Mang_Name: "National Park Service",
+      [field]: value,
+      PADUS_ID: "PADUS-SHOULD-NOT-WIN",
+      OBJECTID: "OBJECT-SHOULD-NOT-WIN",
+    }), "4.1");
+
+    assert.equal(area?.sourceRecordId, value, field);
+  }
+});
+
+test("uses sorted-key stable source record fallback IDs", () => {
+  const first = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Ordering National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "National Park Service",
+    Alpha: "one",
+    Zulu: "two",
+  }), "4.1");
+  const reordered = normalizePadusFeature(padusFeature({
+    Zulu: "two",
+    Alpha: "one",
+    Mang_Name: "National Park Service",
+    Des_Tp: "National Park",
+    Unit_Nm: "Ordering National Park",
+  }), "4.1");
+
+  assert.match(first?.sourceRecordId ?? "", /^record-/);
+  assert.equal(first?.sourceRecordId, reordered?.sourceRecordId);
+});
+
+test("normalizes state and territory names case-insensitively", () => {
+  const area = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Multi-State National Monument",
+    Des_Tp: "National Monument",
+    Mang_Name: "NPS",
+    State_Nm: "washington; puerto rico",
+    State_Nm2: "ca, American Samoa",
+    State_Nm3: "Guam",
+    State: "u.s. virgin islands",
+    STATE: "Northern Mariana Islands",
+  }), "4.1");
+
+  assert.deepEqual(area?.stateCodes, ["AS", "CA", "GU", "MP", "PR", "VI", "WA"]);
 });

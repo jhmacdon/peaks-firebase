@@ -99,7 +99,20 @@ const STATE_CODES: Record<string, string> = {
   Wisconsin: "WI",
   Wyoming: "WY",
   "District of Columbia": "DC",
+  "American Samoa": "AS",
+  Guam: "GU",
+  "Northern Mariana Islands": "MP",
+  "Commonwealth of the Northern Mariana Islands": "MP",
+  "Puerto Rico": "PR",
+  "U.S. Virgin Islands": "VI",
+  "US Virgin Islands": "VI",
+  "United States Virgin Islands": "VI",
+  "Virgin Islands": "VI",
 };
+
+const STATE_CODES_BY_NAME = Object.fromEntries(
+  Object.entries(STATE_CODES).map(([name, code]) => [normalizeSearchName(name), code])
+);
 
 function text(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -116,13 +129,103 @@ export function normalizeSearchName(name: string): string {
     .trim();
 }
 
-function sourceVersionSlug(sourceVersion: string): string {
-  return sourceVersion.replace(/[^0-9a-z]/gi, "").toLowerCase();
-}
-
 function stableId(prefix: string, parts: string[]): string {
   const hash = crypto.createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 20);
   return `${prefix}-${hash}`;
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableSerialize(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? String(value);
+}
+
+function canonicalAgencyName(value: unknown): string | null {
+  const s = text(value);
+  if (!s) return null;
+
+  const normalized = normalizeSearchName(s);
+  if (normalized === "fed" || normalized === "federal" || /\bfederal\b/.test(normalized)) {
+    return "federal";
+  }
+  if (/\bnps\b/.test(normalized) || /\bnational park service\b/.test(normalized)) {
+    return "national park service";
+  }
+  if (/\busfs\b/.test(normalized) || /\bu s forest service\b/.test(normalized) || /\bforest service\b/.test(normalized)) {
+    return "forest service";
+  }
+  if (/\bblm\b/.test(normalized) || /\bbureau of land management\b/.test(normalized)) {
+    return "bureau of land management";
+  }
+  if (
+    /\bfws\b/.test(normalized) ||
+    /\busfws\b/.test(normalized) ||
+    /\bfish and wildlife service\b/.test(normalized) ||
+    /\bfish wildlife service\b/.test(normalized)
+  ) {
+    return "fish and wildlife service";
+  }
+  return null;
+}
+
+function canonicalManagerName(manager: string | null): string {
+  return canonicalAgencyName(manager) ?? normalizeSearchName(manager ?? "");
+}
+
+function canonicalDesignationName(designation: string | null, kind: AreaKind): string {
+  const normalized = normalizeSearchName(designation ?? "");
+
+  switch (kind) {
+    case "national_park":
+      return "national park";
+    case "national_monument":
+      return "national monument";
+    case "national_forest":
+      return "national forest";
+    case "national_grassland":
+      return "national grassland";
+    case "national_recreation_area":
+      return "national recreation area";
+    case "national_conservation_area":
+      return "national conservation area";
+    case "wildlife_refuge":
+      return "wildlife refuge";
+    case "wild_and_scenic_river":
+      return "wild and scenic river";
+    case "wilderness":
+      return /\bwilderness study area\b/.test(normalized) ? "wilderness study area" : "wilderness";
+    case "other_federal_area":
+      if (/\bnational preserve\b/.test(normalized)) return "national preserve";
+      if (/\bnational seashore\b/.test(normalized)) return "national seashore";
+      if (/\bnational lakeshore\b/.test(normalized)) return "national lakeshore";
+      if (/\barea of critical environmental concern\b/.test(normalized)) return "area of critical environmental concern";
+      return normalized;
+  }
+}
+
+function firstTextProperty(props: Record<string, unknown>, names: string[]): string | null {
+  const propsByLowerName = new Map(
+    Object.keys(props).map((key) => [key.toLowerCase(), key])
+  );
+
+  for (const name of names) {
+    const direct = text(props[name]);
+    if (direct) return direct;
+
+    const actualName = propsByLowerName.get(name.toLowerCase());
+    if (!actualName) continue;
+
+    const value = text(props[actualName]);
+    if (value) return value;
+  }
+
+  return null;
 }
 
 function mapKind(props: Record<string, unknown>): AreaKind | null {
@@ -136,17 +239,25 @@ function mapKind(props: Record<string, unknown>): AreaKind | null {
     text(props.Mang_Name),
     text(props.Own_Name),
   ].filter(Boolean).join(" ").toLowerCase();
+  const normalizedDesignationText = normalizeSearchName(designationText);
 
-  if (/\bnational monument\b/.test(designationText)) return "national_monument";
-  if (/\bnational recreation area\b/.test(designationText)) return "national_recreation_area";
-  if (/\bnational conservation area\b/.test(designationText)) return "national_conservation_area";
-  if (/\bnational grassland\b/.test(designationText)) return "national_grassland";
-  if (/\bnational forest\b/.test(designationText)) return "national_forest";
-  if (/\bnational park\b/.test(designationText)) return "national_park";
-  if (/\bwilderness\b/.test(designationText)) return "wilderness";
-  if (/\bwildlife refuge\b/.test(designationText)) return "wildlife_refuge";
-  if (/\bwild( |-)and( |-)scenic river\b/.test(designationText)) return "wild_and_scenic_river";
-  if (/\bblm\b|\bbureau of land management\b|\bnational landscape conservation system\b/.test(`${designationText} ${managerText}`)) {
+  if (/\bnational monument\b/.test(normalizedDesignationText)) return "national_monument";
+  if (/\bnational recreation area\b/.test(normalizedDesignationText)) return "national_recreation_area";
+  if (/\bnational conservation area\b/.test(normalizedDesignationText)) return "national_conservation_area";
+  if (/\bnational grassland\b/.test(normalizedDesignationText)) return "national_grassland";
+  if (/\bnational forest\b/.test(normalizedDesignationText)) return "national_forest";
+  if (/\bnational park\b/.test(normalizedDesignationText)) return "national_park";
+  if (/\bwilderness\b/.test(normalizedDesignationText)) return "wilderness";
+  if (/\bwildlife refuge\b/.test(normalizedDesignationText)) return "wildlife_refuge";
+  if (/\bwild and scenic river\b/.test(normalizedDesignationText)) return "wild_and_scenic_river";
+  if (
+    /\bnational preserve\b/.test(normalizedDesignationText) ||
+    /\bnational seashore\b/.test(normalizedDesignationText) ||
+    /\bnational lakeshore\b/.test(normalizedDesignationText) ||
+    /\barea of critical environmental concern\b/.test(normalizedDesignationText) ||
+    /\bblm\b|\bbureau of land management\b|\bnational landscape conservation system\b/.test(`${designationText} ${managerText}`) ||
+    isFederal(props)
+  ) {
     return "other_federal_area";
   }
   return null;
@@ -160,7 +271,13 @@ function isFederal(props: Record<string, unknown>): boolean {
     text(props.Own_Type),
   ].filter(Boolean).join(" ").toLowerCase();
 
-  return /\bfederal\b|\bnational park service\b|\bforest service\b|\bbureau of land management\b|\bfish and wildlife service\b|\busfs\b|\bnps\b|\bblm\b|\bfws\b/.test(haystack);
+  return [
+    props.Mang_Name,
+    props.Own_Name,
+    props.Mang_Type,
+    props.Own_Type,
+  ].some((value) => canonicalAgencyName(value) !== null) ||
+    /\bfederal\b|\bnational park service\b|\bforest service\b|\bbureau of land management\b|\bfish and wildlife service\b|\busfs\b|\bnps\b|\bblm\b|\bfws\b/.test(haystack);
 }
 
 function stateCodes(props: Record<string, unknown>): string[] {
@@ -178,7 +295,10 @@ function stateCodes(props: Record<string, unknown>): string[] {
       if (!trimmed) continue;
       const upper = trimmed.toUpperCase();
       if (/^[A-Z]{2}$/.test(upper)) out.add(upper);
-      else if (STATE_CODES[trimmed]) out.add(STATE_CODES[trimmed]);
+      else {
+        const code = STATE_CODES_BY_NAME[normalizeSearchName(trimmed)];
+        if (code) out.add(code);
+      }
     }
   }
   return Array.from(out).sort();
@@ -214,16 +334,13 @@ export function normalizePadusFeature(
   const groupKey = [
     kind,
     searchName,
-    normalizeSearchName(designation ?? ""),
-    normalizeSearchName(manager ?? ""),
+    canonicalDesignationName(designation, kind),
+    canonicalManagerName(manager),
   ].join("|");
 
   const sourceRecordId =
-    text(props.PADUS_ID) ??
-    text(props.PADUSID) ??
-    text(props.GIS_ID) ??
-    text(props.OBJECTID) ??
-    stableId("record", [groupKey, JSON.stringify(props)]);
+    firstTextProperty(props, ["Source_PAID", "PADUS_ID", "PADUSID", "GIS_ID", "OBJECTID"]) ??
+    stableId("record", [groupKey, stableSerialize(props)]);
 
   return {
     name,
@@ -235,7 +352,7 @@ export function normalizePadusFeature(
     stateCodes: stateCodes(props),
     source: "padus",
     sourceVersion,
-    sourceId: stableId(`padus${sourceVersionSlug(sourceVersion)}`, [groupKey]),
+    sourceId: stableId("padus", [groupKey]),
     sourceRecordId,
     groupKey,
     geometry: geometryToMultiPolygon(feature.geometry),
@@ -244,14 +361,18 @@ export function normalizePadusFeature(
 }
 
 export function buildLinkDestinationsSql(replaceExisting: boolean): string {
-  const deleteSql = replaceExisting
-    ? "DELETE FROM destination_areas WHERE source = 'postgis';\n\n"
-    : "";
-  return `${deleteSql}INSERT INTO destination_areas (destination_id, area_id, relation, source)
+  const insertSql = `INSERT INTO destination_areas (destination_id, area_id, relation, source)
 SELECT d.id, a.id, 'contained_by', 'postgis'
 FROM destinations d
 JOIN areas a ON ST_Covers(a.boundary, d.location)
 WHERE d.location IS NOT NULL
   AND 'summit'::destination_feature = ANY(d.features)
 ON CONFLICT (destination_id, area_id) DO NOTHING;`;
+  if (!replaceExisting) return insertSql;
+
+  return `WITH deleted AS (
+  DELETE FROM destination_areas WHERE source = 'postgis'
+  RETURNING 1
+)
+${insertSql}`;
 }
