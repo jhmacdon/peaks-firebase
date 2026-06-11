@@ -1,5 +1,4 @@
 import { Router, Response } from "express";
-import { AuthRequest } from "../auth";
 import db from "../db";
 
 const router = Router();
@@ -8,7 +7,7 @@ const router = Router();
  * Merge averages and averages_offset by summing month/day counters.
  * Either or both may be null.
  */
-function mergeAverages(
+export function mergeAverages(
   averages: any | null,
   offset: any | null
 ): any | null {
@@ -33,6 +32,16 @@ function mergeAverages(
   const allDays = new Set([...Object.keys(avgDays), ...Object.keys(offDays)]);
   for (const d of allDays) {
     merged.days[d] = (avgDays[d] || 0) + (offDays[d] || 0);
+  }
+
+  const avgUpdated = averages.lastUpdated;
+  const offsetUpdated = offset.lastUpdated;
+  if (avgUpdated && offsetUpdated) {
+    merged.lastUpdated = avgUpdated > offsetUpdated ? avgUpdated : offsetUpdated;
+  } else if (avgUpdated) {
+    merged.lastUpdated = avgUpdated;
+  } else if (offsetUpdated) {
+    merged.lastUpdated = offsetUpdated;
   }
 
   return merged;
@@ -186,11 +195,9 @@ router.get("/viewport", async (req, res: Response) => {
   res.json(result.rows);
 });
 
-// GET /api/destinations/:id
-router.get("/:id", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+export function buildDestinationDetailQuery(id: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
             d.activities, d.features, d.owner,
             d.country_code, d.state_code,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
@@ -203,24 +210,53 @@ router.get("/:id", async (req, res: Response) => {
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
             d.created_at, d.updated_at,
             COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
-            COALESCE(stats.success_count, 0) + d.success_count_offset AS success_count
+            COALESCE(stats.success_count, 0) + d.success_count_offset AS success_count,
+            COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM destinations d
      LEFT JOIN LATERAL (
        SELECT COUNT(*) AS session_count,
               COUNT(*) FILTER (WHERE sd.relation = 'reached') AS success_count
        FROM session_destinations sd WHERE sd.destination_id = d.id
      ) stats ON true
+     LEFT JOIN LATERAL (
+       SELECT json_agg(
+         json_build_object(
+           'id', a.id,
+           'name', a.name,
+           'kind', a.kind,
+           'designation', a.designation,
+           'manager', a.manager,
+           'relation', da.relation,
+           'source', da.source
+         )
+         ORDER BY a.kind, a.name
+       ) AS areas
+       FROM destination_areas da
+       JOIN areas a ON a.id = da.area_id
+       WHERE da.destination_id = d.id
+     ) area_rows ON true
      WHERE d.id = $1`,
-    [id]
-  );
+    values: [id],
+  };
+}
+
+export function mapDestinationDetailRow(row: any): any {
+  row.averages = mergeAverages(row.averages, row.averages_offset);
+  delete row.averages_offset;
+  row.areas = Array.isArray(row.areas) ? row.areas : [];
+  return row;
+}
+
+// GET /api/destinations/:id
+router.get("/:id", async (req, res: Response) => {
+  const { id } = req.params;
+  const query = buildDestinationDetailQuery(id);
+  const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Destination not found" });
     return;
   }
-  const row = result.rows[0];
-  row.averages = mergeAverages(row.averages, row.averages_offset);
-  delete row.averages_offset;
-  res.json(row);
+  res.json(mapDestinationDetailRow(result.rows[0]));
 });
 
 // GET /api/destinations/:id/routes — routes for this destination
