@@ -336,3 +336,26 @@ test("parses feature collections and NDJSON features", () => {
   const parsedNdjson = parseGeoJsonFeatures(ndjson);
   assert.equal(parsedNdjson.length, 2);
 });
+
+test("rejects invalid GeoJSON parser members with clear errors", () => {
+  assert.throws(
+    () => parseGeoJsonFeatures(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{ type: "Point", coordinates: [-121.8, 46.8] }],
+    })),
+    /FeatureCollection\.features must contain only GeoJSON Feature objects/
+  );
+
+  assert.throws(
+    () => parseGeoJsonFeatures(JSON.stringify({ type: "GeometryCollection", geometries: [] })),
+    /GeoJSON input must be a FeatureCollection or Feature/
+  );
+
+  assert.throws(
+    () => parseGeoJsonFeatures([
+      JSON.stringify({ type: "Feature", geometry: square, properties: {} }),
+      JSON.stringify({ type: "Point", coordinates: [-121.8, 46.8] }),
+    ].join("\n")),
+    /NDJSON input lines must be GeoJSON Feature objects/
+  );
+});

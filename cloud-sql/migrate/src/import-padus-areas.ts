@@ -7,7 +7,7 @@ import {
   type NormalizedPadusArea,
 } from "./padus-area-utils";
 
-interface Args {
+export interface Args {
   input: string | null;
   sourceVersion: string;
   apply: boolean;
@@ -16,18 +16,56 @@ interface Args {
   replaceLinks: boolean;
 }
 
-function parseArgs(argv: string[]): Args {
+interface QueryResult<T = Record<string, unknown>> {
+  rows: T[];
+  rowCount: number | null;
+}
+
+export interface QueryExecutor {
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<QueryResult<T>>;
+}
+
+export interface TransactionClient extends QueryExecutor {
+  release(): void;
+}
+
+export interface ImportDatabase extends QueryExecutor {
+  connect(): Promise<TransactionClient>;
+}
+
+export interface ImportPadusDependencies {
+  db?: ImportDatabase;
+  readFile?: (path: string) => string;
+  console?: Pick<Console, "log">;
+}
+
+export const PADUS_IMPORT_INSERT_CHUNK_SIZE = 250;
+const INSERT_PART_PARAM_COUNT = 15;
+
+function validateArgs(args: Args): void {
+  if (args.apply && args.dryRun) {
+    throw new Error("--apply and --dry-run cannot be used together");
+  }
+  if (args.replaceLinks && !args.linkDestinations) {
+    throw new Error("--replace-links requires --link-destinations");
+  }
+}
+
+export function parseArgs(argv: string[]): Args {
   const inputArg = argv.find((a) => a.startsWith("--input="));
   const versionArg = argv.find((a) => a.startsWith("--source-version="));
   const apply = argv.includes("--apply");
-  return {
+  const dryRunFlag = argv.includes("--dry-run");
+  const args = {
     input: inputArg ? inputArg.slice("--input=".length) : null,
     sourceVersion: versionArg ? versionArg.slice("--source-version=".length) : "4.1",
     apply,
-    dryRun: argv.includes("--dry-run") || !apply,
+    dryRun: dryRunFlag || !apply,
     linkDestinations: argv.includes("--link-destinations"),
     replaceLinks: argv.includes("--replace-links"),
   };
+  validateArgs(args);
+  return args;
 }
 
 function usage(): string {
@@ -50,8 +88,8 @@ function groupAreas(areas: NormalizedPadusArea[]): Map<string, NormalizedPadusAr
   return groups;
 }
 
-async function createTempTable(): Promise<void> {
-  await db.query(`
+async function createTempTable(client: QueryExecutor): Promise<void> {
+  await client.query(`
     CREATE TEMP TABLE padus_area_import_parts (
       group_key text NOT NULL,
       id text NOT NULL,
@@ -73,42 +111,60 @@ async function createTempTable(): Promise<void> {
   `);
 }
 
-async function insertParts(areas: NormalizedPadusArea[]): Promise<void> {
-  for (const area of areas) {
-    await db.query(
+function insertPartValuesSql(rowIndex: number): string {
+  const param = (offset: number) => `$${rowIndex * INSERT_PART_PARAM_COUNT + offset}`;
+  return `(
+    ${param(1)}, ${param(2)}, ${param(3)}, ${param(4)}, ${param(5)}::area_kind, ${param(6)}, ${param(7)},
+    ${param(8)}, 'US', ${param(9)}::text[], ${param(10)}, ${param(11)},
+    ${param(12)}, ${param(13)}, ${param(14)}::jsonb,
+    ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${param(15)}), 4326)), 3))
+  )`;
+}
+
+function insertPartParams(area: NormalizedPadusArea): unknown[] {
+  return [
+    area.groupKey,
+    area.sourceId,
+    area.name,
+    area.searchName,
+    area.kind,
+    area.designation,
+    area.manager,
+    area.owner,
+    area.stateCodes,
+    area.source,
+    area.sourceId,
+    area.sourceVersion,
+    area.sourceRecordId,
+    JSON.stringify(area.metadata),
+    JSON.stringify(area.geometry),
+  ];
+}
+
+async function insertParts(
+  client: QueryExecutor,
+  areas: NormalizedPadusArea[],
+  chunkSize = PADUS_IMPORT_INSERT_CHUNK_SIZE
+): Promise<void> {
+  for (let start = 0; start < areas.length; start += chunkSize) {
+    const chunk = areas.slice(start, start + chunkSize);
+    const valuesSql = chunk.map((_, index) => insertPartValuesSql(index)).join(",\n");
+    const params = chunk.flatMap(insertPartParams);
+
+    await client.query(
       `INSERT INTO padus_area_import_parts (
          group_key, id, name, search_name, kind, designation, manager,
          owner_name, country_code, state_codes, source, source_id,
          source_version, source_record_id, metadata, geom
-       ) VALUES (
-         $1, $2, $3, $4, $5::area_kind, $6, $7,
-         $8, 'US', $9::text[], $10, $11,
-         $12, $13, $14::jsonb,
-         ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON($15), 4326)), 3))
-       )`,
-      [
-        area.groupKey,
-        area.sourceId,
-        area.name,
-        area.searchName,
-        area.kind,
-        area.designation,
-        area.manager,
-        area.owner,
-        area.stateCodes,
-        area.source,
-        area.sourceId,
-        area.sourceVersion,
-        area.sourceRecordId,
-        JSON.stringify(area.metadata),
-        JSON.stringify(area.geometry),
-      ]
+       ) VALUES
+       ${valuesSql}`,
+      params
     );
   }
 }
 
-async function upsertAreas(): Promise<number> {
-  const result = await db.query(`
+async function upsertAreas(client: QueryExecutor): Promise<number> {
+  const result = await client.query(`
     WITH dissolved AS (
       SELECT
         group_key,
@@ -130,8 +186,8 @@ async function upsertAreas(): Promise<number> {
         min(source_id) AS source_id,
         min(source_version) AS source_version,
         jsonb_build_object(
-          'source_record_ids', jsonb_agg(DISTINCT source_record_id),
-          'parts', jsonb_agg(metadata)
+          'source_record_ids', jsonb_agg(DISTINCT source_record_id ORDER BY source_record_id),
+          'parts', jsonb_agg(metadata ORDER BY source_record_id)
         ) AS metadata,
         ST_Multi(ST_Union(geom)) AS geom
       FROM padus_area_import_parts p
@@ -182,86 +238,141 @@ async function upsertAreas(): Promise<number> {
       bbox_max_lng = EXCLUDED.bbox_max_lng,
       metadata = EXCLUDED.metadata,
       updated_at = NOW()
+    WHERE (
+      areas.name,
+      areas.search_name,
+      areas.kind,
+      areas.designation,
+      areas.manager,
+      areas.owner,
+      areas.state_codes,
+      areas.source_version,
+      areas.bbox_min_lat,
+      areas.bbox_max_lat,
+      areas.bbox_min_lng,
+      areas.bbox_max_lng,
+      areas.metadata
+    ) IS DISTINCT FROM (
+      EXCLUDED.name,
+      EXCLUDED.search_name,
+      EXCLUDED.kind,
+      EXCLUDED.designation,
+      EXCLUDED.manager,
+      EXCLUDED.owner,
+      EXCLUDED.state_codes,
+      EXCLUDED.source_version,
+      EXCLUDED.bbox_min_lat,
+      EXCLUDED.bbox_max_lat,
+      EXCLUDED.bbox_min_lng,
+      EXCLUDED.bbox_max_lng,
+      EXCLUDED.metadata
+    )
+      OR areas.boundary::geometry IS DISTINCT FROM EXCLUDED.boundary::geometry
+      OR areas.centroid::geometry IS DISTINCT FROM EXCLUDED.centroid::geometry
   `);
   return result.rowCount ?? 0;
 }
 
-async function linkDestinations(replaceLinks: boolean): Promise<number> {
-  const result = await db.query<{ inserted_count: number | string }>(
+async function linkDestinations(client: QueryExecutor, replaceLinks: boolean): Promise<number> {
+  const result = await client.query<{ inserted_count: number | string }>(
     buildLinkDestinationsSql(replaceLinks)
   );
   const value = result.rows[0]?.inserted_count ?? 0;
   return typeof value === "number" ? value : parseInt(value, 10);
 }
 
-async function report(): Promise<void> {
-  const byKind = await db.query(
+async function report(database: QueryExecutor, logger: Pick<Console, "log">): Promise<void> {
+  const byKind = await database.query(
     `SELECT kind, count(*)::int AS count FROM areas GROUP BY kind ORDER BY kind`
   );
-  console.log("Areas by kind:");
+  logger.log("Database-wide areas by kind:");
   for (const row of byKind.rows) {
-    console.log(`  ${row.kind}: ${row.count}`);
+    logger.log(`  ${row.kind}: ${row.count}`);
   }
 
-  const linked = await db.query(`
+  const linked = await database.query(`
     SELECT count(DISTINCT destination_id)::int AS linked_destinations,
            count(*)::int AS links
     FROM destination_areas
   `);
-  console.log(`Linked summit destinations: ${linked.rows[0].linked_destinations}`);
-  console.log(`Destination-area links: ${linked.rows[0].links}`);
+  logger.log(`Database-wide linked summit destinations: ${linked.rows[0].linked_destinations}`);
+  logger.log(`Database-wide destination-area links: ${linked.rows[0].links}`);
 }
 
-export async function importPadusAreas(args: Args): Promise<void> {
+export async function importPadusAreas(
+  args: Args,
+  deps: ImportPadusDependencies = {}
+): Promise<void> {
+  validateArgs(args);
+
   if (!args.input) {
     throw new Error(`${usage()}\n\n--input is required`);
   }
 
-  const contents = fs.readFileSync(args.input, "utf8");
+  const database = (deps.db ?? db) as ImportDatabase;
+  const readFile = deps.readFile ?? ((path: string) => fs.readFileSync(path, "utf8"));
+  const logger = deps.console ?? console;
+
+  const contents = readFile(args.input);
   const features = parseGeoJsonFeatures(contents);
   const normalized = features
     .map((feature) => normalizePadusFeature(feature, args.sourceVersion))
     .filter((area): area is NormalizedPadusArea => area !== null);
   const groups = groupAreas(normalized);
 
-  console.log(`Read features: ${features.length}`);
-  console.log(`Importable PAD-US area parts: ${normalized.length}`);
-  console.log(`Dissolved logical areas: ${groups.size}`);
+  logger.log(`Read features: ${features.length}`);
+  logger.log(`Importable PAD-US area parts: ${normalized.length}`);
+  logger.log(`Dissolved logical areas: ${groups.size}`);
 
   const byKind = new Map<string, number>();
   for (const area of normalized) {
     byKind.set(area.kind, (byKind.get(area.kind) ?? 0) + 1);
   }
   for (const [kind, count] of Array.from(byKind.entries()).sort()) {
-    console.log(`  ${kind}: ${count}`);
+    logger.log(`  ${kind}: ${count}`);
   }
 
-  if (args.dryRun) {
-    console.log("DRY RUN - no rows written. Re-run with --apply to persist.");
+  if (args.dryRun || !args.apply) {
+    logger.log("DRY RUN - no rows written. Re-run with --apply to persist.");
     return;
   }
 
-  await db.query("BEGIN");
+  const client = await database.connect();
+  let transactionActive = false;
   try {
-    await createTempTable();
-    await insertParts(normalized);
-    const upserted = await upsertAreas();
-    console.log(`Upserted areas: ${upserted}`);
+    await client.query("BEGIN");
+    transactionActive = true;
+
+    await createTempTable(client);
+    await insertParts(client, normalized);
+    const upserted = await upsertAreas(client);
+    logger.log(`Upserted inserted or changed areas: ${upserted}`);
 
     if (args.linkDestinations) {
-      const linked = await linkDestinations(args.replaceLinks);
-      console.log(`Inserted destination-area links: ${linked}`);
+      const linked = await linkDestinations(client, args.replaceLinks);
+      logger.log(`Inserted destination-area links: ${linked}`);
     }
 
-    await db.query("COMMIT");
-    await report();
+    await client.query("COMMIT");
+    transactionActive = false;
   } catch (err) {
-    await db.query("ROLLBACK");
+    if (transactionActive) {
+      await client.query("ROLLBACK");
+      transactionActive = false;
+    }
     throw err;
+  } finally {
+    client.release();
   }
+
+  await report(database, logger);
 }
 
-if (process.argv[1]?.includes("import-padus-areas")) {
+function isDirectRun(scriptPath: string | undefined): boolean {
+  return /(?:^|[/\\])import-padus-areas\.(?:ts|js)$/.test(scriptPath ?? "");
+}
+
+if (isDirectRun(process.argv[1])) {
   const args = parseArgs(process.argv.slice(2));
   importPadusAreas(args)
     .then(() => db.end())

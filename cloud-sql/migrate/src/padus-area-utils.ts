@@ -381,6 +381,13 @@ export function buildLinkDestinationsSql(replaceExisting: boolean): string {
   return `SELECT link_summit_destinations_to_areas(${replaceExisting ? "true" : "false"}) AS inserted_count;`;
 }
 
+function requireGeoJsonFeature(value: unknown, errorMessage: string): GeoJsonFeature {
+  if (!value || typeof value !== "object" || (value as { type?: unknown }).type !== "Feature") {
+    throw new Error(errorMessage);
+  }
+  return value as GeoJsonFeature;
+}
+
 export function parseGeoJsonFeatures(contents: string): GeoJsonFeature[] {
   const trimmed = contents.trim();
   if (!trimmed) return [];
@@ -389,10 +396,15 @@ export function parseGeoJsonFeatures(contents: string): GeoJsonFeature[] {
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed.type === "FeatureCollection" && Array.isArray(parsed.features)) {
-        return parsed.features as GeoJsonFeature[];
+        return parsed.features.map((feature: unknown) =>
+          requireGeoJsonFeature(
+            feature,
+            "FeatureCollection.features must contain only GeoJSON Feature objects"
+          )
+        );
       }
       if (parsed.type === "Feature") {
-        return [parsed as GeoJsonFeature];
+        return [requireGeoJsonFeature(parsed, "GeoJSON input must be a FeatureCollection or Feature")];
       }
       throw new Error("GeoJSON input must be a FeatureCollection or Feature");
     } catch (err) {
@@ -408,9 +420,6 @@ export function parseGeoJsonFeatures(contents: string): GeoJsonFeature[] {
     .filter(Boolean)
     .map((line) => {
       const parsed = JSON.parse(line);
-      if (parsed.type !== "Feature") {
-        throw new Error("NDJSON input lines must be GeoJSON Feature objects");
-      }
-      return parsed as GeoJsonFeature;
+      return requireGeoJsonFeature(parsed, "NDJSON input lines must be GeoJSON Feature objects");
     });
 }
