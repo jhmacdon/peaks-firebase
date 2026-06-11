@@ -4,6 +4,7 @@ import {
   buildLinkDestinationsSql,
   geometryToMultiPolygon,
   normalizePadusFeature,
+  parseGeoJsonFeatures,
   shouldImportPadusFeature,
 } from "../padus-area-utils";
 
@@ -318,4 +319,20 @@ test("normalizes state and territory names case-insensitively", () => {
   }), "4.1");
 
   assert.deepEqual(area?.stateCodes, ["AS", "CA", "GU", "MP", "PR", "VI", "WA"]);
+});
+
+test("parses feature collections and NDJSON features", () => {
+  const collectionText = JSON.stringify({
+    type: "FeatureCollection",
+    features: [{ type: "Feature", geometry: square, properties: { Unit_Nm: "A", Des_Tp: "National Park", Mang_Name: "National Park Service" } }],
+  });
+  const collection = parseGeoJsonFeatures(collectionText);
+  assert.equal(collection.length, 1);
+
+  const ndjson = [
+    JSON.stringify({ type: "Feature", geometry: square, properties: { Unit_Nm: "A", Des_Tp: "National Park", Mang_Name: "National Park Service" } }),
+    JSON.stringify({ type: "Feature", geometry: square, properties: { Unit_Nm: "B", Des_Tp: "National Forest", Mang_Name: "Forest Service" } }),
+  ].join("\n");
+  const parsedNdjson = parseGeoJsonFeatures(ndjson);
+  assert.equal(parsedNdjson.length, 2);
 });

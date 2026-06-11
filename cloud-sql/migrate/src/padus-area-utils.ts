@@ -380,3 +380,37 @@ export function normalizePadusFeature(
 export function buildLinkDestinationsSql(replaceExisting: boolean): string {
   return `SELECT link_summit_destinations_to_areas(${replaceExisting ? "true" : "false"}) AS inserted_count;`;
 }
+
+export function parseGeoJsonFeatures(contents: string): GeoJsonFeature[] {
+  const trimmed = contents.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.type === "FeatureCollection" && Array.isArray(parsed.features)) {
+        return parsed.features as GeoJsonFeature[];
+      }
+      if (parsed.type === "Feature") {
+        return [parsed as GeoJsonFeature];
+      }
+      throw new Error("GeoJSON input must be a FeatureCollection or Feature");
+    } catch (err) {
+      if (!(err instanceof SyntaxError) || !/\r?\n/.test(trimmed)) {
+        throw err;
+      }
+    }
+  }
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parsed = JSON.parse(line);
+      if (parsed.type !== "Feature") {
+        throw new Error("NDJSON input lines must be GeoJSON Feature objects");
+      }
+      return parsed as GeoJsonFeature;
+    });
+}
