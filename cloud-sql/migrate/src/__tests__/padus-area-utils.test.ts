@@ -146,9 +146,27 @@ test("uses source protected area IDs as stable unit identity when available", ()
     PADUS_ID: "NPS-MORA-PART-2",
   }), "5.0");
 
-  assert.equal(fullManager?.groupKey, "source_paid:nps mora");
+  assert.equal(fullManager?.groupKey, "source_paid:nps-mora");
   assert.equal(renamedManagerAlias?.groupKey, fullManager?.groupKey);
   assert.equal(renamedManagerAlias?.sourceId, fullManager?.sourceId);
+});
+
+test("does not collapse punctuation-distinct source protected area IDs", () => {
+  const dashed = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Example National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "National Park Service",
+    Source_PAID: "NPS-MORA",
+  }), "4.1");
+  const spaced = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Example National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "National Park Service",
+    Source_PAID: "NPS MORA",
+  }), "4.1");
+
+  assert.notEqual(dashed?.groupKey, spaced?.groupKey);
+  assert.notEqual(dashed?.sourceId, spaced?.sourceId);
 });
 
 test("recognizes ampersand wild scenic river designation variants", () => {

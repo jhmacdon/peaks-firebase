@@ -69,6 +69,15 @@ function mixedPadusNdjson(): string {
     }),
     JSON.stringify({
       type: "Feature",
+      geometry: square,
+      properties: {
+        Unit_Nm: "Volunteer Park",
+        Des_Tp: "Local Park",
+        Mang_Name: "City Land",
+      },
+    }),
+    JSON.stringify({
+      type: "Feature",
       geometry: null,
       properties: {
         Unit_Nm: "Geometry Missing National Park",
@@ -225,12 +234,13 @@ test("dry-run reports import designations and skipped reasons for audit", async 
     console: logger,
   });
 
-  assert.ok(logger.logs.includes("Skipped PAD-US features: 2"));
+  assert.ok(logger.logs.includes("Skipped PAD-US features: 3"));
   assert.ok(logger.logs.includes("Importable PAD-US designations:"));
   assert.ok(logger.logs.includes("  National Park: 1"));
   assert.ok(logger.logs.includes("Skipped PAD-US features by reason:"));
+  assert.ok(logger.logs.includes("  non_federal: 1"));
   assert.ok(logger.logs.includes("  unsupported_or_missing_geometry: 1"));
-  assert.ok(logger.logs.includes("  unsupported_federal_designation: 1"));
+  assert.ok(logger.logs.includes("  unsupported_designation: 1"));
 });
 
 test("dry-run streams NDJSON files instead of using readFileSync", async () => {
@@ -330,6 +340,10 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.match(clientSql[2], /^INSERT INTO padus_area_import_parts/);
   assert.match(clientSql[3], /empty_geometry_groups/);
   assert.match(clientSql[4], /^WITH dissolved AS/);
+  assert.match(clientSql[4], /validated AS/);
+  assert.match(clientSql[4], /WHERE NOT ST_IsEmpty\(validated_geom\)/);
+  assert.match(clientSql[4], /validated_geom AS geom/);
+  assert.match(clientSql[4], /geom::geography/);
   assert.match(clientSql[4], /jsonb_agg\(DISTINCT source_record_id ORDER BY source_record_id\)/);
   assert.match(clientSql[4], /jsonb_agg\(metadata ORDER BY source_record_id\)/);
   assert.match(clientSql[4], /IS DISTINCT FROM/);

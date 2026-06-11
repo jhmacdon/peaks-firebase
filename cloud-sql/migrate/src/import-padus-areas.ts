@@ -3,6 +3,7 @@ import readline from "readline";
 import db from "./db";
 import {
   buildLinkDestinationsSql,
+  isFederalPadusFeature,
   normalizePadusFeature,
   parseGeoJsonFeatures,
   shouldImportPadusFeature,
@@ -109,8 +110,11 @@ function skipReason(feature: GeoJsonFeature): string {
   if (!feature.geometry || (feature.geometry.type !== "Polygon" && feature.geometry.type !== "MultiPolygon")) {
     return "unsupported_or_missing_geometry";
   }
+  if (!isFederalPadusFeature(feature)) {
+    return "non_federal";
+  }
   if (!shouldImportPadusFeature(feature)) {
-    return "unsupported_federal_designation";
+    return "unsupported_designation";
   }
   return "normalization_failed";
 }
@@ -346,14 +350,22 @@ async function upsertAreas(client: QueryExecutor): Promise<number> {
       FROM padus_area_import_parts p
       GROUP BY group_key
     ),
+    validated AS (
+      SELECT
+        id, name, search_name, kind, designation, manager, owner_name,
+        country_code, state_codes, source, source_id, source_version,
+        metadata,
+        ST_Multi(ST_CollectionExtract(ST_MakeValid(geom), 3)) AS validated_geom
+      FROM dissolved
+    ),
     prepared AS (
       SELECT
         id, name, search_name, kind, designation, manager, owner_name,
         country_code, state_codes, source, source_id, source_version,
         metadata,
-        ST_Multi(ST_CollectionExtract(ST_MakeValid(geom), 3)) AS geom
-      FROM dissolved
-      WHERE NOT ST_IsEmpty(geom)
+        validated_geom AS geom
+      FROM validated
+      WHERE NOT ST_IsEmpty(validated_geom)
     )
     INSERT INTO areas (
       id, name, search_name, kind, designation, manager, owner,

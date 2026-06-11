@@ -146,6 +146,10 @@ function stableSerialize(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
 
+function canonicalSourceIdentifier(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function canonicalAgencyName(value: unknown): string | null {
   const s = text(value);
   if (!s) return null;
@@ -245,13 +249,17 @@ function firstTextProperty(props: Record<string, unknown>, names: string[]): str
   return null;
 }
 
+export function isFederalPadusFeature(feature: GeoJsonFeature): boolean {
+  return isFederal(feature.properties ?? {});
+}
+
 function sourceUnitKey(props: Record<string, unknown>): string | null {
   const sourcePaid = firstTextProperty(props, [
     "Source_PAID",
     "SOURCE_PAID",
     "source_paid",
   ]);
-  if (sourcePaid) return `source_paid:${normalizeSearchName(sourcePaid)}`;
+  if (sourcePaid) return `source_paid:${canonicalSourceIdentifier(sourcePaid)}`;
 
   const wdpaId = firstTextProperty(props, [
     "WDPAID",
@@ -260,8 +268,8 @@ function sourceUnitKey(props: Record<string, unknown>): string | null {
     "wdpaid",
     "wdpa_id",
   ]);
-  if (wdpaId && normalizeSearchName(wdpaId) !== "0") {
-    return `wdpa:${normalizeSearchName(wdpaId)}`;
+  if (wdpaId && canonicalSourceIdentifier(wdpaId) !== "0") {
+    return `wdpa:${canonicalSourceIdentifier(wdpaId)}`;
   }
 
   return null;
