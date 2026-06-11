@@ -245,17 +245,55 @@ function firstTextProperty(props: Record<string, unknown>, names: string[]): str
   return null;
 }
 
+function sourceUnitKey(props: Record<string, unknown>): string | null {
+  const sourcePaid = firstTextProperty(props, [
+    "Source_PAID",
+    "SOURCE_PAID",
+    "source_paid",
+  ]);
+  if (sourcePaid) return `source_paid:${normalizeSearchName(sourcePaid)}`;
+
+  const wdpaId = firstTextProperty(props, [
+    "WDPAID",
+    "WDPA_ID",
+    "Wdpa_Id",
+    "wdpaid",
+    "wdpa_id",
+  ]);
+  if (wdpaId && normalizeSearchName(wdpaId) !== "0") {
+    return `wdpa:${normalizeSearchName(wdpaId)}`;
+  }
+
+  return null;
+}
+
+function fallbackGroupKey(
+  kind: AreaKind,
+  searchName: string,
+  designation: string | null,
+  props: Record<string, unknown>,
+  states: string[]
+): string {
+  const parts = [
+    kind,
+    searchName,
+    canonicalDesignationName(designation, kind),
+    groupingAgencyName(props),
+  ];
+  if (states.length > 0) {
+    parts.push(states.join(","));
+  }
+  return parts.join("|");
+}
+
 function mapKind(props: Record<string, unknown>): AreaKind | null {
   const designationText = [
     text(props.Des_Tp),
     text(props.Loc_Ds),
     text(props.Unit_Nm),
     text(props.Category),
-  ].filter(Boolean).join(" ").toLowerCase();
-  const managerText = [
-    text(props.Mang_Name),
-    text(props.Own_Name),
-  ].filter(Boolean).join(" ").toLowerCase();
+    text(props.FeatClass),
+  ].filter(Boolean).join(" ");
   const normalizedDesignationText = normalizeSearchName(designationText);
 
   if (/\bnational monument\b/.test(normalizedDesignationText)) return "national_monument";
@@ -266,14 +304,16 @@ function mapKind(props: Record<string, unknown>): AreaKind | null {
   if (/\bnational park\b/.test(normalizedDesignationText)) return "national_park";
   if (/\bwilderness\b/.test(normalizedDesignationText)) return "wilderness";
   if (/\bwildlife refuge\b/.test(normalizedDesignationText)) return "wildlife_refuge";
-  if (/\bwild and scenic river\b/.test(normalizedDesignationText)) return "wild_and_scenic_river";
+  if (/\bwild(?: and)? scenic river\b/.test(normalizedDesignationText)) return "wild_and_scenic_river";
   if (
     /\bnational preserve\b/.test(normalizedDesignationText) ||
     /\bnational seashore\b/.test(normalizedDesignationText) ||
     /\bnational lakeshore\b/.test(normalizedDesignationText) ||
+    /\bnational scenic area\b/.test(normalizedDesignationText) ||
+    /\bnational landscape conservation system\b/.test(normalizedDesignationText) ||
+    /\bnational conservation lands\b/.test(normalizedDesignationText) ||
     /\barea of critical environmental concern\b/.test(normalizedDesignationText) ||
-    /\bblm\b|\bbureau of land management\b|\bnational landscape conservation system\b/.test(`${designationText} ${managerText}`) ||
-    isFederal(props)
+    /\bacec\b/.test(normalizedDesignationText)
   ) {
     return "other_federal_area";
   }
@@ -348,12 +388,9 @@ export function normalizePadusFeature(
   const manager = text(props.Mang_Name);
   const owner = text(props.Own_Name);
   const searchName = normalizeSearchName(name);
-  const groupKey = [
-    kind,
-    searchName,
-    canonicalDesignationName(designation, kind),
-    groupingAgencyName(props),
-  ].join("|");
+  const states = stateCodes(props);
+  const groupKey = sourceUnitKey(props) ??
+    fallbackGroupKey(kind, searchName, designation, props, states);
 
   const sourceRecordId =
     firstTextProperty(props, ["Source_PAID", "PADUS_ID", "PADUSID", "GIS_ID", "OBJECTID"]) ??
@@ -366,7 +403,7 @@ export function normalizePadusFeature(
     designation,
     manager,
     owner,
-    stateCodes: stateCodes(props),
+    stateCodes: states,
     source: "padus",
     sourceVersion,
     sourceId: stableId("padus", [groupKey]),

@@ -1,4 +1,7 @@
 import { strict as assert } from "node:assert";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { test } from "node:test";
 import {
   importPadusAreas,
@@ -39,6 +42,41 @@ function samplePadusNdjson(count: number): string {
       PADUS_ID: `NPS-MORA-${i + 1}`,
     },
   })).join("\n");
+}
+
+function mixedPadusNdjson(): string {
+  return [
+    JSON.stringify({
+      type: "Feature",
+      geometry: square,
+      properties: {
+        Unit_Nm: "Mount Rainier National Park",
+        Des_Tp: "National Park",
+        Mang_Name: "National Park Service",
+        Own_Name: "National Park Service",
+        State_Nm: "Washington",
+        Source_PAID: "NPS-MORA",
+      },
+    }),
+    JSON.stringify({
+      type: "Feature",
+      geometry: square,
+      properties: {
+        Unit_Nm: "Joint Base Example",
+        Des_Tp: "Military Land",
+        Mang_Type: "FED",
+      },
+    }),
+    JSON.stringify({
+      type: "Feature",
+      geometry: null,
+      properties: {
+        Unit_Nm: "Geometry Missing National Park",
+        Des_Tp: "National Park",
+        Mang_Name: "National Park Service",
+      },
+    }),
+  ].join("\n");
 }
 
 function silentLogger(): { log: (...args: unknown[]) => void; logs: string[] } {
@@ -109,6 +147,12 @@ class FakeDb {
     if (normalized.includes("linked_destinations")) {
       return { rows: [{ linked_destinations: 1, links: 2 } as T], rowCount: 1 };
     }
+    if (normalized.includes("unlinked_summits")) {
+      return { rows: [{ unlinked_summits: 4 } as T], rowCount: 1 };
+    }
+    if (normalized.includes("linked_area_count")) {
+      return { rows: [{ name: "Mount Rainier", linked_area_count: 2 } as T], rowCount: 1 };
+    }
     return { rows: [], rowCount: 0 };
   }
 }
@@ -161,6 +205,67 @@ test("dry-run reads and normalizes without checking out a client or writing", as
   assert.equal(logger.logs.at(-1), "DRY RUN - no rows written. Re-run with --apply to persist.");
 });
 
+test("dry-run reports import designations and skipped reasons for audit", async () => {
+  const logger = silentLogger();
+  const forbiddenDb = {
+    async connect(): Promise<never> {
+      throw new Error("dry-run must not connect");
+    },
+    async query(): Promise<never> {
+      throw new Error("dry-run must not query");
+    },
+  };
+
+  await importPadusAreas(args({ apply: false, dryRun: true }), {
+    db: forbiddenDb,
+    readFile: () => mixedPadusNdjson(),
+    console: logger,
+  });
+
+  assert.ok(logger.logs.includes("Skipped PAD-US features: 2"));
+  assert.ok(logger.logs.includes("Importable PAD-US designations:"));
+  assert.ok(logger.logs.includes("  National Park: 1"));
+  assert.ok(logger.logs.includes("Skipped PAD-US features by reason:"));
+  assert.ok(logger.logs.includes("  unsupported_or_missing_geometry: 1"));
+  assert.ok(logger.logs.includes("  unsupported_federal_designation: 1"));
+});
+
+test("dry-run streams NDJSON files instead of using readFileSync", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "padus-stream-"));
+  const inputPath = path.join(tmpDir, "padus.ndjson");
+  fs.writeFileSync(inputPath, samplePadusNdjson(2), "utf8");
+  const logger = silentLogger();
+  const forbiddenDb = {
+    async connect(): Promise<never> {
+      throw new Error("dry-run must not connect");
+    },
+    async query(): Promise<never> {
+      throw new Error("dry-run must not query");
+    },
+  };
+
+  const originalReadFileSync = fs.readFileSync;
+  (fs as unknown as { readFileSync: typeof fs.readFileSync }).readFileSync = (() => {
+    throw new Error("readFileSync should not be used for NDJSON imports");
+  }) as typeof fs.readFileSync;
+
+  try {
+    await importPadusAreas(args({ input: inputPath, apply: false, dryRun: true }), {
+      db: forbiddenDb,
+      console: logger,
+    });
+  } finally {
+    (fs as unknown as { readFileSync: typeof fs.readFileSync }).readFileSync = originalReadFileSync;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  assert.deepEqual(logger.logs.slice(0, 3), [
+    "Read features: 2",
+    "Importable PAD-US area parts: 2",
+    "Dissolved logical areas: 1",
+  ]);
+});
+
 test("apply mode uses one checked-out client for transaction work and reports after commit", async () => {
   const calls: QueryCall[] = [];
   const client = new FakeClient(calls);
@@ -192,6 +297,16 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.ok(firstPoolQueryIndex > commitIndex);
   assert.ok(logger.logs.includes("Upserted inserted or changed areas: 3"));
   assert.ok(logger.logs.includes("Inserted destination-area links: 7"));
+  assert.match(
+    calls.find((call) => call.target === "pool" && call.sql.includes("linked_destinations"))?.sql ?? "",
+    /JOIN destinations d ON d\.id = da\.destination_id/
+  );
+  assert.match(
+    calls.find((call) => call.target === "pool" && call.sql.includes("linked_destinations"))?.sql ?? "",
+    /da\.source = 'postgis'/
+  );
+  assert.ok(logger.logs.includes("Database-wide summit destinations with no postgis area link: 4"));
+  assert.ok(logger.logs.includes("Top linked summit destinations by area count:"));
 });
 
 test("apply mode rolls back transaction errors and releases the client", async () => {

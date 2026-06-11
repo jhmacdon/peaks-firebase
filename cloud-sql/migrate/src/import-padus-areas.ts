@@ -1,10 +1,13 @@
 import fs from "fs";
+import readline from "readline";
 import db from "./db";
 import {
   buildLinkDestinationsSql,
   normalizePadusFeature,
   parseGeoJsonFeatures,
+  shouldImportPadusFeature,
   type NormalizedPadusArea,
+  type GeoJsonFeature,
 } from "./padus-area-utils";
 
 export interface Args {
@@ -42,6 +45,17 @@ export interface ImportPadusDependencies {
 export const PADUS_IMPORT_INSERT_CHUNK_SIZE = 250;
 const INSERT_PART_PARAM_COUNT = 15;
 
+interface ImportAudit {
+  readFeatures: number;
+  importableParts: number;
+  groupKeys: Set<string>;
+  byKind: Map<string, number>;
+  designationCounts: Map<string, number>;
+  skippedReasons: Map<string, number>;
+}
+
+type AreaHandler = (area: NormalizedPadusArea) => Promise<void> | void;
+
 function validateArgs(args: Args): void {
   if (args.apply && args.dryRun) {
     throw new Error("--apply and --dry-run cannot be used together");
@@ -78,14 +92,141 @@ function usage(): string {
   ].join("\n");
 }
 
-function groupAreas(areas: NormalizedPadusArea[]): Map<string, NormalizedPadusArea[]> {
-  const groups = new Map<string, NormalizedPadusArea[]>();
-  for (const area of areas) {
-    const list = groups.get(area.groupKey);
-    if (list) list.push(area);
-    else groups.set(area.groupKey, [area]);
+function countMapValue(map: Map<string, number>, key: string): void {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function designationLabel(feature: GeoJsonFeature): string {
+  const props = feature.properties ?? {};
+  const value = props.Des_Tp ?? props.Loc_Ds ?? props.Category ?? props.FeatClass;
+  if (value === null || value === undefined) return "(missing)";
+  const label = String(value).trim();
+  return label.length > 0 ? label : "(missing)";
+}
+
+function skipReason(feature: GeoJsonFeature): string {
+  if (!feature.geometry || (feature.geometry.type !== "Polygon" && feature.geometry.type !== "MultiPolygon")) {
+    return "unsupported_or_missing_geometry";
   }
-  return groups;
+  if (!shouldImportPadusFeature(feature)) {
+    return "unsupported_federal_designation";
+  }
+  return "normalization_failed";
+}
+
+function logCountMap(
+  logger: Pick<Console, "log">,
+  title: string,
+  counts: Map<string, number>
+): void {
+  logger.log(title);
+  for (const [key, count] of Array.from(counts.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    logger.log(`  ${key}: ${count}`);
+  }
+}
+
+function createImportAudit(): ImportAudit {
+  return {
+    readFeatures: 0,
+    importableParts: 0,
+    groupKeys: new Set<string>(),
+    byKind: new Map<string, number>(),
+    designationCounts: new Map<string, number>(),
+    skippedReasons: new Map<string, number>(),
+  };
+}
+
+async function recordFeature(
+  feature: GeoJsonFeature,
+  sourceVersion: string,
+  audit: ImportAudit,
+  onArea?: AreaHandler
+): Promise<void> {
+  audit.readFeatures++;
+
+  const area = normalizePadusFeature(feature, sourceVersion);
+  if (area) {
+    audit.importableParts++;
+    audit.groupKeys.add(area.groupKey);
+    countMapValue(audit.byKind, area.kind);
+    countMapValue(audit.designationCounts, designationLabel(feature));
+    await onArea?.(area);
+  } else {
+    countMapValue(audit.skippedReasons, skipReason(feature));
+  }
+}
+
+async function scanParsedFeatures(
+  features: GeoJsonFeature[],
+  sourceVersion: string,
+  audit: ImportAudit,
+  onArea?: AreaHandler
+): Promise<void> {
+  for (const feature of features) {
+    await recordFeature(feature, sourceVersion, audit, onArea);
+  }
+}
+
+function isNdjsonPath(inputPath: string): boolean {
+  return /\.(?:ndjson|geojsonl|jsonl)$/i.test(inputPath);
+}
+
+async function scanNdjsonFile(
+  inputPath: string,
+  sourceVersion: string,
+  audit: ImportAudit,
+  onArea?: AreaHandler
+): Promise<void> {
+  const lines = readline.createInterface({
+    input: fs.createReadStream(inputPath, { encoding: "utf8" }),
+    crlfDelay: Infinity,
+  });
+
+  for await (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const features = parseGeoJsonFeatures(line);
+    if (features.length !== 1) {
+      throw new Error("NDJSON input lines must be GeoJSON Feature objects");
+    }
+    await recordFeature(features[0], sourceVersion, audit, onArea);
+  }
+}
+
+async function scanInputFeatures(
+  inputPath: string,
+  sourceVersion: string,
+  readFile?: (path: string) => string,
+  onArea?: AreaHandler
+): Promise<ImportAudit> {
+  const audit = createImportAudit();
+
+  if (readFile) {
+    await scanParsedFeatures(parseGeoJsonFeatures(readFile(inputPath)), sourceVersion, audit, onArea);
+    return audit;
+  }
+
+  if (isNdjsonPath(inputPath)) {
+    await scanNdjsonFile(inputPath, sourceVersion, audit, onArea);
+    return audit;
+  }
+
+  const contents = fs.readFileSync(inputPath, "utf8");
+  await scanParsedFeatures(parseGeoJsonFeatures(contents), sourceVersion, audit, onArea);
+  return audit;
+}
+
+function logImportAudit(logger: Pick<Console, "log">, audit: ImportAudit): void {
+  logger.log(`Read features: ${audit.readFeatures}`);
+  logger.log(`Importable PAD-US area parts: ${audit.importableParts}`);
+  logger.log(`Dissolved logical areas: ${audit.groupKeys.size}`);
+  logger.log(`Skipped PAD-US features: ${audit.readFeatures - audit.importableParts}`);
+
+  for (const [kind, count] of Array.from(audit.byKind.entries()).sort()) {
+    logger.log(`  ${kind}: ${count}`);
+  }
+  logCountMap(logger, "Importable PAD-US designations:", audit.designationCounts);
+  logCountMap(logger, "Skipped PAD-US features by reason:", audit.skippedReasons);
 }
 
 async function createTempTable(client: QueryExecutor): Promise<void> {
@@ -291,12 +432,44 @@ async function report(database: QueryExecutor, logger: Pick<Console, "log">): Pr
   }
 
   const linked = await database.query(`
-    SELECT count(DISTINCT destination_id)::int AS linked_destinations,
+    SELECT count(DISTINCT da.destination_id)::int AS linked_destinations,
            count(*)::int AS links
-    FROM destination_areas
+    FROM destination_areas da
+    JOIN destinations d ON d.id = da.destination_id
+    WHERE da.source = 'postgis'
+      AND 'summit'::destination_feature = ANY(d.features)
   `);
-  logger.log(`Database-wide linked summit destinations: ${linked.rows[0].linked_destinations}`);
-  logger.log(`Database-wide destination-area links: ${linked.rows[0].links}`);
+  logger.log(`Database-wide linked summit destinations with postgis area links: ${linked.rows[0].linked_destinations}`);
+  logger.log(`Database-wide summit destination-area postgis links: ${linked.rows[0].links}`);
+
+  const unlinked = await database.query(`
+    SELECT count(*)::int AS unlinked_summits
+    FROM destinations d
+    WHERE d.location IS NOT NULL
+      AND 'summit'::destination_feature = ANY(d.features)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM destination_areas da
+        WHERE da.destination_id = d.id
+          AND da.source = 'postgis'
+      )
+  `);
+  logger.log(`Database-wide summit destinations with no postgis area link: ${unlinked.rows[0].unlinked_summits}`);
+
+  const topLinked = await database.query(`
+    SELECT d.name, count(*)::int AS linked_area_count
+    FROM destination_areas da
+    JOIN destinations d ON d.id = da.destination_id
+    WHERE da.source = 'postgis'
+      AND 'summit'::destination_feature = ANY(d.features)
+    GROUP BY d.id, d.name
+    ORDER BY linked_area_count DESC, d.name
+    LIMIT 25
+  `);
+  logger.log("Top linked summit destinations by area count:");
+  for (const row of topLinked.rows) {
+    logger.log(`  ${row.name}: ${row.linked_area_count}`);
+  }
 }
 
 export async function importPadusAreas(
@@ -310,29 +483,12 @@ export async function importPadusAreas(
   }
 
   const database = (deps.db ?? db) as ImportDatabase;
-  const readFile = deps.readFile ?? ((path: string) => fs.readFileSync(path, "utf8"));
+  const readFile = deps.readFile;
   const logger = deps.console ?? console;
 
-  const contents = readFile(args.input);
-  const features = parseGeoJsonFeatures(contents);
-  const normalized = features
-    .map((feature) => normalizePadusFeature(feature, args.sourceVersion))
-    .filter((area): area is NormalizedPadusArea => area !== null);
-  const groups = groupAreas(normalized);
-
-  logger.log(`Read features: ${features.length}`);
-  logger.log(`Importable PAD-US area parts: ${normalized.length}`);
-  logger.log(`Dissolved logical areas: ${groups.size}`);
-
-  const byKind = new Map<string, number>();
-  for (const area of normalized) {
-    byKind.set(area.kind, (byKind.get(area.kind) ?? 0) + 1);
-  }
-  for (const [kind, count] of Array.from(byKind.entries()).sort()) {
-    logger.log(`  ${kind}: ${count}`);
-  }
-
   if (args.dryRun || !args.apply) {
+    const audit = await scanInputFeatures(args.input, args.sourceVersion, readFile);
+    logImportAudit(logger, audit);
     logger.log("DRY RUN - no rows written. Re-run with --apply to persist.");
     return;
   }
@@ -344,7 +500,23 @@ export async function importPadusAreas(
     transactionActive = true;
 
     await createTempTable(client);
-    await insertParts(client, normalized);
+
+    let pendingAreas: NormalizedPadusArea[] = [];
+    const flushPendingAreas = async () => {
+      if (pendingAreas.length === 0) return;
+      const areas = pendingAreas;
+      pendingAreas = [];
+      await insertParts(client, areas);
+    };
+    const audit = await scanInputFeatures(args.input, args.sourceVersion, readFile, async (area) => {
+      pendingAreas.push(area);
+      if (pendingAreas.length >= PADUS_IMPORT_INSERT_CHUNK_SIZE) {
+        await flushPendingAreas();
+      }
+    });
+    await flushPendingAreas();
+    logImportAudit(logger, audit);
+
     const upserted = await upsertAreas(client);
     logger.log(`Upserted inserted or changed areas: ${upserted}`);
 

@@ -58,7 +58,7 @@ test("normalizes a PAD-US national park feature", () => {
   assert.equal(area?.sourceRecordId, "NPS-MORA");
   assert.match(area?.sourceId ?? "", /^padus-/);
   assert.doesNotMatch(area?.sourceId ?? "", /^padus\d+-/);
-  assert.equal(area?.groupKey, "national_park|mount rainier national park|national park|national park service");
+  assert.equal(area?.groupKey, "national_park|mount rainier national park|national park|national park service|WA");
 });
 
 test("keeps outdoor-relevant federal wilderness and rejects local parks", () => {
@@ -87,6 +87,78 @@ test("keeps outdoor-relevant federal wilderness and rejects local parks", () => 
 
   assert.equal(shouldImportPadusFeature(wilderness), true);
   assert.equal(shouldImportPadusFeature(localPark), false);
+});
+
+test("rejects federal PAD-US records without outdoor protected-area designations", () => {
+  const military = padusFeature({
+    Unit_Nm: "Joint Base Example",
+    Des_Tp: "Military Land",
+    Mang_Name: "Department of Defense",
+    Mang_Type: "FED",
+    Own_Type: "FED",
+  });
+  const administrative = padusFeature({
+    Unit_Nm: "Federal Administrative Site",
+    Des_Tp: "Administrative Site",
+    Mang_Name: "Bureau of Land Management",
+    Mang_Type: "FED",
+  });
+
+  assert.equal(shouldImportPadusFeature(military), false);
+  assert.equal(normalizePadusFeature(military, "4.1"), null);
+  assert.equal(shouldImportPadusFeature(administrative), false);
+  assert.equal(normalizePadusFeature(administrative, "4.1"), null);
+});
+
+test("distinguishes same-name fallback units in different states", () => {
+  const colorado = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Twin Lakes National Recreation Area",
+    Des_Tp: "National Recreation Area",
+    Mang_Name: "National Park Service",
+    State_Nm: "Colorado",
+  }), "4.1");
+  const washington = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Twin Lakes National Recreation Area",
+    Des_Tp: "National Recreation Area",
+    Mang_Name: "National Park Service",
+    State_Nm: "Washington",
+  }), "4.1");
+
+  assert.notEqual(colorado?.groupKey, washington?.groupKey);
+  assert.notEqual(colorado?.sourceId, washington?.sourceId);
+});
+
+test("uses source protected area IDs as stable unit identity when available", () => {
+  const fullManager = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Rainier National Park",
+    Des_Tp: "National Park",
+    Mang_Name: "National Park Service",
+    State_Nm: "Washington",
+    Source_PAID: "NPS-MORA",
+    PADUS_ID: "NPS-MORA-PART-1",
+  }), "4.1");
+  const renamedManagerAlias = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Rainier Park",
+    Des_Tp: "National Park",
+    Mang_Name: "NPS",
+    State_Nm: "Washington",
+    Source_PAID: "NPS-MORA",
+    PADUS_ID: "NPS-MORA-PART-2",
+  }), "5.0");
+
+  assert.equal(fullManager?.groupKey, "source_paid:nps mora");
+  assert.equal(renamedManagerAlias?.groupKey, fullManager?.groupKey);
+  assert.equal(renamedManagerAlias?.sourceId, fullManager?.sourceId);
+});
+
+test("recognizes ampersand wild scenic river designation variants", () => {
+  const area = normalizePadusFeature(padusFeature({
+    Unit_Nm: "White Salmon National Wild & Scenic River",
+    Des_Tp: "National Wild & Scenic River",
+    Mang_Name: "Forest Service",
+  }), "4.1");
+
+  assert.equal(area?.kind, "wild_and_scenic_river");
 });
 
 test("converts polygons to multipolygons and preserves multipolygons", () => {
