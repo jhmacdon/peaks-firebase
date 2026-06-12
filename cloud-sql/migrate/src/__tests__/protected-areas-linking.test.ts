@@ -39,8 +39,8 @@ describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipRe
          $1, 'Fixture National Park', 'fixture national park', 'national_park',
          'National Park', 'National Park Service', 'National Park Service',
          'US', ARRAY['WA'], 'test', $1, 'test',
-         ST_GeogFromText('SRID=4326;MULTIPOLYGON(((-122 46,-121 46,-121 47,-122 47,-122 46)))'),
-         ST_GeogFromText('SRID=4326;POINT(-121.5 46.5)'),
+         ST_GeomFromText('SRID=4326;MULTIPOLYGON(((-122 46,-121 46,-121 47,-122 47,-122 46)))'),
+         ST_GeomFromText('SRID=4326;POINT(-121.5 46.5)'),
          46, 47, -122, -121,
          '{}'::jsonb
        )`,

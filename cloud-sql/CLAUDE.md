@@ -50,7 +50,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 - **Segments are source of truth**: routes materialize their path/stats from ordered segments; recompute on change
 - **Route distance is one-way**: for out_and_back, total hiking distance = `distance * 2`
 - **Segment direction**: `route_segments.direction` is `forward` or `reverse` (CHECK constraint, not enum)
-- **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geography(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
+- **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geometry(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
 - **Text IDs**: all PKs are `TEXT` (20-char alphanumeric, matching Firebase document ID style)
 - **`search_name`**: lowercased/normalized copy of `name` for trigram search (indexed with `gin_trgm_ops`)
 - **`updated_at` triggers**: automatic on destinations, areas, lists, routes, tracking_sessions

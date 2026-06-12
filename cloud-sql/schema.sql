@@ -1,6 +1,7 @@
 -- Peaks PostGIS Schema
 -- Cloud SQL for PostgreSQL 15+ with PostGIS + pg_trgm
--- All geographic types use geography (spherical, meters) not geometry (planar)
+-- Point/route distance fields use geography (spherical, meters).
+-- Large official protected-area boundaries use geometry for containment.
 -- 3D types (PointZ, LineStringZ) carry elevation as Z coordinate
 
 -- =============================================================================
@@ -145,8 +146,8 @@ CREATE TABLE areas (
     source_version  TEXT NOT NULL,
     source_updated_at TIMESTAMPTZ,
 
-    boundary        geography(MultiPolygon, 4326) NOT NULL,
-    centroid        geography(Point, 4326) NOT NULL,
+    boundary        geometry(MultiPolygon, 4326) NOT NULL,
+    centroid        geometry(Point, 4326) NOT NULL,
     bbox_min_lat    DOUBLE PRECISION NOT NULL,
     bbox_max_lat    DOUBLE PRECISION NOT NULL,
     bbox_min_lng    DOUBLE PRECISION NOT NULL,
@@ -598,10 +599,23 @@ BEGIN
 
   INSERT INTO destination_areas (destination_id, area_id, relation, source)
   SELECT d.id, a.id, 'contained_by', 'postgis'
-  FROM destinations d
-  JOIN areas a ON ST_Covers(a.boundary, d.location)
-  WHERE d.location IS NOT NULL
-    AND 'summit'::destination_feature = ANY(d.features)
+  FROM (
+    SELECT id, geom, ST_X(geom) AS lng, ST_Y(geom) AS lat
+    FROM (
+      SELECT id, ST_Force2D(location::geometry) AS geom
+      FROM destinations
+      WHERE location IS NOT NULL
+        AND 'summit'::destination_feature = ANY(features)
+    ) summit_points
+  ) d
+  JOIN LATERAL (
+    SELECT id
+    FROM areas a
+    WHERE d.lng BETWEEN a.bbox_min_lng AND a.bbox_max_lng
+      AND d.lat BETWEEN a.bbox_min_lat AND a.bbox_max_lat
+      AND a.boundary && d.geom
+      AND ST_Covers(a.boundary, d.geom)
+  ) a ON true
   ON CONFLICT (destination_id, area_id) DO NOTHING;
 
   GET DIAGNOSTICS inserted_count = ROW_COUNT;

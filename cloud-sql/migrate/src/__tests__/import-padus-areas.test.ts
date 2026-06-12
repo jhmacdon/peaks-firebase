@@ -5,6 +5,7 @@ import path from "path";
 import { test } from "node:test";
 import {
   importPadusAreas,
+  PADUS_IMPORT_INSERT_CHUNK_SIZE,
   parseArgs,
 } from "../import-padus-areas";
 
@@ -40,6 +41,21 @@ function samplePadusNdjson(count: number): string {
       Own_Name: "National Park Service",
       State_Nm: "Washington",
       PADUS_ID: `NPS-MORA-${i + 1}`,
+    },
+  })).join("\n");
+}
+
+function distinctPadusNdjson(count: number): string {
+  return Array.from({ length: count }, (_, i) => JSON.stringify({
+    type: "Feature",
+    geometry: square,
+    properties: {
+      Unit_Nm: `Example ${i + 1} National Park`,
+      Des_Tp: "National Park",
+      Mang_Name: "National Park Service",
+      Own_Name: "National Park Service",
+      State_Nm: "Washington",
+      Source_PAID: `NPS-EXAMPLE-${i + 1}`,
     },
   })).join("\n");
 }
@@ -113,14 +129,17 @@ class FakeClient {
     if (this.failOn?.(normalized)) {
       throw new Error("forced query failure");
     }
-    if (normalized.includes("link_summit_destinations_to_areas")) {
-      return { rows: [{ inserted_count: "7" } as T], rowCount: 1 };
+    if (normalized.startsWith("SELECT id FROM destinations")) {
+      return { rows: [{ id: "summit-1" }, { id: "summit-2" }] as T[], rowCount: 2 };
     }
-    if (normalized.includes("empty_geometry_groups")) {
-      return { rows: [{ empty_geometry_groups: 0 } as T], rowCount: 1 };
+    if (normalized.startsWith("INSERT INTO destination_areas")) {
+      return { rows: [], rowCount: 7 };
     }
-    if (normalized.startsWith("WITH dissolved AS")) {
-      return { rows: [], rowCount: 3 };
+    if (normalized.startsWith("WITH input (")) {
+      return { rows: [], rowCount: 1 };
+    }
+    if (normalized.startsWith("INSERT INTO padus_area_import_parts")) {
+      return { rows: [], rowCount: 2 };
     }
     return { rows: [], rowCount: 0 };
   }
@@ -173,6 +192,8 @@ function args(overrides: Partial<ReturnType<typeof parseArgs>> = {}): ReturnType
   return {
     input: "/fake/padus.ndjson",
     sourceVersion: "4.1",
+    insertChunkSize: PADUS_IMPORT_INSERT_CHUNK_SIZE,
+    trustSourceGeometry: false,
     apply: true,
     dryRun: false,
     linkDestinations: false,
@@ -189,6 +210,18 @@ test("rejects conflicting and ineffective CLI flags", () => {
   assert.throws(
     () => parseArgs(["--input=/tmp/padus.ndjson", "--replace-links"]),
     /--replace-links requires --link-destinations/
+  );
+  assert.throws(
+    () => parseArgs(["--input=/tmp/padus.ndjson", "--insert-chunk-size=0"]),
+    /--insert-chunk-size must be a positive integer/
+  );
+  assert.equal(
+    parseArgs(["--input=/tmp/padus.ndjson", "--insert-chunk-size=10"]).insertChunkSize,
+    10
+  );
+  assert.equal(
+    parseArgs(["--input=/tmp/padus.ndjson", "--trust-source-geometry"]).trustSourceGeometry,
+    true
   );
 });
 
@@ -336,25 +369,29 @@ test("apply mode uses one checked-out client for transaction work and reports af
 
   const clientSql = calls.filter((call) => call.target === "client").map((call) => call.sql);
   assert.equal(clientSql[0], "BEGIN");
-  assert.match(clientSql[1], /^CREATE TEMP TABLE padus_area_import_parts/);
-  assert.match(clientSql[2], /^INSERT INTO padus_area_import_parts/);
-  assert.match(clientSql[3], /empty_geometry_groups/);
-  assert.match(clientSql[4], /^WITH dissolved AS/);
-  assert.match(clientSql[4], /validated AS/);
-  assert.match(clientSql[4], /WHERE NOT ST_IsEmpty\(validated_geom\)/);
-  assert.match(clientSql[4], /validated_geom AS geom/);
-  assert.match(clientSql[4], /geom::geography/);
-  assert.match(clientSql[4], /jsonb_agg\(DISTINCT source_record_id ORDER BY source_record_id\)/);
-  assert.match(clientSql[4], /jsonb_agg\(metadata ORDER BY source_record_id\)/);
-  assert.match(clientSql[4], /IS DISTINCT FROM/);
-  assert.equal(clientSql[5], "SELECT link_summit_destinations_to_areas(false) AS inserted_count;");
-  assert.equal(clientSql[6], "COMMIT");
+  assert.match(clientSql[1], /^WITH input \(/);
+  assert.match(clientSql[1], /ST_MakeValid\(parsed_geom\)/);
+  assert.doesNotMatch(clientSql[1], /::geography/);
+  assert.match(clientSql[1], /IS DISTINCT FROM/);
+  assert.match(clientSql[2], /^SELECT id FROM destinations/);
+  assert.match(clientSql[3], /^INSERT INTO destination_areas/);
+  assert.match(clientSql[3], /d\.lng BETWEEN a\.bbox_min_lng AND a\.bbox_max_lng/);
+  assert.match(clientSql[3], /ST_Covers\(a\.boundary, d\.geom\)/);
+  assert.equal(clientSql[4], "COMMIT");
+
+  const upsertCall = calls.find((call) =>
+    call.target === "client" && call.sql.startsWith("WITH input (")
+  );
+  const upsertMetadata = JSON.parse(String(upsertCall?.params?.[11]));
+  assert.deepEqual(upsertMetadata.source_record_ids, ["NPS-MORA-1", "NPS-MORA-2"]);
+  assert.equal(upsertMetadata.parts.length, 2);
 
   const commitIndex = calls.findIndex((call) => call.sql === "COMMIT");
   const firstPoolQueryIndex = calls.findIndex((call) => call.target === "pool");
   assert.ok(firstPoolQueryIndex > commitIndex);
-  assert.ok(logger.logs.includes("Skipped empty geometry groups after PostGIS validation: 0"));
-  assert.ok(logger.logs.includes("Upserted inserted or changed areas: 3"));
+  assert.ok(logger.logs.includes("Prepared PAD-US logical area geometries: 1"));
+  assert.ok(logger.logs.includes("Upserted inserted or changed areas: 1"));
+  assert.ok(logger.logs.includes("Linked destination-area batch 1/1"));
   assert.ok(logger.logs.includes("Inserted destination-area links: 7"));
   assert.match(
     calls.find((call) => call.target === "pool" && call.sql.includes("linked_destinations"))?.sql ?? "",
@@ -370,7 +407,7 @@ test("apply mode uses one checked-out client for transaction work and reports af
 
 test("apply mode rolls back transaction errors and releases the client", async () => {
   const calls: QueryCall[] = [];
-  const client = new FakeClient(calls, (sql) => sql.startsWith("WITH dissolved AS"));
+  const client = new FakeClient(calls, (sql) => sql.startsWith("WITH input ("));
   const fakeDb = new FakeDb(client, calls);
 
   await assert.rejects(
@@ -409,21 +446,60 @@ test("report failures after commit do not attempt rollback", async () => {
   assert.equal(client.released, true);
 });
 
-test("temp table inserts are chunked instead of one query per PAD-US part", async () => {
+test("grouped area upserts are chunked instead of one query per PAD-US part", async () => {
   const calls: QueryCall[] = [];
   const client = new FakeClient(calls);
   const fakeDb = new FakeDb(client, calls);
 
   await importPadusAreas(args(), {
     db: fakeDb,
-    readFile: () => samplePadusNdjson(251),
+    readFile: () => distinctPadusNdjson(251),
     console: silentLogger(),
   });
 
   const insertCalls = calls.filter((call) =>
-    call.target === "client" && call.sql.startsWith("INSERT INTO padus_area_import_parts")
+    call.target === "client" && call.sql.startsWith("WITH input (")
   );
   assert.equal(insertCalls.length, 2);
-  assert.equal(insertCalls[0].params?.length, 250 * 15);
-  assert.equal(insertCalls[1].params?.length, 15);
+  assert.equal(insertCalls[0].params?.length, 250 * 13);
+  assert.equal(insertCalls[1].params?.length, 13);
+});
+
+test("grouped area upsert chunk size can be lowered for large geometries", async () => {
+  const calls: QueryCall[] = [];
+  const client = new FakeClient(calls);
+  const fakeDb = new FakeDb(client, calls);
+
+  await importPadusAreas(args({ insertChunkSize: 10 }), {
+    db: fakeDb,
+    readFile: () => distinctPadusNdjson(21),
+    console: silentLogger(),
+  });
+
+  const insertCalls = calls.filter((call) =>
+    call.target === "client" && call.sql.startsWith("WITH input (")
+  );
+  assert.equal(insertCalls.length, 3);
+  assert.equal(insertCalls[0].params?.length, 10 * 13);
+  assert.equal(insertCalls[1].params?.length, 10 * 13);
+  assert.equal(insertCalls[2].params?.length, 13);
+});
+
+test("grouped area upsert can trust source geometry and skip eager repair", async () => {
+  const calls: QueryCall[] = [];
+  const client = new FakeClient(calls);
+  const fakeDb = new FakeDb(client, calls);
+
+  await importPadusAreas(args({ trustSourceGeometry: true }), {
+    db: fakeDb,
+    readFile: () => samplePadusNdjson(1),
+    console: silentLogger(),
+  });
+
+  const insertSql = calls.find((call) =>
+    call.target === "client" && call.sql.startsWith("WITH input (")
+  )?.sql ?? "";
+  assert.match(insertSql, /ST_CollectionExtract\(parsed_geom, 3\)/);
+  assert.doesNotMatch(insertSql, /ST_IsValid/);
+  assert.doesNotMatch(insertSql, /ST_MakeValid\(parsed_geom\)/);
 });
