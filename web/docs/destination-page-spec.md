@@ -1,6 +1,7 @@
-# Destination detail page — design spec
+# Destination & route detail pages — design spec
 
-Redesign of `/destinations/[id]` modeled on the trail pages hikers already know:
+Redesign of `/destinations/[id]` and `/routes/[id]` modeled on the trail pages
+hikers already know:
 WTA hike pages (e.g. wta.org/go-hiking/hikes/crystal-peaks) and AllTrails trail
 pages. The goal is an editorial, information-dense reference page — not a
 marketing landing page.
@@ -146,6 +147,17 @@ All data already exists; one extra query was added to the page load:
 | Seasonality       | `averages.months` (merged with offset) |
 | Facilities        | `amenities` JSONB |
 | Nearby            | `getNearbyDestinations(lat, lng, 15000)` |
+
+## Route detail page
+
+`/routes/[id]` follows the same template (shared primitives live in
+`src/components/detail-sections.tsx`): breadcrumb, title with a difficulty
+pill, meta line (shape · waypoints · sessions), "Directions to start" action,
+five-cell stats strip (distance / gain / loss / est. time / difficulty), then
+About prose, the route map, the canvas elevation profile, waypoint rows
+(Start → Finish), and segment rows with shared-usage notes. The sidebar holds
+the stats list, a Before-you-go panel (preferred direction + trailhead
+directions), and external resource links.
 
 ## Non-goals (for now)
 

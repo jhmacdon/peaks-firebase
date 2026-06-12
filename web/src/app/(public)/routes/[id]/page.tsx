@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -16,18 +15,23 @@ import {
   type RouteElevationPoint,
   type RouteSegment,
 } from "../../../../lib/actions/routes";
-import RouteSegmentList from "../../../../components/route-segment-list";
-import RouteExternalLinks from "../../../../components/route-external-links";
 import {
   describeCompletionMode,
   describeRouteShape,
   formatDistanceMeters,
-  formatDurationHours,
   formatDurationRange,
   formatElevationMeters,
+  parseExternalRouteLinks,
   summarizeRouteGuide,
-  summarizeSegments,
 } from "../../../../lib/route-guide";
+import {
+  Breadcrumb,
+  DifficultyPill,
+  SidePanel,
+  StatCell,
+  StatRow,
+  titleize,
+} from "../../../../components/detail-sections";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -71,265 +75,356 @@ export default function RouteDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+      <div className="min-h-screen bg-white dark:bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          <div className="text-gray-500 py-16 text-center text-sm">Loading…</div>
+        </div>
       </div>
     );
   }
 
   if (!route) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Route not found</div>
+      <div className="min-h-screen bg-white dark:bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          <div className="text-gray-500 py-16 text-center text-sm">
+            Route not found
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Build elevation profile data (cumulative distance + elevation)
-  const profilePoints = buildProfilePoints(elevationPoints);
+  const name = route.name || "Unnamed Route";
   const guide = summarizeRouteGuide(route, segments.length);
-  const segmentSummary = summarizeSegments(segments);
-  const externalLinks = route.external_links;
+  const profilePoints = buildProfilePoints(elevationPoints);
+  const externalLinks = parseExternalRouteLinks(route.external_links);
+
+  const start = destinations[0];
+  const directionsUrl =
+    start && start.lat != null && start.lng != null
+      ? `https://www.google.com/maps/dir/?api=1&destination=${start.lat},${start.lng}`
+      : null;
+
+  const metaParts = [
+    describeRouteShape(route.shape),
+    destinations.length > 0
+      ? `${destinations.length} waypoint${destinations.length === 1 ? "" : "s"}`
+      : null,
+    sessionCount > 0
+      ? `${sessionCount.toLocaleString("en-US")} recorded session${sessionCount === 1 ? "" : "s"}`
+      : null,
+  ].filter((part): part is string => part != null);
+
+  const aboutParagraphs = buildAbout(name, route, guide, sessionCount);
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/discover"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          Discover
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">
-          {route.name || "Unnamed Route"}
-        </span>
-      </div>
+    <div className="min-h-screen bg-white dark:bg-gray-950">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <Breadcrumb current={name} />
 
-      {/* Header */}
-      <div className="relative mb-8 overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-sm dark:border-gray-800 dark:from-gray-950 dark:via-gray-900 dark:to-slate-950">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_32%)]" />
-        <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
-              Public route guide
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-              {route.name || "Unnamed Route"}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-              {guide.routeNarrative || "A public route overview with destinations, geometry, and route-level details."}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <Pill>{describeRouteShape(route.shape)}</Pill>
-              <Pill>
-                {route.completion === "none"
-                  ? "Any direction"
-                  : route.completion.replace(/_/g, " ")}
-              </Pill>
-              <Pill>{sessionCount} sessions</Pill>
-              <Pill>{segmentSummary.count} segments</Pill>
+        <header className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                {name}
+              </h1>
+              <DifficultyPill label={guide.difficultyLabel} />
             </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Difficulty
-              </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {guide.difficultyLabel}
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Driven by {guide.difficultyReason}
+            {metaParts.length > 0 && (
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                {metaParts.map(titleizeFirst).join(" · ")}
               </p>
-            </div>
-            <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/80">
-              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Estimated time
-              </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)}
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                {formatDurationHours(guide.estimatedHoursMid)} midpoint hike
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          label="Distance"
-          value={formatDistanceMeters(route.distance)}
-          detail={guide.routeShapeLabel}
-        />
-        <StatCard
-          label="Elevation Gain"
-          value={formatElevationMeters(route.gain)}
-          detail={
-            guide.climbingDensityFeetPerMile != null
-              ? `${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`
-              : "Climbing density"
-          }
-        />
-        <StatCard
-          label="Elevation Loss"
-          value={formatElevationMeters(route.gain_loss)}
-          detail="Descent"
-        />
-        <StatCard
-          label="Est. time"
-          value={formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)}
-          detail={formatDurationHours(guide.estimatedHoursMid)}
-        />
-        <StatCard
-          label="Difficulty"
-          value={guide.difficultyLabel}
-          detail={guide.difficultyReason}
-        />
-        <StatCard
-          label="Destinations"
-          value={destinations.length.toString()}
-          detail={`${route.destination_count} linked in data`}
-        />
-      </div>
-
-      {/* Map */}
-      {route.polyline6 && (
-        <div className="mb-8 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h3 className="font-semibold">Route Map</h3>
-            <span className="text-xs text-gray-500">
-              {guide.routeShapeLabel}
-            </span>
-          </div>
-          <RouteMap polyline6={route.polyline6} />
-        </div>
-      )}
-
-      {/* Elevation Profile */}
-      {profilePoints.length >= 2 && (
-        <div className="mb-8 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h3 className="font-semibold">Elevation Profile</h3>
-            <span className="text-xs text-gray-500">
-              {guide.climbingDensityFeetPerMile != null
-                ? `${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`
-                : "Derived from route geometry"}
-            </span>
-          </div>
-          <ElevationProfile points={profilePoints} />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Details */}
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="font-semibold mb-4">Details</h3>
-          <dl className="space-y-3 text-sm">
-            <DetailRow label="Guide summary">
-              <span className="text-right text-gray-600 dark:text-gray-300">
-                {guide.routeNarrative}
-              </span>
-            </DetailRow>
-            <DetailRow label="Shape">
-              <span className="capitalize">
-                {describeRouteShape(route.shape)}
-              </span>
-            </DetailRow>
-            <DetailRow label="Completion">
-              <span>{describeCompletionMode(route.completion)}</span>
-            </DetailRow>
-            {route.elevation_string && (
-              <DetailRow label="Elevation">{route.elevation_string}</DetailRow>
             )}
-            <DetailRow label="Sessions">
-              <span>{sessionCount.toLocaleString()}</span>
-            </DetailRow>
-            <DetailRow label="Segments">
-              <span>{segmentSummary.count}</span>
-            </DetailRow>
-            <DetailRow label="External Links">
-              <span>{Array.isArray(externalLinks) ? externalLinks.length : 0}</span>
-            </DetailRow>
-          </dl>
+          </div>
+          {directionsUrl && (
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              Directions to start
+            </a>
+          )}
+        </header>
+
+        <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:grid-cols-5 dark:border-gray-800 dark:bg-gray-800">
+          <StatCell label="Distance" value={formatDistanceMeters(route.distance)} />
+          <StatCell
+            label="Elevation gain"
+            value={formatElevationMeters(route.gain)}
+          />
+          <StatCell
+            label="Elevation loss"
+            value={formatElevationMeters(route.gain_loss)}
+          />
+          <StatCell
+            label="Est. time"
+            value={formatDurationRange(
+              guide.estimatedHoursLow,
+              guide.estimatedHoursHigh
+            )}
+          />
+          <StatCell label="Difficulty" value={guide.difficultyLabel} />
         </div>
 
-        {/* Destinations */}
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="font-semibold mb-4">
-            Destinations ({destinations.length})
-          </h3>
-          {destinations.length === 0 ? (
-            <p className="text-sm text-gray-500">No destinations linked</p>
-          ) : (
-            <div className="space-y-3">
-              {destinations.map((dest, index) => (
-                <Link
-                  key={dest.id}
-                  href={`/destinations/${dest.id}`}
-                  className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/30 dark:border-gray-800 dark:hover:border-blue-700 dark:hover:bg-blue-950/10"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-sm">
-                        {dest.name || "Unknown"}
+        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="min-w-0">
+            <section>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                About {name}
+              </h2>
+              <div className="mt-3 space-y-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
+                {aboutParagraphs.map((paragraph, index) => (
+                  <p key={`${index}-${paragraph}`}>{paragraph}</p>
+                ))}
+              </div>
+            </section>
+
+            {route.polyline6 && (
+              <section className="mt-10">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Map
+                </h2>
+                <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                  <RouteMap polyline6={route.polyline6} />
+                </div>
+              </section>
+            )}
+
+            {profilePoints.length >= 2 && (
+              <section className="mt-10">
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Elevation profile
+                  </h2>
+                  {guide.climbingDensityFeetPerMile != null && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {Math.round(guide.climbingDensityFeetPerMile).toLocaleString()}{" "}
+                      ft/mi average
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+                  <ElevationProfile points={profilePoints} />
+                </div>
+              </section>
+            )}
+
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Waypoints{destinations.length > 0 ? ` (${destinations.length})` : ""}
+              </h2>
+              {destinations.length === 0 ? (
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                  No destinations are linked to this route yet.
+                </p>
+              ) : (
+                <ol className="mt-3 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+                  {destinations.map((dest, index) => (
+                    <li
+                      key={dest.id}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <Link
+                          href={`/destinations/${dest.id}`}
+                          className="font-medium text-gray-900 hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-300"
+                        >
+                          {dest.name || "Unknown"}
+                        </Link>
+                        <div className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                          {[
+                            dest.elevation != null
+                              ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
+                              : null,
+                            ...(Array.isArray(dest.features)
+                              ? dest.features.map(titleize)
+                              : []),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
                       </div>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      <span className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
                         {index === 0
                           ? "Start"
                           : index === destinations.length - 1
                             ? "Finish"
                             : `Waypoint ${index + 1}`}
                       </span>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {dest.elevation
-                        ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-                        : ""}
-                      {Array.isArray(dest.features) &&
-                        dest.features.length > 0 &&
-                        ` \u00B7 ${dest.features.join(", ")}`}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    #{dest.ordinal + 1}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h3 className="font-semibold">Segment breakdown</h3>
-            <span className="text-xs text-gray-500">
-              {segmentSummary.mostSharedCount > 1
-                ? `Most reused on ${segmentSummary.mostSharedCount} routes`
-                : "Route-specific geometry"}
-            </span>
-          </div>
-          {segments.length === 0 ? (
-            <p className="text-sm text-gray-500">No segment data available</p>
-          ) : (
-            <RouteSegmentList segments={segments} />
-          )}
-        </div>
+            {segments.length > 0 && (
+              <section className="mt-10">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Segments ({segments.length})
+                </h2>
+                <ol className="mt-3 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+                  {segments.map((segment) => (
+                    <li
+                      key={`${segment.id}-${segment.ordinal}`}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {segment.name || `Segment ${segment.ordinal + 1}`}
+                        </div>
+                        <div className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                          {[
+                            formatDistanceMeters(segment.distance),
+                            segment.gain != null
+                              ? `${formatElevationMeters(segment.gain)} gain`
+                              : null,
+                            segment.direction === "reverse" ? "Reversed" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </div>
+                      {segment.route_count > 1 && (
+                        <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                          Shared by {segment.route_count} routes
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+          </main>
 
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="font-semibold mb-4">External resources</h3>
-          <RouteExternalLinks links={externalLinks} />
+          <aside className="space-y-6">
+            <SidePanel title="Stats">
+              <dl className="space-y-2">
+                <StatRow label="Shape" value={titleizeFirst(describeRouteShape(route.shape))} />
+                <StatRow label="Distance" value={formatDistanceMeters(route.distance)} />
+                <StatRow
+                  label="Elevation gain"
+                  value={formatElevationMeters(route.gain)}
+                />
+                <StatRow
+                  label="Elevation loss"
+                  value={formatElevationMeters(route.gain_loss)}
+                />
+                {guide.climbingDensityFeetPerMile != null && (
+                  <StatRow
+                    label="Climbing density"
+                    value={`${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`}
+                  />
+                )}
+                <StatRow label="Difficulty" value={guide.difficultyLabel} />
+                <StatRow
+                  label="Est. time"
+                  value={formatDurationRange(
+                    guide.estimatedHoursLow,
+                    guide.estimatedHoursHigh
+                  )}
+                />
+                <StatRow
+                  label="Sessions"
+                  value={sessionCount.toLocaleString("en-US")}
+                />
+              </dl>
+            </SidePanel>
+
+            {(directionsUrl || route.completion !== "none") && (
+              <SidePanel title="Before you go">
+                {route.completion !== "none" && (
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {describeCompletionMode(route.completion)}.
+                  </p>
+                )}
+                {directionsUrl && (
+                  <ul
+                    className={`space-y-1.5 text-sm ${route.completion !== "none" ? "mt-2" : ""}`}
+                  >
+                    <li>
+                      <a
+                        href={directionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        Driving directions to {start?.name || "the trailhead"}
+                      </a>
+                    </li>
+                  </ul>
+                )}
+              </SidePanel>
+            )}
+
+            {externalLinks.length > 0 && (
+              <SidePanel title="External resources">
+                <ul className="space-y-2 text-sm">
+                  {externalLinks.map((link) => (
+                    <li key={`${link.type}:${link.id}`}>
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        {link.label}
+                      </a>
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                        {link.display}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </SidePanel>
+            )}
+          </aside>
         </div>
       </div>
     </div>
   );
+}
+
+function buildAbout(
+  name: string,
+  route: RouteDetail,
+  guide: ReturnType<typeof summarizeRouteGuide>,
+  sessionCount: number
+): string[] {
+  const paragraphs: string[] = [];
+
+  const shapeLabel = describeRouteShape(route.shape);
+  const first = [
+    `${name} is ${/^[aeiou]/i.test(shapeLabel) ? "an" : "a"} ${shapeLabel} route`,
+    guide.distanceMiles != null
+      ? ` covering ${guide.distanceMiles.toFixed(1)} miles`
+      : "",
+    guide.gainFeet != null
+      ? ` with ${Math.round(guide.gainFeet).toLocaleString()} feet of elevation gain`
+      : "",
+    ".",
+  ].join("");
+  paragraphs.push(first);
+
+  if (guide.estimatedHoursLow != null) {
+    paragraphs.push(
+      `It rates as ${guide.difficultyLabel.toLowerCase()} given its ${guide.difficultyReason}. Plan on ${formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)} of moving time.`
+    );
+  }
+
+  if (sessionCount > 0) {
+    paragraphs.push(
+      `${sessionCount.toLocaleString("en-US")} recorded session${sessionCount === 1 ? " has" : "s have"} followed this route.`
+    );
+  }
+
+  return paragraphs;
+}
+
+function titleizeFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 /** Build cumulative-distance elevation profile from raw points */
@@ -356,14 +451,6 @@ function buildProfilePoints(
   return result;
 }
 
-function Pill({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-blue-200 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm dark:border-blue-900 dark:bg-gray-900/80 dark:text-blue-300">
-      {children}
-    </span>
-  );
-}
-
 /** Haversine distance in meters between two lat/lng points */
 function haversine(
   lat1: number,
@@ -381,41 +468,4 @@ function haversine(
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function StatCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
-      {detail && (
-        <div className="mt-1 text-xs text-gray-400">
-          {detail}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex justify-between items-start">
-      <dt className="text-gray-500 shrink-0">{label}</dt>
-      <dd className="text-right">{children}</dd>
-    </div>
-  );
 }

@@ -30,6 +30,14 @@ import {
   getDestinationMapLinks,
 } from "../../../../lib/destination-detail";
 import { summarizeRouteGuide, formatDurationRange } from "../../../../lib/route-guide";
+import {
+  Breadcrumb,
+  DifficultyPill,
+  SidePanel,
+  StatCell,
+  StatRow,
+  titleize,
+} from "../../../../components/detail-sections";
 import type { Amenities } from "../../../../lib/amenities";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
@@ -157,16 +165,7 @@ export default function DestinationDetailPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-          <Link
-            href="/discover"
-            className="hover:text-gray-900 hover:underline dark:hover:text-gray-100"
-          >
-            Discover
-          </Link>
-          <span aria-hidden>›</span>
-          <span className="text-gray-700 dark:text-gray-300">{name}</span>
-        </nav>
+        <Breadcrumb current={name} />
 
         <header className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
@@ -200,14 +199,14 @@ export default function DestinationDetailPage() {
         </header>
 
         <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:grid-cols-5 dark:border-gray-800 dark:bg-gray-800">
-          <Stat label="Elevation" value={formatFeet(dest.elevation)} />
-          <Stat label="Prominence" value={formatFeet(dest.prominence)} />
-          <Stat label="Routes" value={routes.length.toLocaleString("en-US")} />
-          <Stat
+          <StatCell label="Elevation" value={formatFeet(dest.elevation)} />
+          <StatCell label="Prominence" value={formatFeet(dest.prominence)} />
+          <StatCell label="Routes" value={routes.length.toLocaleString("en-US")} />
+          <StatCell
             label="Trip reports"
             value={tripReportCount.toLocaleString("en-US")}
           />
-          <Stat label="Sessions" value={sessionCount.toLocaleString("en-US")} />
+          <StatCell label="Sessions" value={sessionCount.toLocaleString("en-US")} />
         </div>
 
         {dest.hero_image && (
@@ -560,11 +559,6 @@ function topMonths(counts: number[]): string[] {
     .map((m) => m.name);
 }
 
-function titleize(value: string): string {
-  const spaced = value.replace(/[-_]+/g, " ").trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
 function formatDistanceAway(meters: number): string {
   if (meters < 1609.34) return `${Math.round(meters)} m away`;
   return `${(meters / 1609.34).toFixed(1)} mi away`;
@@ -619,13 +613,6 @@ function getReportPreview(report: TripReport): string | null {
   return raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
 }
 
-const DIFFICULTY_CLASSES: Record<string, string> = {
-  Easy: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  Moderate: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
-  Hard: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  Strenuous: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
-};
-
 function RouteRow({ route }: { route: DestinationRoute }) {
   const hasStats = route.distance != null || route.gain != null;
   const summary = hasStats
@@ -660,66 +647,7 @@ function RouteRow({ route }: { route: DestinationRoute }) {
           {metaParts.length > 0 ? metaParts.join(" · ") : "No stats recorded"}
         </div>
       </div>
-      {summary && (
-        <span
-          className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
-            DIFFICULTY_CLASSES[summary.difficultyLabel] || DIFFICULTY_CLASSES.Moderate
-          }`}
-        >
-          {summary.difficultyLabel}
-        </span>
-      )}
+      {summary && <DifficultyPill label={summary.difficultyLabel} />}
     </li>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white px-4 py-3 dark:bg-gray-950">
-      <div className="text-lg font-semibold text-gray-900 dark:text-white">
-        {value}
-      </div>
-      <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
-    </div>
-  );
-}
-
-function StatRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd
-        className={`text-right font-medium text-gray-900 dark:text-white ${
-          mono ? "font-mono text-[13px]" : ""
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function SidePanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-      <h2 className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-        {title}
-      </h2>
-      <div className="px-4 py-3">{children}</div>
-    </section>
   );
 }
