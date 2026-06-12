@@ -47,6 +47,12 @@ const MONTH_LABELS: Record<string, string> = {
   december: "Dec",
 };
 
+const ACTIVITY_LABELS: Record<string, string> = {
+  "outdoor-trek": "hiking",
+  "outdoor-moto": "moto touring",
+  ski: "ski touring",
+};
+
 const DAY_LABELS: Record<string, string> = {
   mo: "Mon",
   mon: "Mon",
@@ -191,30 +197,38 @@ export function buildDestinationGuide(
   badges: string[];
 } {
   const locationParts = [source.state_code, source.country_code].filter(Boolean);
-  const featureText = joinNames(source.features.filter(Boolean));
-  const activityText = joinNames(source.activities.filter(Boolean));
-  const descriptiveType = source.type === "region" ? "region" : "point";
-  const elevationText = source.elevation != null ? `, rising to ${formatFeet(source.elevation)}` : "";
+  const primaryFeature = source.features.find(Boolean);
+  const featureWord =
+    source.type === "region"
+      ? "region"
+      : primaryFeature
+        ? primaryFeature.replace(/[-_]+/g, " ")
+        : "destination";
+  const elevationText =
+    source.elevation != null ? `${formatFeet(source.elevation)} ` : "";
+  const article = /^[aeiou]/i.test(`${elevationText}${featureWord}`) ? "an" : "a";
 
   const paragraphs: string[] = [];
-  const headline = `${source.name || "This destination"} is a ${descriptiveType} guide${locationParts.length ? ` in ${locationParts.join(", ")}` : ""}${elevationText}.`;
+  const headline = `${source.name || "This destination"} is ${article} ${elevationText}${featureWord}${locationParts.length ? ` in ${locationParts.join(", ")}` : ""}${source.prominence != null && source.prominence > 0 ? `, with ${formatFeet(source.prominence)} of prominence` : ""}.`;
 
-  if (featureText && activityText) {
+  const secondaryFeatures = source.features
+    .filter(Boolean)
+    .slice(1)
+    .map((feature) => feature.replace(/[-_]+/g, " "));
+  const activityText = joinNames(
+    source.activities.filter(Boolean).map((a) => ACTIVITY_LABELS[a] || a)
+  );
+  if (secondaryFeatures.length > 0 && activityText) {
     paragraphs.push(
-      `It is tagged with ${featureText} and most often appears in ${activityText} planning context.`
+      `It doubles as a ${joinNames(secondaryFeatures)}, and most of the activity recorded here is ${activityText}.`
     );
-  } else if (featureText) {
-    paragraphs.push(`It is tagged with ${featureText}.`);
   } else if (activityText) {
-    paragraphs.push(`It most often appears in ${activityText} planning context.`);
+    paragraphs.push(`Most of the activity recorded here is ${activityText}.`);
   }
 
   const contextBits: string[] = [];
   if (routeCount > 0) {
-    contextBits.push(`${formatNumber(routeCount)} linked route${routeCount === 1 ? "" : "s"}`);
-  }
-  if (listCount > 0) {
-    contextBits.push(`${formatNumber(listCount)} curated list${listCount === 1 ? "" : "s"}`);
+    contextBits.push(`${formatNumber(routeCount)} route${routeCount === 1 ? "" : "s"}`);
   }
   if (sessionCount > 0) {
     contextBits.push(`${formatNumber(sessionCount)} recorded session${sessionCount === 1 ? "" : "s"}`);
@@ -222,8 +236,11 @@ export function buildDestinationGuide(
   if (tripReportCount > 0) {
     contextBits.push(`${formatNumber(tripReportCount)} trip report${tripReportCount === 1 ? "" : "s"}`);
   }
+  if (listCount > 0) {
+    contextBits.push(`${formatNumber(listCount)} curated list${listCount === 1 ? "" : "s"}`);
+  }
   if (contextBits.length > 0) {
-    paragraphs.push(`Public activity around this destination includes ${joinNames(contextBits)}.`);
+    paragraphs.push(`On Peaks it has ${joinNames(contextBits)}.`);
   }
 
   const seasonalMonths = normalizeSeasonalMap(source.averages?.months, MONTH_LABELS);
@@ -233,8 +250,8 @@ export function buildDestinationGuide(
   );
 
   if (seasonalMonths.length > 0) {
-    const topMonths = seasonalMonths.slice(0, 3).map((entry) => entry.label);
-    paragraphs.push(`Seasonality data points most strongly toward ${joinNames(topMonths)}.`);
+    const topMonths = seasonalMonths.slice(0, 2).map((entry) => entry.label);
+    paragraphs.push(`Traffic peaks in ${joinNames(topMonths)}.`);
   }
 
   return {
