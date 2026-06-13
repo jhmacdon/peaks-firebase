@@ -729,6 +729,42 @@ CREATE TRIGGER trg_session_destination_link_areas
 AFTER INSERT ON session_destinations
 FOR EACH ROW EXECUTE FUNCTION link_areas_on_session_destination_insert();
 
+-- Flag a new summit with its protected areas at creation time (closes the gap
+-- for summits added after the backfill that are never reached by a recording).
+-- See cloud-sql/migrations/20260613_area_link_on_destination.sql.
+CREATE OR REPLACE FUNCTION link_areas_on_destination_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.location IS NULL OR NOT ('summit'::destination_feature = ANY(NEW.features)) THEN
+    RETURN NEW;
+  END IF;
+
+  BEGIN
+    INSERT INTO destination_areas (destination_id, area_id, relation, source)
+    SELECT NEW.id, a.id, 'contained_by', 'postgis'
+    FROM (SELECT ST_Force2D(NEW.location::geometry) AS geom, NEW.location::geography AS gloc) p
+    JOIN LATERAL (
+      SELECT a.id
+      FROM areas a
+      WHERE ST_DWithin(a.boundary, p.geom, 0.0016666666666666668)
+        AND (
+          ST_Covers(a.boundary, p.geom)
+          OR ST_DWithin(a.boundary::geography, p.gloc, 50)
+        )
+    ) a ON true
+    ON CONFLICT (destination_id, area_id) DO NOTHING;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'link_areas_on_destination_insert failed for destination %: %', NEW.id, SQLERRM;
+  END;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_destination_link_areas
+AFTER INSERT ON destinations
+FOR EACH ROW EXECUTE FUNCTION link_areas_on_destination_insert();
+
 -- =============================================================================
 -- Example Queries (reference, not executed)
 -- =============================================================================
