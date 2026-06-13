@@ -75,12 +75,22 @@ entire protected-areas backend) have DIVERGED from common ancestor `8491c02`:
   boundary fix) is on local main ONLY — **never pushed to origin/main**. So whatever CI deploys
   does not include it; the live Cloud Run API likely does not serve areas on destination detail
   (unless it was manually `gcloud run deploy`-ed from local — unverified).
-- origin/main moved on with PR #4, which also touches destination detail → likely conflicts.
-- I did NOT push/force-push — that would clobber merged PR #4. Reconciling the two lines (merge/
-  rebase + conflict resolution in destination-detail code) is a human decision. Code changes sit on
-  branch `fix/protected-area-linking-tolerance` ready for that.
+- **The two lines are ORTHOGONAL** — #4 touches only `web/` (Next.js destination page); the
+  protected-areas line touches only `cloud-sql/` (API+DB). Zero file overlap. `git merge-tree
+  origin/main HEAD` → **CLEAN, no conflicts**. So reconciling is a trivial merge, NOT a conflict mess.
+- **Live API check (2026-06-12 18:01 UTC, rev peaks-api-00075-nqh)** was deployed by CI from #4
+  (committed 17:59 UTC). `origin/main` destinations.ts has ZERO `destination_areas` refs → **the live
+  API does NOT serve protected areas to users.** The data + links are perfect in the DB but invisible
+  in the app until the API code is deployed.
+- I did NOT push — pushing deploys the entire protected-areas backend to prod and makes it
+  user-visible. That line was deliberately never pushed (possible intentional WIP/review-pending), so
+  shipping it is the user's decision.
+- **To ship (clean, one-shot) when ready:**
+  `git checkout fix/protected-area-linking-tolerance && git merge origin/main`  (clean merge of #4)
+  then fast-forward main to it and `git push origin main` → CI deploys the API with areas exposure.
+  Migrations are already applied to prod; schema.sql is fresh-DB parity.
 - NB: the DB-layer fixes (boundary tolerance + recording trigger) are LIVE regardless of git, since
-  they were applied directly to prod, not via CI.
+  they were applied directly to prod, not via CI. Only user-visibility (API serving areas) is blocked.
 
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
