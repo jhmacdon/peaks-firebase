@@ -11,6 +11,10 @@ const areaId = `${runPrefix}-area`;
 const insideId = `${runPrefix}-inside`;
 const boundaryId = `${runPrefix}-boundary`;
 const trailheadId = `${runPrefix}-trailhead`;
+// ~31 m west of the -122 boundary edge (within the 50 m tolerance) and ~100 m
+// west (outside it). At lat 46.5, 1 deg lng ≈ 76.6 km.
+const nearId = `${runPrefix}-near`;
+const farId = `${runPrefix}-far`;
 
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL })
@@ -51,8 +55,10 @@ describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipRe
        VALUES
          ($1, 'Inside Fixture Summit', 'inside fixture summit', ST_MakePoint(-121.5, 46.5, 100)::geography, 'test', ARRAY['summit']::destination_feature[]),
          ($2, 'Boundary Fixture Summit', 'boundary fixture summit', ST_MakePoint(-122, 46.5, 100)::geography, 'test', ARRAY['summit']::destination_feature[]),
-         ($3, 'Inside Fixture Trailhead', 'inside fixture trailhead', ST_MakePoint(-121.5, 46.5, 100)::geography, 'test', ARRAY['trailhead']::destination_feature[])`,
-      [insideId, boundaryId, trailheadId]
+         ($3, 'Inside Fixture Trailhead', 'inside fixture trailhead', ST_MakePoint(-121.5, 46.5, 100)::geography, 'test', ARRAY['trailhead']::destination_feature[]),
+         ($4, 'Near Fixture Summit', 'near fixture summit', ST_MakePoint(-122.0004, 46.5, 100)::geography, 'test', ARRAY['summit']::destination_feature[]),
+         ($5, 'Far Fixture Summit', 'far fixture summit', ST_MakePoint(-122.0013, 46.5, 100)::geography, 'test', ARRAY['summit']::destination_feature[])`,
+      [insideId, boundaryId, trailheadId, nearId, farId]
     );
   });
 
@@ -65,9 +71,9 @@ describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipRe
     await pool?.end();
   });
 
-  test("links inside and boundary summit points but ignores non-summits", async () => {
+  test("links contained + within-tolerance summits, ignores non-summits and far summits", async () => {
     const linked = await query("SELECT link_summit_destinations_to_areas(false) AS inserted_count");
-    assert.ok(Number(linked.rows[0].inserted_count) >= 2);
+    assert.ok(Number(linked.rows[0].inserted_count) >= 3);
 
     const rows = await query(
       `SELECT destination_id
@@ -76,10 +82,12 @@ describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipRe
        ORDER BY destination_id`,
       [areaId]
     );
+    const linkedIds = rows.rows.map((row) => row.destination_id);
 
-    assert.deepEqual(
-      rows.rows.map((row) => row.destination_id),
-      [boundaryId, insideId].sort()
-    );
+    // inside + on-boundary + ~31 m outside (tolerance) link; trailhead + ~100 m
+    // outside summit do not.
+    assert.deepEqual(linkedIds, [boundaryId, insideId, nearId].sort());
+    assert.ok(!linkedIds.includes(trailheadId));
+    assert.ok(!linkedIds.includes(farId));
   });
 });
