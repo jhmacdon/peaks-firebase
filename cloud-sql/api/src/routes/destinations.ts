@@ -219,21 +219,32 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
        FROM session_destinations sd WHERE sd.destination_id = d.id
      ) stats ON true
      LEFT JOIN LATERAL (
-       SELECT json_agg(
-         json_build_object(
-           'id', a.id,
-           'name', a.name,
-           'kind', a.kind,
-           'designation', a.designation,
-           'manager', a.manager,
-           'relation', da.relation,
-           'source', da.source
-         )
-         ORDER BY a.kind, a.name
-       ) AS areas
-       FROM destination_areas da
-       JOIN areas a ON a.id = da.area_id
-       WHERE da.destination_id = d.id
+       -- Collapse PAD-US fragments: a park can exist as several areas rows with
+       -- the same kind+name (e.g. Olympic NP, split into 'NP' and 'MPA'
+       -- designations), so a summit links to all of them and the park would
+       -- otherwise render 2-4x. A destination is at one location, so within its
+       -- areas the same (kind,name) is ALWAYS one park (never two distinct
+       -- same-named areas, which are far apart) — safe to show once. designation
+       -- DESC prefers the primary designation (e.g. 'NP' over 'MPA'). See the
+       -- duplicate-areas note in docs/superpowers/autonomous-run-2026-06-13.md.
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object(
+                  'id', a.id,
+                  'name', a.name,
+                  'kind', a.kind,
+                  'designation', a.designation,
+                  'manager', a.manager,
+                  'relation', da.relation,
+                  'source', da.source
+                ) AS area_obj
+         FROM destination_areas da
+         JOIN areas a ON a.id = da.area_id
+         WHERE da.destination_id = d.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
      ) area_rows ON true
      WHERE d.id = $1`,
     values: [id],

@@ -13,6 +13,8 @@ test("destination detail query includes linked areas without area boundaries", (
   assert.match(query.text, /json_agg/);
   assert.match(query.text, /'kind', a\.kind/);
   assert.doesNotMatch(query.text, /a\.boundary/);
+  // duplicate PAD-US park fragments collapse so a park never shows twice
+  assert.match(query.text, /DISTINCT ON \(a\.kind, a\.name\)/);
   assert.deepEqual(query.values, ["dest-1"]);
 });
 
