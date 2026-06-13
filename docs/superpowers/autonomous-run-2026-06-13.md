@@ -158,30 +158,26 @@ peak tagging).
 
 ## Backlog tick 3 (2026-06-13) — invalid-geometry ROOT CAUSE + dedup verify
 
-### (a) ROOT CAUSE of the 1,545 invalid area geometries
-The production geometry path is `upsertComposedAreaChunk` (import-padus-areas.ts:568), repair SQL at
-line 578:
-```
-ST_Multi(ST_CollectionExtract(ST_MakeValid(parsed_geom), 3))
-```
-`ST_MakeValid` is applied **inside**, in its default **linework** method, which can return a valid
-GeometryCollection whose polygon components individually valid but **mutually overlap**. The outer
-`ST_CollectionExtract(...,3)` then re-collects those overlapping polygons into a MultiPolygon — which
-is INVALID again (overlapping rings → nested shells / self-intersections). So `ST_MakeValid` running
-does NOT guarantee the STORED boundary is valid, which is exactly why 1,545/4,866 fail ST_IsValid.
-(The same flaw is mirrored in the unused `upsertAreas` path, line 815/825, which also uses ST_Collect
-+ post-MakeValid CollectionExtract.)
+### (a) ROOT CAUSE of the 1,545 invalid area geometries — corrected
+First hypothesis (the repair SQL `ST_Multi(ST_CollectionExtract(ST_MakeValid(parsed_geom),3))` at
+import-padus-areas.ts:578 re-breaks validity via post-MakeValid CollectionExtract) was tested and
+**REFUTED**: re-applying that exact pipeline to the stored invalid boundaries yields VALID output for
+**20/20** sampled areas. So the importer repair LOGIC is sound — NO importer code fix is warranted.
+(Note: `ST_UnaryUnion` is actually *worse* here — 19/20 — so do NOT switch to it.)
 
-**Importer fix:** make the validity-preserving op produce NON-OVERLAPPING components, e.g.
-`ST_Multi(ST_CollectionExtract(ST_UnaryUnion(parsed_geom), 3))` (UnaryUnion dissolves overlaps into a
-clean valid geometry) or `ST_MakeValid(parsed_geom, 'method=structure')` (PostGIS ≥3.2 structure mode
-yields non-overlapping output) — then extract polygons. Either guarantees a valid stored MultiPolygon.
-(Full-table empirical confirmation query was too slow to finish; the code path + the 1,545 invalid
-rows despite the repair path running are conclusive.)
+The invalid STORED data is therefore a **persistence artifact**, not a logic bug. Most likely the
+`geometry → geography` insert at import (migration 20260611 stored `boundary geography`) → `geography →
+geometry` cast (migration 20260612): a `geography` column does not enforce planar OGC validity, so a
+self-intersecting polygon round-trips and only surfaces as invalid once it's a planar `geometry` and
+ST_IsValid is run. The repaired geometry the importer computed simply wasn't preserved as planar-valid
+through the geography column.
 
-**Existing-data repair** (separate from the importer fix; still a deferred prod migration): back up
-boundaries, then `UPDATE areas SET boundary = ST_Multi(ST_CollectionExtract(ST_UnaryUnion(boundary),3))
-WHERE NOT ST_IsValid(boundary);` and re-run `link_summit_destinations_to_areas(true, 50)`.
+**Fix is data-only (no code change), deferred as a prod migration (user decision):** back up
+boundaries, then `UPDATE areas SET boundary = ST_Multi(ST_CollectionExtract(ST_MakeValid(boundary),3))
+WHERE NOT ST_IsValid(boundary);` (ST_MakeValid fixed 20/20; do NOT use ST_UnaryUnion) and re-run
+`link_summit_destinations_to_areas(true, 50)` to correct any links. Optionally guard future imports by
+re-running the repair after any schema round-trip. Lesson logged: validate hypotheses against data
+before shipping — the code-read fix would have been a regression.
 
 ### (b) DONE: API dedup verified on the 4-fragment case
 Wake High Point linked to 4 "Pacific Remote Islands Marine National Monument" fragments → the
