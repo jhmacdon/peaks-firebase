@@ -51,6 +51,13 @@ export const MAX_BUFFERED_GEOJSON_BYTES = 50 * 1024 * 1024;
 const INSERT_PART_PARAM_COUNT = 15;
 const INSERT_GROUP_PARAM_COUNT = 13;
 const LINK_DESTINATION_BATCH_SIZE = 100;
+// Link a summit to an area when contained OR within this many meters of the
+// boundary — crest-line peaks (e.g. Mount Whitney) sit ~0.5 m outside the line.
+// Must match link_summit_destinations_to_areas() and the area-linking triggers
+// (cloud-sql/migrations/20260613_*). The planar gate (deg) only needs to never
+// under-select; the exact geography check makes the precise meter cut.
+export const AREA_LINK_TOLERANCE_M = 50;
+const AREA_LINK_GATE_DEG = AREA_LINK_TOLERANCE_M / 30000;
 
 interface ImportAudit {
   readFeatures: number;
@@ -932,9 +939,9 @@ async function linkDestinationBatch(client: QueryExecutor, destinationIds: strin
       INSERT INTO destination_areas (destination_id, area_id, relation, source)
       SELECT d.id, a.id, 'contained_by', 'postgis'
       FROM (
-        SELECT id, geom, ST_X(geom) AS lng, ST_Y(geom) AS lat
+        SELECT id, geom, gloc, ST_X(geom) AS lng, ST_Y(geom) AS lat
         FROM (
-          SELECT id, ST_Force2D(location::geometry) AS geom
+          SELECT id, ST_Force2D(location::geometry) AS geom, location::geography AS gloc
           FROM destinations
           WHERE id = ANY($1::text[])
         ) summit_points
@@ -942,14 +949,17 @@ async function linkDestinationBatch(client: QueryExecutor, destinationIds: strin
       JOIN LATERAL (
         SELECT id
         FROM areas a
-        WHERE d.lng BETWEEN a.bbox_min_lng AND a.bbox_max_lng
-          AND d.lat BETWEEN a.bbox_min_lat AND a.bbox_max_lat
-          AND a.boundary && d.geom
-          AND ST_Covers(a.boundary, d.geom)
+        WHERE d.lng BETWEEN a.bbox_min_lng - $2 AND a.bbox_max_lng + $2
+          AND d.lat BETWEEN a.bbox_min_lat - $2 AND a.bbox_max_lat + $2
+          AND ST_DWithin(a.boundary, d.geom, $2)
+          AND (
+            ST_Covers(a.boundary, d.geom)
+            OR ST_DWithin(a.boundary::geography, d.gloc, $3)
+          )
       ) a ON true
       ON CONFLICT (destination_id, area_id) DO NOTHING
     `,
-    [destinationIds]
+    [destinationIds, AREA_LINK_GATE_DEG, AREA_LINK_TOLERANCE_M]
   );
   return result.rowCount ?? 0;
 }

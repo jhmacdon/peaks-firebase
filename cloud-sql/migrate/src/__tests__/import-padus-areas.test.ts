@@ -375,8 +375,11 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.match(clientSql[1], /IS DISTINCT FROM/);
   assert.match(clientSql[2], /^SELECT id FROM destinations/);
   assert.match(clientSql[3], /^INSERT INTO destination_areas/);
-  assert.match(clientSql[3], /d\.lng BETWEEN a\.bbox_min_lng AND a\.bbox_max_lng/);
+  // tolerance-aware: bbox expanded by the planar gate, contained OR within tolerance m
+  assert.match(clientSql[3], /d\.lng BETWEEN a\.bbox_min_lng - \$2 AND a\.bbox_max_lng \+ \$2/);
+  assert.match(clientSql[3], /ST_DWithin\(a\.boundary, d\.geom, \$2\)/);
   assert.match(clientSql[3], /ST_Covers\(a\.boundary, d\.geom\)/);
+  assert.match(clientSql[3], /ST_DWithin\(a\.boundary::geography, d\.gloc, \$3\)/);
   assert.equal(clientSql[4], "COMMIT");
 
   const upsertCall = calls.find((call) =>
