@@ -106,6 +106,16 @@ peaks-waterfall-import dedup skill), OR fixes the import groupKey and re-dissolv
 decision — it's a structural change to the areas table with real merge-distinct-areas risk.
 Quantified, diagnosed, NOT executed.
 
+## MINOR FINDING (not fixed): peak-like destinations missing feature tags
+Only 104 destinations now have empty `features` (down from ~1,349 in the old
+[[crystal-peak-missing-summit-tag]] memory). Of those, 29 are peak-like by name and **24 sit inside
+a protected area** — so they don't get flagged because they aren't `summit`-tagged. They look
+legit (Mount Russell-East Peak / Sequoia NP, Mount Williamson-NW Spire / Inyo NF, ...) BUT a few are
+actually fire-lookouts or crater rims (Mount Adams Lookout, Mount Fremont Lookout, Mount Rainier-SE
+Crater Rim), so the right tag varies — confirming the "don't blanket-tag as summit" caution. Left
+for human review (full list in the run transcript). Tagging the genuine summits would auto-link them
+via the new triggers.
+
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
   data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
