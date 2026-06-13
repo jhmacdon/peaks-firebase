@@ -213,6 +213,28 @@ ORDER BY a.kind, a.name;
 
 Run this against the same DB target used for the import. Expected: Mount Rainier links to Mount Rainier National Park.
 
+### Boundary tolerance (50 m)
+
+Summit↔area linking is NOT strict containment. A summit links to an area when it is
+`ST_Covers`-contained OR within **50 m** of the boundary, because PAD-US boundaries and summit
+coordinates each carry ~10–50 m of positional error and many peaks sit *on* a park boundary line
+(crests are common boundaries). The canonical case: Mount Whitney's summit is ~0.5 m outside
+Sequoia NP / Inyo NF / John Muir Wilderness, which all meet at the crest there. 50 m was chosen
+from a clean gap between real boundary mismatches (≤ ~48 m) and genuine non-members (Mount Mitchell
+is 306 m from Pisgah NF). The tolerance lives in `link_summit_destinations_to_areas(replace_existing,
+tolerance_m DEFAULT 50)`, in both area-linking triggers, and in the importer's
+`AREA_LINK_TOLERANCE_M` — keep them in sync. Migration: `20260613_area_link_tolerance.sql`.
+
+### Auto-linking triggers
+
+Summits are flagged with their areas automatically, so you rarely need to re-run the batch helper:
+- `trg_destination_link_areas` (AFTER INSERT ON destinations) — links a new summit at creation.
+- `trg_session_destination_link_areas` (AFTER INSERT ON session_destinations) — links a summit the
+  moment a recording reaches it ("incoming recordings checked + flagged").
+
+Both are wrapped in an exception block so a linking failure can never abort the underlying insert.
+Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_session_destination.sql`.
+
 ## Local Development
 
 ```bash
