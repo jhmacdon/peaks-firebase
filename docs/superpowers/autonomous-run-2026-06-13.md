@@ -116,6 +116,33 @@ Crater Rim), so the right tag varies — confirming the "don't blanket-tag as su
 for human review (full list in the run transcript). Tagging the genuine summits would auto-link them
 via the new triggers.
 
+## Backlog tick 2 (2026-06-13, later) — review + audit findings
+
+### (1) DONE: API collapses duplicate park fragments (commit 4a9ee66)
+Reviewing the to-be-deployed `buildDestinationDetailQuery` (b99a76f) surfaced that the `json_agg`
+emitted every fragment, so the 216 dup-affected summits would render a park 2–4× on the detail page.
+Fixed with `DISTINCT ON (a.kind, a.name)` (a destination is at one location → same kind+name is
+always one park), `designation DESC` to prefer the primary designation ('NP' over 'MPA'). Verified:
+Mount Cameron 3→2 links, Olympic NP shown once as 'NP'. Unit-tested. Presentation-layer mitigation
+that complements the (still-pending) data dedup.
+
+### (2) NON-ISSUE: odd state_codes are international subdivisions
+VS=Valais/CH (Aletschhorn), XJ=Xinjiang/CN (K2), SCT=Scotland (Driesh), P1=Nepal (Everest), and the
+bulk (BL, SO, UD, AO, TO, VB, BG, BS, VC...) are Italian/Swiss Alps province codes. Legit
+international peaks, correctly unlinked (PAD-US is US-only). No action.
+
+### (3) HIGH-PRIORITY FINDING (not fixed — read-only tick): invalid area geometries
+**1,545 / 4,866 areas (32%) fail ST_IsValid** (self-intersections, nested shells) — though bbox,
+centroid, non-emptiness are all fine. Critically, **236 invalid areas carry 4,076 links (69% of all
+links)**, including 48 national_park / 177 national_forest / 261 wilderness. ST_Covers/ST_DWithin on
+invalid polygons is unreliable at the self-intersection points, so some links may be wrong. The
+importer intends valid geometry (`ST_MakeValid`), so the invalidity is likely re-introduced by the
+ST_Union dissolve or the geography→geometry conversion — worth fixing in the importer too.
+**Recommended fix** (a data migration, hence deferred): back up boundaries, then
+`UPDATE areas SET boundary = ST_MakeValid(boundary) WHERE NOT ST_IsValid(boundary);` and re-run
+`SELECT link_summit_destinations_to_areas(true, 50);` to correct any links. Spot-checked links
+(Whitney, Mt Adams, the 31 new) are all correct, so impact is likely small but should be repaired.
+
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
   data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
