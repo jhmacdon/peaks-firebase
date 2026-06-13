@@ -156,6 +156,37 @@ geography→geometry cast in import-padus-areas.ts re-introducing invalidity aft
 final review. After that, remaining work all needs user decisions (deploy, dedup, geometry repair,
 peak tagging).
 
+## Backlog tick 3 (2026-06-13) — invalid-geometry ROOT CAUSE + dedup verify
+
+### (a) ROOT CAUSE of the 1,545 invalid area geometries
+The production geometry path is `upsertComposedAreaChunk` (import-padus-areas.ts:568), repair SQL at
+line 578:
+```
+ST_Multi(ST_CollectionExtract(ST_MakeValid(parsed_geom), 3))
+```
+`ST_MakeValid` is applied **inside**, in its default **linework** method, which can return a valid
+GeometryCollection whose polygon components individually valid but **mutually overlap**. The outer
+`ST_CollectionExtract(...,3)` then re-collects those overlapping polygons into a MultiPolygon — which
+is INVALID again (overlapping rings → nested shells / self-intersections). So `ST_MakeValid` running
+does NOT guarantee the STORED boundary is valid, which is exactly why 1,545/4,866 fail ST_IsValid.
+(The same flaw is mirrored in the unused `upsertAreas` path, line 815/825, which also uses ST_Collect
++ post-MakeValid CollectionExtract.)
+
+**Importer fix:** make the validity-preserving op produce NON-OVERLAPPING components, e.g.
+`ST_Multi(ST_CollectionExtract(ST_UnaryUnion(parsed_geom), 3))` (UnaryUnion dissolves overlaps into a
+clean valid geometry) or `ST_MakeValid(parsed_geom, 'method=structure')` (PostGIS ≥3.2 structure mode
+yields non-overlapping output) — then extract polygons. Either guarantees a valid stored MultiPolygon.
+(Full-table empirical confirmation query was too slow to finish; the code path + the 1,545 invalid
+rows despite the repair path running are conclusive.)
+
+**Existing-data repair** (separate from the importer fix; still a deferred prod migration): back up
+boundaries, then `UPDATE areas SET boundary = ST_Multi(ST_CollectionExtract(ST_UnaryUnion(boundary),3))
+WHERE NOT ST_IsValid(boundary);` and re-run `link_summit_destinations_to_areas(true, 50)`.
+
+### (b) DONE: API dedup verified on the 4-fragment case
+Wake High Point linked to 4 "Pacific Remote Islands Marine National Monument" fragments → the
+`DISTINCT ON (kind, name)` dedup collapses them to 1. Confirmed (4 raw → 1 deduped).
+
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
   data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
