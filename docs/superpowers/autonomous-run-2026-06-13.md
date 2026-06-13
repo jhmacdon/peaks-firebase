@@ -28,10 +28,67 @@ Prod baseline (2026-06-13): 4,866 areas; 5,149 links; 2,971/4,308 summits linked
 5. [ ] Back-test: re-process / simulate on historical sessions, confirm links appear, no regressions.
 6. [ ] Then iterate on further real improvements (data quality, dedup, tests, API exposure).
 
+## Gotcha hit (important)
+- Killing a `psql` client with `pkill` does NOT stop the server-side query — it keeps
+  running on the backend. Six abandoned analysis queries (up to 57 min old) were still
+  active and starving the backfill, which is why it crawled. Correct way: cancel server-side
+  with `SELECT pg_cancel_backend(pid) FROM pg_stat_activity WHERE ...`. Lesson for the rest of
+  this run: don't fire overlapping heavy spatial queries; cancel via pg_cancel_backend, not pkill.
+
 ## Verified so far
 - API `npm run build` clean; `npm run lint` 0 errors (1 pre-existing warning in auth.ts).
 - New unit tests (session-areas-linking.test.ts) pass: 3/3.
 - Migration applied in prod: function signature now `(replace_existing boolean, tolerance_m double precision)`.
+
+## BACKFILL RESULT (prod, verified)
+- 50 m additive backfill: **+738 links** (5,149 → 5,887). Not an explosion (+14%).
+- **Mount Whitney now links to 4 areas**: Sequoia NP, Inyo NF, John Muir Wilderness,
+  Sequoia-Kings Canyon Wilderness. The canonical bug is fixed.
+- New links by kind: national_forest 365, wilderness 260, national_park 75, rest small —
+  exactly the ridge/crest-boundary kinds where summits sit.
+- **32 summits gained their first-ever link**; spot-checked all 31 distinct names — every one a
+  genuine crest summit (Mt Adams, Mt Jefferson, San Jacinto Pk, Blanca Pk, The Brothers, and a
+  cluster of High Sierra peaks on the Sequoia-Kings Canyon NP boundary). No false positives.
+- Over-link guard: max new links to any single area = 40 (Sequoia-Kings Canyon Wilderness). Sane.
+
+## PER-SESSION BACK-TEST (prod, rolled back)
+- Real Mt Adams recording `cpUL0ia5338s9L70dV43`: stripped Mt Adams links (→0), ran the exact
+  Step 7 SQL scoped to the session → re-created exactly Gifford Pinchot NF + Mt Adams Wilderness.
+  ROLLBACK; prod untouched. Per-session linking is correct and correctly scoped.
+
+## Incoming recordings — LIVE via DB trigger (deploy-free)
+The app-level Step 7 in processing.ts needs a code deploy, which is BLOCKED (see git note below).
+So "incoming recordings checked and flagged" is delivered at the DB layer instead:
+- New migration `20260613_area_link_on_session_destination.sql`: trigger
+  `trg_session_destination_link_areas` AFTER INSERT ON session_destinations. When a recording
+  reaches a summit, it links that summit to its areas (same 50 m tolerance logic).
+- **Non-fatal**: body wrapped in `EXCEPTION WHEN OTHERS` so a linking hiccup can never abort the
+  insert / fail recording ingestion. Applied to prod and verified (`tgenabled=O`).
+- Back-tested transactionally (rolled back): 'reached' Mt Adams insert → re-created Gifford Pinchot
+  NF + Mt Adams Wilderness; 'goal' insert → 0 links (correct no-op).
+- processing.ts Step 7 is kept as the complementary app-level path (idempotent; runs once deployed).
+
+## ⚠️ BLOCKER FOR THE USER: git divergence (needs your decision)
+`origin/main` (`fb9899d` "Redesign destination detail page #4") and local `main` (`dbb722f`, the
+entire protected-areas backend) have DIVERGED from common ancestor `8491c02`:
+- The protected-areas backend (areas table, importer, destination-detail areas exposure, AND this
+  boundary fix) is on local main ONLY — **never pushed to origin/main**. So whatever CI deploys
+  does not include it; the live Cloud Run API likely does not serve areas on destination detail
+  (unless it was manually `gcloud run deploy`-ed from local — unverified).
+- origin/main moved on with PR #4, which also touches destination detail → likely conflicts.
+- I did NOT push/force-push — that would clobber merged PR #4. Reconciling the two lines (merge/
+  rebase + conflict resolution in destination-detail code) is a human decision. Code changes sit on
+  branch `fix/protected-area-linking-tolerance` ready for that.
+- NB: the DB-layer fixes (boundary tolerance + recording trigger) are LIVE regardless of git, since
+  they were applied directly to prod, not via CI.
+
+## Safety / rollback
+- `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
+  data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
+  destination_areas_pre_tolerance_20260613;` (or just delete the 738 new rows via NOT EXISTS).
+- To disable the recording trigger: `DROP TRIGGER trg_session_destination_link_areas ON session_destinations;`
+- To revert the link function to strict containment: re-apply the pre-image (or
+  `link_summit_destinations_to_areas(true, 0)` rebuilds links with tolerance 0 = ST_Covers only).
 
 ## Log
 - 05:11 baseline counts captured; Whitney boundary case confirmed (0.5 m to 3 areas).
