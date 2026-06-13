@@ -143,6 +143,19 @@ ST_Union dissolve or the geography→geometry conversion — worth fixing in the
 `SELECT link_summit_destinations_to_areas(true, 50);` to correct any links. Spot-checked links
 (Whitney, Mt Adams, the 31 new) are all correct, so impact is likely small but should be repaired.
 
+### (4) DONE: tolerance covered in the migrate integration test (commit 0abb41a)
+`protected-areas-linking.test.ts` only exercised inside + on-boundary points. Added a ~31 m-outside
+summit (must link via tolerance) and a ~100 m-outside summit (must not). Coordinates verified against
+PostGIS (near=30.7 m links, far=99.8 m doesn't). Note: that integration test calls the full
+`link_summit_destinations_to_areas()` so it's only practical against a small/empty test DB (skips
+without DATABASE_URL); it's slow against the full prod dataset.
+
+### Next tick (queued)
+Diagnose the importer root cause of the 1,545 invalid geometries (likely the ST_Union dissolve or
+geography→geometry cast in import-padus-areas.ts re-introducing invalidity after ST_MakeValid), and
+final review. After that, remaining work all needs user decisions (deploy, dedup, geometry repair,
+peak tagging).
+
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
   data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
