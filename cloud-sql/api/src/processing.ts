@@ -15,8 +15,72 @@ export const STALE_PROCESSING_MINUTES = 10;
 export interface ProcessingResult {
   destinations_matched: number;
   routes_matched: number;
+  areas_linked: number;
   attempt_group_id: string | null;
   attempt_group_session_count: number;
+}
+
+/**
+ * Minimal query interface so the area-linking helpers accept either the pool
+ * (`db`) or a transaction client (`PoolClient`).
+ */
+interface Queryable {
+  query: (text: string, values?: unknown[]) => Promise<{ rowCount: number | null }>;
+}
+
+/**
+ * Build the SQL that links a session's reached SUMMIT destinations to the
+ * protected areas that contain them (or that they sit on the boundary of).
+ *
+ * Mirrors the schema's link_summit_destinations_to_areas() predicate but scoped
+ * to one session's reached summits, so it is cheap to run inline per recording:
+ * a summit is linked to an area when ST_Covers-contained OR within
+ * `toleranceMeters` of the boundary. The planar ST_DWithin gate (degrees,
+ * GIST-indexed) prunes candidates; the exact geography ST_DWithin makes the
+ * precise meter cut. Tolerance default matches the migration (50 m) — see
+ * cloud-sql/migrations/20260613_area_link_tolerance.sql for the rationale.
+ */
+export function buildLinkReachedSummitsToAreasSql(
+  sessionId: string,
+  toleranceMeters = 50
+): { text: string; values: unknown[] } {
+  const gateDeg = Math.max(toleranceMeters / 30000, 0.0002);
+  return {
+    text: `INSERT INTO destination_areas (destination_id, area_id, relation, source)
+     SELECT DISTINCT sd.destination_id, a.id, 'contained_by', 'postgis'
+     FROM session_destinations sd
+     JOIN destinations d ON d.id = sd.destination_id
+     JOIN LATERAL (
+       SELECT a.id
+       FROM areas a
+       WHERE ST_DWithin(a.boundary, ST_Force2D(d.location::geometry), $2)
+         AND (
+           ST_Covers(a.boundary, ST_Force2D(d.location::geometry))
+           OR ST_DWithin(a.boundary::geography, d.location, $3)
+         )
+     ) a ON true
+     WHERE sd.session_id = $1
+       AND sd.relation = 'reached'
+       AND d.location IS NOT NULL
+       AND 'summit'::destination_feature = ANY(d.features)
+     ON CONFLICT (destination_id, area_id) DO NOTHING`,
+    values: [sessionId, gateDeg, toleranceMeters],
+  };
+}
+
+/**
+ * Check a processed recording's reached summits against protected areas and
+ * record the containment links. Enrichment, not core processing — callers run
+ * it best-effort so a linking hiccup never fails session ingestion.
+ */
+export async function linkReachedSummitsToAreas(
+  q: Queryable,
+  sessionId: string,
+  toleranceMeters = 50
+): Promise<number> {
+  const sql = buildLinkReachedSummitsToAreasSql(sessionId, toleranceMeters);
+  const result = await q.query(sql.text, sql.values);
+  return result.rowCount ?? 0;
 }
 
 /**
@@ -380,9 +444,22 @@ export async function processSession(
 
     await client.query("COMMIT");
 
+    // Step 7: Check reached summits against protected areas and record the
+    // containment links. Runs after COMMIT on the pool (not the just-released
+    // client) and is best-effort: destination_areas rows are global and
+    // idempotent (ON CONFLICT DO NOTHING), so a failure here must never fail an
+    // otherwise-successful recording ingestion.
+    let areasLinked = 0;
+    try {
+      areasLinked = await linkReachedSummitsToAreas(db, sessionId);
+    } catch (err) {
+      console.error(`[processSession] area linking failed for session ${sessionId}:`, err);
+    }
+
     return {
       destinations_matched: destinationsMatched,
       routes_matched: routesMatched,
+      areas_linked: areasLinked,
       attempt_group_id,
       attempt_group_session_count,
     };

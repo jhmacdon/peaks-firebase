@@ -588,10 +588,21 @@ CREATE TRIGGER trg_session_markers_touch_session
 AFTER INSERT OR UPDATE OR DELETE ON session_markers
 FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 
-CREATE OR REPLACE FUNCTION link_summit_destinations_to_areas(replace_existing BOOLEAN DEFAULT false)
+-- Link a summit to an area when it is ST_Covers-contained OR within tolerance_m
+-- meters of the boundary. PAD-US boundaries and summit coordinates each carry
+-- ~10-50 m of positional error, so crest-line peaks (e.g. Mount Whitney, ~0.5 m
+-- outside Sequoia NP / Inyo NF / John Muir Wilderness) are missed by strict
+-- containment alone. The planar ST_DWithin gate (degrees, GIST-indexed) prunes
+-- to near-boundary candidates; the exact geography ST_DWithin makes the precise
+-- meter cut. See cloud-sql/migrations/20260613_area_link_tolerance.sql.
+CREATE OR REPLACE FUNCTION link_summit_destinations_to_areas(
+  replace_existing BOOLEAN DEFAULT false,
+  tolerance_m DOUBLE PRECISION DEFAULT 50
+)
 RETURNS INTEGER AS $$
 DECLARE
   inserted_count INTEGER;
+  gate_deg DOUBLE PRECISION := GREATEST(tolerance_m / 30000.0, 0.0002);
 BEGIN
   IF replace_existing THEN
     DELETE FROM destination_areas WHERE source = 'postgis';
@@ -600,9 +611,11 @@ BEGIN
   INSERT INTO destination_areas (destination_id, area_id, relation, source)
   SELECT d.id, a.id, 'contained_by', 'postgis'
   FROM (
-    SELECT id, geom, ST_X(geom) AS lng, ST_Y(geom) AS lat
+    SELECT id, geom, gloc, ST_X(geom) AS lng, ST_Y(geom) AS lat
     FROM (
-      SELECT id, ST_Force2D(location::geometry) AS geom
+      SELECT id,
+             ST_Force2D(location::geometry) AS geom,
+             location::geography AS gloc
       FROM destinations
       WHERE location IS NOT NULL
         AND 'summit'::destination_feature = ANY(features)
@@ -611,10 +624,13 @@ BEGIN
   JOIN LATERAL (
     SELECT id
     FROM areas a
-    WHERE d.lng BETWEEN a.bbox_min_lng AND a.bbox_max_lng
-      AND d.lat BETWEEN a.bbox_min_lat AND a.bbox_max_lat
-      AND a.boundary && d.geom
-      AND ST_Covers(a.boundary, d.geom)
+    WHERE d.lng BETWEEN a.bbox_min_lng - gate_deg AND a.bbox_max_lng + gate_deg
+      AND d.lat BETWEEN a.bbox_min_lat - gate_deg AND a.bbox_max_lat + gate_deg
+      AND ST_DWithin(a.boundary, d.geom, gate_deg)
+      AND (
+        ST_Covers(a.boundary, d.geom)
+        OR ST_DWithin(a.boundary::geography, d.gloc, tolerance_m)
+      )
   ) a ON true
   ON CONFLICT (destination_id, area_id) DO NOTHING;
 
