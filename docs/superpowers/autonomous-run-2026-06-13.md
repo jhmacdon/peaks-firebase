@@ -92,6 +92,20 @@ entire protected-areas backend) have DIVERGED from common ancestor `8491c02`:
 - NB: the DB-layer fixes (boundary tolerance + recording trigger) are LIVE regardless of git, since
   they were applied directly to prod, not via CI. Only user-visibility (API serving areas) is blocked.
 
+## FOLLOW-UP ISSUE FOUND (not fixed — needs your call): duplicate area rows
+The PAD-US import left many parks fragmented into multiple `areas` rows (same kind+name):
+Cuyahoga Valley NP ×105, Indiana Dunes ×68, Dinosaur NM ×53, Yosemite ×24, Olympic NP (several).
+Root cause: the importer's dissolve groupKey includes `manager`/`designation`, so sub-units with
+differing values don't merge. **User-facing impact: 216 summits link to ≥2 same-named fragments**,
+so the detail page would render a park name 2–4× (e.g. Olympic NP twice on many Olympic peaks).
+
+**Do NOT naively dedupe by name** — some same-name groups are genuinely DISTINCT areas:
+"Hells Canyon Wilderness Area" has 2 copies 1,302 km apart (OR/ID vs AZ); several "...Wilderness
+Study Area" names repeat across states. A correct fix clusters by name + spatial proximity (like the
+peaks-waterfall-import dedup skill), OR fixes the import groupKey and re-dissolves. Left for your
+decision — it's a structural change to the areas table with real merge-distinct-areas risk.
+Quantified, diagnosed, NOT executed.
+
 ## Safety / rollback
 - `destination_areas_pre_tolerance_20260613` (5,149 rows) is the pre-change snapshot. To revert the
   data: `DELETE FROM destination_areas; INSERT INTO destination_areas SELECT * FROM
