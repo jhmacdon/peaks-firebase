@@ -252,6 +252,22 @@ CREATE TABLE route_destinations (
 );
 
 -- ---------------------------------------------------------------------------
+-- route_areas
+-- Join table linking routes to the official areas their path passes through.
+-- A route is a line, so it can both be fully contained by an area and merely
+-- cross others; relation is 'contained_by' or 'intersects'. Mirrors
+-- destination_areas. See link_routes_to_areas().
+-- ---------------------------------------------------------------------------
+CREATE TABLE route_areas (
+    route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    relation        TEXT NOT NULL DEFAULT 'intersects',
+    source          TEXT NOT NULL DEFAULT 'postgis',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (route_id, area_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- plans
 -- Trip plans with destinations, routes, and party members.
 -- ---------------------------------------------------------------------------
@@ -527,6 +543,7 @@ CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, serv
 
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
 CREATE INDEX idx_destination_areas_area     ON destination_areas (area_id);
+CREATE INDEX route_areas_area_id_idx        ON route_areas (area_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
 CREATE INDEX idx_session_destinations_dest  ON session_destinations (destination_id);
 CREATE INDEX idx_session_routes_route       ON session_routes (route_id);
@@ -633,6 +650,45 @@ BEGIN
       )
   ) a ON true
   ON CONFLICT (destination_id, area_id) DO NOTHING;
+
+  GET DIAGNOSTICS inserted_count = ROW_COUNT;
+  RETURN inserted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Link routes to the areas their path passes through. A route is a line
+-- (routes.path geography(LineStringZ,4326)); ST_Force2D drops the Z and
+-- path::geometry is already SRID 4326. The cheap `&&` bbox prefilter prunes
+-- candidates before the exact (and, against the large repaired Alaska polygons,
+-- costly) ST_Intersects. relation is 'contained_by' when the whole route is
+-- covered by the area, else 'intersects'.
+-- See cloud-sql/migrations/20260613_route_areas.sql.
+CREATE OR REPLACE FUNCTION link_routes_to_areas(replace_existing BOOLEAN DEFAULT false)
+RETURNS INTEGER AS $$
+DECLARE
+  inserted_count INTEGER;
+BEGIN
+  IF replace_existing THEN
+    DELETE FROM route_areas WHERE source = 'postgis';
+  END IF;
+
+  INSERT INTO route_areas (route_id, area_id, relation, source)
+  SELECT r.id, a.id,
+         CASE WHEN ST_Covers(a.boundary, r.geom) THEN 'contained_by'
+              ELSE 'intersects' END,
+         'postgis'
+  FROM (
+    SELECT id, ST_Force2D(path::geometry) AS geom
+    FROM routes
+    WHERE path IS NOT NULL
+  ) r
+  JOIN LATERAL (
+    SELECT id, boundary
+    FROM areas a
+    WHERE a.boundary && r.geom
+      AND ST_Intersects(a.boundary, r.geom)
+  ) a ON true
+  ON CONFLICT (route_id, area_id) DO NOTHING;
 
   GET DIAGNOSTICS inserted_count = ROW_COUNT;
   RETURN inserted_count;

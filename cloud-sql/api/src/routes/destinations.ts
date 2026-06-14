@@ -276,14 +276,43 @@ router.get("/:id/routes", async (req, res: Response) => {
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion
+            r.external_links, r.completion,
+            COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id
+     LEFT JOIN LATERAL (
+       -- Same areas exposure as buildRouteDetailQuery: dedup PAD-US fragments
+       -- by (kind,name), preferring the primary designation, never select
+       -- a.boundary.
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object(
+                  'id', a.id,
+                  'name', a.name,
+                  'kind', a.kind,
+                  'designation', a.designation,
+                  'manager', a.manager,
+                  'relation', ra.relation,
+                  'source', ra.source
+                ) AS area_obj
+         FROM route_areas ra
+         JOIN areas a ON a.id = ra.area_id
+         WHERE ra.route_id = r.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
+     ) area_rows ON true
      WHERE rd.destination_id = $1 AND r.status = 'active'
      ORDER BY r.name`,
     [id]
   );
-  res.json(result.rows);
+  res.json(
+    result.rows.map((row: any) => {
+      row.areas = Array.isArray(row.areas) ? row.areas : [];
+      return row;
+    })
+  );
 });
 
 // GET /api/destinations/:id/lists — lists containing this destination

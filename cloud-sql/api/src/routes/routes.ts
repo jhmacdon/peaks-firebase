@@ -3,22 +3,61 @@ import db from "../db";
 
 const router = Router();
 
+export function buildRouteDetailQuery(id: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id, r.name, r.polyline6, r.owner,
+            r.distance, r.gain, r.gain_loss, r.elevation_string,
+            r.external_links, r.completion,
+            r.created_at, r.updated_at,
+            COALESCE(area_rows.areas, '[]'::json) AS areas
+     FROM routes r
+     LEFT JOIN LATERAL (
+       -- Collapse PAD-US fragments: a park can exist as several areas rows with
+       -- the same kind+name (e.g. Olympic NP, split into 'NP' and 'MPA'
+       -- designations), so a route links to all of them and the park would
+       -- otherwise render 2-4x. Within a single route's areas the same
+       -- (kind,name) is the same park, so it's safe to show once. designation
+       -- DESC prefers the primary designation (e.g. 'NP' over 'MPA'). Mirrors
+       -- buildDestinationDetailQuery's areas LATERAL.
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object(
+                  'id', a.id,
+                  'name', a.name,
+                  'kind', a.kind,
+                  'designation', a.designation,
+                  'manager', a.manager,
+                  'relation', ra.relation,
+                  'source', ra.source
+                ) AS area_obj
+         FROM route_areas ra
+         JOIN areas a ON a.id = ra.area_id
+         WHERE ra.route_id = r.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
+     ) area_rows ON true
+     WHERE r.id = $1 AND r.status = 'active'`,
+    values: [id],
+  };
+}
+
+export function mapRouteDetailRow(row: any): any {
+  row.areas = Array.isArray(row.areas) ? row.areas : [];
+  return row;
+}
+
 // GET /api/routes/:id
 router.get("/:id", async (req, res: Response) => {
   const { id } = req.params;
-  const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6, r.owner,
-            r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion,
-            r.created_at, r.updated_at
-     FROM routes r WHERE r.id = $1 AND r.status = 'active'`,
-    [id]
-  );
+  const query = buildRouteDetailQuery(id);
+  const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Route not found" });
     return;
   }
-  res.json(result.rows[0]);
+  res.json(mapRouteDetailRow(result.rows[0]));
 });
 
 // GET /api/routes/:id/destinations

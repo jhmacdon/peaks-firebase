@@ -20,6 +20,7 @@ export interface Args {
   apply: boolean;
   dryRun: boolean;
   linkDestinations: boolean;
+  linkRoutes: boolean;
   replaceLinks: boolean;
 }
 
@@ -110,8 +111,8 @@ function validateArgs(args: Args): void {
   if (args.apply && args.dryRun) {
     throw new Error("--apply and --dry-run cannot be used together");
   }
-  if (args.replaceLinks && !args.linkDestinations) {
-    throw new Error("--replace-links requires --link-destinations");
+  if (args.replaceLinks && !args.linkDestinations && !args.linkRoutes) {
+    throw new Error("--replace-links requires --link-destinations or --link-routes");
   }
 }
 
@@ -134,6 +135,7 @@ export function parseArgs(argv: string[]): Args {
     apply,
     dryRun: dryRunFlag || !apply,
     linkDestinations: argv.includes("--link-destinations"),
+    linkRoutes: argv.includes("--link-routes"),
     replaceLinks: argv.includes("--replace-links"),
   };
   validateArgs(args);
@@ -146,6 +148,7 @@ function usage(): string {
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --dry-run",
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply",
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --link-destinations",
+    "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --link-routes",
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --link-destinations --replace-links",
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --insert-chunk-size=10",
     "  tsx src/import-padus-areas.ts --input=/path/padus.ndjson --apply --trust-source-geometry",
@@ -997,6 +1000,18 @@ async function linkDestinations(
   return inserted;
 }
 
+async function linkRoutes(
+  client: QueryExecutor,
+  replaceLinks: boolean
+): Promise<number> {
+  const result = await client.query<{ inserted: number | string }>(
+    "SELECT link_routes_to_areas($1) AS inserted",
+    [replaceLinks]
+  );
+  const value = result.rows[0]?.inserted ?? 0;
+  return typeof value === "number" ? value : parseInt(value, 10);
+}
+
 async function report(database: QueryExecutor, logger: Pick<Console, "log">): Promise<void> {
   const byKind = await database.query(
     `SELECT kind, count(*)::int AS count FROM areas GROUP BY kind ORDER BY kind`
@@ -1095,6 +1110,11 @@ export async function importPadusAreas(
     if (args.linkDestinations) {
       const linked = await linkDestinations(client, args.replaceLinks, logger);
       logger.log(`Inserted destination-area links: ${linked}`);
+    }
+
+    if (args.linkRoutes) {
+      const linkedRoutes = await linkRoutes(client, args.replaceLinks);
+      logger.log(`Inserted route-area links: ${linkedRoutes}`);
     }
 
     await client.query("COMMIT");

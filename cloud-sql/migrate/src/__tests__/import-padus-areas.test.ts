@@ -197,6 +197,7 @@ function args(overrides: Partial<ReturnType<typeof parseArgs>> = {}): ReturnType
     apply: true,
     dryRun: false,
     linkDestinations: false,
+    linkRoutes: false,
     replaceLinks: false,
     ...overrides,
   };
