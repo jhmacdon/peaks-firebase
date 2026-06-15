@@ -70,14 +70,16 @@ export function isNationalParkService(area: ProtectedArea): boolean {
   return false;
 }
 
+// Ranks mirror iOS SessionDetailView.areaKindSortPriority exactly so chip
+// ordering matches across platforms.
 const PROMINENCE: Record<AreaKind, number> = {
   national_park: 0,
   national_monument: 1,
   national_recreation_area: 2,
-  wilderness: 3,
-  national_forest: 4,
-  national_grassland: 5,
-  national_conservation_area: 6,
+  national_conservation_area: 3,
+  wilderness: 4,
+  national_forest: 5,
+  national_grassland: 6,
   wildlife_refuge: 7,
   wild_and_scenic_river: 8,
   other_federal_area: 9,
