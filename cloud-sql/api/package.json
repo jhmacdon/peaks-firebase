@@ -17,7 +17,8 @@
   "dependencies": {
     "express": "^4.21.0",
     "firebase-admin": "^13.0.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "pg-query-stream": "^4.15.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

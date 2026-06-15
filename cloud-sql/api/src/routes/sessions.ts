@@ -5,6 +5,7 @@ import db from "../db";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
+import { streamQueryAsJsonArray } from "../lib/stream-json";
 
 const router = Router();
 const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
@@ -469,7 +470,12 @@ router.get("/:id/points", async (req, res: Response) => {
     return;
   }
 
-  const result = await db.query(
+  // Stream the (unbounded) point set with a server-side cursor instead of
+  // buffering every row + a full JSON copy in memory. Output is byte-identical
+  // to res.json(rows). Ownership check above already ran and can still 404/500.
+  await streamQueryAsJsonArray(
+    res,
+    db,
     `SELECT time, segment_number, elevation, speed, azimuth,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
@@ -478,7 +484,6 @@ router.get("/:id/points", async (req, res: Response) => {
      ORDER BY time`,
     [id]
   );
-  res.json(result.rows);
 });
 
 // GET /api/sessions/:id/elevation — elevation profile by time
@@ -495,14 +500,18 @@ router.get("/:id/elevation", async (req, res: Response) => {
     return;
   }
 
-  const result = await db.query(
+  // Stream the (unbounded) elevation profile with a server-side cursor instead
+  // of buffering every row + a full JSON copy in memory. Output is byte-identical
+  // to res.json(rows). Ownership check above already ran and can still 404/500.
+  await streamQueryAsJsonArray(
+    res,
+    db,
     `SELECT time, elevation, speed
      FROM tracking_points
      WHERE session_id = $1
      ORDER BY time`,
     [id]
   );
-  res.json(result.rows);
 });
 
 // GET /api/sessions/:id/destinations
