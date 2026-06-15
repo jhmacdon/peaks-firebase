@@ -39,6 +39,7 @@ import {
   titleize,
 } from "../../../../components/detail-sections";
 import type { Amenities } from "../../../../lib/amenities";
+import { AreaChips } from "../../../../components/area-chip";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -177,6 +178,7 @@ export default function DestinationDetailPage() {
                 {metaParts.join(" · ")}
               </p>
             )}
+            <AreaChips areas={dest.areas} className="mt-2" />
           </div>
           <div className="flex shrink-0 gap-2">
             {directionsUrl && (

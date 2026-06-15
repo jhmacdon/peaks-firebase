@@ -8,6 +8,7 @@ import { mergeDestinationAverages } from "../destination-detail";
 import { backfillDestinationToSessions } from "../destination-backfill";
 import type { ExternalIds } from "../destination-types";
 import type { Amenities } from "../amenities";
+import { parseAreas, type ProtectedArea } from "../area-types";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -58,6 +59,7 @@ export interface DestinationDetail {
   explicitly_saved: boolean;
   geohash: string | null;
   amenities: Amenities | null;
+  areas: ProtectedArea[];
   created_at: string;
   updated_at: string;
 }
@@ -179,8 +181,22 @@ export async function getDestination(
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
             d.amenities,
-            d.created_at, d.updated_at
+            d.created_at, d.updated_at,
+            COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM destinations d
+     LEFT JOIN LATERAL (
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object('id', a.id, 'name', a.name, 'kind', a.kind,
+                                  'designation', a.designation, 'manager', a.manager) AS area_obj
+         FROM destination_areas da
+         JOIN areas a ON a.id = da.area_id
+         WHERE da.destination_id = d.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
+     ) area_rows ON true
      WHERE d.id = $1`,
     [id]
   );
@@ -190,6 +206,7 @@ export async function getDestination(
   const r = result.rows[0];
   return {
     ...r,
+    areas: parseAreas(r.areas),
     elevation: r.elevation ? Number(r.elevation) : null,
     prominence: r.prominence ? Number(r.prominence) : null,
     lat: r.lat ? Number(r.lat) : null,
