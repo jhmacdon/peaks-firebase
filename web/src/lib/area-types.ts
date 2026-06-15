@@ -19,6 +19,9 @@ export interface ProtectedArea {
   manager?: string | null;
 }
 
+// Server-known kinds. "unknown" is intentionally excluded: any raw value not in
+// this list (including the literal "unknown") falls through normalizeAreaKind to
+// "unknown" — the forward-compat fallback for server enum values this build predates.
 const KNOWN_KINDS: readonly AreaKind[] = [
   "national_park",
   "national_monument",

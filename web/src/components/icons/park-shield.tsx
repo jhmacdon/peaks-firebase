@@ -1,3 +1,8 @@
+// Crest shield with the evergreen as a true cutout (fill-rule evenodd): the tree
+// is negative space so the surface behind shows through it, matching the NPS-style
+// badge / reference design. Intentional — do not "fill" the tree. Uses
+// currentColor, so it tints to the chip's text color and the cutout reads in both
+// light and dark mode (verified at chip size).
 export function ParkShield({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 512 512" className={className} fill="currentColor" aria-hidden="true">
