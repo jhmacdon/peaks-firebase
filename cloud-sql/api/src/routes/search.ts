@@ -5,6 +5,73 @@ import { geolocateRequest } from "../ip-geo";
 
 const router = Router();
 
+const destinationSearchText = "COALESCE(NULLIF(search_name, ''), lower(name))";
+
+export interface DestinationSearchQueryInput {
+  normalizedQuery: string;
+  rawQuery: string;
+  lat?: number;
+  lng?: number;
+  limit: number;
+}
+
+export function buildDestinationSearchQuery(input: DestinationSearchQueryInput): { text: string; values: unknown[] } {
+  const q = input.normalizedQuery;
+  const raw = input.rawQuery.trim().toLowerCase();
+  const normalizedPrefix = `${q}%`;
+  const rawPrefix = `${raw}%`;
+  const hasGeo = input.lat !== undefined
+    && input.lng !== undefined
+    && !isNaN(input.lat)
+    && !isNaN(input.lng);
+
+  if (hasGeo) {
+    return {
+      text: `SELECT id, name, elevation, prominence, type,
+              activities, features,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng,
+              similarity(${destinationSearchText}, $1) AS text_score,
+              ST_Distance(location, ST_MakePoint($3, $2)::geography) AS distance_m,
+              (
+                similarity(${destinationSearchText}, $1) * 0.55
+                + CASE WHEN ${destinationSearchText} ILIKE $4 OR lower(name) ILIKE $5 THEN 0.15 ELSE 0 END
+                + EXP(-1.0 * ST_Distance(location, ST_MakePoint($3, $2)::geography) / 500000.0) * 0.15
+                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
+                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
+              ) AS score
+       FROM destinations
+       WHERE ${destinationSearchText} % $1
+          OR ${destinationSearchText} ILIKE $4
+          OR lower(name) ILIKE $5
+       ORDER BY score DESC
+       LIMIT $6`,
+      values: [q, input.lat, input.lng, normalizedPrefix, rawPrefix, input.limit],
+    };
+  }
+
+  return {
+    text: `SELECT id, name, elevation, prominence, type,
+              activities, features,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng,
+              similarity(${destinationSearchText}, $1) AS text_score,
+              (
+                similarity(${destinationSearchText}, $1) * 0.60
+                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
+                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.15
+                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
+              ) AS score
+       FROM destinations
+       WHERE ${destinationSearchText} % $1
+          OR ${destinationSearchText} ILIKE $2
+          OR lower(name) ILIKE $3
+       ORDER BY score DESC
+       LIMIT $4`,
+    values: [q, normalizedPrefix, rawPrefix, input.limit],
+  };
+}
+
 // GET /api/search?q=mt+rainier&lat=46.85&lng=-121.7&limit=20
 // Composite-scored text search. Blends:
 //   - Text similarity (trigram)     55%  — primary signal, must find what you searched for
@@ -15,7 +82,8 @@ const router = Router();
 // When lat/lng are not provided, falls back to IP-based geolocation.
 // Abbreviations are expanded (mt→mount, etc.) on both query and stored names.
 router.get("/", async (req: Request, res: Response) => {
-  const q = normalizeSearchName((req.query.q as string || "").trim());
+  const rawQuery = (req.query.q as string || "").trim();
+  const q = normalizeSearchName(rawQuery);
   const limit = parseInt(req.query.limit as string) || 20;
 
   if (!q) {
@@ -44,52 +112,15 @@ router.get("/", async (req: Request, res: Response) => {
   //   elevation:  LEAST(elevation, 9000) / 9000
   //   prominence: LEAST(prominence, 9000) / 9000
 
-  if (hasGeo) {
-    const result = await db.query(
-      `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              similarity(search_name, $1) AS text_score,
-              ST_Distance(location, ST_MakePoint($3, $2)::geography) AS distance_m,
-              (
-                similarity(search_name, $1) * 0.55
-                + CASE WHEN search_name ILIKE $4 THEN 0.15 ELSE 0 END
-                + EXP(-1.0 * ST_Distance(location, ST_MakePoint($3, $2)::geography) / 500000.0) * 0.15
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
-              ) AS score
-       FROM destinations
-       WHERE search_name % $1
-          OR search_name ILIKE $4
-       ORDER BY score DESC
-       LIMIT $5`,
-      [q, lat, lng, `${q}%`, limit]
-    );
-    res.json(result.rows);
-  } else {
-    // No location available at all — score without proximity
-    const result = await db.query(
-      `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              similarity(search_name, $1) AS text_score,
-              (
-                similarity(search_name, $1) * 0.60
-                + CASE WHEN search_name ILIKE $2 THEN 0.15 ELSE 0 END
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.15
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
-              ) AS score
-       FROM destinations
-       WHERE search_name % $1
-          OR search_name ILIKE $2
-       ORDER BY score DESC
-       LIMIT $3`,
-      [q, `${q}%`, limit]
-    );
-    res.json(result.rows);
-  }
+  const query = buildDestinationSearchQuery({
+    normalizedQuery: q,
+    rawQuery,
+    lat: hasGeo ? lat : undefined,
+    lng: hasGeo ? lng : undefined,
+    limit,
+  });
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows);
 });
 
 // GET /api/search/features?features=summit,volcano&activities=outdoor-trek&lat=...&lng=...&radius=50000
