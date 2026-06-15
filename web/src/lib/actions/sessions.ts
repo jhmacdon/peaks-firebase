@@ -3,6 +3,7 @@
 
 import db from "../db";
 import { verifyToken } from "../auth-actions";
+import { parseAreas, type ProtectedArea } from "../area-types";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -261,6 +262,25 @@ export async function getSessionRoutes(
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
   }));
+}
+
+export async function getSessionAreas(sessionId: string): Promise<ProtectedArea[]> {
+  const result = await db.query(
+    `SELECT COALESCE(json_agg(area_obj ORDER BY kind, name), '[]'::json) AS areas
+     FROM (
+       SELECT DISTINCT ON (a.kind, a.name)
+              a.kind, a.name,
+              json_build_object('id', a.id, 'name', a.name, 'kind', a.kind,
+                                'designation', a.designation, 'manager', a.manager) AS area_obj
+       FROM session_destinations sd
+       JOIN destination_areas da ON da.destination_id = sd.destination_id
+       JOIN areas a ON a.id = da.area_id
+       WHERE sd.session_id = $1 AND sd.relation = 'reached'
+       ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+     ) deduped`,
+    [sessionId]
+  );
+  return parseAreas(result.rows[0]?.areas ?? []);
 }
 
 export async function getUserStats(

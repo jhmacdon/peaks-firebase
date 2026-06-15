@@ -10,6 +10,7 @@ import {
   getSessionPoints,
   getSessionDestinations,
   getSessionRoutes,
+  getSessionAreas,
 } from "../../../../lib/actions/sessions";
 import type {
   SessionDetail,
@@ -17,6 +18,8 @@ import type {
   SessionDestination,
   SessionRoute,
 } from "../../../../lib/actions/sessions";
+import { AreaChips } from "../../../../components/area-chip";
+import type { ProtectedArea } from "../../../../lib/area-types";
 
 const SessionMap = dynamic(() => import("../../../../components/session-map"), {
   ssr: false,
@@ -66,6 +69,7 @@ export default function SessionDetailPage() {
   const [points, setPoints] = useState<SessionPoint[]>([]);
   const [destinations, setDestinations] = useState<SessionDestination[]>([]);
   const [routes, setRoutes] = useState<SessionRoute[]>([]);
+  const [areas, setAreas] = useState<ProtectedArea[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,17 +77,19 @@ export default function SessionDetailPage() {
       const token = await getIdToken();
       if (!token) return;
 
-      const [s, p, d, r] = await Promise.all([
+      const [s, p, d, r, ar] = await Promise.all([
         getSession(token, id),
         getSessionPoints(token, id),
         getSessionDestinations(id),
         getSessionRoutes(id),
+        getSessionAreas(id),
       ]);
 
       setSession(s);
       setPoints(p);
       setDestinations(d);
       setRoutes(r);
+      setAreas(ar);
       setLoading(false);
     }
     load();
@@ -157,6 +163,7 @@ export default function SessionDetailPage() {
             year: "numeric",
           })}
         </p>
+        <AreaChips areas={areas} className="mt-3" />
       </div>
 
       {/* Stats Grid */}
