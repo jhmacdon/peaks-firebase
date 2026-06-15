@@ -32,6 +32,7 @@ import {
   StatRow,
   titleize,
 } from "../../../../components/detail-sections";
+import { AreaChips } from "../../../../components/area-chip";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -136,6 +137,7 @@ export default function RouteDetailPage() {
                 {metaParts.map(titleizeFirst).join(" · ")}
               </p>
             )}
+            <AreaChips areas={route.areas} className="mt-2" />
           </div>
           {directionsUrl && (
             <a

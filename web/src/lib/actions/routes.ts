@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import db from "../db";
+import { parseAreas, type ProtectedArea } from "../area-types";
 
 export interface RouteRow {
   id: string;
@@ -23,6 +24,7 @@ export interface RouteRow {
 export interface RouteDetail extends RouteRow {
   polyline6: string | null;
   geohashes: string[] | null;
+  areas: ProtectedArea[];
 }
 
 export interface RouteDestination {
@@ -100,12 +102,28 @@ export async function getRoute(
             r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.external_links, r.completion, r.shape, r.status,
             (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
-            r.created_at, r.updated_at
+            r.created_at, r.updated_at,
+            COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
+     LEFT JOIN LATERAL (
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object('id', a.id, 'name', a.name, 'kind', a.kind,
+                                  'designation', a.designation, 'manager', a.manager) AS area_obj
+         FROM route_areas ra
+         JOIN areas a ON a.id = ra.area_id
+         WHERE ra.route_id = r.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
+     ) area_rows ON true
      WHERE r.id = $1${publicFilter}`,
     [id]
   );
-  return result.rows[0] || null;
+  const row = result.rows[0];
+  if (!row) return null;
+  return { ...row, areas: parseAreas(row.areas) };
 }
 
 export async function getRouteDestinations(
