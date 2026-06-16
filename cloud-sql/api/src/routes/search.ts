@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import db from "../db";
+import db, { createDbClient } from "../db";
 import { normalizeSearchName } from "../search-utils";
 import { geolocateRequest } from "../ip-geo";
 
@@ -14,6 +14,18 @@ export interface DestinationSearchQueryInput {
   lat?: number;
   lng?: number;
   limit: number;
+}
+
+interface SearchSqlQuery {
+  text: string;
+  values: unknown[];
+}
+
+interface SearchDbPool {
+  connect(): Promise<{
+    query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
+    release(): void;
+  }>;
 }
 
 function hasGeo(input: { lat?: number; lng?: number }): input is { lat: number; lng: number } {
@@ -159,6 +171,99 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
   };
 }
 
+export function isPgQueryCanceled(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: unknown }).code === "57014";
+}
+
+export async function cancelBackend(pid: number): Promise<void> {
+  const client = createDbClient();
+  try {
+    await client.connect();
+    await client.query("SELECT pg_cancel_backend($1)", [pid]);
+  } finally {
+    await client.end();
+  }
+}
+
+export async function runSearchQuery(
+  _req: Request,
+  res: Response,
+  query: SearchSqlQuery,
+  pool: SearchDbPool = db,
+  cancelBackendFn: (pid: number) => Promise<void> = cancelBackend
+): Promise<void> {
+  let client: Awaited<ReturnType<SearchDbPool["connect"]>> | undefined;
+  let released = false;
+  let responseClosed = false;
+  let queryInFlight = false;
+  let cancelStarted = false;
+  let pid: number | undefined;
+
+  const releaseOnce = () => {
+    if (!released && client) {
+      released = true;
+      client.release();
+    }
+  };
+
+  const maybeCancel = () => {
+    if (!responseClosed || !queryInFlight || pid === undefined || cancelStarted) {
+      return;
+    }
+
+    cancelStarted = true;
+    cancelBackendFn(pid).catch((error) => {
+      console.error("Failed to cancel search query", error);
+    });
+  };
+
+  const handleClose = () => {
+    responseClosed = true;
+    maybeCancel();
+  };
+
+  res.on("close", handleClose);
+
+  try {
+    client = await pool.connect();
+    const pidResult = await client.query("SELECT pg_backend_pid() AS pid");
+    const rawPid = pidResult.rows[0]?.pid;
+    const parsedPid = typeof rawPid === "number" ? rawPid : parseInt(String(rawPid), 10);
+    pid = Number.isFinite(parsedPid) ? parsedPid : undefined;
+
+    if (responseClosed) {
+      return;
+    }
+
+    queryInFlight = true;
+    const result = await client.query(query.text, query.values);
+    queryInFlight = false;
+
+    if (!responseClosed) {
+      res.json(result.rows);
+    }
+  } catch (error) {
+    queryInFlight = false;
+
+    if (responseClosed) {
+      if (!isPgQueryCanceled(error)) {
+        console.error("Search failed after response closed", error);
+      }
+      return;
+    }
+
+    console.error("Search failed", error);
+    res.status(500).json({ error: "Search failed" });
+  } finally {
+    res.off("close", handleClose);
+    queryInFlight = false;
+    releaseOnce();
+  }
+}
+
 // GET /api/search?q=mt+rainier&lat=46.85&lng=-121.7&limit=20
 // Composite-scored text search. Blends:
 //   - Text similarity (trigram)     55%  — primary signal, must find what you searched for
@@ -206,8 +311,7 @@ router.get("/", async (req: Request, res: Response) => {
     lng: requestGeo ? lng : undefined,
     limit,
   });
-  const result = await db.query(query.text, query.values);
-  res.json(result.rows);
+  await runSearchQuery(req, res, query);
 });
 
 // GET /api/search/features?features=summit,volcano&activities=outdoor-trek&lat=...&lng=...&radius=50000

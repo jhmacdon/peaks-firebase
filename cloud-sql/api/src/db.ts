@@ -1,4 +1,4 @@
-import { Pool, types } from "pg";
+import { Client, Pool, types, type ClientConfig } from "pg";
 
 // Cloud SQL connection via Unix socket (Cloud SQL Auth Proxy)
 // or TCP for local development.
@@ -20,13 +20,21 @@ import { Pool, types } from "pg";
 // parser or return it via `::text` in the query.
 types.setTypeParser(20, (val) => (val === null ? null : parseInt(val, 10)));
 
-const pool = new Pool({
+export const dbClientConfig: ClientConfig = {
   host: process.env.DB_HOST || `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
   database: process.env.DB_NAME || "peaks",
   user: process.env.DB_USER || "peaks-api",
   password: process.env.DB_PASS,
   port: process.env.DB_HOST ? parseInt(process.env.DB_PORT || "5432") : undefined,
+};
+
+const pool = new Pool({
+  ...dbClientConfig,
   max: 10,
 });
+
+export function createDbClient(): Client {
+  return new Client(dbClientConfig);
+}
 
 export default pool;
