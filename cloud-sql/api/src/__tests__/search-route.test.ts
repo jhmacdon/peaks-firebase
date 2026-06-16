@@ -37,10 +37,23 @@ function getSearchRouteHandler() {
   return layer.route.stack[0].handle as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<void>;
 }
 
+function getSearchFeaturesRouteHandler() {
+  const layer = (searchRouter as any).stack.find(
+    (candidate: any) => candidate.route?.path === "/features" && candidate.route?.methods?.get
+  );
+  assert.ok(layer, "expected search router to include GET /features");
+  return layer.route.stack[0].handle as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<void>;
+}
+
 function whereClause(sql: string): string {
   const match = sql.match(/\bWHERE\b([\s\S]+?)\bORDER BY\b/);
   assert.ok(match, "expected SQL to include a WHERE clause before ORDER BY");
   return match[1];
+}
+
+function assertSelectsDestinationDisplayLocation(sql: string) {
+  assert.match(sql, /\bcountry_code\b/);
+  assert.match(sql, /\bstate_code\b/);
 }
 
 test("destination search falls back to destination name when search_name is missing", () => {
@@ -50,6 +63,7 @@ test("destination search falls back to destination name when search_name is miss
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)/);
   assert.match(query.text, /lower\(name\) ILIKE/);
   assert.deepEqual(query.values, ["south sis", "south sis%", "south sis%", 20]);
@@ -64,6 +78,7 @@ test("geo destination search uses the same name fallback", () => {
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)/);
   assert.match(query.text, /lower\(name\) ILIKE/);
   assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", "south sis%", 20]);
@@ -76,6 +91,7 @@ test("2-character non-geo destination search uses full-text token prefix matchin
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /to_tsvector\('simple', COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)\)/);
   assert.match(query.text, /to_tsquery\('simple', \$1\)/);
   assert.doesNotMatch(query.text, /similarity\(/);
@@ -97,6 +113,7 @@ test("2-character geo destination search uses full-text token prefix matching wi
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /ST_Distance\(location, ST_MakePoint\(\$7, \$6\)::geography\)/);
   assert.doesNotMatch(query.text, /similarity\(/);
   assert.doesNotMatch(whereClause(query.text), / ILIKE /);
@@ -114,6 +131,7 @@ test("2-character invalid destination search stays on short empty path", () => {
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.doesNotMatch(query.text, /similarity\(/);
   assert.doesNotMatch(query.text, /% \$1/);
   assert.match(query.text, /\bWHERE false\b/);
@@ -127,6 +145,7 @@ test("3-character destination search keeps trigram matching", () => {
     limit: 20,
   });
 
+  assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /similarity\(/);
   assert.match(query.text, /% \$1/);
   assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
@@ -178,6 +197,27 @@ test("search route does not start DB work or write after response closes during 
   assert.equal(connectCount, 0);
   assert.equal(res.statusCode, undefined);
   assert.equal(res.jsonBody, undefined);
+});
+
+test("feature search selects destination display location fields", async (t) => {
+  let capturedSql = "";
+  t.mock.method(db, "query", async (text: string) => {
+    capturedSql = text;
+    return { rows: [] };
+  });
+
+  const req = { query: { features: "summit", limit: "1" } };
+  const res = new FakeResponse();
+  const handler = getSearchFeaturesRouteHandler();
+
+  await handler(req, res, (error?: unknown) => {
+    if (error) {
+      throw error;
+    }
+  });
+
+  assertSelectsDestinationDisplayLocation(capturedSql);
+  assert.deepEqual(res.jsonBody, []);
 });
 
 test("runSearchQuery starts backend cancellation when response closes during the search query", async () => {

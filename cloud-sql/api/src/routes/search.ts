@@ -77,6 +77,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
     return {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
+              country_code, state_code,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng
        FROM destinations
@@ -90,6 +91,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
     return {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
+              country_code, state_code,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
@@ -113,6 +115,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
   return {
     text: `SELECT id, name, elevation, prominence, type,
               activities, features,
+              country_code, state_code,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
@@ -146,6 +149,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
     return {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
+              country_code, state_code,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               similarity(${destinationSearchText}, $1) AS text_score,
@@ -170,6 +174,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
   return {
     text: `SELECT id, name, elevation, prominence, type,
               activities, features,
+              country_code, state_code,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               similarity(${destinationSearchText}, $1) AS text_score,
@@ -398,6 +403,7 @@ router.get("/features", async (req, res: Response) => {
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
             activities, features,
+            country_code, state_code,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
