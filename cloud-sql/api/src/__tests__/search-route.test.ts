@@ -27,3 +27,43 @@ test("geo destination search uses the same name fallback", () => {
   assert.match(query.text, /lower\(name\) ILIKE/);
   assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", "south sis%", 20]);
 });
+
+test("2-character non-geo destination search uses full-text token prefix matching", () => {
+  const query = buildDestinationSearchQuery({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    limit: 20,
+  });
+
+  assert.match(query.text, /to_tsvector\('simple', COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)\)/);
+  assert.match(query.text, /to_tsquery\('simple', \$1\)/);
+  assert.doesNotMatch(query.text, /similarity\(/);
+  assert.doesNotMatch(query.text, /% \$1/);
+  assert.deepEqual(query.values, ["ra:*", "ra%", "ra%", "ra", "ra", 10]);
+});
+
+test("2-character geo destination search uses full-text token prefix matching with distance", () => {
+  const query = buildDestinationSearchQuery({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    lat: 46.85,
+    lng: -121.7,
+    limit: 20,
+  });
+
+  assert.match(query.text, /ST_Distance\(location, ST_MakePoint\(\$7, \$6\)::geography\)/);
+  assert.doesNotMatch(query.text, /similarity\(/);
+  assert.deepEqual(query.values, ["ra:*", "ra%", "ra%", "ra", "ra", 46.85, -121.7, 10]);
+});
+
+test("3-character destination search keeps trigram matching", () => {
+  const query = buildDestinationSearchQuery({
+    normalizedQuery: "rai",
+    rawQuery: "Rai",
+    limit: 20,
+  });
+
+  assert.match(query.text, /similarity\(/);
+  assert.match(query.text, /% \$1/);
+  assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
+});

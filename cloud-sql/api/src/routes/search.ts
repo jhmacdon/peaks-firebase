@@ -6,6 +6,7 @@ import { geolocateRequest } from "../ip-geo";
 const router = Router();
 
 const destinationSearchText = "COALESCE(NULLIF(search_name, ''), lower(name))";
+const destinationSearchVector = `to_tsvector('simple', ${destinationSearchText})`;
 
 export interface DestinationSearchQueryInput {
   normalizedQuery: string;
@@ -15,17 +16,102 @@ export interface DestinationSearchQueryInput {
   limit: number;
 }
 
+function hasGeo(input: { lat?: number; lng?: number }): input is { lat: number; lng: number } {
+  return input.lat !== undefined
+    && input.lng !== undefined
+    && !isNaN(input.lat)
+    && !isNaN(input.lng);
+}
+
+function tokenPrefixTsQuery(normalizedQuery: string): string | null {
+  if (!/^[a-z0-9]+$/.test(normalizedQuery)) {
+    return null;
+  }
+
+  return `${normalizedQuery}:*`;
+}
+
+function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): { text: string; values: unknown[] } | null {
+  const q = input.normalizedQuery;
+  if (q.length !== 2) {
+    return null;
+  }
+
+  const tsQuery = tokenPrefixTsQuery(q);
+  if (!tsQuery) {
+    return null;
+  }
+
+  const raw = input.rawQuery.trim().toLowerCase();
+  const normalizedPrefix = `${q}%`;
+  const rawPrefix = `${raw}%`;
+  const shortLimit = Math.min(input.limit, 10);
+
+  if (hasGeo(input)) {
+    return {
+      text: `SELECT id, name, elevation, prominence, type,
+              activities, features,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng,
+              CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
+              ST_Distance(location, ST_MakePoint($7, $6)::geography) AS distance_m,
+              (
+                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.55 ELSE 0 END
+                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
+                + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
+                + EXP(-1.0 * ST_Distance(location, ST_MakePoint($7, $6)::geography) / 500000.0) * 0.10
+                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.07
+                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.03
+              ) AS score
+       FROM destinations
+       WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+          OR ${destinationSearchText} ILIKE $2
+          OR lower(name) ILIKE $3
+          OR ${destinationSearchText} = $4
+          OR lower(name) = $5
+       ORDER BY score DESC
+       LIMIT $8`,
+      values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, input.lat, input.lng, shortLimit],
+    };
+  }
+
+  return {
+    text: `SELECT id, name, elevation, prominence, type,
+              activities, features,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng,
+              CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
+              (
+                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.60 ELSE 0 END
+                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
+                + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
+                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
+                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
+              ) AS score
+       FROM destinations
+       WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+          OR ${destinationSearchText} ILIKE $2
+          OR lower(name) ILIKE $3
+          OR ${destinationSearchText} = $4
+          OR lower(name) = $5
+       ORDER BY score DESC
+       LIMIT $6`,
+    values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, shortLimit],
+  };
+}
+
 export function buildDestinationSearchQuery(input: DestinationSearchQueryInput): { text: string; values: unknown[] } {
+  const shortQuery = buildShortDestinationSearchQuery(input);
+  if (shortQuery) {
+    return shortQuery;
+  }
+
   const q = input.normalizedQuery;
   const raw = input.rawQuery.trim().toLowerCase();
   const normalizedPrefix = `${q}%`;
   const rawPrefix = `${raw}%`;
-  const hasGeo = input.lat !== undefined
-    && input.lng !== undefined
-    && !isNaN(input.lat)
-    && !isNaN(input.lng);
 
-  if (hasGeo) {
+  if (hasGeo(input)) {
     return {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
@@ -103,7 +189,7 @@ router.get("/", async (req: Request, res: Response) => {
     }
   }
 
-  const hasGeo = !isNaN(lat) && !isNaN(lng);
+  const requestGeo = hasGeo({ lat, lng });
 
   // Scoring components (all normalized to 0-1):
   //   text:       similarity(search_name, query)
@@ -115,8 +201,8 @@ router.get("/", async (req: Request, res: Response) => {
   const query = buildDestinationSearchQuery({
     normalizedQuery: q,
     rawQuery,
-    lat: hasGeo ? lat : undefined,
-    lng: hasGeo ? lng : undefined,
+    lat: requestGeo ? lat : undefined,
+    lng: requestGeo ? lng : undefined,
     limit,
   });
   const result = await db.query(query.text, query.values);

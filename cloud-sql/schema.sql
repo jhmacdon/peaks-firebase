@@ -501,6 +501,10 @@ CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (locat
 
 -- Trigram (GIN) for fuzzy text search on destinations
 CREATE INDEX idx_destinations_search_name   ON destinations USING GIN (search_name gin_trgm_ops);
+CREATE INDEX idx_destinations_search_name_fts
+  ON destinations USING GIN (
+    to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name)))
+  );
 CREATE INDEX idx_areas_search_name          ON areas USING GIN (search_name gin_trgm_ops);
 
 -- GIN on array columns for containment queries (e.g. WHERE features @> '{summit}')
