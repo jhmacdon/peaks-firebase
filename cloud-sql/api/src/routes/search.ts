@@ -184,7 +184,7 @@ export async function cancelBackend(pid: number): Promise<void> {
     await client.connect();
     await client.query("SELECT pg_cancel_backend($1)", [pid]);
   } finally {
-    await client.end();
+    await client.end().catch(() => undefined);
   }
 }
 
@@ -200,6 +200,7 @@ export async function runSearchQuery(
   let responseClosed = false;
   let queryInFlight = false;
   let cancelStarted = false;
+  let cancelPromise: Promise<void> | undefined;
   let pid: number | undefined;
 
   const releaseOnce = () => {
@@ -215,7 +216,7 @@ export async function runSearchQuery(
     }
 
     cancelStarted = true;
-    cancelBackendFn(pid).catch((error) => {
+    cancelPromise = cancelBackendFn(pid).catch((error) => {
       console.error("Failed to cancel search query", error);
     });
   };
@@ -229,6 +230,11 @@ export async function runSearchQuery(
 
   try {
     client = await pool.connect();
+
+    if (responseClosed) {
+      return;
+    }
+
     const pidResult = await client.query("SELECT pg_backend_pid() AS pid");
     const rawPid = pidResult.rows[0]?.pid;
     const parsedPid = typeof rawPid === "number" ? rawPid : parseInt(String(rawPid), 10);
@@ -260,6 +266,9 @@ export async function runSearchQuery(
   } finally {
     res.off("close", handleClose);
     queryInFlight = false;
+    if (cancelPromise) {
+      await cancelPromise;
+    }
     releaseOnce();
   }
 }

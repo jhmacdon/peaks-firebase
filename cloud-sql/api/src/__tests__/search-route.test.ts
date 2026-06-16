@@ -1,6 +1,32 @@
 import { strict as assert } from "node:assert";
+import { EventEmitter } from "node:events";
 import { test } from "node:test";
-import { buildDestinationSearchQuery } from "../routes/search";
+import { buildDestinationSearchQuery, runSearchQuery } from "../routes/search";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+class FakeResponse extends EventEmitter {
+  statusCode?: number;
+  jsonBody?: unknown;
+
+  status(code: number): this {
+    this.statusCode = code;
+    return this;
+  }
+
+  json(body: unknown): this {
+    this.jsonBody = body;
+    return this;
+  }
+}
 
 function whereClause(sql: string): string {
   const match = sql.match(/\bWHERE\b([\s\S]+?)\bORDER BY\b/);
@@ -95,4 +121,266 @@ test("3-character destination search keeps trigram matching", () => {
   assert.match(query.text, /similarity\(/);
   assert.match(query.text, /% \$1/);
   assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
+});
+
+test("runSearchQuery starts backend cancellation when response closes during the search query", async () => {
+  const queryStarted = deferred<void>();
+  const queryDeferred = deferred<{ rows: unknown[] }>();
+  let releaseCount = 0;
+  const canceledPids: number[] = [];
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 654 }] };
+      }
+      queryStarted.resolve();
+      return queryDeferred.promise;
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  const searchPromise = runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT pg_sleep(30)", values: [] },
+    fakePool as never,
+    async (pid) => {
+      canceledPids.push(pid);
+    }
+  );
+
+  await queryStarted.promise;
+  res.emit("close");
+  const cancelError = new Error("canceling statement due to user request") as Error & { code: string };
+  cancelError.code = "57014";
+  queryDeferred.reject(cancelError);
+  await searchPromise;
+
+  assert.deepEqual(canceledPids, [654]);
+  assert.equal(releaseCount, 1);
+});
+
+test("runSearchQuery waits for backend cancellation to settle before releasing the pool client", async () => {
+  const queryStarted = deferred<void>();
+  const queryDeferred = deferred<{ rows: unknown[] }>();
+  const cancelDeferred = deferred<void>();
+  const events: string[] = [];
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 777 }] };
+      }
+      queryStarted.resolve();
+      return queryDeferred.promise;
+    },
+    release: () => {
+      events.push("release");
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  const searchPromise = runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT pg_sleep(30)", values: [] },
+    fakePool as never,
+    async () => {
+      events.push("cancel-start");
+      await cancelDeferred.promise;
+      events.push("cancel-done");
+    }
+  );
+
+  await queryStarted.promise;
+  res.emit("close");
+  const cancelError = new Error("canceling statement due to user request") as Error & { code: string };
+  cancelError.code = "57014";
+  queryDeferred.reject(cancelError);
+
+  const earlyResult = await Promise.race([
+    searchPromise.then(() => "settled"),
+    new Promise<"pending">((resolve) => setImmediate(() => resolve("pending"))),
+  ]);
+
+  assert.equal(earlyResult, "pending");
+  assert.deepEqual(events, ["cancel-start"]);
+
+  cancelDeferred.resolve();
+  await searchPromise;
+
+  assert.deepEqual(events, ["cancel-start", "cancel-done", "release"]);
+});
+
+test("runSearchQuery does not cancel after a successful open response", async () => {
+  let releaseCount = 0;
+  let cancelCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 321 }] };
+      }
+      return { rows: [{ id: "rainier" }] };
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  await runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT * FROM destinations", values: [] },
+    fakePool as never,
+    async () => {
+      cancelCount += 1;
+    }
+  );
+
+  assert.deepEqual(res.jsonBody, [{ id: "rainier" }]);
+  assert.equal(cancelCount, 0);
+  assert.equal(releaseCount, 1);
+});
+
+test("runSearchQuery does not write JSON after the response is closed", async () => {
+  const queryStarted = deferred<void>();
+  const queryDeferred = deferred<{ rows: unknown[] }>();
+  let releaseCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 888 }] };
+      }
+      queryStarted.resolve();
+      return queryDeferred.promise;
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  const searchPromise = runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT * FROM destinations", values: [] },
+    fakePool as never,
+    async () => undefined
+  );
+
+  await queryStarted.promise;
+  res.emit("close");
+  queryDeferred.resolve({ rows: [{ id: "rainier" }] });
+  await searchPromise;
+
+  assert.equal(res.statusCode, undefined);
+  assert.equal(res.jsonBody, undefined);
+  assert.equal(releaseCount, 1);
+});
+
+test("runSearchQuery suppresses PostgreSQL cancellation errors after response close", async (t) => {
+  const queryStarted = deferred<void>();
+  const queryDeferred = deferred<{ rows: unknown[] }>();
+  const errorMock = t.mock.method(console, "error", () => undefined);
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 999 }] };
+      }
+      queryStarted.resolve();
+      return queryDeferred.promise;
+    },
+    release: () => undefined,
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  const searchPromise = runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT pg_sleep(30)", values: [] },
+    fakePool as never,
+    async () => undefined
+  );
+
+  await queryStarted.promise;
+  res.emit("close");
+  const cancelError = new Error("canceling statement due to user request") as Error & { code: string };
+  cancelError.code = "57014";
+  queryDeferred.reject(cancelError);
+  await searchPromise;
+
+  assert.equal(errorMock.mock.calls.length, 0);
+  assert.equal(res.jsonBody, undefined);
+});
+
+test("runSearchQuery returns 500 for unexpected DB errors while response is open", async (t) => {
+  const errorMock = t.mock.method(console, "error", () => undefined);
+  let releaseCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 123 }] };
+      }
+      throw new Error("database unavailable");
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+
+  await runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT * FROM destinations", values: [] },
+    fakePool as never,
+    async () => undefined
+  );
+
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.jsonBody, { error: "Search failed" });
+  assert.equal(errorMock.mock.calls.length, 1);
+  assert.equal(releaseCount, 1);
+});
+
+test("runSearchQuery releases without PID or search query work if response closes while waiting for a pool client", async () => {
+  const executedSql: string[] = [];
+  let releaseCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      executedSql.push(text);
+      return { rows: [{ pid: 123 }] };
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const connectDeferred = deferred<typeof fakeClient>();
+  const fakePool = { connect: async () => connectDeferred.promise };
+  const res = new FakeResponse();
+
+  const searchPromise = runSearchQuery(
+    {} as never,
+    res as never,
+    { text: "SELECT * FROM destinations", values: [] },
+    fakePool as never,
+    async () => undefined
+  );
+
+  res.emit("close");
+  connectDeferred.resolve(fakeClient);
+  await searchPromise;
+
+  assert.deepEqual(executedSql, []);
+  assert.equal(releaseCount, 1);
+  assert.equal(res.jsonBody, undefined);
 });
