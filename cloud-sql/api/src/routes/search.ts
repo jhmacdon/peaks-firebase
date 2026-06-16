@@ -35,6 +35,24 @@ function hasGeo(input: { lat?: number; lng?: number }): input is { lat: number; 
     && !isNaN(input.lng);
 }
 
+function watchSearchRouteClose(req: Request, res: Response): { isClosed(): boolean; dispose(): void } {
+  let closed = Boolean(req.aborted || req.destroyed || res.destroyed || res.writableEnded);
+  const markClosed = () => {
+    closed = true;
+  };
+
+  req.on("aborted", markClosed);
+  res.on("close", markClosed);
+
+  return {
+    isClosed: () => closed || Boolean(req.aborted || req.destroyed || res.destroyed || res.writableEnded),
+    dispose: () => {
+      req.off("aborted", markClosed);
+      res.off("close", markClosed);
+    },
+  };
+}
+
 function tokenPrefixTsQuery(normalizedQuery: string): string | null {
   if (!/^[a-z0-9]+$/.test(normalizedQuery)) {
     return null;
@@ -283,44 +301,59 @@ export async function runSearchQuery(
 // When lat/lng are not provided, falls back to IP-based geolocation.
 // Abbreviations are expanded (mt→mount, etc.) on both query and stored names.
 router.get("/", async (req: Request, res: Response) => {
-  const rawQuery = (req.query.q as string || "").trim();
-  const q = normalizeSearchName(rawQuery);
-  const limit = parseInt(req.query.limit as string) || 20;
+  const routeClose = watchSearchRouteClose(req, res);
 
-  if (!q) {
-    res.status(400).json({ error: "q (search query) is required" });
-    return;
-  }
+  try {
+    const rawQuery = (req.query.q as string || "").trim();
+    const q = normalizeSearchName(rawQuery);
+    const limit = parseInt(req.query.limit as string) || 20;
 
-  // Use explicit lat/lng if provided, otherwise fall back to IP geolocation
-  let lat = parseFloat(req.query.lat as string);
-  let lng = parseFloat(req.query.lng as string);
-
-  if (isNaN(lat) || isNaN(lng)) {
-    const ipGeo = await geolocateRequest(req);
-    if (ipGeo) {
-      lat = ipGeo.lat;
-      lng = ipGeo.lng;
+    if (!q) {
+      if (!routeClose.isClosed()) {
+        res.status(400).json({ error: "q (search query) is required" });
+      }
+      return;
     }
+
+    // Use explicit lat/lng if provided, otherwise fall back to IP geolocation
+    let lat = parseFloat(req.query.lat as string);
+    let lng = parseFloat(req.query.lng as string);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      const ipGeo = await geolocateRequest(req);
+      if (routeClose.isClosed()) {
+        return;
+      }
+      if (ipGeo) {
+        lat = ipGeo.lat;
+        lng = ipGeo.lng;
+      }
+    }
+
+    if (routeClose.isClosed()) {
+      return;
+    }
+
+    const requestGeo = hasGeo({ lat, lng });
+
+    // Scoring components (all normalized to 0-1):
+    //   text:       similarity(search_name, query)
+    //   prefix:     1 if search_name starts with query, else 0
+    //   proximity:  EXP(-distance_m / 500000)  (half-life ~350km)
+    //   elevation:  LEAST(elevation, 9000) / 9000
+    //   prominence: LEAST(prominence, 9000) / 9000
+
+    const query = buildDestinationSearchQuery({
+      normalizedQuery: q,
+      rawQuery,
+      lat: requestGeo ? lat : undefined,
+      lng: requestGeo ? lng : undefined,
+      limit,
+    });
+    await runSearchQuery(req, res, query);
+  } finally {
+    routeClose.dispose();
   }
-
-  const requestGeo = hasGeo({ lat, lng });
-
-  // Scoring components (all normalized to 0-1):
-  //   text:       similarity(search_name, query)
-  //   prefix:     1 if search_name starts with query, else 0
-  //   proximity:  EXP(-distance_m / 500000)  (half-life ~350km)
-  //   elevation:  LEAST(elevation, 9000) / 9000
-  //   prominence: LEAST(prominence, 9000) / 9000
-
-  const query = buildDestinationSearchQuery({
-    normalizedQuery: q,
-    rawQuery,
-    lat: requestGeo ? lat : undefined,
-    lng: requestGeo ? lng : undefined,
-    limit,
-  });
-  await runSearchQuery(req, res, query);
 });
 
 // GET /api/search/features?features=summit,volcano&activities=outdoor-trek&lat=...&lng=...&radius=50000

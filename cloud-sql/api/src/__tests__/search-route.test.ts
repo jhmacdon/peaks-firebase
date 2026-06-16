@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
 import { EventEmitter } from "node:events";
 import { test } from "node:test";
-import { buildDestinationSearchQuery, runSearchQuery } from "../routes/search";
+import db from "../db";
+import searchRouter, { buildDestinationSearchQuery, runSearchQuery } from "../routes/search";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -26,6 +27,14 @@ class FakeResponse extends EventEmitter {
     this.jsonBody = body;
     return this;
   }
+}
+
+function getSearchRouteHandler() {
+  const layer = (searchRouter as any).stack.find(
+    (candidate: any) => candidate.route?.path === "/" && candidate.route?.methods?.get
+  );
+  assert.ok(layer, "expected search router to include GET /");
+  return layer.route.stack[0].handle as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<void>;
 }
 
 function whereClause(sql: string): string {
@@ -121,6 +130,54 @@ test("3-character destination search keeps trigram matching", () => {
   assert.match(query.text, /similarity\(/);
   assert.match(query.text, /% \$1/);
   assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
+});
+
+test("search route does not start DB work or write after response closes during IP geolocation", async (t) => {
+  const fetchStarted = deferred<void>();
+  const fetchDeferred = deferred<{ ok: boolean; json(): Promise<unknown> }>();
+  let connectCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 246 }] };
+      }
+      return { rows: [{ id: "rainier" }] };
+    },
+    release: () => undefined,
+  };
+  t.mock.method(db, "connect", async () => {
+    connectCount += 1;
+    return fakeClient;
+  });
+  t.mock.method(globalThis, "fetch", async () => {
+    fetchStarted.resolve();
+    return fetchDeferred.promise as never;
+  });
+  const req = Object.assign(new EventEmitter(), {
+    query: { q: "Rainier" },
+    headers: { "x-forwarded-for": "8.8.8.8" },
+    socket: { remoteAddress: "8.8.8.8" },
+  });
+  const res = new FakeResponse();
+  const handler = getSearchRouteHandler();
+
+  const handlerPromise = handler(req, res, (error?: unknown) => {
+    if (error) {
+      throw error;
+    }
+  });
+
+  await fetchStarted.promise;
+  res.emit("close");
+  fetchDeferred.resolve({
+    ok: true,
+    json: async () => ({ status: "success", lat: 46.85, lon: -121.7 }),
+  });
+  await handlerPromise;
+
+  assert.equal(connectCount, 0);
+  assert.equal(res.statusCode, undefined);
+  assert.equal(res.jsonBody, undefined);
 });
 
 test("runSearchQuery starts backend cancellation when response closes during the search query", async () => {
