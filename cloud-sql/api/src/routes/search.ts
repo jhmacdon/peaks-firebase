@@ -38,14 +38,23 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
   }
 
   const tsQuery = tokenPrefixTsQuery(q);
-  if (!tsQuery) {
-    return null;
-  }
-
   const raw = input.rawQuery.trim().toLowerCase();
   const normalizedPrefix = `${q}%`;
   const rawPrefix = `${raw}%`;
   const shortLimit = Math.min(input.limit, 10);
+
+  if (!tsQuery) {
+    return {
+      text: `SELECT id, name, elevation, prominence, type,
+              activities, features,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng
+       FROM destinations
+       WHERE false
+       LIMIT $1`,
+      values: [shortLimit],
+    };
+  }
 
   if (hasGeo(input)) {
     return {
@@ -65,10 +74,6 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ) AS score
        FROM destinations
        WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
-          OR ${destinationSearchText} ILIKE $2
-          OR lower(name) ILIKE $3
-          OR ${destinationSearchText} = $4
-          OR lower(name) = $5
        ORDER BY score DESC
        LIMIT $8`,
       values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, input.lat, input.lng, shortLimit],
@@ -90,10 +95,6 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ) AS score
        FROM destinations
        WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
-          OR ${destinationSearchText} ILIKE $2
-          OR lower(name) ILIKE $3
-          OR ${destinationSearchText} = $4
-          OR lower(name) = $5
        ORDER BY score DESC
        LIMIT $6`,
     values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, shortLimit],
