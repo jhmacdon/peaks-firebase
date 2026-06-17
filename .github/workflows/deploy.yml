@@ -86,13 +86,16 @@ jobs:
           # everything on the instance — including fast /api/search — which is
           # what made search look slow/broken. The /points + /elevation endpoints
           # now STREAM via a server-side cursor (constant memory), so 512Mi is
-          # plenty; concurrency 40 + scale-to-10 keeps the instance alive under load.
-          flags: '--memory=512Mi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=10'
+          # enough. Keep request fanout near DB limits by reducing concurrency and
+          # explicitly capping pool size via DB_POOL_MAX.
+          flags: '--memory=512Mi --cpu=1 --concurrency=20 --min-instances=1 --max-instances=6'
           # Pin all required env vars and secrets so deploys can never drop them
           env_vars: |
             INSTANCE_CONNECTION_NAME=donner-a8608:us-central1:peaks-db
             DB_NAME=peaks
             DB_USER=peaks-api
+            DB_POOL_MAX=4
+            DB_POOL_CONNECTION_TIMEOUT_MS=5000
           secrets: |
             DB_PASS=peaks-db-password:latest
             SLACK_WEBHOOK_URL=SLACK_WEBHOOK_URL:latest

@@ -1,12 +1,53 @@
 import { Router, Request, Response } from "express";
 import db, { createDbClient } from "../db";
 import { normalizeSearchName } from "../search-utils";
-import { geolocateRequest } from "../ip-geo";
 
 const router = Router();
 
 const destinationSearchText = "COALESCE(NULLIF(search_name, ''), lower(name))";
 const destinationSearchVector = `to_tsvector('simple', ${destinationSearchText})`;
+const destinationAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
+const destinationAreaJoinSql = `LEFT JOIN LATERAL (
+         SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+         FROM (
+           SELECT DISTINCT ON (a.kind, a.name)
+                  a.kind, a.name,
+                  json_build_object(
+                    'id', a.id,
+                    'name', a.name,
+                    'kind', a.kind,
+                    'designation', a.designation,
+                    'manager', a.manager,
+                    'relation', da.relation,
+                    'source', da.source
+                  ) AS area_obj
+           FROM destination_areas da
+           JOIN areas a ON a.id = da.area_id
+           WHERE da.destination_id = destinations.id
+           ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+         ) deduped
+       ) area_rows ON true`;
+const routeAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
+const routeAreaJoinSql = `LEFT JOIN LATERAL (
+         SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+         FROM (
+           SELECT DISTINCT ON (a.kind, a.name)
+                  a.kind, a.name,
+                  json_build_object(
+                    'id', a.id,
+                    'name', a.name,
+                    'kind', a.kind,
+                    'designation', a.designation,
+                    'manager', a.manager,
+                    'relation', ra.relation,
+                    'source', ra.source
+                  ) AS area_obj
+           FROM route_areas ra
+           JOIN areas a ON a.id = ra.area_id
+           WHERE ra.route_id = r.id
+           ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+         ) deduped
+       ) area_rows ON true`;
 
 export interface DestinationSearchQueryInput {
   normalizedQuery: string;
@@ -21,6 +62,12 @@ interface SearchSqlQuery {
   values: unknown[];
 }
 
+interface MixedSearchSqlQueries {
+  destinations: SearchSqlQuery;
+  routes: SearchSqlQuery;
+  areas: SearchSqlQuery;
+}
+
 interface SearchDbPool {
   connect(): Promise<{
     query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
@@ -33,6 +80,18 @@ function hasGeo(input: { lat?: number; lng?: number }): input is { lat: number; 
     && input.lng !== undefined
     && !isNaN(input.lat)
     && !isNaN(input.lng);
+}
+
+function areaSearchAliases(normalizedQuery: string): string[] {
+  const hasBaker = /\bbaker\b/.test(normalizedQuery);
+  const hasSnoqualmie = /\bsnoqualmie\b/.test(normalizedQuery);
+  if (!hasBaker || !hasSnoqualmie) {
+    return [];
+  }
+
+  // PAD-US splits the current Mt. Baker-Snoqualmie National Forest into
+  // historical Mt. Baker and Snoqualmie National Forest records.
+  return ["mt baker national forest", "snoqualmie national forest"];
 }
 
 function watchSearchRouteClose(req: Request, res: Response): { isClosed(): boolean; dispose(): void } {
@@ -61,6 +120,14 @@ function tokenPrefixTsQuery(normalizedQuery: string): string | null {
   return `${normalizedQuery}:*`;
 }
 
+export function clampSearchLimit(value: string | undefined, fallback = 20, max = 50): number {
+  const parsed = Number.parseInt(value || "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(parsed, max);
+}
+
 function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): { text: string; values: unknown[] } | null {
   const q = input.normalizedQuery;
   if (q.length !== 2) {
@@ -78,9 +145,11 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
               country_code, state_code,
+              ${destinationAreaRowsSql},
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng
        FROM destinations
+       ${destinationAreaJoinSql}
        WHERE false
        LIMIT $1`,
       values: [shortLimit],
@@ -92,6 +161,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
               country_code, state_code,
+              ${destinationAreaRowsSql},
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
@@ -105,6 +175,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
                 + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.03
               ) AS score
        FROM destinations
+       ${destinationAreaJoinSql}
        WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
        ORDER BY score DESC
        LIMIT $8`,
@@ -116,6 +187,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
     text: `SELECT id, name, elevation, prominence, type,
               activities, features,
               country_code, state_code,
+              ${destinationAreaRowsSql},
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
@@ -127,6 +199,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
                 + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
               ) AS score
        FROM destinations
+       ${destinationAreaJoinSql}
        WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
        ORDER BY score DESC
        LIMIT $6`,
@@ -150,6 +223,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
       text: `SELECT id, name, elevation, prominence, type,
               activities, features,
               country_code, state_code,
+              ${destinationAreaRowsSql},
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               similarity(${destinationSearchText}, $1) AS text_score,
@@ -162,6 +236,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
                 + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
               ) AS score
        FROM destinations
+       ${destinationAreaJoinSql}
        WHERE ${destinationSearchText} % $1
           OR ${destinationSearchText} ILIKE $4
           OR lower(name) ILIKE $5
@@ -175,6 +250,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
     text: `SELECT id, name, elevation, prominence, type,
               activities, features,
               country_code, state_code,
+              ${destinationAreaRowsSql},
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               similarity(${destinationSearchText}, $1) AS text_score,
@@ -185,12 +261,141 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
                 + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
               ) AS score
        FROM destinations
+       ${destinationAreaJoinSql}
        WHERE ${destinationSearchText} % $1
           OR ${destinationSearchText} ILIKE $2
           OR lower(name) ILIKE $3
        ORDER BY score DESC
        LIMIT $4`,
     values: [q, normalizedPrefix, rawPrefix, input.limit],
+  };
+}
+
+export function buildRouteSearchQuery(input: DestinationSearchQueryInput): SearchSqlQuery {
+  const q = input.normalizedQuery;
+  const raw = input.rawQuery.trim().toLowerCase();
+  const normalizedPrefix = `${q}%`;
+  const rawPrefix = `${raw}%`;
+  const routeLimit = Math.min(input.limit, 10);
+  const routeSearchText = "COALESCE(NULLIF(lower(r.name), ''), '') || ' ' || COALESCE(route_dest_names.names, '')";
+
+  const geoScore = hasGeo(input)
+    ? " + EXP(-1.0 * ST_Distance(r.path, ST_MakePoint($5, $4)::geography) / 500000.0) * 0.10"
+    : "";
+  const geoSelect = hasGeo(input)
+    ? ", ST_Distance(r.path, ST_MakePoint($5, $4)::geography) AS distance_m"
+    : "";
+  const limitParam = hasGeo(input) ? "$6" : "$4";
+  const values = hasGeo(input)
+    ? [q, normalizedPrefix, rawPrefix, input.lat, input.lng, routeLimit]
+    : [q, normalizedPrefix, rawPrefix, routeLimit];
+
+  return {
+    text: `SELECT r.id, r.name, r.polyline6, r.owner,
+              r.distance, r.gain, r.gain_loss, r.elevation_string,
+              r.external_links, r.completion,
+              ${routeAreaRowsSql}${geoSelect},
+              (
+                similarity(${routeSearchText}, $1) * 0.70
+                + CASE WHEN lower(r.name) ILIKE $2 OR lower(r.name) ILIKE $3 THEN 0.20 ELSE 0 END
+                + LEAST(COALESCE(r.gain, 0), 3000.0) / 3000.0 * 0.05
+                + LEAST(COALESCE(r.distance, 0), 50000.0) / 50000.0 * 0.05
+                ${geoScore}
+              ) AS score
+       FROM routes r
+       LEFT JOIN LATERAL (
+         SELECT string_agg(COALESCE(NULLIF(d.search_name, ''), lower(d.name)), ' ') AS names
+         FROM route_destinations rd
+         JOIN destinations d ON d.id = rd.destination_id
+         WHERE rd.route_id = r.id
+       ) route_dest_names ON true
+       ${routeAreaJoinSql}
+       WHERE r.status = 'active'
+         AND (
+           ${routeSearchText} % $1
+           OR lower(r.name) ILIKE $2
+           OR lower(r.name) ILIKE $3
+         )
+       ORDER BY score DESC
+       LIMIT ${limitParam}`,
+    values,
+  };
+}
+
+export function buildAreaSearchQuery(input: DestinationSearchQueryInput): SearchSqlQuery {
+  const q = input.normalizedQuery;
+  const raw = input.rawQuery.trim().toLowerCase();
+  const normalizedPrefix = `${q}%`;
+  const rawPrefix = `${raw}%`;
+  const areaLimit = Math.min(input.limit, 10);
+  const aliases = areaSearchAliases(q);
+
+  if (q.length === 2 && !/^[a-z0-9]+$/.test(q)) {
+    return {
+      text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
+              ST_Y(a.centroid) AS lat,
+              ST_X(a.centroid) AS lng,
+              a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
+              0::int AS destination_count,
+              0::int AS route_count
+       FROM areas a
+       WHERE false
+       LIMIT $1`,
+      values: [areaLimit],
+    };
+  }
+
+  const shortWhere = q.length === 2
+    ? "(a.search_name ILIKE $2 OR lower(a.name) ILIKE $3)"
+    : "(a.search_name % $1 OR a.search_name ILIKE $2 OR lower(a.name) ILIKE $3)";
+  const textScore = q.length === 2
+    ? "CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 1 ELSE 0 END"
+    : "similarity(a.search_name, $1)";
+  const values: unknown[] = [q, normalizedPrefix, rawPrefix, areaLimit];
+  const aliasParamIndex = aliases.length > 0 ? values.push(aliases) : null;
+  const aliasPredicate = aliasParamIndex
+    ? `(a.search_name = ANY($${aliasParamIndex}::text[]) OR lower(a.name) = ANY($${aliasParamIndex}::text[]))`
+    : "";
+  const whereClause = aliasPredicate ? `(${shortWhere} OR ${aliasPredicate})` : shortWhere;
+  const aliasScore = aliasPredicate ? `+ CASE WHEN ${aliasPredicate} THEN 0.45 ELSE 0 END` : "";
+
+  return {
+    text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
+              ST_Y(a.centroid) AS lat,
+              ST_X(a.centroid) AS lng,
+              a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
+              COALESCE(destination_counts.destination_count, 0)::int AS destination_count,
+              COALESCE(route_counts.route_count, 0)::int AS route_count,
+              (
+                ${textScore} * 0.70
+                + CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 0.20 ELSE 0 END
+                + LEAST(COALESCE(destination_counts.destination_count, 0), 200.0) / 200.0 * 0.07
+                + LEAST(COALESCE(route_counts.route_count, 0), 50.0) / 50.0 * 0.03
+                ${aliasScore}
+              ) AS score
+       FROM areas a
+       LEFT JOIN LATERAL (
+         SELECT count(DISTINCT da.destination_id) AS destination_count
+         FROM destination_areas da
+         WHERE da.area_id = a.id
+       ) destination_counts ON true
+       LEFT JOIN LATERAL (
+         SELECT count(DISTINCT ra.route_id) AS route_count
+         FROM route_areas ra
+         WHERE ra.area_id = a.id
+       ) route_counts ON true
+       WHERE ${whereClause}
+       ORDER BY score DESC
+       LIMIT $4`,
+    values,
+  };
+}
+
+export function buildMixedSearchQueries(input: DestinationSearchQueryInput): MixedSearchSqlQueries {
+  return {
+    destinations: buildDestinationSearchQuery(input),
+    routes: buildRouteSearchQuery(input),
+    areas: buildAreaSearchQuery(input),
   };
 }
 
@@ -296,6 +501,27 @@ export async function runSearchQuery(
   }
 }
 
+async function runSearchRows(
+  res: Response,
+  query: SearchSqlQuery,
+  pool: SearchDbPool = db
+): Promise<any[] | undefined> {
+  if (res.destroyed || res.writableEnded) {
+    return undefined;
+  }
+
+  const client = await pool.connect();
+  try {
+    if (res.destroyed || res.writableEnded) {
+      return undefined;
+    }
+    const result = await client.query(query.text, query.values);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
 // GET /api/search?q=mt+rainier&lat=46.85&lng=-121.7&limit=20
 // Composite-scored text search. Blends:
 //   - Text similarity (trigram)     55%  — primary signal, must find what you searched for
@@ -303,7 +529,7 @@ export async function runSearchQuery(
 //   - Proximity                     15%  — nearby results boosted (but can't override good text match)
 //   - Elevation                     10%  — tiebreaker: taller peaks edge ahead
 //   - Prominence                     5%  — tiebreaker: more prominent peaks edge ahead
-// When lat/lng are not provided, falls back to IP-based geolocation.
+// When lat/lng are not provided, uses no-geo ranking.
 // Abbreviations are expanded (mt→mount, etc.) on both query and stored names.
 router.get("/", async (req: Request, res: Response) => {
   const routeClose = watchSearchRouteClose(req, res);
@@ -311,7 +537,7 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const rawQuery = (req.query.q as string || "").trim();
     const q = normalizeSearchName(rawQuery);
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = clampSearchLimit(req.query.limit as string | undefined);
 
     if (!q) {
       if (!routeClose.isClosed()) {
@@ -320,20 +546,11 @@ router.get("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // Use explicit lat/lng if provided, otherwise fall back to IP geolocation
-    let lat = parseFloat(req.query.lat as string);
-    let lng = parseFloat(req.query.lng as string);
-
-    if (isNaN(lat) || isNaN(lng)) {
-      const ipGeo = await geolocateRequest(req);
-      if (routeClose.isClosed()) {
-        return;
-      }
-      if (ipGeo) {
-        lat = ipGeo.lat;
-        lng = ipGeo.lng;
-      }
-    }
+    // Use explicit lat/lng if provided. Avoid IP geolocation in the hot search
+    // path: no-geo ranking is already supported, and the external lookup used
+    // to add latency, rate limits, and avoidable failure modes.
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
 
     if (routeClose.isClosed()) {
       return;
@@ -356,6 +573,53 @@ router.get("/", async (req: Request, res: Response) => {
       limit,
     });
     await runSearchQuery(req, res, query);
+  } finally {
+    routeClose.dispose();
+  }
+});
+
+// GET /api/search/all?q=rainier&lat=46.85&lng=-121.7&limit=20
+// Typed search buckets for the NewUI sheet. Keeps GET /api/search backwards
+// compatible for older clients that expect a raw destination array.
+router.get("/all", async (req: Request, res: Response) => {
+  const routeClose = watchSearchRouteClose(req, res);
+
+  try {
+    const rawQuery = (req.query.q as string || "").trim();
+    const q = normalizeSearchName(rawQuery);
+    const limit = clampSearchLimit(req.query.limit as string | undefined);
+
+    if (!q) {
+      if (!routeClose.isClosed()) {
+        res.status(400).json({ error: "q (search query) is required" });
+      }
+      return;
+    }
+
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
+    const requestGeo = hasGeo({ lat, lng });
+    const queries = buildMixedSearchQueries({
+      normalizedQuery: q,
+      rawQuery,
+      lat: requestGeo ? lat : undefined,
+      lng: requestGeo ? lng : undefined,
+      limit,
+    });
+
+    const destinations = await runSearchRows(res, queries.destinations);
+    if (routeClose.isClosed() || !destinations) return;
+    const routes = await runSearchRows(res, queries.routes);
+    if (routeClose.isClosed() || !routes) return;
+    const areas = await runSearchRows(res, queries.areas);
+    if (routeClose.isClosed() || !areas) return;
+
+    res.json({ destinations, routes, areas });
+  } catch (error) {
+    if (!routeClose.isClosed()) {
+      console.error("Mixed search failed", error);
+      res.status(500).json({ error: "Search failed" });
+    }
   } finally {
     routeClose.dispose();
   }

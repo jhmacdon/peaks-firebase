@@ -20,6 +20,11 @@ import { Client, Pool, types, type ClientConfig } from "pg";
 // parser or return it via `::text` in the query.
 types.setTypeParser(20, (val) => (val === null ? null : parseInt(val, 10)));
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value || "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const dbClientConfig: ClientConfig = {
   host: process.env.DB_HOST || `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`,
   database: process.env.DB_NAME || "peaks",
@@ -30,7 +35,8 @@ export const dbClientConfig: ClientConfig = {
 
 const pool = new Pool({
   ...dbClientConfig,
-  max: 10,
+  max: parsePositiveInt(process.env.DB_POOL_MAX, 4),
+  connectionTimeoutMillis: parsePositiveInt(process.env.DB_POOL_CONNECTION_TIMEOUT_MS, 5_000),
 });
 
 export function createDbClient(): Client {

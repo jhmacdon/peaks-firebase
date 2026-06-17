@@ -131,7 +131,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 ### Connection
 - **Cloud Run**: connects via Unix socket at `/cloudsql/INSTANCE_CONNECTION_NAME`
 - **Local dev**: set `DB_HOST=127.0.0.1` to use TCP via Cloud SQL Auth Proxy
-- Pool max: 10 connections
+- Pool max: 4 connections by default (`DB_POOL_MAX` can override)
 
 ### Endpoints
 | Method | Path | Description |

@@ -2,7 +2,13 @@ import { strict as assert } from "node:assert";
 import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import db from "../db";
-import searchRouter, { buildDestinationSearchQuery, runSearchQuery } from "../routes/search";
+import searchRouter, {
+  buildAreaSearchQuery,
+  buildDestinationSearchQuery,
+  buildMixedSearchQueries,
+  clampSearchLimit,
+  runSearchQuery,
+} from "../routes/search";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -45,10 +51,19 @@ function getSearchFeaturesRouteHandler() {
   return layer.route.stack[0].handle as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<void>;
 }
 
+function getMixedSearchRouteHandler() {
+  const layer = (searchRouter as any).stack.find(
+    (candidate: any) => candidate.route?.path === "/all" && candidate.route?.methods?.get
+  );
+  assert.ok(layer, "expected search router to include GET /all");
+  return layer.route.stack[0].handle as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<void>;
+}
+
 function whereClause(sql: string): string {
-  const match = sql.match(/\bWHERE\b([\s\S]+?)\bORDER BY\b/);
-  assert.ok(match, "expected SQL to include a WHERE clause before ORDER BY");
-  return match[1];
+  const whereIndex = sql.lastIndexOf("\n       WHERE ");
+  const orderIndex = sql.lastIndexOf("\n       ORDER BY ");
+  assert.ok(whereIndex >= 0 && orderIndex > whereIndex, "expected SQL to include an outer WHERE clause before ORDER BY");
+  return sql.slice(whereIndex + "\n       WHERE ".length, orderIndex);
 }
 
 function assertSelectsDestinationDisplayLocation(sql: string) {
@@ -66,6 +81,9 @@ test("destination search falls back to destination name when search_name is miss
   assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)/);
   assert.match(query.text, /lower\(name\) ILIKE/);
+  assert.match(query.text, /destination_areas da/);
+  assert.match(query.text, /JOIN areas a ON a\.id = da\.area_id/);
+  assert.match(query.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
   assert.deepEqual(query.values, ["south sis", "south sis%", "south sis%", 20]);
 });
 
@@ -151,9 +169,134 @@ test("3-character destination search keeps trigram matching", () => {
   assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
 });
 
-test("search route does not start DB work or write after response closes during IP geolocation", async (t) => {
-  const fetchStarted = deferred<void>();
-  const fetchDeferred = deferred<{ ok: boolean; json(): Promise<unknown> }>();
+test("search limit is clamped to a small positive range", () => {
+  assert.equal(clampSearchLimit(undefined), 20);
+  assert.equal(clampSearchLimit("0"), 20);
+  assert.equal(clampSearchLimit("-5"), 20);
+  assert.equal(clampSearchLimit("7"), 7);
+  assert.equal(clampSearchLimit("500"), 50);
+});
+
+test("mixed search builds destination, route, and area queries", () => {
+  const queries = buildMixedSearchQueries({
+    normalizedQuery: "rainier",
+    rawQuery: "Rainier",
+    lat: 46.85,
+    lng: -121.7,
+    limit: 20,
+  });
+
+  assert.match(queries.destinations.text, /FROM destinations/);
+  assert.match(queries.destinations.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
+  assert.match(queries.routes.text, /FROM routes r/);
+  assert.match(queries.routes.text, /route_destinations/);
+  assert.match(queries.routes.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
+  assert.match(queries.areas.text, /FROM areas a/);
+  assert.match(queries.areas.text, /destination_count/);
+  assert.match(queries.areas.text, /route_count/);
+});
+
+test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", () => {
+  const query = buildAreaSearchQuery({
+    normalizedQuery: "baker snoqualmie",
+    rawQuery: "Baker Snoqualmie",
+    limit: 20,
+  });
+
+  assert.match(query.text, /a\.search_name = ANY\(\$5::text\[\]\)/);
+  assert.match(query.text, /0\.45/);
+  assert.deepEqual(query.values, [
+    "baker snoqualmie",
+    "baker snoqualmie%",
+    "baker snoqualmie%",
+    10,
+    ["mt baker national forest", "snoqualmie national forest"],
+  ]);
+});
+
+test("search route without explicit coordinates skips IP geolocation", async (t) => {
+  let capturedSql = "";
+  let fetchCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 246 }] };
+      }
+      capturedSql = text;
+      return { rows: [] };
+    },
+    release: () => undefined,
+  };
+  t.mock.method(db, "connect", async () => fakeClient);
+  t.mock.method(globalThis, "fetch", async () => {
+    fetchCount += 1;
+    throw new Error("IP geolocation should not run for search");
+  });
+
+  const req = Object.assign(new EventEmitter(), {
+    query: { q: "Rainier" },
+    headers: { "x-forwarded-for": "8.8.8.8" },
+    socket: { remoteAddress: "8.8.8.8" },
+  });
+  const res = new FakeResponse();
+  const handler = getSearchRouteHandler();
+
+  await handler(req, res, (error?: unknown) => {
+    if (error) {
+      throw error;
+    }
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.match(capturedSql, /FROM destinations/);
+  assert.deepEqual(res.jsonBody, []);
+});
+
+test("mixed search route returns typed result buckets", async (t) => {
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 246 }] };
+      }
+      if (/FROM destinations/.test(text)) {
+        return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
+      }
+      if (/FROM routes r/.test(text)) {
+        return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
+      }
+      if (/FROM areas a/.test(text)) {
+        return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
+      }
+      return { rows: [] };
+    },
+    release: () => undefined,
+  };
+  t.mock.method(db, "connect", async () => fakeClient);
+
+  const req = Object.assign(new EventEmitter(), {
+    query: { q: "Rainier", limit: "20" },
+    headers: {},
+    socket: {},
+  });
+  const res = new FakeResponse();
+  const handler = getMixedSearchRouteHandler();
+
+  await handler(req, res, (error?: unknown) => {
+    if (error) {
+      throw error;
+    }
+  });
+
+  assert.deepEqual(res.jsonBody, {
+    destinations: [{ id: "rainier", name: "Mount Rainier", areas: [] }],
+    routes: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }],
+    areas: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }],
+  });
+});
+
+test("search route does not start DB work or write after response closes before pool checkout", async (t) => {
+  const connectStarted = deferred<void>();
+  const connectDeferred = deferred<any>();
   let connectCount = 0;
   const fakeClient = {
     query: async (text: string) => {
@@ -166,11 +309,8 @@ test("search route does not start DB work or write after response closes during 
   };
   t.mock.method(db, "connect", async () => {
     connectCount += 1;
-    return fakeClient;
-  });
-  t.mock.method(globalThis, "fetch", async () => {
-    fetchStarted.resolve();
-    return fetchDeferred.promise as never;
+    connectStarted.resolve();
+    return connectDeferred.promise;
   });
   const req = Object.assign(new EventEmitter(), {
     query: { q: "Rainier" },
@@ -186,15 +326,12 @@ test("search route does not start DB work or write after response closes during 
     }
   });
 
-  await fetchStarted.promise;
+  await connectStarted.promise;
   res.emit("close");
-  fetchDeferred.resolve({
-    ok: true,
-    json: async () => ({ status: "success", lat: 46.85, lon: -121.7 }),
-  });
+  connectDeferred.resolve(fakeClient);
   await handlerPromise;
 
-  assert.equal(connectCount, 0);
+  assert.equal(connectCount, 1);
   assert.equal(res.statusCode, undefined);
   assert.equal(res.jsonBody, undefined);
 });
