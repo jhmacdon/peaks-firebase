@@ -76,33 +76,30 @@ export default function SearchBar({
   }, [value, currentValue]);
 
   return (
-    <div className="group relative">
-      <div className="pointer-events-none absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.12),transparent_24%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.14),transparent_24%)]" />
-      <div className="relative flex items-center">
-        <div className="pointer-events-none absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-2xl border border-white/80 bg-white/90 text-emerald-700 shadow-sm dark:border-gray-700 dark:bg-gray-950/80 dark:text-emerald-300">
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          className="w-full rounded-[26px] border border-stone-200/80 bg-white/90 py-3.5 pl-16 pr-14 text-[15px] font-medium text-stone-950 shadow-[0_16px_35px_-28px_rgba(15,23,42,0.45)] outline-none transition-all placeholder:text-stone-500 hover:border-stone-300 group-focus-within:border-emerald-400/70 group-focus-within:bg-white group-focus-within:shadow-[0_22px_45px_-28px_rgba(5,150,105,0.35)] dark:border-gray-800 dark:bg-gray-950/90 dark:text-gray-50 dark:placeholder:text-gray-500 dark:hover:border-gray-700 dark:group-focus-within:border-emerald-700/70 dark:group-focus-within:bg-gray-950"
-        />
-      </div>
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-[15px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
+      />
       {value && (
         <button
           type="button"
@@ -110,17 +107,10 @@ export default function SearchBar({
             setValue("");
             updateSearch("");
           }}
-          className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-stone-200/80 bg-white/90 text-stone-500 transition-colors hover:border-stone-300 hover:text-stone-700 dark:border-gray-700 dark:bg-gray-950/90 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200"
           aria-label="Clear search"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
