@@ -17,7 +17,7 @@ export default function ProgressBar({ completed, total, className = "" }: Progre
       </div>
       <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
         <div
-          className="h-full bg-blue-600 rounded-full transition-all duration-300"
+          className="h-full bg-blue-600 rounded-full transition-[width] duration-300"
           style={{ width: `${pct}%` }}
         />
       </div>
