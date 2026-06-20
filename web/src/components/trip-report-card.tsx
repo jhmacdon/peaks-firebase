@@ -39,7 +39,7 @@ export default function TripReportCard({ report }: TripReportCardProps) {
         <Badge tone="gray">
           {destinationCount} destination{destinationCount === 1 ? "" : "s"}
         </Badge>
-        <Badge tone="sky">
+        <Badge tone="gray">
           {photoCount} photo{photoCount === 1 ? "" : "s"}
         </Badge>
       </div>
