@@ -4,16 +4,16 @@ import Link from "next/link";
 // route guides). See web/docs/destination-page-spec.md for the visual rules.
 
 export const DIFFICULTY_CLASSES: Record<string, string> = {
-  Easy: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  Moderate: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
-  Hard: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  Strenuous: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  Easy: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+  Moderate: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
+  Hard: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
+  Strenuous: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300",
 };
 
 export function DifficultyPill({ label }: { label: string }) {
   return (
     <span
-      className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
+      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
         DIFFICULTY_CLASSES[label] || DIFFICULTY_CLASSES.Moderate
       }`}
     >
