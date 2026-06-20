@@ -126,17 +126,19 @@ Straight from the detail pages:
 New primitives live in `src/components/ui/`. Existing detail-page primitives
 (`Breadcrumb`, `StatCell`, `StatRow`, `SidePanel`, `DifficultyPill`, `titleize`)
 stay in `src/components/detail-sections.tsx` and are reused as-is (with the
-difficulty-pill restyle above). `ui/` may re-export them so consumers have one
-import surface.
+difficulty-pill restyle above). Consumers import the `ui/` primitives directly
+(`./ui/card`, `./ui/badge`, `./ui/empty-state`).
 
 | Primitive | File | Contract |
 |-----------|------|----------|
 | `Card` | `ui/card.tsx` | Flat shell: `rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700`. No shadow, no lift. Renders as `<Link>` when `href` given, else `<div>`. Borders stay neutral in all states; color comes from children (icon, pills, type label). |
 | `Badge` | `ui/badge.tsx` | Outlined pill. Props: `tone: "emerald" \| "sky" \| "amber" \| "gray" \| "red"` (default `gray`) and children. Applies the per-type / semantic outlined classes above. |
-| `PageHeader` | `ui/page-header.tsx` | Title (`h1`) + optional meta line + optional right-aligned action slot. Mirrors the destination header row. |
-| `SectionHeading` | `ui/section-heading.tsx` | `h2 text-xl font-semibold` + optional right-aligned action link (`text-sm font-medium text-blue-600`). No eyebrow. |
 | `EmptyState` | `ui/empty-state.tsx` | Flat bordered box: `rounded-lg border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900`. Replaces the `rounded-3xl … shadow-sm` empty panels. |
-| `StatStrip` | `ui/stat-strip.tsx` (optional) | Wraps the `grid grid-cols-2 sm:grid-cols-5 gap-px` ruled stat table around `StatCell`s. Optional — may stay inline where already used. |
+
+> Not built: `PageHeader`, `SectionHeading`, and a `StatStrip` wrapper were
+> scoped originally but proved unnecessary — the restyled pages kept their
+> existing header/section markup and the inline `grid … gap-px` stat strips.
+> Add them later only if a page actually needs them (YAGNI).
 
 Buttons and `SearchBar` are styled per the tokens above (no dedicated Button
 primitive required; reuse the two button class strings).
