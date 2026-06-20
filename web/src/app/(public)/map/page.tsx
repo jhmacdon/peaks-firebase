@@ -100,8 +100,8 @@ export default function MapPage() {
       <div className="pointer-events-none absolute inset-0 p-4 sm:p-6">
         <div className="pointer-events-auto mx-auto flex h-full max-w-7xl flex-col justify-between">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-xl rounded-[28px] border border-white/70 bg-white/92 p-5 shadow-xl backdrop-blur dark:border-gray-800 dark:bg-gray-900/92">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
+            <div className="max-w-xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
                 <span>Map explorer</span>
                 {loadingViewport && <span className="text-gray-500">Updating…</span>}
               </div>
@@ -139,20 +139,20 @@ export default function MapPage() {
               </div>
             </div>
 
-            <div className="max-w-sm rounded-[28px] border border-white/70 bg-white/92 p-5 shadow-xl backdrop-blur dark:border-gray-800 dark:bg-gray-900/92">
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+            <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Quick actions
               </div>
               <div className="mt-4 flex flex-col gap-2">
                 <Link
                   href="/discover"
-                  className="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  className="rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                 >
                   Back to discover
                 </Link>
                 <Link
                   href={user ? "/plans/new" : "/register"}
-                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-blue-700 dark:hover:text-blue-300"
+                  className="rounded-md border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-blue-700 dark:hover:text-blue-300"
                 >
                   {user ? "Build a plan from this research" : "Create an account"}
                 </Link>
@@ -219,7 +219,7 @@ function ToggleButton({
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-950/60">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
       <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
         {label}
       </div>
@@ -240,8 +240,8 @@ function ResultPanel({
   items: Array<{ id: string; href: string; title: string; subtitle: string }>;
 }) {
   return (
-    <div className="pointer-events-auto rounded-[28px] border border-white/70 bg-white/92 p-5 shadow-xl backdrop-blur dark:border-gray-800 dark:bg-gray-900/92">
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+    <div className="pointer-events-auto rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
         {title}
       </div>
       <div className="mt-4 space-y-3">
@@ -252,7 +252,7 @@ function ResultPanel({
             <Link
               key={item.id}
               href={item.href}
-              className="block rounded-2xl border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/40 dark:border-gray-800 dark:bg-gray-950/50 dark:hover:border-blue-700 dark:hover:bg-blue-950/10"
+              className="block rounded-lg border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/40 dark:border-gray-800 dark:bg-gray-950/50 dark:hover:border-blue-700 dark:hover:bg-blue-950/10"
             >
               <div className="text-sm font-semibold text-gray-950 dark:text-white">
                 {item.title}
