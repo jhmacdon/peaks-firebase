@@ -84,10 +84,10 @@ function RegisterContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),linear-gradient(180deg,_#f8fafc,_#ecfeff_45%,_#f8fafc)] dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="mx-auto grid min-h-screen max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <section className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-1.5 text-sm text-cyan-700 shadow-sm backdrop-blur dark:border-cyan-900 dark:bg-gray-900/80 dark:text-cyan-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300">
             Build your outdoor profile
           </div>
           <div className="space-y-4">
@@ -107,7 +107,7 @@ function RegisterContent() {
             ].map(([title, body]) => (
               <div
                 key={title}
-                className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/80"
+                className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
               >
                 <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {title}
@@ -120,7 +120,7 @@ function RegisterContent() {
           </div>
         </section>
 
-        <div className="w-full rounded-[28px] border border-white/70 bg-white/90 p-8 shadow-xl backdrop-blur dark:border-gray-800 dark:bg-gray-900/90">
+        <div className="w-full rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
           <h2 className="text-2xl font-bold text-gray-950 dark:text-white">
             Create your account
           </h2>
@@ -131,7 +131,7 @@ function RegisterContent() {
           <div className="mt-6 space-y-3">
             <button
               onClick={handleGoogle}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -143,7 +143,7 @@ function RegisterContent() {
             </button>
             <button
               onClick={handleApple}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -168,7 +168,7 @@ function RegisterContent() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
+                className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                 required
               />
             </div>
@@ -178,7 +178,7 @@ function RegisterContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
+                className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                 required
               />
             </div>
@@ -188,7 +188,7 @@ function RegisterContent() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
+                className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                 required
                 minLength={6}
               />
@@ -198,7 +198,7 @@ function RegisterContent() {
             </div>
 
             {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-300">
                 {error}
               </div>
             )}
@@ -206,7 +206,7 @@ function RegisterContent() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+              className="w-full rounded-md bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
               {submitting ? "Creating account..." : "Create Account"}
             </button>
