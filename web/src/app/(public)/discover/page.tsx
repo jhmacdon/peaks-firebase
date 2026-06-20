@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SearchBar from "../../../components/search-bar";
+import { EmptyState } from "../../../components/ui/empty-state";
 import DestinationCard from "../../../components/destination-card";
 import RouteCard from "../../../components/route-card";
 import ListCard from "../../../components/list-card";
@@ -334,21 +335,18 @@ function DiscoverContent() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <section className="overflow-hidden rounded-[32px] border border-stone-200 bg-[linear-gradient(180deg,rgba(250,248,242,0.92),rgba(255,255,255,1))] shadow-sm dark:border-gray-800 dark:bg-[linear-gradient(180deg,rgba(24,24,20,0.96),rgba(12,12,12,1))]">
-        <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] lg:p-10">
+      <section>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
           <div>
-            <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-800 dark:border-emerald-900/80 dark:bg-emerald-950/60 dark:text-emerald-300">
-              Explore and plan
-            </div>
-            <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-stone-950 dark:text-white sm:text-4xl">
+            <h1 className="max-w-3xl text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
               Search like a trail planner, not a landing page.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 dark:text-gray-300">
+            <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-400">
               Find peaks, trailheads, shelters, route guides, and curated lists.
               Start from a name, jump straight to the map, or browse what people
               are actually climbing right now.
             </p>
-            <div className="mt-6 max-w-3xl">
+            <div className="mt-5 max-w-3xl">
               <SearchBar placeholder="Search peaks, trailheads, routes, and lists" />
             </div>
 
@@ -358,10 +356,10 @@ function DiscoverContent() {
                   <Link
                     key={scope.id}
                     href={buildDiscoverHref({ nextScope: scope.id })}
-                    className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                       searchScope === scope.id
-                        ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-950"
-                        : "border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-gray-500"
+                        ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950"
+                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     }`}
                   >
                     {scope.label} <span className="ml-1 opacity-70">{scope.count}</span>
@@ -370,28 +368,16 @@ function DiscoverContent() {
               </div>
             ) : (
               <div className="mt-5 flex flex-wrap gap-2">
-                <Link
-                  href="#nearby"
-                  className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-                >
+                <Link href="#nearby" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
                   Nearby objectives
                 </Link>
-                <Link
-                  href="#featured-routes"
-                  className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-                >
+                <Link href="#featured-routes" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
                   Featured routes
                 </Link>
-                <Link
-                  href="/lists"
-                  className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-                >
+                <Link href="/lists" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
                   Curated lists
                 </Link>
-                <Link
-                  href="#recent-reports"
-                  className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-                >
+                <Link href="#recent-reports" className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
                   Recent field notes
                 </Link>
               </div>
@@ -399,7 +385,7 @@ function DiscoverContent() {
 
             {popularSearches.length > 0 && (
               <div className="mt-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   Popular searches
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -407,7 +393,7 @@ function DiscoverContent() {
                     <Link
                       key={term}
                       href={buildDiscoverHref({ nextQuery: term, nextScope: null })}
-                      className="rounded-full bg-stone-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-950 dark:hover:bg-stone-200"
+                      className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       {term}
                     </Link>
@@ -417,50 +403,32 @@ function DiscoverContent() {
             )}
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href={mapHref}
-                className="rounded-full bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
-              >
+              <Link href={mapHref} className="inline-flex items-center rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700">
                 Open map explorer
               </Link>
-              <Link
-                href={user ? "/plans/new" : "/register"}
-                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition-colors hover:border-stone-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-gray-500"
-              >
+              <Link href={user ? "/plans/new" : "/register"} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800">
                 {user ? "Build a trip plan" : "Create an account"}
               </Link>
             </div>
           </div>
 
           <div className="grid gap-4">
-            <aside className="rounded-[28px] border border-stone-200 bg-white/90 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950/70">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
+            <aside className="rounded-lg border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Browse the catalog
               </div>
               <div className="mt-4 space-y-4">
-                <CatalogStat
-                  label="Destination guides"
-                  value={stats.destinationCount.toLocaleString("en-US")}
-                  detail="Peaks, trailheads, shelters, and mapped objectives"
-                />
-                <CatalogStat
-                  label="Published routes"
-                  value={stats.routeCount.toLocaleString("en-US")}
-                  detail="Distance, gain, shape, and map-ready route pages"
-                />
-                <CatalogStat
-                  label="Curated lists"
-                  value={stats.listCount.toLocaleString("en-US")}
-                  detail="Peak-bagging collections and planning checklists"
-                />
+                <CatalogStat label="Destination guides" value={stats.destinationCount.toLocaleString("en-US")} detail="Peaks, trailheads, shelters, and mapped objectives" />
+                <CatalogStat label="Published routes" value={stats.routeCount.toLocaleString("en-US")} detail="Distance, gain, shape, and map-ready route pages" />
+                <CatalogStat label="Curated lists" value={stats.listCount.toLocaleString("en-US")} detail="Peak-bagging collections and planning checklists" />
               </div>
             </aside>
 
-            <aside className="rounded-[28px] border border-stone-200 bg-stone-950 p-5 text-stone-50 shadow-sm dark:border-gray-800 dark:bg-stone-900">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-300">
+            <aside className="rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Better starting points
               </div>
-              <div className="mt-3 space-y-3 text-sm leading-6 text-stone-200">
+              <div className="mt-3 space-y-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
                 <p>Use search when you already know the objective.</p>
                 <p>Use the map when you want nearby options and terrain context.</p>
                 <p>Use lists when you are planning a progression or peak-bagging goal.</p>
@@ -473,16 +441,16 @@ function DiscoverContent() {
       {/* Search Results */}
       {query ? (
         <div className="mt-10 space-y-8">
-          <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   Search results
                 </div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950 dark:text-white">
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
                   {isSearching ? "Searching..." : `Results for "${query}"`}
                 </h2>
-                <p className="mt-2 text-sm text-stone-500 dark:text-gray-400">
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   {isSearching
                     ? "Looking across destination guides, route pages, and curated lists."
                     : `${visibleSearchResults} visible result${visibleSearchResults === 1 ? "" : "s"}${searchScope === "all" ? ` across ${totalSearchResults} total matches.` : ` in ${searchScopeOptions.find((scope) => scope.id === searchScope)?.label.toLowerCase()}.`}`}
@@ -491,13 +459,13 @@ function DiscoverContent() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   href={mapHref}
-                  className="text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
                   Open on the map
                 </Link>
                 <Link
                   href={buildDiscoverHref({ nextQuery: null, nextScope: null })}
-                  className="text-sm font-medium text-stone-600 hover:text-stone-900 dark:text-gray-300 dark:hover:text-white"
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                 >
                   Clear search
                 </Link>
@@ -516,15 +484,15 @@ function DiscoverContent() {
                   <Link
                     key={result.id}
                     href={result.href}
-                    className="group rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-4 transition-colors hover:border-stone-300 hover:bg-white dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
+                    className="group block rounded-lg border border-gray-200 bg-white px-5 py-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
                   >
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       {result.typeLabel}
                     </div>
-                    <div className="mt-2 text-lg font-semibold tracking-tight text-stone-950 transition-colors group-hover:text-emerald-800 dark:text-white dark:group-hover:text-emerald-300">
+                    <div className="mt-2 text-lg font-semibold tracking-tight text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
                       {result.title}
                     </div>
-                    <p className="mt-2 text-sm text-stone-600 dark:text-gray-300">
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                       {result.summary}
                     </p>
                   </Link>
@@ -534,11 +502,11 @@ function DiscoverContent() {
           )}
 
           {!isSearching && visibleSearchResults === 0 && (
-            <div className="rounded-[28px] border border-dashed border-stone-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900">
-              <div className="text-lg font-semibold text-stone-950 dark:text-white">
+            <EmptyState className="border-dashed py-8">
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">
                 No matches for &ldquo;{query}&rdquo; in this view.
               </div>
-              <p className="mt-2 text-sm text-stone-500 dark:text-gray-400">
+              <p className="mt-2 text-gray-500 dark:text-gray-400">
                 Try a broader search, switch result types, or start from one of the popular objectives below.
               </p>
               {popularSearches.length > 0 && (
@@ -547,14 +515,14 @@ function DiscoverContent() {
                     <Link
                       key={term}
                       href={buildDiscoverHref({ nextQuery: term, nextScope: null })}
-                      className="rounded-full border border-stone-300 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-950 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                      className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                       {term}
                     </Link>
                   ))}
                 </div>
               )}
-            </div>
+            </EmptyState>
           )}
 
           {visibleDestinationResults.length > 0 && (
@@ -650,29 +618,22 @@ function DiscoverContent() {
             <section id="nearby">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
-                    Closest to you
-                  </div>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">Nearby</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight">Nearby</h2>
                   <p className="mt-1 text-sm text-gray-500">
                     Quick-hit objectives near your current location.
                   </p>
                 </div>
                 <Link
                   href="/map"
-                  className="text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
                 >
                   View on map
                 </Link>
               </div>
               {!hasLocation ? (
-                <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                  Requesting your location...
-                </div>
+                <EmptyState>Requesting your location...</EmptyState>
               ) : nearby.length === 0 ? (
-                <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                  No destinations found nearby
-                </div>
+                <EmptyState>No destinations found nearby</EmptyState>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {nearby.map((dest) => (
@@ -694,10 +655,7 @@ function DiscoverContent() {
           <section id="popular-destinations">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
-                  Most climbed
-                </div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Popular destinations
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
@@ -706,9 +664,7 @@ function DiscoverContent() {
               </div>
             </div>
             {popularDestinations.length === 0 ? (
-              <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                No popular destinations yet
-              </div>
+              <EmptyState>No popular destinations yet</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {popularDestinations.map((dest) => (
@@ -727,10 +683,7 @@ function DiscoverContent() {
           <section id="featured-routes">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
-                  Route guides
-                </div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Featured routes
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
@@ -739,9 +692,7 @@ function DiscoverContent() {
               </div>
             </div>
             {popularRoutes.length === 0 ? (
-              <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                No published routes yet
-              </div>
+              <EmptyState>No published routes yet</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {popularRoutes.map((route) => (
@@ -755,10 +706,7 @@ function DiscoverContent() {
           <section id="browse-lists">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
-                  Collections
-                </div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Browse lists
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
@@ -767,15 +715,13 @@ function DiscoverContent() {
               </div>
               <Link
                 href="/lists"
-                className="text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
               >
                 View All
               </Link>
             </div>
             {lists.length === 0 ? (
-              <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                No lists available
-              </div>
+              <EmptyState>No lists available</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {lists.map((list) => (
@@ -788,10 +734,7 @@ function DiscoverContent() {
           <section id="recent-reports">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
-                  Community beta
-                </div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Recent trip reports
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
@@ -800,15 +743,13 @@ function DiscoverContent() {
               </div>
               <Link
                 href={user ? "/reports/new" : "/register"}
-                className="text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
               >
                 {user ? "Write a report" : "Join to contribute"}
               </Link>
             </div>
             {recentReports.length === 0 ? (
-              <div className="rounded-3xl border border-gray-200 bg-white py-6 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                No public trip reports yet
-              </div>
+              <EmptyState>No public trip reports yet</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {recentReports.map((report) => (
@@ -833,16 +774,14 @@ function CatalogStat({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500 dark:text-gray-400">
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {label}
       </div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 dark:text-white">
+      <div className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
         {value}
       </div>
-      <p className="mt-2 text-sm leading-6 text-stone-600 dark:text-gray-300">
-        {detail}
-      </p>
+      <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">{detail}</p>
     </div>
   );
 }
@@ -861,17 +800,15 @@ function QuickBrowseCard({
   return (
     <Link
       href={href}
-      className="group rounded-[24px] border border-stone-200 bg-white px-5 py-4 shadow-sm transition-colors hover:border-stone-300 hover:bg-stone-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
+      className="group block rounded-lg border border-gray-200 bg-white px-5 py-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
     >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 dark:text-gray-400">
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {eyebrow}
       </div>
-      <div className="mt-2 text-lg font-semibold tracking-tight text-stone-950 transition-colors group-hover:text-emerald-800 dark:text-white dark:group-hover:text-emerald-300">
+      <div className="mt-1 text-lg font-semibold tracking-tight text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
         {title}
       </div>
-      <p className="mt-2 text-sm leading-6 text-stone-600 dark:text-gray-300">
-        {detail}
-      </p>
+      <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">{detail}</p>
     </Link>
   );
 }
@@ -890,10 +827,10 @@ function SearchSection({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="text-2xl font-semibold tracking-tight text-stone-950 dark:text-white">
+        <h3 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
           {title} ({count})
         </h3>
-        <p className="mt-1 text-sm text-stone-500 dark:text-gray-400">{description}</p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
       </div>
       {children}
     </section>
