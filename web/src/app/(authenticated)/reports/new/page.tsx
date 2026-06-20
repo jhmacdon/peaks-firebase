@@ -241,7 +241,7 @@ function NewReportForm() {
 
             {/* Dropdown results */}
             {showDestDropdown && destQuery.trim() && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md max-h-64 overflow-y-auto">
                 {destSearching ? (
                   <div className="px-3 py-2 text-sm text-gray-500">
                     Searching...

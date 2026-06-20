@@ -39,7 +39,7 @@ export default function RouteSegmentList({ segments }: RouteSegmentListProps) {
           return (
             <div
               key={segment.id}
-              className="rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-blue-300 dark:border-gray-800 dark:bg-gray-950/40 dark:hover:border-blue-700"
+              className="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-blue-300 dark:border-gray-800 dark:bg-gray-950/40 dark:hover:border-blue-700"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>

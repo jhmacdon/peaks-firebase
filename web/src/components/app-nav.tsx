@@ -72,7 +72,7 @@ export default function AppNav() {
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                 >
                   Create Account
                 </Link>
