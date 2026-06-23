@@ -47,7 +47,7 @@ export default function UserPopover({ uid }: UserPopoverProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg z-50 p-4">
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-md z-50 p-4">
           {loading ? (
             <div className="text-sm text-gray-500 text-center py-2">
               Loading…

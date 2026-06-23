@@ -120,7 +120,7 @@ export default function RoutePicker({
 
       {/* Results dropdown */}
       {(results.length > 0 || searching) && query.trim() && (
-        <div className="mt-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 max-h-48 overflow-y-auto shadow-lg">
+        <div className="mt-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 max-h-48 overflow-y-auto shadow-md">
           {searching ? (
             <div className="p-3 text-sm text-gray-500">Searching...</div>
           ) : (

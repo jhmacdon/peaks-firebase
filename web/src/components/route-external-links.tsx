@@ -13,7 +13,7 @@ function ExternalLinkItem({ link }: { link: ParsedExternalRouteLink }) {
       href={link.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/30 dark:border-gray-800 dark:bg-gray-950/40 dark:hover:border-blue-700 dark:hover:bg-blue-950/20"
+      className="group flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3 transition-colors hover:border-blue-300 hover:bg-blue-50/30 dark:border-gray-800 dark:bg-gray-950/40 dark:hover:border-blue-700 dark:hover:bg-blue-950/20"
     >
       <div>
         <div className="text-sm font-medium">{link.label}</div>
@@ -21,7 +21,7 @@ function ExternalLinkItem({ link }: { link: ParsedExternalRouteLink }) {
           {link.display}
         </div>
       </div>
-      <span className="text-xs font-medium text-blue-600 transition-transform group-hover:translate-x-0.5 dark:text-blue-400">
+      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
         Open
       </span>
     </a>
