@@ -147,24 +147,67 @@ router.get("/nearby", async (req, res: Response) => {
   const lng = parseFloat(req.query.lng as string);
   const radius = parseFloat(req.query.radius as string) || 10000; // meters
   const limit = parseInt(req.query.limit as string) || 50;
+  // Ranking. Default "distance" (nearest first) keeps the map's local-peak lists unchanged. The
+  // viewfinder passes sort=apparent + eye=<viewer elevation, m> to fill the horizon with the peaks
+  // a person actually sees from a high vantage over a curved Earth.
+  const sort = (req.query.sort as string) || "distance";
+  const eye = parseFloat(req.query.eye as string);
+  const useApparent = sort === "apparent" && !isNaN(eye);
 
   if (isNaN(lat) || isNaN(lng)) {
     res.status(400).json({ error: "lat and lng are required" });
     return;
   }
 
-  const result = await db.query(
-    `SELECT id, name, elevation, prominence, type,
-            activities, features,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng,
-            ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
-     FROM destinations
-     WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
-     ORDER BY distance_m
-     LIMIT $4`,
-    [lat, lng, radius, limit]
-  );
+  let queryText: string;
+  let values: unknown[];
+  if (useApparent) {
+    // Long-range mountain viewfinder ranking — "fill the horizon with the peaks you can see",
+    // tuned for sight lines up to ~110 km where Earth curvature dominates:
+    //
+    //   • Visibility gate — spherical-earth inter-visibility. A summit clears the horizon (is not
+    //     hidden by the Earth's bulge) when
+    //         distance <= sqrt(2 * R_eff) * (sqrt(eye) + sqrt(summit))
+    //     with both heights above sea level. sqrt(2 * R_eff) ~= 4123 (m^0.5) using an R_eff that
+    //     folds in generous atmospheric refraction (k ~= 0.25), so we keep distant giants like
+    //     Rainier AND the lower peaks you look down at, and drop the thousands of hills that sit
+    //     below the curve at range. A naive "summit above eye" / "(elev-eye)/dist" rule gets both
+    //     of those wrong. Final occlusion by nearer terrain is the client's job (it has the DEM).
+    //
+    //   • Ranking — apparent angular size: prominence / distance, i.e. how large the peak looms in
+    //     view. Prominence is the rise above the connecting saddle (what you actually see standing
+    //     up), so dividing by distance balances near prominent summits against far giants. Unknown
+    //     prominence falls back to a small constant so un-surveyed bumps rank low but still appear.
+    queryText = `
+      SELECT * FROM (
+        SELECT id, name, elevation, prominence, type,
+               activities, features,
+               ST_Y(location::geometry) AS lat,
+               ST_X(location::geometry) AS lng,
+               ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
+        FROM destinations
+        WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+          AND elevation IS NOT NULL
+      ) c
+      WHERE c.distance_m <= 4123 * (sqrt(GREATEST($5, 0)) + sqrt(GREATEST(c.elevation, 0)))
+      ORDER BY COALESCE(c.prominence, 100) / GREATEST(c.distance_m, 500) DESC
+      LIMIT $4`;
+    values = [lat, lng, radius, limit, eye];
+  } else {
+    queryText = `
+      SELECT id, name, elevation, prominence, type,
+             activities, features,
+             ST_Y(location::geometry) AS lat,
+             ST_X(location::geometry) AS lng,
+             ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
+      FROM destinations
+      WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+      ORDER BY distance_m
+      LIMIT $4`;
+    values = [lat, lng, radius, limit];
+  }
+
+  const result = await db.query(queryText, values);
   res.json(result.rows);
 });
 
