@@ -71,11 +71,24 @@ export async function streamQueryAsJsonArray(
   params: unknown[]
 ): Promise<void> {
   const client = await pool.connect();
+  // batchSize controls the server-side cursor fetch size; the default (~100)
+  // keeps each `read` small so memory stays bounded.
+  const stream = client.query(new QueryStream(sql, params));
+
+  // If the client disconnects before we finish (iOS request timeout, user
+  // navigated away), stop draining the cursor immediately. Otherwise the
+  // `for await` keeps fetching every remaining row into a closed socket while
+  // holding one of the pool's few connections hostage — which is exactly how a
+  // session-sync fan-out starved the pool and 503'd the whole API. Destroying
+  // the stream ends the iterator, so the `finally` runs and the connection
+  // returns to the pool.
+  const onClose = () => {
+    stream.destroy();
+  };
+  res.on("close", onClose);
+
   try {
     res.setHeader("Content-Type", "application/json");
-    // batchSize controls the server-side cursor fetch size; the default (~100)
-    // keeps each `read` small so memory stays bounded.
-    const stream = client.query(new QueryStream(sql, params));
     await writeJsonArray(res, stream);
     res.end();
   } catch (err) {
@@ -90,6 +103,7 @@ export async function streamQueryAsJsonArray(
       res.destroy(err instanceof Error ? err : new Error(String(err)));
     }
   } finally {
+    res.off("close", onClose);
     client.release();
   }
 }
