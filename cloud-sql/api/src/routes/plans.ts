@@ -12,6 +12,23 @@ interface StatusQueryable {
   query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
 }
 
+// Validate a client-supplied GeoJSON geometry is a usable plan path: a
+// LineString with >= 2 coordinate pairs of finite numbers. Returns true when
+// absent (geometry is optional) so callers pass it straight through. Guards the
+// DB call from a 500 on malformed/wrong-type input (return 400 instead) and
+// from a non-LineString reaching ST_GeomFromGeoJSON.
+export function isValidPlanGeometry(g: unknown): boolean {
+  if (g === undefined || g === null) return true;
+  if (typeof g !== "object") return false;
+  const geo = g as { type?: unknown; coordinates?: unknown };
+  if (geo.type !== "LineString") return false;
+  if (!Array.isArray(geo.coordinates) || geo.coordinates.length < 2) return false;
+  return geo.coordinates.every(
+    (c) =>
+      Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1])
+  );
+}
+
 // GET /api/plans/processing-status?ids=a,b — batch poll for plan processing
 // state. Returns ONLY scalar processing fields (owned by the caller) in a single
 // query — same poll-storm-safe contract as the sessions endpoint. Registered
@@ -101,6 +118,7 @@ router.get("/:id/destinations", async (req, res: Response) => {
 // plan path, ordered. Powers the clockless plan timeline (route import + plan
 // detail). Distinct from /:id/destinations (user-chosen goals).
 router.get("/:id/reached-destinations", async (req, res: Response) => {
+  const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.features,
@@ -110,8 +128,13 @@ router.get("/:id/reached-destinations", async (req, res: Response) => {
      FROM destinations d
      JOIN plan_reached_destinations prd ON prd.destination_id = d.id
      WHERE prd.plan_id = $1
+       AND EXISTS (
+         SELECT 1 FROM plans p
+         LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
+         WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)
+       )
      ORDER BY prd.ordinal`,
-    [id]
+    [id, uid]
   );
   res.json(result.rows);
 });
@@ -151,6 +174,10 @@ router.post("/", async (req, res: Response) => {
 
   if (!id || !name) {
     res.status(400).json({ error: "id and name are required" });
+    return;
+  }
+  if (!isValidPlanGeometry(geometry)) {
+    res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
     return;
   }
 
@@ -242,6 +269,11 @@ router.put("/:id", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { name, description, date, destinations, routes: routeIds, geometry, distance, gain } = req.body;
+
+  if (!isValidPlanGeometry(geometry)) {
+    res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
+    return;
+  }
 
   // Verify ownership
   const plan = await db.query(
@@ -355,6 +387,14 @@ router.post("/:id/process", async (req, res: Response) => {
     const result = await processPlan(id, uid);
     res.json(result);
   } catch (err) {
+    // A concurrent run (the inline auto-process kicked on create/update, or
+    // another poll) already owns the claim — that's a benign race, not a
+    // failure. Surface 409 so iOS keeps polling instead of treating it as an
+    // error and retrying (which would worsen the race; cf. incident #54).
+    if (err instanceof Error && err.message === "already_processing") {
+      res.status(409).json({ error: "already_processing" });
+      return;
+    }
     console.error("Error processing plan:", err);
     res.status(500).json({ error: "Failed to process plan" });
   }

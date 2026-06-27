@@ -281,7 +281,8 @@ CREATE TABLE plans (
     -- Matching geometry, supplied by the client on create/update (user-imported
     -- routes never reach the routes table, so a plan's path cannot be assembled
     -- server-side from plan_routes). Drives processPlan destination matching.
-    path            GEOGRAPHY(LineString, 4326),
+    -- Untyped subtype so a disjoint multi-route merge (MultiLineString) stores.
+    path            GEOGRAPHY(Geometry, 4326),
     distance        DOUBLE PRECISION,
     gain            DOUBLE PRECISION,
     processing_state TEXT NOT NULL DEFAULT 'idle'

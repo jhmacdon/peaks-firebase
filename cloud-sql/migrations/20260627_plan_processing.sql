@@ -12,8 +12,13 @@
 
 BEGIN;
 
+-- path is GEOGRAPHY(Geometry,4326) — not LineString-typed — so a multi-route
+-- plan whose merged geometry is a MultiLineString (disjoint sections, shuttles)
+-- can still be stored. Matching (ST_DWithin) works on any geography; ordering
+-- (ST_LineLocatePoint) guards on ST_GeometryType and falls back to frac=0 for
+-- non-LineString paths.
 ALTER TABLE plans
-  ADD COLUMN IF NOT EXISTS path GEOGRAPHY(LineString, 4326),
+  ADD COLUMN IF NOT EXISTS path GEOGRAPHY(Geometry, 4326),
   ADD COLUMN IF NOT EXISTS distance DOUBLE PRECISION,
   ADD COLUMN IF NOT EXISTS gain DOUBLE PRECISION,
   ADD COLUMN IF NOT EXISTS processing_state TEXT NOT NULL DEFAULT 'idle',
@@ -24,7 +29,8 @@ ALTER TABLE plans
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'plans_processing_state_check'
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'plans_processing_state_check' AND conrelid = 'plans'::regclass
   ) THEN
     ALTER TABLE plans ADD CONSTRAINT plans_processing_state_check
       CHECK (processing_state IN ('idle','pending','processing','completed','failed'));
