@@ -278,6 +278,18 @@ CREATE TABLE plans (
     description     TEXT,
     date            TIMESTAMPTZ,
 
+    -- Matching geometry, supplied by the client on create/update (user-imported
+    -- routes never reach the routes table, so a plan's path cannot be assembled
+    -- server-side from plan_routes). Drives processPlan destination matching.
+    path            GEOGRAPHY(LineString, 4326),
+    distance        DOUBLE PRECISION,
+    gain            DOUBLE PRECISION,
+    processing_state TEXT NOT NULL DEFAULT 'idle'
+        CHECK (processing_state IN ('idle','pending','processing','completed','failed')),
+    processed_at    TIMESTAMPTZ,
+    processing_error TEXT,
+    processing_started_at TIMESTAMPTZ,
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -302,6 +314,20 @@ CREATE TABLE plan_routes (
     route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
     ordinal         INT NOT NULL DEFAULT 0,
     PRIMARY KEY (plan_id, route_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- plan_reached_destinations
+-- Auto-matched destinations a plan's path reaches (source='auto'), ordered
+-- along the path by processPlan. SEPARATE from plan_destinations (user-chosen
+-- goals) so re-processing (which clears source='auto') never clobbers goals.
+-- ---------------------------------------------------------------------------
+CREATE TABLE plan_reached_destinations (
+    plan_id         TEXT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL DEFAULT 0,
+    source          TEXT NOT NULL DEFAULT 'auto',
+    PRIMARY KEY (plan_id, destination_id)
 );
 
 -- ---------------------------------------------------------------------------
