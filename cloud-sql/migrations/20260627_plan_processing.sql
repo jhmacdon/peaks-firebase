@@ -24,8 +24,7 @@ ALTER TABLE plans
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.constraint_column_usage
-    WHERE table_name = 'plans' AND constraint_name = 'plans_processing_state_check'
+    SELECT 1 FROM pg_constraint WHERE conname = 'plans_processing_state_check'
   ) THEN
     ALTER TABLE plans ADD CONSTRAINT plans_processing_state_check
       CHECK (processing_state IN ('idle','pending','processing','completed','failed'));

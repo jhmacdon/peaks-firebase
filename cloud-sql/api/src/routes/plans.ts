@@ -167,7 +167,7 @@ router.post("/", async (req, res: Response) => {
       `INSERT INTO plans (id, user_id, name, description, date, path, distance, gain,
                           processing_state, updated_at)
        VALUES ($1, $2, $3, $4, $5,
-               CASE WHEN $6::text IS NOT NULL THEN ST_GeomFromGeoJSON($6)::geography ELSE NULL END,
+               CASE WHEN $6::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($6))::geography ELSE NULL END,
                $7, $8,
                CASE WHEN $6::text IS NOT NULL THEN 'pending' ELSE 'idle' END,
                now())
@@ -264,7 +264,7 @@ router.put("/:id", async (req, res: Response) => {
          name = COALESCE($2, name),
          description = COALESCE($3, description),
          date = COALESCE($4, date),
-         path = CASE WHEN $5::text IS NOT NULL THEN ST_GeomFromGeoJSON($5)::geography ELSE path END,
+         path = CASE WHEN $5::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($5))::geography ELSE path END,
          distance = COALESCE($6, distance),
          gain = COALESCE($7, gain),
          processing_state = CASE WHEN $5::text IS NOT NULL THEN 'pending' ELSE processing_state END,

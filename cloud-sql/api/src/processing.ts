@@ -554,7 +554,7 @@ export async function processPlan(
        SET path = sub.merged
        FROM (
          SELECT pr.plan_id,
-                ST_LineMerge(ST_Collect(r.path::geometry ORDER BY pr.ordinal))::geography AS merged
+                ST_Force2D(ST_LineMerge(ST_Collect(r.path::geometry ORDER BY pr.ordinal)))::geography AS merged
          FROM plan_routes pr JOIN routes r ON r.id = pr.route_id
          WHERE pr.plan_id = $1
          GROUP BY pr.plan_id
