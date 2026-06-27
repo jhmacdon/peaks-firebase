@@ -478,3 +478,129 @@ export async function processSession(
     client.release();
   }
 }
+
+/**
+ * Build the destination-match INSERT for a plan, ordered along the plan path.
+ *
+ * Mirrors session matchDestinations() but operates on plans.path (a 2D
+ * LineString supplied by the client) and writes to plan_reached_destinations.
+ * Ordinal is assigned by ST_LineLocatePoint fraction so destinations read
+ * start→finish along the route. ST_LineMerge collapses a multi-route plan path
+ * to a single line where contiguous; for a still-multipart path the fraction
+ * falls back to 0 (insertion order), which is acceptable for disjoint plans.
+ */
+export function buildPlanDestinationMatchSql(planId: string): { text: string; values: unknown[] } {
+  return {
+    text: `INSERT INTO plan_reached_destinations (plan_id, destination_id, ordinal, source)
+     SELECT p.id, m.destination_id,
+            (row_number() OVER (ORDER BY m.frac, m.destination_id) - 1) AS ordinal,
+            'auto'
+     FROM plans p
+     JOIN LATERAL (
+       SELECT d.id AS destination_id,
+              CASE WHEN ST_GeometryType(ST_LineMerge(p.path::geometry)) = 'ST_LineString'
+                   THEN ST_LineLocatePoint(ST_LineMerge(p.path::geometry), d.location::geometry)
+                   ELSE 0 END AS frac
+       FROM destinations d
+       WHERE (d.owner = 'peaks' OR d.owner = p.user_id)
+         AND CASE WHEN d.boundary IS NOT NULL
+               THEN ST_DWithin(p.path, d.boundary, 10)
+               ELSE ST_DWithin(p.path, d.location, destination_match_radius(d.features))
+             END
+     ) m ON true
+     WHERE p.id = $1 AND p.path IS NOT NULL
+     ON CONFLICT (plan_id, destination_id) DO NOTHING`,
+    values: [planId],
+  };
+}
+
+/**
+ * Process a plan: match reached destinations against plans.path. Idempotent —
+ * clears source='auto' rows first. Claims the plan with the same stale-recovery
+ * guard as processSession so a poll racing the inline auto-process bails out
+ * with `already_processing` rather than matching twice.
+ *
+ * plans.path is normally set by the create/update endpoint from client-supplied
+ * geometry. If absent (a system-route plan), Step 0 assembles it from the
+ * constituent routes that DO exist in the PostGIS routes table.
+ */
+export async function processPlan(
+  planId: string,
+  userId: string
+): Promise<{ destinations_matched: number }> {
+  const claim = await db.query(
+    `UPDATE plans
+     SET processing_state = 'processing',
+         processing_error = NULL,
+         processing_started_at = now()
+     WHERE id = $1 AND user_id = $2
+       AND (processing_state IS DISTINCT FROM 'processing'
+            OR processing_started_at IS NULL
+            OR processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))`,
+    [planId, userId]
+  );
+  if ((claim.rowCount ?? 0) === 0) {
+    throw new Error("already_processing");
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Step 0: if the client did not supply geometry (system-route plan), try to
+    // assemble a path from constituent routes that DO exist in PostGIS.
+    await client.query(
+      `UPDATE plans p
+       SET path = sub.merged
+       FROM (
+         SELECT pr.plan_id,
+                ST_Force2D(ST_LineMerge(ST_Collect(r.path::geometry ORDER BY pr.ordinal)))::geography AS merged
+         FROM plan_routes pr JOIN routes r ON r.id = pr.route_id
+         WHERE pr.plan_id = $1
+         GROUP BY pr.plan_id
+       ) sub
+       WHERE p.id = $1 AND p.path IS NULL`,
+      [planId]
+    );
+
+    // Step 1: clear previous auto-tags (idempotent re-processing). Never touches
+    // user-chosen plan_destinations goals.
+    await client.query(
+      `DELETE FROM plan_reached_destinations WHERE plan_id = $1 AND source = 'auto'`,
+      [planId]
+    );
+
+    // Step 2: destination matching, ordered along the path.
+    const match = buildPlanDestinationMatchSql(planId);
+    const result = await client.query(match.text, match.values);
+    const destinationsMatched = result.rowCount ?? 0;
+
+    // Step 3: materialize distance from the path if the client didn't provide it.
+    await client.query(
+      `UPDATE plans SET distance = COALESCE(distance, ST_Length(path))
+       WHERE id = $1 AND path IS NOT NULL`,
+      [planId]
+    );
+
+    // Step 4: mark completed.
+    await client.query(
+      `UPDATE plans
+       SET processed_at = NOW(), processing_state = 'completed', processing_error = NULL
+       WHERE id = $1`,
+      [planId]
+    );
+
+    await client.query("COMMIT");
+    return { destinations_matched: destinationsMatched };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    const message = err instanceof Error ? err.message.slice(0, 500) : "Unknown processing error";
+    await db.query(
+      `UPDATE plans SET processing_state = 'failed', processing_error = $2 WHERE id = $1`,
+      [planId, message]
+    );
+    throw err;
+  } finally {
+    client.release();
+  }
+}
