@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
@@ -424,6 +424,59 @@ router.get("/dedup", async (req, res: Response) => {
   );
   res.json({ exists: result.rows.length > 0, sessionId: result.rows[0]?.id || null });
 });
+
+// Parse the comma-separated `ids` query param for the batch status endpoint:
+// trim, drop empties, dedupe preserving first-seen order, and cap the count so
+// a runaway client can't ask for an unbounded `id = ANY(...)`. Pure + exported
+// for unit testing.
+export function parseStatusIds(raw: unknown, max = 200): string[] {
+  if (typeof raw !== "string") return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const id = part.trim();
+    if (id.length === 0 || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+// Minimal structural type so the handler can take an injected pool in tests
+// without depending on the concrete pg Pool.
+interface StatusQueryable {
+  query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
+}
+
+// GET /api/sessions/processing-status?ids=a,b,c — batch poll for processing
+// state. Returns ONLY the scalar processing fields for the requested sessions
+// (owned by the caller) in a single query — deliberately WITHOUT the expensive
+// destinations/routes/goals subqueries that GET /:id runs. iOS polls this once
+// per tick instead of firing one heavy GET /:id per pending session, which is
+// what saturated the connection pool and 503'd the whole API.
+export async function handleProcessingStatus(
+  req: Request,
+  res: Response,
+  pool: StatusQueryable = db
+): Promise<void> {
+  const uid = getUid(req);
+  const ids = parseStatusIds(req.query.ids);
+  if (ids.length === 0) {
+    res.status(400).json({ error: "ids query parameter required" });
+    return;
+  }
+
+  const result = await pool.query(
+    `SELECT id, processing_state, processing_error, processed_at, server_updated_at
+     FROM tracking_sessions
+     WHERE user_id = $1 AND id = ANY($2)`,
+    [uid, ids]
+  );
+  res.json(result.rows);
+}
+
+router.get("/processing-status", (req, res: Response) => handleProcessingStatus(req, res));
 
 // GET /api/sessions/:id
 router.get("/:id", async (req, res: Response) => {
