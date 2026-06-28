@@ -18,6 +18,8 @@ export interface ProcessingResult {
   areas_linked: number;
   attempt_group_id: string | null;
   attempt_group_session_count: number;
+  /** True when an already-completed session was skipped (no re-matching). */
+  skipped?: boolean;
 }
 
 /**
@@ -363,8 +365,33 @@ async function updateDestinationAverages(
  */
 export async function processSession(
   sessionId: string,
-  userId: string
+  userId: string,
+  opts: { force?: boolean } = {}
 ): Promise<ProcessingResult> {
+  // Idempotency: an already-completed session is NOT re-processed unless
+  // explicitly forced. iOS's upload step 3 (and stray re-process triggers)
+  // otherwise re-claim and re-run the expensive PostGIS matching on sessions
+  // that are already done — which under load 503s the whole API. The points
+  // endpoint marks 'pending' only when NEW points are actually inserted, so a
+  // genuinely-changed session still re-processes. Old clients re-POSTing
+  // unchanged points insert 0 rows → stay 'completed' → skipped here too.
+  if (!opts.force) {
+    const cur = await db.query(
+      `SELECT processing_state FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+      [sessionId, userId]
+    );
+    if (cur.rows[0]?.processing_state === "completed") {
+      return {
+        destinations_matched: 0,
+        routes_matched: 0,
+        areas_linked: 0,
+        attempt_group_id: null,
+        attempt_group_session_count: 0,
+        skipped: true,
+      };
+    }
+  }
+
   // Claim the session. A row already 'processing' is normally off-limits (a
   // concurrent run owns it), but a claim older than STALE_PROCESSING_MINUTES is
   // treated as dead — a prior run that died between here and Step 6 without
