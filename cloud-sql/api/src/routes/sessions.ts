@@ -6,9 +6,23 @@ import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../process
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
 import { streamQueryAsJsonArray } from "../lib/stream-json";
+import {
+  ConcurrencyLimiter,
+  HEAVY_INFLIGHT_CAP,
+  perUserConcurrencyGuard,
+} from "../lib/rate-guard";
 
 const router = Router();
 const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
+
+// Per-user in-flight cap on the heavy write/process endpoints (create session,
+// upload points, process). One shared limiter per process; a single account
+// can hold at most HEAVY_INFLIGHT_CAP concurrent heavy requests on this
+// instance before further ones get 429'd. The cap is derived to sit one below
+// the DB pool size so one account can never exhaust the pool. See
+// lib/rate-guard.ts.
+const heavyWriteLimiter = new ConcurrencyLimiter(HEAVY_INFLIGHT_CAP);
+const heavyWriteGuard = perUserConcurrencyGuard(heavyWriteLimiter);
 
 // `boundary` is included as GeoJSON so iOS can compute point-to-polygon
 // distance (Destination.distance(to:) prefers boundary over centroid). Without
@@ -648,7 +662,7 @@ router.post("/process-all", async (req, res: Response) => {
 });
 
 // POST /api/sessions/:id/process — trigger server-side session processing
-router.post("/:id/process", async (req, res: Response) => {
+router.post("/:id/process", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -664,6 +678,24 @@ router.post("/:id/process", async (req, res: Response) => {
     return;
   }
 
+  const force = req.query.force === "true";
+
+  // Fast idempotent path: an already-completed session is not re-processed
+  // unless forced. Returns before even the point-count query, so a re-process
+  // storm against finished sessions costs one cheap SELECT instead of the full
+  // PostGIS matching that was 503-ing the API.
+  if (!force && session.rows[0].processing_state === "completed") {
+    res.json({
+      destinations_matched: 0,
+      routes_matched: 0,
+      areas_linked: 0,
+      attempt_group_id: null,
+      attempt_group_session_count: 0,
+      skipped: true,
+    });
+    return;
+  }
+
   // Verify session has tracking points
   const pointCount = await db.query(
     `SELECT COUNT(*) AS cnt FROM tracking_points WHERE session_id = $1`,
@@ -675,9 +707,11 @@ router.post("/:id/process", async (req, res: Response) => {
   }
 
   try {
-    const result = await processSession(id, uid);
-    notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)
-      .catch((err) => console.error("Slack notify failed:", err));
+    const result = await processSession(id, uid, { force });
+    if (!result.skipped) {
+      notifySessionProcessed(id, uid, result.destinations_matched, result.routes_matched)
+        .catch((err) => console.error("Slack notify failed:", err));
+    }
     res.json(result);
   } catch (err) {
     console.error("Error processing session:", err);
@@ -965,7 +999,7 @@ router.patch("/groups/:id", async (req, res: Response) => {
 });
 
 // POST /api/sessions — create a new session
-router.post("/", async (req, res: Response) => {
+router.post("/", heavyWriteGuard, async (req, res: Response) => {
   const uid = getUid(req);
   const {
     id, name, start_date, end_date,
@@ -1244,7 +1278,7 @@ router.delete("/:id", async (req, res: Response) => {
 });
 
 // POST /api/sessions/:id/points — batch insert GPS points
-router.post("/:id/points", async (req, res: Response) => {
+router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { points } = req.body;
