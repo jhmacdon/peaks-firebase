@@ -630,35 +630,55 @@ router.get("/:id/markers", async (req, res: Response) => {
   res.json(result.rows);
 });
 
+// Candidate-selection SQL for process-all (param $1 = user_id). Drains pending
+// + failed AND stale 'processing' claims. Sessions claimed during a storm whose
+// process step died (Cloud Run killed the worker, pool 503) wedge at
+// 'processing' forever: process-all used to skip them and nothing else
+// re-triggers them (the points endpoint only fires on NEW points, which old
+// sessions never get). A claim older than STALE_PROCESSING_MINUTES is dead, so
+// include it — processSession's claim re-acquires a stale row and completes it,
+// while a genuinely-live run (fresh claim) still throws already_processing and
+// is skipped. Exported so the predicate is unit-testable without a DB.
+export function buildProcessAllCandidateSql(): string {
+  return `SELECT s.id FROM tracking_sessions s
+     WHERE s.user_id = $1
+       AND s.ended = true
+       AND (
+         s.processing_state IN ('pending', 'failed')
+         OR (s.processing_state = 'processing'
+             AND (s.processing_started_at IS NULL
+                  OR s.processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES})))
+       )
+       AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
+     ORDER BY s.server_updated_at ASC, s.id ASC`;
+}
+
 // POST /api/sessions/process-all — batch process all unprocessed sessions for this user
 router.post("/process-all", async (req, res: Response) => {
   const uid = getUid(req);
 
-  const unprocessed = await db.query(
-    `SELECT s.id FROM tracking_sessions s
-     WHERE s.user_id = $1
-       AND s.ended = true
-       AND s.processing_state IN ('pending', 'failed')
-       AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
-     ORDER BY s.server_updated_at ASC, s.id ASC`,
-    [uid]
-  );
+  const unprocessed = await db.query(buildProcessAllCandidateSql(), [uid]);
 
+  let skipped = 0;
   const results: Array<{ id: string; destinations: number; routes: number }> = [];
   for (const row of unprocessed.rows) {
     try {
       const result = await processSession(row.id, uid);
-      results.push({
-        id: row.id,
-        destinations: result.destinations_matched,
-        routes: result.routes_matched,
-      });
+      if (result.skipped) {
+        skipped++;
+      } else {
+        results.push({
+          id: row.id,
+          destinations: result.destinations_matched,
+          routes: result.routes_matched,
+        });
+      }
     } catch (err) {
       console.error(`Failed to process session ${row.id}:`, err);
     }
   }
 
-  res.json({ processed: results.length, results });
+  res.json({ processed: results.length, skipped, candidates: unprocessed.rows.length });
 });
 
 // POST /api/sessions/:id/process — trigger server-side session processing
