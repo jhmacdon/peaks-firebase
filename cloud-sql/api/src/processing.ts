@@ -86,32 +86,69 @@ export async function linkReachedSummitsToAreas(
 }
 
 /**
- * Match destinations within proximity of the session's GPS track.
+ * The widest radius destination_match_radius() can return (waterfall /
+ * viewpoint = 200 m). A constant-distance ST_DWithin with THIS value is
+ * GIST-index-usable, so the planner prunes the global `destinations` table down
+ * to the handful near the track before the exact, per-feature radius is applied.
+ *
+ * MUST stay >= the largest value in destination_match_radius() — a smaller
+ * constant would silently drop legitimate matches. Bump both together.
+ */
+export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
+
+/**
+ * Build the destination-match INSERT for a session.
  *
  * Reads the materialized linestring from tracking_sessions.path (set by
- * processSession Step 0) and uses GIST-indexed ST_DWithin in a single query.
- * Per-feature thresholds live in the SQL function destination_match_radius()
- * (see cloud-sql/schema.sql). Boundary destinations use a 10m polygon match
- * regardless of feature.
+ * processSession Step 0). Per-feature thresholds live in the SQL function
+ * destination_match_radius() (see cloud-sql/schema.sql). Boundary destinations
+ * use a 10m polygon match regardless of feature.
+ *
+ * Performance (the 30s-timeout regression): the per-feature
+ * `destination_match_radius(d.features)` distance is computed per row, so the
+ * GIST index on destinations.location CANNOT prune with it — the query fell
+ * back to an exact ST_DWithin of the full track against EVERY global
+ * destination and tripped the 30s statement_timeout as the table grew, wedging
+ * sessions at 'failed'/'processing'. The constant-distance
+ * `ST_DWithin(d.location, s.path, MAX_DESTINATION_MATCH_RADIUS_M)` is
+ * index-usable and prunes first; the exact per-feature ST_DWithin then runs on
+ * just the near rows. Boundary and point branches are split as index-usable
+ * ORs (BitmapOr over idx_destinations_location + idx_destinations_boundary).
+ * Results are identical to the old CASE — the constant is a superset of every
+ * per-feature radius, and the point branch stays gated on `boundary IS NULL`.
  *
  * Owner scope: a destination owned by 'peaks' is system-global; a
  * user-owned destination only matches that user's own sessions.
+ *
+ * Pure builder so its shape is unit-testable without a live DB (mirrors
+ * buildPlanDestinationMatchSql).
  */
-async function matchDestinations(client: PoolClient, sessionId: string): Promise<number> {
-  const result = await client.query(
-    `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+export function buildSessionDestinationMatchSql(
+  sessionId: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `INSERT INTO session_destinations (session_id, destination_id, relation, source)
      SELECT s.id, d.id, 'reached', 'auto'
      FROM tracking_sessions s
      JOIN destinations d ON (d.owner = 'peaks' OR d.owner = s.user_id)
      WHERE s.id = $1
        AND s.path IS NOT NULL
-       AND CASE WHEN d.boundary IS NOT NULL
-             THEN ST_DWithin(s.path, d.boundary, 10)
-             ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
-           END
+       AND (
+         (d.boundary IS NOT NULL AND ST_DWithin(d.boundary, s.path, 10))
+         OR (
+           d.boundary IS NULL
+           AND ST_DWithin(d.location, s.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
+           AND ST_DWithin(d.location, s.path, destination_match_radius(d.features))
+         )
+       )
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
-    [sessionId]
-  );
+    values: [sessionId],
+  };
+}
+
+async function matchDestinations(client: PoolClient, sessionId: string): Promise<number> {
+  const sql = buildSessionDestinationMatchSql(sessionId);
+  const result = await client.query(sql.text, sql.values);
   return result.rowCount ?? 0;
 }
 
@@ -530,10 +567,14 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
                    ELSE 0 END AS frac
        FROM destinations d
        WHERE (d.owner = 'peaks' OR d.owner = p.user_id)
-         AND CASE WHEN d.boundary IS NOT NULL
-               THEN ST_DWithin(p.path, d.boundary, 10)
-               ELSE ST_DWithin(p.path, d.location, destination_match_radius(d.features))
-             END
+         AND (
+           (d.boundary IS NOT NULL AND ST_DWithin(d.boundary, p.path, 10))
+           OR (
+             d.boundary IS NULL
+             AND ST_DWithin(d.location, p.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
+             AND ST_DWithin(d.location, p.path, destination_match_radius(d.features))
+           )
+         )
      ) m ON true
      WHERE p.id = $1 AND p.path IS NOT NULL
      ON CONFLICT (plan_id, destination_id) DO NOTHING`,

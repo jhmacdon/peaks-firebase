@@ -5,7 +5,7 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildPlanDestinationMatchSql } from "../processing";
+import { buildPlanDestinationMatchSql, MAX_DESTINATION_MATCH_RADIUS_M } from "../processing";
 
 test("buildPlanDestinationMatchSql matches against plans.path with feature radius", () => {
   const { text, values } = buildPlanDestinationMatchSql("plan1");
@@ -32,5 +32,13 @@ test("buildPlanDestinationMatchSql scopes destinations to system + plan owner", 
 test("buildPlanDestinationMatchSql uses boundary 10m match for polygon destinations", () => {
   const { text } = buildPlanDestinationMatchSql("plan1");
   assert.match(text, /d\.boundary IS NOT NULL/);
-  assert.match(text, /ST_DWithin\(p\.path, d\.boundary, 10\)/);
+  assert.match(text, /ST_DWithin\(d\.boundary, p\.path, 10\)/);
+});
+
+// Same 30s-timeout fix as the session match: a constant-distance ST_DWithin
+// the GIST index can prune with, applied before the per-row exact radius.
+test("buildPlanDestinationMatchSql has a constant-distance index pre-filter", () => {
+  const { text } = buildPlanDestinationMatchSql("plan1");
+  assert.match(text, new RegExp(`ST_DWithin\\(d\\.location, p\\.path, ${MAX_DESTINATION_MATCH_RADIUS_M}\\)`));
+  assert.match(text, /d\.boundary IS NULL/);
 });
