@@ -153,8 +153,40 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
 }
 
 /**
+ * Build the Phase-1 candidate-route query for a session.
+ *
+ * Performance (same 30s-timeout class as matchDestinations): the exact
+ * GEOGRAPHY `ST_DWithin(r.path, s.path, 100)` does not reliably use the GIST
+ * index when s.path comes from the join, and on a long track (e.g. a 71km /
+ * 7000-point multi-day line) the planner seq-scans every route and runs an
+ * exact spheroid line-to-line distance per row — 40s+ on the db-f1-micro.
+ *
+ * Phase 1 only needs a SUPERSET of candidates; Phase 2 (precise 30m / 70%
+ * coverage) is the real gate. So select candidates with cheap PLANAR ops only:
+ * a geometry bbox `&&` against an expanded envelope, then a planar
+ * `ST_DWithin(::geometry, ::geometry, 0.005)`. Both are index-friendly and
+ * carry no spheroid cost. 0.005° (~555m N-S, ~235m E-W at 65°N) is a safe
+ * superset of the old 100m geography threshold at every realistic latitude;
+ * any extra near-miss it admits is dropped by Phase 2, so matched routes are
+ * unchanged. Validated: the 71km session that still timed out after the
+ * matchDestinations fix drops from 60s+ to ~140ms here.
+ *
+ * Pure builder so its shape is unit-testable without a live DB.
+ */
+export function buildRouteCandidateSql(sessionId: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id FROM routes r, tracking_sessions s
+     WHERE s.id = $1 AND s.path IS NOT NULL AND r.status = 'active'
+       AND r.path::geometry && ST_Expand(s.path::geometry, 0.005)
+       AND ST_DWithin(r.path::geometry, s.path::geometry, 0.005)`,
+    values: [sessionId],
+  };
+}
+
+/**
  * Match routes the session followed using two-phase approach:
- * 1. Find candidate routes within 100m of the session's stored linestring.
+ * 1. Find candidate routes near the session's stored linestring (planar
+ *    superset — see buildRouteCandidateSql).
  * 2. Compute vertex coverage — insert routes with >= 70% coverage.
  *
  * Reads tracking_sessions.path (set by processSession Step 0) so both
@@ -162,12 +194,8 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
  */
 async function matchRoutes(client: PoolClient, sessionId: string): Promise<number> {
   // Phase 1: find candidate routes near the session track
-  const candidates = await client.query(
-    `SELECT r.id FROM routes r, tracking_sessions s
-     WHERE s.id = $1 AND s.path IS NOT NULL
-       AND ST_DWithin(r.path, s.path, 100) AND r.status = 'active'`,
-    [sessionId]
-  );
+  const candidateSql = buildRouteCandidateSql(sessionId);
+  const candidates = await client.query(candidateSql.text, candidateSql.values);
 
   if (candidates.rows.length === 0) {
     return 0;

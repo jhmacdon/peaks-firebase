@@ -37,6 +37,11 @@
  *   --dry-run        list the candidates and exit; make no changes
  *   --delay-ms <n>   pause between sessions (default 300)
  *   --limit <n>      cap how many to process this run (default: no cap)
+ *   --states <list>  comma-separated states to drain (default: pending,failed,
+ *                    processing). e.g. --states processing,failed to scope to
+ *                    the timeout-wedged backlog and leave legacy 'pending'
+ *                    (a migration population) untouched. 'processing' always
+ *                    means the STALE subset; a live claim is never stolen.
  */
 
 import db from "../src/db";
@@ -53,19 +58,30 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const DELAY_MS = intFlag("--delay-ms", 300);
 const LIMIT = intFlag("--limit", Number.MAX_SAFE_INTEGER);
 
+function statesFlag(): string[] {
+  const i = process.argv.indexOf("--states");
+  const raw = i === -1 ? "pending,failed,processing" : process.argv[i + 1] ?? "";
+  const allowed = new Set(["pending", "failed", "processing"]);
+  const states = raw.split(",").map((s) => s.trim()).filter((s) => allowed.has(s));
+  if (states.length === 0) throw new Error(`--states must be a subset of ${[...allowed].join(",")}`);
+  return states;
+}
+const STATES = statesFlag();
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// All ended sessions with points that are stuck: pending or failed, or a
-// 'processing' claim older than STALE_PROCESSING_MINUTES (a dead run — the
-// claim's own stale-recovery will re-acquire it). Mirrors
+// Ended sessions with points stuck in one of the requested states. A
+// 'processing' row is only a candidate when its claim is older than
+// STALE_PROCESSING_MINUTES (a dead run — never steal a live claim). Mirrors
 // buildProcessAllCandidateSql but across every user, oldest first.
 const CANDIDATE_SQL = `
   SELECT s.id, s.user_id, s.processing_state
   FROM tracking_sessions s
   WHERE s.ended = true
     AND (
-      s.processing_state IN ('pending', 'failed')
-      OR (s.processing_state = 'processing'
+      (s.processing_state = ANY($1) AND s.processing_state <> 'processing')
+      OR ('processing' = ANY($1)
+          AND s.processing_state = 'processing'
           AND (s.processing_started_at IS NULL
                OR s.processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES})))
     )
@@ -73,7 +89,8 @@ const CANDIDATE_SQL = `
   ORDER BY s.server_updated_at ASC, s.id ASC`;
 
 async function main(): Promise<void> {
-  const { rows } = await db.query(CANDIDATE_SQL);
+  console.log(`[reprocess] states=${STATES.join(",")} delay=${DELAY_MS}ms`);
+  const { rows } = await db.query(CANDIDATE_SQL, [STATES]);
   const candidates = rows.slice(0, LIMIT);
 
   const byState = rows.reduce<Record<string, number>>((acc, r) => {
