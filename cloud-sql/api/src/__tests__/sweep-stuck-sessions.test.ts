@@ -42,6 +42,8 @@ test("sweepStuckSessions: no-op when advisory lock not acquired", async () => {
   assert.equal(res.swept, 0);
   assert.equal(processed, 0, "must not process when lock not held");
   assert.ok(calls.includes("RELEASE"));
+  // Must NOT unlock a lock it never acquired (guards the `if (locked)` branch).
+  assert.ok(!calls.some((c) => c.includes("pg_advisory_unlock")), "no unlock when lock not held");
 });
 
 test("sweepStuckSessions: when locked, processes serially, honors limit, unlocks", async () => {
