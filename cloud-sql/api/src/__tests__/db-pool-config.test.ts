@@ -47,3 +47,19 @@ test("pool max is env-overridable and falls back to a sane default", () => {
 test("statement_timeout is env-overridable", () => {
   assert.equal(buildPoolConfig({ DB_STATEMENT_TIMEOUT_MS: "45000" }).statement_timeout, 45000);
 });
+
+import { buildProcessingPoolConfig } from "../db";
+
+test("buildProcessingPoolConfig: relaxed 120s timeout, bounded pool, env overrides", () => {
+  const def = buildProcessingPoolConfig({} as NodeJS.ProcessEnv);
+  assert.equal(def.statement_timeout, 120_000);
+  assert.equal(def.idle_in_transaction_session_timeout, 120_000);
+  assert.equal(def.max, 2);
+
+  const over = buildProcessingPoolConfig({
+    DB_PROCESSING_POOL_MAX: "3",
+    DB_PROCESSING_STATEMENT_TIMEOUT_MS: "90000",
+  } as unknown as NodeJS.ProcessEnv);
+  assert.equal(over.max, 3);
+  assert.equal(over.statement_timeout, 90_000);
+});

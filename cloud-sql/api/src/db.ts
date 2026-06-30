@@ -63,6 +63,25 @@ export function buildPoolConfig(env: NodeJS.ProcessEnv = process.env): PoolConfi
 
 const pool = new Pool(buildPoolConfig());
 
+// Isolated pool for background processing (the in-process sweep + relaxed
+// inline retries). A separate pool with a longer statement_timeout so a slow
+// long-track match runs to completion WITHOUT borrowing from the web pool —
+// interactive queries (search/sync) keep their protective 30s ceiling. Kept
+// small (max 2) and gated by the sweep's advisory lock so combined web +
+// processing connections stay under the db-f1-micro ceiling.
+export function buildProcessingPoolConfig(env: NodeJS.ProcessEnv = process.env): PoolConfig {
+  const timeout = parsePositiveInt(env.DB_PROCESSING_STATEMENT_TIMEOUT_MS, 120_000);
+  return {
+    ...dbClientConfig,
+    max: parsePositiveInt(env.DB_PROCESSING_POOL_MAX, 2),
+    connectionTimeoutMillis: parsePositiveInt(env.DB_POOL_CONNECTION_TIMEOUT_MS, 5_000),
+    statement_timeout: timeout,
+    idle_in_transaction_session_timeout: timeout,
+  };
+}
+
+export const processingPool = new Pool(buildProcessingPoolConfig());
+
 export function createDbClient(): Client {
   return new Client(dbClientConfig);
 }
