@@ -635,6 +635,69 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
   };
 }
 
+// Arbitrary fixed key for the session-sweep advisory lock. Ensures at most ONE
+// sweep runs across the whole Cloud Run fleet at a time, so the sweep can never
+// add more than ~1-2 connections on top of the web pool (db-f1-micro budget).
+export const SWEEP_ADVISORY_LOCK_KEY = 4927301;
+
+// All ended sessions with points stuck at pending/failed or a stale 'processing'
+// claim, across EVERY user, oldest first. Parameterless so callers append LIMIT.
+export function buildStuckSessionsSql(): string {
+  return `SELECT s.id, s.user_id FROM tracking_sessions s
+     WHERE s.ended = true
+       AND (
+         s.processing_state IN ('pending', 'failed')
+         OR (s.processing_state = 'processing'
+             AND (s.processing_started_at IS NULL
+                  OR s.processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES})))
+       )
+       AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
+     ORDER BY s.server_updated_at ASC, s.id ASC`;
+}
+
+/**
+ * Drain up to `limit` stuck sessions on `pool` (the relaxed processingPool),
+ * serially. Fleet-wide-singleton via a Postgres advisory lock: an instance that
+ * does not get the lock returns immediately. processSession is idempotent, so a
+ * row a live inline run owns throws `already_processing` and is skipped.
+ */
+export async function sweepStuckSessions(
+  pool: Pool,
+  opts: { limit?: number; processFn?: typeof processSession } = {}
+): Promise<{ swept: number; locked: boolean }> {
+  const limit = opts.limit ?? 50;
+  const process = opts.processFn ?? processSession;
+  const lockClient = await pool.connect();
+  let locked = false;
+  try {
+    const lock = await lockClient.query(
+      "SELECT pg_try_advisory_lock($1) AS ok",
+      [SWEEP_ADVISORY_LOCK_KEY]
+    );
+    locked = lock.rows[0]?.ok === true;
+    if (!locked) return { swept: 0, locked: false };
+
+    const { rows } = await pool.query(`${buildStuckSessionsSql()} LIMIT $1`, [limit]);
+    let swept = 0;
+    for (const row of rows as Array<{ id: string; user_id: string }>) {
+      try {
+        const r = await process(row.id, row.user_id, { pool });
+        if (!r?.skipped) swept++;
+      } catch (err) {
+        if (!(err instanceof Error && err.message === "already_processing")) {
+          console.error(`[sweep] failed for ${row.id}:`, err);
+        }
+      }
+    }
+    return { swept, locked: true };
+  } finally {
+    if (locked) {
+      await lockClient.query("SELECT pg_advisory_unlock($1)", [SWEEP_ADVISORY_LOCK_KEY]);
+    }
+    lockClient.release();
+  }
+}
+
 /**
  * Process a plan: match reached destinations against plans.path. Idempotent —
  * clears source='auto' rows first. Claims the plan with the same stale-recovery
