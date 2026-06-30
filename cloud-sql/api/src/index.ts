@@ -7,6 +7,8 @@ import sessions from "./routes/sessions";
 import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
+import { processingPool } from "./db";
+import { sweepStuckSessions } from "./processing";
 
 export const app = express();
 // 5mb covers the iOS chunked points uploader (3000 pts/chunk ≈ 150KB) with
@@ -36,4 +38,22 @@ if (process.env.NODE_ENV !== "test") {
   app.listen(port, () => {
     console.log(`Peaks API listening on port ${port}`);
   });
+
+  // Background safety-net: finish any session left 'pending'/'failed'/stale by an
+  // inline run that hit the web pool's 30s budget. Advisory-lock-guarded inside
+  // sweepStuckSessions so only one instance sweeps at a time. Needs Cloud Run
+  // --no-cpu-throttling so the timer runs between requests (Task 5).
+  const sweepIntervalMs = Number(process.env.SWEEP_INTERVAL_MS) || 120_000;
+  let isSweeping = false;
+  setInterval(async () => {
+    if (isSweeping) return; // never overlap on the same instance
+    isSweeping = true;
+    try {
+      await sweepStuckSessions(processingPool);
+    } catch (err) {
+      console.error("[sweep] tick failed:", err);
+    } finally {
+      isSweeping = false;
+    }
+  }, sweepIntervalMs);
 }
