@@ -1,4 +1,4 @@
-import { PoolClient } from "pg";
+import { Pool, PoolClient } from "pg";
 import crypto from "crypto";
 import db from "./db";
 
@@ -11,6 +11,19 @@ export function generateId(): string {
 // Cloud Run request timeout), so a live run is never re-claimed. Shared by
 // processSession's claim and markSessionPendingIfReady so the two guards agree.
 export const STALE_PROCESSING_MINUTES = 10;
+
+/**
+ * True iff `err` is a Postgres statement_timeout cancel (SQLSTATE 57014).
+ * Used so an INLINE match that ran out of the web pool's 30s budget is left
+ * 'pending' for the relaxed sweep to finish, rather than marked 'failed'.
+ */
+export function isStatementTimeout(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "57014"
+  );
+}
 
 export interface ProcessingResult {
   destinations_matched: number;
@@ -431,8 +444,9 @@ async function updateDestinationAverages(
 export async function processSession(
   sessionId: string,
   userId: string,
-  opts: { force?: boolean } = {}
+  opts: { force?: boolean; pool?: Pool } = {}
 ): Promise<ProcessingResult> {
+  const pool = opts.pool ?? db;
   // Idempotency: an already-completed session is NOT re-processed unless
   // explicitly forced. iOS's upload step 3 (and stray re-process triggers)
   // otherwise re-claim and re-run the expensive PostGIS matching on sessions
@@ -441,7 +455,7 @@ export async function processSession(
   // genuinely-changed session still re-processes. Old clients re-POSTing
   // unchanged points insert 0 rows → stay 'completed' → skipped here too.
   if (!opts.force) {
-    const cur = await db.query(
+    const cur = await pool.query(
       `SELECT processing_state FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
       [sessionId, userId]
     );
@@ -464,7 +478,7 @@ export async function processSession(
   // wedge the session at 'processing' forever. processSession is idempotent, so
   // re-claiming a truly-dead run is safe; the window is far longer than any real
   // run so a live run is never stolen.
-  const claim = await db.query(
+  const claim = await pool.query(
     `UPDATE tracking_sessions
      SET processing_state = 'processing',
          processing_error = NULL,
@@ -479,7 +493,7 @@ export async function processSession(
     throw new Error("already_processing");
   }
 
-  const client = await db.connect();
+  const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
@@ -543,7 +557,7 @@ export async function processSession(
     // otherwise-successful recording ingestion.
     let areasLinked = 0;
     try {
-      areasLinked = await linkReachedSummitsToAreas(db, sessionId);
+      areasLinked = await linkReachedSummitsToAreas(pool, sessionId);
     } catch (err) {
       console.error(`[processSession] area linking failed for session ${sessionId}:`, err);
     }
@@ -557,14 +571,25 @@ export async function processSession(
     };
   } catch (err) {
     await client.query("ROLLBACK");
-    const message = err instanceof Error ? err.message.slice(0, 500) : "Unknown processing error";
-    await db.query(
-      `UPDATE tracking_sessions
-       SET processing_state = 'failed',
-           processing_error = $2
-       WHERE id = $1`,
-      [sessionId, message]
-    );
+    // An INLINE run that exceeded the web pool's 30s budget (57014) is NOT a
+    // real failure — leave it 'pending' so the relaxed sweep finishes it.
+    // Genuine errors still surface as 'failed' + processing_error.
+    if (isStatementTimeout(err)) {
+      await pool.query(
+        `UPDATE tracking_sessions
+         SET processing_state = 'pending', processing_error = NULL
+         WHERE id = $1`,
+        [sessionId]
+      );
+    } else {
+      const message = err instanceof Error ? err.message.slice(0, 500) : "Unknown processing error";
+      await pool.query(
+        `UPDATE tracking_sessions
+         SET processing_state = 'failed', processing_error = $2
+         WHERE id = $1`,
+        [sessionId, message]
+      );
+    }
     throw err;
   } finally {
     client.release();
@@ -622,9 +647,11 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
  */
 export async function processPlan(
   planId: string,
-  userId: string
+  userId: string,
+  opts: { pool?: Pool } = {}
 ): Promise<{ destinations_matched: number }> {
-  const claim = await db.query(
+  const pool = opts.pool ?? db;
+  const claim = await pool.query(
     `UPDATE plans
      SET processing_state = 'processing',
          processing_error = NULL,
@@ -639,7 +666,7 @@ export async function processPlan(
     throw new Error("already_processing");
   }
 
-  const client = await db.connect();
+  const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
@@ -691,7 +718,7 @@ export async function processPlan(
   } catch (err) {
     await client.query("ROLLBACK");
     const message = err instanceof Error ? err.message.slice(0, 500) : "Unknown processing error";
-    await db.query(
+    await pool.query(
       `UPDATE plans SET processing_state = 'failed', processing_error = $2 WHERE id = $1`,
       [planId, message]
     );
