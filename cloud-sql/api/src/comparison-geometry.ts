@@ -387,3 +387,54 @@ export function computeMovingSeconds(
   }
   return Math.round(moving);
 }
+
+export interface LegSplits {
+  arrivalMs: number;
+  departureMs: number;
+  ascentS: number;
+  dwellS: number;
+  descentS: number;
+}
+
+export interface LegParams {
+  SUMMIT_DWELL_RADIUS_M: number;
+  APEX_INTERIOR_FRAC: number;
+}
+
+/**
+ * Split a side's comparison window at a summit destination:
+ * ascent = window enter → first sample within SUMMIT_DWELL_RADIUS_M of the
+ * summit; dwell = arrival → last such sample; descent = departure → window
+ * exit. Null when the track never reaches the summit inside the window, or
+ * when the arrival lies in the first/last APEX_INTERIOR_FRAC of the window's
+ * elapsed span (a route that merely starts or ends at the summit has no
+ * meaningful legs).
+ */
+export function computeLegSplits(
+  samples: SamplePoint[],
+  window: SideWindow,
+  summit: { lat: number; lng: number },
+  params: LegParams
+): LegSplits | null {
+  let arrivalMs: number | null = null;
+  let departureMs: number | null = null;
+  for (const s of samples) {
+    if (s.timeMs < window.enterMs || s.timeMs > window.exitMs) continue;
+    if (haversineM(s.lat, s.lng, summit.lat, summit.lng) <= params.SUMMIT_DWELL_RADIUS_M) {
+      if (arrivalMs === null) arrivalMs = s.timeMs;
+      departureMs = s.timeMs;
+    }
+  }
+  if (arrivalMs === null || departureMs === null) return null;
+  const span = window.exitMs - window.enterMs;
+  if (span <= 0) return null;
+  const frac = (arrivalMs - window.enterMs) / span;
+  if (frac < params.APEX_INTERIOR_FRAC || frac > 1 - params.APEX_INTERIOR_FRAC) return null;
+  return {
+    arrivalMs,
+    departureMs,
+    ascentS: Math.round((arrivalMs - window.enterMs) / 1000),
+    dwellS: Math.round((departureMs - arrivalMs) / 1000),
+    descentS: Math.round((window.exitMs - departureMs) / 1000),
+  };
+}

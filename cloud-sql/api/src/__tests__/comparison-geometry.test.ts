@@ -10,6 +10,7 @@ import {
   computeCrossings,
   computeOverlap,
   computeMovingSeconds,
+  computeLegSplits,
 } from "../comparison-geometry";
 import * as P from "../comparison-params";
 
@@ -211,4 +212,64 @@ test("entry dwell before a single-pass hike is not classified out-and-back", () 
   // b's window must span the traversal, not close at the end of the dwell
   const bDur = (r!.b.exitMs - r!.b.enterMs) / 1000;
   assert.ok(bDur > 0.5 * 100 * 30, `bDur=${bDur} — window must include the walk`);
+});
+
+test("computeLegSplits splits an out-and-back at the summit with dwell", () => {
+  // Approach/depart at 50m spacing rather than the file's usual 25m: with
+  // SUMMIT_DWELL_RADIUS_M=60m and 25m spacing, TWO samples on each side of
+  // the apex (not just one) fall within the summit radius, leaking ~120s of
+  // ascent/descent into the dwell measurement (measured dwellS=1350 vs the
+  // asserted 1200±120 below). At 50m spacing only one sample per side is
+  // within 60m, keeping the leak to ~60s total and dwellS inside tolerance.
+  const DEG_50M = 50 / 111320;
+  const DEG_30M = 30 / 111320;
+  const out = straightTrack({ n: 80, spacingDeg: DEG_50M });
+  // 20 min dwell at the apex. Points wander ±30m (as in the entry-dwell test
+  // above) so sampleTrack's ≥25m spacing threshold keeps them as distinct
+  // samples instead of collapsing the whole stationary dwell to one point.
+  const apexLng = 79 * DEG_50M;
+  const dwell: RawPointRow[] = Array.from({ length: 40 }, (_, i) => ({
+    time: out[79].time + (i + 1) * 30_000,
+    lat: 0, lng: i % 2 === 0 ? apexLng : apexLng + DEG_30M, elevation: 1079, speed: 0,
+  }));
+  const back = straightTrack({ n: 80, startMs: dwell[39].time + 30_000 })
+    .map((r, i) => ({ ...r, lng: out[79 - i].lng }));
+  const samples = sampleTrack([...out, ...dwell, ...back], P.SAMPLE_SPACING_M);
+  const window = {
+    enterMs: samples[0].timeMs,
+    exitMs: samples[samples.length - 1].timeMs,
+    startM: 0,
+    endM: samples[samples.length - 1].cumM,
+    outAndBack: true,
+  };
+  const legs = computeLegSplits(samples, window, { lat: 0, lng: apexLng }, P);
+  assert.ok(legs, "expected splittable");
+  // dwell ≈ 40 * 30s = 1200s
+  assert.ok(Math.abs(legs!.dwellS - 1200) < 120, `dwell=${legs!.dwellS}`);
+  // ascent ≈ descent ≈ 80 * 30s = 2400s
+  assert.ok(Math.abs(legs!.ascentS - 2400) < 300, `ascent=${legs!.ascentS}`);
+  assert.ok(Math.abs(legs!.descentS - 2400) < 300, `descent=${legs!.descentS}`);
+});
+
+test("computeLegSplits returns null when summit is outside the window interior", () => {
+  const samples = sampleTrack(straightTrack({ n: 80 }), P.SAMPLE_SPACING_M);
+  const window = {
+    enterMs: samples[0].timeMs,
+    exitMs: samples[samples.length - 1].timeMs,
+    startM: 0,
+    endM: samples[samples.length - 1].cumM,
+    outAndBack: false,
+  };
+  // summit at the very end of a one-way — inside last 10% → not splittable
+  const legs = computeLegSplits(samples, window, { lat: 0, lng: 79 * DEG_25M }, P);
+  assert.equal(legs, null);
+});
+
+test("computeLegSplits returns null when the track never reaches the summit", () => {
+  const samples = sampleTrack(straightTrack({ n: 80 }), P.SAMPLE_SPACING_M);
+  const window = {
+    enterMs: samples[0].timeMs, exitMs: samples[samples.length - 1].timeMs,
+    startM: 0, endM: samples[samples.length - 1].cumM, outAndBack: false,
+  };
+  assert.equal(computeLegSplits(samples, window, { lat: 0.5, lng: 0 }, P), null);
 });
