@@ -273,3 +273,19 @@ test("computeLegSplits returns null when the track never reaches the summit", ()
   };
   assert.equal(computeLegSplits(samples, window, { lat: 0.5, lng: 0 }, P), null);
 });
+
+test("far-end-first tracks are rejected despite majority-increasing crossings", () => {
+  // b starts AT the corridor's far end, walks down to the start, then hikes
+  // the whole corridor up: most adjacent first-crossing pairs increase, but
+  // firstMs[cpEnd] < firstMs[cpStart] — the net-forward invariant the window
+  // math depends on is violated (prod stored negative windows this way).
+  const a = straightTrack({ n: 200 });
+  // Brief far-end touch (2 samples at the last coordinate), then a clean
+  // full ascent: the inc/dec majority vote sees almost all increasing pairs
+  // and passes, so only the net-forward invariant rejects this track.
+  const farTouch = straightTrack({ n: 2, startMs: 10_000_000, startLng: 192 * DEG_25M });
+  const up = straightTrack({ n: 200, startMs: 10_000_000 + 600_000 });
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor([...farTouch, ...up], a);
+  assert.equal(computeOverlap(aCross, bCross, cps, P), null);
+});

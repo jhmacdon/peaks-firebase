@@ -276,6 +276,13 @@ export async function matchComparisons(
       if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
       if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
 
+      // Data-quality gate: a side whose comparison window is implausibly short
+      // for a ≥MIN_OVERLAP_M corridor is timing noise (GPS gaps, degenerate
+      // crossings) — storing it would surface nonsense deltas in the UI.
+      const aElapsedS = Math.round((overlap.a.exitMs - overlap.a.enterMs) / 1000);
+      const bElapsedS = Math.round((overlap.b.exitMs - overlap.b.enterMs) / 1000);
+      if (aElapsedS < P.MIN_PAIR_ELAPSED_S || bElapsedS < P.MIN_PAIR_ELAPSED_S) continue;
+
       // Legs: only meaningful for 'full' scope (outbound windows end at the far
       // checkpoint — a summit there sits at the window edge and is filtered by
       // APEX_INTERIOR_FRAC anyway).
@@ -304,8 +311,8 @@ export async function matchComparisons(
         b_end_m: overlap.b.endM,
         a_out_and_back: overlap.a.outAndBack,
         b_out_and_back: overlap.b.outAndBack,
-        a_elapsed_s: Math.round((overlap.a.exitMs - overlap.a.enterMs) / 1000),
-        b_elapsed_s: Math.round((overlap.b.exitMs - overlap.b.enterMs) / 1000),
+        a_elapsed_s: aElapsedS,
+        b_elapsed_s: bElapsedS,
         a_moving_s: computeMovingSeconds(aSamples, overlap.a.enterMs, overlap.a.exitMs, P),
         b_moving_s: computeMovingSeconds(bSamples, overlap.b.enterMs, overlap.b.exitMs, P),
         summit_destination_id: legsOk ? summit!.id : null,

@@ -7,8 +7,11 @@
 /** Params below marked [matcher] — bump when any of them change.
  *  v2: loadSampledTrack now converts tracking_points.time from unix SECONDS
  *  (the real prod scale — the schema comment claiming ms was stale) to the
- *  model's milliseconds. v1 rows have elapsed/moving/legs off by 1000×. */
-export const MATCHER_VERSION = 2;
+ *  model's milliseconds. v1 rows have elapsed/moving/legs off by 1000×.
+ *  v3: net-forward direction invariant (firstMs[cpEnd] > firstMs[cpStart])
+ *  and the MIN_PAIR_ELAPSED_S data-quality gate — v2 stored negative and
+ *  minutes-scale windows for corridor-reversed traverses. */
+export const MATCHER_VERSION = 3;
 /** Params below marked [legs] — bump when any of them change. */
 export const LEGS_VERSION = 1;
 
@@ -34,6 +37,8 @@ export const MIN_OVERLAP_M = 500;
 export const MIN_OVERLAP_FRAC_OF_SHORTER = 0.3;
 /** [matcher] Both fracs at/above this ⇒ the pair is a "full route" match. */
 export const FULL_ROUTE_FRAC = 0.9;
+/** [matcher] Minimum per-side window elapsed (s) to store a pair — shorter is timing noise. */
+export const MIN_PAIR_ELAPSED_S = 300;
 /** [matcher] Max stored pairs per session; lowest overlap_m pruned beyond this. */
 export const MAX_PAIRS_PER_SESSION = 20;
 /** [matcher] A side is out-and-back within the range when it re-exits through the
