@@ -188,12 +188,20 @@ test("computeMovingSeconds excludes stopped stretches and caps gaps", () => {
 
 test("entry dwell before a single-pass hike is not classified out-and-back", () => {
   const a = straightTrack({ n: 200 });
-  // b: 45 min parked at the corridor start (GPS wander at same coord), then single-pass
-  const dwell: RawPointRow[] = Array.from({ length: 90 }, (_, i) => ({
-    time: 10_000_000 + i * 30_000,
-    lat: 0, lng: 0, elevation: 1000, speed: 0,
+  // b: 2h parked at the corridor start (GPS wander between two spots ~30m
+  // apart — within CROSSING_RADIUS_M=60m of cp0 but each step ≥25m so
+  // sampleTrack keeps every point instead of collapsing the dwell to one
+  // sample), then a single-pass 50-minute walk. Dwell (7200s) intentionally
+  // LONGER than the walk (~2970s) so entry.lastMs - entry.firstMs at cp0
+  // exceeds half the total span — the exact condition that made the old
+  // (pre-fix) heuristic misclassify this as out-and-back.
+  const DEG_30M = 30 / 111320;
+  const DWELL_START = 10_000_000;
+  const dwell: RawPointRow[] = Array.from({ length: 240 }, (_, i) => ({
+    time: DWELL_START + i * 30_000,
+    lat: 0, lng: i % 2 === 0 ? 0 : DEG_30M, elevation: 1000, speed: 0,
   }));
-  const walk = straightTrack({ n: 200, startMs: 10_000_000 + 90 * 30_000 });
+  const walk = straightTrack({ n: 100, startMs: DWELL_START + 240 * 30_000 });
   const { cps, cross: aCross } = crossingsFor(a, a);
   const { cross: bCross } = crossingsFor([...dwell, ...walk], a);
   const r = computeOverlap(aCross, bCross, cps, P);
@@ -202,5 +210,5 @@ test("entry dwell before a single-pass hike is not classified out-and-back", () 
   assert.equal(r!.scope, "full");
   // b's window must span the traversal, not close at the end of the dwell
   const bDur = (r!.b.exitMs - r!.b.enterMs) / 1000;
-  assert.ok(bDur > 0.5 * 200 * 30, `bDur=${bDur} — window must include the walk`);
+  assert.ok(bDur > 0.5 * 100 * 30, `bDur=${bDur} — window must include the walk`);
 });
