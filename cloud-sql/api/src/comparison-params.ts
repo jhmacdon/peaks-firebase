@@ -4,8 +4,11 @@
 // LEGS_VERSION param requires only scripts/recompute-comparison-legs.ts.
 // Bump the corresponding version WHENEVER a value here changes.
 
-/** Params below marked [matcher] — bump when any of them change. */
-export const MATCHER_VERSION = 1;
+/** Params below marked [matcher] — bump when any of them change.
+ *  v2: loadSampledTrack now converts tracking_points.time from unix SECONDS
+ *  (the real prod scale — the schema comment claiming ms was stale) to the
+ *  model's milliseconds. v1 rows have elapsed/moving/legs off by 1000×. */
+export const MATCHER_VERSION = 2;
 /** Params below marked [legs] — bump when any of them change. */
 export const LEGS_VERSION = 1;
 

@@ -20,9 +20,10 @@ async function insertTrack(
   id: string,
   startISO: string,
   coords: Array<{ lat: number; lng: number }>,
-  stepMs = 30_000
+  stepSeconds = 30
 ): Promise<void> {
-  const startMs = new Date(startISO).getTime();
+  // tracking_points.time is unix SECONDS in prod; loadSampledTrack converts to ms.
+  const startSeconds = Math.floor(new Date(startISO).getTime() / 1000);
   await db.query(
     `INSERT INTO tracking_sessions (id, user_id, start_time, ended, distance)
      VALUES ($1, $2, $3, true, $4)`,
@@ -35,7 +36,7 @@ async function insertTrack(
     values.push(
       `($${base + 1}, $${base + 2}, ST_GeomFromText($${base + 3}, 4326)::geography, $${base + 4}, 1.0)`
     );
-    params.push(id, startMs + i * stepMs, `POINT Z(${c.lng} ${c.lat} 1000)`, 1000);
+    params.push(id, startSeconds + i * stepSeconds, `POINT Z(${c.lng} ${c.lat} 1000)`, 1000);
   });
   await db.query(
     `INSERT INTO tracking_points (session_id, time, location, elevation, speed)

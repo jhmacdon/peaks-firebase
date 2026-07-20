@@ -161,10 +161,19 @@ export function buildPrunePairsSql(sessionId: string): { text: string; values: u
   };
 }
 
-/** Load a session's tracking points and downsample for the model. */
+/**
+ * Load a session's tracking points and downsample for the model.
+ *
+ * tracking_points.time is unix SECONDS in production (see cloud-sql/CLAUDE.md
+ * "Postgres → wire type policy"; the schema.sql column comment claiming
+ * milliseconds was stale). The comparison model works in milliseconds
+ * (RawPointRow.time / SamplePoint.timeMs and every stored *_ms column), so the
+ * conversion happens HERE, at the single load boundary — nothing downstream
+ * may rescale again. seconds × 1000 stays far below 2^53.
+ */
 export async function loadSampledTrack(q: Queryable, sessionId: string): Promise<SamplePoint[]> {
   const { rows } = await q.query(
-    `SELECT time, elevation, speed,
+    `SELECT time * 1000 AS time, elevation, speed,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM tracking_points
