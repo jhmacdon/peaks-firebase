@@ -7,6 +7,9 @@ import {
   RawPointRow,
   collapseOutAndBack,
   buildCheckpoints,
+  computeCrossings,
+  computeOverlap,
+  computeMovingSeconds,
 } from "../comparison-geometry";
 import * as P from "../comparison-params";
 
@@ -97,4 +100,88 @@ test("buildCheckpoints spaces checkpoints along the corridor", () => {
   for (let i = 1; i < cps.length; i++) {
     assert.ok(Math.abs(cps[i].m - cps[i - 1].m - 200) < 1);
   }
+});
+
+function crossingsFor(rows: RawPointRow[], corridorRows: RawPointRow[]) {
+  const corridorSamples = sampleTrack(corridorRows, P.SAMPLE_SPACING_M);
+  const corridor = collapseOutAndBack(corridorSamples, P);
+  const cps = buildCheckpoints(corridor, P.CHECKPOINT_SPACING_M);
+  const samples = sampleTrack(rows, P.SAMPLE_SPACING_M);
+  return { cps, cross: computeCrossings(samples, cps, P.CROSSING_RADIUS_M), samples };
+}
+
+test("out-and-back vs out-and-back: scope=full, elapsed = whole window", () => {
+  const a = outAndBackTrack(80);                                  // corridor source
+  const b = outAndBackTrack(80, { startMs: 10_000_000 });         // repeat, later
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor(b, a);
+  const r = computeOverlap(aCross, bCross, cps, P);
+  assert.ok(r, "expected an overlap");
+  assert.equal(r!.scope, "full");
+  assert.equal(r!.a.outAndBack, true);
+  assert.equal(r!.b.outAndBack, true);
+  // full window: enter at start of range, exit when finally back at entry cp.
+  // a: 160 points * 30s ≈ whole hike duration
+  const aDur = (r!.a.exitMs - r!.a.enterMs) / 1000;
+  assert.ok(aDur > 0.8 * 160 * 30, `aDur=${aDur}`);
+});
+
+test("traverse ⊃ out-and-back ridge: mixed topology → scope=outbound", () => {
+  // a: out-and-back on the first 80 points of the corridor (EARLIER session)
+  const a = outAndBackTrack(80);
+  // b: one-way traverse across 160 points — first 80 share a's corridor
+  const b = straightTrack({ n: 160, startMs: 10_000_000 });
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor(b, a);
+  const r = computeOverlap(aCross, bCross, cps, P);
+  assert.ok(r, "expected an overlap");
+  assert.equal(r!.scope, "outbound");
+  assert.equal(r!.a.outAndBack, true);
+  assert.equal(r!.b.outAndBack, false);
+  // outbound scope: a's window is its ASCENT only (~half its duration)
+  const aDur = (r!.a.exitMs - r!.a.enterMs) / 1000;
+  assert.ok(aDur < 0.7 * 160 * 30, `aDur=${aDur} should be ~ascent only`);
+});
+
+test("reversed direction is rejected", () => {
+  const a = straightTrack({ n: 100 });
+  const b = straightTrack({ n: 100, startMs: 10_000_000, reverse: true, startLng: 99 * DEG_25M });
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor(b, a);
+  assert.equal(computeOverlap(aCross, bCross, cps, P), null);
+});
+
+test("partial overlap yields the consecutive shared checkpoint range", () => {
+  const a = straightTrack({ n: 200 });                            // 200 pts ≈ 5km
+  // b covers only the middle: points 60..140 of the same line
+  const b = straightTrack({ n: 81, startMs: 10_000_000, startLng: 60 * DEG_25M });
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor(b, a);
+  const r = computeOverlap(aCross, bCross, cps, P);
+  assert.ok(r);
+  // shared ≈ 80 pts * 25m ≈ 2000m of corridor
+  assert.ok(Math.abs(r!.overlapM - 2000) < 450, `got ${r!.overlapM}`);
+  assert.ok(r!.cpStart > 0, "range must not start at corridor start");
+});
+
+test("disjoint tracks produce no overlap", () => {
+  const a = straightTrack({ n: 100 });
+  const b = straightTrack({ n: 100, startMs: 10_000_000, lat: 1 }); // ~111km north
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor(b, a);
+  assert.equal(computeOverlap(aCross, bCross, cps, P), null);
+});
+
+test("computeMovingSeconds excludes stopped stretches and caps gaps", () => {
+  const rows = straightTrack({ n: 20 });                 // moving, 30s steps
+  // insert a 30-minute stationary gap (same coord, speed 0)
+  const stopped: RawPointRow[] = Array.from({ length: 10 }, (_, i) => ({
+    time: rows[19].time + (i + 1) * 180_000,
+    lat: rows[19].lat, lng: rows[19].lng, elevation: 1000, speed: 0,
+  }));
+  const moving2 = straightTrack({ n: 20, startMs: stopped[9].time + 30_000, startLng: 19 * DEG_25M });
+  const samples = sampleTrack([...rows, ...stopped, ...moving2], P.SAMPLE_SPACING_M);
+  const total = (samples[samples.length - 1].timeMs - samples[0].timeMs) / 1000;
+  const moving = computeMovingSeconds(samples, samples[0].timeMs, samples[samples.length - 1].timeMs, P);
+  assert.ok(moving < total - 1500, `moving=${moving} total=${total} — 30min stop must be excluded`);
 });

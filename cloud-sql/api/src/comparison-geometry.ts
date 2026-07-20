@@ -197,3 +197,185 @@ export function buildCheckpoints(corridor: Corridor, spacingM: number): Checkpoi
   }
   return out;
 }
+
+export interface Crossing {
+  firstMs: number;
+  lastMs: number;
+  firstCumM: number;
+  lastCumM: number;
+}
+
+/**
+ * For each checkpoint, the first and last time this session's samples pass
+ * within radiusM of it (null = never). Single forward scan with a spatial
+ * index over the CHECKPOINTS (few hundred at most).
+ */
+export function computeCrossings(
+  samples: SamplePoint[],
+  checkpoints: Checkpoint[],
+  radiusM: number
+): (Crossing | null)[] {
+  const out: (Crossing | null)[] = checkpoints.map(() => null);
+  // Index checkpoints by grid; map back to indices.
+  const cpAsSamples: SamplePoint[] = checkpoints.map((c, i) => ({
+    timeMs: i, lat: c.lat, lng: c.lng, elevM: c.elevM, speedMps: null, cumM: c.m,
+  }));
+  const idx = new SpatialIndex(cpAsSamples, radiusM);
+  for (const s of samples) {
+    // nearest checkpoint within radius; also check its immediate neighbors so a
+    // sample equidistant between two checkpoints credits the truly nearest one.
+    const hit = idx.near(s.lat, s.lng, radiusM);
+    if (!hit) continue;
+    const ci = hit.timeMs; // index smuggled through timeMs
+    const cur = out[ci];
+    if (!cur) {
+      out[ci] = { firstMs: s.timeMs, lastMs: s.timeMs, firstCumM: s.cumM, lastCumM: s.cumM };
+    } else {
+      cur.lastMs = s.timeMs;
+      cur.lastCumM = s.cumM;
+    }
+  }
+  return out;
+}
+
+export interface SideWindow {
+  enterMs: number;
+  exitMs: number;
+  startM: number;   // this side's cumulative traveled meters at enter
+  endM: number;     // ... at exit
+  outAndBack: boolean;
+}
+
+export interface OverlapResult {
+  cpStart: number;
+  cpEnd: number;            // inclusive
+  overlapM: number;
+  scope: "full" | "outbound";
+  a: SideWindow;
+  b: SideWindow;
+}
+
+export interface OverlapParams {
+  CHECKPOINT_SPACING_M: number;
+  ONB_REEXIT_FRAC: number;
+}
+
+/**
+ * From both sides' checkpoint crossings, find the longest consecutive
+ * checkpoint range crossed by BOTH, decide direction (b must progress the same
+ * way as the corridor; a does by construction since the corridor is a's), pick
+ * scope, and produce each side's comparison window.
+ *
+ *  - Direction: within the range, count adjacent checkpoint pairs where b's
+ *    firstMs increases vs decreases. Predominantly decreasing ⇒ reversed ⇒ null.
+ *  - Side is out-and-back (within the range) when it re-exits through the
+ *    entry checkpoint late in its own span: lastMs[cpStart] - firstMs[cpStart]
+ *    > ONB_REEXIT_FRAC * (its overall span across the range).
+ *  - scope 'full' (both single-pass, or both out-and-back):
+ *      enter = firstMs[cpStart];
+ *      exit  = out-and-back side → lastMs[cpStart] (final re-exit where it entered)
+ *              single-pass side  → firstMs[cpEnd].
+ *  - scope 'outbound' (mixed): both sides use enter = firstMs[cpStart],
+ *      exit = firstMs[cpEnd] — the one-way traversal, honest for both.
+ */
+export function computeOverlap(
+  aCross: (Crossing | null)[],
+  bCross: (Crossing | null)[],
+  checkpoints: Checkpoint[],
+  params: OverlapParams
+): OverlapResult | null {
+  const n = checkpoints.length;
+  // Longest consecutive run where both crossed.
+  let bestStart = -1, bestEnd = -1, runStart = -1;
+  for (let i = 0; i <= n; i++) {
+    const both = i < n && aCross[i] !== null && bCross[i] !== null;
+    if (both && runStart === -1) runStart = i;
+    if (!both && runStart !== -1) {
+      if (i - 1 - runStart > bestEnd - bestStart) {
+        bestStart = runStart;
+        bestEnd = i - 1;
+      }
+      runStart = -1;
+    }
+  }
+  if (bestStart === -1 || bestEnd - bestStart < 1) return null;
+
+  // Direction check on b.
+  let inc = 0, dec = 0;
+  for (let i = bestStart + 1; i <= bestEnd; i++) {
+    const prev = bCross[i - 1]!.firstMs;
+    const cur = bCross[i]!.firstMs;
+    if (cur > prev) inc++;
+    else if (cur < prev) dec++;
+  }
+  if (dec > inc) return null;
+
+  const spanOf = (cross: (Crossing | null)[]): number => {
+    let min = Infinity, max = -Infinity;
+    for (let i = bestStart; i <= bestEnd; i++) {
+      min = Math.min(min, cross[i]!.firstMs);
+      max = Math.max(max, cross[i]!.lastMs);
+    }
+    return max - min;
+  };
+  const isOnB = (cross: (Crossing | null)[]): boolean => {
+    const entry = cross[bestStart]!;
+    return entry.lastMs - entry.firstMs > params.ONB_REEXIT_FRAC * spanOf(cross);
+  };
+  const aOnB = isOnB(aCross);
+  const bOnB = isOnB(bCross);
+  const scope: "full" | "outbound" = aOnB === bOnB ? "full" : "outbound";
+
+  const windowOf = (cross: (Crossing | null)[], onb: boolean): SideWindow => {
+    const entry = cross[bestStart]!;
+    const far = cross[bestEnd]!;
+    const useFull = scope === "full" && onb;
+    return {
+      enterMs: entry.firstMs,
+      exitMs: useFull ? entry.lastMs : far.firstMs,
+      startM: entry.firstCumM,
+      endM: useFull ? entry.lastCumM : far.firstCumM,
+      outAndBack: onb,
+    };
+  };
+
+  return {
+    cpStart: bestStart,
+    cpEnd: bestEnd,
+    overlapM: (bestEnd - bestStart) * params.CHECKPOINT_SPACING_M,
+    scope,
+    a: windowOf(aCross, aOnB),
+    b: windowOf(bCross, bOnB),
+  };
+}
+
+export interface MovingParams {
+  MOVING_SPEED_MPS: number;
+  MOVING_MAX_GAP_S: number;
+}
+
+/**
+ * Seconds spent moving within [enterMs, exitMs]: sum of inter-sample gaps
+ * whose implied or reported speed is at/above the threshold, each gap capped.
+ */
+export function computeMovingSeconds(
+  samples: SamplePoint[],
+  enterMs: number,
+  exitMs: number,
+  params: MovingParams
+): number {
+  let moving = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const p = samples[i - 1];
+    const c = samples[i];
+    if (c.timeMs <= enterMs || p.timeMs >= exitMs) continue;
+    const dtS = (c.timeMs - p.timeMs) / 1000;
+    if (dtS <= 0) continue;
+    const speed =
+      c.speedMps ?? haversineM(p.lat, p.lng, c.lat, c.lng) / dtS;
+    if (speed >= params.MOVING_SPEED_MPS) {
+      moving += Math.min(dtS, params.MOVING_MAX_GAP_S);
+    }
+  }
+  return Math.round(moving);
+}
