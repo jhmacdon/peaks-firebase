@@ -3,6 +3,16 @@
 // is pure and lives in comparison-geometry.ts.
 
 import {
+  buildCheckpoints,
+  collapseOutAndBack,
+  computeCrossings,
+  computeLegSplits,
+  computeMovingSeconds,
+  computeOverlap,
+  Checkpoint,
+  Corridor,
+  Crossing,
+  OverlapResult,
   RawPointRow,
   SamplePoint,
   sampleTrack,
@@ -163,4 +173,152 @@ export async function loadSampledTrack(q: Queryable, sessionId: string): Promise
     [sessionId]
   );
   return sampleTrack(rows as RawPointRow[], P.SAMPLE_SPACING_M);
+}
+
+export interface PairModel {
+  corridor: Corridor;
+  checkpoints: Checkpoint[];
+  aCross: (Crossing | null)[];
+  bCross: (Crossing | null)[];
+  overlap: OverlapResult;
+  aCorridorLengthM: number;
+  bCorridorLengthM: number;
+}
+
+/**
+ * Run the checkpoint model for a pair. `aSamples` MUST be the EARLIER session
+ * — the corridor is always built from session_a so the model is deterministic
+ * for a pair regardless of processing order. Null ⇒ no valid overlap.
+ */
+export function buildPairModel(aSamples: SamplePoint[], bSamples: SamplePoint[]): PairModel | null {
+  if (aSamples.length < 4 || bSamples.length < 4) return null;
+  const corridor = collapseOutAndBack(aSamples, P);
+  const bCorridor = collapseOutAndBack(bSamples, P); // for b_frac only
+  const checkpoints = buildCheckpoints(corridor, P.CHECKPOINT_SPACING_M);
+  if (checkpoints.length < 2) return null;
+  const aCross = computeCrossings(aSamples, checkpoints, P.CROSSING_RADIUS_M);
+  const bCross = computeCrossings(bSamples, checkpoints, P.CROSSING_RADIUS_M);
+  const overlap = computeOverlap(aCross, bCross, checkpoints, P);
+  if (!overlap) return null;
+  return {
+    corridor,
+    checkpoints,
+    aCross,
+    bCross,
+    overlap,
+    aCorridorLengthM: corridor.lengthM,
+    bCorridorLengthM: bCorridor.lengthM,
+  };
+}
+
+/**
+ * Match `sessionId` against the user's nearby sessions and upsert
+ * session_comparisons rows. Serial by construction (db-f1-micro). Called
+ * post-commit from processSession (best-effort) and from the backfill script.
+ * `skipExisting` (backfill): a pair already stored at the current
+ * MATCHER_VERSION is not recomputed.
+ */
+export async function matchComparisons(
+  q: Queryable,
+  sessionId: string,
+  userId: string,
+  opts: { skipExisting?: boolean } = {}
+): Promise<number> {
+  const self = await q.query(
+    `SELECT id, start_time FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [sessionId, userId]
+  );
+  if (self.rows.length === 0) return 0;
+  const selfStart = new Date(self.rows[0].start_time).getTime();
+
+  const cand = buildComparisonCandidateSql(sessionId, userId);
+  const candidates = await q.query(cand.text, cand.values);
+  if (candidates.rows.length === 0) return 0;
+
+  const selfSamples = await loadSampledTrack(q, sessionId);
+  let written = 0;
+
+  for (const c of candidates.rows as Array<{ id: string; start_time: string | Date }>) {
+    const candStart = new Date(c.start_time).getTime();
+    // Canonical orientation: session_a = earlier (ties broken by id).
+    const selfIsA = selfStart < candStart || (selfStart === candStart && sessionId < c.id);
+    const aId = selfIsA ? sessionId : c.id;
+    const bId = selfIsA ? c.id : sessionId;
+
+    if (opts.skipExisting) {
+      const existing = await q.query(
+        `SELECT 1 FROM session_comparisons
+         WHERE session_a = $1 AND session_b = $2 AND matcher_version = $3`,
+        [aId, bId, P.MATCHER_VERSION]
+      );
+      if ((existing.rowCount ?? 0) > 0) continue;
+    }
+
+    const candSamples = await loadSampledTrack(q, c.id);
+    const aSamples = selfIsA ? selfSamples : candSamples;
+    const bSamples = selfIsA ? candSamples : selfSamples;
+
+    const model = buildPairModel(aSamples, bSamples);
+    if (!model) continue;
+    const { overlap } = model;
+    const shorter = Math.min(model.aCorridorLengthM, model.bCorridorLengthM);
+    if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
+    if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
+
+    // Legs: only meaningful for 'full' scope (outbound windows end at the far
+    // checkpoint — a summit there sits at the window edge and is filtered by
+    // APEX_INTERIOR_FRAC anyway).
+    const summitSql = buildCommonSummitSql(aId, bId);
+    const summitRes = await q.query(summitSql.text, summitSql.values);
+    const summit = summitRes.rows[0] as { id: string; lat: number; lng: number } | undefined;
+    const aLegs = summit ? computeLegSplits(aSamples, overlap.a, summit, P) : null;
+    const bLegs = summit ? computeLegSplits(bSamples, overlap.b, summit, P) : null;
+    const legsOk = aLegs !== null && bLegs !== null;
+
+    const row: ComparisonRow = {
+      user_id: userId,
+      session_a: aId,
+      session_b: bId,
+      scope: overlap.scope,
+      overlap_m: overlap.overlapM,
+      a_frac: model.aCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.aCorridorLengthM) : 0,
+      b_frac: model.bCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.bCorridorLengthM) : 0,
+      a_enter_ms: overlap.a.enterMs,
+      a_exit_ms: overlap.a.exitMs,
+      b_enter_ms: overlap.b.enterMs,
+      b_exit_ms: overlap.b.exitMs,
+      a_start_m: overlap.a.startM,
+      a_end_m: overlap.a.endM,
+      b_start_m: overlap.b.startM,
+      b_end_m: overlap.b.endM,
+      a_out_and_back: overlap.a.outAndBack,
+      b_out_and_back: overlap.b.outAndBack,
+      a_elapsed_s: Math.round((overlap.a.exitMs - overlap.a.enterMs) / 1000),
+      b_elapsed_s: Math.round((overlap.b.exitMs - overlap.b.enterMs) / 1000),
+      a_moving_s: computeMovingSeconds(aSamples, overlap.a.enterMs, overlap.a.exitMs, P),
+      b_moving_s: computeMovingSeconds(bSamples, overlap.b.enterMs, overlap.b.exitMs, P),
+      summit_destination_id: legsOk ? summit!.id : null,
+      a_arrival_ms: legsOk ? aLegs!.arrivalMs : null,
+      a_departure_ms: legsOk ? aLegs!.departureMs : null,
+      b_arrival_ms: legsOk ? bLegs!.arrivalMs : null,
+      b_departure_ms: legsOk ? bLegs!.departureMs : null,
+      a_ascent_s: legsOk ? aLegs!.ascentS : null,
+      a_dwell_s: legsOk ? aLegs!.dwellS : null,
+      a_descent_s: legsOk ? aLegs!.descentS : null,
+      b_ascent_s: legsOk ? bLegs!.ascentS : null,
+      b_dwell_s: legsOk ? bLegs!.dwellS : null,
+      b_descent_s: legsOk ? bLegs!.descentS : null,
+      matcher_version: P.MATCHER_VERSION,
+      legs_version: P.LEGS_VERSION,
+    };
+    const upsert = buildComparisonUpsertSql(row);
+    await q.query(upsert.text, upsert.values);
+    written++;
+  }
+
+  if (written > 0) {
+    const prune = buildPrunePairsSql(sessionId);
+    await q.query(prune.text, prune.values);
+  }
+  return written;
 }
