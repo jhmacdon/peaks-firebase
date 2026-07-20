@@ -4,6 +4,8 @@ import {
   buildComparisonCandidateSql,
   buildCommonSummitSql,
   buildComparisonUpsertSql,
+  buildEffortCurves,
+  buildPairModel,
   buildPrunePairsSql,
   ComparisonRow,
   matchComparisons,
@@ -11,6 +13,7 @@ import {
   Queryable,
   shapeComparisonList,
 } from "../comparisons";
+import { sampleTrack as st2 } from "../comparison-geometry";
 import * as P from "../comparison-params";
 
 test("candidate SQL is planar-prefiltered, user-scoped, ended-only, capped", () => {
@@ -161,4 +164,27 @@ test("shapeComparisonList caps, keeps the PB, flags is_pb on min other elapsed",
   const pbs = shaped.filter((s) => s.is_pb);
   assert.equal(pbs.length, 1);
   assert.equal(pbs[0].session.id, "old0");
+});
+
+test("buildEffortCurves produces monotonic per-station times from range start", () => {
+  const mk = (startMs: number, slow: boolean) =>
+    st2(
+      Array.from({ length: 200 }, (_, i) => ({
+        time: startMs + i * (slow ? 40_000 : 30_000),
+        lat: 0, lng: i * (25 / 111320), elevation: 1000 + i, speed: 1,
+      })),
+      25
+    );
+  const model = buildPairModel(mk(0, false), mk(10_000_000, true));
+  assert.ok(model);
+  const curves = buildEffortCurves(model!);
+  assert.ok(curves.stations.length >= 10, `got ${curves.stations.length}`);
+  assert.equal(curves.stations[0].m, 0);
+  for (let i = 1; i < curves.stations.length; i++) {
+    assert.ok(curves.stations[i].a_s >= curves.stations[i - 1].a_s);
+    assert.ok(curves.stations[i].b_s >= curves.stations[i - 1].b_s);
+  }
+  // b is slower at every later station
+  const last = curves.stations[curves.stations.length - 1];
+  assert.ok(last.b_s > last.a_s);
 });

@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
-import { shapeComparisonList } from "../comparisons";
+import { buildEffortCurves, buildPairModel, loadSampledTrack, orientComparison, shapeComparisonList } from "../comparisons";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
@@ -613,6 +613,75 @@ router.get("/:id/routes", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
+});
+
+// GET /api/sessions/:id/comparisons/:otherId — effort curves for the race
+// chart. Recomputes the (2-session, bounded) checkpoint model on demand
+// instead of storing curves in pair rows. Owner-only, and the pair row must
+// exist (the matcher is the source of truth for WHICH pairs are comparable).
+router.get("/:id/comparisons/:otherId", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id, otherId } = req.params;
+
+  const pair = await db.query(
+    `SELECT sc.*,
+            o.id AS other_id, o.name AS other_name, o.start_time AS other_start_time,
+            o.distance AS other_distance, o.total_time AS other_total_time
+     FROM session_comparisons sc
+     JOIN tracking_sessions o ON o.id = $3
+     WHERE sc.user_id = $2
+       AND ((sc.session_a = $1 AND sc.session_b = $3)
+         OR (sc.session_a = $3 AND sc.session_b = $1))`,
+    [id, uid, otherId]
+  );
+  if (pair.rows.length === 0) {
+    res.status(404).json({ error: "Comparison not found" });
+    return;
+  }
+  const row = pair.rows[0];
+
+  // Corridor is always session_a's — load in canonical order.
+  const aSamples = await loadSampledTrack(db, row.session_a);
+  const bSamples = await loadSampledTrack(db, row.session_b);
+  const model = buildPairModel(aSamples, bSamples);
+  if (!model) {
+    res.status(410).json({ error: "Comparison no longer computable" });
+    return;
+  }
+
+  const curves = buildEffortCurves(model);
+  const thisIsA = row.session_a === id;
+  const oriented = orientComparison(row, id);
+
+  // Apex station: summit arrival mapped to corridor meters via the stored
+  // arrival time's nearest station on this side's curve.
+  let apexM: number | null = null;
+  const arrivalMs = thisIsA ? row.a_arrival_ms : row.b_arrival_ms;
+  const enterMs = thisIsA ? row.a_enter_ms : row.b_enter_ms;
+  if (arrivalMs !== null && arrivalMs !== undefined) {
+    const arrivalS = (arrivalMs - enterMs) / 1000;
+    let best = Infinity;
+    for (const st of curves.stations) {
+      const sideS = thisIsA ? st.a_s : st.b_s;
+      if (Math.abs(sideS - arrivalS) < best) {
+        best = Math.abs(sideS - arrivalS);
+        apexM = st.m;
+      }
+    }
+  }
+
+  res.json({
+    ...oriented,
+    curves: {
+      apex_m: apexM,
+      stations: curves.stations.map((st) => ({
+        m: st.m,
+        this_s: thisIsA ? st.a_s : st.b_s,
+        other_s: thisIsA ? st.b_s : st.a_s,
+        elev_m: st.elev_m,
+      })),
+    },
+  });
 });
 
 // GET /api/sessions/:id/comparisons — "Your Efforts": this session vs the

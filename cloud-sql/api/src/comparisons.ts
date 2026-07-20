@@ -400,6 +400,46 @@ export function orientComparison(row: any, sessionId: string): OrientedCompariso
   };
 }
 
+export interface EffortCurveStation {
+  m: number;                 // meters from shared-range start
+  a_s: number;               // a's seconds from its window enter at first crossing
+  b_s: number;
+  elev_m: number | null;     // corridor elevation at the station
+}
+
+export interface EffortCurves {
+  stations: EffortCurveStation[];
+}
+
+/**
+ * Effort curves for the race chart: per shared checkpoint, each side's
+ * first-crossing time relative to its own window enter. Stations are clamped
+ * monotonic (GPS jitter can make a first-crossing slightly precede the
+ * previous checkpoint's).
+ */
+export function buildEffortCurves(model: PairModel): EffortCurves {
+  const { overlap, checkpoints, aCross, bCross } = model;
+  const stations: EffortCurveStation[] = [];
+  let prevA = 0;
+  let prevB = 0;
+  for (let i = overlap.cpStart; i <= overlap.cpEnd; i++) {
+    const a = aCross[i];
+    const b = bCross[i];
+    if (!a || !b) continue;
+    const aS = Math.max(prevA, Math.round((a.firstMs - overlap.a.enterMs) / 1000));
+    const bS = Math.max(prevB, Math.round((b.firstMs - overlap.b.enterMs) / 1000));
+    stations.push({
+      m: checkpoints[i].m - checkpoints[overlap.cpStart].m,
+      a_s: aS,
+      b_s: bS,
+      elev_m: checkpoints[i].elevM,
+    });
+    prevA = aS;
+    prevB = bS;
+  }
+  return { stations };
+}
+
 /** Orient, sort newest-first, cap, force-include the PB (min other elapsed), flag it. */
 export function shapeComparisonList(rows: any[], sessionId: string, cap: number): OrientedComparison[] {
   const oriented = rows.map((r) => orientComparison(r, sessionId));

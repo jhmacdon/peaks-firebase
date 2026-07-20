@@ -106,4 +106,23 @@ describe("comparison endpoints", { skip: skipReason ?? undefined }, () => {
       .set("X-Test-User", stranger);
     assert.equal(res.status, 404);
   });
+
+  test("curves endpoint returns oriented stations", async () => {
+    const res = await request(app)
+      .get(`/api/sessions/${runPrefix}-new/comparisons/${runPrefix}-old`)
+      .set("X-Test-User", user);
+    assert.equal(res.status, 200);
+    assert.ok(res.body.curves.stations.length >= 5);
+    const st = res.body.curves.stations;
+    assert.equal(st[0].m, 0);
+    assert.equal(typeof st[0].this_s, "number");
+    assert.equal(typeof st[0].other_s, "number");
+  });
+
+  test("curves endpoint 404s for a non-pair", async () => {
+    const res = await request(app)
+      .get(`/api/sessions/${runPrefix}-new/comparisons/nonexistent`)
+      .set("X-Test-User", user);
+    assert.equal(res.status, 404);
+  });
 });
