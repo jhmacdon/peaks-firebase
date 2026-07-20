@@ -146,6 +146,8 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/routes/...` | Route queries |
 | GET | `/api/sessions/...` | Session queries |
 | GET | `/api/sessions/changes?updated_since=&after_id=&limit=` | Incremental session sync feed with tombstones |
+| GET | `/api/sessions/:id/comparisons` | "Your Efforts": prior overlapping sessions + shared-segment stats (owner-only) |
+| GET | `/api/sessions/:id/comparisons/:otherId` | Effort curves for the race chart (owner-only) |
 | GET | `/api/lists/...` | List queries |
 
 ## Migration
@@ -234,6 +236,20 @@ Summits are flagged with their areas automatically, so you rarely need to re-run
 
 Both are wrapped in an exception block so a linking failure can never abort the underlying insert.
 Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_session_destination.sql`.
+
+## Session comparisons ("Your Efforts")
+
+Pairwise overlap between a user's sessions, stored in `session_comparisons`
+(session_a = earlier). Computed post-commit in processSession Step 8 via a
+checkpoint/corridor model (`api/src/comparison-geometry.ts` — pure JS over
+sampled points; PostGIS is only the planar candidate prefilter). ALL tunables
+live in `api/src/comparison-params.ts`, each mapped to `MATCHER_VERSION`
+(geometry — re-run `scripts/backfill-comparisons.ts` after a bump) or
+`LEGS_VERSION` (summit-leg splits — run `scripts/recompute-comparison-legs.ts`,
+much cheaper). Never tune a value without bumping its version. The dwell
+radius (`SUMMIT_DWELL_RADIUS_M`) is deliberately separate from
+`destination_match_radius()` — tuning it never changes which destinations a
+session is tagged with.
 
 ## Local Development
 
