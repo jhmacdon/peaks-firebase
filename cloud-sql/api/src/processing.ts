@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from "pg";
 import crypto from "crypto";
 import db from "./db";
+import { matchComparisons } from "./comparisons";
 
 export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
@@ -560,6 +561,16 @@ export async function processSession(
       areasLinked = await linkReachedSummitsToAreas(pool, sessionId);
     } catch (err) {
       console.error(`[processSession] area linking failed for session ${sessionId}:`, err);
+    }
+
+    // Step 8: pairwise session comparisons ("Your Efforts"). Post-commit and
+    // best-effort like Step 7: comparison rows are enrichment, and a failure
+    // here must never fail an otherwise-successful ingestion. A missed run
+    // self-heals on the next reprocess or via scripts/backfill-comparisons.ts.
+    try {
+      await matchComparisons(pool, sessionId, userId);
+    } catch (err) {
+      console.error(`[processSession] comparison matching failed for ${sessionId}:`, err);
     }
 
     return {
