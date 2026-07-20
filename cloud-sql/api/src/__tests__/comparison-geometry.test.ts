@@ -5,7 +5,10 @@ import {
   sampleTrack,
   SpatialIndex,
   RawPointRow,
+  collapseOutAndBack,
+  buildCheckpoints,
 } from "../comparison-geometry";
+import * as P from "../comparison-params";
 
 // ~25m of longitude at the equator is 25/111320 degrees.
 const DEG_25M = 25 / 111320;
@@ -59,4 +62,39 @@ test("SpatialIndex finds a nearby point and rejects a far one", () => {
   const idx = new SpatialIndex(samples, 60);
   assert.ok(idx.near(0, 10 * DEG_25M, 60) !== null);
   assert.equal(idx.near(0.5, 0, 60), null); // ~55km away
+});
+
+export function outAndBackTrack(n: number, opts: { startMs?: number; stepMs?: number } = {}): RawPointRow[] {
+  const out = straightTrack({ n, ...opts });
+  const startMs = opts.startMs ?? 0;
+  const stepMs = opts.stepMs ?? 30_000;
+  const back = straightTrack({ n, startMs: startMs + n * stepMs, stepMs })
+    .map((r, i) => ({ ...r, lng: out[n - 1 - i].lng }));
+  return [...out, ...back];
+}
+
+test("collapseOutAndBack halves an out-and-back and keeps a one-way intact", () => {
+  const onb = sampleTrack(outAndBackTrack(80), P.SAMPLE_SPACING_M);
+  const c1 = collapseOutAndBack(onb, P);
+  assert.equal(c1.isOutAndBack, true);
+  // corridor ≈ half the total traveled distance
+  const total = onb[onb.length - 1].cumM;
+  assert.ok(Math.abs(c1.lengthM - total / 2) < total * 0.15, `${c1.lengthM} vs ${total}`);
+
+  const oneWay = sampleTrack(straightTrack({ n: 80 }), P.SAMPLE_SPACING_M);
+  const c2 = collapseOutAndBack(oneWay, P);
+  assert.equal(c2.isOutAndBack, false);
+  assert.ok(Math.abs(c2.lengthM - oneWay[oneWay.length - 1].cumM) < 1);
+});
+
+test("buildCheckpoints spaces checkpoints along the corridor", () => {
+  const samples = sampleTrack(straightTrack({ n: 100 }), P.SAMPLE_SPACING_M);
+  const corridor = collapseOutAndBack(samples, P);
+  const cps = buildCheckpoints(corridor, 200);
+  // ~2475m / 200m ≈ 12-13 checkpoints, first at m=0
+  assert.ok(cps.length >= 11 && cps.length <= 14, `got ${cps.length}`);
+  assert.equal(cps[0].m, 0);
+  for (let i = 1; i < cps.length; i++) {
+    assert.ok(Math.abs(cps[i].m - cps[i - 1].m - 200) < 1);
+  }
 });
