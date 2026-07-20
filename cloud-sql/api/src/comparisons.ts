@@ -331,3 +331,85 @@ export async function matchComparisons(
   }
   return written;
 }
+
+export interface ComparisonSide {
+  elapsed_s: number;
+  moving_s: number | null;
+  enter_ms: number;
+  exit_ms: number;
+  start_m: number;
+  end_m: number;
+  out_and_back: boolean;
+  ascent_s: number | null;
+  dwell_s: number | null;
+  descent_s: number | null;
+}
+
+export interface OrientedComparison {
+  session: { id: string; name: string | null; start_time: unknown; distance: number | null; total_time: number | null };
+  scope: "full" | "outbound";
+  overlap_m: number;
+  this_frac: number;
+  other_frac: number;
+  full_route: boolean;
+  this: ComparisonSide;
+  other: ComparisonSide;
+  delta_s: number;
+  summit_destination_id: string | null;
+  is_pb: boolean;
+}
+
+function side(row: any, prefix: "a" | "b"): ComparisonSide {
+  return {
+    elapsed_s: row[`${prefix}_elapsed_s`],
+    moving_s: row[`${prefix}_moving_s`],
+    enter_ms: row[`${prefix}_enter_ms`],
+    exit_ms: row[`${prefix}_exit_ms`],
+    start_m: row[`${prefix}_start_m`],
+    end_m: row[`${prefix}_end_m`],
+    out_and_back: row[`${prefix}_out_and_back`],
+    ascent_s: row[`${prefix}_ascent_s`],
+    dwell_s: row[`${prefix}_dwell_s`],
+    descent_s: row[`${prefix}_descent_s`],
+  };
+}
+
+/** Map a session_comparisons row (+ joined other_* summary) to the viewed session's perspective. */
+export function orientComparison(row: any, sessionId: string): OrientedComparison {
+  const thisIsA = row.session_a === sessionId;
+  const mine = side(row, thisIsA ? "a" : "b");
+  const theirs = side(row, thisIsA ? "b" : "a");
+  return {
+    session: {
+      id: row.other_id,
+      name: row.other_name ?? null,
+      start_time: row.other_start_time,
+      distance: row.other_distance ?? null,
+      total_time: row.other_total_time ?? null,
+    },
+    scope: row.scope,
+    overlap_m: row.overlap_m,
+    this_frac: thisIsA ? row.a_frac : row.b_frac,
+    other_frac: thisIsA ? row.b_frac : row.a_frac,
+    full_route: row.a_frac >= P.FULL_ROUTE_FRAC && row.b_frac >= P.FULL_ROUTE_FRAC,
+    this: mine,
+    other: theirs,
+    delta_s: mine.elapsed_s - theirs.elapsed_s,
+    summit_destination_id: row.summit_destination_id,
+    is_pb: false,
+  };
+}
+
+/** Orient, sort newest-first, cap, force-include the PB (min other elapsed), flag it. */
+export function shapeComparisonList(rows: any[], sessionId: string, cap: number): OrientedComparison[] {
+  const oriented = rows.map((r) => orientComparison(r, sessionId));
+  if (oriented.length === 0) return [];
+  const pb = oriented.reduce((best, c) => (c.other.elapsed_s < best.other.elapsed_s ? c : best));
+  oriented.sort(
+    (x, y) => new Date(y.session.start_time as string).getTime() - new Date(x.session.start_time as string).getTime()
+  );
+  let out = oriented.slice(0, cap);
+  if (!out.includes(pb)) out = [...out.slice(0, cap - 1), pb];
+  for (const c of out) c.is_pb = c === pb;
+  return out;
+}

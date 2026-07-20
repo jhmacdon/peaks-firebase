@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
+import { shapeComparisonList } from "../comparisons";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
@@ -612,6 +613,43 @@ router.get("/:id/routes", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
+});
+
+// GET /api/sessions/:id/comparisons — "Your Efforts": this session vs the
+// owner's PRIOR overlapping sessions. Owner-only: comparisons reference the
+// owner's other (possibly private) sessions, so is_public does NOT grant
+// access. Prior-only: other side must have started before this session.
+router.get("/:id/comparisons", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  const own = await db.query(
+    `SELECT id, start_time FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (own.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const result = await db.query(
+    `SELECT sc.*,
+            o.id AS other_id, o.name AS other_name, o.start_time AS other_start_time,
+            o.distance AS other_distance, o.total_time AS other_total_time
+     FROM session_comparisons sc
+     JOIN tracking_sessions s ON s.id = $1
+     JOIN tracking_sessions o
+       ON o.id = CASE WHEN sc.session_a = $1 THEN sc.session_b ELSE sc.session_a END
+     WHERE (sc.session_a = $1 OR sc.session_b = $1)
+       AND sc.user_id = $2
+       AND o.start_time < s.start_time`,
+    [id, uid]
+  );
+
+  res.json({
+    session_id: id,
+    comparisons: shapeComparisonList(result.rows, id, 10),
+  });
 });
 
 // GET /api/sessions/:id/markers

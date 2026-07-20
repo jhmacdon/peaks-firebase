@@ -7,7 +7,9 @@ import {
   buildPrunePairsSql,
   ComparisonRow,
   matchComparisons,
+  orientComparison,
   Queryable,
+  shapeComparisonList,
 } from "../comparisons";
 import * as P from "../comparison-params";
 
@@ -115,4 +117,48 @@ test("matchComparisons prunes both sides of each written pair", async () => {
   const pruneQueries = queries.filter((t) => t.includes("DELETE FROM session_comparisons"));
   assert.equal(pruneQueries.length, 2);
   assert.deepEqual(pruneValues, [["new"], ["old"]]);
+});
+
+function dbRow(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    user_id: "u", session_a: "earlier", session_b: "later", scope: "full",
+    overlap_m: 4000, a_frac: 1, b_frac: 1,
+    a_enter_ms: 0, a_exit_ms: 7_200_000, b_enter_ms: 0, b_exit_ms: 6_000_000,
+    a_start_m: 0, a_end_m: 8000, b_start_m: 0, b_end_m: 8000,
+    a_out_and_back: true, b_out_and_back: true,
+    a_elapsed_s: 7200, b_elapsed_s: 6000, a_moving_s: 6800, b_moving_s: 5800,
+    summit_destination_id: null,
+    a_arrival_ms: null, a_departure_ms: null, b_arrival_ms: null, b_departure_ms: null,
+    a_ascent_s: null, a_dwell_s: null, a_descent_s: null,
+    b_ascent_s: null, b_dwell_s: null, b_descent_s: null,
+    other_id: "earlier", other_name: "First try", other_start_time: "2026-05-01T08:00:00Z",
+    other_distance: 8000, other_total_time: 7200,
+    ...over,
+  };
+}
+
+test("orientComparison maps sides relative to the viewed session", () => {
+  const o = orientComparison(dbRow(), "later"); // viewing the b side
+  assert.equal(o.this.elapsed_s, 6000);
+  assert.equal(o.other.elapsed_s, 7200);
+  assert.equal(o.delta_s, 6000 - 7200);
+  assert.equal(o.session.id, "earlier");
+});
+
+test("shapeComparisonList caps, keeps the PB, flags is_pb on min other elapsed", () => {
+  const rows = Array.from({ length: 15 }, (_, i) =>
+    dbRow({
+      session_a: `old${i}`, other_id: `old${i}`,
+      a_elapsed_s: 7000 + i * 10,
+      other_start_time: `2026-0${(i % 5) + 1}-01T08:00:00Z`,
+    })
+  );
+  // make the OLDEST row the PB so a naive newest-first cap would drop it
+  rows[0].a_elapsed_s = 3000;
+  rows[0].other_start_time = "2025-01-01T08:00:00Z";
+  const shaped = shapeComparisonList(rows, "later", 10);
+  assert.equal(shaped.length, 10);
+  const pbs = shaped.filter((s) => s.is_pb);
+  assert.equal(pbs.length, 1);
+  assert.equal(pbs[0].session.id, "old0");
 });
