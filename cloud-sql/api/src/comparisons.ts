@@ -237,88 +237,97 @@ export async function matchComparisons(
 
   const selfSamples = await loadSampledTrack(q, sessionId);
   let written = 0;
+  const affectedOthers = new Set<string>();
 
   for (const c of candidates.rows as Array<{ id: string; start_time: string | Date }>) {
-    const candStart = new Date(c.start_time).getTime();
-    // Canonical orientation: session_a = earlier (ties broken by id).
-    const selfIsA = selfStart < candStart || (selfStart === candStart && sessionId < c.id);
-    const aId = selfIsA ? sessionId : c.id;
-    const bId = selfIsA ? c.id : sessionId;
+    try {
+      const candStart = new Date(c.start_time).getTime();
+      // Canonical orientation: session_a = earlier (ties broken by id).
+      const selfIsA = selfStart < candStart || (selfStart === candStart && sessionId < c.id);
+      const aId = selfIsA ? sessionId : c.id;
+      const bId = selfIsA ? c.id : sessionId;
 
-    if (opts.skipExisting) {
-      const existing = await q.query(
-        `SELECT 1 FROM session_comparisons
-         WHERE session_a = $1 AND session_b = $2 AND matcher_version = $3`,
-        [aId, bId, P.MATCHER_VERSION]
-      );
-      if ((existing.rowCount ?? 0) > 0) continue;
+      if (opts.skipExisting) {
+        const existing = await q.query(
+          `SELECT 1 FROM session_comparisons
+           WHERE session_a = $1 AND session_b = $2 AND matcher_version = $3`,
+          [aId, bId, P.MATCHER_VERSION]
+        );
+        if ((existing.rowCount ?? 0) > 0) continue;
+      }
+
+      const candSamples = await loadSampledTrack(q, c.id);
+      const aSamples = selfIsA ? selfSamples : candSamples;
+      const bSamples = selfIsA ? candSamples : selfSamples;
+
+      const model = buildPairModel(aSamples, bSamples);
+      if (!model) continue;
+      const { overlap } = model;
+      const shorter = Math.min(model.aCorridorLengthM, model.bCorridorLengthM);
+      if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
+      if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
+
+      // Legs: only meaningful for 'full' scope (outbound windows end at the far
+      // checkpoint — a summit there sits at the window edge and is filtered by
+      // APEX_INTERIOR_FRAC anyway).
+      const summitSql = buildCommonSummitSql(aId, bId);
+      const summitRes = await q.query(summitSql.text, summitSql.values);
+      const summit = summitRes.rows[0] as { id: string; lat: number; lng: number } | undefined;
+      const aLegs = summit ? computeLegSplits(aSamples, overlap.a, summit, P) : null;
+      const bLegs = summit ? computeLegSplits(bSamples, overlap.b, summit, P) : null;
+      const legsOk = aLegs !== null && bLegs !== null;
+
+      const row: ComparisonRow = {
+        user_id: userId,
+        session_a: aId,
+        session_b: bId,
+        scope: overlap.scope,
+        overlap_m: overlap.overlapM,
+        a_frac: model.aCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.aCorridorLengthM) : 0,
+        b_frac: model.bCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.bCorridorLengthM) : 0,
+        a_enter_ms: overlap.a.enterMs,
+        a_exit_ms: overlap.a.exitMs,
+        b_enter_ms: overlap.b.enterMs,
+        b_exit_ms: overlap.b.exitMs,
+        a_start_m: overlap.a.startM,
+        a_end_m: overlap.a.endM,
+        b_start_m: overlap.b.startM,
+        b_end_m: overlap.b.endM,
+        a_out_and_back: overlap.a.outAndBack,
+        b_out_and_back: overlap.b.outAndBack,
+        a_elapsed_s: Math.round((overlap.a.exitMs - overlap.a.enterMs) / 1000),
+        b_elapsed_s: Math.round((overlap.b.exitMs - overlap.b.enterMs) / 1000),
+        a_moving_s: computeMovingSeconds(aSamples, overlap.a.enterMs, overlap.a.exitMs, P),
+        b_moving_s: computeMovingSeconds(bSamples, overlap.b.enterMs, overlap.b.exitMs, P),
+        summit_destination_id: legsOk ? summit!.id : null,
+        a_arrival_ms: legsOk ? aLegs!.arrivalMs : null,
+        a_departure_ms: legsOk ? aLegs!.departureMs : null,
+        b_arrival_ms: legsOk ? bLegs!.arrivalMs : null,
+        b_departure_ms: legsOk ? bLegs!.departureMs : null,
+        a_ascent_s: legsOk ? aLegs!.ascentS : null,
+        a_dwell_s: legsOk ? aLegs!.dwellS : null,
+        a_descent_s: legsOk ? aLegs!.descentS : null,
+        b_ascent_s: legsOk ? bLegs!.ascentS : null,
+        b_dwell_s: legsOk ? bLegs!.dwellS : null,
+        b_descent_s: legsOk ? bLegs!.descentS : null,
+        matcher_version: P.MATCHER_VERSION,
+        legs_version: P.LEGS_VERSION,
+      };
+      const upsert = buildComparisonUpsertSql(row);
+      await q.query(upsert.text, upsert.values);
+      written++;
+      affectedOthers.add(c.id);
+    } catch (err) {
+      console.error(`[matchComparisons] candidate ${c.id} failed for ${sessionId}:`, err);
+      continue;
     }
-
-    const candSamples = await loadSampledTrack(q, c.id);
-    const aSamples = selfIsA ? selfSamples : candSamples;
-    const bSamples = selfIsA ? candSamples : selfSamples;
-
-    const model = buildPairModel(aSamples, bSamples);
-    if (!model) continue;
-    const { overlap } = model;
-    const shorter = Math.min(model.aCorridorLengthM, model.bCorridorLengthM);
-    if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
-    if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
-
-    // Legs: only meaningful for 'full' scope (outbound windows end at the far
-    // checkpoint — a summit there sits at the window edge and is filtered by
-    // APEX_INTERIOR_FRAC anyway).
-    const summitSql = buildCommonSummitSql(aId, bId);
-    const summitRes = await q.query(summitSql.text, summitSql.values);
-    const summit = summitRes.rows[0] as { id: string; lat: number; lng: number } | undefined;
-    const aLegs = summit ? computeLegSplits(aSamples, overlap.a, summit, P) : null;
-    const bLegs = summit ? computeLegSplits(bSamples, overlap.b, summit, P) : null;
-    const legsOk = aLegs !== null && bLegs !== null;
-
-    const row: ComparisonRow = {
-      user_id: userId,
-      session_a: aId,
-      session_b: bId,
-      scope: overlap.scope,
-      overlap_m: overlap.overlapM,
-      a_frac: model.aCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.aCorridorLengthM) : 0,
-      b_frac: model.bCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.bCorridorLengthM) : 0,
-      a_enter_ms: overlap.a.enterMs,
-      a_exit_ms: overlap.a.exitMs,
-      b_enter_ms: overlap.b.enterMs,
-      b_exit_ms: overlap.b.exitMs,
-      a_start_m: overlap.a.startM,
-      a_end_m: overlap.a.endM,
-      b_start_m: overlap.b.startM,
-      b_end_m: overlap.b.endM,
-      a_out_and_back: overlap.a.outAndBack,
-      b_out_and_back: overlap.b.outAndBack,
-      a_elapsed_s: Math.round((overlap.a.exitMs - overlap.a.enterMs) / 1000),
-      b_elapsed_s: Math.round((overlap.b.exitMs - overlap.b.enterMs) / 1000),
-      a_moving_s: computeMovingSeconds(aSamples, overlap.a.enterMs, overlap.a.exitMs, P),
-      b_moving_s: computeMovingSeconds(bSamples, overlap.b.enterMs, overlap.b.exitMs, P),
-      summit_destination_id: legsOk ? summit!.id : null,
-      a_arrival_ms: legsOk ? aLegs!.arrivalMs : null,
-      a_departure_ms: legsOk ? aLegs!.departureMs : null,
-      b_arrival_ms: legsOk ? bLegs!.arrivalMs : null,
-      b_departure_ms: legsOk ? bLegs!.departureMs : null,
-      a_ascent_s: legsOk ? aLegs!.ascentS : null,
-      a_dwell_s: legsOk ? aLegs!.dwellS : null,
-      a_descent_s: legsOk ? aLegs!.descentS : null,
-      b_ascent_s: legsOk ? bLegs!.ascentS : null,
-      b_dwell_s: legsOk ? bLegs!.dwellS : null,
-      b_descent_s: legsOk ? bLegs!.descentS : null,
-      matcher_version: P.MATCHER_VERSION,
-      legs_version: P.LEGS_VERSION,
-    };
-    const upsert = buildComparisonUpsertSql(row);
-    await q.query(upsert.text, upsert.values);
-    written++;
   }
 
   if (written > 0) {
-    const prune = buildPrunePairsSql(sessionId);
-    await q.query(prune.text, prune.values);
+    for (const id of [sessionId, ...affectedOthers]) {
+      const prune = buildPrunePairsSql(id);
+      await q.query(prune.text, prune.values);
+    }
   }
   return written;
 }

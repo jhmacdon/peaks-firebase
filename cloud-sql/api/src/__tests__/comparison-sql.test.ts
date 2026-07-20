@@ -6,6 +6,8 @@ import {
   buildComparisonUpsertSql,
   buildPrunePairsSql,
   ComparisonRow,
+  matchComparisons,
+  Queryable,
 } from "../comparisons";
 import * as P from "../comparison-params";
 
@@ -58,4 +60,59 @@ test("prune SQL keeps the top pairs by overlap for a session", () => {
   assert.match(text, /ORDER BY overlap_m DESC/);
   assert.match(text, new RegExp(`LIMIT ${P.MAX_PAIRS_PER_SESSION}`));
   assert.deepEqual(values, ["sess1"]);
+});
+
+test("matchComparisons prunes both sides of each written pair", async () => {
+  const queries: string[] = [];
+  const pruneValues: unknown[][] = [];
+  const t0 = Date.parse("2026-05-01T08:00:00Z");
+  // ~3km straight track, 25m/30s per point, timestamps in ms. Identical rows
+  // for both sessions guarantee a full-length overlap well above MIN_OVERLAP_M.
+  const mkRows = (startMs: number) =>
+    Array.from({ length: 120 }, (_, i) => ({
+      time: startMs + i * 30_000,
+      lat: 0,
+      lng: (i * 25) / 111_320,
+      elevation: 1000,
+      speed: 1,
+    }));
+
+  const fake: Queryable = {
+    query: async (text: string, _values?: unknown[]) => {
+      queries.push(text);
+      if (text.includes("FROM tracking_sessions WHERE id = $1")) {
+        // self session ("new") is the later of the two
+        return { rows: [{ id: "new", start_time: new Date(t0 + 86_400_000) }], rowCount: 1 };
+      }
+      if (text.includes("ST_Expand")) {
+        // single candidate ("old"), earlier start
+        return { rows: [{ id: "old", start_time: new Date(t0) }], rowCount: 1 };
+      }
+      if (text.includes("FROM tracking_points")) {
+        // loadSampledTrack is called for both sessions; identical rows are
+        // fine and guarantee overlap.
+        return { rows: mkRows(t0), rowCount: 120 };
+      }
+      if (text.includes("session_destinations")) {
+        // no common reached summit
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes("INSERT INTO session_comparisons")) {
+        return { rows: [], rowCount: 1 };
+      }
+      if (text.includes("DELETE FROM session_comparisons")) {
+        pruneValues.push(_values ?? []);
+        return { rows: [], rowCount: 0 };
+      }
+      throw new Error(`unexpected query in fake: ${text}`);
+    },
+  };
+
+  const written = await matchComparisons(fake, "new", "user1");
+
+  assert.equal(written, 1);
+
+  const pruneQueries = queries.filter((t) => t.includes("DELETE FROM session_comparisons"));
+  assert.equal(pruneQueries.length, 2);
+  assert.deepEqual(pruneValues, [["new"], ["old"]]);
 });
