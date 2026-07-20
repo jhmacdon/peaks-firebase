@@ -440,11 +440,25 @@ export function buildEffortCurves(model: PairModel): EffortCurves {
   return { stations };
 }
 
+/**
+ * PB-candidate ordering: lower other.elapsed_s wins. Rows arrive in
+ * nondeterministic DB order, so exact elapsed_s ties must be broken
+ * deterministically — prefer the EARLIER other-session start_time, then the
+ * lower session id. Pure; independent of input order.
+ */
+function comparePbCandidate(a: OrientedComparison, b: OrientedComparison): number {
+  if (a.other.elapsed_s !== b.other.elapsed_s) return a.other.elapsed_s - b.other.elapsed_s;
+  const aStart = new Date(a.session.start_time as string).getTime();
+  const bStart = new Date(b.session.start_time as string).getTime();
+  if (aStart !== bStart) return aStart - bStart;
+  return a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0;
+}
+
 /** Orient, sort newest-first, cap, force-include the PB (min other elapsed), flag it. */
 export function shapeComparisonList(rows: any[], sessionId: string, cap: number): OrientedComparison[] {
   const oriented = rows.map((r) => orientComparison(r, sessionId));
   if (oriented.length === 0) return [];
-  const pb = oriented.reduce((best, c) => (c.other.elapsed_s < best.other.elapsed_s ? c : best));
+  const pb = oriented.reduce((best, c) => (comparePbCandidate(c, best) < 0 ? c : best));
   oriented.sort(
     (x, y) => new Date(y.session.start_time as string).getTime() - new Date(x.session.start_time as string).getTime()
   );

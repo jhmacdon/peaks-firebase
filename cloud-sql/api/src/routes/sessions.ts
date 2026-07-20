@@ -3,6 +3,7 @@ import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
 import { buildEffortCurves, buildPairModel, loadSampledTrack, orientComparison, shapeComparisonList } from "../comparisons";
+import { COMPARISON_LIST_CAP } from "../comparison-params";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
@@ -619,7 +620,10 @@ router.get("/:id/routes", async (req, res: Response) => {
 // chart. Recomputes the (2-session, bounded) checkpoint model on demand
 // instead of storing curves in pair rows. Owner-only, and the pair row must
 // exist (the matcher is the source of truth for WHICH pairs are comparable).
-router.get("/:id/comparisons/:otherId", async (req, res: Response) => {
+// Guarded by heavyWriteGuard: this route materializes two full point sets per
+// request (loadSampledTrack × 2), the same pool/memory budget concern as the
+// heavy write endpoints (OOM-regression class — see rate-guard.ts).
+router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ id: string; otherId: string }>, res: Response) => {
   const uid = getUid(req);
   const { id, otherId } = req.params;
 
@@ -717,7 +721,7 @@ router.get("/:id/comparisons", async (req, res: Response) => {
 
   res.json({
     session_id: id,
-    comparisons: shapeComparisonList(result.rows, id, 10),
+    comparisons: shapeComparisonList(result.rows, id, COMPARISON_LIST_CAP),
   });
 });
 

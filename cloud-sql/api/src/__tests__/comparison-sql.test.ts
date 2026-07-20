@@ -166,6 +166,27 @@ test("shapeComparisonList caps, keeps the PB, flags is_pb on min other elapsed",
   assert.equal(pbs[0].session.id, "old0");
 });
 
+test("shapeComparisonList PB tiebreak on equal other.elapsed_s picks the earlier start_time, regardless of row order", () => {
+  const rowEarly = dbRow({
+    session_a: "early", other_id: "early",
+    a_elapsed_s: 5000, // tie: identical to rowLate's a_elapsed_s
+    other_start_time: "2026-01-01T08:00:00Z",
+  });
+  const rowLate = dbRow({
+    session_a: "late", other_id: "late",
+    a_elapsed_s: 5000, // tie: identical to rowEarly's a_elapsed_s
+    other_start_time: "2026-02-01T08:00:00Z",
+  });
+
+  const forward = shapeComparisonList([rowEarly, rowLate], "later", 10);
+  const forwardPb = forward.find((c) => c.is_pb);
+  assert.equal(forwardPb?.session.id, "early");
+
+  const reversed = shapeComparisonList([rowLate, rowEarly], "later", 10);
+  const reversedPb = reversed.find((c) => c.is_pb);
+  assert.equal(reversedPb?.session.id, "early");
+});
+
 test("buildEffortCurves produces monotonic per-station times from range start", () => {
   const mk = (startMs: number, slow: boolean) =>
     st2(

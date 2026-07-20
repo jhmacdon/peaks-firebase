@@ -43,5 +43,11 @@ export const MOVING_MAX_GAP_S = 60;
 
 /** [legs] A sample within this radius of the summit destination counts as "at the summit". */
 export const SUMMIT_DWELL_RADIUS_M = 60;
-/** [legs] Summit arrival must fall inside the window's interior by this cum-distance fraction. */
+/** [legs] Summit arrival must fall inside the window's interior by this
+ *  ELAPSED-TIME fraction of the window span. */
 export const APEX_INTERIOR_FRAC = 0.1;
+
+/** Read-side cap on comparisons returned by the list endpoint (PB always
+ *  force-included). Not matcher/legs-versioned — changing it needs no
+ *  recompute. */
+export const COMPARISON_LIST_CAP = 10;
