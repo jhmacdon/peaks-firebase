@@ -185,3 +185,22 @@ test("computeMovingSeconds excludes stopped stretches and caps gaps", () => {
   const moving = computeMovingSeconds(samples, samples[0].timeMs, samples[samples.length - 1].timeMs, P);
   assert.ok(moving < total - 1500, `moving=${moving} total=${total} — 30min stop must be excluded`);
 });
+
+test("entry dwell before a single-pass hike is not classified out-and-back", () => {
+  const a = straightTrack({ n: 200 });
+  // b: 45 min parked at the corridor start (GPS wander at same coord), then single-pass
+  const dwell: RawPointRow[] = Array.from({ length: 90 }, (_, i) => ({
+    time: 10_000_000 + i * 30_000,
+    lat: 0, lng: 0, elevation: 1000, speed: 0,
+  }));
+  const walk = straightTrack({ n: 200, startMs: 10_000_000 + 90 * 30_000 });
+  const { cps, cross: aCross } = crossingsFor(a, a);
+  const { cross: bCross } = crossingsFor([...dwell, ...walk], a);
+  const r = computeOverlap(aCross, bCross, cps, P);
+  assert.ok(r, "expected an overlap");
+  assert.equal(r!.b.outAndBack, false, "entry dwell must not classify as out-and-back");
+  assert.equal(r!.scope, "full");
+  // b's window must span the traversal, not close at the end of the dwell
+  const bDur = (r!.b.exitMs - r!.b.enterMs) / 1000;
+  assert.ok(bDur > 0.5 * 200 * 30, `bDur=${bDur} — window must include the walk`);
+});

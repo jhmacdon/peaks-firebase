@@ -320,7 +320,15 @@ export function computeOverlap(
   };
   const isOnB = (cross: (Crossing | null)[]): boolean => {
     const entry = cross[bestStart]!;
-    return entry.lastMs - entry.firstMs > params.ONB_REEXIT_FRAC * spanOf(cross);
+    const far = cross[bestEnd]!;
+    // A genuine out-and-back re-exits through the entry checkpoint AFTER
+    // reaching the far end of the range — a pre-hike dwell at the entry
+    // (trailhead parking with GPS on) re-visits cpStart only BEFORE the far
+    // end and must not classify as out-and-back.
+    return (
+      entry.lastMs > far.firstMs &&
+      entry.lastMs - entry.firstMs > params.ONB_REEXIT_FRAC * spanOf(cross)
+    );
   };
   const aOnB = isOnB(aCross);
   const bOnB = isOnB(bCross);
