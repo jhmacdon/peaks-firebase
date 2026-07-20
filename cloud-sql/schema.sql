@@ -448,7 +448,7 @@ CREATE INDEX IF NOT EXISTS idx_tracking_sessions_path
 -- ---------------------------------------------------------------------------
 CREATE TABLE tracking_points (
     session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
-    time            BIGINT NOT NULL,   -- Unix timestamp in milliseconds
+    time            BIGINT NOT NULL,   -- Unix timestamp in SECONDS (comparison model converts to ms at load)
     segment_number  INT NOT NULL DEFAULT 0,
 
     location        geography(PointZ, 4326),
