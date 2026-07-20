@@ -309,6 +309,14 @@ export function computeOverlap(
     else if (cur < prev) dec++;
   }
   if (dec > inc) return null;
+  // Net-forward invariant: the window math assumes each side FIRST reaches the
+  // range's far end after first entering it. A majority-increasing vote can
+  // still pass tracks that touch the far checkpoint before the entry one
+  // (traverses descending the corridor, tracks starting at the far end) —
+  // prod produced negative single-pass windows exactly this way. Enforce the
+  // invariant directly, for both sides.
+  if (bCross[bestEnd]!.firstMs <= bCross[bestStart]!.firstMs) return null;
+  if (aCross[bestEnd]!.firstMs <= aCross[bestStart]!.firstMs) return null;
 
   const spanOf = (cross: (Crossing | null)[]): number => {
     let min = Infinity, max = -Infinity;
