@@ -91,6 +91,32 @@ test("collapseOutAndBack halves an out-and-back and keeps a one-way intact", () 
   assert.ok(Math.abs(c2.lengthM - oneWay[oneWay.length - 1].cumM) < 1);
 });
 
+/**
+ * A "hooked" out-and-back modeled on Crystal Peak: the outbound leg runs east
+ * past the summit's bearing, then hooks back north-west to the turnaround —
+ * so the sample geodesically farthest from the trailhead is the corner
+ * mid-outbound (40 steps east ≈ 1000m), NOT the turnaround (√(30²+25²) ≈
+ * 976m away). Splitting at the corner leaves the whole hook in the "return"
+ * half, failing the overlap fraction.
+ */
+export function hookedOutAndBackTrack(): RawPointRow[] {
+  const d = DEG_25M;
+  const pts: Array<{ lat: number; lng: number }> = [];
+  for (let i = 0; i <= 40; i++) pts.push({ lat: 0, lng: i * d });
+  for (let i = 1; i <= 30; i++) pts.push({ lat: i * d, lng: (40 - i * 0.5) * d });
+  const outbound = [...pts];
+  for (let i = outbound.length - 2; i >= 0; i--) pts.push(outbound[i]);
+  return pts.map((p, i) => ({ time: i * 30_000, lat: p.lat, lng: p.lng, elevation: 1000, speed: 1 }));
+}
+
+test("collapseOutAndBack halves a hooked out-and-back whose farthest point is not the turnaround", () => {
+  const samples = sampleTrack(hookedOutAndBackTrack(), P.SAMPLE_SPACING_M);
+  const c = collapseOutAndBack(samples, P);
+  assert.equal(c.isOutAndBack, true);
+  const total = samples[samples.length - 1].cumM;
+  assert.ok(Math.abs(c.lengthM - total / 2) < total * 0.15, `${c.lengthM} vs ${total}`);
+});
+
 test("buildCheckpoints spaces checkpoints along the corridor", () => {
   const samples = sampleTrack(straightTrack({ n: 100 }), P.SAMPLE_SPACING_M);
   const corridor = collapseOutAndBack(samples, P);

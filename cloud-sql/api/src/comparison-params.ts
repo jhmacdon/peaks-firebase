@@ -10,8 +10,13 @@
  *  model's milliseconds. v1 rows have elapsed/moving/legs off by 1000×.
  *  v3: net-forward direction invariant (firstMs[cpEnd] > firstMs[cpStart])
  *  and the MIN_PAIR_ELAPSED_S data-quality gate — v2 stored negative and
- *  minutes-scale windows for corridor-reversed traverses. */
-export const MATCHER_VERSION = 3;
+ *  minutes-scale windows for corridor-reversed traverses.
+ *  v4: collapseOutAndBack scores candidate turnarounds (max-radial, distance
+ *  midpoint, highest sample) instead of trusting max-radial alone — trails
+ *  that hook past the summit's bearing (Crystal Peak) put the farthest
+ *  sample mid-outbound and were misclassified as not out-and-back, dropping
+ *  the pair entirely. */
+export const MATCHER_VERSION = 4;
 /** Params below marked [legs] — bump when any of them change. */
 export const LEGS_VERSION = 1;
 
