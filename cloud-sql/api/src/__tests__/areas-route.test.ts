@@ -10,6 +10,10 @@ test("area detail query returns a boundary and user-scoped sessions", () => {
   assert.match(query.text, /route_count/);
   assert.match(query.text, /session_count/);
   assert.match(query.text, /description_source_url/);
+  // Sub-area detail exposes its containing national park.
+  assert.match(query.text, /a\.parent_area_id AS parent_id/);
+  assert.match(query.text, /parent\.name AS parent_name/);
+  assert.match(query.text, /LEFT JOIN areas parent ON parent\.id = a\.parent_area_id/);
   assert.match(query.text, /json_agg\(destination_obj/);
   assert.match(query.text, /json_agg\(route_obj/);
   // Boundary comes from the materialized display copy, with a live simplify

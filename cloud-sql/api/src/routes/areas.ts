@@ -36,6 +36,9 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
      SELECT a.id, a.name, a.kind, a.description,
             a.description_source_name, a.description_source_url, a.description_source_license,
             a.designation, a.manager, a.owner,
+            a.parent_area_id AS parent_id,
+            parent.name AS parent_name,
+            parent.kind AS parent_kind,
             a.country_code, a.state_codes,
             ST_Y(a.centroid) AS lat,
             ST_X(a.centroid) AS lng,
@@ -113,6 +116,7 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
               FROM ranked_sessions s
             ), '[]'::json) AS sessions
      FROM requested_area a
+     LEFT JOIN areas parent ON parent.id = a.parent_area_id
      LEFT JOIN LATERAL (
        SELECT count(DISTINCT da.destination_id) AS destination_count
        FROM destination_areas da

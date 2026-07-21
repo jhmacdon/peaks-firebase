@@ -18,6 +18,7 @@ const destinationAreaJoinSql = `LEFT JOIN LATERAL (
                     'kind', a.kind,
                     'designation', a.designation,
                     'manager', a.manager,
+                    'parent_id', a.parent_area_id,
                     'relation', da.relation,
                     'source', da.source
                   ) AS area_obj
@@ -39,6 +40,7 @@ const routeAreaJoinSql = `LEFT JOIN LATERAL (
                     'kind', a.kind,
                     'designation', a.designation,
                     'manager', a.manager,
+                    'parent_id', a.parent_area_id,
                     'relation', ra.relation,
                     'source', ra.source
                   ) AS area_obj
@@ -335,6 +337,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
   if (q.length === 2 && !/^[a-z0-9]+$/.test(q)) {
     return {
       text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
+              a.parent_area_id AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
@@ -363,6 +366,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
 
   return {
     text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
+              a.parent_area_id AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,

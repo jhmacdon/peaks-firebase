@@ -101,6 +101,7 @@ export function buildSessionAreasQuery(
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
+                  'parent_id', a.parent_area_id,
                   'relation', sa.relation,
                   'source', sa.source
                 ) AS area_obj
