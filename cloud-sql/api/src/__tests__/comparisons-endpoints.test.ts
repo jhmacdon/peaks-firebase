@@ -118,6 +118,8 @@ describe("comparison endpoints", { skip: skipReason ?? undefined }, () => {
     assert.equal(st[0].m, 0);
     assert.equal(typeof st[0].this_s, "number");
     assert.equal(typeof st[0].other_s, "number");
+    assert.ok(st[st.length - 1].m > res.body.overlap_m,
+      "full out-and-back curves should continue through the return leg");
   });
 
   test("curves endpoint 404s for a non-pair", async () => {

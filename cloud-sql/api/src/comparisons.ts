@@ -429,29 +429,46 @@ export interface EffortCurves {
 
 /**
  * Effort curves for the race chart: per shared checkpoint, each side's
- * first-crossing time relative to its own window enter. Stations are clamped
- * monotonic (GPS jitter can make a first-crossing slightly precede the
- * previous checkpoint's).
+ * crossing time relative to its own window enter. Full out-and-back pairs
+ * include the outbound checkpoints followed by the return checkpoints, so
+ * the distance-domain gap keeps changing after the summit instead of freezing
+ * at the final outbound station. Stations are clamped monotonic because GPS
+ * jitter can make adjacent checkpoint crossings arrive slightly out of order.
  */
 export function buildEffortCurves(model: PairModel): EffortCurves {
   const { overlap, checkpoints, aCross, bCross } = model;
   const stations: EffortCurveStation[] = [];
   let prevA = 0;
   let prevB = 0;
-  for (let i = overlap.cpStart; i <= overlap.cpEnd; i++) {
+
+  const appendStation = (i: number, m: number, returning: boolean): void => {
     const a = aCross[i];
     const b = bCross[i];
-    if (!a || !b) continue;
-    const aS = Math.max(prevA, Math.round((a.firstMs - overlap.a.enterMs) / 1000));
-    const bS = Math.max(prevB, Math.round((b.firstMs - overlap.b.enterMs) / 1000));
+    if (!a || !b) return;
+    const aMs = returning ? a.lastMs : a.firstMs;
+    const bMs = returning ? b.lastMs : b.firstMs;
+    const aS = Math.max(prevA, Math.round((aMs - overlap.a.enterMs) / 1000));
+    const bS = Math.max(prevB, Math.round((bMs - overlap.b.enterMs) / 1000));
     stations.push({
-      m: checkpoints[i].m - checkpoints[overlap.cpStart].m,
+      m,
       a_s: aS,
       b_s: bS,
       elev_m: checkpoints[i].elevM,
     });
     prevA = aS;
     prevB = bS;
+  };
+
+  for (let i = overlap.cpStart; i <= overlap.cpEnd; i++) {
+    appendStation(i, checkpoints[i].m - checkpoints[overlap.cpStart].m, false);
+  }
+
+  if (overlap.scope === "full" && overlap.a.outAndBack && overlap.b.outAndBack) {
+    const farM = checkpoints[overlap.cpEnd].m;
+    for (let i = overlap.cpEnd - 1; i >= overlap.cpStart; i--) {
+      const returnM = overlap.overlapM + (farM - checkpoints[i].m);
+      appendStation(i, returnM, true);
+    }
   }
   return { stations };
 }
