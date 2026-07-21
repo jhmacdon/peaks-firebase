@@ -2,6 +2,8 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   buildComparisonCandidateSql,
+  buildCompleteRouteEffortCurves,
+  buildCompleteSummitRouteModel,
   buildCommonSummitSql,
   buildComparisonUpsertSql,
   buildEffortCurves,
@@ -13,7 +15,7 @@ import {
   Queryable,
   shapeComparisonList,
 } from "../comparisons";
-import { sampleTrack as st2 } from "../comparison-geometry";
+import { RawPointRow, sampleTrack as st2 } from "../comparison-geometry";
 import * as P from "../comparison-params";
 
 test("candidate SQL is planar-prefiltered, user-scoped, ended-only, capped", () => {
@@ -185,6 +187,132 @@ test("shapeComparisonList PB tiebreak on equal other.elapsed_s picks the earlier
   const reversed = shapeComparisonList([rowLate, rowEarly], "later", 10);
   const reversedPb = reversed.find((c) => c.is_pb);
   assert.equal(reversedPb?.session.id, "early");
+});
+
+test("shapeComparisonList never calls a partial turnaround the best time", () => {
+  const partial = dbRow({
+    session_a: "turnaround", other_id: "turnaround",
+    a_elapsed_s: 1800,
+    a_frac: 1,
+    b_frac: 0.4,
+    other_start_time: "2026-02-01T08:00:00Z",
+  });
+  const complete = dbRow({
+    session_a: "complete", other_id: "complete",
+    a_elapsed_s: 7200,
+    a_frac: 1,
+    b_frac: 1,
+    other_start_time: "2026-01-01T08:00:00Z",
+  });
+
+  const shaped = shapeComparisonList([partial, complete], "later", 10);
+  assert.equal(shaped.find((comparison) => comparison.is_pb)?.session.id, "complete");
+  assert.equal(shaped.find((comparison) => comparison.session.id === "turnaround")?.is_pb, false);
+});
+
+test("shapeComparisonList has no best-time marker when every match is partial", () => {
+  const shaped = shapeComparisonList([
+    dbRow({ session_a: "partial", other_id: "partial", a_frac: 1, b_frac: 0.4 }),
+  ], "later", 10);
+  assert.equal(shaped.some((comparison) => comparison.is_pb), false);
+});
+
+test("partial closed-route pairs stop at the final shared outbound checkpoint", () => {
+  const outAndBack = (n: number, startMs: number) => {
+    const outbound: RawPointRow[] = Array.from({ length: n }, (_, i) => ({
+      time: startMs + i * 30_000,
+      lat: 0,
+      lng: i * (25 / 111320),
+      elevation: 1000 + i,
+      speed: 1,
+    }));
+    const returning = outbound.slice(0, -1).reverse().map((point, i) => ({
+      ...point,
+      time: startMs + (n + i) * 30_000,
+    }));
+    return st2([...outbound, ...returning], P.SAMPLE_SPACING_M);
+  };
+
+  const longRoute = outAndBack(200, 0);
+  const turnaround = outAndBack(80, 20_000_000);
+  const model = buildPairModel(longRoute, turnaround);
+  assert.ok(model);
+  assert.equal(model!.overlap.scope, "outbound");
+  assert.equal(model!.overlap.a.outAndBack, true);
+  assert.equal(model!.overlap.b.outAndBack, true);
+  assert.equal(model!.overlap.a.exitMs, model!.aCross[model!.overlap.cpEnd]!.firstMs);
+  assert.equal(model!.overlap.b.exitMs, model!.bCross[model!.overlap.cpEnd]!.firstMs);
+});
+
+test("complete same-summit loops can use different ascent and descent lines", () => {
+  const d = 25 / 111320;
+  const branch = (side: number, startMs: number): RawPointRow[] => {
+    const up = Array.from({ length: 81 }, (_, i) => ({
+      time: startMs + i * 30_000,
+      lat: i * d,
+      lng: Math.sin(Math.PI * i / 80) * side * 5 * d,
+      elevation: 1000 + i * 10,
+      speed: 1,
+    }));
+    const down = Array.from({ length: 80 }, (_, i) => ({
+      time: startMs + (81 + i) * 30_000,
+      lat: (79 - i) * d,
+      lng: Math.sin(Math.PI * (79 - i) / 80) * -side * 5 * d,
+      elevation: 1000 + (79 - i) * 10,
+      speed: 1,
+    }));
+    return [...up, ...down];
+  };
+  const a = st2(branch(-1, 0), P.SAMPLE_SPACING_M);
+  const b = st2(branch(1, 20_000_000), P.SAMPLE_SPACING_M);
+  const summit = { lat: 80 * d, lng: 0 };
+
+  const complete = buildCompleteSummitRouteModel(a, b, summit);
+  assert.ok(complete);
+  assert.equal(complete!.a.enterMs, a[0].timeMs);
+  assert.equal(complete!.a.exitMs, a[a.length - 1].timeMs);
+  assert.equal(complete!.b.enterMs, b[0].timeMs);
+  assert.equal(complete!.b.exitMs, b[b.length - 1].timeMs);
+});
+
+test("complete-route curves preserve each divergent route's own distance", () => {
+  const track = (lngStep: number, startMs: number) => st2(
+    Array.from({ length: 8 }, (_, i) => ({
+      time: startMs + i * 60_000,
+      lat: i * (25 / 111320),
+      lng: i * lngStep,
+      elevation: 1000 + i * 20,
+      speed: 1,
+    })),
+    P.SAMPLE_SPACING_M
+  );
+  const a = track(0, 0);
+  const b = track(20 / 111320, 1_000_000);
+  const aWindow = {
+    enterMs: a[0].timeMs,
+    exitMs: a[a.length - 1].timeMs,
+    startM: a[0].cumM,
+    endM: a[a.length - 1].cumM,
+    outAndBack: false,
+  };
+  const bWindow = {
+    enterMs: b[0].timeMs,
+    exitMs: b[b.length - 1].timeMs,
+    startM: b[0].cumM,
+    endM: b[b.length - 1].cumM,
+    outAndBack: false,
+  };
+
+  const curves = buildCompleteRouteEffortCurves(a, b, aWindow, bWindow, 4);
+  assert.equal(curves.stations.length, 5);
+  assert.equal(curves.stations[0].a_m, 0);
+  assert.equal(curves.stations[0].b_m, 0);
+  assert.ok(curves.stations[4].a_m! > 0);
+  assert.ok(curves.stations[4].b_m! > curves.stations[4].a_m!);
+  for (let i = 1; i < curves.stations.length; i++) {
+    assert.ok(curves.stations[i].a_s >= curves.stations[i - 1].a_s);
+    assert.ok(curves.stations[i].b_s >= curves.stations[i - 1].b_s);
+  }
 });
 
 test("buildEffortCurves produces monotonic per-station times from range start", () => {

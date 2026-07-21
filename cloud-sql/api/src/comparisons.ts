@@ -12,9 +12,11 @@ import {
   Checkpoint,
   Corridor,
   Crossing,
+  haversineM,
   OverlapResult,
   RawPointRow,
   SamplePoint,
+  SideWindow,
   sampleTrack,
 } from "./comparison-geometry";
 import * as P from "./comparison-params";
@@ -194,6 +196,64 @@ export interface PairModel {
   bCorridorLengthM: number;
 }
 
+export interface CompleteSummitRouteModel {
+  overlapM: number;
+  a: OverlapResult["a"];
+  b: OverlapResult["b"];
+}
+
+/**
+ * A complete summit route may use different lines on the way up and down.
+ * Spatial checkpoint coverage alone calls those pairs partial (or even
+ * rejects a loop traveled in the opposite order), although both recordings
+ * are complete attempts at the same objective. Promote the pair only when
+ * both tracks are closed, share a trailhead area, and actually pass the
+ * common reached summit. A turnaround cannot satisfy the common-summit gate.
+ */
+export function buildCompleteSummitRouteModel(
+  aSamples: SamplePoint[],
+  bSamples: SamplePoint[],
+  summit: { lat: number; lng: number }
+): CompleteSummitRouteModel | null {
+  if (aSamples.length < 4 || bSamples.length < 4) return null;
+  const aFirst = aSamples[0];
+  const aLast = aSamples[aSamples.length - 1];
+  const bFirst = bSamples[0];
+  const bLast = bSamples[bSamples.length - 1];
+
+  const closedA = haversineM(aFirst.lat, aFirst.lng, aLast.lat, aLast.lng) <= P.COMPLETE_ROUTE_ENDPOINT_RADIUS_M;
+  const closedB = haversineM(bFirst.lat, bFirst.lng, bLast.lat, bLast.lng) <= P.COMPLETE_ROUTE_ENDPOINT_RADIUS_M;
+  const sharedBase = haversineM(aFirst.lat, aFirst.lng, bFirst.lat, bFirst.lng) <= P.COMPLETE_ROUTE_ENDPOINT_RADIUS_M;
+  if (!closedA || !closedB || !sharedBase) return null;
+
+  const reachesSummit = (samples: SamplePoint[]): boolean => samples.some(
+    (point) => haversineM(point.lat, point.lng, summit.lat, summit.lng) <= P.SUMMIT_DWELL_RADIUS_M
+  );
+  if (!reachesSummit(aSamples) || !reachesSummit(bSamples)) return null;
+
+  const aDistance = aLast.cumM - aFirst.cumM;
+  const bDistance = bLast.cumM - bFirst.cumM;
+  if (aDistance <= 0 || bDistance <= 0) return null;
+
+  return {
+    overlapM: Math.min(aDistance, bDistance),
+    a: {
+      enterMs: aFirst.timeMs,
+      exitMs: aLast.timeMs,
+      startM: aFirst.cumM,
+      endM: aLast.cumM,
+      outAndBack: true,
+    },
+    b: {
+      enterMs: bFirst.timeMs,
+      exitMs: bLast.timeMs,
+      startM: bFirst.cumM,
+      endM: bLast.cumM,
+      outAndBack: true,
+    },
+  };
+}
+
 /**
  * Run the checkpoint model for a pair. `aSamples` MUST be the EARLIER session
  * — the corridor is always built from session_a so the model is deterministic
@@ -207,8 +267,38 @@ export function buildPairModel(aSamples: SamplePoint[], bSamples: SamplePoint[])
   if (checkpoints.length < 2) return null;
   const aCross = computeCrossings(aSamples, checkpoints, P.CROSSING_RADIUS_M);
   const bCross = computeCrossings(bSamples, checkpoints, P.CROSSING_RADIUS_M);
-  const overlap = computeOverlap(aCross, bCross, checkpoints, P);
+  let overlap = computeOverlap(aCross, bCross, checkpoints, P);
   if (!overlap) return null;
+  const aFrac = corridor.lengthM > 0 ? overlap.overlapM / corridor.lengthM : 0;
+  const bFrac = bCorridor.lengthM > 0 ? overlap.overlapM / bCorridor.lengthM : 0;
+
+  // Two closed tracks can both re-exit the shared entry checkpoint even when
+  // one turns around far earlier. Timing that as a full window compares the
+  // longer climb's entire outing with the failed attempt's shorter outing.
+  // For partial coverage, stop both clocks at the last shared checkpoint.
+  if (
+    overlap.scope === "full" &&
+    overlap.a.outAndBack &&
+    overlap.b.outAndBack &&
+    (aFrac < P.FULL_ROUTE_FRAC || bFrac < P.FULL_ROUTE_FRAC)
+  ) {
+    const aFar = aCross[overlap.cpEnd]!;
+    const bFar = bCross[overlap.cpEnd]!;
+    overlap = {
+      ...overlap,
+      scope: "outbound",
+      a: {
+        ...overlap.a,
+        exitMs: aFar.firstMs,
+        endM: aFar.firstCumM,
+      },
+      b: {
+        ...overlap.b,
+        exitMs: bFar.firstMs,
+        endM: bFar.firstCumM,
+      },
+    };
+  }
   return {
     corridor,
     checkpoints,
@@ -269,12 +359,43 @@ export async function matchComparisons(
       const aSamples = selfIsA ? selfSamples : candSamples;
       const bSamples = selfIsA ? candSamples : selfSamples;
 
-      const model = buildPairModel(aSamples, bSamples);
-      if (!model) continue;
-      const { overlap } = model;
-      const shorter = Math.min(model.aCorridorLengthM, model.bCorridorLengthM);
-      if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
-      if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
+      const checkpointModel = buildPairModel(aSamples, bSamples);
+
+      const summitSql = buildCommonSummitSql(aId, bId);
+      const summitRes = await q.query(summitSql.text, summitSql.values);
+      const summit = summitRes.rows[0] as { id: string; lat: number; lng: number } | undefined;
+      const completeRouteModel = summit
+        ? buildCompleteSummitRouteModel(aSamples, bSamples, summit)
+        : null;
+
+      const checkpointIsFullRoute = checkpointModel !== null &&
+        checkpointModel.aCorridorLengthM > 0 &&
+        checkpointModel.bCorridorLengthM > 0 &&
+        checkpointModel.overlap.overlapM / checkpointModel.aCorridorLengthM >= P.FULL_ROUTE_FRAC &&
+        checkpointModel.overlap.overlapM / checkpointModel.bCorridorLengthM >= P.FULL_ROUTE_FRAC;
+      const useCompleteRoute = completeRouteModel !== null && !checkpointIsFullRoute;
+      if (!checkpointModel && !useCompleteRoute) continue;
+
+      const overlap = useCompleteRoute
+        ? {
+          scope: "full" as const,
+          overlapM: completeRouteModel!.overlapM,
+          a: completeRouteModel!.a,
+          b: completeRouteModel!.b,
+        }
+        : checkpointModel!.overlap;
+      const aFrac = useCompleteRoute
+        ? 1
+        : Math.min(1, overlap.overlapM / checkpointModel!.aCorridorLengthM);
+      const bFrac = useCompleteRoute
+        ? 1
+        : Math.min(1, overlap.overlapM / checkpointModel!.bCorridorLengthM);
+
+      if (!useCompleteRoute) {
+        const shorter = Math.min(checkpointModel!.aCorridorLengthM, checkpointModel!.bCorridorLengthM);
+        if (overlap.overlapM < P.MIN_OVERLAP_M) continue;
+        if (shorter > 0 && overlap.overlapM < P.MIN_OVERLAP_FRAC_OF_SHORTER * shorter) continue;
+      }
 
       // Data-quality gate: a side whose comparison window is implausibly short
       // for a ≥MIN_OVERLAP_M corridor is timing noise (GPS gaps, degenerate
@@ -286,9 +407,6 @@ export async function matchComparisons(
       // Legs: only meaningful for 'full' scope (outbound windows end at the far
       // checkpoint — a summit there sits at the window edge and is filtered by
       // APEX_INTERIOR_FRAC anyway).
-      const summitSql = buildCommonSummitSql(aId, bId);
-      const summitRes = await q.query(summitSql.text, summitSql.values);
-      const summit = summitRes.rows[0] as { id: string; lat: number; lng: number } | undefined;
       const aLegs = summit ? computeLegSplits(aSamples, overlap.a, summit, P) : null;
       const bLegs = summit ? computeLegSplits(bSamples, overlap.b, summit, P) : null;
       const legsOk = aLegs !== null && bLegs !== null;
@@ -299,8 +417,8 @@ export async function matchComparisons(
         session_b: bId,
         scope: overlap.scope,
         overlap_m: overlap.overlapM,
-        a_frac: model.aCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.aCorridorLengthM) : 0,
-        b_frac: model.bCorridorLengthM > 0 ? Math.min(1, overlap.overlapM / model.bCorridorLengthM) : 0,
+        a_frac: aFrac,
+        b_frac: bFrac,
         a_enter_ms: overlap.a.enterMs,
         a_exit_ms: overlap.a.exitMs,
         b_enter_ms: overlap.b.enterMs,
@@ -421,6 +539,13 @@ export interface EffortCurveStation {
   a_s: number;               // a's seconds from its window enter at first crossing
   b_s: number;
   elev_m: number | null;     // corridor elevation at the station
+  // Full-route pairs that use different lines have no single corridor meter.
+  // Keep each side's traveled distance so the endpoint can orient `m` to the
+  // recording the user is actually scrubbing.
+  a_m?: number;
+  b_m?: number;
+  a_elev_m?: number | null;
+  b_elev_m?: number | null;
 }
 
 export interface EffortCurves {
@@ -473,6 +598,80 @@ export function buildEffortCurves(model: PairModel): EffortCurves {
   return { stations };
 }
 
+interface InterpolatedTrackProgress {
+  seconds: number;
+  meters: number;
+  elevM: number | null;
+}
+
+function trackProgressAt(
+  samples: SamplePoint[],
+  window: SideWindow,
+  fraction: number
+): InterpolatedTrackProgress | null {
+  const inWindow = samples.filter((sample) => sample.timeMs >= window.enterMs && sample.timeMs <= window.exitMs);
+  if (inWindow.length === 0) return null;
+  const startM = window.startM;
+  const endM = window.endM;
+  const targetM = startM + (endM - startM) * fraction;
+  const increasing = endM >= startM;
+  let upper = inWindow.findIndex((sample) => increasing ? sample.cumM >= targetM : sample.cumM <= targetM);
+  if (upper < 0) upper = inWindow.length - 1;
+  const lower = Math.max(0, upper - 1);
+  const a = inWindow[lower];
+  const b = inWindow[upper];
+  const span = b.cumM - a.cumM;
+  const t = span !== 0 ? Math.max(0, Math.min(1, (targetM - a.cumM) / span)) : 0;
+  const timeMs = a.timeMs + (b.timeMs - a.timeMs) * t;
+  const elevM = a.elevM !== null && b.elevM !== null
+    ? a.elevM + (b.elevM - a.elevM) * t
+    : a.elevM ?? b.elevM;
+  return {
+    seconds: Math.max(0, Math.round((timeMs - window.enterMs) / 1000)),
+    meters: Math.abs(targetM - startM),
+    elevM,
+  };
+}
+
+/**
+ * Complete same-summit routes may diverge and reconnect, so a single spatial
+ * checkpoint line cannot describe both. Sample equal fractions of each
+ * recording's traveled distance instead. The returned per-side meters let
+ * the read endpoint orient the curve to whichever recording is being viewed.
+ */
+export function buildCompleteRouteEffortCurves(
+  aSamples: SamplePoint[],
+  bSamples: SamplePoint[],
+  aWindow: SideWindow,
+  bWindow: SideWindow,
+  stationCount = 40
+): EffortCurves {
+  const stations: EffortCurveStation[] = [];
+  let previousA = 0;
+  let previousB = 0;
+  for (let i = 0; i <= stationCount; i++) {
+    const fraction = i / stationCount;
+    const a = trackProgressAt(aSamples, aWindow, fraction);
+    const b = trackProgressAt(bSamples, bWindow, fraction);
+    if (!a || !b) continue;
+    const aS = Math.max(previousA, a.seconds);
+    const bS = Math.max(previousB, b.seconds);
+    stations.push({
+      m: a.meters,
+      a_m: a.meters,
+      b_m: b.meters,
+      a_s: aS,
+      b_s: bS,
+      elev_m: a.elevM,
+      a_elev_m: a.elevM,
+      b_elev_m: b.elevM,
+    });
+    previousA = aS;
+    previousB = bS;
+  }
+  return { stations };
+}
+
 /**
  * PB-candidate ordering: lower other.elapsed_s wins. Rows arrive in
  * nondeterministic DB order, so exact elapsed_s ties must be broken
@@ -487,16 +686,19 @@ function comparePbCandidate(a: OrientedComparison, b: OrientedComparison): numbe
   return a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0;
 }
 
-/** Orient, sort newest-first, cap, force-include the PB (min other elapsed), flag it. */
+/** Orient, sort newest-first, cap, force-include the complete-route PB, and flag it. */
 export function shapeComparisonList(rows: any[], sessionId: string, cap: number): OrientedComparison[] {
   const oriented = rows.map((r) => orientComparison(r, sessionId));
   if (oriented.length === 0) return [];
-  const pb = oriented.reduce((best, c) => (comparePbCandidate(c, best) < 0 ? c : best));
+  const completeRoutes = oriented.filter((comparison) => comparison.full_route);
+  const pb = completeRoutes.length > 0
+    ? completeRoutes.reduce((best, c) => (comparePbCandidate(c, best) < 0 ? c : best))
+    : null;
   oriented.sort(
     (x, y) => new Date(y.session.start_time as string).getTime() - new Date(x.session.start_time as string).getTime()
   );
   let out = oriented.slice(0, cap);
-  if (!out.includes(pb)) out = [...out.slice(0, cap - 1), pb];
+  if (pb && !out.includes(pb)) out = [...out.slice(0, cap - 1), pb];
   for (const c of out) c.is_pb = c === pb;
   return out;
 }

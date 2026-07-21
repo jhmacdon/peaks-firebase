@@ -15,8 +15,11 @@
  *  midpoint, highest sample) instead of trusting max-radial alone — trails
  *  that hook past the summit's bearing (Crystal Peak) put the farthest
  *  sample mid-outbound and were misclassified as not out-and-back, dropping
- *  the pair entirely. */
-export const MATCHER_VERSION = 4;
+ *  the pair entirely.
+ *  v5: partial closed-route matches stop at their final shared checkpoint,
+ *  and complete same-summit routes can match across divergent ascent/descent
+ *  lines when they share a trailhead area. */
+export const MATCHER_VERSION = 5;
 /** Params below marked [legs] — bump when any of them change. */
 export const LEGS_VERSION = 1;
 
@@ -36,6 +39,8 @@ export const CORRIDOR_OVERLAP_RADIUS_M = 40;
 export const OUT_AND_BACK_OVERLAP_FRAC = 0.7;
 /** [matcher] Start/end proximity (m) required to consider out-and-back collapse. */
 export const OUT_AND_BACK_CLOSURE_M = 200;
+/** [matcher] Complete same-summit routes must close and share their base within this radius. */
+export const COMPLETE_ROUTE_ENDPOINT_RADIUS_M = 500;
 /** [matcher] Minimum shared-corridor length to store a pair. */
 export const MIN_OVERLAP_M = 500;
 /** [matcher] Minimum overlap as a fraction of the shorter corridor. */

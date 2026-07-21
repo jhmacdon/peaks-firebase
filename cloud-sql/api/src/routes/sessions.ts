@@ -2,8 +2,15 @@ import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
-import { buildEffortCurves, buildPairModel, loadSampledTrack, orientComparison, shapeComparisonList } from "../comparisons";
-import { COMPARISON_LIST_CAP } from "../comparison-params";
+import {
+  buildCompleteRouteEffortCurves,
+  buildEffortCurves,
+  buildPairModel,
+  loadSampledTrack,
+  orientComparison,
+  shapeComparisonList,
+} from "../comparisons";
+import { COMPARISON_LIST_CAP, FULL_ROUTE_FRAC } from "../comparison-params";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
@@ -647,13 +654,30 @@ router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ i
   // Corridor is always session_a's — load in canonical order.
   const aSamples = await loadSampledTrack(db, row.session_a);
   const bSamples = await loadSampledTrack(db, row.session_b);
-  const model = buildPairModel(aSamples, bSamples);
-  if (!model) {
+  const storedFullRoute = row.a_frac >= FULL_ROUTE_FRAC && row.b_frac >= FULL_ROUTE_FRAC;
+  const model = storedFullRoute ? null : buildPairModel(aSamples, bSamples);
+  if (!storedFullRoute && !model) {
     res.status(410).json({ error: "Comparison no longer computable" });
     return;
   }
 
-  const curves = buildEffortCurves(model);
+  const aWindow = {
+    enterMs: row.a_enter_ms,
+    exitMs: row.a_exit_ms,
+    startM: row.a_start_m,
+    endM: row.a_end_m,
+    outAndBack: row.a_out_and_back,
+  };
+  const bWindow = {
+    enterMs: row.b_enter_ms,
+    exitMs: row.b_exit_ms,
+    startM: row.b_start_m,
+    endM: row.b_end_m,
+    outAndBack: row.b_out_and_back,
+  };
+  const curves = storedFullRoute
+    ? buildCompleteRouteEffortCurves(aSamples, bSamples, aWindow, bWindow)
+    : buildEffortCurves(model!);
   const thisIsA = row.session_a === id;
   const oriented = orientComparison(row, id);
 
@@ -669,7 +693,7 @@ router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ i
       const sideS = thisIsA ? st.a_s : st.b_s;
       if (Math.abs(sideS - arrivalS) < best) {
         best = Math.abs(sideS - arrivalS);
-        apexM = st.m;
+        apexM = thisIsA ? (st.a_m ?? st.m) : (st.b_m ?? st.m);
       }
     }
   }
@@ -679,10 +703,10 @@ router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ i
     curves: {
       apex_m: apexM,
       stations: curves.stations.map((st) => ({
-        m: st.m,
+        m: thisIsA ? (st.a_m ?? st.m) : (st.b_m ?? st.m),
         this_s: thisIsA ? st.a_s : st.b_s,
         other_s: thisIsA ? st.b_s : st.a_s,
-        elev_m: st.elev_m,
+        elev_m: thisIsA ? (st.a_elev_m ?? st.elev_m) : (st.b_elev_m ?? st.elev_m),
       })),
     },
   });
