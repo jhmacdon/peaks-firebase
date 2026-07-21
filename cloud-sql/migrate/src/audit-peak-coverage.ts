@@ -3,6 +3,7 @@
  *
  * Examples:
  *   npm run audit:peak-coverage -- --state=WA
+ *   npm run audit:peak-coverage -- --country=CA
  *   npm run audit:peak-coverage -- --state=WA --bbox=-122,48.2,-120.5,49
  *   npm run audit:peak-coverage -- --state=WA --format=json --limit=200
  *   npm run audit:peak-coverage -- --state=WA --input=/tmp/wa-peaks-overpass.json
@@ -35,8 +36,9 @@ export interface BoundingBox {
   maxLat: number;
 }
 
-interface AuditArgs {
-  stateCode: string;
+export interface AuditArgs {
+  stateCode: string | null;
+  countryCode: string | null;
   bbox: BoundingBox | null;
   input: string | null;
   format: OutputFormat;
@@ -45,7 +47,7 @@ interface AuditArgs {
   minimumGridReferencePeaks: number;
 }
 
-interface OverpassElement {
+export interface OverpassElement {
   type: "node";
   id: number;
   lat?: number;
@@ -53,7 +55,7 @@ interface OverpassElement {
   tags?: Record<string, string>;
 }
 
-interface OverpassResponse {
+export interface OverpassResponse {
   elements: OverpassElement[];
 }
 
@@ -65,7 +67,7 @@ interface CatalogRow {
   osm_id: string | null;
 }
 
-interface EvidenceRow {
+export interface EvidenceRow {
   osm_id: string;
   sessions_30m: string | number;
   sessions_100m: string | number;
@@ -86,8 +88,17 @@ const DEFAULT_OVERPASS_ENDPOINTS = [
 
 export function parseArgs(argv = process.argv.slice(2)): AuditArgs {
   const value = (key: string) => argv.find((arg) => arg.startsWith(`--${key}=`))?.split("=", 2)[1];
-  const stateCode = (value("state") ?? "WA").toUpperCase();
-  if (!/^[A-Z]{2}$/.test(stateCode)) throw new Error("--state must be a two-letter US state code");
+  const requestedState = value("state");
+  const requestedCountry = value("country");
+  if (requestedState && requestedCountry) throw new Error("Use either --state or --country, not both");
+  const stateCode = requestedState?.toUpperCase() ?? (requestedCountry ? null : "WA");
+  const countryCode = requestedCountry?.toUpperCase() ?? (stateCode ? "US" : null);
+  if (stateCode && !/^[A-Z]{2}$/.test(stateCode)) {
+    throw new Error("--state must be a two-letter US state code");
+  }
+  if (countryCode && !/^[A-Z]{2}$/.test(countryCode)) {
+    throw new Error("--country must be a two-letter ISO country code");
+  }
 
   const format = (value("format") ?? "summary") as OutputFormat;
   if (format !== "summary" && format !== "json") {
@@ -123,6 +134,7 @@ export function parseArgs(argv = process.argv.slice(2)): AuditArgs {
 
   return {
     stateCode,
+    countryCode,
     bbox,
     input: value("input") ?? null,
     format,
@@ -144,15 +156,27 @@ node(area.region)["natural"="peak"]["name"];
 out body;`;
 }
 
-async function fetchOverpassState(
-  stateCode: string,
+export function buildCountryOverpassQuery(countryCode: string): string {
+  return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.region;
+node(area.region)["natural"="peak"]["name"];
+out body;`;
+}
+
+export async function fetchOverpassPeaks(
+  stateCode: string | null,
+  countryCode: string | null,
   bbox: BoundingBox | null
 ): Promise<OverpassResponse> {
   const configured = process.env.OVERPASS_ENDPOINT?.trim();
   const endpoints = configured
     ? [configured, ...DEFAULT_OVERPASS_ENDPOINTS.filter((endpoint) => endpoint !== configured)]
     : DEFAULT_OVERPASS_ENDPOINTS;
-  const query = buildOverpassQuery(stateCode, bbox);
+  const query = bbox
+    ? buildOverpassQuery(stateCode ?? "WA", bbox)
+    : stateCode
+      ? buildOverpassQuery(stateCode)
+      : buildCountryOverpassQuery(countryCode ?? "US");
   let lastError: unknown = null;
 
   for (const endpoint of endpoints) {
@@ -160,7 +184,7 @@ async function fetchOverpassState(
       try {
         const region = bbox
           ? `bbox ${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`
-          : `US-${stateCode}`;
+          : stateCode ? `US-${stateCode}` : countryCode ?? "unknown country";
         console.error(`[peak-coverage] Fetching ${region} peaks from ${endpoint} (attempt ${attempt + 1})`);
         // Bound a stuck endpoint so the fallback list eventually advances.
         const controller = new AbortController();
@@ -194,8 +218,8 @@ async function fetchOverpassState(
   throw lastError instanceof Error ? lastError : new Error("All Overpass endpoints failed");
 }
 
-async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {
-  if (!args.input) return fetchOverpassState(args.stateCode, args.bbox);
+export async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {
+  if (!args.input) return fetchOverpassPeaks(args.stateCode, args.countryCode, args.bbox);
   const raw = await fs.readFile(args.input, "utf8");
   const parsed = JSON.parse(raw) as Partial<OverpassResponse>;
   if (!Array.isArray(parsed.elements)) {
@@ -206,11 +230,11 @@ async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {
 
 export function parseReferencePeaks(
   data: OverpassResponse,
-  stateCode: string,
+  stateCode: string | null,
   bbox: BoundingBox | null = null
 ): ReferencePeak[] {
   const peaks: ReferencePeak[] = [];
-  const bareFeetThreshold = stateCode === "AK" ? null : 5_000;
+  const bareFeetThreshold = stateCode && stateCode !== "AK" ? 5_000 : null;
   for (const element of data.elements) {
     const tags = element.tags ?? {};
     const name = tags.name?.trim();
@@ -235,7 +259,7 @@ export function parseReferencePeaks(
   return peaks;
 }
 
-async function loadCatalog(): Promise<CatalogPeak[]> {
+export async function loadCatalog(): Promise<CatalogPeak[]> {
   const result = await db.query<CatalogRow>(
     `SELECT id, name,
             ST_Y(location::geometry) AS lat,
@@ -254,7 +278,7 @@ async function loadCatalog(): Promise<CatalogPeak[]> {
   }] : []);
 }
 
-async function loadSessionEvidence(matches: PeakMatch[]): Promise<Map<string, EvidenceRow>> {
+export async function loadSessionEvidence(matches: PeakMatch[]): Promise<Map<string, EvidenceRow>> {
   const unmatched = matches.filter((match) => match.method == null).map((match) => ({
     osm_id: match.reference.osmId,
     lat: match.reference.lat,
@@ -317,12 +341,13 @@ function catalogCountInsideReferenceBounds(catalog: CatalogPeak[], reference: Re
   ).length;
 }
 
-async function buildReport(args: AuditArgs) {
+export async function buildReport(args: AuditArgs) {
   const data = await loadReferenceData(args);
   const reference = parseReferencePeaks(data, args.stateCode, args.bbox);
   if (reference.length === 0) {
+    const jurisdiction = args.stateCode ? `US-${args.stateCode}` : args.countryCode;
     throw new Error(
-      `Coverage audit found zero usable named peaks for US-${args.stateCode}; ` +
+      `Coverage audit found zero usable named peaks for ${jurisdiction}; ` +
       "refusing to emit a misleading empty report"
     );
   }
@@ -358,6 +383,7 @@ async function buildReport(args: AuditArgs) {
   return {
     generatedAt: new Date().toISOString(),
     stateCode: args.stateCode,
+    countryCode: args.countryCode,
     bbox: args.bbox,
     source: args.input
       ? { type: "overpass_json", path: args.input }
@@ -394,7 +420,8 @@ async function buildReport(args: AuditArgs) {
 
 function printSummary(report: Awaited<ReturnType<typeof buildReport>>): void {
   const { totals, catalogHealth } = report;
-  console.log(`Peak coverage audit — US-${report.stateCode}`);
+  const jurisdiction = report.stateCode ? `US-${report.stateCode}` : report.countryCode;
+  console.log(`Peak coverage audit — ${jurisdiction}`);
   if (report.bbox) {
     console.log(
       `Bounds: ${report.bbox.minLng},${report.bbox.minLat} to ` +

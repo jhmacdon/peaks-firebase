@@ -12,6 +12,7 @@ import {
 } from "../peak-coverage";
 import {
   buildOverpassQuery,
+  buildCountryOverpassQuery,
   parseArgs,
   parseReferencePeaks,
 } from "../audit-peak-coverage";
@@ -56,6 +57,7 @@ test("validates audit CLI options and requests full node geometry", () => {
     "--bbox=-122,48.2,-120.5,49",
   ]);
   assert.equal(args.stateCode, "OR");
+  assert.equal(args.countryCode, "US");
   assert.equal(args.format, "json");
   assert.equal(args.limit, 25);
   assert.equal(args.minimumCandidateElevationM, 1000);
@@ -68,6 +70,7 @@ test("validates audit CLI options and requests full node geometry", () => {
   });
   assert.throws(() => parseArgs(["--state=Washington"]), /two-letter/);
   assert.throws(() => parseArgs(["--format=csv"]), /summary or json/);
+  assert.throws(() => parseArgs(["--state=WA", "--country=CA"]), /either --state or --country/);
   assert.throws(() => parseArgs(["--bbox=-122,48.2,-120.5"]), /minLng,minLat,maxLng,maxLat/);
   assert.throws(() => parseArgs(["--bbox=-120,49,-122,48.2"]), /ordered/);
 
@@ -79,6 +82,11 @@ test("validates audit CLI options and requests full node geometry", () => {
   const boundedQuery = buildOverpassQuery("WA", args.bbox);
   assert.doesNotMatch(boundedQuery, /ISO3166-2/);
   assert.match(boundedQuery, /\(48\.2,-122,49,-120\.5\)/);
+
+  const countryArgs = parseArgs(["--country=ca"]);
+  assert.equal(countryArgs.stateCode, null);
+  assert.equal(countryArgs.countryCode, "CA");
+  assert.match(buildCountryOverpassQuery("CA"), /ISO3166-1"="CA/);
 });
 
 test("parses named Overpass nodes and honors ele:ft", () => {

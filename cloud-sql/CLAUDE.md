@@ -189,7 +189,7 @@ npm run import:cai-huts
 ## Peak catalog coverage audit
 
 Use the read-only coverage auditor to compare the summit catalog with named
-OpenStreetMap `natural=peak` nodes for any US state. It matches by OSM ID, then
+OpenStreetMap `natural=peak` nodes for any US state or ISO country. It matches by OSM ID, then
 within 150 m, then by normalized identical name within 1 km. Unmatched peaks are
 ranked using aggregate ended-session path proximity at 30/100/250 m; reports do
 not include user or session IDs.
@@ -200,6 +200,9 @@ export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=peaks DB_USER=postgres DB_PASS=...
 
 # Human-readable report
 npm run audit:peak-coverage -- --state=WA
+
+# Country audit
+npm run audit:peak-coverage -- --country=CA
 
 # Machine-readable review queue; optionally restrict candidate elevation
 npm run audit:peak-coverage -- --state=WA --format=json --limit=200 --min-elevation=1000
@@ -216,6 +219,37 @@ candidates as the first review tier, but still validate coordinates, elevation,
 aliases, and nearby catalog rows before adding a migration. Directional peaks,
 generic numbered points, and nodes close to an existing destination are flagged
 for manual review rather than automatic import.
+
+Use the expansion runner for resumable jurisdiction passes. It is dry-run by
+default. Automatic additions require an elevation plus either topographic
+prominence greater than 300 ft or a conservative popularity signal (a Peaks
+session within 30 m, an OSM Wikipedia tag, or at least five Wikipedia
+sitelinks in Wikidata). Existing alias/subpeak/near-destination guards still
+apply. Safe normalized-name matches within 500 m or very-close spatial matches
+backfill OSM and Wikidata IDs; ambiguous matches remain in the report.
+
+```bash
+cd migrate
+
+# Review one state; cache the OSM response and retain the decision report
+npm run expand:peak-coverage -- --state=OR \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+
+# Apply a reviewed state or resume the complete US pass
+npm run expand:peak-coverage -- --state=OR --apply \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+npm run expand:peak-coverage -- --all-states --apply \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+
+# The same runner supports --country, --countries, and --all-countries.
+```
+
+Peakbagger ascent counts are a targeted manual popularity fallback. Do not
+bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
+documented in the `peaks-ascent-backfill` skill.
 
 ## Protected area imports
 
