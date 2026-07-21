@@ -209,3 +209,30 @@ test("buildEffortCurves produces monotonic per-station times from range start", 
   const last = curves.stations[curves.stations.length - 1];
   assert.ok(last.b_s > last.a_s);
 });
+
+test("buildEffortCurves continues through the return leg for full out-and-back pairs", () => {
+  const mk = (startMs: number, stepMs: number) => {
+    const outbound = Array.from({ length: 120 }, (_, i) => ({
+      time: startMs + i * stepMs,
+      lat: 0, lng: i * (25 / 111320), elevation: 1000 + i, speed: 1,
+    }));
+    const returning = outbound.slice(0, -1).reverse().map((point, i) => ({
+      ...point,
+      time: startMs + (outbound.length + i) * stepMs,
+    }));
+    return st2([...outbound, ...returning], 25);
+  };
+
+  const model = buildPairModel(mk(0, 30_000), mk(10_000_000, 40_000));
+  assert.ok(model);
+  assert.equal(model!.overlap.scope, "full");
+  assert.equal(model!.overlap.a.outAndBack, true);
+  assert.equal(model!.overlap.b.outAndBack, true);
+
+  const curves = buildEffortCurves(model!);
+  const last = curves.stations[curves.stations.length - 1];
+  assert.ok(last.m > model!.overlap.overlapM,
+    `return station ${last.m} should extend past outbound ${model!.overlap.overlapM}`);
+  assert.ok(last.a_s > curves.stations[Math.floor(curves.stations.length / 2)].a_s);
+  assert.ok(last.b_s > curves.stations[Math.floor(curves.stations.length / 2)].b_s);
+});
