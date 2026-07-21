@@ -137,6 +137,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check (no auth) |
+| POST | `/internal/sweep` | Stuck-session sweep; Cloud Scheduler job `peaks-api-sweep` every 2 min (OIDC-verified `peaks-sweeper@` SA, not Firebase auth) |
 | GET | `/api/destinations/:id` | Destination detail |
 | GET | `/api/destinations/nearby?lat=&lng=&radius=&limit=` | Nearby destinations |
 | GET | `/api/destinations/viewport?minLat=&maxLat=&minLng=&maxLng=` | Map viewport query |
