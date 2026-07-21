@@ -277,7 +277,9 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const normalizedPrefix = `${q}%`;
   const rawPrefix = `${raw}%`;
   const routeLimit = Math.min(input.limit, 10);
-  const routeSearchText = "COALESCE(NULLIF(lower(r.name), ''), '') || ' ' || COALESCE(route_dest_names.names, '')";
+  // Keep the concat parenthesized: the % token binds tighter than ||, so
+  // `a || b % $1` would concatenate a boolean into text (42804 under OR).
+  const routeSearchText = "(COALESCE(NULLIF(lower(r.name), ''), '') || ' ' || COALESCE(route_dest_names.names, ''))";
 
   const geoScore = hasGeo(input)
     ? " + EXP(-1.0 * ST_Distance(r.path, ST_MakePoint($5, $4)::geography) / 500000.0) * 0.10"
@@ -501,6 +503,23 @@ export async function runSearchQuery(
   }
 }
 
+// Secondary mixed-search buckets (routes, areas) degrade to an empty list on
+// failure instead of turning the whole /search/all response into a 500 — the
+// destinations bucket is the product-critical one and still hard-fails.
+async function runOptionalSearchRows(
+  res: Response,
+  query: SearchSqlQuery,
+  bucket: string,
+  pool: SearchDbPool = db
+): Promise<any[] | undefined> {
+  try {
+    return await runSearchRows(res, query, pool);
+  } catch (error) {
+    console.error(`Mixed search ${bucket} bucket failed`, error);
+    return [];
+  }
+}
+
 async function runSearchRows(
   res: Response,
   query: SearchSqlQuery,
@@ -609,9 +628,9 @@ router.get("/all", async (req: Request, res: Response) => {
 
     const destinations = await runSearchRows(res, queries.destinations);
     if (routeClose.isClosed() || !destinations) return;
-    const routes = await runSearchRows(res, queries.routes);
+    const routes = await runOptionalSearchRows(res, queries.routes, "routes");
     if (routeClose.isClosed() || !routes) return;
-    const areas = await runSearchRows(res, queries.areas);
+    const areas = await runOptionalSearchRows(res, queries.areas, "areas");
     if (routeClose.isClosed() || !areas) return;
 
     res.json({ destinations, routes, areas });

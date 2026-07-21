@@ -1,4 +1,5 @@
 import express from "express";
+import { OAuth2Client } from "google-auth-library";
 import { requireAuth } from "./auth";
 import destinations from "./routes/destinations";
 import routes from "./routes/routes";
@@ -21,6 +22,53 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+// Stuck-session sweep, invoked by Cloud Scheduler every 2 minutes with an
+// OIDC token. This replaced the in-process setInterval sweep: the service now
+// runs with CPU throttling (request-based billing), so background timers get
+// no CPU between requests — the scheduler request itself is the CPU window
+// the sweep runs in. Advisory-lock-guarded inside sweepStuckSessions, so
+// overlapping calls across instances are safe.
+const sweepAuth = new OAuth2Client();
+const SWEEP_AUDIENCE =
+  process.env.SWEEP_AUDIENCE || "https://peaks-api-qownl77soa-uc.a.run.app";
+const SWEEP_INVOKER =
+  process.env.SWEEP_INVOKER || "peaks-sweeper@donner-a8608.iam.gserviceaccount.com";
+let isSweeping = false;
+app.post("/internal/sweep", async (req, res) => {
+  const header = req.headers.authorization || "";
+  const idToken = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+  if (!idToken) {
+    res.status(401).json({ error: "missing token" });
+    return;
+  }
+  try {
+    const ticket = await sweepAuth.verifyIdToken({ idToken, audience: SWEEP_AUDIENCE });
+    const payload = ticket.getPayload();
+    if (payload?.email !== SWEEP_INVOKER || !payload?.email_verified) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+  } catch {
+    res.status(401).json({ error: "invalid token" });
+    return;
+  }
+
+  if (isSweeping) {
+    res.json({ status: "already_running" });
+    return;
+  }
+  isSweeping = true;
+  try {
+    await sweepStuckSessions(processingPool);
+    res.json({ status: "ok" });
+  } catch (err) {
+    console.error("[sweep] failed:", err);
+    res.status(500).json({ error: "sweep failed" });
+  } finally {
+    isSweeping = false;
+  }
+});
+
 // All API routes require Firebase Auth
 app.use("/api", requireAuth);
 
@@ -38,22 +86,4 @@ if (process.env.NODE_ENV !== "test") {
   app.listen(port, () => {
     console.log(`Peaks API listening on port ${port}`);
   });
-
-  // Background safety-net: finish any session left 'pending'/'failed'/stale by an
-  // inline run that hit the web pool's 30s budget. Advisory-lock-guarded inside
-  // sweepStuckSessions so only one instance sweeps at a time. Needs Cloud Run
-  // --no-cpu-throttling so the timer runs between requests (Task 5).
-  const sweepIntervalMs = Number(process.env.SWEEP_INTERVAL_MS) || 120_000;
-  let isSweeping = false;
-  setInterval(async () => {
-    if (isSweeping) return; // never overlap on the same instance
-    isSweeping = true;
-    try {
-      await sweepStuckSessions(processingPool);
-    } catch (err) {
-      console.error("[sweep] tick failed:", err);
-    } finally {
-      isSweeping = false;
-    }
-  }, sweepIntervalMs);
 }
