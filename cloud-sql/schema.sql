@@ -164,6 +164,16 @@ CREATE TABLE areas (
     UNIQUE (source, source_id)
 );
 
+-- Small indexed polygon pieces for exact path intersection checks. Large area
+-- polygons can take more than the session processing limit when read as one
+-- geometry; ST_Subdivide keeps the same boundary and makes each check bounded.
+CREATE TABLE area_boundary_parts (
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL,
+    boundary_part   geometry(Geometry, 4326) NOT NULL,
+    PRIMARY KEY (area_id, ordinal)
+);
+
 -- ---------------------------------------------------------------------------
 -- destination_areas
 -- Join table linking destinations, primarily summits, to containing official
@@ -480,6 +490,21 @@ CREATE TABLE session_destinations (
 );
 
 -- ---------------------------------------------------------------------------
+-- session_areas
+-- Protected areas whose boundary the recorded GPS path passes through.
+-- Built from tracking_sessions.path during processSession. A session can cross
+-- several overlapping parks, forests, and wilderness areas.
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_areas (
+    session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    relation        TEXT NOT NULL DEFAULT 'intersects',
+    source          TEXT NOT NULL DEFAULT 'postgis',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, area_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- session_routes
 -- Which routes were followed during a session.
 -- ---------------------------------------------------------------------------
@@ -594,6 +619,7 @@ CREATE INDEX idx_destinations_location      ON destinations USING GIST (location
 CREATE INDEX idx_destinations_boundary      ON destinations USING GIST (boundary) WHERE boundary IS NOT NULL;
 CREATE INDEX idx_areas_boundary             ON areas USING GIST (boundary);
 CREATE INDEX idx_areas_centroid             ON areas USING GIST (centroid);
+CREATE INDEX idx_area_boundary_parts_geom   ON area_boundary_parts USING GIST (boundary_part);
 CREATE INDEX idx_routes_path                ON routes       USING GIST (path);
 CREATE INDEX idx_tracking_points_location   ON tracking_points USING GIST (location);
 CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (location);
@@ -647,6 +673,7 @@ CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, serv
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
 CREATE INDEX idx_destination_areas_area     ON destination_areas (area_id);
 CREATE INDEX route_areas_area_id_idx        ON route_areas (area_id);
+CREATE INDEX session_areas_area_id_idx      ON session_areas (area_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
 CREATE INDEX idx_session_destinations_dest  ON session_destinations (destination_id);
 CREATE INDEX idx_session_routes_route       ON session_routes (route_id);
@@ -680,6 +707,24 @@ CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             F
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_session_attempt_groups_updated BEFORE UPDATE ON session_attempt_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE OR REPLACE FUNCTION refresh_area_boundary_parts()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM area_boundary_parts WHERE area_id = NEW.id;
+    INSERT INTO area_boundary_parts (area_id, ordinal, boundary_part)
+    SELECT NEW.id,
+           (row_number() OVER () - 1)::int,
+           parts.geom
+    FROM ST_Dump(NEW.boundary) AS dumped
+    CROSS JOIN LATERAL ST_Subdivide(dumped.geom, 8192) AS parts(geom);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_areas_refresh_boundary_parts
+AFTER INSERT OR UPDATE OF boundary ON areas
+FOR EACH ROW EXECUTE FUNCTION refresh_area_boundary_parts();
 
 CREATE OR REPLACE FUNCTION touch_related_tracking_session()
 RETURNS TRIGGER AS $$
