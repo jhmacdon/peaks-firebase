@@ -186,6 +186,34 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Peak catalog coverage audit
+
+Use the read-only coverage auditor to compare the summit catalog with named
+OpenStreetMap `natural=peak` nodes for any US state. It matches by OSM ID, then
+within 150 m, then by normalized identical name within 1 km. Unmatched peaks are
+ranked using aggregate ended-session path proximity at 30/100/250 m; reports do
+not include user or session IDs.
+
+```bash
+cd migrate
+export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=peaks DB_USER=postgres DB_PASS=...
+
+# Human-readable report
+npm run audit:peak-coverage -- --state=WA
+
+# Machine-readable review queue; optionally restrict candidate elevation
+npm run audit:peak-coverage -- --state=WA --format=json --limit=200 --min-elevation=1000
+
+# Re-run from a saved Overpass JSON response instead of making a network request
+npm run audit:peak-coverage -- --state=WA --input=/path/wa-named-peaks.json
+```
+
+The auditor never inserts or updates destinations. Treat `track_proven`
+candidates as the first review tier, but still validate coordinates, elevation,
+aliases, and nearby catalog rows before adding a migration. Directional peaks,
+generic numbered points, and nodes close to an existing destination are flagged
+for manual review rather than automatic import.
+
 ## Protected area imports
 
 Protected-area and land-management context is imported from USGS PAD-US into `areas`, then linked to summit destinations through `destination_areas`.
