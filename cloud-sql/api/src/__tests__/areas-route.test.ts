@@ -9,6 +9,7 @@ test("area detail query returns a boundary and user-scoped sessions", () => {
   assert.match(query.text, /destination_count/);
   assert.match(query.text, /route_count/);
   assert.match(query.text, /session_count/);
+  assert.match(query.text, /description_source_url/);
   assert.match(query.text, /json_agg\(destination_obj/);
   assert.match(query.text, /json_agg\(route_obj/);
   assert.match(query.text, /ST_SimplifyPreserveTopology/);
@@ -23,6 +24,9 @@ test("mapAreaDetailRow defaults related arrays and numeric counts", () => {
     name: "Mount Rainier National Park",
     kind: "national_park",
     manager: "NPS",
+    description_source_name: "Wikipedia",
+    description_source_url: "https://en.wikipedia.org/wiki/Mount_Rainier_National_Park",
+    description_source_license: "CC BY-SA 4.0",
     state_codes: ["WA"],
     destination_count: "12",
     route_count: null,
@@ -40,6 +44,8 @@ test("mapAreaDetailRow defaults related arrays and numeric counts", () => {
   assert.deepEqual(mapped.sessions, []);
   assert.equal(
     mapped.description,
-    "The National Park Service manages Mount Rainier National Park, a national park in Washington."
+    "Mount Rainier National Park protects a nationally important landscape in Washington."
   );
+  assert.equal(mapped.description_source_name, "Wikipedia");
+  assert.equal(mapped.description_source_license, "CC BY-SA 4.0");
 });

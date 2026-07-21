@@ -1,8 +1,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildAreaDescription, formatEnglishList } from "../area-description";
+import {
+  buildAreaDescription,
+  formatEnglishList,
+  selectSourceDescription,
+} from "../area-description";
 
-test("area description uses clear agency, place, and peak facts", () => {
+test("area fallback describes the land instead of its manager", () => {
   assert.equal(
     buildAreaDescription({
       name: "Mount Rainier National Park",
@@ -11,7 +15,7 @@ test("area description uses clear agency, place, and peak facts", () => {
       stateCodes: ["WA"],
       peakNames: ["Mount Rainier", "Liberty Cap", "Little Tahoma Peak"],
     }),
-    "The National Park Service manages Mount Rainier National Park, a national park in Washington. Peaks tracks Mount Rainier, Liberty Cap, and Little Tahoma Peak here."
+    "Mount Rainier National Park protects a nationally important landscape in Washington. Notable high points include Mount Rainier, Liberty Cap, and Little Tahoma Peak."
   );
 });
 
@@ -22,11 +26,11 @@ test("area description stays useful when no manager or peaks are known", () => {
       kind: "wilderness",
       stateCodes: ["OR", "WA", "OR"],
     }),
-    "Test Wilderness is a wilderness area in Oregon and Washington."
+    "Test Wilderness preserves undeveloped wild country in Oregon and Washington."
   );
 });
 
-test("area description uses a plural verb for shared management", () => {
+test("area fallback handles conservation land without manager copy", () => {
   assert.equal(
     buildAreaDescription({
       name: "Example Reserve",
@@ -34,7 +38,26 @@ test("area description uses a plural verb for shared management", () => {
       manager: "JNT",
       stateCodes: ["CA"],
     }),
-    "Several agencies manage Example Reserve, a national conservation area in California."
+    "Example Reserve protects public land valued for its wildlife, scenery, and history in California."
+  );
+});
+
+test("source description keeps the opening fact and best landscape sentence", () => {
+  const extract = "Mount Rainier National Park ( ray-NEER) is a national park in Washington. "
+    + "The park was established in 1899 by Congress. "
+    + "Mount Rainier is surrounded by valleys, waterfalls, alpine meadows, and old-growth forest. "
+    + "It had more than one million visitors in 2024.";
+
+  assert.equal(
+    selectSourceDescription(extract),
+    "Mount Rainier National Park is a national park in Washington. Mount Rainier is surrounded by valleys, waterfalls, alpine meadows, and old-growth forest."
+  );
+});
+
+test("source description drops an opening abbreviation", () => {
+  assert.equal(
+    selectSourceDescription("Boundary Waters Canoe Area Wilderness (BWCAW or BWCA) is a wilderness in Minnesota."),
+    "Boundary Waters Canoe Area Wilderness is a wilderness in Minnesota."
   );
 });
 

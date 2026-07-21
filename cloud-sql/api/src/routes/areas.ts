@@ -28,7 +28,9 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
              ORDER BY start_time DESC, id
              LIMIT 100
            )
-     SELECT a.id, a.name, a.kind, a.description, a.designation, a.manager, a.owner,
+     SELECT a.id, a.name, a.kind, a.description,
+            a.description_source_name, a.description_source_url, a.description_source_license,
+            a.designation, a.manager, a.owner,
             a.country_code, a.state_codes,
             ST_Y(a.centroid) AS lat,
             ST_X(a.centroid) AS lng,
