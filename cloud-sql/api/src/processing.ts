@@ -100,6 +100,59 @@ export async function linkReachedSummitsToAreas(
 }
 
 /**
+ * Build the bounded PostGIS query that tags one or more sessions from their
+ * saved paths. The geometry bbox check lets the GiST parts index remove distant
+ * polygons before ST_Intersects checks the small candidate set.
+ *
+ * linkSessionsToAreas clears existing PostGIS tags first, so reprocessing a
+ * changed path removes areas it no longer crosses. Non-PostGIS rows remain.
+ */
+export function buildLinkSessionsToAreasSql(
+  sessionIds: string[]
+): { text: string; values: unknown[] } {
+  return {
+    text: `WITH session_paths AS MATERIALIZED (
+       SELECT id, ST_Force2D(path::geometry) AS geom
+       FROM tracking_sessions
+       WHERE id = ANY($1::text[]) AND path IS NOT NULL
+     )
+     INSERT INTO session_areas (session_id, area_id, relation, source)
+     SELECT s.id, a.id, 'intersects', 'postgis'
+     FROM session_paths s
+     JOIN LATERAL (
+       SELECT DISTINCT parts.area_id AS id
+       FROM area_boundary_parts parts
+       WHERE parts.boundary_part && s.geom
+         AND ST_Intersects(parts.boundary_part, s.geom)
+     ) a ON true
+     ON CONFLICT (session_id, area_id) DO NOTHING`,
+    values: [sessionIds],
+  };
+}
+
+export async function linkSessionsToAreas(
+  q: Queryable,
+  sessionIds: string[]
+): Promise<number> {
+  if (sessionIds.length === 0) return 0;
+  await q.query(
+    `DELETE FROM session_areas
+     WHERE session_id = ANY($1::text[]) AND source = 'postgis'`,
+    [sessionIds]
+  );
+  const sql = buildLinkSessionsToAreasSql(sessionIds);
+  const result = await q.query(sql.text, sql.values);
+  return result.rowCount ?? 0;
+}
+
+export async function linkSessionToAreas(
+  q: Queryable,
+  sessionId: string
+): Promise<number> {
+  return linkSessionsToAreas(q, [sessionId]);
+}
+
+/**
  * The widest radius destination_match_radius() can return (waterfall /
  * viewpoint = 200 m). A constant-distance ST_DWithin with THIS value is
  * GIST-index-usable, so the planner prunes the global `destinations` table down
@@ -529,17 +582,22 @@ export async function processSession(
     // Step 3: Route matching
     const routesMatched = await matchRoutes(client, sessionId);
 
-    // Step 4: Update destination averages (popular times)
+    // Step 4: Tag the saved path with each protected area it crosses. This is
+    // part of the same transaction as path materialization, so a completed
+    // session always exposes tags for its current path.
+    const areasLinked = await linkSessionToAreas(client, sessionId);
+
+    // Step 5: Update destination averages (popular times)
     await updateDestinationAverages(client, sessionId);
 
-    // Step 5: Previous attempt grouping
+    // Step 6: Previous attempt grouping
     const { attempt_group_id, attempt_group_session_count } = await matchPreviousAttempts(
       client,
       sessionId,
       userId
     );
 
-    // Step 6: Mark as processed
+    // Step 7: Mark as processed
     await client.query(
       `UPDATE tracking_sessions
        SET processed_at = NOW(),
@@ -551,20 +609,19 @@ export async function processSession(
 
     await client.query("COMMIT");
 
-    // Step 7: Check reached summits against protected areas and record the
+    // Step 8: Check reached summits against protected areas and record the
     // containment links. Runs after COMMIT on the pool (not the just-released
     // client) and is best-effort: destination_areas rows are global and
     // idempotent (ON CONFLICT DO NOTHING), so a failure here must never fail an
     // otherwise-successful recording ingestion.
-    let areasLinked = 0;
     try {
-      areasLinked = await linkReachedSummitsToAreas(pool, sessionId);
+      await linkReachedSummitsToAreas(pool, sessionId);
     } catch (err) {
       console.error(`[processSession] area linking failed for session ${sessionId}:`, err);
     }
 
-    // Step 8: pairwise session comparisons ("Your Efforts"). Post-commit and
-    // best-effort like Step 7: comparison rows are enrichment, and a failure
+    // Step 9: pairwise session comparisons ("Your Efforts"). Post-commit and
+    // best-effort like Step 8: comparison rows are enrichment, and a failure
     // here must never fail an otherwise-successful ingestion. A missed run
     // self-heals on the next reprocess or via scripts/backfill-comparisons.ts.
     try {

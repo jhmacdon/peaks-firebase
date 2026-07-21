@@ -1,6 +1,50 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildLinkReachedSummitsToAreasSql } from "../processing";
+import {
+  buildLinkReachedSummitsToAreasSql,
+  buildLinkSessionsToAreasSql,
+  linkSessionsToAreas,
+} from "../processing";
+
+test("session-area SQL tags the saved path, not reached destinations", () => {
+  const q = buildLinkSessionsToAreasSql(["sess-1"]);
+
+  assert.match(q.text, /INSERT INTO session_areas/);
+  assert.match(q.text, /FROM tracking_sessions/);
+  assert.match(q.text, /ST_Force2D\(path::geometry\)/);
+  assert.match(q.text, /FROM area_boundary_parts parts/);
+  assert.match(q.text, /parts\.boundary_part && s\.geom/);
+  assert.match(q.text, /ST_Intersects\(parts\.boundary_part, s\.geom\)/);
+  assert.doesNotMatch(q.text, /session_destinations/);
+  assert.deepEqual(q.values, [["sess-1"]]);
+});
+
+test("session-area SQL handles a bounded batch and keeps existing manual tags", () => {
+  const q = buildLinkSessionsToAreasSql(["sess-1", "sess-2"]);
+
+  assert.match(q.text, /id = ANY\(\$1::text\[\]\)/);
+  assert.match(q.text, /ON CONFLICT \(session_id, area_id\) DO NOTHING/);
+  assert.deepEqual(q.values, [["sess-1", "sess-2"]]);
+});
+
+test("session-area linking clears stale PostGIS rows before inserting", async () => {
+  const calls: Array<{ text: string; values?: unknown[] }> = [];
+  const q = {
+    async query(text: string, values?: unknown[]) {
+      calls.push({ text, values });
+      return { rowCount: calls.length === 2 ? 3 : 1 };
+    },
+  };
+
+  const count = await linkSessionsToAreas(q, ["sess-1"]);
+
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].text, /DELETE FROM session_areas/);
+  assert.match(calls[0].text, /source = 'postgis'/);
+  assert.match(calls[1].text, /INSERT INTO session_areas/);
+  assert.deepEqual(calls[0].values, [["sess-1"]]);
+  assert.equal(count, 3);
+});
 
 test("link-reached-summits SQL scopes to the session's reached summits", () => {
   const q = buildLinkReachedSummitsToAreasSql("sess-1");

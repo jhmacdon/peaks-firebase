@@ -82,6 +82,39 @@ const SESSION_ROUTES_SQL = `COALESCE(
   '[]'::json
 )`;
 
+/** Build the owner/public-scoped area lookup for a saved session path. */
+export function buildSessionAreasQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT s.id, COALESCE(area_rows.areas, '[]'::json) AS areas
+     FROM tracking_sessions s
+     LEFT JOIN LATERAL (
+       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
+       FROM (
+         SELECT DISTINCT ON (a.kind, a.name)
+                a.kind, a.name,
+                json_build_object(
+                  'id', a.id,
+                  'name', a.name,
+                  'kind', a.kind,
+                  'designation', a.designation,
+                  'manager', a.manager,
+                  'relation', sa.relation,
+                  'source', sa.source
+                ) AS area_obj
+         FROM session_areas sa
+         JOIN areas a ON a.id = sa.area_id
+         WHERE sa.session_id = s.id
+         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+       ) deduped
+     ) area_rows ON true
+     WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
+    values: [id, uid],
+  };
+}
+
 function parseLimit(raw: unknown, fallback = 200, max = 1000): number {
   const parsed = typeof raw === "string" ? parseInt(raw, 10) : NaN;
   if (Number.isNaN(parsed) || parsed <= 0) {
@@ -529,6 +562,18 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
+});
+
+// GET /api/sessions/:id/areas — areas crossed by the saved GPS path
+router.get("/:id/areas", async (req, res: Response) => {
+  const uid = getUid(req);
+  const query = buildSessionAreasQuery(req.params.id, uid);
+  const result = await db.query(query.text, query.values);
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json(result.rows[0].areas);
 });
 
 // GET /api/sessions/:id/points — GPS breadcrumbs
