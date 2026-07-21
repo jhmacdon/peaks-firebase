@@ -20,7 +20,12 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
                ON s.user_id = $2
               AND s.path IS NOT NULL
               AND s.path && a.boundary_geography
-              AND ST_Intersects(s.path, a.boundary_geography)
+              -- Planar intersects on purpose: geography ST_Intersects against a
+              -- large multipolygon (Olympic NP: 274 polygons, ~22k vertices) ran
+              -- for minutes and blew the statement timeout; the geometry form of
+              -- the same check runs in ~100ms and membership is identical at
+              -- trail scale. The geography && above still uses the path index.
+              AND ST_Intersects(s.path::geometry, a.boundary)
            ),
            ranked_sessions AS MATERIALIZED (
              SELECT *
@@ -36,16 +41,22 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
             ST_X(a.centroid) AS lng,
             a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
             ST_AsGeoJSON(
-              ST_SimplifyPreserveTopology(
-                a.boundary,
-                GREATEST(
-                  0.00005,
-                  LEAST(
-                    0.02,
-                    GREATEST(
-                      a.bbox_max_lat - a.bbox_min_lat,
-                      a.bbox_max_lng - a.bbox_min_lng
-                    ) / 1500.0
+              -- Prefer the materialized display boundary (see migration
+              -- 20260721_area_boundary_display.sql); fall back to a live
+              -- simplify for rows imported before their backfill ran.
+              COALESCE(
+                a.boundary_display,
+                ST_SimplifyPreserveTopology(
+                  a.boundary,
+                  GREATEST(
+                    0.00005,
+                    LEAST(
+                      0.02,
+                      GREATEST(
+                        a.bbox_max_lat - a.bbox_min_lat,
+                        a.bbox_max_lng - a.bbox_min_lng
+                      ) / 1500.0
+                    )
                   )
                 )
               ),
