@@ -37,6 +37,21 @@ cd web && npm run build && npm run lint
 
 **Cloud Run secrets/env vars**: All required env vars and secrets for the Cloud Run API are pinned in `deploy.yml`. **NEVER use `gcloud run services update --set-secrets` or `--set-env-vars`** — these flags REPLACE all existing values, silently dropping any not listed. Instead, update the `env_vars` and `secrets` fields in `deploy.yml` and redeploy via CI. The post-deploy verification step will catch DB connectivity failures.
 
+## Infrastructure cost discipline
+
+Baseline: the entire backend should run at **~$10–15/month** (Cloud SQL `db-f1-micro` ~$10 + request-billed Cloud Run + free-tier scheduler). Any design or config change that raises that floor must state an explicit **$/month estimate** in the PR or commit message, and the cheaper alternative must be shown to lose real user-visible value before being rejected. When two designs deliver the same user value, ship the cheaper one — always.
+
+**Cloud Run rules (peaks-api and every service):**
+- Stay scale-to-zero and CPU-throttled: `--min-instances=0 --cpu-throttling` (request-based billing). These are pinned in `deploy.yml`.
+- **Never** set `--no-cpu-throttling` or `min-instances>0` without pricing it first. The math: one always-allocated vCPU ≈ **$47/mo**, 512Mi always-on ≈ $2.6/mo — an idle min instance with always-on CPU costs **~$50/mo before serving a single request**. This exact mistake shipped in July 2026: an in-process sweep `setInterval` "needed" background CPU, and the $10/mo forecast silently became $70/mo.
+- Background/periodic work must run **inside a request**, never on an in-process timer. Cloud Run timers either silently starve (throttled CPU between requests) or force always-on CPU (expensive) — both are wrong. The pattern that replaced the timer: Cloud Scheduler job (`peaks-api-sweep`, free tier covers 3 jobs) → OIDC-authenticated `POST /internal/sweep`; the scheduler request itself provides the CPU window.
+- Prefer free-tier managed primitives (Cloud Scheduler, Cloud Tasks, Pub/Sub at this scale) over resident compute; prefer piggybacking work on existing request handlers over new infrastructure.
+- Fire-and-forget async work after `res.json()` (e.g. Slack notifies) is best-effort under throttling — anything that must reliably complete belongs in the request path or the sweep.
+- Cost-relevant flags live ONLY in `deploy.yml` — a manual `gcloud run services update` will be overwritten by the next CI deploy. Drift check: `gcloud run services describe peaks-api --region us-central1 | grep -E "minScale|cpu-throttling"`.
+- The ~35 Firebase-function services scale to zero by default — keep it that way; never give one min instances to "warm it up" without pricing it.
+
+**Cloud SQL:** `db-f1-micro` is the floor (~$10/mo). A tier bump is a recurring cost — before upgrading for performance, first check whether the query/index/streaming fix is the real answer (it was for the 2026-06 OOM: streaming + 512Mi beat a bigger box).
+
 ## Adding Destinations
 When looking up coordinates for a new destination (shelter, summit, trailhead, etc.):
 - **Primary source: OpenStreetMap** — use the OSM API (`https://nominatim.openstreetmap.org/search?q=<name>&format=json`) or OSM-derived sources (Gaia GPS, Mapbox). OSM is crowd-sourced and GPS-surveyed, giving accurate placement of physical structures.

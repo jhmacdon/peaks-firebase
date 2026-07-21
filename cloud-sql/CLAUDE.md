@@ -125,6 +125,12 @@ npm run build
 gcloud run deploy peaks-api --source=. --region=us-central1
 ```
 
+Cost-relevant flags (`--min-instances`, `--cpu-throttling`, memory/CPU) are pinned in
+`.github/workflows/deploy.yml` and governed by the **"Infrastructure cost discipline"**
+section of the repo-root `CLAUDE.md` — read it before changing any of them, and never
+add background work that relies on an in-process timer (use the Cloud Scheduler →
+`/internal/sweep` pattern instead).
+
 ### Auth pattern
 All `/api/*` routes go through `requireAuth` middleware. Clients send `Authorization: Bearer <firebase-id-token>`. The middleware calls `admin.auth().verifyIdToken()` and sets `req.uid`.
 
