@@ -29,6 +29,7 @@ export function buildRouteDetailQuery(id: string): { text: string; values: unkno
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
+                  'parent_id', a.parent_area_id,
                   'relation', ra.relation,
                   'source', ra.source
                 ) AS area_obj

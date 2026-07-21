@@ -9,6 +9,9 @@ test("session areas come from stored path tags and collapse area fragments", () 
   assert.match(query.text, /JOIN areas a ON a\.id = sa\.area_id/);
   assert.match(query.text, /DISTINCT ON \(a\.kind, a\.name\)/);
   assert.match(query.text, /'relation', sa\.relation/);
+  // Sub-areas (e.g. an NPS wilderness inside a national park) carry their
+  // parent so clients can demote them in favor of the park.
+  assert.match(query.text, /'parent_id', a\.parent_area_id/);
   assert.doesNotMatch(query.text, /a\.boundary/);
   assert.deepEqual(query.values, ["session-1", "user-1"]);
 });

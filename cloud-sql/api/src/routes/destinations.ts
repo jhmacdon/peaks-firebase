@@ -280,6 +280,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
+                  'parent_id', a.parent_area_id,
                   'relation', da.relation,
                   'source', da.source
                 ) AS area_obj
@@ -337,6 +338,7 @@ router.get("/:id/routes", async (req, res: Response) => {
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
+                  'parent_id', a.parent_area_id,
                   'relation', ra.relation,
                   'source', ra.source
                 ) AS area_obj
