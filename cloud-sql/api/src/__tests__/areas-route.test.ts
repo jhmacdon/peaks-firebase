@@ -12,9 +12,14 @@ test("area detail query returns a boundary and user-scoped sessions", () => {
   assert.match(query.text, /description_source_url/);
   assert.match(query.text, /json_agg\(destination_obj/);
   assert.match(query.text, /json_agg\(route_obj/);
-  assert.match(query.text, /ST_SimplifyPreserveTopology/);
+  // Boundary comes from the materialized display copy, with a live simplify
+  // fallback for rows whose backfill hasn't run.
+  assert.match(query.text, /COALESCE\(\s*a\.boundary_display,\s*ST_SimplifyPreserveTopology/);
   assert.match(query.text, /s\.user_id = \$2/);
-  assert.match(query.text, /ST_Intersects\(s\.path, a\.boundary_geography\)/);
+  // Session membership must use planar intersects: the geography form ran for
+  // minutes on large coastal parks (Olympic NP) and blew the statement timeout.
+  assert.match(query.text, /ST_Intersects\(s\.path::geometry, a\.boundary\)/);
+  assert.doesNotMatch(query.text, /ST_Intersects\(s\.path, a\.boundary_geography\)/);
   assert.deepEqual(query.values, ["mora", "user-1"]);
 });
 
