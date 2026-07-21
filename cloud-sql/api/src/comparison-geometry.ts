@@ -141,26 +141,49 @@ export function collapseOutAndBack(samples: SamplePoint[], params: CorridorParam
   if (!closed) {
     return { pts: samples, lengthM: end.cumM, isOutAndBack: false };
   }
-  let apexIdx = 0;
-  let apexD = -1;
+  // Candidate turnarounds. Max radial distance is right for straight spokes,
+  // but a trail that hooks (Crystal Peak: up the valley past the summit's
+  // bearing, then back to it) puts the farthest-from-start sample
+  // mid-outbound, not at the turnaround — and splitting there strands the
+  // real upper half in the "return" slice, failing the overlap gate. The
+  // distance midpoint and the highest sample ARE the turnaround on exactly
+  // those tracks. Score every candidate by its return-retraces-outbound
+  // fraction and keep the best; OUT_AND_BACK_OVERLAP_FRAC stays the sole
+  // arbiter of whether the track collapses at all.
+  let radIdx = 0;
+  let radD = -1;
+  let midIdx = 0;
+  let midD = Infinity;
+  let elevIdx = -1;
   for (let i = 0; i < samples.length; i++) {
     const d = haversineM(start.lat, start.lng, samples[i].lat, samples[i].lng);
-    if (d > apexD) {
-      apexD = d;
-      apexIdx = i;
+    if (d > radD) {
+      radD = d;
+      radIdx = i;
     }
+    const dm = Math.abs(samples[i].cumM - end.cumM / 2);
+    if (dm < midD) {
+      midD = dm;
+      midIdx = i;
+    }
+    const e = samples[i].elevM;
+    if (e !== null && (elevIdx === -1 || e > (samples[elevIdx].elevM as number))) elevIdx = i;
   }
-  const outbound = samples.slice(0, apexIdx + 1);
-  const ret = samples.slice(apexIdx + 1);
-  if (outbound.length < 2 || ret.length < 2) {
-    return { pts: samples, lengthM: end.cumM, isOutAndBack: false };
+  let best: { frac: number; outbound: SamplePoint[] } | null = null;
+  for (const apexIdx of new Set([radIdx, midIdx, elevIdx])) {
+    if (apexIdx < 1 || apexIdx > samples.length - 3) continue; // need ≥2 samples on each side
+    const outbound = samples.slice(0, apexIdx + 1);
+    const ret = samples.slice(apexIdx + 1);
+    const idx = new SpatialIndex(outbound, params.CORRIDOR_OVERLAP_RADIUS_M);
+    let overlapping = 0;
+    for (const p of ret) {
+      if (idx.near(p.lat, p.lng, params.CORRIDOR_OVERLAP_RADIUS_M)) overlapping++;
+    }
+    const frac = overlapping / ret.length;
+    if (!best || frac > best.frac) best = { frac, outbound };
   }
-  const idx = new SpatialIndex(outbound, params.CORRIDOR_OVERLAP_RADIUS_M);
-  let overlapping = 0;
-  for (const p of ret) {
-    if (idx.near(p.lat, p.lng, params.CORRIDOR_OVERLAP_RADIUS_M)) overlapping++;
-  }
-  if (overlapping / ret.length >= params.OUT_AND_BACK_OVERLAP_FRAC) {
+  if (best && best.frac >= params.OUT_AND_BACK_OVERLAP_FRAC) {
+    const outbound = best.outbound;
     return { pts: outbound, lengthM: outbound[outbound.length - 1].cumM, isOutAndBack: true };
   }
   return { pts: samples, lengthM: end.cumM, isOutAndBack: false };
