@@ -38,6 +38,7 @@ app.post("/internal/sweep", async (req, res) => {
   const header = req.headers.authorization || "";
   const idToken = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
   if (!idToken) {
+    console.warn("[sweep] rejected: no bearer token (auth header present:", header.length > 0, ")");
     res.status(401).json({ error: "missing token" });
     return;
   }
@@ -45,10 +46,12 @@ app.post("/internal/sweep", async (req, res) => {
     const ticket = await sweepAuth.verifyIdToken({ idToken, audience: SWEEP_AUDIENCE });
     const payload = ticket.getPayload();
     if (payload?.email !== SWEEP_INVOKER || !payload?.email_verified) {
+      console.warn("[sweep] rejected: wrong invoker", payload?.email);
       res.status(403).json({ error: "forbidden" });
       return;
     }
-  } catch {
+  } catch (err) {
+    console.warn("[sweep] rejected: token verification failed:", (err as Error).message);
     res.status(401).json({ error: "invalid token" });
     return;
   }
