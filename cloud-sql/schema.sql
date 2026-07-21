@@ -135,6 +135,7 @@ CREATE TABLE areas (
     name            TEXT NOT NULL,
     search_name     TEXT NOT NULL,
     kind            area_kind NOT NULL,
+    description     TEXT,
     designation     TEXT,
     manager         TEXT,
     owner           TEXT,
