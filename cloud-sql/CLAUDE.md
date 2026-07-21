@@ -204,6 +204,9 @@ npm run audit:peak-coverage -- --state=WA
 # Machine-readable review queue; optionally restrict candidate elevation
 npm run audit:peak-coverage -- --state=WA --format=json --limit=200 --min-elevation=1000
 
+# Limit the live Overpass reference set to a region (minLng,minLat,maxLng,maxLat)
+npm run audit:peak-coverage -- --state=WA --bbox=-122,48.2,-120.5,49 --min-elevation=1000
+
 # Re-run from a saved Overpass JSON response instead of making a network request
 npm run audit:peak-coverage -- --state=WA --input=/path/wa-named-peaks.json
 ```

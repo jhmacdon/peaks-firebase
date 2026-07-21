@@ -3,6 +3,7 @@
  *
  * Examples:
  *   npm run audit:peak-coverage -- --state=WA
+ *   npm run audit:peak-coverage -- --state=WA --bbox=-122,48.2,-120.5,49
  *   npm run audit:peak-coverage -- --state=WA --format=json --limit=200
  *   npm run audit:peak-coverage -- --state=WA --input=/tmp/wa-peaks-overpass.json
  *
@@ -27,8 +28,16 @@ import {
 
 type OutputFormat = "summary" | "json";
 
+export interface BoundingBox {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
 interface AuditArgs {
   stateCode: string;
+  bbox: BoundingBox | null;
   input: string | null;
   format: OutputFormat;
   limit: number;
@@ -95,9 +104,26 @@ export function parseArgs(argv = process.argv.slice(2)): AuditArgs {
     if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--${key} must be a non-negative number`);
     return parsed;
   };
+  const bboxValue = value("bbox");
+  let bbox: BoundingBox | null = null;
+  if (bboxValue != null) {
+    const coordinates = bboxValue.split(",").map(Number);
+    if (coordinates.length !== 4 || coordinates.some((coordinate) => !Number.isFinite(coordinate))) {
+      throw new Error("--bbox must be minLng,minLat,maxLng,maxLat");
+    }
+    const [minLng, minLat, maxLng, maxLat] = coordinates;
+    if (
+      minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90 ||
+      minLng >= maxLng || minLat >= maxLat
+    ) {
+      throw new Error("--bbox must contain ordered longitude/latitude bounds in valid ranges");
+    }
+    bbox = { minLng, minLat, maxLng, maxLat };
+  }
 
   return {
     stateCode,
+    bbox,
     input: value("input") ?? null,
     format,
     limit: positiveInteger("limit", 50),
@@ -106,25 +132,36 @@ export function parseArgs(argv = process.argv.slice(2)): AuditArgs {
   };
 }
 
-export function buildOverpassQuery(stateCode: string): string {
+export function buildOverpassQuery(stateCode: string, bbox: BoundingBox | null = null): string {
+  if (bbox) {
+    return `[out:json][timeout:180];
+node["natural"="peak"]["name"](${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
+out body;`;
+  }
   return `[out:json][timeout:180];
 area["ISO3166-2"="US-${stateCode}"]["boundary"="administrative"]->.region;
 node(area.region)["natural"="peak"]["name"];
 out body;`;
 }
 
-async function fetchOverpassState(stateCode: string): Promise<OverpassResponse> {
+async function fetchOverpassState(
+  stateCode: string,
+  bbox: BoundingBox | null
+): Promise<OverpassResponse> {
   const configured = process.env.OVERPASS_ENDPOINT?.trim();
   const endpoints = configured
     ? [configured, ...DEFAULT_OVERPASS_ENDPOINTS.filter((endpoint) => endpoint !== configured)]
     : DEFAULT_OVERPASS_ENDPOINTS;
-  const query = buildOverpassQuery(stateCode);
+  const query = buildOverpassQuery(stateCode, bbox);
   let lastError: unknown = null;
 
   for (const endpoint of endpoints) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        console.error(`[peak-coverage] Fetching US-${stateCode} peaks from ${endpoint} (attempt ${attempt + 1})`);
+        const region = bbox
+          ? `bbox ${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`
+          : `US-${stateCode}`;
+        console.error(`[peak-coverage] Fetching ${region} peaks from ${endpoint} (attempt ${attempt + 1})`);
         // Bound a stuck endpoint so the fallback list eventually advances.
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 195_000);
@@ -158,7 +195,7 @@ async function fetchOverpassState(stateCode: string): Promise<OverpassResponse> 
 }
 
 async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {
-  if (!args.input) return fetchOverpassState(args.stateCode);
+  if (!args.input) return fetchOverpassState(args.stateCode, args.bbox);
   const raw = await fs.readFile(args.input, "utf8");
   const parsed = JSON.parse(raw) as Partial<OverpassResponse>;
   if (!Array.isArray(parsed.elements)) {
@@ -167,13 +204,21 @@ async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {
   return { elements: parsed.elements as OverpassElement[] };
 }
 
-export function parseReferencePeaks(data: OverpassResponse, stateCode: string): ReferencePeak[] {
+export function parseReferencePeaks(
+  data: OverpassResponse,
+  stateCode: string,
+  bbox: BoundingBox | null = null
+): ReferencePeak[] {
   const peaks: ReferencePeak[] = [];
   const bareFeetThreshold = stateCode === "AK" ? null : 5_000;
   for (const element of data.elements) {
     const tags = element.tags ?? {};
     const name = tags.name?.trim();
     if (!name || element.lat == null || element.lon == null) continue;
+    if (bbox && (
+      element.lon < bbox.minLng || element.lon > bbox.maxLng ||
+      element.lat < bbox.minLat || element.lat > bbox.maxLat
+    )) continue;
     const elevationM = tags["ele:ft"]
       ? parseElevationMeters(`${tags["ele:ft"]} ft`)
       : parseElevationMeters(tags.ele, bareFeetThreshold);
@@ -274,7 +319,7 @@ function catalogCountInsideReferenceBounds(catalog: CatalogPeak[], reference: Re
 
 async function buildReport(args: AuditArgs) {
   const data = await loadReferenceData(args);
-  const reference = parseReferencePeaks(data, args.stateCode);
+  const reference = parseReferencePeaks(data, args.stateCode, args.bbox);
   if (reference.length === 0) {
     throw new Error(
       `Coverage audit found zero usable named peaks for US-${args.stateCode}; ` +
@@ -313,7 +358,10 @@ async function buildReport(args: AuditArgs) {
   return {
     generatedAt: new Date().toISOString(),
     stateCode: args.stateCode,
-    source: args.input ? { type: "overpass_json", path: args.input } : { type: "overpass", natural: "peak" },
+    bbox: args.bbox,
+    source: args.input
+      ? { type: "overpass_json", path: args.input }
+      : { type: "overpass", natural: "peak", bbox: args.bbox },
     thresholds: {
       spatialMatchMeters: 150,
       sameNameMatchMeters: 1_000,
@@ -347,6 +395,12 @@ async function buildReport(args: AuditArgs) {
 function printSummary(report: Awaited<ReturnType<typeof buildReport>>): void {
   const { totals, catalogHealth } = report;
   console.log(`Peak coverage audit — US-${report.stateCode}`);
+  if (report.bbox) {
+    console.log(
+      `Bounds: ${report.bbox.minLng},${report.bbox.minLat} to ` +
+      `${report.bbox.maxLng},${report.bbox.maxLat}`
+    );
+  }
   console.log(`Reference: ${totals.referencePeaks} named OSM peaks`);
   console.log(
     `Matched: ${totals.matchedPeaks} (${totals.coveragePercent}%) · ` +
@@ -395,9 +449,8 @@ async function main(): Promise<void> {
 
 if (/(?:^|[/\\])audit-peak-coverage\.(?:ts|js)$/.test(process.argv[1] ?? "")) {
   main()
-    .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);
-      process.exit(1);
+      process.exitCode = 1;
     });
 }

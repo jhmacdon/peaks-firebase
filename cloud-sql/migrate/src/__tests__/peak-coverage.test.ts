@@ -53,19 +53,32 @@ test("validates audit CLI options and requests full node geometry", () => {
     "--limit=25",
     "--min-elevation=1000",
     "--min-grid-reference=5",
+    "--bbox=-122,48.2,-120.5,49",
   ]);
   assert.equal(args.stateCode, "OR");
   assert.equal(args.format, "json");
   assert.equal(args.limit, 25);
   assert.equal(args.minimumCandidateElevationM, 1000);
   assert.equal(args.minimumGridReferencePeaks, 5);
+  assert.deepEqual(args.bbox, {
+    minLng: -122,
+    minLat: 48.2,
+    maxLng: -120.5,
+    maxLat: 49,
+  });
   assert.throws(() => parseArgs(["--state=Washington"]), /two-letter/);
   assert.throws(() => parseArgs(["--format=csv"]), /summary or json/);
+  assert.throws(() => parseArgs(["--bbox=-122,48.2,-120.5"]), /minLng,minLat,maxLng,maxLat/);
+  assert.throws(() => parseArgs(["--bbox=-120,49,-122,48.2"]), /ordered/);
 
   const query = buildOverpassQuery("WA");
   assert.match(query, /ISO3166-2"="US-WA/);
   assert.match(query, /natural"="peak/);
   assert.match(query, /out body;/, "coordinates are required for spatial matching");
+
+  const boundedQuery = buildOverpassQuery("WA", args.bbox);
+  assert.doesNotMatch(boundedQuery, /ISO3166-2/);
+  assert.match(boundedQuery, /\(48\.2,-122,49,-120\.5\)/);
 });
 
 test("parses named Overpass nodes and honors ele:ft", () => {
@@ -92,6 +105,17 @@ test("parses named Overpass nodes and honors ele:ft", () => {
   assert.equal(peaks[0].osmId, "9196640751");
   assert.ok(Math.abs((peaks[0].elevationM ?? 0) - 1825.45) < 0.1);
   assert.equal(peaks[0].wikidataId, "Q123");
+
+  const outsideBounds = parseReferencePeaks({
+    elements: [{
+      type: "node",
+      id: 3,
+      lat: 47,
+      lon: -120,
+      tags: { name: "Outside Peak", natural: "peak", ele: "1500" },
+    }],
+  }, "WA", { minLng: -122, minLat: 48.2, maxLng: -120.5, maxLat: 49 });
+  assert.deepEqual(outsideBounds, []);
 });
 
 test("parses metric, explicit imperial, and known bare-feet OSM elevations", () => {
