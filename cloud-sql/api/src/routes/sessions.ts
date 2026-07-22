@@ -82,35 +82,38 @@ const SESSION_ROUTES_SQL = `COALESCE(
   '[]'::json
 )`;
 
+/** Inline protected areas crossed by one saved session path. */
+export const SESSION_AREAS_SQL = `COALESCE(
+  (SELECT json_agg(area_obj ORDER BY kind, name)
+   FROM (
+     SELECT DISTINCT ON (a.kind, a.name)
+            a.kind, a.name,
+            json_build_object(
+              'id', a.id,
+              'name', a.name,
+              'kind', a.kind,
+              'designation', a.designation,
+              'manager', a.manager,
+              'parent_id', a.parent_area_id,
+              'relation', sa.relation,
+              'source', sa.source
+            ) AS area_obj
+     FROM session_areas sa
+     JOIN areas a ON a.id = sa.area_id
+     WHERE sa.session_id = s.id
+     ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+   ) deduped),
+  '[]'::json
+)`;
+
 /** Build the owner/public-scoped area lookup for a saved session path. */
 export function buildSessionAreasQuery(
   id: string,
   uid: string
 ): { text: string; values: unknown[] } {
   return {
-    text: `SELECT s.id, COALESCE(area_rows.areas, '[]'::json) AS areas
+    text: `SELECT s.id, ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
-     LEFT JOIN LATERAL (
-       SELECT json_agg(area_obj ORDER BY kind, name) AS areas
-       FROM (
-         SELECT DISTINCT ON (a.kind, a.name)
-                a.kind, a.name,
-                json_build_object(
-                  'id', a.id,
-                  'name', a.name,
-                  'kind', a.kind,
-                  'designation', a.designation,
-                  'manager', a.manager,
-                  'parent_id', a.parent_area_id,
-                  'relation', sa.relation,
-                  'source', sa.source
-                ) AS area_obj
-         FROM session_areas sa
-         JOIN areas a ON a.id = sa.area_id
-         WHERE sa.session_id = s.id
-         ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
-       ) deduped
-     ) area_rows ON true
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     values: [id, uid],
   };
@@ -335,7 +338,8 @@ router.get("/", async (req, res: Response) => {
             s.ended, s.is_public,
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
-            ${DESTINATION_GOALS_SQL} AS destination_goals
+            ${DESTINATION_GOALS_SQL} AS destination_goals,
+            ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.user_id = $1
        AND ($2::text[] IS NULL OR s.processing_state = ANY($2))
@@ -406,7 +410,8 @@ router.get("/changes", async (req, res: Response) => {
             'server_updated_at', s.server_updated_at,
             'destinations_reached', ${DESTINATIONS_REACHED_SQL},
             'destination_goals', ${DESTINATION_GOALS_SQL},
-            'routes', ${SESSION_ROUTES_SQL}
+            'routes', ${SESSION_ROUTES_SQL},
+            'areas', ${SESSION_AREAS_SQL}
           ) AS session
         FROM tracking_sessions s
         WHERE s.user_id = $1
@@ -553,7 +558,8 @@ router.get("/:id", async (req, res: Response) => {
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
             ${DESTINATION_GOALS_SQL} AS destination_goals,
-            ${SESSION_ROUTES_SQL} AS routes
+            ${SESSION_ROUTES_SQL} AS routes,
+            ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     [id, uid]
