@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildSessionAreasQuery } from "../routes/sessions";
+import { buildSessionAreasQuery, SESSION_AREAS_SQL } from "../routes/sessions";
 
 test("session areas come from stored path tags and collapse area fragments", () => {
   const query = buildSessionAreasQuery("session-1", "user-1");
@@ -20,4 +20,12 @@ test("session areas require ownership or public access", () => {
   const query = buildSessionAreasQuery("session-1", "user-1");
 
   assert.match(query.text, /s\.user_id = \$2 OR s\.is_public = true/);
+});
+
+test("session area JSON can be embedded in every session response", () => {
+  assert.match(SESSION_AREAS_SQL, /FROM session_areas sa/);
+  assert.match(SESSION_AREAS_SQL, /WHERE sa\.session_id = s\.id/);
+  assert.match(SESSION_AREAS_SQL, /'parent_id', a\.parent_area_id/);
+  assert.match(SESSION_AREAS_SQL, /'\[\]'::json/);
+  assert.doesNotMatch(SESSION_AREAS_SQL, /a\.boundary/);
 });
