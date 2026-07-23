@@ -46,6 +46,7 @@ export interface CoverageScope {
 export interface ExpansionArgs {
   scopes: CoverageScope[];
   apply: boolean;
+  concurrency: number;
   cacheDir: string | null;
   reportDir: string | null;
   minimumProminenceM: number;
@@ -130,10 +131,15 @@ export function parseExpansionArgs(argv = process.argv.slice(2)): ExpansionArgs 
   if (maxAdditionsPerScope != null && (!Number.isInteger(maxAdditionsPerScope) || maxAdditionsPerScope <= 0)) {
     throw new Error("--max-additions must be a positive integer");
   }
+  const concurrency = Number.parseInt(value(argv, "concurrency") ?? "1", 10);
+  if (!Number.isInteger(concurrency) || concurrency <= 0 || concurrency > 4) {
+    throw new Error("--concurrency must be an integer from 1 to 4");
+  }
 
   return {
     scopes,
     apply: argv.includes("--apply"),
+    concurrency,
     cacheDir: value(argv, "cache-dir") ?? null,
     reportDir: value(argv, "report-dir") ?? null,
     minimumProminenceM: prominenceFeet * 0.3048,
@@ -290,6 +296,7 @@ async function applyChanges(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('peak-coverage-expansion'))");
     const backfillRows = backfills.map((backfill) => ({
       destination_id: backfill.destinationId,
       osm_id: backfill.osmId,
@@ -576,16 +583,26 @@ async function main(): Promise<void> {
   const failures: Array<{ jurisdiction: string; error: string }> = [];
   const jurisdictionResults: Array<Record<string, unknown>> = [];
   try {
-    for (const scope of args.scopes) {
-      try {
-        const result = await runScope(scope, args, catalog);
-        jurisdictionResults.push(result.report);
-        catalog.push(...result.additions);
-        for (const backfilled of result.backfilled) {
-          const destination = catalog.find((peak) => peak.id === backfilled.destinationId);
-          if (destination) destination.osmId = backfilled.osmId;
+    for (let offset = 0; offset < args.scopes.length; offset += args.concurrency) {
+      const scopes = args.scopes.slice(offset, offset + args.concurrency);
+      const results = await Promise.all(scopes.map(async (scope) => {
+        try {
+          return { scope, result: await runScope(scope, args, catalog), error: null };
+        } catch (error) {
+          return { scope, result: null, error };
         }
-      } catch (error) {
+      }));
+      for (const { scope, result, error } of results) {
+        if (result) {
+          jurisdictionResults.push(result.report);
+          catalog.push(...result.additions);
+          for (const backfilled of result.backfilled) {
+            const destination = catalog.find((peak) => peak.id === backfilled.destinationId);
+            if (destination) destination.osmId = backfilled.osmId;
+          }
+          continue;
+        }
+
         const message = error instanceof Error ? error.message : String(error);
         failures.push({ jurisdiction: scope.key, error: message });
         const failureReport = {
@@ -602,7 +619,9 @@ async function main(): Promise<void> {
           args.apply ? "apply" : "dry-run"
         );
         console.error(`[peak-expand] ${scope.label}: FAILED: ${message}`);
-        if (!args.continueOnError) throw error;
+        if (!args.continueOnError) {
+          throw error;
+        }
       }
     }
   } finally {

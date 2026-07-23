@@ -49,12 +49,19 @@ test("parses dry-run and batch expansion modes", () => {
   assert.equal(state.scopes[0].key, "US-WA");
   assert.ok(Math.abs(state.minimumProminenceM - 91.44) < 0.001);
 
-  const countries = parseExpansionArgs(["--countries=ca,mx", "--apply", "--max-additions=25"]);
+  const countries = parseExpansionArgs([
+    "--countries=ca,mx",
+    "--apply",
+    "--max-additions=25",
+    "--concurrency=3",
+  ]);
   assert.equal(countries.apply, true);
   assert.deepEqual(countries.scopes.map((scope) => scope.key), ["CA", "MX"]);
   assert.equal(countries.maxAdditionsPerScope, 25);
+  assert.equal(countries.concurrency, 3);
   assert.throws(() => parseExpansionArgs([]), /Choose exactly one/);
   assert.throws(() => parseExpansionArgs(["--state=WA", "--country=US"]), /Choose exactly one/);
+  assert.throws(() => parseExpansionArgs(["--all-countries", "--concurrency=5"]), /from 1 to 4/);
 });
 
 test("selects a unique normalized-name OSM ID backfill", () => {
