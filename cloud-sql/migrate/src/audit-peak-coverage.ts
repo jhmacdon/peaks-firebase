@@ -82,6 +82,7 @@ interface CatalogHealthRow {
 }
 
 const DEFAULT_OVERPASS_ENDPOINTS = [
+  "https://overpass.private.coffee/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
