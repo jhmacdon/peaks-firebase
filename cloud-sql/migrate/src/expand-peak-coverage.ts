@@ -447,11 +447,17 @@ function deferredCounts(selections: PeakSelection[]): Record<string, number> {
   return counts;
 }
 
-async function writeReport(reportDir: string | null, scope: CoverageScope, report: unknown): Promise<void> {
+async function writeReport(
+  reportDir: string | null,
+  scope: CoverageScope,
+  report: unknown,
+  mode: "apply" | "dry-run"
+): Promise<void> {
   if (!reportDir) return;
   await fs.mkdir(reportDir, { recursive: true });
-  const file = path.join(reportDir, `${scope.key}.json`);
-  await fs.writeFile(file, `${JSON.stringify(report, null, 2)}\n`);
+  const serialized = `${JSON.stringify(report, null, 2)}\n`;
+  await fs.writeFile(path.join(reportDir, `${scope.key}.${mode}.json`), serialized);
+  await fs.writeFile(path.join(reportDir, `${scope.key}.json`), serialized);
 }
 
 async function runScope(
@@ -464,7 +470,7 @@ async function runScope(
   const reference = parseReferencePeaks(data, scope.stateCode);
   if (reference.length === 0) {
     const report = { jurisdiction: scope, status: "complete_empty", referencePeaks: 0 };
-    await writeReport(args.reportDir, scope, report);
+    await writeReport(args.reportDir, scope, report, args.apply ? "apply" : "dry-run");
     console.log(`${scope.label}: no named OSM peaks`);
     return { report, additions: [], backfilled: [] };
   }
@@ -554,7 +560,7 @@ async function runScope(
       ),
     })),
   };
-  await writeReport(args.reportDir, scope, report);
+  await writeReport(args.reportDir, scope, report, args.apply ? "apply" : "dry-run");
   const totals = report.totals;
   console.log(
     `${scope.label}: ${totals.matchedBefore}/${totals.referencePeaks} matched before; ` +
@@ -589,7 +595,12 @@ async function main(): Promise<void> {
           error: message,
         };
         jurisdictionResults.push(failureReport);
-        await writeReport(args.reportDir, scope, failureReport);
+        await writeReport(
+          args.reportDir,
+          scope,
+          failureReport,
+          args.apply ? "apply" : "dry-run"
+        );
         console.error(`[peak-expand] ${scope.label}: FAILED: ${message}`);
         if (!args.continueOnError) throw error;
       }
@@ -604,7 +615,7 @@ async function main(): Promise<void> {
       .slice(0, 12);
     await fs.mkdir(args.reportDir, { recursive: true });
     await fs.writeFile(
-      path.join(args.reportDir, `_batch-${scopeHash}.json`),
+      path.join(args.reportDir, `_batch-${args.apply ? "apply" : "dry-run"}-${scopeHash}.json`),
       `${JSON.stringify({
         generatedAt: new Date().toISOString(),
         apply: args.apply,

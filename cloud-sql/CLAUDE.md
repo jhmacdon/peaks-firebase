@@ -249,6 +249,9 @@ npm run expand:peak-coverage -- --all-states --apply \
 # The same runner supports --country, --countries, and --all-countries.
 ```
 
+Reports use separate `.apply.json` and `.dry-run.json` names, plus a latest
+copy, so a proof run does not erase the write record.
+
 Peakbagger ascent counts are a targeted manual popularity fallback. Do not
 bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
 documented in the `peaks-ascent-backfill` skill.
