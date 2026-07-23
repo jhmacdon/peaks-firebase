@@ -254,8 +254,17 @@ npm run expand:peak-coverage -- --all-states --apply \
 # repeatable without fetching those sources again.
 ```
 
-Destination insert triggers use transition tables, so bulk applies link the
-inserted summits to areas and ended sessions with one set-based query per link.
+Large countries that time out as one Overpass area fall back to their ISO
+3166-2 subdivisions. Antarctica, Bonaire/Saba/Sint Eustatius, Palestine,
+Svalbard/Jan Mayen, and the US outlying islands use explicit OSM territory
+relations because OSM has no single ISO 3166-1 administrative relation for
+those scopes. Antarctica falls back once more to ISO's south-of-60° boundary
+when an Overpass instance cannot turn its continent relation into an area.
+
+Destination insert triggers use transition tables and the existing GiST
+indexes on session paths and tracking points. A path match remains only a
+candidate: one real tracking point must still fall inside the destination's
+exact match radius. The lateral proof stops after the first matching point.
 
 Reports use separate `.apply.json` and `.dry-run.json` names, plus a latest
 copy, so a proof run does not erase the write record.
@@ -263,6 +272,39 @@ copy, so a proof run does not erase the write record.
 Peakbagger ascent counts are a targeted manual popularity fallback. Do not
 bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
 documented in the `peaks-ascent-backfill` skill.
+
+### Named route coverage
+
+Use the route auditor after the peak catalog has settled. It reviews every
+summit that lacks a named saved path. It accepts only explicit OSM
+`route=hiking|foot` relation names whose geometry comes within 250 m of the
+summit. Its second source is a public Peaks recording whose user-supplied name
+identifies a summit that the same recording reached. It never reads private
+recordings, derives a route name, or saves generic recording titles.
+
+```bash
+cd migrate
+
+# Full dry run; four workers, resumable source cache, and an unresolved list.
+npm run audit:route-coverage -- \
+  --concurrency=4 \
+  --cache-dir=/tmp/peaks-route-coverage/osm \
+  --report=/tmp/peaks-route-coverage/dry-run.json
+
+# Apply the same verified source set.
+npm run audit:route-coverage -- --apply \
+  --concurrency=4 \
+  --cache-dir=/tmp/peaks-route-coverage/osm \
+  --report=/tmp/peaks-route-coverage/apply.json
+
+# A bounded smoke run is marked partial and cannot serve as full proof.
+npm run audit:route-coverage -- --batch-limit=1
+```
+
+OSM route and segment IDs are stable hashes of the relation and connected way
+chain. Re-runs update those source-owned rows and use `ON CONFLICT` for summit
+links. Reports count all covered and unresolved summits without exposing user
+IDs.
 
 ## Protected area imports
 

@@ -48,7 +48,7 @@ export interface AuditArgs {
 }
 
 export interface OverpassElement {
-  type: "node";
+  type: "node" | "relation";
   id: number;
   lat?: number;
   lon?: number;
@@ -57,6 +57,7 @@ export interface OverpassElement {
 
 export interface OverpassResponse {
   elements: OverpassElement[];
+  remark?: string;
 }
 
 interface CatalogRow {
@@ -87,6 +88,17 @@ const DEFAULT_OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
+
+// These ISO territories do not have one OSM administrative relation tagged
+// with their ISO 3166-1 code. Use the current OSM boundary relations for their
+// constituent territory instead of treating the missing aggregate as empty.
+const COUNTRY_FALLBACK_RELATION_IDS: Record<string, number[]> = {
+  AQ: [2186646], // Antarctica
+  BQ: [2324450, 2324451, 2324452], // Bonaire, Saba, Sint Eustatius
+  PS: [1703814], // Palestinian territories (disputed boundary)
+  SJ: [1337397, 1337126], // Svalbard, Jan Mayen
+  UM: [2185386], // United States Minor Outlying Islands statistical boundary
+};
 
 export function parseArgs(argv = process.argv.slice(2)): AuditArgs {
   const value = (key: string) => argv.find((arg) => arg.startsWith(`--${key}=`))?.split("=", 2)[1];
@@ -204,7 +216,43 @@ export async function fetchOverpassPeaks(
           if (response.ok) {
             // Await the body before clearing the abort timer below; returning
             // the promise directly would stop covering response decoding.
-            return await response.json() as OverpassResponse;
+            const payload = await response.json() as OverpassResponse;
+            if (payload.remark) {
+              if (
+                !stateCode &&
+                countryCode &&
+                /timed out|out of memory|runtime error/i.test(payload.remark)
+              ) {
+                console.error(
+                  `[peak-coverage] ${countryCode}: country query was too large; ` +
+                  "retrying by ISO 3166-2 subdivisions"
+                );
+                return await fetchCountryPeaksBySubdivisions(countryCode, endpoints);
+              }
+              lastError = new Error(`Overpass error from ${endpoint}: ${payload.remark}`);
+              break;
+            }
+            if (!Array.isArray(payload.elements)) {
+              lastError = new Error(`Overpass response from ${endpoint} has no elements array`);
+              break;
+            }
+            if (
+              !stateCode &&
+              countryCode &&
+              payload.elements.length === 0 &&
+              COUNTRY_FALLBACK_RELATION_IDS[countryCode]
+            ) {
+              console.error(
+                `[peak-coverage] ${countryCode}: ISO country area is absent; ` +
+                "loading its explicit OSM territory relations"
+              );
+              return await fetchCountryPeaksFromRelations(
+                countryCode,
+                COUNTRY_FALLBACK_RELATION_IDS[countryCode],
+                endpoints
+              );
+            }
+            return payload;
           }
           lastError = new Error(`Overpass HTTP ${response.status} from ${endpoint}`);
           if (response.status !== 429 && response.status < 500) throw lastError;
@@ -218,6 +266,119 @@ export async function fetchOverpassPeaks(
     }
   }
   throw lastError instanceof Error ? lastError : new Error("All Overpass endpoints failed");
+}
+
+async function fetchCountryPeaksFromRelations(
+  countryCode: string,
+  relationIds: number[],
+  endpoints: string[]
+): Promise<OverpassResponse> {
+  const relationSelection = relationIds.map((id) => `rel(${id});`).join("");
+  const query = `[out:json][timeout:180];
+(${relationSelection})->.boundaries;
+.boundaries map_to_area->.regions;
+node(area.regions)["natural"="peak"]["name"];
+out body;`;
+  const response = await postOverpassWithFallback(
+    query,
+    endpoints,
+    `${countryCode} territory relations`
+  );
+  if (countryCode === "AQ" && response.elements.length === 0) {
+    // OSM's Antarctica continent relation does not generate a usable area on
+    // every Overpass instance. ISO 3166 defines AQ as the land south of 60° S.
+    return postOverpassWithFallback(
+      `[out:json][timeout:180];
+node["natural"="peak"]["name"](-90,-180,-60,180);
+out body;`,
+      endpoints,
+      "AQ south-of-60 boundary"
+    );
+  }
+  return response;
+}
+
+async function fetchCountryPeaksBySubdivisions(
+  countryCode: string,
+  endpoints: string[]
+): Promise<OverpassResponse> {
+  const subdivisionQuery = `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.country;
+rel(area.country)["ISO3166-2"]["boundary"="administrative"];
+out ids tags;`;
+  const subdivisionResponse = await postOverpassWithFallback(
+    subdivisionQuery,
+    endpoints,
+    `${countryCode} subdivision list`
+  );
+  const subdivisionIds = subdivisionResponse.elements
+    .filter((element) => element.type === "relation")
+    .map((element) => element.id);
+  if (subdivisionIds.length === 0) {
+    throw new Error(`No ISO 3166-2 subdivisions found for ${countryCode}`);
+  }
+
+  const collected = new Map<number, OverpassElement>();
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < subdivisionIds.length) {
+      const index = nextIndex++;
+      const relationId = subdivisionIds[index];
+      console.error(
+        `[peak-coverage] ${countryCode}: subdivision ${index + 1}/${subdivisionIds.length}`
+      );
+      const query = `[out:json][timeout:180];
+rel(${relationId});map_to_area->.region;
+node(area.region)["natural"="peak"]["name"];
+out body;`;
+      const response = await postOverpassWithFallback(
+        query,
+        endpoints,
+        `${countryCode} subdivision ${relationId}`
+      );
+      for (const element of response.elements) {
+        if (element.type === "node") collected.set(element.id, element);
+      }
+    }
+  };
+  await Promise.all(Array.from(
+    { length: Math.min(4, subdivisionIds.length) },
+    () => worker()
+  ));
+  return { elements: [...collected.values()] };
+}
+
+async function postOverpassWithFallback(
+  query: string,
+  endpoints: string[],
+  label: string
+): Promise<OverpassResponse> {
+  const errors: string[] = [];
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 195_000);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: `data=${encodeURIComponent(query)}`,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "PeaksApp-coverage-audit/1.0 (https://github.com/jhmacdon/peaks-firebase)",
+        },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json() as OverpassResponse;
+      if (payload.remark) throw new Error(payload.remark);
+      if (!Array.isArray(payload.elements)) throw new Error("missing elements array");
+      return payload;
+    } catch (error) {
+      errors.push(`${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw new Error(`All Overpass endpoints failed for ${label}: ${errors.join("; ")}`);
 }
 
 export async function loadReferenceData(args: AuditArgs): Promise<OverpassResponse> {

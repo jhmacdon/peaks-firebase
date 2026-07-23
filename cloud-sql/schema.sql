@@ -821,40 +821,74 @@ $$;
 CREATE OR REPLACE FUNCTION link_sessions_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-    WITH bounds AS MATERIALIZED (
-      SELECT ST_Expand(
-               ST_Envelope(ST_Collect(COALESCE(
-                 d.boundary::geometry,
-                 ST_Force2D(d.location::geometry)
-               ))),
-               2
-             ) AS geom
-      FROM new_destinations d
-      WHERE d.boundary IS NOT NULL OR d.location IS NOT NULL
-    ), candidate_sessions AS MATERIALIZED (
-      SELECT ts.id, ts.path
-      FROM tracking_sessions ts
-      CROSS JOIN bounds b
-      WHERE ts.ended = true
-        AND ts.path IS NOT NULL
-        AND ts.path && b.geom::geography
-    )
-    INSERT INTO session_destinations (session_id, destination_id, relation, source)
-    SELECT DISTINCT tp.session_id, d.id, 'reached'::session_destination_relation, 'auto'
-    FROM new_destinations d
-    JOIN candidate_sessions ts
-      ON CASE WHEN d.boundary IS NOT NULL
-           THEN ST_DWithin(d.boundary::geography, ts.path, 10)
-           ELSE ST_DWithin(d.location, ts.path, destination_match_radius(d.features))
-         END
-    JOIN tracking_points tp
-      ON tp.session_id = ts.id
-     AND CASE WHEN d.boundary IS NOT NULL
-           THEN ST_DWithin(d.boundary::geography, tp.location, 10)
-           ELSE ST_DWithin(d.location, tp.location, destination_match_radius(d.features))
-         END
-    ON CONFLICT (session_id, destination_id) DO NOTHING;
-    RETURN NULL;
+  WITH point_session_candidates AS MATERIALIZED (
+    SELECT
+      destination.id AS destination_id,
+      destination.location AS destination_location,
+      destination_match_radius(destination.features) AS radius_m,
+      ts.id AS session_id
+    FROM new_destinations destination
+    JOIN tracking_sessions ts
+      ON destination.boundary IS NULL
+     AND destination.location IS NOT NULL
+     AND ts.ended = true
+     AND ts.path IS NOT NULL
+     AND ST_DWithin(
+       destination.location,
+       ts.path,
+       destination_match_radius(destination.features)
+     )
+  ), point_matches AS MATERIALIZED (
+    SELECT candidate.session_id, candidate.destination_id
+    FROM point_session_candidates candidate
+    JOIN LATERAL (
+      SELECT 1
+      FROM tracking_points tp
+      WHERE tp.session_id = candidate.session_id
+        AND tp.location IS NOT NULL
+        AND ST_DWithin(
+          candidate.destination_location,
+          tp.location,
+          candidate.radius_m
+        )
+      LIMIT 1
+    ) proof ON true
+  ), boundary_session_candidates AS MATERIALIZED (
+    SELECT
+      destination.id AS destination_id,
+      destination.boundary,
+      ts.id AS session_id
+    FROM new_destinations destination
+    JOIN tracking_sessions ts
+      ON destination.boundary IS NOT NULL
+     AND ts.ended = true
+     AND ts.path IS NOT NULL
+     AND ST_DWithin(destination.boundary::geography, ts.path, 10)
+  ), boundary_matches AS MATERIALIZED (
+    SELECT candidate.session_id, candidate.destination_id
+    FROM boundary_session_candidates candidate
+    JOIN LATERAL (
+      SELECT 1
+      FROM tracking_points tp
+      WHERE tp.session_id = candidate.session_id
+        AND tp.location IS NOT NULL
+        AND ST_DWithin(candidate.boundary::geography, tp.location, 10)
+      LIMIT 1
+    ) proof ON true
+  ), matches AS (
+    SELECT * FROM point_matches
+    UNION ALL
+    SELECT * FROM boundary_matches
+  )
+  INSERT INTO session_destinations (session_id, destination_id, relation, source)
+  SELECT DISTINCT
+    matches.session_id,
+    matches.destination_id,
+    'reached'::session_destination_relation,
+    'auto'
+  FROM matches
+  ON CONFLICT (session_id, destination_id) DO NOTHING;
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
