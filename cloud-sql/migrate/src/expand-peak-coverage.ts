@@ -323,6 +323,18 @@ export function deduplicatePeakSelections(
   return { selected, skipped };
 }
 
+export function filterPeakSelectionsAgainstCatalog(
+  selections: PeakSelection[],
+  catalog: CatalogPeak[]
+): PeakSelection[] {
+  const index = buildPeakCatalogIndex(catalog);
+  return selections.filter((selection) => {
+    const match = matchReferencePeakFromIndex(selection.match.reference, index);
+    return match.method == null &&
+      (match.distanceMeters == null || match.distanceMeters >= 500);
+  });
+}
+
 function deterministicDestinationId(osmId: string): string {
   return crypto.createHash("sha256").update(`osm:node:${osmId}`).digest("hex").slice(0, 20).toUpperCase();
 }
@@ -389,7 +401,31 @@ async function applyChanges(
         [JSON.stringify(backfillRows), scope.countryCode, scope.stateCode, scope.key]
       );
 
-    const insertRows = selections.map((selection) => {
+    const latestCatalogResult = await client.query<{
+      id: string;
+      name: string;
+      lat: string | number;
+      lng: string | number;
+      osm_id: string | null;
+    }>(
+      `SELECT id, name,
+              ST_Y(location::geometry) AS lat,
+              ST_X(location::geometry) AS lng,
+              external_ids->>'osm' AS osm_id
+       FROM destinations
+       WHERE location IS NOT NULL
+         AND name IS NOT NULL
+         AND 'summit'::destination_feature = ANY(features)`
+    );
+    const latestCatalog: CatalogPeak[] = latestCatalogResult.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      osmId: row.osm_id,
+    }));
+    const safeSelections = filterPeakSelectionsAgainstCatalog(selections, latestCatalog);
+    const insertRows = safeSelections.map((selection) => {
       const reference = selection.match.reference;
       const selectionReasons = [
         ...(selection.prominenceM != null && selection.prominenceM > minimumProminenceM
@@ -413,9 +449,11 @@ async function applyChanges(
         selection_reasons: selectionReasons,
       };
     });
-    const insertResult = insertRows.length === 0
-      ? { rows: [] as Array<{ id: string; osm_id: string }> }
-      : await client.query<{ id: string; osm_id: string }>(
+    const insertResult = { rows: [] as Array<{ id: string; osm_id: string }> };
+    const insertChunkSize = 500;
+    for (let offset = 0; offset < insertRows.length; offset += insertChunkSize) {
+      const chunk = insertRows.slice(offset, offset + insertChunkSize);
+      const chunkResult = await client.query<{ id: string; osm_id: string }>(
         `WITH incoming AS (
            SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
              id text, name text, search_name text, elevation double precision,
@@ -452,26 +490,18 @@ async function applyChanges(
            )),
            now(), now()
          FROM prepared
-         WHERE NOT EXISTS (
-           SELECT 1 FROM destinations d
-           WHERE d.external_ids->>'osm' = prepared.osm_id
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM destinations d
-           WHERE 'summit'::destination_feature = ANY(d.features)
-             AND d.location IS NOT NULL
-             AND ST_DWithin(d.location, prepared.location, 150)
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM destinations d
-           WHERE d.search_name = prepared.search_name
-             AND d.location IS NOT NULL
-             AND ST_DWithin(d.location, prepared.location, 1000)
-         )
          ON CONFLICT (id) DO NOTHING
          RETURNING id, external_ids->>'osm' AS osm_id`,
-        [JSON.stringify(insertRows), scope.countryCode, scope.stateCode, scope.key]
+        [JSON.stringify(chunk), scope.countryCode, scope.stateCode, scope.key]
       );
+      insertResult.rows.push(...chunkResult.rows);
+      if (insertRows.length > insertChunkSize) {
+        console.error(
+          `[peak-expand] ${scope.label}: inserted ${Math.min(offset + chunk.length, insertRows.length)}` +
+          `/${insertRows.length} selected rows`
+        );
+      }
+    }
     await client.query("COMMIT");
     return {
       inserted: insertResult.rows.map((row) => ({ id: row.id, osmId: row.osm_id })),

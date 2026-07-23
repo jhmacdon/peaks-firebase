@@ -254,6 +254,9 @@ npm run expand:peak-coverage -- --all-states --apply \
 # repeatable without fetching those sources again.
 ```
 
+Destination insert triggers use transition tables, so bulk applies link the
+inserted summits to areas and ended sessions with one set-based query per link.
+
 Reports use separate `.apply.json` and `.dry-run.json` names, plus a latest
 copy, so a proof run does not erase the write record.
 

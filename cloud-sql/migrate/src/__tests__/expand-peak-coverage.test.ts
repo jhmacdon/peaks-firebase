@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   ExpansionCatalogPeak,
   deduplicatePeakSelections,
+  filterPeakSelectionsAgainstCatalog,
   parseExpansionArgs,
   selectOsmIdBackfills,
 } from "../expand-peak-coverage";
@@ -133,4 +134,30 @@ test("collapses same-name nearby OSM nodes before a bulk insert", () => {
   assert.equal(result.skipped.length, 1);
   assert.equal(result.skipped[0].skipped.match.reference.osmId, "200");
   assert.equal(result.skipped[0].kept.match.reference.osmId, "100");
+});
+
+test("rechecks selections against the catalog held by the apply lock", () => {
+  const evidence = { sessionsWithin30m: 1, sessionsWithin100m: 1, sessionsWithin250m: 1 };
+  const selected = selectPeakCandidate(
+    matchReferencePeak(reference(), []),
+    evidence,
+    undefined,
+    undefined
+  );
+  const farEnough = selectPeakCandidate(
+    matchReferencePeak(reference({
+      osmId: "456",
+      name: "Far Peak",
+      lat: 47.37,
+      lng: -121.46,
+    }), []),
+    evidence,
+    undefined,
+    undefined
+  );
+  assert.deepEqual(
+    filterPeakSelectionsAgainstCatalog([selected, farEnough], [catalog()])
+      .map((selection) => selection.match.reference.osmId),
+    ["456"]
+  );
 });
