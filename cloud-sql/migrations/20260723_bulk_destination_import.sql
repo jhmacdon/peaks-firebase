@@ -5,7 +5,7 @@ BEGIN;
 CREATE OR REPLACE FUNCTION link_sessions_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-  WITH bounds AS (
+  WITH bounds AS MATERIALIZED (
     SELECT ST_Expand(
              ST_Envelope(ST_Collect(COALESCE(
                d.boundary::geometry,
@@ -15,16 +15,19 @@ BEGIN
            ) AS geom
     FROM new_destinations d
     WHERE d.boundary IS NOT NULL OR d.location IS NOT NULL
+  ), candidate_sessions AS MATERIALIZED (
+    SELECT ts.id, ts.path
+    FROM tracking_sessions ts
+    CROSS JOIN bounds b
+    WHERE ts.ended = true
+      AND ts.path IS NOT NULL
+      AND ts.path && b.geom::geography
   )
   INSERT INTO session_destinations (session_id, destination_id, relation, source)
   SELECT DISTINCT tp.session_id, d.id, 'reached'::session_destination_relation, 'auto'
-  FROM bounds b
-  JOIN new_destinations d ON true
-  JOIN tracking_sessions ts
-    ON ts.ended = true
-   AND ts.path IS NOT NULL
-   AND ts.path && b.geom::geography
-   AND CASE
+  FROM new_destinations d
+  JOIN candidate_sessions ts
+    ON CASE
          WHEN d.boundary IS NOT NULL THEN ST_DWithin(d.boundary::geography, ts.path, 10)
          ELSE ST_DWithin(d.location, ts.path, destination_match_radius(d.features))
        END
@@ -50,20 +53,25 @@ CREATE OR REPLACE FUNCTION link_areas_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
   BEGIN
-    WITH bounds AS (
+    WITH bounds AS MATERIALIZED (
       SELECT ST_Expand(
                ST_Envelope(ST_Collect(ST_Force2D(d.location::geometry))),
                2
              ) AS geom
       FROM new_destinations d
-      WHERE d.location IS NOT NULL
+      WHERE d.country_code = 'US'
+        AND d.location IS NOT NULL
         AND 'summit'::destination_feature = ANY(d.features)
+    ), candidate_areas AS MATERIALIZED (
+      SELECT a.id, a.boundary
+      FROM areas a
+      CROSS JOIN bounds b
+      WHERE a.boundary && b.geom
     )
     INSERT INTO destination_areas (destination_id, area_id, relation, source)
     SELECT d.id, a.id, 'contained_by', 'postgis'
-    FROM bounds b
-    JOIN areas a ON a.boundary && b.geom
-    JOIN new_destinations d
+    FROM new_destinations d
+    JOIN candidate_areas a
       ON ST_DWithin(
            a.boundary,
            ST_Force2D(d.location::geometry),
@@ -72,7 +80,8 @@ BEGIN
     CROSS JOIN LATERAL (
       SELECT ST_Force2D(d.location::geometry) AS geom, d.location::geography AS gloc
     ) p
-    WHERE d.location IS NOT NULL
+    WHERE d.country_code = 'US'
+      AND d.location IS NOT NULL
       AND 'summit'::destination_feature = ANY(d.features)
       AND (
         ST_Covers(a.boundary, p.geom)
@@ -111,6 +120,7 @@ BEGIN
         )
     ) a ON true
     WHERE sd.relation = 'reached'
+      AND d.country_code = 'US'
       AND d.location IS NOT NULL
       AND 'summit'::destination_feature = ANY(d.features)
     ON CONFLICT (destination_id, area_id) DO NOTHING;

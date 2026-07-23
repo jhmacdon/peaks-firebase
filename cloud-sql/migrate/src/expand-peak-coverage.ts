@@ -348,6 +348,7 @@ async function applyChanges(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await client.query("SET LOCAL gin_pending_list_limit = '32MB'");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('peak-coverage-expansion'))");
     const backfillRows = backfills.map((backfill) => ({
       destination_id: backfill.destinationId,
@@ -448,11 +449,27 @@ async function applyChanges(
         popularity_signals: selection.popularitySignals,
         selection_reasons: selectionReasons,
       };
-    });
+    }).sort((left, right) =>
+      Math.floor((left.lat + 90) / 5) - Math.floor((right.lat + 90) / 5) ||
+      Math.floor((left.lng + 180) / 5) - Math.floor((right.lng + 180) / 5) ||
+      left.lat - right.lat ||
+      left.lng - right.lng
+    );
     const insertResult = { rows: [] as Array<{ id: string; osm_id: string }> };
     const insertChunkSize = 500;
-    for (let offset = 0; offset < insertRows.length; offset += insertChunkSize) {
-      const chunk = insertRows.slice(offset, offset + insertChunkSize);
+    const insertChunks: typeof insertRows[] = [];
+    let previousTile = "";
+    for (const row of insertRows) {
+      const tile = `${Math.floor((row.lat + 90) / 5)}:${Math.floor((row.lng + 180) / 5)}`;
+      const currentChunk = insertChunks.at(-1);
+      if (!currentChunk || tile !== previousTile || currentChunk.length >= insertChunkSize) {
+        insertChunks.push([]);
+      }
+      insertChunks.at(-1)!.push(row);
+      previousTile = tile;
+    }
+    let processedRows = 0;
+    for (const chunk of insertChunks) {
       const chunkResult = await client.query<{ id: string; osm_id: string }>(
         `WITH incoming AS (
            SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
@@ -495,9 +512,10 @@ async function applyChanges(
         [JSON.stringify(chunk), scope.countryCode, scope.stateCode, scope.key]
       );
       insertResult.rows.push(...chunkResult.rows);
+      processedRows += chunk.length;
       if (insertRows.length > insertChunkSize) {
         console.error(
-          `[peak-expand] ${scope.label}: inserted ${Math.min(offset + chunk.length, insertRows.length)}` +
+          `[peak-expand] ${scope.label}: inserted ${processedRows}` +
           `/${insertRows.length} selected rows`
         );
       }
