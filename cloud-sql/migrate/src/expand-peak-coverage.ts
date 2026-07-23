@@ -19,6 +19,7 @@ import {
 } from "./audit-peak-coverage";
 import {
   CatalogPeak,
+  haversineMeters,
   matchReferencePeak,
   normalizePeakName,
   PeakMatch,
@@ -255,7 +256,25 @@ function selectionPriority(lhs: PeakSelection, rhs: PeakSelection): number {
   return (rhs.prominenceM ?? -1) - (lhs.prominenceM ?? -1) ||
     rhs.wikipediaSitelinks - lhs.wikipediaSitelinks ||
     (rhs.elevationM ?? -1) - (lhs.elevationM ?? -1) ||
-    lhs.match.reference.name.localeCompare(rhs.match.reference.name);
+    lhs.match.reference.name.localeCompare(rhs.match.reference.name) ||
+    Number(lhs.match.reference.osmId) - Number(rhs.match.reference.osmId);
+}
+
+export function deduplicatePeakSelections(
+  selections: PeakSelection[],
+  distanceMeters = 150
+): { selected: PeakSelection[]; skipped: Array<{ skipped: PeakSelection; kept: PeakSelection }> } {
+  const selected: PeakSelection[] = [];
+  const skipped: Array<{ skipped: PeakSelection; kept: PeakSelection }> = [];
+  for (const selection of [...selections].sort(selectionPriority)) {
+    const duplicate = selected.find((kept) =>
+      normalizePeakName(kept.match.reference.name) === normalizePeakName(selection.match.reference.name) &&
+      haversineMeters(kept.match.reference, selection.match.reference) <= distanceMeters
+    );
+    if (duplicate) skipped.push({ skipped: selection, kept: duplicate });
+    else selected.push(selection);
+  }
+  return { selected, skipped };
 }
 
 function deterministicDestinationId(osmId: string): string {
@@ -465,7 +484,11 @@ async function runScope(
     args.minimumProminenceM,
     args.popularWikipediaSitelinks
   ));
-  const eligible = allSelections.filter((selection) => selection.decision === "add").sort(selectionPriority);
+  const eligibleBeforeReferenceDedup = allSelections
+    .filter((selection) => selection.decision === "add")
+    .sort(selectionPriority);
+  const referenceDedup = deduplicatePeakSelections(eligibleBeforeReferenceDedup);
+  const eligible = referenceDedup.selected;
   const selected = args.maxAdditionsPerScope == null
     ? eligible
     : eligible.slice(0, args.maxAdditionsPerScope);
@@ -498,6 +521,7 @@ async function runScope(
       unmatchedBefore: unmatched.length,
       coverageBeforePercent: Math.round(((matches.length - unmatched.length) / matches.length) * 1_000) / 10,
       eligibleAdditions: eligible.length,
+      duplicateReferenceNodesSkipped: referenceDedup.skipped.length,
       selectedAdditions: selected.length,
       inserted: applied.inserted.length,
       safeOsmIdBackfills: backfillSelection.selected.length,
@@ -520,6 +544,15 @@ async function runScope(
       applied: applied.backfilled.some((row) => row.destinationId === backfill.destinationId),
     })),
     ambiguousOsmIdBackfillDestinationIds: backfillSelection.ambiguousDestinationIds,
+    duplicateReferenceNodes: referenceDedup.skipped.map((duplicate) => ({
+      skippedOsmId: duplicate.skipped.match.reference.osmId,
+      keptOsmId: duplicate.kept.match.reference.osmId,
+      name: duplicate.kept.match.reference.name,
+      distanceMeters: haversineMeters(
+        duplicate.skipped.match.reference,
+        duplicate.kept.match.reference
+      ),
+    })),
   };
   await writeReport(args.reportDir, scope, report);
   const totals = report.totals;

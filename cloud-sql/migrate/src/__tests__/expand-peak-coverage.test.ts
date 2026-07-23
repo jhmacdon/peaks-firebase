@@ -2,10 +2,12 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   ExpansionCatalogPeak,
+  deduplicatePeakSelections,
   parseExpansionArgs,
   selectOsmIdBackfills,
 } from "../expand-peak-coverage";
 import { matchReferencePeak, ReferencePeak } from "../peak-coverage";
+import { selectPeakCandidate } from "../peak-coverage-enrichment";
 import { ISO_COUNTRY_CODES, US_STATE_CODES } from "../peak-coverage-jurisdictions";
 
 function reference(overrides: Partial<ReferencePeak> = {}): ReferencePeak {
@@ -93,4 +95,31 @@ test("does not backfill even an identical name when coordinates differ by more t
   assert.equal(match.method, "name_spatial");
   assert.ok((match.distanceMeters ?? 0) > 500);
   assert.equal(selectOsmIdBackfills([match], [existing]).selected.length, 0);
+});
+
+test("collapses same-name nearby OSM nodes before a bulk insert", () => {
+  const evidence = { sessionsWithin30m: 1, sessionsWithin100m: 1, sessionsWithin250m: 1 };
+  const older = selectPeakCandidate(
+    matchReferencePeak(reference({ osmId: "100", lat: 47, lng: -121 }), []),
+    evidence,
+    undefined,
+    undefined
+  );
+  const duplicate = selectPeakCandidate(
+    matchReferencePeak(reference({ osmId: "200", lat: 47.00002, lng: -121 }), []),
+    evidence,
+    undefined,
+    undefined
+  );
+  const distant = selectPeakCandidate(
+    matchReferencePeak(reference({ osmId: "300", lat: 47.01, lng: -121 }), []),
+    evidence,
+    undefined,
+    undefined
+  );
+  const result = deduplicatePeakSelections([duplicate, distant, older]);
+  assert.deepEqual(result.selected.map((selection) => selection.match.reference.osmId), ["100", "300"]);
+  assert.equal(result.skipped.length, 1);
+  assert.equal(result.skipped[0].skipped.match.reference.osmId, "200");
+  assert.equal(result.skipped[0].kept.match.reference.osmId, "100");
 });

@@ -227,6 +227,8 @@ session within 30 m, an OSM Wikipedia tag, or at least five Wikipedia
 sitelinks in Wikidata). Existing alias/subpeak/near-destination guards still
 apply. Safe normalized-name matches within 500 m or very-close spatial matches
 backfill OSM and Wikidata IDs; ambiguous matches remain in the report.
+When OSM contains duplicate same-name nodes within 150 m, the runner keeps one
+before the insert and records the skipped node in the report.
 
 ```bash
 cd migrate
