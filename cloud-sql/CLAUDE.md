@@ -249,6 +249,9 @@ npm run expand:peak-coverage -- --all-states --apply \
 # The same runner supports --country, --countries, and --all-countries.
 # Large network-bound batches may use --concurrency=2 through 4. Applies still
 # take a shared database lock, so each scope checks the last committed writes.
+# Add --resume to an apply batch with --report-dir to skip scopes that already
+# have a completed apply report. Cached OSM and Wikidata files make proof runs
+# repeatable without fetching those sources again.
 ```
 
 Reports use separate `.apply.json` and `.dry-run.json` names, plus a latest

@@ -2,9 +2,11 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   buildGridCoverage,
+  buildPeakCatalogIndex,
   CatalogPeak,
   compareRankedCandidates,
   matchReferencePeak,
+  matchReferencePeakFromIndex,
   normalizePeakName,
   parseElevationMeters,
   rankCoverageCandidate,
@@ -170,6 +172,47 @@ test("matches a normalized identical name within the wider coordinate tolerance"
   assert.equal(match.method, "name_spatial");
   assert.ok((match.distanceMeters ?? 0) > 150);
   assert.ok((match.distanceMeters ?? 0) < 1_000);
+});
+
+test("indexed matching preserves OSM, spatial, and same-name match rules", () => {
+  const exactId = catalog({
+    id: "osm-match",
+    name: "Mapped Peak",
+    lat: 48,
+    lng: -122,
+    osmId: "osm-exact",
+  });
+  const spatial = catalog({
+    id: "spatial-match",
+    name: "Other Name",
+    lat: 47.3618,
+    lng: -121.46127,
+  });
+  const sameName = catalog({
+    id: "name-match",
+    name: "Dirtyface Mountain East",
+    lat: 47.3665,
+    lng: -121.46127,
+  });
+  const index = buildPeakCatalogIndex([exactId, spatial, sameName]);
+
+  assert.equal(
+    matchReferencePeakFromIndex(reference({ osmId: "osm-exact" }), index).destinationId,
+    "osm-match"
+  );
+  assert.equal(
+    matchReferencePeakFromIndex(reference({ name: "Different Peak" }), index).method,
+    "spatial"
+  );
+  const nameIndex = buildPeakCatalogIndex([sameName]);
+  assert.equal(
+    matchReferencePeakFromIndex(reference({
+      name: "Dirtyface Mountain-East",
+      lat: 47.36154,
+      lng: -121.46127,
+    }), nameIndex).method,
+    "name_spatial"
+  );
 });
 
 test("leaves a distinct distant summit unmatched and reports its nearest catalog row", () => {

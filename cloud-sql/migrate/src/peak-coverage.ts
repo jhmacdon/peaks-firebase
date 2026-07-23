@@ -20,6 +20,13 @@ export interface CatalogPeak {
   osmId: string | null;
 }
 
+export interface PeakCatalogIndex {
+  all: CatalogPeak[];
+  byOsmId: Map<string, CatalogPeak>;
+  byName: Map<string, CatalogPeak[]>;
+  byGrid: Map<string, CatalogPeak[]>;
+}
+
 export type PeakMatchMethod = "osm_id" | "spatial" | "name_spatial";
 
 export interface PeakMatch {
@@ -141,6 +148,102 @@ export function matchReferencePeak(
     return matched(reference, nearestSameName, "name_spatial", nearestSameNameDistance);
   }
 
+  return {
+    reference,
+    method: null,
+    destinationId: nearest?.id ?? null,
+    destinationName: nearest?.name ?? null,
+    distanceMeters: Number.isFinite(nearestDistance) ? nearestDistance : null,
+  };
+}
+
+const CATALOG_GRID_DEGREES = 0.05;
+const CATALOG_LONGITUDE_CELLS = Math.round(360 / CATALOG_GRID_DEGREES);
+
+function catalogGridKey(lat: number, lng: number): string {
+  const latCell = Math.floor((lat + 90) / CATALOG_GRID_DEGREES);
+  const rawLngCell = Math.floor((lng + 180) / CATALOG_GRID_DEGREES);
+  const lngCell = ((rawLngCell % CATALOG_LONGITUDE_CELLS) + CATALOG_LONGITUDE_CELLS) %
+    CATALOG_LONGITUDE_CELLS;
+  return `${latCell}:${lngCell}`;
+}
+
+export function buildPeakCatalogIndex(catalog: CatalogPeak[]): PeakCatalogIndex {
+  const byOsmId = new Map<string, CatalogPeak>();
+  const byName = new Map<string, CatalogPeak[]>();
+  const byGrid = new Map<string, CatalogPeak[]>();
+  for (const peak of catalog) {
+    if (peak.osmId && !byOsmId.has(peak.osmId)) byOsmId.set(peak.osmId, peak);
+    const normalizedName = normalizePeakName(peak.name);
+    byName.set(normalizedName, [...(byName.get(normalizedName) ?? []), peak]);
+    const gridKey = catalogGridKey(peak.lat, peak.lng);
+    byGrid.set(gridKey, [...(byGrid.get(gridKey) ?? []), peak]);
+  }
+  return { all: catalog, byOsmId, byName, byGrid };
+}
+
+/**
+ * Match a batch reference peak without scanning the whole destination catalog.
+ * Distant nearest-destination details are omitted because only the 150 m
+ * spatial and 1 km same-name windows affect coverage decisions.
+ */
+export function matchReferencePeakFromIndex(
+  reference: ReferencePeak,
+  index: PeakCatalogIndex,
+  spatialMatchMeters = PEAK_SPATIAL_MATCH_METERS,
+  nameMatchMeters = PEAK_NAME_MATCH_METERS
+): PeakMatch {
+  const byOsmId = index.byOsmId.get(reference.osmId);
+  if (byOsmId) return matched(reference, byOsmId, "osm_id");
+
+  const referenceName = normalizePeakName(reference.name);
+  let nearestSameName: CatalogPeak | null = null;
+  let nearestSameNameDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of index.byName.get(referenceName) ?? []) {
+    const distance = haversineMeters(reference, candidate);
+    if (distance < nearestSameNameDistance) {
+      nearestSameName = candidate;
+      nearestSameNameDistance = distance;
+    }
+  }
+
+  const localCandidates: CatalogPeak[] = [];
+  if (Math.abs(reference.lat) > 89) {
+    localCandidates.push(...index.all);
+  } else {
+    const searchMeters = Math.max(spatialMatchMeters, Math.min(nameMatchMeters, 1_000));
+    const latitudeDegrees = searchMeters / 111_320;
+    const longitudeDegrees = searchMeters /
+      (111_320 * Math.max(0.001, Math.cos(reference.lat * Math.PI / 180)));
+    const minLatCell = Math.floor((reference.lat - latitudeDegrees + 90) / CATALOG_GRID_DEGREES);
+    const maxLatCell = Math.floor((reference.lat + latitudeDegrees + 90) / CATALOG_GRID_DEGREES);
+    const minLngCell = Math.floor((reference.lng - longitudeDegrees + 180) / CATALOG_GRID_DEGREES);
+    const maxLngCell = Math.floor((reference.lng + longitudeDegrees + 180) / CATALOG_GRID_DEGREES);
+    for (let latCell = minLatCell; latCell <= maxLatCell; latCell++) {
+      for (let rawLngCell = minLngCell; rawLngCell <= maxLngCell; rawLngCell++) {
+        const lngCell = ((rawLngCell % CATALOG_LONGITUDE_CELLS) + CATALOG_LONGITUDE_CELLS) %
+          CATALOG_LONGITUDE_CELLS;
+        localCandidates.push(...(index.byGrid.get(`${latCell}:${lngCell}`) ?? []));
+      }
+    }
+  }
+
+  let nearest: CatalogPeak | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of localCandidates) {
+    const distance = haversineMeters(reference, candidate);
+    if (distance < nearestDistance) {
+      nearest = candidate;
+      nearestDistance = distance;
+    }
+  }
+
+  if (nearest && nearestDistance <= spatialMatchMeters) {
+    return matched(reference, nearest, "spatial", nearestDistance);
+  }
+  if (nearestSameName && nearestSameNameDistance <= nameMatchMeters) {
+    return matched(reference, nearestSameName, "name_spatial", nearestSameNameDistance);
+  }
   return {
     reference,
     method: null,

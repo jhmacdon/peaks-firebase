@@ -18,9 +18,10 @@ import {
   parseReferencePeaks,
 } from "./audit-peak-coverage";
 import {
+  buildPeakCatalogIndex,
   CatalogPeak,
   haversineMeters,
-  matchReferencePeak,
+  matchReferencePeakFromIndex,
   normalizePeakName,
   PeakMatch,
   ReferencePeak,
@@ -33,6 +34,7 @@ import {
   fetchWikidataPeakFacts,
   PeakSelection,
   selectPeakCandidate,
+  WikidataPeakFacts,
 } from "./peak-coverage-enrichment";
 import { ISO_COUNTRY_CODES, US_STATE_CODES } from "./peak-coverage-jurisdictions";
 
@@ -46,6 +48,7 @@ export interface CoverageScope {
 export interface ExpansionArgs {
   scopes: CoverageScope[];
   apply: boolean;
+  resume: boolean;
   concurrency: number;
   cacheDir: string | null;
   reportDir: string | null;
@@ -135,13 +138,20 @@ export function parseExpansionArgs(argv = process.argv.slice(2)): ExpansionArgs 
   if (!Number.isInteger(concurrency) || concurrency <= 0 || concurrency > 4) {
     throw new Error("--concurrency must be an integer from 1 to 4");
   }
+  const apply = argv.includes("--apply");
+  const resume = argv.includes("--resume");
+  const reportDir = value(argv, "report-dir") ?? null;
+  if (resume && (!apply || !reportDir)) {
+    throw new Error("--resume requires --apply and --report-dir");
+  }
 
   return {
     scopes,
-    apply: argv.includes("--apply"),
+    apply,
+    resume,
     concurrency,
     cacheDir: value(argv, "cache-dir") ?? null,
-    reportDir: value(argv, "report-dir") ?? null,
+    reportDir,
     minimumProminenceM: prominenceFeet * 0.3048,
     popularWikipediaSitelinks,
     maxAdditionsPerScope,
@@ -197,6 +207,36 @@ async function loadScopeData(scope: CoverageScope, cacheDir: string | null): Pro
   await fs.writeFile(temporary, JSON.stringify(data));
   await fs.rename(temporary, file);
   return data;
+}
+
+async function loadWikidataData(
+  scope: CoverageScope,
+  wikidataIds: string[],
+  cacheDir: string | null
+): Promise<Map<string, WikidataPeakFacts>> {
+  const uniqueIds = [...new Set(wikidataIds)];
+  if (!cacheDir) return fetchWikidataPeakFacts(uniqueIds);
+  const file = path.join(cacheDir, `${scope.key}.wikidata.json`);
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    const parsed = JSON.parse(raw) as { facts?: WikidataPeakFacts[] };
+    if (!Array.isArray(parsed.facts)) throw new Error(`Invalid cached Wikidata response: ${file}`);
+    console.error(`[peak-expand] ${scope.label}: using ${file}`);
+    return new Map(parsed.facts.map((facts) => [facts.wikidataId, facts]));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+
+  console.error(`[peak-expand] ${scope.label}: fetching ${uniqueIds.length} Wikidata entities`);
+  const facts = await fetchWikidataPeakFacts(uniqueIds);
+  await fs.mkdir(cacheDir, { recursive: true });
+  const temporary = `${file}.${process.pid}.tmp`;
+  await fs.writeFile(
+    temporary,
+    `${JSON.stringify({ generatedAt: new Date().toISOString(), facts: [...facts.values()] })}\n`
+  );
+  await fs.rename(temporary, file);
+  return facts;
 }
 
 function numberValue(value: string | number | undefined): number {
@@ -469,6 +509,22 @@ async function writeReport(
   await fs.writeFile(path.join(reportDir, `${scope.key}.json`), serialized);
 }
 
+async function loadCompletedApplyReport(
+  reportDir: string | null,
+  scope: CoverageScope
+): Promise<Record<string, unknown> | null> {
+  if (!reportDir) return null;
+  const file = path.join(reportDir, `${scope.key}.apply.json`);
+  try {
+    const parsed = JSON.parse(await fs.readFile(file, "utf8")) as Record<string, unknown>;
+    if (parsed.apply !== true && parsed.status !== "complete_empty") return null;
+    return parsed;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 async function runScope(
   scope: CoverageScope,
   args: ExpansionArgs,
@@ -484,11 +540,14 @@ async function runScope(
     return { report, additions: [], backfilled: [] };
   }
 
-  const matches = reference.map((peak) => matchReferencePeak(peak, catalog));
+  const catalogIndex = buildPeakCatalogIndex(catalog);
+  const matches = reference.map((peak) => matchReferencePeakFromIndex(peak, catalogIndex));
   const unmatched = matches.filter((match) => match.method == null);
   const evidence = await loadSessionEvidence(matches);
-  const wikidata = await fetchWikidataPeakFacts(
-    unmatched.flatMap((match) => match.reference.wikidataId ? [match.reference.wikidataId] : [])
+  const wikidata = await loadWikidataData(
+    scope,
+    unmatched.flatMap((match) => match.reference.wikidataId ? [match.reference.wikidataId] : []),
+    args.cacheDir
   );
   const elementById = new Map(data.elements.map((element) => [String(element.id), element]));
   const allSelections = unmatched.map((match) => selectPeakCandidate(
@@ -591,6 +650,14 @@ async function main(): Promise<void> {
       while (nextScopeIndex < args.scopes.length && fatalError == null) {
         const scope = args.scopes[nextScopeIndex++];
         try {
+          if (args.resume) {
+            const completed = await loadCompletedApplyReport(args.reportDir, scope);
+            if (completed) {
+              resultByJurisdiction.set(scope.key, completed);
+              console.error(`[peak-expand] ${scope.label}: resuming after completed apply report`);
+              continue;
+            }
+          }
           const result = await runScope(scope, args, catalog);
           resultByJurisdiction.set(scope.key, result.report);
           catalog.push(...result.additions);
