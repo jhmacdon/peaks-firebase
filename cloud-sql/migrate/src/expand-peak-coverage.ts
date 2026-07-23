@@ -581,52 +581,60 @@ async function main(): Promise<void> {
   const args = parseExpansionArgs();
   const catalog = await loadCatalog();
   const failures: Array<{ jurisdiction: string; error: string }> = [];
-  const jurisdictionResults: Array<Record<string, unknown>> = [];
+  const resultByJurisdiction = new Map<string, Record<string, unknown>>();
+  let nextScopeIndex = 0;
+  let fatalError: unknown = null;
   try {
-    for (let offset = 0; offset < args.scopes.length; offset += args.concurrency) {
-      const scopes = args.scopes.slice(offset, offset + args.concurrency);
-      const results = await Promise.all(scopes.map(async (scope) => {
+    const runWorker = async () => {
+      while (nextScopeIndex < args.scopes.length && fatalError == null) {
+        const scope = args.scopes[nextScopeIndex++];
         try {
-          return { scope, result: await runScope(scope, args, catalog), error: null };
-        } catch (error) {
-          return { scope, result: null, error };
-        }
-      }));
-      for (const { scope, result, error } of results) {
-        if (result) {
-          jurisdictionResults.push(result.report);
+          const result = await runScope(scope, args, catalog);
+          resultByJurisdiction.set(scope.key, result.report);
           catalog.push(...result.additions);
           for (const backfilled of result.backfilled) {
             const destination = catalog.find((peak) => peak.id === backfilled.destinationId);
             if (destination) destination.osmId = backfilled.osmId;
           }
-          continue;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        failures.push({ jurisdiction: scope.key, error: message });
-        const failureReport = {
-          generatedAt: new Date().toISOString(),
-          jurisdiction: scope,
-          status: "failed",
-          error: message,
-        };
-        jurisdictionResults.push(failureReport);
-        await writeReport(
-          args.reportDir,
-          scope,
-          failureReport,
-          args.apply ? "apply" : "dry-run"
-        );
-        console.error(`[peak-expand] ${scope.label}: FAILED: ${message}`);
-        if (!args.continueOnError) {
-          throw error;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          failures.push({ jurisdiction: scope.key, error: message });
+          const failureReport = {
+            generatedAt: new Date().toISOString(),
+            jurisdiction: scope,
+            status: "failed",
+            error: message,
+          };
+          resultByJurisdiction.set(scope.key, failureReport);
+          await writeReport(
+            args.reportDir,
+            scope,
+            failureReport,
+            args.apply ? "apply" : "dry-run"
+          );
+          console.error(`[peak-expand] ${scope.label}: FAILED: ${message}`);
+          if (!args.continueOnError) fatalError = error;
         }
       }
-    }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(args.concurrency, args.scopes.length) },
+        () => runWorker()
+      )
+    );
+    if (fatalError != null) throw fatalError;
   } finally {
     await db.end();
   }
+  const jurisdictionResults = args.scopes.flatMap((scope) => {
+    const result = resultByJurisdiction.get(scope.key);
+    return result ? [result] : [];
+  });
+  const scopeOrder = new Map(args.scopes.map((scope, index) => [scope.key, index]));
+  failures.sort((left, right) =>
+    (scopeOrder.get(left.jurisdiction) ?? 0) - (scopeOrder.get(right.jurisdiction) ?? 0)
+  );
   if (args.reportDir) {
     const scopeHash = crypto.createHash("sha256")
       .update(args.scopes.map((scope) => scope.key).join(","))
