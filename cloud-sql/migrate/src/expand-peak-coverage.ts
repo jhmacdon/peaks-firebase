@@ -304,7 +304,7 @@ async function applyChanges(
                COALESCE(d.metadata->'coverage_backfills', '[]'::jsonb) ||
                  jsonb_build_array(jsonb_build_object(
                    'source', 'osm',
-                   'jurisdiction', $4,
+                   'jurisdiction', $4::text,
                    'matchMethod', incoming.method,
                    'distanceMeters', incoming.distance_meters,
                    'appliedAt', now()
@@ -378,7 +378,7 @@ async function applyChanges(
            jsonb_strip_nulls(jsonb_build_object(
              'source', 'osm',
              'catalog_audit', 'global-coverage-2026-07-21',
-             'audit_jurisdiction', $4,
+             'audit_jurisdiction', $4::text,
              'prominence_source', prepared.prominence_source,
              'wikipedia_sitelinks', prepared.wikipedia_sitelinks,
              'popularity_signals', prepared.popularity_signals,
