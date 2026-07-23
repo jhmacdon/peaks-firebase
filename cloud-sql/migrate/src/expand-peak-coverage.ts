@@ -415,16 +415,18 @@ async function applyChanges(
          WHERE NOT EXISTS (
            SELECT 1 FROM destinations d
            WHERE d.external_ids->>'osm' = prepared.osm_id
-              OR (
-                'summit'::destination_feature = ANY(d.features)
-                AND d.location IS NOT NULL
-                AND ST_DWithin(d.location, prepared.location, 150)
-              )
-              OR (
-                d.search_name = prepared.search_name
-                AND d.location IS NOT NULL
-                AND ST_DWithin(d.location, prepared.location, 1000)
-              )
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM destinations d
+           WHERE 'summit'::destination_feature = ANY(d.features)
+             AND d.location IS NOT NULL
+             AND ST_DWithin(d.location, prepared.location, 150)
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM destinations d
+           WHERE d.search_name = prepared.search_name
+             AND d.location IS NOT NULL
+             AND ST_DWithin(d.location, prepared.location, 1000)
          )
          ON CONFLICT (id) DO NOTHING
          RETURNING id, external_ids->>'osm' AS osm_id`,
