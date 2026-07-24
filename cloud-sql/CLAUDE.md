@@ -186,6 +186,126 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Peak catalog coverage audit
+
+Use the read-only coverage auditor to compare the summit catalog with named
+OpenStreetMap `natural=peak` nodes for any US state or ISO country. It matches by OSM ID, then
+within 150 m, then by normalized identical name within 1 km. Unmatched peaks are
+ranked using aggregate ended-session path proximity at 30/100/250 m; reports do
+not include user or session IDs.
+
+```bash
+cd migrate
+export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=peaks DB_USER=postgres DB_PASS=...
+
+# Human-readable report
+npm run audit:peak-coverage -- --state=WA
+
+# Country audit
+npm run audit:peak-coverage -- --country=CA
+
+# Machine-readable review queue; optionally restrict candidate elevation
+npm run audit:peak-coverage -- --state=WA --format=json --limit=200 --min-elevation=1000
+
+# Limit the live Overpass reference set to a region (minLng,minLat,maxLng,maxLat)
+npm run audit:peak-coverage -- --state=WA --bbox=-122,48.2,-120.5,49 --min-elevation=1000
+
+# Re-run from a saved Overpass JSON response instead of making a network request
+npm run audit:peak-coverage -- --state=WA --input=/path/wa-named-peaks.json
+```
+
+The auditor never inserts or updates destinations. Treat `track_proven`
+candidates as the first review tier, but still validate coordinates, elevation,
+aliases, and nearby catalog rows before adding a migration. Directional peaks,
+generic numbered points, and nodes close to an existing destination are flagged
+for manual review rather than automatic import.
+
+Use the expansion runner for resumable jurisdiction passes. It is dry-run by
+default. Automatic additions require an elevation plus either topographic
+prominence greater than 300 ft or a conservative popularity signal (a Peaks
+session within 30 m, an OSM Wikipedia tag, or at least five Wikipedia
+sitelinks in Wikidata). Existing alias/subpeak/near-destination guards still
+apply. Safe normalized-name matches within 500 m or very-close spatial matches
+backfill OSM and Wikidata IDs; ambiguous matches remain in the report.
+When OSM contains duplicate same-name nodes within 150 m, the runner keeps one
+before the insert and records the skipped node in the report.
+
+```bash
+cd migrate
+
+# Review one state; cache the OSM response and retain the decision report
+npm run expand:peak-coverage -- --state=OR \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+
+# Apply a reviewed state or resume the complete US pass
+npm run expand:peak-coverage -- --state=OR --apply \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+npm run expand:peak-coverage -- --all-states --apply \
+  --cache-dir=/tmp/peaks-coverage/osm \
+  --report-dir=/tmp/peaks-coverage/reports
+
+# The same runner supports --country, --countries, and --all-countries.
+# Large network-bound batches may use --concurrency=2 through 4. Applies still
+# take a shared database lock, so each scope checks the last committed writes.
+# Add --resume to an apply batch with --report-dir to skip scopes that already
+# have a completed apply report. Cached OSM and Wikidata files make proof runs
+# repeatable without fetching those sources again.
+```
+
+Large countries that time out as one Overpass area fall back to their ISO
+3166-2 subdivisions. Antarctica, Bonaire/Saba/Sint Eustatius, Palestine,
+Svalbard/Jan Mayen, and the US outlying islands use explicit OSM territory
+relations because OSM has no single ISO 3166-1 administrative relation for
+those scopes. Antarctica falls back once more to ISO's south-of-60° boundary
+when an Overpass instance cannot turn its continent relation into an area.
+
+Destination insert triggers use transition tables and the existing GiST
+indexes on session paths and tracking points. A path match remains only a
+candidate: one real tracking point must still fall inside the destination's
+exact match radius. The lateral proof stops after the first matching point.
+
+Reports use separate `.apply.json` and `.dry-run.json` names, plus a latest
+copy, so a proof run does not erase the write record.
+
+Peakbagger ascent counts are a targeted manual popularity fallback. Do not
+bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
+documented in the `peaks-ascent-backfill` skill.
+
+### Named route coverage
+
+Use the route auditor after the peak catalog has settled. It reviews every
+summit that lacks a named saved path. It accepts only explicit OSM
+`route=hiking|foot` relation names whose geometry comes within 250 m of the
+summit. Its second source is a public Peaks recording whose user-supplied name
+identifies a summit that the same recording reached. It never reads private
+recordings, derives a route name, or saves generic recording titles.
+
+```bash
+cd migrate
+
+# Full dry run; four workers, resumable source cache, and an unresolved list.
+npm run audit:route-coverage -- \
+  --concurrency=4 \
+  --cache-dir=/tmp/peaks-route-coverage/osm \
+  --report=/tmp/peaks-route-coverage/dry-run.json
+
+# Apply the same verified source set.
+npm run audit:route-coverage -- --apply \
+  --concurrency=4 \
+  --cache-dir=/tmp/peaks-route-coverage/osm \
+  --report=/tmp/peaks-route-coverage/apply.json
+
+# A bounded smoke run is marked partial and cannot serve as full proof.
+npm run audit:route-coverage -- --batch-limit=1
+```
+
+OSM route and segment IDs are stable hashes of the relation and connected way
+chain. Re-runs update those source-owned rows and use `ON CONFLICT` for summit
+links. Reports count all covered and unresolved summits without exposing user
+IDs.
+
 ## Protected area imports
 
 Protected-area and land-management context is imported from USGS PAD-US into `areas`, then linked to summit destinations through `destination_areas`.
