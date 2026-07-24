@@ -25,6 +25,7 @@ import {
 } from "./route-coverage";
 
 const ROUTE_REACH_METERS = 250;
+const ROUTE_CLIENT_PREFILTER_METERS = ROUTE_REACH_METERS - 1;
 const OSM_NODE_BATCH_SIZE = 100;
 const COORDINATE_BATCH_SIZE = 25;
 const MIN_ROUTE_METERS = 100;
@@ -69,7 +70,6 @@ interface PublicRecording {
 
 interface PreparedRoute {
   id: string;
-  segmentId: string;
   name: string;
   points: RoutePoint[];
   ewkt: string;
@@ -91,6 +91,7 @@ interface OverpassBatch {
 
 interface OverpassResponse {
   elements?: Array<OsmRouteRelation | { type: string; id: number }>;
+  remark?: string;
 }
 
 interface CoverageCounts {
@@ -107,7 +108,10 @@ async function main(): Promise<void> {
   const summits = await loadSummits();
   const before = summarizeCoverage(summits);
   const unresolved = summits.filter((summit) => !summit.covered);
-  const allBatches = buildOverpassBatches(unresolved);
+  const unresolvedDestinationIds = new Set(unresolved.map((summit) => summit.id));
+  // Source batches use the full catalog so an apply does not shift cache keys.
+  // Linking still targets only summits without a named saved path.
+  const allBatches = buildOverpassBatches(summits);
   const batches = allBatches.slice(
     0,
     options.batchLimit ?? Number.POSITIVE_INFINITY
@@ -124,9 +128,12 @@ async function main(): Promise<void> {
     `${batches.filter((batch) => batch.kind === "coordinate").length} coordinate)`
   );
 
-  const relationCandidates = new Map<number, { relation: OsmRouteRelation; summits: Map<string, Summit> }>();
+  const osmRelationIds = new Set<number>();
+  const osmRoutesByRelationId = new Map<number, PreparedRoute[]>();
+  const osmRoutesById = new Map<string, PreparedRoute>();
   const batchFailures: Array<{ key: string; error: string }> = [];
   let cachedBatches = 0;
+  let sourceResponses = 0;
 
   let nextBatchIndex = 0;
   const fetchWorker = async () => {
@@ -134,24 +141,37 @@ async function main(): Promise<void> {
       const index = nextBatchIndex++;
       const batch = batches[index];
       try {
-        const result = await fetchOverpassBatch(batch, options);
-        if (result.cached) cachedBatches++;
-        for (const element of result.response.elements ?? []) {
-          if (element.type !== "relation") continue;
-          const relation = element as OsmRouteRelation;
-          if (!explicitOsmRouteName(relation.tags)) continue;
-          const current = relationCandidates.get(relation.id) ?? {
-            relation,
-            summits: new Map<string, Summit>(),
-          };
-          current.relation = relation;
-          for (const summit of batch.summits) current.summits.set(summit.id, summit);
-          relationCandidates.set(relation.id, current);
+        const results = await fetchOverpassBatchResilient(batch, options);
+        let relationCount = 0;
+        sourceResponses += results.length;
+        for (const result of results) {
+          if (result.cached) cachedBatches++;
+          relationCount += result.response.elements?.length ?? 0;
+          for (const element of result.response.elements ?? []) {
+            if (element.type !== "relation") continue;
+            const relation = element as OsmRouteRelation;
+            if (!explicitOsmRouteName(relation.tags)) continue;
+            osmRelationIds.add(relation.id);
+            const unresolvedBatchSummits = result.batch.summits.filter((summit) =>
+              unresolvedDestinationIds.has(summit.id)
+            );
+            let relationRoutes = osmRoutesByRelationId.get(relation.id);
+            if (!relationRoutes) {
+              relationRoutes = prepareOsmRelationRoutes(relation);
+              osmRoutesByRelationId.set(relation.id, relationRoutes);
+            }
+            linkOsmRoutesToSummits(relationRoutes, unresolvedBatchSummits);
+            for (const route of relationRoutes) {
+              if (route.destinationIds.length === 0) continue;
+              mergePreparedRoute(osmRoutesById, route);
+            }
+          }
         }
         console.log(
           `[route-audit] OSM batch ${index + 1}/${batches.length}: ` +
-          `${batch.summits.length} summits, ${result.response.elements?.length ?? 0} relations` +
-          `${result.cached ? " (cache)" : ""}`
+          `${batch.summits.length} summits, ${relationCount} relations` +
+          `${results.length > 1 ? ` (${results.length} split responses)` : ""}` +
+          `${results.every((result) => result.cached) ? " (cache)" : ""}`
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -165,14 +185,32 @@ async function main(): Promise<void> {
     () => fetchWorker()
   ));
 
-  const osmRoutes = prepareOsmRoutes(relationCandidates);
+  const osmRoutes = [...osmRoutesById.values()].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  );
   const publicRecordings = await loadPublicRecordings();
   const publicRoutes = preparePublicRecordingRoutes(
     publicRecordings,
-    new Set(unresolved.map((summit) => summit.id))
+    unresolvedDestinationIds
   );
   const routes = dedupePreparedRoutes([...osmRoutes, ...publicRoutes]);
   const plannedDestinationIds = new Set(routes.flatMap((route) => route.destinationIds));
+  const estimatedDatabasePayloadBytes = routes.reduce(
+    (sum, route) =>
+      sum +
+      Buffer.byteLength(route.ewkt, "utf8") +
+      Buffer.byteLength(route.polyline6, "utf8") +
+      Buffer.byteLength(JSON.stringify(route.externalLinks), "utf8"),
+    0
+  );
+
+  console.log(
+    `[route-audit] estimated route payload: ${(
+      estimatedDatabasePayloadBytes /
+      1024 /
+      1024
+    ).toFixed(1)} MiB`
+  );
 
   let appliedRoutes = 0;
   let appliedLinks = 0;
@@ -204,10 +242,11 @@ async function main(): Promise<void> {
       total: allBatches.length,
       requested: batches.length,
       cached: cachedBatches,
+      sourceResponses,
       failures: batchFailures,
     },
     osm: {
-      relations: relationCandidates.size,
+      relations: osmRelationIds.size,
       preparedRoutes: osmRoutes.length,
       linkedSummits: new Set(osmRoutes.flatMap((route) => route.destinationIds)).size,
     },
@@ -220,6 +259,7 @@ async function main(): Promise<void> {
       routes: routes.length,
       links: routes.reduce((sum, route) => sum + route.destinationIds.length, 0),
       linkedSummits: plannedDestinationIds.size,
+      estimatedDatabasePayloadBytes,
     },
     applied: {
       routes: appliedRoutes,
@@ -308,45 +348,98 @@ function buildOverpassBatches(summits: Summit[]): OverpassBatch[] {
 
   for (let index = 0; index < withNodes.length; index += OSM_NODE_BATCH_SIZE) {
     const batchSummits = withNodes.slice(index, index + OSM_NODE_BATCH_SIZE);
-    const nodeIds = batchSummits.map((summit) => summit.osmId).join(",");
-    const query =
-      `[out:json][timeout:300];` +
-      `node(id:${nodeIds})->.summits;` +
-      `way(around.summits:${ROUTE_REACH_METERS})` +
-      `["highway"~"^(path|footway|track|steps|pedestrian)$"]->.near;` +
-      `rel(bw.near)["type"="route"]["route"~"^(hiking|foot)$"]["name"];` +
-      `out body geom;`;
-    batches.push(makeBatch("osm_node", batchSummits, query));
+    batches.push(makeOverpassBatch("osm_node", batchSummits));
   }
 
   for (let index = 0; index < withoutNodes.length; index += COORDINATE_BATCH_SIZE) {
     const batchSummits = withoutNodes.slice(index, index + COORDINATE_BATCH_SIZE);
-    const ways = batchSummits
-      .map((summit) =>
-        `way(around:${ROUTE_REACH_METERS},${summit.lat.toFixed(7)},${summit.lng.toFixed(7)})` +
-        `["highway"~"^(path|footway|track|steps|pedestrian)$"];`
-      )
-      .join("");
-    const query =
-      `[out:json][timeout:300];(${ways})->.near;` +
-      `rel(bw.near)["type"="route"]["route"~"^(hiking|foot)$"]["name"];` +
-      `out body geom;`;
-    batches.push(makeBatch("coordinate", batchSummits, query));
+    batches.push(makeOverpassBatch("coordinate", batchSummits));
   }
   return batches;
 }
 
-function makeBatch(
+function makeOverpassBatch(
   kind: OverpassBatch["kind"],
-  summits: Summit[],
-  query: string
+  summits: Summit[]
 ): OverpassBatch {
+  const query = kind === "osm_node"
+    ? buildOsmNodeRouteQuery(summits)
+    : buildCoordinateRouteQuery(summits);
   return {
     kind,
     summits,
     query,
     key: createHash("sha256").update(query).digest("hex").slice(0, 20),
   };
+}
+
+function buildOsmNodeRouteQuery(summits: Summit[]): string {
+  const nodeIds = summits.map((summit) => summit.osmId).join(",");
+  return (
+    `[out:json][timeout:300];` +
+    `node(id:${nodeIds})->.summits;` +
+    `way(around.summits:${ROUTE_REACH_METERS})` +
+    `["highway"~"^(path|footway|track|steps|pedestrian)$"]->.near;` +
+    `rel(bw.near)["type"="route"]["route"~"^(hiking|foot)$"]["name"];` +
+    `out body geom;`
+  );
+}
+
+function buildCoordinateRouteQuery(summits: Summit[]): string {
+  const ways = summits
+    .map((summit) =>
+      `way(around:${ROUTE_REACH_METERS},${summit.lat.toFixed(7)},${summit.lng.toFixed(7)})` +
+      `["highway"~"^(path|footway|track|steps|pedestrian)$"];`
+    )
+    .join("");
+  return (
+    `[out:json][timeout:300];(${ways})->.near;` +
+    `rel(bw.near)["type"="route"]["route"~"^(hiking|foot)$"]["name"];` +
+    `out body geom;`
+  );
+}
+
+async function fetchOverpassBatchResilient(
+  batch: OverpassBatch,
+  options: CliOptions
+): Promise<Array<{
+  batch: OverpassBatch;
+  response: OverpassResponse;
+  cached: boolean;
+}>> {
+  try {
+    const result = await fetchOverpassBatch(batch, options);
+    return [{ batch, ...result }];
+  } catch (error) {
+    if (batch.summits.length <= 1) throw error;
+    const midpoint = Math.ceil(batch.summits.length / 2);
+    const halves = [
+      makeOverpassBatch(batch.kind, batch.summits.slice(0, midpoint)),
+      makeOverpassBatch(batch.kind, batch.summits.slice(midpoint)),
+    ];
+    console.error(
+      `[route-audit] ${batch.key}: splitting failed ${batch.summits.length}-summit request ` +
+      `into ${halves[0].summits.length}+${halves[1].summits.length}`
+    );
+    const results: Array<{
+      batch: OverpassBatch;
+      response: OverpassResponse;
+      cached: boolean;
+    }> = [];
+    for (const half of halves) {
+      results.push(...await fetchOverpassBatchResilient(half, options));
+    }
+    const elementsById = new Map<string, OsmRouteRelation | { type: string; id: number }>();
+    for (const result of results) {
+      for (const element of result.response.elements ?? []) {
+        elementsById.set(`${element.type}:${element.id}`, element);
+      }
+    }
+    await writeOverpassCache(batch, options, {
+      elements: [...elementsById.values()],
+    });
+    return results;
+  }
 }
 
 async function fetchOverpassBatch(
@@ -357,9 +450,14 @@ async function fetchOverpassBatch(
   if (!options.refresh) {
     try {
       const cached = JSON.parse(await fs.readFile(cachePath, "utf8")) as OverpassResponse;
-      return { response: cached, cached: true };
+      if (!cached.remark && Array.isArray(cached.elements)) {
+        return { response: cached, cached: true };
+      }
+      console.error(`[route-audit] ignoring incomplete cache ${cachePath}`);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.error(`[route-audit] ignoring unreadable cache ${cachePath}`);
+      }
     }
   }
 
@@ -378,8 +476,9 @@ async function fetchOverpassBatch(
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json() as OverpassResponse;
+        if (payload.remark) throw new Error(payload.remark);
         if (!Array.isArray(payload.elements)) throw new Error("missing elements array");
-        await fs.writeFile(cachePath, JSON.stringify(payload));
+        await writeOverpassCache(batch, options, payload);
         return { response: payload, cached: false };
       } catch (error) {
         errors.push(
@@ -393,41 +492,74 @@ async function fetchOverpassBatch(
   throw new Error(errors.join("; "));
 }
 
-function prepareOsmRoutes(
-  relationCandidates: Map<number, { relation: OsmRouteRelation; summits: Map<string, Summit> }>
+async function writeOverpassCache(
+  batch: OverpassBatch,
+  options: CliOptions,
+  payload: OverpassResponse
+): Promise<void> {
+  const cachePath = path.join(options.cacheDir, `${batch.kind}-${batch.key}.json`);
+  const temporaryPath = `${cachePath}.${process.pid}.tmp`;
+  await fs.writeFile(temporaryPath, JSON.stringify(payload));
+  await fs.rename(temporaryPath, cachePath);
+}
+
+function prepareOsmRelationRoutes(
+  relation: OsmRouteRelation
 ): PreparedRoute[] {
   const routes: PreparedRoute[] = [];
-  for (const { relation, summits } of relationCandidates.values()) {
-    const name = explicitOsmRouteName(relation.tags);
-    if (!name) continue;
-    for (const chain of stitchOsmRouteChains(relation)) {
-      if (chain.distanceMeters < MIN_ROUTE_METERS) continue;
-      const destinationIds = [...summits.values()]
-        .filter((summit) =>
-          pointToPolylineDistanceMeters(summit, chain.points) <= ROUTE_REACH_METERS
-        )
-        .map((summit) => summit.id)
-        .sort();
-      if (destinationIds.length === 0) continue;
-
-      const id = `osm-route-${relation.id}-${chain.key}`;
-      routes.push({
-        id,
-        segmentId: `${id}-segment`,
-        name,
-        points: chain.points,
-        ewkt: pointsToEwkt(chain.points),
-        polyline6: encodePolyline6(chain.points),
-        distance: Math.round(chain.distanceMeters),
-        gain: null,
-        gainLoss: null,
-        externalLinks: [{ type: "osm", id: `relation/${relation.id}` }],
-        destinationIds,
-        source: "osm",
-      });
-    }
+  const name = explicitOsmRouteName(relation.tags);
+  if (!name) return routes;
+  for (const chain of stitchOsmRouteChains(relation)) {
+    if (chain.distanceMeters < MIN_ROUTE_METERS) continue;
+    const id = `osm-route-${relation.id}-${chain.key}`;
+    routes.push({
+      id,
+      name,
+      points: chain.points,
+      ewkt: pointsToEwkt(chain.points),
+      polyline6: encodePolyline6(chain.points),
+      distance: Math.round(chain.distanceMeters),
+      gain: null,
+      gainLoss: null,
+      externalLinks: [{ type: "osm", id: `relation/${relation.id}` }],
+      destinationIds: [],
+      source: "osm",
+    });
   }
   return routes;
+}
+
+function linkOsmRoutesToSummits(
+  routes: PreparedRoute[],
+  summits: Summit[]
+): void {
+  for (const route of routes) {
+    const destinationIds = new Set(route.destinationIds);
+    for (const summit of summits) {
+      if (
+        pointToPolylineDistanceMeters(summit, route.points) <=
+          ROUTE_CLIENT_PREFILTER_METERS
+      ) {
+        destinationIds.add(summit.id);
+      }
+    }
+    route.destinationIds = [...destinationIds].sort();
+  }
+}
+
+function mergePreparedRoute(
+  routesById: Map<string, PreparedRoute>,
+  route: PreparedRoute
+): void {
+  const current = routesById.get(route.id);
+  if (!current) {
+    routesById.set(route.id, route);
+    return;
+  }
+  current.destinationIds = [...new Set([
+    ...current.destinationIds,
+    ...route.destinationIds,
+  ])].sort();
 }
 
 async function loadPublicRecordings(): Promise<PublicRecording[]> {
@@ -500,7 +632,6 @@ function preparePublicRecordingRoutes(
     const id = `public-recording-${recording.id}`;
     return [{
       id,
-      segmentId: `${id}-segment`,
       name: recording.name.trim(),
       points: recording.points,
       ewkt: recording.ewkt,
@@ -543,30 +674,6 @@ async function applyRoutes(
     await client.query("SELECT pg_advisory_xact_lock(hashtext('peaks-route-coverage-import'))");
     for (const route of routes) {
       await client.query(
-        `INSERT INTO segments (
-           id, name, path, polyline6, distance, gain, gain_loss
-         ) VALUES (
-           $1, $2, ST_GeomFromEWKT($3)::geography, $4, $5, $6, $7
-         )
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           path = EXCLUDED.path,
-           polyline6 = EXCLUDED.polyline6,
-           distance = EXCLUDED.distance,
-           gain = EXCLUDED.gain,
-           gain_loss = EXCLUDED.gain_loss,
-           updated_at = now()`,
-        [
-          route.segmentId,
-          route.name,
-          route.ewkt,
-          route.polyline6,
-          route.distance,
-          route.gain,
-          route.gainLoss,
-        ]
-      );
-      await client.query(
         `INSERT INTO routes (
            id, name, path, polyline6, owner, distance, gain, gain_loss,
            external_links, completion, status
@@ -595,21 +702,33 @@ async function applyRoutes(
           JSON.stringify(route.externalLinks),
         ]
       );
-      await client.query(
-        `INSERT INTO route_segments (route_id, segment_id, ordinal, direction)
-         VALUES ($1, $2, 0, 'forward')
-         ON CONFLICT (route_id, segment_id, ordinal) DO UPDATE SET direction = 'forward'`,
-        [route.id, route.segmentId]
-      );
+      let routeLinkCount = 0;
       for (let index = 0; index < route.destinationIds.length; index++) {
         const result = await client.query(
           `INSERT INTO route_destinations (route_id, destination_id, ordinal)
-           VALUES ($1, $2, $3)
+           SELECT $1, $2, $3
+           FROM routes r
+           JOIN destinations d ON d.id = $2
+           WHERE r.id = $1
+             AND ST_DWithin(r.path, d.location, $4)
            ON CONFLICT (route_id, destination_id) DO UPDATE SET ordinal = EXCLUDED.ordinal
            RETURNING route_id`,
-          [route.id, route.destinationIds[index], index]
+          [route.id, route.destinationIds[index], index, ROUTE_REACH_METERS]
         );
-        linkCount += result.rowCount ?? 0;
+        const writtenLinks = result.rowCount ?? 0;
+        routeLinkCount += writtenLinks;
+        linkCount += writtenLinks;
+      }
+      if (routeLinkCount === 0) {
+        await client.query(
+          `DELETE FROM routes r
+           WHERE r.id = $1
+             AND NOT EXISTS (
+               SELECT 1 FROM route_destinations rd WHERE rd.route_id = r.id
+             )`,
+          [route.id]
+        );
+        continue;
       }
       routeCount++;
     }
