@@ -249,64 +249,67 @@ async function touchSession(client: PoolClient, sessionId: string): Promise<void
  * auto-detected summit (the "imported climb shows no peak" bug). Reinserts use
  * `ON CONFLICT DO NOTHING` so a dest already present as 'auto' stays 'auto'.
  *
- * CRITICAL, second half: a `reached` id the user has REJECTED is skipped, and
- * the veto is left standing. The same iOS habit that caused the bug above —
- * resending the local `destinations_reached` on every create/update — means the
+ * CRITICAL, second half: the delete is scoped PER RELATION, and only fires for a
+ * list the caller actually supplied. `reached` supplied replaces the manual
+ * reached set and leaves goals alone; `goals` supplied replaces the manual goal
+ * set and leaves reaches alone; an absent list touches nothing. A blanket
+ * `DELETE ... source = 'manual'` meant a body that mentioned neither — say a
+ * `{rejected: [...]}` post to the destinations endpoint — silently wiped every
+ * manual row on the session.
+ *
+ * CRITICAL, third half: a `reached` id the user has REJECTED is skipped, and no
+ * path here ever clears a veto. The same iOS habit that caused the first bug —
+ * resending the local `destinations_reached` on every create/update — means that
  * list goes stale the moment a rejection happens on another device, or on this
  * one before the next sync. Honouring it would put the summit straight back on
  * the next routine PUT and the rejection would look like it never took. This is
  * the fifth writer of 'reached' rows and it anti-joins like the other four.
+ * Un-rejecting is an explicit `unreject` list on the destinations endpoint, never
+ * an inference from `reached` — see applyDestinationRejections.
  *
- * `clearRejections` is the deliberate un-reject, and only the explicit
- * `POST /:id/destinations` endpoint passes it: there, a `reached` id IS the user
- * saying "yes I did, actually", so the veto is dropped first and the row goes in.
- * A generic sync writer never gets to make that call — the flag is opt-in
- * precisely so a new caller inherits the safe behaviour by default.
- *
- * Goals are not filtered. A rejection says "I did not reach this", which does
- * not contradict "this was my goal" — the attempt still happened, and no matcher
+ * Goals are not filtered. A rejection says "I did not reach this", which does not
+ * contradict "this was my goal" — the attempt still happened, and no matcher
  * reads goal rows.
  */
 export async function reconcileClientDestinations(
   client: PoolClient,
   sessionId: string,
   reached: string[] | undefined,
-  goals: string[] | undefined,
-  opts: { clearRejections?: boolean } = {}
+  goals: string[] | undefined
 ): Promise<void> {
-  await client.query(
-    `DELETE FROM session_destinations
-     WHERE session_id = $1 AND source = 'manual'`,
-    [sessionId]
-  );
-
-  const reachedIds = cleanDestinationIds(reached);
-  if (opts.clearRejections && reachedIds.length > 0) {
+  if (Array.isArray(reached)) {
     await client.query(
-      `DELETE FROM session_destination_rejections
-       WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
-      [sessionId, reachedIds]
+      `DELETE FROM session_destinations
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'reached'`,
+      [sessionId]
     );
+    for (const destId of cleanDestinationIds(reached)) {
+      await client.query(
+        `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+         SELECT $1, $2, 'reached', 'manual'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM session_destination_rejections r
+           WHERE r.session_id = $1 AND r.destination_id = $2
+         )
+         ON CONFLICT DO NOTHING`,
+        [sessionId, destId]
+      );
+    }
   }
 
-  for (const destId of reachedIds) {
+  if (Array.isArray(goals)) {
     await client.query(
-      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
-       SELECT $1, $2, 'reached', 'manual'
-       WHERE NOT EXISTS (
-         SELECT 1 FROM session_destination_rejections r
-         WHERE r.session_id = $1 AND r.destination_id = $2
-       )
-       ON CONFLICT DO NOTHING`,
-      [sessionId, destId]
+      `DELETE FROM session_destinations
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'`,
+      [sessionId]
     );
-  }
-  for (const destId of cleanDestinationIds(goals)) {
-    await client.query(
-      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
-       VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
-      [sessionId, destId]
-    );
+    for (const destId of cleanDestinationIds(goals)) {
+      await client.query(
+        `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+         VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
+        [sessionId, destId]
+      );
+    }
   }
 }
 
@@ -317,23 +320,23 @@ function cleanDestinationIds(ids: unknown): string[] {
 }
 
 /**
- * Destination ids present in BOTH the reached and rejected lists of one request.
+ * Destination ids two of a request's lists both name.
  *
  * "I reached it" and "I didn't reach it" in the same breath is a client bug, so
  * the handler answers 400 instead of picking a winner: any precedence rule here
  * would silently discard half of what the client asked for, and the client would
- * never learn its state is confused.
+ * never learn its state is confused. Used for both contradictions the
+ * destinations endpoint can receive — `reached` against `rejected`, and
+ * `unreject` against `rejected`.
  */
-export function overlappingDestinationIds(
-  reached: unknown,
-  rejected: unknown
-): string[] {
-  const rejectedSet = new Set(cleanDestinationIds(rejected));
-  return [...new Set(cleanDestinationIds(reached).filter((d) => rejectedSet.has(d)))];
+export function overlappingDestinationIds(a: unknown, b: unknown): string[] {
+  const bSet = new Set(cleanDestinationIds(b));
+  return [...new Set(cleanDestinationIds(a).filter((d) => bSet.has(d)))];
 }
 
 /**
- * Apply the client's destination rejections ("I didn't actually summit this").
+ * Apply the client's destination rejections ("I didn't actually summit this")
+ * and un-rejections.
  *
  * A rejection has two halves that must move together:
  *  - a row in session_destination_rejections, which every auto-matcher
@@ -344,36 +347,45 @@ export function overlappingDestinationIds(
  *    retracting has to go too. A 'goal' row for the same destination is left
  *    standing; see the comment on that DELETE.
  *
- * Re-adding a destination as a manual `reached` is the un-reject path: it clears
- * the veto so auto-matching is allowed again. Callers must refuse a request that
- * names the same id in both lists (see overlappingDestinationIds), so the two
- * halves below can never contend for the same pair.
+ * Un-rejecting is driven by an EXPLICIT list and nothing else. Inferring it from
+ * `reached` was a trap in both directions: a client replaying a stale reached
+ * list would have silently dropped a veto, and a caller of this function (B4's
+ * averages recompute among them) could clear vetoes it never meant to touch by
+ * passing the session's current reaches. Un-rejecting an id that carries no veto
+ * is a no-op. Callers must refuse a request naming the same id in `rejected` and
+ * in either other list (see overlappingDestinationIds), so the two legs below can
+ * never contend for the same pair.
  *
  * Rejections for unknown destination ids are dropped rather than raising an FK
  * violation, mirroring the plan_routes existence guard in routes/plans.ts.
  *
- * Returns the destination ids actually rejected, so the caller can recompute
- * their averages (processSession's own recompute never sees them — the rows are
- * already gone from session_destinations by then).
+ * Returns the ids actually rejected and actually un-rejected — "actually" because
+ * both come from RETURNING, so the caller can recompute exactly the destinations
+ * whose averages moved (processSession's own recompute never sees the rejected
+ * ones — their rows are already gone from session_destinations by then) and can
+ * skip the sync bump when a request changed nothing.
  */
 export async function applyDestinationRejections(
   client: PoolClient,
   sessionId: string,
-  reached: string[] | undefined,
+  unreject: string[] | undefined,
   rejected: string[] | undefined
-): Promise<string[]> {
-  const unreject = cleanDestinationIds(reached);
-  if (unreject.length > 0) {
-    await client.query(
+): Promise<{ rejected: string[]; unrejected: string[] }> {
+  const toUnreject = cleanDestinationIds(unreject);
+  let unrejected: string[] = [];
+  if (toUnreject.length > 0) {
+    const cleared = await client.query(
       `DELETE FROM session_destination_rejections
-       WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
-      [sessionId, unreject]
+       WHERE session_id = $1 AND destination_id = ANY($2::text[])
+       RETURNING destination_id`,
+      [sessionId, toUnreject]
     );
+    unrejected = cleared.rows.map((r: { destination_id: string }) => r.destination_id);
   }
 
   const toReject = cleanDestinationIds(rejected);
   if (toReject.length === 0) {
-    return [];
+    return { rejected: [], unrejected };
   }
 
   const inserted = await client.query(
@@ -401,7 +413,10 @@ export async function applyDestinationRejections(
     [sessionId, toReject]
   );
 
-  return inserted.rows.map((r: { destination_id: string }) => r.destination_id);
+  return {
+    rejected: inserted.rows.map((r: { destination_id: string }) => r.destination_id),
+    unrejected,
+  };
 }
 
 function buildPointInsertQuery(sessionId: string, points: any[]) {
@@ -1861,22 +1876,31 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
   }
 });
 
-// POST /api/sessions/:id/destinations — set reached/goal destinations, and
-// record rejections ("I didn't reach this").
+// POST /api/sessions/:id/destinations — set reached/goal destinations, record
+// rejections ("I didn't reach this") and clear them again.
+//
+// Body: { reached?, goals?, rejected?, unreject? }. `reached` and `goals` each
+// replace their own manual set when supplied and are ignored when absent, so a
+// body naming only `rejected` disturbs no manual row. A veto is cleared ONLY by
+// naming the id in `unreject` — never as a side effect of a `reached` list,
+// which iOS resends from possibly stale local state.
 router.post("/:id/destinations", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
-  const { reached, goals, rejected } = req.body;
+  const { reached, goals, rejected, unreject } = req.body;
 
-  // Request-shape guard, ahead of any database work: claiming a destination as
-  // both reached and rejected is a client bug, and answering 400 tells the
-  // client so instead of half-applying its request.
-  const contradictions = overlappingDestinationIds(reached, rejected);
-  if (contradictions.length > 0) {
-    res.status(400).json({
-      error: `reached and rejected must not name the same destination: ${contradictions.join(", ")}`,
-    });
-    return;
+  // Request-shape guards, ahead of any database work: claiming a destination as
+  // both reached and rejected — or un-rejecting and rejecting it at once — is a
+  // client bug, and answering 400 tells the client so instead of half-applying
+  // its request.
+  for (const [name, list] of [["reached", reached], ["unreject", unreject]] as const) {
+    const contradictions = overlappingDestinationIds(list, rejected);
+    if (contradictions.length > 0) {
+      res.status(400).json({
+        error: `${name} and rejected must not name the same destination: ${contradictions.join(", ")}`,
+      });
+      return;
+    }
   }
 
   // Verify ownership
@@ -1893,16 +1917,24 @@ router.post("/:id/destinations", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
-    // clearRejections: this endpoint is the one place a `reached` id means the
-    // user deliberately un-rejecting, rather than a client replaying a stale
-    // list. applyDestinationRejections repeats that un-reject rather than
-    // relying on the call order — it is also B4's entry point and has to be
-    // correct on its own.
-    await reconcileClientDestinations(client, id, reached, goals, { clearRejections: true });
-    await applyDestinationRejections(client, id, reached, rejected);
+    // Rejections FIRST. A request can reject a destination and keep it as a goal
+    // in one go, and the goal insert needs the reached row already gone — the
+    // two relations share the (session_id, destination_id) primary key, so a
+    // standing reached row would win the conflict, the goal insert would do
+    // nothing, and the rejection's delete would then leave the pair with no row
+    // at all. The 400 guards above make the reverse contention impossible.
+    const applied = await applyDestinationRejections(client, id, unreject, rejected);
+    await reconcileClientDestinations(client, id, reached, goals);
+
+    // Bump the sync feed explicitly. The session_destinations trigger only fires
+    // when a live row happened to exist, but a rejection with nothing to delete
+    // still changes what other devices must see.
+    if (applied.rejected.length > 0 || applied.unrejected.length > 0) {
+      await touchSession(client, id);
+    }
 
     await client.query("COMMIT");
-    res.json({ session_id: id });
+    res.json({ session_id: id, rejected: applied.rejected, unrejected: applied.unrejected });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error setting destinations:", err);

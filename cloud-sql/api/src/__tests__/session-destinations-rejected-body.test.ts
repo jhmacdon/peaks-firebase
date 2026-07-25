@@ -1,22 +1,27 @@
 // src/__tests__/session-destinations-rejected-body.test.ts
 //
-// POST /api/sessions/:id/destinations gains `rejected: [destinationId]` — the
-// wire form of "I didn't reach this". Rejecting must (a) record the veto so no
-// matcher re-adds the pair, (b) delete the live session_destinations row
-// whatever its source, and (c) bump server_updated_at so the change reaches
-// other devices through the sync feed. Re-adding the destination as a manual
-// `reached` clears the veto.
+// POST /api/sessions/:id/destinations takes { reached?, goals?, rejected?,
+// unreject? }. `rejected` is the wire form of "I didn't reach this": it records
+// the veto so no matcher re-adds the pair, deletes the live 'reached' row
+// whatever its source, and bumps server_updated_at so the change reaches other
+// devices. A 'goal' row for the same destination survives — "aimed for it,
+// didn't summit it" is an ordinary outcome.
 //
-// An id sent in BOTH `reached` and `rejected` is a client bug, not a precedence
-// question: the request is rejected with 400 rather than silently picking a
-// winner. That guard is pure request validation, so it runs before any database
-// work and is asserted without the rejections table.
+// `unreject` is the ONLY thing that clears a veto. It is deliberately not
+// inferred from `reached`: iOS resends its local reached list from possibly
+// stale state, and inferring would let a routine sync drop a veto silently.
 //
-// The veto is only clearable through THIS endpoint. The generic session writers
-// (`PUT /api/sessions/:id`, the `POST /api/sessions` upsert) resend whatever
-// `destinations_reached` the client happens to hold — often stale — so they must
-// never insert a manual row for a rejected destination and never clear a veto.
-// Second describe block below.
+// `reached` and `goals` each replace only their OWN manual set, and only when
+// supplied, so a body naming just `rejected` disturbs no manual row.
+//
+// Two 400s, both pure request validation ahead of any database work (and so
+// assertable without the rejections table): `reached` ∩ `rejected`, and
+// `unreject` ∩ `rejected`.
+//
+// The generic session writers (`PUT /api/sessions/:id`, the `POST /api/sessions`
+// upsert) resend whatever `destinations_reached` the client happens to hold, so
+// they must never insert a manual row for a rejected destination and never clear
+// a veto. Second describe block below.
 //
 // Integration tests gated on $DATABASE_URL, fixtures prefixed + placed in empty
 // South Atlantic water.
@@ -189,7 +194,7 @@ describe("POST /api/sessions/:id/destinations rejected list", { skip: skipReason
       "re-processing must not overrule the user's veto");
   });
 
-  test("re-adding the destination as a manual reached clears the rejection", async () => {
+  test("an explicit unreject clears the veto and lets the manual reach land", async () => {
     const sid = `${runPrefix}-s3`;
     const dest = `${runPrefix}-dest3`;
     await createSessionWithTrack(sid);
@@ -201,14 +206,40 @@ describe("POST /api/sessions/:id/destinations rejected list", { skip: skipReason
       .expect(200);
     assert.equal(await rejectionCount(sid, dest), 1);
 
+    // `reached` on its own is NOT an un-reject — a client replaying a stale list
+    // must not be able to drop a veto.
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ reached: [dest] })
+      .expect(200);
+    assert.equal(await rejectionCount(sid, dest), 1, "reached alone must not clear a veto");
+    assert.ok(!(await reachedIds(sid)).includes(dest), "and the vetoed reach must not land");
+
     const res = await request(app)
       .post(`/api/sessions/${sid}/destinations`)
       .set("X-Test-User", user)
-      .send({ reached: [dest] });
+      .send({ reached: [dest], unreject: [dest] });
 
     assert.equal(res.status, 200);
-    assert.equal(await rejectionCount(sid, dest), 0, "manual re-add is the un-reject path");
+    assert.equal(await rejectionCount(sid, dest), 0, "the explicit unreject is the un-reject path");
     assert.ok((await reachedIds(sid)).includes(dest));
+    assert.deepEqual(res.body.unrejected, [dest], "the response reports what it cleared");
+  });
+
+  test("un-rejecting a destination that carries no veto is a no-op", async () => {
+    const sid = `${runPrefix}-s11`;
+    const dest = `${runPrefix}-dest11`;
+    await createSessionWithTrack(sid);
+    await createSummit(dest);
+
+    const res = await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ unreject: [dest] });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.unrejected, [], "nothing was cleared, so nothing is reported");
   });
 
   // Control: an unrejected destination must still auto-match and stay matched.
@@ -257,33 +288,120 @@ describe("POST /api/sessions/:id/destinations rejected list", { skip: skipReason
     assert.deepEqual(await reachedIds(sid), before, "a refused request must not half-apply");
   });
 
+  test("sending an id in both unreject and rejected is a 400", async () => {
+    const sid = `${runPrefix}-s12`;
+    const dest = `${runPrefix}-dest12`;
+    await createSessionWithTrack(sid);
+    await createSummit(dest);
+    const before = await reachedIds(sid);
+
+    const res = await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ unreject: [dest], rejected: [dest] });
+
+    assert.equal(res.status, 400, "clearing and setting the same veto at once is a client bug");
+    assert.match(res.body.error, /unreject/);
+    assert.match(res.body.error, /rejected/);
+    assert.deepEqual(await reachedIds(sid), before, "a refused request must not half-apply");
+  });
+
   // "I meant to climb it, and I didn't." A rejection asserts only that the
   // summit was not REACHED — it must not erase the user's goal marker. The two
   // rows coexist on purpose: the goal records the intent, the veto stops the
   // matcher handing back credit the user has said they didn't earn.
-  test("a rejection spares the goal row and still blocks the reached row", async () => {
+  // "I meant to climb it, and I didn't." A rejection asserts only that the
+  // summit was not REACHED — it must not erase the user's goal marker. The two
+  // rows coexist on purpose: the goal records the intent, the veto stops the
+  // matcher handing back credit the user has said they didn't earn.
+  test("a goal staged in an earlier request survives a later rejection", async () => {
     const sid = `${runPrefix}-s10`;
     const dest = `${runPrefix}-dest10`;
     await createSessionWithTrack(sid);
     await createSummit(dest);
     assert.ok((await reachedIds(sid)).includes(dest), "precondition: on the track, auto-matched");
 
-    // The realistic call: keep it as a goal, reject the reach.
+    // Clear the auto reached row, then stage the goal in its own request — the
+    // (session_id, destination_id) primary key means the pair holds one row.
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ rejected: [dest] })
+      .expect(200);
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ goals: [dest], unreject: [dest] })
+      .expect(200);
+    assert.ok((await goalIds(sid)).includes(dest), "precondition: goal staged");
+
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ rejected: [dest] })
+      .expect(200);
+
+    assert.ok((await goalIds(sid)).includes(dest), "the goal marker must survive the rejection");
+    assert.equal(await rejectionCount(sid, dest), 1);
+
+    // The destination sits on the track, so the matcher would re-add it were it
+    // not for the veto — this assertion is not vacuous.
+    await processSession(sid, user, { force: true });
+    assert.ok(!(await reachedIds(sid)).includes(dest), "re-processing must not hand back the reach");
+    assert.ok((await goalIds(sid)).includes(dest), "and must not disturb the goal");
+  });
+
+  // The handler applies rejections BEFORE reconciling. Without that order the
+  // goal insert loses the primary-key conflict to the standing reached row and
+  // does nothing, then the rejection deletes the reached row — leaving the pair
+  // with no row at all.
+  test("rejecting and keeping the goal in ONE request leaves the goal row", async () => {
+    const sid = `${runPrefix}-s13`;
+    const dest = `${runPrefix}-dest13`;
+    await createSessionWithTrack(sid);
+    await createSummit(dest);
+    assert.ok((await reachedIds(sid)).includes(dest), "precondition: standing auto reached row");
+
     await request(app)
       .post(`/api/sessions/${sid}/destinations`)
       .set("X-Test-User", user)
       .send({ goals: [dest], rejected: [dest] })
       .expect(200);
 
-    assert.ok((await goalIds(sid)).includes(dest), "the goal marker must survive the rejection");
-    assert.ok(!(await reachedIds(sid)).includes(dest), "but the reached row must go");
+    assert.ok((await goalIds(sid)).includes(dest), "the goal row must exist after the request");
+    assert.ok(!(await reachedIds(sid)).includes(dest), "and the reached row must be gone");
     assert.equal(await rejectionCount(sid, dest), 1);
+  });
 
-    // The destination sits on the track, so the matcher would re-add it were it
-    // not for the veto — this assertion is not vacuous.
-    await processSession(sid, user, { force: true });
-    assert.ok((await goalIds(sid)).includes(dest), "re-processing must not disturb the goal");
-    assert.ok(!(await reachedIds(sid)).includes(dest), "and must not hand back the reach");
+  // A {rejected}-only body names neither manual set, so it must replace neither.
+  test("a rejected-only body leaves every other manual row alone", async () => {
+    const sid = `${runPrefix}-s14`;
+    const target = `${runPrefix}-dest14-target`;
+    const otherReached = `${runPrefix}-dest14-reach`;
+    const otherGoal = `${runPrefix}-dest14-goal`;
+    await createSessionWithTrack(sid);
+    await createSummit(target);
+    await createDistantSummit(otherReached);
+    await createDistantSummit(otherGoal);
+
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ reached: [otherReached], goals: [otherGoal] })
+      .expect(200);
+    assert.ok((await reachedIds(sid)).includes(otherReached), "precondition: manual reach staged");
+    assert.ok((await goalIds(sid)).includes(otherGoal), "precondition: manual goal staged");
+
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ rejected: [target] })
+      .expect(200);
+
+    assert.ok((await reachedIds(sid)).includes(otherReached), "unrelated manual reach must survive");
+    assert.ok((await goalIds(sid)).includes(otherGoal), "unrelated manual goal must survive");
+    assert.equal(await rejectionCount(sid, target), 1, "and the target is still vetoed");
+    assert.ok(!(await reachedIds(sid)).includes(target));
   });
 
   test("a non-owner cannot reject", async () => {
@@ -369,28 +487,34 @@ describe("generic session writers cannot resurrect a rejection", { skip: skipRea
     assert.ok(after.includes(manualOnly), "an unrejected manual reach must still be written");
   });
 
-  test("only the destinations endpoint clears a veto", async () => {
+  // No reached list clears a veto anywhere any more — not on the generic
+  // writers, and not on the destinations endpoint either. Only `unreject` does.
+  test("only an explicit unreject clears a veto", async () => {
     const sid = `${runPrefix}-s9`;
     const rejected = `${runPrefix}-dest9-rejected`;
     const manualOnly = `${runPrefix}-dest9-manual`;
     await rejectedFixture(sid, rejected, manualOnly);
 
-    // A PUT first: still vetoed.
-    await request(app)
-      .put(`/api/sessions/${sid}`)
-      .set("X-Test-User", user)
-      .send({ destinations_reached: [rejected] })
-      .expect(200);
-    assert.equal(await rejectionCount(sid, rejected), 1);
+    for (const send of [
+      () => request(app).put(`/api/sessions/${sid}`).set("X-Test-User", user)
+        .send({ destinations_reached: [rejected] }),
+      () => request(app).post("/api/sessions").set("X-Test-User", user)
+        .send({ id: sid, start_date: "2026-06-07T17:00:00Z", ended: true, destinations_reached: [rejected] }),
+      () => request(app).post(`/api/sessions/${sid}/destinations`).set("X-Test-User", user)
+        .send({ reached: [rejected] }),
+    ]) {
+      await send().expect(200);
+      assert.equal(await rejectionCount(sid, rejected), 1, "a reached list never clears a veto");
+      assert.ok(!(await reachedIds(sid)).includes(rejected), "and the vetoed reach never lands");
+    }
 
-    // The explicit endpoint is the deliberate un-reject, and it works.
     await request(app)
       .post(`/api/sessions/${sid}/destinations`)
       .set("X-Test-User", user)
-      .send({ reached: [rejected] })
+      .send({ reached: [rejected], unreject: [rejected] })
       .expect(200);
 
-    assert.equal(await rejectionCount(sid, rejected), 0, "the opt-in path clears the veto");
+    assert.equal(await rejectionCount(sid, rejected), 0, "the explicit list clears the veto");
     assert.ok((await reachedIds(sid)).includes(rejected), "and writes the manual row");
   });
 });
