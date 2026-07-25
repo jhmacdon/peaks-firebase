@@ -339,9 +339,10 @@ export function overlappingDestinationIds(
  *  - a row in session_destination_rejections, which every auto-matcher
  *    anti-joins, so re-processing, a newly created destination, a boundary edit
  *    and the web backfill can never re-add the pair; and
- *  - deletion of the live session_destinations row WHATEVER its source — an
- *    auto row would otherwise sit there until the next re-process, and a manual
- *    row the user is retracting has to go too.
+ *  - deletion of the live 'reached' row WHATEVER its source — an auto row would
+ *    otherwise sit there until the next re-process, and a manual row the user is
+ *    retracting has to go too. A 'goal' row for the same destination is left
+ *    standing; see the comment on that DELETE.
  *
  * Re-adding a destination as a manual `reached` is the un-reject path: it clears
  * the veto so auto-matching is allowed again. Callers must refuse a request that
@@ -386,9 +387,17 @@ export async function applyDestinationRejections(
     [sessionId, toReject]
   );
 
+  // relation = 'reached' only. A rejection asserts "I did not reach this
+  // destination" — it says nothing about whether the user meant to. Deleting a
+  // 'goal' row here would throw away the intent along with the false credit, and
+  // "aimed for it, didn't summit it" is an ordinary outcome worth keeping. The
+  // two rows coexist by design: the goal records the plan, the veto stops every
+  // matcher handing back a reach. B4's recompute counts reached rows only, so
+  // leaving the goal alone keeps rejections from perturbing goal-derived reads.
   await client.query(
     `DELETE FROM session_destinations
-     WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
+     WHERE session_id = $1 AND destination_id = ANY($2::text[])
+       AND relation = 'reached'`,
     [sessionId, toReject]
   );
 

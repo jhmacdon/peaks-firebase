@@ -93,6 +93,15 @@ async function reachedIds(sessionId: string): Promise<string[]> {
   return res.rows.map((r: { destination_id: string }) => r.destination_id);
 }
 
+async function goalIds(sessionId: string): Promise<string[]> {
+  const res = await db.query(
+    `SELECT destination_id FROM session_destinations
+     WHERE session_id = $1 AND relation = 'goal' ORDER BY destination_id`,
+    [sessionId]
+  );
+  return res.rows.map((r: { destination_id: string }) => r.destination_id);
+}
+
 async function rejectionCount(sessionId: string, destId: string): Promise<number> {
   const res = await db.query(
     `SELECT count(*)::int AS n FROM session_destination_rejections
@@ -246,6 +255,35 @@ describe("POST /api/sessions/:id/destinations rejected list", { skip: skipReason
     assert.match(res.body.error, /reached/);
     assert.match(res.body.error, /rejected/);
     assert.deepEqual(await reachedIds(sid), before, "a refused request must not half-apply");
+  });
+
+  // "I meant to climb it, and I didn't." A rejection asserts only that the
+  // summit was not REACHED — it must not erase the user's goal marker. The two
+  // rows coexist on purpose: the goal records the intent, the veto stops the
+  // matcher handing back credit the user has said they didn't earn.
+  test("a rejection spares the goal row and still blocks the reached row", async () => {
+    const sid = `${runPrefix}-s10`;
+    const dest = `${runPrefix}-dest10`;
+    await createSessionWithTrack(sid);
+    await createSummit(dest);
+    assert.ok((await reachedIds(sid)).includes(dest), "precondition: on the track, auto-matched");
+
+    // The realistic call: keep it as a goal, reject the reach.
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ goals: [dest], rejected: [dest] })
+      .expect(200);
+
+    assert.ok((await goalIds(sid)).includes(dest), "the goal marker must survive the rejection");
+    assert.ok(!(await reachedIds(sid)).includes(dest), "but the reached row must go");
+    assert.equal(await rejectionCount(sid, dest), 1);
+
+    // The destination sits on the track, so the matcher would re-add it were it
+    // not for the veto — this assertion is not vacuous.
+    await processSession(sid, user, { force: true });
+    assert.ok((await goalIds(sid)).includes(dest), "re-processing must not disturb the goal");
+    assert.ok(!(await reachedIds(sid)).includes(dest), "and must not hand back the reach");
   });
 
   test("a non-owner cannot reject", async () => {
