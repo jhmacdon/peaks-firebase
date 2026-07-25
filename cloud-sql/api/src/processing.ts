@@ -489,9 +489,15 @@ async function assignAttemptGroup(
  * start_time among the counted reached sessions. It is NOT stamped with now().
  * A retraction has to be able to move it DOWN — bumping it on the write that
  * removes an ascent would advertise a destination as freshly visited precisely
- * when the user said they never visited it. Recomputing to zero reached rows
- * leaves it NULL, which is what an unvisited destination already carries, so
- * the column self-heals from the rows in both directions.
+ * when the user said they never visited it.
+ *
+ * When no reached rows remain the existing value is kept, NOT nulled. Unlike
+ * `averages` there is no `recency_offset`: the Firestore migration wrote each
+ * destination's historical recency straight into this column
+ * (migrate/src/migrate-destinations.ts), and nothing can regenerate it. A peak
+ * whose visits all live in `averages_offset` has no live reached rows at all,
+ * so an unconditional write would erase that history irreversibly on the first
+ * recompute that named it.
  *
  * Pure builder so the shape is unit-testable without a live DB.
  */
@@ -534,7 +540,7 @@ export function buildDestinationAveragesRecomputeSql(): { text: string } {
                         'months', COALESCE(months.blob, '{}'::jsonb),
                         'days',   COALESCE(days.blob,   '{}'::jsonb)
                       ),
-        recency = totals.last_at
+        recency = COALESCE(totals.last_at, dst.recency)
     FROM ids
     LEFT JOIN months ON months.id = ids.id
     LEFT JOIN days   ON days.id   = ids.id

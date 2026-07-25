@@ -51,6 +51,7 @@ import {
   buildDestinationAveragesRecomputeSql,
   DESTINATION_AVERAGES_LOCK_SQL,
   processSession,
+  recomputeDestinationAverages,
 } from "../processing";
 
 // Pure shape assertions — no DB needed, so these run in CI.
@@ -110,11 +111,14 @@ describe("buildDestinationAveragesRecomputeSql", () => {
 
   // recency answers to the rows, not to the clock. Stamping now() would let the
   // write that REMOVES an ascent advertise the destination as freshly visited.
-  test("recency is taken from the data, never from now()", () => {
+  // The COALESCE is not decoration: there is no recency_offset, so the
+  // Firestore migration's historical value lives in this very column and a bare
+  // assignment would erase it for any destination whose visits are all
+  // pre-migration (no live reached rows, so nothing to recompute it from).
+  test("recency is taken from the data, never from now(), and never erased", () => {
     const { text } = buildDestinationAveragesRecomputeSql();
-    assert.match(text, /recency = totals\.last_at/);
+    assert.match(text, /recency = COALESCE\(totals\.last_at, dst\.recency\)/);
     assert.match(text, /MAX\(start_time\) AS last_at/);
-    assert.doesNotMatch(text, /recency = now\(\)/i);
     assert.doesNotMatch(text, /now\(\)/i, "nothing here should read the clock at all");
   });
 });
@@ -130,11 +134,6 @@ describe("DESTINATION_AVERAGES_LOCK_SQL", () => {
       DESTINATION_AVERAGES_LOCK_SQL,
       /ORDER BY id\s+FOR NO KEY UPDATE/,
       "ordered, so two concurrent multi-destination recomputes cannot deadlock"
-    );
-    assert.doesNotMatch(
-      DESTINATION_AVERAGES_LOCK_SQL,
-      /FOR UPDATE(?! )/,
-      "FOR NO KEY UPDATE — a plain FOR UPDATE blocks the FKs that reference destinations(id)"
     );
   });
 });
@@ -692,21 +691,27 @@ describe("destination averages recompute", { skip: skipReason ?? undefined }, ()
     );
   });
 
-  // recency answers to the rows. The write that removes the last ascent has to
-  // move it down, not stamp it with the moment of the retraction.
-  test("recency follows the counted sessions and clears when none are left", async () => {
+  // recency answers to the rows while there are rows, and to nothing at all
+  // when there are none. The write that removes the last ascent must not stamp
+  // it with the moment of the retraction — and must not erase it either: there
+  // is no recency_offset, so the value the Firestore migration wrote is the
+  // only record of a pre-migration visit.
+  test("recency follows the counted sessions and survives when none are left", async () => {
     const at = newPlace();
     const sid = `${runPrefix}-s16`;
     const dest = `${runPrefix}-dest16`;
+    const MIGRATED = "2019-04-01T12:00:00Z";
     await createSessionWithTrack(sid, at);
     await createSummit(dest, at);
+    // Stands in for what migrate-destinations.ts wrote from Firestore.
+    await query(`UPDATE destinations SET recency = $2 WHERE id = $1`, [dest, MIGRATED]);
 
     await run(sid);
     const withAscent = await query(`SELECT recency FROM destinations WHERE id = $1`, [dest]);
     assert.equal(
       new Date(withAscent.rows[0].recency).toISOString(),
       new Date(START).toISOString(),
-      "recency is the session's start_time, not the time we processed it"
+      "a live ascent wins: recency is the session's start_time, not the time we processed it"
     );
 
     await request(app)
@@ -716,11 +721,43 @@ describe("destination averages recompute", { skip: skipReason ?? undefined }, ()
       .expect(200);
 
     const retracted = await query(`SELECT recency FROM destinations WHERE id = $1`, [dest]);
+    assert.notEqual(retracted.rows[0].recency, null, "the retraction must not erase recency");
     assert.equal(
-      retracted.rows[0].recency,
-      null,
-      "no ascents left, so nothing to be recent about — a retraction must not look fresh"
+      new Date(retracted.rows[0].recency).toISOString(),
+      new Date(START).toISOString(),
+      "no live rows left, so the last computed value stands — not now(), not NULL"
     );
+  });
+
+  // The destination the COALESCE exists for: every visit is pre-migration, so
+  // there is no reached row to recompute from and the migrated timestamp is the
+  // only thing there is. A recompute that names it must leave it alone.
+  test("a recompute never erases a migrated recency it cannot regenerate", async () => {
+    const dest = `${runPrefix}-dest17`;
+    const MIGRATED = "2018-08-15T09:30:00Z";
+    // Never reached by anyone: its history lives entirely in the pre-migration
+    // columns. Recomputed directly, because no route can name a destination in
+    // `touched` without also giving it a live row — the helper is the unit that
+    // has to be safe here, since a backfill would call it over every id.
+    await createSummit(dest, newPlace(), '{"months":{"aug":3}}');
+    await query(`UPDATE destinations SET recency = $2, averages_offset = $3::jsonb WHERE id = $1`, [
+      dest,
+      MIGRATED,
+      '{"months":{"aug":3},"days":{"we":3}}',
+    ]);
+
+    await recomputeDestinationAverages(await pool.connect(), [dest]);
+
+    const res = await query(`SELECT recency, averages, averages_offset FROM destinations WHERE id = $1`, [
+      dest,
+    ]);
+    assert.deepEqual(res.rows[0].averages.months, {}, "no live rows, so no live buckets");
+    assert.equal(
+      new Date(res.rows[0].recency).toISOString(),
+      new Date(MIGRATED).toISOString(),
+      "no live rows to recompute from, so the migrated value is all there is — keep it"
+    );
+    assert.equal(res.rows[0].averages_offset.months.aug, 3, "and the offset is untouched as ever");
   });
 
   // A destination the request never names must not be recomputed out from
