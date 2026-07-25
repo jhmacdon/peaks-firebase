@@ -326,6 +326,21 @@ export function mapDestinationDetailRow(row: any): any {
       ? description
       : null;
 
+  row.hero_image = textOrNull(row.hero_image);
+  row.hero_image_attribution = textOrNull(row.hero_image_attribution);
+  row.hero_image_attribution_url = textOrNull(row.hero_image_attribution_url);
+
+  // The same licensing guard for the photo. Legacy rows (the CAI hut import,
+  // the OSM imports) stored a hero image and never wrote a credit, so an
+  // uncredited photo would otherwise fill the new header. Credit here is the
+  // pair — who made it, and where it came from — and a hero missing either one
+  // is dropped whole, image and credit together.
+  if (!row.hero_image_attribution || !row.hero_image_attribution_url) {
+    row.hero_image = null;
+    row.hero_image_attribution = null;
+    row.hero_image_attribution_url = null;
+  }
+
   row.massif_boundary = row.massif_boundary ?? null;
   return row;
 }

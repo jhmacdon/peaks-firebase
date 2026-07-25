@@ -4,6 +4,7 @@ import {
   WIKIPEDIA_TEXT_LICENSE,
   buildImageAttribution,
   buildPlaceCopy,
+  fileTitleFromImageUrl,
   isFreeLicense,
   namesMatch,
   parseImageInfoResponse,
@@ -232,6 +233,45 @@ test("parseSummaryResponse yields a null lead image for an unusable image url", 
     assert.ok(summary);
     assert.equal(summary!.leadImageTitle, null, `"${source}" names no file`);
   }
+});
+
+test("fileTitleFromImageUrl reads Wikimedia hosts and refuses every other host", () => {
+  // upload.wikimedia.org is where the REST summary points, and the bare
+  // apex is accepted too.
+  assert.equal(
+    fileTitleFromImageUrl(
+      "https://upload.wikimedia.org/wikipedia/commons/f/fa/Mount_Rainier.jpg"
+    ),
+    "File:Mount_Rainier.jpg"
+  );
+  assert.equal(
+    fileTitleFromImageUrl("https://wikimedia.org/wikipedia/commons/f/fa/Mount_Rainier.jpg"),
+    "File:Mount_Rainier.jpg"
+  );
+
+  // A file name lifted off any other host would be asked about on Commons,
+  // and a name collision there would credit the wrong picture.
+  for (const url of [
+    "https://example.com/wikipedia/commons/f/fa/Mount_Rainier.jpg",
+    "https://cdn.flickr.com/photos/Mount_Rainier.jpg",
+    "https://notwikimedia.org/f/fa/Mount_Rainier.jpg",
+    // The suffix trap: endsWith("wikimedia.org") alone would let this through.
+    "https://evilwikimedia.org/f/fa/Mount_Rainier.jpg",
+  ]) {
+    assert.equal(fileTitleFromImageUrl(url), null, `${url} is not a Wikimedia host`);
+  }
+});
+
+test("parseSummaryResponse yields a null lead image for an off-Wikimedia image url", () => {
+  const summary = parseSummaryResponse({
+    title: "Nameless Bump",
+    extract: "A bump.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Nameless_Bump" } },
+    originalimage: { source: "https://images.example.com/f/fa/Nameless_Bump.jpg" },
+  });
+
+  assert.ok(summary);
+  assert.equal(summary!.leadImageTitle, null);
 });
 
 test("parseImageInfoResponse pulls url, artist, licence, and file page", () => {

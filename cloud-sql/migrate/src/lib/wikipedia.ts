@@ -183,16 +183,24 @@ export function namesMatch(destinationName: string, wikipediaTitle: string): boo
  * Percent-escapes are decoded: a title still carrying "%C3%A1" would be
  * encoded a second time by the imageinfo request and resolve to nothing.
  * Underscores stay as they are — MediaWiki reads them as spaces in titles.
+ *
+ * Only Wikimedia hosts are read. A file name lifted out of some other host's
+ * URL would be asked about on Commons, and a chance name collision there would
+ * credit our photo to a different picture entirely.
  */
 export function fileTitleFromImageUrl(url: string): string | null {
   if (typeof url !== "string" || url.trim().length === 0) return null;
 
-  let path: string;
+  let parsed: URL;
   try {
-    path = new URL(url).pathname;
+    parsed = new URL(url);
   } catch {
     return null;
   }
+
+  const host = parsed.hostname.toLowerCase();
+  if (host !== "wikimedia.org" && !host.endsWith(".wikimedia.org")) return null;
+  const path = parsed.pathname;
 
   const segments = path.split("/").filter((segment) => segment.length > 0);
   const isThumb = segments.includes("thumb");

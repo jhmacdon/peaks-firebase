@@ -154,16 +154,46 @@ function hasFlag(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
 
+/** A flag was passed with a missing or unreadable value. Raised, not swallowed:
+ *  a run that quietly falls back to the default writes the wrong rows. */
+export class FlagUsageError extends Error {}
+
+/**
+ * Read `--name value`, refusing to treat the next flag as the value.
+ *
+ * `--limit --force` used to hand "--force" back as the limit, which parsed to
+ * NaN, fell back to the default 100, and ate --force along the way — a run that
+ * looked normal and did something else. Both halves of that now stop the run.
+ */
+export function stringFlagFrom(argv: readonly string[], name: string): string | null {
+  const index = argv.indexOf(`--${name}`);
+  if (index < 0) return null;
+  const value = argv[index + 1];
+  if (value === undefined) {
+    throw new FlagUsageError(`--${name} needs a value, but the arguments end there.`);
+  }
+  if (value.startsWith("--")) {
+    throw new FlagUsageError(`--${name} needs a value, but the next argument is the flag ${value}.`);
+  }
+  return value;
+}
+
+export function intFlagFrom(argv: readonly string[], name: string, fallback: number): number {
+  const raw = stringFlagFrom(argv, name);
+  if (raw === null) return fallback;
+  const trimmed = raw.trim();
+  if (!/^-?\d+$/.test(trimmed)) {
+    throw new FlagUsageError(`--${name} needs a whole number, but was given "${raw}".`);
+  }
+  return Number.parseInt(trimmed, 10);
+}
+
 function stringFlag(name: string): string | null {
-  const index = process.argv.indexOf(`--${name}`);
-  if (index < 0 || index + 1 >= process.argv.length) return null;
-  return process.argv[index + 1];
+  return stringFlagFrom(process.argv, name);
 }
 
 function intFlag(name: string, fallback: number): number {
-  const raw = stringFlag(name);
-  const parsed = Number.parseInt(raw ?? "", 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return intFlagFrom(process.argv, name, fallback);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -574,7 +604,13 @@ async function main() {
 
 if (require.main === module) {
   main().catch((err) => {
-    console.error("Backfill failed:", err);
+    // A bad flag is the operator's typo, not a crash — say what is wrong and
+    // stop, without a stack trace to read past.
+    if (err instanceof FlagUsageError) {
+      console.error(err.message);
+    } else {
+      console.error("Backfill failed:", err);
+    }
     process.exit(1);
   });
 }

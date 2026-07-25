@@ -114,3 +114,88 @@ test("place copy without a license string is dropped (full credit required)", ()
   );
   assert.equal(mapped.description_source_license, null);
 });
+
+test("destination detail query selects the hero image and its credit columns", () => {
+  const query = buildDestinationDetailQuery("dest-1");
+
+  assert.match(query.text, /d\.hero_image\b/);
+  assert.match(query.text, /d\.hero_image_attribution\b/);
+  assert.match(query.text, /d\.hero_image_attribution_url\b/);
+});
+
+test("an uncredited hero image is dropped whole, and the copy is left alone", () => {
+  // The shape every legacy import leaves behind — CAI huts and the OSM
+  // imports wrote a photo URL and no credit at all.
+  const row: any = {
+    id: "dest-hut",
+    name: "Rifugio Senza Credito",
+    description: "A hut on the ridge.",
+    description_source_name: "Wikipedia",
+    description_source_url: "https://en.wikipedia.org/wiki/Rifugio",
+    description_source_license: "CC BY-SA 4.0",
+    hero_image: "https://upload.wikimedia.org/rifugio.jpg",
+    hero_image_attribution: null,
+    hero_image_attribution_url: null,
+    areas: [],
+  };
+
+  const mapped = mapDestinationDetailRow(row);
+
+  assert.equal(
+    mapped.hero_image,
+    null,
+    "A photo we cannot credit must not be served — the header would show it uncredited."
+  );
+  assert.equal(mapped.hero_image_attribution, null);
+  assert.equal(mapped.hero_image_attribution_url, null);
+  assert.equal(
+    mapped.description,
+    "A hut on the ridge.",
+    "The photo guard and the copy guard are separate — a bad photo must not take the copy with it."
+  );
+});
+
+test("a fully credited hero image passes through", () => {
+  const row: any = {
+    id: "dest-rainier",
+    name: "Mount Rainier",
+    description: null,
+    description_source_name: null,
+    description_source_url: null,
+    description_source_license: null,
+    hero_image: "https://upload.wikimedia.org/rainier.jpg",
+    hero_image_attribution: "A Photographer, CC BY-SA 4.0",
+    hero_image_attribution_url: "https://commons.wikimedia.org/wiki/File:Rainier.jpg",
+    areas: [],
+  };
+
+  const mapped = mapDestinationDetailRow(row);
+
+  assert.equal(mapped.hero_image, "https://upload.wikimedia.org/rainier.jpg");
+  assert.equal(mapped.hero_image_attribution, "A Photographer, CC BY-SA 4.0");
+  assert.equal(
+    mapped.hero_image_attribution_url,
+    "https://commons.wikimedia.org/wiki/File:Rainier.jpg"
+  );
+});
+
+test("a hero image with an artist but no source URL is dropped (both halves required)", () => {
+  const row: any = {
+    id: "dest-half-credit",
+    name: "Half Credit Peak",
+    hero_image: "https://upload.wikimedia.org/half.jpg",
+    hero_image_attribution: "A Photographer, CC BY-SA 4.0",
+    hero_image_attribution_url: "   ",
+    areas: [],
+  };
+
+  const mapped = mapDestinationDetailRow(row);
+
+  assert.equal(
+    mapped.hero_image,
+    null,
+    "A blank URL normalizes to null, so the credit is incomplete and the photo goes with it."
+  );
+  assert.equal(mapped.hero_image_attribution, null);
+  assert.equal(mapped.hero_image_attribution_url, null);
+});

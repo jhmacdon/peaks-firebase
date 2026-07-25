@@ -1,9 +1,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
+  FlagUsageError,
   UPDATE_SQL,
   buildCandidateQuery,
+  intFlagFrom,
   planRow,
+  stringFlagFrom,
   writeRow,
   type ArticleSummary,
   type CandidateRow,
@@ -583,4 +586,44 @@ test("writeRow refuses attribution with no image behind it", async () => {
     })
   );
   assert.deepEqual(fakeDb.queries, []);
+});
+
+test("stringFlagFrom returns the value that follows the flag, or null when absent", () => {
+  const argv = ["node", "script", "--ids", "a,b,c", "--dry-run"];
+
+  assert.equal(stringFlagFrom(argv, "ids"), "a,b,c");
+  assert.equal(stringFlagFrom(argv, "min-prominence"), null);
+});
+
+test("stringFlagFrom refuses to swallow the next flag as a value", () => {
+  // "--limit --force" used to hand back "--force" as the limit: it parsed to
+  // NaN, silently fell back to 100, and ate --force on the way past.
+  assert.throws(
+    () => stringFlagFrom(["node", "script", "--limit", "--force"], "limit"),
+    FlagUsageError
+  );
+  assert.throws(
+    () => stringFlagFrom(["node", "script", "--limit"], "limit"),
+    FlagUsageError,
+    "a flag at the end of the arguments has no value either"
+  );
+});
+
+test("intFlagFrom takes whole numbers, falls back only when the flag is absent", () => {
+  assert.equal(intFlagFrom(["node", "script", "--limit", "250"], "limit", 100), 250);
+  assert.equal(intFlagFrom(["node", "script", "--dry-run"], "limit", 100), 100);
+  assert.equal(
+    intFlagFrom(["node", "script", "--min-prominence", "-50"], "min-prominence", 300),
+    -50
+  );
+});
+
+test("intFlagFrom stops the run on a value it cannot read as a number", () => {
+  for (const bad of ["abc", "", "12abc", "1e3", "3.5"]) {
+    assert.throws(
+      () => intFlagFrom(["node", "script", "--limit", bad], "limit", 100),
+      FlagUsageError,
+      `"${bad}" must stop the run rather than fall back to 100`
+    );
+  }
 });
