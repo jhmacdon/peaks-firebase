@@ -32,6 +32,14 @@
 //
 // When B5 lands, the temp table stops being created and the same tests run
 // against the real one, unchanged.
+//
+// The one thing this shape cannot stage is the lost-update race the row lock
+// exists to prevent: that needs two transactions that can both see each other's
+// COMMITs, and everything here lives on one connection inside one transaction
+// that is never committed. Making it stageable would mean committing fixtures to
+// the shared database. So the lock is covered two other ways — a pure assertion
+// on DESTINATION_AVERAGES_LOCK_SQL, and an integration test that the recompute
+// issues it before the counting UPDATE.
 
 import { strict as assert } from "node:assert";
 import { test, describe, before, after, mock } from "node:test";
@@ -41,6 +49,7 @@ import { app } from "../index";
 import db from "../db";
 import {
   buildDestinationAveragesRecomputeSql,
+  DESTINATION_AVERAGES_LOCK_SQL,
   processSession,
 } from "../processing";
 
@@ -78,6 +87,55 @@ describe("buildDestinationAveragesRecomputeSql", () => {
     const { text } = buildDestinationAveragesRecomputeSql();
     assert.match(text, /EXTRACT\(MONTH FROM start_time\)/);
     assert.match(text, /EXTRACT\(ISODOW FROM start_time\)/);
+  });
+
+  // The day array and the EXTRACT that indexes it only agree by construction:
+  // ISODOW is 1-based Monday-first, so the array must be too. Swapping in DOW
+  // (0-based, Sunday-first) or reordering the array would file every session
+  // one day out, silently, and no pure test that looked at them separately
+  // would notice. Pinned together, and CI can run it without a database.
+  test("the day array is Monday-first because ISODOW is", () => {
+    const { text } = buildDestinationAveragesRecomputeSql();
+    assert.match(
+      text,
+      /\(ARRAY\['mo','tu','we','th','fr','sa','su'\]\)\[EXTRACT\(ISODOW FROM start_time\)::int\]/,
+      "Monday-first array indexed by ISODOW — change one and you must change the other"
+    );
+    assert.match(
+      text,
+      /\(ARRAY\['jan','feb','mar','apr','may','jun',\s*'jul','aug','sep','oct','nov','dec'\]\)\[EXTRACT\(MONTH FROM start_time\)::int\]/,
+      "January-first array indexed by MONTH, which is already 1-based"
+    );
+  });
+
+  // recency answers to the rows, not to the clock. Stamping now() would let the
+  // write that REMOVES an ascent advertise the destination as freshly visited.
+  test("recency is taken from the data, never from now()", () => {
+    const { text } = buildDestinationAveragesRecomputeSql();
+    assert.match(text, /recency = totals\.last_at/);
+    assert.match(text, /MAX\(start_time\) AS last_at/);
+    assert.doesNotMatch(text, /recency = now\(\)/i);
+    assert.doesNotMatch(text, /now\(\)/i, "nothing here should read the clock at all");
+  });
+});
+
+// The recompute reads its counts in a CTE and writes them to a row it does not
+// hold yet — a lost update waiting to happen under READ COMMITTED. The lock is
+// the whole fix, so its shape is pinned where CI can see it.
+describe("DESTINATION_AVERAGES_LOCK_SQL", () => {
+  test("locks the destination rows in a deterministic order", () => {
+    assert.match(DESTINATION_AVERAGES_LOCK_SQL, /FROM destinations/);
+    assert.match(DESTINATION_AVERAGES_LOCK_SQL, /FOR NO KEY UPDATE/);
+    assert.match(
+      DESTINATION_AVERAGES_LOCK_SQL,
+      /ORDER BY id\s+FOR NO KEY UPDATE/,
+      "ordered, so two concurrent multi-destination recomputes cannot deadlock"
+    );
+    assert.doesNotMatch(
+      DESTINATION_AVERAGES_LOCK_SQL,
+      /FOR UPDATE(?! )/,
+      "FOR NO KEY UPDATE — a plain FOR UPDATE blocks the FKs that reference destinations(id)"
+    );
   });
 });
 
@@ -123,6 +181,12 @@ function newPlace(): Place {
 /** The one real connection every query in this block runs on. */
 let harness: PoolClient;
 
+/** True when this run created the temp stand-in, so teardown knows to drop it. */
+let createdTempRejections = false;
+
+/** Every statement the harness has seen, for order-of-operations assertions. */
+const statementLog: string[] = [];
+
 /**
  * Wraps the harness connection so a caller's transaction verbs nest instead of
  * ending the outer transaction: BEGIN → SAVEPOINT, COMMIT → RELEASE,
@@ -134,6 +198,7 @@ function makeSavepointClient(client: PoolClient) {
   return {
     async query(text: unknown, params?: unknown) {
       if (typeof text === "string") {
+        statementLog.push(text);
         const verb = text.trim().toUpperCase();
         if (verb === "BEGIN") {
           depth += 1;
@@ -184,6 +249,7 @@ async function setUpHarness(): Promise<void> {
          PRIMARY KEY (session_id, destination_id)
        )`
     );
+    createdTempRejections = true;
   }
 
   await harness.query("BEGIN");
@@ -207,6 +273,14 @@ async function setUpHarness(): Promise<void> {
 async function tearDownHarness(): Promise<void> {
   mock.restoreAll();
   await harness.query("ROLLBACK");
+  // The temp table was created before the transaction, so the ROLLBACK does not
+  // take it with it. Drop it explicitly rather than trusting that the pooled
+  // connection is about to be closed — a recycled one carrying a stray
+  // session_destination_rejections would shadow the real table for whatever ran
+  // next once B5 lands.
+  if (createdTempRejections) {
+    await harness.query(`DROP TABLE IF EXISTS pg_temp.session_destination_rejections`);
+  }
   harness.release();
 }
 
@@ -530,6 +604,122 @@ describe("destination averages recompute", { skip: skipReason ?? undefined }, ()
       (await averages(claimed)).months.jul ?? 0,
       0,
       "a retracted claim must drop out of the histogram like a rejection does"
+    );
+  });
+
+  // PUT /api/sessions/:id is the client's ordinary manual edit, and it runs
+  // reconcile too. It is the likeliest of all these paths to hit an already-
+  // completed session, where auto-processing (which only fires on the
+  // not-ended → ended transition) will never run again to clean up after it.
+  test("PUT with a shorter reached list decrements the dropped destination", async () => {
+    const at = newPlace();
+    const sid = `${runPrefix}-s13`;
+    const kept = `${runPrefix}-dest13-kept`;
+    const dropped = `${runPrefix}-dest13-dropped`;
+    await createSessionWithTrack(sid, at);
+    // Both off the track, so only the client's list can link them.
+    await createSummit(kept, newPlace());
+    await createSummit(dropped, newPlace());
+
+    await request(app)
+      .put(`/api/sessions/${sid}`)
+      .set("X-Test-User", user)
+      .send({ destinations_reached: [kept, dropped] })
+      .expect(200);
+    assert.equal((await averages(kept)).months.jul, 1, "precondition: both counted");
+    assert.equal((await averages(dropped)).months.jul, 1);
+
+    await request(app)
+      .put(`/api/sessions/${sid}`)
+      .set("X-Test-User", user)
+      .send({ destinations_reached: [kept] })
+      .expect(200);
+
+    assert.equal((await averages(kept)).months.jul, 1, "the surviving claim still counts once");
+    assert.equal(
+      (await averages(dropped)).months.jul ?? 0,
+      0,
+      "the dropped claim loses its row, so it must lose its count"
+    );
+  });
+
+  // Deleting a session cascades its session_destinations rows away. That is the
+  // most complete way a reached row can vanish, and after the DELETE nothing
+  // remains to say which destinations to recompute.
+  test("deleting a session removes its ascents from the buckets", async () => {
+    const at = newPlace();
+    const sid = `${runPrefix}-s14`;
+    const dest = `${runPrefix}-dest14`;
+    await createSessionWithTrack(sid, at);
+    await createSummit(dest, at);
+    await run(sid);
+    assert.equal((await averages(dest)).months.jul, 1, "precondition: the ascent counted");
+
+    await request(app)
+      .delete(`/api/sessions/${sid}`)
+      .set("X-Test-User", user)
+      .expect(200);
+
+    assert.equal(
+      (await averages(dest)).months.jul ?? 0,
+      0,
+      "a deleted session takes its ascents out of the histogram with it"
+    );
+  });
+
+  // The lost-update race needs two committed transactions and the harness holds
+  // exactly one uncommitted connection, so the race itself cannot be staged
+  // here (see the note at the top of this file). What IS assertable is that the
+  // recompute takes the lock, and takes it BEFORE the UPDATE builds its CTE —
+  // which is the whole of the fix. The lock's own semantics are Postgres's.
+  test("the recompute locks the destination rows before it counts", async () => {
+    const at = newPlace();
+    const sid = `${runPrefix}-s15`;
+    const dest = `${runPrefix}-dest15`;
+    await createSessionWithTrack(sid, at);
+    await createSummit(dest, at);
+
+    statementLog.length = 0;
+    await run(sid);
+
+    const lockAt = statementLog.findIndex((s) => s.includes("FOR NO KEY UPDATE"));
+    const updateAt = statementLog.findIndex((s) => s.includes("UPDATE destinations dst"));
+    assert.ok(lockAt >= 0, "the recompute must take the row lock");
+    assert.ok(updateAt >= 0, "precondition: the recompute ran");
+    assert.ok(
+      lockAt < updateAt,
+      "the lock has to come first — after the CTE snapshot it is worthless"
+    );
+  });
+
+  // recency answers to the rows. The write that removes the last ascent has to
+  // move it down, not stamp it with the moment of the retraction.
+  test("recency follows the counted sessions and clears when none are left", async () => {
+    const at = newPlace();
+    const sid = `${runPrefix}-s16`;
+    const dest = `${runPrefix}-dest16`;
+    await createSessionWithTrack(sid, at);
+    await createSummit(dest, at);
+
+    await run(sid);
+    const withAscent = await query(`SELECT recency FROM destinations WHERE id = $1`, [dest]);
+    assert.equal(
+      new Date(withAscent.rows[0].recency).toISOString(),
+      new Date(START).toISOString(),
+      "recency is the session's start_time, not the time we processed it"
+    );
+
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ rejected: [dest] })
+      .expect(200);
+
+    const retracted = await query(`SELECT recency FROM destinations WHERE id = $1`, [dest]);
+    assert.equal(
+      retracted.rows[0].recency,
+      null,
+      "no ascents left, so nothing to be recent about — a retraction must not look fresh"
     );
   });
 

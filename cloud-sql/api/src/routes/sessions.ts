@@ -318,6 +318,29 @@ export async function reconcileClientDestinations(
   }
 }
 
+/**
+ * Destination ids the session currently counts as reached.
+ *
+ * Snapshot this BEFORE any write that can remove a reached row, and feed it to
+ * recomputeDestinationAverages afterwards. A removed row has to stop being
+ * counted, and the request that removes it usually does not name it:
+ * reconcileClientDestinations replaces the session's whole manual set, so
+ * dropping an id from `destinations_reached` deletes its row silently, and
+ * DELETE /:id cascades every row away at once. Once the row is gone nothing can
+ * work out which destination to recompute, so the read has to happen first.
+ */
+async function reachedDestinationIds(
+  client: PoolClient,
+  sessionId: string
+): Promise<string[]> {
+  const res = await client.query(
+    `SELECT destination_id FROM session_destinations
+     WHERE session_id = $1 AND relation = 'reached'`,
+    [sessionId]
+  );
+  return res.rows.map((r: { destination_id: string }) => r.destination_id);
+}
+
 /** Non-empty strings only — the client sends whatever its local list holds. */
 function cleanDestinationIds(ids: unknown): string[] {
   if (!Array.isArray(ids)) return [];
@@ -1430,8 +1453,20 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
     );
 
     // Set destinations (client-owned 'manual' rows only; auto detections preserved)
+    //
+    // The recompute matters here for the same reason it does on the destinations
+    // endpoint: reconcile replaces the manual reached set, so an id the client
+    // has dropped loses its row and must lose its count with it. Re-processing
+    // would fix the ids that survive, but it only fires on the not-ended →
+    // ended transition, so an edit to an already-completed session recomputes
+    // nothing at all.
     if (destinations_reached || destination_goals) {
+      const priorReached = await reachedDestinationIds(client, id);
       await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
+      await recomputeDestinationAverages(
+        client,
+        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+      );
     }
 
     // Set routes
@@ -1545,8 +1580,18 @@ router.put("/:id", async (req, res: Response) => {
     );
 
     // Update destinations if provided (client-owned 'manual' rows only; auto preserved)
+    //
+    // This is the client's ordinary manual edit — "I did reach that summit
+    // after all", or the reverse — and it is the path most likely to run
+    // against a session that has already been processed, where nothing else
+    // will ever recompute. See the same block in the POST upsert above.
     if (destinations_reached || destination_goals) {
+      const priorReached = await reachedDestinationIds(client, id);
       await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
+      await recomputeDestinationAverages(
+        client,
+        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+      );
     }
 
     // Update routes if provided
@@ -1594,6 +1639,13 @@ router.delete("/:id", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
+    // The session's ascents, read before they cascade away. Deleting a session
+    // deletes its session_destinations rows, which is the last way a reached row
+    // can disappear without the popularity buckets hearing about it — and the
+    // most complete one. After the DELETE there is nothing left to tell us which
+    // destinations to recompute.
+    const priorReached = await reachedDestinationIds(client, id);
+
     const result = await client.query(
       `DELETE FROM tracking_sessions
        WHERE id = $1 AND user_id = $2
@@ -1605,6 +1657,8 @@ router.delete("/:id", async (req, res: Response) => {
       res.status(404).json({ error: "Session not found" });
       return;
     }
+
+    await recomputeDestinationAverages(client, priorReached);
 
     const tombstone = await client.query(
       `INSERT INTO session_tombstones (session_id, user_id, deleted_at, server_updated_at)
@@ -1933,11 +1987,7 @@ router.post("/:id/destinations", async (req, res: Response) => {
     // the manual set — and a lost row has to stop being counted. The request
     // itself names only some of them: dropping an id from `reached` deletes its
     // row while mentioning it nowhere.
-    const priorReached = await client.query(
-      `SELECT destination_id FROM session_destinations
-       WHERE session_id = $1 AND relation = 'reached'`,
-      [id]
-    );
+    const priorReached = await reachedDestinationIds(client, id);
 
     const applied = await applyDestinationRejections(client, id, unreject, rejected);
     await reconcileClientDestinations(client, id, reached, goals);
@@ -1963,7 +2013,7 @@ router.post("/:id/destinations", async (req, res: Response) => {
     // reconciling goals cannot move a bucket.
     const touched = Array.from(
       new Set([
-        ...priorReached.rows.map((r: { destination_id: string }) => r.destination_id),
+        ...priorReached,
         ...cleanDestinationIds(reached),
         ...applied.rejected,
         ...applied.unrejected,

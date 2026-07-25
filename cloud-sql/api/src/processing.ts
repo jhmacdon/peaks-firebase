@@ -471,14 +471,27 @@ async function assignAttemptGroup(
  * array by EXTRACT(DOW); this indexes a 1-based Monday-first array by
  * EXTRACT(ISODOW), which is the same mapping written without an offset.
  *
+ * Buckets are UTC, deliberately. EXTRACT on a TIMESTAMPTZ resolves in the
+ * connection's TimeZone, which is UTC on Cloud SQL and in Cloud Run, so a
+ * session is filed by its UTC month and weekday rather than the climber's local
+ * one. That is a known, accepted approximation: `averages_offset` holds
+ * historical local-date counts from Firestore and is merged in blindly at read
+ * time, so the two halves of a merged histogram already answer to different
+ * clocks. Filing live rows by local date would need a per-session timezone the
+ * schema does not carry.
+ *
  * `averages_offset` (pre-migration Firestore history) is NEVER written here —
  * it is merged in at read time by mergeAverages (routes/destinations.ts) and
  * topMonths (routes/lists.ts). Any other keys already on `averages` (e.g. a
  * migrated `lastUpdated`) are preserved; only `months` and `days` are replaced.
  *
- * `recency` is bumped only for destinations that still have at least one
- * reached row, so recomputing a destination down to zero doesn't advertise it
- * as freshly visited.
+ * `recency` comes from the data like everything else here: the latest
+ * start_time among the counted reached sessions. It is NOT stamped with now().
+ * A retraction has to be able to move it DOWN — bumping it on the write that
+ * removes an ascent would advertise a destination as freshly visited precisely
+ * when the user said they never visited it. Recomputing to zero reached rows
+ * leaves it NULL, which is what an unvisited destination already carries, so
+ * the column self-heals from the rows in both directions.
  *
  * Pure builder so the shape is unit-testable without a live DB.
  */
@@ -513,7 +526,7 @@ export function buildDestinationAveragesRecomputeSql(): { text: string } {
       ) y GROUP BY id
     ),
     totals AS (
-      SELECT id, COUNT(*)::int AS n FROM reached GROUP BY id
+      SELECT id, MAX(start_time) AS last_at FROM reached GROUP BY id
     )
     UPDATE destinations dst
     SET averages = (COALESCE(dst.averages, '{}'::jsonb) - 'months' - 'days')
@@ -521,7 +534,7 @@ export function buildDestinationAveragesRecomputeSql(): { text: string } {
                         'months', COALESCE(months.blob, '{}'::jsonb),
                         'days',   COALESCE(days.blob,   '{}'::jsonb)
                       ),
-        recency = CASE WHEN COALESCE(totals.n, 0) > 0 THEN now() ELSE dst.recency END
+        recency = totals.last_at
     FROM ids
     LEFT JOIN months ON months.id = ids.id
     LEFT JOIN days   ON days.id   = ids.id
@@ -531,17 +544,48 @@ export function buildDestinationAveragesRecomputeSql(): { text: string } {
 }
 
 /**
+ * Serializes concurrent recomputes of the same destination. Taken immediately
+ * before the recompute UPDATE, in the same transaction.
+ *
+ * Without it the recompute has a lost-update race that the old blind increment
+ * did not. Under READ COMMITTED two processes A and B can both be recomputing
+ * destination D: A inserts its session_destinations row and commits; B, whose
+ * snapshot predates that commit, has already counted the reached rows in its
+ * CTE. When B's UPDATE reaches D's row it blocks on A's lock, and on release
+ * EvalPlanQual re-fetches and re-evaluates against the NEW version of the
+ * TARGET tuple — but the count B is about to write came from the CTE, which is
+ * still evaluated against B's original snapshot. B writes a total that never
+ * saw A's row, and the count is silently one low until something recomputes D
+ * again. The old `+= 1` was immune because each writer only ever read and wrote
+ * the one row it was locking.
+ *
+ * Locking the destination rows FIRST makes B block before it builds its CTE, so
+ * B's snapshot is taken after A commits and its count includes A's row.
+ * FOR NO KEY UPDATE rather than FOR UPDATE: it does not block the foreign keys
+ * that reference destinations(id), which session_destinations inserts need.
+ * ORDER BY id so concurrent multi-destination recomputes take their locks in
+ * the same sequence and cannot deadlock.
+ */
+export const DESTINATION_AVERAGES_LOCK_SQL =
+  `SELECT id FROM destinations WHERE id = ANY($1::text[]) ORDER BY id FOR NO KEY UPDATE`;
+
+/**
  * Recompute `destinations.averages` for the given destination ids. Idempotent;
  * a no-op on an empty list. Call it for every destination whose
  * session_destinations rows changed — including ones whose rows were DELETED,
  * which processSession can no longer see (see routes/sessions.ts
- * applyDestinationRejections).
+ * applyDestinationRejections and reachedDestinationIds).
+ *
+ * Must run inside the caller's transaction: the lock it takes is only held to
+ * the end of that transaction, and it has to still be held when the UPDATE
+ * commits. Every current caller is mid-transaction.
  */
 export async function recomputeDestinationAverages(
   client: PoolClient,
   destinationIds: string[]
 ): Promise<void> {
   if (destinationIds.length === 0) return;
+  await client.query(DESTINATION_AVERAGES_LOCK_SQL, [destinationIds]);
   const sql = buildDestinationAveragesRecomputeSql();
   await client.query(sql.text, [destinationIds]);
 }
