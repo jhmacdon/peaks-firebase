@@ -315,10 +315,16 @@ export function mapDestinationDetailRow(row: any): any {
   row.description_source_url = textOrNull(row.description_source_url);
   row.description_source_license = textOrNull(row.description_source_license);
 
-  // Licensing guard: copy we cannot credit is not served. A source URL is the
-  // minimum credit the client can render, so text without one is dropped.
+  // Licensing guard: copy we cannot credit is not served. Full credit is the
+  // whole triple — source name, source URL and license string — so text missing
+  // any one of them is dropped.
   const description = textOrNull(row.description);
-  row.description = row.description_source_url ? description : null;
+  row.description =
+    row.description_source_url &&
+    row.description_source_name &&
+    row.description_source_license
+      ? description
+      : null;
 
   row.massif_boundary = row.massif_boundary ?? null;
   return row;

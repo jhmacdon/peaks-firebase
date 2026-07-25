@@ -86,4 +86,31 @@ test("place copy without a source URL is dropped entirely (licensing guard)", ()
     null,
     "Copy we cannot credit must not be served — the client has no way to attribute it."
   );
+  assert.equal(mapped.massif_boundary, null);
+});
+
+test("place copy without a license string is dropped (full credit required)", () => {
+  const row: any = {
+    id: "dest-4",
+    name: "Unlicensed Peak",
+    description: "Copy with a source but no license.",
+    description_source_name: "Wikipedia",
+    description_source_url: "https://en.wikipedia.org/wiki/Unlicensed_Peak",
+    description_source_license: null,
+    areas: [],
+  };
+
+  const mapped = mapDestinationDetailRow(row);
+
+  assert.equal(
+    mapped.description,
+    null,
+    "Full credit is name AND url AND license — a missing license means the copy cannot be served."
+  );
+  assert.equal(mapped.description_source_name, "Wikipedia");
+  assert.equal(
+    mapped.description_source_url,
+    "https://en.wikipedia.org/wiki/Unlicensed_Peak"
+  );
+  assert.equal(mapped.description_source_license, null);
 });
