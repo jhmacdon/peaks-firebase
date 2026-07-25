@@ -164,6 +164,56 @@ export function namesMatch(destinationName: string, wikipediaTitle: string): boo
   return a === b;
 }
 
+/**
+ * Recover the Commons `File:` title from an upload.wikimedia.org URL.
+ *
+ * The REST summary hands us image URLs, not file names — there is no
+ * `pageimage` field on this endpoint, only `originalimage` and `thumbnail`
+ * objects. The imageinfo credit lookup keys on a File: title, so the name has
+ * to come back out of the URL.
+ *
+ * Two path shapes:
+ *   .../commons/f/fa/Mount_Rainier.jpg                       — the file itself
+ *   .../commons/thumb/f/fa/Mount_Rainier.jpg/330px-Mount_Rainier.jpg
+ *
+ * A thumbnail's last segment is a rendering that does not exist on Commons
+ * (and for PDFs and TIFFs it does not even share the extension), so under
+ * /thumb/ the segment above it is the real file.
+ *
+ * Percent-escapes are decoded: a title still carrying "%C3%A1" would be
+ * encoded a second time by the imageinfo request and resolve to nothing.
+ * Underscores stay as they are — MediaWiki reads them as spaces in titles.
+ */
+export function fileTitleFromImageUrl(url: string): string | null {
+  if (typeof url !== "string" || url.trim().length === 0) return null;
+
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+
+  const segments = path.split("/").filter((segment) => segment.length > 0);
+  const isThumb = segments.includes("thumb");
+  const raw = isThumb ? segments[segments.length - 2] : segments[segments.length - 1];
+  if (!raw) return null;
+
+  let name: string;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+  name = name.trim();
+
+  // Every Commons file carries an extension; anything else is a directory
+  // listing or a truncated URL, and asking imageinfo about it would be noise.
+  if (name.length === 0 || !/\.[a-z0-9]+$/i.test(name)) return null;
+
+  return `File:${name}`;
+}
+
 export function parseSummaryResponse(json: any): WikipediaSummary | null {
   if (!json || typeof json !== "object") return null;
   if (json.type === "disambiguation") return null;
@@ -174,8 +224,11 @@ export function parseSummaryResponse(json: any): WikipediaSummary | null {
     typeof json?.content_urls?.desktop?.page === "string" ? json.content_urls.desktop.page : "";
   if (title.length === 0 || extract.length === 0) return null;
 
-  const pageImage = typeof json.pageimage === "string" ? json.pageimage.trim() : "";
-  const leadImageTitle = pageImage.length > 0 ? `File:${pageImage}` : null;
+  // Prefer the original; the thumbnail names the same file and stands in when
+  // the summary carries only a rendering.
+  const leadImageTitle =
+    fileTitleFromImageUrl(json?.originalimage?.source ?? "") ??
+    fileTitleFromImageUrl(json?.thumbnail?.source ?? "");
 
   return { title, extract, pageUrl, leadImageTitle };
 }

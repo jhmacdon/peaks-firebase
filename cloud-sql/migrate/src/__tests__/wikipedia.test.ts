@@ -132,14 +132,30 @@ test("namesMatch tolerates Mount/Mt and punctuation but rejects different peaks"
   assert.equal(namesMatch("Mount Adams", "Mount Rainier"), false);
 });
 
+/**
+ * The REST summary shape as en.wikipedia.org actually returns it. There is no
+ * `pageimage` field here — that belongs to the action API — so the lead image
+ * has to be read out of `originalimage.source`.
+ */
 test("parseSummaryResponse extracts text, page URL, and lead image title", () => {
   const json = {
+    type: "standard",
     title: "Mount Rainier",
+    titles: { canonical: "Mount_Rainier", normalized: "Mount Rainier" },
+    pageid: 20611,
     extract: "Mount Rainier is a stratovolcano.",
     content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Mount_Rainier" } },
-    originalimage: { source: "https://upload.wikimedia.org/…/Mount_Rainier.jpg" },
-    titles: { canonical: "Mount_Rainier" },
-    pageimage: "Mount_Rainier_from_the_Silver_Queen_Peak.jpg",
+    thumbnail: {
+      source:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Mount_Rainier_from_west.jpg/330px-Mount_Rainier_from_west.jpg",
+      width: 320,
+      height: 213,
+    },
+    originalimage: {
+      source: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Mount_Rainier_from_west.jpg",
+      width: 4288,
+      height: 2848,
+    },
   };
 
   const summary = parseSummaryResponse(json);
@@ -148,7 +164,44 @@ test("parseSummaryResponse extracts text, page URL, and lead image title", () =>
   assert.equal(summary!.title, "Mount Rainier");
   assert.equal(summary!.extract, "Mount Rainier is a stratovolcano.");
   assert.equal(summary!.pageUrl, "https://en.wikipedia.org/wiki/Mount_Rainier");
-  assert.equal(summary!.leadImageTitle, "File:Mount_Rainier_from_the_Silver_Queen_Peak.jpg");
+  assert.equal(summary!.leadImageTitle, "File:Mount_Rainier_from_west.jpg");
+});
+
+test("parseSummaryResponse decodes percent-escapes and keeps parentheses in the file title", () => {
+  const summary = parseSummaryResponse({
+    title: "Volcán Tajumulco",
+    extract: "Tajumulco is a stratovolcano.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Volc%C3%A1n_Tajumulco" } },
+    originalimage: {
+      source:
+        "https://upload.wikimedia.org/wikipedia/commons/5/5b/Volc%C3%A1n_Tajumulco%2C_San_Marcos_(Guatemala).jpg",
+    },
+  });
+
+  assert.ok(summary);
+  // A title carrying raw %-escapes would be double-encoded by the imageinfo
+  // request and resolve to nothing; the parentheses must survive untouched.
+  assert.equal(
+    summary!.leadImageTitle,
+    "File:Volcán_Tajumulco,_San_Marcos_(Guatemala).jpg"
+  );
+});
+
+test("parseSummaryResponse reads the real file out of a thumbnail path", () => {
+  const summary = parseSummaryResponse({
+    title: "Aconcagua",
+    extract: "Aconcagua is the highest peak outside Asia.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Aconcagua" } },
+    thumbnail: {
+      source:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Aconcagua2016.jpg/330px-Aconcagua2016.jpg",
+    },
+  });
+
+  assert.ok(summary);
+  // The last path segment is the rendered thumbnail, not a file that exists on
+  // Commons; the segment above it is the one imageinfo can be asked about.
+  assert.equal(summary!.leadImageTitle, "File:Aconcagua2016.jpg");
 });
 
 test("parseSummaryResponse rejects disambiguation pages and empty extracts", () => {
@@ -165,7 +218,20 @@ test("parseSummaryResponse yields a null lead image when the page has none", () 
     content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Nameless_Bump" } },
   });
   assert.ok(summary);
-  assert.equal(summary!.leadImageTitle, null);
+  assert.equal(summary!.leadImageTitle, null, "neither originalimage nor thumbnail is no image");
+});
+
+test("parseSummaryResponse yields a null lead image for an unusable image url", () => {
+  for (const source of ["", "not a url", "https://upload.wikimedia.org/wikipedia/commons/f/fa/"]) {
+    const summary = parseSummaryResponse({
+      title: "Nameless Bump",
+      extract: "A bump.",
+      content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Nameless_Bump" } },
+      originalimage: { source },
+    });
+    assert.ok(summary);
+    assert.equal(summary!.leadImageTitle, null, `"${source}" names no file`);
+  }
 });
 
 test("parseImageInfoResponse pulls url, artist, licence, and file page", () => {

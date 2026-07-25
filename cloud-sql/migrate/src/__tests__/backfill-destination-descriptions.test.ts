@@ -9,7 +9,7 @@ import {
   type CandidateRow,
   type WikipediaClient,
 } from "../backfill-destination-descriptions";
-import type { WikipediaImageCredit } from "../lib/wikipedia";
+import { parseSummaryResponse, type WikipediaImageCredit } from "../lib/wikipedia";
 
 /** A destination row as loadCandidates hands it over. */
 function row(overrides: Partial<CandidateRow> = {}): CandidateRow {
@@ -334,6 +334,51 @@ test("a freely licensed lead image is written with its attribution", async () =>
     outcome.write.heroAttributionUrl,
     "https://commons.wikimedia.org/wiki/File:Rainier.jpg"
   );
+});
+
+/**
+ * The whole image path, from the bytes Wikipedia actually returns to the write.
+ * Every other test in this section hands planRow a leadImageTitle it never had
+ * to derive, which is exactly how the production no-op hid: the REST summary
+ * carries no `pageimage`, so the parser yielded null and the image half of the
+ * backfill silently did nothing across 108 rows.
+ */
+test("a REST summary with no pageimage still produces an image write", async () => {
+  const parsed = parseSummaryResponse({
+    type: "standard",
+    title: "Mount Rainier",
+    titles: { canonical: "Mount_Rainier", normalized: "Mount Rainier" },
+    extract: "Mount Rainier is a large active stratovolcano in the Cascade Range of Washington.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Mount_Rainier" } },
+    thumbnail: {
+      source:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Mount_Rainier_from_west.jpg/330px-Mount_Rainier_from_west.jpg",
+    },
+    originalimage: {
+      source: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Mount_Rainier_from_west.jpg",
+    },
+  });
+  assert.ok(parsed, "the real REST shape must parse");
+
+  const stub = stubClient({
+    geosearchTitle: "Mount Rainier",
+    summary: { ...parsed!, coordinates: { lat: 46.8529, lon: -121.7604 } },
+  });
+  const outcome = await planRow(row(), stub.client, { force: false });
+
+  assert.ok(
+    stub.calls.includes("image:File:Mount_Rainier_from_west.jpg"),
+    "the credit lookup must be asked about the file the summary actually named"
+  );
+  assert.equal(outcome.kind, "write");
+  if (outcome.kind !== "write") return;
+  assert.equal(outcome.write.heroImage, "https://upload.wikimedia.org/rainier.jpg");
+  assert.equal(outcome.write.heroAttribution, "A Photographer / CC BY-SA 4.0");
+  assert.equal(
+    outcome.write.heroAttributionUrl,
+    "https://commons.wikimedia.org/wiki/File:Rainier.jpg"
+  );
+  assert.equal(outcome.imageSkipReason, undefined);
 });
 
 test("a non-free lead image is refused while the description still lands", async () => {
