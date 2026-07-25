@@ -450,52 +450,118 @@ async function assignAttemptGroup(
 }
 
 /**
- * Update destination averages (popular times) based on the session's start date.
- * Increments the month and day-of-week counters in the JSONB averages column
- * for all destinations matched (reached) by the session.
+ * Rebuild the popularity buckets (`destinations.averages`) for a set of
+ * destinations from the live `session_destinations` rows.
+ *
+ * This used to be a blind `+1` per process, which double-counted on every
+ * re-process and could never decrement — so a removed or rejected ascent stayed
+ * in the histogram forever. Recomputing makes processing idempotent and makes a
+ * rejection decrement automatically.
+ *
+ * Reached rows ONLY. A 'goal' row records an intention, not an ascent, and a
+ * rejection deliberately spares it (see applyDestinationRejections in
+ * routes/sessions.ts) — so counting goals here would put the retracted ascent
+ * straight back into the histogram.
+ *
+ * Month and day-of-week are derived with EXTRACT, like the live
+ * GET /api/destinations/averages endpoint, so the stored buckets and the live
+ * aggregation can never disagree about which bucket a session falls in. (The
+ * old code derived them in JS from the API server's local clock, which could
+ * disagree with the database's.) The endpoint indexes a 0-based Sunday-first
+ * array by EXTRACT(DOW); this indexes a 1-based Monday-first array by
+ * EXTRACT(ISODOW), which is the same mapping written without an offset.
+ *
+ * `averages_offset` (pre-migration Firestore history) is NEVER written here —
+ * it is merged in at read time by mergeAverages (routes/destinations.ts) and
+ * topMonths (routes/lists.ts). Any other keys already on `averages` (e.g. a
+ * migrated `lastUpdated`) are preserved; only `months` and `days` are replaced.
+ *
+ * `recency` is bumped only for destinations that still have at least one
+ * reached row, so recomputing a destination down to zero doesn't advertise it
+ * as freshly visited.
+ *
+ * Pure builder so the shape is unit-testable without a live DB.
+ */
+export function buildDestinationAveragesRecomputeSql(): { text: string } {
+  return {
+    text: `WITH ids AS (
+      SELECT DISTINCT unnest($1::text[]) AS id
+    ),
+    reached AS (
+      SELECT sd.destination_id AS id, ts.start_time
+      FROM session_destinations sd
+      JOIN tracking_sessions ts ON ts.id = sd.session_id
+      WHERE sd.destination_id IN (SELECT id FROM ids)
+        AND sd.relation = 'reached'
+        AND ts.start_time IS NOT NULL
+    ),
+    months AS (
+      SELECT id, jsonb_object_agg(m, cnt) AS blob FROM (
+        SELECT id,
+               (ARRAY['jan','feb','mar','apr','may','jun',
+                      'jul','aug','sep','oct','nov','dec'])[EXTRACT(MONTH FROM start_time)::int] AS m,
+               COUNT(*)::int AS cnt
+        FROM reached GROUP BY 1, 2
+      ) x GROUP BY id
+    ),
+    days AS (
+      SELECT id, jsonb_object_agg(d, cnt) AS blob FROM (
+        SELECT id,
+               (ARRAY['mo','tu','we','th','fr','sa','su'])[EXTRACT(ISODOW FROM start_time)::int] AS d,
+               COUNT(*)::int AS cnt
+        FROM reached GROUP BY 1, 2
+      ) y GROUP BY id
+    ),
+    totals AS (
+      SELECT id, COUNT(*)::int AS n FROM reached GROUP BY id
+    )
+    UPDATE destinations dst
+    SET averages = (COALESCE(dst.averages, '{}'::jsonb) - 'months' - 'days')
+                   || jsonb_build_object(
+                        'months', COALESCE(months.blob, '{}'::jsonb),
+                        'days',   COALESCE(days.blob,   '{}'::jsonb)
+                      ),
+        recency = CASE WHEN COALESCE(totals.n, 0) > 0 THEN now() ELSE dst.recency END
+    FROM ids
+    LEFT JOIN months ON months.id = ids.id
+    LEFT JOIN days   ON days.id   = ids.id
+    LEFT JOIN totals ON totals.id = ids.id
+    WHERE dst.id = ids.id`,
+  };
+}
+
+/**
+ * Recompute `destinations.averages` for the given destination ids. Idempotent;
+ * a no-op on an empty list. Call it for every destination whose
+ * session_destinations rows changed — including ones whose rows were DELETED,
+ * which processSession can no longer see (see routes/sessions.ts
+ * applyDestinationRejections).
+ */
+export async function recomputeDestinationAverages(
+  client: PoolClient,
+  destinationIds: string[]
+): Promise<void> {
+  if (destinationIds.length === 0) return;
+  const sql = buildDestinationAveragesRecomputeSql();
+  await client.query(sql.text, [destinationIds]);
+}
+
+/**
+ * Step 5 of processSession: refresh the popularity buckets of every destination
+ * this session currently counts as reached.
  */
 async function updateDestinationAverages(
   client: PoolClient,
   sessionId: string
 ): Promise<void> {
-  // Get session start time
-  const sessionResult = await client.query(
-    `SELECT start_time FROM tracking_sessions WHERE id = $1`,
-    [sessionId]
-  );
-  if (sessionResult.rows.length === 0) return;
-
-  const startTime = new Date(sessionResult.rows[0].start_time);
-  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  const days = ["su", "mo", "tu", "we", "th", "fr", "sa"];
-  const month = months[startTime.getMonth()];
-  const day = days[startTime.getDay()];
-
-  // Get all reached destinations for this session
   const destResult = await client.query(
     `SELECT destination_id FROM session_destinations
      WHERE session_id = $1 AND relation = 'reached'`,
     [sessionId]
   );
-  if (destResult.rows.length === 0) return;
-
-  const destIds = destResult.rows.map((r: { destination_id: string }) => r.destination_id);
-
-  // Atomically increment month and day counters in the JSONB averages column.
-  // Initializes the averages object if null, and initializes individual counters if missing.
-  await client.query(
-    `UPDATE destinations SET averages = jsonb_set(
-        jsonb_set(
-          COALESCE(averages, '{"months":{},"days":{}}'),
-          ARRAY['months', $2],
-          to_jsonb(COALESCE((averages->'months'->>$2)::int, 0) + 1)
-        ),
-        ARRAY['days', $3],
-        to_jsonb(COALESCE((averages->'days'->>$3)::int, 0) + 1)
-      ),
-      recency = NOW()
-     WHERE id = ANY($1)`,
-    [destIds, month, day]
+  await recomputeDestinationAverages(
+    client,
+    destResult.rows.map((r: { destination_id: string }) => r.destination_id)
   );
 }
 

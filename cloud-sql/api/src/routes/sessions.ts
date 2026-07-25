@@ -11,7 +11,12 @@ import {
   shapeComparisonList,
 } from "../comparisons";
 import { COMPARISON_LIST_CAP, FULL_ROUTE_FRAC } from "../comparison-params";
-import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
+import {
+  generateId,
+  processSession,
+  recomputeDestinationAverages,
+  STALE_PROCESSING_MINUTES,
+} from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
 import { streamQueryAsJsonArray } from "../lib/stream-json";
@@ -1923,8 +1928,48 @@ router.post("/:id/destinations", async (req, res: Response) => {
     // standing reached row would win the conflict, the goal insert would do
     // nothing, and the rejection's delete would then leave the pair with no row
     // at all. The 400 guards above make the reverse contention impossible.
+    // What the session reached BEFORE the write. Every id here can lose its row
+    // in the next two statements — to the rejection, or to reconcile replacing
+    // the manual set — and a lost row has to stop being counted. The request
+    // itself names only some of them: dropping an id from `reached` deletes its
+    // row while mentioning it nowhere.
+    const priorReached = await client.query(
+      `SELECT destination_id FROM session_destinations
+       WHERE session_id = $1 AND relation = 'reached'`,
+      [id]
+    );
+
     const applied = await applyDestinationRejections(client, id, unreject, rejected);
     await reconcileClientDestinations(client, id, reached, goals);
+
+    // Recompute the popularity buckets for every destination this write could
+    // have moved: what the session reached going in, plus what the request asks
+    // to add.
+    //
+    // Rejections are why this call has to be here at all. Their
+    // session_destinations rows are gone by now, so processSession's own Step 5
+    // recompute will never see them again and their buckets would keep counting
+    // an ascent the user retracted.
+    //
+    // The un-rejected ids are included too. Un-rejecting on its own restores no
+    // reached row, so the recompute is a no-op for them today — but they ride
+    // along in the same UPDATE for free, and including them makes the
+    // postcondition unconditional: every destination this request could have
+    // affected ends up with buckets equal to its live reached rows, whichever
+    // way un-reject semantics move later. It also repairs a destination whose
+    // buckets the pre-B4 blind increment had already inflated.
+    //
+    // Goals are deliberately absent: the recompute counts reached rows only, so
+    // reconciling goals cannot move a bucket.
+    const touched = Array.from(
+      new Set([
+        ...priorReached.rows.map((r: { destination_id: string }) => r.destination_id),
+        ...cleanDestinationIds(reached),
+        ...applied.rejected,
+        ...applied.unrejected,
+      ])
+    );
+    await recomputeDestinationAverages(client, touched);
 
     // Bump the sync feed explicitly. The session_destinations trigger only fires
     // when a live row happened to exist, but a rejection with nothing to delete
