@@ -248,8 +248,12 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             ST_Z(d.location::geometry) AS elev_z,
+            d.description, d.description_source_name,
+            d.description_source_url, d.description_source_license,
             CASE WHEN d.boundary IS NOT NULL
                  THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+            CASE WHEN d.massif_boundary IS NOT NULL
+                 THEN ST_AsGeoJSON(d.massif_boundary)::json END AS massif_boundary,
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
             d.created_at, d.updated_at,
             COALESCE(stats.session_count, 0) + d.session_count_offset AS session_count,
@@ -294,10 +298,29 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
   };
 }
 
+/** Trim to a non-empty string, else null. Blank TEXT columns and `undefined`
+ *  both collapse to an explicit JSON null so clients see one absent shape. */
+function textOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 export function mapDestinationDetailRow(row: any): any {
   row.averages = mergeAverages(row.averages, row.averages_offset);
   delete row.averages_offset;
   row.areas = Array.isArray(row.areas) ? row.areas : [];
+
+  row.description_source_name = textOrNull(row.description_source_name);
+  row.description_source_url = textOrNull(row.description_source_url);
+  row.description_source_license = textOrNull(row.description_source_license);
+
+  // Licensing guard: copy we cannot credit is not served. A source URL is the
+  // minimum credit the client can render, so text without one is dropped.
+  const description = textOrNull(row.description);
+  row.description = row.description_source_url ? description : null;
+
+  row.massif_boundary = row.massif_boundary ?? null;
   return row;
 }
 
