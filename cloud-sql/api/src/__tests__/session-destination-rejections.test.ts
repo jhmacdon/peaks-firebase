@@ -122,6 +122,21 @@ describe("session_destination_rejections is honored by every auto-matcher", { sk
     assert.match(res.rows[0].prosrc, /NOT EXISTS/);
   });
 
+  // The fourth auto-writer. link_sessions_on_destination_update fires on
+  // AFTER UPDATE OF boundary, location and inserts source='auto' rows, so an
+  // admin dragging a summit onto a track would resurrect every rejected pair in
+  // range. It is created by 20260411_boundary_update_trigger.sql and is absent
+  // from schema.sql, so a database built from schema.sql alone will not have it
+  // — assert only that WHERE IT EXISTS it carries the anti-join.
+  test("the live link_sessions_on_destination_update anti-joins rejections", async () => {
+    const res = await db.query(
+      `SELECT prosrc FROM pg_proc WHERE proname = 'link_sessions_on_destination_update'`
+    );
+    if (res.rows.length === 0) return; // schema.sql-built database; no such trigger
+    assert.match(res.rows[0].prosrc, /session_destination_rejections/);
+    assert.match(res.rows[0].prosrc, /NOT EXISTS/);
+  });
+
   test("creating a destination still links a session that never rejected it", async () => {
     const sid = `${runPrefix}-s2`;
     const freshDest = `${runPrefix}-fresh2`;

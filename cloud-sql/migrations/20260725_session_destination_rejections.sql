@@ -6,12 +6,15 @@
 -- separate table survives re-processing and keeps every existing read of
 -- session_destinations correct with no change.
 --
--- Anti-joined by all three writers of auto 'reached' rows:
+-- Anti-joined by every writer of auto 'reached' rows:
 --   1. buildSessionDestinationMatchSql     — cloud-sql/api/src/processing.ts
 --   2. link_sessions_on_destination_insert — this file / cloud-sql/schema.sql
 --   3. backfillDestinationToSessions       — web/src/lib/destination-backfill.ts
--- A fourth writer without the anti-join silently resurrects rejections;
--- scripts/check-cross-refs.sh fails CI if any of the three drops the reference.
+--   4. link_sessions_on_destination_update — this file, patched where it exists
+--      (created by 20260411_boundary_update_trigger.sql, absent from schema.sql)
+-- Another writer without the anti-join silently resurrects rejections;
+-- scripts/check-cross-refs.sh discovers every file that inserts into
+-- session_destinations and fails CI if one of them drops the reference.
 --
 -- Idempotent: safe to re-apply.
 
@@ -105,6 +108,10 @@ BEGIN
     'reached'::session_destination_relation,
     'auto'
   FROM matches
+  -- The user's "I didn't reach this" veto. Same anti-join as
+  -- buildSessionDestinationMatchSql (api/src/processing.ts) and
+  -- backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+  -- scripts/check-cross-refs.sh fails CI if one of the three drops it.
   WHERE NOT EXISTS (
     SELECT 1 FROM session_destination_rejections r
     WHERE r.session_id = matches.session_id
@@ -114,5 +121,73 @@ BEGIN
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ---------------------------------------------------------------------------
+-- Fourth auto-writer: link_sessions_on_destination_update.
+--
+-- Created by 20260411_boundary_update_trigger.sql, still live, and absent from
+-- schema.sql (schema drift predating this migration). It fires AFTER UPDATE OF
+-- boundary, location and inserts source='auto' rows, so an admin boundary or
+-- location edit would re-insert every rejected pair in range.
+--
+-- Patched only where it exists: a database built from schema.sql alone never
+-- had this trigger, and this migration must not introduce it there.
+--
+-- The body below is the deployed body byte-for-byte plus the same per-pair
+-- anti-join. Its radii (summit 30 / trailhead 100 / else 50) are hardcoded and
+-- have drifted from destination_match_radius() — deliberately left alone;
+-- reconciling them is a separate product decision, not a rejection fix.
+-- ---------------------------------------------------------------------------
+DO $patch$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'link_sessions_on_destination_update') THEN
+    EXECUTE $ddl$
+CREATE OR REPLACE FUNCTION link_sessions_on_destination_update()
+RETURNS TRIGGER AS $fn$
+BEGIN
+    -- Boundary changed
+    IF NEW.boundary IS NOT NULL AND (OLD.boundary IS NULL OR OLD.boundary != NEW.boundary) THEN
+        INSERT INTO session_destinations (session_id, destination_id, relation, source)
+        SELECT DISTINCT tp.session_id, NEW.id, 'reached'::session_destination_relation, 'auto'
+        FROM tracking_points tp
+        JOIN tracking_sessions ts ON ts.id = tp.session_id
+        WHERE ts.ended = true
+          AND ST_DWithin(NEW.boundary, tp.location, 10)
+          AND NOT EXISTS (
+            SELECT 1 FROM session_destination_rejections r
+            WHERE r.session_id = tp.session_id AND r.destination_id = NEW.id
+          )
+        ON CONFLICT (session_id, destination_id) DO NOTHING;
+
+    -- Location changed (and no boundary — boundary takes precedence)
+    ELSIF NEW.boundary IS NULL AND OLD.location != NEW.location THEN
+        INSERT INTO session_destinations (session_id, destination_id, relation, source)
+        SELECT DISTINCT tp.session_id, NEW.id, 'reached'::session_destination_relation, 'auto'
+        FROM tracking_points tp
+        JOIN tracking_sessions ts ON ts.id = tp.session_id
+        WHERE ts.ended = true
+          AND ST_DWithin(
+                NEW.location,
+                tp.location,
+                CASE WHEN 'summit' = ANY(NEW.features) THEN 30
+                     WHEN 'trailhead' = ANY(NEW.features) THEN 100
+                     ELSE 50 END
+              )
+          AND NOT EXISTS (
+            SELECT 1 FROM session_destination_rejections r
+            WHERE r.session_id = tp.session_id AND r.destination_id = NEW.id
+          )
+        ON CONFLICT (session_id, destination_id) DO NOTHING;
+    END IF;
+    RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql;
+    $ddl$;
+    RAISE NOTICE 'link_sessions_on_destination_update patched with the rejection anti-join';
+  ELSE
+    RAISE NOTICE 'link_sessions_on_destination_update absent — nothing to patch';
+  END IF;
+END
+$patch$;
 
 COMMIT;

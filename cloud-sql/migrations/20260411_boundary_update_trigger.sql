@@ -3,6 +3,12 @@ BEGIN;
 -- Add 'lake' to destination_feature enum
 ALTER TYPE destination_feature ADD VALUE IF NOT EXISTS 'lake';
 
+-- SUPERSEDED IN PART: 20260725_session_destination_rejections.sql re-declares
+-- this function with a session_destination_rejections anti-join (only where the
+-- function already exists). It inserts source='auto' rows, so without that
+-- anti-join a boundary or location edit resurrects every rejected pair in
+-- range. Do not re-create this function without carrying the anti-join over.
+--
 -- When a destination's boundary or location is updated, auto-link any
 -- sessions whose GPS tracks pass through the area.
 -- This complements the existing INSERT trigger which only sees the state
