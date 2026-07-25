@@ -56,8 +56,6 @@ const ABBREVIATIONS = new Set([
   "u.s",
   "ca",
   "approx",
-  "no",
-  "ft",
   "vs",
   "e.g",
   "i.e",
@@ -70,17 +68,22 @@ function tokenBeforeTerminator(upToTerminator: string): string {
 }
 
 /**
- * True when `chunk` really ends a sentence, given the text that follows it.
+ * True when `pending` really ends a sentence, given the text that follows it.
+ *
+ * `pending` is the whole sentence so far, not just the latest regex match: a
+ * dotted abbreviation such as "U.S." makes the regex restart after the inner
+ * dot, so the match alone reads "S. " and the carrying word is lost.
  *
  * A full stop ends a sentence when it sits at the end of the text or is
  * followed by an opening quote or capital letter — and when the word carrying
- * it is neither a bare number ("4,392.1") nor a known abbreviation ("Mt.").
+ * it is not a known abbreviation ("Mt.", "U.S."). Numbers get no special
+ * treatment: a decimal point has no space after it, so the split never lands
+ * there, while "climbed in 1870." really is the end of a sentence.
  */
-function endsSentence(chunk: string, rest: string): boolean {
-  const trimmed = chunk.trimEnd();
+function endsSentence(pending: string, rest: string): boolean {
+  const trimmed = pending.trimEnd();
   if (trimmed.endsWith(".")) {
     const token = tokenBeforeTerminator(trimmed.slice(0, -1));
-    if (/^\d[\d,]*$/.test(token)) return false;
     if (ABBREVIATIONS.has(token.replace(/\.$/, ""))) return false;
   }
   if (rest.trim().length === 0) return true;
@@ -101,7 +104,7 @@ function splitSentences(text: string): string[] {
     // skipped. Carry it forward so no words are lost.
     pending += text.slice(cursor, match.index) + chunk;
     cursor = match.index + chunk.length;
-    if (endsSentence(chunk, text.slice(cursor))) {
+    if (endsSentence(pending, text.slice(cursor))) {
       sentences.push(pending);
       pending = "";
     }

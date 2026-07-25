@@ -49,11 +49,66 @@ test("shortenSummary does not break a sentence at an abbreviation", () => {
     "Most parties bivouac at Camp Muir before the summit push. " +
     "The final section crosses the Disappointment Cleaver.";
 
-  const short = shortenSummary(extract, 150);
+  // A cap that lands inside the first sentence must not stop at "Mt.": the
+  // abbreviation carries the sentence on, so the cut falls to the hard
+  // truncation with the place name intact.
+  const tight = shortenSummary(extract, 80);
 
-  assert.ok(short.includes("Mt. Rainier"), "the abbreviation must survive intact");
-  assert.ok(short.endsWith("push."), "the cut must land on a real sentence boundary");
-  assert.ok(short.length <= 150);
+  assert.equal(
+    tight,
+    "The climb starts at Paradise and follows the Muir Snowfield toward Mt. Rainier…"
+  );
+  assert.ok(tight.includes("Mt. Rainier"), "the abbreviation must survive intact");
+  assert.equal(tight.endsWith("Mt."), false, "a dangling abbreviation is not a sentence end");
+  assert.ok(tight.length <= 80);
+
+  // With room for whole sentences, the cut lands on a real boundary.
+  const roomy = shortenSummary(extract, 150);
+
+  assert.ok(roomy.includes("Mt. Rainier"), "the abbreviation must survive intact");
+  assert.ok(roomy.endsWith("push."), "the cut must land on a real sentence boundary");
+  assert.ok(roomy.length <= 150);
+});
+
+test("shortenSummary keeps a dotted abbreviation inside its sentence", () => {
+  const extract =
+    "Permits are required for overnight trips. " +
+    "The U.S. Forest Service manages the wilderness. " +
+    "Rangers patrol the main trailheads.";
+
+  // A cap that lands inside the U.S. sentence falls back to the previous whole
+  // sentence rather than stopping at the abbreviation's full stop.
+  const tight = shortenSummary(extract, 60);
+  assert.equal(tight, "Permits are required for overnight trips.");
+
+  // With room for it, the sentence survives whole.
+  const roomy = shortenSummary(extract, 100);
+  assert.equal(
+    roomy,
+    "Permits are required for overnight trips. The U.S. Forest Service manages the wilderness."
+  );
+  assert.ok(roomy.length <= 100);
+});
+
+test("shortenSummary ends a sentence that finishes on a number", () => {
+  const extract =
+    "The peak was first climbed in 1870. Today thousands of climbers attempt it every year.";
+
+  const short = shortenSummary(extract, 70);
+
+  assert.equal(short, "The peak was first climbed in 1870.");
+  assert.ok(short.length <= 70);
+});
+
+test("shortenSummary ends a sentence that finishes on a unit", () => {
+  const extract =
+    "Mount Rainier rises to 14,411 ft. " +
+    "It carries more glacial ice than any other peak in the contiguous United States.";
+
+  const short = shortenSummary(extract, 100);
+
+  assert.equal(short, "Mount Rainier rises to 14,411 ft.");
+  assert.ok(short.length <= 100);
 });
 
 test("shortenSummary does not break inside a decimal number", () => {
