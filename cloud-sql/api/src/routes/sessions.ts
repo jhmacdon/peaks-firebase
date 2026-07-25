@@ -248,26 +248,60 @@ async function touchSession(client: PoolClient, sessionId: string): Promise<void
  * stale/empty local list would `DELETE` the whole set and permanently wipe an
  * auto-detected summit (the "imported climb shows no peak" bug). Reinserts use
  * `ON CONFLICT DO NOTHING` so a dest already present as 'auto' stays 'auto'.
+ *
+ * CRITICAL, second half: a `reached` id the user has REJECTED is skipped, and
+ * the veto is left standing. The same iOS habit that caused the bug above —
+ * resending the local `destinations_reached` on every create/update — means the
+ * list goes stale the moment a rejection happens on another device, or on this
+ * one before the next sync. Honouring it would put the summit straight back on
+ * the next routine PUT and the rejection would look like it never took. This is
+ * the fifth writer of 'reached' rows and it anti-joins like the other four.
+ *
+ * `clearRejections` is the deliberate un-reject, and only the explicit
+ * `POST /:id/destinations` endpoint passes it: there, a `reached` id IS the user
+ * saying "yes I did, actually", so the veto is dropped first and the row goes in.
+ * A generic sync writer never gets to make that call — the flag is opt-in
+ * precisely so a new caller inherits the safe behaviour by default.
+ *
+ * Goals are not filtered. A rejection says "I did not reach this", which does
+ * not contradict "this was my goal" — the attempt still happened, and no matcher
+ * reads goal rows.
  */
-async function reconcileClientDestinations(
+export async function reconcileClientDestinations(
   client: PoolClient,
   sessionId: string,
   reached: string[] | undefined,
-  goals: string[] | undefined
+  goals: string[] | undefined,
+  opts: { clearRejections?: boolean } = {}
 ): Promise<void> {
   await client.query(
     `DELETE FROM session_destinations
      WHERE session_id = $1 AND source = 'manual'`,
     [sessionId]
   );
-  for (const destId of reached || []) {
+
+  const reachedIds = cleanDestinationIds(reached);
+  if (opts.clearRejections && reachedIds.length > 0) {
+    await client.query(
+      `DELETE FROM session_destination_rejections
+       WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
+      [sessionId, reachedIds]
+    );
+  }
+
+  for (const destId of reachedIds) {
     await client.query(
       `INSERT INTO session_destinations (session_id, destination_id, relation, source)
-       VALUES ($1, $2, 'reached', 'manual') ON CONFLICT DO NOTHING`,
+       SELECT $1, $2, 'reached', 'manual'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM session_destination_rejections r
+         WHERE r.session_id = $1 AND r.destination_id = $2
+       )
+       ON CONFLICT DO NOTHING`,
       [sessionId, destId]
     );
   }
-  for (const destId of goals || []) {
+  for (const destId of cleanDestinationIds(goals)) {
     await client.query(
       `INSERT INTO session_destinations (session_id, destination_id, relation, source)
        VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
@@ -1850,7 +1884,12 @@ router.post("/:id/destinations", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
-    await reconcileClientDestinations(client, id, reached, goals);
+    // clearRejections: this endpoint is the one place a `reached` id means the
+    // user deliberately un-rejecting, rather than a client replaying a stale
+    // list. applyDestinationRejections repeats that un-reject rather than
+    // relying on the call order — it is also B4's entry point and has to be
+    // correct on its own.
+    await reconcileClientDestinations(client, id, reached, goals, { clearRejections: true });
     await applyDestinationRejections(client, id, reached, rejected);
 
     await client.query("COMMIT");

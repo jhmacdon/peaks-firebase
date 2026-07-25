@@ -12,6 +12,12 @@
 // winner. That guard is pure request validation, so it runs before any database
 // work and is asserted without the rejections table.
 //
+// The veto is only clearable through THIS endpoint. The generic session writers
+// (`PUT /api/sessions/:id`, the `POST /api/sessions` upsert) resend whatever
+// `destinations_reached` the client happens to hold — often stale — so they must
+// never insert a manual row for a rejected destination and never clear a veto.
+// Second describe block below.
+//
 // Integration tests gated on $DATABASE_URL, fixtures prefixed + placed in empty
 // South Atlantic water.
 
@@ -59,13 +65,23 @@ async function createSessionWithTrack(id: string): Promise<void> {
   );
 }
 
-async function createSummit(id: string): Promise<void> {
+async function createSummitAt(id: string, lng: number, lat: number): Promise<void> {
   await db.query(
     `INSERT INTO destinations (id, name, search_name, location, owner, features)
      VALUES ($1, $1, $1, ST_SetSRID(ST_MakePoint($2, $3, 100), 4326)::geography, 'peaks', '{summit}')
      ON CONFLICT (id) DO NOTHING`,
-    [id, LNG, LAT]
+    [id, lng, lat]
   );
+}
+
+/** On the fixture track, so link_sessions_on_destination_insert auto-links it. */
+async function createSummit(id: string): Promise<void> {
+  await createSummitAt(id, LNG, LAT);
+}
+
+/** A degree away — never auto-matched, so a row for it can only be a manual one. */
+async function createDistantSummit(id: string): Promise<void> {
+  await createSummitAt(id, LNG + 1, LAT + 1);
 }
 
 async function reachedIds(sessionId: string): Promise<string[]> {
@@ -247,5 +263,96 @@ describe("POST /api/sessions/:id/destinations rejected list", { skip: skipReason
     assert.equal(res.status, 404);
     assert.equal(await rejectionCount(sid, dest), 0, "an intruder cannot veto someone else's ascent");
     assert.deepEqual(await reachedIds(sid), before, "and cannot delete their live rows either");
+  });
+});
+
+// The generic session writers resend whatever destinations_reached the client
+// holds. That list goes stale the moment the user rejects a destination on
+// another device — or on this one, before the next sync. If those writers
+// honoured it, the very next routine PUT would put the summit straight back and
+// the rejection would look like it never took.
+describe("generic session writers cannot resurrect a rejection", { skip: skipReason ?? undefined }, () => {
+  before(cleanup);
+  after(cleanup);
+
+  async function rejectedFixture(sid: string, rejected: string, manualOnly: string): Promise<void> {
+    await createSessionWithTrack(sid);
+    await createSummit(rejected);
+    await createDistantSummit(manualOnly);
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ rejected: [rejected] })
+      .expect(200);
+    assert.equal(await rejectionCount(sid, rejected), 1, "precondition: veto recorded");
+    assert.ok(!(await reachedIds(sid)).includes(rejected), "precondition: live row gone");
+  }
+
+  test("PUT /api/sessions/:id with a stale reached list cannot resurrect it", async () => {
+    const sid = `${runPrefix}-s7`;
+    const rejected = `${runPrefix}-dest7-rejected`;
+    const manualOnly = `${runPrefix}-dest7-manual`;
+    await rejectedFixture(sid, rejected, manualOnly);
+
+    await request(app)
+      .put(`/api/sessions/${sid}`)
+      .set("X-Test-User", user)
+      .send({ destinations_reached: [rejected, manualOnly] })
+      .expect(200);
+
+    const after = await reachedIds(sid);
+    assert.ok(!after.includes(rejected), "a stale reached list must not re-add a rejected summit");
+    assert.equal(await rejectionCount(sid, rejected), 1, "and must not clear the veto");
+    // Control: the filter must be about the veto, not about manual rows in
+    // general — an unrejected id in the same list still has to land.
+    assert.ok(after.includes(manualOnly), "an unrejected manual reach must still be written");
+  });
+
+  test("POST /api/sessions upsert with a stale reached list cannot resurrect it", async () => {
+    const sid = `${runPrefix}-s8`;
+    const rejected = `${runPrefix}-dest8-rejected`;
+    const manualOnly = `${runPrefix}-dest8-manual`;
+    await rejectedFixture(sid, rejected, manualOnly);
+
+    await request(app)
+      .post("/api/sessions")
+      .set("X-Test-User", user)
+      .send({
+        id: sid,
+        start_date: "2026-06-07T17:00:00Z",
+        ended: true,
+        destinations_reached: [rejected, manualOnly],
+      })
+      .expect(200);
+
+    const after = await reachedIds(sid);
+    assert.ok(!after.includes(rejected), "the upsert path must not re-add a rejected summit either");
+    assert.equal(await rejectionCount(sid, rejected), 1, "and must not clear the veto");
+    assert.ok(after.includes(manualOnly), "an unrejected manual reach must still be written");
+  });
+
+  test("only the destinations endpoint clears a veto", async () => {
+    const sid = `${runPrefix}-s9`;
+    const rejected = `${runPrefix}-dest9-rejected`;
+    const manualOnly = `${runPrefix}-dest9-manual`;
+    await rejectedFixture(sid, rejected, manualOnly);
+
+    // A PUT first: still vetoed.
+    await request(app)
+      .put(`/api/sessions/${sid}`)
+      .set("X-Test-User", user)
+      .send({ destinations_reached: [rejected] })
+      .expect(200);
+    assert.equal(await rejectionCount(sid, rejected), 1);
+
+    // The explicit endpoint is the deliberate un-reject, and it works.
+    await request(app)
+      .post(`/api/sessions/${sid}/destinations`)
+      .set("X-Test-User", user)
+      .send({ reached: [rejected] })
+      .expect(200);
+
+    assert.equal(await rejectionCount(sid, rejected), 0, "the opt-in path clears the veto");
+    assert.ok((await reachedIds(sid)).includes(rejected), "and writes the manual row");
   });
 });
