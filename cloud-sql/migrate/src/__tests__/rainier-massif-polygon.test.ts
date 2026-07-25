@@ -18,9 +18,13 @@ type Point = { lng: number; lat: number };
 
 function loadRing(): Point[] {
   const sql = readFileSync(MIGRATION_PATH, "utf8");
-  const match = sql.match(/POLYGON\(\((.*?)\)\)/s);
-  assert.ok(match, "migration must contain a POLYGON((...)) literal");
-  return match![1]
+  const matches = [...sql.matchAll(/POLYGON\(\((.*?)\)\)/gs)];
+  assert.equal(
+    matches.length,
+    1,
+    `migration must contain exactly one POLYGON((...)) literal, found ${matches.length}`
+  );
+  return matches[0][1]
     .split(",")
     .map((pair) => pair.trim().split(/\s+/))
     .map(([lng, lat]) => ({ lng: Number(lng), lat: Number(lat) }));
@@ -37,6 +41,36 @@ function contains(ring: Point[], point: Point): boolean {
     if (point.lng < x) inside = !inside;
   }
   return inside;
+}
+
+/**
+ * Metres from a point to the nearest ring edge. The ring spans ~25 km, so a
+ * local flat projection — degrees to metres, longitude scaled by cos(lat) — is
+ * accurate to well under a metre here, and the assertions below only need tens
+ * of metres of headroom.
+ */
+const M_PER_DEG = 111_320;
+const RING_LAT = 46.87;
+const LNG_SCALE = Math.cos((RING_LAT * Math.PI) / 180);
+
+function project(p: Point): { x: number; y: number } {
+  return { x: p.lng * LNG_SCALE * M_PER_DEG, y: p.lat * M_PER_DEG };
+}
+
+function metresToRing(ring: Point[], point: Point): number {
+  const p = project(point);
+  let best = Infinity;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const a = project(ring[i]);
+    const b = project(ring[i + 1]);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    const raw = len2 === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    const t = Math.max(0, Math.min(1, raw));
+    best = Math.min(best, Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)));
+  }
+  return best;
 }
 
 /** Segment-intersection test used to prove the ring is simple. */
@@ -57,7 +91,12 @@ const INSIDE: Array<[string, Point]> = [
   ["Paradise", { lat: 46.786, lng: -121.7354 }],
   ["Sunrise", { lat: 46.9145, lng: -121.643 }],
   ["Longmire", { lat: 46.75, lng: -121.813 }],
+  ["Mowich Lake", { lat: 46.933, lng: -121.864 }],
+  ["White River Campground", { lat: 46.901, lng: -121.642 }],
 ];
+
+/** How far every contained landmark must sit from the boundary, in metres. */
+const MIN_MARGIN_M = 100;
 
 const OUTSIDE: Array<[string, Point]> = [
   ["Crystal Peak", { lat: 46.9147, lng: -121.5379 }],
@@ -86,7 +125,7 @@ test("the ring is simple — no self-intersections", () => {
   }
 });
 
-test("the massif contains the summit, Camp Muir, Paradise, Sunrise, Longmire", () => {
+test("the massif contains the summit and every named landmark on the mountain", () => {
   const ring = loadRing();
   for (const [name, point] of INSIDE) {
     assert.ok(contains(ring, point), name);
@@ -101,19 +140,20 @@ test("the massif excludes Crystal Peak and the wider Cascades", () => {
 });
 
 /**
- * A landmark placed exactly on a vertex is neither in nor out — ray casting
- * says "outside", PostGIS `ST_Covers` says "inside", and floating point decides
- * which. The seed ring shipped Sunrise and Longmire as vertices; both are now
- * pushed down-valley so the landmarks sit strictly inside. Keep it that way.
+ * A landmark on the boundary is neither in nor out — ray casting says
+ * "outside", PostGIS `ST_Covers` says "inside", and floating point decides
+ * which. Early drafts shipped Sunrise, Longmire, Mowich Lake, and White River
+ * Campground as ring vertices; all four are now pushed down-valley. Checking
+ * for vertex coincidence is not enough, because a landmark can sit on an edge
+ * between two vertices, so measure the real distance to the boundary instead.
  */
-test("no contained landmark sits on the ring itself", () => {
+test("every contained landmark clears the ring by a real margin", () => {
   const ring = loadRing();
   for (const [name, point] of INSIDE) {
-    for (const vertex of ring) {
-      assert.ok(
-        Math.abs(vertex.lng - point.lng) > 1e-6 || Math.abs(vertex.lat - point.lat) > 1e-6,
-        `${name} is a ring vertex — containment is undefined on the boundary`
-      );
-    }
+    const metres = metresToRing(ring, point);
+    assert.ok(
+      metres > MIN_MARGIN_M,
+      `${name} sits ${metres.toFixed(0)} m from the ring — containment needs > ${MIN_MARGIN_M} m of margin`
+    );
   }
 });
