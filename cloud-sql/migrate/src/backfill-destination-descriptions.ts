@@ -2,11 +2,18 @@
  * Backfill destinations.description + source credit (and, when the licence
  * allows, hero_image + attribution) from Wikipedia.
  *
- * Re-runnable and idempotent: rows that already carry a description are skipped
- * unless --force is passed, so a partial run can simply be run again. Matching
- * is coordinate-anchored — Wikidata sitelink first, then a 1500 m geosearch
- * whose title must still pass namesMatch — because a wrong article is worse
- * than no article.
+ * Re-runnable and idempotent, and it makes progress every run: the candidate
+ * query only selects rows still missing a description or a hero image, so
+ * --limit N advances instead of re-reading the same filled rows. A row whose
+ * description landed but whose image failed (a timeout, a 429) is recovered on
+ * a later run — the article is resolved again, only the image columns move, and
+ * the stored copy is written back unchanged.
+ *
+ * Matching is coordinate-anchored — Wikidata sitelink first, then a 1500 m
+ * geosearch whose title must still pass namesMatch — because a wrong article is
+ * worse than no article. A Wikidata sitelink is trusted only as far as its
+ * article's own coordinates: a mis-keyed external id or a same-name article in
+ * another state is rejected beyond MAX_WIKIDATA_MATCH_METERS.
  *
  * Licensing: article prose is stored as CC BY-SA 4.0 with a link back to the
  * page. A lead image is only stored when Commons reports a free licence
@@ -27,8 +34,9 @@
  *     npx tsx src/backfill-destination-descriptions.ts --dry-run --limit 20
  *
  * Flags:
- *   --dry-run          Print what would change; write nothing. DEFAULT-SAFE: on
- *                      unless --commit is passed.
+ *   --dry-run          Print what would change; write nothing. Refuses to run
+ *                      alongside --commit. DEFAULT-SAFE: writes are off unless
+ *                      --commit is passed.
  *   --commit           Actually write. Required for any UPDATE to run.
  *   --limit N          Cap the number of destinations considered (default 100).
  *   --ids a,b,c        Only these destination ids (bypasses the ordering).
@@ -53,23 +61,68 @@ const USER_AGENT = "peaks-description-backfill (https://github.com/jhmacdon/peak
 const REQUEST_DELAY_MS = 350; // stay well inside Wikimedia's courtesy limits
 const GEOSEARCH_RADIUS_M = 1500;
 
+/**
+ * How far a Wikidata-resolved article may sit from the catalog summit. The
+ * geosearch path is anchored by construction; the sitelink path is not, so a
+ * mis-keyed external_ids->>'wikidata' would otherwise hang a Colorado article
+ * on a Washington peak. Generous enough for a range article whose coordinates
+ * sit on a different summit, tight enough to catch a wrong state.
+ */
+export const MAX_WIKIDATA_MATCH_METERS = 5000;
+
 export type CandidateRow = {
   id: string;
   name: string | null;
   lat: number | null;
   lng: number | null;
   wikidata_id: string | null;
+  /** Existing copy, carried through untouched on the image-only recovery path. */
+  description: string | null;
+  description_source_name: string | null;
+  description_source_url: string | null;
+  description_source_license: string | null;
   has_description: boolean;
   has_hero_image: boolean;
+};
+
+/** A REST summary plus the article's own coordinates, when it publishes them. */
+export type ArticleSummary = WikipediaSummary & {
+  coordinates: { lat: number; lon: number } | null;
 };
 
 /** Everything the per-row decision needs from Wikipedia, so tests can fake it. */
 export type WikipediaClient = {
   titleFromWikidata(wikidataId: string): Promise<string | null>;
   titleFromGeosearch(name: string, lat: number, lng: number): Promise<string | null>;
-  fetchSummary(title: string): Promise<WikipediaSummary | null>;
+  fetchSummary(title: string): Promise<ArticleSummary | null>;
   fetchImageCredit(fileTitle: string): Promise<WikipediaImageCredit | null>;
 };
+
+/** Read `coordinates: {lat, lon}` off a REST summary reply, or null. */
+export function parseSummaryCoordinates(json: any): { lat: number; lon: number } | null {
+  const lat = json?.coordinates?.lat;
+  const lon = json?.coordinates?.lon;
+  if (typeof lat !== "number" || typeof lon !== "number") return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon };
+}
+
+/** Great-circle distance in metres. */
+export function distanceMeters(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number
+): number {
+  const earthRadius = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
+}
 
 export type PlannedWrite = {
   matchedTitle: string;
@@ -84,8 +137,13 @@ export type PlannedWrite = {
 
 export type RowOutcome =
   | { kind: "skip"; reason: string }
-  | { kind: "miss"; reason: string }
-  | { kind: "write"; write: PlannedWrite; imageSkipReason?: string };
+  | { kind: "miss"; reason: string; imageSkipReason?: string }
+  | { kind: "write"; write: PlannedWrite; imageSkipReason?: string; note?: string };
+
+/** Skip reasons, held in one place so the run summary can count them apart. */
+export const SKIP_ALREADY_FILLED = "already has a description and a hero image";
+export const SKIP_NO_NAME_OR_LOCATION = "no name or no location";
+export const SKIP_CREDIT_INCOMPLETE = "description present without its full credit (use --force)";
 
 /** Anything that can run a parameterised statement — pg.Pool, or a test double. */
 export type Queryable = {
@@ -112,12 +170,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * A failed fetch and a genuine miss both end as null, so both are announced:
+ * a run that quietly turns into 200 rate-limited nulls must not read as 200
+ * peaks Wikipedia has never heard of.
+ */
 async function getJson(url: string): Promise<any | null> {
   try {
     const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`  FETCH ${response.status} ${response.statusText} — ${url}`);
+      return null;
+    }
     return await response.json();
-  } catch {
+  } catch (err) {
+    console.warn(`  FETCH failed (${(err as Error).message}) — ${url}`);
     return null;
   }
 }
@@ -151,13 +218,15 @@ export const wikimediaClient: WikipediaClient = {
     return null;
   },
 
-  async fetchSummary(title: string): Promise<WikipediaSummary | null> {
+  async fetchSummary(title: string): Promise<ArticleSummary | null> {
     const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
       title.replace(/ /g, "_")
     )}`;
     const json = await getJson(url);
     await sleep(REQUEST_DELAY_MS);
-    return parseSummaryResponse(json);
+    const summary = parseSummaryResponse(json);
+    if (!summary) return null;
+    return { ...summary, coordinates: parseSummaryCoordinates(json) };
   },
 
   async fetchImageCredit(fileTitle: string): Promise<WikipediaImageCredit | null> {
@@ -170,9 +239,36 @@ export const wikimediaClient: WikipediaClient = {
   },
 };
 
+/** The copy a previous run already stored, or null when any part is missing. */
+function existingCopy(row: CandidateRow): {
+  description: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLicense: string;
+} | null {
+  const description = row.description ?? "";
+  const sourceName = row.description_source_name ?? "";
+  const sourceUrl = row.description_source_url ?? "";
+  const sourceLicense = row.description_source_license ?? "";
+  if (
+    description.trim().length === 0 ||
+    sourceName.trim().length === 0 ||
+    sourceUrl.trim().length === 0 ||
+    sourceLicense.trim().length === 0
+  ) {
+    return null;
+  }
+  return { description, sourceName, sourceUrl, sourceLicense };
+}
+
 /**
  * Decide what, if anything, this destination should be given. No writes, no
  * logging — the caller reports and, in commit mode, applies the result.
+ *
+ * Three modes: a fresh row gets copy and, licence permitting, an image; a row
+ * with copy but no image gets an image-only recovery that carries its stored
+ * copy through unchanged; a row with both is left alone. --force collapses all
+ * three into a full rewrite.
  */
 export async function planRow(
   row: CandidateRow,
@@ -181,17 +277,28 @@ export async function planRow(
 ): Promise<RowOutcome> {
   const maxChars = options.maxChars ?? DEFAULT_SUMMARY_MAX_CHARS;
 
-  if (row.has_description && !options.force) {
-    return { kind: "skip", reason: "already has a description" };
+  // Recovery mode: the copy is already stored, only the image is still owed.
+  const imageOnly = row.has_description && !options.force;
+  if (imageOnly && row.has_hero_image) {
+    return { kind: "skip", reason: SKIP_ALREADY_FILLED };
   }
+  const stored = imageOnly ? existingCopy(row) : null;
+  if (imageOnly && !stored) {
+    // Rewriting the description columns with half a credit is worse than
+    // leaving the row as it stands; --force rebuilds it properly.
+    return { kind: "skip", reason: SKIP_CREDIT_INCOMPLETE };
+  }
+
   const name = row.name ?? "";
   if (name.length === 0 || row.lat === null || row.lng === null) {
-    return { kind: "skip", reason: "no name or no location" };
+    return { kind: "skip", reason: SKIP_NO_NAME_OR_LOCATION };
   }
 
   let title: string | null = null;
+  let fromWikidata = false;
   if (row.wikidata_id) {
     title = await client.titleFromWikidata(row.wikidata_id);
+    fromWikidata = title !== null;
   }
   if (!title) {
     title = await client.titleFromGeosearch(name, row.lat, row.lng);
@@ -205,7 +312,29 @@ export async function planRow(
     return { kind: "miss", reason: `summary rejected (title "${title}")` };
   }
 
-  const copy = buildPlaceCopy(summary, maxChars);
+  // A sitelink carries no coordinates of its own, so the article's do the
+  // anchoring. namesMatch alone would accept "Crystal Peak" in the wrong state.
+  let note: string | undefined;
+  if (fromWikidata) {
+    if (summary.coordinates) {
+      const metres = distanceMeters(
+        row.lat,
+        row.lng,
+        summary.coordinates.lat,
+        summary.coordinates.lon
+      );
+      if (metres > MAX_WIKIDATA_MATCH_METERS) {
+        return {
+          kind: "miss",
+          reason: `wikidata article too far (${(metres / 1000).toFixed(1)} km)`,
+        };
+      }
+    } else {
+      note = "coordinate check unavailable (article publishes no coordinates)";
+    }
+  }
+
+  const copy = stored ?? buildPlaceCopy(summary, maxChars);
   if (!copy) {
     return { kind: "miss", reason: "no creditable copy" };
   }
@@ -230,9 +359,22 @@ export async function planRow(
     }
   }
 
+  // Recovery came for the image alone: with no image to store there is nothing
+  // to write, and the row keeps the copy it already had.
+  if (stored && !heroImage) {
+    return {
+      kind: "miss",
+      reason: `image-only recovery found nothing to store (${
+        imageSkipReason ?? "article has no lead image"
+      })`,
+      imageSkipReason,
+    };
+  }
+
   return {
     kind: "write",
     imageSkipReason,
+    note,
     write: {
       matchedTitle: summary.title,
       description: copy.description,
@@ -279,6 +421,11 @@ export async function writeRow(
   if (write.heroImage && (!write.heroAttribution || !write.heroAttributionUrl)) {
     throw new Error(`refusing to write unattributed hero image for ${id}`);
   }
+  // The mirror case: attribution with no image would credit whatever picture an
+  // earlier run left behind, because the hero columns COALESCE independently.
+  if (!write.heroImage && (write.heroAttribution || write.heroAttributionUrl)) {
+    throw new Error(`refusing to write hero attribution with no image for ${id}`);
+  }
 
   await client.query(UPDATE_SQL, [
     id,
@@ -292,69 +439,100 @@ export async function writeRow(
   ]);
 }
 
-async function loadCandidates(): Promise<CandidateRow[]> {
-  const ids = stringFlag("ids");
-  if (ids) {
-    const list = ids.split(",").map((value) => value.trim()).filter(Boolean);
-    const result = await db.query<CandidateRow>(
-      `SELECT d.id, d.name,
+const CANDIDATE_COLUMNS = `d.id, d.name,
               ST_Y(d.location::geometry) AS lat,
               ST_X(d.location::geometry) AS lng,
               d.external_ids->>'wikidata' AS wikidata_id,
+              d.description,
+              d.description_source_name,
+              d.description_source_url,
+              d.description_source_license,
               (d.description IS NOT NULL) AS has_description,
-              (d.hero_image IS NOT NULL) AS has_hero_image
+              (d.hero_image IS NOT NULL) AS has_hero_image`;
+
+/**
+ * The rows a run should consider. Without --force the prominence-ordered branch
+ * takes only rows still owed something — otherwise every rerun re-reads the same
+ * filled summits and --limit N never walks down the list. --ids and --force are
+ * deliberate instructions, so neither is filtered.
+ */
+export function buildCandidateQuery(options: {
+  ids?: string[] | null;
+  force: boolean;
+  minProminence: number;
+  limit: number;
+}): { text: string; values: any[] } {
+  if (options.ids && options.ids.length > 0) {
+    return {
+      text: `SELECT ${CANDIDATE_COLUMNS}
          FROM destinations d
         WHERE d.id = ANY($1::text[])`,
-      [list]
-    );
-    return result.rows;
+      values: [options.ids],
+    };
   }
 
-  const result = await db.query<CandidateRow>(
-    `SELECT d.id, d.name,
-            ST_Y(d.location::geometry) AS lat,
-            ST_X(d.location::geometry) AS lng,
-            d.external_ids->>'wikidata' AS wikidata_id,
-            (d.description IS NOT NULL) AS has_description,
-            (d.hero_image IS NOT NULL) AS has_hero_image
+  const unfinished = options.force
+    ? ""
+    : "\n        AND (d.description IS NULL OR d.hero_image IS NULL)";
+
+  return {
+    text: `SELECT ${CANDIDATE_COLUMNS}
        FROM destinations d
       WHERE 'summit' = ANY(d.features)
         AND d.name IS NOT NULL
         AND d.location IS NOT NULL
-        AND COALESCE(d.prominence, 0) >= $1
+        AND COALESCE(d.prominence, 0) >= $1${unfinished}
       ORDER BY d.prominence DESC NULLS LAST, d.elevation DESC NULLS LAST
       LIMIT $2`,
-    [intFlag("min-prominence", 300), intFlag("limit", 100)]
-  );
+    values: [options.minProminence, options.limit],
+  };
+}
+
+async function loadCandidates(force: boolean): Promise<CandidateRow[]> {
+  const ids = stringFlag("ids");
+  const { text, values } = buildCandidateQuery({
+    ids: ids ? ids.split(",").map((value) => value.trim()).filter(Boolean) : null,
+    force,
+    minProminence: intFlag("min-prominence", 300),
+    limit: intFlag("limit", 100),
+  });
+  const result = await db.query<CandidateRow>(text, values);
   return result.rows;
 }
 
 async function main() {
-  const commit = hasFlag("commit");
+  const dryRun = hasFlag("dry-run");
   const force = hasFlag("force");
+  if (dryRun && hasFlag("commit")) {
+    console.error("--dry-run and --commit contradict each other; pass one or neither.");
+    process.exit(1);
+  }
+  const commit = hasFlag("commit") && !dryRun;
+  if (dryRun) console.log("dry-run: writes disabled");
   console.log(
     `Wikipedia place-copy backfill — mode=${commit ? "COMMIT" : "DRY RUN"} force=${force}`
   );
 
-  const rows = await loadCandidates();
+  const rows = await loadCandidates(force);
   console.log(`${rows.length} candidate destination(s)`);
 
   let written = 0;
-  let skipped = 0;
   let unmatched = 0;
   let images = 0;
   let imagesRefused = 0;
+  const skips = new Map<string, number>();
 
   for (const row of rows) {
     const outcome = await planRow(row, wikimediaClient, { force });
     const name = row.name ?? "";
 
     if (outcome.kind === "skip") {
-      skipped += 1;
+      skips.set(outcome.reason, (skips.get(outcome.reason) ?? 0) + 1);
       continue;
     }
     if (outcome.kind === "miss") {
       unmatched += 1;
+      if (outcome.imageSkipReason) imagesRefused += 1;
       console.log(`  MISS  ${row.id} ${name} — ${outcome.reason}`);
       continue;
     }
@@ -364,6 +542,9 @@ async function main() {
     if (outcome.imageSkipReason) {
       imagesRefused += 1;
       console.log(`  IMAGE SKIP ${row.id} ${name} — ${outcome.imageSkipReason}`);
+    }
+    if (outcome.note) {
+      console.log(`  NOTE  ${row.id} ${name} — ${outcome.note}`);
     }
 
     console.log(
@@ -378,11 +559,15 @@ async function main() {
     written += 1;
   }
 
+  const skipped = [...skips.values()].reduce((total, count) => total + count, 0);
   console.log(
     `\nDone. written=${written} images=${images} imagesRefused=${imagesRefused} ` +
       `skipped=${skipped} unmatched=${unmatched}` +
       (commit ? "" : "  (DRY RUN — pass --commit to write)")
   );
+  for (const [reason, count] of skips) {
+    console.log(`  skipped ${count} — ${reason}`);
+  }
 
   await db.end();
 }
