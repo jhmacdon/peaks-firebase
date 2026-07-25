@@ -72,21 +72,31 @@ rejection_writers=$(
 )
 
 # Writers that legitimately do NOT anti-join. Every entry needs a reason.
-rejection_allowlist=(
-  # Manual rows the user typed in ('reached'/'goal', source='manual'). The user
-  # is asserting the destination directly, so an earlier auto-match rejection
-  # does not apply — and Step 1 of processSession never deletes manual rows.
-  # B3 edits this file to clear the rejection when a user re-asserts a reach;
-  # it leaves this allowlist then.
-  "cloud-sql/api/src/routes/sessions.ts"
-)
+#
+# Currently empty: routes/sessions.ts used to sit here (it writes only manual
+# rows, which the user is asserting directly) but it now owns the rejection
+# writes themselves, so it references the table like every other writer.
+#
+# An allowlist entry that has since started mentioning the table is stale — the
+# loop below fails on it rather than letting a dead exemption sit there quietly
+# waiving a file that no longer needs waiving.
+rejection_allowlist=()
 
 for writer in $rejection_writers; do
   allowed=0
-  for entry in "${rejection_allowlist[@]}"; do
+  for entry in ${rejection_allowlist[@]+"${rejection_allowlist[@]}"}; do
     if [ "$writer" = "$entry" ]; then allowed=1; fi
   done
-  [ "$allowed" -eq 1 ] && continue
+
+  if [ "$allowed" -eq 1 ]; then
+    if grep -q "session_destination_rejections" "$writer" 2>/dev/null; then
+      echo "ERROR: $writer is in rejection_allowlist but already mentions" >&2
+      echo "       session_destination_rejections — stale allowlist entry, remove it." >&2
+      echo "       Edit rejection_allowlist in $0." >&2
+      errors=$((errors + 1))
+    fi
+    continue
+  fi
 
   if ! grep -q "session_destination_rejections" "$writer" 2>/dev/null; then
     echo "ERROR: $writer inserts into session_destinations but never mentions" >&2

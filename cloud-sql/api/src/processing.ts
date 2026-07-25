@@ -193,9 +193,11 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
  * Rejections: a (session, destination) pair recorded in
  * session_destination_rejections is anti-joined out. The user said they did not
  * reach that destination; re-processing must not overrule them. The same
- * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql)
- * and backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
- * scripts/check-cross-refs.sh fails CI if any of the three drops it.
+ * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql),
+ * link_sessions_on_destination_update (patched by
+ * cloud-sql/migrations/20260725_session_destination_rejections.sql) and
+ * backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+ * scripts/check-cross-refs.sh fails CI if any of the four drops it.
  */
 export function buildSessionDestinationMatchSql(
   sessionId: string

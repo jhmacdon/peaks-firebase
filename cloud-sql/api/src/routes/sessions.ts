@@ -276,6 +276,91 @@ async function reconcileClientDestinations(
   }
 }
 
+/** Non-empty strings only — the client sends whatever its local list holds. */
+function cleanDestinationIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids.filter((d): d is string => typeof d === "string" && d.length > 0);
+}
+
+/**
+ * Destination ids present in BOTH the reached and rejected lists of one request.
+ *
+ * "I reached it" and "I didn't reach it" in the same breath is a client bug, so
+ * the handler answers 400 instead of picking a winner: any precedence rule here
+ * would silently discard half of what the client asked for, and the client would
+ * never learn its state is confused.
+ */
+export function overlappingDestinationIds(
+  reached: unknown,
+  rejected: unknown
+): string[] {
+  const rejectedSet = new Set(cleanDestinationIds(rejected));
+  return [...new Set(cleanDestinationIds(reached).filter((d) => rejectedSet.has(d)))];
+}
+
+/**
+ * Apply the client's destination rejections ("I didn't actually summit this").
+ *
+ * A rejection has two halves that must move together:
+ *  - a row in session_destination_rejections, which every auto-matcher
+ *    anti-joins, so re-processing, a newly created destination, a boundary edit
+ *    and the web backfill can never re-add the pair; and
+ *  - deletion of the live session_destinations row WHATEVER its source — an
+ *    auto row would otherwise sit there until the next re-process, and a manual
+ *    row the user is retracting has to go too.
+ *
+ * Re-adding a destination as a manual `reached` is the un-reject path: it clears
+ * the veto so auto-matching is allowed again. Callers must refuse a request that
+ * names the same id in both lists (see overlappingDestinationIds), so the two
+ * halves below can never contend for the same pair.
+ *
+ * Rejections for unknown destination ids are dropped rather than raising an FK
+ * violation, mirroring the plan_routes existence guard in routes/plans.ts.
+ *
+ * Returns the destination ids actually rejected, so the caller can recompute
+ * their averages (processSession's own recompute never sees them — the rows are
+ * already gone from session_destinations by then).
+ */
+export async function applyDestinationRejections(
+  client: PoolClient,
+  sessionId: string,
+  reached: string[] | undefined,
+  rejected: string[] | undefined
+): Promise<string[]> {
+  const unreject = cleanDestinationIds(reached);
+  if (unreject.length > 0) {
+    await client.query(
+      `DELETE FROM session_destination_rejections
+       WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
+      [sessionId, unreject]
+    );
+  }
+
+  const toReject = cleanDestinationIds(rejected);
+  if (toReject.length === 0) {
+    return [];
+  }
+
+  const inserted = await client.query(
+    `INSERT INTO session_destination_rejections (session_id, destination_id, rejected_at)
+     SELECT $1, ids.d, now()
+     FROM unnest($2::text[]) AS ids(d)
+     WHERE EXISTS (SELECT 1 FROM destinations WHERE id = ids.d)
+     ON CONFLICT (session_id, destination_id)
+     DO UPDATE SET rejected_at = EXCLUDED.rejected_at
+     RETURNING destination_id`,
+    [sessionId, toReject]
+  );
+
+  await client.query(
+    `DELETE FROM session_destinations
+     WHERE session_id = $1 AND destination_id = ANY($2::text[])`,
+    [sessionId, toReject]
+  );
+
+  return inserted.rows.map((r: { destination_id: string }) => r.destination_id);
+}
+
 function buildPointInsertQuery(sessionId: string, points: any[]) {
   const values: any[] = [];
   const placeholders: string[] = [];
@@ -1733,11 +1818,23 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
   }
 });
 
-// POST /api/sessions/:id/destinations — set reached/goal destinations
+// POST /api/sessions/:id/destinations — set reached/goal destinations, and
+// record rejections ("I didn't reach this").
 router.post("/:id/destinations", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
-  const { reached, goals } = req.body;
+  const { reached, goals, rejected } = req.body;
+
+  // Request-shape guard, ahead of any database work: claiming a destination as
+  // both reached and rejected is a client bug, and answering 400 tells the
+  // client so instead of half-applying its request.
+  const contradictions = overlappingDestinationIds(reached, rejected);
+  if (contradictions.length > 0) {
+    res.status(400).json({
+      error: `reached and rejected must not name the same destination: ${contradictions.join(", ")}`,
+    });
+    return;
+  }
 
   // Verify ownership
   const session = await db.query(
@@ -1754,6 +1851,7 @@ router.post("/:id/destinations", async (req, res: Response) => {
     await client.query("BEGIN");
 
     await reconcileClientDestinations(client, id, reached, goals);
+    await applyDestinationRejections(client, id, reached, rejected);
 
     await client.query("COMMIT");
     res.json({ session_id: id });
