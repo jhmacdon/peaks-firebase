@@ -135,6 +135,10 @@ CREATE TABLE areas (
     name            TEXT NOT NULL,
     search_name     TEXT NOT NULL,
     kind            area_kind NOT NULL,
+    description     TEXT,
+    description_source_name TEXT,
+    description_source_url TEXT,
+    description_source_license TEXT,
     designation     TEXT,
     manager         TEXT,
     owner           TEXT,
@@ -158,6 +162,16 @@ CREATE TABLE areas (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     UNIQUE (source, source_id)
+);
+
+-- Small indexed polygon pieces for exact path intersection checks. Large area
+-- polygons can take more than the session processing limit when read as one
+-- geometry; ST_Subdivide keeps the same boundary and makes each check bounded.
+CREATE TABLE area_boundary_parts (
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    ordinal         INT NOT NULL,
+    boundary_part   geometry(Geometry, 4326) NOT NULL,
+    PRIMARY KEY (area_id, ordinal)
 );
 
 -- ---------------------------------------------------------------------------
@@ -448,7 +462,7 @@ CREATE INDEX IF NOT EXISTS idx_tracking_sessions_path
 -- ---------------------------------------------------------------------------
 CREATE TABLE tracking_points (
     session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
-    time            BIGINT NOT NULL,   -- Unix timestamp in milliseconds
+    time            BIGINT NOT NULL,   -- Unix timestamp in SECONDS (comparison model converts to ms at load)
     segment_number  INT NOT NULL DEFAULT 0,
 
     location        geography(PointZ, 4326),
@@ -473,6 +487,21 @@ CREATE TABLE session_destinations (
     relation        session_destination_relation NOT NULL,  -- 'reached' or 'goal'
     source          TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto')),
     PRIMARY KEY (session_id, destination_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- session_areas
+-- Protected areas whose boundary the recorded GPS path passes through.
+-- Built from tracking_sessions.path during processSession. A session can cross
+-- several overlapping parks, forests, and wilderness areas.
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_areas (
+    session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+    area_id         TEXT NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+    relation        TEXT NOT NULL DEFAULT 'intersects',
+    source          TEXT NOT NULL DEFAULT 'postgis',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, area_id)
 );
 
 -- ---------------------------------------------------------------------------
@@ -502,6 +531,74 @@ CREATE TABLE session_markers (
 );
 
 -- ---------------------------------------------------------------------------
+-- session_comparisons
+-- Pairwise session comparisons ("Your Efforts"). One row per overlapping
+-- pair of a user's sessions; session_a is the EARLIER session (by
+-- start_time). Populated by processSession Step 8 (matchComparisons) and
+-- api/scripts/backfill-comparisons.ts. Semantics doc:
+-- docs/superpowers/specs/2026-07-20-pacer-comparisons-design.md.
+-- Overlap is NOT transitive, so this is deliberately pairwise (not a group
+-- table like session_attempt_groups).
+-- *_ms columns are unix MILLISECONDS (BIGINT, < 2^53 — safe under the global
+-- OID-20 parser in api/src/db.ts; see cloud-sql/CLAUDE.md wire-type policy).
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_comparisons (
+    user_id      TEXT NOT NULL,
+    session_a    TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+    session_b    TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+
+    -- 'full': both sides compared over their entire pass(es) through the
+    -- shared corridor (incl. out-and-back return). 'outbound': mixed topology
+    -- (one side out-and-back, one single-pass) — both sides compared over the
+    -- one-way traversal only.
+    scope        TEXT NOT NULL CHECK (scope IN ('full', 'outbound')),
+
+    overlap_m    DOUBLE PRECISION NOT NULL,  -- corridor meters shared
+    a_frac       DOUBLE PRECISION NOT NULL,  -- overlap_m / a's corridor length
+    b_frac       DOUBLE PRECISION NOT NULL,
+
+    -- comparison window per side: wall-clock entry/exit of the shared range
+    a_enter_ms   BIGINT NOT NULL,
+    a_exit_ms    BIGINT NOT NULL,
+    b_enter_ms   BIGINT NOT NULL,
+    b_exit_ms    BIGINT NOT NULL,
+
+    -- traveled meters (sampled cumulative distance) at window edges, for map
+    -- highlighting / scope labels on iOS
+    a_start_m    DOUBLE PRECISION NOT NULL,
+    a_end_m      DOUBLE PRECISION NOT NULL,
+    b_start_m    DOUBLE PRECISION NOT NULL,
+    b_end_m      DOUBLE PRECISION NOT NULL,
+
+    a_out_and_back BOOLEAN NOT NULL,
+    b_out_and_back BOOLEAN NOT NULL,
+
+    a_elapsed_s  INTEGER NOT NULL,
+    b_elapsed_s  INTEGER NOT NULL,
+    a_moving_s   INTEGER,
+    b_moving_s   INTEGER,
+
+    -- leg splits; NULL when the pair is not leg-splittable
+    summit_destination_id TEXT REFERENCES destinations(id) ON DELETE SET NULL,
+    a_arrival_ms   BIGINT,
+    a_departure_ms BIGINT,
+    b_arrival_ms   BIGINT,
+    b_departure_ms BIGINT,
+    a_ascent_s   INTEGER, a_dwell_s INTEGER, a_descent_s INTEGER,
+    b_ascent_s   INTEGER, b_dwell_s INTEGER, b_descent_s INTEGER,
+
+    matcher_version INTEGER NOT NULL,
+    legs_version    INTEGER NOT NULL,
+    computed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (session_a, session_b),
+    CHECK (session_a <> session_b)
+);
+
+CREATE INDEX idx_session_comparisons_user_a ON session_comparisons (user_id, session_a);
+CREATE INDEX idx_session_comparisons_user_b ON session_comparisons (user_id, session_b);
+
+-- ---------------------------------------------------------------------------
 -- session_tombstones
 -- Deletion log for incremental client sync.
 -- ---------------------------------------------------------------------------
@@ -522,6 +619,7 @@ CREATE INDEX idx_destinations_location      ON destinations USING GIST (location
 CREATE INDEX idx_destinations_boundary      ON destinations USING GIST (boundary) WHERE boundary IS NOT NULL;
 CREATE INDEX idx_areas_boundary             ON areas USING GIST (boundary);
 CREATE INDEX idx_areas_centroid             ON areas USING GIST (centroid);
+CREATE INDEX idx_area_boundary_parts_geom   ON area_boundary_parts USING GIST (boundary_part);
 CREATE INDEX idx_routes_path                ON routes       USING GIST (path);
 CREATE INDEX idx_tracking_points_location   ON tracking_points USING GIST (location);
 CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (location);
@@ -575,6 +673,7 @@ CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, serv
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
 CREATE INDEX idx_destination_areas_area     ON destination_areas (area_id);
 CREATE INDEX route_areas_area_id_idx        ON route_areas (area_id);
+CREATE INDEX session_areas_area_id_idx      ON session_areas (area_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
 CREATE INDEX idx_session_destinations_dest  ON session_destinations (destination_id);
 CREATE INDEX idx_session_routes_route       ON session_routes (route_id);
@@ -608,6 +707,24 @@ CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             F
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_session_attempt_groups_updated BEFORE UPDATE ON session_attempt_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE OR REPLACE FUNCTION refresh_area_boundary_parts()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM area_boundary_parts WHERE area_id = NEW.id;
+    INSERT INTO area_boundary_parts (area_id, ordinal, boundary_part)
+    SELECT NEW.id,
+           (row_number() OVER () - 1)::int,
+           parts.geom
+    FROM ST_Dump(NEW.boundary) AS dumped
+    CROSS JOIN LATERAL ST_Subdivide(dumped.geom, 8192) AS parts(geom);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE TRIGGER trg_areas_refresh_boundary_parts
+AFTER INSERT OR UPDATE OF boundary ON areas
+FOR EACH ROW EXECUTE FUNCTION refresh_area_boundary_parts();
 
 CREATE OR REPLACE FUNCTION touch_related_tracking_session()
 RETURNS TRIGGER AS $$
@@ -753,23 +870,82 @@ $$;
 CREATE OR REPLACE FUNCTION link_sessions_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO session_destinations (session_id, destination_id, relation, source)
-    SELECT DISTINCT tp.session_id, NEW.id, 'reached'::session_destination_relation, 'auto'
-    FROM tracking_points tp
-    JOIN tracking_sessions ts ON ts.id = tp.session_id
-    WHERE ts.ended = true
-      AND CASE WHEN NEW.boundary IS NOT NULL
-            THEN ST_DWithin(NEW.boundary, tp.location, 10)
-            ELSE ST_DWithin(NEW.location, tp.location, destination_match_radius(NEW.features))
-          END
-    ON CONFLICT (session_id, destination_id) DO NOTHING;
-    RETURN NEW;
+  WITH point_session_candidates AS MATERIALIZED (
+    SELECT
+      destination.id AS destination_id,
+      destination.location AS destination_location,
+      destination_match_radius(destination.features) AS radius_m,
+      ts.id AS session_id
+    FROM new_destinations destination
+    JOIN tracking_sessions ts
+      ON destination.boundary IS NULL
+     AND destination.location IS NOT NULL
+     AND ts.ended = true
+     AND ts.path IS NOT NULL
+     AND ST_DWithin(
+       destination.location,
+       ts.path,
+       destination_match_radius(destination.features)
+     )
+  ), point_matches AS MATERIALIZED (
+    SELECT candidate.session_id, candidate.destination_id
+    FROM point_session_candidates candidate
+    JOIN LATERAL (
+      SELECT 1
+      FROM tracking_points tp
+      WHERE tp.session_id = candidate.session_id
+        AND tp.location IS NOT NULL
+        AND ST_DWithin(
+          candidate.destination_location,
+          tp.location,
+          candidate.radius_m
+        )
+      LIMIT 1
+    ) proof ON true
+  ), boundary_session_candidates AS MATERIALIZED (
+    SELECT
+      destination.id AS destination_id,
+      destination.boundary,
+      ts.id AS session_id
+    FROM new_destinations destination
+    JOIN tracking_sessions ts
+      ON destination.boundary IS NOT NULL
+     AND ts.ended = true
+     AND ts.path IS NOT NULL
+     AND ST_DWithin(destination.boundary::geography, ts.path, 10)
+  ), boundary_matches AS MATERIALIZED (
+    SELECT candidate.session_id, candidate.destination_id
+    FROM boundary_session_candidates candidate
+    JOIN LATERAL (
+      SELECT 1
+      FROM tracking_points tp
+      WHERE tp.session_id = candidate.session_id
+        AND tp.location IS NOT NULL
+        AND ST_DWithin(candidate.boundary::geography, tp.location, 10)
+      LIMIT 1
+    ) proof ON true
+  ), matches AS (
+    SELECT * FROM point_matches
+    UNION ALL
+    SELECT * FROM boundary_matches
+  )
+  INSERT INTO session_destinations (session_id, destination_id, relation, source)
+  SELECT DISTINCT
+    matches.session_id,
+    matches.destination_id,
+    'reached'::session_destination_relation,
+    'auto'
+  FROM matches
+  ON CONFLICT (session_id, destination_id) DO NOTHING;
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_destination_link_sessions
 AFTER INSERT ON destinations
-FOR EACH ROW EXECUTE FUNCTION link_sessions_on_destination_insert();
+REFERENCING NEW TABLE AS new_destinations
+FOR EACH STATEMENT
+EXECUTE FUNCTION link_sessions_on_destination_insert();
 
 -- =============================================================================
 -- Flag incoming recordings against protected areas
@@ -782,14 +958,11 @@ FOR EACH ROW EXECUTE FUNCTION link_sessions_on_destination_insert();
 CREATE OR REPLACE FUNCTION link_areas_on_session_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.relation <> 'reached' THEN
-    RETURN NEW;
-  END IF;
-
   BEGIN
     INSERT INTO destination_areas (destination_id, area_id, relation, source)
-    SELECT NEW.destination_id, a.id, 'contained_by', 'postgis'
-    FROM destinations d
+    SELECT sd.destination_id, a.id, 'contained_by', 'postgis'
+    FROM new_session_destinations sd
+    JOIN destinations d ON d.id = sd.destination_id
     JOIN LATERAL (
       SELECT a.id
       FROM areas a
@@ -799,22 +972,24 @@ BEGIN
           OR ST_DWithin(a.boundary::geography, d.location, 50)
         )
     ) a ON true
-    WHERE d.id = NEW.destination_id
+    WHERE sd.relation = 'reached'
+      AND d.country_code = 'US'
       AND d.location IS NOT NULL
       AND 'summit'::destination_feature = ANY(d.features)
     ON CONFLICT (destination_id, area_id) DO NOTHING;
   EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'link_areas_on_session_destination_insert failed for destination %: %',
-      NEW.destination_id, SQLERRM;
+    RAISE WARNING 'link_areas_on_session_destination_insert failed: %', SQLERRM;
   END;
 
-  RETURN NEW;
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_session_destination_link_areas
 AFTER INSERT ON session_destinations
-FOR EACH ROW EXECUTE FUNCTION link_areas_on_session_destination_insert();
+REFERENCING NEW TABLE AS new_session_destinations
+FOR EACH STATEMENT
+EXECUTE FUNCTION link_areas_on_session_destination_insert();
 
 -- Flag a new summit with its protected areas at creation time (closes the gap
 -- for summits added after the backfill that are never reached by a recording).
@@ -822,35 +997,55 @@ FOR EACH ROW EXECUTE FUNCTION link_areas_on_session_destination_insert();
 CREATE OR REPLACE FUNCTION link_areas_on_destination_insert()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.location IS NULL OR NOT ('summit'::destination_feature = ANY(NEW.features)) THEN
-    RETURN NEW;
-  END IF;
-
   BEGIN
-    INSERT INTO destination_areas (destination_id, area_id, relation, source)
-    SELECT NEW.id, a.id, 'contained_by', 'postgis'
-    FROM (SELECT ST_Force2D(NEW.location::geometry) AS geom, NEW.location::geography AS gloc) p
-    JOIN LATERAL (
-      SELECT a.id
+    WITH bounds AS MATERIALIZED (
+      SELECT ST_Expand(
+               ST_Envelope(ST_Collect(ST_Force2D(d.location::geometry))),
+               2
+             ) AS geom
+      FROM new_destinations d
+      WHERE d.country_code = 'US'
+        AND d.location IS NOT NULL
+        AND 'summit'::destination_feature = ANY(d.features)
+    ), candidate_areas AS MATERIALIZED (
+      SELECT a.id, a.boundary
       FROM areas a
-      WHERE ST_DWithin(a.boundary, p.geom, 0.0016666666666666668)
-        AND (
-          ST_Covers(a.boundary, p.geom)
-          OR ST_DWithin(a.boundary::geography, p.gloc, 50)
-        )
-    ) a ON true
+      CROSS JOIN bounds b
+      WHERE a.boundary && b.geom
+    )
+    INSERT INTO destination_areas (destination_id, area_id, relation, source)
+    SELECT d.id, a.id, 'contained_by', 'postgis'
+    FROM new_destinations d
+    JOIN candidate_areas a
+      ON ST_DWithin(
+           a.boundary,
+           ST_Force2D(d.location::geometry),
+           0.0016666666666666668
+         )
+    CROSS JOIN LATERAL (
+      SELECT ST_Force2D(d.location::geometry) AS geom, d.location::geography AS gloc
+    ) p
+    WHERE d.country_code = 'US'
+      AND d.location IS NOT NULL
+      AND 'summit'::destination_feature = ANY(d.features)
+      AND (
+        ST_Covers(a.boundary, p.geom)
+        OR ST_DWithin(a.boundary::geography, p.gloc, 50)
+      )
     ON CONFLICT (destination_id, area_id) DO NOTHING;
   EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'link_areas_on_destination_insert failed for destination %: %', NEW.id, SQLERRM;
+    RAISE WARNING 'link_areas_on_destination_insert failed: %', SQLERRM;
   END;
 
-  RETURN NEW;
+  RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_destination_link_areas
 AFTER INSERT ON destinations
-FOR EACH ROW EXECUTE FUNCTION link_areas_on_destination_insert();
+REFERENCING NEW TABLE AS new_destinations
+FOR EACH STATEMENT
+EXECUTE FUNCTION link_areas_on_destination_insert();
 
 -- =============================================================================
 -- Example Queries (reference, not executed)

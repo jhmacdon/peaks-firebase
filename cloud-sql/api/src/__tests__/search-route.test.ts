@@ -196,6 +196,24 @@ test("mixed search builds destination, route, and area queries", () => {
   assert.match(queries.areas.text, /route_count/);
 });
 
+test("route search parenthesizes concatenated search text before pg_trgm %", () => {
+  const queries = buildMixedSearchQueries({
+    normalizedQuery: "silver peak",
+    rawQuery: "silver peak",
+    lat: 47.64,
+    lng: -122.35,
+    limit: 20,
+  });
+
+  // The % token binds tighter than || in Postgres, so an unparenthesized
+  // `a || ' ' || b % $1` concatenates a boolean into text and the WHERE
+  // clause dies with 42804 "argument of OR must be type boolean".
+  assert.match(
+    queries.routes.text,
+    /\(COALESCE\(NULLIF\(lower\(r\.name\), ''\), ''\) \|\| ' ' \|\| COALESCE\(route_dest_names\.names, ''\)\) % \$1/
+  );
+});
+
 test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", () => {
   const query = buildAreaSearchQuery({
     normalizedQuery: "baker snoqualmie",
@@ -290,6 +308,49 @@ test("mixed search route returns typed result buckets", async (t) => {
   assert.deepEqual(res.jsonBody, {
     destinations: [{ id: "rainier", name: "Mount Rainier", areas: [] }],
     routes: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }],
+    areas: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }],
+  });
+});
+
+test("mixed search degrades secondary buckets to empty on failure instead of 500", async (t) => {
+  const fakeClient = {
+    query: async (text: string) => {
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 246 }] };
+      }
+      if (/FROM destinations/.test(text)) {
+        return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
+      }
+      if (/FROM routes r/.test(text)) {
+        throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
+      }
+      if (/FROM areas a/.test(text)) {
+        return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
+      }
+      return { rows: [] };
+    },
+    release: () => undefined,
+  };
+  t.mock.method(db, "connect", async () => fakeClient);
+
+  const req = Object.assign(new EventEmitter(), {
+    query: { q: "Rainier", limit: "20" },
+    headers: {},
+    socket: {},
+  });
+  const res = new FakeResponse();
+  const handler = getMixedSearchRouteHandler();
+
+  await handler(req, res, (error?: unknown) => {
+    if (error) {
+      throw error;
+    }
+  });
+
+  assert.notEqual(res.statusCode, 500);
+  assert.deepEqual(res.jsonBody, {
+    destinations: [{ id: "rainier", name: "Mount Rainier", areas: [] }],
+    routes: [],
     areas: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }],
   });
 });

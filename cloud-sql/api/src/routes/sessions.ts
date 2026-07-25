@@ -2,6 +2,15 @@ import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
+import {
+  buildCompleteRouteEffortCurves,
+  buildEffortCurves,
+  buildPairModel,
+  loadSampledTrack,
+  orientComparison,
+  shapeComparisonList,
+} from "../comparisons";
+import { COMPARISON_LIST_CAP, FULL_ROUTE_FRAC } from "../comparison-params";
 import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
@@ -72,6 +81,43 @@ const SESSION_ROUTES_SQL = `COALESCE(
   WHERE sr.session_id = s.id AND r.status = 'active'),
   '[]'::json
 )`;
+
+/** Inline protected areas crossed by one saved session path. */
+export const SESSION_AREAS_SQL = `COALESCE(
+  (SELECT json_agg(area_obj ORDER BY kind, name)
+   FROM (
+     SELECT DISTINCT ON (a.kind, a.name)
+            a.kind, a.name,
+            json_build_object(
+              'id', a.id,
+              'name', a.name,
+              'kind', a.kind,
+              'designation', a.designation,
+              'manager', a.manager,
+              'parent_id', a.parent_area_id,
+              'relation', sa.relation,
+              'source', sa.source
+            ) AS area_obj
+     FROM session_areas sa
+     JOIN areas a ON a.id = sa.area_id
+     WHERE sa.session_id = s.id
+     ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
+   ) deduped),
+  '[]'::json
+)`;
+
+/** Build the owner/public-scoped area lookup for a saved session path. */
+export function buildSessionAreasQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT s.id, ${SESSION_AREAS_SQL} AS areas
+     FROM tracking_sessions s
+     WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
+    values: [id, uid],
+  };
+}
 
 function parseLimit(raw: unknown, fallback = 200, max = 1000): number {
   const parsed = typeof raw === "string" ? parseInt(raw, 10) : NaN;
@@ -292,7 +338,8 @@ router.get("/", async (req, res: Response) => {
             s.ended, s.is_public,
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
-            ${DESTINATION_GOALS_SQL} AS destination_goals
+            ${DESTINATION_GOALS_SQL} AS destination_goals,
+            ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.user_id = $1
        AND ($2::text[] IS NULL OR s.processing_state = ANY($2))
@@ -363,7 +410,8 @@ router.get("/changes", async (req, res: Response) => {
             'server_updated_at', s.server_updated_at,
             'destinations_reached', ${DESTINATIONS_REACHED_SQL},
             'destination_goals', ${DESTINATION_GOALS_SQL},
-            'routes', ${SESSION_ROUTES_SQL}
+            'routes', ${SESSION_ROUTES_SQL},
+            'areas', ${SESSION_AREAS_SQL}
           ) AS session
         FROM tracking_sessions s
         WHERE s.user_id = $1
@@ -510,7 +558,8 @@ router.get("/:id", async (req, res: Response) => {
             s.created_at, s.updated_at, s.server_updated_at,
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
             ${DESTINATION_GOALS_SQL} AS destination_goals,
-            ${SESSION_ROUTES_SQL} AS routes
+            ${SESSION_ROUTES_SQL} AS routes,
+            ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     [id, uid]
@@ -520,6 +569,18 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
+});
+
+// GET /api/sessions/:id/areas — areas crossed by the saved GPS path
+router.get("/:id/areas", async (req, res: Response) => {
+  const uid = getUid(req);
+  const query = buildSessionAreasQuery(req.params.id, uid);
+  const result = await db.query(query.text, query.values);
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  res.json(result.rows[0].areas);
 });
 
 // GET /api/sessions/:id/points — GPS breadcrumbs
@@ -612,6 +673,132 @@ router.get("/:id/routes", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
+});
+
+// GET /api/sessions/:id/comparisons/:otherId — effort curves for the race
+// chart. Recomputes the (2-session, bounded) checkpoint model on demand
+// instead of storing curves in pair rows. Owner-only, and the pair row must
+// exist (the matcher is the source of truth for WHICH pairs are comparable).
+// Guarded by heavyWriteGuard: this route materializes two full point sets per
+// request (loadSampledTrack × 2), the same pool/memory budget concern as the
+// heavy write endpoints (OOM-regression class — see rate-guard.ts).
+router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ id: string; otherId: string }>, res: Response) => {
+  const uid = getUid(req);
+  const { id, otherId } = req.params;
+
+  const pair = await db.query(
+    `SELECT sc.*,
+            o.id AS other_id, o.name AS other_name, o.start_time AS other_start_time,
+            o.distance AS other_distance, o.total_time AS other_total_time
+     FROM session_comparisons sc
+     JOIN tracking_sessions o ON o.id = $3
+     WHERE sc.user_id = $2
+       AND ((sc.session_a = $1 AND sc.session_b = $3)
+         OR (sc.session_a = $3 AND sc.session_b = $1))`,
+    [id, uid, otherId]
+  );
+  if (pair.rows.length === 0) {
+    res.status(404).json({ error: "Comparison not found" });
+    return;
+  }
+  const row = pair.rows[0];
+
+  // Corridor is always session_a's — load in canonical order.
+  const aSamples = await loadSampledTrack(db, row.session_a);
+  const bSamples = await loadSampledTrack(db, row.session_b);
+  const storedFullRoute = row.a_frac >= FULL_ROUTE_FRAC && row.b_frac >= FULL_ROUTE_FRAC;
+  const model = storedFullRoute ? null : buildPairModel(aSamples, bSamples);
+  if (!storedFullRoute && !model) {
+    res.status(410).json({ error: "Comparison no longer computable" });
+    return;
+  }
+
+  const aWindow = {
+    enterMs: row.a_enter_ms,
+    exitMs: row.a_exit_ms,
+    startM: row.a_start_m,
+    endM: row.a_end_m,
+    outAndBack: row.a_out_and_back,
+  };
+  const bWindow = {
+    enterMs: row.b_enter_ms,
+    exitMs: row.b_exit_ms,
+    startM: row.b_start_m,
+    endM: row.b_end_m,
+    outAndBack: row.b_out_and_back,
+  };
+  const curves = storedFullRoute
+    ? buildCompleteRouteEffortCurves(aSamples, bSamples, aWindow, bWindow)
+    : buildEffortCurves(model!);
+  const thisIsA = row.session_a === id;
+  const oriented = orientComparison(row, id);
+
+  // Apex station: summit arrival mapped to corridor meters via the stored
+  // arrival time's nearest station on this side's curve.
+  let apexM: number | null = null;
+  const arrivalMs = thisIsA ? row.a_arrival_ms : row.b_arrival_ms;
+  const enterMs = thisIsA ? row.a_enter_ms : row.b_enter_ms;
+  if (arrivalMs !== null && arrivalMs !== undefined) {
+    const arrivalS = (arrivalMs - enterMs) / 1000;
+    let best = Infinity;
+    for (const st of curves.stations) {
+      const sideS = thisIsA ? st.a_s : st.b_s;
+      if (Math.abs(sideS - arrivalS) < best) {
+        best = Math.abs(sideS - arrivalS);
+        apexM = thisIsA ? (st.a_m ?? st.m) : (st.b_m ?? st.m);
+      }
+    }
+  }
+
+  res.json({
+    ...oriented,
+    curves: {
+      apex_m: apexM,
+      stations: curves.stations.map((st) => ({
+        m: thisIsA ? (st.a_m ?? st.m) : (st.b_m ?? st.m),
+        this_s: thisIsA ? st.a_s : st.b_s,
+        other_s: thisIsA ? st.b_s : st.a_s,
+        elev_m: thisIsA ? (st.a_elev_m ?? st.elev_m) : (st.b_elev_m ?? st.elev_m),
+      })),
+    },
+  });
+});
+
+// GET /api/sessions/:id/comparisons — "Your Efforts": this session vs the
+// owner's PRIOR overlapping sessions. Owner-only: comparisons reference the
+// owner's other (possibly private) sessions, so is_public does NOT grant
+// access. Prior-only: other side must have started before this session.
+router.get("/:id/comparisons", async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+
+  const own = await db.query(
+    `SELECT id, start_time FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (own.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const result = await db.query(
+    `SELECT sc.*,
+            o.id AS other_id, o.name AS other_name, o.start_time AS other_start_time,
+            o.distance AS other_distance, o.total_time AS other_total_time
+     FROM session_comparisons sc
+     JOIN tracking_sessions s ON s.id = $1
+     JOIN tracking_sessions o
+       ON o.id = CASE WHEN sc.session_a = $1 THEN sc.session_b ELSE sc.session_a END
+     WHERE (sc.session_a = $1 OR sc.session_b = $1)
+       AND sc.user_id = $2
+       AND o.start_time < s.start_time`,
+    [id, uid]
+  );
+
+  res.json({
+    session_id: id,
+    comparisons: shapeComparisonList(result.rows, id, COMPARISON_LIST_CAP),
+  });
 });
 
 // GET /api/sessions/:id/markers
