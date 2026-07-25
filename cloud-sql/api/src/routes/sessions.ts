@@ -1577,15 +1577,74 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
     return;
   }
 
-  // Verify ownership. processing_state IS selected here (unlike the POST
-  // handler, which reads session.rows[0].processing_state without selecting it
-  // and therefore always reports undefined on that branch).
+  // Validate the WHOLE body before BEGIN/DELETE. On a replace the old rows are
+  // already gone by the time an insert silently drops a row, so a partially
+  // accepted body would commit a track the client never sent and still answer
+  // 200. Two ways a row can vanish: buildPointInsertQuery skips a point with a
+  // null lat/lng/time, and ON CONFLICT (session_id, time) DO NOTHING drops a
+  // time repeated inside the body. Both are caller errors — reject up front so
+  // `replaced` always equals points.length on a 200.
+  let invalidPoints = 0;
+  let duplicateTimes = 0;
+  const seenTimes = new Set<unknown>();
+
+  for (const point of points) {
+    if (point == null || point.lat == null || point.lng == null || point.time == null) {
+      invalidPoints++;
+      continue;
+    }
+    if (seenTimes.has(point.time)) {
+      duplicateTimes++;
+      continue;
+    }
+    seenTimes.add(point.time);
+  }
+
+  if (invalidPoints > 0 || duplicateTimes > 0) {
+    res.status(400).json({
+      error: "invalid_points",
+      invalid: invalidPoints,
+      duplicates: duplicateTimes,
+    });
+    return;
+  }
+
+  // ST_MakeLine needs two points to make a line; one point yields a NULL path
+  // and a session whose track silently disappears. A one-point "track" is not a
+  // recording anyway.
+  if (points.length < 2) {
+    res.status(400).json({ error: "too_few_points", points: points.length });
+    return;
+  }
+
+  // Verify ownership, and read the processing claim in the same round trip.
+  // processing_state IS selected here (unlike the POST handler, which reads
+  // session.rows[0].processing_state without selecting it and therefore always
+  // reports undefined on that branch). Freshness of the claim is evaluated by
+  // the database, not by this process, so it cannot drift on clock skew — the
+  // condition is markSessionPendingIfReady's, inverted.
   const session = await db.query(
-    `SELECT id, ended, processing_state FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    `SELECT id,
+            processing_state,
+            (processing_state = 'processing'
+             AND processing_started_at IS NOT NULL
+             AND processing_started_at >= now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))
+              AS processing_in_flight
+     FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
     [id, uid]
   );
   if (session.rows.length === 0) {
     res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  // A live processSession run is reading the point set this request wants to
+  // delete. Replacing underneath it would commit a track that the in-flight run
+  // then matches destinations against half-stale, and markSessionPendingIfReady
+  // would refuse to re-queue, so the rewrite would never be re-processed. Bail
+  // before touching any row; iOS treats a non-2xx as retry-later.
+  if (session.rows[0].processing_in_flight) {
+    res.status(409).json({ error: "processing_in_flight" });
     return;
   }
 
@@ -1618,11 +1677,17 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
       replaced += insertResult.rowCount ?? 0;
     }
 
-    // A body whose every point failed buildPointInsertQuery's lat/lng/time
-    // guard would otherwise commit an empty track. Roll back instead.
-    if (replaced === 0) {
+    // The up-front validation makes this unreachable for any caller error: every
+    // point has lat/lng/time, every time is unique, and the rows were just
+    // deleted, so nothing can be skipped or conflicted away. If the counts still
+    // disagree the schema is not what this handler believes — refuse to commit a
+    // track that differs from the one the client sent.
+    if (replaced !== points.length) {
       await client.query("ROLLBACK");
-      res.status(400).json({ error: "points array contained no valid points" });
+      console.error(
+        `Point replace count mismatch for session ${id}: inserted ${replaced} of ${points.length}`
+      );
+      res.status(500).json({ error: "Failed to replace points" });
       return;
     }
 
@@ -1643,7 +1708,15 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
     );
 
     const queuedForProcessing = await markSessionPendingIfReady(client, id);
-    const processingState = queuedForProcessing ? "pending" : session.rows[0].processing_state;
+
+    // Read the state AFTER the queue attempt, not the value SELECTed before the
+    // transaction — that one is stale the moment markSessionPendingIfReady
+    // flips it to 'pending'.
+    const queuedState = await client.query(
+      `SELECT processing_state FROM tracking_sessions WHERE id = $1`,
+      [id]
+    );
+    const processingState: string | null = queuedState.rows[0]?.processing_state ?? null;
 
     await client.query("COMMIT");
 

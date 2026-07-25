@@ -15,6 +15,7 @@ import { test, describe, before, after } from "node:test";
 import request from "supertest";
 import { app } from "../index";
 import db from "../db";
+import { STALE_PROCESSING_MINUTES } from "../processing";
 
 const skipReason = process.env.DATABASE_URL
   ? null
@@ -148,12 +149,16 @@ describe("PUT /api/sessions/:id/points replaces the point set", { skip: skipReas
     await createSession(sid);
     await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
 
+    // Two valid points, so a 404 can only come from the ownership check — a
+    // one-point body would trip the up-front validation instead and the test
+    // would pass without ever exercising the thing it names.
     const res = await request(app)
       .put(`/api/sessions/${sid}/points`)
       .set("X-Test-User", otherUser)
-      .send(body([BASE_TIME + 900]));
+      .send(body([BASE_TIME + 900, BASE_TIME + 960]));
 
     assert.equal(res.status, 404);
+    assert.equal(res.body.error, "Session not found");
     assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
   });
 
@@ -169,6 +174,102 @@ describe("PUT /api/sessions/:id/points replaces the point set", { skip: skipReas
 
     assert.equal(res.status, 400);
     assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
+  });
+
+  // A replace deletes first. Anything the insert would silently drop — a point
+  // missing a coordinate, a time repeated inside the body — would commit a track
+  // the client never sent and still answer 200. These reject before BEGIN.
+  test("rejects a point with a null coordinate with 400, points untouched", async () => {
+    const sid = `${runPrefix}-s6`;
+    await createSession(sid);
+    await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
+
+    const payload = body([BASE_TIME + 900, BASE_TIME + 960, BASE_TIME + 1020]);
+    payload.points[1].lat = null as unknown as number;
+
+    const res = await request(app)
+      .put(`/api/sessions/${sid}/points`)
+      .set("X-Test-User", user)
+      .send(payload);
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, "invalid_points");
+    assert.equal(res.body.invalid, 1);
+    assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
+  });
+
+  test("rejects a duplicated time within the body with 400, points untouched", async () => {
+    const sid = `${runPrefix}-s7`;
+    await createSession(sid);
+    await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
+
+    const res = await request(app)
+      .put(`/api/sessions/${sid}/points`)
+      .set("X-Test-User", user)
+      .send(body([BASE_TIME + 900, BASE_TIME + 960, BASE_TIME + 900]));
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, "invalid_points");
+    assert.equal(res.body.duplicates, 1);
+    assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
+  });
+
+  test("rejects a single-point body with 400 — ST_MakeLine needs two", async () => {
+    const sid = `${runPrefix}-s8`;
+    await createSession(sid);
+    await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
+
+    const res = await request(app)
+      .put(`/api/sessions/${sid}/points`)
+      .set("X-Test-User", user)
+      .send(body([BASE_TIME + 900]));
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, "too_few_points");
+    assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
+  });
+
+  test("rejects a replace while processing is in flight with 409, points untouched", async () => {
+    const sid = `${runPrefix}-s9`;
+    await createSession(sid);
+    await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
+    await db.query(
+      `UPDATE tracking_sessions
+       SET processing_state = 'processing', processing_started_at = now()
+       WHERE id = $1`,
+      [sid]
+    );
+
+    const res = await request(app)
+      .put(`/api/sessions/${sid}/points`)
+      .set("X-Test-User", user)
+      .send(body([BASE_TIME + 900, BASE_TIME + 960]));
+
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error, "processing_in_flight");
+    assert.deepEqual(await pointTimes(sid), [BASE_TIME, BASE_TIME + 60]);
+  });
+
+  test("a STALE processing claim does not block a replace", async () => {
+    const sid = `${runPrefix}-s10`;
+    await createSession(sid);
+    await insertPoints(sid, [BASE_TIME, BASE_TIME + 60]);
+    await db.query(
+      `UPDATE tracking_sessions
+       SET processing_state = 'processing',
+           processing_started_at = now() - make_interval(mins => $2)
+       WHERE id = $1`,
+      [sid, STALE_PROCESSING_MINUTES + 5]
+    );
+
+    const res = await request(app)
+      .put(`/api/sessions/${sid}/points`)
+      .set("X-Test-User", user)
+      .send(body([BASE_TIME + 900, BASE_TIME + 960]));
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.replaced, 2);
+    assert.deepEqual(await pointTimes(sid), [BASE_TIME + 900, BASE_TIME + 960]);
   });
 
   test("manual session_destinations rows survive a replace + re-process", async () => {
