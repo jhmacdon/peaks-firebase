@@ -1,0 +1,193 @@
+import { strict as assert } from "node:assert";
+import { test } from "node:test";
+import {
+  WIKIPEDIA_TEXT_LICENSE,
+  buildImageAttribution,
+  buildPlaceCopy,
+  isFreeLicense,
+  namesMatch,
+  parseImageInfoResponse,
+  parseSummaryResponse,
+  shortenSummary,
+} from "../lib/wikipedia";
+
+test("shortenSummary keeps whole sentences under the cap", () => {
+  const extract =
+    "Mount Rainier is a large active stratovolcano in the Cascade Range. " +
+    "It is the highest mountain in Washington. " +
+    "The mountain carries more glacial ice than any other peak in the contiguous United States. " +
+    "It is a Decade Volcano.";
+
+  const short = shortenSummary(extract, 160);
+
+  assert.equal(
+    short,
+    "Mount Rainier is a large active stratovolcano in the Cascade Range. It is the highest mountain in Washington."
+  );
+  assert.ok(short.length <= 160);
+});
+
+test("shortenSummary returns a short extract unchanged", () => {
+  const extract = "Crystal Peak is a summit in Mount Rainier National Park.";
+  assert.equal(shortenSummary(extract, 420), extract);
+});
+
+test("shortenSummary hard-truncates a single monster sentence at a word boundary", () => {
+  const extract = "A ".repeat(400) + "end.";
+  const short = shortenSummary(extract, 100);
+  assert.ok(short.length <= 100);
+  assert.ok(short.endsWith("…"), "a hard truncation must be visibly elided");
+});
+
+test("shortenSummary collapses whitespace and trims", () => {
+  assert.equal(shortenSummary("  Aa.\n\n  Bb.  ", 420), "Aa. Bb.");
+});
+
+test("namesMatch tolerates Mount/Mt and punctuation but rejects different peaks", () => {
+  assert.ok(namesMatch("Mount Rainier", "Mount Rainier"));
+  assert.ok(namesMatch("Mt. Rainier", "Mount Rainier"));
+  assert.ok(namesMatch("Mount Rainier", "Mount Rainier (Washington)"));
+  assert.equal(namesMatch("Crystal Peak", "Crystal Mountain"), false);
+  assert.equal(namesMatch("Mount Adams", "Mount Rainier"), false);
+});
+
+test("parseSummaryResponse extracts text, page URL, and lead image title", () => {
+  const json = {
+    title: "Mount Rainier",
+    extract: "Mount Rainier is a stratovolcano.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Mount_Rainier" } },
+    originalimage: { source: "https://upload.wikimedia.org/…/Mount_Rainier.jpg" },
+    titles: { canonical: "Mount_Rainier" },
+    pageimage: "Mount_Rainier_from_the_Silver_Queen_Peak.jpg",
+  };
+
+  const summary = parseSummaryResponse(json);
+
+  assert.ok(summary);
+  assert.equal(summary!.title, "Mount Rainier");
+  assert.equal(summary!.extract, "Mount Rainier is a stratovolcano.");
+  assert.equal(summary!.pageUrl, "https://en.wikipedia.org/wiki/Mount_Rainier");
+  assert.equal(summary!.leadImageTitle, "File:Mount_Rainier_from_the_Silver_Queen_Peak.jpg");
+});
+
+test("parseSummaryResponse rejects disambiguation pages and empty extracts", () => {
+  assert.equal(parseSummaryResponse({ type: "disambiguation", title: "Rainier", extract: "x" }), null);
+  assert.equal(parseSummaryResponse({ title: "Rainier", extract: "   " }), null);
+  assert.equal(parseSummaryResponse({ title: "Rainier" }), null);
+  assert.equal(parseSummaryResponse(null), null);
+});
+
+test("parseSummaryResponse yields a null lead image when the page has none", () => {
+  const summary = parseSummaryResponse({
+    title: "Nameless Bump",
+    extract: "A bump.",
+    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Nameless_Bump" } },
+  });
+  assert.ok(summary);
+  assert.equal(summary!.leadImageTitle, null);
+});
+
+test("parseImageInfoResponse pulls url, artist, licence, and file page", () => {
+  const json = {
+    query: {
+      pages: {
+        "-1": {
+          title: "File:Mount_Rainier.jpg",
+          imageinfo: [
+            {
+              url: "https://upload.wikimedia.org/…/Mount_Rainier.jpg",
+              descriptionurl: "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg",
+              extmetadata: {
+                Artist: { value: '<a href="/wiki/User:Someone">Someone</a>' },
+                LicenseShortName: { value: "CC BY-SA 4.0" },
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  const credit = parseImageInfoResponse(json);
+
+  assert.ok(credit);
+  assert.equal(credit!.imageUrl, "https://upload.wikimedia.org/…/Mount_Rainier.jpg");
+  assert.equal(credit!.artist, "Someone", "HTML in the Artist field must be stripped");
+  assert.equal(credit!.licenseShortName, "CC BY-SA 4.0");
+  assert.equal(credit!.descriptionUrl, "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg");
+});
+
+test("parseImageInfoResponse returns null when the licence is unknown", () => {
+  const json = {
+    query: {
+      pages: {
+        "-1": {
+          imageinfo: [
+            {
+              url: "https://upload.wikimedia.org/…/x.jpg",
+              descriptionurl: "https://commons.wikimedia.org/wiki/File:X.jpg",
+              extmetadata: {},
+            },
+          ],
+        },
+      },
+    },
+  };
+  assert.equal(parseImageInfoResponse(json), null);
+});
+
+test("isFreeLicense accepts CC/public-domain and rejects fair use", () => {
+  assert.ok(isFreeLicense("CC BY-SA 4.0"));
+  assert.ok(isFreeLicense("CC BY 2.0"));
+  assert.ok(isFreeLicense("CC0"));
+  assert.ok(isFreeLicense("Public domain"));
+  assert.equal(isFreeLicense("Fair use"), false);
+  assert.equal(isFreeLicense("All rights reserved"), false);
+  assert.equal(isFreeLicense(""), false);
+});
+
+test("buildImageAttribution names the artist and licence", () => {
+  assert.equal(
+    buildImageAttribution({
+      imageUrl: "u",
+      artist: "Someone",
+      licenseShortName: "CC BY-SA 4.0",
+      descriptionUrl: "d",
+    }),
+    "Someone / CC BY-SA 4.0"
+  );
+  assert.equal(
+    buildImageAttribution({ imageUrl: "u", artist: null, licenseShortName: "CC0", descriptionUrl: "d" }),
+    "Wikimedia Commons / CC0"
+  );
+});
+
+test("buildPlaceCopy stamps Wikipedia credit onto a shortened extract", () => {
+  const copy = buildPlaceCopy(
+    {
+      title: "Mount Rainier",
+      extract: "Mount Rainier is a stratovolcano. It is the highest peak in Washington. It has 25 named glaciers.",
+      pageUrl: "https://en.wikipedia.org/wiki/Mount_Rainier",
+      leadImageTitle: null,
+    },
+    80
+  );
+
+  assert.ok(copy);
+  // Two sentences fit under the 80-char cap (71); the third would overrun at 97.
+  assert.equal(
+    copy!.description,
+    "Mount Rainier is a stratovolcano. It is the highest peak in Washington."
+  );
+  assert.ok(copy!.description.length <= 80);
+  assert.equal(copy!.sourceName, "Wikipedia");
+  assert.equal(copy!.sourceUrl, "https://en.wikipedia.org/wiki/Mount_Rainier");
+  assert.equal(copy!.sourceLicense, WIKIPEDIA_TEXT_LICENSE);
+});
+
+test("buildPlaceCopy refuses copy it cannot credit", () => {
+  assert.equal(
+    buildPlaceCopy({ title: "X", extract: "Some text.", pageUrl: "", leadImageTitle: null }),
+    null
+  );
+});
