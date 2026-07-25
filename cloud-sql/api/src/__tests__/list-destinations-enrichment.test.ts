@@ -10,6 +10,9 @@ test("list destinations query joins best route and popular months", () => {
   assert.match(query.text, /route_destinations/);
   assert.match(query.text, /session_routes/);
   assert.match(query.text, /r\.status = 'active'/);
+  // Only Peaks-owned system routes qualify — a user's recorded route must
+  // never become a peak's "standard route".
+  assert.match(query.text, /r\.owner = 'peaks'/);
   // Ordering inside the lateral pick: session count desc, distance asc, id asc
   assert.match(query.text, /ORDER BY session_count DESC NULLS LAST, r\.distance ASC NULLS LAST, r\.id ASC/);
   assert.match(query.text, /LIMIT 1/);

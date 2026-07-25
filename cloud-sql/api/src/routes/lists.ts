@@ -92,6 +92,7 @@ export function buildListDestinationsQuery(listId: string) {
        FROM route_destinations rd
        JOIN routes r ON r.id = rd.route_id
        WHERE rd.destination_id = d.id AND r.status = 'active'
+         AND r.owner = 'peaks'
        ORDER BY session_count DESC NULLS LAST, r.distance ASC NULLS LAST, r.id ASC
        LIMIT 1
      ) br ON true
