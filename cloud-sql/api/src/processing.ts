@@ -189,6 +189,13 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
  *
  * Pure builder so its shape is unit-testable without a live DB (mirrors
  * buildPlanDestinationMatchSql).
+ *
+ * Rejections: a (session, destination) pair recorded in
+ * session_destination_rejections is anti-joined out. The user said they did not
+ * reach that destination; re-processing must not overrule them. The same
+ * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql)
+ * and backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+ * scripts/check-cross-refs.sh fails CI if any of the three drops it.
  */
 export function buildSessionDestinationMatchSql(
   sessionId: string
@@ -207,6 +214,10 @@ export function buildSessionDestinationMatchSql(
            AND ST_DWithin(d.location, s.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
            AND ST_DWithin(d.location, s.path, destination_match_radius(d.features))
          )
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM session_destination_rejections r
+         WHERE r.session_id = s.id AND r.destination_id = d.id
        )
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
     values: [sessionId],

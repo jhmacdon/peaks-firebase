@@ -16,6 +16,12 @@ import db from "./db";
  *
  * Idempotent via ON CONFLICT — safe to call repeatedly.
  *
+ * Rejections: a (session, destination) pair in session_destination_rejections
+ * is skipped. The user vetoed that ascent; creating a destination must not
+ * overrule them. Same anti-join as buildSessionDestinationMatchSql
+ * (cloud-sql/api/src/processing.ts) and link_sessions_on_destination_insert
+ * (cloud-sql/schema.sql) — scripts/check-cross-refs.sh fails CI if one drifts.
+ *
  * Returns the number of rows inserted (sessions newly tagged).
  */
 export async function backfillDestinationToSessions(
@@ -32,6 +38,10 @@ export async function backfillDestinationToSessions(
              THEN ST_DWithin(s.path, d.boundary, 10)
              ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
+       AND NOT EXISTS (
+         SELECT 1 FROM session_destination_rejections r
+         WHERE r.session_id = s.id AND r.destination_id = d.id
+       )
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
     [destinationId]
   );

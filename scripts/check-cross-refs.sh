@@ -44,6 +44,15 @@ check_callers \
   "cloud-sql/api/src/processing.ts" \
   "web/src/lib/destination-backfill.ts"
 
+# session_destination_rejections: the user's "I didn't reach this" veto. Every
+# path that inserts an auto 'reached' row must anti-join it, or a rejection is
+# silently resurrected by the next re-process / destination create / backfill.
+check_callers \
+  "session_destination_rejections" \
+  "cloud-sql/schema.sql" \
+  "cloud-sql/api/src/processing.ts" \
+  "web/src/lib/destination-backfill.ts"
+
 if [ "$errors" -gt 0 ]; then
   echo "" >&2
   echo "$errors cross-reference check(s) failed." >&2
