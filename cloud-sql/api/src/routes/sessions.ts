@@ -1556,6 +1556,110 @@ router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>,
   }
 });
 
+// PUT /api/sessions/:id/points — REPLACE the session's entire point set.
+//
+// POST /:id/points is insert-only (ON CONFLICT DO NOTHING) so a client edit
+// that deletes or modifies points can never propagate: the next GET resurrects
+// the old track. Session auto-fix (DEM elevation reseed, gap fill, vehicle-tail
+// trim) rewrites points in place, so it needs replace semantics.
+//
+// Transactional: delete-all + chunked re-insert + path rebuild commit together,
+// so a mid-write failure can never leave a half-replaced track. Mirrors the
+// PUT /api/plans/:id geometry flow — new geometry, then processing_state
+// 'pending', then processing kicked after COMMIT.
+router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { points } = req.body;
+
+  if (!Array.isArray(points) || points.length === 0) {
+    res.status(400).json({ error: "points array is required" });
+    return;
+  }
+
+  // Verify ownership. processing_state IS selected here (unlike the POST
+  // handler, which reads session.rows[0].processing_state without selecting it
+  // and therefore always reports undefined on that branch).
+  const session = await db.query(
+    `SELECT id, ended, processing_state FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (session.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    await client.query(`DELETE FROM tracking_points WHERE session_id = $1`, [id]);
+
+    const chunkSize = 250;
+    let replaced = 0;
+
+    for (let i = 0; i < points.length; i += chunkSize) {
+      const chunk = points.slice(i, i + chunkSize);
+      const { placeholders, values } = buildPointInsertQuery(id, chunk);
+
+      if (placeholders.length === 0) {
+        continue;
+      }
+
+      const insertResult = await client.query(
+        `INSERT INTO tracking_points
+          (session_id, time, segment_number, location, elevation,
+           speed, azimuth, hdop, speed_accuracy)
+         VALUES ${placeholders.join(", ")}
+         ON CONFLICT (session_id, time) DO NOTHING`,
+        values
+      );
+
+      replaced += insertResult.rowCount ?? 0;
+    }
+
+    // A body whose every point failed buildPointInsertQuery's lat/lng/time
+    // guard would otherwise commit an empty track. Roll back instead.
+    if (replaced === 0) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "points array contained no valid points" });
+      return;
+    }
+
+    // Re-materialize the track (processSession Step 0) inside the same
+    // transaction, so `path` can never describe the deleted point set. The
+    // stuck-session sweep, the new-destination trigger and the web backfill all
+    // read it. This UPDATE also bumps server_updated_at via
+    // trg_tracking_sessions_updated, which puts the session on the sync feed.
+    await client.query(
+      `UPDATE tracking_sessions s
+       SET path = (
+         SELECT ST_MakeLine(tp.location::geometry ORDER BY tp.time)::geography
+         FROM tracking_points tp
+         WHERE tp.session_id = s.id
+       )
+       WHERE s.id = $1`,
+      [id]
+    );
+
+    const queuedForProcessing = await markSessionPendingIfReady(client, id);
+    const processingState = queuedForProcessing ? "pending" : session.rows[0].processing_state;
+
+    await client.query("COMMIT");
+
+    // Inline await (vs fire-and-forget) so iOS gets the final state in the
+    // response and Cloud Run can't kill the worker mid-process.
+    const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
+    res.json({ replaced, processing_state: finalState ?? processingState });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error replacing points:", err);
+    res.status(500).json({ error: "Failed to replace points" });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/sessions/:id/destinations — set reached/goal destinations
 router.post("/:id/destinations", async (req, res: Response) => {
   const uid = getUid(req);
