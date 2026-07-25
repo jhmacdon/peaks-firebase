@@ -45,6 +45,75 @@ function normalizeWhitespace(value: string): string {
 }
 
 /**
+ * Words that carry a full stop of their own. A break after one of these is the
+ * middle of a sentence, not the end of it.
+ */
+const ABBREVIATIONS = new Set([
+  "mt",
+  "mts",
+  "st",
+  "ste",
+  "u.s",
+  "ca",
+  "approx",
+  "no",
+  "ft",
+  "vs",
+  "e.g",
+  "i.e",
+]);
+
+/** The word right before a terminator, lowercased and stripped of leading punctuation. */
+function tokenBeforeTerminator(upToTerminator: string): string {
+  const raw = upToTerminator.match(/\S+$/)?.[0] ?? "";
+  return raw.toLowerCase().replace(/^[^a-z0-9.]+/, "");
+}
+
+/**
+ * True when `chunk` really ends a sentence, given the text that follows it.
+ *
+ * A full stop ends a sentence when it sits at the end of the text or is
+ * followed by an opening quote or capital letter — and when the word carrying
+ * it is neither a bare number ("4,392.1") nor a known abbreviation ("Mt.").
+ */
+function endsSentence(chunk: string, rest: string): boolean {
+  const trimmed = chunk.trimEnd();
+  if (trimmed.endsWith(".")) {
+    const token = tokenBeforeTerminator(trimmed.slice(0, -1));
+    if (/^\d[\d,]*$/.test(token)) return false;
+    if (ABBREVIATIONS.has(token.replace(/\.$/, ""))) return false;
+  }
+  if (rest.trim().length === 0) return true;
+  return /^\s*["'“‘(\[«]?[A-Z]/.test(rest);
+}
+
+/**
+ * Split into sentences, gluing back the false breaks the coarse regex makes at
+ * abbreviations and decimal points.
+ */
+function splitSentences(text: string): string[] {
+  const sentences: string[] = [];
+  let pending = "";
+  let cursor = 0;
+  for (const match of text.matchAll(/[^.!?]+[.!?]+(?:\s|$)/g)) {
+    const chunk = match[0];
+    // A full stop with no space after it — "4,392.1" — leaves a gap the regex
+    // skipped. Carry it forward so no words are lost.
+    pending += text.slice(cursor, match.index) + chunk;
+    cursor = match.index + chunk.length;
+    if (endsSentence(chunk, text.slice(cursor))) {
+      sentences.push(pending);
+      pending = "";
+    }
+  }
+  pending += text.slice(cursor);
+  // Only offer a trailing remainder that actually ends on a terminator; a
+  // dangling fragment is what the hard-truncation path is for.
+  if (/[.!?]\s*$/.test(pending)) sentences.push(pending);
+  return sentences;
+}
+
+/**
  * Trim an extract to whole sentences under `maxChars`. Falls back to a
  * word-boundary cut with an ellipsis when even the first sentence overruns.
  */
@@ -52,7 +121,7 @@ export function shortenSummary(extract: string, maxChars = DEFAULT_SUMMARY_MAX_C
   const text = normalizeWhitespace(extract);
   if (text.length <= maxChars) return text;
 
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [];
+  const sentences = splitSentences(text);
   let kept = "";
   for (const sentence of sentences) {
     const next = (kept + sentence).trimEnd();
@@ -113,6 +182,10 @@ function stripHtml(value: string): string {
   return normalizeWhitespace(value.replace(/<[^>]*>/g, " "));
 }
 
+/**
+ * Read the url, artist, licence name, and file page out of an imageinfo reply.
+ * Does not check licence freedom — callers must gate on isFreeLicense.
+ */
 export function parseImageInfoResponse(json: any): WikipediaImageCredit | null {
   const pages = json?.query?.pages;
   if (!pages || typeof pages !== "object") return null;
@@ -142,11 +215,31 @@ export function parseImageInfoResponse(json: any): WikipediaImageCredit | null {
   };
 }
 
+/**
+ * Fold a licence label to a comparable form. Commons writes these by hand, so
+ * they arrive with typographic hyphens (U+2010-U+2015) and non-breaking spaces.
+ */
+function normalizeLicenseLabel(value: string): string {
+  return value
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/\u00a0/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * NonCommercial and NoDerivatives variants. We ship photos inside a paid app
+ * and crop them to fit, so neither term is one we can honour.
+ */
+const NON_FREE_LICENSE_TERMS = /\bnc\b|\bnd\b|-nc|-nd|noncommercial|no ?derivat/;
+
 /** Allow-list of licence families we are willing to redistribute a photo under. */
 export function isFreeLicense(licenseShortName: string): boolean {
-  const value = licenseShortName.trim().toLowerCase();
+  const value = normalizeLicenseLabel(licenseShortName);
   if (value.length === 0) return false;
   if (value.includes("fair use") || value.includes("all rights reserved")) return false;
+  // Checked before the allow-list: "CC BY-NC 2.0" starts with "cc by" but is not free.
+  if (NON_FREE_LICENSE_TERMS.test(value)) return false;
   return (
     value.startsWith("cc0") ||
     value.startsWith("cc by") ||

@@ -43,6 +43,32 @@ test("shortenSummary collapses whitespace and trims", () => {
   assert.equal(shortenSummary("  Aa.\n\n  Bb.  ", 420), "Aa. Bb.");
 });
 
+test("shortenSummary does not break a sentence at an abbreviation", () => {
+  const extract =
+    "The climb starts at Paradise and follows the Muir Snowfield toward Mt. Rainier itself. " +
+    "Most parties bivouac at Camp Muir before the summit push. " +
+    "The final section crosses the Disappointment Cleaver.";
+
+  const short = shortenSummary(extract, 150);
+
+  assert.ok(short.includes("Mt. Rainier"), "the abbreviation must survive intact");
+  assert.ok(short.endsWith("push."), "the cut must land on a real sentence boundary");
+  assert.ok(short.length <= 150);
+});
+
+test("shortenSummary does not break inside a decimal number", () => {
+  const extract =
+    "Mount Rainier rises to 4,392.1 m above sea level in the Cascade Range. " +
+    "Its glaciers feed six major rivers. " +
+    "Climbers approach from Paradise on the south side.";
+
+  const short = shortenSummary(extract, 120);
+
+  assert.ok(short.includes("4,392.1 m"), "the decimal must survive intact");
+  assert.ok(short.endsWith("rivers."), "the cut must land on a real sentence boundary");
+  assert.ok(short.length <= 120);
+});
+
 test("namesMatch tolerates Mount/Mt and punctuation but rejects different peaks", () => {
   assert.ok(namesMatch("Mount Rainier", "Mount Rainier"));
   assert.ok(namesMatch("Mt. Rainier", "Mount Rainier"));
@@ -144,6 +170,19 @@ test("isFreeLicense accepts CC/public-domain and rejects fair use", () => {
   assert.equal(isFreeLicense("Fair use"), false);
   assert.equal(isFreeLicense("All rights reserved"), false);
   assert.equal(isFreeLicense(""), false);
+});
+
+test("isFreeLicense rejects NonCommercial and NoDerivatives variants", () => {
+  assert.equal(isFreeLicense("CC BY-NC 2.0"), false);
+  assert.equal(isFreeLicense("CC BY-NC-SA 4.0"), false);
+  assert.equal(isFreeLicense("CC BY-ND 4.0"), false);
+  assert.ok(isFreeLicense("CC BY-SA 4.0"), "share-alike stays free");
+});
+
+test("isFreeLicense reads typographic hyphens as plain ones", () => {
+  // U+2011 non-breaking hyphens, as Commons sometimes writes them.
+  assert.ok(isFreeLicense("CC‑BY‑SA 4.0"));
+  assert.equal(isFreeLicense("CC‑BY‑NC 4.0"), false);
 });
 
 test("buildImageAttribution names the artist and licence", () => {
