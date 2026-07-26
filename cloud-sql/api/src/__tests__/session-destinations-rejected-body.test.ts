@@ -479,7 +479,9 @@ describe("generic session writers cannot resurrect a rejection", { skip: skipRea
         ended: true,
         destinations_reached: [rejected, manualOnly],
       })
-      .expect(200);
+      // POST /api/sessions is an upsert that always answers 201, even when it
+      // updates an existing row (see the res.status(201) in routes/sessions.ts).
+      .expect(201);
 
     const after = await reachedIds(sid);
     assert.ok(!after.includes(rejected), "the upsert path must not re-add a rejected summit either");
@@ -495,15 +497,26 @@ describe("generic session writers cannot resurrect a rejection", { skip: skipRea
     const manualOnly = `${runPrefix}-dest9-manual`;
     await rejectedFixture(sid, rejected, manualOnly);
 
-    for (const send of [
-      () => request(app).put(`/api/sessions/${sid}`).set("X-Test-User", user)
-        .send({ destinations_reached: [rejected] }),
-      () => request(app).post("/api/sessions").set("X-Test-User", user)
-        .send({ id: sid, start_date: "2026-06-07T17:00:00Z", ended: true, destinations_reached: [rejected] }),
-      () => request(app).post(`/api/sessions/${sid}/destinations`).set("X-Test-User", user)
-        .send({ reached: [rejected] }),
+    // Each writer keeps its own success status: the upsert POST /api/sessions
+    // answers 201 even when it updates, the other two answer 200.
+    for (const { send, status } of [
+      {
+        send: () => request(app).put(`/api/sessions/${sid}`).set("X-Test-User", user)
+          .send({ destinations_reached: [rejected] }),
+        status: 200,
+      },
+      {
+        send: () => request(app).post("/api/sessions").set("X-Test-User", user)
+          .send({ id: sid, start_date: "2026-06-07T17:00:00Z", ended: true, destinations_reached: [rejected] }),
+        status: 201,
+      },
+      {
+        send: () => request(app).post(`/api/sessions/${sid}/destinations`).set("X-Test-User", user)
+          .send({ reached: [rejected] }),
+        status: 200,
+      },
     ]) {
-      await send().expect(200);
+      await send().expect(status);
       assert.equal(await rejectionCount(sid, rejected), 1, "a reached list never clears a veto");
       assert.ok(!(await reachedIds(sid)).includes(rejected), "and the vetoed reach never lands");
     }
