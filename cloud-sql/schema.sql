@@ -70,6 +70,11 @@ CREATE TABLE destinations (
     hero_image      TEXT,
     hero_image_attribution      TEXT,
     hero_image_attribution_url  TEXT,
+    description                 TEXT,
+    description_source_name     TEXT,
+    description_source_url      TEXT,
+    description_source_license  TEXT,
+    massif_boundary             geography(Polygon, 4326),  -- curated whole-mountain ring
 
     -- activity averages (denormalized stats: popularity by month/day)
     averages        JSONB,             -- { months: {jan: 5, ...}, days: {mo: 3, ...}, lastUpdated: "..." }
@@ -617,6 +622,8 @@ CREATE TABLE session_tombstones (
 -- Spatial (GIST) on all geography columns
 CREATE INDEX idx_destinations_location      ON destinations USING GIST (location);
 CREATE INDEX idx_destinations_boundary      ON destinations USING GIST (boundary) WHERE boundary IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_destinations_massif_boundary
+    ON destinations USING GIST (massif_boundary) WHERE massif_boundary IS NOT NULL;
 CREATE INDEX idx_areas_boundary             ON areas USING GIST (boundary);
 CREATE INDEX idx_areas_centroid             ON areas USING GIST (centroid);
 CREATE INDEX idx_area_boundary_parts_geom   ON area_boundary_parts USING GIST (boundary_part);
