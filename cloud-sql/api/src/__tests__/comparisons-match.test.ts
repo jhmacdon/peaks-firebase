@@ -1,14 +1,12 @@
 // Integration tests for matchComparisons against a real PostGIS database.
-// Requires DATABASE_URL (see session-groups.test.ts for the convention).
+// Requires TEST_DATABASE_URL (see session-groups.test.ts for the convention).
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
 import db from "../db";
 import { matchComparisons } from "../comparisons";
 import * as P from "../comparison-params";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `cmp-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

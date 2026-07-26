@@ -6,7 +6,7 @@
 // track. Session auto-fix (DEM elevation reseed, gap fill, vehicle-tail trim)
 // rewrites the point set in place and needs this endpoint.
 //
-// Integration tests against the real schema, gated on $DATABASE_URL. Fixtures
+// Integration tests against the real schema, gated on $TEST_DATABASE_URL. Fixtures
 // use a unique prefix and a remote South-Atlantic / South-Pole location so the
 // destination-insert and area-linking triggers cannot touch production rows.
 
@@ -17,9 +17,7 @@ import { app } from "../index";
 import db from "../db";
 import { STALE_PROCESSING_MINUTES } from "../processing";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

@@ -5,8 +5,10 @@ PostgreSQL 15+ with PostGIS + pg_trgm. Contains the database schema, Cloud Run A
 ## Structure
 
 ```
-schema.sql          # Full DDL: enums, tables, indexes, triggers
+schema.sql          # Baseline DDL: enums, tables, indexes, triggers
+                    # NOT the whole current schema — see Testing below
 SETUP.md            # Provisioning guide (Cloud SQL, Cloud Run, migration)
+test-db/            # Test database: provision.sh, grants.sql, README.md
 api/                # Cloud Run Express API (Firebase Auth + PostGIS queries)
   src/
     index.ts        # Express app, route mounting, /health endpoint
@@ -96,6 +98,34 @@ All schema objects (tables, indexes, functions, triggers) **must be owned by `po
 
 This convention exists because Cloud SQL's `postgres` is `cloudsqlsuperuser`, not a true superuser, so it cannot bypass the "must be owner of object" rule for `CREATE OR REPLACE FUNCTION` or `ALTER FUNCTION`. If a function gets accidentally created as `peaks-api` (this happened once during initial bootstrap with `link_sessions_on_destination_insert`), every subsequent migration touching it must `SET ROLE peaks-api` first or the apply fails with `must be owner of function`. Fix the ownership instead — see `cloud-sql/migrations/20260503_fix_trigger_function_owner.sql` for the three-step ownership-transfer dance (Cloud SQL forbids both directions of cross-role membership at once, so direct connection as the current owner is required, not `SET ROLE`).
 
+## Testing (do not regress)
+
+The DB-backed suites in `api/src/__tests__/` write to fifteen tables. They must
+never reach production. Full detail in `test-db/README.md`; the rules:
+
+- **`TEST_DATABASE_URL` gates the suites AND supplies the connection.** When it
+  is set, `db.ts` ignores `DB_HOST`/`DB_NAME`/`DB_USER`/`DB_PASS` entirely rather
+  than merging them. Never reintroduce a gate that is separate from the
+  connection — the old `DATABASE_URL` flag turned on eleven files of writes while
+  the connection still came from `DB_*`, which on a developer machine is
+  production.
+- **The database name must end in `_test`.** Enforced in `db.ts` and again in
+  `test-db/provision.sh` before it drops anything. Pinned by
+  `api/src/__tests__/test-database-guard.test.ts`. Don't relax it; make a new
+  database instead.
+- **`schema.sql` is a baseline, not the current schema.** It is missing
+  everything later migrations added and never folded back —
+  `link_sessions_on_destination_update`, `areas_refresh_boundary_display`,
+  destination place-copy and hero-credit columns, `areas.parent_area_id`, the
+  destination search vector — and it carries no `GRANT`s. Provisioning applies
+  `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
+  `peaks` exactly (28 tables, 281 columns, 17 triggers).
+- **A migration that fails provisioning is a real conflict** with `schema.sql`.
+  Reconcile the two. Don't extend the skip list in `provision.sh`.
+- **Pool max drops to 2 under `NODE_ENV=test`.** Each test file is its own
+  process with its own pool; the instance allows 25 connections total. This is
+  what lets the suite run in parallel instead of `--test-concurrency=1`.
+
 ## Postgres → wire type policy (do not regress)
 
 `node-postgres` has default type parsers that are safe for JS but surprising for any typed client (Swift, Kotlin, Dart, older JS code paths that assume numbers). The API has had one catastrophic outage from this class of bug and the mitigation **must** stay in place:
@@ -137,7 +167,8 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 ### Connection
 - **Cloud Run**: connects via Unix socket at `/cloudsql/INSTANCE_CONNECTION_NAME`
 - **Local dev**: set `DB_HOST=127.0.0.1` to use TCP via Cloud SQL Auth Proxy
-- Pool max: 4 connections by default (`DB_POOL_MAX` can override)
+- **Tests**: `TEST_DATABASE_URL` overrides all of the above (see Testing)
+- Pool max: 8 by default, 4 in Cloud Run, 2 under `NODE_ENV=test` (`DB_POOL_MAX` overrides)
 
 ### Endpoints
 | Method | Path | Description |

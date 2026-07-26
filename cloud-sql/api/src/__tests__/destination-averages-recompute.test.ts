@@ -138,9 +138,7 @@ describe("DESTINATION_AVERAGES_LOCK_SQL", () => {
   });
 });
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

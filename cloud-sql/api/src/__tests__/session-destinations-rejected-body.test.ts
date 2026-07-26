@@ -23,7 +23,7 @@
 // they must never insert a manual row for a rejected destination and never clear
 // a veto. Second describe block below.
 //
-// Integration tests gated on $DATABASE_URL, fixtures prefixed + placed in empty
+// Integration tests gated on $TEST_DATABASE_URL, fixtures prefixed + in empty
 // South Atlantic water.
 
 import { strict as assert } from "node:assert";
@@ -34,9 +34,7 @@ import db from "../db";
 import { processSession } from "../processing";
 import { overlappingDestinationIds } from "../routes/sessions";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

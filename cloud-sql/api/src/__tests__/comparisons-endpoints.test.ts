@@ -1,4 +1,4 @@
-// Integration tests for the comparison endpoints. Requires DATABASE_URL.
+// Integration tests for the comparison endpoints. Requires TEST_DATABASE_URL.
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
 import request from "supertest";
@@ -6,9 +6,7 @@ import { app } from "../index";
 import db from "../db";
 import { matchComparisons } from "../comparisons";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `cmpapi-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;
