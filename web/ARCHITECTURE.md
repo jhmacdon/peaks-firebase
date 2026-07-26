@@ -73,6 +73,7 @@ All data access goes through Next.js server actions in `src/lib/actions/`. Every
 | `profile.ts` | Firestore | User profile, friends, invites |
 | `users.ts` | Both | Firebase Auth user lookup |
 | `route-builder.ts` | PostgreSQL | GPX → route analysis pipeline (admin) |
+| `route-import.ts` | PostgreSQL | Validated pending-route imports with source provenance |
 | `segment-matcher.ts` | PostgreSQL | Route decomposition (admin) |
 
 ### Auth for server actions
@@ -189,6 +190,9 @@ PostGIS is essential for spatial queries (nearby, viewport, distance calculation
 
 ### Why server actions instead of API routes?
 Server actions eliminate the need for a separate API layer. They're typed end-to-end, colocated with the code that calls them, and handle serialization automatically. The Cloud Run Express API (`cloud-sql/api/`) still exists for the iOS app — the web app doesn't use it.
+
+### Why keep route provenance on the route?
+Route geometry can come from public trail data or OpenStreetMap. The `routes.provenance` JSONB object keeps the source, license, attribution, retrieval time, and contributing OSM ways with the geometry. The public route map shows that information beside the route so attribution stays with the data it describes.
 
 ### Why client-side rendering for most pages?
 Most pages use `"use client"` because they need interactive state (auth context, search input, map interactions). Data is fetched in `useEffect` via server actions. This keeps the architecture simple — no RSC/client boundary complexity.

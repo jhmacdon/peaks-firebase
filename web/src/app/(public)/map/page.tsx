@@ -86,6 +86,9 @@ export default function MapPage() {
 
   const mapDestinations = showDestinations ? visibleDestinations : [];
   const mapRoutes = showRoutes ? visibleRoutes : [];
+  const hasOsmRouteGeometry = showRoutes && routes.some(
+    (route) => route.provenance?.contains_osm_geometry
+  );
   const featuredDestinations = visibleDestinations.slice(0, 5);
   const featuredRoutes = visibleRoutes.slice(0, 4);
 
@@ -161,6 +164,19 @@ export default function MapPage() {
                 Routes appear as orange lines when you zoom in close enough for
                 detailed geometry.
               </p>
+              {hasOsmRouteGeometry && (
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Some displayed route geometry: © OpenStreetMap contributors ·{" "}
+                  <a
+                    href="https://opendatacommons.org/licenses/odbl/1-0/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-700 hover:underline dark:text-blue-300"
+                  >
+                    ODbL 1.0
+                  </a>
+                </p>
+              )}
             </div>
           </div>
 

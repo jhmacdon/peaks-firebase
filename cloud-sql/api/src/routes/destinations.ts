@@ -364,7 +364,7 @@ router.get("/:id/routes", async (req, res: Response) => {
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion,
+            r.external_links, r.provenance, r.completion,
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id

@@ -5,6 +5,7 @@ import Link from "next/link";
 import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import { importRouteAsPending } from "../../../../lib/actions/route-import";
+import type { RouteProvenanceInput } from "../../../../lib/route-provenance";
 
 interface ImportResult {
   name: string;
@@ -47,6 +48,14 @@ function ImportContent() {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ImportResult[]>([]);
+  const [sourceKind, setSourceKind] = useState("gpx");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [licenseName, setLicenseName] = useState("");
+  const [licenseUrl, setLicenseUrl] = useState("");
+  const [attribution, setAttribution] = useState("");
+  const [containsOsmGeometry, setContainsOsmGeometry] = useState(false);
+  const [osmWayIds, setOsmWayIds] = useState("");
+  const [osmWayUrls, setOsmWayUrls] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = (fileList: FileList | null) => {
@@ -67,6 +76,36 @@ function ImportContent() {
   };
 
   const handleImport = async () => {
+    const hasProvenance = Boolean(
+      sourceUrl.trim() || licenseName.trim() || licenseUrl.trim() || attribution.trim() || containsOsmGeometry
+    );
+    if (hasProvenance && (!sourceUrl.trim() || !licenseName.trim() || !licenseUrl.trim() || !attribution.trim())) {
+      alert("Route provenance needs a source URL, license name, license URL, and attribution.");
+      return;
+    }
+    if (containsOsmGeometry && !osmWayIds.trim()) {
+      alert("OpenStreetMap geometry needs every contributing OSM way ID.");
+      return;
+    }
+
+    const provenance: RouteProvenanceInput | undefined = hasProvenance
+      ? {
+          source_kind: sourceKind.trim() || "gpx",
+          source_url: sourceUrl.trim(),
+          license_name: licenseName.trim() || undefined,
+          license_url: licenseUrl.trim() || undefined,
+          attribution: attribution.trim() || undefined,
+          contains_osm_geometry: containsOsmGeometry,
+          osm_way_ids: osmWayIds
+            .split(/[,\s]+/)
+            .filter(Boolean)
+            .map(Number),
+          osm_way_urls: osmWayUrls
+            .split(/[,\s]+/)
+            .filter(Boolean),
+        }
+      : undefined;
+
     setImporting(true);
     setProgress(0);
     setResults([]);
@@ -80,7 +119,7 @@ function ImportContent() {
 
       try {
         const content = await file.text();
-        const result = await importRouteAsPending(content, name);
+        const result = await importRouteAsPending(content, name, provenance);
         newResults.push({
           name: result.name,
           routeId: result.routeId,
@@ -126,6 +165,108 @@ function ImportContent() {
 
         {results.length === 0 ? (
           <>
+            <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+              <h3 className="font-medium">Route source</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Add the source used for all files in this import. Leave it blank for a local GPX with no public source.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium">Source kind</span>
+                  <select
+                    value={sourceKind}
+                    onChange={(event) => setSourceKind(event.target.value)}
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                  >
+                    <option value="gpx">GPX</option>
+                    <option value="openstreetmap">OpenStreetMap</option>
+                    <option value="usgs">USGS</option>
+                    <option value="manual">Manual</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block font-medium">Source URL</span>
+                  <input
+                    type="url"
+                    value={sourceUrl}
+                    onChange={(event) => setSourceUrl(event.target.value)}
+                    placeholder="https://…"
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                  />
+                </label>
+              </div>
+              <label className="mt-4 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={containsOsmGeometry}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setContainsOsmGeometry(checked);
+                    if (checked) {
+                      setSourceKind("openstreetmap");
+                      setLicenseName("Open Data Commons Open Database License (ODbL) 1.0");
+                      setLicenseUrl("https://opendatacommons.org/licenses/odbl/1-0/");
+                      setAttribution("© OpenStreetMap contributors");
+                    }
+                  }}
+                />
+                Route geometry includes OpenStreetMap data
+              </label>
+              {(sourceUrl.trim() || containsOsmGeometry) && (
+                <>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <label className="text-sm">
+                      <span className="mb-1 block font-medium">License name</span>
+                      <input
+                        value={licenseName}
+                        onChange={(event) => setLicenseName(event.target.value)}
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block font-medium">License URL</span>
+                      <input
+                        type="url"
+                        value={licenseUrl}
+                        onChange={(event) => setLicenseUrl(event.target.value)}
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block font-medium">Attribution</span>
+                      <input
+                        value={attribution}
+                        onChange={(event) => setAttribution(event.target.value)}
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm">
+                      <span className="mb-1 block font-medium">OSM way IDs</span>
+                      <input
+                        value={osmWayIds}
+                        onChange={(event) => setOsmWayIds(event.target.value)}
+                        placeholder="824208041, 1089371018"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                      />
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block font-medium">OSM way URLs</span>
+                      <input
+                        type="url"
+                        value={osmWayUrls}
+                        onChange={(event) => setOsmWayUrls(event.target.value)}
+                        placeholder="https://www.openstreetmap.org/way/…"
+                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </section>
+
             {/* Drop zone */}
             <div
               onDragOver={(e) => e.preventDefault()}

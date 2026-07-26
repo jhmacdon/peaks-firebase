@@ -9,6 +9,10 @@ import { backfillDestinationToSessions } from "../destination-backfill";
 import type { ExternalIds } from "../destination-types";
 import type { Amenities } from "../amenities";
 import { parseAreas, type ProtectedArea } from "../area-types";
+import {
+  parseRouteProvenance,
+  type RouteProvenance,
+} from "../route-provenance";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -70,6 +74,7 @@ export interface DestinationRoute {
   distance: number | null;
   gain: number | null;
   ordinal: number;
+  provenance: RouteProvenance | null;
 }
 
 export interface DestinationList {
@@ -231,7 +236,7 @@ export async function getDestinationRoutes(
     : ` AND r.owner = 'peaks'`;
 
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, rd.ordinal
+    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, rd.ordinal
      FROM route_destinations rd
      JOIN routes r ON r.id = rd.route_id
      WHERE rd.destination_id = $1${publicFilter}
@@ -244,6 +249,7 @@ export async function getDestinationRoutes(
     distance: r.distance ? Number(r.distance) : null,
     gain: r.gain ? Number(r.gain) : null,
     ordinal: Number(r.ordinal),
+    provenance: parseRouteProvenance(r.provenance),
   }));
 }
 

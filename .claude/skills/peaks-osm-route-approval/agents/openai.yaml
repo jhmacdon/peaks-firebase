@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peaks OSM Route Approval"
+  short_description: "Check pending routes against current OSM geometry"
+  default_prompt: "Use $peaks-osm-route-approval to verify pending Peaks routes against current OpenStreetMap geometry."

@@ -7,6 +7,11 @@ import { parseGPX, simplifyTrack, totalDistance, haversineDistance } from "../gp
 import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "../route-utils";
 import { normalizeSearchName } from "../search-utils";
 import { backfillDestinationToSessions } from "../destination-backfill";
+import {
+  normalizeRouteProvenance,
+  type RouteProvenance,
+  type RouteProvenanceInput,
+} from "../route-provenance";
 
 // ─── Validation constraints ────────────────────────────────────────────────
 
@@ -23,6 +28,7 @@ export interface RouteCandidate {
   points: TrackPoint[];
   source: string;       // "gpx", "osm", "manual", etc.
   sourceDetail?: string; // filename, URL, etc.
+  provenance?: RouteProvenanceInput;
 }
 
 export interface ValidationResult {
@@ -245,7 +251,8 @@ export async function validateRouteCandidate(
  */
 export async function importRouteAsPending(
   gpxContent: string,
-  name?: string
+  name?: string,
+  provenanceInput?: RouteProvenanceInput
 ): Promise<ImportResult> {
   // Parse
   const parsed = parseGPX(gpxContent);
@@ -286,6 +293,7 @@ export async function importRouteAsPending(
   }
 
   const routeName = name || parsed.name || "Unnamed Route";
+  const provenance = normalizeRouteProvenance(provenanceInput);
 
   // Validate
   const validation = await validateRouteCandidate({
@@ -299,7 +307,7 @@ export async function importRouteAsPending(
   }
 
   // Save as pending
-  const routeId = await savePendingRoute(routeName, points, validation);
+  const routeId = await savePendingRoute(routeName, points, validation, provenance);
 
   return { routeId, name: routeName, validation };
 }
@@ -308,7 +316,7 @@ export async function importRouteAsPending(
  * Batch import with validation. Returns results for each file.
  */
 export async function batchImportRoutes(
-  files: { gpxContent: string; name?: string }[]
+  files: { gpxContent: string; name?: string; provenance?: RouteProvenanceInput }[]
 ): Promise<{ imported: number; rejected: number; results: { name: string; routeId?: string; error?: string; validation?: ValidationResult }[] }> {
   const results: { name: string; routeId?: string; error?: string; validation?: ValidationResult }[] = [];
   let imported = 0;
@@ -316,7 +324,7 @@ export async function batchImportRoutes(
 
   for (const file of files) {
     try {
-      const result = await importRouteAsPending(file.gpxContent, file.name);
+      const result = await importRouteAsPending(file.gpxContent, file.name, file.provenance);
       results.push({ name: result.name, routeId: result.routeId, validation: result.validation });
       imported++;
     } catch (err: unknown) {
@@ -334,7 +342,8 @@ export async function batchImportRoutes(
 async function savePendingRoute(
   name: string,
   points: TrackPoint[],
-  validation: ValidationResult
+  validation: ValidationResult,
+  provenance: RouteProvenance | null
 ): Promise<string> {
   const routeId = generateId();
   const segId = generateId();
@@ -348,19 +357,21 @@ async function savePendingRoute(
     // Route
     await client.query(
       `INSERT INTO routes (id, name, path, polyline6, owner, distance, gain, gain_loss,
-                           completion, shape, status)
+                           completion, shape, status, provenance)
        VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, 'peaks',
-               $5, $6, $7, 'none'::completion_mode, 'out_and_back'::route_shape, 'pending')`,
+               $5, $6, $7, 'none'::completion_mode, 'out_and_back'::route_shape, 'pending', $8::jsonb)`,
       [routeId, name, wkt, polyline6,
-       validation.stats.distance, validation.stats.gain, validation.stats.loss]
+       validation.stats.distance, validation.stats.gain, validation.stats.loss,
+       provenance ? JSON.stringify(provenance) : null]
     );
 
     // Standalone segment
     await client.query(
-      `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
-       VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
+      `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
+       VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
       [segId, name, wkt, polyline6,
-       validation.stats.distance, validation.stats.gain, validation.stats.loss]
+       validation.stats.distance, validation.stats.gain, validation.stats.loss,
+       provenance ? JSON.stringify(provenance) : null]
     );
 
     await client.query(

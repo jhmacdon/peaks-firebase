@@ -70,10 +70,11 @@ const DESTINATION_GOALS_SQL = `COALESCE(
   '[]'::json
 )`;
 
-const SESSION_ROUTES_SQL = `COALESCE(
+export const SESSION_ROUTES_SQL = `COALESCE(
   (SELECT json_agg(json_build_object(
     'id', r.id, 'name', r.name, 'polyline6', r.polyline6,
     'distance', r.distance, 'gain', r.gain, 'gain_loss', r.gain_loss,
+    'provenance', r.provenance,
     'source', sr.source, 'coverage', sr.coverage
   ) ORDER BY r.name, r.id)
   FROM session_routes sr
@@ -665,7 +666,7 @@ router.get("/:id/routes", async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6,
-            r.distance, r.gain, r.gain_loss,
+            r.distance, r.gain, r.gain_loss, r.provenance,
             sr.source, sr.coverage
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id

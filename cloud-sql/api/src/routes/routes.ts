@@ -7,7 +7,7 @@ export function buildRouteDetailQuery(id: string): { text: string; values: unkno
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion,
+            r.external_links, r.provenance, r.completion,
             r.created_at, r.updated_at,
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
@@ -112,7 +112,7 @@ router.get("/near", async (req, res: Response) => {
 
   const result = await db.query(
     `SELECT id, name, distance, gain, gain_loss, elevation_string,
-            external_links, completion,
+            external_links, provenance, completion,
             ST_Distance(path, ST_MakePoint($2, $1)::geography) AS distance_to_point
      FROM routes
      WHERE ST_DWithin(path, ST_MakePoint($2, $1)::geography, $3)

@@ -4,6 +4,10 @@
 import db from "../db";
 import { verifyToken } from "../auth-actions";
 import { parseAreas, type ProtectedArea } from "../area-types";
+import {
+  parseRouteProvenance,
+  type RouteProvenance,
+} from "../route-provenance";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -65,6 +69,7 @@ export interface SessionRoute {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  provenance: RouteProvenance | null;
 }
 
 export interface UserStats {
@@ -249,7 +254,7 @@ export async function getSessionRoutes(
   sessionId: string
 ): Promise<SessionRoute[]> {
   const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6, r.distance, r.gain
+    `SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.provenance
      FROM session_routes sr
      JOIN routes r ON r.id = sr.route_id
      WHERE sr.session_id = $1
@@ -261,6 +266,7 @@ export async function getSessionRoutes(
     ...r,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    provenance: parseRouteProvenance(r.provenance),
   }));
 }
 

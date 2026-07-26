@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peaks Standard Route Backfill"
+  short_description: "Find list peaks missing standard routes"
+  default_prompt: "Use $peaks-standard-route-backfill to audit list peaks and research a high-confidence standard-route batch."

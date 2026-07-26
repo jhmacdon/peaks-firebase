@@ -33,6 +33,7 @@ import {
   titleize,
 } from "../../../../components/detail-sections";
 import { AreaChips } from "../../../../components/area-chip";
+import RouteProvenanceNotice from "../../../../components/route-provenance";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -191,6 +192,7 @@ export default function RouteDetailPage() {
                 </h2>
                 <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
                   <RouteMap polyline6={route.polyline6} />
+                  <RouteProvenanceNotice provenance={route.provenance} />
                 </div>
               </section>
             )}
