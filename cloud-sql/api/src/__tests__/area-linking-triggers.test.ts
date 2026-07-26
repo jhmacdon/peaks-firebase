@@ -56,10 +56,14 @@ async function createArea(): Promise<void> {
   );
 }
 
+// country_code is not decoration: 20260723_bulk_destination_import.sql narrowed
+// both area-linking triggers to `WHERE d.country_code = 'US'`, and the column is
+// nullable with no default. A fixture that omits it is skipped by the trigger
+// and every assertion below reads 0 links.
 async function createSummit(id: string, lng: number, lat: number): Promise<void> {
   await db.query(
-    `INSERT INTO destinations (id, name, search_name, location, owner, features)
-     VALUES ($1, $1, $1, ST_SetSRID(ST_MakePoint($2, $3, 1000), 4326)::geography, 'peaks', '{summit}')
+    `INSERT INTO destinations (id, name, search_name, location, owner, features, country_code)
+     VALUES ($1, $1, $1, ST_SetSRID(ST_MakePoint($2, $3, 1000), 4326)::geography, 'peaks', '{summit}', 'US')
      ON CONFLICT (id) DO NOTHING`,
     [id, lng, lat]
   );
