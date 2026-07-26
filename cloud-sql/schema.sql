@@ -35,6 +35,77 @@ CREATE TYPE route_shape AS ENUM ('out_and_back', 'loop', 'point_to_point', 'loll
 CREATE TYPE session_destination_relation AS ENUM ('reached', 'goal');
 
 -- =============================================================================
+-- Validation helpers
+-- =============================================================================
+
+-- Geometry provenance travels with both the assembled route and each source
+-- segment. It is nullable only for legacy geometry whose source is unknown.
+-- New provenance records must use this complete, flat shape:
+-- {
+--   source_kind, source_url, license_name, license_url, attribution,
+--   retrieved_at, osm_way_ids, osm_way_urls, contains_osm_geometry
+-- }
+-- OSM-derived geometry must name every contributing way. Non-OSM records keep
+-- both OSM arrays empty and contains_osm_geometry false.
+CREATE FUNCTION is_valid_route_provenance(value JSONB)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT CASE
+    WHEN jsonb_typeof(value) <> 'object'
+      OR NOT value ?& ARRAY[
+        'source_kind', 'source_url', 'license_name', 'license_url', 'attribution',
+        'retrieved_at', 'osm_way_ids', 'osm_way_urls', 'contains_osm_geometry'
+      ]
+      OR jsonb_typeof(value->'source_kind') <> 'string'
+      OR btrim(value->>'source_kind') !~ '^[a-z0-9][a-z0-9_-]*$'
+      OR jsonb_typeof(value->'source_url') <> 'string'
+      OR value->>'source_url' !~ '^https?://[^[:space:]]+$'
+      OR jsonb_typeof(value->'license_name') <> 'string'
+      OR btrim(value->>'license_name') = ''
+      OR jsonb_typeof(value->'license_url') <> 'string'
+      OR value->>'license_url' !~ '^https?://[^[:space:]]+$'
+      OR jsonb_typeof(value->'attribution') <> 'string'
+      OR btrim(value->>'attribution') = ''
+      OR jsonb_typeof(value->'retrieved_at') <> 'string'
+      OR value->>'retrieved_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+      OR jsonb_typeof(value->'contains_osm_geometry') <> 'boolean'
+      OR jsonb_typeof(value->'osm_way_ids') <> 'array'
+      OR jsonb_typeof(value->'osm_way_urls') <> 'array'
+    THEN false
+    ELSE
+      (SELECT count(*) FROM jsonb_object_keys(value)) = 9
+      AND jsonb_array_length(value->'osm_way_ids') = jsonb_array_length(value->'osm_way_urls')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(value->'osm_way_ids') WITH ORDINALITY AS way_id(value, ordinal)
+        JOIN jsonb_array_elements(value->'osm_way_urls') WITH ORDINALITY AS way_url(value, ordinal)
+          USING (ordinal)
+        WHERE jsonb_typeof(way_id.value) <> 'number'
+           OR (way_id.value #>> '{}') !~ '^[1-9][0-9]*$'
+           OR jsonb_typeof(way_url.value) <> 'string'
+           OR (way_url.value #>> '{}') <>
+              ('https://www.openstreetmap.org/way/' || (way_id.value #>> '{}'))
+      )
+      AND (
+        (value->>'contains_osm_geometry')::boolean
+          = (jsonb_array_length(value->'osm_way_ids') > 0)
+      )
+      AND (
+        NOT (value->>'contains_osm_geometry')::boolean
+        OR (
+          value->>'source_kind' = 'openstreetmap'
+          AND value->>'license_name' = 'Open Data Commons Open Database License (ODbL) 1.0'
+          AND value->>'license_url' = 'https://opendatacommons.org/licenses/odbl/1-0/'
+          AND value->>'attribution' = '© OpenStreetMap contributors'
+        )
+      )
+  END;
+$$;
+
+-- =============================================================================
 -- Tables
 -- =============================================================================
 
@@ -211,6 +282,10 @@ CREATE TABLE segments (
     gain            DOUBLE PRECISION,  -- elevation gain in meters (forward)
     gain_loss       DOUBLE PRECISION,  -- elevation loss in meters (forward)
 
+    -- Source, license, credit, retrieval time, and any OSM way IDs used to
+    -- derive this segment. Validated by is_valid_route_provenance when present.
+    provenance      JSONB,
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -238,6 +313,11 @@ CREATE TABLE routes (
     -- external references
     external_links  JSONB,             -- [{ type: "wta", id: "..." }, { type: "usfs", id: "..." }]
 
+    -- Geometry provenance for the assembled route. Use the same record as its
+    -- segments when they share one source; otherwise identify the assembled
+    -- geometry source and retain exact OSM way lists on each segment.
+    provenance      JSONB,
+
     completion      completion_mode NOT NULL DEFAULT 'none',
     shape           route_shape,       -- out_and_back, loop, point_to_point, lollipop
     status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active')),
@@ -245,6 +325,14 @@ CREATE TABLE routes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE segments
+  ADD CONSTRAINT segments_provenance_valid
+  CHECK (provenance IS NULL OR is_valid_route_provenance(provenance));
+
+ALTER TABLE routes
+  ADD CONSTRAINT routes_provenance_valid
+  CHECK (provenance IS NULL OR is_valid_route_provenance(provenance));
 
 -- ---------------------------------------------------------------------------
 -- route_segments

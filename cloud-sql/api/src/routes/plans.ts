@@ -139,19 +139,23 @@ router.get("/:id/reached-destinations", async (req, res: Response) => {
   res.json(result.rows);
 });
 
-// GET /api/plans/:id/routes
-router.get("/:id/routes", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6,
-            r.distance, r.gain, r.gain_loss, r.shape,
+export function buildPlanRoutesQuery(id: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id, r.name, r.polyline6,
+            r.distance, r.gain, r.gain_loss, r.shape, r.provenance,
             pr.ordinal
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
      WHERE pr.plan_id = $1 AND r.status = 'active'
      ORDER BY pr.ordinal`,
-    [id]
-  );
+    values: [id],
+  };
+}
+
+// GET /api/plans/:id/routes
+router.get("/:id/routes", async (req, res: Response) => {
+  const query = buildPlanRoutesQuery(req.params.id);
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 

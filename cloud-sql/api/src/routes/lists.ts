@@ -80,13 +80,14 @@ export function buildListDestinationsQuery(listId: string) {
             ld.ordinal,
             d.averages, d.averages_offset,
             br.route_id, br.route_name, br.route_distance,
-            br.route_gain, br.route_shape
+            br.route_gain, br.route_shape, br.route_provenance
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      LEFT JOIN LATERAL (
        SELECT r.id AS route_id, r.name AS route_name,
               r.distance AS route_distance, r.gain AS route_gain,
               r.shape AS route_shape,
+              r.provenance AS route_provenance,
               (SELECT COUNT(*) FROM session_routes sr
                 WHERE sr.route_id = r.id) AS session_count
        FROM route_destinations rd

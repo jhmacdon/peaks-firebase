@@ -3,6 +3,12 @@
 
 import db from "../db";
 import { parseAreas, type ProtectedArea } from "../area-types";
+import {
+  normalizeRouteProvenance,
+  parseRouteProvenance,
+  type RouteProvenance,
+  type RouteProvenanceInput,
+} from "../route-provenance";
 
 export interface RouteRow {
   id: string;
@@ -13,6 +19,7 @@ export interface RouteRow {
   gain_loss: number | null;
   elevation_string: string | null;
   external_links: any[] | null;
+  provenance: RouteProvenance | null;
   completion: string;
   shape: string | null;
   status: string;
@@ -68,7 +75,7 @@ export async function getRoutes(search?: string, limit = 50, offset = 0, status?
   const [result, countResult] = await Promise.all([
     db.query(
       `SELECT r.id, r.name, r.owner, r.distance, r.gain, r.gain_loss,
-              r.elevation_string, r.external_links, r.completion, r.shape, r.status,
+              r.elevation_string, r.external_links, r.provenance, r.completion, r.shape, r.status,
               (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
               r.created_at, r.updated_at
        FROM routes r
@@ -84,7 +91,10 @@ export async function getRoutes(search?: string, limit = 50, offset = 0, status?
   ]);
 
   return {
-    routes: result.rows,
+    routes: result.rows.map((row) => ({
+      ...row,
+      provenance: parseRouteProvenance(row.provenance),
+    })),
     total: countResult.rows[0].total,
   };
 }
@@ -100,7 +110,7 @@ export async function getRoute(
   const result = await db.query(
     `SELECT r.id, r.name, r.owner, r.polyline6, r.geohashes,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
-            r.external_links, r.completion, r.shape, r.status,
+            r.external_links, r.provenance, r.completion, r.shape, r.status,
             (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
             r.created_at, r.updated_at,
             COALESCE(area_rows.areas, '[]'::json) AS areas
@@ -123,7 +133,11 @@ export async function getRoute(
   );
   const row = result.rows[0];
   if (!row) return null;
-  return { ...row, areas: parseAreas(row.areas) };
+  return {
+    ...row,
+    areas: parseAreas(row.areas),
+    provenance: parseRouteProvenance(row.provenance),
+  };
 }
 
 export async function getRouteDestinations(
@@ -233,7 +247,12 @@ export async function getRouteSessionCount(
 
 export async function updateRoute(
   id: string,
-  data: { name?: string; completion?: string; shape?: string }
+  data: {
+    name?: string;
+    completion?: string;
+    shape?: string;
+    provenance?: RouteProvenanceInput | null;
+  }
 ): Promise<void> {
   const sets: string[] = [];
   const params: any[] = [];
@@ -252,6 +271,14 @@ export async function updateRoute(
   if (data.shape !== undefined) {
     sets.push(`shape = $${paramIdx}::route_shape`);
     params.push(data.shape);
+    paramIdx++;
+  }
+  if (data.provenance !== undefined) {
+    const provenance = data.provenance === null
+      ? null
+      : normalizeRouteProvenance(data.provenance);
+    sets.push(`provenance = $${paramIdx}::jsonb`);
+    params.push(provenance ? JSON.stringify(provenance) : null);
     paramIdx++;
   }
 
@@ -393,12 +420,15 @@ export async function acceptRouteWithSegments(
 
     // Get existing route data
     const routeResult = await client.query(
-      `SELECT name, shape, completion FROM routes WHERE id = $1 AND status = 'pending'`,
+      `SELECT name, shape, completion, provenance FROM routes WHERE id = $1 AND status = 'pending'`,
       [id]
     );
     if (routeResult.rows.length === 0) {
       throw new Error("Pending route not found");
     }
+    const routeProvenance = routeResult.rows[0].provenance
+      ? JSON.stringify(routeResult.rows[0].provenance)
+      : null;
 
     // Find the old standalone segment IDs (before deleting them)
     const oldSegs = await client.query(
@@ -428,7 +458,7 @@ export async function acceptRouteWithSegments(
 
     for (const split of decomposition.splits) {
       const segResult = await client.query(
-        `SELECT ST_AsGeoJSON(path::geometry) AS geojson, name FROM segments WHERE id = $1`,
+        `SELECT ST_AsGeoJSON(path::geometry) AS geojson, name, provenance FROM segments WHERE id = $1`,
         [split.originalSegmentId]
       );
       if (segResult.rows.length === 0) continue;
@@ -467,9 +497,10 @@ export async function acceptRouteWithSegments(
         const subElev = computeElevationStats(subPoints.map((p: { ele: number }) => p.ele));
 
         await client.query(
-          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
-           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
-          [subId, segResult.rows[0].name, subWkt, subPoly, Math.round(subDist), subElev.gain, subElev.loss]
+          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
+           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
+          [subId, segResult.rows[0].name, subWkt, subPoly, Math.round(subDist), subElev.gain, subElev.loss,
+           segResult.rows[0].provenance ? JSON.stringify(segResult.rows[0].provenance) : null]
         );
       }
 
@@ -516,9 +547,10 @@ export async function acceptRouteWithSegments(
           const wkt = pointsToLineStringZ(seg.points);
           const poly = encodePolyline6(seg.points);
           await client.query(
-            `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
-             VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
-            [newId, seg.name || seg.existingSegmentName, wkt, poly, seg.distance, seg.gain, seg.loss]
+            `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
+             VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
+            [newId, seg.name || seg.existingSegmentName, wkt, poly, seg.distance, seg.gain, seg.loss,
+             routeProvenance]
           );
           routeSegRefs.push({ segmentId: newId, direction: seg.direction || "forward" });
         } else {
@@ -543,9 +575,9 @@ export async function acceptRouteWithSegments(
         const wkt = pointsToLineStringZ(seg.points);
         const poly = encodePolyline6(seg.points);
         await client.query(
-          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss)
-           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7)`,
-          [newId, seg.name, wkt, poly, seg.distance, seg.gain, seg.loss]
+          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
+           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
+          [newId, seg.name, wkt, poly, seg.distance, seg.gain, seg.loss, routeProvenance]
         );
         routeSegRefs.push({ segmentId: newId, direction: "forward" });
       }

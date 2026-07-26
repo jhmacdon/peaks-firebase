@@ -158,7 +158,7 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
        SELECT json_agg(route_obj ORDER BY gain DESC NULLS LAST, distance DESC NULLS LAST, name) AS routes
        FROM (
          SELECT r.id, r.name, r.polyline6, r.owner, r.distance, r.gain,
-                r.gain_loss, r.elevation_string, r.external_links, r.completion,
+                r.gain_loss, r.elevation_string, r.external_links, r.provenance, r.completion,
                 json_build_object(
                   'id', r.id,
                   'name', r.name,
@@ -169,6 +169,7 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
                   'gain_loss', r.gain_loss,
                   'elevation_string', r.elevation_string,
                   'external_links', r.external_links,
+                  'provenance', r.provenance,
                   'completion', r.completion
                 ) AS route_obj
          FROM route_areas ra

@@ -3,6 +3,10 @@
 
 import db from "../db";
 import { normalizeSearchName } from "../search-utils";
+import {
+  parseRouteProvenance,
+  type RouteProvenance,
+} from "../route-provenance";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -33,6 +37,7 @@ export interface ViewportRoute {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  provenance: RouteProvenance | null;
 }
 
 export interface SearchRouteResult {
@@ -44,6 +49,7 @@ export interface SearchRouteResult {
   shape: string | null;
   destination_count: number;
   session_count: number;
+  provenance: RouteProvenance | null;
 }
 
 export interface DiscoverStats {
@@ -218,7 +224,7 @@ export async function searchRoutes(
   if (!q) return [];
 
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id)::int AS session_count
      FROM routes r
@@ -240,6 +246,7 @@ export async function searchRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
     destination_count: Number(r.destination_count),
@@ -251,14 +258,14 @@ export async function getPopularRoutes(
   limit: number = 8
 ): Promise<SearchRouteResult[]> {
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             COUNT(sr.route_id)::int AS session_count
      FROM routes r
      LEFT JOIN session_routes sr ON sr.route_id = r.id
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
-     GROUP BY r.id, r.name, r.distance, r.gain, r.completion, r.shape
+     GROUP BY r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape
      ORDER BY session_count DESC, destination_count DESC, r.distance ASC NULLS LAST, r.name ASC NULLS LAST
      LIMIT $1`,
     [limit]
@@ -269,6 +276,7 @@ export async function getPopularRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
     destination_count: Number(r.destination_count),
@@ -417,7 +425,7 @@ export async function getRoutesInViewport(
   limit: number = 100
 ): Promise<ViewportRoute[]> {
   const result = await db.query(
-    `SELECT id, name, polyline6, distance, gain
+    `SELECT id, name, polyline6, distance, gain, provenance
      FROM routes
      WHERE path IS NOT NULL
        AND owner = 'peaks'
@@ -436,5 +444,6 @@ export async function getRoutesInViewport(
     polyline6: r.polyline6 ?? null,
     distance: r.distance ? Number(r.distance) : null,
     gain: r.gain ? Number(r.gain) : null,
+    provenance: parseRouteProvenance(r.provenance),
   }));
 }

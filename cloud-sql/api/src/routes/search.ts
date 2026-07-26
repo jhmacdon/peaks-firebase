@@ -297,7 +297,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
-              r.external_links, r.completion,
+              r.external_links, r.provenance, r.completion,
               ${routeAreaRowsSql}${geoSelect},
               (
                 similarity(${routeSearchText}, $1) * 0.70
