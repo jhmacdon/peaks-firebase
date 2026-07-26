@@ -6,7 +6,7 @@
 //
 // No DB required: writeJsonArray is source-agnostic, so we feed it a fake row
 // source and capture the writes. The DB-backed streamQueryAsJsonArray path is
-// exercised by integration tests that skip without DATABASE_URL.
+// exercised by integration tests that skip without TEST_DATABASE_URL.
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";

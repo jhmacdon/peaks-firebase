@@ -9,15 +9,13 @@
 //
 // Fully isolated: fixtures use a unique prefix and a remote South-Atlantic
 // location (no real Peaks areas or tracking points there), so the triggers
-// cannot touch production data. Requires $DATABASE_URL to run; skips otherwise.
+// cannot touch production data. Requires $TEST_DATABASE_URL; skips otherwise.
 
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
 import db from "../db";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const areaId = `${runPrefix}-area`;

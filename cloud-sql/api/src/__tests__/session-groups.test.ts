@@ -1,16 +1,15 @@
 // src/__tests__/session-groups.test.ts
 //
 // Integration tests against the real `session_groups` and `tracking_sessions`
-// tables. Requires $DATABASE_URL to point at a development Postgres with the
-// schema applied. Skips cleanly if not configured.
+// tables. Requires $TEST_DATABASE_URL to name a provisioned test database.
+// Skips cleanly if not configured.
 //
-// When DATABASE_URL IS set, run with:
-//   DATABASE_URL=postgres://... npm test
+// Run with:
+//   npm run test:db
 //
-// The db module uses individual env vars (DB_HOST, DB_NAME, DB_USER, DB_PASS)
-// by default, but DATABASE_URL is used here as the gate because it's the
-// conventional "I have a test DB" signal. If your test DB uses the individual
-// vars, set DATABASE_URL to any non-empty string to un-skip the suite.
+// TEST_DATABASE_URL both gates the suite and supplies the connection: db.ts
+// ignores DB_HOST/DB_NAME/DB_USER/DB_PASS whenever it is set, and rejects any
+// database whose name does not end in "_test".
 
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
@@ -18,9 +17,7 @@ import request from "supertest";
 import { app } from "../index";
 import db from "../db";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const userA = `${runPrefix}-userA`;

@@ -7,16 +7,14 @@
 // older than STALE_PROCESSING_MINUTES be recovered, while a fresh claim is still
 // protected from a genuinely concurrent run.
 //
-// Integration tests; gated on $DATABASE_URL like the other DB suites.
+// Integration tests; gated on $TEST_DATABASE_URL like the other DB suites.
 
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
 import { processSession } from "../processing";
 import db from "../db";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

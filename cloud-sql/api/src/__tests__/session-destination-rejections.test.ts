@@ -11,7 +11,7 @@
 // Next.js web package, which has no test runner, so its SQL is asserted by
 // reading the source — the same invariant scripts/check-cross-refs.sh enforces.
 //
-// Integration tests gated on $DATABASE_URL. Fixtures use a unique prefix and an
+// Integration tests gated on $TEST_DATABASE_URL. Fixtures use a unique prefix and an
 // empty South-Atlantic location so no production row can be touched.
 
 import { strict as assert } from "node:assert";
@@ -21,9 +21,7 @@ import { join } from "node:path";
 import db from "../db";
 import { processSession } from "../processing";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

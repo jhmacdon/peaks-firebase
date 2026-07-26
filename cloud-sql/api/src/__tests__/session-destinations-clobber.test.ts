@@ -10,7 +10,7 @@
 // auto-detected summit. The fix scopes that DELETE to client-owned ('manual')
 // rows so auto detections are never clobbered by a client round-trip.
 //
-// Integration tests against the real schema. Requires $DATABASE_URL to gate
+// Integration tests against the real schema. Requires $TEST_DATABASE_URL to gate
 // (set it to any non-empty string when DB_HOST/DB_NAME/... point at a dev or
 // proxied Postgres). Skips cleanly otherwise.
 
@@ -20,9 +20,7 @@ import request from "supertest";
 import { app } from "../index";
 import db from "../db";
 
-const skipReason = process.env.DATABASE_URL
-  ? null
-  : "DATABASE_URL not set — skipping integration tests";
+import { dbSkipReason as skipReason } from "./helpers/test-db";
 
 const runPrefix = `test-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const user = `${runPrefix}-user`;

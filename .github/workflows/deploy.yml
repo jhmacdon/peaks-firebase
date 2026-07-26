@@ -43,8 +43,36 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-  deploy-api:
+  # Lint + the full API suite, including the DB-backed integration tests, which
+  # only run when TEST_DATABASE_URL names a provisioned test database. Before
+  # this job existed those ~11 files silently skipped in CI: nothing ever set the
+  # gate, so the triggers, plpgsql and spatial matching they cover were only
+  # exercised by hand, against production.
+  #
+  # The service container is disposable and isolated, so nothing here can reach
+  # production even by accident. It runs at the same default concurrency as a
+  # local run — see cloud-sql/test-db/README.md.
+  test-api:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Production is PostgreSQL 15.17 + PostGIS 3.6.0. The postgis images
+        # stop at 3.5 for PG 15; matching the Postgres major matters more here
+        # than the PostGIS minor, since every spatial function the suite touches
+        # (ST_DWithin, ST_Covers, ST_MakeLine, ST_Subdivide, ST_HausdorffDistance)
+        # is unchanged between 3.5 and 3.6.
+        image: postgis/postgis:15-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: peaks_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -63,8 +91,34 @@ jobs:
         run: npx eslint src/
         working-directory: cloud-sql/api
 
+      - name: Provision test database
+        run: ./cloud-sql/test-db/provision.sh
+        env:
+          ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/peaks_test
+          TEST_DB_ROLE: peaks_test
+          TEST_DB_ROLE_PASSWORD: peaks_test
+
       - name: Test
-        run: npm test
+        run: npm run test:db
+        working-directory: cloud-sql/api
+        env:
+          TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
+
+  deploy-api:
+    needs: test-api
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: cloud-sql/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
         working-directory: cloud-sql/api
 
       - name: Build
