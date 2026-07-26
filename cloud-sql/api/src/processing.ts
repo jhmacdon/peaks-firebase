@@ -189,6 +189,15 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
  *
  * Pure builder so its shape is unit-testable without a live DB (mirrors
  * buildPlanDestinationMatchSql).
+ *
+ * Rejections: a (session, destination) pair recorded in
+ * session_destination_rejections is anti-joined out. The user said they did not
+ * reach that destination; re-processing must not overrule them. The same
+ * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql),
+ * link_sessions_on_destination_update (patched by
+ * cloud-sql/migrations/20260725_session_destination_rejections.sql) and
+ * backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+ * scripts/check-cross-refs.sh fails CI if any of the four drops it.
  */
 export function buildSessionDestinationMatchSql(
   sessionId: string
@@ -207,6 +216,10 @@ export function buildSessionDestinationMatchSql(
            AND ST_DWithin(d.location, s.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
            AND ST_DWithin(d.location, s.path, destination_match_radius(d.features))
          )
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM session_destination_rejections r
+         WHERE r.session_id = s.id AND r.destination_id = d.id
        )
      ON CONFLICT (session_id, destination_id) DO NOTHING`,
     values: [sessionId],
@@ -437,52 +450,168 @@ async function assignAttemptGroup(
 }
 
 /**
- * Update destination averages (popular times) based on the session's start date.
- * Increments the month and day-of-week counters in the JSONB averages column
- * for all destinations matched (reached) by the session.
+ * Rebuild the popularity buckets (`destinations.averages`) for a set of
+ * destinations from the live `session_destinations` rows.
+ *
+ * This used to be a blind `+1` per process, which double-counted on every
+ * re-process and could never decrement — so a removed or rejected ascent stayed
+ * in the histogram forever. Recomputing makes processing idempotent and makes a
+ * rejection decrement automatically.
+ *
+ * Reached rows ONLY. A 'goal' row records an intention, not an ascent, and a
+ * rejection deliberately spares it (see applyDestinationRejections in
+ * routes/sessions.ts) — so counting goals here would put the retracted ascent
+ * straight back into the histogram.
+ *
+ * Month and day-of-week are derived with EXTRACT, like the live
+ * GET /api/destinations/averages endpoint, so the stored buckets and the live
+ * aggregation can never disagree about which bucket a session falls in. (The
+ * old code derived them in JS from the API server's local clock, which could
+ * disagree with the database's.) The endpoint indexes a 0-based Sunday-first
+ * array by EXTRACT(DOW); this indexes a 1-based Monday-first array by
+ * EXTRACT(ISODOW), which is the same mapping written without an offset.
+ *
+ * Buckets are UTC, deliberately. EXTRACT on a TIMESTAMPTZ resolves in the
+ * connection's TimeZone, which is UTC on Cloud SQL and in Cloud Run, so a
+ * session is filed by its UTC month and weekday rather than the climber's local
+ * one. That is a known, accepted approximation: `averages_offset` holds
+ * historical local-date counts from Firestore and is merged in blindly at read
+ * time, so the two halves of a merged histogram already answer to different
+ * clocks. Filing live rows by local date would need a per-session timezone the
+ * schema does not carry.
+ *
+ * `averages_offset` (pre-migration Firestore history) is NEVER written here —
+ * it is merged in at read time by mergeAverages (routes/destinations.ts) and
+ * topMonths (routes/lists.ts). Any other keys already on `averages` (e.g. a
+ * migrated `lastUpdated`) are preserved; only `months` and `days` are replaced.
+ *
+ * `recency` comes from the data like everything else here: the latest
+ * start_time among the counted reached sessions. It is NOT stamped with now().
+ * A retraction has to be able to move it DOWN — bumping it on the write that
+ * removes an ascent would advertise a destination as freshly visited precisely
+ * when the user said they never visited it.
+ *
+ * When no reached rows remain the existing value is kept, NOT nulled. Unlike
+ * `averages` there is no `recency_offset`: the Firestore migration wrote each
+ * destination's historical recency straight into this column
+ * (migrate/src/migrate-destinations.ts), and nothing can regenerate it. A peak
+ * whose visits all live in `averages_offset` has no live reached rows at all,
+ * so an unconditional write would erase that history irreversibly on the first
+ * recompute that named it.
+ *
+ * Pure builder so the shape is unit-testable without a live DB.
+ */
+export function buildDestinationAveragesRecomputeSql(): { text: string } {
+  return {
+    text: `WITH ids AS (
+      SELECT DISTINCT unnest($1::text[]) AS id
+    ),
+    reached AS (
+      SELECT sd.destination_id AS id, ts.start_time
+      FROM session_destinations sd
+      JOIN tracking_sessions ts ON ts.id = sd.session_id
+      WHERE sd.destination_id IN (SELECT id FROM ids)
+        AND sd.relation = 'reached'
+        AND ts.start_time IS NOT NULL
+    ),
+    months AS (
+      SELECT id, jsonb_object_agg(m, cnt) AS blob FROM (
+        SELECT id,
+               (ARRAY['jan','feb','mar','apr','may','jun',
+                      'jul','aug','sep','oct','nov','dec'])[EXTRACT(MONTH FROM start_time)::int] AS m,
+               COUNT(*)::int AS cnt
+        FROM reached GROUP BY 1, 2
+      ) x GROUP BY id
+    ),
+    days AS (
+      SELECT id, jsonb_object_agg(d, cnt) AS blob FROM (
+        SELECT id,
+               (ARRAY['mo','tu','we','th','fr','sa','su'])[EXTRACT(ISODOW FROM start_time)::int] AS d,
+               COUNT(*)::int AS cnt
+        FROM reached GROUP BY 1, 2
+      ) y GROUP BY id
+    ),
+    totals AS (
+      SELECT id, MAX(start_time) AS last_at FROM reached GROUP BY id
+    )
+    UPDATE destinations dst
+    SET averages = (COALESCE(dst.averages, '{}'::jsonb) - 'months' - 'days')
+                   || jsonb_build_object(
+                        'months', COALESCE(months.blob, '{}'::jsonb),
+                        'days',   COALESCE(days.blob,   '{}'::jsonb)
+                      ),
+        recency = COALESCE(totals.last_at, dst.recency)
+    FROM ids
+    LEFT JOIN months ON months.id = ids.id
+    LEFT JOIN days   ON days.id   = ids.id
+    LEFT JOIN totals ON totals.id = ids.id
+    WHERE dst.id = ids.id`,
+  };
+}
+
+/**
+ * Serializes concurrent recomputes of the same destination. Taken immediately
+ * before the recompute UPDATE, in the same transaction.
+ *
+ * Without it the recompute has a lost-update race that the old blind increment
+ * did not. Under READ COMMITTED two processes A and B can both be recomputing
+ * destination D: A inserts its session_destinations row and commits; B, whose
+ * snapshot predates that commit, has already counted the reached rows in its
+ * CTE. When B's UPDATE reaches D's row it blocks on A's lock, and on release
+ * EvalPlanQual re-fetches and re-evaluates against the NEW version of the
+ * TARGET tuple — but the count B is about to write came from the CTE, which is
+ * still evaluated against B's original snapshot. B writes a total that never
+ * saw A's row, and the count is silently one low until something recomputes D
+ * again. The old `+= 1` was immune because each writer only ever read and wrote
+ * the one row it was locking.
+ *
+ * Locking the destination rows FIRST makes B block before it builds its CTE, so
+ * B's snapshot is taken after A commits and its count includes A's row.
+ * FOR NO KEY UPDATE rather than FOR UPDATE: it does not block the foreign keys
+ * that reference destinations(id), which session_destinations inserts need.
+ * ORDER BY id so concurrent multi-destination recomputes take their locks in
+ * the same sequence and cannot deadlock.
+ */
+export const DESTINATION_AVERAGES_LOCK_SQL =
+  `SELECT id FROM destinations WHERE id = ANY($1::text[]) ORDER BY id FOR NO KEY UPDATE`;
+
+/**
+ * Recompute `destinations.averages` for the given destination ids. Idempotent;
+ * a no-op on an empty list. Call it for every destination whose
+ * session_destinations rows changed — including ones whose rows were DELETED,
+ * which processSession can no longer see (see routes/sessions.ts
+ * applyDestinationRejections and reachedDestinationIds).
+ *
+ * Must run inside the caller's transaction: the lock it takes is only held to
+ * the end of that transaction, and it has to still be held when the UPDATE
+ * commits. Every current caller is mid-transaction.
+ */
+export async function recomputeDestinationAverages(
+  client: PoolClient,
+  destinationIds: string[]
+): Promise<void> {
+  if (destinationIds.length === 0) return;
+  await client.query(DESTINATION_AVERAGES_LOCK_SQL, [destinationIds]);
+  const sql = buildDestinationAveragesRecomputeSql();
+  await client.query(sql.text, [destinationIds]);
+}
+
+/**
+ * Step 5 of processSession: refresh the popularity buckets of every destination
+ * this session currently counts as reached.
  */
 async function updateDestinationAverages(
   client: PoolClient,
   sessionId: string
 ): Promise<void> {
-  // Get session start time
-  const sessionResult = await client.query(
-    `SELECT start_time FROM tracking_sessions WHERE id = $1`,
-    [sessionId]
-  );
-  if (sessionResult.rows.length === 0) return;
-
-  const startTime = new Date(sessionResult.rows[0].start_time);
-  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  const days = ["su", "mo", "tu", "we", "th", "fr", "sa"];
-  const month = months[startTime.getMonth()];
-  const day = days[startTime.getDay()];
-
-  // Get all reached destinations for this session
   const destResult = await client.query(
     `SELECT destination_id FROM session_destinations
      WHERE session_id = $1 AND relation = 'reached'`,
     [sessionId]
   );
-  if (destResult.rows.length === 0) return;
-
-  const destIds = destResult.rows.map((r: { destination_id: string }) => r.destination_id);
-
-  // Atomically increment month and day counters in the JSONB averages column.
-  // Initializes the averages object if null, and initializes individual counters if missing.
-  await client.query(
-    `UPDATE destinations SET averages = jsonb_set(
-        jsonb_set(
-          COALESCE(averages, '{"months":{},"days":{}}'),
-          ARRAY['months', $2],
-          to_jsonb(COALESCE((averages->'months'->>$2)::int, 0) + 1)
-        ),
-        ARRAY['days', $3],
-        to_jsonb(COALESCE((averages->'days'->>$3)::int, 0) + 1)
-      ),
-      recency = NOW()
-     WHERE id = ANY($1)`,
-    [destIds, month, day]
+  await recomputeDestinationAverages(
+    client,
+    destResult.rows.map((r: { destination_id: string }) => r.destination_id)
   );
 }
 

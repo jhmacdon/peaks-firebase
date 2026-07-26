@@ -11,7 +11,12 @@ import {
   shapeComparisonList,
 } from "../comparisons";
 import { COMPARISON_LIST_CAP, FULL_ROUTE_FRAC } from "../comparison-params";
-import { generateId, processSession, STALE_PROCESSING_MINUTES } from "../processing";
+import {
+  generateId,
+  processSession,
+  recomputeDestinationAverages,
+  STALE_PROCESSING_MINUTES,
+} from "../processing";
 import { mergeHealthData, mergeSourceContributions } from "../session-enrichment";
 import { notifySessionProcessed } from "../slack";
 import { streamQueryAsJsonArray } from "../lib/stream-json";
@@ -249,32 +254,198 @@ async function touchSession(client: PoolClient, sessionId: string): Promise<void
  * stale/empty local list would `DELETE` the whole set and permanently wipe an
  * auto-detected summit (the "imported climb shows no peak" bug). Reinserts use
  * `ON CONFLICT DO NOTHING` so a dest already present as 'auto' stays 'auto'.
+ *
+ * CRITICAL, second half: the delete is scoped PER RELATION, and only fires for a
+ * list the caller actually supplied. `reached` supplied replaces the manual
+ * reached set and leaves goals alone; `goals` supplied replaces the manual goal
+ * set and leaves reaches alone; an absent list touches nothing. A blanket
+ * `DELETE ... source = 'manual'` meant a body that mentioned neither — say a
+ * `{rejected: [...]}` post to the destinations endpoint — silently wiped every
+ * manual row on the session.
+ *
+ * CRITICAL, third half: a `reached` id the user has REJECTED is skipped, and no
+ * path here ever clears a veto. The same iOS habit that caused the first bug —
+ * resending the local `destinations_reached` on every create/update — means that
+ * list goes stale the moment a rejection happens on another device, or on this
+ * one before the next sync. Honouring it would put the summit straight back on
+ * the next routine PUT and the rejection would look like it never took. This is
+ * the fifth writer of 'reached' rows and it anti-joins like the other four.
+ * Un-rejecting is an explicit `unreject` list on the destinations endpoint, never
+ * an inference from `reached` — see applyDestinationRejections.
+ *
+ * Goals are not filtered. A rejection says "I did not reach this", which does not
+ * contradict "this was my goal" — the attempt still happened, and no matcher
+ * reads goal rows.
  */
-async function reconcileClientDestinations(
+export async function reconcileClientDestinations(
   client: PoolClient,
   sessionId: string,
   reached: string[] | undefined,
   goals: string[] | undefined
 ): Promise<void> {
-  await client.query(
-    `DELETE FROM session_destinations
-     WHERE session_id = $1 AND source = 'manual'`,
+  if (Array.isArray(reached)) {
+    await client.query(
+      `DELETE FROM session_destinations
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'reached'`,
+      [sessionId]
+    );
+    for (const destId of cleanDestinationIds(reached)) {
+      await client.query(
+        `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+         SELECT $1, $2, 'reached', 'manual'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM session_destination_rejections r
+           WHERE r.session_id = $1 AND r.destination_id = $2
+         )
+         ON CONFLICT DO NOTHING`,
+        [sessionId, destId]
+      );
+    }
+  }
+
+  if (Array.isArray(goals)) {
+    await client.query(
+      `DELETE FROM session_destinations
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'`,
+      [sessionId]
+    );
+    for (const destId of cleanDestinationIds(goals)) {
+      await client.query(
+        `INSERT INTO session_destinations (session_id, destination_id, relation, source)
+         VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
+        [sessionId, destId]
+      );
+    }
+  }
+}
+
+/**
+ * Destination ids the session currently counts as reached.
+ *
+ * Snapshot this BEFORE any write that can remove a reached row, and feed it to
+ * recomputeDestinationAverages afterwards. A removed row has to stop being
+ * counted, and the request that removes it usually does not name it:
+ * reconcileClientDestinations replaces the session's whole manual set, so
+ * dropping an id from `destinations_reached` deletes its row silently, and
+ * DELETE /:id cascades every row away at once. Once the row is gone nothing can
+ * work out which destination to recompute, so the read has to happen first.
+ */
+async function reachedDestinationIds(
+  client: PoolClient,
+  sessionId: string
+): Promise<string[]> {
+  const res = await client.query(
+    `SELECT destination_id FROM session_destinations
+     WHERE session_id = $1 AND relation = 'reached'`,
     [sessionId]
   );
-  for (const destId of reached || []) {
-    await client.query(
-      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
-       VALUES ($1, $2, 'reached', 'manual') ON CONFLICT DO NOTHING`,
-      [sessionId, destId]
+  return res.rows.map((r: { destination_id: string }) => r.destination_id);
+}
+
+/** Non-empty strings only — the client sends whatever its local list holds. */
+function cleanDestinationIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids.filter((d): d is string => typeof d === "string" && d.length > 0);
+}
+
+/**
+ * Destination ids two of a request's lists both name.
+ *
+ * "I reached it" and "I didn't reach it" in the same breath is a client bug, so
+ * the handler answers 400 instead of picking a winner: any precedence rule here
+ * would silently discard half of what the client asked for, and the client would
+ * never learn its state is confused. Used for both contradictions the
+ * destinations endpoint can receive — `reached` against `rejected`, and
+ * `unreject` against `rejected`.
+ */
+export function overlappingDestinationIds(a: unknown, b: unknown): string[] {
+  const bSet = new Set(cleanDestinationIds(b));
+  return [...new Set(cleanDestinationIds(a).filter((d) => bSet.has(d)))];
+}
+
+/**
+ * Apply the client's destination rejections ("I didn't actually summit this")
+ * and un-rejections.
+ *
+ * A rejection has two halves that must move together:
+ *  - a row in session_destination_rejections, which every auto-matcher
+ *    anti-joins, so re-processing, a newly created destination, a boundary edit
+ *    and the web backfill can never re-add the pair; and
+ *  - deletion of the live 'reached' row WHATEVER its source — an auto row would
+ *    otherwise sit there until the next re-process, and a manual row the user is
+ *    retracting has to go too. A 'goal' row for the same destination is left
+ *    standing; see the comment on that DELETE.
+ *
+ * Un-rejecting is driven by an EXPLICIT list and nothing else. Inferring it from
+ * `reached` was a trap in both directions: a client replaying a stale reached
+ * list would have silently dropped a veto, and a caller of this function (B4's
+ * averages recompute among them) could clear vetoes it never meant to touch by
+ * passing the session's current reaches. Un-rejecting an id that carries no veto
+ * is a no-op. Callers must refuse a request naming the same id in `rejected` and
+ * in either other list (see overlappingDestinationIds), so the two legs below can
+ * never contend for the same pair.
+ *
+ * Rejections for unknown destination ids are dropped rather than raising an FK
+ * violation, mirroring the plan_routes existence guard in routes/plans.ts.
+ *
+ * Returns the ids actually rejected and actually un-rejected — "actually" because
+ * both come from RETURNING, so the caller can recompute exactly the destinations
+ * whose averages moved (processSession's own recompute never sees the rejected
+ * ones — their rows are already gone from session_destinations by then) and can
+ * skip the sync bump when a request changed nothing.
+ */
+export async function applyDestinationRejections(
+  client: PoolClient,
+  sessionId: string,
+  unreject: string[] | undefined,
+  rejected: string[] | undefined
+): Promise<{ rejected: string[]; unrejected: string[] }> {
+  const toUnreject = cleanDestinationIds(unreject);
+  let unrejected: string[] = [];
+  if (toUnreject.length > 0) {
+    const cleared = await client.query(
+      `DELETE FROM session_destination_rejections
+       WHERE session_id = $1 AND destination_id = ANY($2::text[])
+       RETURNING destination_id`,
+      [sessionId, toUnreject]
     );
+    unrejected = cleared.rows.map((r: { destination_id: string }) => r.destination_id);
   }
-  for (const destId of goals || []) {
-    await client.query(
-      `INSERT INTO session_destinations (session_id, destination_id, relation, source)
-       VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
-      [sessionId, destId]
-    );
+
+  const toReject = cleanDestinationIds(rejected);
+  if (toReject.length === 0) {
+    return { rejected: [], unrejected };
   }
+
+  const inserted = await client.query(
+    `INSERT INTO session_destination_rejections (session_id, destination_id, rejected_at)
+     SELECT $1, ids.d, now()
+     FROM unnest($2::text[]) AS ids(d)
+     WHERE EXISTS (SELECT 1 FROM destinations WHERE id = ids.d)
+     ON CONFLICT (session_id, destination_id)
+     DO UPDATE SET rejected_at = EXCLUDED.rejected_at
+     RETURNING destination_id`,
+    [sessionId, toReject]
+  );
+
+  // relation = 'reached' only. A rejection asserts "I did not reach this
+  // destination" — it says nothing about whether the user meant to. Deleting a
+  // 'goal' row here would throw away the intent along with the false credit, and
+  // "aimed for it, didn't summit it" is an ordinary outcome worth keeping. The
+  // two rows coexist by design: the goal records the plan, the veto stops every
+  // matcher handing back a reach. B4's recompute counts reached rows only, so
+  // leaving the goal alone keeps rejections from perturbing goal-derived reads.
+  await client.query(
+    `DELETE FROM session_destinations
+     WHERE session_id = $1 AND destination_id = ANY($2::text[])
+       AND relation = 'reached'`,
+    [sessionId, toReject]
+  );
+
+  return {
+    rejected: inserted.rows.map((r: { destination_id: string }) => r.destination_id),
+    unrejected,
+  };
 }
 
 function buildPointInsertQuery(sessionId: string, points: any[]) {
@@ -1283,8 +1454,20 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
     );
 
     // Set destinations (client-owned 'manual' rows only; auto detections preserved)
+    //
+    // The recompute matters here for the same reason it does on the destinations
+    // endpoint: reconcile replaces the manual reached set, so an id the client
+    // has dropped loses its row and must lose its count with it. Re-processing
+    // would fix the ids that survive, but it only fires on the not-ended →
+    // ended transition, so an edit to an already-completed session recomputes
+    // nothing at all.
     if (destinations_reached || destination_goals) {
+      const priorReached = await reachedDestinationIds(client, id);
       await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
+      await recomputeDestinationAverages(
+        client,
+        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+      );
     }
 
     // Set routes
@@ -1398,8 +1581,18 @@ router.put("/:id", async (req, res: Response) => {
     );
 
     // Update destinations if provided (client-owned 'manual' rows only; auto preserved)
+    //
+    // This is the client's ordinary manual edit — "I did reach that summit
+    // after all", or the reverse — and it is the path most likely to run
+    // against a session that has already been processed, where nothing else
+    // will ever recompute. See the same block in the POST upsert above.
     if (destinations_reached || destination_goals) {
+      const priorReached = await reachedDestinationIds(client, id);
       await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
+      await recomputeDestinationAverages(
+        client,
+        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+      );
     }
 
     // Update routes if provided
@@ -1447,6 +1640,13 @@ router.delete("/:id", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
+    // The session's ascents, read before they cascade away. Deleting a session
+    // deletes its session_destinations rows, which is the last way a reached row
+    // can disappear without the popularity buckets hearing about it — and the
+    // most complete one. After the DELETE there is nothing left to tell us which
+    // destinations to recompute.
+    const priorReached = await reachedDestinationIds(client, id);
+
     const result = await client.query(
       `DELETE FROM tracking_sessions
        WHERE id = $1 AND user_id = $2
@@ -1458,6 +1658,8 @@ router.delete("/:id", async (req, res: Response) => {
       res.status(404).json({ error: "Session not found" });
       return;
     }
+
+    await recomputeDestinationAverages(client, priorReached);
 
     const tombstone = await client.query(
       `INSERT INTO session_tombstones (session_id, user_id, deleted_at, server_updated_at)
@@ -1557,11 +1759,209 @@ router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>,
   }
 });
 
-// POST /api/sessions/:id/destinations — set reached/goal destinations
+// PUT /api/sessions/:id/points — REPLACE the session's entire point set.
+//
+// POST /:id/points is insert-only (ON CONFLICT DO NOTHING) so a client edit
+// that deletes or modifies points can never propagate: the next GET resurrects
+// the old track. Session auto-fix (DEM elevation reseed, gap fill, vehicle-tail
+// trim) rewrites points in place, so it needs replace semantics.
+//
+// Transactional: delete-all + chunked re-insert + path rebuild commit together,
+// so a mid-write failure can never leave a half-replaced track. Mirrors the
+// PUT /api/plans/:id geometry flow — new geometry, then processing_state
+// 'pending', then processing kicked after COMMIT.
+router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const { points } = req.body;
+
+  if (!Array.isArray(points) || points.length === 0) {
+    res.status(400).json({ error: "points array is required" });
+    return;
+  }
+
+  // Validate the WHOLE body before BEGIN/DELETE. On a replace the old rows are
+  // already gone by the time an insert silently drops a row, so a partially
+  // accepted body would commit a track the client never sent and still answer
+  // 200. Two ways a row can vanish: buildPointInsertQuery skips a point with a
+  // null lat/lng/time, and ON CONFLICT (session_id, time) DO NOTHING drops a
+  // time repeated inside the body. Both are caller errors — reject up front so
+  // `replaced` always equals points.length on a 200.
+  let invalidPoints = 0;
+  let duplicateTimes = 0;
+  const seenTimes = new Set<unknown>();
+
+  for (const point of points) {
+    if (point == null || point.lat == null || point.lng == null || point.time == null) {
+      invalidPoints++;
+      continue;
+    }
+    if (seenTimes.has(point.time)) {
+      duplicateTimes++;
+      continue;
+    }
+    seenTimes.add(point.time);
+  }
+
+  if (invalidPoints > 0 || duplicateTimes > 0) {
+    res.status(400).json({
+      error: "invalid_points",
+      invalid: invalidPoints,
+      duplicates: duplicateTimes,
+    });
+    return;
+  }
+
+  // ST_MakeLine needs two points to make a line; one point yields a NULL path
+  // and a session whose track silently disappears. A one-point "track" is not a
+  // recording anyway.
+  if (points.length < 2) {
+    res.status(400).json({ error: "too_few_points", points: points.length });
+    return;
+  }
+
+  // Verify ownership, and read the processing claim in the same round trip.
+  // processing_state IS selected here (unlike the POST handler, which reads
+  // session.rows[0].processing_state without selecting it and therefore always
+  // reports undefined on that branch). Freshness of the claim is evaluated by
+  // the database, not by this process, so it cannot drift on clock skew — the
+  // condition is markSessionPendingIfReady's, inverted.
+  const session = await db.query(
+    `SELECT id,
+            processing_state,
+            (processing_state = 'processing'
+             AND processing_started_at IS NOT NULL
+             AND processing_started_at >= now() - make_interval(mins => ${STALE_PROCESSING_MINUTES}))
+              AS processing_in_flight
+     FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
+    [id, uid]
+  );
+  if (session.rows.length === 0) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  // A live processSession run is reading the point set this request wants to
+  // delete. Replacing underneath it would commit a track that the in-flight run
+  // then matches destinations against half-stale, and markSessionPendingIfReady
+  // would refuse to re-queue, so the rewrite would never be re-processed. Bail
+  // before touching any row; iOS treats a non-2xx as retry-later.
+  if (session.rows[0].processing_in_flight) {
+    res.status(409).json({ error: "processing_in_flight" });
+    return;
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    await client.query(`DELETE FROM tracking_points WHERE session_id = $1`, [id]);
+
+    const chunkSize = 250;
+    let replaced = 0;
+
+    for (let i = 0; i < points.length; i += chunkSize) {
+      const chunk = points.slice(i, i + chunkSize);
+      const { placeholders, values } = buildPointInsertQuery(id, chunk);
+
+      if (placeholders.length === 0) {
+        continue;
+      }
+
+      const insertResult = await client.query(
+        `INSERT INTO tracking_points
+          (session_id, time, segment_number, location, elevation,
+           speed, azimuth, hdop, speed_accuracy)
+         VALUES ${placeholders.join(", ")}
+         ON CONFLICT (session_id, time) DO NOTHING`,
+        values
+      );
+
+      replaced += insertResult.rowCount ?? 0;
+    }
+
+    // The up-front validation makes this unreachable for any caller error: every
+    // point has lat/lng/time, every time is unique, and the rows were just
+    // deleted, so nothing can be skipped or conflicted away. If the counts still
+    // disagree the schema is not what this handler believes — refuse to commit a
+    // track that differs from the one the client sent.
+    if (replaced !== points.length) {
+      await client.query("ROLLBACK");
+      console.error(
+        `Point replace count mismatch for session ${id}: inserted ${replaced} of ${points.length}`
+      );
+      res.status(500).json({ error: "Failed to replace points" });
+      return;
+    }
+
+    // Re-materialize the track (processSession Step 0) inside the same
+    // transaction, so `path` can never describe the deleted point set. The
+    // stuck-session sweep, the new-destination trigger and the web backfill all
+    // read it. This UPDATE also bumps server_updated_at via
+    // trg_tracking_sessions_updated, which puts the session on the sync feed.
+    await client.query(
+      `UPDATE tracking_sessions s
+       SET path = (
+         SELECT ST_MakeLine(tp.location::geometry ORDER BY tp.time)::geography
+         FROM tracking_points tp
+         WHERE tp.session_id = s.id
+       )
+       WHERE s.id = $1`,
+      [id]
+    );
+
+    const queuedForProcessing = await markSessionPendingIfReady(client, id);
+
+    // Read the state AFTER the queue attempt, not the value SELECTed before the
+    // transaction — that one is stale the moment markSessionPendingIfReady
+    // flips it to 'pending'.
+    const queuedState = await client.query(
+      `SELECT processing_state FROM tracking_sessions WHERE id = $1`,
+      [id]
+    );
+    const processingState: string | null = queuedState.rows[0]?.processing_state ?? null;
+
+    await client.query("COMMIT");
+
+    // Inline await (vs fire-and-forget) so iOS gets the final state in the
+    // response and Cloud Run can't kill the worker mid-process.
+    const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
+    res.json({ replaced, processing_state: finalState ?? processingState });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error replacing points:", err);
+    res.status(500).json({ error: "Failed to replace points" });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/sessions/:id/destinations — set reached/goal destinations, record
+// rejections ("I didn't reach this") and clear them again.
+//
+// Body: { reached?, goals?, rejected?, unreject? }. `reached` and `goals` each
+// replace their own manual set when supplied and are ignored when absent, so a
+// body naming only `rejected` disturbs no manual row. A veto is cleared ONLY by
+// naming the id in `unreject` — never as a side effect of a `reached` list,
+// which iOS resends from possibly stale local state.
 router.post("/:id/destinations", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
-  const { reached, goals } = req.body;
+  const { reached, goals, rejected, unreject } = req.body;
+
+  // Request-shape guards, ahead of any database work: claiming a destination as
+  // both reached and rejected — or un-rejecting and rejecting it at once — is a
+  // client bug, and answering 400 tells the client so instead of half-applying
+  // its request.
+  for (const [name, list] of [["reached", reached], ["unreject", unreject]] as const) {
+    const contradictions = overlappingDestinationIds(list, rejected);
+    if (contradictions.length > 0) {
+      res.status(400).json({
+        error: `${name} and rejected must not name the same destination: ${contradictions.join(", ")}`,
+      });
+      return;
+    }
+  }
 
   // Verify ownership
   const session = await db.query(
@@ -1577,10 +1977,60 @@ router.post("/:id/destinations", async (req, res: Response) => {
   try {
     await client.query("BEGIN");
 
+    // Rejections FIRST. A request can reject a destination and keep it as a goal
+    // in one go, and the goal insert needs the reached row already gone — the
+    // two relations share the (session_id, destination_id) primary key, so a
+    // standing reached row would win the conflict, the goal insert would do
+    // nothing, and the rejection's delete would then leave the pair with no row
+    // at all. The 400 guards above make the reverse contention impossible.
+    // What the session reached BEFORE the write. Every id here can lose its row
+    // in the next two statements — to the rejection, or to reconcile replacing
+    // the manual set — and a lost row has to stop being counted. The request
+    // itself names only some of them: dropping an id from `reached` deletes its
+    // row while mentioning it nowhere.
+    const priorReached = await reachedDestinationIds(client, id);
+
+    const applied = await applyDestinationRejections(client, id, unreject, rejected);
     await reconcileClientDestinations(client, id, reached, goals);
 
+    // Recompute the popularity buckets for every destination this write could
+    // have moved: what the session reached going in, plus what the request asks
+    // to add.
+    //
+    // Rejections are why this call has to be here at all. Their
+    // session_destinations rows are gone by now, so processSession's own Step 5
+    // recompute will never see them again and their buckets would keep counting
+    // an ascent the user retracted.
+    //
+    // The un-rejected ids are included too. Un-rejecting on its own restores no
+    // reached row, so the recompute is a no-op for them today — but they ride
+    // along in the same UPDATE for free, and including them makes the
+    // postcondition unconditional: every destination this request could have
+    // affected ends up with buckets equal to its live reached rows, whichever
+    // way un-reject semantics move later. It also repairs a destination whose
+    // buckets the pre-B4 blind increment had already inflated.
+    //
+    // Goals are deliberately absent: the recompute counts reached rows only, so
+    // reconciling goals cannot move a bucket.
+    const touched = Array.from(
+      new Set([
+        ...priorReached,
+        ...cleanDestinationIds(reached),
+        ...applied.rejected,
+        ...applied.unrejected,
+      ])
+    );
+    await recomputeDestinationAverages(client, touched);
+
+    // Bump the sync feed explicitly. The session_destinations trigger only fires
+    // when a live row happened to exist, but a rejection with nothing to delete
+    // still changes what other devices must see.
+    if (applied.rejected.length > 0 || applied.unrejected.length > 0) {
+      await touchSession(client, id);
+    }
+
     await client.query("COMMIT");
-    res.json({ session_id: id });
+    res.json({ session_id: id, rejected: applied.rejected, unrejected: applied.unrejected });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error setting destinations:", err);

@@ -583,6 +583,23 @@ CREATE TABLE session_destinations (
 );
 
 -- ---------------------------------------------------------------------------
+-- session_destination_rejections
+-- "I didn't actually reach this" — a user's explicit veto of a destination on
+-- one session. Deliberately NOT a session_destinations.source value:
+-- processSession Step 1 deletes every source='auto' row before re-matching, so
+-- a rejection stored there would be erased on the next run. Anti-joined by
+-- buildSessionDestinationMatchSql (api/src/processing.ts),
+-- link_sessions_on_destination_insert (below) and backfillDestinationToSessions
+-- (web/src/lib/destination-backfill.ts).
+-- ---------------------------------------------------------------------------
+CREATE TABLE session_destination_rejections (
+    session_id      TEXT NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+    destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    rejected_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, destination_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- session_areas
 -- Protected areas whose boundary the recorded GPS path passes through.
 -- Built from tracking_sessions.path during processSession. A session can cross
@@ -771,6 +788,7 @@ CREATE INDEX route_areas_area_id_idx        ON route_areas (area_id);
 CREATE INDEX session_areas_area_id_idx      ON session_areas (area_id);
 CREATE INDEX idx_route_destinations_dest    ON route_destinations (destination_id);
 CREATE INDEX idx_session_destinations_dest  ON session_destinations (destination_id);
+CREATE INDEX idx_session_destination_rejections_dest ON session_destination_rejections (destination_id);
 CREATE INDEX idx_session_routes_route       ON session_routes (route_id);
 
 -- =============================================================================
@@ -1031,6 +1049,15 @@ BEGIN
     'reached'::session_destination_relation,
     'auto'
   FROM matches
+  -- The user's "I didn't reach this" veto. Same anti-join as
+  -- buildSessionDestinationMatchSql (api/src/processing.ts) and
+  -- backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+  -- scripts/check-cross-refs.sh fails CI if one of the three drops it.
+  WHERE NOT EXISTS (
+    SELECT 1 FROM session_destination_rejections r
+    WHERE r.session_id = matches.session_id
+      AND r.destination_id = matches.destination_id
+  )
   ON CONFLICT (session_id, destination_id) DO NOTHING;
   RETURN NULL;
 END;

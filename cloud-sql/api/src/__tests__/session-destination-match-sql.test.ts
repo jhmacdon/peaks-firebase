@@ -53,3 +53,14 @@ test("buildSessionDestinationMatchSql has a constant-distance index pre-filter",
   // destination is matched ONLY by its polygon (preserves the old CASE).
   assert.match(text, /d\.boundary IS NULL/);
 });
+
+// A rejected (session, destination) pair must never be re-inserted by
+// re-processing. The rejection lives in its own table because Step 1 of
+// processSession deletes every source='auto' row before re-matching, so a
+// rejection recorded on session_destinations itself would be erased.
+test("buildSessionDestinationMatchSql anti-joins session_destination_rejections", () => {
+  const { text } = buildSessionDestinationMatchSql("sess1");
+  assert.match(text, /NOT EXISTS/);
+  assert.match(text, /session_destination_rejections/);
+  assert.match(text, /r\.session_id = s\.id AND r\.destination_id = d\.id/);
+});
