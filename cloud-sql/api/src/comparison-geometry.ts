@@ -430,16 +430,19 @@ export interface LegSplits {
 export interface LegParams {
   SUMMIT_DWELL_RADIUS_M: number;
   APEX_INTERIOR_FRAC: number;
+  CAMP_MIN_GAP_S: number;
+  CAMP_MAX_DRIFT_M: number;
 }
 
 /**
  * Split a side's comparison window at a summit destination:
  * ascent = window enter → first sample within SUMMIT_DWELL_RADIUS_M of the
  * summit; dwell = arrival → last such sample; descent = departure → window
- * exit. Null when the track never reaches the summit inside the window, or
- * when the arrival lies in the first/last APEX_INTERIOR_FRAC of the window's
- * elapsed span (a route that merely starts or ends at the summit has no
- * meaningful legs).
+ * exit. Each phase includes normal breaks but excludes overnight camp gaps.
+ * Total effort elapsed time remains wall clock. Null when the track never
+ * reaches the summit inside the window, or when the arrival lies in the
+ * first/last APEX_INTERIOR_FRAC of the camp-adjusted span (a route that merely
+ * starts or ends at the summit has no meaningful legs).
  */
 export function computeLegSplits(
   samples: SamplePoint[],
@@ -457,15 +460,43 @@ export function computeLegSplits(
     }
   }
   if (arrivalMs === null || departureMs === null) return null;
-  const span = window.exitMs - window.enterMs;
-  if (span <= 0) return null;
-  const frac = (arrivalMs - window.enterMs) / span;
+  const spanS = phaseSecondsExcludingCamps(samples, window.enterMs, window.exitMs, params);
+  if (spanS <= 0) return null;
+  const ascentS = phaseSecondsExcludingCamps(samples, window.enterMs, arrivalMs, params);
+  const frac = ascentS / spanS;
   if (frac < params.APEX_INTERIOR_FRAC || frac > 1 - params.APEX_INTERIOR_FRAC) return null;
   return {
     arrivalMs,
     departureMs,
-    ascentS: Math.round((arrivalMs - window.enterMs) / 1000),
-    dwellS: Math.round((departureMs - arrivalMs) / 1000),
-    descentS: Math.round((window.exitMs - departureMs) / 1000),
+    ascentS,
+    dwellS: phaseSecondsExcludingCamps(samples, arrivalMs, departureMs, params),
+    descentS: phaseSecondsExcludingCamps(samples, departureMs, window.exitMs, params),
   };
+}
+
+/** A phase's wall-clock span minus long, quiet gaps that represent a camp. */
+function phaseSecondsExcludingCamps(
+  samples: SamplePoint[],
+  startMs: number,
+  endMs: number,
+  params: LegParams
+): number {
+  if (endMs <= startMs) return 0;
+
+  let campS = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const previous = samples[i - 1];
+    const current = samples[i];
+    if (previous.timeMs < startMs || current.timeMs > endMs) continue;
+
+    const gapS = (current.timeMs - previous.timeMs) / 1000;
+    if (
+      gapS >= params.CAMP_MIN_GAP_S &&
+      haversineM(previous.lat, previous.lng, current.lat, current.lng) <= params.CAMP_MAX_DRIFT_M
+    ) {
+      campS += gapS;
+    }
+  }
+
+  return Math.max(0, Math.round((endMs - startMs) / 1000 - campS));
 }

@@ -1,7 +1,7 @@
 /**
  * Recompute ONLY the leg-split columns of session_comparisons for pairs below
  * the current LEGS_VERSION — the cheap tier of the two-version recompute
- * design. Use after tuning SUMMIT_DWELL_RADIUS_M or APEX_INTERIOR_FRAC in
+ * design. Use after tuning summit or camp phase rules in
  * comparison-params.ts (bump LEGS_VERSION there first). Does NOT touch the
  * matcher geometry (m-ranges/windows) — bump MATCHER_VERSION and run
  * backfill-comparisons.ts for that.

@@ -20,8 +20,10 @@
  *  and complete same-summit routes can match across divergent ascent/descent
  *  lines when they share a trailhead area. */
 export const MATCHER_VERSION = 5;
-/** Params below marked [legs] — bump when any of them change. */
-export const LEGS_VERSION = 1;
+/** Params below marked [legs] — bump when any of them change.
+ *  v2: ascent, summit dwell, and descent exclude overnight camp gaps while
+ *  total effort elapsed time remains wall clock. */
+export const LEGS_VERSION = 2;
 
 /** [matcher] Planar candidate prefilter (degrees), same rationale as buildRouteCandidateSql. */
 export const CANDIDATE_PLANAR_DEGREES = 0.005;
@@ -64,6 +66,10 @@ export const SUMMIT_DWELL_RADIUS_M = 60;
 /** [legs] Summit arrival must fall inside the window's interior by this
  *  ELAPSED-TIME fraction of the window span. */
 export const APEX_INTERIOR_FRAC = 0.1;
+/** [legs] A quiet gap this long is an overnight camp, not active leg time. */
+export const CAMP_MIN_GAP_S = 4 * 3600;
+/** [legs] Maximum drift across an overnight camp gap. Mirrors the iOS rule. */
+export const CAMP_MAX_DRIFT_M = 500;
 
 /** Read-side cap on comparisons returned by the list endpoint (PB always
  *  force-included). Not matcher/legs-versioned — changing it needs no

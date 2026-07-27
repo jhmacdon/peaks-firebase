@@ -277,6 +277,55 @@ test("computeLegSplits splits an out-and-back at the summit with dwell", () => {
   assert.ok(Math.abs(legs!.descentS - 2400) < 300, `descent=${legs!.descentS}`);
 });
 
+test("computeLegSplits does not charge an overnight camp to descent", () => {
+  const DEG_50M = 50 / 111320;
+  const out = straightTrack({ n: 80, spacingDeg: DEG_50M });
+  const back = straightTrack({ n: 80, startMs: out[79].time + 30_000, spacingDeg: DEG_50M })
+    .map((r, i) => ({
+      ...r,
+      time: r.time + (i >= 40 ? 8 * 3_600_000 : 0),
+      lng: out[79 - i].lng,
+    }));
+  const samples = sampleTrack([...out, ...back], P.SAMPLE_SPACING_M);
+  const window = {
+    enterMs: samples[0].timeMs,
+    exitMs: samples[samples.length - 1].timeMs,
+    startM: 0,
+    endM: samples[samples.length - 1].cumM,
+    outAndBack: true,
+  };
+
+  const legs = computeLegSplits(samples, window, { lat: 0, lng: 79 * DEG_50M }, P);
+  assert.ok(legs, "expected splittable");
+  assert.ok(Math.abs(legs!.ascentS - 2400) < 300, `ascent=${legs!.ascentS}`);
+  assert.ok(Math.abs(legs!.descentS - 2400) < 300, `descent=${legs!.descentS}`);
+  const elapsedS = (window.exitMs - window.enterMs) / 1000;
+  assert.ok(elapsedS - legs!.ascentS - legs!.dwellS - legs!.descentS >= 8 * 3_600);
+});
+
+test("computeLegSplits rejects a long moving dropout instead of hiding it as camp", () => {
+  const DEG_50M = 50 / 111320;
+  const out = straightTrack({ n: 80, spacingDeg: DEG_50M });
+  const back = straightTrack({ n: 80, startMs: out[79].time + 30_000, spacingDeg: DEG_50M })
+    .map((r, i) => ({
+      ...r,
+      time: r.time + (i >= 40 ? 8 * 3_600_000 : 0),
+      lat: i === 40 ? 0.01 : r.lat,
+      lng: out[79 - i].lng,
+    }));
+  const samples = sampleTrack([...out, ...back], P.SAMPLE_SPACING_M);
+  const window = {
+    enterMs: samples[0].timeMs,
+    exitMs: samples[samples.length - 1].timeMs,
+    startM: 0,
+    endM: samples[samples.length - 1].cumM,
+    outAndBack: true,
+  };
+
+  const legs = computeLegSplits(samples, window, { lat: 0, lng: 79 * DEG_50M }, P);
+  assert.equal(legs, null);
+});
+
 test("computeLegSplits returns null when summit is outside the window interior", () => {
   const samples = sampleTrack(straightTrack({ n: 80 }), P.SAMPLE_SPACING_M);
   const window = {
