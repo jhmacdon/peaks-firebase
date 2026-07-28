@@ -1,6 +1,6 @@
--- Store the protected areas crossed by each recorded session path.
+-- Store the protected areas crossed by each recorded session track.
 --
--- processSession fills this table after it materializes tracking_sessions.path.
+-- processSession fills this table from each saved tracking-point segment.
 -- The API backfill script fills it for older sessions after this migration runs.
 
 BEGIN;

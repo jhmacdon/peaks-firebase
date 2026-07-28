@@ -35,7 +35,8 @@ export default function ElevationProfile({ points, highlightIndex, onHover }: El
     const plotH = height - padding.top - padding.bottom;
 
     // Data range
-    const maxDist = points[points.length - 1].dist;
+    const measuredDistance = points[points.length - 1].dist;
+    const maxDist = measuredDistance > 0 ? measuredDistance : 1;
     let minEle = Infinity, maxEle = -Infinity;
     for (const p of points) {
       if (p.ele < minEle) minEle = p.ele;

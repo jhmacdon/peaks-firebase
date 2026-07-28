@@ -13,6 +13,7 @@ import {
   parseRouteProvenance,
   type RouteProvenance,
 } from "../route-provenance";
+import { verifyToken } from "../auth-actions";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -58,6 +59,10 @@ export interface DestinationDetail {
   hero_image: string | null;
   hero_image_attribution: string | null;
   hero_image_attribution_url: string | null;
+  description: string | null;
+  description_source_name: string | null;
+  description_source_url: string | null;
+  description_source_license: string | null;
   averages: any | null;
   averages_offset: any | null;
   explicitly_saved: boolean;
@@ -82,6 +87,14 @@ export interface DestinationList {
   name: string | null;
   description: string | null;
   destination_count: number;
+}
+
+export interface DestinationUserActivity {
+  visit_count: number;
+  latest_visit: string | null;
+  total_distance: number;
+  total_gain: number;
+  total_time: number;
 }
 
 export type SortField = "name" | "elevation" | "prominence" | "route_count" | "list_count";
@@ -181,9 +194,12 @@ export async function getDestination(
             d.country_code, d.state_code,
             ST_Y(d.location::geometry) as lat,
             ST_X(d.location::geometry) as lng,
-            CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+            CASE WHEN COALESCE(d.massif_boundary, d.boundary) IS NOT NULL
+                 THEN ST_AsGeoJSON(COALESCE(d.massif_boundary, d.boundary))::json
+                 END AS boundary,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
+            d.description, d.description_source_name,
+            d.description_source_url, d.description_source_license,
             d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
             d.amenities,
             d.created_at, d.updated_at,
@@ -282,6 +298,44 @@ export async function getDestinationSessionCount(
     [destinationId]
   );
   return Number(result.rows[0].count);
+}
+
+export async function getUserDestinationActivity(
+  token: string,
+  destinationId: string
+): Promise<DestinationUserActivity> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
+  const result = await db.query(
+    `WITH matching_sessions AS (
+       SELECT DISTINCT ts.id, ts.start_time, ts.distance, ts.gain, ts.total_time
+       FROM tracking_sessions ts
+       JOIN session_destinations sd ON sd.session_id = ts.id
+       WHERE ts.user_id = $1
+         AND sd.destination_id = $2
+         AND sd.relation = 'reached'
+     )
+     SELECT COUNT(*)::int AS visit_count,
+            MAX(start_time) AS latest_visit,
+            COALESCE(SUM(distance), 0) AS total_distance,
+            COALESCE(SUM(gain), 0) AS total_gain,
+            COALESCE(SUM(total_time), 0) AS total_time
+     FROM matching_sessions`,
+    [user.uid, destinationId]
+  );
+
+  const row = result.rows[0];
+  return {
+    visit_count: Number(row?.visit_count ?? 0),
+    latest_visit:
+      row?.latest_visit instanceof Date
+        ? row.latest_visit.toISOString()
+        : row?.latest_visit ?? null,
+    total_distance: Number(row?.total_distance ?? 0),
+    total_gain: Number(row?.total_gain ?? 0),
+    total_time: Number(row?.total_time ?? 0),
+  };
 }
 
 export async function updateDestination(

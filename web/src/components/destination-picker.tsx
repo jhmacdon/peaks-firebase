@@ -9,11 +9,16 @@ import {
 interface DestinationPickerProps {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  selectedDestinations?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export default function DestinationPicker({
   selectedIds,
   onChange,
+  selectedDestinations,
 }: DestinationPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchDestination[]>([]);
@@ -22,6 +27,24 @@ export default function DestinationPicker({
     Map<string, string>
   >(new Map());
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSelectedNames((previous) => {
+      const next = new Map(previous);
+
+      for (const destination of selectedDestinations ?? []) {
+        next.set(destination.id, destination.name);
+      }
+
+      for (const id of next.keys()) {
+        if (!selectedIds.includes(id)) {
+          next.delete(id);
+        }
+      }
+
+      return next;
+    });
+  }, [selectedDestinations, selectedIds]);
 
   // Debounced search
   const doSearch = useCallback(async (q: string) => {

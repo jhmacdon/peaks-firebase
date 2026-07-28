@@ -53,6 +53,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 - **Route distance is one-way**: for out_and_back, total hiking distance = `distance * 2`
 - **Segment direction**: `route_segments.direction` is `forward` or `reverse` (CHECK constraint, not enum)
 - **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geometry(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
+- **Session areas come from track segments**: `session_areas` stores protected areas crossed by each saved tracking-point segment. `area_boundary_parts` keeps exact, indexed polygon subdivisions so matching stays within the session-processing budget. A changed PAD-US import refreshes existing PostGIS session links in small batches.
 - **Text IDs**: all PKs are `TEXT` (20-char alphanumeric, matching Firebase document ID style)
 - **`search_name`**: lowercased/normalized copy of `name` for trigram search (indexed with `gin_trgm_ops`)
 - **`updated_at` triggers**: automatic on destinations, areas, lists, routes, tracking_sessions
@@ -183,6 +184,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/search/features?features=&activities=&lat=&lng=&radius=` | Filter by features/activities |
 | GET | `/api/routes/...` | Route queries |
 | GET | `/api/sessions/...` | Session queries |
+| GET | `/api/sessions/:id/areas` | Protected areas crossed by saved session track segments |
 | GET | `/api/sessions/changes?updated_since=&after_id=&limit=` | Incremental session sync feed with tombstones |
 | GET | `/api/sessions/:id/comparisons` | "Your Efforts": prior overlapping sessions + shared-segment stats (owner-only) |
 | GET | `/api/sessions/:id/comparisons/:otherId` | Effort curves for the race chart (owner-only) |
@@ -348,7 +350,7 @@ cd migrate
 npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --dry-run
 ```
 
-Before applying and linking, point the Cloud SQL Auth Proxy and DB env vars from the Migration section at the target DB, and confirm `cloud-sql/migrations/20260611_protected_areas.sql` has already been applied. The dry run only parses and normalizes input; it does not verify DB schema or helper-function readiness.
+Before applying and linking, point the Cloud SQL Auth Proxy and DB env vars from the Migration section at the target DB, and apply protected-area migrations through `cloud-sql/migrations/20260728_session_area_sync.sql`. Apply mode checks the required session-area tables, boundary helper, and sync triggers before it starts a transaction. The dry run only parses and normalizes input; it does not verify DB readiness.
 
 ```bash
 npm run import:padus-areas -- --input=/path/padus-federal-areas.ndjson --apply --link-destinations

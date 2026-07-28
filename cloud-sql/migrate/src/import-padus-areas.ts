@@ -52,6 +52,28 @@ export const MAX_BUFFERED_GEOJSON_BYTES = 50 * 1024 * 1024;
 const INSERT_PART_PARAM_COUNT = 15;
 const INSERT_GROUP_PARAM_COUNT = 13;
 const LINK_DESTINATION_BATCH_SIZE = 100;
+const SESSION_AREA_REFRESH_BATCH_SIZE = 10;
+export const PADUS_SCHEMA_PREFLIGHT_SQL = `SELECT
+  to_regclass('public.session_areas') IS NOT NULL AS session_areas_ready,
+  to_regclass('public.area_boundary_parts') IS NOT NULL AS boundary_parts_ready,
+  to_regprocedure('public.refresh_area_boundary_parts()') IS NOT NULL
+    AS boundary_refresh_function_ready,
+  EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'trg_areas_refresh_boundary_parts'
+      AND tgrelid = to_regclass('public.areas')
+      AND NOT tgisinternal
+      AND tgenabled <> 'D'
+  ) AS boundary_refresh_trigger_ready,
+  EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'trg_session_areas_touch_session'
+      AND tgrelid = to_regclass('public.session_areas')
+      AND NOT tgisinternal
+      AND tgenabled <> 'D'
+  ) AS session_touch_trigger_ready`;
 // Link a summit to an area when contained OR within this many meters of the
 // boundary — crest-line peaks (e.g. Mount Whitney) sit ~0.5 m outside the line.
 // Must match link_summit_destinations_to_areas() and the area-linking triggers
@@ -113,6 +135,30 @@ function validateArgs(args: Args): void {
   }
   if (args.replaceLinks && !args.linkDestinations && !args.linkRoutes) {
     throw new Error("--replace-links requires --link-destinations or --link-routes");
+  }
+}
+
+async function assertPadusApplySchema(client: QueryExecutor): Promise<void> {
+  const result = await client.query<{
+    session_areas_ready: boolean;
+    boundary_parts_ready: boolean;
+    boundary_refresh_function_ready: boolean;
+    boundary_refresh_trigger_ready: boolean;
+    session_touch_trigger_ready: boolean;
+  }>(PADUS_SCHEMA_PREFLIGHT_SQL);
+  const readiness = result.rows[0];
+
+  if (
+    !readiness?.session_areas_ready ||
+    !readiness.boundary_parts_ready ||
+    !readiness.boundary_refresh_function_ready ||
+    !readiness.boundary_refresh_trigger_ready ||
+    !readiness.session_touch_trigger_ready
+  ) {
+    throw new Error(
+      "PAD-US apply requires current protected-area and session-area migrations " +
+      "(through 20260728_session_area_sync.sql)"
+    );
   }
 }
 
@@ -1012,6 +1058,91 @@ async function linkRoutes(
   return typeof value === "number" ? value : parseInt(value, 10);
 }
 
+/**
+ * Build the same segment-aware protected-area matcher used by session
+ * processing. Keeping each GPX segment separate prevents a recording gap from
+ * drawing a false straight line through an area.
+ */
+export function buildSessionAreaRefreshSql(): string {
+  return `WITH session_segments AS MATERIALIZED (
+      SELECT tp.session_id,
+             CASE WHEN count(*) = 1
+                  THEN (array_agg(
+                    ST_Force2D(tp.location::geometry)
+                    ORDER BY tp.time
+                  ))[1]
+                  ELSE ST_MakeLine(
+                    ST_Force2D(tp.location::geometry)
+                    ORDER BY tp.time
+                  )
+             END AS geom
+      FROM tracking_points tp
+      WHERE tp.session_id = ANY($1::text[])
+        AND tp.location IS NOT NULL
+      GROUP BY tp.session_id, tp.segment_number
+    )
+    INSERT INTO session_areas (session_id, area_id, relation, source)
+    SELECT DISTINCT s.session_id, parts.area_id, 'intersects', 'postgis'
+    FROM session_segments s
+    JOIN area_boundary_parts parts
+      ON parts.boundary_part && s.geom
+     AND ST_Intersects(parts.boundary_part, s.geom)
+    ON CONFLICT (session_id, area_id) DO NOTHING`;
+}
+
+async function refreshSessionAreas(
+  client: TransactionClient,
+  logger: Pick<Console, "log">
+): Promise<void> {
+  const candidates = await client.query<{ id: string }>(`
+    SELECT s.id
+    FROM tracking_sessions s
+    WHERE EXISTS (
+      SELECT 1
+      FROM tracking_points tp
+      WHERE tp.session_id = s.id
+        AND tp.location IS NOT NULL
+    )
+    ORDER BY s.id
+  `);
+
+  let inserted = 0;
+  const totalBatches = Math.ceil(
+    candidates.rows.length / SESSION_AREA_REFRESH_BATCH_SIZE
+  );
+  for (
+    let start = 0;
+    start < candidates.rows.length;
+    start += SESSION_AREA_REFRESH_BATCH_SIZE
+  ) {
+    const batchNumber = Math.floor(start / SESSION_AREA_REFRESH_BATCH_SIZE) + 1;
+    const ids = candidates.rows
+      .slice(start, start + SESSION_AREA_REFRESH_BATCH_SIZE)
+      .map((row) => row.id);
+
+    await client.query("BEGIN");
+    try {
+      await client.query(
+        `DELETE FROM session_areas
+         WHERE session_id = ANY($1::text[]) AND source = 'postgis'`,
+        [ids]
+      );
+      const result = await client.query(buildSessionAreaRefreshSql(), [ids]);
+      inserted += result.rowCount ?? 0;
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+
+    if (batchNumber === 1 || batchNumber % 10 === 0 || batchNumber === totalBatches) {
+      logger.log(`Refreshed session-area batch ${batchNumber}/${totalBatches}`);
+    }
+  }
+
+  logger.log(`Stored ${inserted} session-area links after the area import`);
+}
+
 async function report(database: QueryExecutor, logger: Pick<Console, "log">): Promise<void> {
   const byKind = await database.query(
     `SELECT kind, count(*)::int AS count FROM areas GROUP BY kind ORDER BY kind`
@@ -1086,6 +1217,7 @@ export async function importPadusAreas(
   const client = await database.connect();
   let transactionActive = false;
   try {
+    await assertPadusApplySchema(client);
     await client.query("BEGIN");
     transactionActive = true;
 
@@ -1119,6 +1251,10 @@ export async function importPadusAreas(
 
     await client.query("COMMIT");
     transactionActive = false;
+    // Relinking is idempotent and always runs. If a prior run committed new
+    // boundaries but failed midway through these small batches, rerunning the
+    // same import repairs the partial state even when no area row changes.
+    await refreshSessionAreas(client, logger);
   } catch (err) {
     if (transactionActive) {
       await client.query("ROLLBACK");

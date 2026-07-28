@@ -101,8 +101,10 @@ export async function linkReachedSummitsToAreas(
 
 /**
  * Build the bounded PostGIS query that tags one or more sessions from their
- * saved paths. The geometry bbox check lets the GiST parts index remove distant
- * polygons before ST_Intersects checks the small candidate set.
+ * saved track segments. Each segment gets its own geometry so a recording gap
+ * cannot create a false straight-line area crossing. The geometry bbox check
+ * lets the GiST parts index remove distant polygons before ST_Intersects checks
+ * the small candidate set.
  *
  * linkSessionsToAreas clears existing PostGIS tags first, so reprocessing a
  * changed path removes areas it no longer crosses. Non-PostGIS rows remain.
@@ -111,14 +113,26 @@ export function buildLinkSessionsToAreasSql(
   sessionIds: string[]
 ): { text: string; values: unknown[] } {
   return {
-    text: `WITH session_paths AS MATERIALIZED (
-       SELECT id, ST_Force2D(path::geometry) AS geom
-       FROM tracking_sessions
-       WHERE id = ANY($1::text[]) AND path IS NOT NULL
+    text: `WITH session_segments AS MATERIALIZED (
+       SELECT tp.session_id,
+              CASE WHEN count(*) = 1
+                   THEN (array_agg(
+                     ST_Force2D(tp.location::geometry)
+                     ORDER BY tp.time
+                   ))[1]
+                   ELSE ST_MakeLine(
+                     ST_Force2D(tp.location::geometry)
+                     ORDER BY tp.time
+                   )
+              END AS geom
+       FROM tracking_points tp
+       WHERE tp.session_id = ANY($1::text[])
+         AND tp.location IS NOT NULL
+       GROUP BY tp.session_id, tp.segment_number
      )
      INSERT INTO session_areas (session_id, area_id, relation, source)
-     SELECT s.id, a.id, 'intersects', 'postgis'
-     FROM session_paths s
+     SELECT DISTINCT s.session_id, a.id, 'intersects', 'postgis'
+     FROM session_segments s
      JOIN LATERAL (
        SELECT DISTINCT parts.area_id AS id
        FROM area_boundary_parts parts
@@ -711,7 +725,7 @@ export async function processSession(
     // Step 3: Route matching
     const routesMatched = await matchRoutes(client, sessionId);
 
-    // Step 4: Tag the saved path with each protected area it crosses. This is
+    // Step 4: Tag each saved track segment with the protected areas it crosses. This is
     // part of the same transaction as path materialization, so a completed
     // session always exposes tags for its current path.
     const areasLinked = await linkSessionToAreas(client, sessionId);

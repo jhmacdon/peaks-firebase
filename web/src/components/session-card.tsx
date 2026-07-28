@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { SessionActivityType } from "../lib/actions/sessions";
+import { sessionActivityLabel } from "../lib/session-track";
 
 interface SessionCardProps {
   id: string;
@@ -8,6 +10,7 @@ interface SessionCardProps {
   distance: number | null;
   gain: number | null;
   total_time: number | null;
+  activity_type?: SessionActivityType | null;
 }
 
 /** Derive a display name: explicit name > destinations reached > fallback */
@@ -34,6 +37,7 @@ export default function SessionCard({
   distance,
   gain,
   total_time,
+  activity_type,
 }: SessionCardProps) {
   const date = new Date(start_time);
   const displayName = deriveSessionName(name, destinationNames);
@@ -46,12 +50,13 @@ export default function SessionCard({
       <div>
         <div className="font-medium">{displayName}</div>
         <div className="text-sm text-gray-500 mt-0.5">
+          {sessionActivityLabel(activity_type ?? null)} ·{" "}
           {date.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
         </div>
       </div>
       <div className="flex gap-4 mt-3 text-sm text-gray-600 dark:text-gray-400">

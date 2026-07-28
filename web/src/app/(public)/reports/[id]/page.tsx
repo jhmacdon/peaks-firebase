@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getTripReport, type TripReport } from "../../../../lib/actions/trip-reports";
+import { useAuth } from "../../../../lib/auth-context";
+import {
+  canEditTripReport,
+  getTripReport,
+  type TripReport,
+} from "../../../../lib/actions/trip-reports";
 import {
   getDestination,
   type DestinationDetail,
@@ -12,29 +17,81 @@ import {
 export default function TripReportDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { user, loading: authLoading, getIdToken } = useAuth();
+  const userId = user?.uid ?? null;
 
   const [report, setReport] = useState<TripReport | null>(null);
   const [destinations, setDestinations] = useState<DestinationDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
-      const r = await getTripReport(id);
-      setReport(r);
+      setLoadError(null);
+      try {
+        const r = await getTripReport(id);
+        if (cancelled) return;
+        setReport(r);
 
-      if (r && r.destinations.length > 0) {
-        const dests = await Promise.all(
-          r.destinations.map((destId) => getDestination(destId))
-        );
-        setDestinations(
-          dests.filter((d): d is DestinationDetail => d !== null)
-        );
+        if (r && r.destinations.length > 0) {
+          const dests = await Promise.all(
+            r.destinations.map(async (destId) => {
+              try {
+                return await getDestination(destId);
+              } catch {
+                return null;
+              }
+            })
+          );
+          if (!cancelled) {
+            setDestinations(
+              dests.filter((d): d is DestinationDetail => d !== null)
+            );
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError("The trip report could not be loaded. Try again.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      setLoading(false);
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkOwnership() {
+      if (authLoading) return;
+
+      if (!userId) {
+        setCanEdit(false);
+        return;
+      }
+
+      try {
+        const token = await getIdToken();
+        const isOwner = token ? await canEditTripReport(token, id) : false;
+        if (!cancelled) setCanEdit(isOwner);
+      } catch {
+        if (!cancelled) setCanEdit(false);
+      }
+    }
+
+    checkOwnership();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, getIdToken, id, userId]);
 
   if (loading) {
     return (
@@ -48,7 +105,7 @@ export default function TripReportDetailPage() {
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="text-gray-500 py-12 text-center">
-          Trip report not found
+          {loadError || "Trip report not found"}
         </div>
       </div>
     );
@@ -71,20 +128,30 @@ export default function TripReportDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">{report.title}</h1>
-        <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-          <span>{report.userName}</span>
-          <span>&middot;</span>
-          <span>
-            {date.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{report.title}</h1>
+          <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+            <span>{report.userName}</span>
+            <span>&middot;</span>
+            <span>
+              {date.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+          </div>
         </div>
+        {canEdit && (
+          <Link
+            href={`/reports/${report.id}/edit`}
+            className="shrink-0 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+          >
+            Edit
+          </Link>
+        )}
       </div>
 
       {/* Linked Destinations */}

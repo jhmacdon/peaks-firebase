@@ -88,7 +88,7 @@ export const SESSION_ROUTES_SQL = `COALESCE(
   '[]'::json
 )`;
 
-/** Inline protected areas crossed by one saved session path. */
+/** Inline protected areas crossed by one saved session track. */
 export const SESSION_AREAS_SQL = `COALESCE(
   (SELECT json_agg(area_obj ORDER BY kind, name)
    FROM (
@@ -112,13 +112,54 @@ export const SESSION_AREAS_SQL = `COALESCE(
   '[]'::json
 )`;
 
-/** Build the owner/public-scoped area lookup for a saved session path. */
+/** Build the owner/public-scoped area lookup for a saved session track. */
 export function buildSessionAreasQuery(
   id: string,
   uid: string
 ): { text: string; values: unknown[] } {
   return {
     text: `SELECT s.id, ${SESSION_AREAS_SQL} AS areas
+     FROM tracking_sessions s
+     WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
+    values: [id, uid],
+  };
+}
+
+/** Build a session detail query that keeps owner-only import and health data private. */
+export function buildSessionDetailQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT s.id,
+            CASE WHEN s.user_id = $2 THEN s.user_id ELSE '' END AS user_id,
+            s.name, s.start_time, s.end_time,
+            s.distance, s.total_time, s.pace, s.gain, s.highest_point,
+            s.ascent_time, s.descent_time, s.still_time,
+            s.activity_type,
+            CASE WHEN s.user_id = $2 THEN s.source ELSE NULL END AS source,
+            CASE WHEN s.user_id = $2 THEN s.external_id ELSE NULL END AS external_id,
+            CASE WHEN s.user_id = $2 THEN s.health_data ELSE NULL END AS health_data,
+            CASE WHEN s.user_id = $2
+                 THEN s.source_contributions
+                 ELSE '[]'::jsonb
+            END AS source_contributions,
+            CASE WHEN s.user_id = $2 THEN s.group_id ELSE NULL END AS group_id,
+            CASE WHEN s.user_id = $2
+                 THEN s.attempt_group_id
+                 ELSE NULL
+            END AS attempt_group_id,
+            s.processed_at, s.processing_state,
+            CASE WHEN s.user_id = $2
+                 THEN s.processing_error
+                 ELSE NULL
+            END AS processing_error,
+            s.ended, s.is_public,
+            s.created_at, s.updated_at, s.server_updated_at,
+            ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
+            ${DESTINATION_GOALS_SQL} AS destination_goals,
+            ${SESSION_ROUTES_SQL} AS routes,
+            ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
     values: [id, uid],
@@ -719,23 +760,8 @@ router.get("/:id", async (req, res: Response) => {
 
   // Inline destinations and routes match the shape returned by /changes and /api/sessions
   // so iOS pollProcessingSessions doesn't wipe locally-known destinations on every refresh.
-  const result = await db.query(
-    `SELECT s.id, s.user_id, s.name, s.start_time, s.end_time,
-            s.distance, s.total_time, s.pace, s.gain, s.highest_point,
-            s.ascent_time, s.descent_time, s.still_time,
-            s.activity_type, s.source, s.external_id,
-            s.health_data, s.source_contributions, s.group_id, s.attempt_group_id,
-            s.processed_at, s.processing_state, s.processing_error,
-            s.ended, s.is_public,
-            s.created_at, s.updated_at, s.server_updated_at,
-            ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
-            ${DESTINATION_GOALS_SQL} AS destination_goals,
-            ${SESSION_ROUTES_SQL} AS routes,
-            ${SESSION_AREAS_SQL} AS areas
-     FROM tracking_sessions s
-     WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
-    [id, uid]
-  );
+  const query = buildSessionDetailQuery(id, uid);
+  const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Session not found" });
     return;
@@ -816,6 +842,7 @@ router.get("/:id/elevation", async (req, res: Response) => {
 
 // GET /api/sessions/:id/destinations
 router.get("/:id/destinations", async (req, res: Response) => {
+  const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.features,
@@ -826,14 +853,17 @@ router.get("/:id/destinations", async (req, res: Response) => {
             sd.relation, sd.source
      FROM destinations d
      JOIN session_destinations sd ON sd.destination_id = d.id
-     WHERE sd.session_id = $1`,
-    [id]
+     JOIN tracking_sessions s ON s.id = sd.session_id
+     WHERE sd.session_id = $1
+       AND (s.user_id = $2 OR s.is_public = true)`,
+    [id, uid]
   );
   res.json(result.rows);
 });
 
 // GET /api/sessions/:id/routes
 router.get("/:id/routes", async (req, res: Response) => {
+  const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6,
@@ -841,8 +871,11 @@ router.get("/:id/routes", async (req, res: Response) => {
             sr.source, sr.coverage
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
-     WHERE sr.session_id = $1 AND r.status = 'active'`,
-    [id]
+     JOIN tracking_sessions s ON s.id = sr.session_id
+     WHERE sr.session_id = $1
+       AND (s.user_id = $2 OR s.is_public = true)
+       AND r.status = 'active'`,
+    [id, uid]
   );
   res.json(result.rows);
 });
@@ -975,16 +1008,21 @@ router.get("/:id/comparisons", async (req, res: Response) => {
 
 // GET /api/sessions/:id/markers
 router.get("/:id/markers", async (req, res: Response) => {
+  const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
-    `SELECT id, name, image, created_by, created_at,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng,
-            ST_Z(location::geometry) AS elevation
-     FROM session_markers
-     WHERE session_id = $1
-     ORDER BY created_at`,
-    [id]
+    `SELECT sm.id, sm.name, sm.image,
+            CASE WHEN s.user_id = $2 THEN sm.created_by ELSE NULL END AS created_by,
+            sm.created_at,
+            ST_Y(sm.location::geometry) AS lat,
+            ST_X(sm.location::geometry) AS lng,
+            ST_Z(sm.location::geometry) AS elevation
+     FROM session_markers sm
+     JOIN tracking_sessions s ON s.id = sm.session_id
+     WHERE sm.session_id = $1
+       AND (s.user_id = $2 OR s.is_public = true)
+     ORDER BY sm.created_at`,
+    [id, uid]
   );
   res.json(result.rows);
 });
@@ -1105,7 +1143,7 @@ router.get("/:id/group", async (req, res: Response) => {
 
   // Get session's group_id
   const session = await db.query(
-    `SELECT group_id FROM tracking_sessions
+    `SELECT group_id, user_id = $2 AS is_owner FROM tracking_sessions
      WHERE id = $1 AND (user_id = $2 OR is_public = true)`,
     [id, uid]
   );
@@ -1115,7 +1153,12 @@ router.get("/:id/group", async (req, res: Response) => {
   }
 
   const groupId = session.rows[0].group_id;
+  const isOwner = session.rows[0].is_owner === true;
   if (!groupId) {
+    res.json({ group_id: null, group: null, sessions: [] });
+    return;
+  }
+  if (!isOwner) {
     res.json({ group_id: null, group: null, sessions: [] });
     return;
   }
@@ -1377,6 +1420,33 @@ router.patch("/groups/:id", async (req, res: Response) => {
   res.json(result.rows[0]);
 });
 
+export const SESSION_UPSERT_SQL = `INSERT INTO tracking_sessions
+  (id, user_id, name, start_time, end_time,
+   distance, total_time, pace, gain, highest_point,
+   ascent_time, descent_time, still_time,
+   activity_type, source, external_id,
+   health_data, source_contributions,
+   ended, is_public)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,COALESCE($18::jsonb, '[]'::jsonb),$19,$20)
+ ON CONFLICT (id) DO UPDATE SET
+   name = EXCLUDED.name,
+   start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
+   distance = EXCLUDED.distance, total_time = EXCLUDED.total_time,
+   pace = EXCLUDED.pace, gain = EXCLUDED.gain,
+   highest_point = EXCLUDED.highest_point,
+   ascent_time = EXCLUDED.ascent_time, descent_time = EXCLUDED.descent_time,
+   still_time = EXCLUDED.still_time,
+   activity_type = EXCLUDED.activity_type,
+   source = EXCLUDED.source, external_id = EXCLUDED.external_id,
+   health_data = COALESCE(EXCLUDED.health_data, tracking_sessions.health_data),
+   source_contributions = CASE
+     WHEN $18::jsonb IS NULL THEN tracking_sessions.source_contributions
+     ELSE EXCLUDED.source_contributions
+   END,
+   ended = EXCLUDED.ended, is_public = EXCLUDED.is_public
+ WHERE tracking_sessions.user_id = EXCLUDED.user_id
+ RETURNING id`;
+
 // POST /api/sessions — create a new session
 router.post("/", heavyWriteGuard, async (req, res: Response) => {
   const uid = getUid(req);
@@ -1416,31 +1486,8 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
       ? null
       : mergeSourceContributions(existingRow?.source_contributions, source_contributions);
 
-    await client.query(
-      `INSERT INTO tracking_sessions
-        (id, user_id, name, start_time, end_time,
-         distance, total_time, pace, gain, highest_point,
-         ascent_time, descent_time, still_time,
-         activity_type, source, external_id,
-         health_data, source_contributions,
-         ended, is_public)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,COALESCE($18::jsonb, '[]'::jsonb),$19,$20)
-       ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
-         distance = EXCLUDED.distance, total_time = EXCLUDED.total_time,
-         pace = EXCLUDED.pace, gain = EXCLUDED.gain,
-         highest_point = EXCLUDED.highest_point,
-         ascent_time = EXCLUDED.ascent_time, descent_time = EXCLUDED.descent_time,
-         still_time = EXCLUDED.still_time,
-         activity_type = EXCLUDED.activity_type,
-         source = EXCLUDED.source, external_id = EXCLUDED.external_id,
-         health_data = COALESCE(EXCLUDED.health_data, tracking_sessions.health_data),
-         source_contributions = CASE
-           WHEN $18::jsonb IS NULL THEN tracking_sessions.source_contributions
-           ELSE EXCLUDED.source_contributions
-         END,
-         ended = EXCLUDED.ended, is_public = EXCLUDED.is_public`,
+    const upserted = await client.query(
+      SESSION_UPSERT_SQL,
       [
         id, uid, name || null,
         start_date || null, end_date || null,
@@ -1452,6 +1499,11 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
         ended ?? false, is_public ?? false,
       ]
     );
+    if (upserted.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Session ID is unavailable" });
+      return;
+    }
 
     // Set destinations (client-owned 'manual' rows only; auto detections preserved)
     //

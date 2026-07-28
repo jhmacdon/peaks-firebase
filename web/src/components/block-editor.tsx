@@ -105,7 +105,11 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   </svg>
                 </span>
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  {block.type === "text" ? "Text" : "Photo"}
+                  {block.type === "text"
+                    ? "Text"
+                    : block.placement === "header"
+                      ? "Header photo"
+                      : "Photo"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -191,7 +195,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   onChange={(e) =>
                     updateBlock(index, { content: e.target.value })
                   }
-                  placeholder="Image URL (e.g. https://...)"
+                  placeholder="Peaks Firebase Storage image URL"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 {block.content && (
