@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
 import { processPlan } from "../processing";
@@ -10,6 +11,20 @@ const router = Router();
 // tests without depending on the concrete pg Pool.
 interface StatusQueryable {
   query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
+}
+
+interface PlanRouteRecord {
+  id: string;
+  geometry: { type: "LineString"; coordinates: number[][] };
+  name?: string;
+  polyline6?: string;
+  destinations?: string[];
+  geohashes?: string[];
+  distance?: number;
+  gain?: number;
+  gain_loss?: number;
+  elevation_string?: string;
+  completion?: "none" | "straight" | "reverse";
 }
 
 // Validate a client-supplied GeoJSON geometry is a usable plan path: a
@@ -27,6 +42,111 @@ export function isValidPlanGeometry(g: unknown): boolean {
     (c) =>
       Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1])
   );
+}
+
+export function parsePlanRouteRecords(
+  value: unknown,
+  routeIdsValue: unknown
+): PlanRouteRecord[] | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || !Array.isArray(routeIdsValue)) return null;
+  const routeIds = new Set(
+    routeIdsValue.filter((id): id is string => typeof id === "string" && id.length > 0)
+  );
+
+  const records: PlanRouteRecord[] = [];
+  for (const item of value) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return null;
+    const record = item as Record<string, unknown>;
+    if (typeof record.id !== "string" || !routeIds.has(record.id)) return null;
+    if (!isValidPlanGeometry(record.geometry) || record.geometry == null) return null;
+
+    for (const key of ["name", "polyline6", "elevation_string"] as const) {
+      if (record[key] !== undefined && typeof record[key] !== "string") return null;
+    }
+    for (const key of ["distance", "gain", "gain_loss"] as const) {
+      if (record[key] !== undefined
+          && (typeof record[key] !== "number" || !Number.isFinite(record[key]))) {
+        return null;
+      }
+    }
+    for (const key of ["destinations", "geohashes"] as const) {
+      if (record[key] !== undefined
+          && (!Array.isArray(record[key])
+            || !record[key].every((entry) => typeof entry === "string"))) {
+        return null;
+      }
+    }
+    if (record.completion !== undefined
+        && !["none", "straight", "reverse"].includes(record.completion as string)) {
+      return null;
+    }
+
+    records.push(record as unknown as PlanRouteRecord);
+  }
+  return records;
+}
+
+async function upsertPlanRouteRecords(
+  client: PoolClient,
+  uid: string,
+  records: PlanRouteRecord[]
+): Promise<void> {
+  for (const route of records) {
+    await client.query(
+      `INSERT INTO routes (
+         id, name, path, polyline6, geohashes, owner,
+         distance, gain, gain_loss, elevation_string, completion, status
+       ) VALUES (
+         $1, $2,
+         ST_Force3DZ(ST_SetSRID(ST_GeomFromGeoJSON($3), 4326))::geography,
+         $4, $5, $6, $7, $8, $9, $10, $11::completion_mode, 'active'
+       )
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         path = EXCLUDED.path,
+         polyline6 = COALESCE(EXCLUDED.polyline6, routes.polyline6),
+         geohashes = EXCLUDED.geohashes,
+         distance = EXCLUDED.distance,
+         gain = EXCLUDED.gain,
+         gain_loss = EXCLUDED.gain_loss,
+         elevation_string = EXCLUDED.elevation_string,
+         completion = EXCLUDED.completion,
+         updated_at = now()
+       WHERE routes.owner = EXCLUDED.owner`,
+      [
+        route.id,
+        route.name ?? null,
+        JSON.stringify(route.geometry),
+        route.polyline6 ?? null,
+        route.geohashes ?? [],
+        uid,
+        route.distance ?? null,
+        route.gain ?? null,
+        route.gain_loss ?? null,
+        route.elevation_string ?? null,
+        route.completion ?? "none",
+      ]
+    );
+
+    await client.query(
+      `DELETE FROM route_destinations rd
+       USING routes r
+       WHERE rd.route_id = $1 AND r.id = rd.route_id AND r.owner = $2`,
+      [route.id, uid]
+    );
+    const destinationIds = route.destinations ?? [];
+    for (let ordinal = 0; ordinal < destinationIds.length; ordinal++) {
+      await client.query(
+        `INSERT INTO route_destinations (route_id, destination_id, ordinal)
+         SELECT $1, $2, $3
+         WHERE EXISTS (SELECT 1 FROM routes WHERE id = $1 AND owner = $4)
+           AND EXISTS (SELECT 1 FROM destinations WHERE id = $2)
+         ON CONFLICT (route_id, destination_id) DO UPDATE SET ordinal = EXCLUDED.ordinal`,
+        [route.id, destinationIds[ordinal], ordinal, uid]
+      );
+    }
+  }
 }
 
 // GET /api/plans/processing-status?ids=a,b — batch poll for plan processing
@@ -58,14 +178,31 @@ router.get("/processing-status", (req, res: Response) => handlePlanProcessingSta
 // GET /api/plans — current user's plans (owned + party member)
 router.get("/", async (req, res: Response) => {
   const uid = getUid(req);
-  const limit = parseInt(req.query.limit as string) || 50;
-  const offset = parseInt(req.query.offset as string) || 0;
+  const requestedLimit = parseInt(req.query.limit as string);
+  const requestedOffset = parseInt(req.query.offset as string);
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(requestedLimit, 1), 250)
+    : 50;
+  const offset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
   const result = await db.query(
     `SELECT DISTINCT p.id, p.user_id, p.name, p.description, p.date,
+            COALESCE((
+              SELECT array_agg(pd.destination_id ORDER BY pd.ordinal)
+              FROM plan_destinations pd WHERE pd.plan_id = p.id
+            ), '{}') AS destination_ids,
+            COALESCE((
+              SELECT array_agg(pr.route_id ORDER BY pr.ordinal)
+              FROM plan_routes pr WHERE pr.plan_id = p.id
+            ), '{}') AS route_ids,
+            COALESCE((
+              SELECT array_agg(pp2.user_id ORDER BY pp2.joined_at)
+              FROM plan_party pp2 WHERE pp2.plan_id = p.id
+            ), '{}') AS party_ids,
             (SELECT COUNT(*) FROM plan_destinations WHERE plan_id = p.id) AS destination_count,
             (SELECT COUNT(*) FROM plan_routes WHERE plan_id = p.id) AS route_count,
             (SELECT COUNT(*) FROM plan_party WHERE plan_id = p.id) AS party_count,
+            p.processing_state, p.processing_error, p.processed_at,
             p.created_at, p.updated_at
      FROM plans p
      LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $1
@@ -84,6 +221,19 @@ router.get("/:id", async (req, res: Response) => {
 
   const result = await db.query(
     `SELECT p.id, p.user_id, p.name, p.description, p.date,
+            COALESCE((
+              SELECT array_agg(pd.destination_id ORDER BY pd.ordinal)
+              FROM plan_destinations pd WHERE pd.plan_id = p.id
+            ), '{}') AS destination_ids,
+            COALESCE((
+              SELECT array_agg(pr.route_id ORDER BY pr.ordinal)
+              FROM plan_routes pr WHERE pr.plan_id = p.id
+            ), '{}') AS route_ids,
+            COALESCE((
+              SELECT array_agg(pp2.user_id ORDER BY pp2.joined_at)
+              FROM plan_party pp2 WHERE pp2.plan_id = p.id
+            ), '{}') AS party_ids,
+            p.processing_state, p.processing_error, p.processed_at,
             p.created_at, p.updated_at
      FROM plans p
      LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
@@ -141,8 +291,9 @@ router.get("/:id/reached-destinations", async (req, res: Response) => {
 
 export function buildPlanRoutesQuery(id: string): { text: string; values: unknown[] } {
   return {
-    text: `SELECT r.id, r.name, r.polyline6,
-            r.distance, r.gain, r.gain_loss, r.shape, r.provenance,
+    text: `SELECT r.id, r.name, r.polyline6, r.geohashes, r.owner,
+            r.distance, r.gain, r.gain_loss, r.elevation_string,
+            r.completion, r.shape, r.provenance,
             pr.ordinal
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
@@ -174,7 +325,11 @@ router.get("/:id/party", async (req, res: Response) => {
 // POST /api/plans — create a new plan
 router.post("/", async (req, res: Response) => {
   const uid = getUid(req);
-  const { id, name, description, date, destinations, routes: routeIds, geometry, distance, gain } = req.body;
+  const {
+    id, name, description, date, destinations, routes: routeIds,
+    route_records: routeRecordsValue, geometry, distance, gain,
+  } = req.body;
+  const routeRecords = parsePlanRouteRecords(routeRecordsValue, routeIds);
 
   if (!id || !name) {
     res.status(400).json({ error: "id and name are required" });
@@ -184,16 +339,17 @@ router.post("/", async (req, res: Response) => {
     res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
     return;
   }
+  if (routeRecords === null) {
+    res.status(400).json({ error: "route_records must contain valid routes listed in routes" });
+    return;
+  }
 
   const client = await db.connect();
   try {
     await client.query("BEGIN");
 
-    // When the client supplies geometry (GeoJSON LineString of the plan's full
-    // concatenated path), store it in plans.path and flag the plan 'pending' so
-    // a poll started right away sees the lifecycle. processPlan is kicked after
-    // COMMIT. plan_routes can't supply geometry for user routes (they live only
-    // in Firestore), so the client-supplied path is the source of truth.
+    // The plan path drives destination matching. route_records moves any
+    // user/imported route into Cloud SQL before plan_routes links it.
     await client.query(
       `INSERT INTO plans (id, user_id, name, description, date, path, distance, gain,
                           processing_state, updated_at)
@@ -229,15 +385,14 @@ router.post("/", async (req, res: Response) => {
       }
     }
 
+    await upsertPlanRouteRecords(client, uid, routeRecords);
+
     if (routeIds) {
       await client.query(
         `DELETE FROM plan_routes WHERE plan_id = $1`,
         [id]
       );
       for (let i = 0; i < routeIds.length; i++) {
-        // Only link routes that actually exist in PostGIS (system routes).
-        // User-imported routes live in Firestore only and would violate the
-        // plan_routes → routes FK; the plan's geometry comes from plans.path.
         await client.query(
           `INSERT INTO plan_routes (plan_id, route_id, ordinal)
            SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM routes WHERE id = $2)
@@ -272,10 +427,19 @@ router.post("/", async (req, res: Response) => {
 router.put("/:id", async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
-  const { name, description, date, destinations, routes: routeIds, geometry, distance, gain } = req.body;
+  const {
+    name, description, date, destinations, routes: routeIds,
+    route_records: routeRecordsValue, geometry, distance, gain,
+  } = req.body;
+  const routeRecords = parsePlanRouteRecords(routeRecordsValue, routeIds);
+  const hasDate = Object.prototype.hasOwnProperty.call(req.body, "date");
 
   if (!isValidPlanGeometry(geometry)) {
     res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
+    return;
+  }
+  if (routeRecords === null) {
+    res.status(400).json({ error: "route_records must contain valid routes listed in routes" });
     return;
   }
 
@@ -299,14 +463,14 @@ router.put("/:id", async (req, res: Response) => {
       `UPDATE plans SET
          name = COALESCE($2, name),
          description = COALESCE($3, description),
-         date = COALESCE($4, date),
-         path = CASE WHEN $5::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($5))::geography ELSE path END,
-         distance = COALESCE($6, distance),
-         gain = COALESCE($7, gain),
-         processing_state = CASE WHEN $5::text IS NOT NULL THEN 'pending' ELSE processing_state END,
+         date = CASE WHEN $4 THEN $5::timestamptz ELSE date END,
+         path = CASE WHEN $6::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($6))::geography ELSE path END,
+         distance = COALESCE($7, distance),
+         gain = COALESCE($8, gain),
+         processing_state = CASE WHEN $6::text IS NOT NULL THEN 'pending' ELSE processing_state END,
          updated_at = now()
        WHERE id = $1`,
-      [id, name ?? null, description ?? null, date ?? null,
+      [id, name ?? null, description ?? null, hasDate, date ?? null,
        geometry ? JSON.stringify(geometry) : null, distance ?? null, gain ?? null]
     );
 
@@ -324,15 +488,14 @@ router.put("/:id", async (req, res: Response) => {
       }
     }
 
+    await upsertPlanRouteRecords(client, uid, routeRecords);
+
     if (routeIds) {
       await client.query(
         `DELETE FROM plan_routes WHERE plan_id = $1`,
         [id]
       );
       for (let i = 0; i < routeIds.length; i++) {
-        // Only link routes that actually exist in PostGIS (system routes).
-        // User-imported routes live in Firestore only and would violate the
-        // plan_routes → routes FK; the plan's geometry comes from plans.path.
         await client.query(
           `INSERT INTO plan_routes (plan_id, route_id, ordinal)
            SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM routes WHERE id = $2)

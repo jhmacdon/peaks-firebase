@@ -119,6 +119,7 @@ export async function migrateRoutes() {
 
   let migrated = 0;
   let skipped = 0;
+  const missingDestinationLinks: string[] = [];
 
   for (const doc of snapshot.docs) {
     const d = doc.data();
@@ -149,12 +150,17 @@ export async function migrateRoutes() {
           $11::jsonb, $12::jsonb, $13::completion_mode
         ) ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
-          path = EXCLUDED.path,
-          polyline6 = EXCLUDED.polyline6,
+          path = COALESCE(EXCLUDED.path, routes.path),
+          polyline6 = COALESCE(EXCLUDED.polyline6, routes.polyline6),
+          geohashes = EXCLUDED.geohashes,
+          owner = EXCLUDED.owner,
           distance = EXCLUDED.distance,
           gain = EXCLUDED.gain,
           gain_loss = EXCLUDED.gain_loss,
-          provenance = EXCLUDED.provenance,
+          elevation_string = EXCLUDED.elevation_string,
+          external_links = COALESCE(EXCLUDED.external_links, routes.external_links),
+          provenance = COALESCE(EXCLUDED.provenance, routes.provenance),
+          completion = EXCLUDED.completion,
           updated_at = now()`,
         [
           id,
@@ -173,18 +179,18 @@ export async function migrateRoutes() {
         ]
       );
 
-      // Insert route_destinations join rows
+      await db.query("DELETE FROM route_destinations WHERE route_id = $1", [id]);
       const destIds: string[] = d.destinations || [];
       for (let i = 0; i < destIds.length; i++) {
-        try {
-          await db.query(
-            `INSERT INTO route_destinations (route_id, destination_id, ordinal)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (route_id, destination_id) DO UPDATE SET ordinal = EXCLUDED.ordinal`,
-            [id, destIds[i], i]
-          );
-        } catch {
-          // Destination may not exist yet — skip FK violation
+        const link = await db.query(
+          `INSERT INTO route_destinations (route_id, destination_id, ordinal)
+           SELECT $1, $2, $3
+           WHERE EXISTS (SELECT 1 FROM destinations WHERE id = $2)
+           ON CONFLICT (route_id, destination_id) DO UPDATE SET ordinal = EXCLUDED.ordinal`,
+          [id, destIds[i], i]
+        );
+        if (link.rowCount === 0) {
+          missingDestinationLinks.push(`${id}:${destIds[i]}`);
         }
       }
 
@@ -196,6 +202,13 @@ export async function migrateRoutes() {
   }
 
   console.log(`  Done: ${migrated} migrated, ${skipped} skipped`);
+  if (skipped > 0 || missingDestinationLinks.length > 0) {
+    throw new Error(
+      `Migration incomplete: ${skipped} routes failed and `
+      + `${missingDestinationLinks.length} route-destination links are missing target rows. `
+      + missingDestinationLinks.slice(0, 10).join(", ")
+    );
+  }
 }
 
 function mapCompletion(val: string | undefined): string {
