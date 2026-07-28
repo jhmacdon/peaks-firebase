@@ -15,12 +15,15 @@
       "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/hibox-mountain"}]
     },
     {
-      "key": "mount-angeles",
-      "name": "Mount Angeles via Switchback Trail",
-      "destinationId": "7nJmKhZy74iFjKUJqtkx",
-      "trailheadId": "RsMNxbObuYmBgZq2UHp4",
-      "wayIds": [891198893, 36743347, 36742729],
-      "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/mount-angeles"}]
+      "key": "guye-peak",
+      "name": "Guye Peak via North Route",
+      "destinationId": "GKYFnmdM5xpDMShh8DUX",
+      "trailheadId": "7mdR4I31n8VQQdPVN5Nd",
+      "wayIds": [1089371014, 824208041, 1089371018],
+      "sourceUrls": [
+        {"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/guye-peak"},
+        {"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/guye-peak-snoqualmie-mountain-cave-ridge-alpental"}
+      ]
     },
     {
       "key": "fay-peak",
@@ -55,12 +58,12 @@
       "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/liberty-bell-blue-lake-trail-area-review/liberty-bell-southwest-face"}]
     },
     {
-      "key": "tomyhoi-peak",
-      "name": "Tomyhoi Peak via Yellow Aster Butte",
-      "destinationId": "F5FrhzuMe1fJLFKFb4Z6",
-      "trailheadId": "BSzX7IHoGjMMu7JerCaW",
-      "wayIds": [182284808, 369614789, 970007168, 1430428161, 970007166, 970007165, 973172429],
-      "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/tomyhoi-peak"}]
+      "key": "mount-sneffels",
+      "name": "Mount Sneffels via South Slopes",
+      "destinationId": "kiiPgtpXG1WwLvHfncOP",
+      "trailheadId": "C410CF1FB652D72E13DF",
+      "wayIds": [361348828, 247939573, 361348817, 361348822],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=snef1"}]
     },
     {
       "key": "ruth-mountain",
@@ -123,7 +126,7 @@
       "name": "Crestone Needle via South Face",
       "destinationId": "ZAov0aNubZDMhTjlwkYq",
       "trailheadId": "EC7F585E18BFDD5CF857",
-      "wayIds": [1540127584, 1389594869, 233237471, 1389594866, 248171399, 258727480, 258728100],
+      "wayIds": [233237471, 1389594866, 248171399, 258727480, 258728100],
       "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=cnee1"}]
     },
     {
