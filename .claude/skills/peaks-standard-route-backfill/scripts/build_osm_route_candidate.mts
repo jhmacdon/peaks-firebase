@@ -9,7 +9,11 @@ const db =
 type Options = {
   destinationId: string;
   trailheadId: string;
+  trailheadName: string;
+  trailheadLat: number | null;
+  trailheadLng: number | null;
   radiusM: number;
+  corridorPaddingM: number | null;
   snapM: number;
   wayIds: number[];
   format: "summary" | "geojson";
@@ -48,8 +52,11 @@ function usage(): string {
   return [
     "Usage:",
     "  tsx build_osm_route_candidate.mts \\",
-    "    --destination-id ID --trailhead-id ID \\",
-    "    [--radius-m 5000] [--snap-m 300] [--way-ids ID,ID,...] \\",
+    "    --destination-id ID \\",
+    "    (--trailhead-id ID | --trailhead-name NAME \\",
+    "      --trailhead-lat LAT --trailhead-lng LNG) \\",
+    "    [--radius-m 5000 | --corridor-padding-m 3000] \\",
+    "    [--snap-m 300] [--way-ids ID,ID,...] \\",
     "    [--format summary|geojson]",
     "",
     "Builds a review candidate along connected OpenStreetMap paths.",
@@ -62,7 +69,11 @@ function parseArgs(argv: string[]): Options {
   const options: Options = {
     destinationId: "",
     trailheadId: "",
+    trailheadName: "",
+    trailheadLat: null,
+    trailheadLng: null,
     radiusM: 5000,
+    corridorPaddingM: null,
     snapM: 300,
     wayIds: [],
     format: "summary",
@@ -77,8 +88,20 @@ function parseArgs(argv: string[]): Options {
     } else if (arg === "--trailhead-id") {
       options.trailheadId = value;
       index += 1;
+    } else if (arg === "--trailhead-name") {
+      options.trailheadName = value;
+      index += 1;
+    } else if (arg === "--trailhead-lat") {
+      options.trailheadLat = Number(value);
+      index += 1;
+    } else if (arg === "--trailhead-lng") {
+      options.trailheadLng = Number(value);
+      index += 1;
     } else if (arg === "--radius-m") {
       options.radiusM = Number(value);
+      index += 1;
+    } else if (arg === "--corridor-padding-m") {
+      options.corridorPaddingM = Number(value);
       index += 1;
     } else if (arg === "--snap-m") {
       options.snapM = Number(value);
@@ -103,16 +126,44 @@ function parseArgs(argv: string[]): Options {
     }
   }
 
-  for (const [flag, value] of [
-    ["--destination-id", options.destinationId],
-    ["--trailhead-id", options.trailheadId],
-  ]) {
-    if (!/^[A-Za-z0-9_-]+$/.test(value)) {
-      throw new Error(`${flag} is required and contains unsupported characters`);
-    }
+  if (!/^[A-Za-z0-9_-]+$/.test(options.destinationId)) {
+    throw new Error(
+      "--destination-id is required and contains unsupported characters"
+    );
+  }
+  if (
+    options.trailheadId &&
+    !/^[A-Za-z0-9_-]+$/.test(options.trailheadId)
+  ) {
+    throw new Error("--trailhead-id contains unsupported characters");
+  }
+  const hasDirectTrailhead =
+    options.trailheadName.trim().length > 0 &&
+    options.trailheadLat !== null &&
+    Number.isFinite(options.trailheadLat) &&
+    options.trailheadLat >= -90 &&
+    options.trailheadLat <= 90 &&
+    options.trailheadLng !== null &&
+    Number.isFinite(options.trailheadLng) &&
+    options.trailheadLng >= -180 &&
+    options.trailheadLng <= 180;
+  if (!options.trailheadId && !hasDirectTrailhead) {
+    throw new Error(
+      "Provide --trailhead-id or a valid --trailhead-name/lat/lng set"
+    );
   }
   if (!Number.isInteger(options.radiusM) || options.radiusM < 500 || options.radiusM > 20000) {
     throw new Error("--radius-m must be an integer from 500 to 20000");
+  }
+  if (
+    options.corridorPaddingM !== null &&
+    (
+      !Number.isInteger(options.corridorPaddingM) ||
+      options.corridorPaddingM < 500 ||
+      options.corridorPaddingM > 10000
+    )
+  ) {
+    throw new Error("--corridor-padding-m must be an integer from 500 to 10000");
   }
   if (!Number.isInteger(options.snapM) || options.snapM < 10 || options.snapM > 1000) {
     throw new Error("--snap-m must be an integer from 10 to 1000");
@@ -143,6 +194,25 @@ function haversineMeters(
       Math.cos(toRadians(lat2)) *
       Math.sin(dLng / 2) ** 2;
   return 2 * earthRadiusM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function corridorBoundingBox(
+  trailhead: PlaceRow,
+  destination: PlaceRow,
+  paddingM: number
+): string {
+  const meanLatRadians =
+    ((trailhead.lat + destination.lat) / 2) * Math.PI / 180;
+  const latPadding = paddingM / 111_320;
+  const lngPadding =
+    paddingM / (111_320 * Math.max(Math.cos(meanLatRadians), 0.1));
+  const south = Math.min(trailhead.lat, destination.lat) - latPadding;
+  const west = Math.min(trailhead.lng, destination.lng) - lngPadding;
+  const north = Math.max(trailhead.lat, destination.lat) + latPadding;
+  const east = Math.max(trailhead.lng, destination.lng) + lngPadding;
+  return [south, west, north, east]
+    .map((coordinate) => coordinate.toFixed(7))
+    .join(",");
 }
 
 function edgePenalty(tags: Record<string, string>): number {
@@ -302,18 +372,28 @@ const attribution = "© OpenStreetMap contributors";
 const retrievedAt = new Date().toISOString();
 
 try {
+  const requestedIds = options.trailheadId
+    ? [options.destinationId, options.trailheadId]
+    : [options.destinationId];
   const placesResult = await db.query<PlaceRow>(
     `SELECT id, name,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
      WHERE id = ANY($1::text[])`,
-    [[options.destinationId, options.trailheadId]]
+    [requestedIds]
   );
 
   const places = new Map(placesResult.rows.map((row) => [row.id, row]));
   const destination = places.get(options.destinationId);
-  const trailhead = places.get(options.trailheadId);
+  const trailhead = options.trailheadId
+    ? places.get(options.trailheadId)
+    : {
+      id: "draft-trailhead",
+      name: options.trailheadName.trim(),
+      lat: options.trailheadLat!,
+      lng: options.trailheadLng!,
+    };
   if (!destination) throw new Error(`Destination not found: ${options.destinationId}`);
   if (!trailhead) throw new Error(`Trailhead not found: ${options.trailheadId}`);
 
@@ -345,9 +425,16 @@ try {
     elements = [...unique.values()];
   } else {
     sourceUrl = overpassUrl;
+    const wayScope = options.corridorPaddingM === null
+      ? `around:${options.radiusM},${destination.lat},${destination.lng}`
+      : corridorBoundingBox(
+        trailhead,
+        destination,
+        options.corridorPaddingM
+      );
     const query =
       `[out:json][timeout:30];` +
-      `way(around:${options.radiusM},${destination.lat},${destination.lng})` +
+      `way(${wayScope})` +
       `["highway"~"^(path|footway|track)$"];` +
       `out body;>;out skel qt;`;
 

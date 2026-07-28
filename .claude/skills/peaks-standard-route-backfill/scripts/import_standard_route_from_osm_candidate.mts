@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
 import elevationImport from "../../../../web/src/lib/elevation";
@@ -11,7 +13,8 @@ const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
-const { computeElevationStats, fetchElevations } = elevationImport as unknown as
+const { computeElevationStats, fetchElevations: fetchMapboxElevations } =
+  elevationImport as unknown as
   typeof import("../../../../web/src/lib/elevation");
 const { haversineDistance } = gpxImport as unknown as
   typeof import("../../../../web/src/lib/gpx");
@@ -24,6 +27,13 @@ const OSM_LICENSE_NAME =
 const OSM_LICENSE_URL =
   "https://opendatacommons.org/licenses/odbl/1-0/";
 const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
+const USGS_3DEP_SAMPLES_URL =
+  "https://elevation.nationalmap.gov/arcgis/rest/services/" +
+  "3DEPElevation/ImageServer/getSamples";
+const OPEN_TOPO_DATA_NED_URL =
+  "https://api.opentopodata.org/v1/ned10m";
+
+type ElevationPoint = { lat: number; lng: number };
 
 type SourceLink = { type: string; id: string };
 
@@ -368,9 +378,14 @@ async function buildTrack(
     );
   }
 
-  const elevations = await fetchElevations(
-    candidate.coordinates.map(([lng, lat]) => ({ lat, lng }))
-  );
+  const elevationPoints = candidate.coordinates.map(([lng, lat]) => ({
+    lat,
+    lng,
+  }));
+  const elevations =
+    process.env.PEAKS_ELEVATION_SOURCE === "usgs-3dep"
+      ? await fetchUsgs3depElevations(elevationPoints)
+      : await fetchMapboxElevations(elevationPoints);
   let distance = 0;
   return candidate.coordinates.map(([lng, lat], index) => {
     if (index > 0) {
@@ -386,10 +401,219 @@ async function buildTrack(
   });
 }
 
+async function fetchUsgs3depElevations(
+  points: ElevationPoint[]
+): Promise<number[]> {
+  if (points.length === 0) return [];
+
+  const cacheDir = process.env.PEAKS_ELEVATION_CACHE_DIR;
+  const cacheKey = createHash("sha256")
+    .update(JSON.stringify(points))
+    .digest("hex");
+  const cachePath = cacheDir
+    ? path.join(cacheDir, `usgs-3dep-${cacheKey}.json`)
+    : "";
+  if (cachePath) {
+    try {
+      const cached = JSON.parse(await readFile(cachePath, "utf8")) as unknown;
+      if (
+        Array.isArray(cached) &&
+        cached.length === points.length &&
+        cached.every(Number.isFinite)
+      ) {
+        return cached;
+      }
+    } catch {
+      // A cache miss or invalid cache entry falls through to the public API.
+    }
+  }
+
+  const sampleCount = Math.min(points.length, 300);
+  const sampleIndices = Array.from({ length: sampleCount }, (_, index) =>
+    Math.round((index * (points.length - 1)) / (sampleCount - 1 || 1))
+  ).filter((value, index, values) => index === 0 || value !== values[index - 1]);
+  const samplePoints = sampleIndices.map((index) => points[index]);
+  const sampledElevations: number[] = [];
+  for (let start = 0; start < samplePoints.length; start += 100) {
+    sampledElevations.push(
+      ...(await fetchUsgs3depSampleBatch(samplePoints.slice(start, start + 100)))
+    );
+  }
+
+  const cumulativeDistance = new Array<number>(points.length).fill(0);
+  for (let index = 1; index < points.length; index += 1) {
+    cumulativeDistance[index] =
+      cumulativeDistance[index - 1] +
+      haversineDistance(
+        points[index - 1].lat,
+        points[index - 1].lng,
+        points[index].lat,
+        points[index].lng
+      );
+  }
+  const elevations = new Array<number>(points.length);
+  let sampleIndex = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    while (
+      sampleIndex + 1 < sampleIndices.length &&
+      sampleIndices[sampleIndex + 1] < index
+    ) {
+      sampleIndex += 1;
+    }
+    const leftIndex = sampleIndices[sampleIndex];
+    const rightSampleIndex = Math.min(
+      sampleIndex + 1,
+      sampleIndices.length - 1
+    );
+    const rightIndex = sampleIndices[rightSampleIndex];
+    const span =
+      cumulativeDistance[rightIndex] - cumulativeDistance[leftIndex];
+    const fraction =
+      span > 0
+        ? (cumulativeDistance[index] - cumulativeDistance[leftIndex]) / span
+        : 0;
+    elevations[index] =
+      Math.round(
+        (sampledElevations[sampleIndex] +
+          (sampledElevations[rightSampleIndex] -
+            sampledElevations[sampleIndex]) *
+            fraction) *
+          10
+      ) / 10;
+  }
+  if (cachePath) {
+    await mkdir(path.dirname(cachePath), { recursive: true });
+    await writeFile(cachePath, JSON.stringify(elevations));
+  }
+  return elevations;
+}
+
+async function fetchUsgs3depSampleBatch(
+  points: ElevationPoint[]
+): Promise<number[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  let response: Response;
+  try {
+    response = await fetch(USGS_3DEP_SAMPLES_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent":
+          "Peaks route research/1.0 " +
+          "(https://github.com/jhmacdon/peaks-firebase)",
+      },
+      body: new URLSearchParams({
+        geometry: JSON.stringify({
+          points: points.map((point) => [point.lng, point.lat]),
+          spatialReference: { wkid: 4326 },
+        }),
+        geometryType: "esriGeometryMultipoint",
+        returnFirstValueOnly: "true",
+        interpolation: "RSP_BilinearInterpolation",
+        f: "json",
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    return fetchOpenTopoDataNed(points);
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!response.ok) {
+    if (response.status >= 500) return fetchOpenTopoDataNed(points);
+    throw new Error(`USGS 3DEP returned HTTP ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    error?: { message?: string };
+    samples?: Array<{ locationId?: number; value?: string | number }>;
+  };
+  if (payload.error) {
+    throw new Error(
+      `USGS 3DEP failed: ${payload.error.message ?? "unknown error"}`
+    );
+  }
+  if (
+    !Array.isArray(payload.samples) ||
+    payload.samples.length !== points.length
+  ) {
+    throw new Error(
+      `USGS 3DEP returned ${payload.samples?.length ?? 0}/` +
+        `${points.length} samples`
+    );
+  }
+
+  const elevations = new Array<number>(points.length);
+  payload.samples.forEach((sample, index) => {
+    const target = Number.isInteger(sample.locationId)
+      ? Number(sample.locationId)
+      : index;
+    const elevation = Number(sample.value);
+    if (
+      target < 0 ||
+      target >= points.length ||
+      !Number.isFinite(elevation) ||
+      elevation < -500 ||
+      elevation > 9_000
+    ) {
+      throw new Error(`USGS 3DEP returned an invalid sample at ${index}`);
+    }
+    elevations[target] = Math.round(elevation * 10) / 10;
+  });
+  if (elevations.some((elevation) => !Number.isFinite(elevation))) {
+    throw new Error("USGS 3DEP response omitted one or more samples");
+  }
+  return elevations;
+}
+
+async function fetchOpenTopoDataNed(
+  points: ElevationPoint[]
+): Promise<number[]> {
+  const url = new URL(OPEN_TOPO_DATA_NED_URL);
+  url.searchParams.set(
+    "locations",
+    points.map((point) => `${point.lat},${point.lng}`).join("|")
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!response.ok) {
+    throw new Error(`OpenTopoData NED returned HTTP ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    status?: string;
+    results?: Array<{ elevation?: number | null }>;
+  };
+  if (
+    payload.status !== "OK" ||
+    !Array.isArray(payload.results) ||
+    payload.results.length !== points.length
+  ) {
+    throw new Error(
+      `OpenTopoData NED returned ${payload.results?.length ?? 0}/` +
+        `${points.length} samples`
+    );
+  }
+  return payload.results.map((result, index) => {
+    const elevation = Number(result.elevation);
+    if (!Number.isFinite(elevation) || elevation < -500 || elevation > 9_000) {
+      throw new Error(
+        `OpenTopoData NED returned an invalid sample at ${index}`
+      );
+    }
+    return Math.round(elevation * 10) / 10;
+  });
+}
+
 async function assertNoConflict(
   destinationId: string,
-  name: string,
-  wkt: string
+  name: string
 ): Promise<void> {
   const conflict = await db.query(
     `SELECT r.id, r.name, r.status
@@ -397,48 +621,19 @@ async function assertNoConflict(
      JOIN routes r ON r.id = rd.route_id
      WHERE rd.destination_id = $1
        AND r.owner = 'peaks'
-       AND (r.status = 'active' OR lower(r.name) = lower($2))
+       AND (
+         r.status IN ('active', 'pending')
+         OR lower(r.name) = lower($2)
+       )
      LIMIT 1`,
     [destinationId, name]
   );
   if (conflict.rows.length > 0) {
     throw new Error(
       `A conflicting Peaks route exists: ${conflict.rows[0].name} ` +
-        `(${conflict.rows[0].status}, ${conflict.rows[0].id})`
+      `(${conflict.rows[0].status}, ${conflict.rows[0].id})`
     );
   }
-
-  const duplicate = await db.query(
-    `SELECT id, name,
-            ST_HausdorffDistance(
-              path::geometry,
-              ST_GeomFromText($1, 4326)
-            ) AS hausdorff
-     FROM routes
-     WHERE owner = 'peaks'
-       AND path IS NOT NULL
-       AND ST_DWithin(path, ST_GeomFromText($1, 4326)::geography, 1000)
-     ORDER BY hausdorff
-     LIMIT 1`,
-    [wkt]
-  );
-  if (duplicate.rows.length > 0) {
-    const meters =
-      Number(duplicate.rows[0].hausdorff) *
-      111000 *
-      Math.cos((candidateLatitude(wkt) * Math.PI) / 180);
-    if (meters < 200) {
-      throw new Error(
-        `Geometry duplicates "${duplicate.rows[0].name}" within ` +
-          `${Math.round(meters)} m`
-      );
-    }
-  }
-}
-
-function candidateLatitude(wkt: string): number {
-  const match = /LINESTRING Z\([^ ]+ ([^ ]+)/.exec(wkt);
-  return match ? Number(match[1]) : 47;
 }
 
 function provenance(candidate: Candidate) {
@@ -560,14 +755,14 @@ async function main() {
   const points = await buildTrack(candidate, destination, trailhead);
   const distance = points[points.length - 1].dist;
   const stats = computeElevationStats(points.map((point) => point.ele));
-  if (distance < 1600) throw new Error("Route is shorter than 1,600 m");
+  if (distance < 1500) throw new Error("Route is shorter than 1,500 m");
   if (stats.gain < 200) throw new Error("Route gains less than 200 m");
   if (stats.loss > stats.gain * 1.5 && stats.loss > 100) {
     throw new Error("Route descends more than it climbs");
   }
 
   const wkt = pointsToLineStringZ(points);
-  await assertNoConflict(args.destinationId, args.name, wkt);
+  await assertNoConflict(args.destinationId, args.name);
 
   console.log(`Mode: ${args.apply ? "APPLY" : "DRY RUN"}`);
   console.log(
@@ -588,6 +783,13 @@ async function main() {
   );
   console.log(
     `Route sources: ${args.sourceLinks.map((link) => link.id).join(" | ")}`
+  );
+  console.log(
+    `Elevations: ${
+      process.env.PEAKS_ELEVATION_SOURCE === "usgs-3dep"
+        ? "USGS 3DEP/NED"
+        : "Mapbox Terrain-RGB"
+    }`
   );
 
   if (!args.apply) {

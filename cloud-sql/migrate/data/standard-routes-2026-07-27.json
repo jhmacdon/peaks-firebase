@@ -1,0 +1,256 @@
+{
+  "retrievedAt": "2026-07-27",
+  "license": {
+    "name": "Open Data Commons Open Database License (ODbL) 1.0",
+    "url": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "attribution": "© OpenStreetMap contributors"
+  },
+  "routes": [
+    {
+      "key": "hibox-mountain",
+      "name": "Hibox Mountain via Rachel Lake Trail",
+      "destinationId": "11Dj1MXI23in2fnW4EjK",
+      "trailheadId": "noVB6iJAt5rpP6cIEARA",
+      "wayIds": [125694345, 541829638],
+      "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/hibox-mountain"}]
+    },
+    {
+      "key": "guye-peak",
+      "name": "Guye Peak via North Route",
+      "destinationId": "GKYFnmdM5xpDMShh8DUX",
+      "trailheadId": "7mdR4I31n8VQQdPVN5Nd",
+      "wayIds": [1089371014, 824208041, 1089371018],
+      "sourceUrls": [
+        {"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/guye-peak"},
+        {"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/guye-peak-snoqualmie-mountain-cave-ridge-alpental"}
+      ]
+    },
+    {
+      "key": "fay-peak",
+      "name": "Fay Peak via Knapsack Pass and West Ridge",
+      "destinationId": "BsIe0TmBepTXILKSAsW9",
+      "trailheadId": "9ofuJq1VreK93jZgCjcF",
+      "wayIds": [129731620, 797716572, 437527615, 1163131657, 712349304, 1054595629, 1015106122],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/trip-reports/fay-peak-first-mother-mountain-1"}]
+    },
+    {
+      "key": "ingalls-peak",
+      "name": "Ingalls Peak via Ingalls Way and South Ridge",
+      "destinationId": "8gW9WZ6tngvhNn0TIDpc",
+      "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "wayIds": [1193241119, 236470870, 236470875, 236470876, 694942416, 1213228739],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/ingalls-stuart-area/ingalls-peak-south-ridge"}]
+    },
+    {
+      "key": "little-annapurna",
+      "name": "Little Annapurna via Aasgard Pass",
+      "destinationId": "TO172EubFDAqKIsiWR5S",
+      "trailheadId": "0kwic89q2UWPLE6jGyk0",
+      "wayIds": [1219407739, 1219407738, 5838047, 310632646, 854796770, 235696406, 854796771, 340350765, 310632679, 310632640, 844433058, 235696395, 1084352602, 1084352603, 1084352604, 538405794, 632018375, 632018377, 816936690],
+      "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/enchantment-lakes"}]
+    },
+    {
+      "key": "liberty-bell-mountain",
+      "name": "Liberty Bell Mountain via Beckey Route",
+      "destinationId": "1GWhGGVD44kQGei3I96d",
+      "trailheadId": "stNfYYZBNg6kM8dxK3q6",
+      "wayIds": [301865980, 1299856455],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/liberty-bell-blue-lake-trail-area-review/liberty-bell-southwest-face"}]
+    },
+    {
+      "key": "mount-sneffels",
+      "name": "Mount Sneffels via South Slopes",
+      "destinationId": "kiiPgtpXG1WwLvHfncOP",
+      "trailheadId": "C410CF1FB652D72E13DF",
+      "wayIds": [361348828, 247939573, 361348817, 361348822],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=snef1"}]
+    },
+    {
+      "key": "ruth-mountain",
+      "name": "Ruth Mountain via Hannegan Pass",
+      "destinationId": "6iQbHB14bTe1gWzD8Rxo",
+      "trailheadId": "UoS0tSqrlbNex2XgIWNJ",
+      "wayIds": [180356571, 182469994, 1214666652],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/trip-reports/ruth-mountain"}]
+    },
+    {
+      "key": "mount-hinman",
+      "name": "Mount Hinman via Necklace Valley and West Route",
+      "destinationId": "D7VUhCziozgDuI7ODYon",
+      "trailheadId": "1i9yRPweEOaK23BUqqO1",
+      "wayIds": [1274550692, 1274550693, 1274550694, 1274550695, 1274550697, 1274550698, 235408630, 1173214337, 1173214338, 1173214331, 1316820344, 661915400, 1173214328, 723868824],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/mount-hinman-west-route"}]
+    },
+    {
+      "key": "mount-stuart",
+      "name": "Mount Stuart via Cascadian Couloir",
+      "destinationId": "JasFS6IMlSoKE9LWIO6q",
+      "trailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "wayIds": [1193241119, 236470870, 236364511, 295213928, 5844815, 295213943, 1328419258, 1328419257, 1328419259, 295213929, 295213954, 295213941],
+      "sourceUrls": [{"type": "mountaineers", "url": "https://www.mountaineers.org/activities/routes-places/ingalls-stuart-area/mt-stuart-cascadian-couloir"}]
+    },
+    {
+      "key": "old-snowy-mountain",
+      "name": "Old Snowy Mountain via Snowgrass Flat",
+      "destinationId": "FnWeJhXQdetfKbONaTed",
+      "trailheadId": "B0n6dvoXcE9VYY5updyd",
+      "wayIds": [147614862, 442980345, 442980344, 147614857, 1095570987, 147614841, 548939292, 1352978194, 548940147, 1352978238, 1352978219, 1352978216, 1352978214, 1352978211, 337321382, 442980341],
+      "sourceUrls": [{"type": "wta", "url": "https://www.wta.org/go-hiking/hikes/old-snowy-mountain-elk-pass"}]
+    },
+    {
+      "key": "mount-antero",
+      "name": "Mount Antero via West Slopes",
+      "destinationId": "LcO62PyIyGt8UV2Fwp0T",
+      "trailheadId": "219D35913C5D0397ED95",
+      "wayIds": [186517456, 17016852, 186369419, 136372797, 181820741, 1208154495],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=ante1"}]
+    },
+    {
+      "key": "castle-peak",
+      "name": "Castle Peak via Northeast Ridge",
+      "destinationId": "xIPfAyxLURtGgiUqNy0c",
+      "trailheadId": "94F0C1CE8A14286B9F99",
+      "wayIds": [17121341, 928741746, 17118921, 17120940, 928741744, 128682316],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=cast1"}]
+    },
+    {
+      "key": "crestone-peak",
+      "name": "Crestone Peak via South Face",
+      "destinationId": "eBNZkjZzZV96xo5f36bx",
+      "trailheadId": "EC7F585E18BFDD5CF857",
+      "wayIds": [233237471, 1389594866, 248171399, 258727480, 258728054, 454427906, 882566789],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=cpea2"}]
+    },
+    {
+      "key": "crestone-needle",
+      "name": "Crestone Needle via South Face",
+      "destinationId": "ZAov0aNubZDMhTjlwkYq",
+      "trailheadId": "EC7F585E18BFDD5CF857",
+      "wayIds": [233237471, 1389594866, 248171399, 258727480, 258728100],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=cnee1"}]
+    },
+    {
+      "key": "sunlight-peak",
+      "name": "Sunlight Peak via South Face",
+      "destinationId": "fPuj4ypVsbHYuTyj5PII",
+      "trailheadId": "D64EE25F1294DADD64C9",
+      "wayIds": [558865452, 558865453, 558865454, 1026543878, 1026543879, 1279127772, 1279127773, 559103591, 246412280, 885309590],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=sunl2"}]
+    },
+    {
+      "key": "mount-eolus",
+      "name": "Mount Eolus via Northeast Ridge",
+      "destinationId": "9wEfGDwlapeWhVRbdCHC",
+      "trailheadId": "D64EE25F1294DADD64C9",
+      "wayIds": [558865452, 558865453, 558865454, 1026543878, 1026543879, 1279127772, 1279127773, 559103591, 246412280, 248318474, 258848046, 258848045, 258848043, 248314626, 258848159],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=eolu3"}]
+    },
+    {
+      "key": "windom-peak",
+      "name": "Windom Peak via West Ridge",
+      "destinationId": "o7SfBuXaKzqQDoXGXvqV",
+      "trailheadId": "D64EE25F1294DADD64C9",
+      "wayIds": [558865452, 558865453, 558865454, 1026543878, 1026543879, 1279127772, 1279127773, 559103591, 246412280, 885309590, 885309592],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=wind1"}]
+    },
+    {
+      "key": "uncompahgre-peak",
+      "name": "Uncompahgre Peak via South Ridge",
+      "destinationId": "agkhOiSeDoTx1mUJfil2",
+      "trailheadId": "A1CDE8E1D27799C8712C",
+      "wayIds": [384117013, 17063351, 384117012],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=unco1"}]
+    },
+    {
+      "key": "handies-peak",
+      "name": "Handies Peak via Southwest Slopes",
+      "destinationId": "YYsIpsz0glrihuXLAc9d",
+      "trailheadId": "EFAB9A40B145B84B5DAF",
+      "wayIds": [198193309],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=hand1"}]
+    },
+    {
+      "key": "blanca-peak",
+      "name": "Blanca Peak via Northwest Ridge",
+      "destinationId": "eUeAYmCsnVhGDsrXnWqp",
+      "trailheadId": "0F6324C02DFB998487B1",
+      "wayIds": [17004120, 17003918, 774865387, 684417114, 1302938324, 882567183, 1303330453],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=blan1"}]
+    },
+    {
+      "key": "ellingwood-point",
+      "name": "Ellingwood Point via South Face",
+      "destinationId": "uv9GJKmydXw7SJHiqbyR",
+      "trailheadId": "0F6324C02DFB998487B1",
+      "wayIds": [17004120, 17003918, 774865387, 684417114, 1302938324, 882567183, 882567184],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=elli2"}]
+    },
+    {
+      "key": "little-bear-peak",
+      "name": "Little Bear Peak via West Ridge and Hourglass",
+      "destinationId": "yRH2UgSgZzPhpe2Ldhql",
+      "trailheadId": "0F6324C02DFB998487B1",
+      "wayIds": [17004120, 17003918, 774865387, 684417114, 885312942],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=litt6"}]
+    },
+    {
+      "key": "wilson-peak",
+      "name": "Wilson Peak via Southwest Ridge",
+      "destinationId": "iBWwtKxvlxZEtjTSclRt",
+      "trailheadId": "F88500755F4DE6F283C9",
+      "wayIds": [1484421334, 247956957, 250490639],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=wils1"}]
+    },
+    {
+      "key": "mount-wilson",
+      "name": "Mount Wilson via Southwest Slopes",
+      "destinationId": "0RqwWZAuSxCZD7Wvvoux",
+      "trailheadId": "20662104C7EE6E9A1136",
+      "wayIds": [703240675, 250865043, 1134187180, 882585565],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=mwil6"}]
+    },
+    {
+      "key": "mount-of-the-holy-cross",
+      "name": "Mount of the Holy Cross via North Ridge",
+      "destinationId": "2EyMjHMkNqZWAnUVoos5",
+      "trailheadId": "AD30E99774193FD02457",
+      "wayIds": [1449861448, 250492034, 1449861449],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=holy1"}]
+    },
+    {
+      "key": "redcloud-peak",
+      "name": "Redcloud Peak via Northeast Ridge",
+      "destinationId": "C3WOpAnEHIawrZAYd2rM",
+      "trailheadId": "BE26C53F8339934849AD",
+      "wayIds": [971798961, 198193292, 251077010, 198193289, 251076947, 198193295, 251076165],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=redc1"}]
+    },
+    {
+      "key": "challenger-point",
+      "name": "Challenger Point via North Slope",
+      "destinationId": "w87L3l4ODUKIZbX11vBc",
+      "trailheadId": "95BE20144379E778FB78",
+      "wayIds": [231660132, 1081024767, 1081024766, 258730114, 1389935378, 1081041704, 1389935377],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=chal1"}]
+    },
+    {
+      "key": "kit-carson-peak",
+      "name": "Kit Carson Peak via Challenger Point",
+      "destinationId": "G5tECdcQ9YV42pG61rNH",
+      "trailheadId": "95BE20144379E778FB78",
+      "wayIds": [231660132, 1081024767, 1081024766, 258730114, 1389935378, 1081041704, 1389935377],
+      "sourceUrls": [{"type": "14ers", "url": "https://www.14ers.com/route.php?route=kitc2"}]
+    },
+    {
+      "key": "mount-lindsey",
+      "name": "Mount Lindsey via Northwest Gully",
+      "destinationId": "vxamAbvlzsEXDd9tUIPt",
+      "trailheadId": "691DE568C2AE21EC3F25",
+      "wayIds": [629713627, 1303355330, 1303356765, 1303356764, 258730748],
+      "sourceUrls": [
+        {"type": "14ers", "url": "https://www.14ers.com/route.php?route=lind1"},
+        {"type": "access", "url": "https://www.14ers.com/php14ers/trailheadsview.php?thparm=sc02"}
+      ]
+    }
+  ]
+}
