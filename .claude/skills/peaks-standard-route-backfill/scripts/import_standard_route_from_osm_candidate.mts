@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
 import elevationImport from "../../../../web/src/lib/elevation";
@@ -11,7 +13,8 @@ const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
-const { computeElevationStats, fetchElevations } = elevationImport as unknown as
+const { computeElevationStats, fetchElevations: fetchMapboxElevations } =
+  elevationImport as unknown as
   typeof import("../../../../web/src/lib/elevation");
 const { haversineDistance } = gpxImport as unknown as
   typeof import("../../../../web/src/lib/gpx");
@@ -24,6 +27,11 @@ const OSM_LICENSE_NAME =
 const OSM_LICENSE_URL =
   "https://opendatacommons.org/licenses/odbl/1-0/";
 const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
+const USGS_3DEP_SAMPLES_URL =
+  "https://elevation.nationalmap.gov/arcgis/rest/services/" +
+  "3DEPElevation/ImageServer/getSamples";
+
+type ElevationPoint = { lat: number; lng: number };
 
 type SourceLink = { type: string; id: string };
 
@@ -368,9 +376,14 @@ async function buildTrack(
     );
   }
 
-  const elevations = await fetchElevations(
-    candidate.coordinates.map(([lng, lat]) => ({ lat, lng }))
-  );
+  const elevationPoints = candidate.coordinates.map(([lng, lat]) => ({
+    lat,
+    lng,
+  }));
+  const elevations =
+    process.env.PEAKS_ELEVATION_SOURCE === "usgs-3dep"
+      ? await fetchUsgs3depElevations(elevationPoints)
+      : await fetchMapboxElevations(elevationPoints);
   let distance = 0;
   return candidate.coordinates.map(([lng, lat], index) => {
     if (index > 0) {
@@ -384,6 +397,156 @@ async function buildTrack(
       dist: Math.round(distance * 10) / 10,
     };
   });
+}
+
+async function fetchUsgs3depElevations(
+  points: ElevationPoint[]
+): Promise<number[]> {
+  if (points.length === 0) return [];
+
+  const cacheDir = process.env.PEAKS_ELEVATION_CACHE_DIR;
+  const cacheKey = createHash("sha256")
+    .update(JSON.stringify(points))
+    .digest("hex");
+  const cachePath = cacheDir
+    ? path.join(cacheDir, `usgs-3dep-${cacheKey}.json`)
+    : "";
+  if (cachePath) {
+    try {
+      const cached = JSON.parse(await readFile(cachePath, "utf8")) as unknown;
+      if (
+        Array.isArray(cached) &&
+        cached.length === points.length &&
+        cached.every(Number.isFinite)
+      ) {
+        return cached;
+      }
+    } catch {
+      // A cache miss or invalid cache entry falls through to the public API.
+    }
+  }
+
+  const sampleCount = Math.min(points.length, 300);
+  const sampleIndices = Array.from({ length: sampleCount }, (_, index) =>
+    Math.round((index * (points.length - 1)) / (sampleCount - 1 || 1))
+  ).filter((value, index, values) => index === 0 || value !== values[index - 1]);
+  const samplePoints = sampleIndices.map((index) => points[index]);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000);
+  let response: Response;
+  try {
+    response = await fetch(USGS_3DEP_SAMPLES_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "user-agent":
+          "Peaks route research/1.0 " +
+          "(https://github.com/jhmacdon/peaks-firebase)",
+      },
+      body: new URLSearchParams({
+        geometry: JSON.stringify({
+          points: samplePoints.map((point) => [point.lng, point.lat]),
+          spatialReference: { wkid: 4326 },
+        }),
+        geometryType: "esriGeometryMultipoint",
+        returnFirstValueOnly: "true",
+        interpolation: "RSP_BilinearInterpolation",
+        f: "json",
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!response.ok) {
+    throw new Error(`USGS 3DEP returned HTTP ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    error?: { message?: string };
+    samples?: Array<{ locationId?: number; value?: string | number }>;
+  };
+  if (payload.error) {
+    throw new Error(
+      `USGS 3DEP failed: ${payload.error.message ?? "unknown error"}`
+    );
+  }
+  if (
+    !Array.isArray(payload.samples) ||
+    payload.samples.length !== samplePoints.length
+  ) {
+    throw new Error(
+      `USGS 3DEP returned ${payload.samples?.length ?? 0}/` +
+        `${samplePoints.length} samples`
+    );
+  }
+
+  const sampledElevations = new Array<number>(samplePoints.length);
+  payload.samples.forEach((sample, index) => {
+    const target = Number.isInteger(sample.locationId)
+      ? Number(sample.locationId)
+      : index;
+    const elevation = Number(sample.value);
+    if (
+      target < 0 ||
+      target >= samplePoints.length ||
+      !Number.isFinite(elevation) ||
+      elevation < -500 ||
+      elevation > 9_000
+    ) {
+      throw new Error(`USGS 3DEP returned an invalid sample at ${index}`);
+    }
+    sampledElevations[target] = Math.round(elevation * 10) / 10;
+  });
+  if (sampledElevations.some((elevation) => !Number.isFinite(elevation))) {
+    throw new Error("USGS 3DEP response omitted one or more samples");
+  }
+
+  const cumulativeDistance = new Array<number>(points.length).fill(0);
+  for (let index = 1; index < points.length; index += 1) {
+    cumulativeDistance[index] =
+      cumulativeDistance[index - 1] +
+      haversineDistance(
+        points[index - 1].lat,
+        points[index - 1].lng,
+        points[index].lat,
+        points[index].lng
+      );
+  }
+  const elevations = new Array<number>(points.length);
+  let sampleIndex = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    while (
+      sampleIndex + 1 < sampleIndices.length &&
+      sampleIndices[sampleIndex + 1] < index
+    ) {
+      sampleIndex += 1;
+    }
+    const leftIndex = sampleIndices[sampleIndex];
+    const rightSampleIndex = Math.min(
+      sampleIndex + 1,
+      sampleIndices.length - 1
+    );
+    const rightIndex = sampleIndices[rightSampleIndex];
+    const span =
+      cumulativeDistance[rightIndex] - cumulativeDistance[leftIndex];
+    const fraction =
+      span > 0
+        ? (cumulativeDistance[index] - cumulativeDistance[leftIndex]) / span
+        : 0;
+    elevations[index] =
+      Math.round(
+        (sampledElevations[sampleIndex] +
+          (sampledElevations[rightSampleIndex] -
+            sampledElevations[sampleIndex]) *
+            fraction) *
+          10
+      ) / 10;
+  }
+  if (cachePath) {
+    await mkdir(path.dirname(cachePath), { recursive: true });
+    await writeFile(cachePath, JSON.stringify(elevations));
+  }
+  return elevations;
 }
 
 async function assertNoConflict(
@@ -588,6 +751,13 @@ async function main() {
   );
   console.log(
     `Route sources: ${args.sourceLinks.map((link) => link.id).join(" | ")}`
+  );
+  console.log(
+    `Elevations: ${
+      process.env.PEAKS_ELEVATION_SOURCE === "usgs-3dep"
+        ? "USGS 3DEP"
+        : "Mapbox Terrain-RGB"
+    }`
   );
 
   if (!args.apply) {
