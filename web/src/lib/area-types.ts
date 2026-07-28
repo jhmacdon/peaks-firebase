@@ -17,6 +17,16 @@ export interface ProtectedArea {
   kind: AreaKind;
   designation?: string | null;
   manager?: string | null;
+  parent_id?: string | null;
+}
+
+export type AreaBoundary = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+
+export interface AreaBoundingBox {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
 }
 
 // Server-known kinds. "unknown" is intentionally excluded: any raw value not in
@@ -56,9 +66,45 @@ export function parseAreas(raw: unknown): ProtectedArea[] {
       kind: normalizeAreaKind(obj.kind),
       designation: typeof obj.designation === "string" ? obj.designation : null,
       manager: typeof obj.manager === "string" ? obj.manager : null,
+      parent_id:
+        typeof obj.parent_id === "string"
+          ? obj.parent_id
+          : typeof obj.parentId === "string"
+            ? obj.parentId
+            : null,
     });
   }
   return out;
+}
+
+export function parseAreaBoundary(raw: unknown): AreaBoundary | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (
+    (value.type !== "Polygon" && value.type !== "MultiPolygon") ||
+    !Array.isArray(value.coordinates)
+  ) {
+    return null;
+  }
+  return value as unknown as AreaBoundary;
+}
+
+const KIND_LABELS: Record<AreaKind, string> = {
+  national_park: "National park",
+  national_monument: "National monument",
+  national_forest: "National forest",
+  national_grassland: "National grassland",
+  wilderness: "Wilderness",
+  national_recreation_area: "National recreation area",
+  national_conservation_area: "National conservation area",
+  wildlife_refuge: "Wildlife refuge",
+  wild_and_scenic_river: "Wild and scenic river",
+  other_federal_area: "Protected area",
+  unknown: "Protected area",
+};
+
+export function areaKindLabel(kind: AreaKind): string {
+  return KIND_LABELS[kind];
 }
 
 /** Shared contract — must match the iOS `ProtectedArea.isNationalParkService`. */

@@ -602,7 +602,7 @@ CREATE TABLE session_destination_rejections (
 -- ---------------------------------------------------------------------------
 -- session_areas
 -- Protected areas whose boundary the recorded GPS path passes through.
--- Built from tracking_sessions.path during processSession. A session can cross
+-- Built from saved tracking-point segments during processSession. A session can cross
 -- several overlapping parks, forests, and wilderness areas.
 -- ---------------------------------------------------------------------------
 CREATE TABLE session_areas (
@@ -856,6 +856,10 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_session_destinations_touch_session
 AFTER INSERT OR UPDATE OR DELETE ON session_destinations
+FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
+
+CREATE TRIGGER trg_session_areas_touch_session
+AFTER INSERT OR UPDATE OR DELETE ON session_areas
 FOR EACH ROW EXECUTE FUNCTION touch_related_tracking_session();
 
 CREATE TRIGGER trg_session_routes_touch_session

@@ -1,5 +1,5 @@
 /**
- * Fill session_areas for recordings that predate path-based area tagging.
+ * Fill session_areas for recordings that predate segment-based area tagging.
  *
  * Run after 20260721_session_area_paths.sql. Work stays in small batches so a
  * large history cannot hold one long transaction or use much memory.
@@ -42,10 +42,15 @@ async function tagBatch(ids: string[]): Promise<{ links: number; failed: number 
 
 async function main(): Promise<void> {
   const candidates = await db.query<{ id: string }>(
-    `SELECT id
-     FROM tracking_sessions
-     WHERE path IS NOT NULL
-     ORDER BY id`
+    `SELECT s.id
+     FROM tracking_sessions s
+     WHERE EXISTS (
+       SELECT 1
+       FROM tracking_points tp
+       WHERE tp.session_id = s.id
+         AND tp.location IS NOT NULL
+     )
+     ORDER BY s.id`
   );
 
   let taggedSessions = 0;

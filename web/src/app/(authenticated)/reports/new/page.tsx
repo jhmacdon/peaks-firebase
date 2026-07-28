@@ -14,13 +14,21 @@ interface SelectedDestination {
   name: string;
 }
 
+function todayForDateInput(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function NewReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { getIdToken } = useAuth();
 
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(todayForDateInput);
   const [blocks, setBlocks] = useState<TripReportBlock[]>([
     { type: "text", content: "" },
   ]);

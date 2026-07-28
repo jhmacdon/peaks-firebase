@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Polyline } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 interface Point {
@@ -11,6 +11,7 @@ interface Point {
 
 interface SessionMapProps {
   points: Point[];
+  activeIndex?: number | null;
 }
 
 const SEGMENT_COLORS = [
@@ -23,17 +24,33 @@ const SEGMENT_COLORS = [
   "#06b6d4", // cyan
 ];
 
-export default function SessionMap({ points }: SessionMapProps) {
+function groupPositions(points: Point[]): Map<number, [number, number][]> {
+  const segments: Map<number, [number, number][]> = new Map();
+  for (const point of points) {
+    const positions = segments.get(point.segment_number) ?? [];
+    positions.push([point.lat, point.lng]);
+    segments.set(point.segment_number, positions);
+  }
+  return segments;
+}
+
+export default function SessionMap({
+  points,
+  activeIndex = null,
+}: SessionMapProps) {
   if (points.length === 0) return null;
 
-  // Group points by segment
-  const segments: Map<number, [number, number][]> = new Map();
-  for (const p of points) {
-    if (!segments.has(p.segment_number)) {
-      segments.set(p.segment_number, []);
-    }
-    segments.get(p.segment_number)!.push([p.lat, p.lng]);
-  }
+  const clampedActiveIndex =
+    activeIndex == null
+      ? null
+      : Math.max(0, Math.min(activeIndex, points.length - 1));
+  const segments = groupPositions(points);
+  const completedSegments =
+    clampedActiveIndex == null
+      ? new Map<number, [number, number][]>()
+      : groupPositions(points.slice(0, clampedActiveIndex + 1));
+  const activePoint =
+    clampedActiveIndex == null ? null : points[clampedActiveIndex];
 
   // Calculate bounds
   const lats = points.map((p) => p.lat);
@@ -56,16 +73,59 @@ export default function SessionMap({ points }: SessionMapProps) {
           attribution='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
           maxZoom={17}
         />
-        {Array.from(segments.entries()).map(([segNum, positions]) => (
-          <Polyline
-            key={segNum}
-            positions={positions}
-            pathOptions={{
-              color: SEGMENT_COLORS[segNum % SEGMENT_COLORS.length],
-              weight: 3,
-            }}
-          />
-        ))}
+        {clampedActiveIndex == null
+          ? Array.from(segments.entries()).map(([segNum, positions]) => (
+              <Polyline
+                key={segNum}
+                positions={positions}
+                pathOptions={{
+                  color: SEGMENT_COLORS[segNum % SEGMENT_COLORS.length],
+                  weight: 3,
+                }}
+              />
+            ))
+          : (
+              <>
+                {Array.from(segments.entries()).map(([segNum, positions]) => (
+                  <Polyline
+                    key={`remaining-${segNum}`}
+                    positions={positions}
+                    pathOptions={{
+                      color: "#64748b",
+                      opacity: 0.42,
+                      weight: 3,
+                    }}
+                  />
+                ))}
+                {Array.from(completedSegments.entries()).map(
+                  ([segNum, positions]) => (
+                    <Polyline
+                      key={`complete-${segNum}`}
+                      positions={positions}
+                      pathOptions={{
+                        color:
+                          SEGMENT_COLORS[segNum % SEGMENT_COLORS.length],
+                        opacity: 0.95,
+                        weight: 4,
+                      }}
+                    />
+                  )
+                )}
+                {activePoint && (
+                  <CircleMarker
+                    center={[activePoint.lat, activePoint.lng]}
+                    radius={7}
+                    pathOptions={{
+                      color: "#ffffff",
+                      fillColor: "#0f766e",
+                      fillOpacity: 1,
+                      opacity: 1,
+                      weight: 3,
+                    }}
+                  />
+                )}
+              </>
+            )}
       </MapContainer>
     </div>
   );

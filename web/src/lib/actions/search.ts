@@ -7,6 +7,7 @@ import {
   parseRouteProvenance,
   type RouteProvenance,
 } from "../route-provenance";
+import { normalizeAreaKind, type AreaKind } from "../area-types";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -52,10 +53,30 @@ export interface SearchRouteResult {
   provenance: RouteProvenance | null;
 }
 
+export interface SearchAreaResult {
+  id: string;
+  name: string;
+  kind: AreaKind;
+  designation: string | null;
+  manager: string | null;
+  state_codes: string[];
+  destination_count: number;
+  route_count: number;
+  score: number;
+}
+
 export interface DiscoverStats {
   destinationCount: number;
   routeCount: number;
   listCount: number;
+  areaCount: number;
+}
+
+const MAX_AREA_SEARCH_QUERY_LENGTH = 120;
+const MAX_AREA_SEARCH_RESULTS = 20;
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
 }
 
 /**
@@ -254,6 +275,63 @@ export async function searchRoutes(
   }));
 }
 
+export async function searchAreas(
+  query: string,
+  limit: number = 8
+): Promise<SearchAreaResult[]> {
+  if (typeof query !== "string") return [];
+
+  const q = normalizeSearchName(
+    query.trim().slice(0, MAX_AREA_SEARCH_QUERY_LENGTH)
+  ).slice(0, MAX_AREA_SEARCH_QUERY_LENGTH);
+  if (!q) return [];
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(Math.max(Math.trunc(limit), 1), MAX_AREA_SEARCH_RESULTS)
+    : 8;
+  const prefixPattern = `${escapeLikePattern(q)}%`;
+
+  const result = await db.query(
+    `SELECT a.id, a.name, a.kind, a.designation, a.manager, a.state_codes,
+            (
+              SELECT COUNT(DISTINCT da.destination_id)::int
+              FROM destination_areas da
+              JOIN destinations d ON d.id = da.destination_id
+              WHERE da.area_id = a.id AND d.owner = 'peaks'
+            ) AS destination_count,
+            (
+              SELECT COUNT(DISTINCT ra.route_id)::int
+              FROM route_areas ra
+              JOIN routes r ON r.id = ra.route_id
+              WHERE ra.area_id = a.id
+                AND r.owner = 'peaks'
+                AND r.status = 'active'
+            ) AS route_count,
+            (
+              similarity(a.search_name, $1)
+              + CASE WHEN a.search_name ILIKE $2 ESCAPE E'\\\\' THEN 0.2 ELSE 0 END
+            ) AS score
+     FROM areas a
+     WHERE a.search_name % $1
+        OR a.search_name ILIKE $2 ESCAPE E'\\\\'
+     ORDER BY score DESC, destination_count DESC, route_count DESC, a.name ASC
+     LIMIT $3`,
+    [q, prefixPattern, safeLimit]
+  );
+
+  return result.rows.map((row: any) => ({
+    id: String(row.id),
+    name: String(row.name),
+    kind: normalizeAreaKind(row.kind),
+    designation:
+      typeof row.designation === "string" ? row.designation : null,
+    manager: typeof row.manager === "string" ? row.manager : null,
+    state_codes: parseArray(row.state_codes),
+    destination_count: Number(row.destination_count),
+    route_count: Number(row.route_count),
+    score: Number(row.score),
+  }));
+}
+
 export async function getPopularRoutes(
   limit: number = 8
 ): Promise<SearchRouteResult[]> {
@@ -285,7 +363,7 @@ export async function getPopularRoutes(
 }
 
 export async function getDiscoverStats(): Promise<DiscoverStats> {
-  const [destinations, routes, lists] = await Promise.all([
+  const [destinations, routes, lists, areas] = await Promise.all([
     db.query(`SELECT COUNT(*)::int AS count FROM destinations`),
     db.query(
       `SELECT COUNT(*)::int AS count
@@ -293,12 +371,14 @@ export async function getDiscoverStats(): Promise<DiscoverStats> {
        WHERE owner = 'peaks' AND status = 'active'`
     ),
     db.query(`SELECT COUNT(*)::int AS count FROM lists`),
+    db.query(`SELECT COUNT(*)::int AS count FROM areas`),
   ]);
 
   return {
     destinationCount: Number(destinations.rows[0].count),
     routeCount: Number(routes.rows[0].count),
     listCount: Number(lists.rows[0].count),
+    areaCount: Number(areas.rows[0].count),
   };
 }
 

@@ -153,6 +153,29 @@ export default function AccountPage() {
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </Link>
+
+        <Link
+          href="/saved"
+          className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex h-5 w-5 items-center justify-center text-lg leading-none text-gray-500"
+            >
+              ★
+            </span>
+            <div>
+              <div className="font-medium text-sm">Saved destinations</div>
+              <div className="text-xs text-gray-500">
+                View your saved peaks and places
+              </div>
+            </div>
+          </div>
+          <span aria-hidden="true" className="text-gray-400">
+            ›
+          </span>
+        </Link>
       </div>
 
       {/* Sign Out */}

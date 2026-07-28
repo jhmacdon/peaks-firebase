@@ -40,11 +40,18 @@ function toIsoDateFromFirestore(
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [destinations, routes, lists, reports] = await Promise.all([
+  const [destinations, areas, routes, lists, reports] = await Promise.all([
     safeQuery(
       db.query<SitemapRow>(`
         SELECT id, updated_at AS "updatedAt"
         FROM destinations
+        ORDER BY updated_at DESC
+      `)
+    ),
+    safeQuery(
+      db.query<SitemapRow>(`
+        SELECT id, updated_at AS "updatedAt"
+        FROM areas
         ORDER BY updated_at DESC
       `)
     ),
@@ -83,6 +90,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entries.push(
       ...destinations.rows.map((row) => ({
         url: absoluteUrl(`/destinations/${row.id}`),
+        lastModified: toIsoDate(row.updatedAt),
+      }))
+    );
+  }
+
+  if (areas) {
+    entries.push(
+      ...areas.rows.map((row) => ({
+        url: absoluteUrl(`/areas/${encodeURIComponent(row.id)}`),
         lastModified: toIsoDate(row.updatedAt),
       }))
     );

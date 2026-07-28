@@ -9,14 +9,17 @@ import DestinationCard from "../../../components/destination-card";
 import RouteCard from "../../../components/route-card";
 import ListCard from "../../../components/list-card";
 import TripReportCard from "../../../components/trip-report-card";
+import AreaCard from "../../../components/area-card";
 import {
   searchDestinations,
   getNearbyDestinations,
   getPopularDestinations,
   searchRoutes,
+  searchAreas,
   getPopularRoutes,
   getDiscoverStats,
   type DiscoverStats,
+  type SearchAreaResult,
   type SearchDestination,
   type SearchRouteResult,
 } from "../../../lib/actions/search";
@@ -32,7 +35,13 @@ import {
   formatElevationMeters,
 } from "../../../lib/route-guide";
 
-const SEARCH_SCOPES = ["all", "destinations", "routes", "lists"] as const;
+const SEARCH_SCOPES = [
+  "all",
+  "destinations",
+  "areas",
+  "routes",
+  "lists",
+] as const;
 
 type SearchScope = (typeof SEARCH_SCOPES)[number];
 
@@ -75,6 +84,7 @@ function DiscoverContent() {
     destinationCount: 0,
     routeCount: 0,
     listCount: 0,
+    areaCount: 0,
   });
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
@@ -86,9 +96,11 @@ function DiscoverContent() {
 
   const [searchedQuery, setSearchedQuery] = useState("");
   const [destinationResults, setDestinationResults] = useState<SearchDestination[]>([]);
+  const [areaResults, setAreaResults] = useState<SearchAreaResult[]>([]);
   const [routeResults, setRouteResults] = useState<SearchRouteResult[]>([]);
   const [listResults, setListResults] = useState<ListRow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Request geolocation once on mount
   useEffect(() => {
@@ -111,25 +123,41 @@ function DiscoverContent() {
     if (!query) {
       setSearchedQuery("");
       setDestinationResults([]);
+      setAreaResults([]);
       setRouteResults([]);
       setListResults([]);
       setSearchLoading(false);
+      setSearchError(null);
       return;
     }
     let cancelled = false;
     async function search() {
       setSearchLoading(true);
+      setSearchError(null);
       try {
-        const [destinationsRes, routesRes, listsRes] = await Promise.all([
+        const [destinationsRes, areasRes, routesRes, listsRes] = await Promise.all([
           searchDestinations(query, userLat ?? undefined, userLng ?? undefined, 9),
+          searchAreas(query, 6),
           searchRoutes(query, 6),
           getLists(query, 6, 0),
         ]);
         if (!cancelled) {
           setSearchedQuery(query);
           setDestinationResults(destinationsRes);
+          setAreaResults(areasRes);
           setRouteResults(routesRes);
           setListResults(listsRes.lists);
+        }
+      } catch {
+        if (!cancelled) {
+          setSearchedQuery(query);
+          setDestinationResults([]);
+          setAreaResults([]);
+          setRouteResults([]);
+          setListResults([]);
+          setSearchError(
+            "Search is unavailable right now. Refresh the page or try another search."
+          );
         }
       } finally {
         if (!cancelled) {
@@ -228,17 +256,23 @@ function DiscoverContent() {
 
   const loading = !query && !sectionsLoaded;
   const totalSearchResults =
-    destinationResults.length + routeResults.length + listResults.length;
+    destinationResults.length +
+    areaResults.length +
+    routeResults.length +
+    listResults.length;
   const visibleDestinationResults =
     searchScope === "all" || searchScope === "destinations"
       ? destinationResults
       : [];
   const visibleRouteResults =
     searchScope === "all" || searchScope === "routes" ? routeResults : [];
+  const visibleAreaResults =
+    searchScope === "all" || searchScope === "areas" ? areaResults : [];
   const visibleListResults =
     searchScope === "all" || searchScope === "lists" ? listResults : [];
   const visibleSearchResults =
     visibleDestinationResults.length +
+    visibleAreaResults.length +
     visibleRouteResults.length +
     visibleListResults.length;
   const popularSearches = popularDestinations
@@ -278,6 +312,22 @@ function DiscoverContent() {
         (route.name?.toLowerCase().startsWith(query.toLowerCase()) ? 20 : 0) +
         route.session_count,
     })),
+    ...areaResults.slice(0, 3).map((area) => ({
+      id: `area-${area.id}`,
+      href: `/areas/${encodeURIComponent(area.id)}`,
+      title: area.name,
+      typeLabel: "Protected area",
+      summary: [
+        labelize(area.kind),
+        area.state_codes.join(", "),
+        `${area.destination_count} destination${
+          area.destination_count === 1 ? "" : "s"
+        }`,
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join(" · "),
+      rank: 250 + area.score,
+    })),
     ...listResults.slice(0, 2).map((list) => ({
       id: `list-${list.id}`,
       href: `/lists/${list.id}`,
@@ -301,6 +351,7 @@ function DiscoverContent() {
       label: "Peaks & places",
       count: destinationResults.length,
     },
+    { id: "areas", label: "Protected areas", count: areaResults.length },
     { id: "routes", label: "Routes", count: routeResults.length },
     { id: "lists", label: "Lists", count: listResults.length },
   ];
@@ -342,12 +393,12 @@ function DiscoverContent() {
               Search like a trail planner, not a landing page.
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-400">
-              Find peaks, trailheads, shelters, route guides, and curated lists.
-              Start from a name, jump straight to the map, or browse what people
-              are actually climbing right now.
+              Find peaks, trailheads, protected areas, route guides, and curated
+              lists. Start from a name, jump straight to the map, or browse what
+              people are actually climbing right now.
             </p>
             <div className="mt-5 max-w-3xl">
-              <SearchBar placeholder="Search peaks, trailheads, routes, and lists" />
+              <SearchBar placeholder="Search peaks, protected areas, routes, and lists" />
             </div>
 
             {query ? (
@@ -419,6 +470,7 @@ function DiscoverContent() {
               </div>
               <div className="mt-4 space-y-4">
                 <CatalogStat label="Destination guides" value={stats.destinationCount.toLocaleString("en-US")} detail="Peaks, trailheads, shelters, and mapped objectives" />
+                <CatalogStat label="Protected areas" value={stats.areaCount.toLocaleString("en-US")} detail="Parks, forests, wilderness areas, and public lands" />
                 <CatalogStat label="Published routes" value={stats.routeCount.toLocaleString("en-US")} detail="Distance, gain, shape, and map-ready route pages" />
                 <CatalogStat label="Curated lists" value={stats.listCount.toLocaleString("en-US")} detail="Peak-bagging collections and planning checklists" />
               </div>
@@ -448,12 +500,24 @@ function DiscoverContent() {
                   Search results
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-                  {isSearching ? "Searching..." : `Results for "${query}"`}
-                </h2>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   {isSearching
-                    ? "Looking across destination guides, route pages, and curated lists."
-                    : `${visibleSearchResults} visible result${visibleSearchResults === 1 ? "" : "s"}${searchScope === "all" ? ` across ${totalSearchResults} total matches.` : ` in ${searchScopeOptions.find((scope) => scope.id === searchScope)?.label.toLowerCase()}.`}`}
+                    ? "Searching..."
+                    : searchError
+                      ? "Search unavailable"
+                      : `Results for "${query}"`}
+                </h2>
+                <p
+                  role={searchError ? "alert" : undefined}
+                  className={
+                    searchError
+                      ? "mt-2 text-sm text-red-700 dark:text-red-300"
+                      : "mt-2 text-sm text-gray-500 dark:text-gray-400"
+                  }
+                >
+                  {isSearching
+                    ? "Looking across destination guides, protected areas, route pages, and curated lists."
+                    : searchError ??
+                      `${visibleSearchResults} visible result${visibleSearchResults === 1 ? "" : "s"}${searchScope === "all" ? ` across ${totalSearchResults} total matches.` : ` in ${searchScopeOptions.find((scope) => scope.id === searchScope)?.label.toLowerCase()}.`}`}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -501,7 +565,7 @@ function DiscoverContent() {
             </SearchSection>
           )}
 
-          {!isSearching && visibleSearchResults === 0 && (
+          {!isSearching && !searchError && visibleSearchResults === 0 && (
             <EmptyState className="border-dashed py-8">
               <div className="text-lg font-semibold text-gray-900 dark:text-white">
                 No matches for &ldquo;{query}&rdquo; in this view.
@@ -541,6 +605,20 @@ function DiscoverContent() {
                     features={dest.features}
                     distance_m={dest.distance_m}
                   />
+                ))}
+              </div>
+            </SearchSection>
+          )}
+
+          {visibleAreaResults.length > 0 && (
+            <SearchSection
+              title="Protected areas"
+              count={visibleAreaResults.length}
+              description="Parks, forests, wilderness areas, and other managed public lands."
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {visibleAreaResults.map((area) => (
+                  <AreaCard key={area.id} area={area} />
                 ))}
               </div>
             </SearchSection>

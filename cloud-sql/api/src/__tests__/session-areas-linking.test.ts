@@ -6,12 +6,13 @@ import {
   linkSessionsToAreas,
 } from "../processing";
 
-test("session-area SQL tags the saved path, not reached destinations", () => {
+test("session-area SQL tags saved track segments, not reached destinations", () => {
   const q = buildLinkSessionsToAreasSql(["sess-1"]);
 
   assert.match(q.text, /INSERT INTO session_areas/);
-  assert.match(q.text, /FROM tracking_sessions/);
-  assert.match(q.text, /ST_Force2D\(path::geometry\)/);
+  assert.match(q.text, /FROM tracking_points tp/);
+  assert.match(q.text, /GROUP BY tp\.session_id, tp\.segment_number/);
+  assert.match(q.text, /ST_MakeLine/);
   assert.match(q.text, /FROM area_boundary_parts parts/);
   assert.match(q.text, /parts\.boundary_part && s\.geom/);
   assert.match(q.text, /ST_Intersects\(parts\.boundary_part, s\.geom\)/);

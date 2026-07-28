@@ -4,8 +4,10 @@ import os from "os";
 import path from "path";
 import { test } from "node:test";
 import {
+  buildSessionAreaRefreshSql,
   importPadusAreas,
   PADUS_IMPORT_INSERT_CHUNK_SIZE,
+  PADUS_SCHEMA_PREFLIGHT_SQL,
   parseArgs,
 } from "../import-padus-areas";
 
@@ -117,7 +119,8 @@ class FakeClient {
 
   constructor(
     private readonly calls: QueryCall[],
-    private readonly failOn?: (sql: string) => boolean
+    private readonly failOn?: (sql: string) => boolean,
+    private readonly schemaReady = true
   ) {}
 
   async query<T = Record<string, unknown>>(
@@ -128,6 +131,18 @@ class FakeClient {
     this.calls.push({ target: "client", sql: normalized, params });
     if (this.failOn?.(normalized)) {
       throw new Error("forced query failure");
+    }
+    if (normalized === compact(PADUS_SCHEMA_PREFLIGHT_SQL)) {
+      return {
+        rows: [{
+          session_areas_ready: this.schemaReady,
+          boundary_parts_ready: this.schemaReady,
+          boundary_refresh_function_ready: this.schemaReady,
+          boundary_refresh_trigger_ready: this.schemaReady,
+          session_touch_trigger_ready: this.schemaReady,
+        }] as T[],
+        rowCount: 1,
+      };
     }
     if (normalized.startsWith("SELECT id FROM destinations")) {
       return { rows: [{ id: "summit-1" }, { id: "summit-2" }] as T[], rowCount: 2 };
@@ -369,19 +384,23 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.equal(client.released, true);
 
   const clientSql = calls.filter((call) => call.target === "client").map((call) => call.sql);
-  assert.equal(clientSql[0], "BEGIN");
-  assert.match(clientSql[1], /^WITH input \(/);
-  assert.match(clientSql[1], /ST_MakeValid\(parsed_geom\)/);
-  assert.doesNotMatch(clientSql[1], /::geography/);
-  assert.match(clientSql[1], /IS DISTINCT FROM/);
-  assert.match(clientSql[2], /^SELECT id FROM destinations/);
-  assert.match(clientSql[3], /^INSERT INTO destination_areas/);
+  assert.equal(clientSql[0], compact(PADUS_SCHEMA_PREFLIGHT_SQL));
+  assert.equal(clientSql[1], "BEGIN");
+  assert.match(clientSql[2], /^WITH input \(/);
+  assert.match(clientSql[2], /ST_MakeValid\(parsed_geom\)/);
+  assert.doesNotMatch(clientSql[2], /::geography/);
+  assert.match(clientSql[2], /IS DISTINCT FROM/);
+  assert.match(clientSql[3], /^SELECT id FROM destinations/);
+  assert.match(clientSql[3], /ORDER BY id$/);
+  assert.match(clientSql[4], /^INSERT INTO destination_areas/);
   // tolerance-aware: bbox expanded by the planar gate, contained OR within tolerance m
-  assert.match(clientSql[3], /d\.lng BETWEEN a\.bbox_min_lng - \$2 AND a\.bbox_max_lng \+ \$2/);
-  assert.match(clientSql[3], /ST_DWithin\(a\.boundary, d\.geom, \$2\)/);
-  assert.match(clientSql[3], /ST_Covers\(a\.boundary, d\.geom\)/);
-  assert.match(clientSql[3], /ST_DWithin\(a\.boundary::geography, d\.gloc, \$3\)/);
-  assert.equal(clientSql[4], "COMMIT");
+  assert.match(clientSql[4], /d\.lng BETWEEN a\.bbox_min_lng - \$2 AND a\.bbox_max_lng \+ \$2/);
+  assert.match(clientSql[4], /ST_DWithin\(a\.boundary, d\.geom, \$2\)/);
+  assert.match(clientSql[4], /ST_Covers\(a\.boundary, d\.geom\)/);
+  assert.match(clientSql[4], /ST_DWithin\(a\.boundary::geography, d\.gloc, \$3\)/);
+  assert.equal(clientSql[5], "COMMIT");
+  assert.match(clientSql[6], /^SELECT s\.id FROM tracking_sessions s WHERE EXISTS/);
+  assert.match(clientSql[6], /FROM tracking_points tp/);
 
   const upsertCall = calls.find((call) =>
     call.target === "client" && call.sql.startsWith("WITH input (")
@@ -397,6 +416,7 @@ test("apply mode uses one checked-out client for transaction work and reports af
   assert.ok(logger.logs.includes("Upserted inserted or changed areas: 1"));
   assert.ok(logger.logs.includes("Linked destination-area batch 1/1"));
   assert.ok(logger.logs.includes("Inserted destination-area links: 7"));
+  assert.ok(logger.logs.includes("Stored 0 session-area links after the area import"));
   assert.match(
     calls.find((call) => call.target === "pool" && call.sql.includes("linked_destinations"))?.sql ?? "",
     /JOIN destinations d ON d\.id = da\.destination_id/
@@ -407,6 +427,35 @@ test("apply mode uses one checked-out client for transaction work and reports af
   );
   assert.ok(logger.logs.includes("Database-wide summit destinations with no postgis area link: 4"));
   assert.ok(logger.logs.includes("Top linked summit destinations by area count:"));
+});
+
+test("apply mode checks the session-area schema before starting a transaction", async () => {
+  const calls: QueryCall[] = [];
+  const client = new FakeClient(calls, undefined, false);
+  const fakeDb = new FakeDb(client, calls);
+
+  await assert.rejects(
+    () => importPadusAreas(args(), {
+      db: fakeDb,
+      readFile: () => samplePadusNdjson(1),
+      console: silentLogger(),
+    }),
+    /requires current protected-area and session-area migrations/
+  );
+
+  const clientSql = calls.filter((call) => call.target === "client").map((call) => call.sql);
+  assert.deepEqual(clientSql, [compact(PADUS_SCHEMA_PREFLIGHT_SQL)]);
+  assert.equal(client.released, true);
+});
+
+test("session-area refresh matches each tracking-point segment without path bridges", () => {
+  const sql = compact(buildSessionAreaRefreshSql());
+  assert.match(sql, /FROM tracking_points tp/);
+  assert.match(sql, /GROUP BY tp\.session_id, tp\.segment_number/);
+  assert.match(sql, /ST_MakeLine/);
+  assert.match(sql, /CASE WHEN count\(\*\) = 1/);
+  assert.match(sql, /JOIN area_boundary_parts parts/);
+  assert.doesNotMatch(sql, /tracking_sessions\.path/);
 });
 
 test("apply mode rolls back transaction errors and releases the client", async () => {

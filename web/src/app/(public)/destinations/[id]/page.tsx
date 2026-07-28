@@ -9,9 +9,11 @@ import {
   getDestinationRoutes,
   getDestinationLists,
   getDestinationSessionCount,
+  getUserDestinationActivity,
   type DestinationDetail,
   type DestinationRoute,
   type DestinationList,
+  type DestinationUserActivity,
 } from "../../../../lib/actions/destinations";
 import {
   getNearbyDestinations,
@@ -40,6 +42,8 @@ import {
 } from "../../../../components/detail-sections";
 import type { Amenities } from "../../../../lib/amenities";
 import { AreaChips } from "../../../../components/area-chip";
+import SaveDestinationButton from "../../../../components/save-destination-button";
+import { useAuth } from "../../../../lib/auth-context";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -48,6 +52,8 @@ const DestinationMap = dynamic(() => import("../../../../components/destination-
 export default function DestinationDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { user, loading: authLoading, getIdToken } = useAuth();
+  const userId = user?.uid ?? null;
 
   const [dest, setDest] = useState<DestinationDetail | null>(null);
   const [routes, setRoutes] = useState<DestinationRoute[]>([]);
@@ -56,6 +62,7 @@ export default function DestinationDetailPage() {
   const [tripReportCount, setTripReportCount] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [nearby, setNearby] = useState<SearchDestination[]>([]);
+  const [activity, setActivity] = useState<DestinationUserActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -99,6 +106,37 @@ export default function DestinationDetailPage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (authLoading) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!userId) {
+      setActivity(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getIdToken()
+      .then((token) =>
+        token ? getUserDestinationActivity(token, id) : null
+      )
+      .then((result) => {
+        if (!cancelled) setActivity(result);
+      })
+      .catch(() => {
+        if (!cancelled) setActivity(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, getIdToken, id, userId]);
 
   if (loading) {
     return (
@@ -180,7 +218,8 @@ export default function DestinationDetailPage() {
             )}
             <AreaChips areas={dest.areas} className="mt-2" />
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 items-start gap-2">
+            <SaveDestinationButton destinationId={id} name={dest.name} />
             {directionsUrl && (
               <a
                 href={directionsUrl}
@@ -199,6 +238,40 @@ export default function DestinationDetailPage() {
             </Link>
           </div>
         </header>
+
+        {activity && <DestinationActivityCard activity={activity} />}
+
+        <section className="mt-8 max-w-3xl" aria-labelledby="destination-about">
+          <h2
+            id="destination-about"
+            className="text-xl font-semibold text-gray-900 dark:text-white"
+          >
+            About {name}
+          </h2>
+          <p className="mt-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
+            {dest.description || guide.headline}
+          </p>
+          {dest.description && dest.description_source_name && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Source:{" "}
+              {dest.description_source_url ? (
+                <a
+                  href={dest.description_source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  {dest.description_source_name}
+                </a>
+              ) : (
+                dest.description_source_name
+              )}
+              {dest.description_source_license
+                ? ` · ${dest.description_source_license}`
+                : ""}
+            </p>
+          )}
+        </section>
 
         <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:grid-cols-5 dark:border-gray-800 dark:bg-gray-800">
           <StatCell label="Elevation" value={formatFeet(dest.elevation)} />
@@ -243,10 +316,9 @@ export default function DestinationDetailPage() {
           <main className="min-w-0">
             <section>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                About {name}
+                Planning notes
               </h2>
               <div className="mt-3 space-y-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
-                <p>{guide.headline}</p>
                 {guide.paragraphs.map((paragraph, index) => (
                   <p key={`${index}-${paragraph}`}>{paragraph}</p>
                 ))}
@@ -510,6 +582,85 @@ export default function DestinationDetailPage() {
       </div>
     </div>
   );
+}
+
+function DestinationActivityCard({
+  activity,
+}: {
+  activity: DestinationUserActivity;
+}) {
+  const latestVisit = activity.latest_visit
+    ? formatShortDate(activity.latest_visit)
+    : null;
+
+  return (
+    <section
+      className="mt-8 overflow-hidden rounded-xl border border-teal-100 bg-teal-50/50 dark:border-teal-900/60 dark:bg-teal-950/20"
+      aria-labelledby="destination-personal-activity"
+    >
+      <div className="px-5 py-5">
+        <p
+          id="destination-personal-activity"
+          className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300"
+        >
+          Your activity
+        </p>
+        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
+          <p>
+            <span className="text-4xl font-bold tabular-nums text-gray-900 dark:text-white">
+              {activity.visit_count.toLocaleString("en-US")}
+            </span>{" "}
+            <span className="text-lg font-semibold text-gray-600 dark:text-gray-300">
+              {activity.visit_count === 1 ? "visit" : "visits"}
+            </span>
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {latestVisit ? `Last visit ${latestVisit}` : "No recorded visits yet"}
+          </p>
+        </div>
+      </div>
+      <dl className="grid grid-cols-3 divide-x divide-teal-100 border-t border-teal-100 bg-white/60 dark:divide-teal-900/60 dark:border-teal-900/60 dark:bg-gray-950/30">
+        <DestinationActivityMetric
+          label="Distance"
+          value={formatMiles(activity.total_distance)}
+        />
+        <DestinationActivityMetric
+          label="Elevation"
+          value={formatFeet(activity.total_gain)}
+        />
+        <DestinationActivityMetric
+          label="Time"
+          value={formatElapsed(activity.total_time)}
+        />
+      </dl>
+    </section>
+  );
+}
+
+function DestinationActivityMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 px-4 py-3 text-center">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        {label}
+      </dt>
+      <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-gray-900 dark:text-white">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function formatElapsed(seconds: number): string {
+  const roundedMinutes = Math.max(0, Math.round(seconds / 60));
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 const MONTH_NAMES = [
