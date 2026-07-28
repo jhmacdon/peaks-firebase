@@ -10,6 +10,7 @@ import {
   pointsToLineStringZ,
   generateId,
 } from "../route-utils";
+import { extractSubPoints } from "../segment-geometry";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ interface CandidateSegment {
   id: string;
   name: string | null;
   points: { lat: number; lng: number; ele: number }[];
+  distanceFractions: number[];
   distance: number;
 }
 
@@ -87,7 +89,8 @@ const SNAP_FRACTION = 0.03; // snap split to endpoint if within 3%
 // ─── Phase 1: Find candidate segments ───────────────────────────────────────
 
 async function findCandidateSegments(
-  routePoints: TrackPoint[]
+  routePoints: TrackPoint[],
+  excludeSegmentIds: string[] = []
 ): Promise<CandidateSegment[]> {
   if (routePoints.length < 2) return [];
 
@@ -102,18 +105,40 @@ async function findCandidateSegments(
        s.path,
        ST_GeomFromText($1, 4326)::geography,
        $2
-     )`,
-    [wkt, MATCH_THRESHOLD_M * 3] // wider buffer for candidates
+     )
+       AND NOT (s.id = ANY($3::text[]))`,
+    [wkt, MATCH_THRESHOLD_M * 3, excludeSegmentIds] // wider buffer for candidates
   );
 
   return result.rows.map((r: any) => {
     const geo = JSON.parse(r.geojson);
     const coords = geo.coordinates as number[][];
+    const points = coords.map((c) => ({
+      lng: c[0],
+      lat: c[1],
+      ele: c[2] || 0,
+    }));
+    const cumulativeDistances = [0];
+    for (let i = 1; i < points.length; i++) {
+      cumulativeDistances.push(
+        cumulativeDistances[i - 1] +
+          haversineDistance(
+            points[i - 1].lat,
+            points[i - 1].lng,
+            points[i].lat,
+            points[i].lng
+          )
+      );
+    }
+    const measuredDistance = cumulativeDistances.at(-1) || 1;
     return {
       id: r.id,
       name: r.name,
       distance: Number(r.distance),
-      points: coords.map((c) => ({ lng: c[0], lat: c[1], ele: c[2] || 0 })),
+      points,
+      distanceFractions: cumulativeDistances.map(
+        (distance) => distance / measuredDistance
+      ),
     };
   });
 }
@@ -245,13 +270,14 @@ function extractRuns(
     if (runDist < MIN_RUN_LENGTH_M) continue;
 
     const direction = detectDirection(ribbon.nearestSegIdx, run.start, run.end);
-    const segPointCount = segment.points.length;
-
-    // Compute fractions along existing segment
+    // Compute distance fractions along the existing segment. Normalize the
+    // endpoints so reverse-direction matches split the same physical span.
     const startSegIdx = ribbon.nearestSegIdx[run.start];
     const endSegIdx = ribbon.nearestSegIdx[run.end];
-    const startFrac = Math.max(0, startSegIdx / (segPointCount - 1));
-    const endFrac = Math.min(1, endSegIdx / (segPointCount - 1));
+    const firstFraction = segment.distanceFractions[startSegIdx] ?? 0;
+    const lastFraction = segment.distanceFractions[endSegIdx] ?? 1;
+    const startFrac = Math.max(0, Math.min(firstFraction, lastFraction));
+    const endFrac = Math.min(1, Math.max(firstFraction, lastFraction));
 
     let avgDev = 0;
     let devCount = 0;
@@ -365,10 +391,37 @@ function buildDecomposition(
       }
     }
 
-    // Determine if full or partial reuse
-    const isFullReuse =
+    // A fraction-only endpoint snap can cover far more than the 30 m match
+    // limit on a long segment. Require the route boundary to be close to the
+    // physical segment endpoint as well.
+    const candidate = candidates.get(match.segmentId)!;
+    const candidateStart = candidate.points[0];
+    const candidateEnd = candidate.points[candidate.points.length - 1];
+    const lowerRoutePoint =
+      match.direction === "reverse"
+        ? routePoints[match.routeEnd]
+        : routePoints[match.routeStart];
+    const upperRoutePoint =
+      match.direction === "reverse"
+        ? routePoints[match.routeStart]
+        : routePoints[match.routeEnd];
+    const canSnapStart =
       match.startFraction <= SNAP_FRACTION &&
-      match.endFraction >= 1 - SNAP_FRACTION;
+      haversineDistance(
+        lowerRoutePoint.lat,
+        lowerRoutePoint.lng,
+        candidateStart.lat,
+        candidateStart.lng
+      ) <= MATCH_THRESHOLD_M;
+    const canSnapEnd =
+      match.endFraction >= 1 - SNAP_FRACTION &&
+      haversineDistance(
+        upperRoutePoint.lat,
+        upperRoutePoint.lng,
+        candidateEnd.lat,
+        candidateEnd.lng
+      ) <= MATCH_THRESHOLD_M;
+    const isFullReuse = canSnapStart && canSnapEnd;
 
     const matchPoints = routePoints.slice(match.routeStart, match.routeEnd + 1);
     const elev = computeElevationStats(matchPoints.map((p) => p.ele));
@@ -391,8 +444,8 @@ function buildDecomposition(
       const ef = Math.min(1, match.endFraction);
 
       // Snap to endpoints
-      const snappedSf = sf <= SNAP_FRACTION ? 0 : sf;
-      const snappedEf = ef >= 1 - SNAP_FRACTION ? 1 : ef;
+      const snappedSf = canSnapStart ? 0 : sf;
+      const snappedEf = canSnapEnd ? 1 : ef;
 
       // Record split fractions
       if (!splitMap.has(match.segmentId)) splitMap.set(match.segmentId, new Set());
@@ -492,10 +545,14 @@ async function findAffectedRoutes(
 // ─── Public API: Analyze ────────────────────────────────────────────────────
 
 export async function analyzeRouteSegments(
-  points: TrackPoint[]
+  points: TrackPoint[],
+  options?: { excludeSegmentIds?: string[] }
 ): Promise<RouteDecomposition> {
   // Phase 1: Find candidates
-  const candidates = await findCandidateSegments(points);
+  const candidates = await findCandidateSegments(
+    points,
+    options?.excludeSegmentIds ?? []
+  );
 
   if (candidates.length === 0) {
     // No existing segments nearby — everything is new
@@ -767,61 +824,6 @@ export async function saveRouteWithSegments(input: {
   }
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Extract points between two cumulative distances, interpolating at boundaries */
-function extractSubPoints(
-  points: TrackPoint[],
-  startDist: number,
-  endDist: number
-): TrackPoint[] {
-  const result: TrackPoint[] = [];
-
-  for (let i = 0; i < points.length; i++) {
-    const d = points[i].dist;
-
-    if (d >= startDist && d <= endDist) {
-      // Interpolate start boundary if this is the first point and we're past startDist
-      if (result.length === 0 && i > 0 && points[i - 1].dist < startDist) {
-        result.push(interpolatePoint(points[i - 1], points[i], startDist));
-      }
-      result.push(points[i]);
-    } else if (d > endDist && result.length > 0) {
-      // Interpolate end boundary
-      result.push(interpolatePoint(points[i - 1], points[i], endDist));
-      break;
-    }
-  }
-
-  // Handle case where startDist falls exactly on a point
-  if (result.length === 0 && points.length > 0) {
-    // Find the point closest to startDist
-    for (let i = 0; i < points.length - 1; i++) {
-      if (points[i].dist <= startDist && points[i + 1].dist >= startDist) {
-        result.push(interpolatePoint(points[i], points[i + 1], startDist));
-        for (let j = i + 1; j < points.length && points[j].dist <= endDist; j++) {
-          result.push(points[j]);
-        }
-        break;
-      }
-    }
-  }
-
-  return result;
-}
-
-/** Linear interpolation between two points at a target cumulative distance */
-function interpolatePoint(a: TrackPoint, b: TrackPoint, targetDist: number): TrackPoint {
-  const segDist = b.dist - a.dist;
-  if (segDist === 0) return { ...a };
-  const t = (targetDist - a.dist) / segDist;
-  return {
-    lat: a.lat + (b.lat - a.lat) * t,
-    lng: a.lng + (b.lng - a.lng) * t,
-    ele: a.ele + (b.ele - a.ele) * t,
-    dist: targetDist,
-  };
-}
 
 /** Rematerialize a route's cached geometry from its segments */
 async function rematerializeRoute(client: any, routeId: string): Promise<void> {

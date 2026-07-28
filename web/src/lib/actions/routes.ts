@@ -9,6 +9,7 @@ import {
   type RouteProvenance,
   type RouteProvenanceInput,
 } from "../route-provenance";
+import { extractSubPoints } from "../segment-geometry";
 
 export interface RouteRow {
   id: string;
@@ -344,6 +345,22 @@ export async function analyzePendingRoute(id: string): Promise<{
   decomposition: import("./segment-matcher").RouteDecomposition;
   points: import("../route-utils").TrackPoint[];
 }> {
+  // Exclude this route's standalone import segments. Otherwise their exact
+  // geometry always wins the matcher and hides shared segments on other routes.
+  const currentSegmentsResult = await db.query(
+    `SELECT rs.segment_id
+       FROM route_segments rs
+      WHERE rs.route_id = $1
+        AND (
+          SELECT COUNT(*) FROM route_segments refs
+          WHERE refs.segment_id = rs.segment_id
+        ) = 1`,
+    [id]
+  );
+  const currentSegmentIds = currentSegmentsResult.rows.map(
+    (row: { segment_id: string }) => row.segment_id
+  );
+
   // Get the route's points from its geometry
   const pointsResult = await db.query(
     `SELECT (dp).path[1] AS vertex_index,
@@ -382,7 +399,9 @@ export async function analyzePendingRoute(id: string): Promise<{
   }
 
   const { analyzeRouteSegments } = await import("./segment-matcher");
-  const decomposition = await analyzeRouteSegments(points);
+  const decomposition = await analyzeRouteSegments(points, {
+    excludeSegmentIds: currentSegmentIds,
+  });
 
   return { decomposition, points };
 }
@@ -437,7 +456,7 @@ export async function acceptRouteWithSegments(
        WHERE rs.route_id = $1`,
       [id]
     );
-    const oldSegIds = new Set(oldSegs.rows.map((r: { id: string }) => r.id));
+    const deletedSegIds = new Set<string>();
 
     // Clear old route_segments
     await client.query(`DELETE FROM route_segments WHERE route_id = $1`, [id]);
@@ -450,6 +469,7 @@ export async function acceptRouteWithSegments(
       );
       if (refCount.rows[0].cnt === 0) {
         await client.query(`DELETE FROM segments WHERE id = $1`, [seg.id]);
+        deletedSegIds.add(seg.id);
       }
     }
 
@@ -484,9 +504,7 @@ export async function acceptRouteWithSegments(
         const startDist = cuts[i] * totalDist;
         const endDist = cuts[i + 1] * totalDist;
 
-        const subPoints = origPoints.filter(
-          (p: { dist: number }) => p.dist >= startDist && p.dist <= endDist
-        );
+        const subPoints = extractSubPoints(origPoints, startDist, endDist);
         if (subPoints.length < 2) continue;
 
         const subId = generateId();
@@ -542,7 +560,7 @@ export async function acceptRouteWithSegments(
     for (const seg of decomposition.segments) {
       if (seg.type === "existing") {
         // If this references our own deleted standalone segment, create a new one instead
-        if (oldSegIds.has(seg.existingSegmentId!)) {
+        if (deletedSegIds.has(seg.existingSegmentId!)) {
           const newId = generateId();
           const wkt = pointsToLineStringZ(seg.points);
           const poly = encodePolyline6(seg.points);

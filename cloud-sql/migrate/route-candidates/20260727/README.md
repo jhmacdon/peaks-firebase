@@ -7,7 +7,7 @@ OpenStreetMap ways stored in that manifest and in each GeoJSON candidate.
 
 ## Production result
 
-Imported into Cloud SQL on 2026-07-28 as pending:
+Imported into Cloud SQL and activated on 2026-07-28:
 
 | Candidate | Route id |
 |---|---|
@@ -42,9 +42,9 @@ Imported into Cloud SQL on 2026-07-28 as pending:
 | `kit-carson-peak` | `xyTzJln8AcUdgyYMk4PK` |
 | `mount-lindsey` | `myxijYXcUaFAORDERHCo` |
 
-The production check found:
+The import check found:
 
-- 30 manifest routes, 30 Cloud SQL routes, and 30 pending routes
+- 30 manifest routes, 30 pending Cloud SQL routes
 - 30 source segments and 60 ordered destination links
 - matching valid route and segment provenance for every route
 - non-empty exact OSM way lists and all written source links
@@ -71,7 +71,20 @@ Mount Angeles and Tomyhoi Peak first failed that connector gate at 143.1 m and
 150.1 m. They were replaced by Guye Peak and Mount Sneffels. Their two pending
 route rows and two unshared segment rows were removed.
 
-The routes remain pending. This work does not activate them.
+The publication pass then found:
+
+- 30 active Peaks routes with valid OSM route provenance
+- 60 ordered destination links and no orphan segments
+- 50 segment links across 41 segments
+- 9 shared segments used by 14 routes in this batch
+- unchanged materialized route geometry, stats, destination links, and provenance
+- a maximum 35.1 m segment join across the 30 routes and the two older routes
+  whose segment graphs changed, within the matcher's 60 m bridged-gap limit
+
+One Guye Peak segment reuses a legacy Snoqualmie Mountain segment that has no
+stored segment provenance. Guye Peak's route-level OSM provenance remains
+complete and is what the public attribution surfaces show. The legacy segment
+stays source-null rather than being given a false OSM source.
 
 ## Cost
 
