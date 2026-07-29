@@ -537,6 +537,10 @@ CREATE TABLE tracking_sessions (
     -- matching, and reverse-matching new destinations against historical
     -- sessions in a single GIST-indexed query.
     path            GEOGRAPHY(LineStringZ, 4326),
+    path_preview    GEOMETRY(LineString, 4326)
+                    GENERATED ALWAYS AS (
+                        ST_Simplify(ST_Force2D(path::geometry), 0.00025)
+                    ) STORED,
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

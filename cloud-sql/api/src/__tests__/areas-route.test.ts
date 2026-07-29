@@ -2,8 +2,8 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { buildAreaDetailQuery, mapAreaDetailRow } from "../routes/areas";
 
-test("area detail query returns a boundary and user-scoped sessions", () => {
-  const query = buildAreaDetailQuery("mora", "user-1");
+test("area detail query returns a boundary and indexed, paged user sessions", () => {
+  const query = buildAreaDetailQuery("mora", "user-1", 20, 40);
 
   assert.match(query.text, /FROM areas a/);
   assert.match(query.text, /destination_count/);
@@ -19,12 +19,17 @@ test("area detail query returns a boundary and user-scoped sessions", () => {
   // Boundary comes from the materialized display copy, with a live simplify
   // fallback for rows whose backfill hasn't run.
   assert.match(query.text, /COALESCE\(\s*a\.boundary_display,\s*ST_SimplifyPreserveTopology/);
+  assert.match(query.text, /FROM session_areas sa/);
+  assert.match(query.text, /JOIN tracking_sessions s ON s\.id = sa\.session_id/);
+  assert.match(query.text, /sa\.area_id = \$1/);
   assert.match(query.text, /s\.user_id = \$2/);
-  // Session membership must use planar intersects: the geography form ran for
-  // minutes on large coastal parks (Olympic NP) and blew the statement timeout.
-  assert.match(query.text, /ST_Intersects\(s\.path::geometry, a\.boundary\)/);
-  assert.doesNotMatch(query.text, /ST_Intersects\(s\.path, a\.boundary_geography\)/);
-  assert.deepEqual(query.values, ["mora", "user-1"]);
+  assert.match(query.text, /LIMIT \$3/);
+  assert.match(query.text, /OFFSET \$4/);
+  assert.match(query.text, /'path_preview'/);
+  assert.match(query.text, /ST_AsGeoJSON\(s\.path_preview, 6\)/);
+  assert.doesNotMatch(query.text, /ST_Simplify\(s\.path/);
+  assert.doesNotMatch(query.text, /ST_Intersects/);
+  assert.deepEqual(query.values, ["mora", "user-1", 20, 40]);
 });
 
 test("mapAreaDetailRow defaults related arrays and numeric counts", () => {
@@ -40,6 +45,8 @@ test("mapAreaDetailRow defaults related arrays and numeric counts", () => {
     destination_count: "12",
     route_count: null,
     session_count: "2",
+    sessions_has_more: true,
+    sessions_next_offset: "25",
     destinations: null,
     routes: null,
     sessions: null,
@@ -48,6 +55,8 @@ test("mapAreaDetailRow defaults related arrays and numeric counts", () => {
   assert.equal(mapped.destination_count, 12);
   assert.equal(mapped.route_count, 0);
   assert.equal(mapped.session_count, 2);
+  assert.equal(mapped.sessions_has_more, true);
+  assert.equal(mapped.sessions_next_offset, 25);
   assert.deepEqual(mapped.destinations, []);
   assert.deepEqual(mapped.routes, []);
   assert.deepEqual(mapped.sessions, []);
