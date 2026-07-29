@@ -5,33 +5,31 @@ import db from "../db";
 
 const router = Router();
 
-export function buildAreaDetailQuery(id: string, uid: string): { text: string; values: unknown[] } {
+export function buildAreaDetailQuery(
+  id: string,
+  uid: string,
+  sessionLimit = 25,
+  sessionOffset = 0
+): { text: string; values: unknown[] } {
   return {
     text: `WITH requested_area AS MATERIALIZED (
-             SELECT a.*,
-                    a.boundary::geography AS boundary_geography
+             SELECT a.*
              FROM areas a
              WHERE a.id = $1
            ),
            area_sessions AS MATERIALIZED (
              SELECT s.*
-             FROM requested_area a
-             JOIN tracking_sessions s
-               ON s.user_id = $2
-              AND s.path IS NOT NULL
-              AND s.path && a.boundary_geography
-              -- Planar intersects on purpose: geography ST_Intersects against a
-              -- large multipolygon (Olympic NP: 274 polygons, ~22k vertices) ran
-              -- for minutes and blew the statement timeout; the geometry form of
-              -- the same check runs in ~100ms and membership is identical at
-              -- trail scale. The geography && above still uses the path index.
-              AND ST_Intersects(s.path::geometry, a.boundary)
+             FROM session_areas sa
+             JOIN tracking_sessions s ON s.id = sa.session_id
+             WHERE sa.area_id = $1
+               AND s.user_id = $2
            ),
            ranked_sessions AS MATERIALIZED (
              SELECT *
              FROM area_sessions
              ORDER BY start_time DESC, id
-             LIMIT 100
+             LIMIT $3
+             OFFSET $4
            )
      SELECT a.id, a.name, a.kind, a.description,
             a.description_source_name, a.description_source_url, a.description_source_license,
@@ -68,6 +66,14 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
             COALESCE(destination_counts.destination_count, 0)::int AS destination_count,
             COALESCE(route_counts.route_count, 0)::int AS route_count,
             (SELECT count(*)::int FROM area_sessions) AS session_count,
+            ((SELECT count(*)::int FROM area_sessions) > ($3 + $4)) AS sessions_has_more,
+            ($3 + $4)::int AS sessions_next_offset,
+            COALESCE((SELECT sum(distance) FROM area_sessions), 0)::double precision
+              AS session_distance,
+            COALESCE((SELECT sum(gain) FROM area_sessions), 0)::double precision
+              AS session_gain,
+            COALESCE((SELECT sum(total_time) FROM area_sessions), 0)::bigint
+              AS session_time,
             COALESCE(destination_rows.destinations, '[]'::json) AS destinations,
             COALESCE(route_rows.routes, '[]'::json) AS routes,
             COALESCE((
@@ -97,6 +103,10 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
                   'is_public', s.is_public,
                   'updated_at', s.updated_at,
                   'server_updated_at', s.server_updated_at,
+                  'path_preview', CASE
+                    WHEN s.path_preview IS NULL THEN NULL
+                    ELSE ST_AsGeoJSON(s.path_preview, 6)::json
+                  END,
                   'destinations_reached', COALESCE((
                     SELECT json_agg(json_build_object(
                       'id', d.id,
@@ -181,7 +191,7 @@ export function buildAreaDetailQuery(id: string, uid: string): { text: string; v
        ) ranked_routes
      ) route_rows ON true
     `,
-    values: [id, uid],
+    values: [id, uid, sessionLimit, sessionOffset],
   };
 }
 
@@ -198,6 +208,8 @@ export function mapAreaDetailRow(row: any): any {
   row.destination_count = intValue(row.destination_count);
   row.route_count = intValue(row.route_count);
   row.session_count = intValue(row.session_count);
+  row.sessions_next_offset = intValue(row.sessions_next_offset);
+  row.sessions_has_more = row.sessions_has_more === true;
   row.destinations = Array.isArray(row.destinations) ? row.destinations : [];
   row.routes = Array.isArray(row.routes) ? row.routes : [];
   row.sessions = Array.isArray(row.sessions) ? row.sessions : [];
@@ -217,7 +229,13 @@ export function mapAreaDetailRow(row: any): any {
 
 // GET /api/areas/:id
 router.get("/:id", async (req, res: Response) => {
-  const query = buildAreaDetailQuery(req.params.id, getUid(req));
+  const requestedLimit = Number.parseInt(String(req.query.session_limit ?? "25"), 10);
+  const requestedOffset = Number.parseInt(String(req.query.session_offset ?? "0"), 10);
+  const sessionLimit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(50, requestedLimit))
+    : 25;
+  const sessionOffset = Number.isFinite(requestedOffset) ? Math.max(0, requestedOffset) : 0;
+  const query = buildAreaDetailQuery(req.params.id, getUid(req), sessionLimit, sessionOffset);
   const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Area not found" });
