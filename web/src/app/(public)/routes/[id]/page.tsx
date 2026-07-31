@@ -21,6 +21,7 @@ import {
   formatDistanceMeters,
   formatDurationRange,
   formatElevationMeters,
+  getRouteTraversalMetrics,
   parseExternalRouteLinks,
   summarizeRouteGuide,
 } from "../../../../lib/route-guide";
@@ -99,6 +100,7 @@ export default function RouteDetailPage() {
 
   const name = route.name || "Unnamed Route";
   const guide = summarizeRouteGuide(route, segments.length);
+  const traversal = getRouteTraversalMetrics(route);
   const profilePoints = buildProfilePoints(elevationPoints);
   const externalLinks = parseExternalRouteLinks(route.external_links);
 
@@ -153,14 +155,17 @@ export default function RouteDetailPage() {
         </header>
 
         <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:grid-cols-5 dark:border-gray-800 dark:bg-gray-800">
-          <StatCell label="Distance" value={formatDistanceMeters(route.distance)} />
+          <StatCell
+            label="Distance"
+            value={formatDistanceMeters(traversal.distanceMeters)}
+          />
           <StatCell
             label="Elevation gain"
-            value={formatElevationMeters(route.gain)}
+            value={formatElevationMeters(traversal.gainMeters)}
           />
           <StatCell
             label="Elevation loss"
-            value={formatElevationMeters(route.gain_loss)}
+            value={formatElevationMeters(traversal.lossMeters)}
           />
           <StatCell
             label="Est. time"
@@ -307,14 +312,17 @@ export default function RouteDetailPage() {
             <SidePanel title="Stats">
               <dl className="space-y-2">
                 <StatRow label="Shape" value={titleizeFirst(describeRouteShape(route.shape))} />
-                <StatRow label="Distance" value={formatDistanceMeters(route.distance)} />
+                <StatRow
+                  label="Distance"
+                  value={formatDistanceMeters(traversal.distanceMeters)}
+                />
                 <StatRow
                   label="Elevation gain"
-                  value={formatElevationMeters(route.gain)}
+                  value={formatElevationMeters(traversal.gainMeters)}
                 />
                 <StatRow
                   label="Elevation loss"
-                  value={formatElevationMeters(route.gain_loss)}
+                  value={formatElevationMeters(traversal.lossMeters)}
                 />
                 {guide.climbingDensityFeetPerMile != null && (
                   <StatRow

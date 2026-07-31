@@ -71,6 +71,35 @@ export interface RouteGuideSummary {
   routeNarrative: string;
 }
 
+export interface RouteTraversalMetrics {
+  distanceMeters: number | null;
+  gainMeters: number | null;
+  lossMeters: number | null;
+}
+
+export function getRouteTraversalMetrics(
+  route: Pick<RouteDetail, "distance" | "gain" | "gain_loss" | "shape">
+): RouteTraversalMetrics {
+  if (route.shape !== "out_and_back") {
+    return {
+      distanceMeters: route.distance,
+      gainMeters: route.gain,
+      lossMeters: route.gain_loss,
+    };
+  }
+
+  const roundTripVertical =
+    route.gain != null || route.gain_loss != null
+      ? (route.gain ?? 0) + (route.gain_loss ?? 0)
+      : null;
+
+  return {
+    distanceMeters: route.distance != null ? route.distance * 2 : null,
+    gainMeters: roundTripVertical,
+    lossMeters: roundTripVertical,
+  };
+}
+
 function difficultyFromScore(score: number): string {
   if (score < 4) return "Easy";
   if (score < 8) return "Moderate";
@@ -82,11 +111,19 @@ export function summarizeRouteGuide(
   route: Pick<RouteDetail, "distance" | "gain" | "gain_loss" | "shape" | "completion" | "destination_count">,
   segmentCount = 0
 ): RouteGuideSummary {
+  const traversal = getRouteTraversalMetrics(route);
   const distanceMiles =
-    route.distance != null ? route.distance * METERS_TO_MILES : null;
-  const gainFeet = route.gain != null ? route.gain * METERS_TO_FEET : null;
+    traversal.distanceMeters != null
+      ? traversal.distanceMeters * METERS_TO_MILES
+      : null;
+  const gainFeet =
+    traversal.gainMeters != null
+      ? traversal.gainMeters * METERS_TO_FEET
+      : null;
   const lossFeet =
-    route.gain_loss != null ? route.gain_loss * METERS_TO_FEET : null;
+    traversal.lossMeters != null
+      ? traversal.lossMeters * METERS_TO_FEET
+      : null;
 
   const climbingDensityFeetPerMile =
     distanceMiles && distanceMiles > 0 && gainFeet != null

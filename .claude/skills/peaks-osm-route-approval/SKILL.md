@@ -1,9 +1,9 @@
 ---
 name: peaks-osm-route-approval
-description: Independently check pending Peaks routes against the current OpenStreetMap ways recorded in their provenance. Use when deciding whether an OSM-derived pending route closely follows its cited OSM geometry, when reviewing OSM route drift after import, or before approving a Peaks route that must retain ODbL attribution.
+description: Independently check pending Peaks routes against current OpenStreetMap or USGS source geometry. Use when deciding whether a pending route follows its cited source, when reviewing drift after import, or before approving a route with ODbL or public-domain geometry.
 ---
 
-# Peaks OSM Route Approval
+# Peaks Source Route Approval
 
 Use for `/Users/josiahm/projects/peaks/firebase`.
 
@@ -19,24 +19,44 @@ variables used by `cloud-sql/migrate/src/db.ts`, then run:
 ```bash
 cloud-sql/migrate/node_modules/.bin/tsx \
   .claude/skills/peaks-osm-route-approval/scripts/check_pending_osm_routes.mts \
-  --route-id <pending-route-id> \
   --route-id <pending-route-id>
 ```
 
 Add `--format json` for a machine-readable subagent handoff.
 
-The check passes only when:
+For a public-domain USGS National Map route, run:
+
+```bash
+cloud-sql/migrate/node_modules/.bin/tsx \
+  .claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts \
+  --route-id <pending-route-id> \
+  --format json
+```
+
+Both checkers fetch the named source again. The check passes only when:
 
 - the route is Peaks-owned and pending;
-- its exact nine-field provenance passes the database constraint;
+- its canonical provenance, including paired elevation fields when present,
+  passes the database constraint;
 - route and source segment provenance agree;
 - no active Peaks route already covers the summit;
 - the first and last linked destinations are a trailhead and summit;
 - the endpoint connectors lie within 125 m of the cited OSM lines;
+- loop and lollipop routes also place the catalog summit on the stored line;
+  only the two short segments touching that internal summit count as summit
+  connectors rather than core OSM geometry, and each segment must be no more
+  than 125 m long;
 - at least 99% of sampled core geometry lies within 3 m of those lines;
 - maximum core offset is at most 5 m and p95 offset is at most 2 m;
-- every cited OSM way contributes to the stored route; and
-- current OSM pedestrian-access tags do not block the line.
+- every cited OSM way or USGS object contributes to the stored route; and
+- current OSM pedestrian-access tags do not block an OSM line.
+
+Simple geometry remains required for normal routes and loops. A lollipop may
+retrace one joined, contiguous stored stem. It may also retrace a trailhead
+connector no longer than 125 m. The checker rejects separate retrace groups,
+partial overlaps, crossings, and endpoint-on-interior crossings. Treat
+`foot=permit`, `access=permit`, and a foot-specific override of blocked generic
+access as warnings, then verify the current permit terms before activation.
 
 Treat `PASS` as geometry approval only. It does not prove that the route is the
 accepted standard ascent or that access and terrain conditions are current.

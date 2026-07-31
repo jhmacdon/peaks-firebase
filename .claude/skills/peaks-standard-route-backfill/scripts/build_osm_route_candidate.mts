@@ -1,3 +1,4 @@
+import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
 
@@ -16,7 +17,11 @@ type Options = {
   corridorPaddingM: number | null;
   snapM: number;
   wayIds: number[];
+  referencePath: string;
+  referenceStartPoint: number;
+  referenceMaxPoints: number;
   format: "summary" | "geojson";
+  outputPath: string;
 };
 
 type OsmNode = {
@@ -48,6 +53,24 @@ type PlaceRow = {
   lng: number;
 };
 
+type Bounds = {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+};
+
+const walkableHighways = new Set([
+  "path",
+  "footway",
+  "steps",
+  "pedestrian",
+  "track",
+  "service",
+  "unclassified",
+  "residential",
+]);
+
 function usage(): string {
   return [
     "Usage:",
@@ -57,7 +80,9 @@ function usage(): string {
     "      --trailhead-lat LAT --trailhead-lng LNG) \\",
     "    [--radius-m 5000 | --corridor-padding-m 3000] \\",
     "    [--snap-m 300] [--way-ids ID,ID,...] \\",
-    "    [--format summary|geojson]",
+    "    [--reference route.gpx] [--reference-start-point N] \\",
+    "    [--reference-max-points N] \\",
+    "    [--format summary|geojson] [--output candidate.geojson]",
     "",
     "Builds a review candidate along connected OpenStreetMap paths.",
     "Pass exact researched way IDs to avoid a broad Overpass query.",
@@ -76,7 +101,11 @@ function parseArgs(argv: string[]): Options {
     corridorPaddingM: null,
     snapM: 300,
     wayIds: [],
+    referencePath: "",
+    referenceStartPoint: 0,
+    referenceMaxPoints: Number.POSITIVE_INFINITY,
     format: "summary",
+    outputPath: "",
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -112,11 +141,23 @@ function parseArgs(argv: string[]): Options {
         .filter(Boolean)
         .map(Number);
       index += 1;
+    } else if (arg === "--reference") {
+      options.referencePath = value;
+      index += 1;
+    } else if (arg === "--reference-start-point") {
+      options.referenceStartPoint = Number(value);
+      index += 1;
+    } else if (arg === "--reference-max-points") {
+      options.referenceMaxPoints = Number(value);
+      index += 1;
     } else if (arg === "--format") {
       if (value !== "summary" && value !== "geojson") {
         throw new Error("--format must be summary or geojson");
       }
       options.format = value;
+      index += 1;
+    } else if (arg === "--output") {
+      options.outputPath = value;
       index += 1;
     } else if (arg === "--help" || arg === "-h") {
       console.log(usage());
@@ -175,6 +216,24 @@ function parseArgs(argv: string[]): Options {
   ) {
     throw new Error("--way-ids must be a comma-separated list of positive integers");
   }
+  if (
+    !Number.isInteger(options.referenceStartPoint) ||
+    options.referenceStartPoint < 0
+  ) {
+    throw new Error("--reference-start-point must be a non-negative integer");
+  }
+  if (
+    options.referenceMaxPoints !== Number.POSITIVE_INFINITY &&
+    (
+      !Number.isInteger(options.referenceMaxPoints) ||
+      options.referenceMaxPoints < 2
+    )
+  ) {
+    throw new Error("--reference-max-points must be an integer of at least 2");
+  }
+  if (options.outputPath && options.format !== "geojson") {
+    throw new Error("--output requires --format geojson");
+  }
   return options;
 }
 
@@ -196,21 +255,68 @@ function haversineMeters(
   return 2 * earthRadiusM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+async function referenceMatcher(
+  options: Options
+): Promise<((lat: number, lng: number) => number) | null> {
+  if (!options.referencePath) return null;
+  const gpx = await readFile(options.referencePath, "utf8");
+  const points = [...gpx.matchAll(
+    /<(?:trkpt|rtept)\b[^>]*\blat="(-?\d+(?:\.\d+)?)"[^>]*\blon="(-?\d+(?:\.\d+)?)"/gi
+  )]
+    .slice(
+      options.referenceStartPoint,
+      options.referenceStartPoint + options.referenceMaxPoints
+    )
+    .map((match) => ({
+      lat: Number(match[1]),
+      lng: Number(match[2]),
+    }));
+  if (points.length < 2) {
+    throw new Error("--reference does not contain enough selected track points");
+  }
+  return (lat: number, lng: number) => {
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const point of points) {
+      nearest = Math.min(
+        nearest,
+        haversineMeters(lat, lng, point.lat, point.lng)
+      );
+    }
+    return nearest;
+  };
+}
+
 function corridorBoundingBox(
   trailhead: PlaceRow,
   destination: PlaceRow,
   paddingM: number
-): string {
+): Bounds {
   const meanLatRadians =
     ((trailhead.lat + destination.lat) / 2) * Math.PI / 180;
   const latPadding = paddingM / 111_320;
   const lngPadding =
     paddingM / (111_320 * Math.max(Math.cos(meanLatRadians), 0.1));
-  const south = Math.min(trailhead.lat, destination.lat) - latPadding;
-  const west = Math.min(trailhead.lng, destination.lng) - lngPadding;
-  const north = Math.max(trailhead.lat, destination.lat) + latPadding;
-  const east = Math.max(trailhead.lng, destination.lng) + lngPadding;
-  return [south, west, north, east]
+  return {
+    south: Math.min(trailhead.lat, destination.lat) - latPadding,
+    west: Math.min(trailhead.lng, destination.lng) - lngPadding,
+    north: Math.max(trailhead.lat, destination.lat) + latPadding,
+    east: Math.max(trailhead.lng, destination.lng) + lngPadding,
+  };
+}
+
+function overpassBoundingBox(
+  trailhead: PlaceRow,
+  destination: PlaceRow,
+  paddingM: number
+): string {
+  const bounds = corridorBoundingBox(trailhead, destination, paddingM);
+  return [bounds.south, bounds.west, bounds.north, bounds.east]
+    .map((coordinate) => coordinate.toFixed(7))
+    .join(",");
+}
+
+function osmMapBoundingBox(bounds: Bounds): string {
+  return [bounds.west, bounds.south, bounds.east, bounds.north]
     .map((coordinate) => coordinate.toFixed(7))
     .join(",");
 }
@@ -218,7 +324,72 @@ function corridorBoundingBox(
 function edgePenalty(tags: Record<string, string>): number {
   if (tags.highway === "track") return 1.3;
   if (tags.highway === "footway") return 1.05;
+  if (tags.highway === "service") return 1.7;
+  if (
+    tags.highway === "unclassified" ||
+    tags.highway === "residential"
+  ) {
+    return 2;
+  }
   return 1;
+}
+
+function mergeElements(
+  elementSets: Array<Array<OsmNode | OsmWay>>
+): Array<OsmNode | OsmWay> {
+  const unique = new Map<string, OsmNode | OsmWay>();
+  for (const element of elementSets.flat()) {
+    unique.set(`${element.type}:${element.id}`, element);
+  }
+  return [...unique.values()];
+}
+
+function splitBounds(bounds: Bounds): [Bounds, Bounds] {
+  const latSpan = bounds.north - bounds.south;
+  const lngSpan = bounds.east - bounds.west;
+  if (lngSpan >= latSpan) {
+    const middle = (bounds.west + bounds.east) / 2;
+    return [
+      { ...bounds, east: middle },
+      { ...bounds, west: middle },
+    ];
+  }
+  const middle = (bounds.south + bounds.north) / 2;
+  return [
+    { ...bounds, north: middle },
+    { ...bounds, south: middle },
+  ];
+}
+
+async function fetchOsmMapElements(
+  osmApiUrl: string,
+  bounds: Bounds,
+  userAgent: string,
+  depth = 0
+): Promise<Array<OsmNode | OsmWay>> {
+  const response = await fetch(
+    `${osmApiUrl}/map.json?bbox=${osmMapBoundingBox(bounds)}`,
+    { headers: { "user-agent": userAgent } }
+  );
+  if (response.ok) {
+    const payload = (await response.json()) as {
+      elements: Array<OsmNode | OsmWay>;
+    };
+    if (!Array.isArray(payload.elements)) {
+      throw new Error("OSM map API response has no elements array");
+    }
+    return payload.elements;
+  }
+  if ([400, 509].includes(response.status) && depth < 4) {
+    const parts = splitBounds(bounds);
+    const elementSets = await Promise.all(
+      parts.map((part) =>
+        fetchOsmMapElements(osmApiUrl, part, userAgent, depth + 1)
+      )
+    );
+    return mergeElements(elementSets);
+  }
+  throw new Error(`OSM map API returned HTTP ${response.status}`);
 }
 
 function nearestNode(
@@ -396,6 +567,7 @@ try {
     };
   if (!destination) throw new Error(`Destination not found: ${options.destinationId}`);
   if (!trailhead) throw new Error(`Trailhead not found: ${options.trailheadId}`);
+  const matchReference = await referenceMatcher(options);
 
   let sourceUrl: string;
   let elements: Array<OsmNode | OsmWay>;
@@ -427,7 +599,7 @@ try {
     sourceUrl = overpassUrl;
     const wayScope = options.corridorPaddingM === null
       ? `around:${options.radiusM},${destination.lat},${destination.lng}`
-      : corridorBoundingBox(
+      : overpassBoundingBox(
         trailhead,
         destination,
         options.corridorPaddingM
@@ -435,14 +607,13 @@ try {
     const query =
       `[out:json][timeout:30];` +
       `way(${wayScope})` +
-      `["highway"~"^(path|footway|track)$"];` +
+      `["highway"~"^(path|footway|steps|pedestrian|track|service|unclassified|residential)$"];` +
       `out body;>;out skel qt;`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45000);
-    let response: Response;
     try {
-      response = await fetch(overpassUrl, {
+      const response = await fetch(overpassUrl, {
         method: "POST",
         headers: {
           "content-type": "application/x-www-form-urlencoded",
@@ -452,19 +623,36 @@ try {
         body: new URLSearchParams({ data: query }),
         signal: controller.signal,
       });
+      if (!response.ok) {
+        throw new Error(`Overpass returned HTTP ${response.status}`);
+      }
+
+      const payload = (await response.json()) as {
+        remark?: string;
+        elements: Array<OsmNode | OsmWay>;
+      };
+      if (payload.remark) throw new Error(payload.remark);
+      elements = payload.elements;
+    } catch (error) {
+      const paddingM = options.corridorPaddingM ?? options.radiusM;
+      console.error(
+        `Overpass unavailable (${error instanceof Error ? error.message : String(error)}); ` +
+        `falling back to the main OSM map API`
+      );
+      const bounds = corridorBoundingBox(
+        trailhead,
+        destination,
+        paddingM
+      );
+      elements = await fetchOsmMapElements(
+        osmApiUrl,
+        bounds,
+        process.env.PEAKS_OVERPASS_USER_AGENT ?? "Peaks route research/1.0"
+      );
+      sourceUrl = osmApiUrl;
     } finally {
       clearTimeout(timeout);
     }
-    if (!response.ok) {
-      throw new Error(`Overpass returned HTTP ${response.status}`);
-    }
-
-    const payload = (await response.json()) as {
-      remark?: string;
-      elements: Array<OsmNode | OsmWay>;
-    };
-    if (payload.remark) throw new Error(payload.remark);
-    elements = payload.elements;
   }
 
   const nodes = new Map<number, OsmNode>();
@@ -478,7 +666,10 @@ try {
   const footAccessOverrides = new Set<number>();
   for (const way of ways) {
     const tags = way.tags ?? {};
-    const footAllows = ["yes", "designated", "permissive"].includes(
+    if (!walkableHighways.has(tags.highway ?? "")) {
+      continue;
+    }
+    const footAllows = ["yes", "designated", "permissive", "permit"].includes(
       tags.foot ?? ""
     );
     if (["no", "private"].includes(tags.access ?? "") && footAllows) {
@@ -498,9 +689,19 @@ try {
       const to = nodes.get(nodeIds[index]);
       if (!from || !to) continue;
       const distance = haversineMeters(from.lat, from.lon, to.lat, to.lon);
+      const referencePenalty = matchReference
+        ? 1 +
+          Math.min(
+            (
+              matchReference(from.lat, from.lon) +
+              matchReference(to.lat, to.lon)
+            ) / 2,
+            5000
+          ) / 5
+        : 1;
       const baseEdge = {
         distance,
-        cost: distance * edgePenalty(tags),
+        cost: distance * edgePenalty(tags) * referencePenalty,
         wayId: way.id,
         wayName: tags.name ?? null,
       };
@@ -563,12 +764,12 @@ try {
     }
     console.log(`License: ${attribution}, ${licenseName}; ${licenseUrl}`);
   } else {
-    console.log(
-      JSON.stringify({
+    const geojson = JSON.stringify({
         type: "FeatureCollection",
         peaks_destination_id: destination.id,
         peaks_trailhead_id: trailhead.id,
-        peaks_source: sourceUrl,
+        peaks_source: "https://www.openstreetmap.org/",
+        peaks_retrieval_source: sourceUrl,
         peaks_license_name: licenseName,
         peaks_license: licenseUrl,
         peaks_attribution: attribution,
@@ -598,8 +799,13 @@ try {
             },
           },
         ],
-      })
-    );
+      });
+    if (options.outputPath) {
+      await writeFile(options.outputPath, `${geojson}\n`);
+      console.error(`Wrote ${options.outputPath}`);
+    } else {
+      console.log(geojson);
+    }
   }
 } finally {
   await db.end();

@@ -132,32 +132,56 @@ MAPBOX_TOKEN=<token> cloud-sql/migrate/node_modules/.bin/tsx \
 - Before importing OSM-derived geometry, confirm that route provenance,
      attribution, and license fields survive the database, API, apps, and every
      geometry export. If any layer drops them, keep the route as research only.
+   - Cache terrain tiles for only the candidate bounds:
+
+```bash
+cloud-sql/migrate/node_modules/.bin/tsx \
+  .claude/skills/peaks-standard-route-backfill/scripts/cache_route_terrain_tiles.mts \
+  --candidate /path/to/candidate.geojson \
+  --output-dir /private/tmp/peaks-route-worker/terrain
+```
+
    - Import a reviewed candidate with the bundled helper. It rechecks list
      membership, endpoints, duplicate routes, OSM source fields, elevation, and
      the live standard-route gap. Dry-run comes first; apply only creates a
      pending route:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+PEAKS_ELEVATION_SOURCE=terrain-cache \
+PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
+  cloud-sql/migrate/node_modules/.bin/tsx \
   .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
   --candidate /path/to/candidate.geojson \
   --destination-id <summit-id> \
   --trailhead-id <trailhead-id> \
   --name "<Peak> via <Route>" \
-  --source-url mountaineers=https://www.mountaineers.org/... \
-  --apply --acknowledge-osm-odbl --acknowledge-map-review
+  --source-url mountaineers=https://www.mountaineers.org/...
 ```
 
-     `--acknowledge-osm-odbl` confirms that the stored route and segment retain
-     the OSM attribution and ODbL fields. `--acknowledge-map-review` confirms
+After that dry run passes, repeat the same command with:
+
+```text
+--apply --acknowledge-geometry-license --acknowledge-map-review
+```
+
+     `--acknowledge-geometry-license` confirms that the stored route and segment
+     retain the candidate source rights. `--acknowledge-map-review` confirms
      that a person or agent inspected the rendered line. The helper never
      activates a route.
 
-   - Give each pending OSM route to a separate agent using
-     `$peaks-osm-route-approval`. That skill fetches the cited ways again and
-     checks the stored line without using the route builder. A pass approves
-     the geometry only; attribution deployment, route identity, and segment
-     review still gate activation.
+     When a cliff-side AWS terrain sample creates false drops in an otherwise
+     continuous ascent, `--elevation-profile monotonic_ascent` fits a
+     nondecreasing profile while keeping the catalog trailhead and summit
+     elevations. Use it only for one-way summit geometry when an independent
+     route source confirms that the normal line has no material descent and
+     its published gain agrees with the fitted net gain. The importer records
+     the adjustment in route and segment provenance.
+
+   - Give each pending route to a separate agent using
+     `$peaks-osm-route-approval`. That skill fetches cited OSM ways or USGS
+     features again and checks the stored line without using the route builder.
+     A pass approves the geometry only; rights, route identity, access, and
+     segment review still gate activation.
 
 7. Report before any write.
    - Return a table with Peaks id, peak, lists, proposed route, class/grade, access, evidence grade, and sources.
