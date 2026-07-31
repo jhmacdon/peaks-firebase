@@ -140,6 +140,41 @@ await expectStatus(
   403
 );
 
+const placePath = `users/${owner.uid}/savedPlaces/camp-1`;
+const placeFields = {
+  id: { stringValue: "camp-1" },
+  deleted: { booleanValue: false },
+  updatedAt: { timestampValue: new Date().toISOString() },
+};
+await expectStatus(
+  "owner can create saved place",
+  await request(placePath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: placeFields,
+  }),
+  200
+);
+await expectStatus(
+  "owner can read saved place",
+  await request(placePath, { token: owner.token }),
+  200
+);
+await expectStatus(
+  "attacker cannot read saved place",
+  await request(placePath, { token: attacker.token }),
+  403
+);
+await expectStatus(
+  "attacker cannot overwrite saved place",
+  await request(placePath, {
+    method: "PATCH",
+    token: attacker.token,
+    fields: placeFields,
+  }),
+  403
+);
+
 const userPath = `users/${owner.uid}`;
 await expectStatus(
   "owner can update profile",
