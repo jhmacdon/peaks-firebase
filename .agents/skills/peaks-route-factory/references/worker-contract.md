@@ -30,9 +30,12 @@ after the code reaches the canonical `firebase` checkout:
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh seed --apply
 ```
 
-4. Put a recurring Codex task on the firebase repo. Pick `gpt-5.6-luna` with
-   Max reasoning and use `luna-goal-prompt.md` unchanged. Start with one run
-   every 30 minutes and one claimed job per run.
+4. Create the clean checkout at
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`, install
+   `cloud-sql/migrate` dependencies, and keep it at the exact `origin/main`
+   commit. Put a recurring Codex task on that checkout. Pick `gpt-5.6-luna`
+   with Max reasoning and use `luna-goal-prompt.md` unchanged. Start with one
+   run every 30 minutes and one claimed job per run.
 
 This uses the existing Mac, Codex app, Cloud SQL proxy, browser, and cached
 terrain tiles. It adds no always-on service. Its added backend run-rate is near

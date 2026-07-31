@@ -6,6 +6,9 @@ if [[ "$#" -eq 0 ]]; then
   exit 2
 fi
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$script_dir/worker_preflight.sh" >/dev/null
+
 export DB_HOST="${PEAKS_ROUTE_DB_HOST:-${DB_HOST:-127.0.0.1}}"
 export DB_PORT="${PEAKS_ROUTE_DB_PORT:-${DB_PORT:-5432}}"
 export DB_NAME="${PEAKS_ROUTE_DB_NAME:-${DB_NAME:-peaks}}"
