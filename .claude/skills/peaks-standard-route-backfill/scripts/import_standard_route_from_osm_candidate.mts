@@ -110,6 +110,7 @@ type Args = {
   routeShape: RouteShape;
   elevationProfile: "terrain" | "monotonic_ascent";
   replacePendingRouteIds: string[];
+  replaceActiveRouteId: string;
   upgradeActiveRouteId: string;
   resultPath: string;
   apply: boolean;
@@ -268,14 +269,16 @@ const HELP = `Usage:
     [--route-shape out_and_back|loop|lollipop] \\
     [--elevation-profile terrain|monotonic_ascent] \\
     [--replace-pending-route ID ...] \\
+    [--replace-active-route ID] \\
     [--upgrade-active-route ID] \\
     [--result-file /path/to/result.json] \\
     [--apply --acknowledge-geometry-license --acknowledge-map-review]
 
 Dry-run is the default. Apply creates a Peaks-owned pending route and segment.
-It never activates a new route. --upgrade-active-route repairs one existing
-active Peaks route in place after independent review. OSM and USGS National
-Map candidates are supported.
+--replace-active-route permits a reviewed pending replacement to coexist with
+one named active route until publication. It never activates a new route.
+--upgrade-active-route repairs one existing active Peaks route in place after
+independent review. OSM and USGS National Map candidates are supported.
 `;
 
 function valuesAfter(argv: string[], flag: string): string[] {
@@ -333,6 +336,7 @@ function parseArgs(argv: string[]): Args {
       (valueAfter(argv, "--elevation-profile") || "terrain") as
         Args["elevationProfile"],
     replacePendingRouteIds: valuesAfter(argv, "--replace-pending-route"),
+    replaceActiveRouteId: valueAfter(argv, "--replace-active-route"),
     upgradeActiveRouteId: valueAfter(argv, "--upgrade-active-route"),
     resultPath: valueAfter(argv, "--result-file"),
     apply: argv.includes("--apply"),
@@ -385,10 +389,24 @@ function parseArgs(argv: string[]): Args {
     throw new Error("--replace-pending-route ids must be unique");
   }
   if (
+    args.replaceActiveRouteId &&
+    !/^[A-Za-z0-9_-]+$/.test(args.replaceActiveRouteId)
+  ) {
+    throw new Error("--replace-active-route contains an invalid route id");
+  }
+  if (
     args.upgradeActiveRouteId &&
     !/^[A-Za-z0-9_-]+$/.test(args.upgradeActiveRouteId)
   ) {
     throw new Error("--upgrade-active-route contains an invalid route id");
+  }
+  if (
+    args.replaceActiveRouteId &&
+    args.upgradeActiveRouteId
+  ) {
+    throw new Error(
+      "--replace-active-route cannot be combined with --upgrade-active-route"
+    );
   }
   if (
     args.upgradeActiveRouteId &&
@@ -1111,6 +1129,7 @@ async function assertNoConflict(
   destinationId: string,
   name: string,
   replacePendingRouteIds: string[],
+  replaceActiveRouteId: string,
   upgradeActiveRouteId: string,
   exactExistingRouteId: string
 ): Promise<void> {
@@ -1130,11 +1149,13 @@ async function assertNoConflict(
        )
        AND ($4 = '' OR r.id <> $4)
        AND ($5 = '' OR r.id <> $5)
+       AND ($6 = '' OR r.id <> $6)
      LIMIT 1`,
     [
       destinationId,
       name,
       replacePendingRouteIds,
+      replaceActiveRouteId,
       upgradeActiveRouteId,
       exactExistingRouteId,
     ]
@@ -1223,6 +1244,28 @@ async function assertUpgradeableActiveRoute(
   }
 }
 
+async function assertReplaceableActiveRoute(
+  destinationId: string,
+  routeId: string
+): Promise<void> {
+  if (!routeId) return;
+  const result = await db.query<{ id: string }>(
+    `SELECT DISTINCT r.id
+     FROM routes r
+     JOIN route_destinations rd ON rd.route_id = r.id
+     WHERE r.id = $1
+       AND r.owner = 'peaks'
+       AND r.status = 'active'
+       AND rd.destination_id = $2`,
+    [routeId, destinationId]
+  );
+  if (result.rows.length !== 1) {
+    throw new Error(
+      `Active replacement route is not eligible: ${routeId}`
+    );
+  }
+}
+
 async function assertReplaceablePendingRoutes(
   destinationId: string,
   routeIds: string[]
@@ -1286,6 +1329,25 @@ async function createPendingRoute(
       `SELECT id FROM destinations WHERE id = ANY($1::text[]) FOR UPDATE`,
       [[args.destinationId, args.trailheadId]]
     );
+    if (args.replaceActiveRouteId) {
+      const replacement = await client.query<{ id: string }>(
+        `SELECT r.id
+         FROM routes r
+         JOIN route_destinations rd ON rd.route_id = r.id
+         WHERE r.id = $1
+           AND r.owner = 'peaks'
+           AND r.status = 'active'
+           AND rd.destination_id = $2
+         FOR UPDATE OF r`,
+        [args.replaceActiveRouteId, args.destinationId]
+      );
+      if (replacement.rows.length !== 1) {
+        throw new Error(
+          `Active replacement route changed during import: ` +
+            args.replaceActiveRouteId
+        );
+      }
+    }
 
     const exactExisting = await client.query<{
       id: string;
@@ -1402,8 +1464,14 @@ async function createPendingRoute(
            r.status = 'pending'
            AND r.id = ANY($3::text[])
          )
+         AND ($4 = '' OR r.id <> $4)
        LIMIT 1`,
-      [args.destinationId, args.name, args.replacePendingRouteIds]
+      [
+        args.destinationId,
+        args.name,
+        args.replacePendingRouteIds,
+        args.replaceActiveRouteId,
+      ]
     );
     if (conflict.rows.length > 0) {
       throw new Error(
@@ -1637,6 +1705,10 @@ async function main() {
     args.destinationId,
     args.upgradeActiveRouteId
   );
+  await assertReplaceableActiveRoute(
+    args.destinationId,
+    args.replaceActiveRouteId
+  );
   const exactExisting = await findExactExistingRoute(args, candidate, points);
   if (exactExisting?.status === "active") {
     throw new Error(`The exact route is already active: ${exactExisting.id}`);
@@ -1651,6 +1723,7 @@ async function main() {
     args.destinationId,
     args.name,
     args.replacePendingRouteIds,
+    args.replaceActiveRouteId,
     args.upgradeActiveRouteId,
     exactExisting?.id ?? ""
   );
@@ -1689,6 +1762,11 @@ async function main() {
         args.replacePendingRouteIds.join(", ")
     );
   }
+  if (args.replaceActiveRouteId) {
+    console.log(
+      `Keeps active route until publication: ${args.replaceActiveRouteId}`
+    );
+  }
   if (args.upgradeActiveRouteId) {
     console.log(`Upgrades active route in place: ${args.upgradeActiveRouteId}`);
   }
@@ -1709,6 +1787,7 @@ async function main() {
       destination_id: args.destinationId,
       trailhead_id: args.trailheadId,
       reusable_pending_route_id: exactExisting?.id ?? null,
+      replacement_route_id: args.replaceActiveRouteId || null,
     };
     if (args.resultPath) {
       const resultPath = path.resolve(args.resultPath);
@@ -1718,7 +1797,7 @@ async function main() {
     console.log(JSON.stringify(result));
     return;
   }
-  let result: Record<string, string>;
+  let result: Record<string, string | null>;
   if (args.upgradeActiveRouteId) {
     const routeId = await upgradeActiveRoute(
       args,
@@ -1727,7 +1806,12 @@ async function main() {
       stats
     );
     console.log(`Upgraded active route ${routeId}`);
-    result = { mode: "apply", status: "active", route_id: routeId };
+    result = {
+      mode: "apply",
+      status: "active",
+      route_id: routeId,
+      replacement_route_id: null,
+    };
   } else {
     const routeId = await createPendingRoute(
       args,
@@ -1736,7 +1820,12 @@ async function main() {
       stats
     );
     console.log(`Pending route ready ${routeId}`);
-    result = { mode: "apply", status: "pending", route_id: routeId };
+    result = {
+      mode: "apply",
+      status: "pending",
+      route_id: routeId,
+      replacement_route_id: args.replaceActiveRouteId || null,
+    };
   }
   if (args.resultPath) {
     const resultPath = path.resolve(args.resultPath);

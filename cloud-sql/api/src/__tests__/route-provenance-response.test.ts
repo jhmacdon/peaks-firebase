@@ -23,5 +23,13 @@ test("route-bearing API queries expose route provenance", () => {
   assert.match(listDestinations.text, /r\.provenance AS route_provenance/);
   assert.match(areaDetail.text, /'provenance', r\.provenance/);
   assert.match(planRoutes.text, /r\.provenance/);
+  assert.match(
+    planRoutes.text,
+    /r\.status IN \('active', 'superseded'\)/
+  );
   assert.match(SESSION_ROUTES_SQL, /'provenance', r\.provenance/);
+  assert.match(
+    SESSION_ROUTES_SQL,
+    /r\.status IN \('active', 'superseded'\)/
+  );
 });

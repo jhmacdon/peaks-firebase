@@ -382,7 +382,7 @@ export async function getSessionRoutes(
      JOIN tracking_sessions ts ON ts.id = sr.session_id
      WHERE sr.session_id = $1
        AND (ts.user_id = $2 OR ts.is_public = true)
-       AND r.status = 'active'
+       AND r.status IN ('active', 'superseded')
      ORDER BY r.name ASC NULLS LAST`,
     [sessionId, user.uid]
   );

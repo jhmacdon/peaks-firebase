@@ -169,6 +169,11 @@ After that dry run passes, repeat the same command with:
      that a person or agent inspected the rendered line. The helper never
      activates a route.
 
+     For a legacy rebuild, add `--replace-active-route <route-id>` to both
+     importer runs. The importer locks and validates that exact Peaks-owned
+     active route, then allows the reviewed replacement to stay pending beside
+     it. Publication, not import, supersedes the old route.
+
      When a cliff-side AWS terrain sample creates false drops in an otherwise
      continuous ascent, `--elevation-profile monotonic_ascent` fits a
      nondecreasing profile while keeping the catalog trailhead and summit
