@@ -410,11 +410,21 @@ export async function analyzePendingRoute(id: string): Promise<{
  * Accept a pending route with segment deduplication.
  * Re-analyzes segments server-side (don't rely on client-serialized decomposition
  * which may lose large points arrays), then replaces the standalone segment with
- * the decomposed segments and sets status to 'active'.
+ * the decomposed segments and sets status to 'active'. When this is a standard
+ * route rebuild, the old active route becomes superseded in the same
+ * transaction so existing plan and session links remain intact.
  */
 export async function acceptRouteWithSegments(
-  id: string
+  id: string,
+  replacementRouteId?: string | null,
+  replacementDestinationId?: string | null
 ): Promise<void> {
+  if (replacementRouteId === id) {
+    throw new Error("A route cannot replace itself");
+  }
+  if (replacementRouteId && !replacementDestinationId) {
+    throw new Error("A replacement destination is required");
+  }
   const { haversineDistance, totalDistance } = await import("../gpx");
   const { encodePolyline6, pointsToLineStringZ, generateId } = await import("../route-utils");
   const { computeElevationStats } = await import("../elevation");
@@ -429,7 +439,52 @@ export async function acceptRouteWithSegments(
   );
 
   if (!hasExistingOrSplit) {
-    await db.query(`UPDATE routes SET status = 'active' WHERE id = $1 AND status = 'pending'`, [id]);
+    if (!replacementRouteId) {
+      await db.query(
+        `UPDATE routes SET status = 'active'
+         WHERE id = $1 AND status = 'pending'`,
+        [id]
+      );
+      return;
+    }
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      const replacement = await client.query(
+        `SELECT r.id
+         FROM routes r
+         JOIN route_destinations rd ON rd.route_id = r.id
+         WHERE r.id = $1
+           AND r.owner = 'peaks'
+           AND r.status = 'active'
+           AND ($2::text IS NULL OR rd.destination_id = $2)
+         FOR UPDATE OF r`,
+        [replacementRouteId, replacementDestinationId ?? null]
+      );
+      const pending = await client.query(
+        `SELECT id FROM routes
+         WHERE id = $1 AND owner = 'peaks' AND status = 'pending'
+         FOR UPDATE`,
+        [id]
+      );
+      if (replacement.rows.length !== 1 || pending.rows.length !== 1) {
+        throw new Error("Route replacement changed before activation");
+      }
+      await client.query(
+        `UPDATE routes SET status = 'superseded' WHERE id = $1`,
+        [replacementRouteId]
+      );
+      await client.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [id]
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
     return;
   }
 
@@ -444,6 +499,22 @@ export async function acceptRouteWithSegments(
     );
     if (routeResult.rows.length === 0) {
       throw new Error("Pending route not found");
+    }
+    if (replacementRouteId) {
+      const replacement = await client.query(
+        `SELECT r.id
+         FROM routes r
+         JOIN route_destinations rd ON rd.route_id = r.id
+         WHERE r.id = $1
+           AND r.owner = 'peaks'
+           AND r.status = 'active'
+           AND ($2::text IS NULL OR rd.destination_id = $2)
+         FOR UPDATE OF r`,
+        [replacementRouteId, replacementDestinationId ?? null]
+      );
+      if (replacement.rows.length !== 1) {
+        throw new Error("Route replacement changed before activation");
+      }
     }
     const routeProvenance = routeResult.rows[0].provenance
       ? JSON.stringify(routeResult.rows[0].provenance)
@@ -609,7 +680,14 @@ export async function acceptRouteWithSegments(
       );
     }
 
-    // Set route to active
+    if (replacementRouteId) {
+      await client.query(
+        `UPDATE routes SET status = 'superseded' WHERE id = $1`,
+        [replacementRouteId]
+      );
+    }
+
+    // Set the reviewed route to active.
     await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
 
     await client.query("COMMIT");

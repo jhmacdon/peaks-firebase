@@ -72,7 +72,7 @@ Write the compact candidate JSON from the candidate result schema to
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to candidate_ready \
-  --artifact-path cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
+  --artifact-path route-candidates/luna/<destination-id>.geojson \
   --result-file /private/tmp/peaks-route-worker/<destination-id>-candidate.json \
   --apply
 ```
@@ -104,7 +104,7 @@ PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
   --trailhead-id <trailhead-id> \
   --name "<route-name>" \
   --route-shape <route-shape> \
-  --source-url <type>=<direct-identity-url>
+  --source-url '<type>=<direct-identity-url>'
 ```
 
 After it passes, run the full apply command:
@@ -120,7 +120,7 @@ PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
   --trailhead-id <trailhead-id> \
   --name "<route-name>" \
   --route-shape <route-shape> \
-  --source-url <type>=<direct-identity-url> \
+  --source-url '<type>=<direct-identity-url>' \
   --result-file /private/tmp/peaks-route-worker/<destination-id>-import.json \
   --apply --acknowledge-geometry-license --acknowledge-map-review
 ```
@@ -136,6 +136,9 @@ The importer writes the route ID to that result file. Then:
 ```
 
 An exact retry reuses the pending route instead of creating a duplicate.
+When the claimed job has `replacement_route_id`, pass
+`--replace-active-route <replacement-route-id>` to both importer runs. This
+keeps the old route active while the new route is pending review.
 If the job already names an older pending route from a failed review, add
 `--replace-pending-route <older-route-id>` to both importer runs.
 
@@ -196,7 +199,9 @@ a production repair. These states require a human requeue.
 ## Publish
 
 The activation wrapper is idempotent. It reports success without writing when
-a stopped run already activated the saved route. Run:
+a stopped run already activated the saved route. For a rebuild, it marks the
+job's named legacy route `superseded` in the same transaction that activates
+the reviewed replacement. Run:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \

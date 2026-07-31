@@ -48,8 +48,9 @@ if (
 try {
   const jobResult = await db.query<{
     destination_id: string;
+    replacement_route_id: string | null;
   }>(
-    `SELECT destination_id
+    `SELECT destination_id, replacement_route_id
      FROM standard_route_backfill_jobs
      WHERE destination_id = $1
        AND state = 'approved'
@@ -61,6 +62,7 @@ try {
   if (!jobResult.rows[0]) {
     throw new Error("Route activation is not bound to this approved job lease");
   }
+  const replacementRouteId = jobResult.rows[0].replacement_route_id;
   const routeResult = await db.query<{
     name: string;
     owner: string;
@@ -85,6 +87,29 @@ try {
     if (route.segment_count < 1) {
       throw new Error("Active route has no segments");
     }
+    if (replacementRouteId) {
+      const replacement = await db.query<{
+        status: string;
+        destination_linked: boolean;
+      }>(
+        `SELECT r.status,
+                EXISTS (
+                  SELECT 1
+                  FROM route_destinations rd
+                  WHERE rd.route_id = r.id
+                    AND rd.destination_id = $2
+                ) AS destination_linked
+         FROM routes r
+         WHERE r.id = $1`,
+        [replacementRouteId, destinationId]
+      );
+      if (
+        replacement.rows[0]?.status !== "superseded" ||
+        !replacement.rows[0]?.destination_linked
+      ) {
+        throw new Error("Replacement route was not superseded");
+      }
+    }
     console.log(`Route ${routeId} is already active after an earlier run`);
     console.log(
       JSON.stringify({
@@ -92,12 +117,36 @@ try {
         status: "active",
         route_id: routeId,
         segment_count: route.segment_count,
+        replacement_route_id: replacementRouteId,
         reused: true,
       })
     );
   } else {
     if (route.status !== "pending") {
       throw new Error(`Route must be pending or active, found ${route.status}`);
+    }
+    if (replacementRouteId) {
+      const replacement = await db.query<{
+        status: string;
+        destination_linked: boolean;
+      }>(
+        `SELECT r.status,
+                EXISTS (
+                  SELECT 1
+                  FROM route_destinations rd
+                  WHERE rd.route_id = r.id
+                    AND rd.destination_id = $2
+                ) AS destination_linked
+         FROM routes r
+         WHERE r.id = $1`,
+        [replacementRouteId, destinationId]
+      );
+      if (
+        replacement.rows[0]?.status !== "active" ||
+        !replacement.rows[0]?.destination_linked
+      ) {
+        throw new Error("Active replacement route is not eligible");
+      }
     }
     const { decomposition } = await analyzePendingRoute(routeId);
     console.log(`Mode: ${apply ? "APPLY" : "DRY RUN"}`);
@@ -152,7 +201,11 @@ try {
     if (!apply) {
       console.log("DRY RUN — no rows written");
     } else {
-      await acceptRouteWithSegments(routeId);
+      await acceptRouteWithSegments(
+        routeId,
+        replacementRouteId,
+        destinationId
+      );
       const verified = await db.query<{
         status: string;
         segment_count: number;
@@ -171,6 +224,29 @@ try {
       ) {
         throw new Error("Route activation verification failed");
       }
+      if (replacementRouteId) {
+        const replacement = await db.query<{
+          status: string;
+          destination_linked: boolean;
+        }>(
+          `SELECT r.status,
+                  EXISTS (
+                    SELECT 1
+                    FROM route_destinations rd
+                    WHERE rd.route_id = r.id
+                      AND rd.destination_id = $2
+                  ) AS destination_linked
+           FROM routes r
+           WHERE r.id = $1`,
+          [replacementRouteId, destinationId]
+        );
+        if (
+          replacement.rows[0]?.status !== "superseded" ||
+          !replacement.rows[0]?.destination_linked
+        ) {
+          throw new Error("Replacement route supersede verification failed");
+        }
+      }
       console.log(
         `Activated ${routeId} with ${verified.rows[0].segment_count} segments`
       );
@@ -180,6 +256,7 @@ try {
           status: "active",
           route_id: routeId,
           segment_count: verified.rows[0].segment_count,
+          replacement_route_id: replacementRouteId,
           reused: false,
         })
       );

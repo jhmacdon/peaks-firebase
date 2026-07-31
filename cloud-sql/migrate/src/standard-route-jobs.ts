@@ -41,6 +41,7 @@ interface JobRow {
   candidate_path: string | null;
   candidate_sha256: string | null;
   published_route_id: string | null;
+  replacement_route_id: string | null;
   blocker_code: string | null;
   blocker_message: string | null;
   attempt_count: number;
@@ -295,6 +296,7 @@ async function seed(argv: string[]): Promise<void> {
        target_reasons,
        trailhead_id,
        published_route_id,
+       replacement_route_id,
        blocker_code,
        blocker_message,
        updated_at
@@ -305,6 +307,10 @@ async function seed(argv: string[]): Promise<void> {
             target_reasons,
             trailhead_id,
             route_id,
+            CASE
+              WHEN state = 'queued' AND route_id IS NOT NULL THEN route_id
+              ELSE NULL
+            END,
             NULL,
             NULL,
             now()
@@ -343,6 +349,10 @@ async function seed(argv: string[]): Promise<void> {
            )
          ELSE standard_route_backfill_jobs.published_route_id
        END,
+       replacement_route_id = COALESCE(
+         standard_route_backfill_jobs.replacement_route_id,
+         EXCLUDED.replacement_route_id
+       ),
        blocker_code = CASE
          WHEN standard_route_backfill_jobs.state = 'verified'
            AND EXCLUDED.state = 'published'
@@ -403,6 +413,7 @@ const jobColumns = `
   j.candidate_path,
   j.candidate_sha256,
   j.published_route_id,
+  j.replacement_route_id,
   j.blocker_code,
   j.blocker_message,
   j.attempt_count,
@@ -506,6 +517,7 @@ async function claim(argv: string[]): Promise<void> {
          c.candidate_path,
          c.candidate_sha256,
          c.published_route_id,
+         c.replacement_route_id,
          c.blocker_code,
          c.blocker_message,
          c.attempt_count,
@@ -844,8 +856,9 @@ async function transition(argv: string[]): Promise<void> {
       state: JobState;
       trailhead_id: string | null;
       published_route_id: string | null;
+      replacement_route_id: string | null;
     }>(
-      `SELECT state, trailhead_id, published_route_id
+      `SELECT state, trailhead_id, published_route_id, replacement_route_id
        FROM standard_route_backfill_jobs
        WHERE destination_id = $1
          AND lease_token = $2
@@ -863,6 +876,17 @@ async function transition(argv: string[]): Promise<void> {
       !(from === "candidate_ready" && to === "pending_review")
     ) {
       throw new Error("Route ID does not match the route already saved on the job");
+    }
+    if (to === "pending_review") {
+      const resultReplacementRouteId =
+        typeof resultJson.replacement_route_id === "string"
+          ? resultJson.replacement_route_id
+          : null;
+      if (resultReplacementRouteId !== currentJob.replacement_route_id) {
+        throw new Error(
+          "Importer replacement route does not match the durable job"
+        );
+      }
     }
     if (to === "verified") {
       if (!routeId || !currentJob.trailhead_id) {
@@ -953,6 +977,7 @@ async function transition(argv: string[]): Promise<void> {
       candidate_path: string | null;
       candidate_sha256: string | null;
       published_route_id: string | null;
+      replacement_route_id: string | null;
     }>(
       `UPDATE standard_route_backfill_jobs
        SET state = $3,
@@ -986,7 +1011,7 @@ async function transition(argv: string[]): Promise<void> {
            updated_at = now()
        WHERE destination_id = $1 AND lease_token = $2
        RETURNING destination_id, state, trailhead_id, candidate_path,
-                 candidate_sha256, published_route_id`,
+                 candidate_sha256, published_route_id, replacement_route_id`,
       [
         destinationId,
         token,
@@ -1225,6 +1250,7 @@ async function recoverLegacy(argv: string[]): Promise<void> {
   const result = await db.query<{ destination_id: string; state: JobState }>(
     `UPDATE standard_route_backfill_jobs j
      SET state = 'queued',
+         replacement_route_id = j.published_route_id,
          evidence = evidence || jsonb_build_object(
            'legacy_recovery_at', now(),
            'legacy_recovery_reason',
