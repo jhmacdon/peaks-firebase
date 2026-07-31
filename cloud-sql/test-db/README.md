@@ -85,6 +85,11 @@ it — 12 finished in 61s against 79s at 6.
 `provision.sh` applies `schema.sql`, then every file in `migrations/`, then
 `grants.sql`.
 
+Some migrations grant to the production `peaks-api` role. That role already
+exists on Cloud SQL because roles are cluster-wide. The provisioner creates a
+NOLOGIN stand-in on disposable CI and local Postgres so those migrations replay
+unchanged; tests still connect only as `peaks_test`.
+
 **`schema.sql` alone is not enough**, despite what its header implies. It is a
 partly-maintained baseline. Building a database from it and diffing against live
 `peaks` shows it missing the `link_sessions_on_destination_update` trigger,
