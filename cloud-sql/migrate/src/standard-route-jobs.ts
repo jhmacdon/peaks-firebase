@@ -1173,6 +1173,10 @@ async function verifyJob(argv: string[]): Promise<void> {
   }>(
     `UPDATE standard_route_backfill_jobs
      SET state = $3,
+         replacement_route_id = CASE
+           WHEN $5 = 'rebuild' THEN published_route_id
+           ELSE replacement_route_id
+         END,
          evidence = evidence || jsonb_build_object(
            'last_verification', $4::jsonb,
            'verification_action', $5::text

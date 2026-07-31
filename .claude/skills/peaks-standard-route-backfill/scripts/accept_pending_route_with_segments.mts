@@ -203,8 +203,11 @@ try {
     } else {
       await acceptRouteWithSegments(
         routeId,
-        replacementRouteId,
-        destinationId
+        {
+          destinationId,
+          leaseToken,
+          replacementRouteId,
+        }
       );
       const verified = await db.query<{
         status: string;

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import db from "../db";
+import type { PoolClient } from "pg";
 import { parseAreas, type ProtectedArea } from "../area-types";
 import {
   normalizeRouteProvenance,
@@ -406,6 +407,54 @@ export async function analyzePendingRoute(id: string): Promise<{
   return { decomposition, points };
 }
 
+type RouteFactoryActivation = {
+  destinationId: string;
+  leaseToken: string;
+  replacementRouteId: string | null;
+};
+
+async function refuseDirectFactoryActivation(id: string): Promise<void> {
+  const factoryJob = await db.query(
+    `SELECT destination_id
+     FROM standard_route_backfill_jobs
+     WHERE published_route_id = $1
+       AND state <> 'verified'
+     LIMIT 1`,
+    [id]
+  );
+  if (factoryJob.rows.length > 0) {
+    throw new Error(
+      "This pending route is controlled by the standard-route review queue"
+    );
+  }
+}
+
+async function lockRouteFactoryActivation(
+  client: PoolClient,
+  id: string,
+  activation: RouteFactoryActivation
+): Promise<void> {
+  const job = await client.query<{ replacement_route_id: string | null }>(
+    `SELECT replacement_route_id
+     FROM standard_route_backfill_jobs
+     WHERE destination_id = $1
+       AND state = 'approved'
+       AND published_route_id = $2
+       AND lease_token = $3
+       AND lease_expires_at >= clock_timestamp()
+     FOR UPDATE`,
+    [activation.destinationId, id, activation.leaseToken]
+  );
+  if (job.rows.length !== 1) {
+    throw new Error("Route activation is not bound to an approved job lease");
+  }
+  if (
+    job.rows[0].replacement_route_id !== activation.replacementRouteId
+  ) {
+    throw new Error("Route replacement binding changed before activation");
+  }
+}
+
 /**
  * Accept a pending route with segment deduplication.
  * Re-analyzes segments server-side (don't rely on client-serialized decomposition
@@ -416,14 +465,17 @@ export async function analyzePendingRoute(id: string): Promise<{
  */
 export async function acceptRouteWithSegments(
   id: string,
-  replacementRouteId?: string | null,
-  replacementDestinationId?: string | null
+  factoryActivation?: RouteFactoryActivation | null
 ): Promise<void> {
+  const replacementRouteId =
+    factoryActivation?.replacementRouteId ?? null;
+  const replacementDestinationId =
+    factoryActivation?.destinationId ?? null;
   if (replacementRouteId === id) {
     throw new Error("A route cannot replace itself");
   }
-  if (replacementRouteId && !replacementDestinationId) {
-    throw new Error("A replacement destination is required");
+  if (!factoryActivation) {
+    await refuseDirectFactoryActivation(id);
   }
   const { haversineDistance, totalDistance } = await import("../gpx");
   const { encodePolyline6, pointsToLineStringZ, generateId } = await import("../route-utils");
@@ -439,7 +491,7 @@ export async function acceptRouteWithSegments(
   );
 
   if (!hasExistingOrSplit) {
-    if (!replacementRouteId) {
+    if (!factoryActivation) {
       await db.query(
         `UPDATE routes SET status = 'active'
          WHERE id = $1 AND status = 'pending'`,
@@ -450,30 +502,38 @@ export async function acceptRouteWithSegments(
     const client = await db.connect();
     try {
       await client.query("BEGIN");
-      const replacement = await client.query(
-        `SELECT r.id
-         FROM routes r
-         JOIN route_destinations rd ON rd.route_id = r.id
-         WHERE r.id = $1
-           AND r.owner = 'peaks'
-           AND r.status = 'active'
-           AND ($2::text IS NULL OR rd.destination_id = $2)
-         FOR UPDATE OF r`,
-        [replacementRouteId, replacementDestinationId ?? null]
-      );
+      await lockRouteFactoryActivation(client, id, factoryActivation);
       const pending = await client.query(
         `SELECT id FROM routes
          WHERE id = $1 AND owner = 'peaks' AND status = 'pending'
          FOR UPDATE`,
         [id]
       );
-      if (replacement.rows.length !== 1 || pending.rows.length !== 1) {
-        throw new Error("Route replacement changed before activation");
+      if (pending.rows.length !== 1) {
+        throw new Error("Pending route changed before activation");
       }
-      await client.query(
-        `UPDATE routes SET status = 'superseded' WHERE id = $1`,
-        [replacementRouteId]
-      );
+      if (replacementRouteId) {
+        const replacement = await client.query(
+          `SELECT r.id
+           FROM routes r
+           JOIN route_destinations rd ON rd.route_id = r.id
+           WHERE r.id = $1
+             AND r.owner = 'peaks'
+             AND r.status = 'active'
+             AND rd.destination_id = $2
+           FOR UPDATE OF r`,
+          [replacementRouteId, replacementDestinationId]
+        );
+        if (replacement.rows.length !== 1) {
+          throw new Error("Route replacement changed before activation");
+        }
+      }
+      if (replacementRouteId) {
+        await client.query(
+          `UPDATE routes SET status = 'superseded' WHERE id = $1`,
+          [replacementRouteId]
+        );
+      }
       await client.query(
         `UPDATE routes SET status = 'active' WHERE id = $1`,
         [id]
@@ -491,6 +551,9 @@ export async function acceptRouteWithSegments(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    if (factoryActivation) {
+      await lockRouteFactoryActivation(client, id, factoryActivation);
+    }
 
     // Get existing route data
     const routeResult = await client.query(
@@ -508,9 +571,9 @@ export async function acceptRouteWithSegments(
          WHERE r.id = $1
            AND r.owner = 'peaks'
            AND r.status = 'active'
-           AND ($2::text IS NULL OR rd.destination_id = $2)
+           AND rd.destination_id = $2
          FOR UPDATE OF r`,
-        [replacementRouteId, replacementDestinationId ?? null]
+        [replacementRouteId, replacementDestinationId]
       );
       if (replacement.rows.length !== 1) {
         throw new Error("Route replacement changed before activation");

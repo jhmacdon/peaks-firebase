@@ -84,7 +84,8 @@ export const SESSION_ROUTES_SQL = `COALESCE(
   ) ORDER BY r.name, r.id)
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
-  WHERE sr.session_id = s.id AND r.status = 'active'),
+  WHERE sr.session_id = s.id
+    AND r.status IN ('active', 'superseded')),
   '[]'::json
 )`;
 
@@ -874,7 +875,7 @@ router.get("/:id/routes", async (req, res: Response) => {
      JOIN tracking_sessions s ON s.id = sr.session_id
      WHERE sr.session_id = $1
        AND (s.user_id = $2 OR s.is_public = true)
-       AND r.status = 'active'`,
+       AND r.status IN ('active', 'superseded')`,
     [id, uid]
   );
   res.json(result.rows);
