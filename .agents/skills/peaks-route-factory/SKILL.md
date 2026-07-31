@@ -15,11 +15,14 @@ chat history is not.
 2. Read [references/stage-commands.md](references/stage-commands.md) for the
    claimed stage and [references/result-schemas.md](references/result-schemas.md)
    before writing a result.
-3. Run only from `/Users/josiahm/projects/peaks/firebase`. If that checkout
-   lacks this skill or `route_jobs.sh`, report `setup_required` and stop. Do not
-   search another worktree, apply a migration, or seed the queue.
+3. Run from the dedicated clean checkout at
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`. The
+   canonical `/Users/josiahm/projects/peaks/firebase` checkout is also allowed
+   only when clean and exactly at `origin/main`. Do not search another worktree,
+   apply a migration, or seed the queue.
 4. Use the wrapper for every queue command. It loads the database password
-   without printing it and checks the local proxy:
+   without printing it and refuses a dirty, stale, unknown, or uninstalled
+   checkout before it checks the local proxy:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh stats

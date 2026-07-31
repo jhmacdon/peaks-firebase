@@ -12,9 +12,11 @@ blocker; it does not count as done.
 This is one bounded worker run. Work from the durable Cloud SQL queue, not chat
 memory:
 
-1. Work only from `/Users/josiahm/projects/peaks/firebase`. If the skill or
-   queue wrapper is missing there, report `setup_required` and stop. Never use
-   another worktree, apply migrations, or seed the queue.
+1. Work only from the dedicated clean checkout at
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`. If its
+   preflight reports `setup_required`, stop. Never find another worktree, edit
+   tracked files, apply migrations, seed the queue, pull, fetch, switch branches,
+   or install packages.
 2. Use `route_jobs.sh` to check stats, then claim exactly one `next` job as
    `luna-route-worker-01`.
 3. Follow the returned stage. Finish work nearest publication first.
