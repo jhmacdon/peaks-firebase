@@ -1,0 +1,6 @@
+interface:
+  display_name: "Peaks Route Factory"
+  short_description: "Safely fill the Peaks standard-route queue"
+  default_prompt: "Use $peaks-route-factory to claim and complete one standard-route job safely."
+policy:
+  allow_implicit_invocation: true

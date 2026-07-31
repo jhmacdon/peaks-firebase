@@ -10,6 +10,8 @@ type Options = {
   routeId: string;
   activate: boolean;
   acknowledgeMapReview: boolean;
+  keepStandaloneSegment: boolean;
+  acknowledgeOverlapDuplication: boolean;
 };
 
 type OverlapRow = {
@@ -26,9 +28,12 @@ function usage(): string {
     "Usage:",
     "  tsx review_pending_route.mts --route-id ID",
     "  tsx review_pending_route.mts --route-id ID --activate --acknowledge-map-review",
+    "  tsx review_pending_route.mts --route-id ID --activate --acknowledge-map-review \\",
+    "    --keep-standalone-segment --acknowledge-overlap-duplication",
     "",
     "Runs read-only geometry and segment-overlap checks by default.",
-    "Activation is allowed only when no existing segment overlap needs admin review.",
+    "By default, overlap requires admin segment review. The standalone override",
+    "keeps the reviewed segment intact when reuse is unsafe or undesirable.",
   ].join("\n");
 }
 
@@ -37,6 +42,8 @@ function parseArgs(argv: string[]): Options {
     routeId: "",
     activate: false,
     acknowledgeMapReview: false,
+    keepStandaloneSegment: false,
+    acknowledgeOverlapDuplication: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -48,6 +55,10 @@ function parseArgs(argv: string[]): Options {
       options.activate = true;
     } else if (arg === "--acknowledge-map-review") {
       options.acknowledgeMapReview = true;
+    } else if (arg === "--keep-standalone-segment") {
+      options.keepStandaloneSegment = true;
+    } else if (arg === "--acknowledge-overlap-duplication") {
+      options.acknowledgeOverlapDuplication = true;
     } else if (arg === "--help" || arg === "-h") {
       console.log(usage());
       process.exit(0);
@@ -62,6 +73,15 @@ function parseArgs(argv: string[]): Options {
 
   if (options.activate && !options.acknowledgeMapReview) {
     throw new Error("Activation requires --acknowledge-map-review");
+  }
+  if (
+    options.keepStandaloneSegment &&
+    (!options.activate || !options.acknowledgeOverlapDuplication)
+  ) {
+    throw new Error(
+      "--keep-standalone-segment requires --activate and " +
+        "--acknowledge-overlap-duplication"
+    );
   }
 
   return options;
@@ -171,15 +191,16 @@ try {
               ) / totals.total_points,
               1
             )::float8 AS match_pct,
-            STRING_AGG(DISTINCT routes.name, ' | ' ORDER BY routes.name)
-              AS route_names
+            (
+              SELECT STRING_AGG(DISTINCT r.name, ' | ' ORDER BY r.name)
+              FROM route_segments rs
+              JOIN routes r ON r.id = rs.route_id
+              WHERE rs.segment_id = candidate_segments.id
+            ) AS route_names
      FROM candidate_segments
      JOIN segments ON segments.id = candidate_segments.id
      CROSS JOIN points
      CROSS JOIN totals
-     LEFT JOIN route_segments
-       ON route_segments.segment_id = candidate_segments.id
-     LEFT JOIN routes ON routes.id = route_segments.route_id
      GROUP BY candidate_segments.id, candidate_segments.name,
               segments.path, totals.total_points
      HAVING COUNT(*) FILTER (
@@ -223,7 +244,10 @@ try {
         : "DRY RUN — review the map before activation"
     );
   } else {
-    if (overlapResult.rows.length > 0) {
+    if (
+      overlapResult.rows.length > 0 &&
+      !options.keepStandaloneSegment
+    ) {
       throw new Error("Existing segment overlap requires the admin segment review");
     }
     const activated = await db.query(
@@ -235,6 +259,11 @@ try {
     );
     if (activated.rows.length !== 1) {
       throw new Error("Route was not activated");
+    }
+    if (options.keepStandaloneSegment) {
+      console.log(
+        "Kept the reviewed standalone segment; overlap was not reused or split"
+      );
     }
     console.log(`Activated ${activated.rows[0].name} (${activated.rows[0].id})`);
   }

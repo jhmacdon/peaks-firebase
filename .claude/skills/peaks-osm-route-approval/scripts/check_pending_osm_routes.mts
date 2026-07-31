@@ -61,6 +61,7 @@ type RouteRow = {
   name: string;
   owner: string;
   status: string;
+  shape: "out_and_back" | "loop" | "point_to_point" | "lollipop" | null;
   provenance: RouteProvenance | null;
   provenance_valid: boolean;
   is_simple: boolean;
@@ -70,6 +71,8 @@ type RouteRow = {
     name: string;
     ordinal: number;
     features: string[];
+    lat: number;
+    lng: number;
   }>;
   segment_count: number;
   segment_provenance_matches: boolean;
@@ -86,6 +89,7 @@ type CheckResult = {
     core_samples: number;
     start_connector_m: number;
     end_connector_m: number;
+    return_connector_m: number;
     core_max_offset_m: number;
     core_p95_offset_m: number;
     core_coverage_pct: number;
@@ -190,9 +194,13 @@ function nearestSource(
   return { distance, wayId };
 }
 
-function sampleCore(points: LatLng[]): LatLng[] {
+function sampleCore(
+  points: LatLng[],
+  excludedSegmentIndexes = new Set<number>()
+): LatLng[] {
   const samples: LatLng[] = [];
   for (let index = 1; index < points.length - 2; index += 1) {
+    if (excludedSegmentIndexes.has(index)) continue;
     const start = points[index];
     const end = points[index + 1];
     const distance = haversineMeters(start, end);
@@ -205,7 +213,9 @@ function sampleCore(points: LatLng[]): LatLng[] {
       });
     }
   }
-  samples.push(points[points.length - 2]);
+  if (!excludedSegmentIndexes.has(points.length - 2)) {
+    samples.push(points[points.length - 2]);
+  }
   return samples;
 }
 
@@ -219,24 +229,219 @@ function percentile(values: number[], fraction: number): number {
   return sorted[index];
 }
 
+function pointsMatch(
+  left: LatLng,
+  right: LatLng,
+  toleranceM = 0.25
+): boolean {
+  return haversineMeters(left, right) <= toleranceM;
+}
+
+function segmentsMatch(
+  leftStart: LatLng,
+  leftEnd: LatLng,
+  rightStart: LatLng,
+  rightEnd: LatLng
+): boolean {
+  return (
+    (
+      pointsMatch(leftStart, rightStart) &&
+      pointsMatch(leftEnd, rightEnd)
+    ) ||
+    (
+      pointsMatch(leftStart, rightEnd) &&
+      pointsMatch(leftEnd, rightStart)
+    )
+  );
+}
+
+function pointOnSegmentInterior(
+  point: LatLng,
+  start: LatLng,
+  end: LatLng,
+  toleranceM = 0.25
+): boolean {
+  const latitude = ((point.lat + start.lat + end.lat) / 3) * Math.PI / 180;
+  const xScale = 111_320 * Math.cos(latitude);
+  const yScale = 110_540;
+  const px = (point.lng - start.lng) * xScale;
+  const py = (point.lat - start.lat) * yScale;
+  const ex = (end.lng - start.lng) * xScale;
+  const ey = (end.lat - start.lat) * yScale;
+  const lengthSquared = ex * ex + ey * ey;
+  if (lengthSquared <= toleranceM * toleranceM) return false;
+  const fraction = (px * ex + py * ey) / lengthSquared;
+  const endpointMargin = toleranceM / Math.sqrt(lengthSquared);
+  if (fraction <= endpointMargin || fraction >= 1 - endpointMargin) {
+    return false;
+  }
+  return Math.hypot(px - fraction * ex, py - fraction * ey) <= toleranceM;
+}
+
+function lollipopRetraceCheck(points: LatLng[]): {
+  valid: boolean;
+  retracedPairs: number;
+} {
+  const segmentCount = points.length - 1;
+  if (!pointsMatch(points[0], points[points.length - 1])) {
+    return { valid: false, retracedPairs: 0 };
+  }
+
+  const retracedPairs: Array<{ left: number; right: number }> = [];
+  for (let leftIndex = 0; leftIndex < points.length - 1; leftIndex += 1) {
+    const leftStart = points[leftIndex];
+    const leftEnd = points[leftIndex + 1];
+    for (
+      let rightIndex = leftIndex + 2;
+      rightIndex < points.length - 1;
+      rightIndex += 1
+    ) {
+      const rightStart = points[rightIndex];
+      const rightEnd = points[rightIndex + 1];
+      const isRetrace = segmentsMatch(
+        leftStart,
+        leftEnd,
+        rightStart,
+        rightEnd
+      );
+      if (isRetrace) {
+        retracedPairs.push({ left: leftIndex, right: rightIndex });
+        continue;
+      }
+      if (
+        pointOnSegmentInterior(leftStart, rightStart, rightEnd) ||
+        pointOnSegmentInterior(leftEnd, rightStart, rightEnd) ||
+        pointOnSegmentInterior(rightStart, leftStart, leftEnd) ||
+        pointOnSegmentInterior(rightEnd, leftStart, leftEnd)
+      ) {
+        return { valid: false, retracedPairs: retracedPairs.length };
+      }
+      if (
+        pointsMatch(leftStart, rightStart) ||
+        pointsMatch(leftStart, rightEnd) ||
+        pointsMatch(leftEnd, rightStart) ||
+        pointsMatch(leftEnd, rightEnd)
+      ) {
+        continue;
+      }
+
+      const latitude =
+        (leftStart.lat + leftEnd.lat + rightStart.lat + rightEnd.lat) / 4;
+      const lngScale = Math.cos(latitude * Math.PI / 180);
+      const ax = leftStart.lng * lngScale;
+      const ay = leftStart.lat;
+      const bx = leftEnd.lng * lngScale;
+      const by = leftEnd.lat;
+      const cx = rightStart.lng * lngScale;
+      const cy = rightStart.lat;
+      const dx = rightEnd.lng * lngScale;
+      const dy = rightEnd.lat;
+      const rx = bx - ax;
+      const ry = by - ay;
+      const sx = dx - cx;
+      const sy = dy - cy;
+      const denominator = rx * sy - ry * sx;
+      const qpx = cx - ax;
+      const qpy = cy - ay;
+      const crossQpR = qpx * ry - qpy * rx;
+      if (Math.abs(denominator) < 1e-14) {
+        if (Math.abs(crossQpR) < 1e-14) {
+          return { valid: false, retracedPairs: retracedPairs.length };
+        }
+        continue;
+      }
+      const t = (qpx * sy - qpy * sx) / denominator;
+      const u = crossQpR / denominator;
+      const withinLeft = t >= -1e-8 && t <= 1 + 1e-8;
+      const withinRight = u >= -1e-8 && u <= 1 + 1e-8;
+      const leftInterior = t > 1e-8 && t < 1 - 1e-8;
+      const rightInterior = u > 1e-8 && u < 1 - 1e-8;
+      if (
+        withinLeft &&
+        withinRight &&
+        (leftInterior || rightInterior)
+      ) {
+        return { valid: false, retracedPairs: retracedPairs.length };
+      }
+    }
+  }
+  if (retracedPairs.length === 0) {
+    return { valid: false, retracedPairs: 0 };
+  }
+
+  const groups: Array<Array<{ left: number; right: number }>> = [];
+  for (const pair of retracedPairs) {
+    const group = groups[groups.length - 1];
+    const previous = group?.[group.length - 1];
+    if (
+      previous &&
+      pair.left === previous.left + 1 &&
+      pair.right === previous.right - 1
+    ) {
+      group.push(pair);
+    } else {
+      groups.push([pair]);
+    }
+  }
+  const groupIsJoinedStem = (
+    group: Array<{ left: number; right: number }>
+  ): boolean => {
+    const lastPair = group[group.length - 1];
+    return pointsMatch(
+      points[lastPair.left + 1],
+      points[lastPair.right]
+    );
+  };
+  if (!groups.every(groupIsJoinedStem)) {
+    return { valid: false, retracedPairs: retracedPairs.length };
+  }
+
+  const endpointGroup = groups.find(
+    (group) =>
+      group[0].left === 0 &&
+      group[0].right === segmentCount - 1
+  );
+  if (groups.length === 1) {
+    return {
+      valid: true,
+      retracedPairs: retracedPairs.length,
+    };
+  }
+  if (groups.length !== 2 || !endpointGroup) {
+    return { valid: false, retracedPairs: retracedPairs.length };
+  }
+  const endpointConnectorLengthM = endpointGroup.reduce(
+    (total, pair) =>
+      total + haversineMeters(points[pair.left], points[pair.left + 1]),
+    0
+  );
+  return {
+    valid: endpointConnectorLengthM <= CONNECTOR_MAX_OFFSET_M,
+    retracedPairs: retracedPairs.length,
+  };
+}
+
 function footAccess(
   way: OsmWay
 ): { blocked: boolean; override: boolean } {
   const tags = way.tags ?? {};
-  const footAllows = ["yes", "designated", "permissive"].includes(
+  const footAllows = ["yes", "designated", "permissive", "permit"].includes(
     tags.foot ?? ""
   );
   const footBlocks = ["no", "private"].includes(tags.foot ?? "");
   const genericBlocks = ["no", "private"].includes(tags.access ?? "");
   return {
     blocked: footBlocks || (genericBlocks && !footAllows),
-    override: genericBlocks && footAllows,
+    override:
+      (genericBlocks && footAllows) ||
+      tags.foot === "permit" ||
+      tags.access === "permit",
   };
 }
 
 async function loadRoute(routeId: string): Promise<RouteRow> {
   const result = await db.query<RouteRow>(
-    `SELECT r.id, r.name, r.owner, r.status, r.provenance,
+    `SELECT r.id, r.name, r.owner, r.status, r.shape, r.provenance,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_IsSimple(r.path::geometry) AS is_simple,
             EXISTS (
@@ -259,7 +464,9 @@ async function loadRoute(routeId: string): Promise<RouteRow> {
                   'id', d.id,
                   'name', d.name,
                   'ordinal', rd.ordinal,
-                  'features', d.features
+                  'features', d.features,
+                  'lat', ST_Y(d.location::geometry),
+                  'lng', ST_X(d.location::geometry)
                 )
                 ORDER BY rd.ordinal
               )
@@ -386,6 +593,7 @@ function emptyMetrics(): CheckResult["metrics"] {
     core_samples: 0,
     start_connector_m: Number.POSITIVE_INFINITY,
     end_connector_m: Number.POSITIVE_INFINITY,
+    return_connector_m: Number.POSITIVE_INFINITY,
     core_max_offset_m: Number.POSITIVE_INFINITY,
     core_p95_offset_m: Number.POSITIVE_INFINITY,
     core_coverage_pct: 0,
@@ -415,9 +623,6 @@ async function checkRoute(routeId: string): Promise<CheckResult> {
   }
   if (!route.provenance || !route.provenance_valid) {
     result.errors.push("route provenance is missing or invalid");
-  }
-  if (!route.is_simple) {
-    result.errors.push("route geometry is not simple");
   }
   if (route.active_standard_exists) {
     result.errors.push("an active Peaks standard route already covers the summit");
@@ -457,6 +662,65 @@ async function checkRoute(routeId: string): Promise<CheckResult> {
     result.errors.push("route has fewer than five geometry points");
     return result;
   }
+  if (!route.is_simple) {
+    const retrace = lollipopRetraceCheck(points);
+    if (route.shape !== "lollipop" || !retrace.valid) {
+      result.errors.push("route geometry is not simple");
+    } else {
+      result.warnings.push(
+        `lollipop geometry has ${retrace.retracedPairs} exact retraced segments`
+      );
+    }
+  }
+
+  const trailhead = destinations[0];
+  const summit = destinations[destinations.length - 1];
+  const trailheadPoint = {
+    lat: Number(trailhead?.lat),
+    lng: Number(trailhead?.lng),
+  };
+  const summitPoint = {
+    lat: Number(summit?.lat),
+    lng: Number(summit?.lng),
+  };
+  const loopLike = route.shape === "loop" || route.shape === "lollipop";
+  let summitIndex = points.length - 1;
+  if (loopLike) {
+    let nearestSummitDistance = Number.POSITIVE_INFINITY;
+    points.forEach((point, index) => {
+      const distance = haversineMeters(point, summitPoint);
+      if (distance < nearestSummitDistance) {
+        nearestSummitDistance = distance;
+        summitIndex = index;
+      }
+    });
+    if (
+      summitIndex === 0 ||
+      summitIndex === points.length - 1 ||
+      nearestSummitDistance > 20
+    ) {
+      result.errors.push(
+        `loop summit is ${nearestSummitDistance.toFixed(1)} m from stored geometry`
+      );
+    }
+  }
+  const trailheadStartDistance = haversineMeters(points[0], trailheadPoint);
+  const routeEndTarget = loopLike ? trailheadPoint : summitPoint;
+  const routeEndDistance = haversineMeters(
+    points[points.length - 1],
+    routeEndTarget
+  );
+  if (trailheadStartDistance > 20) {
+    result.errors.push(
+      `stored route starts ${trailheadStartDistance.toFixed(1)} m from its trailhead`
+    );
+  }
+  if (routeEndDistance > 20) {
+    result.errors.push(
+      `stored route ends ${routeEndDistance.toFixed(1)} m from its ` +
+        `${loopLike ? "trailhead" : "summit"}`
+    );
+  }
 
   const source = await sourceGeometry(wayIds);
   if (source.segments.length === 0) {
@@ -471,30 +735,64 @@ async function checkRoute(routeId: string): Promise<CheckResult> {
   result.foot_access_override_way_ids = source.overrideWayIds;
   if (source.overrideWayIds.length > 0) {
     result.warnings.push(
-      `foot-specific access overrides generic access on ways ` +
+      `conditional or foot-specific access requires review on ways ` +
         source.overrideWayIds.join(",")
     );
   }
 
   const startConnector = nearestSource(points[0], source.segments).distance;
-  const endConnector = nearestSource(
-    points[points.length - 1],
+  const summitConnector = nearestSource(
+    points[summitIndex],
     source.segments
   ).distance;
+  const returnConnector = loopLike
+    ? nearestSource(points[points.length - 1], source.segments).distance
+    : summitConnector;
   result.metrics.start_connector_m = startConnector;
-  result.metrics.end_connector_m = endConnector;
+  result.metrics.end_connector_m = summitConnector;
+  result.metrics.return_connector_m = returnConnector;
   if (startConnector > CONNECTOR_MAX_OFFSET_M) {
     result.errors.push(
       `trailhead connector is ${startConnector.toFixed(1)} m from cited OSM geometry`
     );
   }
-  if (endConnector > CONNECTOR_MAX_OFFSET_M) {
+  if (summitConnector > CONNECTOR_MAX_OFFSET_M) {
     result.errors.push(
-      `summit connector is ${endConnector.toFixed(1)} m from cited OSM geometry`
+      `summit connector is ${summitConnector.toFixed(1)} m from cited OSM geometry`
+    );
+  }
+  if (loopLike && returnConnector > CONNECTOR_MAX_OFFSET_M) {
+    result.errors.push(
+      `return trailhead connector is ${returnConnector.toFixed(1)} m from ` +
+        `cited OSM geometry`
     );
   }
 
-  const samples = sampleCore(points);
+  const excludedCoreSegments = new Set<number>();
+  if (loopLike) {
+    const inboundSummitLegM = haversineMeters(
+      points[summitIndex - 1],
+      points[summitIndex]
+    );
+    const outboundSummitLegM = haversineMeters(
+      points[summitIndex],
+      points[summitIndex + 1]
+    );
+    if (
+      inboundSummitLegM > CONNECTOR_MAX_OFFSET_M ||
+      outboundSummitLegM > CONNECTOR_MAX_OFFSET_M
+    ) {
+      result.errors.push(
+        `summit connector legs are ${inboundSummitLegM.toFixed(1)} m and ` +
+          `${outboundSummitLegM.toFixed(1)} m; each must be at most ` +
+          `${CONNECTOR_MAX_OFFSET_M} m`
+      );
+    } else {
+      excludedCoreSegments.add(summitIndex - 1);
+      excludedCoreSegments.add(summitIndex);
+    }
+  }
+  const samples = sampleCore(points, excludedCoreSegments);
   result.metrics.core_samples = samples.length;
   const nearest = samples.map((point) =>
     nearestSource(point, source.segments)
@@ -590,7 +888,13 @@ try {
   }
 
   if (options.format === "json") {
-    console.log(JSON.stringify({ checked_at: new Date().toISOString(), results }));
+    console.log(
+      JSON.stringify({
+        checked_at: new Date().toISOString(),
+        verdict: results.every((result) => result.passed) ? "PASS" : "FAIL",
+        results,
+      })
+    );
   } else {
     for (const result of results) printSummary(result);
   }

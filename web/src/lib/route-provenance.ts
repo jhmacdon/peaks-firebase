@@ -8,6 +8,8 @@ export interface RouteProvenance {
   osm_way_ids: number[];
   osm_way_urls: string[];
   contains_osm_geometry: boolean;
+  elevation_source?: string;
+  elevation_profile?: "terrain" | "monotonic_ascent";
 }
 
 export interface RouteProvenanceInput {
@@ -20,6 +22,8 @@ export interface RouteProvenanceInput {
   osm_way_ids?: number[];
   osm_way_urls?: string[];
   contains_osm_geometry?: boolean;
+  elevation_source?: string;
+  elevation_profile?: "terrain" | "monotonic_ascent";
 }
 
 function cleanText(value: unknown): string | null {
@@ -99,6 +103,20 @@ export function normalizeRouteProvenance(
     throw new Error("osm_way_urls require matching osm_way_ids");
   }
   const containsOsmGeometry = osmWayIds.length > 0;
+  const elevationSource = cleanText(input.elevation_source);
+  const elevationProfile = input.elevation_profile;
+  if ((elevationSource == null) !== (elevationProfile == null)) {
+    throw new Error(
+      "elevation_source and elevation_profile must be supplied together"
+    );
+  }
+  if (
+    elevationProfile != null &&
+    elevationProfile !== "terrain" &&
+    elevationProfile !== "monotonic_ascent"
+  ) {
+    throw new Error("elevation_profile must be terrain or monotonic_ascent");
+  }
 
   if (!sourceKind || !sourceUrl || !licenseName || !licenseUrl || !attribution) {
     throw new Error(
@@ -120,7 +138,7 @@ export function normalizeRouteProvenance(
     throw new Error("OpenStreetMap geometry requires the canonical ODbL license and attribution");
   }
 
-  return {
+  const normalized: RouteProvenance = {
     source_kind: sourceKind,
     source_url: sourceUrl,
     license_name: licenseName,
@@ -131,6 +149,11 @@ export function normalizeRouteProvenance(
     osm_way_urls: expectedOsmWayUrls,
     contains_osm_geometry: containsOsmGeometry,
   };
+  if (elevationSource && elevationProfile) {
+    normalized.elevation_source = elevationSource;
+    normalized.elevation_profile = elevationProfile;
+  }
+  return normalized;
 }
 
 /** Safely parse JSONB loaded from Postgres. Invalid legacy values stay hidden. */
