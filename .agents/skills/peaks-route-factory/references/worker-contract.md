@@ -32,10 +32,12 @@ after the code reaches the canonical `firebase` checkout:
 
 4. Create the clean checkout at
    `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`, install
-   `cloud-sql/migrate` dependencies, and keep it at the exact `origin/main`
-   commit. Put a recurring Codex task on that checkout. Pick `gpt-5.6-luna`
-   with Max reasoning and use `luna-goal-prompt.md` unchanged. Start with one
-   run every 30 minutes and one claimed job per run.
+   dependencies with
+   `.agents/skills/peaks-route-factory/scripts/install_worker_dependencies.sh`,
+   and keep it at the exact `origin/main` commit. Put a recurring Codex task on
+   that checkout. Pick `gpt-5.6-luna` with Max reasoning and use
+   `luna-goal-prompt.md` unchanged. Start with one run every 30 minutes and one
+   claimed job per run.
 
 This uses the existing Mac, Codex app, Cloud SQL proxy, browser, and cached
 terrain tiles. It adds no always-on service. Its added backend run-rate is near
@@ -124,7 +126,8 @@ The route identity and access review is separate and must also pass.
 - Only an operator reruns `seed --apply` to add new targets. Seed preserves
   leases and all in-flight work.
 - Run
-  `cloud-sql/migrate/scripts/audit-standard-route-goal.sh --format summary`
+  `.agents/skills/peaks-route-factory/scripts/with_route_db.sh
+  cloud-sql/migrate/scripts/audit-standard-route-goal.sh --format summary`
   to check the target set outside the queue.
 - An empty claim with nonzero remaining work means jobs are blocked or leased;
   inspect `stats` and `show` rather than declaring success.
