@@ -22,6 +22,39 @@ export type JobStage =
   | "publish"
   | "verify";
 
+export type VerificationAction =
+  | "verified"
+  | "rebuild"
+  | "retry"
+  | "needs_human";
+
+export function verificationAction(result: {
+  verdict: "PASS" | "FAIL";
+  gates: {
+    owner: boolean;
+    active: boolean;
+    destination_order: boolean;
+    segments: boolean;
+    provenance: boolean;
+    public_http: boolean;
+  };
+}): VerificationAction {
+  if (result.verdict === "PASS" && Object.values(result.gates).every(Boolean)) {
+    return "verified";
+  }
+  if (
+    !result.gates.owner ||
+    !result.gates.active ||
+    !result.gates.destination_order
+  ) {
+    return "needs_human";
+  }
+  if (!result.gates.segments || !result.gates.provenance) {
+    return "rebuild";
+  }
+  return "retry";
+}
+
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalJson).join(",")}]`;

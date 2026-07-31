@@ -62,3 +62,31 @@ test("an unrelated HTTP 200 shell cannot pass public verification", async () => 
     globalThis.fetch = originalFetch;
   }
 });
+
+test("verification query aggregates variable destination features as JSON", async () => {
+  let queryText = "";
+  const recordingQueryable = {
+    async query<T extends Record<string, unknown>>(text: string) {
+      queryText = text;
+      return { rows: [route as unknown as T] };
+    },
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(route), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  try {
+    await verifyStandardRoute(recordingQueryable, {
+      routeId: "route-1",
+      destinationId: "peak-1",
+      trailheadId: "trailhead-1",
+      publicBaseUrl: "https://example.test",
+    });
+    assert.match(queryText, /JSONB_AGG\(to_jsonb\(d\.features\)/);
+    assert.doesNotMatch(queryText, /ARRAY_AGG\(d\.features::text\[\]/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

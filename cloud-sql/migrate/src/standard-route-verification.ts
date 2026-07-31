@@ -85,7 +85,7 @@ export async function verifyStandardRoute(
               WHERE rd.route_id = r.id
             ) AS destination_ids,
             (
-              SELECT ARRAY_AGG(d.features::text[] ORDER BY rd.ordinal)
+              SELECT JSONB_AGG(to_jsonb(d.features) ORDER BY rd.ordinal)
               FROM route_destinations rd
               JOIN destinations d ON d.id = rd.destination_id
               WHERE rd.route_id = r.id
