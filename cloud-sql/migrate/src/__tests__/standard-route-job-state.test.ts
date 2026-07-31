@@ -5,6 +5,7 @@ import {
   canonicalJson,
   stageForState,
   statesForStage,
+  verificationAction,
 } from "../standard-route-job-state";
 
 test("the normal route job can reach verified in strict steps", () => {
@@ -56,4 +57,37 @@ test("candidate checksums survive JSONB key reordering", () => {
     type: "FeatureCollection",
   };
   assert.equal(canonicalJson(original), canonicalJson(reordered));
+});
+
+test("verification failures take a deterministic recovery path", () => {
+  const gates = {
+    owner: true,
+    active: true,
+    destination_order: true,
+    segments: true,
+    provenance: true,
+    public_http: true,
+  };
+  assert.equal(verificationAction({ verdict: "PASS", gates }), "verified");
+  assert.equal(
+    verificationAction({
+      verdict: "FAIL",
+      gates: { ...gates, segments: false, provenance: false, public_http: false },
+    }),
+    "rebuild"
+  );
+  assert.equal(
+    verificationAction({
+      verdict: "FAIL",
+      gates: { ...gates, public_http: false },
+    }),
+    "retry"
+  );
+  assert.equal(
+    verificationAction({
+      verdict: "FAIL",
+      gates: { ...gates, destination_order: false },
+    }),
+    "needs_human"
+  );
 });

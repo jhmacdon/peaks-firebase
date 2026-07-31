@@ -14,17 +14,20 @@ The target is the union of:
 A summit counts only when it has a Peaks-owned, active standard route that
 links the right trailhead to the summit and works through the public API.
 
-## One-time setup
+## Human-only setup
+
+The scheduled worker must never perform these steps. An operator does them
+after the code reaches the canonical `firebase` checkout:
 
 1. Apply `cloud-sql/migrations/20260731_route_provenance_elevation.sql`, then
    `cloud-sql/migrations/20260731_standard_route_backfill_jobs.sql`.
 2. Start the Cloud SQL Auth Proxy and set `DB_HOST`, `DB_PORT`, `DB_NAME`,
    `DB_USER`, and `DB_PASS`.
-3. Seed the queue:
+3. Inspect and seed the queue:
 
 ```bash
-npm --prefix cloud-sql/migrate run routes:jobs -- seed
-npm --prefix cloud-sql/migrate run routes:jobs -- seed --apply
+.agents/skills/peaks-route-factory/scripts/route_jobs.sh seed
+.agents/skills/peaks-route-factory/scripts/route_jobs.sh seed --apply
 ```
 
 4. Put a recurring Codex task on the firebase repo. Pick `gpt-5.6-luna` with
@@ -53,6 +56,10 @@ Revision and blocked states:
 
 Blocked jobs remain in the queue. Only `needs_geometry` retries on its own.
 Rights, access, and human blocks require an explicit move back to `queued`.
+
+The seed classifies an active route as `published` only when it already has
+valid provenance and matching segments. An older active route enters research
+for an independent replacement. It stays active for users during that work.
 
 ## Source rights
 
@@ -111,8 +118,8 @@ The route identity and access review is separate and must also pass.
 
 - Expired leases become claimable without changing the saved state.
 - Run `release` when a run ends early.
-- Rerun `seed --apply` often. It adds new targets and puts unverified active
-  routes in `published`.
+- Only an operator reruns `seed --apply` to add new targets. Seed preserves
+  leases and all in-flight work.
 - Run
   `cloud-sql/migrate/scripts/audit-standard-route-goal.sh --format summary`
   to check the target set outside the queue.
@@ -121,3 +128,6 @@ The route identity and access review is separate and must also pass.
 - Only a human may reopen `waiting_rights`, `waiting_access`, or `needs_human`.
   The `requeue` command requires `PEAKS_ALLOW_ROUTE_REQUEUE=1`, the old state,
   a reason, and an explicit human-review acknowledgement.
+- `recover-legacy` is a narrow operator repair for jobs that the first worker
+  wrongly blocked with `active_route_missing_provenance_segments`. It requeues
+  only active Peaks routes that still fail those exact machine checks.

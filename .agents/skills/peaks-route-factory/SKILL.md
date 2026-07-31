@@ -15,13 +15,15 @@ chat history is not.
 2. Read [references/stage-commands.md](references/stage-commands.md) for the
    claimed stage and [references/result-schemas.md](references/result-schemas.md)
    before writing a result.
-3. Work from the firebase repo root and confirm the database proxy and `DB_*`
-   values.
-4. Run:
+3. Run only from `/Users/josiahm/projects/peaks/firebase`. If that checkout
+   lacks this skill or `route_jobs.sh`, report `setup_required` and stop. Do not
+   search another worktree, apply a migration, or seed the queue.
+4. Use the wrapper for every queue command. It loads the database password
+   without printing it and checks the local proxy:
 
 ```bash
-npm --prefix cloud-sql/migrate run routes:jobs -- stats
-npm --prefix cloud-sql/migrate run routes:jobs -- \
+.agents/skills/peaks-route-factory/scripts/route_jobs.sh stats
+.agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   claim --worker-id luna-route-worker-01 --stage next --apply
 ```
 
@@ -39,12 +41,18 @@ from an empty claim.
   check. Do not give it the researcher's verdict.
 - `publish`: plan segments and activate the approved pending route. If a prior
   run already activated it, do not activate it again; move it to `published`.
-- `verify`: run the bundled verifier. Mark `verified` only when every returned
-  gate passes.
+- `verify`: run the single `route_jobs.sh verify` command. It alone chooses
+  `verified`, a safe rebuild, a public-API retry, or a true human conflict.
+  Never interpret the gates or transition a verify job by hand.
 
-Use `routes:jobs heartbeat` before a long browser or map step. Release the lease
-with a short retry if the run must end. Make every state change through
-`routes:jobs transition`; never edit the queue by hand.
+Use `route_jobs.sh heartbeat` before a long browser or map step. Release the
+lease with a short retry if the run must end. Use `route_jobs.sh transition`
+for non-verify state changes and `route_jobs.sh verify` for verification. Never
+edit the queue by hand.
+
+Stop the lasting goal as blocked when the same tool fault or blocker appears on
+three consecutive destinations. Release any lease first. Do not drain a whole
+stage into one blocked state while assuming each peak is unrelated.
 
 ## Research stage
 
@@ -94,6 +102,10 @@ named review gate set to true, and the queue reruns the current OSM or USGS
 source check. A failed review goes to `needs_revision`.
 Unclear rights, access, or route identity goes to `waiting_rights`,
 `waiting_access`, or `needs_human`; it never becomes a quiet skip.
+
+An old active route with missing provenance or segments is rebuild work, not a
+human block. Never copy its path. Research an independent OSM or USGS
+replacement while the old route remains active for users.
 
 Importers default to dry-run and create `pending` routes. An exact retry reuses
 the same pending row. Activation requires the approved job lease, explicit

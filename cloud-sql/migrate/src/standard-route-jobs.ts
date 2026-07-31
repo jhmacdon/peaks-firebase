@@ -18,6 +18,7 @@ import {
   JobState,
   stageForState,
   statesForStage,
+  verificationAction,
 } from "./standard-route-job-state";
 
 type JsonObject = Record<string, unknown>;
@@ -55,12 +56,15 @@ function usage(exitCode = 2): never {
   npm run routes:jobs -- claim --worker-id ID [--stage next] [--lease-minutes 90] [--apply]
   npm run routes:jobs -- materialize --destination-id ID --lease-token TOKEN --output FILE
   npm run routes:jobs -- heartbeat --lease-token TOKEN [--lease-minutes 90]
+  npm run routes:jobs -- verify --destination-id ID --lease-token TOKEN
+      [--retry-minutes 30] --apply
   npm run routes:jobs -- transition --destination-id ID --lease-token TOKEN --to STATE
       [--artifact-path FILE] [--route-id ID] [--result-file FILE]
       [--blocker-code CODE] [--message TEXT] [--retry-minutes N] --apply
   npm run routes:jobs -- release --lease-token TOKEN [--message TEXT] [--retry-minutes N]
   npm run routes:jobs -- requeue --destination-id ID --from STATE --reason TEXT
       --acknowledge-human-review --apply
+  npm run routes:jobs -- recover-legacy [--apply]
   npm run routes:jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:jobs -- stats
 
@@ -205,6 +209,17 @@ active_routes AS (
          rd.destination_id,
          r.id AS route_id,
          (
+           is_valid_route_provenance(r.provenance)
+           AND EXISTS (
+             SELECT 1
+             FROM route_segments rs
+             JOIN segments s ON s.id = rs.segment_id
+             WHERE rs.route_id = r.id
+               AND s.path IS NOT NULL
+               AND s.provenance IS NOT DISTINCT FROM r.provenance
+           )
+         ) AS ready_to_verify,
+         (
            SELECT first_rd.destination_id
            FROM route_destinations first_rd
            JOIN destinations first_destination
@@ -223,7 +238,10 @@ active_routes AS (
 ),
 incoming AS (
   SELECT t.id AS destination_id,
-         CASE WHEN ar.route_id IS NULL THEN 'queued' ELSE 'published' END AS state,
+         CASE
+           WHEN ar.route_id IS NOT NULL AND ar.ready_to_verify THEN 'published'
+           ELSE 'queued'
+         END AS state,
          t.priority,
          jsonb_build_object(
            'ultra_prominent', t.is_ultra_prominent,
@@ -249,12 +267,18 @@ async function seed(argv: string[]): Promise<void> {
     const result = await db.query<{
       targets: number;
       active: number;
+      ready_to_verify: number;
+      legacy_to_rebuild: number;
       missing: number;
     }>(
       `${targetSql}
        SELECT COUNT(*)::int AS targets,
-              COUNT(*) FILTER (WHERE state = 'published')::int AS active,
-              COUNT(*) FILTER (WHERE state <> 'published')::int AS missing
+              COUNT(*) FILTER (WHERE route_id IS NOT NULL)::int AS active,
+              COUNT(*) FILTER (WHERE state = 'published')::int AS ready_to_verify,
+              COUNT(*) FILTER (
+                WHERE route_id IS NOT NULL AND state = 'queued'
+              )::int AS legacy_to_rebuild,
+              COUNT(*) FILTER (WHERE route_id IS NULL)::int AS missing
        FROM incoming`,
       [threshold]
     );
@@ -289,43 +313,61 @@ async function seed(argv: string[]): Promise<void> {
        priority = EXCLUDED.priority,
        target_reasons = EXCLUDED.target_reasons,
        state = CASE
-         WHEN EXCLUDED.state = 'published'
-           AND standard_route_backfill_jobs.state = 'verified' THEN 'verified'
-         WHEN EXCLUDED.state = 'published' THEN 'published'
-         WHEN standard_route_backfill_jobs.state = 'verified' THEN 'needs_human'
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.state
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           AND EXCLUDED.state = 'published'
+           AND EXCLUDED.published_route_id =
+               standard_route_backfill_jobs.published_route_id
+           THEN 'verified'
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           THEN 'needs_human'
+         WHEN standard_route_backfill_jobs.state = 'published'
+           THEN EXCLUDED.state
          ELSE standard_route_backfill_jobs.state
        END,
-       trailhead_id = COALESCE(
-         EXCLUDED.trailhead_id,
-         standard_route_backfill_jobs.trailhead_id
-       ),
-       published_route_id = COALESCE(
-         EXCLUDED.published_route_id,
-         standard_route_backfill_jobs.published_route_id
-       ),
+       trailhead_id = CASE
+         WHEN standard_route_backfill_jobs.state IN ('queued', 'published')
+           THEN COALESCE(
+             EXCLUDED.trailhead_id,
+             standard_route_backfill_jobs.trailhead_id
+           )
+         ELSE standard_route_backfill_jobs.trailhead_id
+       END,
+       published_route_id = CASE
+         WHEN standard_route_backfill_jobs.state IN ('queued', 'published')
+           THEN COALESCE(
+             EXCLUDED.published_route_id,
+             standard_route_backfill_jobs.published_route_id
+           )
+         ELSE standard_route_backfill_jobs.published_route_id
+       END,
        blocker_code = CASE
-         WHEN EXCLUDED.state = 'published' THEN NULL
          WHEN standard_route_backfill_jobs.state = 'verified'
+           AND EXCLUDED.state = 'published'
+           AND EXCLUDED.published_route_id =
+               standard_route_backfill_jobs.published_route_id
+           THEN NULL
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           AND EXCLUDED.published_route_id IS NULL
            THEN 'verified_route_missing'
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           THEN 'verified_route_invalid'
          ELSE standard_route_backfill_jobs.blocker_code
        END,
        blocker_message = CASE
-         WHEN EXCLUDED.state = 'published' THEN NULL
          WHEN standard_route_backfill_jobs.state = 'verified'
+           AND EXCLUDED.state = 'published'
+           AND EXCLUDED.published_route_id =
+               standard_route_backfill_jobs.published_route_id
+           THEN NULL
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           AND EXCLUDED.published_route_id IS NULL
            THEN 'The active Peaks route disappeared after verification.'
+         WHEN standard_route_backfill_jobs.state = 'verified'
+           THEN 'The verified route no longer meets route integrity gates.'
          ELSE standard_route_backfill_jobs.blocker_message
-       END,
-       lease_owner = CASE
-         WHEN EXCLUDED.state = 'published' THEN NULL
-         ELSE standard_route_backfill_jobs.lease_owner
-       END,
-       lease_token = CASE
-         WHEN EXCLUDED.state = 'published' THEN NULL
-         ELSE standard_route_backfill_jobs.lease_token
-       END,
-       lease_expires_at = CASE
-         WHEN EXCLUDED.state = 'published' THEN NULL
-         ELSE standard_route_backfill_jobs.lease_expires_at
        END,
        updated_at = now()`,
     [threshold]
@@ -1046,6 +1088,164 @@ async function release(argv: string[]): Promise<void> {
   print(result.rows[0]);
 }
 
+async function verifyJob(argv: string[]): Promise<void> {
+  if (!argv.includes("--apply")) throw new Error("verify requires --apply");
+  const destinationId = requireId(argv, "--destination-id");
+  const token = requireId(argv, "--lease-token");
+  const retryMinutes = positiveInteger(argv, "--retry-minutes", 30, 1_440);
+  const current = await db.query<{
+    state: JobState;
+    trailhead_id: string | null;
+    published_route_id: string | null;
+  }>(
+    `SELECT state, trailhead_id, published_route_id
+     FROM standard_route_backfill_jobs
+     WHERE destination_id = $1
+       AND lease_token = $2
+       AND lease_expires_at >= now()`,
+    [destinationId, token]
+  );
+  const job = current.rows[0];
+  if (
+    job?.state !== "published" ||
+    !job.trailhead_id ||
+    !job.published_route_id
+  ) {
+    throw new Error(
+      "verify requires a leased published job with route and trailhead"
+    );
+  }
+
+  const verification = await verifyStandardRoute(db, {
+    routeId: job.published_route_id,
+    destinationId,
+    trailheadId: job.trailhead_id,
+  });
+  const action = verificationAction(verification);
+  const nextState =
+    action === "verified"
+      ? "verified"
+      : action === "rebuild"
+        ? "needs_revision"
+        : action === "needs_human"
+          ? "needs_human"
+          : "published";
+  const blockerCode =
+    action === "needs_human" ? "active_route_integrity_conflict" : null;
+  const blockerMessage =
+    action === "needs_human"
+      ? `Active route failed ownership, activation, or destination-order gates: ${verification.errors.join(", ")}`
+      : null;
+  const lastError =
+    action === "retry"
+      ? `Public route verification did not match; retrying: ${verification.errors.join(", ")}`
+      : null;
+
+  const updated = await db.query<{
+    destination_id: string;
+    state: JobState;
+    next_attempt_at: string;
+  }>(
+    `UPDATE standard_route_backfill_jobs
+     SET state = $3,
+         evidence = evidence || jsonb_build_object(
+           'last_verification', $4::jsonb,
+           'verification_action', $5::text
+         ),
+         candidate_artifact = CASE
+           WHEN $3 = 'verified' THEN NULL
+           ELSE candidate_artifact
+         END,
+         blocker_code = $6,
+         blocker_message = $7,
+         last_error = $8,
+         next_attempt_at = CASE
+           WHEN $5 = 'retry'
+             THEN now() + ($9::text || ' minutes')::interval
+           ELSE now()
+         END,
+         lease_owner = NULL,
+         lease_token = NULL,
+         lease_expires_at = NULL,
+         updated_at = now()
+     WHERE destination_id = $1
+       AND lease_token = $2
+       AND state = 'published'
+     RETURNING destination_id, state, next_attempt_at`,
+    [
+      destinationId,
+      token,
+      nextState,
+      JSON.stringify(verification),
+      action,
+      blockerCode,
+      blockerMessage,
+      lastError,
+      retryMinutes,
+    ]
+  );
+  if (!updated.rows[0]) {
+    throw new Error("Published job lease changed during verify");
+  }
+  print({ action, ...updated.rows[0], verification });
+}
+
+async function recoverLegacy(argv: string[]): Promise<void> {
+  const apply = argv.includes("--apply");
+  const predicate = `
+    j.state = 'needs_human'
+    AND j.blocker_code = 'active_route_missing_provenance_segments'
+    AND r.owner = 'peaks'
+    AND r.status = 'active'
+    AND (
+      NOT is_valid_route_provenance(r.provenance)
+      OR NOT EXISTS (
+        SELECT 1
+        FROM route_segments rs
+        JOIN segments s ON s.id = rs.segment_id
+        WHERE rs.route_id = r.id
+          AND s.path IS NOT NULL
+          AND s.provenance IS NOT DISTINCT FROM r.provenance
+      )
+    )`;
+  if (!apply) {
+    const result = await db.query<{
+      destination_id: string;
+      published_route_id: string;
+    }>(
+      `SELECT j.destination_id, j.published_route_id
+       FROM standard_route_backfill_jobs j
+       JOIN routes r ON r.id = j.published_route_id
+       WHERE ${predicate}
+       ORDER BY j.destination_id`
+    );
+    print({ mode: "dry_run", recoverable: result.rowCount, jobs: result.rows });
+    return;
+  }
+  const result = await db.query<{ destination_id: string; state: JobState }>(
+    `UPDATE standard_route_backfill_jobs j
+     SET state = 'queued',
+         evidence = evidence || jsonb_build_object(
+           'legacy_recovery_at', now(),
+           'legacy_recovery_reason',
+           'Rebuild active route with factory provenance and segments'
+         ),
+         blocker_code = NULL,
+         blocker_message = NULL,
+         last_error = NULL,
+         next_attempt_at = now(),
+         lease_owner = NULL,
+         lease_token = NULL,
+         lease_expires_at = NULL,
+         updated_at = now()
+     FROM routes r
+     WHERE r.id = j.published_route_id
+       AND ${predicate}
+     RETURNING j.destination_id, j.state`
+  );
+  print({ mode: "apply", recovered: result.rowCount, jobs: result.rows });
+}
+
 async function requeue(argv: string[]): Promise<void> {
   if (!argv.includes("--apply")) throw new Error("requeue requires --apply");
   if (!argv.includes("--acknowledge-human-review")) {
@@ -1159,6 +1359,9 @@ async function main(): Promise<void> {
     case "materialize":
       await materialize(argv);
       break;
+    case "verify":
+      await verifyJob(argv);
+      break;
     case "transition":
       await transition(argv);
       break;
@@ -1167,6 +1370,9 @@ async function main(): Promise<void> {
       break;
     case "requeue":
       await requeue(argv);
+      break;
+    case "recover-legacy":
+      await recoverLegacy(argv);
       break;
     case "show":
       await show(argv);
