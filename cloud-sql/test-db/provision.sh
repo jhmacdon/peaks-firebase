@@ -72,6 +72,17 @@ if [[ -z "$ROLE_EXISTS" ]]; then
   psql_admin -c "CREATE ROLE \"$TEST_DB_ROLE\" LOGIN PASSWORD '${TEST_DB_ROLE_PASSWORD:-peaks_test}'"
 fi
 
+# Some production migrations grant directly to the production API role before
+# this script applies its final test-role grants. Roles are cluster-wide, so
+# Cloud SQL already has it; disposable CI and local Postgres do not.
+PEAKS_API_ROLE_EXISTS="$(psql "$ADMIN_DATABASE_URL" -tAc \
+  "SELECT 1 FROM pg_roles WHERE rolname = 'peaks-api'")"
+
+if [[ -z "$PEAKS_API_ROLE_EXISTS" ]]; then
+  echo "  creating migration grant role peaks-api"
+  psql_admin -c 'CREATE ROLE "peaks-api" NOLOGIN'
+fi
+
 # ---------------------------------------------------------------------------
 # Clean slate.
 # ---------------------------------------------------------------------------
