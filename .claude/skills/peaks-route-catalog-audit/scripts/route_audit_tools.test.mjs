@@ -164,8 +164,8 @@ test("quarantined legacy routes do not block a valid active standard route", () 
     records: [
       {
         ...catalogAudit.records[0],
-        severity: "INFO",
-        issues: [],
+        severity: "REVIEW",
+        issues: ["localized_display_name_requires_source_review"],
         metrics: {
           ...catalogAudit.records[0].metrics,
           stored_name: "Daedunsan",
@@ -217,6 +217,21 @@ test("quarantined legacy routes do not block a valid active standard route", () 
     "keep",
     "supersede",
   ]);
+
+  const missingSearchCatalog = structuredClone(repairedCatalog);
+  missingSearchCatalog.records[0].issues = ["missing_search_name"];
+  missingSearchCatalog.records[0].metrics.search_name = null;
+  const missingSearchResult = compareRouteSourceFacts(missingSearchCatalog, {
+    destination_id: "peak-1",
+    stored_name: "Daedunsan",
+    english_candidates: ["Daedunsan Peak", "Daedunsan"],
+    findings: [],
+    known_names: ["Daedunsan", "Daedunsan Peak", "대둔산"],
+  }, facts);
+  assert.equal(missingSearchResult.verdict, "REVIEW");
+  assert.ok(missingSearchResult.findings.some((finding) =>
+    finding.type === "unresolved_catalog_reviews"
+  ));
 });
 
 test("a matching-distance wrong route cannot pass", () => {

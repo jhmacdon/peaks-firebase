@@ -35,16 +35,23 @@ audit.
 
 ## Check Stored Data
 
-Create a temporary directory with `mktemp -d`. Run the catalog checker for the
-claimed destination and keep the full JSON in that directory:
+Create the evidence directory outside the checkout:
+
+```bash
+AUDIT_DIR="$(mktemp -d /tmp/peaks-route-audit.XXXXXX)"
+```
+
+Never create evidence inside the audit checkout; the clean-tree guard will
+reject heartbeats and queue writes. Run the catalog checker for the claimed
+destination and keep the full JSON in the system temporary directory:
 
 ```bash
 bash .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes.sh \
   --destination-id DESTINATION_ID --status catalog --format json \
-  > AUDIT_DIR/catalog.json
+  > "$AUDIT_DIR/catalog.json"
 
 node .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity.mjs \
-  --catalog AUDIT_DIR/catalog.json --output AUDIT_DIR/identity.json
+  --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
 ```
 
 Read compact fields with `jq`; never paste path coordinates or full source
@@ -78,10 +85,10 @@ Write the compact source record defined in
 
 ```bash
 node .claude/skills/peaks-route-catalog-audit/scripts/compare_route_source_facts.mjs \
-  --catalog AUDIT_DIR/catalog.json \
-  --identity AUDIT_DIR/identity.json \
-  --facts AUDIT_DIR/facts.json \
-  --output AUDIT_DIR/result.json
+  --catalog "$AUDIT_DIR/catalog.json" \
+  --identity "$AUDIT_DIR/identity.json" \
+  --facts "$AUDIT_DIR/facts.json" \
+  --output "$AUDIT_DIR/result.json"
 ```
 
 If a second source or required fact is unavailable, use the reference's
@@ -98,7 +105,7 @@ exact comparator state:
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh complete \
   --destination-id DESTINATION_ID --lease-token LEASE_TOKEN \
-  --state passed --result-file AUDIT_DIR/result.json --apply
+  --state passed --result-file "$AUDIT_DIR/result.json" --apply
 ```
 
 Use `needs_repair` for `FAIL` and `needs_human` for `REVIEW`. If the run cannot
