@@ -1319,7 +1319,7 @@ async function requeue(argv: string[]): Promise<void> {
      SET state = $3,
          evidence = evidence || jsonb_build_object(
            'requeued_at', now(),
-           'requeue_reason', $4
+           'requeue_reason', $4::text
          ),
          blocker_code = NULL,
          blocker_message = NULL,
