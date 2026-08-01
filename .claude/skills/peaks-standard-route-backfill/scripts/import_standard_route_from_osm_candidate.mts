@@ -6,6 +6,10 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import {
+  findConflictingLiveRoute,
+  lockAndFindConflictingLiveRoute,
+} from "../../../../cloud-sql/migrate/src/standard-route-import-conflicts";
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
@@ -1133,37 +1137,29 @@ async function assertNoConflict(
   upgradeActiveRouteId: string,
   exactExistingRouteId: string
 ): Promise<void> {
-  const conflict = await db.query(
+  const routes = await db.query<{
+    id: string;
+    name: string;
+    status: string;
+  }>(
     `SELECT r.id, r.name, r.status
      FROM route_destinations rd
      JOIN routes r ON r.id = rd.route_id
      WHERE rd.destination_id = $1
        AND r.owner = 'peaks'
-       AND (
-         r.status IN ('active', 'pending')
-         OR lower(r.name) = lower($2)
-       )
-       AND NOT (
-         r.status = 'pending'
-         AND r.id = ANY($3::text[])
-       )
-       AND ($4 = '' OR r.id <> $4)
-       AND ($5 = '' OR r.id <> $5)
-       AND ($6 = '' OR r.id <> $6)
-     LIMIT 1`,
-    [
-      destinationId,
-      name,
-      replacePendingRouteIds,
-      replaceActiveRouteId,
-      upgradeActiveRouteId,
-      exactExistingRouteId,
-    ]
+       AND r.status IN ('active', 'pending')`,
+    [destinationId]
   );
-  if (conflict.rows.length > 0) {
+  const conflict = findConflictingLiveRoute(routes.rows, name, [
+    ...replacePendingRouteIds,
+    replaceActiveRouteId,
+    upgradeActiveRouteId,
+    exactExistingRouteId,
+  ]);
+  if (conflict) {
     throw new Error(
-      `A conflicting Peaks route exists: ${conflict.rows[0].name} ` +
-      `(${conflict.rows[0].status}, ${conflict.rows[0].id})`
+      `A conflicting Peaks route exists: ${conflict.name} ` +
+        `(${conflict.status}, ${conflict.id})`
     );
   }
 }
@@ -1453,29 +1449,15 @@ async function createPendingRoute(
       ),
     ];
 
-    const conflict = await client.query(
-      `SELECT r.id, r.name, r.status
-       FROM route_destinations rd
-       JOIN routes r ON r.id = rd.route_id
-       WHERE rd.destination_id = $1
-         AND r.owner = 'peaks'
-         AND (r.status = 'active' OR lower(r.name) = lower($2))
-         AND NOT (
-           r.status = 'pending'
-           AND r.id = ANY($3::text[])
-         )
-         AND ($4 = '' OR r.id <> $4)
-       LIMIT 1`,
-      [
-        args.destinationId,
-        args.name,
-        args.replacePendingRouteIds,
-        args.replaceActiveRouteId,
-      ]
+    const conflict = await lockAndFindConflictingLiveRoute(
+      client,
+      args.destinationId,
+      args.name,
+      [...args.replacePendingRouteIds, args.replaceActiveRouteId]
     );
-    if (conflict.rows.length > 0) {
+    if (conflict) {
       throw new Error(
-        `A conflicting route appeared during import: ${conflict.rows[0].id}`
+        `A conflicting route appeared during import: ${conflict.id}`
       );
     }
 
@@ -1595,6 +1577,17 @@ async function upgradeActiveRoute(
     );
     if (route.rows.length !== 1) {
       throw new Error(`Active upgrade route changed during import: ${routeId}`);
+    }
+    const conflict = await lockAndFindConflictingLiveRoute(
+      client,
+      args.destinationId,
+      args.name,
+      [routeId]
+    );
+    if (conflict) {
+      throw new Error(
+        `A conflicting route appeared during active upgrade: ${conflict.id}`
+      );
     }
     const oldSegments = await client.query<{ segment_id: string }>(
       `SELECT segment_id

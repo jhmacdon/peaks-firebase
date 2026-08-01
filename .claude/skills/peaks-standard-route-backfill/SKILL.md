@@ -172,7 +172,10 @@ After that dry run passes, repeat the same command with:
      For a legacy rebuild, add `--replace-active-route <route-id>` to both
      importer runs. The importer locks and validates that exact Peaks-owned
      active route, then allows the reviewed replacement to stay pending beside
-     it. Publication, not import, supersedes the old route.
+     it. Publication, not import, supersedes the old route. A distinct active
+     route on the same peak may coexist; for example, a mountaineering route
+     does not block a named hiking-route replacement. Never add that distinct
+     route as another replacement merely to bypass a conflict.
 
      When a cliff-side AWS terrain sample creates false drops in an otherwise
      continuous ascent, `--elevation-profile monotonic_ascent` fits a
