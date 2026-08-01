@@ -13,6 +13,7 @@ import {
   canTransition,
   canonicalJson,
   claimRankSql,
+  humanRequeueTargetState,
   isJobState,
   JobStage,
   JobState,
@@ -20,6 +21,7 @@ import {
   statesForStage,
   verificationAction,
 } from "./standard-route-job-state";
+import { sourceCheckerArgs } from "./standard-route-source-check";
 
 type JsonObject = Record<string, unknown>;
 const execFileAsync = promisify(execFile);
@@ -704,7 +706,8 @@ function requireCandidateResult(result: JsonObject): void {
 
 async function runSourceGeometryCheck(
   routeId: string,
-  sourceKind: string
+  sourceKind: string,
+  replacementRouteId: string | null
 ): Promise<void> {
   const script =
     sourceKind === "openstreetmap"
@@ -722,7 +725,11 @@ async function runSourceGeometryCheck(
   try {
     const result = await execFileAsync(
       executable,
-      [path.resolve(script), "--route-id", routeId, "--format", "json"],
+      sourceCheckerArgs(
+        path.resolve(script),
+        routeId,
+        replacementRouteId
+      ),
       { maxBuffer: 2 * 1024 * 1024, timeout: 120_000 }
     );
     stdout = result.stdout;
@@ -960,7 +967,11 @@ async function transition(argv: string[]): Promise<void> {
         );
       }
       if (to === "approved") {
-        await runSourceGeometryCheck(routeId, route.source_kind);
+        await runSourceGeometryCheck(
+          routeId,
+          route.source_kind,
+          currentJob.replacement_route_id
+        );
       }
     }
 
@@ -1287,22 +1298,24 @@ async function requeue(argv: string[]): Promise<void> {
   const destinationId = requireId(argv, "--destination-id");
   const fromValue = flagValue(argv, "--from");
   const reason = flagValue(argv, "--reason");
-  if (
-    fromValue !== "waiting_rights" &&
-    fromValue !== "waiting_access" &&
-    fromValue !== "needs_human"
-  ) {
-    throw new Error("--from must be waiting_rights, waiting_access, or needs_human");
+  if (!fromValue || !isJobState(fromValue)) {
+    throw new Error("--from must be a valid route job state");
+  }
+  const targetState = humanRequeueTargetState(fromValue);
+  if (!targetState) {
+    throw new Error(
+      "--from must be needs_revision, waiting_rights, waiting_access, or needs_human"
+    );
   }
   if (!reason || reason.trim().length < 12) {
     throw new Error("--reason must explain the human decision");
   }
   const result = await db.query<{ destination_id: string; state: JobState }>(
     `UPDATE standard_route_backfill_jobs
-     SET state = 'queued',
+     SET state = $3,
          evidence = evidence || jsonb_build_object(
            'requeued_at', now(),
-           'requeue_reason', $3
+           'requeue_reason', $4
          ),
          blocker_code = NULL,
          blocker_message = NULL,
@@ -1312,11 +1325,26 @@ async function requeue(argv: string[]): Promise<void> {
          lease_token = NULL,
          lease_expires_at = NULL,
          updated_at = now()
-     WHERE destination_id = $1 AND state = $2
+     WHERE destination_id = $1
+       AND state = $2
+       AND (
+         $2 <> 'needs_revision'
+         OR EXISTS (
+           SELECT 1
+           FROM routes r
+           WHERE r.id = standard_route_backfill_jobs.published_route_id
+             AND r.owner = 'peaks'
+             AND r.status = 'pending'
+         )
+       )
      RETURNING destination_id, state`,
-    [destinationId, fromValue, reason.trim()]
+    [destinationId, fromValue, targetState, reason.trim()]
   );
-  if (!result.rows[0]) throw new Error("Blocked job did not match --from");
+  if (!result.rows[0]) {
+    throw new Error(
+      "Job did not match --from or lacks the pending route required for review"
+    );
+  }
   print(result.rows[0]);
 }
 

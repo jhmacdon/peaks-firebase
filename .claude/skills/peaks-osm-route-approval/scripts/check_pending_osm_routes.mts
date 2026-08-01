@@ -16,6 +16,7 @@ const WAY_USAGE_DISTANCE_M = 5;
 
 type Options = {
   routeIds: string[];
+  replaceActiveRouteId: string;
   format: "summary" | "json";
 };
 
@@ -66,6 +67,7 @@ type RouteRow = {
   provenance_valid: boolean;
   is_simple: boolean;
   active_standard_exists: boolean;
+  replacement_route_valid: boolean;
   linked_destinations: Array<{
     id: string;
     name: string;
@@ -104,7 +106,7 @@ function usage(): string {
   return [
     "Usage:",
     "  tsx check_pending_osm_routes.mts --route-id ID [--route-id ID ...]",
-    "      [--format summary|json]",
+    "      [--replace-active-route ID] [--format summary|json]",
     "",
     "Read-only. Compares pending route geometry with its current cited OSM ways.",
   ].join("\n");
@@ -112,6 +114,7 @@ function usage(): string {
 
 function parseArgs(argv: string[]): Options {
   const routeIds: string[] = [];
+  let replaceActiveRouteId = "";
   let format: Options["format"] = "summary";
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -121,6 +124,13 @@ function parseArgs(argv: string[]): Options {
       index += 1;
     } else if (arg.startsWith("--route-id=")) {
       routeIds.push(arg.slice("--route-id=".length));
+    } else if (arg === "--replace-active-route") {
+      replaceActiveRouteId = argv[index + 1] ?? "";
+      index += 1;
+    } else if (arg.startsWith("--replace-active-route=")) {
+      replaceActiveRouteId = arg.slice(
+        "--replace-active-route=".length
+      );
     } else if (arg === "--format") {
       const value = argv[index + 1];
       if (value !== "summary" && value !== "json") {
@@ -143,7 +153,13 @@ function parseArgs(argv: string[]): Options {
   ) {
     throw new Error("At least one valid --route-id is required");
   }
-  return { routeIds: uniqueIds, format };
+  if (
+    replaceActiveRouteId &&
+    !/^[A-Za-z0-9_-]+$/.test(replaceActiveRouteId)
+  ) {
+    throw new Error("--replace-active-route must be a valid route id");
+  }
+  return { routeIds: uniqueIds, replaceActiveRouteId, format };
 }
 
 function haversineMeters(a: LatLng, b: LatLng): number {
@@ -439,7 +455,10 @@ function footAccess(
   };
 }
 
-async function loadRoute(routeId: string): Promise<RouteRow> {
+async function loadRoute(
+  routeId: string,
+  replaceActiveRouteId: string
+): Promise<RouteRow> {
   const result = await db.query<RouteRow>(
     `SELECT r.id, r.name, r.owner, r.status, r.shape, r.provenance,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
@@ -457,7 +476,33 @@ async function loadRoute(routeId: string): Promise<RouteRow> {
                     ANY(target_destination.features)
                 AND active_route.owner = 'peaks'
                 AND active_route.status = 'active'
+                AND (
+                  $2 = ''
+                  OR (
+                    active_route.id <> $2
+                    AND lower(active_route.name) = lower(r.name)
+                  )
+                )
             ) AS active_standard_exists,
+            CASE
+              WHEN $2 = '' THEN true
+              ELSE EXISTS (
+                SELECT 1
+                FROM route_destinations target_rd
+                JOIN destinations target_destination
+                  ON target_destination.id = target_rd.destination_id
+                JOIN route_destinations replacement_rd
+                  ON replacement_rd.destination_id = target_rd.destination_id
+                JOIN routes replacement_route
+                  ON replacement_route.id = replacement_rd.route_id
+                WHERE target_rd.route_id = r.id
+                  AND 'summit'::destination_feature =
+                      ANY(target_destination.features)
+                  AND replacement_route.id = $2
+                  AND replacement_route.owner = 'peaks'
+                  AND replacement_route.status = 'active'
+              )
+            END AS replacement_route_valid,
             (
               SELECT json_agg(
                 json_build_object(
@@ -488,7 +533,7 @@ async function loadRoute(routeId: string): Promise<RouteRow> {
             ) AS segment_provenance_matches
      FROM routes r
      WHERE r.id = $1`,
-    [routeId]
+    [routeId, replaceActiveRouteId]
   );
   if (result.rows.length !== 1) {
     throw new Error(`Route not found: ${routeId}`);
@@ -602,8 +647,11 @@ function emptyMetrics(): CheckResult["metrics"] {
   };
 }
 
-async function checkRoute(routeId: string): Promise<CheckResult> {
-  const route = await loadRoute(routeId);
+async function checkRoute(
+  routeId: string,
+  replaceActiveRouteId: string
+): Promise<CheckResult> {
+  const route = await loadRoute(routeId, replaceActiveRouteId);
   const result: CheckResult = {
     route_id: route.id,
     route_name: route.name,
@@ -626,6 +674,9 @@ async function checkRoute(routeId: string): Promise<CheckResult> {
   }
   if (route.active_standard_exists) {
     result.errors.push("an active Peaks standard route already covers the summit");
+  }
+  if (!route.replacement_route_valid) {
+    result.errors.push("named active replacement route is not eligible");
   }
   if (route.segment_count < 1 || !route.segment_provenance_matches) {
     result.errors.push("route and source segment provenance do not agree");
@@ -872,7 +923,9 @@ try {
   const results: CheckResult[] = [];
   for (const routeId of options.routeIds) {
     try {
-      results.push(await checkRoute(routeId));
+      results.push(
+        await checkRoute(routeId, options.replaceActiveRouteId)
+      );
     } catch (error) {
       results.push({
         route_id: routeId,

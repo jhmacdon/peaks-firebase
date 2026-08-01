@@ -130,6 +130,18 @@ export function isJobState(value: string): value is JobState {
   return JOB_STATES.includes(value as JobState);
 }
 
+export function humanRequeueTargetState(from: JobState): JobState | null {
+  if (from === "needs_revision") return "pending_review";
+  if (
+    from === "waiting_rights" ||
+    from === "waiting_access" ||
+    from === "needs_human"
+  ) {
+    return "queued";
+  }
+  return null;
+}
+
 export function canTransition(from: JobState, to: JobState): boolean {
   return transitions[from].includes(to);
 }
