@@ -16,6 +16,7 @@
     "import:padus-areas": "tsx src/import-padus-areas.ts",
     "import:wa-waterfalls": "tsx src/import-osm-waterfalls-wa.ts",
     "migrate:plans": "tsx src/index.ts --only plans",
+    "migrate:trip-reports": "tsx src/migrate-trip-reports.ts",
     "normalize:search-names": "tsx src/normalize-search-names.ts",
     "backfill:elevations": "tsx src/backfill-elevations.ts",
     "backfill:descriptions": "tsx src/backfill-destination-descriptions.ts",

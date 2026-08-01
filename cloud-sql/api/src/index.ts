@@ -8,6 +8,7 @@ import sessions from "./routes/sessions";
 import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
+import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
 import { processingPool } from "./db";
 import { sweepStuckSessions } from "./processing";
 
@@ -63,6 +64,7 @@ app.post("/internal/sweep", async (req, res) => {
   isSweeping = true;
   try {
     await sweepStuckSessions(processingPool);
+    await drainTripReportPhotoDeletions(processingPool);
     res.json({ status: "ok" });
   } catch (err) {
     console.error("[sweep] failed:", err);
@@ -82,6 +84,7 @@ app.use("/api/sessions", sessions);
 app.use("/api/lists", lists);
 app.use("/api/plans", plans);
 app.use("/api/search", search);
+app.use("/api/trip-reports", tripReports);
 
 // Don't bind a port when imported by tests.
 if (process.env.NODE_ENV !== "test") {

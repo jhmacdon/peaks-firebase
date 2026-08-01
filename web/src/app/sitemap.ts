@@ -1,15 +1,10 @@
 import type { MetadataRoute } from "next";
-import { adminDb } from "../lib/firebase-admin";
 import db from "../lib/db";
 import { absoluteUrl } from "../lib/seo";
 
 type SitemapRow = {
   id: string;
   updatedAt?: Date | string | null;
-};
-
-type FirestoreTimestampLike = {
-  toDate?: () => Date;
 };
 
 async function safeQuery<T>(task: Promise<T>): Promise<T | null> {
@@ -25,16 +20,6 @@ function toIsoDate(value: Date | string | null | undefined): string | undefined 
   if (value instanceof Date) return value.toISOString();
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
-}
-
-function toIsoDateFromFirestore(
-  value: Date | string | FirestoreTimestampLike | null | undefined
-): string | undefined {
-  if (!value) return undefined;
-  if (typeof value === "object" && "toDate" in value && value.toDate) {
-    return value.toDate().toISOString();
-  }
-  return toIsoDate(value as Date | string | null | undefined);
 }
 
 export const dynamic = "force-dynamic";
@@ -71,7 +56,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       `)
     ),
     safeQuery(
-      adminDb.collection("tripReports").orderBy("updatedAt", "desc").get()
+      db.query<SitemapRow>(`
+        SELECT id, updated_at AS "updatedAt"
+        FROM trip_reports
+        WHERE moderation_state = 'published'
+        ORDER BY updated_at DESC
+      `)
     ),
   ]);
 
@@ -124,16 +114,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   if (reports) {
     entries.push(
-      ...reports.docs.map((doc) => {
-        const data = doc.data() as {
-          updatedAt?: Date | string | FirestoreTimestampLike | null;
-        };
-
-        return {
-          url: absoluteUrl(`/reports/${doc.id}`),
-          lastModified: toIsoDateFromFirestore(data.updatedAt),
-        };
-      })
+      ...reports.rows.map((row) => ({
+        url: absoluteUrl(`/reports/${row.id}`),
+        lastModified: toIsoDate(row.updatedAt),
+      }))
     );
   }
 

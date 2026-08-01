@@ -1,150 +1,92 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../../lib/auth-context";
-import { createTripReport, type TripReportBlock } from "../../../../lib/actions/trip-reports";
-import { searchDestinations, type SearchDestination } from "../../../../lib/actions/search";
-import { getDestination } from "../../../../lib/actions/destinations";
-import BlockEditor from "../../../../components/block-editor";
+import {
+  createTripReport,
+  getTripReportEligibleSessions,
+  type TripReportEligibleSession,
+} from "../../../../lib/actions/trip-reports";
 
-interface SelectedDestination {
-  id: string;
-  name: string;
-}
-
-function todayForDateInput(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function NewReportForm() {
+export default function NewReportPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { getIdToken } = useAuth();
-
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(todayForDateInput);
-  const [blocks, setBlocks] = useState<TripReportBlock[]>([
-    { type: "text", content: "" },
-  ]);
-  const [selectedDestinations, setSelectedDestinations] = useState<
-    SelectedDestination[]
-  >([]);
-  const [destQuery, setDestQuery] = useState("");
-  const [destResults, setDestResults] = useState<SearchDestination[]>([]);
-  const [destSearching, setDestSearching] = useState(false);
-  const [showDestDropdown, setShowDestDropdown] = useState(false);
+  const [body, setBody] = useState("");
+  const [sessions, setSessions] = useState<TripReportEligibleSession[]>([]);
+  const [sessionId, setSessionId] = useState("");
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load pre-selected destination from URL param
   useEffect(() => {
-    const destId = searchParams.get("dest");
-    if (destId) {
-      async function loadDest() {
-        const dest = await getDestination(destId!);
-        if (dest) {
-          setSelectedDestinations([
-            { id: dest.id, name: dest.name || "Unnamed" },
-          ]);
+    let cancelled = false;
+    async function loadSessions() {
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+        const result = await getTripReportEligibleSessions(token);
+        if (!cancelled) {
+          setSessions(result);
+          setSessionId(result[0]?.id ?? "");
         }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Could not load completed activities"
+          );
+        }
+      } finally {
+        if (!cancelled) setSessionsLoading(false);
       }
-      loadDest();
     }
-  }, [searchParams]);
+    void loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, [getIdToken]);
 
-  // Debounced destination search
-  useEffect(() => {
-    if (!destQuery.trim()) {
-      const timer = setTimeout(() => {
-        setDestResults([]);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-
-    const timer = setTimeout(async () => {
-      setDestSearching(true);
-      const results = await searchDestinations(destQuery, undefined, undefined, 8);
-      setDestResults(results);
-      setDestSearching(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [destQuery]);
-
-  const addDestination = useCallback(
-    (dest: SearchDestination) => {
-      if (selectedDestinations.some((d) => d.id === dest.id)) return;
-      setSelectedDestinations((prev) => [
-        ...prev,
-        { id: dest.id, name: dest.name || "Unnamed" },
-      ]);
-      setDestQuery("");
-      setDestResults([]);
-      setShowDestDropdown(false);
-    },
-    [selectedDestinations]
-  );
-
-  const removeDestination = useCallback((id: string) => {
-    setSelectedDestinations((prev) => prev.filter((d) => d.id !== id));
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError(null);
-
+    if (!sessionId) {
+      setError("Choose a completed activity");
+      return;
+    }
     if (!title.trim()) {
       setError("Title is required");
       return;
     }
-
-    if (selectedDestinations.length === 0) {
-      setError("Select at least one destination");
+    if (!body.trim()) {
+      setError("Add a short condition update");
       return;
     }
-
-    // Filter out empty blocks
-    const nonEmptyBlocks = blocks.filter((b) => b.content.trim());
-    if (nonEmptyBlocks.length === 0) {
-      setError("Add at least one content block");
-      return;
-    }
-
     setSubmitting(true);
-
     try {
       const token = await getIdToken();
-      if (!token) {
-        setError("Not authenticated. Please sign in.");
-        setSubmitting(false);
-        return;
-      }
-
+      if (!token) throw new Error("Sign in again to publish");
       const result = await createTripReport(token, {
+        sessionId,
         title: title.trim(),
-        date,
-        destinations: selectedDestinations.map((d) => d.id),
-        blocks: nonEmptyBlocks,
+        blocks: [{ type: "text", content: body.trim() }],
       });
-
       router.push(`/reports/${result.id}`);
-    } catch (err) {
+    } catch (submitError) {
       setError(
-        err instanceof Error ? err.message : "Failed to create report"
+        submitError instanceof Error
+          ? submitError.message
+          : "Could not publish this Trip Report"
       );
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <Link
           href="/discover"
@@ -158,10 +100,40 @@ function NewReportForm() {
         </span>
       </div>
 
-      <h1 className="text-2xl font-semibold mb-8">New Trip Report</h1>
+      <h1 className="text-2xl font-semibold mb-2">New Trip Report</h1>
+      <p className="text-sm text-gray-500 mb-8">
+        Trip Reports are public. Peaks links the destinations and route from your
+        activity but does not share its GPS track.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Title */}
+        <div>
+          <label
+            htmlFor="activity"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Completed activity
+          </label>
+          <select
+            id="activity"
+            value={sessionId}
+            onChange={(event) => setSessionId(event.target.value)}
+            disabled={sessionsLoading || sessions.length === 0}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          >
+            {sessions.length === 0 && (
+              <option value="">
+                {sessionsLoading ? "Loading activities..." : "No ready activities"}
+              </option>
+            )}
+            {sessions.map((session) => (
+              <option key={session.id} value={session.id}>
+                {session.name} · {new Date(session.date).toLocaleDateString()}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label
             htmlFor="title"
@@ -171,153 +143,45 @@ function NewReportForm() {
           </label>
           <input
             id="title"
-            type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Summer summit of Mt. Rainier"
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={180}
+            placeholder="Snow above the lake"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
-        {/* Date */}
         <div>
           <label
-            htmlFor="date"
+            htmlFor="report"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            Date
+            Conditions
           </label>
-          <input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+          <textarea
+            id="report"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            maxLength={20_000}
+            rows={8}
+            placeholder="What should the next person know?"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Add photos and structured hazards from the Peaks app.
+          </p>
         </div>
 
-        {/* Destinations */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Destinations
-          </label>
-
-          {/* Selected destinations */}
-          {selectedDestinations.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {selectedDestinations.map((dest) => (
-                <span
-                  key={dest.id}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 text-sm"
-                >
-                  {dest.name}
-                  <button
-                    type="button"
-                    onClick={() => removeDestination(dest.id)}
-                    className="hover:text-blue-900 dark:hover:text-blue-100"
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Search input */}
-          <div className="relative">
-            <input
-              type="text"
-              value={destQuery}
-              onChange={(e) => {
-                setDestQuery(e.target.value);
-                setShowDestDropdown(true);
-              }}
-              onFocus={() => setShowDestDropdown(true)}
-              placeholder="Search destinations to add..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-
-            {/* Dropdown results */}
-            {showDestDropdown && destQuery.trim() && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md max-h-64 overflow-y-auto">
-                {destSearching ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">
-                    Searching...
-                  </div>
-                ) : destResults.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">
-                    No destinations found
-                  </div>
-                ) : (
-                  destResults.map((dest) => {
-                    const alreadySelected = selectedDestinations.some(
-                      (d) => d.id === dest.id
-                    );
-                    return (
-                      <button
-                        key={dest.id}
-                        type="button"
-                        onClick={() => addDestination(dest)}
-                        disabled={alreadySelected}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                          alreadySelected
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                      >
-                        <div className="font-medium">
-                          {dest.name || "Unnamed"}
-                        </div>
-                        {dest.elevation != null && (
-                          <div className="text-xs text-gray-500">
-                            {Math.round(
-                              dest.elevation * 3.28084
-                            ).toLocaleString()}{" "}
-                            ft
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Click-outside handler */}
-          {showDestDropdown && (
-            <div
-              className="fixed inset-0 z-0"
-              onClick={() => setShowDestDropdown(false)}
-            />
-          )}
-        </div>
-
-        {/* Block Editor */}
-        <BlockEditor blocks={blocks} onChange={setBlocks} />
-
-        {/* Error */}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
-        {/* Submit */}
         <div className="flex items-center gap-4 pt-4">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || sessionsLoading || sessions.length === 0}
             className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? "Publishing..." : "Publish Report"}
@@ -331,19 +195,5 @@ function NewReportForm() {
         </div>
       </form>
     </div>
-  );
-}
-
-export default function NewReportPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-3xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
-        </div>
-      }
-    >
-      <NewReportForm />
-    </Suspense>
   );
 }

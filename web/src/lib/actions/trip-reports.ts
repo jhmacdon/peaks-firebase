@@ -1,18 +1,26 @@
 "use server";
 
-import { Timestamp } from "firebase-admin/firestore";
+import { randomUUID } from "node:crypto";
 import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
 import db from "../db";
-import { normalizeReportPhotoUrl } from "../report-photo-url";
+
+export interface TripReportCondition {
+  code: string;
+  severity: "info" | "notable" | "serious";
+  context?: string;
+}
 
 export interface TripReport {
   id: string;
   userId: string;
   userName: string;
+  sessionId: string | null;
   date: string;
   title: string;
-  destinations: string[]; // destination IDs
+  destinations: string[];
+  routes: string[];
+  conditions: TripReportCondition[];
   blocks: TripReportBlock[];
   createdAt: string;
   updatedAt: string;
@@ -20,535 +28,292 @@ export interface TripReport {
 
 export interface TripReportBlock {
   type: "text" | "photo";
-  content: string; // text content or image URL
-  caption?: string; // photo caption
+  content: string;
+  caption?: string;
   placement?: "header" | "content";
   sourceId?: string;
   createdAt?: string;
 }
 
-const MAX_DESTINATION_TRIP_REPORTS = 10;
-const MAX_RECENT_TRIP_REPORTS = 6;
+export interface TripReportEligibleSession {
+  id: string;
+  name: string;
+  date: string;
+}
 
-type FirestoreTimestampLike = {
-  toDate?: () => Date;
-  _seconds?: number;
-  _nanoseconds?: number;
+type ReportRow = {
+  id: string;
+  source_session_id: string | null;
+  user_id: string;
+  author_name: string;
+  title: string;
+  body: string;
+  activity_date: Date | string;
+  created_at: Date | string;
+  updated_at: Date | string;
+  destination_ids: string[];
+  route_ids: string[];
+  conditions: TripReportCondition[];
+  photos: Array<{
+    id: string;
+    download_url: string;
+    caption: string | null;
+    taken_at: Date | string | null;
+  }>;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+const REPORT_SELECT = `
+  SELECT tr.id, tr.source_session_id, tr.user_id, tr.author_name,
+         tr.title, tr.body, tr.activity_date, tr.created_at, tr.updated_at,
+         COALESCE((
+           SELECT json_agg(rd.destination_id ORDER BY rd.destination_id)
+           FROM trip_report_destinations rd WHERE rd.report_id = tr.id
+         ), '[]'::json) AS destination_ids,
+         COALESCE((
+           SELECT json_agg(rr.route_id ORDER BY rr.route_id)
+           FROM trip_report_routes rr WHERE rr.report_id = tr.id
+         ), '[]'::json) AS route_ids,
+         COALESCE((
+           SELECT json_agg(json_build_object(
+             'code', c.code, 'severity', c.severity, 'context', c.context
+           ) ORDER BY c.ordinal, c.code)
+           FROM trip_report_conditions c WHERE c.report_id = tr.id
+         ), '[]'::json) AS conditions,
+         COALESCE((
+           SELECT json_agg(json_build_object(
+             'id', p.id, 'download_url', p.download_url,
+             'storage_path', p.storage_path,
+             'caption', p.caption, 'taken_at', p.taken_at
+           ) ORDER BY p.ordinal, p.id)
+           FROM trip_report_photos p WHERE p.report_id = tr.id
+         ), '[]'::json) AS photos
+  FROM trip_reports tr
+`;
+
+function iso(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-function isTimestampLike(value: unknown): value is FirestoreTimestampLike {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.toDate === "function" ||
-    typeof value._seconds === "number"
-  );
-}
-
-function toIsoString(value: unknown): string | null {
-  if (!value) return null;
-
-  if (typeof value === "string") {
-    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value)
-      ? new Date(`${value}T12:00:00.000Z`)
-      : new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (isTimestampLike(value)) {
-    if (typeof value.toDate === "function") {
-      return value.toDate().toISOString();
-    }
-
-    const millis =
-      value._seconds! * 1000 +
-      Math.floor((value._nanoseconds ?? 0) / 1_000_000);
-    return new Date(millis).toISOString();
-  }
-
-  return null;
-}
-
-function toStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function normalizeBlockArray(
-  value: unknown,
-  placement: "header" | "content"
-): TripReportBlock[] {
-  if (!Array.isArray(value)) return [];
-
-  return value.flatMap((item) => {
-    if (!isRecord(item)) return [];
-
-    const type: TripReportBlock["type"] =
-      item.type === "photo" ? "photo" : "text";
-    const rawContent = type === "photo"
-      ? typeof item.image === "string"
-        ? item.image
-        : typeof item.url === "string"
-          ? item.url
-          : typeof item.content === "string"
-            ? item.content
-            : null
-      : typeof item.text === "string"
-        ? item.text
-        : typeof item.content === "string"
-          ? item.content
-          : null;
-    const content =
-      type === "photo"
-        ? normalizeReportPhotoUrl(rawContent)
-        : rawContent;
-
-    if (!content) return [];
-
-    const caption =
-      type === "photo" && typeof item.caption === "string"
-        ? item.caption
-        : type === "photo" && typeof item.text === "string"
-          ? item.text
-          : undefined;
-
-    return [
-      {
-        type,
-        content,
-        caption,
-        placement: item.placement === "header" ? "header" : placement,
-        sourceId:
-          typeof item.sourceId === "string"
-            ? item.sourceId
-            : typeof item.id === "string"
-              ? item.id
-              : undefined,
-        createdAt:
-          typeof item.createdAt === "string"
-            ? item.createdAt
-            : toIsoString(item.created) ?? undefined,
-      },
-    ];
-  });
-}
-
-function normalizeBlocks(data: Record<string, unknown>): TripReportBlock[] {
-  const iosHeaderPhotos = normalizeBlockArray(data.headerPhotos, "header")
-    .filter((block) => block.type === "photo");
-  const iosContent = normalizeBlockArray(data.content, "content");
-  if (iosHeaderPhotos.length > 0 || iosContent.length > 0) {
-    return [...iosHeaderPhotos, ...iosContent];
-  }
-
-  const webBlocks = normalizeBlockArray(data.blocks, "content");
-  if (webBlocks.length > 0) {
-    return webBlocks;
-  }
-
-  const fallbackBlocks: TripReportBlock[] = [];
-
-  if (typeof data.content === "string" && data.content.trim()) {
-    fallbackBlocks.push({
-      type: "text",
-      content: data.content,
-      placement: "content",
+function mapReport(row: ReportRow): TripReport {
+  const blocks: TripReportBlock[] = [];
+  if (row.body) blocks.push({ type: "text", content: row.body });
+  for (const photo of row.photos ?? []) {
+    blocks.push({
+      type: "photo",
+      content: photo.download_url,
+      caption: photo.caption ?? undefined,
+      sourceId: photo.id,
+      createdAt: photo.taken_at ? iso(photo.taken_at) : undefined,
     });
   }
-
-  return fallbackBlocks;
-}
-
-function normalizeTripReport(
-  id: string,
-  raw: Record<string, unknown> | undefined
-): TripReport {
-  const data = raw ?? {};
-  const blocks = normalizeBlocks(data);
-
   return {
-    id,
-    userId: typeof data.userId === "string" ? data.userId : "",
-    userName:
-      typeof data.userName === "string"
-        ? data.userName
-        : typeof data.authorName === "string"
-          ? data.authorName
-          : "Unknown User",
-    date:
-      toIsoString(data.date) ??
-      toIsoString(data.createdAt) ??
-      new Date(0).toISOString(),
-    title:
-      typeof data.title === "string"
-        ? data.title
-        : typeof data.name === "string"
-          ? data.name
-          : "Trip Report",
-    destinations: toStringArray(data.destinations),
+    id: row.id,
+    userId: row.user_id,
+    userName: row.author_name,
+    sessionId: row.source_session_id,
+    date: iso(row.activity_date),
+    title: row.title,
+    destinations: row.destination_ids ?? [],
+    routes: row.route_ids ?? [],
+    conditions: row.conditions ?? [],
     blocks,
-    createdAt:
-      toIsoString(data.createdAt) ??
-      toIsoString(data.date) ??
-      new Date(0).toISOString(),
-    updatedAt:
-      toIsoString(data.updatedAt) ??
-      toIsoString(data.createdAt) ??
-      toIsoString(data.date) ??
-      new Date(0).toISOString(),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
   };
 }
 
-function reportDateTimestamp(value: string): Timestamp {
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? new Date(`${value}T12:00:00.000Z`)
-    : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Date must be valid");
-  }
-  return Timestamp.fromDate(date);
+function limit(value: number, fallback: number, maximum: number): number {
+  return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), 1), maximum) : fallback;
 }
 
-function validatedTitle(value: string): string {
-  const title = value.trim();
-  if (!title) throw new Error("Title is required");
-  if (title.length > 180) {
-    throw new Error("Title must be 180 characters or fewer");
-  }
-  return title;
+function title(value: string): string {
+  const result = value.trim();
+  if (!result || result.length > 180) throw new Error("Title must be 1–180 characters");
+  return result;
 }
 
-function validatedDestinations(values: string[]): string[] {
-  if (!Array.isArray(values) || values.length === 0) {
-    throw new Error("Select at least one destination");
-  }
-  if (values.some((value) => typeof value !== "string")) {
-    throw new Error("Destination selection is invalid");
-  }
-  const destinations = [...new Set(values.map((value) => value.trim()))];
-  if (
-    destinations.length > 100 ||
-    destinations.some((value) => !value || value.length > 1_500)
-  ) {
-    throw new Error("Destination selection is invalid");
-  }
-  return destinations;
+function bodyFromBlocks(blocks: TripReportBlock[]): string {
+  if (!Array.isArray(blocks)) throw new Error("Report content is invalid");
+  const body = blocks
+    .filter((block) => block.type === "text")
+    .map((block) => block.content.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  if (!body || body.length > 20_000) throw new Error("Report text must be 1–20,000 characters");
+  return body;
 }
 
-async function validatedExistingDestinations(
-  values: string[]
-): Promise<string[]> {
-  const destinations = validatedDestinations(values);
-  const result = await db.query<{ id: string }>(
-    `SELECT id
-     FROM destinations
-     WHERE id = ANY($1::text[])`,
-    [destinations]
-  );
-  const existingIds = new Set(result.rows.map((row) => String(row.id)));
-  if (destinations.some((id) => !existingIds.has(id))) {
-    throw new Error("One or more selected destinations no longer exists");
-  }
-  return destinations;
-}
-
-function validatedBlocks(values: TripReportBlock[]): TripReportBlock[] {
-  if (!Array.isArray(values) || values.length === 0 || values.length > 100) {
-    throw new Error("Add between 1 and 100 content blocks");
-  }
-
-  let totalCharacters = 0;
-  return values.map((block) => {
-    if (block.type !== "text" && block.type !== "photo") {
-      throw new Error("Unsupported report block");
-    }
-
-    const content =
-      block.type === "photo"
-        ? normalizeReportPhotoUrl(block.content)
-        : block.content;
-    if (content === null) {
-      throw new Error(
-        "Photo blocks need a Peaks Firebase Storage download URL"
-      );
-    }
-    if (!content.trim()) throw new Error("Report blocks cannot be empty");
-    if (
-      (block.type === "text" && content.length > 100_000) ||
-      (block.type === "photo" && content.length > 5_000)
-    ) {
-      throw new Error("A report block is too long");
-    }
-    if (block.caption && block.caption.length > 500) {
-      throw new Error("Photo captions must be 500 characters or fewer");
-    }
-    if (block.sourceId && block.sourceId.length > 200) {
-      throw new Error("Photo ID is invalid");
-    }
-
-    totalCharacters += content.length + (block.caption?.length ?? 0);
-    if (totalCharacters > 500_000) {
-      throw new Error("Trip report content is too large");
-    }
-
-    return {
-      ...block,
-      content,
-      caption: block.caption?.trim() || undefined,
-      placement:
-        block.type === "photo" && block.placement === "header"
-          ? "header"
-          : "content",
-    };
-  });
-}
-
-function boundedPublicLimit(
-  value: number,
-  fallback: number,
-  maximum: number
-): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(Math.max(Math.trunc(value), 1), maximum);
-}
-
-function prepareTripReportBlocks(blocks: TripReportBlock[]): {
-  webBlocks: Record<string, unknown>[];
-  content: Record<string, unknown>[];
-  headerPhotos: Record<string, unknown>[];
-} {
-  const webBlocks: Record<string, unknown>[] = [];
-  const content: Record<string, unknown>[] = [];
-  const headerPhotos: Record<string, unknown>[] = [];
-
-  for (const block of blocks) {
-    const placement = block.placement === "header" ? "header" : "content";
-    const webBlock: Record<string, unknown> = {
-      type: block.type,
-      content: block.content,
-      placement,
-    };
-
-    if (block.caption) webBlock.caption = block.caption;
-
-    if (block.type === "text") {
-      webBlocks.push(webBlock);
-      content.push({
-        type: "text",
-        text: block.content,
-      });
-      continue;
-    }
-
-    const sourceId = block.sourceId || generateId();
-    const requestedCreatedAt = block.createdAt
-      ? new Date(block.createdAt)
-      : null;
-    const createdDate =
-      requestedCreatedAt && !Number.isNaN(requestedCreatedAt.getTime())
-        ? requestedCreatedAt
-        : new Date();
-    const createdAt = createdDate.toISOString();
-    const created = Timestamp.fromDate(createdDate);
-    webBlock.sourceId = sourceId;
-    webBlock.createdAt = createdAt;
-    webBlocks.push(webBlock);
-
-    const iosPhoto: Record<string, unknown> = {
-      type: "photo",
-      id: sourceId,
-      image: block.content,
-      created,
-    };
-    if (block.caption) iosPhoto.caption = block.caption;
-
-    if (placement === "header") {
-      headerPhotos.push(iosPhoto);
-    } else {
-      content.push(iosPhoto);
-    }
-  }
-
-  return { webBlocks, content, headerPhotos };
-}
-
-/**
- * Get trip reports for a destination.
- * Queries tripReports collection where destinations array-contains destinationId.
- */
 export async function getTripReportsForDestination(
   destinationId: string,
-  limit: number = 10
+  requestedLimit = 10
 ): Promise<TripReport[]> {
-  const safeLimit = boundedPublicLimit(
-    limit,
-    MAX_DESTINATION_TRIP_REPORTS,
-    MAX_DESTINATION_TRIP_REPORTS
+  const result = await db.query(
+    `${REPORT_SELECT}
+     JOIN trip_report_destinations rd_scope ON rd_scope.report_id = tr.id
+     WHERE rd_scope.destination_id = $1 AND tr.moderation_state = 'published'
+     ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $2`,
+    [destinationId, limit(requestedLimit, 10, 10)]
   );
-  const snapshot = await adminDb
-    .collection("tripReports")
-    .where("destinations", "array-contains", destinationId)
-    .orderBy("date", "desc")
-    .limit(safeLimit)
-    .get();
+  return result.rows.map((row) => mapReport(row as ReportRow));
+}
 
-  return snapshot.docs.map((doc) =>
-    normalizeTripReport(doc.id, doc.data())
+export async function getRecentTripReports(requestedLimit = 6): Promise<TripReport[]> {
+  const result = await db.query(
+    `${REPORT_SELECT}
+     WHERE tr.moderation_state = 'published'
+     ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $1`,
+    [limit(requestedLimit, 6, 6)]
   );
+  return result.rows.map((row) => mapReport(row as ReportRow));
 }
 
-export async function getRecentTripReports(
-  limit: number = 6
-): Promise<TripReport[]> {
-  const safeLimit = boundedPublicLimit(
-    limit,
-    MAX_RECENT_TRIP_REPORTS,
-    MAX_RECENT_TRIP_REPORTS
+export async function getTripReportCountForDestination(destinationId: string): Promise<number> {
+  const result = await db.query(
+    `SELECT count(*)::int AS count
+     FROM trip_report_destinations rd
+     JOIN trip_reports tr ON tr.id = rd.report_id
+     WHERE rd.destination_id = $1 AND tr.moderation_state = 'published'`,
+    [destinationId]
   );
-  const snapshot = await adminDb
-    .collection("tripReports")
-    .orderBy("date", "desc")
-    .limit(safeLimit)
-    .get();
+  return Number(result.rows[0]?.count ?? 0);
+}
 
-  return snapshot.docs.map((doc) =>
-    normalizeTripReport(doc.id, doc.data())
+export async function getTripReport(reportId: string): Promise<TripReport | null> {
+  const result = await db.query(
+    `${REPORT_SELECT}
+     WHERE tr.id = $1 AND tr.moderation_state = 'published'`,
+    [reportId]
   );
+  return result.rows[0] ? mapReport(result.rows[0] as ReportRow) : null;
 }
 
-/**
- * Count trip reports for a destination.
- */
-export async function getTripReportCountForDestination(
-  destinationId: string
-): Promise<number> {
-  const snapshot = await adminDb
-    .collection("tripReports")
-    .where("destinations", "array-contains", destinationId)
-    .count()
-    .get();
-
-  return snapshot.data().count;
+export async function canEditTripReport(token: string, reportId: string): Promise<boolean> {
+  const user = await verifyToken(token);
+  if (!user) return false;
+  const result = await db.query(
+    "SELECT 1 FROM trip_reports WHERE id = $1 AND user_id = $2",
+    [reportId, user.uid]
+  );
+  return result.rows.length > 0;
 }
 
-/**
- * Get a single trip report by ID.
- */
-export async function getTripReport(
-  reportId: string
-): Promise<TripReport | null> {
-  const doc = await adminDb.collection("tripReports").doc(reportId).get();
-  if (!doc.exists) return null;
-
-  return normalizeTripReport(doc.id, doc.data());
-}
-
-/**
- * Check whether an authenticated user owns a trip report.
- */
-export async function canEditTripReport(
-  token: string,
-  reportId: string
-): Promise<boolean> {
-  const verified = await verifyToken(token);
-  if (!verified) return false;
-
-  const doc = await adminDb.collection("tripReports").doc(reportId).get();
-  return doc.exists && doc.data()?.userId === verified.uid;
-}
-
-/**
- * Get a report for editing. Requires the authenticated report owner.
- */
 export async function getTripReportForEdit(
   token: string,
   reportId: string
 ): Promise<TripReport | null> {
-  const verified = await verifyToken(token);
-  if (!verified) throw new Error("Unauthorized");
-
-  const doc = await adminDb.collection("tripReports").doc(reportId).get();
-  if (!doc.exists) return null;
-
-  if (doc.data()?.userId !== verified.uid) {
-    throw new Error("You can only edit your own reports");
-  }
-
-  return normalizeTripReport(doc.id, doc.data());
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  const result = await db.query(
+    `${REPORT_SELECT} WHERE tr.id = $1 AND tr.user_id = $2`,
+    [reportId, user.uid]
+  );
+  return result.rows[0] ? mapReport(result.rows[0] as ReportRow) : null;
 }
 
-/**
- * Create a new trip report. Requires authenticated user.
- */
+export async function getTripReportEligibleSessions(
+  token: string
+): Promise<TripReportEligibleSession[]> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  const result = await db.query(
+    `SELECT s.id, COALESCE(NULLIF(s.name, ''), 'Activity') AS name, s.start_time
+     FROM tracking_sessions s
+     LEFT JOIN trip_reports tr ON tr.source_session_id = s.id
+     WHERE s.user_id = $1 AND s.ended = true
+       AND s.processing_state = 'completed' AND s.processed_at IS NOT NULL
+       AND tr.id IS NULL
+     ORDER BY s.start_time DESC LIMIT 50`,
+    [user.uid]
+  );
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    date: iso(row.start_time),
+  }));
+}
+
 export async function createTripReport(
   token: string,
   data: {
+    sessionId?: string;
     title: string;
-    date: string;
-    destinations: string[];
+    date?: string;
+    destinations?: string[];
     blocks: TripReportBlock[];
   }
 ): Promise<{ id: string }> {
-  const verified = await verifyToken(token);
-  if (!verified) throw new Error("Unauthorized");
-  const title = validatedTitle(data.title);
-  const date = reportDateTimestamp(data.date);
-  const destinations = await validatedExistingDestinations(data.destinations);
-  const blocks = validatedBlocks(data.blocks);
-
-  // Look up user name from Firestore users collection
-  let userName = "Unknown User";
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  if (!data.sessionId) throw new Error("Choose a completed activity");
+  const reportTitle = title(data.title);
+  const body = bodyFromBlocks(data.blocks);
+  const client = await db.connect();
   try {
-    const userDoc = await adminDb.collection("users").doc(verified.uid).get();
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      // Handle both { name: string } and { name: { first, last } } formats
-      if (typeof userData?.name === "string") {
-        userName = userData.name;
-      } else if (userData?.name) {
-        userName = [userData.name.first, userData.name.last]
-          .filter(Boolean)
-          .join(" ");
-      }
+    await client.query("BEGIN");
+    const session = await client.query(
+      `SELECT id, name, activity_type, start_time
+       FROM tracking_sessions
+       WHERE id = $1 AND user_id = $2 AND ended = true
+         AND processing_state = 'completed' AND processed_at IS NOT NULL
+       FOR UPDATE`,
+      [data.sessionId, user.uid]
+    );
+    if (!session.rows[0]) throw new Error("Activity is not ready for a Trip Report");
+    const existing = await client.query(
+      "SELECT id FROM trip_reports WHERE source_session_id = $1",
+      [data.sessionId]
+    );
+    if (existing.rows[0]) throw new Error("This activity already has a Trip Report");
+    let userName = "Peaks member";
+    try {
+      const profile = await adminDb.collection("users").doc(user.uid).get();
+      const name = profile.data()?.name;
+      if (typeof name === "string" && name.trim()) userName = name.trim();
+    } catch {
+      // A missing profile must not block publishing.
     }
-  } catch {
-    // Fall back to "Unknown User"
+    const id = randomUUID();
+    const activity = session.rows[0];
+    await client.query(
+      `INSERT INTO trip_reports
+         (id, source_session_id, user_id, author_name, title, body,
+          activity_name, activity_type, activity_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        id,
+        data.sessionId,
+        user.uid,
+        userName,
+        reportTitle,
+        body,
+        activity.name,
+        activity.activity_type,
+        activity.start_time,
+      ]
+    );
+    await client.query(
+      `INSERT INTO trip_report_destinations (report_id, destination_id)
+       SELECT $1, destination_id FROM session_destinations
+       WHERE session_id = $2 AND relation = 'reached'`,
+      [id, data.sessionId]
+    );
+    await client.query(
+      `INSERT INTO trip_report_routes (report_id, route_id)
+       SELECT $1, sr.route_id FROM session_routes sr
+       JOIN routes r ON r.id = sr.route_id
+       WHERE sr.session_id = $2 AND r.status = 'active'`,
+      [id, data.sessionId]
+    );
+    await client.query("COMMIT");
+    return { id };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const now = new Date().toISOString();
-  const id = generateId();
-  const preparedBlocks = prepareTripReportBlocks(blocks);
-
-  await adminDb.collection("tripReports").doc(id).set({
-    userId: verified.uid,
-    userName,
-    title,
-    date,
-    destinations,
-    blocks: preparedBlocks.webBlocks,
-    content: preparedBlocks.content,
-    headerPhotos: preparedBlocks.headerPhotos,
-    attachments: {
-      route: false,
-      timeline: false,
-    },
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  return { id };
 }
 
-/**
- * Update an existing trip report. Requires authenticated user who owns the report.
- */
 export async function updateTripReport(
   token: string,
   reportId: string,
@@ -559,70 +324,50 @@ export async function updateTripReport(
     blocks?: TripReportBlock[];
   }
 ): Promise<void> {
-  const verified = await verifyToken(token);
-  if (!verified) throw new Error("Unauthorized");
-
-  const doc = await adminDb.collection("tripReports").doc(reportId).get();
-  if (!doc.exists) throw new Error("Report not found");
-
-  const reportData = doc.data();
-  if (reportData?.userId !== verified.uid) {
-    throw new Error("You can only edit your own reports");
-  }
-
-  const updates: Record<string, unknown> = {
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (data.title !== undefined) updates.title = validatedTitle(data.title);
-  if (data.date !== undefined) updates.date = reportDateTimestamp(data.date);
-  if (data.destinations !== undefined) {
-    updates.destinations = await validatedExistingDestinations(
-      data.destinations
-    );
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  const updates: string[] = ["updated_at = now()"];
+  const values: unknown[] = [reportId, user.uid];
+  if (data.title !== undefined) {
+    values.push(title(data.title));
+    updates.push(`title = $${values.length}`);
   }
   if (data.blocks !== undefined) {
-    const preparedBlocks = prepareTripReportBlocks(
-      validatedBlocks(data.blocks)
+    values.push(bodyFromBlocks(data.blocks));
+    updates.push(`body = $${values.length}`);
+  }
+  const result = await db.query(
+    `UPDATE trip_reports SET ${updates.join(", ")}
+     WHERE id = $1 AND user_id = $2 RETURNING id`,
+    values
+  );
+  if (!result.rows[0]) throw new Error("You can only edit your own reports");
+}
+
+export async function deleteTripReport(token: string, reportId: string): Promise<void> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO trip_report_photo_deletions (storage_path)
+       SELECT storage_path FROM trip_report_photos p
+       JOIN trip_reports tr ON tr.id = p.report_id
+       WHERE p.report_id = $1 AND tr.user_id = $2 AND p.storage_path IS NOT NULL
+       ON CONFLICT DO NOTHING`,
+      [reportId, user.uid]
     );
-    updates.blocks = preparedBlocks.webBlocks;
-    updates.content = preparedBlocks.content;
-    updates.headerPhotos = preparedBlocks.headerPhotos;
+    const result = await client.query(
+      "DELETE FROM trip_reports WHERE id = $1 AND user_id = $2 RETURNING id",
+      [reportId, user.uid]
+    );
+    if (!result.rows[0]) throw new Error("You can only delete your own reports");
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await adminDb.collection("tripReports").doc(reportId).update(updates);
-}
-
-/**
- * Delete an existing trip report. Requires authenticated user who owns the report.
- */
-export async function deleteTripReport(
-  token: string,
-  reportId: string
-): Promise<void> {
-  const verified = await verifyToken(token);
-  if (!verified) throw new Error("Unauthorized");
-
-  const doc = await adminDb.collection("tripReports").doc(reportId).get();
-  if (!doc.exists) throw new Error("Report not found");
-
-  if (doc.data()?.userId !== verified.uid) {
-    throw new Error("You can only delete your own reports");
-  }
-
-  // Legacy iOS photos use a flat reports/<UUID>.jpg path with no owner
-  // metadata. Deleting those objects here would let a report owner copy and
-  // delete another report's photo. Automatic cleanup must wait for uploads
-  // namespaced by user/report with ownership metadata.
-  await doc.ref.delete();
-}
-
-function generateId(): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < 20; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return id;
 }
