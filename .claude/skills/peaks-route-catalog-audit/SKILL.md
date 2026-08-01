@@ -96,6 +96,11 @@ If a second source or required fact is unavailable, use the reference's
 because public evidence is incomplete. A stale OSM or Wikidata link appears as
 an identity review finding, not a tool failure.
 
+Record each publisher's own route facts. Never create one standard route by
+mixing distance, gain, shape, or trailhead facts from different route variants.
+Keep conflicting values in their source records and let the comparator return
+`REVIEW`.
+
 ## Finish
 
 The comparator alone may produce `PASS`. A source conflict or missing second

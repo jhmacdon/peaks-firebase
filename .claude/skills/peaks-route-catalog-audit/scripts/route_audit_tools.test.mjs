@@ -74,12 +74,26 @@ const facts = {
       supports: [
         "route_identity", "trailhead", "distance", "shape", "gain", "activity",
       ],
+      facts: {
+        route_name: "Mount Daedunsan",
+        trailhead_name: "Daedunsan Provincial Park",
+        distance_m: 4_345,
+        distance_basis: "round_trip",
+        shape: "out_and_back",
+        gain_m: 553,
+        activity: "hike",
+      },
     },
     {
       publisher: "OpenStreetMap",
       url: "https://www.openstreetmap.org/node/3819433157",
       retrieved_at: "2026-08-01",
       supports: ["route_identity", "trailhead", "access"],
+      facts: {
+        route_name: "Mount Daedunsan",
+        trailhead_name: "Daedunsan Provincial Park",
+        access: "public park trail; check current closures",
+      },
     },
   ],
 };
@@ -205,13 +219,14 @@ test("quarantined legacy routes do not block a valid active standard route", () 
       },
     ],
   };
-  const result = compareRouteSourceFacts(repairedCatalog, {
+  const repairedIdentity = {
     destination_id: "peak-1",
     stored_name: "Daedunsan",
     english_candidates: ["Daedunsan Peak", "Daedunsan"],
     findings: [],
     known_names: ["Daedunsan", "Daedunsan Peak", "대둔산"],
-  }, facts);
+  };
+  const result = compareRouteSourceFacts(repairedCatalog, repairedIdentity, facts);
   assert.equal(result.verdict, "PASS");
   assert.deepEqual(result.routes.map((route) => route.action), [
     "keep",
@@ -231,6 +246,122 @@ test("quarantined legacy routes do not block a valid active standard route", () 
   assert.equal(missingSearchResult.verdict, "REVIEW");
   assert.ok(missingSearchResult.findings.some((finding) =>
     finding.type === "unresolved_catalog_reviews"
+  ));
+
+  const mismatchedCompleteSource = structuredClone(facts);
+  mismatchedCompleteSource.sources[0].facts.route_name = "Different Traverse";
+  mismatchedCompleteSource.sources[0].facts.trailhead_name = "Other Trailhead";
+  mismatchedCompleteSource.sources[0].facts.activity = "scramble";
+  const mismatchedCompleteResult = compareRouteSourceFacts(
+    repairedCatalog,
+    repairedIdentity,
+    mismatchedCompleteSource
+  );
+  assert.equal(mismatchedCompleteResult.verdict, "REVIEW");
+  assert.ok(mismatchedCompleteResult.findings.some((finding) =>
+    finding.type === "source_route_fact_conflicts"
+  ));
+
+  const inventedAccess = structuredClone(facts);
+  inventedAccess.standard_route.access = "open year-round";
+  const inventedAccessResult = compareRouteSourceFacts(
+    repairedCatalog,
+    repairedIdentity,
+    inventedAccess
+  );
+  assert.equal(inventedAccessResult.verdict, "REVIEW");
+  assert.ok(inventedAccessResult.findings.some((finding) =>
+    finding.type === "source_route_fact_conflicts" &&
+    finding.reviews.some((review) =>
+      review.type === "no_access_source_matches_standard"
+    )
+  ));
+
+  const oneWayPartialSource = structuredClone(facts);
+  oneWayPartialSource.sources.push({
+    publisher: "Partial Distance Source",
+    url: "https://example.net/distance",
+    retrieved_at: "2026-08-01",
+    supports: ["distance"],
+    facts: {
+      distance_m: 2_173,
+      distance_basis: "one_way",
+    },
+  });
+  assert.doesNotThrow(() => validateSourceFacts(oneWayPartialSource));
+  assert.equal(
+    compareRouteSourceFacts(
+      repairedCatalog,
+      repairedIdentity,
+      oneWayPartialSource
+    ).verdict,
+    "PASS"
+  );
+
+  const impossiblePartialSource = structuredClone(facts);
+  impossiblePartialSource.sources.push({
+    publisher: "Impossible Shape Source",
+    url: "https://example.net/impossible",
+    retrieved_at: "2026-08-01",
+    supports: ["distance", "shape"],
+    facts: {
+      distance_m: 4_345,
+      distance_basis: "round_trip",
+      shape: "point_to_point",
+    },
+  });
+  assert.throws(
+    () => validateSourceFacts(impossiblePartialSource),
+    /point_to_point source distance cannot be round_trip/
+  );
+
+  const conflictingPartialSource = structuredClone(facts);
+  conflictingPartialSource.sources.push({
+    publisher: "Long Variant Source",
+    url: "https://example.net/long-variant",
+    retrieved_at: "2026-08-01",
+    supports: ["distance", "shape"],
+    facts: {
+      distance_m: 48_000,
+      distance_basis: "one_way",
+      shape: "out_and_back",
+    },
+  });
+  const conflictingPartialResult = compareRouteSourceFacts(
+    repairedCatalog,
+    repairedIdentity,
+    conflictingPartialSource
+  );
+  assert.equal(conflictingPartialResult.verdict, "REVIEW");
+  assert.ok(conflictingPartialResult.findings.some((finding) =>
+    finding.type === "source_route_fact_conflicts" &&
+    finding.reviews.some((review) =>
+      review.type === "source_facts_conflict_with_standard"
+    )
+  ));
+
+  const zeroGainFacts = structuredClone(facts);
+  zeroGainFacts.standard_route.gain_m = 0;
+  zeroGainFacts.sources[0].facts.gain_m = 0;
+  const zeroGainCatalog = structuredClone(repairedCatalog);
+  zeroGainCatalog.records[2].metrics.gain_m = 0;
+  assert.equal(
+    compareRouteSourceFacts(
+      zeroGainCatalog,
+      repairedIdentity,
+      zeroGainFacts
+    ).verdict,
+    "PASS"
+  );
+  zeroGainCatalog.records[2].metrics.gain_m = 1_000;
+  const wrongZeroGainResult = compareRouteSourceFacts(
+    zeroGainCatalog,
+    repairedIdentity,
+    zeroGainFacts
+  );
+  assert.equal(wrongZeroGainResult.verdict, "FAIL");
+  assert.ok(wrongZeroGainResult.routes[0].findings.includes(
+    "gain_far_from_standard"
   ));
 });
 
@@ -584,5 +715,110 @@ test("unresolved active catalog warnings cannot pass", () => {
   assert.ok(result.routes[0].findings.includes("point_jump_gt_250m"));
   assert.ok(result.findings.some((finding) =>
     finding.type === "unresolved_catalog_reviews"
+  ));
+});
+
+test("standard facts cannot mix two different source route variants", () => {
+  const mixedSourceFacts = {
+    destination_id: "vaalserberg",
+    preferred_display_name: "Vaalserberg",
+    local_names: ["Vaalserberg"],
+    aliases: [],
+    standard_route: {
+      name: "Drielandenpunt loop",
+      aliases: [],
+      trailhead_name: "Bellevue flat parking area",
+      distance_m: 5_100,
+      distance_basis: "round_trip",
+      shape: "loop",
+      gain_m: 200,
+      activity: "hike",
+      access: "open year-round",
+    },
+    sources: [
+      {
+        publisher: "Visit Zuid-Limburg",
+        url: "https://example.com/official",
+        retrieved_at: "2026-08-01",
+        supports: [
+          "route_identity", "trailhead", "distance", "shape", "access",
+        ],
+        facts: {
+          route_name: "Drielandenpunt route",
+          trailhead_name: "Drielandenpunt",
+          distance_m: 5_100,
+          distance_basis: "round_trip",
+          shape: "loop",
+          access: "public route",
+        },
+      },
+      {
+        publisher: "AllTrails",
+        url: "https://example.org/alltrails",
+        retrieved_at: "2026-08-01",
+        supports: [
+          "route_identity", "trailhead", "distance", "shape", "gain",
+          "activity",
+        ],
+        facts: {
+          route_name: "Vaals–Drielandenpunt loop",
+          trailhead_name: "Bellevue flat parking area",
+          distance_m: 6_400,
+          distance_basis: "round_trip",
+          shape: "loop",
+          gain_m: 200,
+          activity: "hike",
+        },
+      },
+    ],
+  };
+  const result = compareRouteSourceFacts({
+    records: [
+      {
+        type: "identity",
+        severity: "INFO",
+        destination_id: "vaalserberg",
+        issues: [],
+        metrics: {
+          stored_name: "Vaalserberg",
+          search_name: "vaalserberg",
+          names: { english: "Vaalserberg", local: ["Vaalserberg"] },
+        },
+      },
+      {
+        type: "selection",
+        severity: "PASS",
+        destination_id: "vaalserberg",
+        item_id: "route",
+        issues: [],
+      },
+      {
+        type: "route",
+        severity: "PASS",
+        destination_id: "vaalserberg",
+        item_id: "route",
+        item_name: "Drielandenpunt loop",
+        issues: [],
+        metrics: {
+          status: "active",
+          one_way_m: 5_100,
+          gain_m: 200,
+          shape: "loop",
+          trailhead: "Bellevue flat parking area",
+        },
+      },
+    ],
+  }, {
+    destination_id: "vaalserberg",
+    stored_name: "Vaalserberg",
+    findings: [],
+    known_names: ["Vaalserberg"],
+  }, mixedSourceFacts);
+  assert.equal(result.verdict, "REVIEW");
+  assert.ok(result.findings.some((finding) =>
+    finding.type === "source_route_fact_conflicts" &&
+    finding.reviews.some((review) =>
+      review.type === "standard_route_combines_source_variants"
+    )
   ));
 });
