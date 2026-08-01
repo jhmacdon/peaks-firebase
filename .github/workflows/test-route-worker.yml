@@ -8,6 +8,7 @@ on:
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
       - "cloud-sql/migrate/**"
+      - "web/src/lib/actions/routes.ts"
       - ".github/workflows/test-route-worker.yml"
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
       - "cloud-sql/migrate/**"
+      - "web/src/lib/actions/routes.ts"
       - ".github/workflows/test-route-worker.yml"
 
 jobs:
@@ -29,7 +31,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: cloud-sql/migrate/package-lock.json
+          cache-dependency-path: |
+            cloud-sql/migrate/package-lock.json
+            web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -40,3 +44,13 @@ jobs:
           npm run build
           npm test
         working-directory: cloud-sql/migrate
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Check route activation
+        run: |
+          npx tsc --noEmit --pretty false
+          npm run lint -- --max-warnings=0
+        working-directory: web

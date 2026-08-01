@@ -21,7 +21,10 @@ import {
   statesForStage,
   verificationAction,
 } from "./standard-route-job-state";
-import { sourceCheckerArgs } from "./standard-route-source-check";
+import {
+  sourceCheckerArgs,
+  sourceCheckerRuntimePaths,
+} from "./standard-route-source-check";
 
 type JsonObject = Record<string, unknown>;
 const execFileAsync = promisify(execFile);
@@ -718,15 +721,16 @@ async function runSourceGeometryCheck(
   if (!script) {
     throw new Error(`No independent source checker for ${sourceKind}`);
   }
-  const executable = path.resolve(
-    "cloud-sql/migrate/node_modules/.bin/tsx"
+  const runtime = sourceCheckerRuntimePaths(
+    __dirname,
+    script
   );
   let stdout = "";
   try {
     const result = await execFileAsync(
-      executable,
+      runtime.executable,
       sourceCheckerArgs(
-        path.resolve(script),
+        runtime.script,
         routeId,
         replacementRouteId
       ),
