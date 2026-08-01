@@ -5,6 +5,9 @@ import { pathToFileURL } from "node:url";
 
 const SHAPES = new Set(["out_and_back", "loop", "point_to_point", "lollipop"]);
 const DISTANCE_BASES = new Set(["one_way", "round_trip"]);
+const COMPLETE_ROUTE_SUPPORT = [
+  "route_identity", "trailhead", "distance", "shape", "gain", "activity",
+];
 
 function option(argv, name) {
   const index = argv.indexOf(`--${name}`);
@@ -59,6 +62,210 @@ function expectedOneWayMeters(standardRoute) {
   throw new Error("point_to_point source distance cannot be round_trip");
 }
 
+function normalizeActivity(value) {
+  const normalized = normalizeName(value);
+  if (["hike", "hiking", "walk", "walking", "trek", "trekking"].includes(normalized)) {
+    return "hike";
+  }
+  return normalized;
+}
+
+function fullRouteMeters(route) {
+  if (route.distance_basis === "round_trip") return route.distance_m;
+  return route.shape === "out_and_back" ? route.distance_m * 2 : route.distance_m;
+}
+
+function sourceDistanceRatio(sourceFacts, standardRoute) {
+  if (sourceFacts.distance_basis === "one_way") {
+    return sourceFacts.distance_m / expectedOneWayMeters(standardRoute);
+  }
+  return sourceFacts.distance_m / fullRouteMeters(standardRoute);
+}
+
+function normalizedRouteNames(standardRoute) {
+  return new Set([
+    standardRoute.name,
+    ...(standardRoute.aliases ?? []),
+  ].map(normalizeName));
+}
+
+function normalizedTrailheadNames(standardRoute) {
+  return new Set([
+    standardRoute.trailhead_name,
+    ...(standardRoute.trailhead_aliases ?? []),
+  ].map(normalizeName));
+}
+
+function validateSupportedSourceFacts(source, index) {
+  const sourceFacts = source.facts;
+  if (!sourceFacts || typeof sourceFacts !== "object") {
+    throw new Error(`sources[${index}].facts is required`);
+  }
+  const supports = new Set(source.supports);
+  if (supports.has("route_identity")) {
+    assertString(sourceFacts.route_name, `sources[${index}].facts.route_name`);
+  }
+  if (supports.has("trailhead")) {
+    assertString(
+      sourceFacts.trailhead_name,
+      `sources[${index}].facts.trailhead_name`
+    );
+  }
+  if (supports.has("distance")) {
+    if (!Number.isFinite(sourceFacts.distance_m) || sourceFacts.distance_m <= 0) {
+      throw new Error(`sources[${index}].facts.distance_m must be positive`);
+    }
+    if (!DISTANCE_BASES.has(sourceFacts.distance_basis)) {
+      throw new Error(`sources[${index}].facts.distance_basis is invalid`);
+    }
+  }
+  if (supports.has("shape") && !SHAPES.has(sourceFacts.shape)) {
+    throw new Error(`sources[${index}].facts.shape is invalid`);
+  }
+  if (supports.has("gain") &&
+      (!Number.isFinite(sourceFacts.gain_m) || sourceFacts.gain_m < 0)) {
+    throw new Error(`sources[${index}].facts.gain_m must be nonnegative`);
+  }
+  if (supports.has("activity")) {
+    assertString(sourceFacts.activity, `sources[${index}].facts.activity`);
+  }
+  if (supports.has("access")) {
+    assertString(sourceFacts.access, `sources[${index}].facts.access`);
+  }
+  if (supports.has("distance") && supports.has("shape")) {
+    expectedOneWayMeters(sourceFacts);
+  }
+}
+
+function sourceRouteFactReviews(facts) {
+  const completeSources = facts.sources.filter((source) => {
+    const supports = new Set(source.supports);
+    return COMPLETE_ROUTE_SUPPORT.every((field) => supports.has(field));
+  });
+  if (completeSources.length === 0) {
+    return [{
+      type: "no_complete_route_source",
+      publishers: facts.sources.map((source) => source.publisher),
+    }];
+  }
+
+  const chosenDistance = expectedOneWayMeters(facts.standard_route);
+  const chosenGain = facts.standard_route.gain_m;
+  const routeNames = normalizedRouteNames(facts.standard_route);
+  const trailheadNames = normalizedTrailheadNames(facts.standard_route);
+  const chosenActivity = normalizeActivity(facts.standard_route.activity);
+  const chosenAccess = normalizeName(facts.standard_route.access);
+  const accessSources = facts.sources.filter((source) =>
+    source.supports.includes("access")
+  );
+  const matchingSources = completeSources.filter((source) => {
+    const sourceDistance = expectedOneWayMeters(source.facts);
+    const distanceRatio = sourceDistance / chosenDistance;
+    const gainDifference = Math.abs(source.facts.gain_m - chosenGain);
+    return distanceRatio >= 0.9 &&
+      distanceRatio <= 1.1 &&
+      source.facts.shape === facts.standard_route.shape &&
+      gainDifference <= Math.max(50, chosenGain * 0.15) &&
+      routeNames.has(normalizeName(source.facts.route_name)) &&
+      trailheadNames.has(normalizeName(source.facts.trailhead_name)) &&
+      normalizeActivity(source.facts.activity) === chosenActivity;
+  });
+  const reviews = [];
+  if (!accessSources.some((source) =>
+    normalizeName(source.facts.access) === chosenAccess
+  )) {
+    reviews.push({
+      type: "no_access_source_matches_standard",
+      chosen_access: facts.standard_route.access,
+      source_access: accessSources.map((source) => ({
+        publisher: source.publisher,
+        access: source.facts.access,
+      })),
+    });
+  }
+  if (matchingSources.length === 0) {
+    reviews.push({
+      type: "standard_route_combines_source_variants",
+      chosen: {
+        expected_one_way_m: Math.round(chosenDistance),
+        shape: facts.standard_route.shape,
+        gain_m: chosenGain,
+      },
+      source_variants: completeSources.map((source) => ({
+        publisher: source.publisher,
+        expected_one_way_m: Math.round(expectedOneWayMeters(source.facts)),
+        shape: source.facts.shape,
+        gain_m: source.facts.gain_m,
+      })),
+    });
+  }
+  const partialConflicts = [];
+  for (const source of facts.sources) {
+    const supports = new Set(source.supports);
+    const sourceFacts = source.facts;
+    const conflicts = [];
+    if (supports.has("route_identity") &&
+        !routeNames.has(normalizeName(sourceFacts.route_name))) {
+      conflicts.push("route_identity");
+    }
+    if (supports.has("trailhead") &&
+        !trailheadNames.has(normalizeName(sourceFacts.trailhead_name))) {
+      conflicts.push("trailhead");
+    }
+    if (supports.has("distance")) {
+      const ratio = sourceDistanceRatio(sourceFacts, facts.standard_route);
+      if (ratio < 0.8 || ratio > 1.2) conflicts.push("distance");
+    }
+    if (supports.has("shape") &&
+        sourceFacts.shape !== facts.standard_route.shape) {
+      conflicts.push("shape");
+    }
+    if (supports.has("gain") &&
+        Math.abs(sourceFacts.gain_m - chosenGain) >
+          Math.max(50, chosenGain * 0.2)) {
+      conflicts.push("gain");
+    }
+    if (supports.has("activity") &&
+        normalizeActivity(sourceFacts.activity) !== chosenActivity) {
+      conflicts.push("activity");
+    }
+    if (supports.has("access") &&
+        normalizeName(sourceFacts.access) !== chosenAccess) {
+      conflicts.push("access");
+    }
+    if (conflicts.length > 0) {
+      partialConflicts.push({
+        publisher: source.publisher,
+        conflicts,
+        facts: sourceFacts,
+      });
+    }
+  }
+  if (partialConflicts.length > 0) {
+    reviews.push({
+      type: "source_facts_conflict_with_standard",
+      sources: partialConflicts,
+    });
+  }
+  const sourceDistances = completeSources.map((source) =>
+    expectedOneWayMeters(source.facts)
+  );
+  const distanceSpread = Math.max(...sourceDistances) / Math.min(...sourceDistances);
+  const sourceShapes = new Set(completeSources.map((source) => source.facts.shape));
+  if (distanceSpread > 1.2 || sourceShapes.size > 1) {
+    reviews.push({
+      type: "complete_route_sources_disagree",
+      source_variants: completeSources.map((source) => ({
+        publisher: source.publisher,
+        expected_one_way_m: Math.round(expectedOneWayMeters(source.facts)),
+        shape: source.facts.shape,
+        gain_m: source.facts.gain_m,
+      })),
+    });
+  }
+  return reviews;
+}
+
 export function validateSourceFacts(facts) {
   assertString(facts.destination_id, "destination_id");
   assertString(facts.preferred_display_name, "preferred_display_name");
@@ -69,6 +276,9 @@ export function validateSourceFacts(facts) {
   assertString(route.name, "standard_route.name");
   if (route.aliases != null) assertStringArray(route.aliases, "standard_route.aliases");
   assertString(route.trailhead_name, "standard_route.trailhead_name");
+  if (route.trailhead_aliases != null) {
+    assertStringArray(route.trailhead_aliases, "standard_route.trailhead_aliases");
+  }
   assertString(route.activity, "standard_route.activity");
   assertString(route.access, "standard_route.access");
   if (!Number.isFinite(route.distance_m) || route.distance_m <= 0) {
@@ -100,6 +310,7 @@ export function validateSourceFacts(facts) {
     if (!Array.isArray(source.supports) || source.supports.length === 0) {
       throw new Error(`sources[${index}].supports must not be empty`);
     }
+    validateSupportedSourceFacts(source, index);
     publishers.add(normalizeName(source.publisher));
     for (const field of source.supports) supported.add(field);
   }
@@ -197,7 +408,6 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
       candidates: identityAudit.english_candidates,
     }));
   }
-
   if (evidenceGaps.length > 0) {
     findings.push(issue("incomplete_source_evidence", "REVIEW", {
       gaps: evidenceGaps,
@@ -229,6 +439,12 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
     };
   }
 
+  const sourceReviews = sourceRouteFactReviews(facts);
+  if (sourceReviews.length > 0) {
+    findings.push(issue("source_route_fact_conflicts", "REVIEW", {
+      reviews: sourceReviews,
+    }));
+  }
   const expectedMeters = expectedOneWayMeters(facts.standard_route);
 
   const requiredCatalogNames = [
@@ -283,8 +499,9 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
     if (!storedTrailhead) {
       routeFindings.push("missing_route_trailhead");
     } else if (
-        normalizeName(storedTrailhead) !==
-          normalizeName(facts.standard_route.trailhead_name)) {
+        !normalizedTrailheadNames(facts.standard_route).has(
+          normalizeName(storedTrailhead)
+        )) {
       routeFindings.push("trailhead_name_differs_from_standard");
     }
     const storedShape = record.metrics?.shape;
@@ -297,6 +514,9 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
     const gainRatio = storedGain != null && facts.standard_route.gain_m > 0
       ? storedGain / facts.standard_route.gain_m
       : null;
+    const gainDifference = storedGain == null
+      ? null
+      : Math.abs(storedGain - facts.standard_route.gain_m);
     if (storedGain == null) {
       routeFindings.push("missing_route_gain");
     }
@@ -304,6 +524,12 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
       if (gainRatio > 3 || gainRatio < 0.3) {
         routeFindings.push("gain_far_from_standard");
       } else if (gainRatio > 1.7 || gainRatio < 0.6) {
+        routeFindings.push("gain_differs_from_standard");
+      }
+    } else if (storedGain != null && facts.standard_route.gain_m === 0) {
+      if (storedGain > 100) {
+        routeFindings.push("gain_far_from_standard");
+      } else if (storedGain > 50) {
         routeFindings.push("gain_differs_from_standard");
       }
     }
@@ -344,6 +570,9 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
       one_way_m: distance,
       gain_m: storedGain,
       gain_ratio: gainRatio == null ? null : Math.round(gainRatio * 100) / 100,
+      gain_difference_m: gainDifference == null
+        ? null
+        : Math.round(gainDifference),
       expected_one_way_m: Math.round(expectedMeters),
       distance_ratio: ratio == null ? null : Math.round(ratio * 100) / 100,
       findings: routeFindings,
