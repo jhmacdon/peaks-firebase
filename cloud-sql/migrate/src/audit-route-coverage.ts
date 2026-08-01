@@ -1,5 +1,5 @@
 /**
- * Audit and expand named route coverage for every summit destination.
+ * Discover named route candidates near summit destinations.
  *
  * Sources:
  * - Explicitly named OSM hiking/foot route relations whose geometry comes
@@ -7,7 +7,8 @@
  * - Public Peaks recordings whose user-supplied name identifies a summit
  *   reached by that recording.
  *
- * Dry-run is the default. Pass --apply to save the verified routes.
+ * This is discovery only. A nearby named relation is not proof of a standard
+ * summit route. Publish candidates through the standard-route review pipeline.
  */
 
 import { createHash } from "node:crypto";
@@ -102,6 +103,12 @@ interface CoverageCounts {
 
 async function main(): Promise<void> {
   const options = parseCliOptions(process.argv.slice(2));
+  if (options.apply) {
+    throw new Error(
+      "--apply is retired: nearby named relations are discovery candidates, " +
+      "not reviewed summit routes; use the standard-route pipeline"
+    );
+  }
   await fs.mkdir(options.cacheDir, { recursive: true });
   await fs.mkdir(path.dirname(options.reportPath), { recursive: true });
 
@@ -270,7 +277,8 @@ async function main(): Promise<void> {
 
   await fs.writeFile(options.reportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(
-    `[route-audit] ${routes.length} verified named routes cover ${plannedDestinationIds.size} summits; ` +
+    `[route-audit] ${routes.length} named route candidates pass near ` +
+    `${plannedDestinationIds.size} summits; ` +
     `${after.covered}/${after.total} covered, ${after.unresolved} unresolved`
   );
   console.log(`[route-audit] report: ${options.reportPath}`);

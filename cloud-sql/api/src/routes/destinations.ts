@@ -243,6 +243,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
     text: `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
             d.activities, d.features, d.owner,
             d.country_code, d.state_code,
+            COALESCE(d.metadata->'names', '{}'::jsonb) AS names,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
@@ -311,6 +312,9 @@ export function mapDestinationDetailRow(row: any): any {
   row.averages = mergeAverages(row.averages, row.averages_offset);
   delete row.averages_offset;
   row.areas = Array.isArray(row.areas) ? row.areas : [];
+  row.names = row.names && typeof row.names === "object" && !Array.isArray(row.names)
+    ? row.names
+    : {};
 
   row.description_source_name = textOrNull(row.description_source_name);
   row.description_source_url = textOrNull(row.description_source_url);

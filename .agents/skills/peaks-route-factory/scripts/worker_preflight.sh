@@ -5,9 +5,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
 canonical_root="/Users/josiahm/projects/peaks/firebase"
 worker_root="/Users/josiahm/projects/peaks/.workers/firebase-route-factory"
+audit_worker_root="/Users/josiahm/projects/peaks/.workers/firebase-route-audit"
 
 case "$repo_root" in
-  "$canonical_root"|"$worker_root")
+  "$canonical_root"|"$worker_root"|"$audit_worker_root")
     ;;
   *)
     printf '%s\n' \

@@ -306,14 +306,19 @@ Peakbagger ascent counts are a targeted manual popularity fallback. Do not
 bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
 documented in the `peaks-ascent-backfill` skill.
 
-### Named route coverage
+### Named route candidate discovery
 
-Use the route auditor after the peak catalog has settled. It reviews every
-summit that lacks a named saved path. It accepts only explicit OSM
-`route=hiking|foot` relation names whose geometry comes within 250 m of the
-summit. Its second source is a public Peaks recording whose user-supplied name
-identifies a summit that the same recording reached. It never reads private
-recordings, derives a route name, or saves generic recording titles.
+Use the route discovery report after the peak catalog has settled. It finds
+explicit OSM `route=hiking|foot` relations whose geometry comes within 250 m of
+a summit. Its second source is a public Peaks recording whose user-supplied
+name identifies a summit that the same recording reached. It never reads
+private recordings or derives a route name.
+
+A nearby named relation is not a summit route. Long-distance trails often pass
+near many summits. This command is dry-run discovery only. It cannot write
+routes. Build and publish each useful candidate through the standard-route
+pipeline, which requires a real trailhead, source provenance, segments,
+independent review, and public verification.
 
 ```bash
 cd migrate
@@ -324,20 +329,12 @@ npm run audit:route-coverage -- \
   --cache-dir=/tmp/peaks-route-coverage/osm \
   --report=/tmp/peaks-route-coverage/dry-run.json
 
-# Apply the same verified source set.
-npm run audit:route-coverage -- --apply \
-  --concurrency=4 \
-  --cache-dir=/tmp/peaks-route-coverage/osm \
-  --report=/tmp/peaks-route-coverage/apply.json
-
-# A bounded smoke run is marked partial and cannot serve as full proof.
+# A bounded smoke run is marked partial.
 npm run audit:route-coverage -- --batch-limit=1
 ```
 
-OSM route and segment IDs are stable hashes of the relation and connected way
-chain. Re-runs update those source-owned rows and use `ON CONFLICT` for summit
-links. Reports count all covered and unresolved summits without exposing user
-IDs.
+Candidate IDs are stable hashes of the relation and connected way chain.
+Reports count covered and unresolved summits without exposing user IDs.
 
 ## Protected area imports
 

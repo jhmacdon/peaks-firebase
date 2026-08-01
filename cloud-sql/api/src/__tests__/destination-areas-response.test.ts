@@ -18,7 +18,7 @@ test("destination detail query includes linked areas without area boundaries", (
   assert.deepEqual(query.values, ["dest-1"]);
 });
 
-test("mapDestinationDetailRow merges averages and defaults areas to empty array", () => {
+test("mapDestinationDetailRow merges averages and defaults areas and names", () => {
   const row: any = {
     id: "dest-1",
     name: "Mount Rainier",
@@ -41,5 +41,6 @@ test("mapDestinationDetailRow merges averages and defaults areas to empty array"
   assert.deepEqual(mapped.averages.days, { sa: 1, su: 1 });
   assert.equal(mapped.averages.lastUpdated, "2026-06-02T00:00:00.000Z");
   assert.deepEqual(mapped.areas, []);
+  assert.deepEqual(mapped.names, {});
   assert.equal(Object.prototype.hasOwnProperty.call(mapped, "averages_offset"), false);
 });

@@ -436,8 +436,20 @@ async function applyChanges(
       ];
       return {
         id: deterministicDestinationId(reference.osmId),
-        name: reference.name,
-        search_name: normalizePeakName(reference.name),
+        name: selection.displayName,
+        search_name: [
+          selection.displayName,
+          ...selection.localNames,
+          ...selection.aliases,
+        ].join(" ").toLocaleLowerCase("en"),
+        names: {
+          display: selection.displayName,
+          english: selection.englishName,
+          local: selection.localNames,
+          aliases: selection.aliases,
+          osm_default: reference.localName ?? reference.name,
+          osm_english: reference.englishName,
+        },
         elevation: selection.elevationM,
         prominence: selection.prominenceM,
         lat: reference.lat,
@@ -476,7 +488,8 @@ async function applyChanges(
              id text, name text, search_name text, elevation double precision,
              prominence double precision, lat double precision, lng double precision,
              osm_id text, wikidata_id text, prominence_source text,
-             wikipedia_sitelinks integer, popularity_signals jsonb, selection_reasons jsonb
+             wikipedia_sitelinks integer, popularity_signals jsonb,
+             selection_reasons jsonb, names jsonb
            )
          ), prepared AS (
            SELECT incoming.*,
@@ -503,7 +516,8 @@ async function applyChanges(
              'prominence_source', prepared.prominence_source,
              'wikipedia_sitelinks', prepared.wikipedia_sitelinks,
              'popularity_signals', prepared.popularity_signals,
-             'selection_reasons', prepared.selection_reasons
+             'selection_reasons', prepared.selection_reasons,
+             'names', prepared.names
            )),
            now(), now()
          FROM prepared
@@ -622,7 +636,7 @@ async function runScope(
   const insertedSelections = selected.filter((selection) => insertedOsmIds.has(selection.match.reference.osmId));
   const additions: ExpansionCatalogPeak[] = insertedSelections.map((selection) => ({
     id: deterministicDestinationId(selection.match.reference.osmId),
-    name: selection.match.reference.name,
+    name: selection.displayName,
     lat: selection.match.reference.lat,
     lng: selection.match.reference.lng,
     osmId: selection.match.reference.osmId,
@@ -653,7 +667,9 @@ async function runScope(
     deferredByReason: deferredCounts(allSelections.filter((selection) => selection.decision === "defer")),
     additions: selected.map((selection) => ({
       osmId: selection.match.reference.osmId,
-      name: selection.match.reference.name,
+      name: selection.displayName,
+      localNames: selection.localNames,
+      aliases: selection.aliases,
       elevationM: selection.elevationM,
       prominenceM: selection.prominenceM,
       prominenceSource: selection.prominenceSource,
