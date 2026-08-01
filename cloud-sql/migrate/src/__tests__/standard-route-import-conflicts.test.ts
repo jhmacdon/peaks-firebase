@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -7,6 +8,12 @@ import {
   findConflictingLiveRoute,
   lockAndFindConflictingLiveRoute,
 } from "../standard-route-import-conflicts";
+
+const MIGRATE_ROOT = join(__dirname, "../..");
+const IMPORTER_PATH = join(
+  MIGRATE_ROOT,
+  "../../.claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts"
+);
 
 const routes = [
   {
@@ -105,13 +112,7 @@ test("the transaction helper locks live routes before checking an upgrade", asyn
 });
 
 test("active upgrade rechecks conflicts after its destination lock", () => {
-  const importer = readFileSync(
-    join(
-      __dirname,
-      "../../../../.claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts"
-    ),
-    "utf8"
-  );
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
   const start = importer.indexOf("async function upgradeActiveRoute(");
   const end = importer.indexOf("\nasync function main()", start);
   const upgrade = importer.slice(start, end);
@@ -133,4 +134,19 @@ test("active upgrade rechecks conflicts after its destination lock", () => {
     routeUpdate > conflictLock,
     "upgrade must recheck conflicts before changing the active route"
   );
+});
+
+test("the worker runtime can load the importer before claiming a job", () => {
+  const result = spawnSync(
+    join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
+    [IMPORTER_PATH, "--help"],
+    {
+      cwd: MIGRATE_ROOT,
+      encoding: "utf8",
+      timeout: 10_000,
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage:/);
 });
