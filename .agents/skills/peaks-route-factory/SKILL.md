@@ -22,7 +22,9 @@ chat history is not.
    apply a migration, or seed the queue.
 4. Use the wrapper for every queue command. It loads the database password
    without printing it and refuses a dirty, stale, unknown, or uninstalled
-   checkout before it checks the local proxy:
+   checkout before it checks the local proxy. Run it from the repo root and
+   always spell the wrapper path exactly as shown; do not add
+   `cloud-sql/migrate/` before `.agents`:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh stats
