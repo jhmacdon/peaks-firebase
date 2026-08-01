@@ -39,6 +39,9 @@ from an empty claim.
   and build one candidate.
 - `import`: restore the saved candidate, cache its terrain bounds, run the
   importer first without and then with `--apply`, and save the pending route ID.
+  If the job has `replacement_route_id`, pass it to both importer runs.
+  Distinct named routes may coexist on one peak. Never treat another route
+  variant as the replacement or broaden the queue's replacement binding.
 - `review`: spawn the project `peaks_route_reviewer` agent with only the
   source manifest, destination, trailhead, pending route ID, and fresh source
   check. Do not give it the researcher's verdict.

@@ -20,7 +20,8 @@ The scheduled worker must never perform these steps. An operator does them
 after the code reaches the canonical `firebase` checkout:
 
 1. Apply `cloud-sql/migrations/20260731_route_provenance_elevation.sql`, then
-   `cloud-sql/migrations/20260731_standard_route_backfill_jobs.sql`.
+   `cloud-sql/migrations/20260731_standard_route_backfill_jobs.sql`, then
+   `cloud-sql/migrations/20260731_standard_route_replacements.sql`.
 2. Start the Cloud SQL Auth Proxy and set `DB_HOST`, `DB_PORT`, `DB_NAME`,
    `DB_USER`, and `DB_PASS`.
 3. Inspect and seed the queue:
@@ -65,6 +66,9 @@ Rights, access, and human blocks require an explicit move back to `queued`.
 The seed classifies an active route as `published` only when it already has
 valid provenance and matching segments. An older active route enters research
 for an independent replacement. It stays active for users during that work.
+The queue carries its ID as `replacement_route_id`. Import the new route as
+pending beside it. Publication changes the old route to `superseded` and the
+reviewed route to `active` in one transaction.
 
 ## Source rights
 

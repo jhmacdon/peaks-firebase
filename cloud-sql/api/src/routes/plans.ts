@@ -297,7 +297,8 @@ export function buildPlanRoutesQuery(id: string): { text: string; values: unknow
             pr.ordinal
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
-     WHERE pr.plan_id = $1 AND r.status = 'active'
+     WHERE pr.plan_id = $1
+       AND r.status IN ('active', 'superseded')
      ORDER BY pr.ordinal`,
     values: [id],
   };

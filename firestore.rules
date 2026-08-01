@@ -38,6 +38,11 @@ service cloud.firestore {
         allow read, create, update, delete: if request.auth != null
           && request.auth.uid == uid;
       }
+
+      match /savedPlaces/{placeId} {
+        allow read, create, update, delete: if request.auth != null
+          && request.auth.uid == uid;
+      }
     }
     match /plans/{document=**} {
     	allow read: if true;

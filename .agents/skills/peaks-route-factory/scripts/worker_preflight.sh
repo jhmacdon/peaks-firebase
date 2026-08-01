@@ -58,4 +58,12 @@ if ! npm --prefix "$migrate_root" ls --all --silent >/dev/null 2>&1; then
   exit 1
 fi
 
+importer="$repo_root/.claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts"
+if ! "$migrate_root/node_modules/.bin/tsx" "$importer" --help >/dev/null 2>&1; then
+  printf '%s\n' \
+    "setup_required: route importer runtime smoke check failed" \
+    >&2
+  exit 1
+fi
+
 printf '%s\n' "$repo_root"
