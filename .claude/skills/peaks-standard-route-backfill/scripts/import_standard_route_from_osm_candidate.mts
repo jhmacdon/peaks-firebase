@@ -8,6 +8,7 @@ import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
 import {
   findConflictingLiveRoute,
+  lockAndFindConflictingLiveRoute,
 } from "../../../../cloud-sql/migrate/src/standard-route-import-conflicts";
 
 const db =
@@ -1448,22 +1449,9 @@ async function createPendingRoute(
       ),
     ];
 
-    const liveRoutes = await client.query<{
-      id: string;
-      name: string;
-      status: string;
-    }>(
-      `SELECT r.id, r.name, r.status
-       FROM route_destinations rd
-       JOIN routes r ON r.id = rd.route_id
-       WHERE rd.destination_id = $1
-         AND r.owner = 'peaks'
-         AND r.status IN ('active', 'pending')
-       FOR UPDATE OF r`,
-      [args.destinationId]
-    );
-    const conflict = findConflictingLiveRoute(
-      liveRoutes.rows,
+    const conflict = await lockAndFindConflictingLiveRoute(
+      client,
+      args.destinationId,
       args.name,
       [...args.replacePendingRouteIds, args.replaceActiveRouteId]
     );
@@ -1589,6 +1577,17 @@ async function upgradeActiveRoute(
     );
     if (route.rows.length !== 1) {
       throw new Error(`Active upgrade route changed during import: ${routeId}`);
+    }
+    const conflict = await lockAndFindConflictingLiveRoute(
+      client,
+      args.destinationId,
+      args.name,
+      [routeId]
+    );
+    if (conflict) {
+      throw new Error(
+        `A conflicting route appeared during active upgrade: ${conflict.id}`
+      );
     }
     const oldSegments = await client.query<{ segment_id: string }>(
       `SELECT segment_id

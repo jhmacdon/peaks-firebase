@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
-import { findConflictingLiveRoute } from "../standard-route-import-conflicts";
+import type { PoolClient } from "pg";
+import {
+  findConflictingLiveRoute,
+  lockAndFindConflictingLiveRoute,
+} from "../standard-route-import-conflicts";
 
 const routes = [
   {
@@ -62,5 +68,69 @@ test("explicit replacement ids and superseded routes do not conflict", () => {
       ["old-route"]
     ),
     null
+  );
+});
+
+test("the transaction helper locks live routes before checking an upgrade", async () => {
+  const queries: Array<{ text: string; values: unknown[] | undefined }> = [];
+  const client = {
+    async query(text: string, values?: unknown[]) {
+      queries.push({ text, values });
+      return {
+        rows: [
+          {
+            id: "other-route",
+            name: "Peak via Standard Trail",
+            status: "active",
+          },
+        ],
+      };
+    },
+  } as unknown as PoolClient;
+
+  const conflict = await lockAndFindConflictingLiveRoute(
+    client,
+    "peak-id",
+    "Peak via Standard Trail",
+    ["upgraded-route"]
+  );
+
+  assert.equal(conflict?.id, "other-route");
+  assert.deepEqual(queries[0]?.values, ["peak-id"]);
+  assert.match(queries[0]?.text ?? "", /FOR UPDATE OF r/);
+  assert.match(
+    queries[0]?.text ?? "",
+    /r\.status IN \('active', 'pending'\)/
+  );
+});
+
+test("active upgrade rechecks conflicts after its destination lock", () => {
+  const importer = readFileSync(
+    join(
+      __dirname,
+      "../../../../.claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts"
+    ),
+    "utf8"
+  );
+  const start = importer.indexOf("async function upgradeActiveRoute(");
+  const end = importer.indexOf("\nasync function main()", start);
+  const upgrade = importer.slice(start, end);
+
+  const destinationLock = upgrade.indexOf(
+    "SELECT id FROM destinations WHERE id = ANY($1::text[]) FOR UPDATE"
+  );
+  const conflictLock = upgrade.indexOf(
+    "await lockAndFindConflictingLiveRoute("
+  );
+  const routeUpdate = upgrade.indexOf("`UPDATE routes");
+
+  assert.ok(destinationLock >= 0, "upgrade must lock the destination");
+  assert.ok(
+    conflictLock > destinationLock,
+    "upgrade must recheck live conflicts after the destination lock"
+  );
+  assert.ok(
+    routeUpdate > conflictLock,
+    "upgrade must recheck conflicts before changing the active route"
   );
 });
