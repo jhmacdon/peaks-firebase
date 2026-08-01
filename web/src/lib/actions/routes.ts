@@ -297,10 +297,32 @@ export async function updateRoute(
  * Accept a pending route — sets status to 'active'.
  */
 export async function acceptRoute(id: string): Promise<void> {
-  await db.query(
-    `UPDATE routes SET status = 'active' WHERE id = $1 AND status = 'pending'`,
-    [id]
-  );
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    await lockRouteActivationDestinations(client, id, null);
+    const pending = await client.query(
+      `SELECT id
+       FROM routes
+       WHERE id = $1 AND status = 'pending'
+       FOR UPDATE`,
+      [id]
+    );
+    if (pending.rows.length !== 1) {
+      throw new Error("Pending route changed before activation");
+    }
+    await assertNoConflictingLiveRoute(client, id, null);
+    await client.query(
+      `UPDATE routes SET status = 'active' WHERE id = $1`,
+      [id]
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -455,6 +477,66 @@ async function lockRouteFactoryActivation(
   }
 }
 
+async function lockRouteActivationDestinations(
+  client: PoolClient,
+  id: string,
+  requiredDestinationId: string | null
+): Promise<void> {
+  const destinations = await client.query<{ id: string }>(
+    `SELECT d.id
+     FROM route_destinations rd
+     JOIN destinations d ON d.id = rd.destination_id
+     WHERE rd.route_id = $1
+       AND 'summit'::destination_feature = ANY(d.features)
+     ORDER BY d.id
+     FOR UPDATE OF d`,
+    [id]
+  );
+  if (
+    requiredDestinationId &&
+    !destinations.rows.some(
+      (destination) => destination.id === requiredDestinationId
+    )
+  ) {
+    throw new Error("Pending route is no longer linked to the approved summit");
+  }
+}
+
+async function assertNoConflictingLiveRoute(
+  client: PoolClient,
+  id: string,
+  replacementRouteId: string | null
+): Promise<void> {
+  const conflict = await client.query<{ id: string }>(
+    `SELECT live_route.id
+     FROM routes pending_route
+     JOIN route_destinations pending_rd
+       ON pending_rd.route_id = pending_route.id
+     JOIN destinations destination
+       ON destination.id = pending_rd.destination_id
+     JOIN route_destinations live_rd
+       ON live_rd.destination_id = destination.id
+     JOIN routes live_route
+       ON live_route.id = live_rd.route_id
+     WHERE pending_route.id = $1
+       AND 'summit'::destination_feature = ANY(destination.features)
+       AND live_route.id <> pending_route.id
+       AND ($2::text IS NULL OR live_route.id <> $2)
+       AND live_route.owner = 'peaks'
+       AND live_route.status IN ('active', 'pending')
+       AND lower(live_route.name) = lower(pending_route.name)
+     ORDER BY live_route.id
+     LIMIT 1
+     FOR UPDATE OF live_route`,
+    [id, replacementRouteId]
+  );
+  if (conflict.rows[0]) {
+    throw new Error(
+      `A conflicting live route appeared before activation: ${conflict.rows[0].id}`
+    );
+  }
+}
+
 /**
  * Accept a pending route with segment deduplication.
  * Re-analyzes segments server-side (don't rely on client-serialized decomposition
@@ -491,18 +573,17 @@ export async function acceptRouteWithSegments(
   );
 
   if (!hasExistingOrSplit) {
-    if (!factoryActivation) {
-      await db.query(
-        `UPDATE routes SET status = 'active'
-         WHERE id = $1 AND status = 'pending'`,
-        [id]
-      );
-      return;
-    }
     const client = await db.connect();
     try {
-      await client.query("BEGIN");
-      await lockRouteFactoryActivation(client, id, factoryActivation);
+      await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+      if (factoryActivation) {
+        await lockRouteFactoryActivation(client, id, factoryActivation);
+      }
+      await lockRouteActivationDestinations(
+        client,
+        id,
+        replacementDestinationId
+      );
       const pending = await client.query(
         `SELECT id FROM routes
          WHERE id = $1 AND owner = 'peaks' AND status = 'pending'
@@ -528,6 +609,11 @@ export async function acceptRouteWithSegments(
           throw new Error("Route replacement changed before activation");
         }
       }
+      await assertNoConflictingLiveRoute(
+        client,
+        id,
+        replacementRouteId
+      );
       if (replacementRouteId) {
         await client.query(
           `UPDATE routes SET status = 'superseded' WHERE id = $1`,
@@ -550,14 +636,22 @@ export async function acceptRouteWithSegments(
 
   const client = await db.connect();
   try {
-    await client.query("BEGIN");
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
     if (factoryActivation) {
       await lockRouteFactoryActivation(client, id, factoryActivation);
     }
+    await lockRouteActivationDestinations(
+      client,
+      id,
+      replacementDestinationId
+    );
 
     // Get existing route data
     const routeResult = await client.query(
-      `SELECT name, shape, completion, provenance FROM routes WHERE id = $1 AND status = 'pending'`,
+      `SELECT name, shape, completion, provenance
+       FROM routes
+       WHERE id = $1 AND owner = 'peaks' AND status = 'pending'
+       FOR UPDATE`,
       [id]
     );
     if (routeResult.rows.length === 0) {
@@ -579,6 +673,11 @@ export async function acceptRouteWithSegments(
         throw new Error("Route replacement changed before activation");
       }
     }
+    await assertNoConflictingLiveRoute(
+      client,
+      id,
+      replacementRouteId
+    );
     const routeProvenance = routeResult.rows[0].provenance
       ? JSON.stringify(routeResult.rows[0].provenance)
       : null;

@@ -38,6 +38,7 @@ type RouteRow = {
   provenance_valid: boolean;
   is_simple: boolean;
   active_standard_exists: boolean;
+  replacement_route_valid: boolean;
   linked_destinations: Array<{
     id: string;
     ordinal: number;
@@ -51,7 +52,8 @@ type RouteRow = {
 
 function usage(): never {
   console.log(
-    "Usage: check_pending_usgs_routes.mts --route-id ID [--format summary|json]"
+    "Usage: check_pending_usgs_routes.mts --route-id ID " +
+      "[--replace-active-route ID] [--format summary|json]"
   );
   process.exit(0);
 }
@@ -140,7 +142,10 @@ function percentile(values: number[], fraction: number): number {
   ];
 }
 
-async function loadRoute(routeId: string): Promise<RouteRow> {
+async function loadRoute(
+  routeId: string,
+  replaceActiveRouteId: string
+): Promise<RouteRow> {
   const result = await db.query<RouteRow>(
     `SELECT r.id, r.name, r.owner, r.status, r.shape, r.provenance,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
@@ -158,7 +163,33 @@ async function loadRoute(routeId: string): Promise<RouteRow> {
                     ANY(target_destination.features)
                 AND active_route.owner = 'peaks'
                 AND active_route.status = 'active'
+                AND (
+                  $2 = ''
+                  OR (
+                    active_route.id <> $2
+                    AND lower(active_route.name) = lower(r.name)
+                  )
+                )
             ) AS active_standard_exists,
+            CASE
+              WHEN $2 = '' THEN true
+              ELSE EXISTS (
+                SELECT 1
+                FROM route_destinations target_rd
+                JOIN destinations target_destination
+                  ON target_destination.id = target_rd.destination_id
+                JOIN route_destinations replacement_rd
+                  ON replacement_rd.destination_id = target_rd.destination_id
+                JOIN routes replacement_route
+                  ON replacement_route.id = replacement_rd.route_id
+                WHERE target_rd.route_id = r.id
+                  AND 'summit'::destination_feature =
+                      ANY(target_destination.features)
+                  AND replacement_route.id = $2
+                  AND replacement_route.owner = 'peaks'
+                  AND replacement_route.status = 'active'
+              )
+            END AS replacement_route_valid,
             (
               SELECT json_agg(
                 json_build_object(
@@ -188,7 +219,7 @@ async function loadRoute(routeId: string): Promise<RouteRow> {
             ) AS segment_provenance_matches
      FROM routes r
      WHERE r.id = $1`,
-    [routeId]
+    [routeId, replaceActiveRouteId]
   );
   if (!result.rows[0]) throw new Error(`Route not found: ${routeId}`);
   result.rows[0].linked_destinations = Array.isArray(
@@ -286,6 +317,7 @@ async function fetchSource(sourceUrl: string): Promise<{
 const argv = process.argv.slice(2);
 if (argv.includes("--help") || argv.includes("-h")) usage();
 const routeId = valueAfter(argv, "--route-id");
+const replaceActiveRouteId = valueAfter(argv, "--replace-active-route");
 const format = valueAfter(argv, "--format") || "summary";
 if (!/^[A-Za-z0-9_-]+$/.test(routeId)) {
   throw new Error("--route-id is required");
@@ -293,9 +325,15 @@ if (!/^[A-Za-z0-9_-]+$/.test(routeId)) {
 if (format !== "summary" && format !== "json") {
   throw new Error("--format must be summary or json");
 }
+if (
+  replaceActiveRouteId &&
+  !/^[A-Za-z0-9_-]+$/.test(replaceActiveRouteId)
+) {
+  throw new Error("--replace-active-route must be a valid route id");
+}
 
 try {
-  const route = await loadRoute(routeId);
+  const route = await loadRoute(routeId, replaceActiveRouteId);
   const errors: string[] = [];
   if (route.owner !== "peaks") errors.push("route owner is not peaks");
   if (route.status !== "pending") errors.push("route status is not pending");
@@ -304,6 +342,9 @@ try {
   }
   if (route.active_standard_exists) {
     errors.push("an active Peaks route already covers the summit");
+  }
+  if (!route.replacement_route_valid) {
+    errors.push("named active replacement route is not eligible");
   }
   if (!route.is_simple) errors.push("stored route geometry is not simple");
   if (route.segment_count < 1 || !route.segment_provenance_matches) {

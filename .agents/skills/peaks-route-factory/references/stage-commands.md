@@ -164,6 +164,13 @@ For a USGS candidate, use:
   > /private/tmp/peaks-route-worker/<destination-id>-source-check.json
 ```
 
+When the job has `replacement_route_id`, add
+`--replace-active-route <replacement-route-id>` to the matching checker. The
+checker validates that exact active route, ignores it as the planned legacy
+replacement, and still rejects another live route with the same name. The
+queue repeats this check from its durable replacement binding before it
+accepts `approved`.
+
 Spawn `peaks_route_reviewer` with the pending route ID, candidate result,
 identity and access URLs, rendered-map note, and checker JSON. Save its output
 using the review schema at
@@ -181,6 +188,11 @@ Use `needs_revision` with that result when any gate fails.
 A checker FAIL exits with status 2 after writing its JSON. That is a review
 result, not a reason to rerun the checker.
 
+Wait no more than five minutes for the reviewer. If it has not returned,
+heartbeat once, send one short completion prompt, and wait no more than two
+more minutes. Then close the reviewer and release the lease with a retry; do
+not hold a route job through repeated review waits.
+
 For a fixable failed review:
 
 ```bash
@@ -190,6 +202,11 @@ For a fixable failed review:
   --result-file /private/tmp/peaks-route-worker/<destination-id>-review.json \
   --apply
 ```
+
+After a confirmed checker or reviewer-tool fix, a supervisor may return an
+unchanged pending route from `needs_revision` to `pending_review` with the
+human-only `requeue` command. It validates that the saved route is still
+Peaks-owned and pending. Luna never runs `requeue`.
 
 For unclear reuse rights or current access, use `waiting_rights` or
 `waiting_access` instead and include both `--blocker-code <short-code>` and

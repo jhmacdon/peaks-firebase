@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   canTransition,
   canonicalJson,
+  humanRequeueTargetState,
   stageForState,
   statesForStage,
   verificationAction,
@@ -45,6 +46,15 @@ test("blocked jobs are never part of the automatic next claim", () => {
   assert.equal(nextStates.has("waiting_rights"), false);
   assert.equal(nextStates.has("waiting_access"), false);
   assert.equal(nextStates.has("needs_human"), false);
+});
+
+test("a human can retry an unchanged pending route after a tool fix", () => {
+  assert.equal(
+    humanRequeueTargetState("needs_revision"),
+    "pending_review"
+  );
+  assert.equal(humanRequeueTargetState("needs_human"), "queued");
+  assert.equal(humanRequeueTargetState("verified"), null);
 });
 
 test("candidate checksums survive JSONB key reordering", () => {
