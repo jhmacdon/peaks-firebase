@@ -25,6 +25,7 @@ import {
   sourceCheckerArgs,
   sourceCheckerRuntimePaths,
 } from "./standard-route-source-check";
+import { resolveRouteArtifactPath } from "./standard-route-paths";
 
 type JsonObject = Record<string, unknown>;
 const execFileAsync = promisify(execFile);
@@ -822,7 +823,9 @@ async function transition(argv: string[]): Promise<void> {
   }
   const to = toValue;
   const artifactInput = flagValue(argv, "--artifact-path");
-  const artifactPath = artifactInput ? path.resolve(artifactInput) : null;
+  const artifactPath = artifactInput
+    ? resolveRouteArtifactPath(__dirname, artifactInput)
+    : null;
   const routeId = flagValue(argv, "--route-id");
   if (routeId && !/^[A-Za-z0-9_-]+$/.test(routeId)) {
     throw new Error("--route-id contains unsupported characters");

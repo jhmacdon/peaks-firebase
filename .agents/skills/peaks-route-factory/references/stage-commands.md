@@ -1,7 +1,9 @@
 # Stage commands
 
 Run every command from the firebase repo root. Replace angle-bracket values
-only with fields from the claimed job or saved result.
+only with fields from the claimed job or saved result. Queue commands always
+start with `.agents/skills/peaks-route-factory/scripts/route_jobs.sh`; never
+prefix that path with `cloud-sql/migrate/`.
 
 ## Common
 
@@ -72,10 +74,15 @@ Write the compact candidate JSON from the candidate result schema to
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to candidate_ready \
-  --artifact-path route-candidates/luna/<destination-id>.geojson \
+  --artifact-path cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
   --result-file /private/tmp/peaks-route-worker/<destination-id>-candidate.json \
   --apply
 ```
+
+The queue normalizes that repo-root artifact path inside the migration package.
+The shorter `route-candidates/luna/<destination-id>.geojson` form is also
+accepted, but use the repo-root form above so the builder, audit, and transition
+all receive the same path.
 
 ## Import
 
