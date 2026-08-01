@@ -1,4 +1,4 @@
 interface:
   display_name: "Peaks Route Catalog Audit"
-  short_description: "Audit known routes for catalog and geometry errors"
-  default_prompt: "Use $peaks-route-catalog-audit to check these Peaks routes and report any geometry, endpoint, source, or route-identity problems."
+  short_description: "Audit one peak route, name, and outside facts"
+  default_prompt: "Use $peaks-route-catalog-audit to audit one queued peak against stored checks and two public sources."

@@ -400,8 +400,10 @@ export function parseReferencePeaks(
   const bareFeetThreshold = stateCode && stateCode !== "AK" ? 5_000 : null;
   for (const element of data.elements) {
     const tags = element.tags ?? {};
-    const name = tags.name?.trim();
-    if (!name || element.lat == null || element.lon == null) continue;
+    const localName = tags.name?.trim();
+    const englishName = tags["name:en"]?.trim() || null;
+    const name = englishName || localName;
+    if (!name || !localName || element.lat == null || element.lon == null) continue;
     if (bbox && (
       element.lon < bbox.minLng || element.lon > bbox.maxLng ||
       element.lat < bbox.minLat || element.lat > bbox.maxLat
@@ -412,6 +414,8 @@ export function parseReferencePeaks(
     peaks.push({
       osmId: String(element.id),
       name,
+      localName,
+      englishName,
       lat: element.lat,
       lng: element.lon,
       elevationM,

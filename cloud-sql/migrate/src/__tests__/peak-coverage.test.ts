@@ -101,6 +101,7 @@ test("parses named Overpass nodes and honors ele:ft", () => {
         lon: -120.799365,
         tags: {
           name: "Dirtyface Mountain-East",
+          "name:en": "Dirtyface Mountain East",
           natural: "peak",
           ele: "9999",
           "ele:ft": "5989",
@@ -113,6 +114,9 @@ test("parses named Overpass nodes and honors ele:ft", () => {
 
   assert.equal(peaks.length, 1);
   assert.equal(peaks[0].osmId, "9196640751");
+  assert.equal(peaks[0].name, "Dirtyface Mountain East");
+  assert.equal(peaks[0].localName, "Dirtyface Mountain-East");
+  assert.equal(peaks[0].englishName, "Dirtyface Mountain East");
   assert.ok(Math.abs((peaks[0].elevationM ?? 0) - 1825.45) < 0.1);
   assert.equal(peaks[0].wikidataId, "Q123");
 

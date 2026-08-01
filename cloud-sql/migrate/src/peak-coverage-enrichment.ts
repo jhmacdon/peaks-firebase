@@ -30,6 +30,7 @@ interface WikidataEntity {
   missing?: string;
   claims?: Record<string, WikidataClaim[]>;
   sitelinks?: Record<string, unknown>;
+  labels?: Record<string, { language?: string; value?: string }>;
 }
 
 interface WikidataResponse {
@@ -41,11 +42,16 @@ export interface WikidataPeakFacts {
   prominenceM: number | null;
   elevationM: number | null;
   wikipediaSitelinks: number;
+  englishName?: string | null;
 }
 
 export interface PeakSelection {
   match: PeakMatch;
   decision: "add" | "defer";
+  displayName: string;
+  englishName: string | null;
+  localNames: string[];
+  aliases: string[];
   elevationM: number | null;
   prominenceM: number | null;
   prominenceSource: "osm" | "wikidata" | null;
@@ -91,6 +97,7 @@ export function parseWikidataEntity(
     prominenceM: preferredQuantity(entity?.claims?.P2660),
     elevationM: preferredQuantity(entity?.claims?.P2044),
     wikipediaSitelinks,
+    englishName: entity?.labels?.en?.value?.trim() || null,
   };
 }
 
@@ -105,7 +112,8 @@ export async function fetchWikidataPeakFacts(
     const url = new URL(WIKIDATA_API);
     url.searchParams.set("action", "wbgetentities");
     url.searchParams.set("ids", ids.join("|"));
-    url.searchParams.set("props", "claims|sitelinks");
+    url.searchParams.set("props", "claims|sitelinks|labels");
+    url.searchParams.set("languages", "en");
     url.searchParams.set("format", "json");
     url.searchParams.set("origin", "*");
 
@@ -185,9 +193,28 @@ export function selectPeakCandidate(
 
   const prominent = prominenceM != null && prominenceM > minimumProminenceM;
   if (!prominent && popularitySignals.length === 0) reasons.push("no_prominence_or_popularity_signal");
+  const englishName =
+    wikidata?.englishName?.trim() ||
+    match.reference.englishName?.trim() ||
+    null;
+  const displayName = englishName || match.reference.name;
+  const localNames = [...new Set([
+    match.reference.localName?.trim(),
+  ].filter((name): name is string => Boolean(name)))];
+  const aliases = [...new Set([
+    match.reference.englishName?.trim(),
+    match.reference.name.trim(),
+  ].filter((name): name is string =>
+    typeof name === "string" && Boolean(name) &&
+    name !== displayName && !localNames.includes(name)
+  ))];
   return {
     match,
     decision: reasons.length === 0 ? "add" : "defer",
+    displayName,
+    englishName,
+    localNames,
+    aliases,
     elevationM,
     prominenceM,
     prominenceSource,

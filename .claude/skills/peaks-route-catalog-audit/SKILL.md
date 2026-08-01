@@ -1,78 +1,119 @@
 ---
 name: peaks-route-catalog-audit
-description: Audit Peaks-owned summit routes in Cloud SQL for bad geometry, missing or reversed trailhead and summit links, route/segment drift, missing source records, duplicate or weaving route lines, unexplained start-point spread, and a wrong default route choice. Use when maintaining known Peaks routes, reviewing AI-added routes, investigating routes that cross or start far apart, checking one peak such as Mount Elbert, or running a catalog-wide route quality pass.
+description: Audit Peaks-owned summit routes one destination at a time for wrong route identity, implausible distance or gain, bad default-route choice, missing trailheads, route/segment drift, source or rights gaps, duplicate or weaving lines, and wrong or incomplete multilingual peak names. Use when reviewing AI-added or migrated routes, investigating a peak such as Daedunsan or Mount Elbert, maintaining the route catalog, or running the durable Luna route-audit queue.
 ---
 
 # Peaks Route Catalog Audit
 
-Use for `/Users/josiahm/projects/peaks/firebase`. Keep every audit read-only.
+Audit one destination per run. Keep route and destination data read-only. Write
+only the durable audit job row and temporary evidence files.
 
-## Audit
+## Start
 
-1. Read `cloud-sql/api/src/routes/lists.ts` to confirm the current default-route
-   rule. Do not rely on the rule quoted here if the code changed.
-2. Start or reuse the Cloud SQL Auth Proxy on `127.0.0.1:5432`.
-3. Run the bundled checker for the smallest useful scope:
+1. Read [references/worker-contract.md](references/worker-contract.md) and
+   [references/audit-rules.md](references/audit-rules.md).
+2. Choose one mode:
+   - For the recurring worker, work from the clean audit checkout at
+     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit`.
+   - For a one-off destination that the user names or identifies, use the
+     current checkout and audit that destination without claiming or changing
+     an audit job. Record the starting git status and leave it unchanged.
+3. In recurring mode, run stats, then claim one job:
+
+```bash
+.claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh stats
+.claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh \
+  claim --worker-id luna-route-audit-01 --apply
+```
+
+If setup fails, do not claim. If no job is returned, inspect stats; do not infer
+completion from an empty claim.
+
+In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
+not exist yet, and its checkout checks do not apply to a direct read-only
+audit.
+
+## Check Stored Data
+
+Create a temporary directory with `mktemp -d`. Run the catalog checker for the
+claimed destination and keep the full JSON in that directory:
 
 ```bash
 bash .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes.sh \
-  --destination-name "Mount Elbert"
+  --destination-id DESTINATION_ID --status catalog --format json \
+  > AUDIT_DIR/catalog.json
+
+node .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity.mjs \
+  --catalog AUDIT_DIR/catalog.json --output AUDIT_DIR/identity.json
 ```
 
-Use `--destination-id <id>`, `--route-id <id>`, or `--all --limit <n>` when
-needed. Add `--status all` to include pending routes and `--format json` for a
-machine-readable handoff.
+Read compact fields with `jq`; never paste path coordinates or full source
+pages into chat. Every `ERROR` blocks PASS. Research every `WARN` and `REVIEW`.
+Render route pairs behind crossing, overlap, duplicate, or start-spread
+findings.
 
-The script checks structure and geometry. Read
-[references/audit-rules.md](references/audit-rules.md) before judging its
-findings or changing a route.
+## Check Outside Facts
 
-## Judge the Result
+Renew the lease before browser work. Find the accepted normal ascent, not just a
+route that touches the summit.
 
-Treat script output as evidence, not a repair order.
+- Use a current park, land-manager, tourism-board, or trail authority source
+  when one exists.
+- Use a second independent route source such as AllTrails, Peakbagger,
+  SummitPost, a national hiking body, or a strong local mountaineering source.
+- Confirm route name, trailhead, distance basis, shape, gain, activity or
+  technical class, access, season limits, and whether it is the normal ascent.
+- AllTrails round-trip distance is not stored one-way distance. Record the
+  basis and shape before comparing.
+- Never sign in, evade a block, or copy private GPX points. This audit compares
+  facts and independently sourced stored geometry.
 
-- Block activation or publication on every `ERROR` and unresolved `WARN`.
-- Research every `REVIEW`. Geometry cannot prove which named ascent should be
-  the default route.
-- Treat different named trailheads as normal when sources confirm distinct
-  approaches. Treat a large start spread with a missing or shared trailhead as
-  suspect.
-- Treat repeated crossings plus a long close overlap as a shared-path error.
-  Two source traces can weave around the same real trail even when each line is
-  simple by itself.
-- Do not mark a route bad merely because another valid route reaches the same
-  summit.
+Audit the display name too. OSM and Wikidata evidence comes from
+`identity.json`. For Peaks' English catalog, use a reliable English name as the
+display name when one exists. Preserve the local-script name and sourced
+aliases; do not invent a translation or transliteration.
 
-For each route identity check, use a current land-manager or state trail source
-when one exists, then a strong climbing source. Confirm the route name,
-trailhead, path or ridge, class or activity, season limits, and whether it is a
-normal ascent or a technical variation. Give direct links and state what each
-source proves.
+Write the compact source record defined in
+[references/source-facts.md](references/source-facts.md), then run:
 
-## Inspect Geometry
+```bash
+node .claude/skills/peaks-route-catalog-audit/scripts/compare_route_source_facts.mjs \
+  --catalog AUDIT_DIR/catalog.json \
+  --identity AUDIT_DIR/identity.json \
+  --facts AUDIT_DIR/facts.json \
+  --output AUDIT_DIR/result.json
+```
 
-Render every route pair behind a crossing, overlap, duplicate, or start-spread
-finding. Inspect the full lines, their trailhead and summit markers, and the
-reported crossing area. A table alone cannot distinguish a real trail junction
-from two poor traces of the same trail.
+If a second source or required fact is unavailable, use the reference's
+`evidence_gaps` form and still run the comparator. Do not release a job merely
+because public evidence is incomplete. A stale OSM or Wikidata link appears as
+an identity review finding, not a tool failure.
 
-For OSM- or USGS-derived pending routes, also run
-`$peaks-osm-route-approval`. That skill checks the stored line against its cited
-source. This skill checks how the route fits the wider catalog.
+## Finish
 
-## Report
+The comparator alone may produce `PASS`. A source conflict or missing second
+source is `REVIEW`; never guess. In recurring mode, complete the job with the
+exact comparator state:
 
-Return:
+```bash
+.claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh complete \
+  --destination-id DESTINATION_ID --lease-token LEASE_TOKEN \
+  --state passed --result-file AUDIT_DIR/result.json --apply
+```
 
-1. audit time, database scope, and route-selection rule;
-2. one row per route with id, status, trailhead, endpoint gaps, source state,
-   segment state, and findings;
-3. one row per suspect pair with crossings, close overlap, shared line, and
-   start separation;
-4. the current default route and a source-backed judgment of that choice;
-5. `keep`, `repair`, `supersede`, or `needs human review` for each route; and
-6. the exact next safe step.
+Use `needs_repair` for `FAIL` and `needs_human` for `REVIEW`. If the run cannot
+produce a valid result, release its lease with a short exact error. End with
+stats and a clean checkout. In one-off mode, do not write an audit job; report
+the result and preserve the checkout's starting git status.
 
-Do not write, activate, supersede, or delete a route unless the user asks. Never
-repair a migrated route by reading from Firestore. Fix Cloud SQL data, the
-import path, and every current writer.
+Read the completion response. `completed` is final.
+`catalog_changed_requeued` and `out_of_scope` have already cleared the lease;
+do not release them again. Report the outcome and stop that run.
+
+Report the destination, stored and preferred names, standard-route facts,
+sources, current default, each route action (`keep`, `repair`, `supersede`, or
+`needs human review`), final state, lease health, and remaining total. Do not
+repair or publish routes during an audit run.
+
+Use [references/luna-goal-prompt.md](references/luna-goal-prompt.md) unchanged
+for the recurring Luna task.

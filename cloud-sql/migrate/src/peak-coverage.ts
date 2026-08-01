@@ -5,6 +5,8 @@ export const PEAK_COVERAGE_GRID_DEGREES = 0.5;
 export interface ReferencePeak {
   osmId: string;
   name: string;
+  localName?: string;
+  englishName?: string | null;
   lat: number;
   lng: number;
   elevationM: number | null;

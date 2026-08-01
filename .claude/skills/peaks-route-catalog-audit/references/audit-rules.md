@@ -1,89 +1,106 @@
 # Route Audit Rules
 
-## What the Checker Proves
+## Stored-data gates
 
-The script reads Peaks-owned routes linked to summit destinations. It reports
-four record types:
+`audit_catalog_routes.sh` reports `identity`, `selection`, `route`, and `pair`
+records for one summit.
 
-- `scope`: confirms how many routes and summits were checked.
-- `route`: checks one stored route and its materialized segments.
-- `pair`: compares two routes linked to the same summit.
-- `selection`: shows the route chosen by the current list API order.
+`ERROR` blocks PASS:
 
-`ERROR` means a stored contract or strong geometry invariant failed. `WARN`
-means the line or links need review. `REVIEW` means sources must settle route
-identity or default-route choice. `INFO` records expected facts such as two
-named trailheads far apart.
+- invalid, short, self-crossing, or missing path;
+- missing or invalid provenance or route segments;
+- route/segment source mismatch, gap, order, or materialized-path drift;
+- missing or misordered trailhead and summit links;
+- endpoint gaps over 300 m at the trailhead or 250 m at the summit;
+- missing distance or gain; and
+- a legacy named-route coverage import.
 
-## Route Checks
+`WARN` requires source or map review:
 
-The script reports errors for:
+- missing shape or encoded line;
+- smaller segment, endpoint, distance, or gain drift;
+- point jumps or summit elevation mismatch;
+- a one-way route over 25 km; and
+- crossings, close overlap, weaving, duplicates, or unexplained start spread.
 
-- a missing, invalid, short, or self-crossing line;
-- missing source records or invalid source fields;
-- no source segment, repeated segment ordinals, a segment gap over 100 m, or a
-  materialized route more than 30 m from its segments;
-- route and segment source records that differ;
-- no ordered destinations, a first destination that is not a trailhead, a last
-  destination that is not a summit, or endpoint gaps over 300 m and 250 m;
-- missing distance or gain values; and
-- a flat stored elevation line paired with material elevation gain.
+Different named trailheads may be valid. Repeated crossings plus long close
+overlap often means two poor traces of one real trail. Render the pair before
+judging it.
 
-It warns about smaller route/segment drift, measured distance or segment-stat
-drift, missing shape or polyline, point jumps over 250 m, repeated destination
-ordinals, and a summit elevation mismatch over 100 m.
+## Legacy coverage fault
 
-These thresholds match the current import and approval contracts where one
-exists. Re-read the live importer before changing a threshold.
+The retired coverage importer saved a full named OSM hiking relation when any
+part came within 250 m of a summit. It marked the relation active without
+proving a normal ascent, trailhead, provenance, segments, shape, or gain.
 
-## Pair Checks
+These rows have stable `osm-route-RELATION-HASH` IDs, an OSM relation external
+link, no provenance or segments, no trailhead, `completion=none`, and no shape
+or gain. Treat `legacy_route_coverage_import` as a known bad lineage. Preserve
+historic links, but supersede the route and rebuild a real standard route
+through the route factory.
 
-`probable_duplicate_routes` means both lines stay within 30 m of each other for
-at least 95 percent of their length and start within 300 m. Do not keep both
-active without a clear route-identity reason.
+## Outside-fact gates
 
-`route_pair_weaves` means the lines cross at least three times, remain within 30
-m for at least 500 m, and do not share that path exactly. This often means two
-independent traces represent the same trail. Prefer one reviewed source line or
-shared segments. Do not average the traces.
+Use at least two independent publishers. Together, the sources must prove:
 
-`route_pair_crosses` means the lines cross inside their endpoints but do not
-meet the weave rule. Check whether the crossing is a real junction, route
-variant, bridge, switchback, or bad geometry.
+- accepted normal route identity;
+- real trailhead;
+- distance and whether it is one-way, round trip, or loop;
+- shape;
+- gain when available;
+- hiking, scrambling, glacier, ski, or climbing class;
+- access, permit, guide, closure, and season limits.
 
-`unexplained_start_separation` means starts are over 1 km apart while at least
-one route lacks a trailhead link or both name the same trailhead. Fix the link or
-route line after source review. `distinct_trailheads` is information, not a
-failure.
+Normalize source distance before comparison:
 
-Exact shared line length and close overlap are different. Exact shared geometry
-shows segment reuse. Close overlap without exact reuse can produce the visible
-criss-cross pattern that this audit is meant to catch.
+- out-and-back round trip: divide by two for Peaks one-way distance;
+- loop or lollipop round trip: compare the whole length;
+- one-way or point-to-point: compare directly.
 
-## Default Route Check
+A stored route under 0.6× or over 1.7× the sourced standard distance needs
+review. Under 0.4× or over 4× is an error. No plausible active standard route
+is an error. A selected default outside 0.5×–2× is an error.
 
-At the time this skill was written, `cloud-sql/api/src/routes/lists.ts` selects
-an active Peaks-owned route by:
+## Default route
 
-1. linked session count, descending;
-2. one-way distance, ascending; then
-3. route id, ascending.
+Read `cloud-sql/api/src/routes/lists.ts` each run. The current API ranks active
+Peaks routes by linked session count, then one-way distance, then route ID.
+That measures use, not whether the route is the normal ascent. Research the
+accepted standard route whenever more than one route is active.
 
-That order measures use, not route class or whether a route is the accepted
-normal ascent. When a summit has several active routes, research the accepted
-normal route. A technical snow, ski, scramble, or climbing line must not become
-the default merely because it has more linked sessions.
+## Names
 
-## Repair Rules
+Treat the name as its own audit:
 
-- Keep valid distinct approaches and link each to its real trailhead.
-- Rebuild legacy routes that have no source record or source segments. Do not
-  invent provenance after the fact.
-- When two routes share a real trail, reuse reviewed segments so the app draws
-  one line on that section.
-- Keep the old active route until a reviewed replacement is ready. Publish the
-  replacement and mark the old route superseded in one controlled transaction.
-- Preserve existing session and plan links to superseded routes.
-- Never copy another user's trace or change its owner without direct permission
-  and a source-rights review.
-- Re-run this catalog audit and the source-specific approval after every repair.
+- `destinations.name` is the default English display name when a reliable
+  English label exists.
+- Preserve the official local-script name and other sourced names as localized
+  names or aliases.
+- Search must match the English display name, local name, and aliases.
+- OSM `name`, OSM `name:*`, and Wikidata labels are evidence, not an automatic
+  winner.
+- Prefer a clear English Wikidata label or official English source over an
+  unsourced transliteration. If English sources disagree, use `needs_human`.
+- If no reliable English name exists, keep the official local name. Never
+  invent a translation.
+
+The current schema has one display field and one search field. Until localized
+name columns ship, record the preferred display name, local names, and aliases
+in the audit result. A repair must preserve all sourced names rather than
+overwriting one with another.
+
+## Safe actions
+
+- `keep`: internal gates and outside facts agree.
+- `repair`: the route identity is right but stored links, geometry, segments,
+  stats, or names need work.
+- `supersede`: the route is the wrong path or known bad legacy lineage.
+- `needs human review`: sources conflict, access is unclear, or two sources
+  cannot establish the normal ascent.
+
+Never mutate route or destination data in this skill. Repair work uses a
+separate reviewed task.
+
+Use `--status catalog` for each catalog check. That scope contains active
+routes plus quarantined legacy coverage rows needed as repair context.
+Superseded rows do not block a pass when a sound active standard route exists.

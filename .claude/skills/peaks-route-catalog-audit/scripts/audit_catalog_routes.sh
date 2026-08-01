@@ -13,7 +13,7 @@ print_sql="false"
 usage() {
   printf '%s\n' \
     "Usage: $0 (--destination-id ID | --destination-name NAME | --route-id ID | --all)" \
-    "          [--status active|pending|all] [--limit N]" \
+    "          [--status active|pending|catalog|all] [--limit N]" \
     "          [--format summary|tsv|json] [--print-sql]" \
     "" \
     "Read-only audit of Peaks-owned summit routes in Cloud SQL."
@@ -81,8 +81,9 @@ for value in "$destination_id" "$route_id"; do
     exit 2
   fi
 done
-if [[ "$route_status" != "active" && "$route_status" != "pending" && "$route_status" != "all" ]]; then
-  printf '%s\n' "--status must be active, pending, or all" >&2
+if [[ "$route_status" != "active" && "$route_status" != "pending" &&
+      "$route_status" != "catalog" && "$route_status" != "all" ]]; then
+  printf '%s\n' "--status must be active, pending, catalog, or all" >&2
   exit 2
 fi
 if [[ "$format" != "summary" && "$format" != "tsv" && "$format" != "json" ]]; then
@@ -95,8 +96,49 @@ if ! [[ "$row_limit" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 read -r -d '' common_sql <<'SQL' || true
-WITH scope_destinations AS (
-  SELECT d.id, d.name
+WITH route_status_scope AS (
+  SELECT r.*
+  FROM routes r
+  WHERE r.owner = 'peaks'
+    AND (
+      :'route_status' = 'all'
+      OR r.status = :'route_status'
+      OR (
+        :'route_status' = 'catalog'
+        AND (
+          r.status = 'active'
+          OR (
+            r.status = 'superseded'
+            AND r.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
+            AND r.provenance IS NULL
+            AND r.completion = 'none'
+            AND r.shape IS NULL
+            AND r.gain IS NULL
+            AND r.gain_loss IS NULL
+            AND jsonb_typeof(r.external_links) = 'array'
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements(r.external_links) link
+              WHERE link->>'type' = 'osm'
+                AND link->>'id' ~ '^relation/[0-9]+$'
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM route_segments rs WHERE rs.route_id = r.id
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM route_destinations rd
+              JOIN destinations d ON d.id = rd.destination_id
+              WHERE rd.route_id = r.id
+                AND 'trailhead'::destination_feature = ANY(d.features)
+            )
+          )
+        )
+      )
+    )
+),
+scope_destinations AS (
+  SELECT d.id, d.name, d.search_name, d.country_code, d.external_ids, d.metadata
   FROM destinations d
   WHERE 'summit'::destination_feature = ANY(d.features)
     AND (
@@ -107,13 +149,8 @@ WITH scope_destinations AS (
         AND EXISTS (
           SELECT 1
           FROM route_destinations audit_link
-          JOIN routes audit_route ON audit_route.id = audit_link.route_id
+          JOIN route_status_scope audit_route ON audit_route.id = audit_link.route_id
           WHERE audit_link.destination_id = d.id
-            AND audit_route.owner = 'peaks'
-            AND (
-              :'route_status' = 'all'
-              OR audit_route.status = :'route_status'
-            )
         )
       )
       OR (
@@ -129,13 +166,8 @@ WITH scope_destinations AS (
 ),
 scope_routes AS (
   SELECT r.*
-  FROM routes r
-  WHERE r.owner = 'peaks'
-    AND (
-      :'route_status' = 'all'
-      OR r.status = :'route_status'
-    )
-    AND (
+  FROM route_status_scope r
+  WHERE (
       (:'route_id' <> '' AND r.id = :'route_id')
       OR (
         :'route_id' = ''
@@ -365,7 +397,23 @@ route_issue_groups AS (
            CASE WHEN COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false) AND rm.end_destination_gap_m > 250 THEN 'end_over_250m_from_summit' END,
            CASE WHEN rm.distance IS NULL OR rm.distance <= 0 THEN 'missing_or_invalid_distance' END,
            CASE WHEN rm.gain IS NULL OR rm.gain < 0 OR rm.gain_loss IS NULL OR rm.gain_loss < 0 THEN 'missing_or_invalid_gain' END,
-           CASE WHEN rm.path IS NOT NULL AND rm.gain > 100 AND (rm.max_z IS NULL OR rm.min_z IS NULL OR rm.max_z - rm.min_z < 10) THEN 'flat_or_missing_elevation_profile' END
+           CASE WHEN rm.path IS NOT NULL AND rm.gain > 100 AND (rm.max_z IS NULL OR rm.min_z IS NULL OR rm.max_z - rm.min_z < 10) THEN 'flat_or_missing_elevation_profile' END,
+           CASE WHEN rm.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
+             AND rm.provenance IS NULL
+             AND rm.segment_count = 0
+             AND NOT COALESCE('trailhead'::destination_feature = ANY(rm.first_destination_features), false)
+             AND rm.completion = 'none'
+             AND rm.shape IS NULL
+             AND rm.gain IS NULL
+             AND rm.gain_loss IS NULL
+             AND jsonb_typeof(rm.external_links) = 'array'
+             AND EXISTS (
+               SELECT 1
+               FROM jsonb_array_elements(rm.external_links) link
+               WHERE link->>'type' = 'osm'
+                 AND link->>'id' ~ '^relation/[0-9]+$'
+             )
+           THEN 'legacy_route_coverage_import' END
          ], NULL)::text[] AS error_issues,
          ARRAY_REMOVE(ARRAY[
            CASE WHEN rm.shape IS NULL THEN 'missing_route_shape' END,
@@ -379,7 +427,8 @@ route_issue_groups AS (
            CASE WHEN rm.segment_count > 0 AND rm.distance IS NOT NULL AND ABS(rm.distance - rm.segment_distance_m) > GREATEST(10, rm.distance * 0.02) THEN 'segment_distance_drift' END,
            CASE WHEN rm.segment_count > 0 AND rm.gain IS NOT NULL AND ABS(rm.gain - rm.segment_gain_m) > GREATEST(10, rm.gain * 0.02) THEN 'segment_gain_drift' END,
            CASE WHEN rm.segment_count > 0 AND rm.gain_loss IS NOT NULL AND ABS(rm.gain_loss - rm.segment_loss_m) > GREATEST(10, GREATEST(rm.gain_loss, 1) * 0.02) THEN 'segment_loss_drift' END,
-           CASE WHEN COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false) AND rm.last_destination_elevation IS NOT NULL AND rm.end_z IS NOT NULL AND ABS(rm.end_z - rm.last_destination_elevation) > 100 THEN 'summit_elevation_mismatch_gt_100m' END
+           CASE WHEN COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false) AND rm.last_destination_elevation IS NOT NULL AND rm.end_z IS NOT NULL AND ABS(rm.end_z - rm.last_destination_elevation) > 100 THEN 'summit_elevation_mismatch_gt_100m' END,
+           CASE WHEN rm.measured_distance_m > 25000 THEN 'extreme_one_way_distance_gt_25km' END
          ], NULL)::text[] AS warning_issues
   FROM route_metrics rm
 ),
@@ -415,7 +464,10 @@ pair_base AS (
   JOIN route_destinations right_link ON right_link.destination_id = sd.id
   JOIN route_audit right_route ON right_route.id = right_link.route_id
     AND left_route.id < right_route.id
-  WHERE left_route.path IS NOT NULL AND right_route.path IS NOT NULL
+  WHERE left_route.path IS NOT NULL
+    AND right_route.path IS NOT NULL
+    AND left_route.status = 'active'
+    AND right_route.status = 'active'
 ),
 pair_metrics AS (
   SELECT pb.*,
@@ -554,7 +606,37 @@ records AS (
            'status', :'route_status'
          ) AS metrics
   UNION ALL
-  SELECT 1, 'selection', sa.severity,
+  SELECT 1, 'identity',
+         CASE
+           WHEN sd.search_name IS NULL OR btrim(sd.search_name) = '' THEN 'WARN'
+           WHEN sd.name !~ '^[ -~]+$'
+             AND (
+               COALESCE(sd.external_ids, '{}'::jsonb) ? 'osm'
+               OR COALESCE(sd.external_ids, '{}'::jsonb) ? 'wikidata'
+             ) THEN 'REVIEW'
+           ELSE 'INFO'
+         END,
+         sd.id, sd.name, NULL, NULL, NULL, NULL,
+         ARRAY_REMOVE(ARRAY[
+           CASE WHEN sd.search_name IS NULL OR btrim(sd.search_name) = ''
+             THEN 'missing_search_name' END,
+           CASE WHEN sd.name !~ '^[ -~]+$'
+             AND (
+               COALESCE(sd.external_ids, '{}'::jsonb) ? 'osm'
+               OR COALESCE(sd.external_ids, '{}'::jsonb) ? 'wikidata'
+             ) THEN 'localized_display_name_requires_source_review' END
+         ], NULL)::text[],
+         JSONB_BUILD_OBJECT(
+           'stored_name', sd.name,
+           'search_name', sd.search_name,
+           'names', COALESCE(sd.metadata->'names', '{}'::jsonb),
+           'country_code', sd.country_code,
+           'osm_id', sd.external_ids->>'osm',
+           'wikidata_id', sd.external_ids->>'wikidata'
+         )
+  FROM scope_destinations sd
+  UNION ALL
+  SELECT 2, 'selection', sa.severity,
          sa.destination_id, sa.destination_name,
          sa.route_id, sa.route_name, NULL, NULL, sa.issues,
          JSONB_BUILD_OBJECT(
@@ -564,11 +646,16 @@ records AS (
          )
   FROM selection_audit sa
   UNION ALL
-  SELECT 2, 'route', ra.severity,
+  SELECT 3, 'route', ra.severity,
          ra.summit_ids, ra.summit_names,
          ra.id, ra.name, NULL, NULL, ra.issues,
          JSONB_BUILD_OBJECT(
            'status', ra.status,
+           'shape', ra.shape,
+           'completion', ra.completion,
+           'has_valid_provenance',
+             COALESCE(is_valid_route_provenance(ra.provenance), false),
+           'external_links', ra.external_links,
            'session_count', ra.session_count,
            'trailhead_id', CASE WHEN COALESCE('trailhead'::destination_feature = ANY(ra.first_destination_features), false) THEN ra.first_destination_id END,
            'trailhead', CASE WHEN COALESCE('trailhead'::destination_feature = ANY(ra.first_destination_features), false) THEN ra.first_destination_name END,
@@ -589,7 +676,7 @@ records AS (
          )
   FROM route_audit ra
   UNION ALL
-  SELECT 3, 'pair', pa.severity,
+  SELECT 4, 'pair', pa.severity,
          pa.destination_id, pa.destination_name,
          pa.left_id, pa.left_name, pa.right_id, pa.right_name, pa.issues,
          JSONB_BUILD_OBJECT(
@@ -637,7 +724,7 @@ SELECT record_type, severity, destination_id, destination_name,
        item_id, item_name, other_id, other_name,
        ARRAY_TO_STRING(issues, ' | ') AS issues,
        metrics
-FROM records
+  FROM records
 ORDER BY record_order, destination_name, item_name, other_name;
 SQL
 fi

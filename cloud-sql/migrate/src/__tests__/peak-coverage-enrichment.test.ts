@@ -53,6 +53,9 @@ test("converts Wikidata metre and foot quantities", () => {
 
 test("parses preferred prominence, elevation, and Wikipedia sitelinks", () => {
   const facts = parseWikidataEntity("Q123", {
+    labels: {
+      en: { language: "en", value: "Independent Mountain" },
+    },
     claims: {
       P2660: [{ rank: "normal", mainsnak: { datavalue: { value: {
         amount: "+100", unit: "http://www.wikidata.org/entity/Q11573",
@@ -66,6 +69,7 @@ test("parses preferred prominence, elevation, and Wikipedia sitelinks", () => {
   assert.equal(facts.prominenceM, 100);
   assert.ok(Math.abs((facts.elevationM ?? 0) - 1_524) < 0.001);
   assert.equal(facts.wikipediaSitelinks, 2);
+  assert.equal(facts.englishName, "Independent Mountain");
 });
 
 test("parses explicit OSM prominence units", () => {
@@ -90,6 +94,42 @@ test("automatically selects a primary peak over 300 feet prominence", () => {
   );
   assert.equal(selection.decision, "add");
   assert.equal(selection.prominenceSource, "wikidata");
+});
+
+test("prefers a sourced Wikidata English display name and keeps the local name", () => {
+  const selection = selectPeakCandidate(
+    matchReferencePeak(reference({
+      name: "Daedunsan Peak",
+      englishName: "Daedunsan Peak",
+      localName: "대둔산",
+    }), []),
+    noSessions,
+    undefined,
+    wikidata({
+      prominenceM: DEFAULT_MINIMUM_PROMINENCE_M + 1,
+      englishName: "Daedunsan",
+    })
+  );
+  assert.equal(selection.displayName, "Daedunsan");
+  assert.equal(selection.englishName, "Daedunsan");
+  assert.deepEqual(selection.localNames, ["대둔산"]);
+  assert.deepEqual(selection.aliases, ["Daedunsan Peak"]);
+});
+
+test("does not label a local fallback display name as English", () => {
+  const selection = selectPeakCandidate(
+    matchReferencePeak(reference({
+      name: "대둔산",
+      localName: "대둔산",
+      englishName: null,
+    }), []),
+    noSessions,
+    undefined,
+    wikidata({ prominenceM: DEFAULT_MINIMUM_PROMINENCE_M + 1 })
+  );
+  assert.equal(selection.displayName, "대둔산");
+  assert.equal(selection.englishName, null);
+  assert.deepEqual(selection.localNames, ["대둔산"]);
 });
 
 test("selects a popular peak without sufficient prominence", () => {
