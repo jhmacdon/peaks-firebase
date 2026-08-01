@@ -6,15 +6,16 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
-import {
-  findConflictingLiveRoute,
-  lockAndFindConflictingLiveRoute,
-} from "../../../../cloud-sql/migrate/src/standard-route-import-conflicts";
+import routeConflictHelpers from "../../../../cloud-sql/migrate/src/standard-route-import-conflicts";
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
+const {
+  findConflictingLiveRoute,
+  lockAndFindConflictingLiveRoute,
+} = routeConflictHelpers;
 const requireFromMigrate = createRequire(
   new URL("../../../../cloud-sql/migrate/package.json", import.meta.url)
 );
