@@ -157,7 +157,15 @@ export function compareRouteSourceFacts(catalogAudit, identityAudit, facts) {
   }
   const unresolvedCatalogReviews = (catalogAudit.records ?? []).filter((record) =>
     (record.severity === "WARN" || record.severity === "REVIEW") &&
-    (record.type !== "route" || record.metrics?.status === "active")
+    (record.type !== "route" || record.metrics?.status === "active") &&
+    !(
+      record.type === "identity" &&
+      (record.issues ?? []).length > 0 &&
+      (record.issues ?? []).every((finding) =>
+        finding === "localized_display_name_requires_source_review"
+      ) &&
+      (identityAudit.findings ?? []).length === 0
+    )
   );
   if (unresolvedCatalogReviews.length > 0) {
     findings.push(issue("unresolved_catalog_reviews", "REVIEW", {
