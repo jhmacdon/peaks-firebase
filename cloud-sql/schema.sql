@@ -631,6 +631,95 @@ CREATE TABLE session_routes (
 );
 
 -- ---------------------------------------------------------------------------
+-- trip_reports
+-- Public field notes tied to one fully processed activity. source_session_id is
+-- deliberately not a foreign key: deleting a private activity must not erase a
+-- report that its author chose to publish, and the stable value keeps the
+-- one-report-per-activity rule enforceable after that deletion.
+-- ---------------------------------------------------------------------------
+CREATE TABLE trip_reports (
+    id                  TEXT PRIMARY KEY,
+    source_session_id   TEXT,
+    legacy_source_id    TEXT UNIQUE,
+    user_id             TEXT NOT NULL,
+    author_name         TEXT NOT NULL DEFAULT 'Peaks member',
+    title               TEXT NOT NULL,
+    body                TEXT NOT NULL DEFAULT '',
+    activity_name       TEXT,
+    activity_type       activity_type,
+    activity_date       TIMESTAMPTZ NOT NULL,
+    moderation_state    TEXT NOT NULL DEFAULT 'published'
+        CHECK (moderation_state IN ('published', 'hidden')),
+    legacy_record       BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT trip_reports_source_session_unique UNIQUE (source_session_id)
+);
+
+CREATE TABLE trip_report_conditions (
+    report_id       TEXT NOT NULL REFERENCES trip_reports(id) ON DELETE CASCADE,
+    code            TEXT NOT NULL CHECK (code IN (
+        'snow', 'ice', 'washout', 'downed_trees', 'water',
+        'bugs', 'smoke', 'closure', 'route_finding'
+    )),
+    severity        TEXT NOT NULL DEFAULT 'notable'
+        CHECK (severity IN ('info', 'notable', 'serious')),
+    context         TEXT,
+    ordinal         INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (report_id, code)
+);
+
+CREATE TABLE trip_report_photos (
+    id              TEXT NOT NULL,
+    report_id       TEXT NOT NULL REFERENCES trip_reports(id) ON DELETE CASCADE,
+    storage_path    TEXT,
+    download_url    TEXT NOT NULL,
+    caption         TEXT,
+    taken_at        TIMESTAMPTZ,
+    ordinal         INT NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (report_id, id),
+    CONSTRAINT trip_report_photo_storage_unique UNIQUE (storage_path)
+);
+
+CREATE TABLE trip_report_destinations (
+    report_id       TEXT NOT NULL REFERENCES trip_reports(id) ON DELETE CASCADE,
+    destination_id  TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    PRIMARY KEY (report_id, destination_id)
+);
+
+CREATE TABLE trip_report_routes (
+    report_id       TEXT NOT NULL REFERENCES trip_reports(id) ON DELETE CASCADE,
+    route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    PRIMARY KEY (report_id, route_id)
+);
+
+CREATE TABLE trip_report_flags (
+    report_id       TEXT NOT NULL REFERENCES trip_reports(id) ON DELETE CASCADE,
+    user_id         TEXT NOT NULL,
+    reason          TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (report_id, user_id)
+);
+
+CREATE TABLE trip_report_photo_deletions (
+    storage_path    TEXT PRIMARY KEY,
+    queued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    attempts        INT NOT NULL DEFAULT 0,
+    last_error      TEXT
+);
+
+CREATE INDEX idx_trip_reports_recent
+    ON trip_reports (activity_date DESC, id DESC)
+    WHERE moderation_state = 'published';
+CREATE INDEX idx_trip_report_destinations_destination
+    ON trip_report_destinations (destination_id, report_id);
+CREATE INDEX idx_trip_report_routes_route
+    ON trip_report_routes (route_id, report_id);
+CREATE INDEX idx_trip_report_photos_report
+    ON trip_report_photos (report_id, ordinal);
+
+-- ---------------------------------------------------------------------------
 -- session_markers
 -- User-placed waypoints during a session (campsites, water sources, etc.).
 -- ---------------------------------------------------------------------------
