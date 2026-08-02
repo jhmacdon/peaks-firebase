@@ -1,11 +1,71 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { collectDestinationIdentity } from "./fetch_destination_identity.mjs";
 import {
   compareRouteSourceFacts,
   validateSourceFacts,
 } from "./compare_route_source_facts.mjs";
+
+const workerCheckoutResolver = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/resolve_worker_checkout.sh",
+    import.meta.url
+  )
+);
+
+test("approved worker checkouts resolve by exact path", () => {
+  const checkouts = [
+    [
+      "/Users/josiahm/projects/peaks/firebase",
+      "canonical",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-factory",
+      "route-factory",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-audit",
+      "luna-route-audit-01",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-02",
+      "luna-route-audit-02",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-03",
+      "luna-route-audit-03",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-04",
+      "luna-route-audit-04",
+    ],
+  ];
+  for (const [checkoutPath, expected] of checkouts) {
+    const actual = execFileSync(
+      workerCheckoutResolver,
+      [checkoutPath],
+      { encoding: "utf8" }
+    ).trim();
+    assert.equal(actual, expected);
+  }
+  for (const rejectedPath of [
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-01",
+    "/tmp/firebase-route-audit-04",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-05",
+  ]) {
+    assert.throws(
+      () => execFileSync(
+        workerCheckoutResolver,
+        [rejectedPath],
+        { encoding: "utf8", stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+  }
+});
 
 const catalogAudit = {
   records: [

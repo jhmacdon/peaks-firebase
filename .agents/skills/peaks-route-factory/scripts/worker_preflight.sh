@@ -3,20 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
-canonical_root="/Users/josiahm/projects/peaks/firebase"
-worker_root="/Users/josiahm/projects/peaks/.workers/firebase-route-factory"
-audit_worker_root="/Users/josiahm/projects/peaks/.workers/firebase-route-audit"
-
-case "$repo_root" in
-  "$canonical_root"|"$worker_root"|"$audit_worker_root")
-    ;;
-  *)
-    printf '%s\n' \
-      "setup_required: route worker checkout is not an approved path: $repo_root" \
-      >&2
-    exit 1
-    ;;
-esac
+"$script_dir/resolve_worker_checkout.sh" "$repo_root" >/dev/null
 
 if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
   printf '%s\n' "setup_required: route worker checkout is dirty: $repo_root" >&2
