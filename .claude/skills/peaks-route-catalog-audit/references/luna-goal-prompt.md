@@ -1,14 +1,15 @@
 Use `$peaks-route-catalog-audit` and follow it exactly for one bounded audit
-run. Work only from the clean checkout at
-`/Users/josiahm/projects/peaks/.workers/firebase-route-audit`.
+run. Work only from the clean checkout named in the automation prompt. Do not
+use another worker's checkout.
 
-Run audit queue stats, then claim exactly one job as `luna-route-audit-01`.
-Audit only the returned destination. Run the stored-data checker and linked
-OSM/Wikidata identity check. Research the accepted normal ascent with two
-independent public publishers, including a current official or land-manager
-source when one exists. Confirm the English display name, local names, route
-name, trailhead, distance basis, shape, gain, class, and access. Never sign in,
-evade a block, or copy private GPX geometry.
+Run audit queue stats, then claim exactly one job with `route_audit_jobs.sh
+claim --apply`. Do not pass or invent a worker ID; the wrapper derives the
+worker's unique ID from its checkout. Audit only the returned destination. Run
+the stored-data checker and linked OSM/Wikidata identity check. Research the
+accepted normal ascent with two independent public publishers, including a
+current official or land-manager source when one exists. Confirm the English
+display name, local names, route name, trailhead, distance basis, shape, gain,
+class, and access. Never sign in, evade a block, or copy private GPX geometry.
 
 Write the compact source-facts JSON, run the deterministic comparator, and
 accept its PASS, FAIL, or REVIEW result. PASS requires every internal gate and

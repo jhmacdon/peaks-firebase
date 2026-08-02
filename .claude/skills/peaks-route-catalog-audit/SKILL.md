@@ -13,17 +13,22 @@ only the durable audit job row and temporary evidence files.
 1. Read [references/worker-contract.md](references/worker-contract.md) and
    [references/audit-rules.md](references/audit-rules.md).
 2. Choose one mode:
-   - For the recurring worker, work from the clean audit checkout at
-     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit`.
+   - For a recurring worker, work only from the clean audit checkout named in
+     its automation prompt. It must be one of:
+     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit`,
+     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-02`,
+     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-03`, or
+     `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-04`.
    - For a one-off destination that the user names or identifies, use the
      current checkout and audit that destination without claiming or changing
      an audit job. Record the starting git status and leave it unchanged.
-3. In recurring mode, run stats, then claim one job:
+3. In recurring mode, run stats, then claim one job. The wrapper derives a
+   unique worker ID from the checkout and rejects a mismatched explicit ID:
 
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh stats
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh \
-  claim --worker-id luna-route-audit-01 --apply
+  claim --apply
 ```
 
 If setup fails, do not claim. If no job is returned, inspect stats; do not infer
@@ -128,4 +133,4 @@ sources, current default, each route action (`keep`, `repair`, `supersede`, or
 repair or publish routes during an audit run.
 
 Use [references/luna-goal-prompt.md](references/luna-goal-prompt.md) unchanged
-for the recurring Luna task.
+for each recurring Luna task. The automation prompt supplies its one checkout.

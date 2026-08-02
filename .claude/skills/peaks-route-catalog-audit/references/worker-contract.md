@@ -11,6 +11,9 @@ work stays visible.
 
 - Claim exactly one queued destination.
 - Audit only that destination.
+- Use only the checkout named in the automation prompt. The claim wrapper
+  assigns `luna-route-audit-01` through `luna-route-audit-04` from that
+  checkout and rejects another worker's ID.
 - Keep route and destination tables read-only.
 - Write only the audit job row and temporary evidence files.
 - Heartbeat before browser or map work.
@@ -40,11 +43,13 @@ An operator must:
 
 1. merge and apply the quarantine and audit-job migrations;
 2. seed the audit queue with `route_audit_jobs.sh seed --apply`;
-3. create
-   `/Users/josiahm/projects/peaks/.workers/firebase-route-audit` at exact
-   `origin/main`;
-4. install `cloud-sql/migrate` dependencies there; and
-5. schedule Luna Max with `luna-goal-prompt.md`.
+3. create four clean checkouts at exact `origin/main`:
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-audit`,
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-02`,
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-03`, and
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-audit-04`;
+4. install `cloud-sql/migrate` dependencies in each checkout; and
+5. schedule one Luna Max task per checkout with `luna-goal-prompt.md`.
 
 The worker must never apply migrations, seed, fetch, pull, switch branches, or
 edit tracked files.
