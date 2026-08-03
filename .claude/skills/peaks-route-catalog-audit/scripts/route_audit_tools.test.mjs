@@ -81,6 +81,20 @@ const routeDatabaseWrapper = fileURLToPath(
   )
 );
 
+const routeDatabasePasswordLoader = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/load_route_db_password.sh",
+    import.meta.url
+  )
+);
+
+const routeDatabasePasswordCache = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/cache_route_db_password.sh",
+    import.meta.url
+  )
+);
+
 const routeTsxRunner = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrate/scripts/run-tsx.sh",
@@ -167,6 +181,54 @@ test("elevation wrapper preflights before every queue call and owns its worker I
   assert.match(source, /claim.*--apply/s);
   assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
   assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("database wrapper accepts only a private local password cache", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-route-db-password-"));
+  const repoRoot = join(root, "firebase-route-elevation");
+  const credentialFile = join(root, ".peaks-route-db-password");
+  try {
+    mkdirSync(repoRoot);
+    writeFileSync(credentialFile, "test-password\n");
+    chmodSync(credentialFile, 0o600);
+    const environment = {
+      ...process.env,
+      DB_PASS: "",
+      PEAKS_ROUTE_DB_PASS: "",
+      PEAKS_ROUTE_DB_PASSWORD_FILE: credentialFile,
+    };
+    const output = execFileSync(
+      "bash",
+      [
+        "-euc",
+        'source "$1" "$2"; printf "%s" "$DB_PASS"',
+        "_",
+        routeDatabasePasswordLoader,
+        repoRoot,
+      ],
+      { encoding: "utf8", env: environment }
+    );
+    assert.equal(output, "test-password");
+
+    chmodSync(credentialFile, 0o644);
+    assert.throws(
+      () => execFileSync(
+        "bash",
+        ["-euc", 'source "$1" "$2"', "_", routeDatabasePasswordLoader, repoRoot],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+
+  const wrapperSource = readFileSync(routeDatabaseWrapper, "utf8");
+  const cacheSource = readFileSync(routeDatabasePasswordCache, "utf8");
+  assert.match(wrapperSource, /load_route_db_password\.sh/);
+  assert.match(cacheSource, /--out-file="\$credential_file"/);
+  assert.match(cacheSource, /chmod 600 "\$credential_file"/);
+  assert.doesNotMatch(cacheSource, /cat |printf.*DB_PASS|echo.*DB_PASS/);
 });
 
 test("printed route audit SQL requires every linked summit and canonical elevation", () => {

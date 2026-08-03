@@ -31,7 +31,9 @@ license note, retrieval time, point count, and profile hash.
 ## Operator setup
 
 An operator creates the exact clean checkout at `origin/main`, installs the
-matching `cloud-sql/migrate` lockfile dependencies, and seeds the queue outside
-this worker. The worker never migrates, seeds, fetches, pulls, switches branch,
-or changes tracked files. This local bounded worker adds near $0/month backend
-cost.
+matching `cloud-sql/migrate` lockfile dependencies, runs the route-factory
+`cache_route_db_password.sh` operator helper once, and seeds the queue outside
+this worker. The helper writes only a mode-600 password cache beside the
+dedicated checkouts; it never writes a secret into Git. The worker never
+migrates, seeds, fetches, pulls, switches branch, refreshes credentials, or
+changes tracked files. This local bounded worker adds near $0/month backend cost.

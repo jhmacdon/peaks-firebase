@@ -7,32 +7,14 @@ if [[ "$#" -eq 0 ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/../../../.." && pwd)"
 "$script_dir/worker_preflight.sh" >/dev/null
 
 export DB_HOST="${PEAKS_ROUTE_DB_HOST:-${DB_HOST:-127.0.0.1}}"
 export DB_PORT="${PEAKS_ROUTE_DB_PORT:-${DB_PORT:-5432}}"
 export DB_NAME="${PEAKS_ROUTE_DB_NAME:-${DB_NAME:-peaks}}"
 export DB_USER="${PEAKS_ROUTE_DB_USER:-${DB_USER:-postgres}}"
-export DB_PASS="${PEAKS_ROUTE_DB_PASS:-${DB_PASS:-}}"
-
-if [[ -z "$DB_PASS" ]]; then
-  command -v gcloud >/dev/null 2>&1 || {
-    printf '%s\n' "Database setup required: DB_PASS is unset and gcloud is unavailable" >&2
-    exit 1
-  }
-  DB_PASS="$(
-    gcloud secrets versions access latest \
-      --secret=peaks-db-postgres-password \
-      --project=donner-a8608 \
-      2>/dev/null
-  )"
-  export DB_PASS
-fi
-
-if [[ -z "$DB_PASS" ]]; then
-  printf '%s\n' "Database setup required: password lookup returned no value" >&2
-  exit 1
-fi
+source "$script_dir/load_route_db_password.sh" "$repo_root"
 
 if ! (echo >/dev/tcp/"$DB_HOST"/"$DB_PORT") >/dev/null 2>&1; then
   printf '%s\n' \
