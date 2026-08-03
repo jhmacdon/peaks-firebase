@@ -7,6 +7,8 @@ on:
       - ".codex/agents/peaks-route-reviewer.toml"
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
+      - ".claude/skills/peaks-route-catalog-audit/**"
+      - ".claude/skills/peaks-route-elevation-backfill/**"
       - "cloud-sql/migrate/**"
       - "web/src/lib/actions/routes.ts"
       - ".github/workflows/test-route-worker.yml"
@@ -17,6 +19,8 @@ on:
       - ".codex/agents/peaks-route-reviewer.toml"
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
+      - ".claude/skills/peaks-route-catalog-audit/**"
+      - ".claude/skills/peaks-route-elevation-backfill/**"
       - "cloud-sql/migrate/**"
       - "web/src/lib/actions/routes.ts"
       - ".github/workflows/test-route-worker.yml"
@@ -66,7 +70,11 @@ jobs:
         working-directory: cloud-sql/migrate
         env:
           ROUTE_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
+          ROUTE_AUDIT_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
           ROUTE_ELEVATION_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
+
+      - name: Test Luna route skills
+        run: node --test .claude/skills/peaks-route-catalog-audit/scripts/route_audit_tools.test.mjs
 
       - name: Install web dependencies
         run: npm ci

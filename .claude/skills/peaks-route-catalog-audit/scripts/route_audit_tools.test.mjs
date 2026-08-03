@@ -41,6 +41,14 @@ const routeCatalogAudit = fileURLToPath(
   new URL("./audit_catalog_routes.sh", import.meta.url)
 );
 
+const routeAuditSkill = fileURLToPath(
+  new URL("../SKILL.md", import.meta.url)
+);
+
+const routeAuditLunaPrompt = fileURLToPath(
+  new URL("../references/luna-goal-prompt.md", import.meta.url)
+);
+
 const routeAuditJobs = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrate/src/route-catalog-audit-jobs.ts",
@@ -314,6 +322,23 @@ test("printed route audit SQL requires every linked summit and canonical elevati
   );
   assert.doesNotMatch(sql, /end_over_250m_from_summit/);
   assert.doesNotMatch(sql, /flat_or_missing_elevation_profile/);
+});
+
+test("Luna waits for one bounded catalog checker instead of reading an empty live file", () => {
+  const script = readFileSync(routeCatalogAudit, "utf8");
+  const skill = readFileSync(routeAuditSkill, "utf8");
+  const prompt = readFileSync(routeAuditLunaPrompt, "utf8");
+  assert.match(script, /default_transaction_read_only=on/);
+  assert.match(script, /jit=off/);
+  assert.match(script, /statement_timeout=300000/);
+  for (const instructions of [skill, prompt]) {
+    assert.match(instructions, /yield_time_ms`? (?:set to )?30000/i);
+    assert.match(instructions, /session_id/);
+    assert.match(instructions, /write_stdin/);
+    assert.match(instructions, /same session|same process/i);
+    assert.match(instructions, /second (?:catalog )?checker/i);
+    assert.match(instructions, /Ctrl-C/);
+  }
 });
 
 test("path-derived elevation stats reject matching wrong route and segment values", () => {

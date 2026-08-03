@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -8,22 +8,6 @@ import { Pool } from "pg";
 
 const TEST_DATABASE_URL = process.env.ROUTE_AUDIT_JOB_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
-const MIGRATION = join(
-  MIGRATE_ROOT,
-  "../migrations/20260801_route_catalog_audit_jobs.sql"
-);
-const ELEVATION_MIGRATION = join(
-  MIGRATE_ROOT,
-  "../migrations/20260803_route_elevation_backfill.sql"
-);
-const RULE_V2_MIGRATION = join(
-  MIGRATE_ROOT,
-  "../migrations/20260803_route_catalog_audit_rule_v2.sql"
-);
-const RULE_V3_MIGRATION = join(
-  MIGRATE_ROOT,
-  "../migrations/20260803_route_catalog_audit_rule_v3.sql"
-);
 
 test(
   "audit jobs recover leases, requeue stale catalogs, and retire vanished candidates",
@@ -69,10 +53,6 @@ test(
     };
 
     try {
-      await pool.query(await readFile(MIGRATION, "utf8"));
-      await pool.query(await readFile(ELEVATION_MIGRATION, "utf8"));
-      await pool.query(await readFile(RULE_V2_MIGRATION, "utf8"));
-      await pool.query(await readFile(RULE_V3_MIGRATION, "utf8"));
       await pool.query(
         `INSERT INTO destinations (id, name, features)
          VALUES ($1, 'Route audit test summit',
