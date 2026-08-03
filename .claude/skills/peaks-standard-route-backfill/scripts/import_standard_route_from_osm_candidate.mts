@@ -180,25 +180,6 @@ type Place = {
   session_count: number;
 };
 
-function smoothElevations(elevations: number[], alpha = 0.3): number[] {
-  if (elevations.length <= 2) return [...elevations];
-  const forward = new Array<number>(elevations.length);
-  forward[0] = elevations[0];
-  for (let index = 1; index < elevations.length; index += 1) {
-    forward[index] =
-      alpha * elevations[index] + (1 - alpha) * forward[index - 1];
-  }
-  const backward = new Array<number>(elevations.length);
-  backward[backward.length - 1] = forward[forward.length - 1];
-  for (let index = elevations.length - 2; index >= 0; index -= 1) {
-    backward[index] =
-      alpha * forward[index] + (1 - alpha) * backward[index + 1];
-  }
-  backward[0] = elevations[0];
-  backward[backward.length - 1] = elevations[elevations.length - 1];
-  return backward;
-}
-
 function computeElevationStats(elevations: number[]): {
   gain: number;
   loss: number;
@@ -208,18 +189,17 @@ function computeElevationStats(elevations: number[]): {
   if (elevations.length === 0) {
     return { gain: 0, loss: 0, min: 0, max: 0 };
   }
-  const profile = smoothElevations(elevations);
   let gain = 0;
   let loss = 0;
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   let pending = 0;
-  for (let index = 0; index < profile.length; index += 1) {
-    const elevation = profile[index];
+  for (let index = 0; index < elevations.length; index += 1) {
+    const elevation = elevations[index];
     min = Math.min(min, elevation);
     max = Math.max(max, elevation);
     if (index === 0) continue;
-    const difference = elevation - profile[index - 1];
+    const difference = elevation - elevations[index - 1];
     if (
       (pending >= 0 && difference >= 0) ||
       (pending <= 0 && difference <= 0)
@@ -1384,8 +1364,7 @@ function provenance(candidate: Candidate, args: Args) {
 async function createPendingRoute(
   args: Args,
   candidate: Candidate,
-  points: TrackPoint[],
-  stats: ReturnType<typeof computeElevationStats>
+  points: TrackPoint[]
 ): Promise<string> {
   const routeId = generateId();
   const segmentId = generateId();
@@ -1398,6 +1377,22 @@ async function createPendingRoute(
 
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const canonicalStatsResult = await client.query<{
+      gain: number | null;
+      loss: number | null;
+    }>(
+      `SELECT gain, loss
+       FROM route_elevation_stats(ST_GeomFromText($1, 4326)::geography)`,
+      [wkt]
+    );
+    const canonicalStats = canonicalStatsResult.rows[0];
+    if (
+      !canonicalStats ||
+      !Number.isFinite(canonicalStats.gain) ||
+      !Number.isFinite(canonicalStats.loss)
+    ) {
+      throw new Error("Canonical route elevation stats are unavailable");
+    }
     await client.query(
       `SELECT id FROM destinations WHERE id = ANY($1::text[]) FOR UPDATE`,
       [[args.destinationId, args.trailheadId]]
@@ -1571,8 +1566,8 @@ async function createPendingRoute(
         wkt,
         polyline6,
         distance,
-        stats.gain,
-        stats.loss,
+        canonicalStats.gain,
+        canonicalStats.loss,
         JSON.stringify(args.sourceLinks),
         args.routeShape,
         JSON.stringify(routeProvenance),
@@ -1597,8 +1592,8 @@ async function createPendingRoute(
         wkt,
         polyline6,
         distance,
-        stats.gain,
-        stats.loss,
+        canonicalStats.gain,
+        canonicalStats.loss,
         JSON.stringify(routeProvenance),
       ]
     );
@@ -1646,8 +1641,7 @@ async function createPendingRoute(
 async function upgradeActiveRoute(
   args: Args,
   candidate: Candidate,
-  points: TrackPoint[],
-  stats: ReturnType<typeof computeElevationStats>
+  points: TrackPoint[]
 ): Promise<string> {
   const routeId = args.upgradeActiveRouteId;
   const segmentId = generateId();
@@ -1660,6 +1654,22 @@ async function upgradeActiveRoute(
 
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const canonicalStatsResult = await client.query<{
+      gain: number | null;
+      loss: number | null;
+    }>(
+      `SELECT gain, loss
+       FROM route_elevation_stats(ST_GeomFromText($1, 4326)::geography)`,
+      [wkt]
+    );
+    const canonicalStats = canonicalStatsResult.rows[0];
+    if (
+      !canonicalStats ||
+      !Number.isFinite(canonicalStats.gain) ||
+      !Number.isFinite(canonicalStats.loss)
+    ) {
+      throw new Error("Canonical route elevation stats are unavailable");
+    }
     await client.query(
       `SELECT id FROM destinations WHERE id = ANY($1::text[]) FOR UPDATE`,
       [[args.destinationId, args.trailheadId]]
@@ -1720,8 +1730,8 @@ async function upgradeActiveRoute(
         wkt,
         polyline6,
         distance,
-        stats.gain,
-        stats.loss,
+        canonicalStats.gain,
+        canonicalStats.loss,
         JSON.stringify(args.sourceLinks),
         args.routeShape,
         JSON.stringify(routeProvenance),
@@ -1750,8 +1760,8 @@ async function upgradeActiveRoute(
         wkt,
         polyline6,
         distance,
-        stats.gain,
-        stats.loss,
+        canonicalStats.gain,
+        canonicalStats.loss,
         JSON.stringify(routeProvenance),
       ]
     );
@@ -1905,8 +1915,7 @@ async function main() {
     const routeId = await upgradeActiveRoute(
       args,
       candidate,
-      points,
-      stats
+      points
     );
     console.log(`Upgraded active route ${routeId}`);
     result = {
@@ -1919,8 +1928,7 @@ async function main() {
     const routeId = await createPendingRoute(
       args,
       candidate,
-      points,
-      stats
+      points
     );
     console.log(`Pending route ready ${routeId}`);
     result = {

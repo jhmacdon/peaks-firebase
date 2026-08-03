@@ -207,6 +207,40 @@ test("restart reuse requires exact XYZ elevation lineage and pending integrity",
   }
 });
 
+test("noisy profiles write the SQL canonical stats used by integrity and restart reuse", () => {
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
+  const pendingStart = importer.indexOf("async function createPendingRoute(");
+  const upgradeStart = importer.indexOf("async function upgradeActiveRoute(");
+  const mainStart = importer.indexOf("\nasync function main()", upgradeStart);
+  const pending = importer.slice(pendingStart, upgradeStart);
+  const upgrade = importer.slice(upgradeStart, mainStart);
+
+  // A three-point crest makes the old smoothing path undercount both legs.
+  // The database function instead stores the raw profile's two ten-metre legs.
+  const noisyProfile = [100, 110, 100];
+  const rawStats = { gain: 0, loss: 0 };
+  for (let index = 1; index < noisyProfile.length; index += 1) {
+    const difference = noisyProfile[index] - noisyProfile[index - 1];
+    if (difference > 4) rawStats.gain += difference;
+    if (difference < -4) rawStats.loss += Math.abs(difference);
+  }
+  assert.deepEqual(rawStats, { gain: 10, loss: 10 });
+
+  assert.doesNotMatch(importer, /function smoothElevations/);
+  for (const writer of [pending, upgrade]) {
+    assert.match(
+      writer,
+      /SELECT gain, loss\s+FROM route_elevation_stats\(ST_GeomFromText\(\$1, 4326\)::geography\)/
+    );
+    assert.match(writer, /canonicalStats\.gain/);
+    assert.match(writer, /canonicalStats\.loss/);
+  }
+  assert.match(
+    importer,
+    /r\.gain IS NOT DISTINCT FROM elevation_stats\.gain[\s\S]+?r\.gain_loss IS NOT DISTINCT FROM elevation_stats\.loss/
+  );
+});
+
 test("the worker runtime can load the importer before claiming a job", () => {
   const result = spawnSync(
     join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
