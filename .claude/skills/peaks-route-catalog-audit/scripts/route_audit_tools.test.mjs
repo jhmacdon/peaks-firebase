@@ -1,5 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +24,52 @@ import {
 const workerCheckoutResolver = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/resolve_worker_checkout.sh",
+    import.meta.url
+  )
+);
+
+const routeElevationWrapper = fileURLToPath(
+  new URL(
+    "../../peaks-route-elevation-backfill/scripts/route_elevation_jobs.sh",
+    import.meta.url
+  )
+);
+
+const routeCatalogAudit = fileURLToPath(
+  new URL("./audit_catalog_routes.sh", import.meta.url)
+);
+
+const routeAuditJobs = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrate/src/route-catalog-audit-jobs.ts",
+    import.meta.url
+  )
+);
+
+const routeAuditJobsMigration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260803_route_catalog_audit_rule_v2.sql",
+    import.meta.url
+  )
+);
+
+const routeAuditJobsV3Migration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260803_route_catalog_audit_rule_v3.sql",
+    import.meta.url
+  )
+);
+
+const routeAuditJobsFreshMigration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260801_route_catalog_audit_jobs.sql",
+    import.meta.url
+  )
+);
+
+const workerPreflight = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/worker_preflight.sh",
     import.meta.url
   )
 );
@@ -42,6 +100,10 @@ test("approved worker checkouts resolve by exact path", () => {
       "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-04",
       "luna-route-audit-04",
     ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation",
+      "luna-route-elevation-01",
+    ],
   ];
   for (const [checkoutPath, expected] of checkouts) {
     const actual = execFileSync(
@@ -55,6 +117,9 @@ test("approved worker checkouts resolve by exact path", () => {
     "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-01",
     "/tmp/firebase-route-audit-04",
     "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-05",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-01",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-02",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevations",
   ]) {
     assert.throws(
       () => execFileSync(
@@ -64,6 +129,234 @@ test("approved worker checkouts resolve by exact path", () => {
       ),
       /Command failed/
     );
+  }
+});
+
+test("elevation wrapper preflights before every queue call and owns its worker ID", () => {
+  const source = readFileSync(routeElevationWrapper, "utf8");
+  const preflightIndex = source.indexOf("worker_preflight.sh");
+  const npmIndex = source.indexOf("npm --prefix");
+  assert.ok(preflightIndex >= 0, "wrapper calls shared worker_preflight");
+  assert.ok(npmIndex > preflightIndex, "preflight runs before the queue CLI");
+  assert.match(source, /luna-route-elevation-01/);
+  assert.match(source, /--worker-id.*not allowed|not allowed.*--worker-id/s);
+  assert.match(source, /claim.*--apply/s);
+  assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
+  assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("printed route audit SQL requires every linked summit and canonical elevation", () => {
+  const sql = execFileSync(routeCatalogAudit, [
+    "--route-id", "route-1", "--print-sql",
+  ], { encoding: "utf8" });
+  assert.match(sql, /ST_Distance\(sr\.path, d\.location\)/);
+  assert.match(sql, /route_misses_linked_summit_gt_5m/);
+  assert.match(sql, /worst_summit_gap_m/);
+  assert.match(sql, /fault_summit_ids/);
+  assert.match(sql, /fault_summit_names/);
+  assert.match(sql, /fault_summit_gaps_m/);
+  assert.match(sql, /shape IN \('out_and_back', 'point_to_point'\)/);
+  assert.match(sql, /end_over_5m_from_summit/);
+  assert.match(sql, /encode_route_elevation_profile\(rm\.path\)/);
+  assert.match(sql, /IS DISTINCT FROM encode_route_elevation_profile\(rm\.path\)/);
+  assert.match(sql, /missing_or_invalid_elevation_profile/);
+  assert.match(sql, /route_elevation_profile_has_real_range\(rm\.path\)/);
+  assert.match(sql, /flat_or_placeholder_elevation_profile/);
+  assert.match(sql, /route_elevation_stats\(rc\.path\)/);
+  assert.match(sql, /route_elevation_stats\(s\.path\)/);
+  assert.match(sql, /route_elevation_stats_mismatch/);
+  assert.match(sql, /segment_elevation_stats_mismatch/);
+  assert.match(sql, /segment_elevation_stats_mismatch_ids/);
+  assert.match(
+    sql,
+    /CASE WHEN rm\.gain IS DISTINCT FROM rm\.computed_gain\s+OR rm\.gain_loss IS DISTINCT FROM rm\.computed_gain_loss\s+THEN 'route_elevation_stats_mismatch'/
+  );
+  assert.match(
+    sql,
+    /CASE WHEN COALESCE\(rm\.segment_elevation_stats_mismatch_count, 0\) > 0\s+THEN 'segment_elevation_stats_mismatch'/
+  );
+  assert.doesNotMatch(sql, /end_over_250m_from_summit/);
+  assert.doesNotMatch(sql, /flat_or_missing_elevation_profile/);
+});
+
+test("path-derived elevation stats reject matching wrong route and segment values", () => {
+  const sql = execFileSync(routeCatalogAudit, [
+    "--route-id", "route-1", "--print-sql",
+  ], { encoding: "utf8" });
+  assert.match(
+    sql,
+    /route_elevation_stats\(rc\.path\) elevation_stats/
+  );
+  assert.match(
+    sql,
+    /rm\.gain IS DISTINCT FROM rm\.computed_gain\s+OR rm\.gain_loss IS DISTINCT FROM rm\.computed_gain_loss/
+  );
+  assert.match(
+    sql,
+    /route_elevation_stats\(s\.path\) elevation_stats/
+  );
+  assert.match(
+    sql,
+    /ss\.stored_gain IS DISTINCT FROM ss\.computed_gain\s+OR ss\.stored_gain_loss IS DISTINCT FROM ss\.computed_gain_loss/
+  );
+  assert.match(
+    sql,
+    /WHEN CARDINALITY\(rig\.error_issues\) > 0 THEN 'ERROR'/
+  );
+});
+
+test("route audit jobs requeue v2 passes under rule version 3 without stealing leases", () => {
+  const source = readFileSync(routeAuditJobs, "utf8");
+  const migration = readFileSync(routeAuditJobsMigration, "utf8");
+  const v3Migration = readFileSync(routeAuditJobsV3Migration, "utf8");
+  const freshMigration = readFileSync(routeAuditJobsFreshMigration, "utf8");
+  assert.match(source, /const AUDIT_RULE_VERSION = 3/);
+  assert.match(source, /audit_rule_version/);
+  assert.match(source, /job\.audit_rule_version < EXCLUDED\.audit_rule_version/);
+  assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);
+  assert.match(source, /job\.state = 'auditing'/);
+  assert.match(source, /\* 200/);
+  assert.match(source, /NOT route_elevation_profile_has_real_range\(r\.path\)/);
+  assert.match(source, /route_elevation_stats\(r\.path\)/);
+  assert.match(source, /route_elevation_stats\(s\.path\)/);
+  assert.match(source, /encode\(ST_AsEWKB\(segment\.path::geometry\), 'hex'\)/);
+  assert.match(source, /COALESCE\(segment\.provenance::text, ''\)/);
+  assert.match(source, /encode_route_elevation_profile\(segment\.path\)/);
+  assert.doesNotMatch(source, /segment\.updated_at::text/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS audit_rule_version INTEGER/);
+  assert.match(migration, /SET audit_rule_version = 1/);
+  assert.match(migration, /SET DEFAULT 2/);
+  assert.match(migration, /SET NOT NULL/);
+  assert.match(v3Migration, /ALTER COLUMN audit_rule_version SET DEFAULT 3/);
+  assert.match(
+    freshMigration,
+    /CONSTRAINT route_catalog_audit_jobs_audit_rule_version_positive/
+  );
+});
+
+test("elevation preflight contains dirty, stale, and runtime guards", () => {
+  const wrapper = readFileSync(routeElevationWrapper, "utf8");
+  const preflight = readFileSync(workerPreflight, "utf8");
+  assert.ok(wrapper.indexOf("worker_preflight.sh") < wrapper.indexOf("claim"));
+  assert.ok(preflight.indexOf("git -C \"$repo_root\" status") < preflight.indexOf("npm --prefix"));
+  assert.ok(preflight.indexOf("rev-parse origin/main") < preflight.indexOf("npm --prefix"));
+  assert.match(preflight, /route-elevation-jobs\.ts/);
+  assert.match(preflight, /tsx.*-e|tsx.*--help/s);
+});
+
+test("dirty and stale elevation checkouts fail before the queue CLI runs", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-elevation-preflight-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-elevation-backfill/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  const marker = join(root, "npm-called");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(skillScripts, "route_elevation_jobs.sh");
+    const preflight = join(factoryScripts, "worker_preflight.sh");
+    const resolver = join(factoryScripts, "resolve_worker_checkout.sh");
+    const npm = join(bin, "npm");
+    copyFileSync(routeElevationWrapper, wrapper);
+    copyFileSync(workerPreflight, preflight);
+    writeFileSync(resolver, "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(npm, "#!/usr/bin/env bash\n: > \"$NPM_MARKER\"\nexit 0\n");
+    for (const executable of [wrapper, preflight, resolver, npm]) {
+      chmodSync(executable, 0o755);
+    }
+    writeFileSync(join(root, "tracked.txt"), "base\n");
+    execFileSync("git", ["init", "-q", root]);
+    execFileSync("git", ["-C", root, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", root, "config", "user.name", "Test"]);
+    execFileSync("git", ["-C", root, "add", "."]);
+    execFileSync("git", ["-C", root, "commit", "-qm", "base"]);
+    const base = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+    execFileSync("git", ["-C", root, "commit", "--allow-empty", "-qm", "origin main"]);
+    const originMain = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+    execFileSync("git", ["-C", root, "update-ref", "refs/remotes/origin/main", originMain]);
+    execFileSync("git", ["-C", root, "reset", "--hard", "-q", base]);
+    const environment = {
+      ...process.env,
+      NPM_MARKER: marker,
+      PATH: `${bin}:${process.env.PATH}`,
+    };
+    writeFileSync(join(root, "dirty.txt"), "dirty\n");
+    for (const [expected, clean] of [
+      [/route worker checkout is dirty/, false],
+      [/route worker checkout is stale/, true],
+    ]) {
+      if (clean) rmSync(join(root, "dirty.txt"));
+      let failure;
+      try {
+        execFileSync(wrapper, ["stats"], {
+          encoding: "utf8", env: environment, stdio: "pipe",
+        });
+        assert.fail("wrapper must fail during preflight");
+      } catch (error) {
+        failure = error;
+      }
+      assert.match(String(failure.stderr), expected);
+      assert.equal(existsSync(marker), false, "preflight must block npm");
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("elevation wrapper parses both show filters in either order", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-elevation-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-elevation-backfill/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(skillScripts, "route_elevation_jobs.sh");
+    copyFileSync(routeElevationWrapper, wrapper);
+    writeFileSync(join(factoryScripts, "worker_preflight.sh"), "#!/usr/bin/env bash\nexit 0\n");
+    writeFileSync(join(factoryScripts, "resolve_worker_checkout.sh"), "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(join(bin, "npm"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n");
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "worker_preflight.sh"),
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(bin, "npm"),
+    ]) chmodSync(executable, 0o755);
+    const environment = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+    for (const args of [
+      ["show", "--route-id", "route-1", "--state", "retry"],
+      ["show", "--state", "retry", "--route-id", "route-1"],
+    ]) {
+      const output = execFileSync(wrapper, args, { encoding: "utf8", env: environment });
+      assert.match(output, /show/);
+      assert.match(output, /--route-id\nroute-1\n--state\nretry/);
+    }
+    assert.throws(
+      () => execFileSync(wrapper, ["claim", "--apply", "--worker-id", "wrong-worker"], {
+        encoding: "utf8", env: environment, stdio: "pipe",
+      }),
+      /Command failed/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

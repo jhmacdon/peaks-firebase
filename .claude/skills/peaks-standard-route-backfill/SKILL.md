@@ -169,6 +169,13 @@ After that dry run passes, repeat the same command with:
      that a person or agent inspected the rendered line. The helper never
      activates a route.
 
+     The route stores all five elevation credit fields together. A terrain-cache
+     import records the AWS registry, the Tilezen attribution page, and the
+     candidate retrieval time; an unapproved sampler clears all five fields.
+     The new segment keeps matching elevation source provenance. A later writer
+     that reuses a segment must set its own route credit from that source or
+     resample it; it must not copy credit from an unrelated older route.
+
      For a legacy rebuild, add `--replace-active-route <route-id>` to both
      importer runs. The importer locks and validates that exact Peaks-owned
      active route, then allows the reviewed replacement to stay pending beside

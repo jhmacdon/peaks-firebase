@@ -1,0 +1,449 @@
+#!/usr/bin/env node
+
+import process from "node:process";
+import db from "./db";
+
+export type RepairState = "queued" | "covered" | "retired" | "needs_human";
+type RepairRow = { route_id: string; destination_id: string; state: RepairState; created_at: string };
+
+export function validRepairState(value: string): value is RepairState {
+  return ["queued", "covered", "retired", "needs_human"].includes(value);
+}
+
+function idValue(value: string | undefined, flag: string): string {
+  if (!value || value.startsWith("--") || !/^[A-Za-z0-9_.:@/-]+$/.test(value)) {
+    throw new Error(`${flag} requires an ID with supported characters`);
+  }
+  return value;
+}
+
+function limitValue(value: string | undefined): number {
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+    throw new Error("--limit must be an integer from 1 through 200");
+  }
+  return limit;
+}
+
+export type RepairArgs =
+  | { command: "seed"; apply: boolean }
+  | { command: "retire-covered"; routeId: string; apply: boolean }
+  | { command: "show"; routeId: string | null; destinationId: string | null; state: RepairState | null; limit: number }
+  | { command: "stats" };
+
+export function parseRepairArgs(argv: string[]): RepairArgs {
+  const [command, ...rest] = argv;
+  if (command === "seed") {
+    if (rest.some((arg) => arg !== "--apply")) throw new Error("Unknown flag for seed");
+    if (rest.filter((arg) => arg === "--apply").length > 1) throw new Error("Duplicate --apply");
+    return { command, apply: rest.includes("--apply") };
+  }
+  if (command === "stats") {
+    if (rest.length > 0) throw new Error("Unknown flag for stats");
+    return { command };
+  }
+  if (command === "retire-covered") {
+    let routeId: string | null = null;
+    let apply = false;
+    for (let index = 0; index < rest.length; index += 1) {
+      const flag = rest[index];
+      if (flag === "--apply") {
+        if (apply) throw new Error("Duplicate --apply");
+        apply = true;
+      } else if (flag === "--route-id") {
+        routeId = idValue(rest[++index], flag);
+      } else {
+        throw new Error(`Unknown flag ${flag} for retire-covered`);
+      }
+    }
+    if (!routeId) throw new Error("retire-covered requires --route-id");
+    return { command, routeId, apply };
+  }
+  if (command !== "show") throw new Error("Unknown command");
+  let routeId: string | null = null;
+  let destinationId: string | null = null;
+  let state: RepairState | null = null;
+  let limit = 20;
+  for (let index = 0; index < rest.length; index += 1) {
+    const flag = rest[index];
+    const value = rest[++index];
+    if (flag === "--route-id") routeId = idValue(value, flag);
+    else if (flag === "--destination-id") destinationId = idValue(value, flag);
+    else if (flag === "--state") {
+      if (!value || !validRepairState(value)) throw new Error("--state must be queued, covered, retired, or needs_human");
+      state = value;
+    } else if (flag === "--limit") limit = limitValue(value);
+    else throw new Error(`Unknown flag ${flag}`);
+  }
+  return { command, routeId, destinationId, state, limit };
+}
+
+export function selectQueuedRepair(rows: RepairRow[]): string | null {
+  return rows
+    .filter((row) => row.state === "queued")
+    .sort((first, second) => first.created_at.localeCompare(second.created_at) || first.route_id.localeCompare(second.route_id))[0]
+    ?.route_id ?? null;
+}
+
+const repairsSql = `
+WITH bad_routes AS (
+  SELECT r.id AS route_id
+  FROM routes r
+  WHERE r.owner = 'peaks' AND r.status = 'active'
+    AND EXISTS (
+      SELECT 1
+      FROM route_destinations rd
+      JOIN destinations summit ON summit.id = rd.destination_id
+      WHERE rd.route_id = r.id
+        AND 'summit'::destination_feature = ANY(summit.features)
+        AND (r.path IS NULL OR summit.location IS NULL OR NOT ST_DWithin(r.path, summit.location, 5))
+    )
+), bad_links AS (
+  SELECT r.id AS route_id,
+         summit.id AS destination_id,
+         CASE
+           WHEN r.path IS NULL THEN 'route_path_missing'
+           WHEN summit.location IS NULL THEN 'destination_location_missing'
+           WHEN ST_DWithin(r.path, summit.location, 5) THEN 'shared_route_integrity_failure'
+           ELSE 'summit_path_gap'
+         END AS reason,
+         CASE WHEN r.path IS NOT NULL AND summit.location IS NOT NULL
+           THEN ST_Distance(r.path, summit.location) END AS summit_gap_meters
+  FROM bad_routes bad
+  JOIN routes r ON r.id = bad.route_id
+  JOIN route_destinations rd ON rd.route_id = r.id
+  JOIN destinations summit ON summit.id = rd.destination_id
+  WHERE 'summit'::destination_feature = ANY(summit.features)
+), coverage AS (
+  SELECT bl.route_id, bl.destination_id,
+         candidate.id AS replacement_route_id
+  FROM bad_links bl
+  LEFT JOIN LATERAL (
+    SELECT r2.id
+    FROM routes r2
+    JOIN route_destinations rd2
+      ON rd2.route_id = r2.id AND rd2.destination_id = bl.destination_id
+    JOIN destinations summit ON summit.id = rd2.destination_id
+    WHERE r2.id <> bl.route_id
+      AND r2.owner = 'peaks' AND r2.status = 'active'
+      AND r2.path IS NOT NULL AND summit.location IS NOT NULL
+      AND peaks_route_passes_publish_integrity(r2.id, bl.destination_id, 'active')
+      AND ST_DWithin(r2.path, summit.location, 5)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM route_destinations all_rd
+        JOIN destinations all_summit ON all_summit.id = all_rd.destination_id
+        WHERE all_rd.route_id = r2.id
+          AND 'summit'::destination_feature = ANY(all_summit.features)
+          AND (all_summit.location IS NULL OR NOT ST_DWithin(r2.path, all_summit.location, 5))
+      )
+      AND r2.elevation_string IS NOT NULL
+      AND r2.elevation_string = encode_route_elevation_profile(r2.path)
+      AND is_valid_route_provenance(r2.provenance)
+      AND NOT EXISTS (
+        SELECT 1 FROM route_segments rs
+        LEFT JOIN segments s ON s.id = rs.segment_id
+        WHERE rs.route_id = r2.id
+          AND (
+            s.path IS NULL
+            OR NOT is_valid_route_provenance(s.provenance)
+            OR s.provenance IS DISTINCT FROM r2.provenance
+          )
+      )
+      AND (SELECT count(*) = count(DISTINCT ordinal)
+             AND min(ordinal) = 0
+             AND max(ordinal) = count(*) - 1
+           FROM route_segments ordered_segment
+           WHERE ordered_segment.route_id = r2.id)
+      AND EXISTS (
+        WITH ordered_segment AS (
+          SELECT rs.ordinal,
+                 CASE rs.direction WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                   ELSE s.path::geometry END AS path
+          FROM route_segments rs
+          JOIN segments s ON s.id = rs.segment_id
+          WHERE rs.route_id = r2.id
+          ORDER BY rs.ordinal
+        ), chained AS (
+          SELECT ordinal, path,
+                 lag(path) OVER (ORDER BY ordinal) AS prior_path
+          FROM ordered_segment
+        ), assembled AS (
+          SELECT ST_MakeLine((dumped).geom ORDER BY ordered_segment.ordinal, (dumped).path) AS path
+          FROM ordered_segment
+          CROSS JOIN LATERAL ST_DumpPoints(ordered_segment.path) AS dumped
+        )
+        SELECT 1
+        FROM assembled
+        WHERE (SELECT COALESCE(bool_and(
+                 prior_path IS NULL OR ST_DWithin(
+                   ST_EndPoint(prior_path)::geography,
+                   ST_StartPoint(path)::geography,
+                   5
+                 )
+               ), false) FROM chained)
+          AND ST_DWithin(
+            ST_StartPoint(r2.path::geometry)::geography,
+            ST_StartPoint(assembled.path)::geography,
+            5
+          )
+          AND ST_DWithin(
+            ST_EndPoint(r2.path::geometry)::geography,
+            ST_EndPoint(assembled.path)::geography,
+            5
+          )
+          AND ST_CoveredBy(r2.path::geometry, ST_Buffer(assembled.path::geography, 5)::geometry)
+          AND ST_CoveredBy(assembled.path, ST_Buffer(r2.path, 5)::geometry)
+      )
+      AND (SELECT count(*) = count(DISTINCT ordinal)
+             AND min(ordinal) = 0
+             AND max(ordinal) = count(*) - 1
+           FROM route_destinations ordered
+           WHERE ordered.route_id = r2.id)
+      AND (
+        r2.shape IS NULL
+        OR r2.shape NOT IN ('out_and_back', 'point_to_point')
+        OR EXISTS (
+          SELECT 1
+          FROM route_destinations final_rd
+          JOIN destinations final_destination ON final_destination.id = final_rd.destination_id
+          WHERE final_rd.route_id = r2.id
+            AND final_rd.ordinal = (
+              SELECT max(last_rd.ordinal)
+              FROM route_destinations last_rd
+              WHERE last_rd.route_id = r2.id
+            )
+            AND 'summit'::destination_feature = ANY(final_destination.features)
+            AND final_destination.location IS NOT NULL
+            AND ST_DWithin(ST_EndPoint(r2.path::geometry)::geography, final_destination.location, 5)
+        )
+      )
+    ORDER BY r2.created_at, r2.id
+    LIMIT 1
+  ) candidate ON true
+)
+`;
+
+function compact(row: Record<string, unknown>): Record<string, unknown> {
+  return {
+    route_id: row.route_id,
+    destination_id: row.destination_id,
+    state: row.state,
+    reason: row.reason,
+    summit_gap_meters: row.summit_gap_meters,
+    replacement_route_id: row.replacement_route_id,
+    covered_at: row.covered_at,
+    evidence: row.evidence,
+    last_error: row.last_error,
+    updated_at: row.updated_at,
+  };
+}
+
+async function seed(apply: boolean): Promise<void> {
+  if (!apply) {
+    const preview = await db.query<{ total: number; covered: number }>(
+      `${repairsSql} SELECT count(*)::int AS total, count(*) FILTER (WHERE replacement_route_id IS NOT NULL)::int AS covered FROM coverage`
+    );
+    console.log(JSON.stringify({ mode: "dry_run", inserted: 0, updated: 0, covered: preview.rows[0]?.covered ?? 0, retired: 0, candidates: preview.rows[0]?.total ?? 0 }));
+    return;
+  }
+  const retired = await db.query<{ count: number }>(
+    `WITH retired AS (
+       UPDATE route_integrity_repairs repair
+       SET state = 'retired', replacement_route_id = NULL, covered_at = NULL,
+           evidence = '{}'::jsonb, last_error = NULL
+       FROM routes r
+       WHERE r.id = repair.route_id
+         AND repair.state <> 'covered'
+         AND (r.owner <> 'peaks' OR r.status <> 'active')
+       RETURNING 1
+     ) SELECT count(*)::int AS count FROM retired`
+  );
+  const result = await db.query<{ inserted: boolean; state: RepairState }>(
+    `${repairsSql}, upserted AS (
+       INSERT INTO route_integrity_repairs (
+         route_id, destination_id, state, reason, summit_gap_meters,
+         replacement_route_id, covered_at, evidence, last_error
+       )
+       SELECT coverage.route_id, coverage.destination_id,
+              CASE WHEN coverage.replacement_route_id IS NULL THEN 'queued' ELSE 'covered' END,
+              bad_links.reason, bad_links.summit_gap_meters,
+              coverage.replacement_route_id,
+              CASE WHEN coverage.replacement_route_id IS NULL THEN NULL ELSE now() END,
+              CASE WHEN coverage.replacement_route_id IS NULL THEN '{}'::jsonb
+                   ELSE jsonb_build_object('validation', 'active_peaks_route_passed_integrity_gates', 'replacement_route_id', coverage.replacement_route_id) END,
+              NULL
+       FROM coverage JOIN bad_links USING (route_id, destination_id)
+       ON CONFLICT (route_id, destination_id) DO UPDATE SET
+         state = CASE WHEN EXCLUDED.replacement_route_id IS NOT NULL THEN 'covered' ELSE 'queued' END,
+         reason = EXCLUDED.reason,
+         summit_gap_meters = EXCLUDED.summit_gap_meters,
+         replacement_route_id = EXCLUDED.replacement_route_id,
+         covered_at = CASE WHEN EXCLUDED.replacement_route_id IS NULL THEN NULL ELSE now() END,
+         evidence = EXCLUDED.evidence,
+         last_error = NULL
+       RETURNING (xmax = 0) AS inserted, state
+     ) SELECT inserted, state FROM upserted`
+  );
+  const inserted = result.rows.filter((row) => row.inserted).length;
+  console.log(JSON.stringify({
+    mode: "apply", inserted, updated: result.rows.length - inserted,
+    covered: result.rows.filter((row) => row.state === "covered").length,
+    retired: retired.rows[0]?.count ?? 0,
+  }));
+}
+
+async function show(args: Extract<RepairArgs, { command: "show" }>): Promise<void> {
+  const result = await db.query<Record<string, unknown>>(
+    `SELECT route_id, destination_id, state, reason, summit_gap_meters,
+            replacement_route_id, covered_at, evidence, last_error, updated_at
+     FROM route_integrity_repairs
+     WHERE ($1::text IS NULL OR route_id = $1)
+       AND ($2::text IS NULL OR destination_id = $2)
+       AND ($3::text IS NULL OR state = $3)
+     ORDER BY created_at, route_id, destination_id LIMIT $4`,
+    [args.routeId, args.destinationId, args.state, args.limit]
+  );
+  console.log(JSON.stringify(result.rows.map(compact)));
+}
+
+async function stats(): Promise<void> {
+  const result = await db.query<{ state: RepairState; count: number }>(
+    `SELECT state, count(*)::int AS count FROM route_integrity_repairs GROUP BY state ORDER BY state`
+  );
+  const extras = await db.query<{ bad_active_routes: number; queued_destination_links: number }>(
+    `${repairsSql}
+     SELECT count(DISTINCT route_id)::int AS bad_active_routes,
+            count(*) FILTER (WHERE replacement_route_id IS NULL)::int AS queued_destination_links
+     FROM coverage`
+  );
+  console.log(JSON.stringify({
+    states: Object.fromEntries(result.rows.map((row) => [row.state, row.count])),
+    total: result.rows.reduce((sum, row) => sum + row.count, 0),
+    bad_active_routes: extras.rows[0]?.bad_active_routes ?? 0,
+    queued_destination_links: extras.rows[0]?.queued_destination_links ?? 0,
+  }));
+}
+
+async function retireCovered(routeId: string, apply: boolean): Promise<void> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const route = await client.query<{ owner: string; status: string }>(
+      `SELECT owner, status FROM routes WHERE id = $1 FOR UPDATE`,
+      [routeId]
+    );
+    if (route.rows[0]?.owner !== "peaks" || route.rows[0]?.status !== "active") {
+      throw new Error("retire-covered requires an active Peaks-owned route");
+    }
+    const repairs = await client.query<{
+      destination_id: string;
+      state: RepairState;
+      replacement_route_id: string | null;
+    }>(
+      `SELECT repair.destination_id,
+              repair.state,
+              repair.replacement_route_id
+       FROM route_integrity_repairs repair
+       WHERE repair.route_id = $1
+       ORDER BY repair.destination_id
+       FOR UPDATE OF repair`,
+      [routeId]
+    );
+    if (repairs.rows.length === 0) {
+      throw new Error("retire-covered requires at least one repair ledger row");
+    }
+    const replacementIds = [
+      ...new Set(
+        repairs.rows
+          .map((repair) => repair.replacement_route_id)
+          .filter((id): id is string => id !== null)
+      ),
+    ];
+    if (replacementIds.length > 0) {
+      await client.query(
+        `SELECT id FROM routes
+         WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE`,
+        [replacementIds]
+      );
+      await client.query(
+        `SELECT rs.route_id, rs.segment_id
+         FROM route_segments rs
+         JOIN segments s ON s.id = rs.segment_id
+         WHERE rs.route_id = ANY($1::text[])
+         ORDER BY rs.route_id, rs.ordinal
+         FOR UPDATE OF rs, s`,
+        [replacementIds]
+      );
+    }
+    const invalid: typeof repairs.rows = [];
+    for (const repair of repairs.rows) {
+      if (repair.state !== "covered" || !repair.replacement_route_id) {
+        invalid.push(repair);
+        continue;
+      }
+      const validation = await client.query<{ passes: boolean }>(
+        `SELECT peaks_route_passes_publish_integrity($1, $2, 'active') AS passes`,
+        [repair.replacement_route_id, repair.destination_id]
+      );
+      if (validation.rows[0]?.passes !== true) invalid.push(repair);
+    }
+    if (apply && invalid.length > 0) {
+      await client.query(
+        `UPDATE route_integrity_repairs
+         SET state = 'queued', replacement_route_id = NULL, covered_at = NULL,
+             evidence = evidence || jsonb_build_object(
+               'requeued_invalid_coverage', now()
+             ),
+             last_error = 'Covered replacement no longer passes publish integrity'
+         WHERE route_id = $1
+           AND destination_id = ANY($2::text[])
+           AND state = 'covered'`,
+        [routeId, invalid.map((repair) => repair.destination_id)]
+      );
+    }
+    const canRetire = invalid.length === 0;
+    if (apply && canRetire) {
+      const retired = await client.query(
+        `UPDATE routes
+         SET status = 'superseded'
+         WHERE id = $1 AND owner = 'peaks' AND status = 'active'
+         RETURNING id`,
+        [routeId]
+      );
+      if (retired.rows.length !== 1) {
+        throw new Error("Route changed before retirement");
+      }
+    }
+    if (apply) await client.query("COMMIT");
+    else await client.query("ROLLBACK");
+    console.log(JSON.stringify({
+      mode: apply ? "apply" : "dry_run",
+      route_id: routeId,
+      repair_links: repairs.rows.length,
+      invalid_coverage_links: invalid.length,
+      requeued_invalid_coverage: apply ? invalid.filter((row) => row.state === "covered").length : 0,
+      retired: apply && canRetire,
+    }));
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const args = parseRepairArgs(argv);
+  if (args.command === "seed") return seed(args.apply);
+  if (args.command === "retire-covered") return retireCovered(args.routeId, args.apply);
+  if (args.command === "show") return show(args);
+  return stats();
+}
+
+if (require.main === module) {
+  main().catch((error: unknown) => {
+    console.error(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    process.exitCode = 1;
+  }).finally(() => db.end());
+}

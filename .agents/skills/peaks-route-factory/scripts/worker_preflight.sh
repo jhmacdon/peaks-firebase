@@ -61,4 +61,15 @@ for runtime_script in "${runtime_scripts[@]}"; do
   fi
 done
 
+# route-elevation-jobs has no --help command. Importing it loads no database
+# connection, but catches runtime import failures before a lease.
+elevation_runtime="$migrate_root/src/route-elevation-jobs.ts"
+if ! "$migrate_root/node_modules/.bin/tsx" -e \
+  "import '$elevation_runtime'" >/dev/null 2>&1; then
+  printf '%s\n' \
+    "setup_required: route runtime smoke check failed: $elevation_runtime" \
+    >&2
+  exit 1
+fi
+
 printf '%s\n' "$repo_root"

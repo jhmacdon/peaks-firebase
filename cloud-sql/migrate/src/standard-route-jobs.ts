@@ -198,7 +198,7 @@ target_reasons AS (
   WHERE 'summit'::destination_feature = ANY(d.features)
   GROUP BY d.id, p.session_count, p.success_count
 ),
-targets AS (
+normal_targets AS (
   SELECT tr.*,
          (
            CASE WHEN tr.is_target_list THEN 30000 ELSE 0 END
@@ -211,20 +211,53 @@ targets AS (
      OR tr.is_target_list
      OR tr.is_high_popularity
 ),
+queued_integrity_repairs AS (
+  SELECT DISTINCT ON (repair.destination_id)
+         repair.destination_id,
+         repair.route_id AS repair_route_id,
+         repair.reason AS repair_reason,
+         repair.summit_gap_meters AS repair_gap_meters
+  FROM route_integrity_repairs repair
+  JOIN routes bad_route ON bad_route.id = repair.route_id
+  JOIN destinations destination ON destination.id = repair.destination_id
+  WHERE repair.state = 'queued'
+    AND bad_route.owner = 'peaks'
+    AND bad_route.status = 'active'
+    AND 'summit'::destination_feature = ANY(destination.features)
+  ORDER BY repair.destination_id, repair.created_at, repair.route_id
+),
+targets AS (
+  SELECT normal_targets.id,
+         normal_targets.session_count,
+         normal_targets.success_count,
+         normal_targets.is_ultra_prominent,
+         normal_targets.is_target_list,
+         normal_targets.is_high_popularity,
+         normal_targets.list_names,
+         normal_targets.priority,
+         repair.repair_route_id,
+         repair.repair_reason,
+         repair.repair_gap_meters
+  FROM normal_targets
+  LEFT JOIN queued_integrity_repairs repair ON repair.destination_id = normal_targets.id
+  UNION ALL
+  SELECT destination.id,
+         0::bigint, 0::bigint, false, false, false, '{}',
+         0::integer,
+         repair.repair_route_id, repair.repair_reason, repair.repair_gap_meters
+  FROM queued_integrity_repairs repair
+  JOIN destinations destination ON destination.id = repair.destination_id
+  LEFT JOIN normal_targets normal ON normal.id = destination.id
+  WHERE normal.id IS NULL
+),
 active_routes AS (
   SELECT DISTINCT ON (rd.destination_id)
          rd.destination_id,
          r.id AS route_id,
-         (
-           is_valid_route_provenance(r.provenance)
-           AND EXISTS (
-             SELECT 1
-             FROM route_segments rs
-             JOIN segments s ON s.id = rs.segment_id
-             WHERE rs.route_id = r.id
-               AND s.path IS NOT NULL
-               AND s.provenance IS NOT DISTINCT FROM r.provenance
-           )
+         peaks_route_passes_publish_integrity(
+           r.id,
+           rd.destination_id,
+           'active'
          ) AS ready_to_verify,
          (
            SELECT first_rd.destination_id
@@ -246,10 +279,11 @@ active_routes AS (
 incoming AS (
   SELECT t.id AS destination_id,
          CASE
+           WHEN t.repair_route_id IS NOT NULL THEN 'queued'
            WHEN ar.route_id IS NOT NULL AND ar.ready_to_verify THEN 'published'
            ELSE 'queued'
          END AS state,
-         t.priority,
+         (t.priority + CASE WHEN t.repair_route_id IS NOT NULL THEN 100000 ELSE 0 END)::integer AS priority,
          jsonb_build_object(
            'ultra_prominent', t.is_ultra_prominent,
            'target_list', t.is_target_list,
@@ -257,9 +291,14 @@ incoming AS (
            'list_names', t.list_names,
            'session_count', t.session_count,
            'success_count', t.success_count,
-           'popularity_threshold', $1::integer
+           'popularity_threshold', $1::integer,
+           'integrity_repair', t.repair_route_id IS NOT NULL,
+           'repair_route_id', t.repair_route_id,
+           'reason', t.repair_reason,
+           'gap_meters', t.repair_gap_meters
          ) AS target_reasons,
-         ar.route_id,
+         COALESCE(t.repair_route_id, ar.route_id) AS route_id,
+         t.repair_route_id,
          ar.trailhead_id
   FROM targets t
   LEFT JOIN active_routes ar ON ar.destination_id = t.id
@@ -322,12 +361,24 @@ async function seed(argv: string[]): Promise<void> {
             now()
      FROM incoming
      ON CONFLICT (destination_id) DO UPDATE SET
-       priority = EXCLUDED.priority,
-       target_reasons = EXCLUDED.target_reasons,
+       priority = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.priority
+         ELSE EXCLUDED.priority
+       END,
+       target_reasons = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.target_reasons
+         ELSE EXCLUDED.target_reasons
+       END,
        state = CASE
          WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
            AND standard_route_backfill_jobs.lease_expires_at >= now()
            THEN standard_route_backfill_jobs.state
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           THEN 'queued'
          WHEN standard_route_backfill_jobs.state = 'verified'
            AND EXCLUDED.state = 'published'
            AND EXCLUDED.published_route_id =
@@ -340,6 +391,14 @@ async function seed(argv: string[]): Promise<void> {
          ELSE standard_route_backfill_jobs.state
        END,
        trailhead_id = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.trailhead_id
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           THEN COALESCE(
+             EXCLUDED.trailhead_id,
+             standard_route_backfill_jobs.trailhead_id
+           )
          WHEN standard_route_backfill_jobs.state IN ('queued', 'published')
            THEN COALESCE(
              EXCLUDED.trailhead_id,
@@ -348,6 +407,14 @@ async function seed(argv: string[]): Promise<void> {
          ELSE standard_route_backfill_jobs.trailhead_id
        END,
        published_route_id = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.published_route_id
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           THEN COALESCE(
+             standard_route_backfill_jobs.published_route_id,
+             EXCLUDED.published_route_id
+           )
          WHEN standard_route_backfill_jobs.state IN ('queued', 'published')
            THEN COALESCE(
              EXCLUDED.published_route_id,
@@ -355,11 +422,22 @@ async function seed(argv: string[]): Promise<void> {
            )
          ELSE standard_route_backfill_jobs.published_route_id
        END,
-       replacement_route_id = COALESCE(
-         standard_route_backfill_jobs.replacement_route_id,
-         EXCLUDED.replacement_route_id
-       ),
+       replacement_route_id = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.replacement_route_id
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           THEN EXCLUDED.replacement_route_id
+         ELSE COALESCE(
+           standard_route_backfill_jobs.replacement_route_id,
+           EXCLUDED.replacement_route_id
+         )
+       END,
        blocker_code = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.blocker_code
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true' THEN NULL
          WHEN standard_route_backfill_jobs.state = 'verified'
            AND EXCLUDED.state = 'published'
            AND EXCLUDED.published_route_id =
@@ -373,6 +451,10 @@ async function seed(argv: string[]): Promise<void> {
          ELSE standard_route_backfill_jobs.blocker_code
        END,
        blocker_message = CASE
+         WHEN standard_route_backfill_jobs.lease_token IS NOT NULL
+           AND standard_route_backfill_jobs.lease_expires_at >= now()
+           THEN standard_route_backfill_jobs.blocker_message
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true' THEN NULL
          WHEN standard_route_backfill_jobs.state = 'verified'
            AND EXCLUDED.state = 'published'
            AND EXCLUDED.published_route_id =
@@ -384,6 +466,55 @@ async function seed(argv: string[]): Promise<void> {
          WHEN standard_route_backfill_jobs.state = 'verified'
            THEN 'The verified route no longer meets route integrity gates.'
          ELSE standard_route_backfill_jobs.blocker_message
+       END,
+       evidence = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN '{}'::jsonb
+         ELSE standard_route_backfill_jobs.evidence
+       END,
+       candidate = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN '{}'::jsonb
+         ELSE standard_route_backfill_jobs.candidate
+       END,
+       review = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN '{}'::jsonb
+         ELSE standard_route_backfill_jobs.review
+       END,
+       candidate_path = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN NULL
+         ELSE standard_route_backfill_jobs.candidate_path
+       END,
+       candidate_sha256 = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN NULL
+         ELSE standard_route_backfill_jobs.candidate_sha256
+       END,
+       candidate_artifact = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN NULL
+         ELSE standard_route_backfill_jobs.candidate_artifact
+       END,
+       next_attempt_at = CASE
+         WHEN EXCLUDED.target_reasons ->> 'integrity_repair' = 'true'
+           AND NOT (standard_route_backfill_jobs.lease_token IS NOT NULL
+             AND standard_route_backfill_jobs.lease_expires_at >= now())
+           THEN now()
+         ELSE standard_route_backfill_jobs.next_attempt_at
        END,
        updated_at = now()`,
     [threshold]
@@ -578,6 +709,9 @@ const requiredReviewGates = [
   "pending_route",
   "endpoints",
   "provenance",
+  "summit_contact",
+  "elevation_profile",
+  "segment_assembly",
 ] as const;
 
 const requiredVerificationGates = [
@@ -586,6 +720,8 @@ const requiredVerificationGates = [
   "destination_order",
   "segments",
   "provenance",
+  "summit_contact",
+  "elevation_profile",
   "public_http",
 ] as const;
 
@@ -646,7 +782,12 @@ function requireReviewResult(result: JsonObject, routeId: string): void {
     numeric("end_connector_m") > 125 ||
     numeric("core_max_offset_m") > 5 ||
     numeric("core_p95_offset_m") > 2 ||
-    numeric("core_coverage_pct") < 99
+    numeric("core_coverage_pct") < 99 ||
+    numeric("summit_max_gap_m") > 5 ||
+    numeric("profile_point_count") < 2 ||
+    numeric("profile_point_count") !== numeric("path_point_count") ||
+    numeric("segment_count") < 1 ||
+    numeric("matching_assembly_point_count") !== numeric("path_point_count")
   ) {
     throw new Error("approved measurements miss the source geometry thresholds");
   }
@@ -902,6 +1043,77 @@ async function transition(argv: string[]): Promise<void> {
         );
       }
     }
+    if (to === "approved") {
+      if (!routeId) throw new Error("approved requires --route-id");
+      const machine = await client.query<{
+        passes: boolean;
+        summit_max_gap_m: number | null;
+        path_point_count: number;
+        profile_point_count: number;
+        segment_count: number;
+      }>(
+        `SELECT peaks_route_passes_publish_integrity(
+                  r.id, $2, 'pending'
+                ) AS passes,
+                (
+                  SELECT max(ST_Distance(r.path, summit.location))
+                    FILTER (WHERE summit.location IS NOT NULL)
+                  FROM route_destinations summit_rd
+                  JOIN destinations summit
+                    ON summit.id = summit_rd.destination_id
+                  WHERE summit_rd.route_id = r.id
+                    AND 'summit'::destination_feature = ANY(summit.features)
+                ) AS summit_max_gap_m,
+                ST_NPoints(r.path::geometry)::int AS path_point_count,
+                CASE WHEN r.elevation_string IS NOT NULL
+                           AND r.elevation_string = encode_route_elevation_profile(r.path)
+                     THEN ST_NPoints(r.path::geometry)::int ELSE 0 END
+                  AS profile_point_count,
+                (
+                  SELECT count(*)::int FROM route_segments rs
+                  WHERE rs.route_id = r.id
+                ) AS segment_count
+         FROM routes r
+         WHERE r.id = $1
+         FOR UPDATE OF r`,
+        [routeId, destinationId]
+      );
+      const checked = machine.rows[0];
+      if (checked?.passes !== true || checked.summit_max_gap_m === null) {
+        throw new Error(
+          "approved route failed machine summit, elevation, provenance, or segment assembly gates"
+        );
+      }
+      const reviewGates =
+        resultJson.gates &&
+        typeof resultJson.gates === "object" &&
+        !Array.isArray(resultJson.gates)
+          ? (resultJson.gates as JsonObject)
+          : {};
+      const reviewMeasurements =
+        resultJson.measurements &&
+        typeof resultJson.measurements === "object" &&
+        !Array.isArray(resultJson.measurements)
+          ? (resultJson.measurements as JsonObject)
+          : {};
+      resultJson = {
+        ...resultJson,
+        gates: {
+          ...reviewGates,
+          summit_contact: true,
+          elevation_profile: true,
+          segment_assembly: true,
+        },
+        measurements: {
+          ...reviewMeasurements,
+          summit_max_gap_m: checked.summit_max_gap_m,
+          path_point_count: checked.path_point_count,
+          profile_point_count: checked.profile_point_count,
+          segment_count: checked.segment_count,
+          matching_assembly_point_count: checked.path_point_count,
+        },
+      };
+    }
     if (to === "verified") {
       if (!routeId || !currentJob.trailhead_id) {
         throw new Error("verified requires a saved route and trailhead");
@@ -935,6 +1147,7 @@ async function transition(argv: string[]): Promise<void> {
         trailhead_first: boolean;
         segment_count: number;
         source_kind: string;
+        publish_integrity_valid: boolean;
       }>(
         `SELECT r.owner,
                 r.status,
@@ -956,10 +1169,15 @@ async function transition(argv: string[]): Promise<void> {
                   FROM route_segments rs
                   WHERE rs.route_id = r.id
                 ) AS segment_count,
+                peaks_route_passes_publish_integrity(
+                  r.id,
+                  $2,
+                  $4
+                ) AS publish_integrity_valid,
                 r.provenance->>'source_kind' AS source_kind
          FROM routes r
          WHERE r.id = $1`,
-        [routeId, destinationId, currentJob.trailhead_id]
+        [routeId, destinationId, currentJob.trailhead_id, expectedStatus]
       );
       const route = routeCheck.rows[0];
       if (
@@ -974,6 +1192,11 @@ async function transition(argv: string[]): Promise<void> {
         );
       }
       if (to === "approved") {
+        if (!route.publish_integrity_valid) {
+          throw new Error(
+            "approved route failed machine summit, elevation, provenance, or segment assembly gates"
+          );
+        }
         await runSourceGeometryCheck(
           routeId,
           route.source_kind,

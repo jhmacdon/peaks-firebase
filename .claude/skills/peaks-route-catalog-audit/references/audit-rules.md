@@ -11,7 +11,14 @@ records for one summit.
 - missing or invalid provenance or route segments;
 - route/segment source mismatch, gap, order, or materialized-path drift;
 - missing or misordered trailhead and summit links;
-- endpoint gaps over 300 m at the trailhead or 250 m at the summit;
+- endpoint gaps over 300 m at the trailhead, or over 5 m at the final summit
+  for out-and-back and point-to-point routes;
+- any linked summit more than 5 m from the route path, or a missing path or
+  summit location;
+- a missing or non-canonical elevation profile, or a constant rounded
+  placeholder profile with less than one metre of route-level Z range; and
+- route or source-segment gain and loss that do not match the path-derived
+  `route_elevation_stats` values; and
 - missing distance or gain; and
 - a legacy named-route coverage import.
 
@@ -26,6 +33,15 @@ records for one summit.
 Different named trailheads may be valid. Repeated crossings plus long close
 overlap often means two poor traces of one real trail. Render the pair before
 judging it.
+
+Loop and lollipop routes only need path contact with every linked summit. They
+do not need their endpoint at a summit. `elevation_string` must exactly equal
+`encode_route_elevation_profile(path)` and the rounded route Z range must span
+at least one metre. Individual source segments may be flat; only the assembled
+route must have real range. These checks prove finite Z values, canonical
+bytes, and the path vertex count. These errors require repair.
+Do not waive them because an outside source looks plausible or returns HTTP
+200.
 
 ## Legacy coverage fault
 

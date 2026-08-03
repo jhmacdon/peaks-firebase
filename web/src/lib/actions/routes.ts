@@ -312,6 +312,7 @@ export async function acceptRoute(id: string): Promise<void> {
       throw new Error("Pending route changed before activation");
     }
     await assertNoConflictingLiveRoute(client, id, null);
+    await assertRoutePublishIntegrity(client, id, null, "pending");
     await client.query(
       `UPDATE routes SET status = 'active' WHERE id = $1`,
       [id]
@@ -477,6 +478,19 @@ async function lockRouteFactoryActivation(
   }
 }
 
+async function lockRouteReplacementSettlement(
+  client: PoolClient,
+  replacementRouteId: string | null
+): Promise<void> {
+  if (!replacementRouteId) return;
+  await client.query(
+    `SELECT pg_advisory_xact_lock(
+       hashtextextended('peaks-route-replacement:' || $1, 0)
+     )`,
+    [replacementRouteId]
+  );
+}
+
 async function lockRouteActivationDestinations(
   client: PoolClient,
   id: string,
@@ -537,6 +551,75 @@ async function assertNoConflictingLiveRoute(
   }
 }
 
+async function routePassesPublishIntegrity(
+  client: PoolClient,
+  id: string,
+  requiredDestinationId: string | null,
+  requiredStatus: "pending" | "active"
+): Promise<boolean> {
+  const result = await client.query<{ passes: boolean }>(
+    `SELECT peaks_route_passes_publish_integrity($1, $2, $3) AS passes`,
+    [id, requiredDestinationId, requiredStatus]
+  );
+  return result.rows[0]?.passes === true;
+}
+
+async function assertRoutePublishIntegrity(
+  client: PoolClient,
+  id: string,
+  requiredDestinationId: string | null,
+  requiredStatus: "pending" | "active"
+): Promise<void> {
+  await client.query(
+    `SELECT rd.destination_id
+     FROM route_destinations rd
+     JOIN destinations d ON d.id = rd.destination_id
+     WHERE rd.route_id = $1
+     ORDER BY rd.ordinal, rd.destination_id
+     FOR UPDATE OF rd, d`,
+    [id]
+  );
+  await client.query(
+    `SELECT rs.segment_id
+     FROM route_segments rs
+     JOIN segments s ON s.id = rs.segment_id
+     WHERE rs.route_id = $1
+     ORDER BY rs.ordinal, rs.segment_id
+     FOR UPDATE OF rs, s`,
+    [id]
+  );
+  if (
+    !(await routePassesPublishIntegrity(
+      client,
+      id,
+      requiredDestinationId,
+      requiredStatus
+    ))
+  ) {
+    throw new Error(
+      "Route failed summit contact, elevation, provenance, or segment assembly gates"
+    );
+  }
+}
+
+async function settleReplacementCoverage(
+  client: PoolClient,
+  replacementRouteId: string,
+  currentDestinationId: string,
+  newRouteId: string
+): Promise<void> {
+  const result = await client.query<{ status: string }>(
+    `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+    [replacementRouteId, currentDestinationId, newRouteId]
+  );
+  if (
+    result.rows[0]?.status !== "active" &&
+    result.rows[0]?.status !== "superseded"
+  ) {
+    throw new Error("Replacement coverage settlement returned an invalid status");
+  }
+}
+
 /**
  * Accept a pending route with segment deduplication.
  * Re-analyzes segments server-side (don't rely on client-serialized decomposition
@@ -579,6 +662,7 @@ export async function acceptRouteWithSegments(
       if (factoryActivation) {
         await lockRouteFactoryActivation(client, id, factoryActivation);
       }
+      await lockRouteReplacementSettlement(client, replacementRouteId);
       await lockRouteActivationDestinations(
         client,
         id,
@@ -614,16 +698,24 @@ export async function acceptRouteWithSegments(
         id,
         replacementRouteId
       );
-      if (replacementRouteId) {
-        await client.query(
-          `UPDATE routes SET status = 'superseded' WHERE id = $1`,
-          [replacementRouteId]
-        );
-      }
+      await assertRoutePublishIntegrity(
+        client,
+        id,
+        replacementDestinationId,
+        "pending"
+      );
       await client.query(
         `UPDATE routes SET status = 'active' WHERE id = $1`,
         [id]
       );
+      if (replacementRouteId && replacementDestinationId) {
+        await settleReplacementCoverage(
+          client,
+          replacementRouteId,
+          replacementDestinationId,
+          id
+        );
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -640,6 +732,7 @@ export async function acceptRouteWithSegments(
     if (factoryActivation) {
       await lockRouteFactoryActivation(client, id, factoryActivation);
     }
+    await lockRouteReplacementSettlement(client, replacementRouteId);
     await lockRouteActivationDestinations(
       client,
       id,
@@ -842,15 +935,23 @@ export async function acceptRouteWithSegments(
       );
     }
 
-    if (replacementRouteId) {
-      await client.query(
-        `UPDATE routes SET status = 'superseded' WHERE id = $1`,
-        [replacementRouteId]
+    await assertRoutePublishIntegrity(
+      client,
+      id,
+      replacementDestinationId,
+      "pending"
+    );
+
+    // Set the reviewed route to active only after every hard gate passes.
+    await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
+    if (replacementRouteId && replacementDestinationId) {
+      await settleReplacementCoverage(
+        client,
+        replacementRouteId,
+        replacementDestinationId,
+        id
       );
     }
-
-    // Set the reviewed route to active.
-    await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
 
     await client.query("COMMIT");
   } catch (err) {

@@ -26,6 +26,9 @@ case "$checkout_path" in
   /Users/josiahm/projects/peaks/.workers/firebase-route-audit-04)
     printf '%s\n' "luna-route-audit-04"
     ;;
+  /Users/josiahm/projects/peaks/.workers/firebase-route-elevation)
+    printf '%s\n' "luna-route-elevation-01"
+    ;;
   *)
     echo "setup_required: route worker checkout is not an approved path: $checkout_path" >&2
     exit 1

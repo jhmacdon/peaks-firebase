@@ -76,6 +76,8 @@ test("verification failures take a deterministic recovery path", () => {
     destination_order: true,
     segments: true,
     provenance: true,
+    summit_contact: true,
+    elevation_profile: true,
     public_http: true,
   };
   assert.equal(verificationAction({ verdict: "PASS", gates }), "verified");
@@ -99,5 +101,19 @@ test("verification failures take a deterministic recovery path", () => {
       gates: { ...gates, destination_order: false },
     }),
     "needs_human"
+  );
+  assert.equal(
+    verificationAction({
+      verdict: "FAIL",
+      gates: { ...gates, summit_contact: false },
+    }),
+    "rebuild"
+  );
+  assert.equal(
+    verificationAction({
+      verdict: "FAIL",
+      gates: { ...gates, elevation_profile: false },
+    }),
+    "rebuild"
   );
 });

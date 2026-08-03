@@ -1,3 +1,8 @@
+import {
+  publicElevationLineageMatches,
+  type PersistedElevationLineage,
+} from "./elevation-lineage";
+
 type Queryable = {
   query<T extends Record<string, unknown>>(
     text: string,
@@ -20,20 +25,43 @@ export interface StandardRouteVerification {
     destination_order: boolean;
     segments: boolean;
     provenance: boolean;
+    summit_contact: boolean;
+    elevation_profile: boolean;
     public_http: boolean;
   };
   errors: string[];
 }
 
-type RouteRow = {
+type RouteRow = PersistedElevationLineage & Record<string, unknown> & {
   id: string;
   name: string;
   owner: string;
   status: string;
   provenance_valid: boolean;
   point_count: number;
+  elevation_string: string | null;
+  profile_count: number;
+  profile_hash: string | null;
+  verification_fingerprint: string | null;
+  profile_has_real_range: boolean;
+  profile_stats_match: boolean;
+  gain: number | null;
+  gain_loss: number | null;
   segment_count: number;
   matching_segment_count: number;
+  usable_elevation_segment_count: number;
+  ordered_segment_count: number;
+  connected_segment_pair_count: number;
+  expected_segment_pair_count: number;
+  assembled_point_count: number;
+  matching_assembly_point_count: number;
+  summit_count: number;
+  summit_fault_count: number;
+  summit_max_gap_meters: number | null;
+  endpoint_gap_meters: number | null;
+  final_destination_features: string[] | null;
+  shape: string | null;
+  publish_integrity_valid: boolean;
   destination_ids: string[];
   destination_features: string[][];
 };
@@ -58,12 +86,69 @@ export async function verifyStandardRoute(
   }
 ): Promise<StandardRouteVerification> {
   const result = await queryable.query<RouteRow>(
-    `SELECT r.id,
+    `WITH ordered_segments AS (
+       SELECT rs.route_id,
+              rs.ordinal,
+              CASE rs.direction
+                WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                ELSE s.path::geometry
+              END AS directed_path
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1 AND s.path IS NOT NULL
+     ), chained_segments AS (
+       SELECT *, lag(directed_path) OVER (ORDER BY ordinal) AS prior_path
+       FROM ordered_segments
+     ), segment_points AS (
+       SELECT ordered_segments.ordinal,
+              (dumped).path[1]::int AS segment_vertex,
+              (dumped).geom AS geom
+       FROM ordered_segments
+       CROSS JOIN LATERAL ST_DumpPoints(ordered_segments.directed_path) AS dumped
+       WHERE ordered_segments.ordinal = 0 OR (dumped).path[1] > 1
+     ), assembled AS (
+       SELECT ST_SetSRID(
+                ST_MakeLine(geom ORDER BY ordinal, segment_vertex),
+                4326
+              ) AS path
+       FROM segment_points
+     ), route_points AS (
+       SELECT (dumped).path[1]::int AS vertex, (dumped).geom AS geom
+       FROM routes route_for_points
+       CROSS JOIN LATERAL ST_DumpPoints(route_for_points.path::geometry) AS dumped
+       WHERE route_for_points.id = $1
+     ), assembled_points AS (
+       SELECT (dumped).path[1]::int AS vertex, (dumped).geom AS geom
+       FROM assembled
+       CROSS JOIN LATERAL ST_DumpPoints(assembled.path) AS dumped
+     )
+     SELECT r.id,
             r.name,
             r.owner,
             r.status,
+            r.shape::text AS shape,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
+            r.elevation_string,
+            r.elevation_source,
+            r.elevation_source_url,
+            r.elevation_attribution,
+            r.elevation_license_url,
+            r.elevation_retrieved_at,
+            r.gain,
+            r.gain_loss,
+            md5(r.elevation_string) AS profile_hash,
+            md5(concat_ws('|', COALESCE(r.elevation_string, ''),
+              COALESCE(r.gain::text, ''), COALESCE(r.gain_loss::text, ''),
+              r.status, r.updated_at::text)) AS verification_fingerprint,
+            route_elevation_profile_has_real_range(r.path)
+              AS profile_has_real_range,
+            r.gain IS NOT DISTINCT FROM elevation_stats.gain
+              AND r.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
+              AS profile_stats_match,
+            CASE WHEN r.elevation_string IS NOT NULL
+                       AND r.elevation_string = encode_route_elevation_profile(r.path)
+                 THEN ST_NPoints(r.path::geometry)::int ELSE 0 END AS profile_count,
             (
               SELECT COUNT(*)::int
               FROM route_segments rs
@@ -80,6 +165,102 @@ export async function verifyStandardRoute(
                 AND s.provenance IS NOT DISTINCT FROM r.provenance
             ) AS matching_segment_count,
             (
+              SELECT COUNT(*)::int
+              FROM route_segments rs
+              JOIN segments s ON s.id = rs.segment_id
+              WHERE rs.route_id = r.id
+                AND encode_route_elevation_profile(s.path) IS NOT NULL
+            ) AS usable_elevation_segment_count,
+            (
+              SELECT CASE
+                WHEN COUNT(*) >= 1
+                  AND COUNT(*) = COUNT(DISTINCT rs.ordinal)
+                  AND min(rs.ordinal) = 0
+                  AND max(rs.ordinal) = COUNT(*) - 1
+                THEN COUNT(*)::int ELSE 0 END
+              FROM route_segments rs
+              WHERE rs.route_id = r.id
+            ) AS ordered_segment_count,
+            (
+              SELECT COUNT(*) FILTER (
+                WHERE prior_path IS NOT NULL
+                  AND ST_DWithin(
+                    ST_EndPoint(prior_path)::geography,
+                    ST_StartPoint(directed_path)::geography,
+                    0.1
+                  )
+                  AND abs(
+                    ST_Z(ST_EndPoint(prior_path))
+                    - ST_Z(ST_StartPoint(directed_path))
+                  ) <= 0.01
+              )::int
+              FROM chained_segments
+            ) AS connected_segment_pair_count,
+            greatest((SELECT count(*)::int FROM ordered_segments) - 1, 0)
+              AS expected_segment_pair_count,
+            (SELECT count(*)::int FROM assembled_points)
+              AS assembled_point_count,
+            (
+              SELECT count(*) FILTER (
+                WHERE route_points.geom IS NOT NULL
+                  AND assembled_points.geom IS NOT NULL
+                  AND abs(ST_X(route_points.geom) - ST_X(assembled_points.geom)) <= 1e-9
+                  AND abs(ST_Y(route_points.geom) - ST_Y(assembled_points.geom)) <= 1e-9
+                  AND abs(ST_Z(route_points.geom) - ST_Z(assembled_points.geom)) <= 0.01
+              )::int
+              FROM route_points
+              FULL JOIN assembled_points USING (vertex)
+            ) AS matching_assembly_point_count,
+            (
+              SELECT count(*) FILTER (
+                WHERE 'summit'::destination_feature = ANY(summit.features)
+              )::int
+              FROM route_destinations summit_rd
+              JOIN destinations summit ON summit.id = summit_rd.destination_id
+              WHERE summit_rd.route_id = r.id
+            ) AS summit_count,
+            (
+              SELECT count(*) FILTER (
+                WHERE 'summit'::destination_feature = ANY(summit.features)
+                  AND (summit.location IS NULL OR NOT ST_DWithin(r.path, summit.location, 5))
+              )::int
+              FROM route_destinations summit_rd
+              JOIN destinations summit ON summit.id = summit_rd.destination_id
+              WHERE summit_rd.route_id = r.id
+            ) AS summit_fault_count,
+            (
+              SELECT max(ST_Distance(r.path, summit.location))
+                FILTER (WHERE summit.location IS NOT NULL)
+              FROM route_destinations summit_rd
+              JOIN destinations summit ON summit.id = summit_rd.destination_id
+              WHERE summit_rd.route_id = r.id
+                AND 'summit'::destination_feature = ANY(summit.features)
+            ) AS summit_max_gap_meters,
+            (
+              SELECT CASE WHEN final_destination.location IS NULL THEN NULL
+                     ELSE ST_Distance(
+                       ST_EndPoint(r.path::geometry)::geography,
+                       final_destination.location
+                     ) END
+              FROM route_destinations final_rd
+              JOIN destinations final_destination
+                ON final_destination.id = final_rd.destination_id
+              WHERE final_rd.route_id = r.id
+              ORDER BY final_rd.ordinal DESC
+              LIMIT 1
+            ) AS endpoint_gap_meters,
+            (
+              SELECT final_destination.features
+              FROM route_destinations final_rd
+              JOIN destinations final_destination
+                ON final_destination.id = final_rd.destination_id
+              WHERE final_rd.route_id = r.id
+              ORDER BY final_rd.ordinal DESC
+              LIMIT 1
+            ) AS final_destination_features,
+            peaks_route_passes_publish_integrity(r.id, NULL, 'active')
+              AS publish_integrity_valid,
+            (
               SELECT ARRAY_AGG(rd.destination_id ORDER BY rd.ordinal)
               FROM route_destinations rd
               WHERE rd.route_id = r.id
@@ -91,6 +272,7 @@ export async function verifyStandardRoute(
               WHERE rd.route_id = r.id
             ) AS destination_features
      FROM routes r
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
      WHERE r.id = $1`,
     [input.routeId]
   );
@@ -106,7 +288,29 @@ export async function verifyStandardRoute(
   const segments =
     (route?.segment_count ?? 0) >= 1 &&
     route?.matching_segment_count === route?.segment_count &&
+    route?.usable_elevation_segment_count === route?.segment_count &&
+    route?.ordered_segment_count === route?.segment_count &&
+    route?.connected_segment_pair_count === route?.expected_segment_pair_count &&
+    route?.assembled_point_count === route?.point_count &&
+    route?.matching_assembly_point_count === route?.point_count &&
+    route?.publish_integrity_valid === true &&
     (route?.point_count ?? 0) >= 5;
+  const summitContact =
+    (route?.summit_count ?? 0) >= 1 &&
+    route?.summit_fault_count === 0 &&
+    route?.summit_max_gap_meters !== null &&
+    (route?.summit_max_gap_meters ?? Number.POSITIVE_INFINITY) <= 5 &&
+    (route?.shape !== "out_and_back" && route?.shape !== "point_to_point" ||
+      Boolean(route?.final_destination_features?.includes("summit")) &&
+      route?.endpoint_gap_meters !== null &&
+      (route?.endpoint_gap_meters ?? Number.POSITIVE_INFINITY) <= 5);
+  const elevationProfile =
+    typeof route?.elevation_string === "string" &&
+    route.elevation_string.length > 0 &&
+    route.profile_count === route.point_count &&
+    route.profile_has_real_range === true &&
+    route.profile_stats_match === true &&
+    route.point_count >= 2;
 
   const publicBaseUrl = (
     input.publicBaseUrl ||
@@ -114,7 +318,10 @@ export async function verifyStandardRoute(
     DEFAULT_PEAKS_PUBLIC_WEB_URL
   ).replace(/\/+$/, "");
   const publicUrl =
-    `${publicBaseUrl}/api/public/routes/${encodeURIComponent(input.routeId)}`;
+    `${publicBaseUrl}/api/public/routes/${encodeURIComponent(input.routeId)}` +
+    `?elevation_fingerprint=${encodeURIComponent(
+      route?.verification_fingerprint ?? route?.profile_hash ?? "missing"
+    )}`;
   let publicStatus = 0;
   let publicPayload: RouteRow | null = null;
   let publicError: string | null = null;
@@ -139,6 +346,7 @@ export async function verifyStandardRoute(
   }
   const publicMatches =
     publicStatus === 200 &&
+    route !== undefined &&
     publicPayload?.id === input.routeId &&
     publicPayload.owner === "peaks" &&
     publicPayload.status === "active" &&
@@ -146,6 +354,29 @@ export async function verifyStandardRoute(
     publicPayload.point_count === route?.point_count &&
     publicPayload.segment_count === route?.segment_count &&
     publicPayload.matching_segment_count === route?.matching_segment_count &&
+    publicPayload.elevation_string === route?.elevation_string &&
+    publicElevationLineageMatches(route, publicPayload) &&
+    publicPayload.profile_count === route?.profile_count &&
+    publicPayload.profile_hash === route?.profile_hash &&
+    publicPayload.verification_fingerprint === route?.verification_fingerprint &&
+    publicPayload.profile_has_real_range === route?.profile_has_real_range &&
+    publicPayload.profile_stats_match === route?.profile_stats_match &&
+    publicPayload.gain === route?.gain &&
+    publicPayload.gain_loss === route?.gain_loss &&
+    publicPayload.usable_elevation_segment_count === route?.usable_elevation_segment_count &&
+    publicPayload.ordered_segment_count === route?.ordered_segment_count &&
+    publicPayload.connected_segment_pair_count === route?.connected_segment_pair_count &&
+    publicPayload.expected_segment_pair_count === route?.expected_segment_pair_count &&
+    publicPayload.assembled_point_count === route?.assembled_point_count &&
+    publicPayload.matching_assembly_point_count === route?.matching_assembly_point_count &&
+    publicPayload.summit_count === route?.summit_count &&
+    publicPayload.summit_fault_count === route?.summit_fault_count &&
+    publicPayload.summit_max_gap_meters === route?.summit_max_gap_meters &&
+    publicPayload.endpoint_gap_meters === route?.endpoint_gap_meters &&
+    publicPayload.shape === route?.shape &&
+    route?.publish_integrity_valid === true &&
+    publicPayload.publish_integrity_valid === true &&
+    arraysEqual(publicPayload.final_destination_features ?? [], route?.final_destination_features ?? []) &&
     arraysEqual(publicPayload.destination_ids ?? [], destinationIds);
 
   const gates = {
@@ -154,6 +385,8 @@ export async function verifyStandardRoute(
     destination_order: destinationOrder,
     segments,
     provenance: route?.provenance_valid === true,
+    summit_contact: summitContact,
+    elevation_profile: elevationProfile,
     public_http: publicMatches,
   };
   const errors = Object.entries(gates)

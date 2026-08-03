@@ -183,6 +183,16 @@ identity and access URLs, rendered-map note, and checker JSON. Save its output
 using the review schema at
 `/private/tmp/peaks-route-worker/<destination-id>-review.json`. Then:
 
+Do not make up `summit_contact`, `elevation_profile`, or `segment_assembly`.
+The reviewer may omit those three fields and their five count-only
+measurements. The exact `transition ... --to approved` command below queries
+`peaks_route_passes_publish_integrity(route_id, destination_id, 'pending')`
+inside its leased database transaction and inserts the fresh machine gates and
+counts before it validates or stores the result. A route more than five
+metres from any linked summit, an out-and-back or point-to-point route whose
+end misses its final summit, a flat profile, or a segment assembly that differs
+from the route path must go to `needs_revision`.
+
 ```bash
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
@@ -223,9 +233,11 @@ a production repair. These states require a human requeue.
 ## Publish
 
 The activation wrapper is idempotent. It reports success without writing when
-a stopped run already activated the saved route. For a rebuild, it marks the
-job's named legacy route `superseded` in the same transaction that activates
-the reviewed replacement. Run:
+a stopped run already activated the saved route. For a one-for-one rebuild, it
+marks the job's named legacy route `superseded` in the same transaction that
+activates the reviewed replacement. For a shared legacy route, it covers only
+the claimed destination link and keeps the old route active until the final
+repair link receives valid active coverage. Run:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
@@ -265,7 +277,8 @@ the live checks and clears the lease with the safe result:
 The returned `action` is final for this run:
 
 - `verified`: all gates passed.
-- `rebuild`: the active legacy route remains live while the job moves to
+- `rebuild`: summit contact, elevation profile, provenance, or segment
+  assembly failed. The active legacy route remains live while the job moves to
   research for an OSM or USGS replacement.
 - `retry`: only public parity failed; the job retries after 30 minutes.
 - `needs_human`: ownership, activation, or destination order conflicts.
