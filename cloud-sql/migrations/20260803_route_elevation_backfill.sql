@@ -4,6 +4,13 @@
 
 BEGIN;
 
+ALTER TABLE routes
+  ADD COLUMN IF NOT EXISTS elevation_source TEXT,
+  ADD COLUMN IF NOT EXISTS elevation_source_url TEXT,
+  ADD COLUMN IF NOT EXISTS elevation_attribution TEXT,
+  ADD COLUMN IF NOT EXISTS elevation_license_url TEXT,
+  ADD COLUMN IF NOT EXISTS elevation_retrieved_at TIMESTAMPTZ;
+
 CREATE OR REPLACE FUNCTION encode_route_elevation_profile(path geography)
 RETURNS TEXT
 LANGUAGE plpgsql

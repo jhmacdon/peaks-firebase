@@ -93,6 +93,15 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
     assert.match(source, /NEW\.elevation_string = encode_route_elevation_profile\(NEW\.path\)/);
     assert.match(source, /WHEN \(NEW\.owner = 'peaks'\)/);
     assert.match(source, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_elevation_backfill_jobs TO "peaks-api"/);
+    for (const column of [
+      "elevation_source",
+      "elevation_source_url",
+      "elevation_attribution",
+      "elevation_license_url",
+      "elevation_retrieved_at",
+    ]) {
+      assert.match(source, new RegExp(column));
+    }
     assert.match(
       source,
       /CREATE OR REPLACE FUNCTION touch_route_elevation_backfill_job\(\)\s+RETURNS TRIGGER\s+LANGUAGE plpgsql\s+AS \$\$\s+BEGIN\s+NEW\.updated_at = now\(\)/

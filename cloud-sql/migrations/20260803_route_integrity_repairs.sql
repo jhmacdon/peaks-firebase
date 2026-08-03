@@ -24,6 +24,10 @@ WITH candidate AS (
   SELECT rs.ordinal,
          rs.direction,
          s.path,
+         s.gain AS stored_gain,
+         s.gain_loss AS stored_loss,
+         segment_elevation_stats.gain AS computed_gain,
+         segment_elevation_stats.loss AS computed_loss,
          s.provenance,
          CASE rs.direction
            WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
@@ -31,6 +35,8 @@ WITH candidate AS (
          END AS directed_path
   FROM route_segments rs
   LEFT JOIN segments s ON s.id = rs.segment_id
+  LEFT JOIN LATERAL route_elevation_stats(s.path)
+    AS segment_elevation_stats ON true
   WHERE rs.route_id = candidate_route_id
   ORDER BY rs.ordinal
 ), chained_segments AS (
@@ -44,6 +50,8 @@ WITH candidate AS (
          COALESCE(bool_and(
            path IS NOT NULL
            AND encode_route_elevation_profile(path) IS NOT NULL
+           AND stored_gain IS NOT DISTINCT FROM computed_gain
+           AND stored_loss IS NOT DISTINCT FROM computed_loss
            AND is_valid_route_provenance(provenance)
            AND provenance IS NOT DISTINCT FROM (SELECT provenance FROM candidate)
          ), false) AS rows_valid

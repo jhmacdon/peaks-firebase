@@ -309,6 +309,11 @@ CREATE TABLE routes (
     gain            DOUBLE PRECISION,  -- one-way elevation gain in meters
     gain_loss       DOUBLE PRECISION,  -- one-way elevation loss in meters
     elevation_string TEXT,             -- human-readable elevation summary
+    elevation_source TEXT,
+    elevation_source_url TEXT,
+    elevation_attribution TEXT,
+    elevation_license_url TEXT,
+    elevation_retrieved_at TIMESTAMPTZ,
 
     -- external references
     external_links  JSONB,             -- [{ type: "wta", id: "..." }, { type: "usfs", id: "..." }]
@@ -619,11 +624,18 @@ AS $$
 WITH candidate AS (
   SELECT r.* FROM routes r WHERE r.id = candidate_route_id
 ), ordered_segments AS (
-  SELECT rs.ordinal, rs.direction, s.path, s.provenance,
+  SELECT rs.ordinal, rs.direction, s.path,
+         s.gain AS stored_gain,
+         s.gain_loss AS stored_loss,
+         segment_elevation_stats.gain AS computed_gain,
+         segment_elevation_stats.loss AS computed_loss,
+         s.provenance,
          CASE rs.direction WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
            ELSE s.path::geometry END AS directed_path
   FROM route_segments rs
   LEFT JOIN segments s ON s.id = rs.segment_id
+  LEFT JOIN LATERAL route_elevation_stats(s.path)
+    AS segment_elevation_stats ON true
   WHERE rs.route_id = candidate_route_id
   ORDER BY rs.ordinal
 ), chained_segments AS (
@@ -637,6 +649,8 @@ WITH candidate AS (
          COALESCE(bool_and(
            path IS NOT NULL
            AND encode_route_elevation_profile(path) IS NOT NULL
+           AND stored_gain IS NOT DISTINCT FROM computed_gain
+           AND stored_loss IS NOT DISTINCT FROM computed_loss
            AND is_valid_route_provenance(provenance)
            AND provenance IS NOT DISTINCT FROM (SELECT provenance FROM candidate)
          ), false) AS rows_valid

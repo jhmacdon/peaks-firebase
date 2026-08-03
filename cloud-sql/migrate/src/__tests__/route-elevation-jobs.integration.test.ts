@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -14,6 +22,9 @@ import {
   publicElevationEvidenceMatches,
   requireWorkerId,
   retryOutcome,
+  routeElevationLineageEvidence,
+  segmentNeedsTerrainSampling,
+  segmentNeedsTerrainSamplingAcrossRoutes,
   statsOutput,
   validateArgs,
 } from "../route-elevation-jobs";
@@ -84,6 +95,82 @@ test("public elevation evidence requires exact profile bytes and stats", () => {
   );
 });
 
+test("route range decides whether a valid flat segment needs terrain sampling", () => {
+  const points = (elevations: Array<number | null>) =>
+    elevations.map((elevation, index) => ({
+      lat: 47 + index * 0.001,
+      lng: -121 - index * 0.001,
+      elevation,
+    }));
+
+  assert.equal(
+    segmentNeedsTerrainSampling(
+      points([1200, 1200]),
+      points([1200, 1200])
+    ),
+    true,
+    "a constant nonzero one-segment route needs real terrain"
+  );
+  assert.equal(
+    segmentNeedsTerrainSampling(
+      points([1200, 1200, 1300, 1300]),
+      points([1200, 1200])
+    ),
+    false,
+    "two flat source segments at different levels rebuild without terrain"
+  );
+  assert.equal(
+    segmentNeedsTerrainSampling(
+      points([1200, 1300]),
+      points([null, null])
+    ),
+    true,
+    "missing segment Z always needs terrain"
+  );
+  assert.equal(
+    segmentNeedsTerrainSamplingAcrossRoutes(
+      [
+        points([1200, 1200, 1250]),
+        points([1200, 1200]),
+      ],
+      points([1200, 1200])
+    ),
+    true,
+    "a flat shared consumer forces sampling even when the claimed route varies"
+  );
+});
+
+test("persisted Terrarium lineage survives a no-fetch retry", () => {
+  const retrievedAt = new Date("2026-08-03T12:34:56.000Z");
+  assert.deepEqual(
+    routeElevationLineageEvidence({
+      elevation_source:
+        "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+      elevation_source_url:
+        "https://registry.opendata.aws/terrain-tiles/",
+      elevation_attribution: "required attribution",
+      elevation_license_url:
+        "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+      elevation_retrieved_at: retrievedAt,
+    }),
+    {
+      source_kind: "terrarium_z14",
+      terrain_source:
+        "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+      terrain_source_url:
+        "https://registry.opendata.aws/terrain-tiles/",
+      terrain_source_endpoint:
+        "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/{x}/{y}.png",
+      terrain_data_license:
+        "Source-specific license terms in Tilezen Joerd attribution.md",
+      terrain_license_url:
+        "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+      terrain_attribution: "required attribution",
+      terrain_retrieved_at: retrievedAt,
+    }
+  );
+});
+
 test("elevation seed is fault-only and fingerprints every derived cache input", () => {
   assert.match(ELEVATION_CANDIDATES_SQL, /r\.status IN \('active', 'pending'\)/);
   assert.match(ELEVATION_CANDIDATES_SQL, /r\.elevation_string IS DISTINCT FROM\s+encode_route_elevation_profile\(r\.path\)/);
@@ -91,12 +178,35 @@ test("elevation seed is fault-only and fingerprints every derived cache input", 
   assert.match(ELEVATION_CANDIDATES_SQL, /r\.gain IS DISTINCT FROM/);
   assert.match(ELEVATION_CANDIDATES_SQL, /r\.gain_loss IS DISTINCT FROM/);
   assert.match(ELEVATION_CANDIDATES_SQL, /segment_needs_elevation/);
+  assert.match(
+    ELEVATION_CANDIDATES_SQL,
+    /s\.gain IS DISTINCT FROM[\s\S]+?route_elevation_stats\(s\.path\)/
+  );
+  assert.match(
+    ELEVATION_CANDIDATES_SQL,
+    /s\.gain_loss IS DISTINCT FROM[\s\S]+?route_elevation_stats\(s\.path\)/
+  );
   assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_string/);
   assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.gain::text/);
   assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.gain_loss::text/);
+  assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_source/);
+  assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_source_url/);
+  assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_attribution/);
+  assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_license_url/);
+  assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(r\.elevation_retrieved_at::text/);
   assert.match(ELEVATION_CANDIDATES_SQL, /rs\.direction/);
   assert.match(ELEVATION_CANDIDATES_SQL, /COALESCE\(encode_route_elevation_profile\(s\.path\)/);
   assert.doesNotMatch(ELEVATION_CANDIDATES_SQL, /status = 'superseded'/);
+  const source = readFileSync(
+    join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
+    "utf8"
+  );
+  assert.match(source, /requeued_changed_complete/);
+  assert.match(source, /j\.state = 'complete'/);
+  assert.match(source, /requeued_changed_blocked/);
+  assert.match(source, /j\.state = 'blocked'/);
+  assert.match(source, /attempt_count = 0/);
+  assert.match(source, /j\.path_fingerprint <> current_route\.path_fingerprint/);
 });
 
 test("compact worker output exposes names and safe completion evidence only", () => {
@@ -177,6 +287,7 @@ test(
     const routeA = `route-elevation-a-${suffix}`;
     const routeB = `route-elevation-b-${suffix}`;
     const validRoute = `route-elevation-valid-${suffix}`;
+    const validSegment = `route-elevation-valid-segment-${suffix}`;
     const supersededRoute = `route-elevation-superseded-${suffix}`;
     const userRoute = `route-elevation-user-${suffix}`;
     const command = (...args: string[]) => {
@@ -216,6 +327,21 @@ test(
         `UPDATE routes SET gain = 10, gain_loss = 0 WHERE id = $1`,
         [validRoute]
       );
+      await pool.query(
+        `INSERT INTO segments (id, path, gain, gain_loss)
+         VALUES (
+           $1,
+           ST_GeogFromText('SRID=4326;LINESTRING Z (-121 47 1000, -121.01 47.01 1010)'),
+           10,
+           0
+         )`,
+        [validSegment]
+      );
+      await pool.query(
+        `INSERT INTO route_segments (route_id, segment_id, ordinal)
+         VALUES ($1, $2, 0)`,
+        [validRoute, validSegment]
+      );
       await insertRoute(supersededRoute, "peaks", "superseded");
       await insertRoute(userRoute, "user-test");
       const dry = command("seed");
@@ -233,8 +359,8 @@ test(
       );
       await pool.query(
         `INSERT INTO route_elevation_backfill_jobs (
-           route_id, state, path_fingerprint, source_kind
-         ) VALUES ($1, 'complete', $2, 'existing_z')`,
+           route_id, state, path_fingerprint, source_kind, attempt_count
+         ) VALUES ($1, 'complete', $2, 'existing_z', 4)`,
         [validRoute, validFingerprint.rows[0]!.path_fingerprint]
       );
       await pool.query(
@@ -244,12 +370,13 @@ test(
         [validRoute]
       );
       command("seed", "--apply");
-      assert.equal(
+      assert.deepEqual(
         (await pool.query(
-          `SELECT state FROM route_elevation_backfill_jobs WHERE route_id = $1`,
+          `SELECT state, attempt_count
+           FROM route_elevation_backfill_jobs WHERE route_id = $1`,
           [validRoute]
-        )).rows[0]?.state,
-        "queued",
+        )).rows[0],
+        { state: "queued", attempt_count: 0 },
         "an elevation_string-only break requeues a completed job"
       );
       await pool.query(
@@ -278,6 +405,155 @@ test(
         "queued",
         "a stats-only break requeues a completed job"
       );
+      await pool.query(
+        `UPDATE routes SET path = path, gain = 10, gain_loss = 0 WHERE id = $1`,
+        [validRoute]
+      );
+      const beforeSegmentDrift = await pool.query<{ path_fingerprint: string }>(
+        `SELECT path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE route_id = $1`,
+        [validRoute]
+      );
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs
+         SET state = 'complete', path_fingerprint = $2
+         WHERE route_id = $1`,
+        [validRoute, beforeSegmentDrift.rows[0]!.path_fingerprint]
+      );
+      await pool.query(
+        `UPDATE segments
+         SET path = ST_GeogFromText(
+           'SRID=4326;LINESTRING Z (-121 47 1000, -121.02 47.02 1020)'
+         ),
+         gain = 20
+         WHERE id = $1`,
+        [validSegment]
+      );
+      command("seed", "--apply");
+      assert.equal(
+        (await pool.query(
+          `SELECT state FROM route_elevation_backfill_jobs WHERE route_id = $1`,
+          [validRoute]
+        )).rows[0]?.state,
+        "queued",
+        "segment-only drift requeues an existing complete job"
+      );
+      const driftSnapshot = async () => (
+        await pool.query<{ snapshot: Record<string, unknown> }>(
+          `SELECT jsonb_build_object(
+             'route', jsonb_build_object(
+               'path_hash', md5(encode(ST_AsEWKB(r.path::geometry), 'hex')),
+               'elevation_string', r.elevation_string,
+               'gain', r.gain,
+               'gain_loss', r.gain_loss,
+               'polyline6', r.polyline6,
+               'geohashes', r.geohashes,
+               'updated_at', r.updated_at
+             ),
+             'segment', jsonb_build_object(
+               'path_hash', md5(encode(ST_AsEWKB(s.path::geometry), 'hex')),
+               'gain', s.gain,
+               'gain_loss', s.gain_loss,
+               'polyline6', s.polyline6,
+               'updated_at', s.updated_at
+             )
+           ) AS snapshot
+           FROM routes r
+           CROSS JOIN segments s
+           WHERE r.id = $1 AND s.id = $2`,
+          [validRoute, validSegment]
+        )
+      ).rows[0]!.snapshot;
+      const beforeXyDriftBlock = await driftSnapshot();
+      const drifted = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(drifted.route_id, validRoute);
+      const driftOutcome = command(
+        "process",
+        "--route-id",
+        drifted.route_id,
+        "--lease-token",
+        drifted.lease_token,
+        "--apply"
+      );
+      assert.equal(driftOutcome.outcome, "blocked");
+      assert.equal(
+        driftOutcome.blocker,
+        "segment_xy_drift_requires_route_factory"
+      );
+      assert.deepEqual(
+        await driftSnapshot(),
+        beforeXyDriftBlock,
+        "XY drift blocks before route, segment, or cache mutation"
+      );
+      command("seed", "--apply");
+      assert.equal(
+        (await pool.query(
+          `SELECT state FROM route_elevation_backfill_jobs WHERE route_id = $1`,
+          [validRoute]
+        )).rows[0]?.state,
+        "blocked",
+        "an unchanged blocked job remains manual"
+      );
+      await pool.query(
+        `UPDATE segments
+         SET path = ST_GeogFromText(
+           'SRID=4326;LINESTRING Z (-121 47 1000, -121.01 47.01 1010)'
+         ),
+         gain = 10,
+         gain_loss = 0
+         WHERE id = $1`,
+        [validSegment]
+      );
+      await pool.query(`UPDATE routes SET gain = 11 WHERE id = $1`, [validRoute]);
+      assert.equal(
+        (await pool.query(
+          `SELECT count(*)::int AS count
+           FROM (${ELEVATION_CANDIDATES_SQL}) candidates
+           WHERE route_id = $1`,
+          [validRoute]
+        )).rows[0]?.count,
+        1,
+        "the repaired blocked route remains an elevation candidate"
+      );
+      command("seed", "--apply");
+      const repairedBlocked = await pool.query<{
+        state: string;
+        attempt_count: number;
+        last_error: string | null;
+        final_evidence: Record<string, unknown> | null;
+      }>(
+        `SELECT state, attempt_count, last_error, final_evidence
+         FROM route_elevation_backfill_jobs
+         WHERE route_id = $1`,
+        [validRoute]
+      );
+      assert.deepEqual(repairedBlocked.rows[0], {
+        state: "queued",
+        attempt_count: 0,
+        last_error: null,
+        final_evidence: null,
+      });
+      await pool.query(`UPDATE routes SET gain = 10 WHERE id = $1`, [validRoute]);
+      const currentValidFingerprint = await pool.query<{
+        path_fingerprint: string;
+      }>(
+        `SELECT path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE route_id = $1`,
+        [validRoute]
+      );
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs
+         SET state = 'complete', path_fingerprint = $2
+         WHERE route_id = $1`,
+        [validRoute, currentValidFingerprint.rows[0]!.path_fingerprint]
+      );
       const first = command("claim", "--worker-id", "luna-route-elevation-01", "--apply").job;
       const second = command("claim", "--worker-id", "luna-route-elevation-01", "--apply").job;
       assert.equal(first.route_name, first.route_id);
@@ -294,17 +570,37 @@ test(
       const recovered = command("claim", "--worker-id", "luna-route-elevation-01", "--apply").job;
       assert.equal(recovered.route_id, first.route_id);
       assert.notEqual(recovered.lease_token, first.lease_token);
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs
+         SET attempt_count = 4,
+             final_evidence = '{"stale":true}'::jsonb
+         WHERE route_id = $1`,
+        [recovered.route_id]
+      );
       await pool.query(`UPDATE routes SET path = ST_GeogFromText('SRID=4326;LINESTRING Z (-121 47 1100, -121.01 47.01 1110)') WHERE id = $1`, [recovered.route_id]);
       const changed = command("process", "--route-id", recovered.route_id, "--lease-token", recovered.lease_token, "--apply");
       assert.equal(changed.outcome, "path_changed_requeued");
-      const requeued = await pool.query<{ state: string; lease_token: string | null }>(`SELECT state, lease_token FROM route_elevation_backfill_jobs WHERE route_id = $1`, [recovered.route_id]);
+      const requeued = await pool.query<{
+        state: string;
+        lease_token: string | null;
+        attempt_count: number;
+        final_evidence: Record<string, unknown> | null;
+      }>(
+        `SELECT state, lease_token, attempt_count, final_evidence
+         FROM route_elevation_backfill_jobs WHERE route_id = $1`,
+        [recovered.route_id]
+      );
       assert.equal(requeued.rows[0]?.state, "queued");
       assert.equal(requeued.rows[0]?.lease_token, null);
+      assert.equal(requeued.rows[0]?.attempt_count, 0);
+      assert.equal(requeued.rows[0]?.final_evidence, null);
       const stats = command("stats");
       assert.equal(typeof stats.expired_leases, "number");
     } finally {
       await pool.query(`DELETE FROM route_elevation_backfill_jobs WHERE route_id = ANY($1::text[])`, [[routeA, routeB, validRoute, supersededRoute, userRoute]]);
+      await pool.query(`DELETE FROM route_segments WHERE route_id = $1`, [validRoute]);
       await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [[routeA, routeB, validRoute, supersededRoute, userRoute]]);
+      await pool.query(`DELETE FROM segments WHERE id = $1`, [validSegment]);
       await pool.end();
     }
   }
@@ -327,6 +623,27 @@ test("worker source clones user-shared segments and rebuilds route paths from or
   assert.match(source, /terrain_source_endpoint/);
   assert.match(source, /terrain_data_license/);
   assert.match(source, /terrain_retrieved_at/);
+  assert.match(source, /https:\/\/registry\.opendata\.aws\/terrain-tiles\//);
+  assert.match(source, /docs\/attribution\.md/);
+  assert.match(source, /ArcticDEM terrain data/);
+  assert.match(source, /courtesy of the U\.S\. Geological Survey/);
+  assert.match(source, /elevation_attribution =/);
+  assert.match(source, /sourceAssemblyMatchesRouteXY\(db, route\.id\)/);
+  assert.match(source, /sourceAssemblyMatchesRouteXY\(client, route\.id\)/);
+  assert.match(source, /segment_xy_drift_requires_route_factory/);
+  assert.match(source, /affected_route_ids: xyDriftRouteIds\.sort\(\)/);
+  assert.match(source, /ST_Force2D\(r\.path::geometry\)/);
+  assert.match(source, /sourceAssemblyPoints\(db, route\.id\)/);
+  assert.match(source, /segmentNeedsTerrainSamplingAcrossRoutes\(/);
+  assert.match(source, /consumersBySegment\.get\(segmentId\)/);
+  assert.match(source, /completeProfile\(\s*segment\.points,\s*true\s*\)/);
+  assert.match(source, /needsStatsRepair/);
+  assert.match(source, /sourceKind: "existing_z"/);
+  assert.match(source, /applySegmentProfile/);
+  assert.match(source, /processLegacyRoute/);
+  assert.match(source, /missing_route_segments_requires_route_factory/);
+  assert.match(source, /verifyPersistedRoute\(\s*completeClient,\s*routeId\s*\)/);
+  assert.match(source, /finalRouteEvidence\.publish_integrity_valid/);
   assert.doesNotMatch(source, /UPDATE routes SET path = rebuilt\.path[\s\S]+?\$2\[n\]/);
 });
 
@@ -342,6 +659,10 @@ test(
     const sourceId = `aaa-route-elevation-source-${suffix}`;
     const peaksId = `bbb-route-elevation-shared-${suffix}`;
     const userId = `ccc-route-elevation-user-shared-${suffix}`;
+    const cloneReuseId = `ccd-route-elevation-clone-reuse-${suffix}`;
+    const legacyFlatId = `ddd-route-elevation-legacy-flat-${suffix}`;
+    const legacyVariedId = `eee-route-elevation-legacy-varied-${suffix}`;
+    const userLegacyId = `fff-route-elevation-user-legacy-${suffix}`;
     const badId = `zzz-route-elevation-bad-${suffix}`;
     const badSegmentId = `zzz-route-elevation-bad-segment-${suffix}`;
     let clonedSegmentId: string | null = null;
@@ -354,7 +675,7 @@ test(
       assert.equal(result.status, 0, result.stderr || result.stdout);
       return JSON.parse(result.stdout.trim());
     };
-    const line = "SRID=4326;LINESTRING Z (-121 47 0, -121.0001 47.0001 0)";
+    const line = "SRID=4326;LINESTRING Z (-121 47 1200, -121.0001 47.0001 1200)";
     try {
       await pool.query(await readFile(MIGRATION, "utf8"));
       await pool.query(`INSERT INTO segments (id, path) VALUES ($1, ST_GeogFromText($2))`, [segmentId, line]);
@@ -362,6 +683,102 @@ test(
         await pool.query(`INSERT INTO routes (id, name, owner, status, path) VALUES ($1, $1, $2, 'pending', ST_GeogFromText($3))`, [id, owner, line]);
         await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 7)`, [id, segmentId]);
       }
+      await pool.query(
+        `UPDATE routes
+         SET path = ST_GeogFromText(
+           'SRID=4326;LINESTRING Z (-121 47 1200, -121.0002 47.0002 1200)'
+         )
+         WHERE id = $1`,
+        [peaksId]
+      );
+      const sharedWriteSnapshot = async () => {
+        const routes = await pool.query(
+          `SELECT id,
+                  md5(encode(ST_AsEWKB(path::geometry), 'hex')) AS path_hash,
+                  elevation_string, gain, gain_loss, polyline6, geohashes,
+                  elevation_source, elevation_source_url,
+                  elevation_attribution, elevation_license_url,
+                  elevation_retrieved_at, updated_at
+           FROM routes
+           WHERE id = ANY($1::text[])
+           ORDER BY id`,
+          [[sourceId, peaksId, userId]]
+        );
+        const segment = await pool.query(
+          `SELECT md5(encode(ST_AsEWKB(path::geometry), 'hex')) AS path_hash,
+                  gain, gain_loss, polyline6, updated_at
+           FROM segments
+           WHERE id = $1`,
+          [segmentId]
+        );
+        return { routes: routes.rows, segment: segment.rows[0] };
+      };
+      const beforeSharedXyBlock = await sharedWriteSnapshot();
+      command("seed", "--apply");
+      const xyClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(xyClaim.route_id, sourceId);
+      const sharedXyBlocked = command(
+        "process",
+        "--route-id",
+        xyClaim.route_id,
+        "--lease-token",
+        xyClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(sharedXyBlocked.outcome, "blocked");
+      assert.equal(
+        sharedXyBlocked.blocker,
+        "segment_xy_drift_requires_route_factory"
+      );
+      assert.deepEqual(
+        await sharedWriteSnapshot(),
+        beforeSharedXyBlock,
+        "an affected shared-route XY mismatch blocks every write"
+      );
+      assert.deepEqual(await readdir(cacheDir), [], "XY drift skips terrain sampling");
+      const sharedXyEvidence = await pool.query<{
+        final_evidence: { affected_route_ids?: string[] };
+      }>(
+        `SELECT final_evidence
+         FROM route_elevation_backfill_jobs
+         WHERE route_id = $1`,
+        [sourceId]
+      );
+      assert.deepEqual(
+        sharedXyEvidence.rows[0]?.final_evidence.affected_route_ids,
+        [peaksId]
+      );
+      await pool.query(
+        `UPDATE routes SET path = ST_GeogFromText($2) WHERE id = $1`,
+        [peaksId, line]
+      );
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs
+         SET state = 'queued',
+             attempt_count = 0,
+             next_attempt_at = now(),
+             last_error = NULL,
+             final_evidence = NULL
+         WHERE route_id = $1`,
+        [sourceId]
+      );
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs j
+         SET state = 'complete',
+             path_fingerprint = fingerprint.path_fingerprint,
+             lease_owner = NULL,
+             lease_token = NULL,
+             lease_expires_at = NULL
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE j.route_id = $1
+           AND fingerprint.route_id = j.route_id`,
+        [peaksId]
+      );
       // A whole-tile, decoded cache avoids network I/O while still exercising the worker sampler path.
       const z = 14;
       const x = Math.floor(((-121 + 180) / 360) * 2 ** z);
@@ -422,13 +839,201 @@ test(
         fullEvidence.rows[0]?.final_evidence.terrain_source_endpoint,
         "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/{x}/{y}.png"
       );
+      assert.equal(
+        fullEvidence.rows[0]?.final_evidence.terrain_license_url,
+        "https://github.com/tilezen/joerd/blob/master/docs/attribution.md"
+      );
+      assert.match(
+        String(fullEvidence.rows[0]?.final_evidence.terrain_attribution),
+        /ArcticDEM terrain data[\s\S]+courtesy of the U\.S\. Geological Survey/
+      );
+      clonedSegmentId = (await pool.query<{ segment_id: string }>(
+        `SELECT segment_id
+         FROM route_segments
+         WHERE route_id = $1`,
+        [sourceId]
+      )).rows[0]!.segment_id;
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs j
+         SET state = 'complete',
+             path_fingerprint = fingerprint.path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE j.route_id = $1
+           AND fingerprint.route_id = j.route_id`,
+        [peaksId]
+      );
+      await pool.query(
+        `INSERT INTO routes (id, name, owner, status, path)
+         VALUES ($1, $1, 'peaks', 'pending', ST_GeogFromText($2))`,
+        [cloneReuseId, line]
+      );
+      await pool.query(
+        `INSERT INTO route_segments (
+           route_id, segment_id, ordinal
+         ) VALUES ($1, $2, 7)`,
+        [cloneReuseId, segmentId]
+      );
+      command("seed", "--apply");
+      const cloneReuseClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(cloneReuseClaim.route_id, cloneReuseId);
+      const cloneReuseDone = command(
+        "process",
+        "--route-id",
+        cloneReuseId,
+        "--lease-token",
+        cloneReuseClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(cloneReuseDone.outcome, "complete");
+      const cloneReuseRows = await pool.query<{
+        id: string;
+        segment_id: string;
+        profile_valid: boolean;
+        stats_valid: boolean;
+      }>(
+        `SELECT r.id,
+                rs.segment_id,
+                r.elevation_string =
+                  encode_route_elevation_profile(r.path) AS profile_valid,
+                r.gain IS NOT DISTINCT FROM stats.gain
+                  AND r.gain_loss IS NOT DISTINCT FROM stats.loss
+                  AS stats_valid
+         FROM routes r
+         JOIN route_segments rs ON rs.route_id = r.id
+         CROSS JOIN LATERAL route_elevation_stats(r.path) stats
+         WHERE r.id = ANY($1::text[])
+         ORDER BY r.id`,
+        [[sourceId, peaksId, cloneReuseId]]
+      );
+      assert.equal(cloneReuseRows.rows.length, 3);
+      assert.equal(
+        cloneReuseRows.rows.every(
+          (row) =>
+            row.segment_id === clonedSegmentId &&
+            row.profile_valid &&
+            row.stats_valid
+        ),
+        true,
+        "clone reuse rebuilds every old and new Peaks consumer"
+      );
+      const routeCredits = await pool.query<{
+        id: string;
+        elevation_source: string | null;
+        elevation_source_url: string | null;
+        elevation_attribution: string | null;
+        elevation_license_url: string | null;
+        elevation_retrieved_at: Date | null;
+      }>(
+        `SELECT id, elevation_source, elevation_source_url,
+                elevation_attribution, elevation_license_url,
+                elevation_retrieved_at
+         FROM routes
+         WHERE id = ANY($1::text[])
+         ORDER BY id`,
+        [[sourceId, peaksId, userId]]
+      );
+      for (const routeCredit of routeCredits.rows.filter(
+        (row) => row.id !== userId
+      )) {
+        assert.match(routeCredit.elevation_source ?? "", /Terrarium/);
+        assert.equal(
+          routeCredit.elevation_source_url,
+          "https://registry.opendata.aws/terrain-tiles/"
+        );
+        assert.match(routeCredit.elevation_attribution ?? "", /ArcticDEM/);
+        assert.equal(
+          routeCredit.elevation_license_url,
+          "https://github.com/tilezen/joerd/blob/master/docs/attribution.md"
+        );
+        assert.ok(routeCredit.elevation_retrieved_at);
+      }
+      assert.equal(
+        routeCredits.rows.find((row) => row.id === userId)?.elevation_source,
+        null
+      );
       assert.match(
         String(fullEvidence.rows[0]?.final_evidence.terrain_data_license),
-        /open data licenses/i
+        /source-specific license terms/i
       );
       assert.match(
         String(fullEvidence.rows[0]?.final_evidence.terrain_retrieved_at),
         /^\d{4}-\d{2}-\d{2}T/
+      );
+      const originalRetrievedAt = routeCredits.rows
+        .find((row) => row.id === sourceId)!
+        .elevation_retrieved_at!
+        .toISOString();
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs j
+         SET state = 'complete',
+             path_fingerprint = fingerprint.path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE j.route_id = $1
+           AND fingerprint.route_id = j.route_id`,
+        [peaksId]
+      );
+      await pool.query(
+        `UPDATE route_elevation_backfill_jobs j
+         SET state = 'retry',
+             path_fingerprint = fingerprint.path_fingerprint,
+             next_attempt_at = now(),
+             last_error = 'simulated public verification failure'
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE j.route_id = $1
+           AND fingerprint.route_id = j.route_id`,
+        [sourceId]
+      );
+      const retryClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(retryClaim.route_id, sourceId);
+      const retried = command(
+        "process",
+        "--route-id",
+        sourceId,
+        "--lease-token",
+        retryClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(retried.outcome, "complete");
+      assert.equal(
+        retried.source_kind,
+        "terrarium_z14",
+        "a no-fetch retry keeps the persisted terrain lineage"
+      );
+      const retryLineage = await pool.query<{
+        elevation_retrieved_at: Date;
+        final_evidence: Record<string, unknown>;
+      }>(
+        `SELECT r.elevation_retrieved_at, j.final_evidence
+         FROM routes r
+         JOIN route_elevation_backfill_jobs j ON j.route_id = r.id
+         WHERE r.id = $1`,
+        [sourceId]
+      );
+      assert.equal(
+        retryLineage.rows[0]!.elevation_retrieved_at.toISOString(),
+        originalRetrievedAt
+      );
+      assert.equal(
+        retryLineage.rows[0]!.final_evidence.source_kind,
+        "terrarium_z14"
+      );
+      assert.equal(
+        new Date(
+          String(
+            retryLineage.rows[0]!.final_evidence.terrain_retrieved_at
+          )
+        ).toISOString(),
+        originalRetrievedAt
       );
       const rows = await pool.query<{ id: string; profile: string | null; points: number; minimum_z: number }>(
         `SELECT id, elevation_string AS profile, ST_NPoints(path::geometry)::int AS points,
@@ -441,7 +1046,7 @@ test(
       assert.match(byId.get(sourceId)?.profile ?? "", /./);
       assert.match(byId.get(peaksId)?.profile ?? "", /./);
       assert.equal(byId.get(userId)?.profile, null);
-      assert.equal(byId.get(userId)?.minimum_z, 0);
+      assert.equal(byId.get(userId)?.minimum_z, 1200);
       const linkRows = await pool.query<{ route_id: string; segment_id: string }>(
         `SELECT route_id, segment_id
          FROM route_segments
@@ -461,6 +1066,89 @@ test(
       assert.equal(peaksSegmentIds.size, 1);
       clonedSegmentId = [...peaksSegmentIds][0] ?? null;
       assert.notEqual(clonedSegmentId, segmentId);
+      const markSharedPeerComplete = () => pool.query(
+        `UPDATE route_elevation_backfill_jobs j
+         SET state = 'complete',
+             path_fingerprint = fingerprint.path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) fingerprint
+         WHERE j.route_id = ANY($1::text[])
+           AND fingerprint.route_id = j.route_id`,
+        [[peaksId, cloneReuseId]]
+      );
+      await pool.query(
+        `UPDATE segments SET gain = gain + 5 WHERE id = $1`,
+        [clonedSegmentId]
+      );
+      command("seed", "--apply");
+      const segmentStatsClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(segmentStatsClaim.route_id, sourceId);
+      command(
+        "process",
+        "--route-id",
+        sourceId,
+        "--lease-token",
+        segmentStatsClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(
+        (await pool.query<{ valid: boolean }>(
+          `SELECT s.gain IS NOT DISTINCT FROM stats.gain
+             AND s.gain_loss IS NOT DISTINCT FROM stats.loss AS valid
+           FROM segments s
+           CROSS JOIN LATERAL route_elevation_stats(s.path) stats
+           WHERE s.id = $1`,
+          [clonedSegmentId]
+        )).rows[0]?.valid,
+        true,
+        "correct route plus wrong segment stats repairs from existing Z"
+      );
+      await markSharedPeerComplete();
+      await pool.query(
+        `UPDATE segments SET gain = gain + 3 WHERE id = $1`,
+        [clonedSegmentId]
+      );
+      await pool.query(
+        `UPDATE routes SET gain = gain + 2 WHERE id = $1`,
+        [sourceId]
+      );
+      command("seed", "--apply");
+      const allStatsClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(allStatsClaim.route_id, sourceId);
+      command(
+        "process",
+        "--route-id",
+        sourceId,
+        "--lease-token",
+        allStatsClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(
+        (await pool.query<{ valid: boolean }>(
+          `SELECT s.gain IS NOT DISTINCT FROM segment_stats.gain
+             AND s.gain_loss IS NOT DISTINCT FROM segment_stats.loss
+             AND r.gain IS NOT DISTINCT FROM route_stats.gain
+             AND r.gain_loss IS NOT DISTINCT FROM route_stats.loss AS valid
+           FROM segments s
+           CROSS JOIN routes r
+           CROSS JOIN LATERAL route_elevation_stats(s.path) segment_stats
+           CROSS JOIN LATERAL route_elevation_stats(r.path) route_stats
+           WHERE s.id = $1 AND r.id = $2`,
+          [clonedSegmentId, sourceId]
+        )).rows[0]?.valid,
+        true,
+        "wrong route and segment stats repair together"
+      );
+      await markSharedPeerComplete();
       const afterSharedWrite = await pool.query<{
         segment_hash: string;
         user_hash: string;
@@ -480,6 +1168,153 @@ test(
         [segmentId, userId]
       );
       assert.deepEqual(afterSharedWrite.rows[0], beforeSharedWrite.rows[0]);
+      const legacyFlatLine =
+        "SRID=4326;LINESTRING Z (-121 47 1200, -121.0001 47.0001 1200)";
+      const legacyVariedLine =
+        "SRID=4326;LINESTRING Z (-121 47 1200, -121.0001 47.0001 1260)";
+      await pool.query(
+        `INSERT INTO routes (id, name, owner, status, path)
+         VALUES
+           ($1, $1, 'peaks', 'pending', ST_GeogFromText($4)),
+           ($2, $2, 'peaks', 'pending', ST_GeogFromText($5)),
+           ($3, $3, 'user-test', 'pending', ST_GeogFromText($4))`,
+        [
+          legacyFlatId,
+          legacyVariedId,
+          userLegacyId,
+          legacyFlatLine,
+          legacyVariedLine,
+        ]
+      );
+      await pool.query(
+        `UPDATE routes
+         SET elevation_string = NULL,
+             gain = NULL,
+             gain_loss = NULL
+         WHERE id = ANY($1::text[])`,
+        [[legacyFlatId, legacyVariedId, userLegacyId]]
+      );
+      const legacyBefore = await pool.query<{
+        id: string;
+        status: string;
+        xy_hash: string;
+      }>(
+        `SELECT id, status,
+                md5(encode(
+                  ST_AsEWKB(ST_Force2D(path::geometry)),
+                  'hex'
+                )) AS xy_hash
+         FROM routes
+         WHERE id = ANY($1::text[])
+         ORDER BY id`,
+        [[legacyFlatId, legacyVariedId, userLegacyId]]
+      );
+      command("seed", "--apply");
+      const legacyFlatClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(legacyFlatClaim.route_id, legacyFlatId);
+      const legacyFlatBlocked = command(
+        "process",
+        "--route-id",
+        legacyFlatId,
+        "--lease-token",
+        legacyFlatClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(legacyFlatBlocked.outcome, "blocked");
+      assert.equal(
+        legacyFlatBlocked.blocker,
+        "missing_route_segments_requires_route_factory"
+      );
+      const legacyVariedClaim = command(
+        "claim",
+        "--worker-id",
+        "luna-route-elevation-01",
+        "--apply"
+      ).job;
+      assert.equal(legacyVariedClaim.route_id, legacyVariedId);
+      const legacyVariedBlocked = command(
+        "process",
+        "--route-id",
+        legacyVariedId,
+        "--lease-token",
+        legacyVariedClaim.lease_token,
+        "--apply"
+      );
+      assert.equal(legacyVariedBlocked.outcome, "blocked");
+      assert.equal(
+        legacyVariedBlocked.blocker,
+        "missing_route_segments_requires_route_factory"
+      );
+      const legacyAfter = await pool.query<{
+        id: string;
+        status: string;
+        xy_hash: string;
+        canonical: boolean;
+        stats_valid: boolean;
+        has_range: boolean;
+        elevation_source: string | null;
+      }>(
+        `SELECT r.id,
+                r.status,
+                md5(encode(
+                  ST_AsEWKB(ST_Force2D(r.path::geometry)),
+                  'hex'
+                )) AS xy_hash,
+                r.elevation_string =
+                  encode_route_elevation_profile(r.path) AS canonical,
+                r.gain IS NOT DISTINCT FROM stats.gain
+                  AND r.gain_loss IS NOT DISTINCT FROM stats.loss
+                  AS stats_valid,
+                route_elevation_profile_has_real_range(r.path)
+                  AS has_range,
+                r.elevation_source
+         FROM routes r
+         CROSS JOIN LATERAL route_elevation_stats(r.path) stats
+         WHERE r.id = ANY($1::text[])
+         ORDER BY r.id`,
+        [[legacyFlatId, legacyVariedId]]
+      );
+      assert.deepEqual(
+        legacyAfter.rows.map(({ id, status, xy_hash }) => ({
+          id,
+          status,
+          xy_hash,
+        })),
+        legacyBefore.rows
+          .filter((row) => row.id !== userLegacyId)
+      );
+      assert.equal(
+        legacyAfter.rows.every(
+          (row) => row.canonical && row.stats_valid && row.has_range
+        ),
+        true
+      );
+      assert.match(
+        legacyAfter.rows.find((row) => row.id === legacyFlatId)
+          ?.elevation_source ?? "",
+        /Terrarium/
+      );
+      assert.equal(
+        legacyAfter.rows.find((row) => row.id === legacyVariedId)
+          ?.elevation_source,
+        null,
+        "varied legacy Z repairs without AWS"
+      );
+      assert.equal(
+        (await pool.query(
+          `SELECT count(*)::int AS count
+           FROM route_elevation_backfill_jobs
+           WHERE route_id = $1`,
+          [userLegacyId]
+        )).rows[0]?.count,
+        0,
+        "user legacy routes remain out of scope"
+      );
       await pool.query(`DELETE FROM route_elevation_backfill_jobs WHERE route_id = $1`, [peaksId]);
       await pool.query(
         `INSERT INTO segments (id, path)
@@ -513,9 +1348,9 @@ test(
       assert.deepEqual(afterFailure.rows[0], beforeFailure.rows[0]);
     } finally {
       delete process.env.PEAKS_TERRARIUM_TEST_RESPONSE;
-      await pool.query(`DELETE FROM route_elevation_backfill_jobs WHERE route_id = ANY($1::text[])`, [[sourceId, peaksId, userId, badId]]);
-      await pool.query(`DELETE FROM route_segments WHERE route_id = ANY($1::text[])`, [[sourceId, peaksId, userId, badId]]);
-      await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [[sourceId, peaksId, userId, badId]]);
+      await pool.query(`DELETE FROM route_elevation_backfill_jobs WHERE route_id = ANY($1::text[])`, [[sourceId, peaksId, userId, cloneReuseId, legacyFlatId, legacyVariedId, userLegacyId, badId]]);
+      await pool.query(`DELETE FROM route_segments WHERE route_id = ANY($1::text[])`, [[sourceId, peaksId, userId, cloneReuseId, legacyFlatId, legacyVariedId, userLegacyId, badId]]);
+      await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [[sourceId, peaksId, userId, cloneReuseId, legacyFlatId, legacyVariedId, userLegacyId, badId]]);
       await pool.query(
         `DELETE FROM segments WHERE id = ANY($1::text[])`,
         [[segmentId, badSegmentId, clonedSegmentId].filter(Boolean)]

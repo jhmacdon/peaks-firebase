@@ -73,7 +73,15 @@ test(
     );
     const segment = async (route: string, id: string, line: string, source = provenance, ordinal = 0, direction = "forward") => {
       await pool.query(
-        `INSERT INTO segments (id, path, provenance) VALUES ($1, ST_GeogFromText($2), $3::jsonb)`, [id, line, source]
+        `INSERT INTO segments (id, path, gain, gain_loss, provenance)
+         VALUES (
+           $1,
+           ST_GeogFromText($2),
+           (SELECT gain FROM route_elevation_stats(ST_GeogFromText($2))),
+           (SELECT loss FROM route_elevation_stats(ST_GeogFromText($2))),
+           $3::jsonb
+         )`,
+        [id, line, source]
       );
       await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES ($1, $2, $3, $4)`, [route, id, ordinal, direction]);
     };
@@ -101,6 +109,39 @@ test(
       await segment(disconnectedSegment, `${disconnectedSegment}-second`, disconnectedB, provenance, 1);
       await insertRoute(nonSummitEndpoint, "peaks", nearB, true, provenance, "out_and_back"); await link(nonSummitEndpoint, destinationB, 0); await link(nonSummitEndpoint, nonSummit, 1); await segment(nonSummitEndpoint, `${nonSummitEndpoint}-segment`, nearB);
       await insertRoute(liveRoute, "peaks", nearA); await link(liveRoute, destinationB, 0); await segment(liveRoute, `${liveRoute}-segment`, nearA);
+
+      assert.equal(
+        (await pool.query<{ valid: boolean }>(
+          `SELECT peaks_route_passes_publish_integrity(
+             $1, $2, 'active'
+           ) AS valid`,
+          [goodA, destinationA]
+        )).rows[0]?.valid,
+        true
+      );
+      await pool.query(
+        `UPDATE segments SET gain = gain + 1 WHERE id = $1`,
+        [`${goodA}-segment`]
+      );
+      assert.equal(
+        (await pool.query<{ valid: boolean }>(
+          `SELECT peaks_route_passes_publish_integrity(
+             $1, $2, 'active'
+           ) AS valid`,
+          [goodA, destinationA]
+        )).rows[0]?.valid,
+        false,
+        "wrong stored segment stats must fail publish integrity"
+      );
+      await pool.query(
+        `UPDATE segments
+         SET gain = (SELECT gain FROM route_elevation_stats(segments.path)),
+             gain_loss = (
+               SELECT loss FROM route_elevation_stats(segments.path)
+             )
+         WHERE id = $1`,
+        [`${goodA}-segment`]
+      );
 
       command("route-integrity-repairs.ts", "seed", "--apply");
       const first = await pool.query<{ destination_id: string; state: string; replacement_route_id: string | null }>(

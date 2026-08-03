@@ -56,6 +56,12 @@ test("repair migration and standard jobs contract use strict repair gates withou
     assert.match(source, /CREATE TRIGGER trg_route_integrity_repairs_updated/);
     assert.match(source, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_integrity_repairs TO "peaks-api"/);
     assert.match(source, /CREATE OR REPLACE FUNCTION peaks_route_passes_publish_integrity/);
+    assert.match(source, /stored_gain IS NOT DISTINCT FROM computed_gain/);
+    assert.match(source, /stored_loss IS NOT DISTINCT FROM computed_loss/);
+    assert.match(
+      source,
+      /LEFT JOIN LATERAL route_elevation_stats\(s\.path\)/
+    );
     assert.match(source, /CREATE OR REPLACE FUNCTION settle_route_integrity_replacement/);
     assert.match(
       source,

@@ -46,6 +46,10 @@ interface SegmentSnapshot {
   id: string;
   path_hash: string | null;
   points: Point[];
+  gain: number | null;
+  gain_loss: number | null;
+  computed_gain: number | null;
+  computed_loss: number | null;
   user_route_reference_count: number;
 }
 
@@ -53,11 +57,31 @@ const MAX_ATTEMPTS = 5;
 const REQUIRED_WORKER_ID = "luna-route-elevation-01";
 const TERRAIN_SOURCE_ENDPOINT =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/{x}/{y}.png";
-const TERRAIN_SOURCE_NAME = "AWS Open Data Terrain Tiles (Terrarium z14)";
+const TERRAIN_SOURCE_NAME =
+  "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)";
+const TERRAIN_SOURCE_URL = "https://registry.opendata.aws/terrain-tiles/";
 const TERRAIN_DATA_LICENSE =
-  "Source-dependent open data licenses documented by Tilezen";
+  "Source-specific license terms in Tilezen Joerd attribution.md";
 const TERRAIN_LICENSE_URL =
-  "https://github.com/tilezen/joerd/blob/master/docs/data-sources.md";
+  "https://github.com/tilezen/joerd/blob/master/docs/attribution.md";
+const TERRAIN_ATTRIBUTION = `* ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and
+  funded under National Science Foundation awards 1043681, 1559691, and 1542736;
+* Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017;
+* Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)
+  Österreich;
+* Canada terrain data contains information licensed under the Open Government
+  Licence – Canada;
+* Europe terrain data produced using Copernicus data and information funded by the
+  European Union - EU-DEM layers;
+* Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration
+* Mexico terrain data source: INEGI, Continental relief, 2016;
+* New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New
+  Zealand and the New Zealand Government (All rights reserved);
+* Norway terrain data © Kartverket;
+* United Kingdom terrain data © Environment Agency copyright and/or database right
+  2015. All rights reserved;
+* United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data
+  courtesy of the U.S. Geological Survey.`;
 
 export const ELEVATION_ROUTE_FINGERPRINT_SQL = `
   SELECT r.id AS route_id,
@@ -67,6 +91,11 @@ export const ELEVATION_ROUTE_FINGERPRINT_SQL = `
              COALESCE(r.elevation_string, ''),
              COALESCE(r.gain::text, ''),
              COALESCE(r.gain_loss::text, ''),
+             COALESCE(r.elevation_source, ''),
+             COALESCE(r.elevation_source_url, ''),
+             COALESCE(r.elevation_attribution, ''),
+             COALESCE(r.elevation_license_url, ''),
+             COALESCE(r.elevation_retrieved_at::text, ''),
              COALESCE((SELECT string_agg(concat_ws(':',
                rs.ordinal::text, rs.direction, s.id,
                COALESCE(encode(ST_AsEWKB(s.path::geometry), 'hex'), ''),
@@ -88,7 +117,16 @@ export const ELEVATION_ROUTE_FINGERPRINT_SQL = `
            FROM route_segments rs
            JOIN segments s ON s.id = rs.segment_id
            WHERE rs.route_id = r.id
-             AND (s.path IS NULL OR encode_route_elevation_profile(s.path) IS NULL)
+             AND (
+               s.path IS NULL
+               OR encode_route_elevation_profile(s.path) IS NULL
+               OR s.gain IS DISTINCT FROM (
+                 SELECT gain FROM route_elevation_stats(s.path)
+               )
+               OR s.gain_loss IS DISTINCT FROM (
+                 SELECT loss FROM route_elevation_stats(s.path)
+               )
+             )
          ) AS segment_needs_elevation
   FROM routes r
   CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
@@ -262,14 +300,29 @@ async function seed(apply: boolean): Promise<void> {
            WHEN route_elevation_backfill_jobs.state = 'working' AND route_elevation_backfill_jobs.lease_expires_at >= now() THEN 'working'
            WHEN route_elevation_backfill_jobs.state = 'working' THEN 'retry'
            WHEN route_elevation_backfill_jobs.state = 'complete' AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint THEN 'queued'
+           WHEN route_elevation_backfill_jobs.state = 'blocked' AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint THEN 'queued'
            WHEN route_elevation_backfill_jobs.state = 'out_of_scope' THEN 'queued'
            ELSE route_elevation_backfill_jobs.state END,
+         attempt_count = CASE
+           WHEN route_elevation_backfill_jobs.state IN (
+             'complete', 'blocked', 'out_of_scope'
+           )
+             AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint
+           THEN 0 ELSE route_elevation_backfill_jobs.attempt_count END,
+         last_error = CASE
+           WHEN route_elevation_backfill_jobs.state IN (
+             'complete', 'blocked', 'out_of_scope'
+           )
+             AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint
+           THEN NULL ELSE route_elevation_backfill_jobs.last_error END,
          final_evidence = CASE
-           WHEN route_elevation_backfill_jobs.state = 'complete'
+           WHEN route_elevation_backfill_jobs.state IN (
+             'complete', 'blocked', 'out_of_scope'
+           )
              AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint
            THEN NULL ELSE route_elevation_backfill_jobs.final_evidence END,
          next_attempt_at = CASE WHEN route_elevation_backfill_jobs.state = 'working' AND route_elevation_backfill_jobs.lease_expires_at < now() THEN now()
-           WHEN route_elevation_backfill_jobs.state IN ('complete', 'out_of_scope')
+           WHEN route_elevation_backfill_jobs.state IN ('complete', 'blocked', 'out_of_scope')
            AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint THEN now()
            ELSE route_elevation_backfill_jobs.next_attempt_at END,
          lease_owner = CASE WHEN route_elevation_backfill_jobs.state = 'working' AND route_elevation_backfill_jobs.lease_expires_at >= now()
@@ -278,6 +331,35 @@ async function seed(apply: boolean): Promise<void> {
            THEN route_elevation_backfill_jobs.lease_token ELSE NULL END,
          lease_expires_at = CASE WHEN route_elevation_backfill_jobs.state = 'working' AND route_elevation_backfill_jobs.lease_expires_at >= now()
            THEN route_elevation_backfill_jobs.lease_expires_at ELSE NULL END`
+    );
+    const requeuedChangedComplete = await client.query(
+      `UPDATE route_elevation_backfill_jobs j
+       SET state = 'queued',
+           path_fingerprint = current_route.path_fingerprint,
+           attempt_count = 0,
+           next_attempt_at = now(),
+           last_error = NULL,
+           final_evidence = NULL
+       FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) current_route
+       WHERE j.route_id = current_route.route_id
+         AND j.state = 'complete'
+         AND j.path_fingerprint <> current_route.path_fingerprint`
+    );
+    const requeuedChangedBlocked = await client.query(
+      `UPDATE route_elevation_backfill_jobs j
+       SET state = 'queued',
+           path_fingerprint = current_route.path_fingerprint,
+           attempt_count = 0,
+           next_attempt_at = now(),
+           lease_owner = NULL,
+           lease_token = NULL,
+           lease_expires_at = NULL,
+           last_error = NULL,
+           final_evidence = NULL
+       FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) current_route
+       WHERE j.route_id = current_route.route_id
+         AND j.state = 'blocked'
+         AND j.path_fingerprint <> current_route.path_fingerprint`
     );
     const retired = await client.query(
       `UPDATE route_elevation_backfill_jobs j SET state = 'out_of_scope', lease_owner = NULL, lease_token = NULL,
@@ -289,7 +371,13 @@ async function seed(apply: boolean): Promise<void> {
          )`
     );
     await client.query("COMMIT");
-    print({ mode: "apply", seeded: seeded.rowCount, marked_out_of_scope: retired.rowCount });
+    print({
+      mode: "apply",
+      seeded: seeded.rowCount,
+      requeued_changed_complete: requeuedChangedComplete.rowCount,
+      requeued_changed_blocked: requeuedChangedBlocked.rowCount,
+      marked_out_of_scope: retired.rowCount,
+    });
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
@@ -374,12 +462,20 @@ async function segmentSnapshots(client: PoolClient | typeof db, routeId: string)
   const rows = await client.query<{
     id: string;
     path_hash: string | null;
+    gain: number | null;
+    gain_loss: number | null;
+    computed_gain: number | null;
+    computed_loss: number | null;
     user_route_reference_count: number;
   }>(
     `SELECT DISTINCT s.id,
             CASE WHEN s.path IS NULL THEN NULL
                  ELSE md5(encode(ST_AsEWKB(s.path::geometry), 'hex'))
             END AS path_hash,
+            s.gain,
+            s.gain_loss,
+            elevation_stats.gain AS computed_gain,
+            elevation_stats.loss AS computed_loss,
             (
               SELECT count(*)::int
               FROM route_segments shared_rs
@@ -389,6 +485,7 @@ async function segmentSnapshots(client: PoolClient | typeof db, routeId: string)
             ) AS user_route_reference_count
      FROM route_segments rs
      JOIN segments s ON s.id = rs.segment_id
+     CROSS JOIN LATERAL route_elevation_stats(s.path) elevation_stats
      WHERE rs.route_id = $1
      ORDER BY s.id`,
     [routeId]
@@ -414,8 +511,147 @@ function existingProfile(points: Point[]): number[] | null {
   return elevations.every((elevation): elevation is number => elevation !== null && elevation >= -12_000 && elevation <= 12_000) && profileIsUsable(elevations) ? elevations : null;
 }
 
-async function completeProfile(points: Point[]): Promise<{ elevations: number[]; sourceKind: string }> {
-  const existing = existingProfile(points);
+export function segmentNeedsTerrainSampling(
+  assembledRoutePoints: Point[],
+  segmentPoints: Point[]
+): boolean {
+  return segmentNeedsTerrainSamplingAcrossRoutes(
+    [assembledRoutePoints],
+    segmentPoints
+  );
+}
+
+export function segmentNeedsTerrainSamplingAcrossRoutes(
+  assembledRoutePoints: Point[][],
+  segmentPoints: Point[]
+): boolean {
+  const segmentProfile = existingProfile(segmentPoints);
+  if (!segmentProfile) return true;
+  if (routeProfileHasRealRange(segmentProfile)) return false;
+
+  return assembledRoutePoints.some((points) => {
+    const assembledProfile = existingProfile(points);
+    return (
+      assembledProfile === null ||
+      !routeProfileHasRealRange(assembledProfile)
+    );
+  });
+}
+
+async function sourceAssemblyPoints(
+  client: PoolClient | typeof db,
+  routeId: string
+): Promise<Point[]> {
+  const result = await client.query<Point>(
+    `WITH ordered_segments AS (
+       SELECT rs.ordinal,
+              row_number() OVER (
+                ORDER BY rs.ordinal, rs.segment_id
+              ) AS segment_sequence,
+              CASE rs.direction
+                WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                ELSE s.path::geometry
+              END AS directed_path
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1
+         AND s.path IS NOT NULL
+     ), segment_points AS (
+       SELECT ordered_segments.ordinal,
+              ordered_segments.segment_sequence,
+              (dumped).path[1]::int AS segment_vertex,
+              (dumped).geom AS geom
+       FROM ordered_segments
+       CROSS JOIN LATERAL
+         ST_DumpPoints(ordered_segments.directed_path) dumped
+       WHERE ordered_segments.segment_sequence = 1
+          OR (dumped).path[1] > 1
+     )
+     SELECT ST_Y(geom)::float8 AS lat,
+            ST_X(geom)::float8 AS lng,
+            ST_Z(geom)::float8 AS elevation
+     FROM segment_points
+     ORDER BY ordinal, segment_vertex`,
+    [routeId]
+  );
+  return result.rows;
+}
+
+async function sourceAssemblyMatchesRouteXY(
+  client: PoolClient | typeof db,
+  routeId: string
+): Promise<boolean> {
+  const result = await client.query<{ matches: boolean }>(
+    `WITH ordered_segments AS (
+       SELECT row_number() OVER (
+                ORDER BY rs.ordinal, rs.segment_id
+              ) AS segment_sequence,
+              CASE rs.direction
+                WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                ELSE s.path::geometry
+              END AS directed_path
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1
+         AND s.path IS NOT NULL
+     ), segment_points AS (
+       SELECT ordered_segments.segment_sequence,
+              (dumped).path[1]::int AS segment_vertex,
+              (dumped).geom AS geom
+       FROM ordered_segments
+       CROSS JOIN LATERAL
+         ST_DumpPoints(ordered_segments.directed_path) dumped
+       WHERE ordered_segments.segment_sequence = 1
+          OR (dumped).path[1] > 1
+     ), assembled AS (
+       SELECT ST_MakeLine(
+                geom ORDER BY segment_sequence, segment_vertex
+              ) AS path
+       FROM segment_points
+     )
+     SELECT COALESCE(
+              ST_AsEWKB(ST_Force2D(r.path::geometry)) =
+                ST_AsEWKB(ST_Force2D(assembled.path)),
+              false
+            ) AS matches
+     FROM routes r
+     CROSS JOIN assembled
+     WHERE r.id = $1`,
+    [routeId]
+  );
+  return result.rows[0]?.matches === true;
+}
+
+async function affectedSegmentConsumers(
+  client: PoolClient | typeof db,
+  routeIds: string[],
+  segmentIds: string[]
+): Promise<Map<string, string[]>> {
+  const result = await client.query<{
+    segment_id: string;
+    route_id: string;
+  }>(
+    `SELECT segment_id, route_id
+     FROM route_segments
+     WHERE route_id = ANY($1::text[])
+       AND segment_id = ANY($2::text[])
+     ORDER BY segment_id, route_id`,
+    [routeIds, segmentIds]
+  );
+  const consumers = new Map<string, string[]>();
+  for (const row of result.rows) {
+    const routeIdsForSegment = consumers.get(row.segment_id) ?? [];
+    routeIdsForSegment.push(row.route_id);
+    consumers.set(row.segment_id, routeIdsForSegment);
+  }
+  return consumers;
+}
+
+async function completeProfile(
+  points: Point[],
+  forceTerrain = false
+): Promise<{ elevations: number[]; sourceKind: string }> {
+  const existing = forceTerrain ? null : existingProfile(points);
   if (existing) return { elevations: existing, sourceKind: "existing_z" };
   return {
     elevations: await sampleTerrariumProfile(points.map(({ lat, lng }) => ({ lat, lng })), {
@@ -443,6 +679,51 @@ async function applySegmentProfile(
     [id, elevations, stats.gain, stats.loss]
   );
   if (result.rowCount !== 1) throw new Error("Could not update segment");
+}
+
+async function applyLegacyRouteProfile(
+  client: PoolClient,
+  id: string,
+  elevations: number[]
+): Promise<void> {
+  const stats = computeRouteElevationStats(elevations);
+  const result = await client.query(
+    `WITH points AS (
+       SELECT row_number() OVER (ORDER BY (dumped).path)::int AS n,
+              (dumped).geom AS geom
+       FROM routes, ST_DumpPoints(path::geometry) dumped
+       WHERE id = $1
+     ), rebuilt AS (
+       SELECT ST_SetSRID(
+                ST_MakeLine(
+                  array_agg(
+                    ST_SetSRID(
+                      ST_MakePoint(ST_X(geom), ST_Y(geom), $2[n]),
+                      4326
+                    )
+                    ORDER BY n
+                  )
+                ),
+                4326
+              )::geography AS path
+       FROM points
+     )
+     UPDATE routes
+     SET path = rebuilt.path,
+         gain = $3,
+         gain_loss = $4
+     FROM rebuilt
+     WHERE id = $1
+       AND owner = 'peaks'
+       AND status IN ('active', 'pending')
+       AND NOT EXISTS (
+         SELECT 1 FROM route_segments WHERE route_id = $1
+       )`,
+    [id, elevations, stats.gain, stats.loss]
+  );
+  if (result.rowCount !== 1) {
+    throw new Error("Legacy route gained source segments before elevation write");
+  }
 }
 
 function cloneSegmentId(segment: SegmentSnapshot): string {
@@ -571,11 +852,58 @@ interface PersistedRouteEvidence {
   profile_hash: string;
   gain: number;
   gain_loss: number;
+  elevation_source: string | null;
+  elevation_source_url: string | null;
+  elevation_attribution: string | null;
+  elevation_license_url: string | null;
+  elevation_retrieved_at: Date | string | null;
   publish_integrity_valid: boolean;
 }
 
+export function routeElevationLineageEvidence(
+  route: Pick<
+    PersistedRouteEvidence,
+    | "elevation_source"
+    | "elevation_source_url"
+    | "elevation_attribution"
+    | "elevation_license_url"
+    | "elevation_retrieved_at"
+  >
+): {
+  source_kind: "terrarium_z14" | "existing_z";
+  terrain_source: string;
+  terrain_source_url: string | null;
+  terrain_source_endpoint: string | null;
+  terrain_data_license: string;
+  terrain_license_url: string | null;
+  terrain_attribution: string | null;
+  terrain_retrieved_at: Date | string | null;
+} {
+  const terrarium = route.elevation_source === TERRAIN_SOURCE_NAME;
+  return {
+    source_kind: terrarium ? "terrarium_z14" : "existing_z",
+    terrain_source:
+      route.elevation_source ?? "stored PostGIS segment elevations",
+    terrain_source_url: route.elevation_source_url,
+    terrain_source_endpoint: terrarium ? TERRAIN_SOURCE_ENDPOINT : null,
+    terrain_data_license: terrarium
+      ? TERRAIN_DATA_LICENSE
+      : "original segment provenance",
+    terrain_license_url: route.elevation_license_url,
+    terrain_attribution: route.elevation_attribution,
+    terrain_retrieved_at: route.elevation_retrieved_at,
+  };
+}
+
 export function publicElevationEvidenceMatches(
-  route: PersistedRouteEvidence,
+  route: Pick<
+    PersistedRouteEvidence,
+    | "point_count"
+    | "elevation_string"
+    | "profile_hash"
+    | "gain"
+    | "gain_loss"
+  >,
   body: {
     elevation_string?: unknown;
     profile_count?: unknown;
@@ -638,6 +966,11 @@ async function verifyPersistedRoute(
     computed_loss: number | null;
     has_real_range: boolean;
     assembly_matches: boolean;
+    elevation_source: string | null;
+    elevation_source_url: string | null;
+    elevation_attribution: string | null;
+    elevation_license_url: string | null;
+    elevation_retrieved_at: Date | null;
     publish_integrity_valid: boolean;
   }>(
     `WITH ordered_segments AS (
@@ -677,6 +1010,11 @@ async function verifyPersistedRoute(
             route_elevation_profile_has_real_range(r.path) AS has_real_range,
             encode(ST_AsEWKB(r.path::geometry), 'hex')
               = encode(ST_AsEWKB(assembled.path), 'hex') AS assembly_matches,
+            r.elevation_source,
+            r.elevation_source_url,
+            r.elevation_attribution,
+            r.elevation_license_url,
+            r.elevation_retrieved_at,
             CASE WHEN r.status = 'active'
               THEN peaks_route_passes_publish_integrity(r.id, NULL, 'active')
               ELSE true END AS publish_integrity_valid
@@ -715,7 +1053,109 @@ async function verifyPersistedRoute(
     profile_hash: saved.profile_hash,
     gain: saved.gain,
     gain_loss: saved.gain_loss,
+    elevation_source: saved.elevation_source,
+    elevation_source_url: saved.elevation_source_url,
+    elevation_attribution: saved.elevation_attribution,
+    elevation_license_url: saved.elevation_license_url,
+    elevation_retrieved_at: saved.elevation_retrieved_at,
     publish_integrity_valid: saved.publish_integrity_valid,
+  };
+}
+
+async function verifyLegacyPersistedRoute(
+  client: PoolClient,
+  routeId: string,
+  expectedXyHash: string
+): Promise<PersistedRouteEvidence> {
+  const result = await client.query<{
+    id: string;
+    status: string;
+    point_count: number;
+    valid_z: boolean;
+    xy_hash: string;
+    elevation_string: string | null;
+    encoded_profile: string | null;
+    profile_hash: string | null;
+    gain: number | null;
+    gain_loss: number | null;
+    computed_gain: number | null;
+    computed_loss: number | null;
+    has_real_range: boolean;
+    elevation_source: string | null;
+    elevation_source_url: string | null;
+    elevation_attribution: string | null;
+    elevation_license_url: string | null;
+    elevation_retrieved_at: Date | null;
+  }>(
+    `SELECT r.id,
+            r.status,
+            ST_NPoints(r.path::geometry)::int AS point_count,
+            (SELECT bool_and(
+               ST_Z((dumped).geom) BETWEEN -12000 AND 12000
+             )
+             FROM ST_DumpPoints(r.path::geometry) dumped) AS valid_z,
+            md5(encode(
+              ST_AsEWKB(ST_Force2D(r.path::geometry)),
+              'hex'
+            )) AS xy_hash,
+            r.elevation_string,
+            encode_route_elevation_profile(r.path) AS encoded_profile,
+            md5(r.elevation_string) AS profile_hash,
+            r.gain,
+            r.gain_loss,
+            elevation_stats.gain AS computed_gain,
+            elevation_stats.loss AS computed_loss,
+            route_elevation_profile_has_real_range(r.path) AS has_real_range,
+            r.elevation_source,
+            r.elevation_source_url,
+            r.elevation_attribution,
+            r.elevation_license_url,
+            r.elevation_retrieved_at
+     FROM routes r
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
+     WHERE r.id = $1
+       AND r.owner = 'peaks'
+       AND r.status IN ('active', 'pending')
+       AND NOT EXISTS (
+         SELECT 1 FROM route_segments WHERE route_id = r.id
+       )`,
+    [routeId]
+  );
+  const saved = result.rows[0];
+  const profile = decodeElevationProfile(
+    saved?.elevation_string ?? null,
+    saved?.point_count
+  );
+  if (
+    !saved ||
+    saved.xy_hash !== expectedXyHash ||
+    !saved.valid_z ||
+    !saved.has_real_range ||
+    saved.elevation_string !== saved.encoded_profile ||
+    !routeProfileHasRealRange(profile) ||
+    saved.gain !== saved.computed_gain ||
+    saved.gain_loss !== saved.computed_loss ||
+    !saved.elevation_string ||
+    !saved.profile_hash ||
+    saved.gain === null ||
+    saved.gain_loss === null
+  ) {
+    throw new Error("Legacy route elevation verification failed");
+  }
+  return {
+    id: saved.id,
+    status: saved.status,
+    point_count: saved.point_count,
+    elevation_string: saved.elevation_string,
+    profile_hash: saved.profile_hash,
+    gain: saved.gain,
+    gain_loss: saved.gain_loss,
+    elevation_source: saved.elevation_source,
+    elevation_source_url: saved.elevation_source_url,
+    elevation_attribution: saved.elevation_attribution,
+    elevation_license_url: saved.elevation_license_url,
+    elevation_retrieved_at: saved.elevation_retrieved_at,
+    publish_integrity_valid: false,
   };
 }
 
@@ -790,6 +1230,149 @@ async function hasLiveLease(routeId: string, token: string): Promise<boolean> {
   return result.rows[0]?.live === true;
 }
 
+async function processLegacyRoute(
+  routeId: string,
+  token: string,
+  fingerprint: string,
+  snapshot: RouteSnapshot
+): Promise<void> {
+  const existing = existingProfile(snapshot.points);
+  const needsTerrain =
+    existing === null || !routeProfileHasRealRange(existing);
+  const completedProfile = await completeProfile(
+    snapshot.points,
+    needsTerrain
+  );
+  const terrainRetrievedAt =
+    completedProfile.sourceKind === "terrarium_z14"
+      ? new Date().toISOString()
+      : null;
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const job = await liveJob(client, routeId, token);
+    if (!job || job.path_fingerprint !== fingerprint) {
+      throw new Error("Legacy route elevation lease changed before write");
+    }
+    const locked = await client.query<{
+      owner: string;
+      status: string;
+      path_hash: string | null;
+    }>(
+      `SELECT owner,
+              status,
+              CASE WHEN path IS NULL THEN NULL
+                   ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex'))
+              END AS path_hash
+       FROM routes
+       WHERE id = $1
+       FOR UPDATE`,
+      [routeId]
+    );
+    const current = locked.rows[0];
+    if (
+      !current ||
+      current.owner !== "peaks" ||
+      !["active", "pending"].includes(current.status) ||
+      current.path_hash !== snapshot.path_hash ||
+      await currentFingerprint(client, routeId) !== fingerprint
+    ) {
+      throw new Error("Legacy route changed while terrain was sampled");
+    }
+    await client.query(
+      `SELECT route_id
+       FROM route_segments
+       WHERE route_id = $1
+       FOR UPDATE`,
+      [routeId]
+    );
+    await applyLegacyRouteProfile(
+      client,
+      routeId,
+      completedProfile.elevations
+    );
+    if (terrainRetrievedAt) {
+      await client.query(
+        `UPDATE routes
+         SET elevation_source = $2,
+             elevation_source_url = $3,
+             elevation_attribution = $4,
+             elevation_license_url = $5,
+             elevation_retrieved_at = $6::timestamptz
+         WHERE id = $1
+           AND owner = 'peaks'
+           AND status IN ('active', 'pending')`,
+        [
+          routeId,
+          TERRAIN_SOURCE_NAME,
+          TERRAIN_SOURCE_URL,
+          TERRAIN_ATTRIBUTION,
+          TERRAIN_LICENSE_URL,
+          terrainRetrievedAt,
+        ]
+      );
+    }
+    const saved = await verifyLegacyPersistedRoute(
+      client,
+      routeId,
+      snapshot.xy_hash!
+    );
+    const finalFingerprint = await currentFingerprint(client, routeId);
+    if (!finalFingerprint) {
+      throw new Error("Legacy route left elevation scope before blocking");
+    }
+    const cause = "missing_route_segments_requires_route_factory";
+    const evidence = {
+      point_count: saved.point_count,
+      profile_hash: saved.profile_hash,
+      ...routeElevationLineageEvidence(saved),
+      verification: "elevation_written_missing_route_segments",
+      cause,
+    };
+    const blocked = await client.query<Job>(
+      `UPDATE route_elevation_backfill_jobs
+       SET state = 'blocked',
+           path_fingerprint = $3,
+           lease_owner = NULL,
+           lease_token = NULL,
+           lease_expires_at = NULL,
+           last_error = $4,
+           final_evidence = $5::jsonb
+       WHERE route_id = $1
+         AND state = 'working'
+         AND lease_token = $2
+       RETURNING *`,
+      [
+        routeId,
+        token,
+        finalFingerprint,
+        cause,
+        JSON.stringify(evidence),
+      ]
+    );
+    if (!blocked.rows[0]) {
+      throw new Error("No live route elevation lease matched");
+    }
+    await client.query("COMMIT");
+    print({
+      outcome: "blocked",
+      state: "blocked",
+      route_id: routeId,
+      route_name: snapshot.name,
+      blocker: cause,
+      job: compactJob({
+        ...blocked.rows[0],
+        route_name: snapshot.name,
+      }),
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function processRoute(routeId: string, token: string, apply: boolean): Promise<void> {
   if (!apply) throw new Error("process requires --apply");
   if (!await hasLiveLease(routeId, token)) throw new Error("No live route elevation lease matched");
@@ -807,8 +1390,10 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
     const state = preflightFingerprint ? "queued" : "out_of_scope";
     const requeued = await db.query<Job>(
       `UPDATE route_elevation_backfill_jobs SET state = $3, path_fingerprint = COALESCE($4, path_fingerprint),
+       attempt_count = CASE WHEN $4 IS NULL THEN attempt_count ELSE 0 END,
        lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL, next_attempt_at = now(),
-       last_error = CASE WHEN $4 IS NULL THEN 'route is out of scope' ELSE 'path changed before terrain sampling' END
+       final_evidence = CASE WHEN $4 IS NULL THEN final_evidence ELSE NULL END,
+       last_error = CASE WHEN $4 IS NULL THEN 'route is out of scope' ELSE NULL END
        WHERE route_id = $1 AND state = 'working' AND lease_token = $2 RETURNING *`,
       [routeId, token, state, preflightFingerprint]
     );
@@ -837,28 +1422,98 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
     }
     const segments = await segmentSnapshots(db, routeId);
     if (segments.length === 0) {
+      await processLegacyRoute(
+        routeId,
+        token,
+        preflightFingerprint!,
+        snapshot
+      );
+      return;
+    }
+    const segmentScopeIds = [...new Set(
+      segments.flatMap((segment) =>
+        segment.user_route_reference_count > 0
+          ? [segment.id, cloneSegmentId(segment)]
+          : [segment.id]
+      )
+    )].sort();
+    const affected = await affectedPeaksRoutes(db, segmentScopeIds);
+    if (!affected.some((route) => route.id === routeId)) affected.push(snapshot);
+    const xyDriftRouteIds: string[] = [];
+    const assemblyPointsByRoute = new Map<string, Point[]>();
+    for (const route of affected) {
+      if (!await sourceAssemblyMatchesRouteXY(db, route.id)) {
+        xyDriftRouteIds.push(route.id);
+      } else {
+        assemblyPointsByRoute.set(
+          route.id,
+          await sourceAssemblyPoints(db, route.id)
+        );
+      }
+    }
+    if (xyDriftRouteIds.length > 0) {
       await blockLease(
         routeId,
         token,
         preflightFingerprint!,
-        "route has no source segments to rebuild",
-        { verification: "blocked_before_write", cause: "missing_route_segments" },
+        "segment_xy_drift_requires_route_factory",
+        {
+          verification: "blocked_before_write",
+          cause: "segment_xy_drift_requires_route_factory",
+          affected_route_ids: xyDriftRouteIds.sort(),
+        },
         snapshot.name
       );
       return;
     }
+    const consumersBySegment = await affectedSegmentConsumers(
+      db,
+      affected.map((route) => route.id),
+      segmentScopeIds
+    );
     const segmentProfiles = new Map<string, { elevations: number[]; sourceKind: string }>();
     for (const segment of segments) {
-      if (!existingProfile(segment.points)) {
-        segmentProfiles.set(segment.id, await completeProfile(segment.points));
+      const consumerRouteIds = new Set(
+        [
+          segment.id,
+          ...(segment.user_route_reference_count > 0
+            ? [cloneSegmentId(segment)]
+            : []),
+        ].flatMap((segmentId) =>
+          consumersBySegment.get(segmentId) ?? []
+        )
+      );
+      if (consumerRouteIds.size === 0) consumerRouteIds.add(routeId);
+      const consumerAssemblies = [...consumerRouteIds].map((consumerRouteId) => {
+        const points = assemblyPointsByRoute.get(consumerRouteId);
+        if (!points) {
+          throw new Error("Affected route assembly disappeared");
+        }
+        return points;
+      });
+      const needsTerrain = segmentNeedsTerrainSamplingAcrossRoutes(
+        consumerAssemblies,
+        segment.points
+      );
+      const storedProfile = existingProfile(segment.points);
+      const needsStatsRepair =
+        segment.gain !== segment.computed_gain ||
+        segment.gain_loss !== segment.computed_loss;
+      if (needsTerrain) {
+        segmentProfiles.set(
+          segment.id,
+          await completeProfile(segment.points, true)
+        );
+      } else if (needsStatsRepair && storedProfile) {
+        segmentProfiles.set(segment.id, {
+          elevations: storedProfile,
+          sourceKind: "existing_z",
+        });
       }
     }
-    const affected = await affectedPeaksRoutes(
-      db,
-      segments.map((segment) => segment.id)
-    );
-    if (!affected.some((route) => route.id === routeId)) affected.push(snapshot);
-    const terrainRetrievedAt = segmentProfiles.size > 0
+    const terrainRetrievedAt = [...segmentProfiles.values()].some(
+      (profile) => profile.sourceKind === "terrarium_z14"
+    )
       ? new Date().toISOString()
       : null;
     let written: {
@@ -876,7 +1531,8 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       if (fingerprint !== job.path_fingerprint) {
         const updated = await client.query<Job>(
           `UPDATE route_elevation_backfill_jobs SET state = 'queued', path_fingerprint = COALESCE($2, path_fingerprint),
-           lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL, last_error = 'path changed during processing', next_attempt_at = now()
+           attempt_count = 0, lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL,
+           last_error = NULL, final_evidence = NULL, next_attempt_at = now()
            WHERE route_id = $1 RETURNING *`, [routeId, fingerprint]
         );
         await client.query("COMMIT");
@@ -908,8 +1564,10 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       if (fresh.path_hash !== snapshot.path_hash) {
         throw new Error("Route changed while terrain was sampled");
       }
-      const segmentIds = [...new Set(segments.map((segment) => segment.id))].sort();
-      if (segmentIds.length > 0) {
+      const sourceSegmentIds = [
+        ...new Set(segments.map((segment) => segment.id)),
+      ].sort();
+      if (sourceSegmentIds.length > 0) {
         const lockedSegments = await client.query<{ id: string; path_hash: string | null }>(
           `SELECT id,
                   CASE WHEN path IS NULL THEN NULL
@@ -919,11 +1577,14 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
            WHERE id = ANY($1::text[])
            ORDER BY id
            FOR UPDATE`,
-          [segmentIds]
+          [segmentScopeIds]
+        );
+        const lockedSourceSegments = lockedSegments.rows.filter((row) =>
+          sourceSegmentIds.includes(row.id)
         );
         if (
-          lockedSegments.rows.length !== segmentIds.length ||
-          lockedSegments.rows.some((row) => {
+          lockedSourceSegments.length !== sourceSegmentIds.length ||
+          lockedSourceSegments.some((row) => {
             const sampled = segments.find((segment) => segment.id === row.id);
             return !sampled || row.path_hash !== sampled.path_hash;
           })
@@ -937,7 +1598,7 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
            WHERE segment_id = ANY($1::text[])
            ORDER BY segment_id, route_id, ordinal
            FOR UPDATE`,
-          [segmentIds]
+          [segmentScopeIds]
         );
         const liveUserReferences = await client.query<{
           segment_id: string;
@@ -953,7 +1614,7 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
            WHERE s.id = ANY($1::text[])
            GROUP BY s.id
            ORDER BY s.id`,
-          [segmentIds]
+          [sourceSegmentIds]
         );
         for (const segment of segments) {
           segment.user_route_reference_count =
@@ -969,7 +1630,7 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
              AND r.owner = 'peaks'
              AND r.status IN ('active', 'pending')
            ORDER BY r.id`,
-          [segmentIds]
+          [segmentScopeIds]
         );
         if (
           !equalRouteIdSets(
@@ -991,6 +1652,56 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
           return row.owner !== "peaks" || !sampled || row.path_hash !== sampled.path_hash;
         })) throw new Error("Affected route changed while terrain was sampled");
       }
+      const lockedXyDriftRouteIds: string[] = [];
+      for (const route of affected) {
+        if (!await sourceAssemblyMatchesRouteXY(client, route.id)) {
+          lockedXyDriftRouteIds.push(route.id);
+        }
+      }
+      if (lockedXyDriftRouteIds.length > 0) {
+        const cause = "segment_xy_drift_requires_route_factory";
+        const blocked = await client.query<Job>(
+          `UPDATE route_elevation_backfill_jobs
+           SET state = 'blocked',
+               path_fingerprint = $3,
+               lease_owner = NULL,
+               lease_token = NULL,
+               lease_expires_at = NULL,
+               last_error = $4,
+               final_evidence = $5::jsonb
+           WHERE route_id = $1
+             AND state = 'working'
+             AND lease_token = $2
+           RETURNING *`,
+          [
+            routeId,
+            token,
+            fingerprint,
+            cause,
+            JSON.stringify({
+              verification: "blocked_before_write",
+              cause,
+              affected_route_ids: lockedXyDriftRouteIds.sort(),
+            }),
+          ]
+        );
+        if (!blocked.rows[0]) {
+          throw new Error("No live route elevation lease matched");
+        }
+        await client.query("COMMIT");
+        print({
+          outcome: "blocked",
+          state: "blocked",
+          route_id: routeId,
+          route_name: snapshot.name,
+          blocker: cause,
+          job: compactJob({
+            ...blocked.rows[0],
+            route_name: snapshot.name,
+          }),
+        });
+        return;
+      }
       for (const segment of segments) {
         const sampled = segmentProfiles.get(segment.id);
         if (!sampled) continue;
@@ -1006,6 +1717,27 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       for (const route of affected) {
         await rebuildPeaksRouteFromSegments(client, route.id);
       }
+      if (terrainRetrievedAt) {
+        await client.query(
+          `UPDATE routes
+           SET elevation_source = $2,
+               elevation_source_url = $3,
+               elevation_attribution = $4,
+               elevation_license_url = $5,
+               elevation_retrieved_at = $6::timestamptz
+           WHERE id = ANY($1::text[])
+             AND owner = 'peaks'
+             AND status IN ('active', 'pending')`,
+          [
+            affected.map((route) => route.id),
+            TERRAIN_SOURCE_NAME,
+            TERRAIN_SOURCE_URL,
+            TERRAIN_ATTRIBUTION,
+            TERRAIN_LICENSE_URL,
+            terrainRetrievedAt,
+          ]
+        );
+      }
       const persisted = new Map<string, PersistedRouteEvidence>();
       for (const route of affected) {
         persisted.set(route.id, await verifyPersistedRoute(client, route.id));
@@ -1014,8 +1746,8 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       if (!saved) throw new Error("Primary route was not rebuilt");
       const finalFingerprint = await currentFingerprint(client, routeId);
       if (!finalFingerprint) throw new Error("Route left scope before completion");
-      const sourceKind = [...segmentProfiles.values()]
-        .some((profile) => profile.sourceKind === "terrarium_z14") ? "terrarium_z14" : "existing_z";
+      const sourceKind =
+        routeElevationLineageEvidence(saved).source_kind;
       const blockers = [...persisted.values()]
         .filter((route) => route.status === "active" && !route.publish_integrity_valid)
         .map((route) => `publish_integrity_failed:${route.id}`);
@@ -1028,23 +1760,13 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       await client.query("COMMIT");
     } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
     if (!written) throw new Error("Route write did not finish");
+    const lineageEvidence = routeElevationLineageEvidence(written.route);
     const fullEvidence = {
-      source_kind: written.sourceKind,
       point_count: written.route.point_count,
       profile_hash: written.route.profile_hash,
-      terrain_source: written.sourceKind === "terrarium_z14"
-        ? TERRAIN_SOURCE_NAME
-        : "stored PostGIS segment elevations",
-      terrain_source_endpoint: written.sourceKind === "terrarium_z14"
-        ? TERRAIN_SOURCE_ENDPOINT
-        : null,
-      terrain_data_license: written.sourceKind === "terrarium_z14"
-        ? TERRAIN_DATA_LICENSE
-        : "original segment provenance",
-      terrain_license_url: written.sourceKind === "terrarium_z14"
-        ? TERRAIN_LICENSE_URL
-        : null,
-      terrain_retrieved_at: terrainRetrievedAt,
+      segment_stats_verified: true,
+      segment_repair_count: segmentProfiles.size,
+      ...lineageEvidence,
     };
     if (written.blockers.length > 0) {
       await blockLease(
@@ -1072,6 +1794,35 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       const job = await liveJob(completeClient, routeId, token);
       if (!job || await currentFingerprint(completeClient, routeId) !== written.fingerprint) {
         throw new Error("Route changed before public verification completed");
+      }
+      const finalRouteEvidence = await verifyPersistedRoute(
+        completeClient,
+        routeId
+      );
+      if (
+        finalRouteEvidence.elevation_string !== written.route.elevation_string ||
+        finalRouteEvidence.profile_hash !== written.route.profile_hash ||
+        finalRouteEvidence.point_count !== written.route.point_count ||
+        finalRouteEvidence.gain !== written.route.gain ||
+        finalRouteEvidence.gain_loss !== written.route.gain_loss ||
+        finalRouteEvidence.elevation_source !==
+          written.route.elevation_source ||
+        finalRouteEvidence.elevation_source_url !==
+          written.route.elevation_source_url ||
+        finalRouteEvidence.elevation_attribution !==
+          written.route.elevation_attribution ||
+        finalRouteEvidence.elevation_license_url !==
+          written.route.elevation_license_url ||
+        String(finalRouteEvidence.elevation_retrieved_at) !==
+          String(written.route.elevation_retrieved_at) ||
+        (
+          finalRouteEvidence.status === "active" &&
+          !finalRouteEvidence.publish_integrity_valid
+        )
+      ) {
+        throw new Error(
+          "Route elevation or publish integrity changed after public verification"
+        );
       }
       const completed = await completeClient.query<Job>(
         `UPDATE route_elevation_backfill_jobs SET state = 'complete', path_fingerprint = $2, source_kind = $3,
