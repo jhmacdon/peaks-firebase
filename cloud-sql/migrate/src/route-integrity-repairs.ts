@@ -194,7 +194,6 @@ WITH bad_routes AS (
               FROM route_destinations last_rd
               WHERE last_rd.route_id = r2.id
             )
-            AND final_rd.destination_id = bl.destination_id
             AND 'summit'::destination_feature = ANY(final_destination.features)
             AND final_destination.location IS NOT NULL
             AND ST_DWithin(ST_EndPoint(r2.path::geometry)::geography, final_destination.location, 5)

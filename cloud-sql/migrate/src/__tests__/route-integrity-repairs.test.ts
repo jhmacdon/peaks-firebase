@@ -58,8 +58,8 @@ test("repair migration and standard jobs contract use strict repair gates withou
   assert.match(repairs, /ST_MakeLine\(\(dumped\)\.geom ORDER BY ordered_segment\.ordinal, \(dumped\)\.path\)/);
   assert.match(repairs, /ST_CoveredBy\(r2\.path::geometry, ST_Buffer\(assembled\.path::geography, 5\)::geometry\)/);
   assert.match(repairs, /ST_DWithin\(ST_EndPoint\(r2\.path::geometry\)::geography, final_destination\.location, 5\)/);
-  assert.match(repairs, /final_rd\.destination_id = bl\.destination_id/);
   assert.match(repairs, /'summit'::destination_feature = ANY\(final_destination\.features\)/);
+  assert.doesNotMatch(repairs, /final_rd\.destination_id = bl\.destination_id/);
   assert.match(repairs, /NOT ST_DWithin\(r2\.path, all_summit\.location, 5\)/);
   assert.match(repairs, /r2\.owner = 'peaks'/);
   assert.doesNotMatch(repairs, /ST_AsText|ST_X\(|ST_Y\(|latitude|longitude/i);

@@ -21,7 +21,7 @@ test(
     const destinationB = `integrity-b-${suffix}`;
     const badRoute = `integrity-bad-${suffix}`;
     const goodA = `integrity-good-a-${suffix}`;
-    const goodB = `integrity-good-b-${suffix}`;
+    const sharedReplacement = `integrity-shared-replacement-${suffix}`;
     const userA = `integrity-user-a-${suffix}`;
     const invalidProfile = `integrity-invalid-profile-${suffix}`;
     const invalidProvenance = `integrity-invalid-provenance-${suffix}`;
@@ -31,7 +31,7 @@ test(
     const nonSummitEndpoint = `integrity-non-summit-endpoint-${suffix}`;
     const liveRoute = `integrity-live-${suffix}`;
     const nonSummit = `integrity-non-summit-${suffix}`;
-    const ids = [badRoute, goodA, goodB, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute];
+    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute];
     const provenance = JSON.stringify({
       source_kind: "test", source_url: "https://example.test/source", license_name: "Test license",
       license_url: "https://example.test/license", attribution: "Test", retrieved_at: "2026-08-03T00:00:00Z",
@@ -70,6 +70,7 @@ test(
         ($3, ARRAY[]::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122.00001 48.00001 1010)'))`, [destinationA, destinationB, nonSummit]);
       const nearA = "SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)";
       const nearB = "SRID=4326;LINESTRING Z (-122 48 1000, -122.00001 48.00001 1010)";
+      const throughAThenB = "SRID=4326;LINESTRING Z (-121 47 1000, -122 48 1000)";
       const disconnectedB = "SRID=4326;LINESTRING Z (-122.01 48.01 1000, -122.01001 48.01001 1010)";
       await insertRoute(badRoute, "peaks", nearA); await link(badRoute, destinationA, 0); await link(badRoute, destinationB, 1); await segment(badRoute, `${badRoute}-segment`, nearA);
       await insertRoute(goodA, "peaks", nearA); await link(goodA, destinationA, 0); await segment(goodA, `${goodA}-segment`, nearA);
@@ -122,10 +123,18 @@ test(
       await pool.query(`UPDATE routes SET elevation_string = NULL WHERE id = $1`, [goodA]);
       command("route-integrity-repairs.ts", "seed", "--apply");
       assert.equal((await pool.query(`SELECT state FROM route_integrity_repairs WHERE route_id = $1 AND destination_id = $2`, [badRoute, destinationA])).rows[0]?.state, "queued");
-      await insertRoute(goodB, "peaks", nearB); await link(goodB, destinationB, 0); await segment(goodB, `${goodB}-segment`, nearB);
-      await pool.query(`UPDATE routes SET elevation_string = encode_route_elevation_profile(path) WHERE id = $1`, [goodA]);
+      await insertRoute(sharedReplacement, "peaks", throughAThenB, true, provenance, "point_to_point");
+      await link(sharedReplacement, destinationA, 0); await link(sharedReplacement, destinationB, 1);
+      await segment(sharedReplacement, `${sharedReplacement}-segment`, throughAThenB);
       command("route-integrity-repairs.ts", "seed", "--apply");
-      assert.equal((await pool.query(`SELECT count(*)::int AS count FROM route_integrity_repairs WHERE route_id = $1 AND state = 'covered'`, [badRoute])).rows[0]?.count, 2);
+      const sharedCoverage = await pool.query<{ destination_id: string; replacement_route_id: string; state: string }>(
+        `SELECT destination_id, replacement_route_id, state
+         FROM route_integrity_repairs WHERE route_id = $1 ORDER BY destination_id`, [badRoute]
+      );
+      assert.deepEqual(sharedCoverage.rows, [
+        { destination_id: destinationA, replacement_route_id: sharedReplacement, state: "covered" },
+        { destination_id: destinationB, replacement_route_id: sharedReplacement, state: "covered" },
+      ]);
     } finally {
       await pool.query(`DELETE FROM standard_route_backfill_jobs WHERE destination_id = ANY($1::text[])`, [[destinationA, destinationB]]);
       await pool.query(`DELETE FROM route_integrity_repairs WHERE route_id = ANY($1::text[])`, [ids]);
