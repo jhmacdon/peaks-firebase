@@ -136,6 +136,41 @@ test("active upgrade rechecks conflicts after its destination lock", () => {
   );
 });
 
+test("active upgrade rolls back a summit gap allowed by candidate intake but rejected by publish integrity", () => {
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
+  const start = importer.indexOf("async function upgradeActiveRoute(");
+  const end = importer.indexOf("\nasync function main()", start);
+  const upgrade = importer.slice(start, end);
+
+  const candidateIntakeGapMeters = 6;
+  const validPublishGapMeters = 4.9;
+  assert.ok(candidateIntakeGapMeters <= 20);
+  assert.ok(candidateIntakeGapMeters > 5);
+  assert.ok(validPublishGapMeters <= 5);
+
+  const destinationWrite = upgrade.indexOf(
+    "INSERT INTO route_destinations (route_id, destination_id, ordinal)"
+  );
+  const destinationLock = upgrade.indexOf("FOR UPDATE OF rd, d");
+  const segmentLock = upgrade.indexOf("FOR UPDATE OF rs, s");
+  const publishGate = upgrade.indexOf(
+    "peaks_route_passes_publish_integrity($1, $2, 'active')"
+  );
+  const failedGate = upgrade.indexOf(
+    "Active upgrade failed summit contact, elevation, provenance, or segment assembly gates"
+  );
+  const commit = upgrade.indexOf('await client.query("COMMIT")');
+  const rollback = upgrade.indexOf('await client.query("ROLLBACK")');
+
+  assert.ok(destinationWrite >= 0);
+  assert.ok(destinationLock > destinationWrite);
+  assert.ok(segmentLock > destinationLock);
+  assert.ok(publishGate > segmentLock);
+  assert.ok(failedGate > publishGate);
+  assert.ok(commit > failedGate);
+  assert.ok(rollback > commit);
+});
+
 test("route writers atomically set or clear terrain elevation credit", () => {
   const importer = readFileSync(IMPORTER_PATH, "utf8");
   const pendingStart = importer.indexOf("async function createPendingRoute(");

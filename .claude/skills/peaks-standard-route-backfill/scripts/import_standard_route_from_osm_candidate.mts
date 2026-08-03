@@ -1779,6 +1779,33 @@ async function upgradeActiveRoute(
        VALUES ($1, $2, 0), ($1, $3, 1)`,
       [routeId, args.trailheadId, args.destinationId]
     );
+    await client.query(
+      `SELECT rd.destination_id
+       FROM route_destinations rd
+       JOIN destinations d ON d.id = rd.destination_id
+       WHERE rd.route_id = $1
+       ORDER BY rd.ordinal, rd.destination_id
+       FOR UPDATE OF rd, d`,
+      [routeId]
+    );
+    await client.query(
+      `SELECT rs.segment_id
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1
+       ORDER BY rs.ordinal, rs.segment_id
+       FOR UPDATE OF rs, s`,
+      [routeId]
+    );
+    const publishIntegrity = await client.query<{ passes: boolean }>(
+      `SELECT peaks_route_passes_publish_integrity($1, $2, 'active') AS passes`,
+      [routeId, args.destinationId]
+    );
+    if (publishIntegrity.rows[0]?.passes !== true) {
+      throw new Error(
+        "Active upgrade failed summit contact, elevation, provenance, or segment assembly gates"
+      );
+    }
     const oldSegmentIds = oldSegments.rows.map((row) => row.segment_id);
     if (oldSegmentIds.length > 0) {
       await client.query(
