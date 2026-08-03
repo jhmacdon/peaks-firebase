@@ -6,6 +6,11 @@ import { join } from "node:path";
 import { PoolClient } from "pg";
 import db from "./db";
 import {
+  publicElevationLineageMatches,
+  type PersistedElevationLineage,
+  type PublicElevationLineage,
+} from "./elevation-lineage";
+import {
   computeRouteElevationStats,
   decodeElevationProfile,
   profileIsUsable,
@@ -726,10 +731,23 @@ async function applyLegacyRouteProfile(
   }
 }
 
-function cloneSegmentId(segment: SegmentSnapshot): string {
+function cloneSegmentId(
+  segment: Pick<SegmentSnapshot, "id" | "path_hash">
+): string {
   return `route-elevation-clone-${createHash("sha256")
     .update(`${segment.id}:${segment.path_hash ?? "missing"}`)
     .digest("hex")}`;
+}
+
+export function elevationSegmentScopeIds(
+  segments: Array<Pick<SegmentSnapshot, "id" | "path_hash">>
+): string[] {
+  return [...new Set(
+    segments.flatMap((segment) => [
+      segment.id,
+      cloneSegmentId(segment),
+    ])
+  )].sort();
 }
 
 async function cloneUserSharedSegment(
@@ -844,7 +862,7 @@ async function currentFingerprint(client: PoolClient | typeof db, routeId: strin
   return result.rows[0]?.path_fingerprint ?? null;
 }
 
-interface PersistedRouteEvidence {
+interface PersistedRouteEvidence extends PersistedElevationLineage {
   id: string;
   status: string;
   point_count: number;
@@ -852,11 +870,6 @@ interface PersistedRouteEvidence {
   profile_hash: string;
   gain: number;
   gain_loss: number;
-  elevation_source: string | null;
-  elevation_source_url: string | null;
-  elevation_attribution: string | null;
-  elevation_license_url: string | null;
-  elevation_retrieved_at: Date | string | null;
   publish_integrity_valid: boolean;
 }
 
@@ -903,8 +916,13 @@ export function publicElevationEvidenceMatches(
     | "profile_hash"
     | "gain"
     | "gain_loss"
+    | "elevation_source"
+    | "elevation_source_url"
+    | "elevation_attribution"
+    | "elevation_license_url"
+    | "elevation_retrieved_at"
   >,
-  body: {
+  body: PublicElevationLineage & {
     elevation_string?: unknown;
     profile_count?: unknown;
     profile_hash?: unknown;
@@ -919,6 +937,7 @@ export function publicElevationEvidenceMatches(
     body.profile_hash === route.profile_hash &&
     body.gain === route.gain &&
     body.gain_loss === route.gain_loss &&
+    publicElevationLineageMatches(route, body) &&
     body.publish_integrity_valid === true
   );
 }
@@ -934,7 +953,7 @@ async function verifyPublicRoute(
     headers: { "cache-control": "no-cache" },
   });
   if (!response.ok) throw new Error(`Public route verification failed (${response.status})`);
-  const body = await response.json() as {
+  const body = await response.json() as PublicElevationLineage & {
     elevation_string?: unknown;
     profile_count?: unknown;
     profile_hash?: unknown;
@@ -1430,13 +1449,7 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       );
       return;
     }
-    const segmentScopeIds = [...new Set(
-      segments.flatMap((segment) =>
-        segment.user_route_reference_count > 0
-          ? [segment.id, cloneSegmentId(segment)]
-          : [segment.id]
-      )
-    )].sort();
+    const segmentScopeIds = elevationSegmentScopeIds(segments);
     const affected = await affectedPeaksRoutes(db, segmentScopeIds);
     if (!affected.some((route) => route.id === routeId)) affected.push(snapshot);
     const xyDriftRouteIds: string[] = [];
@@ -1476,9 +1489,7 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       const consumerRouteIds = new Set(
         [
           segment.id,
-          ...(segment.user_route_reference_count > 0
-            ? [cloneSegmentId(segment)]
-            : []),
+          cloneSegmentId(segment),
         ].flatMap((segmentId) =>
           consumersBySegment.get(segmentId) ?? []
         )

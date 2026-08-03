@@ -14,6 +14,14 @@ const route = {
   elevation_string: Buffer.from(
     Array.from({ length: 20 }, (_, index) => String(1_000 + index)).join("|")
   ).toString("base64"),
+  elevation_source:
+    "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+  elevation_source_url:
+    "https://registry.opendata.aws/terrain-tiles/",
+  elevation_attribution: "required attribution",
+  elevation_license_url:
+    "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+  elevation_retrieved_at: new Date("2026-08-03T12:34:56.000Z"),
   profile_count: 20,
   profile_hash: "profile-hash-1",
   verification_fingerprint: "profile-hash-1",
@@ -223,6 +231,45 @@ test("public verification rejects a same-count wrong profile or wrong stats", as
       { ...route, elevation_string: Buffer.from("wrong|profile").toString("base64") },
       { ...route, gain: route.gain + 1 },
       { ...route, gain_loss: route.gain_loss + 1 },
+    ]) {
+      globalThis.fetch = async () =>
+        new Response(JSON.stringify(publicRoute), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      const result = await verifyStandardRoute(queryable, {
+        routeId: "route-1",
+        destinationId: "peak-1",
+        trailheadId: "trailhead-1",
+        publicBaseUrl: "https://example.test",
+      });
+      assert.equal(result.gates.public_http, false);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("public verification rejects wrong or missing elevation lineage", async () => {
+  const originalFetch = globalThis.fetch;
+  const {
+    elevation_license_url: _missingLicenseUrl,
+    ...missingLineage
+  } = route;
+  try {
+    for (const publicRoute of [
+      { ...route, elevation_source: "wrong source" },
+      { ...route, elevation_source_url: "https://example.test/wrong" },
+      { ...route, elevation_attribution: "wrong attribution" },
+      {
+        ...route,
+        elevation_license_url: "https://example.test/wrong-license",
+      },
+      {
+        ...route,
+        elevation_retrieved_at: "2026-08-03T12:35:56.000Z",
+      },
+      missingLineage,
     ]) {
       globalThis.fetch = async () =>
         new Response(JSON.stringify(publicRoute), {

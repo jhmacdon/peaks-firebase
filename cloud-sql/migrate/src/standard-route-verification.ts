@@ -1,3 +1,8 @@
+import {
+  publicElevationLineageMatches,
+  type PersistedElevationLineage,
+} from "./elevation-lineage";
+
 type Queryable = {
   query<T extends Record<string, unknown>>(
     text: string,
@@ -27,7 +32,7 @@ export interface StandardRouteVerification {
   errors: string[];
 }
 
-type RouteRow = {
+type RouteRow = PersistedElevationLineage & Record<string, unknown> & {
   id: string;
   name: string;
   owner: string;
@@ -125,6 +130,11 @@ export async function verifyStandardRoute(
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
             r.elevation_string,
+            r.elevation_source,
+            r.elevation_source_url,
+            r.elevation_attribution,
+            r.elevation_license_url,
+            r.elevation_retrieved_at,
             r.gain,
             r.gain_loss,
             md5(r.elevation_string) AS profile_hash,
@@ -336,6 +346,7 @@ export async function verifyStandardRoute(
   }
   const publicMatches =
     publicStatus === 200 &&
+    route !== undefined &&
     publicPayload?.id === input.routeId &&
     publicPayload.owner === "peaks" &&
     publicPayload.status === "active" &&
@@ -344,6 +355,7 @@ export async function verifyStandardRoute(
     publicPayload.segment_count === route?.segment_count &&
     publicPayload.matching_segment_count === route?.matching_segment_count &&
     publicPayload.elevation_string === route?.elevation_string &&
+    publicElevationLineageMatches(route, publicPayload) &&
     publicPayload.profile_count === route?.profile_count &&
     publicPayload.profile_hash === route?.profile_hash &&
     publicPayload.verification_fingerprint === route?.verification_fingerprint &&

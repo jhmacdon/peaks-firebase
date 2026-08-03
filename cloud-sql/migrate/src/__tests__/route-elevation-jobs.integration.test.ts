@@ -17,6 +17,7 @@ import {
   ELEVATION_CANDIDATES_SQL,
   ELEVATION_ROUTE_FINGERPRINT_SQL,
   compactJob,
+  elevationSegmentScopeIds,
   equalRouteIdSets,
   processCompletionOutput,
   publicElevationEvidenceMatches,
@@ -58,6 +59,21 @@ test("affected route set comparison ignores order but rejects membership changes
   assert.equal(equalRouteIdSets(["route-a"], ["route-a", "route-a"]), false);
 });
 
+test("clone scope is reserved before a user reference appears", () => {
+  const scope = elevationSegmentScopeIds([
+    {
+      id: "source-segment",
+      path_hash: "source-path-hash",
+    },
+  ]);
+  assert.equal(scope.length, 2);
+  assert.equal(scope.includes("source-segment"), true);
+  assert.equal(
+    scope.some((id) => id.startsWith("route-elevation-clone-")),
+    true
+  );
+});
+
 test("public elevation evidence requires exact profile bytes and stats", () => {
   const expected = {
     id: "route-a",
@@ -67,6 +83,14 @@ test("public elevation evidence requires exact profile bytes and stats", () => {
     profile_hash: "profile-hash",
     gain: 10,
     gain_loss: 0,
+    elevation_source:
+      "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+    elevation_source_url:
+      "https://registry.opendata.aws/terrain-tiles/",
+    elevation_attribution: "required attribution",
+    elevation_license_url:
+      "https://github.com/tilezen/joerd/blob/master/docs/attribution.md",
+    elevation_retrieved_at: new Date("2026-08-03T12:34:56.000Z"),
     publish_integrity_valid: true,
   };
   const matching = {
@@ -75,6 +99,11 @@ test("public elevation evidence requires exact profile bytes and stats", () => {
     profile_hash: expected.profile_hash,
     gain: 10,
     gain_loss: 0,
+    elevation_source: expected.elevation_source,
+    elevation_source_url: expected.elevation_source_url,
+    elevation_attribution: expected.elevation_attribution,
+    elevation_license_url: expected.elevation_license_url,
+    elevation_retrieved_at: "2026-08-03T05:34:56-07:00",
     publish_integrity_valid: true,
   };
   assert.equal(publicElevationEvidenceMatches(expected, matching), true);
@@ -91,6 +120,28 @@ test("public elevation evidence requires exact profile bytes and stats", () => {
   );
   assert.equal(
     publicElevationEvidenceMatches(expected, { ...matching, gain_loss: 1 }),
+    false
+  );
+  assert.equal(
+    publicElevationEvidenceMatches(expected, {
+      ...matching,
+      elevation_source: "wrong source",
+    }),
+    false
+  );
+  assert.equal(
+    publicElevationEvidenceMatches(expected, {
+      ...matching,
+      elevation_retrieved_at: "2026-08-03T12:35:56.000Z",
+    }),
+    false
+  );
+  const {
+    elevation_attribution: _missingAttribution,
+    ...missingLineage
+  } = matching;
+  assert.equal(
+    publicElevationEvidenceMatches(expected, missingLineage),
     false
   );
 });
@@ -610,6 +661,18 @@ test("worker source clones user-shared segments and rebuilds route paths from or
   const source = await readFile(join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"), "utf8");
   assert.match(source, /user_route_reference_count/);
   assert.match(source, /route-elevation-clone-/);
+  assert.match(
+    source,
+    /const segmentScopeIds = elevationSegmentScopeIds\(segments\)[\s\S]+?affectedPeaksRoutes\(db, segmentScopeIds\)/
+  );
+  assert.match(
+    source,
+    /WHERE segment_id = ANY\(\$1::text\[\]\)[\s\S]+?\[segmentScopeIds\]/
+  );
+  assert.match(
+    source,
+    /segment\.user_route_reference_count =[\s\S]+?segment\.user_route_reference_count > 0[\s\S]+?cloneUserSharedSegment/
+  );
   assert.match(source, /INSERT INTO segments/);
   assert.match(source, /UPDATE route_segments[\s\S]+?SET segment_id =/);
   assert.match(source, /r\.owner = 'peaks'/);
