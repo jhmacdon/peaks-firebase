@@ -36,7 +36,7 @@ interface AuditJob {
   updated_at: string;
 }
 
-const AUDIT_RULE_VERSION = 2;
+const AUDIT_RULE_VERSION = 3;
 
 const candidateSql = `
   WITH catalog_routes AS (
@@ -106,6 +106,28 @@ const candidateSql = `
              OR r.elevation_string IS DISTINCT FROM
                 encode_route_elevation_profile(r.path)
         ) * 200
+      + COUNT(*) FILTER (
+          WHERE r.path IS NULL
+             OR EXISTS (
+               SELECT 1
+               FROM route_elevation_stats(r.path) elevation_stats
+               WHERE r.gain IS DISTINCT FROM elevation_stats.gain
+                  OR r.gain_loss IS DISTINCT FROM elevation_stats.loss
+             )
+        ) * 200
+      + COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM route_segments rs
+            JOIN segments s ON s.id = rs.segment_id
+            CROSS JOIN LATERAL route_elevation_stats(s.path) elevation_stats
+            WHERE rs.route_id = r.id
+              AND (
+                s.gain IS DISTINCT FROM elevation_stats.gain
+                OR s.gain_loss IS DISTINCT FROM elevation_stats.loss
+              )
+          )
+        ) * 200
       + GREATEST(COUNT(DISTINCT r.id) - 1, 0) * 10
     )::int AS priority,
     md5(string_agg(
@@ -119,6 +141,8 @@ const candidateSql = `
         r.status,
         r.updated_at::text,
         COALESCE(r.elevation_string, ''),
+        COALESCE(r.gain::text, ''),
+        COALESCE(r.gain_loss::text, ''),
         COALESCE((
           SELECT string_agg(
             concat_ws(
@@ -142,7 +166,9 @@ const candidateSql = `
               route_segment.ordinal::text,
               route_segment.direction,
               segment.id,
-              segment.updated_at::text
+              segment.updated_at::text,
+              COALESCE(segment.gain::text, ''),
+              COALESCE(segment.gain_loss::text, '')
             ),
             ',' ORDER BY route_segment.ordinal, segment.id
           )

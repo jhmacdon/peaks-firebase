@@ -17,6 +17,8 @@ records for one summit.
   summit location;
 - a missing or non-canonical elevation profile, or a constant rounded
   placeholder profile with less than one metre of route-level Z range; and
+- route or source-segment gain and loss that do not match the path-derived
+  `route_elevation_stats` values; and
 - missing distance or gain; and
 - a legacy named-route coverage import.
 

@@ -20,6 +20,10 @@ const RULE_V2_MIGRATION = join(
   MIGRATE_ROOT,
   "../migrations/20260803_route_catalog_audit_rule_v2.sql"
 );
+const RULE_V3_MIGRATION = join(
+  MIGRATE_ROOT,
+  "../migrations/20260803_route_catalog_audit_rule_v3.sql"
+);
 
 test(
   "audit jobs recover leases, requeue stale catalogs, and retire vanished candidates",
@@ -67,6 +71,7 @@ test(
       await pool.query(await readFile(MIGRATION, "utf8"));
       await pool.query(await readFile(ELEVATION_MIGRATION, "utf8"));
       await pool.query(await readFile(RULE_V2_MIGRATION, "utf8"));
+      await pool.query(await readFile(RULE_V3_MIGRATION, "utf8"));
       await pool.query(
         `INSERT INTO destinations (id, name, features)
          VALUES ($1, 'Route audit test summit',
@@ -142,7 +147,7 @@ test(
       assert.equal(passed.outcome, "completed");
       await pool.query(
         `UPDATE route_catalog_audit_jobs
-         SET audit_rule_version = 1
+        SET audit_rule_version = 2
          WHERE destination_id = $1`,
         [destinationId]
       );
@@ -154,7 +159,7 @@ test(
       );
       assert.deepEqual(requeuedV2.rows[0], {
         state: "queued",
-        audit_rule_version: 2,
+        audit_rule_version: 3,
         final_result: null,
         audited_at: null,
         last_error: null,
@@ -166,7 +171,7 @@ test(
       );
       await pool.query(
         `UPDATE route_catalog_audit_jobs
-         SET audit_rule_version = 1
+        SET audit_rule_version = 2
          WHERE destination_id = $1`,
         [destinationId]
       );
@@ -178,7 +183,7 @@ test(
       );
       assert.deepEqual(protectedLease.rows[0], {
         state: "auditing",
-        audit_rule_version: 1,
+        audit_rule_version: 2,
         lease_token: activeV1.job.lease_token,
       });
       command("release", "--lease-token", activeV1.job.lease_token);
@@ -190,7 +195,7 @@ test(
       );
       assert.deepEqual(releasedV2.rows[0], {
         state: "queued",
-        audit_rule_version: 2,
+        audit_rule_version: 3,
       });
 
       const finalClaim = command(

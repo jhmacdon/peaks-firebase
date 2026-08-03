@@ -53,6 +53,13 @@ const routeAuditJobsMigration = fileURLToPath(
   )
 );
 
+const routeAuditJobsV3Migration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260803_route_catalog_audit_rule_v3.sql",
+    import.meta.url
+  )
+);
+
 const routeAuditJobsFreshMigration = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrations/20260801_route_catalog_audit_jobs.sql",
@@ -155,24 +162,67 @@ test("printed route audit SQL requires every linked summit and canonical elevati
   assert.match(sql, /missing_or_invalid_elevation_profile/);
   assert.match(sql, /route_elevation_profile_has_real_range\(rm\.path\)/);
   assert.match(sql, /flat_or_placeholder_elevation_profile/);
+  assert.match(sql, /route_elevation_stats\(rc\.path\)/);
+  assert.match(sql, /route_elevation_stats\(s\.path\)/);
+  assert.match(sql, /route_elevation_stats_mismatch/);
+  assert.match(sql, /segment_elevation_stats_mismatch/);
+  assert.match(sql, /segment_elevation_stats_mismatch_ids/);
+  assert.match(
+    sql,
+    /CASE WHEN rm\.gain IS DISTINCT FROM rm\.computed_gain\s+OR rm\.gain_loss IS DISTINCT FROM rm\.computed_gain_loss\s+THEN 'route_elevation_stats_mismatch'/
+  );
+  assert.match(
+    sql,
+    /CASE WHEN COALESCE\(rm\.segment_elevation_stats_mismatch_count, 0\) > 0\s+THEN 'segment_elevation_stats_mismatch'/
+  );
   assert.doesNotMatch(sql, /end_over_250m_from_summit/);
   assert.doesNotMatch(sql, /flat_or_missing_elevation_profile/);
 });
 
-test("route audit jobs requeue v1 passes under rule version 2 without stealing leases", () => {
+test("path-derived elevation stats reject matching wrong route and segment values", () => {
+  const sql = execFileSync(routeCatalogAudit, [
+    "--route-id", "route-1", "--print-sql",
+  ], { encoding: "utf8" });
+  assert.match(
+    sql,
+    /route_elevation_stats\(rc\.path\) elevation_stats/
+  );
+  assert.match(
+    sql,
+    /rm\.gain IS DISTINCT FROM rm\.computed_gain\s+OR rm\.gain_loss IS DISTINCT FROM rm\.computed_gain_loss/
+  );
+  assert.match(
+    sql,
+    /route_elevation_stats\(s\.path\) elevation_stats/
+  );
+  assert.match(
+    sql,
+    /ss\.stored_gain IS DISTINCT FROM ss\.computed_gain\s+OR ss\.stored_gain_loss IS DISTINCT FROM ss\.computed_gain_loss/
+  );
+  assert.match(
+    sql,
+    /WHEN CARDINALITY\(rig\.error_issues\) > 0 THEN 'ERROR'/
+  );
+});
+
+test("route audit jobs requeue v2 passes under rule version 3 without stealing leases", () => {
   const source = readFileSync(routeAuditJobs, "utf8");
   const migration = readFileSync(routeAuditJobsMigration, "utf8");
+  const v3Migration = readFileSync(routeAuditJobsV3Migration, "utf8");
   const freshMigration = readFileSync(routeAuditJobsFreshMigration, "utf8");
-  assert.match(source, /const AUDIT_RULE_VERSION = 2/);
+  assert.match(source, /const AUDIT_RULE_VERSION = 3/);
   assert.match(source, /audit_rule_version/);
   assert.match(source, /job\.audit_rule_version < EXCLUDED\.audit_rule_version/);
   assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);
   assert.match(source, /job\.state = 'auditing'/);
   assert.match(source, /\* 200/);
+  assert.match(source, /route_elevation_stats\(r\.path\)/);
+  assert.match(source, /route_elevation_stats\(s\.path\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS audit_rule_version INTEGER/);
   assert.match(migration, /SET audit_rule_version = 1/);
   assert.match(migration, /SET DEFAULT 2/);
   assert.match(migration, /SET NOT NULL/);
+  assert.match(v3Migration, /ALTER COLUMN audit_rule_version SET DEFAULT 3/);
   assert.match(
     freshMigration,
     /CONSTRAINT route_catalog_audit_jobs_audit_rule_version_positive/

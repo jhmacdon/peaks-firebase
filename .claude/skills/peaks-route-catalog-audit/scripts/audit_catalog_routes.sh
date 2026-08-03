@@ -317,6 +317,10 @@ segment_steps AS (
          END AS end_point,
          s.path::geometry AS path,
          s.distance,
+         s.gain AS stored_gain,
+         s.gain_loss AS stored_gain_loss,
+         elevation_stats.gain AS computed_gain,
+         elevation_stats.loss AS computed_gain_loss,
          CASE rs.direction WHEN 'forward' THEN s.gain ELSE s.gain_loss END AS gain,
          CASE rs.direction WHEN 'forward' THEN s.gain_loss ELSE s.gain END AS gain_loss,
          s.provenance,
@@ -331,6 +335,7 @@ segment_steps AS (
   FROM route_segments rs
   JOIN segments s ON s.id = rs.segment_id
   JOIN scope_routes scoped ON scoped.id = rs.route_id
+  CROSS JOIN LATERAL route_elevation_stats(s.path) elevation_stats
 ),
 segment_metrics AS (
   SELECT rc.id AS route_id,
@@ -339,6 +344,15 @@ segment_metrics AS (
          SUM(ss.distance) AS segment_distance_m,
          SUM(ss.gain) AS segment_gain_m,
          SUM(ss.gain_loss) AS segment_loss_m,
+         COUNT(*) FILTER (
+           WHERE ss.stored_gain IS DISTINCT FROM ss.computed_gain
+              OR ss.stored_gain_loss IS DISTINCT FROM ss.computed_gain_loss
+         )::int AS segment_elevation_stats_mismatch_count,
+         COALESCE(JSONB_AGG(ss.segment_id ORDER BY ss.ordinal, ss.segment_id)
+           FILTER (
+             WHERE ss.stored_gain IS DISTINCT FROM ss.computed_gain
+                OR ss.stored_gain_loss IS DISTINCT FROM ss.computed_gain_loss
+           ), '[]'::jsonb) AS segment_elevation_stats_mismatch_ids,
          BOOL_AND(ss.provenance IS NOT DISTINCT FROM rc.provenance)
            AS segment_provenance_matches,
          MAX(
@@ -392,9 +406,13 @@ route_metrics AS (
          rg.point_count, rg.is_valid, rg.is_simple, rg.measured_distance_m,
          rg.min_z, rg.max_z, rg.start_z, rg.end_z,
          rg.start_destination_gap_m, rg.end_destination_gap_m, rg.max_step_m,
+         elevation_stats.gain AS computed_gain,
+         elevation_stats.loss AS computed_gain_loss,
          COALESCE(sm.segment_count, 0) AS segment_count,
          COALESCE(sm.segment_ordinal_count, 0) AS segment_ordinal_count,
          sm.segment_distance_m, sm.segment_gain_m, sm.segment_loss_m,
+         sm.segment_elevation_stats_mismatch_count,
+         sm.segment_elevation_stats_mismatch_ids,
          sm.segment_provenance_matches, sm.max_segment_gap_m,
          sm.route_segment_start_gap_m, sm.route_segment_end_gap_m,
          spm.route_to_segment_max_m, spm.segment_to_route_max_m,
@@ -403,6 +421,7 @@ route_metrics AS (
   LEFT JOIN route_geometry rg ON rg.route_id = rc.id
   LEFT JOIN segment_metrics sm ON sm.route_id = rc.id
   LEFT JOIN segment_path_metrics spm ON spm.route_id = rc.id
+  CROSS JOIN LATERAL route_elevation_stats(rc.path) elevation_stats
   LEFT JOIN route_sessions sessions ON sessions.route_id = rc.id
 ),
 route_issue_groups AS (
@@ -432,6 +451,11 @@ route_issue_groups AS (
              THEN 'end_over_5m_from_summit' END,
            CASE WHEN rm.distance IS NULL OR rm.distance <= 0 THEN 'missing_or_invalid_distance' END,
            CASE WHEN rm.gain IS NULL OR rm.gain < 0 OR rm.gain_loss IS NULL OR rm.gain_loss < 0 THEN 'missing_or_invalid_gain' END,
+           CASE WHEN rm.gain IS DISTINCT FROM rm.computed_gain
+                       OR rm.gain_loss IS DISTINCT FROM rm.computed_gain_loss
+             THEN 'route_elevation_stats_mismatch' END,
+           CASE WHEN COALESCE(rm.segment_elevation_stats_mismatch_count, 0) > 0
+             THEN 'segment_elevation_stats_mismatch' END,
            CASE
              WHEN rm.path IS NULL OR rm.elevation_string IS NULL
                THEN 'missing_or_invalid_elevation_profile'
@@ -716,6 +740,11 @@ records AS (
            'fault_summit_gaps_m', ra.fault_summit_gaps_m,
            'one_way_m', ROUND(ra.measured_distance_m::numeric),
            'gain_m', ROUND(ra.gain::numeric),
+           'gain_loss_m', ROUND(ra.gain_loss::numeric),
+           'computed_gain_m', ROUND(ra.computed_gain::numeric),
+           'computed_gain_loss_m', ROUND(ra.computed_gain_loss::numeric),
+           'elevation_stats_match', ra.gain IS NOT DISTINCT FROM ra.computed_gain
+             AND ra.gain_loss IS NOT DISTINCT FROM ra.computed_gain_loss,
            'points', ra.point_count,
            'elevation_profile_matches_path', CASE
              WHEN ra.path IS NULL OR ra.elevation_string IS NULL THEN false
@@ -727,6 +756,10 @@ records AS (
              CASE WHEN ra.path IS NULL THEN false
                   ELSE route_elevation_profile_has_real_range(ra.path) END,
            'segments', ra.segment_count,
+           'segment_elevation_stats_mismatch_count',
+             COALESCE(ra.segment_elevation_stats_mismatch_count, 0),
+           'segment_elevation_stats_mismatch_ids',
+             COALESCE(ra.segment_elevation_stats_mismatch_ids, '[]'::jsonb),
            'max_step_m', ROUND(ra.max_step_m::numeric, 1),
            'max_segment_gap_m', ROUND(ra.max_segment_gap_m::numeric, 1),
            'route_to_segment_max_m', ROUND(ra.route_to_segment_max_m::numeric, 1),
