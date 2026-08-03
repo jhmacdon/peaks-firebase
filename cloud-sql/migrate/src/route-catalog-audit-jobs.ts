@@ -105,6 +105,7 @@ const candidateSql = `
              OR r.elevation_string IS NULL
              OR r.elevation_string IS DISTINCT FROM
                 encode_route_elevation_profile(r.path)
+             OR NOT route_elevation_profile_has_real_range(r.path)
         ) * 200
       + COUNT(*) FILTER (
           WHERE r.path IS NULL

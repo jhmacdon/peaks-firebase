@@ -216,6 +216,7 @@ test("route audit jobs requeue v2 passes under rule version 3 without stealing l
   assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);
   assert.match(source, /job\.state = 'auditing'/);
   assert.match(source, /\* 200/);
+  assert.match(source, /NOT route_elevation_profile_has_real_range\(r\.path\)/);
   assert.match(source, /route_elevation_stats\(r\.path\)/);
   assert.match(source, /route_elevation_stats\(s\.path\)/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS audit_rule_version INTEGER/);
