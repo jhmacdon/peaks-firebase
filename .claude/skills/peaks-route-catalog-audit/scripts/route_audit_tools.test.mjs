@@ -1,5 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +24,20 @@ import {
 const workerCheckoutResolver = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/resolve_worker_checkout.sh",
+    import.meta.url
+  )
+);
+
+const routeElevationWrapper = fileURLToPath(
+  new URL(
+    "../../peaks-route-elevation-backfill/scripts/route_elevation_jobs.sh",
+    import.meta.url
+  )
+);
+
+const workerPreflight = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/worker_preflight.sh",
     import.meta.url
   )
 );
@@ -42,6 +68,10 @@ test("approved worker checkouts resolve by exact path", () => {
       "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-04",
       "luna-route-audit-04",
     ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation",
+      "luna-route-elevation-01",
+    ],
   ];
   for (const [checkoutPath, expected] of checkouts) {
     const actual = execFileSync(
@@ -55,6 +85,9 @@ test("approved worker checkouts resolve by exact path", () => {
     "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-01",
     "/tmp/firebase-route-audit-04",
     "/Users/josiahm/projects/peaks/.workers/firebase-route-audit-05",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-01",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-02",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-elevations",
   ]) {
     assert.throws(
       () => execFileSync(
@@ -64,6 +97,145 @@ test("approved worker checkouts resolve by exact path", () => {
       ),
       /Command failed/
     );
+  }
+});
+
+test("elevation wrapper preflights before every queue call and owns its worker ID", () => {
+  const source = readFileSync(routeElevationWrapper, "utf8");
+  const preflightIndex = source.indexOf("worker_preflight.sh");
+  const npmIndex = source.indexOf("npm --prefix");
+  assert.ok(preflightIndex >= 0, "wrapper calls shared worker_preflight");
+  assert.ok(npmIndex > preflightIndex, "preflight runs before the queue CLI");
+  assert.match(source, /luna-route-elevation-01/);
+  assert.match(source, /--worker-id.*not allowed|not allowed.*--worker-id/s);
+  assert.match(source, /claim.*--apply/s);
+  assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
+  assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("elevation preflight contains dirty, stale, and runtime guards", () => {
+  const wrapper = readFileSync(routeElevationWrapper, "utf8");
+  const preflight = readFileSync(workerPreflight, "utf8");
+  assert.ok(wrapper.indexOf("worker_preflight.sh") < wrapper.indexOf("claim"));
+  assert.ok(preflight.indexOf("git -C \"$repo_root\" status") < preflight.indexOf("npm --prefix"));
+  assert.ok(preflight.indexOf("rev-parse origin/main") < preflight.indexOf("npm --prefix"));
+  assert.match(preflight, /route-elevation-jobs\.ts/);
+  assert.match(preflight, /tsx.*-e|tsx.*--help/s);
+});
+
+test("dirty and stale elevation checkouts fail before the queue CLI runs", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-elevation-preflight-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-elevation-backfill/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  const marker = join(root, "npm-called");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(skillScripts, "route_elevation_jobs.sh");
+    const preflight = join(factoryScripts, "worker_preflight.sh");
+    const resolver = join(factoryScripts, "resolve_worker_checkout.sh");
+    const npm = join(bin, "npm");
+    copyFileSync(routeElevationWrapper, wrapper);
+    copyFileSync(workerPreflight, preflight);
+    writeFileSync(resolver, "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(npm, "#!/usr/bin/env bash\n: > \"$NPM_MARKER\"\nexit 0\n");
+    for (const executable of [wrapper, preflight, resolver, npm]) {
+      chmodSync(executable, 0o755);
+    }
+    writeFileSync(join(root, "tracked.txt"), "base\n");
+    execFileSync("git", ["init", "-q", root]);
+    execFileSync("git", ["-C", root, "config", "user.email", "test@example.com"]);
+    execFileSync("git", ["-C", root, "config", "user.name", "Test"]);
+    execFileSync("git", ["-C", root, "add", "."]);
+    execFileSync("git", ["-C", root, "commit", "-qm", "base"]);
+    const base = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+    execFileSync("git", ["-C", root, "commit", "--allow-empty", "-qm", "origin main"]);
+    const originMain = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+    execFileSync("git", ["-C", root, "update-ref", "refs/remotes/origin/main", originMain]);
+    execFileSync("git", ["-C", root, "reset", "--hard", "-q", base]);
+    const environment = {
+      ...process.env,
+      NPM_MARKER: marker,
+      PATH: `${bin}:${process.env.PATH}`,
+    };
+    writeFileSync(join(root, "dirty.txt"), "dirty\n");
+    for (const [expected, clean] of [
+      [/route worker checkout is dirty/, false],
+      [/route worker checkout is stale/, true],
+    ]) {
+      if (clean) rmSync(join(root, "dirty.txt"));
+      let failure;
+      try {
+        execFileSync(wrapper, ["stats"], {
+          encoding: "utf8", env: environment, stdio: "pipe",
+        });
+        assert.fail("wrapper must fail during preflight");
+      } catch (error) {
+        failure = error;
+      }
+      assert.match(String(failure.stderr), expected);
+      assert.equal(existsSync(marker), false, "preflight must block npm");
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("elevation wrapper parses both show filters in either order", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-elevation-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-elevation-backfill/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(skillScripts, "route_elevation_jobs.sh");
+    copyFileSync(routeElevationWrapper, wrapper);
+    writeFileSync(join(factoryScripts, "worker_preflight.sh"), "#!/usr/bin/env bash\nexit 0\n");
+    writeFileSync(join(factoryScripts, "resolve_worker_checkout.sh"), "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(join(bin, "npm"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n");
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "worker_preflight.sh"),
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(bin, "npm"),
+    ]) chmodSync(executable, 0o755);
+    const environment = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+    for (const args of [
+      ["show", "--route-id", "route-1", "--state", "retry"],
+      ["show", "--state", "retry", "--route-id", "route-1"],
+    ]) {
+      const output = execFileSync(wrapper, args, { encoding: "utf8", env: environment });
+      assert.match(output, /show/);
+      assert.match(output, /--route-id\nroute-1\n--state\nretry/);
+    }
+    assert.throws(
+      () => execFileSync(wrapper, ["claim", "--apply", "--worker-id", "wrong-worker"], {
+        encoding: "utf8", env: environment, stdio: "pipe",
+      }),
+      /Command failed/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

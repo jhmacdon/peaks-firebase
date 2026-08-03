@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peaks Route Elevation Backfill"
+  short_description: "Backfill one Peaks route elevation profile"
+  default_prompt: "Use $peaks-route-elevation-backfill to process one bounded Peaks-owned route elevation job."
