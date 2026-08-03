@@ -66,6 +66,7 @@ jobs:
         working-directory: cloud-sql/migrate
         env:
           ROUTE_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
+          ROUTE_ELEVATION_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
 
       - name: Install web dependencies
         run: npm ci

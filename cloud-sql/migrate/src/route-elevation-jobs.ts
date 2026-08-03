@@ -677,7 +677,7 @@ async function applySegmentProfile(
        SELECT row_number() OVER (ORDER BY (dumped).path)::int AS n, (dumped).geom AS geom
        FROM segments, ST_DumpPoints(path::geometry) dumped WHERE id = $1
      ), rebuilt AS (
-       SELECT ST_SetSRID(ST_MakeLine(array_agg(ST_SetSRID(ST_MakePoint(ST_X(geom), ST_Y(geom), $2[n]), 4326) ORDER BY n)), 4326)::geography AS path
+       SELECT ST_SetSRID(ST_MakeLine(array_agg(ST_SetSRID(ST_MakePoint(ST_X(geom), ST_Y(geom), ($2::float8[])[n]), 4326) ORDER BY n)), 4326)::geography AS path
        FROM points
      ) UPDATE segments SET path = rebuilt.path, gain = $3, gain_loss = $4
        FROM rebuilt WHERE id = $1`,
@@ -703,7 +703,7 @@ async function applyLegacyRouteProfile(
                 ST_MakeLine(
                   array_agg(
                     ST_SetSRID(
-                      ST_MakePoint(ST_X(geom), ST_Y(geom), $2[n]),
+                      ST_MakePoint(ST_X(geom), ST_Y(geom), ($2::float8[])[n]),
                       4326
                     )
                     ORDER BY n

@@ -32,7 +32,6 @@ import {
 
 const TEST_DATABASE_URL = process.env.ROUTE_ELEVATION_JOB_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
-const MIGRATION = join(MIGRATE_ROOT, "../migrations/20260803_route_elevation_backfill.sql");
 
 test("route elevation queue accepts only documented command flags", () => {
   assert.doesNotThrow(() => validateArgs("seed", ["--apply"]));
@@ -347,6 +346,19 @@ test("compact worker output exposes names and safe completion evidence only", ()
   );
 });
 
+test("elevation writes cast array parameters before subscripting", () => {
+  const source = readFileSync(
+    join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
+    "utf8"
+  );
+  assert.equal(
+    source.match(/\(\$2::float8\[\]\)\[n\]/g)?.length,
+    2,
+    "segment and legacy route writes must give PostgreSQL a concrete array type"
+  );
+  assert.doesNotMatch(source, /\$2\[n\]/);
+});
+
 test(
   "route elevation jobs seed Peaks paths, atomically lease distinct work, and recover expired leases",
   { skip: TEST_DATABASE_URL ? false : "ROUTE_ELEVATION_JOB_TEST_DATABASE_URL not set" },
@@ -390,7 +402,6 @@ test(
       );
     };
     try {
-      await pool.query(await readFile(MIGRATION, "utf8"));
       await insertRoute(routeA, "peaks");
       await insertRoute(routeB, "peaks");
       await insertRoute(validRoute, "peaks", "active");
@@ -760,7 +771,6 @@ test(
     };
     const line = "SRID=4326;LINESTRING Z (-121 47 1200, -121.0001 47.0001 1200)";
     try {
-      await pool.query(await readFile(MIGRATION, "utf8"));
       await pool.query(`INSERT INTO segments (id, path) VALUES ($1, ST_GeogFromText($2))`, [segmentId, line]);
       for (const [id, owner] of [[sourceId, "peaks"], [peaksId, "peaks"], [userId, "user-test"]]) {
         await pool.query(`INSERT INTO routes (id, name, owner, status, path) VALUES ($1, $1, $2, 'pending', ST_GeogFromText($3))`, [id, owner, line]);
