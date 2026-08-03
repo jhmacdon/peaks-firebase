@@ -81,6 +81,17 @@ const routeDatabaseWrapper = fileURLToPath(
   )
 );
 
+const routeTsxRunner = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrate/scripts/run-tsx.sh",
+    import.meta.url
+  )
+);
+
+const migratePackage = fileURLToPath(
+  new URL("../../../../cloud-sql/migrate/package.json", import.meta.url)
+);
+
 test("approved worker checkouts resolve by exact path", () => {
   const checkouts = [
     [
@@ -256,7 +267,29 @@ test("elevation preflight contains dirty, stale, and runtime guards", () => {
   assert.ok(preflight.indexOf("git -C \"$repo_root\" status") < preflight.indexOf("npm --prefix"));
   assert.ok(preflight.indexOf("rev-parse origin/main") < preflight.indexOf("npm --prefix"));
   assert.match(preflight, /route-elevation-jobs\.ts/);
-  assert.match(preflight, /tsx.*-e|tsx.*--help/s);
+  assert.match(preflight, /run-tsx\.sh/);
+  assert.match(preflight, /tsx_runner.*-e|tsx_runner.*--help/s);
+});
+
+test("worker TypeScript runner avoids the tsx IPC command", () => {
+  const source = readFileSync(routeTsxRunner, "utf8");
+  const packageJson = JSON.parse(readFileSync(migratePackage, "utf8"));
+  assert.match(source, /node --import \"\$tsx_loader\"/);
+  assert.doesNotMatch(source, /node_modules\/\.bin\/tsx/);
+  for (const scriptName of [
+    "routes:jobs",
+    "routes:integrity-repairs",
+    "routes:audit-jobs",
+    "routes:elevation-jobs",
+  ]) {
+    assert.match(packageJson.scripts[scriptName], /^\.\/scripts\/run-tsx\.sh /);
+  }
+  assert.equal(
+    execFileSync(routeTsxRunner, ["--eval", "console.log('runner-ok')"], {
+      encoding: "utf8",
+    }).trim(),
+    "runner-ok"
+  );
 });
 
 test("dirty and stale elevation checkouts fail before the queue CLI runs", () => {

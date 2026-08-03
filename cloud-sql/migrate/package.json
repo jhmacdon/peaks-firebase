@@ -27,10 +27,10 @@
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
-    "routes:jobs": "tsx src/standard-route-jobs.ts",
-    "routes:integrity-repairs": "tsx src/route-integrity-repairs.ts",
-    "routes:audit-jobs": "tsx src/route-catalog-audit-jobs.ts",
-    "routes:elevation-jobs": "tsx src/route-elevation-jobs.ts"
+    "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",
+    "routes:integrity-repairs": "./scripts/run-tsx.sh src/route-integrity-repairs.ts",
+    "routes:audit-jobs": "./scripts/run-tsx.sh src/route-catalog-audit-jobs.ts",
+    "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",

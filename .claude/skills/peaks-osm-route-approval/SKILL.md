@@ -17,7 +17,7 @@ Start or reuse the Cloud SQL Auth Proxy on `127.0.0.1:5432`, set the database
 variables used by `cloud-sql/migrate/src/db.ts`, then run:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-osm-route-approval/scripts/check_pending_osm_routes.mts \
   --route-id <pending-route-id>
 ```
@@ -27,7 +27,7 @@ Add `--format json` for a machine-readable subagent handoff.
 For a public-domain USGS National Map route, run:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts \
   --route-id <pending-route-id> \
   --format json
