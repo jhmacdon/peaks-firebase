@@ -88,7 +88,7 @@ HTML, GPX, OSM XML, and terrain tiles stay out of model context and git.
 Before `candidate_ready`, run:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .agents/skills/peaks-route-factory/scripts/audit_route_candidates.mts \
   --file <candidate.geojson> --format summary
 ```

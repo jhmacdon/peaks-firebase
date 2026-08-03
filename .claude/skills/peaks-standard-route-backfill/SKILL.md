@@ -94,7 +94,7 @@ bash .claude/skills/peaks-standard-route-backfill/scripts/find_osm_trail_geometr
      failure-prone Overpass query:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/build_osm_route_candidate.mts \
   --destination-id <summit-id> \
   --trailhead-id <trailhead-id> \
@@ -104,7 +104,7 @@ cloud-sql/migrate/node_modules/.bin/tsx \
    - Once research fixes the trailhead, build a connected route candidate:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/build_osm_route_candidate.mts \
   --destination-id <summit-id> \
   --trailhead-id <trailhead-id> \
@@ -120,7 +120,7 @@ cloud-sql/migrate/node_modules/.bin/tsx \
    - Render the GeoJSON and inspect the whole line before any import:
 
 ```bash
-MAPBOX_TOKEN=<token> cloud-sql/migrate/node_modules/.bin/tsx \
+MAPBOX_TOKEN=<token> cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/render_route_candidate_map.mts \
   --geojson <candidate.geojson> \
   --output <candidate.png>
@@ -135,7 +135,7 @@ MAPBOX_TOKEN=<token> cloud-sql/migrate/node_modules/.bin/tsx \
    - Cache terrain tiles for only the candidate bounds:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/cache_route_terrain_tiles.mts \
   --candidate /path/to/candidate.geojson \
   --output-dir /private/tmp/peaks-route-worker/terrain
@@ -149,7 +149,7 @@ cloud-sql/migrate/node_modules/.bin/tsx \
 ```bash
 PEAKS_ELEVATION_SOURCE=terrain-cache \
 PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
   --candidate /path/to/candidate.geojson \
   --destination-id <summit-id> \
@@ -223,7 +223,7 @@ recomputes terrain elevations, extracts the trailhead-to-summit line, uses the
 web import validator, and can create a pending route:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_user_trace.ts \
   --source-route-id <route-id> \
   --destination-id <destination-id> \
@@ -239,7 +239,7 @@ authorization. The helper never activates a route.
 After map review, run the dry-run geometry and segment-overlap helper:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/review_pending_route.mts \
   --route-id <pending-route-id>
 ```
@@ -248,7 +248,7 @@ Activation requires both explicit flags and is refused when existing segment
 overlap needs the admin segment review:
 
 ```bash
-cloud-sql/migrate/node_modules/.bin/tsx \
+cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/review_pending_route.mts \
   --route-id <pending-route-id> \
   --activate --acknowledge-map-review

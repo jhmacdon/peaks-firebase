@@ -29,7 +29,7 @@ For researched OSM way IDs:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/build_osm_route_candidate.mts \
   --destination-id <destination-id> --trailhead-id <trailhead-id> \
   --way-ids <comma-separated-osm-way-ids> \
@@ -41,7 +41,7 @@ For researched USGS National Map object IDs:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/build_usgs_route_candidate.mts \
   --destination-id <destination-id> --trailhead-id <trailhead-id> \
   --object-id <object-id> \
@@ -52,7 +52,7 @@ Repeat `--object-id` for each USGS object. Render every candidate:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/render_route_candidate_local_map.mts \
   --geojson cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
   --output /private/tmp/peaks-route-worker/<destination-id>.png \
@@ -66,7 +66,7 @@ Write the compact candidate JSON from the candidate result schema to
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .agents/skills/peaks-route-factory/scripts/audit_route_candidates.mts \
   --file cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
   --format summary
@@ -92,7 +92,7 @@ all receive the same path.
   --output /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson
 
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/cache_route_terrain_tiles.mts \
   --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
   --output-dir /private/tmp/peaks-route-worker/terrain
@@ -104,7 +104,7 @@ Run this once without the final apply flags:
 PEAKS_ELEVATION_SOURCE=terrain-cache \
 PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
   .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
   --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
@@ -120,7 +120,7 @@ After it passes, run the full apply command:
 PEAKS_ELEVATION_SOURCE=terrain-cache \
 PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
   .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
   --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
@@ -155,7 +155,7 @@ Run the checker that matches the candidate source:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-osm-route-approval/scripts/check_pending_osm_routes.mts \
   --route-id <pending-route-id> --format json \
   > /private/tmp/peaks-route-worker/<destination-id>-source-check.json
@@ -165,7 +165,7 @@ For a USGS candidate, use:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/node_modules/.bin/tsx \
+  cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts \
   --route-id <pending-route-id> --format json \
   > /private/tmp/peaks-route-worker/<destination-id>-source-check.json

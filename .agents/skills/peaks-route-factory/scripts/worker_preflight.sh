@@ -21,7 +21,8 @@ fi
 
 migrate_root="$repo_root/cloud-sql/migrate"
 marker="$migrate_root/node_modules/.peaks-route-lock.sha256"
-if [[ ! -x "$migrate_root/node_modules/.bin/tsx" || ! -f "$marker" ]]; then
+tsx_runner="$migrate_root/scripts/run-tsx.sh"
+if [[ ! -x "$migrate_root/node_modules/.bin/tsx" || ! -x "$tsx_runner" || ! -f "$marker" ]]; then
   printf '%s\n' \
     "setup_required: run install_worker_dependencies.sh for the worker checkout" \
     >&2
@@ -52,8 +53,7 @@ runtime_scripts=(
   "$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts"
 )
 for runtime_script in "${runtime_scripts[@]}"; do
-  if ! "$migrate_root/node_modules/.bin/tsx" \
-    "$runtime_script" --help >/dev/null 2>&1; then
+  if ! "$tsx_runner" "$runtime_script" --help >/dev/null 2>&1; then
     printf '%s\n' \
       "setup_required: route runtime smoke check failed: $runtime_script" \
       >&2
@@ -64,7 +64,7 @@ done
 # route-elevation-jobs has no --help command. Importing it loads no database
 # connection, but catches runtime import failures before a lease.
 elevation_runtime="$migrate_root/src/route-elevation-jobs.ts"
-if ! "$migrate_root/node_modules/.bin/tsx" -e \
+if ! "$tsx_runner" -e \
   "import '$elevation_runtime'" >/dev/null 2>&1; then
   printf '%s\n' \
     "setup_required: route runtime smoke check failed: $elevation_runtime" \
