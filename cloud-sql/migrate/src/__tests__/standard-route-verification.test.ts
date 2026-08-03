@@ -197,6 +197,11 @@ test("activation and public payload use the strict shared integrity contract", (
   assert.match(migration, /encode_route_elevation_profile\(path\) IS NOT NULL/);
   assert.match(migration, /abs\(ST_Z\(route_points\.geom\) - ST_Z\(assembled_points\.geom\)\) <= 0\.01/);
   assert.match(api, /elevation_string/);
+  assert.match(api, /elevation_source/);
+  assert.match(api, /elevation_source_url/);
+  assert.match(api, /elevation_attribution/);
+  assert.match(api, /elevation_license_url/);
+  assert.match(api, /elevation_retrieved_at/);
   assert.match(api, /profile_count/);
   assert.match(api, /profile_hash/);
   assert.match(api, /r\.gain/);

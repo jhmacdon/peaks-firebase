@@ -7,6 +7,9 @@ export function buildRouteDetailQuery(id: string): { text: string; values: unkno
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
+            r.elevation_source, r.elevation_source_url,
+            r.elevation_attribution, r.elevation_license_url,
+            r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
             r.created_at, r.updated_at,
             COALESCE(area_rows.areas, '[]'::json) AS areas
