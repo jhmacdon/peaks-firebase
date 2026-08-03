@@ -36,6 +36,29 @@ const OPEN_TOPO_DATA_NED_URL =
   "https://api.opentopodata.org/v1/ned10m";
 const TERRAIN_TILE_ZOOM = 14;
 const TERRAIN_TILE_SIZE = 256;
+const TERRAIN_SOURCE_NAME =
+  "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)";
+const TERRAIN_SOURCE_URL = "https://registry.opendata.aws/terrain-tiles/";
+const TERRAIN_LICENSE_URL =
+  "https://github.com/tilezen/joerd/blob/master/docs/attribution.md";
+const TERRAIN_REQUIRED_ATTRIBUTION = `* ArcticDEM terrain data DEM(s) were created from DigitalGlobe, Inc., imagery and
+  funded under National Science Foundation awards 1043681, 1559691, and 1542736;
+* Australia terrain data © Commonwealth of Australia (Geoscience Australia) 2017;
+* Austria terrain data © offene Daten Österreichs – Digitales Geländemodell (DGM)
+  Österreich;
+* Canada terrain data contains information licensed under the Open Government
+  Licence – Canada;
+* Europe terrain data produced using Copernicus data and information funded by the
+  European Union - EU-DEM layers;
+* Global ETOPO1 terrain data U.S. National Oceanic and Atmospheric Administration
+* Mexico terrain data source: INEGI, Continental relief, 2016;
+* New Zealand terrain data Copyright 2011 Crown copyright (c) Land Information New
+  Zealand and the New Zealand Government (All rights reserved);
+* Norway terrain data © Kartverket;
+* United Kingdom terrain data © Environment Agency copyright and/or database right
+  2015. All rights reserved;
+* United States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data
+  courtesy of the U.S. Geological Survey.`;
 
 type ElevationPoint = { lat: number; lng: number };
 
@@ -136,6 +159,14 @@ type Candidate = {
   coordinates: Array<[number, number]>;
   trailheadSnapM: number;
   summitSnapM: number;
+};
+
+type RouteElevationLineage = {
+  source: string | null;
+  sourceUrl: string | null;
+  attribution: string | null;
+  licenseUrl: string | null;
+  retrievedAt: string | null;
 };
 
 type Place = {
@@ -1287,6 +1318,34 @@ async function assertReplaceablePendingRoutes(
   }
 }
 
+function elevationSourceName(): string {
+  return process.env.PEAKS_ELEVATION_SOURCE === "terrain-cache"
+    ? TERRAIN_SOURCE_NAME
+    : process.env.PEAKS_ELEVATION_SOURCE ?? "unknown";
+}
+
+function routeElevationLineage(candidate: Candidate): RouteElevationLineage {
+  if (process.env.PEAKS_ELEVATION_SOURCE === "terrain-cache") {
+    return {
+      source: TERRAIN_SOURCE_NAME,
+      sourceUrl: TERRAIN_SOURCE_URL,
+      attribution: TERRAIN_REQUIRED_ATTRIBUTION,
+      licenseUrl: TERRAIN_LICENSE_URL,
+      retrievedAt: candidate.retrievedAt,
+    };
+  }
+
+  // Other samplers have no approved route-column attribution contract yet.
+  // Clear every field together so an active upgrade cannot retain stale credit.
+  return {
+    source: null,
+    sourceUrl: null,
+    attribution: null,
+    licenseUrl: null,
+    retrievedAt: null,
+  };
+}
+
 function provenance(candidate: Candidate, args: Args) {
   return {
     source_kind: candidate.sourceKind,
@@ -1298,10 +1357,7 @@ function provenance(candidate: Candidate, args: Args) {
     osm_way_ids: candidate.wayIds,
     osm_way_urls: candidate.wayUrls,
     contains_osm_geometry: candidate.containsOsmGeometry,
-    elevation_source:
-      process.env.PEAKS_ELEVATION_SOURCE === "terrain-cache"
-        ? "AWS Open Data Terrain Tiles"
-        : process.env.PEAKS_ELEVATION_SOURCE ?? "unknown",
+    elevation_source: elevationSourceName(),
     elevation_profile: args.elevationProfile,
   };
 }
@@ -1317,6 +1373,7 @@ async function createPendingRoute(
   const wkt = pointsToLineStringZ(points);
   const polyline6 = encodePolyline6(points);
   const routeProvenance = provenance(candidate, args);
+  const elevationLineage = routeElevationLineage(candidate);
   const distance = Math.round(points[points.length - 1].dist);
   const client = await db.connect();
 
@@ -1465,12 +1522,14 @@ async function createPendingRoute(
     await client.query(
       `INSERT INTO routes (
          id, name, path, polyline6, owner, distance, gain, gain_loss,
-         external_links, completion, shape, status, provenance
+         external_links, completion, shape, status, provenance,
+         elevation_source, elevation_source_url, elevation_attribution,
+         elevation_license_url, elevation_retrieved_at
        )
        VALUES (
          $1, $2, ST_GeomFromText($3, 4326)::geography, $4, 'peaks',
          $5, $6, $7, $8::jsonb, 'none', $9::route_shape, 'pending',
-         $10::jsonb
+         $10::jsonb, $11, $12, $13, $14, $15::timestamptz
        )`,
       [
         routeId,
@@ -1483,6 +1542,11 @@ async function createPendingRoute(
         JSON.stringify(args.sourceLinks),
         args.routeShape,
         JSON.stringify(routeProvenance),
+        elevationLineage.source,
+        elevationLineage.sourceUrl,
+        elevationLineage.attribution,
+        elevationLineage.licenseUrl,
+        elevationLineage.retrievedAt,
       ]
     );
     await client.query(
@@ -1556,6 +1620,7 @@ async function upgradeActiveRoute(
   const wkt = pointsToLineStringZ(points);
   const polyline6 = encodePolyline6(points);
   const routeProvenance = provenance(candidate, args);
+  const elevationLineage = routeElevationLineage(candidate);
   const distance = Math.round(points[points.length - 1].dist);
   const client = await db.connect();
 
@@ -1608,7 +1673,12 @@ async function upgradeActiveRoute(
            external_links = $8::jsonb,
            completion = 'none',
            shape = $9::route_shape,
-           provenance = $10::jsonb
+           provenance = $10::jsonb,
+           elevation_source = $11,
+           elevation_source_url = $12,
+           elevation_attribution = $13,
+           elevation_license_url = $14,
+           elevation_retrieved_at = $15::timestamptz
        WHERE id = $1`,
       [
         routeId,
@@ -1621,6 +1691,11 @@ async function upgradeActiveRoute(
         JSON.stringify(args.sourceLinks),
         args.routeShape,
         JSON.stringify(routeProvenance),
+        elevationLineage.source,
+        elevationLineage.sourceUrl,
+        elevationLineage.attribution,
+        elevationLineage.licenseUrl,
+        elevationLineage.retrievedAt,
       ]
     );
     await client.query(

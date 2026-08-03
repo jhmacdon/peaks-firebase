@@ -136,6 +136,43 @@ test("active upgrade rechecks conflicts after its destination lock", () => {
   );
 });
 
+test("route writers atomically set or clear terrain elevation credit", () => {
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
+  const pendingStart = importer.indexOf("async function createPendingRoute(");
+  const upgradeStart = importer.indexOf("async function upgradeActiveRoute(");
+  const mainStart = importer.indexOf("\nasync function main()", upgradeStart);
+  const pending = importer.slice(pendingStart, upgradeStart);
+  const upgrade = importer.slice(upgradeStart, mainStart);
+
+  assert.match(importer, /AWS Open Data Terrain Tiles \(Mapzen Terrarium z14\)/);
+  assert.match(importer, /https:\/\/registry\.opendata\.aws\/terrain-tiles\//);
+  assert.match(importer, /tilezen\/joerd\/blob\/master\/docs\/attribution\.md/);
+  assert.match(importer, /ArcticDEM terrain data DEM\(s\)/);
+  assert.match(importer, /function routeElevationLineage\(candidate: Candidate\)/);
+  assert.match(importer, /elevation_source: elevationSourceName\(\)/);
+  assert.match(importer, /retrievedAt: candidate\.retrievedAt/);
+  assert.match(importer, /source: null,[\s\S]*sourceUrl: null,[\s\S]*attribution: null,[\s\S]*licenseUrl: null,[\s\S]*retrievedAt: null/);
+  assert.match(pending, /elevation_source, elevation_source_url, elevation_attribution,/);
+  assert.match(pending, /elevation_license_url, elevation_retrieved_at/);
+  assert.match(upgrade, /elevation_source = \$11/);
+  assert.match(upgrade, /elevation_source_url = \$12/);
+  assert.match(upgrade, /elevation_attribution = \$13/);
+  assert.match(upgrade, /elevation_license_url = \$14/);
+  assert.match(upgrade, /elevation_retrieved_at = \$15::timestamptz/);
+  for (const writer of [pending, upgrade]) {
+    assert.match(writer, /elevationLineage\.source/);
+    assert.match(writer, /elevationLineage\.sourceUrl/);
+    assert.match(writer, /elevationLineage\.attribution/);
+    assert.match(writer, /elevationLineage\.licenseUrl/);
+    assert.match(writer, /elevationLineage\.retrievedAt/);
+  }
+  assert.match(pending, /JSON\.stringify\(routeProvenance\)/);
+  assert.match(
+    pending,
+    /INSERT INTO segments[\s\S]+?JSON\.stringify\(routeProvenance\)/
+  );
+});
+
 test("the worker runtime can load the importer before claiming a job", () => {
   const result = spawnSync(
     join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
