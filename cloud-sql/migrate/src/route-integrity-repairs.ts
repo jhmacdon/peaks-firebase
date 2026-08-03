@@ -27,6 +27,7 @@ function limitValue(value: string | undefined): number {
 
 export type RepairArgs =
   | { command: "seed"; apply: boolean }
+  | { command: "retire-covered"; routeId: string; apply: boolean }
   | { command: "show"; routeId: string | null; destinationId: string | null; state: RepairState | null; limit: number }
   | { command: "stats" };
 
@@ -40,6 +41,23 @@ export function parseRepairArgs(argv: string[]): RepairArgs {
   if (command === "stats") {
     if (rest.length > 0) throw new Error("Unknown flag for stats");
     return { command };
+  }
+  if (command === "retire-covered") {
+    let routeId: string | null = null;
+    let apply = false;
+    for (let index = 0; index < rest.length; index += 1) {
+      const flag = rest[index];
+      if (flag === "--apply") {
+        if (apply) throw new Error("Duplicate --apply");
+        apply = true;
+      } else if (flag === "--route-id") {
+        routeId = idValue(rest[++index], flag);
+      } else {
+        throw new Error(`Unknown flag ${flag} for retire-covered`);
+      }
+    }
+    if (!routeId) throw new Error("retire-covered requires --route-id");
+    return { command, routeId, apply };
   }
   if (command !== "show") throw new Error("Unknown command");
   let routeId: string | null = null;
@@ -109,6 +127,7 @@ WITH bad_routes AS (
     WHERE r2.id <> bl.route_id
       AND r2.owner = 'peaks' AND r2.status = 'active'
       AND r2.path IS NOT NULL AND summit.location IS NOT NULL
+      AND peaks_route_passes_publish_integrity(r2.id, bl.destination_id, 'active')
       AND ST_DWithin(r2.path, summit.location, 5)
       AND NOT EXISTS (
         SELECT 1
@@ -306,9 +325,118 @@ async function stats(): Promise<void> {
   }));
 }
 
+async function retireCovered(routeId: string, apply: boolean): Promise<void> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const route = await client.query<{ owner: string; status: string }>(
+      `SELECT owner, status FROM routes WHERE id = $1 FOR UPDATE`,
+      [routeId]
+    );
+    if (route.rows[0]?.owner !== "peaks" || route.rows[0]?.status !== "active") {
+      throw new Error("retire-covered requires an active Peaks-owned route");
+    }
+    const repairs = await client.query<{
+      destination_id: string;
+      state: RepairState;
+      replacement_route_id: string | null;
+    }>(
+      `SELECT repair.destination_id,
+              repair.state,
+              repair.replacement_route_id
+       FROM route_integrity_repairs repair
+       WHERE repair.route_id = $1
+       ORDER BY repair.destination_id
+       FOR UPDATE OF repair`,
+      [routeId]
+    );
+    if (repairs.rows.length === 0) {
+      throw new Error("retire-covered requires at least one repair ledger row");
+    }
+    const replacementIds = [
+      ...new Set(
+        repairs.rows
+          .map((repair) => repair.replacement_route_id)
+          .filter((id): id is string => id !== null)
+      ),
+    ];
+    if (replacementIds.length > 0) {
+      await client.query(
+        `SELECT id FROM routes
+         WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE`,
+        [replacementIds]
+      );
+      await client.query(
+        `SELECT rs.route_id, rs.segment_id
+         FROM route_segments rs
+         JOIN segments s ON s.id = rs.segment_id
+         WHERE rs.route_id = ANY($1::text[])
+         ORDER BY rs.route_id, rs.ordinal
+         FOR UPDATE OF rs, s`,
+        [replacementIds]
+      );
+    }
+    const invalid: typeof repairs.rows = [];
+    for (const repair of repairs.rows) {
+      if (repair.state !== "covered" || !repair.replacement_route_id) {
+        invalid.push(repair);
+        continue;
+      }
+      const validation = await client.query<{ passes: boolean }>(
+        `SELECT peaks_route_passes_publish_integrity($1, $2, 'active') AS passes`,
+        [repair.replacement_route_id, repair.destination_id]
+      );
+      if (validation.rows[0]?.passes !== true) invalid.push(repair);
+    }
+    if (apply && invalid.length > 0) {
+      await client.query(
+        `UPDATE route_integrity_repairs
+         SET state = 'queued', replacement_route_id = NULL, covered_at = NULL,
+             evidence = evidence || jsonb_build_object(
+               'requeued_invalid_coverage', now()
+             ),
+             last_error = 'Covered replacement no longer passes publish integrity'
+         WHERE route_id = $1
+           AND destination_id = ANY($2::text[])
+           AND state = 'covered'`,
+        [routeId, invalid.map((repair) => repair.destination_id)]
+      );
+    }
+    const canRetire = invalid.length === 0;
+    if (apply && canRetire) {
+      const retired = await client.query(
+        `UPDATE routes
+         SET status = 'superseded'
+         WHERE id = $1 AND owner = 'peaks' AND status = 'active'
+         RETURNING id`,
+        [routeId]
+      );
+      if (retired.rows.length !== 1) {
+        throw new Error("Route changed before retirement");
+      }
+    }
+    if (apply) await client.query("COMMIT");
+    else await client.query("ROLLBACK");
+    console.log(JSON.stringify({
+      mode: apply ? "apply" : "dry_run",
+      route_id: routeId,
+      repair_links: repairs.rows.length,
+      invalid_coverage_links: invalid.length,
+      requeued_invalid_coverage: apply ? invalid.filter((row) => row.state === "covered").length : 0,
+      retired: apply && canRetire,
+    }));
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   const args = parseRepairArgs(argv);
   if (args.command === "seed") return seed(args.apply);
+  if (args.command === "retire-covered") return retireCovered(args.routeId, args.apply);
   if (args.command === "show") return show(args);
   return stats();
 }

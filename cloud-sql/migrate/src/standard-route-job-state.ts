@@ -36,6 +36,8 @@ export function verificationAction(result: {
     destination_order: boolean;
     segments: boolean;
     provenance: boolean;
+    summit_contact: boolean;
+    elevation_profile: boolean;
     public_http: boolean;
   };
 }): VerificationAction {
@@ -49,7 +51,12 @@ export function verificationAction(result: {
   ) {
     return "needs_human";
   }
-  if (!result.gates.segments || !result.gates.provenance) {
+  if (
+    !result.gates.segments ||
+    !result.gates.provenance ||
+    !result.gates.summit_contact ||
+    !result.gates.elevation_profile
+  ) {
     return "rebuild";
   }
   return "retry";

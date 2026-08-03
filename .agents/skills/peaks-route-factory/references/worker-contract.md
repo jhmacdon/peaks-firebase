@@ -64,7 +64,8 @@ Blocked jobs remain in the queue. Only `needs_geometry` retries on its own.
 Rights, access, and human blocks require an explicit move back to `queued`.
 
 The seed classifies an active route as `published` only when it already has
-valid provenance and matching segments. An older active route enters research
+valid provenance, an exact non-flat elevation profile, contact within five
+metres of every linked summit, and a matching segment assembly. An older active route enters research
 for an independent replacement. It stays active for users during that work.
 The queue carries its ID as `replacement_route_id`. Import the new route as
 pending beside it. Publication changes the old route to `superseded` and the
@@ -112,6 +113,24 @@ The strict OSM or USGS review requires:
 - p95 core distance at most 2 m; and
 - no blocked OSM access when OSM supplies the geometry.
 
+Publication also fails unless every linked summit has a catalog location and
+lies within five metres of the route path. Out-and-back and point-to-point
+routes must end within five metres of a final summit. Loops and lollipops may
+contact the summit inside the path. The route and each segment must carry
+usable Z elevations, and the encoded route profile must match the exact
+direction-aware segment assembly.
+
+Luna and the reviewer must not infer the summit, profile, or assembly gates.
+The leased `transition --to approved` command calls
+`peaks_route_passes_publish_integrity(route_id, destination_id, 'pending')`
+itself and replaces those three review fields and their count-only evidence.
+That database result is final; a false result rejects approval.
+
+For a shared bad route, activating one replacement covers only the claimed
+destination link. The old route stays active until every repair-ledger link
+has valid active coverage. The last activation retires the old route in the
+same transaction. Luna must not retire a shared route by hand.
+
 The route identity and access review is separate and must also pass.
 
 ## Cost and context limits
@@ -141,3 +160,10 @@ The route identity and access review is separate and must also pass.
 - `recover-legacy` is a narrow operator repair for jobs that the first worker
   wrongly blocked with `active_route_missing_provenance_segments`. It requeues
   only active Peaks routes that still fail those exact machine checks.
+- `npm --prefix cloud-sql/migrate run routes:integrity-repairs -- retire-covered
+  --route-id ID` is an operator-only
+  dry run for an old route whose ledger links were all covered before these
+  publish gates shipped. Add `--apply` only after its compact count-only output
+  shows zero invalid links. The serializable command locks and rechecks every
+  active Peaks replacement, requeues stale coverage, and never changes a user
+  route.

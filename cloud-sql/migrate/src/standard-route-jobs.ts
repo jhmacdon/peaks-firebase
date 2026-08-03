@@ -254,16 +254,10 @@ active_routes AS (
   SELECT DISTINCT ON (rd.destination_id)
          rd.destination_id,
          r.id AS route_id,
-         (
-           is_valid_route_provenance(r.provenance)
-           AND EXISTS (
-             SELECT 1
-             FROM route_segments rs
-             JOIN segments s ON s.id = rs.segment_id
-             WHERE rs.route_id = r.id
-               AND s.path IS NOT NULL
-               AND s.provenance IS NOT DISTINCT FROM r.provenance
-           )
+         peaks_route_passes_publish_integrity(
+           r.id,
+           rd.destination_id,
+           'active'
          ) AS ready_to_verify,
          (
            SELECT first_rd.destination_id
@@ -715,6 +709,9 @@ const requiredReviewGates = [
   "pending_route",
   "endpoints",
   "provenance",
+  "summit_contact",
+  "elevation_profile",
+  "segment_assembly",
 ] as const;
 
 const requiredVerificationGates = [
@@ -723,6 +720,8 @@ const requiredVerificationGates = [
   "destination_order",
   "segments",
   "provenance",
+  "summit_contact",
+  "elevation_profile",
   "public_http",
 ] as const;
 
@@ -783,7 +782,12 @@ function requireReviewResult(result: JsonObject, routeId: string): void {
     numeric("end_connector_m") > 125 ||
     numeric("core_max_offset_m") > 5 ||
     numeric("core_p95_offset_m") > 2 ||
-    numeric("core_coverage_pct") < 99
+    numeric("core_coverage_pct") < 99 ||
+    numeric("summit_max_gap_m") > 5 ||
+    numeric("profile_point_count") < 2 ||
+    numeric("profile_point_count") !== numeric("path_point_count") ||
+    numeric("segment_count") < 1 ||
+    numeric("matching_assembly_point_count") !== numeric("path_point_count")
   ) {
     throw new Error("approved measurements miss the source geometry thresholds");
   }
@@ -1039,6 +1043,77 @@ async function transition(argv: string[]): Promise<void> {
         );
       }
     }
+    if (to === "approved") {
+      if (!routeId) throw new Error("approved requires --route-id");
+      const machine = await client.query<{
+        passes: boolean;
+        summit_max_gap_m: number | null;
+        path_point_count: number;
+        profile_point_count: number;
+        segment_count: number;
+      }>(
+        `SELECT peaks_route_passes_publish_integrity(
+                  r.id, $2, 'pending'
+                ) AS passes,
+                (
+                  SELECT max(ST_Distance(r.path, summit.location))
+                    FILTER (WHERE summit.location IS NOT NULL)
+                  FROM route_destinations summit_rd
+                  JOIN destinations summit
+                    ON summit.id = summit_rd.destination_id
+                  WHERE summit_rd.route_id = r.id
+                    AND 'summit'::destination_feature = ANY(summit.features)
+                ) AS summit_max_gap_m,
+                ST_NPoints(r.path::geometry)::int AS path_point_count,
+                CASE WHEN r.elevation_string IS NOT NULL
+                           AND r.elevation_string = encode_route_elevation_profile(r.path)
+                     THEN ST_NPoints(r.path::geometry)::int ELSE 0 END
+                  AS profile_point_count,
+                (
+                  SELECT count(*)::int FROM route_segments rs
+                  WHERE rs.route_id = r.id
+                ) AS segment_count
+         FROM routes r
+         WHERE r.id = $1
+         FOR UPDATE OF r`,
+        [routeId, destinationId]
+      );
+      const checked = machine.rows[0];
+      if (checked?.passes !== true || checked.summit_max_gap_m === null) {
+        throw new Error(
+          "approved route failed machine summit, elevation, provenance, or segment assembly gates"
+        );
+      }
+      const reviewGates =
+        resultJson.gates &&
+        typeof resultJson.gates === "object" &&
+        !Array.isArray(resultJson.gates)
+          ? (resultJson.gates as JsonObject)
+          : {};
+      const reviewMeasurements =
+        resultJson.measurements &&
+        typeof resultJson.measurements === "object" &&
+        !Array.isArray(resultJson.measurements)
+          ? (resultJson.measurements as JsonObject)
+          : {};
+      resultJson = {
+        ...resultJson,
+        gates: {
+          ...reviewGates,
+          summit_contact: true,
+          elevation_profile: true,
+          segment_assembly: true,
+        },
+        measurements: {
+          ...reviewMeasurements,
+          summit_max_gap_m: checked.summit_max_gap_m,
+          path_point_count: checked.path_point_count,
+          profile_point_count: checked.profile_point_count,
+          segment_count: checked.segment_count,
+          matching_assembly_point_count: checked.path_point_count,
+        },
+      };
+    }
     if (to === "verified") {
       if (!routeId || !currentJob.trailhead_id) {
         throw new Error("verified requires a saved route and trailhead");
@@ -1072,6 +1147,7 @@ async function transition(argv: string[]): Promise<void> {
         trailhead_first: boolean;
         segment_count: number;
         source_kind: string;
+        publish_integrity_valid: boolean;
       }>(
         `SELECT r.owner,
                 r.status,
@@ -1093,10 +1169,15 @@ async function transition(argv: string[]): Promise<void> {
                   FROM route_segments rs
                   WHERE rs.route_id = r.id
                 ) AS segment_count,
+                peaks_route_passes_publish_integrity(
+                  r.id,
+                  $2,
+                  $4
+                ) AS publish_integrity_valid,
                 r.provenance->>'source_kind' AS source_kind
          FROM routes r
          WHERE r.id = $1`,
-        [routeId, destinationId, currentJob.trailhead_id]
+        [routeId, destinationId, currentJob.trailhead_id, expectedStatus]
       );
       const route = routeCheck.rows[0];
       if (
@@ -1111,6 +1192,11 @@ async function transition(argv: string[]): Promise<void> {
         );
       }
       if (to === "approved") {
+        if (!route.publish_integrity_valid) {
+          throw new Error(
+            "approved route failed machine summit, elevation, provenance, or segment assembly gates"
+          );
+        }
         await runSourceGeometryCheck(
           routeId,
           route.source_kind,

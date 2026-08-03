@@ -30,8 +30,11 @@ test(
     const disconnectedSegment = `integrity-disconnected-segment-${suffix}`;
     const nonSummitEndpoint = `integrity-non-summit-endpoint-${suffix}`;
     const liveRoute = `integrity-live-${suffix}`;
+    const settlementBad = `integrity-settlement-bad-${suffix}`;
+    const settlementA = `integrity-settlement-a-${suffix}`;
+    const settlementB = `integrity-settlement-b-${suffix}`;
     const nonSummit = `integrity-non-summit-${suffix}`;
-    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute];
+    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute, settlementBad, settlementA, settlementB];
     const provenance = JSON.stringify({
       source_kind: "test", source_url: "https://example.test/source", license_name: "Test license",
       license_url: "https://example.test/license", attribution: "Test", retrieved_at: "2026-08-03T00:00:00Z",
@@ -135,6 +138,82 @@ test(
         { destination_id: destinationA, replacement_route_id: sharedReplacement, state: "covered" },
         { destination_id: destinationB, replacement_route_id: sharedReplacement, state: "covered" },
       ]);
+      assert.equal((await pool.query(`SELECT status FROM routes WHERE id = $1`, [badRoute])).rows[0]?.status, "active");
+      await pool.query(`UPDATE routes SET elevation_string = NULL WHERE id = $1`, [sharedReplacement]);
+      const refusedRetirement = command(
+        "route-integrity-repairs.ts",
+        "retire-covered",
+        "--route-id",
+        badRoute,
+        "--apply"
+      );
+      assert.equal(refusedRetirement.retired, false);
+      assert.equal(refusedRetirement.requeued_invalid_coverage, 2);
+      assert.equal((await pool.query(`SELECT status FROM routes WHERE id = $1`, [badRoute])).rows[0]?.status, "active");
+      await pool.query(
+        `UPDATE routes SET elevation_string = encode_route_elevation_profile(path) WHERE id = $1`,
+        [sharedReplacement]
+      );
+      command("route-integrity-repairs.ts", "seed", "--apply");
+      const retirement = command(
+        "route-integrity-repairs.ts",
+        "retire-covered",
+        "--route-id",
+        badRoute,
+        "--apply"
+      );
+      assert.equal(retirement.retired, true);
+      assert.equal(retirement.invalid_coverage_links, 0);
+      assert.equal((await pool.query(`SELECT status FROM routes WHERE id = $1`, [badRoute])).rows[0]?.status, "superseded");
+
+      await insertRoute(settlementBad, "peaks", nearA);
+      await link(settlementBad, destinationA, 0);
+      await link(settlementBad, destinationB, 1);
+      await segment(settlementBad, `${settlementBad}-segment`, nearA);
+      await insertRoute(settlementA, "peaks", nearA);
+      await link(settlementA, destinationA, 0);
+      await segment(settlementA, `${settlementA}-segment`, nearA);
+      await insertRoute(settlementB, "peaks", nearB);
+      await link(settlementB, destinationB, 0);
+      await segment(settlementB, `${settlementB}-segment`, nearB);
+      await pool.query(
+        `INSERT INTO route_integrity_repairs (
+           route_id, destination_id, state, reason
+         ) VALUES
+           ($1, $2, 'queued', 'summit_path_gap'),
+           ($1, $3, 'queued', 'summit_path_gap')`,
+        [settlementBad, destinationA, destinationB]
+      );
+      const afterFirstSettlement = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [settlementBad, destinationA, settlementA]
+      );
+      assert.equal(afterFirstSettlement.rows[0]?.status, "active");
+      assert.equal(
+        (await pool.query(`SELECT status FROM routes WHERE id = $1`, [settlementBad])).rows[0]?.status,
+        "active"
+      );
+      assert.deepEqual(
+        (await pool.query(
+          `SELECT destination_id, state, replacement_route_id
+           FROM route_integrity_repairs
+           WHERE route_id = $1 ORDER BY destination_id`,
+          [settlementBad]
+        )).rows,
+        [
+          { destination_id: destinationA, state: "covered", replacement_route_id: settlementA },
+          { destination_id: destinationB, state: "queued", replacement_route_id: null },
+        ]
+      );
+      const afterLastSettlement = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [settlementBad, destinationB, settlementB]
+      );
+      assert.equal(afterLastSettlement.rows[0]?.status, "superseded");
+      assert.equal(
+        (await pool.query(`SELECT status FROM routes WHERE id = $1`, [settlementBad])).rows[0]?.status,
+        "superseded"
+      );
     } finally {
       await pool.query(`DELETE FROM standard_route_backfill_jobs WHERE destination_id = ANY($1::text[])`, [[destinationA, destinationB]]);
       await pool.query(`DELETE FROM route_integrity_repairs WHERE route_id = ANY($1::text[])`, [ids]);

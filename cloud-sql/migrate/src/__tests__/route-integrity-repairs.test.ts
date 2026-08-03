@@ -11,6 +11,12 @@ import {
 test("route integrity repair CLI accepts only its documented commands and flags", () => {
   assert.deepEqual(parseRepairArgs(["seed"]), { command: "seed", apply: false });
   assert.deepEqual(parseRepairArgs(["seed", "--apply"]), { command: "seed", apply: true });
+  assert.deepEqual(parseRepairArgs(["retire-covered", "--route-id", "route-1"]), {
+    command: "retire-covered", routeId: "route-1", apply: false,
+  });
+  assert.deepEqual(parseRepairArgs(["retire-covered", "--route-id", "route-1", "--apply"]), {
+    command: "retire-covered", routeId: "route-1", apply: true,
+  });
   assert.deepEqual(parseRepairArgs(["show", "--route-id", "route-1", "--state", "queued", "--limit", "4"]), {
     command: "show", routeId: "route-1", destinationId: null, state: "queued", limit: 4,
   });
@@ -18,6 +24,7 @@ test("route integrity repair CLI accepts only its documented commands and flags"
   assert.throws(() => parseRepairArgs(["seed", "--limit", "4"]), /Unknown flag/);
   assert.throws(() => parseRepairArgs(["show", "--state", "bad"]), /state/);
   assert.throws(() => parseRepairArgs(["stats", "--apply"]), /Unknown flag/);
+  assert.throws(() => parseRepairArgs(["retire-covered", "--apply"]), /route-id/);
   assert.equal(validRepairState("covered"), true);
   assert.equal(validRepairState("published"), false);
 });
@@ -47,7 +54,15 @@ test("repair migration and standard jobs contract use strict repair gates withou
     assert.match(source, /replacement_route_id\s+TEXT REFERENCES routes\(id\) ON DELETE SET NULL/);
     assert.match(source, /CREATE TRIGGER trg_route_integrity_repairs_updated/);
     assert.match(source, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_integrity_repairs TO "peaks-api"/);
+    assert.match(source, /CREATE OR REPLACE FUNCTION peaks_route_passes_publish_integrity/);
+    assert.match(source, /CREATE OR REPLACE FUNCTION settle_route_integrity_replacement/);
+    assert.match(source, /GRANT EXECUTE ON FUNCTION settle_route_integrity_replacement\(TEXT, TEXT, TEXT\)/);
   }
+  assert.ok(
+    schema.indexOf("CREATE OR REPLACE FUNCTION encode_route_elevation_profile") <
+      schema.indexOf("CREATE OR REPLACE FUNCTION peaks_route_passes_publish_integrity"),
+    "fresh schema must define the elevation encoder before the publish predicate"
+  );
   assert.match(repairs, /ST_DWithin\(r\.path, summit\.location, 5\)/);
   assert.match(repairs, /r2\.elevation_string = encode_route_elevation_profile\(r2\.path\)/);
   assert.match(repairs, /is_valid_route_provenance\(r2\.provenance\)/);
@@ -62,8 +77,22 @@ test("repair migration and standard jobs contract use strict repair gates withou
   assert.doesNotMatch(repairs, /final_rd\.destination_id = bl\.destination_id/);
   assert.match(repairs, /NOT ST_DWithin\(r2\.path, all_summit\.location, 5\)/);
   assert.match(repairs, /r2\.owner = 'peaks'/);
+  assert.match(repairs, /peaks_route_passes_publish_integrity/);
+  assert.match(repairs, /retire-covered/);
+  assert.match(repairs, /BEGIN ISOLATION LEVEL SERIALIZABLE/);
+  assert.match(repairs, /status = 'superseded'/);
+  assert.match(repairs, /requeued_invalid_coverage/);
   assert.doesNotMatch(repairs, /ST_AsText|ST_X\(|ST_Y\(|latitude|longitude/i);
   assert.match(jobs, /route_integrity_repairs/);
+  assert.match(
+    jobs,
+    /peaks_route_passes_publish_integrity\(\s*r\.id,\s*rd\.destination_id,\s*'active'\s*\) AS ready_to_verify/
+  );
+  assert.match(
+    jobs,
+    /peaks_route_passes_publish_integrity\(\s*r\.id,\s*\$2,\s*\$4\s*\) AS publish_integrity_valid/
+  );
+  assert.match(jobs, /approved route failed machine summit, elevation, provenance, or segment assembly gates/);
   assert.match(jobs, /100000/);
   assert.match(jobs, /'integrity_repair', t\.repair_route_id IS NOT NULL/);
   assert.match(jobs, /lease_token IS NOT NULL\s+AND standard_route_backfill_jobs\.lease_expires_at >= now\(\)/);

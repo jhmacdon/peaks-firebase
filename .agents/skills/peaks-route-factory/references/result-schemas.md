@@ -28,7 +28,9 @@ coordinates, filename, download URL, or contents.
 
 ## Independent review result
 
-All eight gates must be true before `approved`.
+All eleven gates must be true before `approved`. The example below is the
+stored result. The reviewer may omit the final three machine-owned gates and
+their five machine-owned measurements.
 
 ```json
 {
@@ -45,14 +47,22 @@ All eight gates must be true before `approved`.
     "source_geometry": true,
     "pending_route": true,
     "endpoints": true,
-    "provenance": true
+    "provenance": true,
+    "summit_contact": true,
+    "elevation_profile": true,
+    "segment_assembly": true
   },
   "measurements": {
     "start_connector_m": 0,
     "end_connector_m": 2.1,
     "core_max_offset_m": 1.2,
     "core_p95_offset_m": 0.7,
-    "core_coverage_pct": 100
+    "core_coverage_pct": 100,
+    "summit_max_gap_m": 2.1,
+    "profile_point_count": 241,
+    "path_point_count": 241,
+    "segment_count": 1,
+    "matching_assembly_point_count": 241
   },
   "errors": []
 }
@@ -60,7 +70,19 @@ All eight gates must be true before `approved`.
 
 A FAIL uses the same shape, sets failed gates false, and lists exact errors.
 
+Do not guess or hand-write the last three gate values or their five count-only
+measurements. The `pending_review -> approved` queue transition runs
+`peaks_route_passes_publish_integrity(route_id, destination_id, 'pending')`
+inside the leased database transaction. It replaces those values with fresh
+database results before it validates and stores the review. A false machine
+result rejects approval even when the review JSON says `PASS`.
+
 ## Verification result
 
 Do not write this by hand. Use `verify_standard_route.sh`; the queue reruns the
 live database and public API checks before it accepts `verified`.
+
+The verifier requires `summit_contact` and `elevation_profile` as well as the
+owner, active status, destination order, segment assembly, provenance, and
+public HTTP gates. Its payload contains counts, gaps, and the encoded profile,
+but never route coordinates.

@@ -45,6 +45,67 @@ if (
   );
 }
 
+type ReplacementOutcome = {
+  status: string;
+  destination_linked: boolean;
+  repair_link_count: number;
+  current_link_covered: boolean;
+  remaining_repair_links: number;
+};
+
+async function replacementOutcome(
+  replacementRouteId: string,
+  currentDestinationId: string,
+  newRouteId: string
+): Promise<ReplacementOutcome> {
+  const result = await db.query<ReplacementOutcome>(
+    `SELECT r.status,
+            EXISTS (
+              SELECT 1 FROM route_destinations rd
+              WHERE rd.route_id = r.id AND rd.destination_id = $2
+            ) AS destination_linked,
+            count(repair.destination_id)::int AS repair_link_count,
+            COALESCE(bool_or(
+              repair.destination_id = $2
+              AND repair.state = 'covered'
+              AND repair.replacement_route_id = $3
+            ), false) AS current_link_covered,
+            count(*) FILTER (
+              WHERE repair.destination_id IS NOT NULL
+                AND repair.state <> 'covered'
+            )::int AS remaining_repair_links
+     FROM routes r
+     LEFT JOIN route_integrity_repairs repair ON repair.route_id = r.id
+     WHERE r.id = $1
+     GROUP BY r.id`,
+    [replacementRouteId, currentDestinationId, newRouteId]
+  );
+  if (!result.rows[0]) throw new Error("Replacement route was not found");
+  return result.rows[0];
+}
+
+function assertReplacementOutcome(outcome: ReplacementOutcome): void {
+  if (!outcome.destination_linked) {
+    throw new Error("Replacement route lost its destination link");
+  }
+  if (outcome.repair_link_count === 0) {
+    if (outcome.status !== "superseded") {
+      throw new Error("Ordinary replacement route was not superseded");
+    }
+    return;
+  }
+  if (!outcome.current_link_covered) {
+    throw new Error("Current repair link is not covered by the activated route");
+  }
+  const expectedStatus =
+    outcome.remaining_repair_links === 0 ? "superseded" : "active";
+  if (outcome.status !== expectedStatus) {
+    throw new Error(
+      "Shared replacement retirement does not match remaining repair links"
+    );
+  }
+}
+
 try {
   const jobResult = await db.query<{
     destination_id: string;
@@ -87,28 +148,14 @@ try {
     if (route.segment_count < 1) {
       throw new Error("Active route has no segments");
     }
+    let replacementCheck: ReplacementOutcome | null = null;
     if (replacementRouteId) {
-      const replacement = await db.query<{
-        status: string;
-        destination_linked: boolean;
-      }>(
-        `SELECT r.status,
-                EXISTS (
-                  SELECT 1
-                  FROM route_destinations rd
-                  WHERE rd.route_id = r.id
-                    AND rd.destination_id = $2
-                ) AS destination_linked
-         FROM routes r
-         WHERE r.id = $1`,
-        [replacementRouteId, destinationId]
+      replacementCheck = await replacementOutcome(
+        replacementRouteId,
+        destinationId,
+        routeId
       );
-      if (
-        replacement.rows[0]?.status !== "superseded" ||
-        !replacement.rows[0]?.destination_linked
-      ) {
-        throw new Error("Replacement route was not superseded");
-      }
+      assertReplacementOutcome(replacementCheck);
     }
     console.log(`Route ${routeId} is already active after an earlier run`);
     console.log(
@@ -118,6 +165,8 @@ try {
         route_id: routeId,
         segment_count: route.segment_count,
         replacement_route_id: replacementRouteId,
+        current_link_covered: replacementCheck?.current_link_covered ?? null,
+        remaining_repair_links: replacementCheck?.remaining_repair_links ?? 0,
         reused: true,
       })
     );
@@ -227,28 +276,14 @@ try {
       ) {
         throw new Error("Route activation verification failed");
       }
+      let replacementCheck: ReplacementOutcome | null = null;
       if (replacementRouteId) {
-        const replacement = await db.query<{
-          status: string;
-          destination_linked: boolean;
-        }>(
-          `SELECT r.status,
-                  EXISTS (
-                    SELECT 1
-                    FROM route_destinations rd
-                    WHERE rd.route_id = r.id
-                      AND rd.destination_id = $2
-                  ) AS destination_linked
-           FROM routes r
-           WHERE r.id = $1`,
-          [replacementRouteId, destinationId]
+        replacementCheck = await replacementOutcome(
+          replacementRouteId,
+          destinationId,
+          routeId
         );
-        if (
-          replacement.rows[0]?.status !== "superseded" ||
-          !replacement.rows[0]?.destination_linked
-        ) {
-          throw new Error("Replacement route supersede verification failed");
-        }
+        assertReplacementOutcome(replacementCheck);
       }
       console.log(
         `Activated ${routeId} with ${verified.rows[0].segment_count} segments`
@@ -260,6 +295,8 @@ try {
           route_id: routeId,
           segment_count: verified.rows[0].segment_count,
           replacement_route_id: replacementRouteId,
+          current_link_covered: replacementCheck?.current_link_covered ?? null,
+          remaining_repair_links: replacementCheck?.remaining_repair_links ?? 0,
           reused: false,
         })
       );
