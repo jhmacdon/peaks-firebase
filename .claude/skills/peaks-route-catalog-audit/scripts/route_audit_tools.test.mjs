@@ -8,6 +8,8 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -77,6 +79,20 @@ const workerPreflight = fileURLToPath(
 const routeDatabaseWrapper = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/with_route_db.sh",
+    import.meta.url
+  )
+);
+
+const routeDatabasePasswordLoader = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/load_route_db_password.sh",
+    import.meta.url
+  )
+);
+
+const routeDatabasePasswordCache = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/cache_route_db_password.sh",
     import.meta.url
   )
 );
@@ -167,6 +183,103 @@ test("elevation wrapper preflights before every queue call and owns its worker I
   assert.match(source, /claim.*--apply/s);
   assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
   assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("database wrapper accepts only a private local password cache", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-route-db-password-"));
+  const repoRoot = join(root, "firebase-route-elevation");
+  const credentialFile = join(root, ".peaks-route-db-password");
+  try {
+    mkdirSync(repoRoot);
+    writeFileSync(credentialFile, "test-password\n");
+    chmodSync(credentialFile, 0o600);
+    const environment = {
+      ...process.env,
+      DB_PASS: "",
+      PEAKS_ROUTE_DB_PASS: "",
+      PEAKS_ROUTE_DB_PASSWORD_FILE: credentialFile,
+    };
+    const output = execFileSync(
+      "bash",
+      [
+        "-euc",
+        'source "$1" "$2"; printf "%s" "$DB_PASS"',
+        "_",
+        routeDatabasePasswordLoader,
+        repoRoot,
+      ],
+      { encoding: "utf8", env: environment }
+    );
+    assert.equal(output, "test-password");
+
+    chmodSync(credentialFile, 0o644);
+    assert.throws(
+      () => execFileSync(
+        "bash",
+        ["-euc", 'source "$1" "$2"', "_", routeDatabasePasswordLoader, repoRoot],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+
+  const wrapperSource = readFileSync(routeDatabaseWrapper, "utf8");
+  const cacheSource = readFileSync(routeDatabasePasswordCache, "utf8");
+  assert.match(wrapperSource, /load_route_db_password\.sh/);
+  assert.match(cacheSource, /--out-file="\$temporary_file"/);
+  assert.match(cacheSource, /chmod 600 "\$temporary_file"/);
+  assert.match(cacheSource, /mv -f "\$temporary_file" "\$credential_file"/);
+  assert.doesNotMatch(cacheSource, /cat |printf.*DB_PASS|echo.*DB_PASS/);
+});
+
+test("password cache writer rejects symlinks and replaces loose files atomically", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-route-db-cache-writer-"));
+  const scripts = join(root, ".agents/skills/peaks-route-factory/scripts");
+  const bin = join(root, "bin");
+  const credentialFile = join(root, ".peaks-route-db-password");
+  const symlinkTarget = join(root, "symlink-target");
+  try {
+    mkdirSync(scripts, { recursive: true });
+    mkdirSync(bin);
+    const cacheScript = join(scripts, "cache_route_db_password.sh");
+    const resolver = join(scripts, "resolve_worker_checkout.sh");
+    const gcloud = join(bin, "gcloud");
+    copyFileSync(routeDatabasePasswordCache, cacheScript);
+    writeFileSync(resolver, "#!/usr/bin/env bash\nexit 0\n");
+    writeFileSync(
+      gcloud,
+      "#!/usr/bin/env bash\nset -euo pipefail\noutput_file=''\nfor argument in \"$@\"; do\n  case \"$argument\" in --out-file=*) output_file=\"${argument#--out-file=}\" ;; esac\ndone\n[ -n \"$output_file\" ]\nprintf '%s\\n' fresh-secret >\"$output_file\"\n"
+    );
+    for (const executable of [cacheScript, resolver, gcloud]) {
+      chmodSync(executable, 0o755);
+    }
+    const environment = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      PEAKS_ROUTE_DB_PASSWORD_FILE: credentialFile,
+    };
+
+    writeFileSync(symlinkTarget, "must-not-change\n");
+    symlinkSync(symlinkTarget, credentialFile);
+    assert.throws(
+      () => execFileSync(cacheScript, [], {
+        encoding: "utf8", env: environment, stdio: "pipe",
+      }),
+      /Command failed/
+    );
+    assert.equal(readFileSync(symlinkTarget, "utf8"), "must-not-change\n");
+    rmSync(credentialFile);
+
+    writeFileSync(credentialFile, "old-secret\n");
+    chmodSync(credentialFile, 0o644);
+    execFileSync(cacheScript, [], { encoding: "utf8", env: environment });
+    assert.equal(readFileSync(credentialFile, "utf8"), "fresh-secret\n");
+    assert.equal(statSync(credentialFile).mode & 0o777, 0o600);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("printed route audit SQL requires every linked summit and canonical elevation", () => {
