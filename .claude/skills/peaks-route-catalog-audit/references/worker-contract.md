@@ -16,6 +16,10 @@ work stays visible.
   checkout and rejects another worker's ID.
 - Keep route and destination tables read-only.
 - Write only the audit job row and temporary evidence files.
+- Do not PASS until every linked summit has path contact within 5 m, the
+  shape-specific endpoint rule passes, and the canonical elevation profile
+  matches the path. Mark these failures `needs_repair`; do not waive them for
+  a public HTTP 200 or plausible outside-source facts.
 - Heartbeat before browser or map work.
 - Complete or release the lease before ending.
 - Treat `catalog_changed_requeued` and `out_of_scope` completion responses as

@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS route_catalog_audit_jobs (
                      )),
   priority           INTEGER NOT NULL DEFAULT 0,
   route_count        INTEGER NOT NULL DEFAULT 0,
+  audit_rule_version INTEGER NOT NULL DEFAULT 2
+                     CONSTRAINT route_catalog_audit_jobs_audit_rule_version_positive
+                     CHECK (audit_rule_version > 0),
   catalog_fingerprint TEXT NOT NULL,
   attempt_count      INTEGER NOT NULL DEFAULT 0,
   lease_owner        TEXT,
@@ -39,6 +42,9 @@ CREATE TABLE IF NOT EXISTS route_catalog_audit_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_route_catalog_audit_claim
   ON route_catalog_audit_jobs (state, priority DESC, updated_at, destination_id);
+
+CREATE INDEX IF NOT EXISTS idx_route_catalog_audit_rule_version
+  ON route_catalog_audit_jobs (audit_rule_version, state);
 
 CREATE INDEX IF NOT EXISTS idx_route_catalog_audit_lease
   ON route_catalog_audit_jobs (lease_expires_at)

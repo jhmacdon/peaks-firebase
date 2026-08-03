@@ -12,6 +12,14 @@ const MIGRATION = join(
   MIGRATE_ROOT,
   "../migrations/20260801_route_catalog_audit_jobs.sql"
 );
+const ELEVATION_MIGRATION = join(
+  MIGRATE_ROOT,
+  "../migrations/20260803_route_elevation_backfill.sql"
+);
+const RULE_V2_MIGRATION = join(
+  MIGRATE_ROOT,
+  "../migrations/20260803_route_catalog_audit_rule_v2.sql"
+);
 
 test(
   "audit jobs recover leases, requeue stale catalogs, and retire vanished candidates",
@@ -57,6 +65,8 @@ test(
 
     try {
       await pool.query(await readFile(MIGRATION, "utf8"));
+      await pool.query(await readFile(ELEVATION_MIGRATION, "utf8"));
+      await pool.query(await readFile(RULE_V2_MIGRATION, "utf8"));
       await pool.query(
         `INSERT INTO destinations (id, name, features)
          VALUES ($1, 'Route audit test summit',
@@ -116,6 +126,72 @@ test(
       assert.equal(changed.outcome, "catalog_changed_requeued");
       assert.equal(changed.job.state, "queued");
       assert.equal(changed.job.lease_token, null);
+
+      const passedClaim = command(
+        "claim", "--worker-id", "integration-test",
+        "--destination-id", destinationId, "--apply"
+      );
+      const passed = command(
+        "complete",
+        "--destination-id", destinationId,
+        "--lease-token", passedClaim.job.lease_token,
+        "--state", "passed",
+        "--result-file", resultFile,
+        "--apply"
+      );
+      assert.equal(passed.outcome, "completed");
+      await pool.query(
+        `UPDATE route_catalog_audit_jobs
+         SET audit_rule_version = 1
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      command("seed", "--apply");
+      const requeuedV2 = await pool.query(
+        `SELECT state, audit_rule_version, final_result, audited_at, last_error
+         FROM route_catalog_audit_jobs WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.deepEqual(requeuedV2.rows[0], {
+        state: "queued",
+        audit_rule_version: 2,
+        final_result: null,
+        audited_at: null,
+        last_error: null,
+      });
+
+      const activeV1 = command(
+        "claim", "--worker-id", "integration-test",
+        "--destination-id", destinationId, "--apply"
+      );
+      await pool.query(
+        `UPDATE route_catalog_audit_jobs
+         SET audit_rule_version = 1
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      command("seed", "--apply");
+      const protectedLease = await pool.query(
+        `SELECT state, audit_rule_version, lease_token
+         FROM route_catalog_audit_jobs WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.deepEqual(protectedLease.rows[0], {
+        state: "auditing",
+        audit_rule_version: 1,
+        lease_token: activeV1.job.lease_token,
+      });
+      command("release", "--lease-token", activeV1.job.lease_token);
+      command("seed", "--apply");
+      const releasedV2 = await pool.query(
+        `SELECT state, audit_rule_version FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.deepEqual(releasedV2.rows[0], {
+        state: "queued",
+        audit_rule_version: 2,
+      });
 
       const finalClaim = command(
         "claim", "--worker-id", "integration-test",

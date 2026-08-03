@@ -35,6 +35,31 @@ const routeElevationWrapper = fileURLToPath(
   )
 );
 
+const routeCatalogAudit = fileURLToPath(
+  new URL("./audit_catalog_routes.sh", import.meta.url)
+);
+
+const routeAuditJobs = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrate/src/route-catalog-audit-jobs.ts",
+    import.meta.url
+  )
+);
+
+const routeAuditJobsMigration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260803_route_catalog_audit_rule_v2.sql",
+    import.meta.url
+  )
+);
+
+const routeAuditJobsFreshMigration = fileURLToPath(
+  new URL(
+    "../../../../cloud-sql/migrations/20260801_route_catalog_audit_jobs.sql",
+    import.meta.url
+  )
+);
+
 const workerPreflight = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/worker_preflight.sh",
@@ -111,6 +136,45 @@ test("elevation wrapper preflights before every queue call and owns its worker I
   assert.match(source, /claim.*--apply/s);
   assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
   assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("printed route audit SQL requires every linked summit and canonical elevation", () => {
+  const sql = execFileSync(routeCatalogAudit, [
+    "--route-id", "route-1", "--print-sql",
+  ], { encoding: "utf8" });
+  assert.match(sql, /ST_Distance\(sr\.path, d\.location\)/);
+  assert.match(sql, /route_misses_linked_summit_gt_5m/);
+  assert.match(sql, /worst_summit_gap_m/);
+  assert.match(sql, /fault_summit_ids/);
+  assert.match(sql, /fault_summit_names/);
+  assert.match(sql, /fault_summit_gaps_m/);
+  assert.match(sql, /shape IN \('out_and_back', 'point_to_point'\)/);
+  assert.match(sql, /end_over_5m_from_summit/);
+  assert.match(sql, /encode_route_elevation_profile\(rm\.path\)/);
+  assert.match(sql, /IS DISTINCT FROM encode_route_elevation_profile\(rm\.path\)/);
+  assert.match(sql, /missing_or_invalid_elevation_profile/);
+  assert.doesNotMatch(sql, /end_over_250m_from_summit/);
+  assert.doesNotMatch(sql, /flat_or_missing_elevation_profile/);
+});
+
+test("route audit jobs requeue v1 passes under rule version 2 without stealing leases", () => {
+  const source = readFileSync(routeAuditJobs, "utf8");
+  const migration = readFileSync(routeAuditJobsMigration, "utf8");
+  const freshMigration = readFileSync(routeAuditJobsFreshMigration, "utf8");
+  assert.match(source, /const AUDIT_RULE_VERSION = 2/);
+  assert.match(source, /audit_rule_version/);
+  assert.match(source, /job\.audit_rule_version < EXCLUDED\.audit_rule_version/);
+  assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);
+  assert.match(source, /job\.state = 'auditing'/);
+  assert.match(source, /\* 200/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS audit_rule_version INTEGER/);
+  assert.match(migration, /SET audit_rule_version = 1/);
+  assert.match(migration, /SET DEFAULT 2/);
+  assert.match(migration, /SET NOT NULL/);
+  assert.match(
+    freshMigration,
+    /CONSTRAINT route_catalog_audit_jobs_audit_rule_version_positive/
+  );
 });
 
 test("elevation preflight contains dirty, stale, and runtime guards", () => {

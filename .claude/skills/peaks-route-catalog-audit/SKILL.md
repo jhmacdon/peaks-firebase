@@ -64,6 +64,12 @@ pages into chat. Every `ERROR` blocks PASS. Research every `WARN` and `REVIEW`.
 Render route pairs behind crossing, overlap, duplicate, or start-spread
 findings.
 
+All four Luna workers must also confirm that every linked summit is within 5 m
+of the stored path, that out-and-back and point-to-point routes end within 5 m
+of their final summit, and that the canonical elevation profile matches the
+path. A route failure is `needs_repair`; a public HTTP 200 or a plausible
+outside source never waives it.
+
 ## Check Outside Facts
 
 Renew the lease before browser work. Find the accepted normal ascent, not just a

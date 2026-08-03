@@ -202,6 +202,11 @@ route_context AS (
          last_destination.location AS last_destination_location,
          summit_links.summit_ids,
          summit_links.summit_names,
+         summit_contact.summit_count,
+         summit_contact.worst_summit_gap_m,
+         summit_contact.fault_summit_ids,
+         summit_contact.fault_summit_names,
+         summit_contact.fault_summit_gaps_m,
          nearest_trailhead.id AS nearest_trailhead_id,
          nearest_trailhead.name AS nearest_trailhead_name,
          nearest_trailhead.gap_m AS nearest_trailhead_gap_m
@@ -230,6 +235,30 @@ route_context AS (
     WHERE rd.route_id = sr.id
       AND 'summit'::destination_feature = ANY(d.features)
   ) summit_links ON true
+  LEFT JOIN LATERAL (
+    SELECT COUNT(*)::int AS summit_count,
+           MAX(ST_Distance(sr.path, d.location)) AS worst_summit_gap_m,
+           COALESCE(JSONB_AGG(d.id ORDER BY rd.ordinal, d.id) FILTER (
+             WHERE sr.path IS NULL OR d.location IS NULL
+                OR ST_Distance(sr.path, d.location) > 5
+           ), '[]'::jsonb) AS fault_summit_ids,
+           COALESCE(JSONB_AGG(d.name ORDER BY rd.ordinal, d.id) FILTER (
+             WHERE sr.path IS NULL OR d.location IS NULL
+                OR ST_Distance(sr.path, d.location) > 5
+           ), '[]'::jsonb) AS fault_summit_names,
+           COALESCE(JSONB_AGG(
+             CASE WHEN sr.path IS NULL OR d.location IS NULL THEN NULL
+                  ELSE ROUND(ST_Distance(sr.path, d.location)::numeric, 1)
+             END ORDER BY rd.ordinal, d.id
+           ) FILTER (
+             WHERE sr.path IS NULL OR d.location IS NULL
+                OR ST_Distance(sr.path, d.location) > 5
+           ), '[]'::jsonb) AS fault_summit_gaps_m
+    FROM route_destinations rd
+    JOIN destinations d ON d.id = rd.destination_id
+    WHERE rd.route_id = sr.id
+      AND 'summit'::destination_feature = ANY(d.features)
+  ) summit_contact ON true
   LEFT JOIN LATERAL (
     SELECT d.id, d.name,
            ST_Distance(
@@ -394,10 +423,21 @@ route_issue_groups AS (
            CASE WHEN rm.destination_count > 0 AND NOT COALESCE('trailhead'::destination_feature = ANY(rm.first_destination_features), false) THEN 'missing_or_misordered_trailhead_link' END,
            CASE WHEN rm.destination_count > 0 AND NOT COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false) THEN 'missing_or_misordered_summit_link' END,
            CASE WHEN COALESCE('trailhead'::destination_feature = ANY(rm.first_destination_features), false) AND rm.start_destination_gap_m > 300 THEN 'start_over_300m_from_trailhead' END,
-           CASE WHEN COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false) AND rm.end_destination_gap_m > 250 THEN 'end_over_250m_from_summit' END,
+           CASE WHEN rm.summit_count > 0
+                 AND JSONB_ARRAY_LENGTH(rm.fault_summit_ids) > 0
+             THEN 'route_misses_linked_summit_gt_5m' END,
+           CASE WHEN rm.shape IN ('out_and_back', 'point_to_point')
+                 AND COALESCE('summit'::destination_feature = ANY(rm.last_destination_features), false)
+                 AND (rm.end_destination_gap_m IS NULL OR rm.end_destination_gap_m > 5)
+             THEN 'end_over_5m_from_summit' END,
            CASE WHEN rm.distance IS NULL OR rm.distance <= 0 THEN 'missing_or_invalid_distance' END,
            CASE WHEN rm.gain IS NULL OR rm.gain < 0 OR rm.gain_loss IS NULL OR rm.gain_loss < 0 THEN 'missing_or_invalid_gain' END,
-           CASE WHEN rm.path IS NOT NULL AND rm.gain > 100 AND (rm.max_z IS NULL OR rm.min_z IS NULL OR rm.max_z - rm.min_z < 10) THEN 'flat_or_missing_elevation_profile' END,
+           CASE
+             WHEN rm.path IS NULL OR rm.elevation_string IS NULL
+               THEN 'missing_or_invalid_elevation_profile'
+             WHEN rm.elevation_string IS DISTINCT FROM encode_route_elevation_profile(rm.path)
+               THEN 'missing_or_invalid_elevation_profile'
+           END,
            CASE WHEN rm.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
              AND rm.provenance IS NULL
              AND rm.segment_count = 0
@@ -664,10 +704,20 @@ records AS (
            'nearest_trailhead', ra.nearest_trailhead_name,
            'nearest_trailhead_gap_m', ROUND(ra.nearest_trailhead_gap_m::numeric, 1),
            'summit_id', CASE WHEN COALESCE('summit'::destination_feature = ANY(ra.last_destination_features), false) THEN ra.last_destination_id END,
-           'end_gap_m', CASE WHEN COALESCE('summit'::destination_feature = ANY(ra.last_destination_features), false) THEN ROUND(ra.end_destination_gap_m::numeric, 1) END,
+           'endpoint_summit_gap_m', CASE WHEN ra.shape IN ('out_and_back', 'point_to_point') AND COALESCE('summit'::destination_feature = ANY(ra.last_destination_features), false) THEN ROUND(ra.end_destination_gap_m::numeric, 1) END,
+           'worst_summit_gap_m', ROUND(ra.worst_summit_gap_m::numeric, 1),
+           'fault_summit_ids', ra.fault_summit_ids,
+           'fault_summit_names', ra.fault_summit_names,
+           'fault_summit_gaps_m', ra.fault_summit_gaps_m,
            'one_way_m', ROUND(ra.measured_distance_m::numeric),
            'gain_m', ROUND(ra.gain::numeric),
            'points', ra.point_count,
+           'elevation_profile_matches_path', CASE
+             WHEN ra.path IS NULL OR ra.elevation_string IS NULL THEN false
+             ELSE ra.elevation_string IS NOT DISTINCT FROM
+                  encode_route_elevation_profile(ra.path)
+           END,
+           'elevation_profile_path_points', ra.point_count,
            'segments', ra.segment_count,
            'max_step_m', ROUND(ra.max_step_m::numeric, 1),
            'max_segment_gap_m', ROUND(ra.max_segment_gap_m::numeric, 1),

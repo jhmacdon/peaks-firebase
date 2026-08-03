@@ -15,7 +15,7 @@ type AuditState =
 type AuditCandidate = Pick<
   AuditJob,
   "destination_id" | "destination_name" | "priority" | "route_count" |
-  "catalog_fingerprint"
+  "catalog_fingerprint" | "audit_rule_version"
 >;
 
 interface AuditJob {
@@ -24,6 +24,7 @@ interface AuditJob {
   state: AuditState;
   priority: number;
   route_count: number;
+  audit_rule_version: number;
   catalog_fingerprint: string;
   attempt_count: number;
   lease_owner: string | null;
@@ -34,6 +35,8 @@ interface AuditJob {
   audited_at: string | null;
   updated_at: string;
 }
+
+const AUDIT_RULE_VERSION = 2;
 
 const candidateSql = `
   WITH catalog_routes AS (
@@ -76,6 +79,7 @@ const candidateSql = `
     d.id AS destination_id,
     d.name AS destination_name,
     COUNT(DISTINCT r.id)::int AS route_count,
+    ${AUDIT_RULE_VERSION}::int AS audit_rule_version,
     (
       COUNT(*) FILTER (WHERE r.provenance IS NULL) * 100
       + COUNT(*) FILTER (
@@ -84,6 +88,24 @@ const candidateSql = `
           )
         ) * 100
       + COUNT(*) FILTER (WHERE r.distance > 25000) * 50
+      + COALESCE(SUM((
+          SELECT COUNT(*)
+          FROM route_destinations summit_link
+          JOIN destinations summit ON summit.id = summit_link.destination_id
+          WHERE summit_link.route_id = r.id
+            AND 'summit'::destination_feature = ANY(summit.features)
+            AND (
+              r.path IS NULL
+              OR summit.location IS NULL
+              OR ST_Distance(r.path, summit.location) > 5
+            )
+        )), 0)::int * 200
+      + COUNT(*) FILTER (
+          WHERE r.path IS NULL
+             OR r.elevation_string IS NULL
+             OR r.elevation_string IS DISTINCT FROM
+                encode_route_elevation_profile(r.path)
+        ) * 200
       + GREATEST(COUNT(DISTINCT r.id) - 1, 0) * 10
     )::int AS priority,
     md5(string_agg(
@@ -91,9 +113,12 @@ const candidateSql = `
         ':',
         d.name,
         d.updated_at::text,
+        'audit_rule_version',
+        ${AUDIT_RULE_VERSION}::text,
         r.id,
         r.status,
         r.updated_at::text,
+        COALESCE(r.elevation_string, ''),
         COALESCE((
           SELECT string_agg(
             concat_ws(
@@ -229,69 +254,73 @@ async function seed(argv: string[]): Promise<void> {
     destination_id: string;
     state: AuditState;
   }>(
-    `INSERT INTO route_catalog_audit_jobs (
+    `INSERT INTO route_catalog_audit_jobs AS job (
        destination_id, destination_name, priority, route_count,
-       catalog_fingerprint
+       audit_rule_version, catalog_fingerprint
      )
      SELECT destination_id, destination_name, priority, route_count,
-            catalog_fingerprint
+            audit_rule_version, catalog_fingerprint
      FROM (${candidateSql}) candidates
      ON CONFLICT (destination_id) DO UPDATE SET
        destination_name = CASE
-         WHEN route_catalog_audit_jobs.state = 'auditing'
-         THEN route_catalog_audit_jobs.destination_name
+         WHEN job.state = 'auditing'
+         THEN job.destination_name
          ELSE EXCLUDED.destination_name
        END,
        priority = CASE
-         WHEN route_catalog_audit_jobs.state = 'auditing'
-         THEN route_catalog_audit_jobs.priority
+         WHEN job.state = 'auditing'
+         THEN job.priority
          ELSE EXCLUDED.priority
        END,
        route_count = CASE
-         WHEN route_catalog_audit_jobs.state = 'auditing'
-         THEN route_catalog_audit_jobs.route_count
+         WHEN job.state = 'auditing'
+         THEN job.route_count
          ELSE EXCLUDED.route_count
        END,
+       audit_rule_version = CASE
+         WHEN job.state = 'auditing' THEN job.audit_rule_version
+         ELSE EXCLUDED.audit_rule_version
+       END,
        catalog_fingerprint = CASE
-         WHEN route_catalog_audit_jobs.state = 'auditing'
-         THEN route_catalog_audit_jobs.catalog_fingerprint
+         WHEN job.state = 'auditing'
+         THEN job.catalog_fingerprint
          ELSE EXCLUDED.catalog_fingerprint
        END,
        state = CASE
-         WHEN route_catalog_audit_jobs.state = 'out_of_scope'
+         WHEN job.state = 'out_of_scope'
          THEN 'queued'
-         WHEN route_catalog_audit_jobs.state <> 'auditing'
-          AND route_catalog_audit_jobs.catalog_fingerprint <>
-              EXCLUDED.catalog_fingerprint
+         WHEN job.state <> 'auditing'
+          AND (job.audit_rule_version < EXCLUDED.audit_rule_version
+            OR job.catalog_fingerprint <> EXCLUDED.catalog_fingerprint)
          THEN 'queued'
-         ELSE route_catalog_audit_jobs.state
+         ELSE job.state
        END,
        final_result = CASE
-         WHEN route_catalog_audit_jobs.state = 'out_of_scope'
+         WHEN job.state = 'out_of_scope'
          THEN NULL
-         WHEN route_catalog_audit_jobs.state <> 'auditing'
-          AND route_catalog_audit_jobs.catalog_fingerprint <>
-              EXCLUDED.catalog_fingerprint
+         WHEN job.state <> 'auditing'
+          AND (job.audit_rule_version < EXCLUDED.audit_rule_version
+            OR job.catalog_fingerprint <> EXCLUDED.catalog_fingerprint)
          THEN NULL
-         ELSE route_catalog_audit_jobs.final_result
+         ELSE job.final_result
        END,
        audited_at = CASE
-         WHEN route_catalog_audit_jobs.state = 'out_of_scope'
+         WHEN job.state = 'out_of_scope'
          THEN NULL
-         WHEN route_catalog_audit_jobs.state <> 'auditing'
-          AND route_catalog_audit_jobs.catalog_fingerprint <>
-              EXCLUDED.catalog_fingerprint
+         WHEN job.state <> 'auditing'
+          AND (job.audit_rule_version < EXCLUDED.audit_rule_version
+            OR job.catalog_fingerprint <> EXCLUDED.catalog_fingerprint)
          THEN NULL
-         ELSE route_catalog_audit_jobs.audited_at
+         ELSE job.audited_at
        END,
        last_error = CASE
-         WHEN route_catalog_audit_jobs.state = 'out_of_scope'
+         WHEN job.state = 'out_of_scope'
          THEN NULL
-         WHEN route_catalog_audit_jobs.state <> 'auditing'
-          AND route_catalog_audit_jobs.catalog_fingerprint <>
-              EXCLUDED.catalog_fingerprint
+         WHEN job.state <> 'auditing'
+          AND (job.audit_rule_version < EXCLUDED.audit_rule_version
+            OR job.catalog_fingerprint <> EXCLUDED.catalog_fingerprint)
          THEN NULL
-         ELSE route_catalog_audit_jobs.last_error
+         ELSE job.last_error
        END,
        updated_at = now()
      RETURNING destination_id, state`
@@ -397,11 +426,12 @@ async function claim(argv: string[]): Promise<void> {
              destination_name = $2,
              priority = $3,
              route_count = $4,
-             catalog_fingerprint = $5,
+             audit_rule_version = $5,
+             catalog_fingerprint = $6,
              attempt_count = attempt_count + 1,
-             lease_owner = $6,
-             lease_token = $7,
-             lease_expires_at = now() + make_interval(mins => $8),
+             lease_owner = $7,
+             lease_token = $8,
+             lease_expires_at = now() + make_interval(mins => $9),
              last_error = NULL,
              updated_at = now()
          WHERE destination_id = $1
@@ -411,6 +441,7 @@ async function claim(argv: string[]): Promise<void> {
           candidate.destination_name,
           candidate.priority,
           candidate.route_count,
+          candidate.audit_rule_version,
           candidate.catalog_fingerprint,
           workerId,
           leaseToken,
@@ -511,14 +542,16 @@ async function complete(argv: string[]): Promise<void> {
     );
     const job = currentJob.rows[0];
     if (!job) throw new Error("No live audit lease matched");
-    if (job.catalog_fingerprint !== candidate.catalog_fingerprint) {
+    if (job.catalog_fingerprint !== candidate.catalog_fingerprint ||
+        job.audit_rule_version !== candidate.audit_rule_version) {
       const requeued = await client.query<AuditJob>(
         `UPDATE route_catalog_audit_jobs
          SET state = 'queued',
              destination_name = $2,
              priority = $3,
              route_count = $4,
-             catalog_fingerprint = $5,
+             audit_rule_version = $5,
+             catalog_fingerprint = $6,
              final_result = NULL,
              audited_at = NULL,
              lease_owner = NULL,
@@ -533,6 +566,7 @@ async function complete(argv: string[]): Promise<void> {
           candidate.destination_name,
           candidate.priority,
           candidate.route_count,
+          candidate.audit_rule_version,
           candidate.catalog_fingerprint,
         ]
       );
