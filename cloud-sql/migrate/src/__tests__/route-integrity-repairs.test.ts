@@ -56,6 +56,21 @@ test("repair migration and standard jobs contract use strict repair gates withou
     assert.match(source, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_integrity_repairs TO "peaks-api"/);
     assert.match(source, /CREATE OR REPLACE FUNCTION peaks_route_passes_publish_integrity/);
     assert.match(source, /CREATE OR REPLACE FUNCTION settle_route_integrity_replacement/);
+    assert.match(
+      source,
+      /IF repair_count = 0 AND peaks_route_passes_publish_integrity\(\s*old_route_id, NULL, 'active'\s*\)/
+    );
+    assert.match(
+      source,
+      /INSERT INTO route_integrity_repairs[\s\S]+?FROM routes old_route[\s\S]+?JOIN route_destinations old_rd/
+    );
+    assert.match(
+      source,
+      /IF NOT peaks_route_passes_publish_integrity\(\s*old_route_id, NULL, 'active'\s*\) THEN[\s\S]+?ON CONFLICT \(route_id, destination_id\) DO NOTHING/
+    );
+    assert.match(source, /Bad replacement route has no linked summit repair rows/);
+    assert.match(source, /WHERE rd\.route_id IN \(old_route_id, new_route_id\)[\s\S]+?FOR UPDATE OF rd, d/);
+    assert.match(source, /WHERE rs\.route_id IN \(old_route_id, new_route_id\)[\s\S]+?FOR UPDATE OF rs, s/);
     assert.match(source, /GRANT EXECUTE ON FUNCTION settle_route_integrity_replacement\(TEXT, TEXT, TEXT\)/);
   }
   assert.ok(

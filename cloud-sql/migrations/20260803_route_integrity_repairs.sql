@@ -267,7 +267,24 @@ BEGIN
   PERFORM 1 FROM routes
   WHERE id = new_route_id AND owner = 'peaks' AND status = 'active'
   FOR UPDATE;
-  IF NOT FOUND OR NOT peaks_route_passes_publish_integrity(
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'New route is not active and Peaks-owned';
+  END IF;
+
+  PERFORM rd.route_id
+  FROM route_destinations rd
+  JOIN destinations d ON d.id = rd.destination_id
+  WHERE rd.route_id IN (old_route_id, new_route_id)
+  ORDER BY rd.route_id, rd.destination_id
+  FOR UPDATE OF rd, d;
+  PERFORM rs.route_id
+  FROM route_segments rs
+  JOIN segments s ON s.id = rs.segment_id
+  WHERE rs.route_id IN (old_route_id, new_route_id)
+  ORDER BY rs.route_id, rs.ordinal
+  FOR UPDATE OF rs, s;
+
+  IF NOT peaks_route_passes_publish_integrity(
     new_route_id, current_destination_id, 'active'
   ) THEN
     RAISE EXCEPTION 'New route does not pass publish integrity';
@@ -282,13 +299,54 @@ BEGIN
   FROM route_integrity_repairs
   WHERE route_id = old_route_id;
 
-  IF repair_count = 0 THEN
+  IF repair_count = 0 AND peaks_route_passes_publish_integrity(
+    old_route_id, NULL, 'active'
+  ) THEN
     UPDATE routes SET status = 'superseded'
     WHERE id = old_route_id AND owner = 'peaks' AND status = 'active';
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Old replacement route changed before retirement';
     END IF;
     RETURN 'superseded';
+  END IF;
+
+  IF NOT peaks_route_passes_publish_integrity(
+    old_route_id, NULL, 'active'
+  ) THEN
+    INSERT INTO route_integrity_repairs (
+      route_id, destination_id, state, reason, summit_gap_meters, evidence
+    )
+    SELECT old_route.id,
+           summit.id,
+           'queued',
+           CASE
+             WHEN old_route.path IS NULL THEN 'route_path_missing'
+             WHEN summit.location IS NULL THEN 'destination_location_missing'
+             WHEN ST_DWithin(old_route.path, summit.location, 5)
+               THEN 'shared_route_integrity_failure'
+             ELSE 'summit_path_gap'
+           END,
+           CASE WHEN old_route.path IS NOT NULL AND summit.location IS NOT NULL
+             THEN ST_Distance(old_route.path, summit.location) END,
+           jsonb_build_object('derived_during_activation', true)
+    FROM routes old_route
+    JOIN route_destinations old_rd ON old_rd.route_id = old_route.id
+    JOIN destinations summit ON summit.id = old_rd.destination_id
+    WHERE old_route.id = old_route_id
+      AND 'summit'::destination_feature = ANY(summit.features)
+    ON CONFLICT (route_id, destination_id) DO NOTHING;
+
+    PERFORM 1
+    FROM route_integrity_repairs
+    WHERE route_id = old_route_id
+    ORDER BY destination_id
+    FOR UPDATE;
+    SELECT count(*)::int INTO repair_count
+    FROM route_integrity_repairs
+    WHERE route_id = old_route_id;
+    IF repair_count = 0 THEN
+      RAISE EXCEPTION 'Bad replacement route has no linked summit repair rows';
+    END IF;
   END IF;
 
   SELECT state, replacement_route_id

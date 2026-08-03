@@ -33,8 +33,14 @@ test(
     const settlementBad = `integrity-settlement-bad-${suffix}`;
     const settlementA = `integrity-settlement-a-${suffix}`;
     const settlementB = `integrity-settlement-b-${suffix}`;
+    const derivedBad = `integrity-derived-bad-${suffix}`;
+    const derivedA = `integrity-derived-a-${suffix}`;
+    const derivedB = `integrity-derived-b-${suffix}`;
+    const ordinaryOld = `integrity-ordinary-old-${suffix}`;
+    const ordinaryNew = `integrity-ordinary-new-${suffix}`;
+    const partialBad = `integrity-partial-bad-${suffix}`;
     const nonSummit = `integrity-non-summit-${suffix}`;
-    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute, settlementBad, settlementA, settlementB];
+    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute, settlementBad, settlementA, settlementB, derivedBad, derivedA, derivedB, ordinaryOld, ordinaryNew, partialBad];
     const provenance = JSON.stringify({
       source_kind: "test", source_url: "https://example.test/source", license_name: "Test license",
       license_url: "https://example.test/license", attribution: "Test", retrieved_at: "2026-08-03T00:00:00Z",
@@ -213,6 +219,92 @@ test(
       assert.equal(
         (await pool.query(`SELECT status FROM routes WHERE id = $1`, [settlementBad])).rows[0]?.status,
         "superseded"
+      );
+
+      await insertRoute(derivedBad, "peaks", nearA);
+      await link(derivedBad, destinationA, 0);
+      await link(derivedBad, destinationB, 1);
+      await segment(derivedBad, `${derivedBad}-segment`, nearA);
+      await insertRoute(derivedA, "peaks", nearA);
+      await link(derivedA, destinationA, 0);
+      await segment(derivedA, `${derivedA}-segment`, nearA);
+      await insertRoute(derivedB, "peaks", nearB);
+      await link(derivedB, destinationB, 0);
+      await segment(derivedB, `${derivedB}-segment`, nearB);
+
+      const derivedFirst = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [derivedBad, destinationA, derivedA]
+      );
+      assert.equal(derivedFirst.rows[0]?.status, "active");
+      assert.equal(
+        (await pool.query(`SELECT status FROM routes WHERE id = $1`, [derivedBad])).rows[0]?.status,
+        "active"
+      );
+      assert.deepEqual(
+        (await pool.query(
+          `SELECT destination_id, state, replacement_route_id
+           FROM route_integrity_repairs
+           WHERE route_id = $1 ORDER BY destination_id`,
+          [derivedBad]
+        )).rows,
+        [
+          { destination_id: destinationA, state: "covered", replacement_route_id: derivedA },
+          { destination_id: destinationB, state: "queued", replacement_route_id: null },
+        ]
+      );
+      const derivedLast = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [derivedBad, destinationB, derivedB]
+      );
+      assert.equal(derivedLast.rows[0]?.status, "superseded");
+
+      await insertRoute(partialBad, "peaks", nearA);
+      await link(partialBad, destinationA, 0);
+      await link(partialBad, destinationB, 1);
+      await segment(partialBad, `${partialBad}-segment`, nearA);
+      await pool.query(
+        `INSERT INTO route_integrity_repairs (
+           route_id, destination_id, state, reason
+         ) VALUES ($1, $2, 'queued', 'summit_path_gap')`,
+        [partialBad, destinationA]
+      );
+      const partialFirst = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [partialBad, destinationA, derivedA]
+      );
+      assert.equal(partialFirst.rows[0]?.status, "active");
+      assert.deepEqual(
+        (await pool.query(
+          `SELECT destination_id, state FROM route_integrity_repairs
+           WHERE route_id = $1 ORDER BY destination_id`,
+          [partialBad]
+        )).rows,
+        [
+          { destination_id: destinationA, state: "covered" },
+          { destination_id: destinationB, state: "queued" },
+        ]
+      );
+      const partialLast = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [partialBad, destinationB, derivedB]
+      );
+      assert.equal(partialLast.rows[0]?.status, "superseded");
+
+      await insertRoute(ordinaryOld, "peaks", nearA);
+      await link(ordinaryOld, destinationA, 0);
+      await segment(ordinaryOld, `${ordinaryOld}-segment`, nearA);
+      await insertRoute(ordinaryNew, "peaks", nearA);
+      await link(ordinaryNew, destinationA, 0);
+      await segment(ordinaryNew, `${ordinaryNew}-segment`, nearA);
+      const ordinary = await pool.query<{ status: string }>(
+        `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+        [ordinaryOld, destinationA, ordinaryNew]
+      );
+      assert.equal(ordinary.rows[0]?.status, "superseded");
+      assert.equal(
+        (await pool.query(`SELECT count(*)::int AS count FROM route_integrity_repairs WHERE route_id = $1`, [ordinaryOld])).rows[0]?.count,
+        0
       );
     } finally {
       await pool.query(`DELETE FROM standard_route_backfill_jobs WHERE destination_id = ANY($1::text[])`, [[destinationA, destinationB]]);
