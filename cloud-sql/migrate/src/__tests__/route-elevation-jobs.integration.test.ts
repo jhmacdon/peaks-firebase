@@ -6,8 +6,12 @@ import { join } from "node:path";
 import test from "node:test";
 import { Pool } from "pg";
 import {
+  compactJob,
   equalRouteIdSets,
+  processCompletionOutput,
   requireWorkerId,
+  retryOutcome,
+  statsOutput,
   validateArgs,
 } from "../route-elevation-jobs";
 
@@ -38,6 +42,66 @@ test("affected route set comparison ignores order but rejects membership changes
     false
   );
   assert.equal(equalRouteIdSets(["route-a"], ["route-a", "route-a"]), false);
+});
+
+test("compact worker output exposes names and safe completion evidence only", () => {
+  const job = {
+    route_id: "route-a",
+    route_name: "Mailbox Peak Trail",
+    state: "complete",
+    priority: 100,
+    attempt_count: 1,
+    source_kind: "terrarium_z14",
+    next_attempt_at: "2026-08-03T00:00:00Z",
+    lease_token: null,
+    lease_expires_at: null,
+    final_evidence: {
+      source_kind: "terrarium_z14",
+      point_count: 42,
+      verification: "public_profile_count_verified",
+      path: "must-not-leak",
+      latitude: 47.4,
+    },
+  };
+
+  assert.deepEqual(compactJob(job as never), {
+    route_id: "route-a",
+    route_name: "Mailbox Peak Trail",
+    state: "complete",
+    priority: 100,
+    attempt_count: 1,
+    source_kind: "terrarium_z14",
+    next_attempt_at: "2026-08-03T00:00:00Z",
+    lease_token: null,
+    lease_expires_at: null,
+    final_evidence: {
+      source_kind: "terrarium_z14",
+      point_count: 42,
+      verification: "public_profile_count_verified",
+    },
+  });
+  assert.deepEqual(processCompletionOutput(job as never), {
+    outcome: "complete",
+    state: "complete",
+    route_id: "route-a",
+    route_name: "Mailbox Peak Trail",
+    source_kind: "terrarium_z14",
+    point_count: 42,
+    verification: "public_profile_count_verified",
+  });
+  assert.equal(retryOutcome("blocked"), "blocked");
+  assert.equal(retryOutcome("retry"), "retry");
+  assert.deepEqual(
+    statsOutput([
+      { state: "retry", count: 2, expired_leases: 0 },
+      { state: "working", count: 3, expired_leases: 1 },
+    ]),
+    {
+      states: { retry: 2, working: 3 },
+      total: 5,
+      expired_leases: 1,
+    }
+  );
 });
 
 test(
@@ -88,6 +152,8 @@ test(
       assert.deepEqual(seeded.rows.map((row) => row.route_id), [routeA, routeB].sort());
       const first = command("claim", "--worker-id", "luna-route-elevation-01", "--apply").job;
       const second = command("claim", "--worker-id", "luna-route-elevation-01", "--apply").job;
+      assert.equal(first.route_name, first.route_id);
+      assert.equal(second.route_name, second.route_id);
       assert.notEqual(first.route_id, second.route_id);
       assert.notEqual(first.lease_token, second.lease_token);
       await pool.query(`UPDATE route_elevation_backfill_jobs SET lease_expires_at = now() - interval '1 minute' WHERE route_id = $1`, [first.route_id]);
@@ -106,6 +172,8 @@ test(
       const requeued = await pool.query<{ state: string; lease_token: string | null }>(`SELECT state, lease_token FROM route_elevation_backfill_jobs WHERE route_id = $1`, [recovered.route_id]);
       assert.equal(requeued.rows[0]?.state, "queued");
       assert.equal(requeued.rows[0]?.lease_token, null);
+      const stats = command("stats");
+      assert.equal(typeof stats.expired_leases, "number");
     } finally {
       await pool.query(`DELETE FROM route_elevation_backfill_jobs WHERE route_id = ANY($1::text[])`, [[routeA, routeB, userRoute]]);
       await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [[routeA, routeB, userRoute]]);
@@ -141,7 +209,7 @@ test(
       await pool.query(await readFile(MIGRATION, "utf8"));
       await pool.query(`INSERT INTO segments (id, path) VALUES ($1, ST_GeogFromText($2))`, [segmentId, line]);
       for (const [id, owner] of [[sourceId, "peaks"], [peaksId, "peaks"], [userId, "user-test"]]) {
-        await pool.query(`INSERT INTO routes (id, owner, status, path) VALUES ($1, $2, 'pending', ST_GeogFromText($3))`, [id, owner, line]);
+        await pool.query(`INSERT INTO routes (id, name, owner, status, path) VALUES ($1, $1, $2, 'pending', ST_GeogFromText($3))`, [id, owner, line]);
         await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)`, [id, segmentId]);
       }
       // A whole-tile, decoded cache avoids network I/O while still exercising the worker sampler path.
@@ -158,6 +226,19 @@ test(
       assert.equal(claimed.route_id, sourceId);
       const done = command("process", "--route-id", sourceId, "--lease-token", claimed.lease_token, "--apply");
       assert.equal(done.outcome, "complete");
+      assert.equal(done.state, "complete");
+      assert.equal(done.route_id, sourceId);
+      assert.equal(done.route_name, sourceId);
+      assert.equal(done.source_kind, "terrarium_z14");
+      assert.equal(done.point_count, 2);
+      assert.equal(done.verification, "public_not_applicable: pending");
+      const shown = command("show", "--route-id", sourceId);
+      assert.equal(shown[0]?.route_name, sourceId);
+      assert.deepEqual(shown[0]?.final_evidence, {
+        source_kind: "terrarium_z14",
+        point_count: 2,
+        verification: "public_not_applicable: pending",
+      });
       const rows = await pool.query<{ id: string; profile: string | null; points: number; minimum_z: number }>(
         `SELECT id, elevation_string AS profile, ST_NPoints(path::geometry)::int AS points,
                 (SELECT min(ST_Z((dumped).geom)) FROM ST_DumpPoints(routes.path::geometry) dumped) AS minimum_z

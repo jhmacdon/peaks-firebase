@@ -13,6 +13,7 @@ type Point = { lat: number; lng: number; elevation: number | null };
 
 interface Job {
   route_id: string;
+  route_name?: string | null;
   state: JobState;
   path_fingerprint: string;
   priority: number;
@@ -28,6 +29,7 @@ interface Job {
 
 interface RouteSnapshot {
   id: string;
+  name: string | null;
   owner: string;
   status: string;
   path_hash: string | null;
@@ -56,10 +58,22 @@ const CANDIDATES_SQL = `
   FROM routes r
   WHERE r.owner = 'peaks' AND r.path IS NOT NULL`;
 
-function compactJob(job: Job | undefined): Record<string, unknown> | null {
-  if (!job) return null;
+function compactEvidence(
+  evidence: Record<string, unknown> | null
+): Record<string, unknown> | null {
+  if (!evidence) return null;
   return {
+    source_kind: evidence.source_kind,
+    point_count: evidence.point_count,
+    verification: evidence.verification,
+  };
+}
+
+export function compactJob(job: Job | undefined): Record<string, unknown> | null {
+  if (!job) return null;
+  const compact: Record<string, unknown> = {
     route_id: job.route_id,
+    route_name: job.route_name ?? null,
     state: job.state,
     priority: job.priority,
     attempt_count: job.attempt_count,
@@ -67,6 +81,40 @@ function compactJob(job: Job | undefined): Record<string, unknown> | null {
     next_attempt_at: job.next_attempt_at,
     lease_token: job.lease_token,
     lease_expires_at: job.lease_expires_at,
+  };
+  if (job.state === "complete") {
+    compact.final_evidence = compactEvidence(job.final_evidence);
+  }
+  return compact;
+}
+
+export function processCompletionOutput(job: Job): Record<string, unknown> {
+  const evidence = compactEvidence(job.final_evidence);
+  return {
+    outcome: "complete",
+    state: job.state,
+    route_id: job.route_id,
+    route_name: job.route_name ?? null,
+    source_kind: evidence?.source_kind,
+    point_count: evidence?.point_count,
+    verification: evidence?.verification,
+  };
+}
+
+export function retryOutcome(state: JobState): "retry" | "blocked" {
+  return state === "blocked" ? "blocked" : "retry";
+}
+
+export function statsOutput(
+  rows: Array<{ state: JobState; count: number; expired_leases: number }>
+): Record<string, unknown> {
+  return {
+    states: Object.fromEntries(rows.map((row) => [row.state, row.count])),
+    total: rows.reduce((sum, row) => sum + row.count, 0),
+    expired_leases: rows.reduce(
+      (sum, row) => sum + row.expired_leases,
+      0
+    ),
   };
 }
 
@@ -199,8 +247,12 @@ async function claim(workerId: string, apply: boolean): Promise<void> {
        WHERE state = 'working' AND lease_expires_at < now()`
     );
     const next = await client.query<Job>(
-      `SELECT * FROM route_elevation_backfill_jobs WHERE state IN ('queued', 'retry') AND next_attempt_at <= now()
-       ORDER BY priority DESC, next_attempt_at, route_id FOR UPDATE SKIP LOCKED LIMIT 1`
+      `SELECT j.*, r.name AS route_name
+       FROM route_elevation_backfill_jobs j
+       JOIN routes r ON r.id = j.route_id
+       WHERE j.state IN ('queued', 'retry') AND j.next_attempt_at <= now()
+       ORDER BY j.priority DESC, j.next_attempt_at, j.route_id
+       FOR UPDATE OF j SKIP LOCKED LIMIT 1`
     );
     const job = next.rows[0];
     if (!job || !apply) { await client.query("ROLLBACK"); print({ mode: apply ? "apply" : "dry_run", job: compactJob(job) }); return; }
@@ -210,7 +262,10 @@ async function claim(workerId: string, apply: boolean): Promise<void> {
        WHERE route_id = $1 RETURNING *`, [job.route_id, workerId, randomUUID()]
     );
     await client.query("COMMIT");
-    print({ mode: "apply", job: compactJob(claimed.rows[0]) });
+    print({
+      mode: "apply",
+      job: compactJob({ ...claimed.rows[0]!, route_name: job.route_name }),
+    });
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
@@ -232,7 +287,11 @@ async function release(token: string, message: string): Promise<void> {
      WHERE state = 'working' AND lease_token = $1 RETURNING *`, [token, MAX_ATTEMPTS, message]
   );
   if (!result.rows[0]) throw new Error("No route elevation lease matched");
-  print({ job: compactJob(result.rows[0]) });
+  print({
+    outcome: retryOutcome(result.rows[0].state),
+    state: result.rows[0].state,
+    job: compactJob(result.rows[0]),
+  });
 }
 
 async function pointsFor(client: PoolClient | typeof db, table: "routes" | "segments", id: string): Promise<Point[]> {
@@ -245,8 +304,8 @@ async function pointsFor(client: PoolClient | typeof db, table: "routes" | "segm
 }
 
 async function routeSnapshot(client: PoolClient | typeof db, id: string): Promise<RouteSnapshot | null> {
-  const route = await client.query<{ id: string; owner: string; status: string; path_hash: string | null; xy_hash: string | null }>(
-    `SELECT id, owner, status, CASE WHEN path IS NULL THEN NULL ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash,
+  const route = await client.query<{ id: string; name: string | null; owner: string; status: string; path_hash: string | null; xy_hash: string | null }>(
+    `SELECT id, name, owner, status, CASE WHEN path IS NULL THEN NULL ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash,
             CASE WHEN path IS NULL THEN NULL ELSE md5(encode(ST_AsEWKB(ST_Force2D(path::geometry)), 'hex')) END AS xy_hash
      FROM routes WHERE id = $1`, [id]
   );
@@ -359,7 +418,12 @@ async function extendLease(routeId: string, token: string): Promise<void> {
   if (result.rowCount !== 1) throw new Error("Route elevation lease expired before public verification");
 }
 
-async function failLease(routeId: string, token: string, error: unknown): Promise<void> {
+async function failLease(
+  routeId: string,
+  token: string,
+  error: unknown,
+  routeName?: string | null
+): Promise<void> {
   const result = await db.query<Job>(
     `UPDATE route_elevation_backfill_jobs SET state = CASE WHEN attempt_count >= $3 THEN 'blocked' ELSE 'retry' END,
        lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL, last_error = $4,
@@ -368,7 +432,11 @@ async function failLease(routeId: string, token: string, error: unknown): Promis
     [routeId, token, MAX_ATTEMPTS, safeError(error)]
   );
   if (!result.rows[0]) throw new Error("No live route elevation lease matched");
-  print({ outcome: "retry", job: compactJob(result.rows[0]) });
+  print({
+    outcome: retryOutcome(result.rows[0].state),
+    state: result.rows[0].state,
+    job: compactJob({ ...result.rows[0], route_name: routeName }),
+  });
 }
 
 async function hasLiveLease(routeId: string, token: string): Promise<boolean> {
@@ -383,8 +451,11 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
   if (!apply) throw new Error("process requires --apply");
   if (!await hasLiveLease(routeId, token)) throw new Error("No live route elevation lease matched");
   const beforeSampling = await db.query<Job>(
-    `SELECT * FROM route_elevation_backfill_jobs WHERE route_id = $1 AND state = 'working'
-     AND lease_token = $2 AND lease_expires_at >= now()`, [routeId, token]
+    `SELECT j.*, r.name AS route_name
+     FROM route_elevation_backfill_jobs j
+     JOIN routes r ON r.id = j.route_id
+     WHERE j.route_id = $1 AND j.state = 'working'
+       AND j.lease_token = $2 AND j.lease_expires_at >= now()`, [routeId, token]
   );
   const preflightJob = beforeSampling.rows[0];
   if (!preflightJob) throw new Error("No live route elevation lease matched");
@@ -399,12 +470,20 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       [routeId, token, state, preflightFingerprint]
     );
     if (!requeued.rows[0]) throw new Error("No live route elevation lease matched");
-    print({ outcome: preflightFingerprint ? "path_changed_requeued" : "out_of_scope", job: compactJob(requeued.rows[0]) });
+    print({
+      outcome: preflightFingerprint ? "path_changed_requeued" : "out_of_scope",
+      job: compactJob({
+        ...requeued.rows[0]!,
+        route_name: preflightJob.route_name,
+      }),
+    });
     return;
   }
+  let processRouteName = preflightJob.route_name;
   try {
     const snapshot = await routeSnapshot(db, routeId);
     if (!snapshot) throw new Error("Route does not exist");
+    processRouteName = snapshot.name;
     const primaryProfile = snapshot.owner === "peaks" && snapshot.points.length >= 2 ? await completeProfile(snapshot.points) : null;
     const segments = primaryProfile ? await segmentSnapshots(db, routeId) : [];
     const segmentProfiles = new Map<string, { elevations: number[]; sourceKind: string }>();
@@ -428,7 +507,12 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
            lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL, last_error = 'path changed during processing', next_attempt_at = now()
            WHERE route_id = $1 RETURNING *`, [routeId, fingerprint]
         );
-        await client.query("COMMIT"); print({ outcome: "path_changed_requeued", job: compactJob(updated.rows[0]) }); return;
+        await client.query("COMMIT");
+        print({
+          outcome: "path_changed_requeued",
+          job: compactJob({ ...updated.rows[0]!, route_name: snapshot.name }),
+        });
+        return;
       }
       const fresh = await routeSnapshot(client, routeId);
       if (!fresh || fresh.owner !== "peaks" || !fresh.path_hash || fresh.points.length < 2) {
@@ -436,7 +520,12 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
           `UPDATE route_elevation_backfill_jobs SET state = 'out_of_scope', lease_owner = NULL, lease_token = NULL,
            lease_expires_at = NULL, last_error = 'route is not a Peaks-owned usable path' WHERE route_id = $1 RETURNING *`, [routeId]
         );
-        await client.query("COMMIT"); print({ outcome: "out_of_scope", job: compactJob(updated.rows[0]) }); return;
+        await client.query("COMMIT");
+        print({
+          outcome: "out_of_scope",
+          job: compactJob({ ...updated.rows[0]!, route_name: snapshot.name }),
+        });
+        return;
       }
       if (!primaryProfile || fresh.path_hash !== snapshot.path_hash) throw new Error("Route changed while terrain was sampled");
       const segmentIds = [...new Set(segments.map((segment) => segment.id))].sort();
@@ -546,23 +635,40 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
          JSON.stringify({ source_kind: written.sourceKind, point_count: written.pointCount, verification: publicEvidence.kind })]
       );
       await completeClient.query("COMMIT");
-      print({ outcome: "complete", job: compactJob(completed.rows[0]) });
+      print(processCompletionOutput({
+        ...completed.rows[0]!,
+        route_name: snapshot.name,
+      }));
     } catch (error) { await completeClient.query("ROLLBACK"); throw error; } finally { completeClient.release(); }
-  } catch (error) { await failLease(routeId, token, error); }
+  } catch (error) {
+    await failLease(routeId, token, error, processRouteName);
+  }
 }
 
 async function show(routeId: string | null, state: string | null): Promise<void> {
   if (state && !(["queued", "working", "retry", "blocked", "complete", "out_of_scope"] as string[]).includes(state)) throw new Error("Invalid state");
   const result = await db.query<Job>(
-    `SELECT * FROM route_elevation_backfill_jobs WHERE ($1::text IS NULL OR route_id = $1) AND ($2::text IS NULL OR state = $2)
-     ORDER BY priority DESC, next_attempt_at, route_id`, [routeId, state]
+    `SELECT j.*, r.name AS route_name
+     FROM route_elevation_backfill_jobs j
+     JOIN routes r ON r.id = j.route_id
+     WHERE ($1::text IS NULL OR j.route_id = $1)
+       AND ($2::text IS NULL OR j.state = $2)
+     ORDER BY j.priority DESC, j.next_attempt_at, j.route_id`, [routeId, state]
   );
   print(result.rows.map(compactJob));
 }
 
 async function stats(): Promise<void> {
-  const result = await db.query<{ state: JobState; count: number }>(`SELECT state, count(*)::int AS count FROM route_elevation_backfill_jobs GROUP BY state ORDER BY state`);
-  print({ states: Object.fromEntries(result.rows.map((row) => [row.state, row.count])), total: result.rows.reduce((sum, row) => sum + row.count, 0) });
+  const result = await db.query<{ state: JobState; count: number; expired_leases: number }>(
+    `SELECT state, count(*)::int AS count,
+            count(*) FILTER (
+              WHERE state = 'working' AND lease_expires_at < now()
+            )::int AS expired_leases
+     FROM route_elevation_backfill_jobs
+     GROUP BY state
+     ORDER BY state`
+  );
+  print(statsOutput(result.rows));
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
