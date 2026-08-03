@@ -327,6 +327,51 @@ CREATE TABLE routes (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ---------------------------------------------------------------------------
+-- route_elevation_backfill_jobs
+-- Durable, leased local work to restore valid elevation profiles for
+-- Peaks-owned routes. This needs no hosted worker or scheduler.
+-- ---------------------------------------------------------------------------
+CREATE TABLE route_elevation_backfill_jobs (
+    route_id            TEXT PRIMARY KEY REFERENCES routes(id) ON DELETE CASCADE,
+    state               TEXT NOT NULL DEFAULT 'queued',
+    path_fingerprint    TEXT NOT NULL,
+    priority            INTEGER NOT NULL DEFAULT 0,
+    attempt_count       INTEGER NOT NULL DEFAULT 0,
+    source_kind         TEXT NOT NULL DEFAULT 'unknown',
+    last_error          TEXT,
+    final_evidence      JSONB,
+    next_attempt_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    lease_owner         TEXT,
+    lease_token         TEXT,
+    lease_expires_at    TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT route_elevation_backfill_jobs_state_check CHECK (
+      state IN ('queued', 'working', 'retry', 'blocked', 'complete', 'out_of_scope')
+    ),
+    CONSTRAINT route_elevation_backfill_jobs_attempt_count_check CHECK (
+      attempt_count >= 0
+    ),
+    CONSTRAINT route_elevation_backfill_jobs_source_kind_check CHECK (
+      btrim(source_kind) <> ''
+    ),
+    CONSTRAINT route_elevation_backfill_jobs_lease_check CHECK (
+      (state = 'working'
+        AND lease_owner IS NOT NULL
+        AND lease_token IS NOT NULL
+        AND lease_expires_at IS NOT NULL)
+      OR
+      (state <> 'working'
+        AND lease_owner IS NULL
+        AND lease_token IS NULL
+        AND lease_expires_at IS NULL)
+    )
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON route_elevation_backfill_jobs TO "peaks-api";
+
 ALTER TABLE segments
   ADD CONSTRAINT segments_provenance_valid
   CHECK (provenance IS NULL OR is_valid_route_provenance(provenance));
@@ -857,6 +902,19 @@ CREATE INDEX idx_areas_kind                 ON areas (kind);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
 
+CREATE INDEX idx_route_elevation_backfill_jobs_claim
+  ON route_elevation_backfill_jobs (
+    state,
+    next_attempt_at,
+    priority DESC,
+    route_id
+  )
+  WHERE state IN ('queued', 'retry');
+
+CREATE INDEX idx_route_elevation_backfill_jobs_lease
+  ON route_elevation_backfill_jobs (lease_expires_at)
+  WHERE state = 'working';
+
 CREATE INDEX idx_plans_user_id              ON plans (user_id, updated_at DESC);
 CREATE INDEX idx_plan_destinations_dest     ON plan_destinations (destination_id);
 CREATE INDEX idx_plan_routes_route          ON plan_routes (route_id);
@@ -906,6 +964,91 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION encode_route_elevation_profile(path geography)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    point_count BIGINT;
+    valid_point_count BIGINT;
+    has_nonzero_rounded_elevation BOOLEAN;
+    elevation_profile TEXT;
+BEGIN
+    IF path IS NULL
+        OR ST_IsEmpty(path::geometry)
+        OR ST_GeometryType(path::geometry) <> 'ST_LineString'
+        OR NOT ST_IsValid(path::geometry) THEN
+        RETURN NULL;
+    END IF;
+
+    WITH points AS (
+        SELECT
+            (dumped).path AS point_path,
+            ST_Z((dumped).geom) AS elevation
+        FROM ST_DumpPoints(path::geometry) AS dumped
+    ), valid_points AS (
+        SELECT
+            *,
+            elevation IS NOT NULL
+                AND elevation NOT IN (
+                    'NaN'::DOUBLE PRECISION,
+                    'Infinity'::DOUBLE PRECISION,
+                    '-Infinity'::DOUBLE PRECISION
+                ) AS has_valid_elevation
+        FROM points
+    )
+    SELECT
+        count(*),
+        count(*) FILTER (WHERE has_valid_elevation),
+        COALESCE(bool_or(round(elevation::numeric)::bigint <> 0) FILTER (
+            WHERE has_valid_elevation
+        ), false),
+        string_agg(
+            (round(elevation::numeric)::bigint)::text,
+            '|' ORDER BY point_path
+        ) FILTER (WHERE has_valid_elevation)
+    INTO
+        point_count,
+        valid_point_count,
+        has_nonzero_rounded_elevation,
+        elevation_profile
+    FROM valid_points;
+
+    IF point_count < 2
+        OR point_count <> valid_point_count
+        OR NOT has_nonzero_rounded_elevation THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN replace(
+        replace(encode(convert_to(elevation_profile, 'SQL_ASCII'), 'base64'), E'\n', ''),
+        E'\r',
+        ''
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION materialize_peaks_route_elevation_profile()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.elevation_string = encode_route_elevation_profile(NEW.path);
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION touch_route_elevation_backfill_job()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER trg_plans_updated           BEFORE UPDATE ON plans               FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_areas_updated           BEFORE UPDATE ON areas              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -914,6 +1057,16 @@ CREATE TRIGGER trg_routes_updated          BEFORE UPDATE ON routes             F
 CREATE TRIGGER trg_tracking_sessions_updated BEFORE UPDATE ON tracking_sessions FOR EACH ROW EXECUTE FUNCTION update_tracking_session_timestamps();
 CREATE TRIGGER trg_session_groups_updated  BEFORE UPDATE ON session_groups     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_session_attempt_groups_updated BEFORE UPDATE ON session_attempt_groups FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_routes_materialize_peaks_elevation_profile
+BEFORE INSERT OR UPDATE OF path, owner ON routes
+FOR EACH ROW
+WHEN (NEW.owner = 'peaks')
+EXECUTE FUNCTION materialize_peaks_route_elevation_profile();
+
+CREATE TRIGGER trg_route_elevation_backfill_jobs_updated
+BEFORE UPDATE ON route_elevation_backfill_jobs
+FOR EACH ROW EXECUTE FUNCTION touch_route_elevation_backfill_job();
 
 CREATE OR REPLACE FUNCTION refresh_area_boundary_parts()
 RETURNS TRIGGER AS $$
