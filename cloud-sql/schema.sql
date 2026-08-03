@@ -372,6 +372,44 @@ CREATE TABLE route_elevation_backfill_jobs (
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON route_elevation_backfill_jobs TO "peaks-api";
 
+-- ---------------------------------------------------------------------------
+-- route_integrity_repairs
+-- Durable ledger for bad active Peaks routes. A shared bad route has one row
+-- for every linked summit, so it cannot retire until every summit is covered.
+-- This uses on-demand CLI work only; expected run-rate change: near $0/month.
+-- ---------------------------------------------------------------------------
+CREATE TABLE route_integrity_repairs (
+    route_id              TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    destination_id        TEXT NOT NULL REFERENCES destinations(id) ON DELETE CASCADE,
+    state                 TEXT NOT NULL DEFAULT 'queued',
+    reason                TEXT NOT NULL,
+    summit_gap_meters     DOUBLE PRECISION,
+    replacement_route_id  TEXT REFERENCES routes(id) ON DELETE SET NULL,
+    covered_at            TIMESTAMPTZ,
+    evidence              JSONB NOT NULL DEFAULT '{}'::jsonb,
+    last_error            TEXT,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (route_id, destination_id),
+    CONSTRAINT route_integrity_repairs_state_check CHECK (
+      state IN ('queued', 'covered', 'retired', 'needs_human')
+    ),
+    CONSTRAINT route_integrity_repairs_gap_check CHECK (
+      summit_gap_meters IS NULL OR summit_gap_meters >= 0
+    ),
+    CONSTRAINT route_integrity_repairs_coverage_check CHECK (
+      (state = 'covered' AND replacement_route_id IS NOT NULL AND covered_at IS NOT NULL)
+      OR
+      (state <> 'covered' AND replacement_route_id IS NULL AND covered_at IS NULL)
+    ),
+    CONSTRAINT route_integrity_repairs_retired_check CHECK (
+      state <> 'retired' OR last_error IS NULL
+    )
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON route_integrity_repairs TO "peaks-api";
+
 ALTER TABLE segments
   ADD CONSTRAINT segments_provenance_valid
   CHECK (provenance IS NULL OR is_valid_route_provenance(provenance));
@@ -915,6 +953,13 @@ CREATE INDEX idx_route_elevation_backfill_jobs_lease
   ON route_elevation_backfill_jobs (lease_expires_at)
   WHERE state = 'working';
 
+CREATE INDEX idx_route_integrity_repairs_claim
+  ON route_integrity_repairs (state, created_at, route_id, destination_id)
+  WHERE state = 'queued';
+
+CREATE INDEX idx_route_integrity_repairs_destination
+  ON route_integrity_repairs (destination_id, state, created_at, route_id);
+
 CREATE INDEX idx_plans_user_id              ON plans (user_id, updated_at DESC);
 CREATE INDEX idx_plan_destinations_dest     ON plan_destinations (destination_id);
 CREATE INDEX idx_plan_routes_route          ON plan_routes (route_id);
@@ -1049,6 +1094,16 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION touch_route_integrity_repair()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER trg_plans_updated           BEFORE UPDATE ON plans               FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_destinations_updated    BEFORE UPDATE ON destinations       FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_areas_updated           BEFORE UPDATE ON areas              FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -1067,6 +1122,10 @@ EXECUTE FUNCTION materialize_peaks_route_elevation_profile();
 CREATE TRIGGER trg_route_elevation_backfill_jobs_updated
 BEFORE UPDATE ON route_elevation_backfill_jobs
 FOR EACH ROW EXECUTE FUNCTION touch_route_elevation_backfill_job();
+
+CREATE TRIGGER trg_route_integrity_repairs_updated
+BEFORE UPDATE ON route_integrity_repairs
+FOR EACH ROW EXECUTE FUNCTION touch_route_integrity_repair();
 
 CREATE OR REPLACE FUNCTION refresh_area_boundary_parts()
 RETURNS TRIGGER AS $$
