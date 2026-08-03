@@ -28,7 +28,8 @@
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
     "routes:jobs": "tsx src/standard-route-jobs.ts",
-    "routes:audit-jobs": "tsx src/route-catalog-audit-jobs.ts"
+    "routes:audit-jobs": "tsx src/route-catalog-audit-jobs.ts",
+    "routes:elevation-jobs": "tsx src/route-elevation-jobs.ts"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
