@@ -74,6 +74,13 @@ const workerPreflight = fileURLToPath(
   )
 );
 
+const routeDatabaseWrapper = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/with_route_db.sh",
+    import.meta.url
+  )
+);
+
 test("approved worker checkouts resolve by exact path", () => {
   const checkouts = [
     [
@@ -134,10 +141,16 @@ test("approved worker checkouts resolve by exact path", () => {
 
 test("elevation wrapper preflights before every queue call and owns its worker ID", () => {
   const source = readFileSync(routeElevationWrapper, "utf8");
-  const preflightIndex = source.indexOf("worker_preflight.sh");
+  const databaseSource = readFileSync(routeDatabaseWrapper, "utf8");
+  const databaseWrapperIndex = source.indexOf("with_route_db.sh");
   const npmIndex = source.indexOf("npm --prefix");
-  assert.ok(preflightIndex >= 0, "wrapper calls shared worker_preflight");
-  assert.ok(npmIndex > preflightIndex, "preflight runs before the queue CLI");
+  assert.doesNotMatch(source, /worker_preflight\.sh/);
+  assert.match(databaseSource, /worker_preflight\.sh/);
+  assert.ok(databaseSource.indexOf("worker_preflight.sh") < databaseSource.indexOf('exec "$@"'));
+  assert.ok(
+    npmIndex > databaseWrapperIndex,
+    "database wrapper runs the queue CLI"
+  );
   assert.match(source, /luna-route-elevation-01/);
   assert.match(source, /--worker-id.*not allowed|not allowed.*--worker-id/s);
   assert.match(source, /claim.*--apply/s);
@@ -236,8 +249,10 @@ test("route audit jobs requeue v2 passes under rule version 3 without stealing l
 
 test("elevation preflight contains dirty, stale, and runtime guards", () => {
   const wrapper = readFileSync(routeElevationWrapper, "utf8");
+  const databaseWrapper = readFileSync(routeDatabaseWrapper, "utf8");
   const preflight = readFileSync(workerPreflight, "utf8");
-  assert.ok(wrapper.indexOf("worker_preflight.sh") < wrapper.indexOf("claim"));
+  assert.match(wrapper, /with_route_db\.sh/);
+  assert.ok(databaseWrapper.indexOf("worker_preflight.sh") < databaseWrapper.indexOf('exec "$@"'));
   assert.ok(preflight.indexOf("git -C \"$repo_root\" status") < preflight.indexOf("npm --prefix"));
   assert.ok(preflight.indexOf("rev-parse origin/main") < preflight.indexOf("npm --prefix"));
   assert.match(preflight, /route-elevation-jobs\.ts/);
@@ -263,12 +278,17 @@ test("dirty and stale elevation checkouts fail before the queue CLI runs", () =>
     const wrapper = join(skillScripts, "route_elevation_jobs.sh");
     const preflight = join(factoryScripts, "worker_preflight.sh");
     const resolver = join(factoryScripts, "resolve_worker_checkout.sh");
+    const databaseWrapper = join(factoryScripts, "with_route_db.sh");
     const npm = join(bin, "npm");
     copyFileSync(routeElevationWrapper, wrapper);
     copyFileSync(workerPreflight, preflight);
     writeFileSync(resolver, "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(
+      databaseWrapper,
+      "#!/usr/bin/env bash\nset -euo pipefail\nscript_dir=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\n\"$script_dir/worker_preflight.sh\"\nexec \"$@\"\n"
+    );
     writeFileSync(npm, "#!/usr/bin/env bash\n: > \"$NPM_MARKER\"\nexit 0\n");
-    for (const executable of [wrapper, preflight, resolver, npm]) {
+    for (const executable of [wrapper, preflight, resolver, databaseWrapper, npm]) {
       chmodSync(executable, 0o755);
     }
     writeFileSync(join(root, "tracked.txt"), "base\n");
@@ -325,29 +345,51 @@ test("elevation wrapper parses both show filters in either order", () => {
     ".agents/skills/peaks-route-factory/scripts"
   );
   const bin = join(root, "bin");
+  const preflightLog = join(root, "preflight-log");
   try {
     mkdirSync(skillScripts, { recursive: true });
     mkdirSync(factoryScripts, { recursive: true });
     mkdirSync(bin);
     const wrapper = join(skillScripts, "route_elevation_jobs.sh");
     copyFileSync(routeElevationWrapper, wrapper);
-    writeFileSync(join(factoryScripts, "worker_preflight.sh"), "#!/usr/bin/env bash\nexit 0\n");
+    writeFileSync(
+      join(factoryScripts, "worker_preflight.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\n"
+    );
     writeFileSync(join(factoryScripts, "resolve_worker_checkout.sh"), "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
-    writeFileSync(join(bin, "npm"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n");
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nset -euo pipefail\nscript_dir=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\n\"$script_dir/worker_preflight.sh\"\nexec \"$@\"\n"
+    );
+    writeFileSync(
+      join(bin, "npm"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' npm >>\"$PREFLIGHT_LOG\"\nprintf '%s\\n' \"$@\"\n"
+    );
     for (const executable of [
       wrapper,
       join(factoryScripts, "worker_preflight.sh"),
       join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
       join(bin, "npm"),
     ]) chmodSync(executable, 0o755);
-    const environment = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+    const environment = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+      PREFLIGHT_LOG: preflightLog,
+    };
     for (const args of [
       ["show", "--route-id", "route-1", "--state", "retry"],
       ["show", "--state", "retry", "--route-id", "route-1"],
     ]) {
+      rmSync(preflightLog, { force: true });
       const output = execFileSync(wrapper, args, { encoding: "utf8", env: environment });
       assert.match(output, /show/);
       assert.match(output, /--route-id\nroute-1\n--state\nretry/);
+      assert.equal(
+        readFileSync(preflightLog, "utf8"),
+        "preflight\nnpm\n",
+        "the shared database wrapper preflights exactly once before npm"
+      );
     }
     assert.throws(
       () => execFileSync(wrapper, ["claim", "--apply", "--worker-id", "wrong-worker"], {

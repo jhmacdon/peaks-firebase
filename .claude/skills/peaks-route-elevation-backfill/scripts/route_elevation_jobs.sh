@@ -5,8 +5,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
 factory_scripts="$repo_root/.agents/skills/peaks-route-factory/scripts"
 
-# Run the shared guard before parsing or forwarding every queue command.
-"$factory_scripts/worker_preflight.sh" >/dev/null
+# Resolve the fixed worker identity before parsing any worker-controlled input.
+# with_route_db.sh runs the shared preflight once, just before the queue CLI.
 worker_id="$("$factory_scripts/resolve_worker_checkout.sh" "$repo_root")"
 if [ "$worker_id" != "luna-route-elevation-01" ]; then
   echo "setup_required: elevation commands require the approved elevation checkout" >&2
@@ -101,4 +101,5 @@ else
   exit 2
 fi
 
-exec npm --prefix "$repo_root/cloud-sql/migrate" run routes:elevation-jobs -- "${cli_args[@]}"
+exec "$factory_scripts/with_route_db.sh" \
+  npm --prefix "$repo_root/cloud-sql/migrate" run routes:elevation-jobs -- "${cli_args[@]}"
