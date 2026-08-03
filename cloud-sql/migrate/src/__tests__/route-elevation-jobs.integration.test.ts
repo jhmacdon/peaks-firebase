@@ -312,6 +312,26 @@ test("compact worker output exposes names and safe completion evidence only", ()
     verification: "public_profile_count_verified",
     profile_hash: "abc123",
   });
+  assert.deepEqual(
+    compactJob({
+      ...job,
+      state: "retry",
+      final_evidence: null,
+      last_error: "Terrain tile request failed with HTTP 503",
+    } as never),
+    {
+      route_id: "route-a",
+      route_name: "Mailbox Peak Trail",
+      state: "retry",
+      priority: 100,
+      attempt_count: 1,
+      source_kind: "terrarium_z14",
+      next_attempt_at: "2026-08-03T00:00:00Z",
+      lease_token: null,
+      lease_expires_at: null,
+      blocker: "Terrain tile request failed with HTTP 503",
+    }
+  );
   assert.equal(retryOutcome("blocked"), "blocked");
   assert.equal(retryOutcome("retry"), "retry");
   assert.deepEqual(
