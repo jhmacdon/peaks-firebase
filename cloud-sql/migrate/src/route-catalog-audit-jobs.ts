@@ -167,7 +167,9 @@ const candidateSql = `
               route_segment.ordinal::text,
               route_segment.direction,
               segment.id,
-              segment.updated_at::text,
+              COALESCE(encode(ST_AsEWKB(segment.path::geometry), 'hex'), ''),
+              COALESCE(segment.provenance::text, ''),
+              COALESCE(encode_route_elevation_profile(segment.path), ''),
               COALESCE(segment.gain::text, ''),
               COALESCE(segment.gain_loss::text, '')
             ),

@@ -43,6 +43,7 @@ test(
     const suffix = `${process.pid}-${Date.now()}`;
     const destinationId = `route-audit-destination-${suffix}`;
     const routeId = `route-audit-route-${suffix}`;
+    const segmentId = `route-audit-segment-${suffix}`;
     const evidenceDir = await mkdtemp(join(tmpdir(), "route-audit-job-test-"));
     const resultFile = join(evidenceDir, "result.json");
     const command = (...args: string[]) => {
@@ -82,6 +83,23 @@ test(
         `INSERT INTO routes (id, name, owner, status)
          VALUES ($1, 'Route audit test route', 'peaks', 'active')`,
         [routeId]
+      );
+      await pool.query(
+        `INSERT INTO segments (id, path, gain, gain_loss)
+         VALUES (
+           $1,
+           ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 100, -121.0001 47.0001 100)'
+           ),
+           0,
+           0
+         )`,
+        [segmentId]
+      );
+      await pool.query(
+        `INSERT INTO route_segments (route_id, segment_id, ordinal)
+         VALUES ($1, $2, 0)`,
+        [routeId, segmentId]
       );
       await pool.query(
         `INSERT INTO route_destinations (route_id, destination_id, ordinal)
@@ -145,6 +163,41 @@ test(
         "--apply"
       );
       assert.equal(passed.outcome, "completed");
+      const beforeSegmentPathChange = await pool.query<{
+        updated_at: string;
+        gain: number;
+        gain_loss: number;
+      }>(
+        `SELECT updated_at, gain, gain_loss FROM segments WHERE id = $1`,
+        [segmentId]
+      );
+      await pool.query(
+        `UPDATE segments
+         SET path = ST_GeogFromText(
+           'SRID=4326;LINESTRING Z (-121.01 47.01 100, -121.0101 47.0101 100)'
+         )
+         WHERE id = $1`,
+        [segmentId]
+      );
+      const afterSegmentPathChange = await pool.query<{
+        updated_at: string;
+        gain: number;
+        gain_loss: number;
+      }>(
+        `SELECT updated_at, gain, gain_loss FROM segments WHERE id = $1`,
+        [segmentId]
+      );
+      assert.deepEqual(
+        afterSegmentPathChange.rows[0],
+        beforeSegmentPathChange.rows[0],
+        "segment path changes leave updated_at and stored stats untouched"
+      );
+      command("seed", "--apply");
+      const requeuedForSegmentPath = await pool.query(
+        `SELECT state FROM route_catalog_audit_jobs WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.equal(requeuedForSegmentPath.rows[0]?.state, "queued");
       await pool.query(
         `UPDATE route_catalog_audit_jobs
         SET audit_rule_version = 2
@@ -226,6 +279,7 @@ test(
         [destinationId]
       );
       await pool.query(`DELETE FROM routes WHERE id = $1`, [routeId]);
+      await pool.query(`DELETE FROM segments WHERE id = $1`, [segmentId]);
       await pool.query(`DELETE FROM destinations WHERE id = $1`, [
         destinationId,
       ]);

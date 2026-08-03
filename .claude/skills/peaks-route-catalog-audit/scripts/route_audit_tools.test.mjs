@@ -219,6 +219,10 @@ test("route audit jobs requeue v2 passes under rule version 3 without stealing l
   assert.match(source, /NOT route_elevation_profile_has_real_range\(r\.path\)/);
   assert.match(source, /route_elevation_stats\(r\.path\)/);
   assert.match(source, /route_elevation_stats\(s\.path\)/);
+  assert.match(source, /encode\(ST_AsEWKB\(segment\.path::geometry\), 'hex'\)/);
+  assert.match(source, /COALESCE\(segment\.provenance::text, ''\)/);
+  assert.match(source, /encode_route_elevation_profile\(segment\.path\)/);
+  assert.doesNotMatch(source, /segment\.updated_at::text/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS audit_rule_version INTEGER/);
   assert.match(migration, /SET audit_rule_version = 1/);
   assert.match(migration, /SET DEFAULT 2/);
