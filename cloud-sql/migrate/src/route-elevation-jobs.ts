@@ -174,7 +174,7 @@ export function compactJob(job: Job | undefined): Record<string, unknown> | null
   };
   if (job.state === "complete") {
     compact.final_evidence = compactEvidence(job.final_evidence);
-  } else if (job.state === "blocked") {
+  } else if (job.state === "retry" || job.state === "blocked") {
     compact.blocker = job.last_error;
   }
   return compact;
@@ -1203,6 +1203,7 @@ async function failLease(
   print({
     outcome: retryOutcome(result.rows[0].state),
     state: result.rows[0].state,
+    blocker: result.rows[0].last_error,
     job: compactJob({ ...result.rows[0], route_name: routeName }),
   });
 }
