@@ -45,6 +45,7 @@ test("repair migration and standard jobs contract use strict repair gates withou
   const schema = fs.readFileSync(path.join(root, "../schema.sql"), "utf8");
   const repairs = fs.readFileSync(path.join(root, "src/route-integrity-repairs.ts"), "utf8");
   const jobs = fs.readFileSync(path.join(root, "src/standard-route-jobs.ts"), "utf8");
+  const actions = fs.readFileSync(path.join(root, "../../web/src/lib/actions/routes.ts"), "utf8");
 
   assert.match(migration, /CREATE TABLE IF NOT EXISTS route_integrity_repairs/);
   for (const source of [migration, schema]) {
@@ -71,6 +72,10 @@ test("repair migration and standard jobs contract use strict repair gates withou
     assert.match(source, /Bad replacement route has no linked summit repair rows/);
     assert.match(source, /WHERE rd\.route_id IN \(old_route_id, new_route_id\)[\s\S]+?FOR UPDATE OF rd, d/);
     assert.match(source, /WHERE rs\.route_id IN \(old_route_id, new_route_id\)[\s\S]+?FOR UPDATE OF rs, s/);
+    assert.match(
+      source,
+      /pg_advisory_xact_lock\(hashtextextended\(\s*'peaks-route-replacement:' \|\| old_route_id,\s*0\s*\)\)/
+    );
     assert.match(source, /GRANT EXECUTE ON FUNCTION settle_route_integrity_replacement\(TEXT, TEXT, TEXT\)/);
   }
   assert.ok(
@@ -111,4 +116,10 @@ test("repair migration and standard jobs contract use strict repair gates withou
   assert.match(jobs, /100000/);
   assert.match(jobs, /'integrity_repair', t\.repair_route_id IS NOT NULL/);
   assert.match(jobs, /lease_token IS NOT NULL\s+AND standard_route_backfill_jobs\.lease_expires_at >= now\(\)/);
+  assert.match(actions, /async function lockRouteReplacementSettlement/);
+  const lockBeforeDestinations = actions.match(
+    /lockRouteReplacementSettlement\([\s\S]{0,240}?lockRouteActivationDestinations\(/g
+  ) ?? [];
+  assert.equal(lockBeforeDestinations.length, 2);
+  assert.match(actions, /'peaks-route-replacement:' \|\| \$1/);
 });

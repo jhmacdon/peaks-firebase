@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
-import { Pool } from "pg";
+import { Pool, type QueryResult } from "pg";
 
 const TEST_DATABASE_URL = process.env.ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
@@ -39,8 +39,9 @@ test(
     const ordinaryOld = `integrity-ordinary-old-${suffix}`;
     const ordinaryNew = `integrity-ordinary-new-${suffix}`;
     const partialBad = `integrity-partial-bad-${suffix}`;
+    const concurrentBad = `integrity-concurrent-bad-${suffix}`;
     const nonSummit = `integrity-non-summit-${suffix}`;
-    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute, settlementBad, settlementA, settlementB, derivedBad, derivedA, derivedB, ordinaryOld, ordinaryNew, partialBad];
+    const ids = [badRoute, goodA, sharedReplacement, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute, settlementBad, settlementA, settlementB, derivedBad, derivedA, derivedB, ordinaryOld, ordinaryNew, partialBad, concurrentBad];
     const provenance = JSON.stringify({
       source_kind: "test", source_url: "https://example.test/source", license_name: "Test license",
       license_url: "https://example.test/license", attribution: "Test", retrieved_at: "2026-08-03T00:00:00Z",
@@ -306,6 +307,84 @@ test(
         (await pool.query(`SELECT count(*)::int AS count FROM route_integrity_repairs WHERE route_id = $1`, [ordinaryOld])).rows[0]?.count,
         0
       );
+
+      await insertRoute(concurrentBad, "peaks", nearA);
+      await link(concurrentBad, destinationA, 0);
+      await link(concurrentBad, destinationB, 1);
+      await segment(concurrentBad, `${concurrentBad}-segment`, nearA);
+      const firstClient = await pool.connect();
+      const secondClient = await pool.connect();
+      let secondSettlement: Promise<QueryResult<{ status: string }>> | undefined;
+      try {
+        await firstClient.query("BEGIN");
+        await secondClient.query("BEGIN");
+        await secondClient.query("SET LOCAL statement_timeout = '10s'");
+        const firstSettlement = await firstClient.query<{ status: string }>(
+          `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+          [concurrentBad, destinationA, derivedA]
+        );
+        assert.equal(firstSettlement.rows[0]?.status, "active");
+        const secondPid = (
+          await secondClient.query<{ pid: number }>(`SELECT pg_backend_pid()::int AS pid`)
+        ).rows[0]!.pid;
+        secondSettlement = secondClient.query<{ status: string }>(
+          `SELECT settle_route_integrity_replacement($1, $2, $3) AS status`,
+          [concurrentBad, destinationB, derivedB]
+        );
+        let advisoryWait: {
+          wait_event_type: string | null;
+          wait_event: string | null;
+          blockers: number[];
+          destination_locks: number;
+        } | undefined;
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          const activity = await pool.query<{
+            wait_event_type: string | null;
+            wait_event: string | null;
+            blockers: number[];
+            destination_locks: number;
+          }>(
+            `SELECT
+               activity.wait_event_type,
+               activity.wait_event,
+               pg_blocking_pids(activity.pid) AS blockers,
+               (
+                 SELECT count(*)::int
+                 FROM pg_locks held
+                 JOIN pg_class locked_relation ON locked_relation.oid = held.relation
+                 WHERE held.pid = activity.pid
+                   AND held.granted
+                   AND held.mode = 'RowShareLock'
+                   AND locked_relation.relname IN ('destinations', 'route_destinations')
+               ) AS destination_locks
+             FROM pg_stat_activity activity
+             WHERE activity.pid = $1`,
+            [secondPid]
+          );
+          if (activity.rows[0]?.wait_event?.toLowerCase() === "advisory") {
+            advisoryWait = activity.rows[0];
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        assert.equal(advisoryWait?.wait_event_type, "Lock");
+        assert.equal(advisoryWait?.wait_event?.toLowerCase(), "advisory");
+        assert.ok((advisoryWait?.blockers.length ?? 0) >= 1);
+        assert.equal(advisoryWait?.destination_locks, 0);
+        await firstClient.query("COMMIT");
+        assert.equal((await secondSettlement).rows[0]?.status, "superseded");
+        await secondClient.query("COMMIT");
+        assert.equal(
+          (await pool.query(`SELECT status FROM routes WHERE id = $1`, [concurrentBad])).rows[0]?.status,
+          "superseded"
+        );
+      } finally {
+        await firstClient.query("ROLLBACK").catch(() => undefined);
+        await secondSettlement?.catch(() => undefined);
+        await secondClient.query("ROLLBACK").catch(() => undefined);
+        firstClient.release();
+        secondClient.release();
+      }
     } finally {
       await pool.query(`DELETE FROM standard_route_backfill_jobs WHERE destination_id = ANY($1::text[])`, [[destinationA, destinationB]]);
       await pool.query(`DELETE FROM route_integrity_repairs WHERE route_id = ANY($1::text[])`, [ids]);

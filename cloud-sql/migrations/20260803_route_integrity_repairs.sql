@@ -257,6 +257,11 @@ BEGIN
     RAISE EXCEPTION 'A route cannot replace itself';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    'peaks-route-replacement:' || old_route_id,
+    0
+  ));
+
   PERFORM 1 FROM routes
   WHERE id = old_route_id AND owner = 'peaks' AND status = 'active'
   FOR UPDATE;

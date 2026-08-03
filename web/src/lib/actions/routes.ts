@@ -478,6 +478,19 @@ async function lockRouteFactoryActivation(
   }
 }
 
+async function lockRouteReplacementSettlement(
+  client: PoolClient,
+  replacementRouteId: string | null
+): Promise<void> {
+  if (!replacementRouteId) return;
+  await client.query(
+    `SELECT pg_advisory_xact_lock(
+       hashtextextended('peaks-route-replacement:' || $1, 0)
+     )`,
+    [replacementRouteId]
+  );
+}
+
 async function lockRouteActivationDestinations(
   client: PoolClient,
   id: string,
@@ -649,6 +662,7 @@ export async function acceptRouteWithSegments(
       if (factoryActivation) {
         await lockRouteFactoryActivation(client, id, factoryActivation);
       }
+      await lockRouteReplacementSettlement(client, replacementRouteId);
       await lockRouteActivationDestinations(
         client,
         id,
@@ -718,6 +732,7 @@ export async function acceptRouteWithSegments(
     if (factoryActivation) {
       await lockRouteFactoryActivation(client, id, factoryActivation);
     }
+    await lockRouteReplacementSettlement(client, replacementRouteId);
     await lockRouteActivationDestinations(
       client,
       id,
