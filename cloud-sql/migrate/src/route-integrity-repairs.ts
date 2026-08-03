@@ -121,31 +121,84 @@ WITH bad_routes AS (
       AND r2.elevation_string IS NOT NULL
       AND r2.elevation_string = encode_route_elevation_profile(r2.path)
       AND is_valid_route_provenance(r2.provenance)
-      AND EXISTS (
-        SELECT 1 FROM route_segments rs
-        JOIN segments s ON s.id = rs.segment_id
-        WHERE rs.route_id = r2.id AND s.path IS NOT NULL
-      )
       AND NOT EXISTS (
         SELECT 1 FROM route_segments rs
-        JOIN segments s ON s.id = rs.segment_id
+        LEFT JOIN segments s ON s.id = rs.segment_id
         WHERE rs.route_id = r2.id
-          AND s.provenance IS DISTINCT FROM r2.provenance
+          AND (
+            s.path IS NULL
+            OR NOT is_valid_route_provenance(s.provenance)
+            OR s.provenance IS DISTINCT FROM r2.provenance
+          )
       )
       AND (SELECT count(*) = count(DISTINCT ordinal)
              AND min(ordinal) = 0
              AND max(ordinal) = count(*) - 1
            FROM route_segments ordered_segment
            WHERE ordered_segment.route_id = r2.id)
+      AND EXISTS (
+        WITH ordered_segment AS (
+          SELECT rs.ordinal,
+                 CASE rs.direction WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                   ELSE s.path::geometry END AS path
+          FROM route_segments rs
+          JOIN segments s ON s.id = rs.segment_id
+          WHERE rs.route_id = r2.id
+          ORDER BY rs.ordinal
+        ), chained AS (
+          SELECT ordinal, path,
+                 lag(path) OVER (ORDER BY ordinal) AS prior_path
+          FROM ordered_segment
+        ), assembled AS (
+          SELECT ST_MakeLine((dumped).geom ORDER BY ordered_segment.ordinal, (dumped).path) AS path
+          FROM ordered_segment
+          CROSS JOIN LATERAL ST_DumpPoints(ordered_segment.path) AS dumped
+        )
+        SELECT 1
+        FROM assembled
+        WHERE (SELECT COALESCE(bool_and(
+                 prior_path IS NULL OR ST_DWithin(
+                   ST_EndPoint(prior_path)::geography,
+                   ST_StartPoint(path)::geography,
+                   5
+                 )
+               ), false) FROM chained)
+          AND ST_DWithin(
+            ST_StartPoint(r2.path::geometry)::geography,
+            ST_StartPoint(assembled.path)::geography,
+            5
+          )
+          AND ST_DWithin(
+            ST_EndPoint(r2.path::geometry)::geography,
+            ST_EndPoint(assembled.path)::geography,
+            5
+          )
+          AND ST_CoveredBy(r2.path::geometry, ST_Buffer(assembled.path::geography, 5)::geometry)
+          AND ST_CoveredBy(assembled.path, ST_Buffer(r2.path, 5)::geometry)
+      )
       AND (SELECT count(*) = count(DISTINCT ordinal)
              AND min(ordinal) = 0
              AND max(ordinal) = count(*) - 1
            FROM route_destinations ordered
            WHERE ordered.route_id = r2.id)
-      AND NOT (
-        rd2.ordinal = (SELECT max(last_rd.ordinal) FROM route_destinations last_rd WHERE last_rd.route_id = r2.id)
-        AND r2.shape IN ('out_and_back', 'point_to_point')
-        AND NOT ST_DWithin(ST_EndPoint(r2.path::geometry)::geography, summit.location, 5)
+      AND (
+        r2.shape IS NULL
+        OR r2.shape NOT IN ('out_and_back', 'point_to_point')
+        OR EXISTS (
+          SELECT 1
+          FROM route_destinations final_rd
+          JOIN destinations final_destination ON final_destination.id = final_rd.destination_id
+          WHERE final_rd.route_id = r2.id
+            AND final_rd.ordinal = (
+              SELECT max(last_rd.ordinal)
+              FROM route_destinations last_rd
+              WHERE last_rd.route_id = r2.id
+            )
+            AND final_rd.destination_id = bl.destination_id
+            AND 'summit'::destination_feature = ANY(final_destination.features)
+            AND final_destination.location IS NOT NULL
+            AND ST_DWithin(ST_EndPoint(r2.path::geometry)::geography, final_destination.location, 5)
+        )
       )
     ORDER BY r2.created_at, r2.id
     LIMIT 1

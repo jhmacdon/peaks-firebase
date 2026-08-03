@@ -26,8 +26,12 @@ test(
     const invalidProfile = `integrity-invalid-profile-${suffix}`;
     const invalidProvenance = `integrity-invalid-provenance-${suffix}`;
     const invalidSegment = `integrity-invalid-segment-${suffix}`;
+    const missingSegment = `integrity-missing-segment-${suffix}`;
+    const disconnectedSegment = `integrity-disconnected-segment-${suffix}`;
+    const nonSummitEndpoint = `integrity-non-summit-endpoint-${suffix}`;
     const liveRoute = `integrity-live-${suffix}`;
-    const ids = [badRoute, goodA, goodB, userA, invalidProfile, invalidProvenance, invalidSegment, liveRoute];
+    const nonSummit = `integrity-non-summit-${suffix}`;
+    const ids = [badRoute, goodA, goodB, userA, invalidProfile, invalidProvenance, invalidSegment, missingSegment, disconnectedSegment, nonSummitEndpoint, liveRoute];
     const provenance = JSON.stringify({
       source_kind: "test", source_url: "https://example.test/source", license_name: "Test license",
       license_url: "https://example.test/license", attribution: "Test", retrieved_at: "2026-08-03T00:00:00Z",
@@ -41,37 +45,46 @@ test(
       assert.equal(result.status, 0, result.stderr || result.stdout);
       return JSON.parse(result.stdout.trim());
     };
-    const insertRoute = async (id: string, owner: string, line: string, profile = true, routeProvenance: string | null = provenance) => {
+    const insertRoute = async (id: string, owner: string, line: string, profile = true, routeProvenance: string | null = provenance, shape = "loop") => {
       await pool.query(
         `INSERT INTO routes (id, owner, status, shape, path, provenance, elevation_string)
-         VALUES ($1, $2, 'active', 'loop', ST_GeogFromText($3), $4::jsonb,
+         VALUES ($1, $2, 'active', $6::route_shape, ST_GeogFromText($3), $4::jsonb,
                  CASE WHEN $5 THEN encode_route_elevation_profile(ST_GeogFromText($3)) ELSE NULL END)`,
-        [id, owner, line, routeProvenance, profile]
+        [id, owner, line, routeProvenance, profile, shape]
       );
     };
     const link = (route: string, destination: string, ordinal: number) => pool.query(
       `INSERT INTO route_destinations (route_id, destination_id, ordinal) VALUES ($1, $2, $3)`, [route, destination, ordinal]
     );
-    const segment = async (route: string, id: string, source = provenance) => {
+    const segment = async (route: string, id: string, line: string, source = provenance, ordinal = 0, direction = "forward") => {
       await pool.query(
-        `INSERT INTO segments (id, path, provenance) VALUES ($1, ST_GeogFromText('SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)'), $2::jsonb)`, [id, source]
+        `INSERT INTO segments (id, path, provenance) VALUES ($1, ST_GeogFromText($2), $3::jsonb)`, [id, line, source]
       );
-      await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)`, [route, id]);
+      await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES ($1, $2, $3, $4)`, [route, id, ordinal, direction]);
     };
     try {
       await pool.query(await readFile(REPAIR_MIGRATION, "utf8"));
       await pool.query(`INSERT INTO destinations (id, features, location) VALUES
         ($1, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121 47 1000)')),
-        ($2, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 1000)'))`, [destinationA, destinationB]);
+        ($2, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 1000)')),
+        ($3, ARRAY[]::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122.00001 48.00001 1010)'))`, [destinationA, destinationB, nonSummit]);
       const nearA = "SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)";
       const nearB = "SRID=4326;LINESTRING Z (-122 48 1000, -122.00001 48.00001 1010)";
-      await insertRoute(badRoute, "peaks", nearA); await link(badRoute, destinationA, 0); await link(badRoute, destinationB, 1); await segment(badRoute, `${badRoute}-segment`);
-      await insertRoute(goodA, "peaks", nearA); await link(goodA, destinationA, 0); await segment(goodA, `${goodA}-segment`);
+      const disconnectedB = "SRID=4326;LINESTRING Z (-122.01 48.01 1000, -122.01001 48.01001 1010)";
+      await insertRoute(badRoute, "peaks", nearA); await link(badRoute, destinationA, 0); await link(badRoute, destinationB, 1); await segment(badRoute, `${badRoute}-segment`, nearA);
+      await insertRoute(goodA, "peaks", nearA); await link(goodA, destinationA, 0); await segment(goodA, `${goodA}-segment`, nearA);
       await insertRoute(userA, "user-test", nearA); await link(userA, destinationA, 0);
-      await insertRoute(invalidProfile, "peaks", nearB, false); await link(invalidProfile, destinationB, 0); await segment(invalidProfile, `${invalidProfile}-segment`);
+      await insertRoute(invalidProfile, "peaks", nearB, false); await link(invalidProfile, destinationB, 0); await segment(invalidProfile, `${invalidProfile}-segment`, nearB);
       await insertRoute(invalidProvenance, "peaks", nearB, true, null); await link(invalidProvenance, destinationB, 0);
-      await insertRoute(invalidSegment, "peaks", nearB); await link(invalidSegment, destinationB, 0); await segment(invalidSegment, `${invalidSegment}-segment`, JSON.stringify({ ...JSON.parse(provenance), source_kind: "other" }));
-      await insertRoute(liveRoute, "peaks", nearA); await link(liveRoute, destinationB, 0); await segment(liveRoute, `${liveRoute}-segment`);
+      await insertRoute(invalidSegment, "peaks", nearB); await link(invalidSegment, destinationB, 0); await segment(invalidSegment, `${invalidSegment}-segment`, nearB, JSON.stringify({ ...JSON.parse(provenance), source_kind: "other" }));
+      await insertRoute(missingSegment, "peaks", nearB); await link(missingSegment, destinationB, 0);
+      await pool.query(`INSERT INTO segments (id, provenance) VALUES ($1, $2::jsonb)`, [`${missingSegment}-segment`, provenance]);
+      await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)`, [missingSegment, `${missingSegment}-segment`]);
+      await insertRoute(disconnectedSegment, "peaks", nearB); await link(disconnectedSegment, destinationB, 0);
+      await segment(disconnectedSegment, `${disconnectedSegment}-first`, nearB);
+      await segment(disconnectedSegment, `${disconnectedSegment}-second`, disconnectedB, provenance, 1);
+      await insertRoute(nonSummitEndpoint, "peaks", nearB, true, provenance, "out_and_back"); await link(nonSummitEndpoint, destinationB, 0); await link(nonSummitEndpoint, nonSummit, 1); await segment(nonSummitEndpoint, `${nonSummitEndpoint}-segment`, nearB);
+      await insertRoute(liveRoute, "peaks", nearA); await link(liveRoute, destinationB, 0); await segment(liveRoute, `${liveRoute}-segment`, nearA);
 
       command("route-integrity-repairs.ts", "seed", "--apply");
       const first = await pool.query<{ destination_id: string; state: string; replacement_route_id: string | null }>(
@@ -109,7 +122,7 @@ test(
       await pool.query(`UPDATE routes SET elevation_string = NULL WHERE id = $1`, [goodA]);
       command("route-integrity-repairs.ts", "seed", "--apply");
       assert.equal((await pool.query(`SELECT state FROM route_integrity_repairs WHERE route_id = $1 AND destination_id = $2`, [badRoute, destinationA])).rows[0]?.state, "queued");
-      await insertRoute(goodB, "peaks", nearB); await link(goodB, destinationB, 0); await segment(goodB, `${goodB}-segment`);
+      await insertRoute(goodB, "peaks", nearB); await link(goodB, destinationB, 0); await segment(goodB, `${goodB}-segment`, nearB);
       await pool.query(`UPDATE routes SET elevation_string = encode_route_elevation_profile(path) WHERE id = $1`, [goodA]);
       command("route-integrity-repairs.ts", "seed", "--apply");
       assert.equal((await pool.query(`SELECT count(*)::int AS count FROM route_integrity_repairs WHERE route_id = $1 AND state = 'covered'`, [badRoute])).rows[0]?.count, 2);
@@ -117,7 +130,7 @@ test(
       await pool.query(`DELETE FROM standard_route_backfill_jobs WHERE destination_id = ANY($1::text[])`, [[destinationA, destinationB]]);
       await pool.query(`DELETE FROM route_integrity_repairs WHERE route_id = ANY($1::text[])`, [ids]);
       await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [ids]);
-      await pool.query(`DELETE FROM destinations WHERE id = ANY($1::text[])`, [[destinationA, destinationB]]);
+      await pool.query(`DELETE FROM destinations WHERE id = ANY($1::text[])`, [[destinationA, destinationB, nonSummit]]);
       await pool.end();
     }
   }
