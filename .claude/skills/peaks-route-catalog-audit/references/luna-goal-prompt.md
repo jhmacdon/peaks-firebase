@@ -17,6 +17,14 @@ outside fact to agree. Complete the durable job as `passed`, `needs_repair`, or
 `needs_human`. Do not repair, activate, supersede, rename, migrate, seed, fetch,
 pull, switch branches, edit tracked files, or claim another destination.
 
+Run `audit_catalog_routes.sh` with `yield_time_ms` 30000. If the command returns
+a live `session_id`, poll that same process with `write_stdin`, empty input, and
+`yield_time_ms` 30000 until it exits. Do not inspect `catalog.json`, start the
+identity step, or start a second catalog checker while that session is live.
+An empty redirected stdout while the process is live is not empty JSON and is
+not a retry. If the session cannot finish, send Ctrl-C to that same session
+before releasing the lease.
+
 Heartbeat before browser or map work. Keep raw HTML, GPX, OSM payloads, path
 coordinates, and screenshots out of model context and git. If a command fails,
 make one safe repair attempt, then release the lease with an exact error. Stop

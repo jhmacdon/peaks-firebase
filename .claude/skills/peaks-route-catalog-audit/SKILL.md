@@ -59,6 +59,15 @@ node .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity
   --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
 ```
 
+Run the catalog checker with the command tool's `yield_time_ms` set to 30000.
+The read-only query often takes longer than that on a large legacy route. If
+the command returns a live `session_id`, call `write_stdin` on that same session
+with empty input and `yield_time_ms` 30000 until the process exits. Do not read
+`catalog.json`, run the identity step, or start a second checker while the first
+session is live. If the session cannot finish, send Ctrl-C to that same session
+before releasing the lease. The database also cancels a checker after five
+minutes so a lost local session cannot leave a lasting query.
+
 Read compact fields with `jq`; never paste path coordinates or full source
 pages into chat. Every `ERROR` blocks PASS. Research every `WARN` and `REVIEW`.
 Render route pairs behind crossing, overlap, duplicate, or start-spread

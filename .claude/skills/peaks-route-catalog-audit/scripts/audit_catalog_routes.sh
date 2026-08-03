@@ -862,7 +862,7 @@ elif [[ "$format" == "tsv" ]]; then
 fi
 
 printf '%s\n' "$sql" |
-  PGOPTIONS="-c default_transaction_read_only=on" \
+  PGOPTIONS="-c default_transaction_read_only=on -c jit=off -c statement_timeout=300000" \
   PGPASSWORD="$db_pass" \
   psql \
     -X \
