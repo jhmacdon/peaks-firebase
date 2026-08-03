@@ -135,9 +135,17 @@ test("approved worker checkouts resolve by exact path", () => {
 test("elevation wrapper preflights before every queue call and owns its worker ID", () => {
   const source = readFileSync(routeElevationWrapper, "utf8");
   const preflightIndex = source.indexOf("worker_preflight.sh");
+  const databaseWrapperIndex = source.indexOf("with_route_db.sh");
   const npmIndex = source.indexOf("npm --prefix");
   assert.ok(preflightIndex >= 0, "wrapper calls shared worker_preflight");
-  assert.ok(npmIndex > preflightIndex, "preflight runs before the queue CLI");
+  assert.ok(
+    databaseWrapperIndex > preflightIndex,
+    "database credentials load after preflight"
+  );
+  assert.ok(
+    npmIndex > databaseWrapperIndex,
+    "database wrapper runs the queue CLI"
+  );
   assert.match(source, /luna-route-elevation-01/);
   assert.match(source, /--worker-id.*not allowed|not allowed.*--worker-id/s);
   assert.match(source, /claim.*--apply/s);
@@ -333,11 +341,16 @@ test("elevation wrapper parses both show filters in either order", () => {
     copyFileSync(routeElevationWrapper, wrapper);
     writeFileSync(join(factoryScripts, "worker_preflight.sh"), "#!/usr/bin/env bash\nexit 0\n");
     writeFileSync(join(factoryScripts, "resolve_worker_checkout.sh"), "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-elevation-01\n");
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nexec \"$@\"\n"
+    );
     writeFileSync(join(bin, "npm"), "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n");
     for (const executable of [
       wrapper,
       join(factoryScripts, "worker_preflight.sh"),
       join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
       join(bin, "npm"),
     ]) chmodSync(executable, 0o755);
     const environment = { ...process.env, PATH: `${bin}:${process.env.PATH}` };

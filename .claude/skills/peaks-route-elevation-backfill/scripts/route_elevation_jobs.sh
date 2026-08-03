@@ -101,4 +101,5 @@ else
   exit 2
 fi
 
-exec npm --prefix "$repo_root/cloud-sql/migrate" run routes:elevation-jobs -- "${cli_args[@]}"
+exec "$factory_scripts/with_route_db.sh" \
+  npm --prefix "$repo_root/cloud-sql/migrate" run routes:elevation-jobs -- "${cli_args[@]}"
