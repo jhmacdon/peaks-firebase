@@ -7,6 +7,7 @@ import {
   decodeElevationProfile,
   encodeElevationProfile,
   profileIsUsable,
+  routeProfileHasRealRange,
 } from "../route-elevation-profile";
 
 test("route elevation profile rounds metre samples and decodes every sample", () => {
@@ -26,6 +27,8 @@ test("route elevation profile encodes long profiles without line breaks", () => 
 
   assert.equal(encoded?.includes("\n"), false);
   assert.equal(decodeElevationProfile(encoded).length, 200);
+  assert.equal(routeProfileHasRealRange(decodeElevationProfile(encoded)), false);
+  assert.equal(routeProfileHasRealRange([1200, 1200.49, 1201]), true);
 });
 
 test("route elevation profile rejects flat, empty, and non-finite samples", () => {
@@ -82,6 +85,10 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
     assert.match(source, /ST_GeometryType\(path::geometry\) <> 'ST_LineString'/);
     assert.match(source, /point_count < 2/);
     assert.match(source, /has_nonzero_rounded_elevation/);
+    assert.match(source, /CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range/);
+    assert.match(source, /max_rounded_elevation - min_rounded_elevation >= 1/);
+    assert.match(source, /FILTER \(WHERE elevation_is_finite\)/);
+    assert.match(source, /FROM \([\s\S]+?\) valid_points/);
     assert.doesNotMatch(source, /isfinite\(elevation\)/);
     assert.match(source, /NEW\.elevation_string = encode_route_elevation_profile\(NEW\.path\)/);
     assert.match(source, /WHEN \(NEW\.owner = 'peaks'\)/);

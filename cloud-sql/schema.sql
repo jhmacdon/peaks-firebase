@@ -507,6 +507,104 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range(path geography)
+RETURNS BOOLEAN
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+    SELECT COALESCE(
+        (
+            SELECT point_count >= 2
+                AND point_count = valid_point_count
+                AND max_rounded_elevation - min_rounded_elevation >= 1
+            FROM (
+                SELECT count(*) AS point_count,
+                       count(elevation) FILTER (WHERE elevation_is_finite)
+                           AS valid_point_count,
+                       max(round(elevation::numeric)::bigint)
+                           FILTER (WHERE elevation_is_finite)
+                           AS max_rounded_elevation,
+                       min(round(elevation::numeric)::bigint)
+                           FILTER (WHERE elevation_is_finite)
+                           AS min_rounded_elevation
+                FROM (
+                    SELECT ST_Z((dumped).geom) AS elevation,
+                           ST_Z((dumped).geom) IS NOT NULL
+                               AND ST_Z((dumped).geom) NOT IN (
+                                   'NaN'::DOUBLE PRECISION,
+                                   'Infinity'::DOUBLE PRECISION,
+                                   '-Infinity'::DOUBLE PRECISION
+                               ) AS elevation_is_finite
+                    FROM ST_DumpPoints(path::geometry) AS dumped
+                ) valid_points
+            ) elevation_range
+        ),
+        false
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION route_elevation_stats(path geography)
+RETURNS TABLE(gain DOUBLE PRECISION, loss DOUBLE PRECISION)
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    elevation DOUBLE PRECISION;
+    previous_elevation DOUBLE PRECISION;
+    pending DOUBLE PRECISION := 0;
+    point_count INTEGER := 0;
+BEGIN
+    gain := 0;
+    loss := 0;
+    IF path IS NULL THEN
+        gain := NULL;
+        loss := NULL;
+        RETURN NEXT;
+        RETURN;
+    END IF;
+    FOR elevation IN
+        SELECT ST_Z((dumped).geom)
+        FROM ST_DumpPoints(path::geometry) AS dumped
+        ORDER BY (dumped).path
+    LOOP
+        IF elevation IS NULL OR elevation IN (
+            'NaN'::DOUBLE PRECISION,
+            'Infinity'::DOUBLE PRECISION,
+            '-Infinity'::DOUBLE PRECISION
+        ) THEN
+            gain := NULL;
+            loss := NULL;
+            RETURN NEXT;
+            RETURN;
+        END IF;
+        point_count := point_count + 1;
+        IF previous_elevation IS NULL THEN
+            previous_elevation := elevation;
+            CONTINUE;
+        END IF;
+        IF (pending >= 0 AND elevation - previous_elevation >= 0)
+            OR (pending <= 0 AND elevation - previous_elevation <= 0) THEN
+            pending := pending + elevation - previous_elevation;
+        ELSE
+            IF pending > 4 THEN gain := gain + pending;
+            ELSIF pending < -4 THEN loss := loss + abs(pending);
+            END IF;
+            pending := elevation - previous_elevation;
+        END IF;
+        previous_elevation := elevation;
+    END LOOP;
+    IF point_count < 2 THEN
+        gain := NULL;
+        loss := NULL;
+    ELSIF pending > 4 THEN
+        gain := gain + pending;
+    ELSIF pending < -4 THEN
+        loss := loss + abs(pending);
+    END IF;
+    RETURN NEXT;
+END;
+$$;
+
 -- Fail-closed publish predicate shared by activation, verification, and safe
 -- repair retirement. The segment assembly must match every route XYZ point.
 CREATE OR REPLACE FUNCTION peaks_route_passes_publish_integrity(
@@ -621,6 +719,9 @@ SELECT COALESCE((
     AND is_valid_route_provenance(c.provenance)
     AND c.elevation_string IS NOT NULL
     AND c.elevation_string = encode_route_elevation_profile(c.path)
+    AND route_elevation_profile_has_real_range(c.path)
+    AND c.gain IS NOT DISTINCT FROM elevation_stats.gain
+    AND c.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
     AND destination_checks.summit_count >= 1
     AND destination_checks.all_summits_contacted
     AND destination_checks.ordinals_valid
@@ -661,6 +762,7 @@ SELECT COALESCE((
   CROSS JOIN chain_checks
   CROSS JOIN assembly_checks
   CROSS JOIN destination_checks
+  CROSS JOIN LATERAL route_elevation_stats(c.path) elevation_stats
 ), false);
 $$;
 

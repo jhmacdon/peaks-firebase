@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PoolClient } from "pg";
 import db from "./db";
-import { computeRouteElevationStats, decodeElevationProfile, profileIsUsable } from "./route-elevation-profile";
+import {
+  computeRouteElevationStats,
+  decodeElevationProfile,
+  profileIsUsable,
+  routeProfileHasRealRange,
+} from "./route-elevation-profile";
 import { sampleTerrariumProfile } from "./lib/terrarium-route-profile";
 
 type JobState = "queued" | "working" | "retry" | "blocked" | "complete" | "out_of_scope";
@@ -41,22 +46,63 @@ interface SegmentSnapshot {
   id: string;
   path_hash: string | null;
   points: Point[];
+  user_route_reference_count: number;
 }
 
 const MAX_ATTEMPTS = 5;
 const REQUIRED_WORKER_ID = "luna-route-elevation-01";
-const CANDIDATES_SQL = `
+const TERRAIN_SOURCE_ENDPOINT =
+  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/14/{x}/{y}.png";
+const TERRAIN_SOURCE_NAME = "AWS Open Data Terrain Tiles (Terrarium z14)";
+const TERRAIN_DATA_LICENSE =
+  "Source-dependent open data licenses documented by Tilezen";
+const TERRAIN_LICENSE_URL =
+  "https://github.com/tilezen/joerd/blob/master/docs/data-sources.md";
+
+export const ELEVATION_ROUTE_FINGERPRINT_SQL = `
   SELECT r.id AS route_id,
          md5(concat_ws('|', r.id, r.owner, r.status, COALESCE(r.name, ''),
              COALESCE(r.distance::text, ''), COALESCE(r.shape::text, ''),
              encode(ST_AsEWKB(r.path::geometry), 'hex'),
-             COALESCE((SELECT string_agg(concat_ws(':', rs.ordinal::text, rs.direction, s.id,
-               encode(ST_AsEWKB(s.path::geometry), 'hex')), ',' ORDER BY rs.ordinal, rs.segment_id)
-               FROM route_segments rs JOIN segments s ON s.id = rs.segment_id WHERE rs.route_id = r.id), ''))
+             COALESCE(r.elevation_string, ''),
+             COALESCE(r.gain::text, ''),
+             COALESCE(r.gain_loss::text, ''),
+             COALESCE((SELECT string_agg(concat_ws(':',
+               rs.ordinal::text, rs.direction, s.id,
+               COALESCE(encode(ST_AsEWKB(s.path::geometry), 'hex'), ''),
+               COALESCE(encode_route_elevation_profile(s.path), ''),
+               COALESCE(s.gain::text, ''), COALESCE(s.gain_loss::text, ''),
+               COALESCE(s.provenance::text, '')), ',' ORDER BY rs.ordinal, rs.segment_id)
+               FROM route_segments rs
+               JOIN segments s ON s.id = rs.segment_id
+               WHERE rs.route_id = r.id), ''))
            ) AS path_fingerprint,
-         CASE WHEN r.status = 'active' THEN 100 ELSE 0 END AS priority
+         CASE WHEN r.status = 'active' THEN 100 ELSE 0 END AS priority,
+         r.elevation_string IS DISTINCT FROM
+           encode_route_elevation_profile(r.path) AS route_profile_mismatch,
+         NOT route_elevation_profile_has_real_range(r.path) AS route_range_invalid,
+         r.gain IS DISTINCT FROM elevation_stats.gain
+           OR r.gain_loss IS DISTINCT FROM elevation_stats.loss AS route_stats_mismatch,
+         EXISTS (
+           SELECT 1
+           FROM route_segments rs
+           JOIN segments s ON s.id = rs.segment_id
+           WHERE rs.route_id = r.id
+             AND (s.path IS NULL OR encode_route_elevation_profile(s.path) IS NULL)
+         ) AS segment_needs_elevation
   FROM routes r
-  WHERE r.owner = 'peaks' AND r.path IS NOT NULL`;
+  CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
+  WHERE r.owner = 'peaks'
+    AND r.status IN ('active', 'pending')
+    AND r.path IS NOT NULL`;
+
+export const ELEVATION_CANDIDATES_SQL = `
+  SELECT *
+  FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) route_fingerprint
+  WHERE route_profile_mismatch
+     OR route_range_invalid
+     OR route_stats_mismatch
+     OR segment_needs_elevation`;
 
 function compactEvidence(
   evidence: Record<string, unknown> | null
@@ -66,6 +112,7 @@ function compactEvidence(
     source_kind: evidence.source_kind,
     point_count: evidence.point_count,
     verification: evidence.verification,
+    profile_hash: evidence.profile_hash,
   };
 }
 
@@ -84,6 +131,8 @@ export function compactJob(job: Job | undefined): Record<string, unknown> | null
   };
   if (job.state === "complete") {
     compact.final_evidence = compactEvidence(job.final_evidence);
+  } else if (job.state === "blocked") {
+    compact.blocker = job.last_error;
   }
   return compact;
 }
@@ -98,6 +147,7 @@ export function processCompletionOutput(job: Job): Record<string, unknown> {
     source_kind: evidence?.source_kind,
     point_count: evidence?.point_count,
     verification: evidence?.verification,
+    profile_hash: evidence?.profile_hash,
   };
 }
 
@@ -191,7 +241,7 @@ function usage(): never {
 
 async function seed(apply: boolean): Promise<void> {
   if (!apply) {
-    const result = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM (${CANDIDATES_SQL}) candidates`);
+    const result = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM (${ELEVATION_CANDIDATES_SQL}) candidates`);
     print({ mode: "dry_run", candidates: result.rows[0]?.count ?? 0 });
     return;
   }
@@ -200,7 +250,7 @@ async function seed(apply: boolean): Promise<void> {
     await client.query("BEGIN");
     const seeded = await client.query(
       `INSERT INTO route_elevation_backfill_jobs (route_id, path_fingerprint, priority, state, next_attempt_at)
-       SELECT route_id, path_fingerprint, priority, 'queued', now() FROM (${CANDIDATES_SQL}) candidates
+       SELECT route_id, path_fingerprint, priority, 'queued', now() FROM (${ELEVATION_CANDIDATES_SQL}) candidates
        ON CONFLICT (route_id) DO UPDATE SET
          path_fingerprint = CASE WHEN route_elevation_backfill_jobs.state = 'working'
            AND route_elevation_backfill_jobs.lease_expires_at >= now() THEN route_elevation_backfill_jobs.path_fingerprint
@@ -214,6 +264,10 @@ async function seed(apply: boolean): Promise<void> {
            WHEN route_elevation_backfill_jobs.state = 'complete' AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint THEN 'queued'
            WHEN route_elevation_backfill_jobs.state = 'out_of_scope' THEN 'queued'
            ELSE route_elevation_backfill_jobs.state END,
+         final_evidence = CASE
+           WHEN route_elevation_backfill_jobs.state = 'complete'
+             AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint
+           THEN NULL ELSE route_elevation_backfill_jobs.final_evidence END,
          next_attempt_at = CASE WHEN route_elevation_backfill_jobs.state = 'working' AND route_elevation_backfill_jobs.lease_expires_at < now() THEN now()
            WHEN route_elevation_backfill_jobs.state IN ('complete', 'out_of_scope')
            AND route_elevation_backfill_jobs.path_fingerprint <> EXCLUDED.path_fingerprint THEN now()
@@ -229,7 +283,10 @@ async function seed(apply: boolean): Promise<void> {
       `UPDATE route_elevation_backfill_jobs j SET state = 'out_of_scope', lease_owner = NULL, lease_token = NULL,
          lease_expires_at = NULL, last_error = 'route no longer Peaks-owned with a path'
        WHERE (j.state <> 'working' OR j.lease_expires_at < now())
-         AND NOT EXISTS (SELECT 1 FROM (${CANDIDATES_SQL}) candidates WHERE candidates.route_id = j.route_id)`
+         AND NOT EXISTS (
+           SELECT 1 FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) in_scope
+           WHERE in_scope.route_id = j.route_id
+         )`
     );
     await client.query("COMMIT");
     print({ mode: "apply", seeded: seeded.rowCount, marked_out_of_scope: retired.rowCount });
@@ -314,9 +371,27 @@ async function routeSnapshot(client: PoolClient | typeof db, id: string): Promis
 }
 
 async function segmentSnapshots(client: PoolClient | typeof db, routeId: string): Promise<SegmentSnapshot[]> {
-  const rows = await client.query<{ id: string; path_hash: string | null }>(
-    `SELECT s.id, CASE WHEN s.path IS NULL THEN NULL ELSE md5(encode(ST_AsEWKB(s.path::geometry), 'hex')) END AS path_hash
-     FROM route_segments rs JOIN segments s ON s.id = rs.segment_id WHERE rs.route_id = $1 ORDER BY rs.ordinal`, [routeId]
+  const rows = await client.query<{
+    id: string;
+    path_hash: string | null;
+    user_route_reference_count: number;
+  }>(
+    `SELECT DISTINCT s.id,
+            CASE WHEN s.path IS NULL THEN NULL
+                 ELSE md5(encode(ST_AsEWKB(s.path::geometry), 'hex'))
+            END AS path_hash,
+            (
+              SELECT count(*)::int
+              FROM route_segments shared_rs
+              JOIN routes shared_route ON shared_route.id = shared_rs.route_id
+              WHERE shared_rs.segment_id = s.id
+                AND shared_route.owner <> 'peaks'
+            ) AS user_route_reference_count
+     FROM route_segments rs
+     JOIN segments s ON s.id = rs.segment_id
+     WHERE rs.route_id = $1
+     ORDER BY s.id`,
+    [routeId]
   );
   return Promise.all(rows.rows.map(async (row) => ({ ...row, points: await pointsFor(client, "segments", row.id) })));
 }
@@ -325,7 +400,8 @@ async function affectedPeaksRoutes(client: PoolClient | typeof db, segmentIds: s
   if (segmentIds.length === 0) return [];
   const routes = await client.query<{ id: string }>(
     `SELECT DISTINCT r.id FROM routes r JOIN route_segments rs ON rs.route_id = r.id
-     WHERE r.owner = 'peaks' AND rs.segment_id = ANY($1::text[]) ORDER BY r.id`, [segmentIds]
+     WHERE r.owner = 'peaks' AND r.status IN ('active', 'pending')
+       AND rs.segment_id = ANY($1::text[]) ORDER BY r.id`, [segmentIds]
   );
   return Promise.all(routes.rows.map((row) => routeSnapshot(client, row.id).then((snapshot) => {
     if (!snapshot) throw new Error("Affected route disappeared while terrain was sampled");
@@ -349,20 +425,127 @@ async function completeProfile(points: Point[]): Promise<{ elevations: number[];
   };
 }
 
-async function applyProfile(client: PoolClient, table: "routes" | "segments", id: string, elevations: number[]): Promise<void> {
+async function applySegmentProfile(
+  client: PoolClient,
+  id: string,
+  elevations: number[]
+): Promise<void> {
   const stats = computeRouteElevationStats(elevations);
-  const fields = table === "routes" ? ", gain = $3, gain_loss = $4" : ", gain = $3, gain_loss = $4";
   const result = await client.query(
     `WITH points AS (
        SELECT row_number() OVER (ORDER BY (dumped).path)::int AS n, (dumped).geom AS geom
-       FROM ${table}, ST_DumpPoints(path::geometry) dumped WHERE id = $1
+       FROM segments, ST_DumpPoints(path::geometry) dumped WHERE id = $1
      ), rebuilt AS (
        SELECT ST_SetSRID(ST_MakeLine(array_agg(ST_SetSRID(ST_MakePoint(ST_X(geom), ST_Y(geom), $2[n]), 4326) ORDER BY n)), 4326)::geography AS path
        FROM points
-     ) UPDATE ${table} SET path = rebuilt.path ${fields} FROM rebuilt WHERE id = $1`,
+     ) UPDATE segments SET path = rebuilt.path, gain = $3, gain_loss = $4
+       FROM rebuilt WHERE id = $1`,
     [id, elevations, stats.gain, stats.loss]
   );
-  if (result.rowCount !== 1) throw new Error(`Could not update ${table}`);
+  if (result.rowCount !== 1) throw new Error("Could not update segment");
+}
+
+function cloneSegmentId(segment: SegmentSnapshot): string {
+  return `route-elevation-clone-${createHash("sha256")
+    .update(`${segment.id}:${segment.path_hash ?? "missing"}`)
+    .digest("hex")}`;
+}
+
+async function cloneUserSharedSegment(
+  client: PoolClient,
+  segment: SegmentSnapshot
+): Promise<string> {
+  const cloneId = cloneSegmentId(segment);
+  await client.query(
+    `INSERT INTO segments (
+       id, name, path, polyline6, distance, gain, gain_loss, provenance
+     )
+     SELECT $2, name, path, polyline6, distance, gain, gain_loss, provenance
+     FROM segments
+     WHERE id = $1
+     ON CONFLICT (id) DO NOTHING`,
+    [segment.id, cloneId]
+  );
+  const clone = await client.query<{ xy_hash: string | null }>(
+    `SELECT CASE WHEN path IS NULL THEN NULL
+                 ELSE md5(encode(ST_AsEWKB(ST_Force2D(path::geometry)), 'hex'))
+            END AS xy_hash
+     FROM segments WHERE id = $1 FOR UPDATE`,
+    [cloneId]
+  );
+  const original = await client.query<{ xy_hash: string | null }>(
+    `SELECT CASE WHEN path IS NULL THEN NULL
+                 ELSE md5(encode(ST_AsEWKB(ST_Force2D(path::geometry)), 'hex'))
+            END AS xy_hash
+     FROM segments WHERE id = $1`,
+    [segment.id]
+  );
+  if (!clone.rows[0] || clone.rows[0].xy_hash !== original.rows[0]?.xy_hash) {
+    throw new Error("Deterministic segment clone collision");
+  }
+  await client.query(
+    `UPDATE route_segments rs
+     SET segment_id = $2
+     FROM routes r
+     WHERE r.id = rs.route_id
+       AND r.owner = 'peaks'
+       AND r.status IN ('active', 'pending')
+       AND rs.segment_id = $1`,
+    [segment.id, cloneId]
+  );
+  return cloneId;
+}
+
+async function rebuildPeaksRouteFromSegments(
+  client: PoolClient,
+  routeId: string
+): Promise<void> {
+  const rebuilt = await client.query(
+     `WITH ordered_segments AS (
+       SELECT rs.ordinal,
+              row_number() OVER (ORDER BY rs.ordinal, rs.segment_id) AS segment_sequence,
+              CASE rs.direction
+                WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                ELSE s.path::geometry
+              END AS directed_path
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1 AND s.path IS NOT NULL
+       ORDER BY rs.ordinal
+     ), segment_points AS (
+       SELECT ordered_segments.ordinal,
+              ordered_segments.segment_sequence,
+              (dumped).path[1]::int AS segment_vertex,
+              (dumped).geom AS geom
+       FROM ordered_segments
+       CROSS JOIN LATERAL ST_DumpPoints(ordered_segments.directed_path) dumped
+       WHERE ordered_segments.segment_sequence = 1 OR (dumped).path[1] > 1
+     ), assembled AS (
+       SELECT ST_SetSRID(
+                ST_MakeLine(geom ORDER BY ordinal, segment_vertex),
+                4326
+              )::geography AS path
+       FROM segment_points
+     ), computed AS (
+       SELECT assembled.path, elevation_stats.gain, elevation_stats.loss
+       FROM assembled
+       CROSS JOIN LATERAL route_elevation_stats(assembled.path) elevation_stats
+       WHERE assembled.path IS NOT NULL
+         AND ST_NPoints(assembled.path::geometry) >= 2
+     )
+     UPDATE routes r
+     SET path = computed.path,
+         gain = computed.gain,
+         gain_loss = computed.loss
+     FROM computed
+     WHERE r.id = $1
+       AND r.owner = 'peaks'
+       AND r.status IN ('active', 'pending')`,
+    [routeId]
+  );
+  if (rebuilt.rowCount !== 1) {
+    throw new Error("Route has no usable ordered segment assembly");
+  }
 }
 
 async function liveJob(client: PoolClient, routeId: string, token: string): Promise<Job | null> {
@@ -375,12 +558,47 @@ async function liveJob(client: PoolClient, routeId: string, token: string): Prom
 
 async function currentFingerprint(client: PoolClient | typeof db, routeId: string): Promise<string | null> {
   const result = await client.query<{ path_fingerprint: string }>(
-    `SELECT path_fingerprint FROM (${CANDIDATES_SQL}) candidates WHERE route_id = $1`, [routeId]
+    `SELECT path_fingerprint FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) candidates WHERE route_id = $1`, [routeId]
   );
   return result.rows[0]?.path_fingerprint ?? null;
 }
 
-async function verifyPublicRoute(route: RouteSnapshot, expectedCount: number, fingerprint: string): Promise<{ kind: string }> {
+interface PersistedRouteEvidence {
+  id: string;
+  status: string;
+  point_count: number;
+  elevation_string: string;
+  profile_hash: string;
+  gain: number;
+  gain_loss: number;
+  publish_integrity_valid: boolean;
+}
+
+export function publicElevationEvidenceMatches(
+  route: PersistedRouteEvidence,
+  body: {
+    elevation_string?: unknown;
+    profile_count?: unknown;
+    profile_hash?: unknown;
+    gain?: unknown;
+    gain_loss?: unknown;
+    publish_integrity_valid?: unknown;
+  }
+): boolean {
+  return (
+    body.profile_count === route.point_count &&
+    body.elevation_string === route.elevation_string &&
+    body.profile_hash === route.profile_hash &&
+    body.gain === route.gain &&
+    body.gain_loss === route.gain_loss &&
+    body.publish_integrity_valid === true
+  );
+}
+
+async function verifyPublicRoute(
+  route: PersistedRouteEvidence,
+  fingerprint: string
+): Promise<{ kind: string }> {
   if (route.status !== "active") return { kind: "public_not_applicable: pending" };
   const base = process.env.PEAKS_PUBLIC_ROUTE_VERIFIER_BASE_URL;
   if (!base) throw new Error("Public route verifier base URL is required for active routes");
@@ -388,26 +606,117 @@ async function verifyPublicRoute(route: RouteSnapshot, expectedCount: number, fi
     headers: { "cache-control": "no-cache" },
   });
   if (!response.ok) throw new Error(`Public route verification failed (${response.status})`);
-  const body = await response.json() as { profile_count?: unknown };
-  if (body.profile_count !== expectedCount) throw new Error("Public route profile count did not match");
-  return { kind: "public_profile_count_verified" };
+  const body = await response.json() as {
+    elevation_string?: unknown;
+    profile_count?: unknown;
+    profile_hash?: unknown;
+    gain?: unknown;
+    gain_loss?: unknown;
+    publish_integrity_valid?: unknown;
+  };
+  if (!publicElevationEvidenceMatches(route, body)) {
+    throw new Error("Public route elevation evidence did not match");
+  }
+  return { kind: "public_profile_and_stats_verified" };
 }
 
-async function verifyPersistedRoute(client: PoolClient, snapshot: RouteSnapshot, elevations: number[]): Promise<void> {
-  const result = await client.query<{ point_count: number; valid_z: boolean; xy_hash: string; elevation_string: string | null; gain: number | null; gain_loss: number | null }>(
-    `SELECT ST_NPoints(path::geometry)::int AS point_count,
-            (SELECT bool_and(ST_Z((dumped).geom) BETWEEN -12000 AND 12000) FROM ST_DumpPoints(routes.path::geometry) dumped) AS valid_z,
-            md5(encode(ST_AsEWKB(ST_Force2D(path::geometry)), 'hex')) AS xy_hash,
-            elevation_string, gain, gain_loss FROM routes WHERE id = $1`, [snapshot.id]
+async function verifyPersistedRoute(
+  client: PoolClient,
+  routeId: string
+): Promise<PersistedRouteEvidence> {
+  const result = await client.query<{
+    id: string;
+    status: string;
+    point_count: number;
+    valid_z: boolean;
+    elevation_string: string | null;
+    encoded_profile: string | null;
+    profile_hash: string | null;
+    gain: number | null;
+    gain_loss: number | null;
+    computed_gain: number | null;
+    computed_loss: number | null;
+    has_real_range: boolean;
+    assembly_matches: boolean;
+    publish_integrity_valid: boolean;
+  }>(
+    `WITH ordered_segments AS (
+       SELECT rs.ordinal,
+              row_number() OVER (ORDER BY rs.ordinal, rs.segment_id) AS segment_sequence,
+              CASE rs.direction
+                WHEN 'reverse' THEN ST_Reverse(s.path::geometry)
+                ELSE s.path::geometry
+              END AS directed_path
+       FROM route_segments rs
+       JOIN segments s ON s.id = rs.segment_id
+       WHERE rs.route_id = $1 AND s.path IS NOT NULL
+     ), segment_points AS (
+       SELECT ordered_segments.ordinal,
+              ordered_segments.segment_sequence,
+              (dumped).path[1]::int AS segment_vertex,
+              (dumped).geom AS geom
+       FROM ordered_segments
+       CROSS JOIN LATERAL ST_DumpPoints(ordered_segments.directed_path) dumped
+       WHERE ordered_segments.segment_sequence = 1 OR (dumped).path[1] > 1
+     ), assembled AS (
+       SELECT ST_SetSRID(
+                ST_MakeLine(geom ORDER BY ordinal, segment_vertex),
+                4326
+              ) AS path
+       FROM segment_points
+     )
+     SELECT r.id, r.status, ST_NPoints(r.path::geometry)::int AS point_count,
+            (SELECT bool_and(ST_Z((dumped).geom) BETWEEN -12000 AND 12000)
+             FROM ST_DumpPoints(r.path::geometry) dumped) AS valid_z,
+            r.elevation_string,
+            encode_route_elevation_profile(r.path) AS encoded_profile,
+            md5(r.elevation_string) AS profile_hash,
+            r.gain, r.gain_loss,
+            elevation_stats.gain AS computed_gain,
+            elevation_stats.loss AS computed_loss,
+            route_elevation_profile_has_real_range(r.path) AS has_real_range,
+            encode(ST_AsEWKB(r.path::geometry), 'hex')
+              = encode(ST_AsEWKB(assembled.path), 'hex') AS assembly_matches,
+            CASE WHEN r.status = 'active'
+              THEN peaks_route_passes_publish_integrity(r.id, NULL, 'active')
+              ELSE true END AS publish_integrity_valid
+     FROM routes r
+     CROSS JOIN assembled
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
+     WHERE r.id = $1`,
+    [routeId]
   );
   const saved = result.rows[0];
-  const profile = decodeElevationProfile(saved?.elevation_string ?? null, elevations.length);
-  const stats = computeRouteElevationStats(elevations);
-  if (!saved || !saved.valid_z || saved.xy_hash !== snapshot.xy_hash || saved.point_count !== elevations.length ||
-      !profileIsUsable(profile) || Math.abs((saved.gain ?? NaN) - stats.gain) > 0.001 ||
-      Math.abs((saved.gain_loss ?? NaN) - stats.loss) > 0.001) {
+  const profile = decodeElevationProfile(
+    saved?.elevation_string ?? null,
+    saved?.point_count
+  );
+  if (
+    !saved ||
+    !saved.valid_z ||
+    !saved.assembly_matches ||
+    !saved.has_real_range ||
+    saved.elevation_string !== saved.encoded_profile ||
+    !routeProfileHasRealRange(profile) ||
+    saved.gain !== saved.computed_gain ||
+    saved.gain_loss !== saved.computed_loss ||
+    !saved.elevation_string ||
+    !saved.profile_hash ||
+    saved.gain === null ||
+    saved.gain_loss === null
+  ) {
     throw new Error("Affected route verification failed");
   }
+  return {
+    id: saved.id,
+    status: saved.status,
+    point_count: saved.point_count,
+    elevation_string: saved.elevation_string,
+    profile_hash: saved.profile_hash,
+    gain: saved.gain,
+    gain_loss: saved.gain_loss,
+    publish_integrity_valid: saved.publish_integrity_valid,
+  };
 }
 
 async function extendLease(routeId: string, token: string): Promise<void> {
@@ -435,6 +744,40 @@ async function failLease(
   print({
     outcome: retryOutcome(result.rows[0].state),
     state: result.rows[0].state,
+    job: compactJob({ ...result.rows[0], route_name: routeName }),
+  });
+}
+
+async function blockLease(
+  routeId: string,
+  token: string,
+  fingerprint: string,
+  cause: string,
+  evidence: Record<string, unknown>,
+  routeName?: string | null
+): Promise<void> {
+  const result = await db.query<Job>(
+    `UPDATE route_elevation_backfill_jobs
+     SET state = 'blocked',
+         path_fingerprint = $3,
+         lease_owner = NULL,
+         lease_token = NULL,
+         lease_expires_at = NULL,
+         last_error = $4,
+         final_evidence = $5::jsonb
+     WHERE route_id = $1
+       AND state = 'working'
+       AND lease_token = $2
+     RETURNING *`,
+    [routeId, token, fingerprint, safeError(cause), JSON.stringify(evidence)]
+  );
+  if (!result.rows[0]) throw new Error("No live route elevation lease matched");
+  print({
+    outcome: "blocked",
+    state: "blocked",
+    route_id: routeId,
+    route_name: routeName ?? null,
+    blocker: result.rows[0].last_error,
     job: compactJob({ ...result.rows[0], route_name: routeName }),
   });
 }
@@ -484,17 +827,46 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
     const snapshot = await routeSnapshot(db, routeId);
     if (!snapshot) throw new Error("Route does not exist");
     processRouteName = snapshot.name;
-    const primaryProfile = snapshot.owner === "peaks" && snapshot.points.length >= 2 ? await completeProfile(snapshot.points) : null;
-    const segments = primaryProfile ? await segmentSnapshots(db, routeId) : [];
-    const segmentProfiles = new Map<string, { elevations: number[]; sourceKind: string }>();
-    for (const segment of segments) segmentProfiles.set(segment.id, await completeProfile(segment.points));
-    const affected = primaryProfile ? await affectedPeaksRoutes(db, segments.map((segment) => segment.id)) : [];
-    if (primaryProfile && !affected.some((route) => route.id === routeId)) affected.push(snapshot);
-    const affectedProfiles = new Map<string, { elevations: number[]; sourceKind: string }>();
-    for (const route of affected) {
-      affectedProfiles.set(route.id, route.id === routeId ? primaryProfile! : await completeProfile(route.points));
+    if (
+      snapshot.owner !== "peaks" ||
+      !["active", "pending"].includes(snapshot.status) ||
+      !snapshot.path_hash ||
+      snapshot.points.length < 2
+    ) {
+      throw new Error("Route is not a Peaks-owned active or pending usable path");
     }
-    let written: { pointCount: number; sourceKind: string; fingerprint: string } | null = null;
+    const segments = await segmentSnapshots(db, routeId);
+    if (segments.length === 0) {
+      await blockLease(
+        routeId,
+        token,
+        preflightFingerprint!,
+        "route has no source segments to rebuild",
+        { verification: "blocked_before_write", cause: "missing_route_segments" },
+        snapshot.name
+      );
+      return;
+    }
+    const segmentProfiles = new Map<string, { elevations: number[]; sourceKind: string }>();
+    for (const segment of segments) {
+      if (!existingProfile(segment.points)) {
+        segmentProfiles.set(segment.id, await completeProfile(segment.points));
+      }
+    }
+    const affected = await affectedPeaksRoutes(
+      db,
+      segments.map((segment) => segment.id)
+    );
+    if (!affected.some((route) => route.id === routeId)) affected.push(snapshot);
+    const terrainRetrievedAt = segmentProfiles.size > 0
+      ? new Date().toISOString()
+      : null;
+    let written: {
+      route: PersistedRouteEvidence;
+      sourceKind: string;
+      fingerprint: string;
+      blockers: string[];
+    } | null = null;
     const client = await db.connect();
     try {
       await client.query("BEGIN");
@@ -515,7 +887,13 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
         return;
       }
       const fresh = await routeSnapshot(client, routeId);
-      if (!fresh || fresh.owner !== "peaks" || !fresh.path_hash || fresh.points.length < 2) {
+      if (
+        !fresh ||
+        fresh.owner !== "peaks" ||
+        !["active", "pending"].includes(fresh.status) ||
+        !fresh.path_hash ||
+        fresh.points.length < 2
+      ) {
         const updated = await client.query<Job>(
           `UPDATE route_elevation_backfill_jobs SET state = 'out_of_scope', lease_owner = NULL, lease_token = NULL,
            lease_expires_at = NULL, last_error = 'route is not a Peaks-owned usable path' WHERE route_id = $1 RETURNING *`, [routeId]
@@ -527,7 +905,9 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
         });
         return;
       }
-      if (!primaryProfile || fresh.path_hash !== snapshot.path_hash) throw new Error("Route changed while terrain was sampled");
+      if (fresh.path_hash !== snapshot.path_hash) {
+        throw new Error("Route changed while terrain was sampled");
+      }
       const segmentIds = [...new Set(segments.map((segment) => segment.id))].sort();
       if (segmentIds.length > 0) {
         const lockedSegments = await client.query<{ id: string; path_hash: string | null }>(
@@ -559,12 +939,35 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
            FOR UPDATE`,
           [segmentIds]
         );
+        const liveUserReferences = await client.query<{
+          segment_id: string;
+          user_route_reference_count: number;
+        }>(
+          `SELECT s.id AS segment_id,
+                  count(rs.route_id) FILTER (
+                    WHERE linked_route.owner <> 'peaks'
+                  )::int AS user_route_reference_count
+           FROM segments s
+           LEFT JOIN route_segments rs ON rs.segment_id = s.id
+           LEFT JOIN routes linked_route ON linked_route.id = rs.route_id
+           WHERE s.id = ANY($1::text[])
+           GROUP BY s.id
+           ORDER BY s.id`,
+          [segmentIds]
+        );
+        for (const segment of segments) {
+          segment.user_route_reference_count =
+            liveUserReferences.rows.find(
+              (row) => row.segment_id === segment.id
+            )?.user_route_reference_count ?? 0;
+        }
         const currentAffected = await client.query<{ id: string }>(
           `SELECT DISTINCT r.id
            FROM route_segments rs
            JOIN routes r ON r.id = rs.route_id
            WHERE rs.segment_id = ANY($1::text[])
              AND r.owner = 'peaks'
+             AND r.status IN ('active', 'pending')
            ORDER BY r.id`,
           [segmentIds]
         );
@@ -588,38 +991,81 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
           return row.owner !== "peaks" || !sampled || row.path_hash !== sampled.path_hash;
         })) throw new Error("Affected route changed while terrain was sampled");
       }
-      const segmentsNeedingElevation = segments.filter((segment) => !existingProfile(segment.points));
-      for (const segment of segmentsNeedingElevation) {
-        await applyProfile(client, "segments", segment.id, segmentProfiles.get(segment.id)!.elevations);
+      for (const segment of segments) {
+        const sampled = segmentProfiles.get(segment.id);
+        if (!sampled) continue;
+        const targetSegmentId = segment.user_route_reference_count > 0
+          ? await cloneUserSharedSegment(client, segment)
+          : segment.id;
+        await applySegmentProfile(
+          client,
+          targetSegmentId,
+          sampled.elevations
+        );
       }
-      // Rebuild every Peaks route that shares these source segments, even when
-      // the source segment already had usable Z. This keeps route materialized
-      // paths and stats in one transaction; user-owned routes are absent from affected.
-      for (const route of affected) await applyProfile(client, "routes", route.id, affectedProfiles.get(route.id)!.elevations);
-      const verified = await client.query<{ point_count: number; valid_z: boolean; elevation_string: string | null; gain: number | null; gain_loss: number | null }>(
-        `SELECT ST_NPoints(path::geometry)::int AS point_count,
-                (SELECT bool_and(ST_Z((dumped).geom) BETWEEN -12000 AND 12000)
-                 FROM ST_DumpPoints(routes.path::geometry) dumped) AS valid_z,
-                elevation_string, gain, gain_loss
-         FROM routes WHERE id = $1 FOR UPDATE`, [routeId]
-      );
-      const saved = verified.rows[0];
-      const encoded = decodeElevationProfile(saved?.elevation_string ?? null, primaryProfile.elevations.length);
-      const stats = computeRouteElevationStats(primaryProfile.elevations);
-      if (!saved || !saved.valid_z || saved.point_count !== primaryProfile.elevations.length || !profileIsUsable(encoded) ||
-          encoded.length !== primaryProfile.elevations.length || Math.abs((saved.gain ?? NaN) - stats.gain) > 0.001 ||
-          Math.abs((saved.gain_loss ?? NaN) - stats.loss) > 0.001) throw new Error("Fresh route profile verification failed");
-      for (const route of affected) await verifyPersistedRoute(client, route, affectedProfiles.get(route.id)!.elevations);
+      for (const route of affected) {
+        await rebuildPeaksRouteFromSegments(client, route.id);
+      }
+      const persisted = new Map<string, PersistedRouteEvidence>();
+      for (const route of affected) {
+        persisted.set(route.id, await verifyPersistedRoute(client, route.id));
+      }
+      const saved = persisted.get(routeId);
+      if (!saved) throw new Error("Primary route was not rebuilt");
       const finalFingerprint = await currentFingerprint(client, routeId);
       if (!finalFingerprint) throw new Error("Route left scope before completion");
-      const sourceKind = [primaryProfile, ...segmentProfiles.values(), ...affectedProfiles.values()]
+      const sourceKind = [...segmentProfiles.values()]
         .some((profile) => profile.sourceKind === "terrarium_z14") ? "terrarium_z14" : "existing_z";
-      written = { pointCount: saved.point_count, sourceKind, fingerprint: finalFingerprint };
+      const blockers = [...persisted.values()]
+        .filter((route) => route.status === "active" && !route.publish_integrity_valid)
+        .map((route) => `publish_integrity_failed:${route.id}`);
+      written = {
+        route: saved,
+        sourceKind,
+        fingerprint: finalFingerprint,
+        blockers,
+      };
       await client.query("COMMIT");
     } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
     if (!written) throw new Error("Route write did not finish");
+    const fullEvidence = {
+      source_kind: written.sourceKind,
+      point_count: written.route.point_count,
+      profile_hash: written.route.profile_hash,
+      terrain_source: written.sourceKind === "terrarium_z14"
+        ? TERRAIN_SOURCE_NAME
+        : "stored PostGIS segment elevations",
+      terrain_source_endpoint: written.sourceKind === "terrarium_z14"
+        ? TERRAIN_SOURCE_ENDPOINT
+        : null,
+      terrain_data_license: written.sourceKind === "terrarium_z14"
+        ? TERRAIN_DATA_LICENSE
+        : "original segment provenance",
+      terrain_license_url: written.sourceKind === "terrarium_z14"
+        ? TERRAIN_LICENSE_URL
+        : null,
+      terrain_retrieved_at: terrainRetrievedAt,
+    };
+    if (written.blockers.length > 0) {
+      await blockLease(
+        routeId,
+        token,
+        written.fingerprint,
+        written.blockers.join(","),
+        {
+          ...fullEvidence,
+          verification: "elevation_written_publish_integrity_blocked",
+          blockers: written.blockers,
+        },
+        snapshot.name
+      );
+      return;
+    }
     await extendLease(routeId, token);
-    const publicEvidence = await verifyPublicRoute(snapshot, written.pointCount, written.fingerprint);
+    const publicEvidence = await verifyPublicRoute(
+      written.route,
+      written.fingerprint
+    );
     const completeClient = await db.connect();
     try {
       await completeClient.query("BEGIN");
@@ -632,7 +1078,10 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
          lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL, last_error = NULL,
          final_evidence = $4::jsonb WHERE route_id = $1 RETURNING *`,
         [routeId, written.fingerprint, written.sourceKind,
-         JSON.stringify({ source_kind: written.sourceKind, point_count: written.pointCount, verification: publicEvidence.kind })]
+         JSON.stringify({
+           ...fullEvidence,
+           verification: publicEvidence.kind,
+         })]
       );
       await completeClient.query("COMMIT");
       print(processCompletionOutput({

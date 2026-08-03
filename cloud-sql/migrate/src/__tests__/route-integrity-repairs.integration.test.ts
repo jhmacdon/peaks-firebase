@@ -57,9 +57,14 @@ test(
     };
     const insertRoute = async (id: string, owner: string, line: string, profile = true, routeProvenance: string | null = provenance, shape = "loop") => {
       await pool.query(
-        `INSERT INTO routes (id, owner, status, shape, path, provenance, elevation_string)
+        `INSERT INTO routes (
+           id, owner, status, shape, path, provenance, elevation_string,
+           gain, gain_loss
+         )
          VALUES ($1, $2, 'active', $6::route_shape, ST_GeogFromText($3), $4::jsonb,
-                 CASE WHEN $5 THEN encode_route_elevation_profile(ST_GeogFromText($3)) ELSE NULL END)`,
+                 CASE WHEN $5 THEN encode_route_elevation_profile(ST_GeogFromText($3)) ELSE NULL END,
+                 (SELECT gain FROM route_elevation_stats(ST_GeogFromText($3))),
+                 (SELECT loss FROM route_elevation_stats(ST_GeogFromText($3))))`,
         [id, owner, line, routeProvenance, profile, shape]
       );
     };
@@ -80,7 +85,7 @@ test(
         ($3, ARRAY[]::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122.00001 48.00001 1010)'))`, [destinationA, destinationB, nonSummit]);
       const nearA = "SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)";
       const nearB = "SRID=4326;LINESTRING Z (-122 48 1000, -122.00001 48.00001 1010)";
-      const throughAThenB = "SRID=4326;LINESTRING Z (-121 47 1000, -122 48 1000)";
+      const throughAThenB = "SRID=4326;LINESTRING Z (-121 47 1000, -122 48 1010)";
       const disconnectedB = "SRID=4326;LINESTRING Z (-122.01 48.01 1000, -122.01001 48.01001 1010)";
       await insertRoute(badRoute, "peaks", nearA); await link(badRoute, destinationA, 0); await link(badRoute, destinationB, 1); await segment(badRoute, `${badRoute}-segment`, nearA);
       await insertRoute(goodA, "peaks", nearA); await link(goodA, destinationA, 0); await segment(goodA, `${goodA}-segment`, nearA);

@@ -29,7 +29,8 @@ If processing fails before it reaches a lease-cleared terminal outcome, release
 that token with a short exact message. Use heartbeat only for the same token.
 End with stats and a clean checkout; report the lease outcome, compact route
 ID/name if returned, source kind, point count, queue totals, expired lease
-count, and blocker. Do not report coordinates.
+count, safe profile hash, and blocker. Do not report coordinates. If processing
+returns `blocked`, report its compact cause and stop; do not retry that route.
 
 Do not research sources or use a browser. Do not edit route XY or shape data,
 destinations, migrations, git state, or user-owned records. Do not run raw SQL,

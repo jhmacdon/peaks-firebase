@@ -15,6 +15,12 @@ const route = {
     Array.from({ length: 20 }, (_, index) => String(1_000 + index)).join("|")
   ).toString("base64"),
   profile_count: 20,
+  profile_hash: "profile-hash-1",
+  verification_fingerprint: "profile-hash-1",
+  profile_has_real_range: true,
+  profile_stats_match: true,
+  gain: 19,
+  gain_loss: 0,
   summit_count: 1,
   summit_fault_count: 0,
   summit_max_gap_meters: 1.2,
@@ -55,7 +61,10 @@ test("verification passes only when the public route record matches Cloud SQL", 
       publicBaseUrl: "https://example.test",
     });
     assert.equal(result.verdict, "PASS");
-    assert.equal(result.public_url, "https://example.test/api/public/routes/route-1");
+    assert.equal(
+      result.public_url,
+      "https://example.test/api/public/routes/route-1?elevation_fingerprint=profile-hash-1"
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -189,13 +198,99 @@ test("activation and public payload use the strict shared integrity contract", (
   assert.match(migration, /abs\(ST_Z\(route_points\.geom\) - ST_Z\(assembled_points\.geom\)\) <= 0\.01/);
   assert.match(api, /elevation_string/);
   assert.match(api, /profile_count/);
+  assert.match(api, /profile_hash/);
+  assert.match(api, /r\.gain/);
+  assert.match(api, /r\.gain_loss/);
   assert.match(api, /summit_fault_count/);
   assert.match(api, /endpoint_gap_meters/);
   assert.match(api, /matching_assembly_point_count/);
-  assert.match(api, /cache-control.*no-store/i);
+  assert.match(api, /cache-control.*s-maxage=300/i);
+  assert.doesNotMatch(api, /cache-control.*no-store/i);
   assert.doesNotMatch(api, /ST_AsGeoJSON|ST_AsText|\blat(?:itude)?\b|\blng\b|\blongitude\b/i);
   assert.match(wrapper, /current_link_covered/);
   assert.match(wrapper, /remaining_repair_links/);
+});
+
+test("public verification rejects a same-count wrong profile or wrong stats", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const publicRoute of [
+      { ...route, elevation_string: Buffer.from("wrong|profile").toString("base64") },
+      { ...route, gain: route.gain + 1 },
+      { ...route, gain_loss: route.gain_loss + 1 },
+    ]) {
+      globalThis.fetch = async () =>
+        new Response(JSON.stringify(publicRoute), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      const result = await verifyStandardRoute(queryable, {
+        routeId: "route-1",
+        destinationId: "peak-1",
+        trailheadId: "trailhead-1",
+        publicBaseUrl: "https://example.test",
+      });
+      assert.equal(result.gates.public_http, false);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a constant nonzero placeholder profile fails the elevation gate", async () => {
+  const placeholder = {
+    ...route,
+    elevation_string: Buffer.from(new Array(20).fill("1200").join("|")).toString("base64"),
+    profile_has_real_range: false,
+    publish_integrity_valid: false,
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(placeholder), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  try {
+    const result = await verifyStandardRoute(
+      {
+        async query<T extends Record<string, unknown>>() {
+          return { rows: [placeholder as unknown as T] };
+        },
+      },
+      {
+        routeId: "route-1",
+        destinationId: "peak-1",
+        trailheadId: "trailhead-1",
+        publicBaseUrl: "https://example.test",
+      }
+    );
+    assert.equal(result.gates.elevation_profile, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("public verification uses a profile fingerprint cache key", async () => {
+  const originalFetch = globalThis.fetch;
+  let requested = "";
+  globalThis.fetch = async (input) => {
+    requested = String(input);
+    return new Response(JSON.stringify(route), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    await verifyStandardRoute(queryable, {
+      routeId: "route-1",
+      destinationId: "peak-1",
+      trailheadId: "trailhead-1",
+      publicBaseUrl: "https://example.test",
+    });
+    assert.match(requested, /elevation_fingerprint=profile-hash-1/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("an unrelated HTTP 200 shell cannot pass public verification", async () => {

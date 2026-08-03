@@ -438,6 +438,11 @@ route_issue_groups AS (
              WHEN rm.elevation_string IS DISTINCT FROM encode_route_elevation_profile(rm.path)
                THEN 'missing_or_invalid_elevation_profile'
            END,
+           CASE
+             WHEN rm.path IS NOT NULL
+               AND NOT route_elevation_profile_has_real_range(rm.path)
+             THEN 'flat_or_placeholder_elevation_profile'
+           END,
            CASE WHEN rm.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
              AND rm.provenance IS NULL
              AND rm.segment_count = 0
@@ -718,6 +723,9 @@ records AS (
                   encode_route_elevation_profile(ra.path)
            END,
            'elevation_profile_path_points', ra.point_count,
+           'elevation_profile_has_real_range',
+             CASE WHEN ra.path IS NULL THEN false
+                  ELSE route_elevation_profile_has_real_range(ra.path) END,
            'segments', ra.segment_count,
            'max_step_m', ROUND(ra.max_step_m::numeric, 1),
            'max_segment_gap_m', ROUND(ra.max_segment_gap_m::numeric, 1),

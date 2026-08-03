@@ -20,6 +20,21 @@ export function profileIsUsable(elevations: number[]): boolean {
   return hasNonzeroRoundedSample;
 }
 
+export function routeProfileHasRealRange(elevations: number[]): boolean {
+  if (elevations.length < 2) {
+    return false;
+  }
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  for (const elevation of elevations) {
+    if (!Number.isFinite(elevation)) return false;
+    const rounded = roundMetres(elevation);
+    minimum = Math.min(minimum, rounded);
+    maximum = Math.max(maximum, rounded);
+  }
+  return maximum - minimum >= 1;
+}
+
 export function encodeElevationProfile(elevations: number[]): string | null {
   if (!profileIsUsable(elevations)) {
     return null;

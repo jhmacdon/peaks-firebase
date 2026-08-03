@@ -36,6 +36,12 @@ type RouteRow = {
   point_count: number;
   elevation_string: string | null;
   profile_count: number;
+  profile_hash: string | null;
+  verification_fingerprint: string | null;
+  profile_has_real_range: boolean;
+  profile_stats_match: boolean;
+  gain: number | null;
+  gain_loss: number | null;
   segment_count: number;
   matching_segment_count: number;
   usable_elevation_segment_count: number;
@@ -119,6 +125,17 @@ export async function verifyStandardRoute(
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
             r.elevation_string,
+            r.gain,
+            r.gain_loss,
+            md5(r.elevation_string) AS profile_hash,
+            md5(concat_ws('|', COALESCE(r.elevation_string, ''),
+              COALESCE(r.gain::text, ''), COALESCE(r.gain_loss::text, ''),
+              r.status, r.updated_at::text)) AS verification_fingerprint,
+            route_elevation_profile_has_real_range(r.path)
+              AS profile_has_real_range,
+            r.gain IS NOT DISTINCT FROM elevation_stats.gain
+              AND r.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
+              AS profile_stats_match,
             CASE WHEN r.elevation_string IS NOT NULL
                        AND r.elevation_string = encode_route_elevation_profile(r.path)
                  THEN ST_NPoints(r.path::geometry)::int ELSE 0 END AS profile_count,
@@ -245,6 +262,7 @@ export async function verifyStandardRoute(
               WHERE rd.route_id = r.id
             ) AS destination_features
      FROM routes r
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
      WHERE r.id = $1`,
     [input.routeId]
   );
@@ -280,6 +298,8 @@ export async function verifyStandardRoute(
     typeof route?.elevation_string === "string" &&
     route.elevation_string.length > 0 &&
     route.profile_count === route.point_count &&
+    route.profile_has_real_range === true &&
+    route.profile_stats_match === true &&
     route.point_count >= 2;
 
   const publicBaseUrl = (
@@ -288,17 +308,18 @@ export async function verifyStandardRoute(
     DEFAULT_PEAKS_PUBLIC_WEB_URL
   ).replace(/\/+$/, "");
   const publicUrl =
-    `${publicBaseUrl}/api/public/routes/${encodeURIComponent(input.routeId)}`;
+    `${publicBaseUrl}/api/public/routes/${encodeURIComponent(input.routeId)}` +
+    `?elevation_fingerprint=${encodeURIComponent(
+      route?.verification_fingerprint ?? route?.profile_hash ?? "missing"
+    )}`;
   let publicStatus = 0;
   let publicPayload: RouteRow | null = null;
   let publicError: string | null = null;
   try {
     const response = await fetch(publicUrl, {
-      cache: "no-store",
       redirect: "follow",
       signal: AbortSignal.timeout(30_000),
       headers: {
-        "cache-control": "no-cache",
         "user-agent":
           "Peaks standard-route verifier/1.0 " +
           "(https://github.com/jhmacdon/peaks-firebase)",
@@ -324,6 +345,12 @@ export async function verifyStandardRoute(
     publicPayload.matching_segment_count === route?.matching_segment_count &&
     publicPayload.elevation_string === route?.elevation_string &&
     publicPayload.profile_count === route?.profile_count &&
+    publicPayload.profile_hash === route?.profile_hash &&
+    publicPayload.verification_fingerprint === route?.verification_fingerprint &&
+    publicPayload.profile_has_real_range === route?.profile_has_real_range &&
+    publicPayload.profile_stats_match === route?.profile_stats_match &&
+    publicPayload.gain === route?.gain &&
+    publicPayload.gain_loss === route?.gain_loss &&
     publicPayload.usable_elevation_segment_count === route?.usable_elevation_segment_count &&
     publicPayload.ordered_segment_count === route?.ordered_segment_count &&
     publicPayload.connected_segment_pair_count === route?.connected_segment_pair_count &&

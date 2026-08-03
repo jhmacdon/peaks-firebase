@@ -132,6 +132,9 @@ SELECT COALESCE((
     AND is_valid_route_provenance(c.provenance)
     AND c.elevation_string IS NOT NULL
     AND c.elevation_string = encode_route_elevation_profile(c.path)
+    AND route_elevation_profile_has_real_range(c.path)
+    AND c.gain IS NOT DISTINCT FROM elevation_stats.gain
+    AND c.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
     AND destination_checks.summit_count >= 1
     AND destination_checks.all_summits_contacted
     AND destination_checks.ordinals_valid
@@ -174,6 +177,7 @@ SELECT COALESCE((
   CROSS JOIN chain_checks
   CROSS JOIN assembly_checks
   CROSS JOIN destination_checks
+  CROSS JOIN LATERAL route_elevation_stats(c.path) elevation_stats
 ), false);
 $$;
 

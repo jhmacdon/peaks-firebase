@@ -17,7 +17,16 @@ already clear the lease. On a tool failure, release the live lease; its result
 is `retry` or `blocked`.
 
 Report a compact route ID and name when returned, source kind, point count,
-queue totals, expired lease count, and any blocker. Do not include coordinates.
+profile hash, queue totals, expired lease count, and any blocker. A `blocked`
+result after a write means the worker saved safe elevation data but a separate
+publish gate, such as summit contact, still failed. Do not retry it in the same
+run. Do not include coordinates.
+
+The script rebuilds Peaks route caches from their stored ordered segments. If a
+bad segment is also linked to a user route, it clones that segment and moves
+only Peaks links. It never changes the shared source segment or a user route.
+Completion evidence in the queue keeps the elevation source, source endpoint,
+license note, retrieval time, point count, and profile hash.
 
 ## Operator setup
 

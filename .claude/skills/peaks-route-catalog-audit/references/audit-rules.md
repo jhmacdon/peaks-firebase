@@ -15,7 +15,8 @@ records for one summit.
   for out-and-back and point-to-point routes;
 - any linked summit more than 5 m from the route path, or a missing path or
   summit location;
-- a missing or non-canonical elevation profile; and
+- a missing or non-canonical elevation profile, or a constant rounded
+  placeholder profile with less than one metre of route-level Z range; and
 - missing distance or gain; and
 - a legacy named-route coverage import.
 
@@ -33,8 +34,10 @@ judging it.
 
 Loop and lollipop routes only need path contact with every linked summit. They
 do not need their endpoint at a summit. `elevation_string` must exactly equal
-`encode_route_elevation_profile(path)`; this proves finite nonzero Z values,
-the canonical bytes, and the path vertex count. These errors require repair.
+`encode_route_elevation_profile(path)` and the rounded route Z range must span
+at least one metre. Individual source segments may be flat; only the assembled
+route must have real range. These checks prove finite Z values, canonical
+bytes, and the path vertex count. These errors require repair.
 Do not waive them because an outside source looks plausible or returns HTTP
 200.
 

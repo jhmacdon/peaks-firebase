@@ -153,6 +153,8 @@ test("printed route audit SQL requires every linked summit and canonical elevati
   assert.match(sql, /encode_route_elevation_profile\(rm\.path\)/);
   assert.match(sql, /IS DISTINCT FROM encode_route_elevation_profile\(rm\.path\)/);
   assert.match(sql, /missing_or_invalid_elevation_profile/);
+  assert.match(sql, /route_elevation_profile_has_real_range\(rm\.path\)/);
+  assert.match(sql, /flat_or_placeholder_elevation_profile/);
   assert.doesNotMatch(sql, /end_over_250m_from_summit/);
   assert.doesNotMatch(sql, /flat_or_missing_elevation_profile/);
 });

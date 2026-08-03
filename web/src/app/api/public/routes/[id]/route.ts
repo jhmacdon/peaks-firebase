@@ -56,6 +56,17 @@ export async function GET(_request: Request, context: Context) {
             is_valid_route_provenance(r.provenance) AS provenance_valid,
             ST_NPoints(r.path::geometry)::int AS point_count,
             r.elevation_string,
+            r.gain,
+            r.gain_loss,
+            md5(r.elevation_string) AS profile_hash,
+            md5(concat_ws('|', COALESCE(r.elevation_string, ''),
+              COALESCE(r.gain::text, ''), COALESCE(r.gain_loss::text, ''),
+              r.status, r.updated_at::text)) AS verification_fingerprint,
+            route_elevation_profile_has_real_range(r.path)
+              AS profile_has_real_range,
+            r.gain IS NOT DISTINCT FROM elevation_stats.gain
+              AND r.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
+              AS profile_stats_match,
             CASE WHEN r.elevation_string IS NOT NULL
                        AND r.elevation_string = encode_route_elevation_profile(r.path)
                  THEN ST_NPoints(r.path::geometry)::int ELSE 0 END AS profile_count,
@@ -182,6 +193,7 @@ export async function GET(_request: Request, context: Context) {
               WHERE rd.route_id = r.id
             ) AS destination_features
      FROM routes r
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
      WHERE r.id = $1
        AND r.owner = 'peaks'
        AND r.status = 'active'`,
@@ -191,6 +203,8 @@ export async function GET(_request: Request, context: Context) {
     return NextResponse.json({ error: "Route not found" }, { status: 404 });
   }
   return NextResponse.json(result.rows[0], {
-    headers: { "cache-control": "no-store, max-age=0" },
+    headers: {
+      "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+    },
   });
 }
