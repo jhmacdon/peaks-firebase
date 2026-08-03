@@ -1202,15 +1202,29 @@ async function findExactExistingRoute(
   points: TrackPoint[]
 ): Promise<{ id: string; status: "pending" | "active" } | null> {
   if (args.upgradeActiveRouteId) return null;
+  const elevationLineage = routeElevationLineage(candidate);
   const result = await db.query<{ id: string; status: "pending" | "active" }>(
     `SELECT r.id, r.status
      FROM routes r
+     CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
      WHERE r.owner = 'peaks'
        AND r.status IN ('pending', 'active')
        AND lower(r.name) = lower($1)
        AND r.shape = $2::route_shape
        AND r.provenance = $3::jsonb
-       AND ST_Equals(r.path::geometry, ST_GeomFromText($4, 4326))
+       AND encode(ST_AsEWKB(r.path::geometry), 'hex') =
+           encode(ST_AsEWKB(ST_GeomFromText($4, 4326)), 'hex')
+       AND r.elevation_string = encode_route_elevation_profile(r.path)
+       AND r.gain IS NOT DISTINCT FROM elevation_stats.gain
+       AND r.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
+       AND r.elevation_source IS NOT DISTINCT FROM $8::text
+       AND r.elevation_source_url IS NOT DISTINCT FROM $9::text
+       AND r.elevation_attribution IS NOT DISTINCT FROM $10::text
+       AND r.elevation_license_url IS NOT DISTINCT FROM $11::text
+       AND r.elevation_retrieved_at IS NOT DISTINCT FROM $12::timestamptz
+       AND (r.status <> 'pending' OR peaks_route_passes_publish_integrity(
+         r.id, $6, 'pending'
+       ))
        AND r.external_links = $7::jsonb
        AND EXISTS (
          SELECT 1
@@ -1245,6 +1259,11 @@ async function findExactExistingRoute(
       args.trailheadId,
       args.destinationId,
       JSON.stringify(args.sourceLinks),
+      elevationLineage.source,
+      elevationLineage.sourceUrl,
+      elevationLineage.attribution,
+      elevationLineage.licenseUrl,
+      elevationLineage.retrievedAt,
     ]
   );
   return result.rows[0] ?? null;
@@ -1409,15 +1428,25 @@ async function createPendingRoute(
     }>(
       `SELECT r.id, r.status
        FROM routes r
+       CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
        WHERE r.owner = 'peaks'
          AND r.status IN ('pending', 'active')
          AND lower(r.name) = lower($1)
          AND r.shape = $2::route_shape
          AND r.provenance = $3::jsonb
-         AND ST_Equals(
-           r.path::geometry,
-           ST_GeomFromText($4, 4326)
-         )
+         AND encode(ST_AsEWKB(r.path::geometry), 'hex') =
+             encode(ST_AsEWKB(ST_GeomFromText($4, 4326)), 'hex')
+         AND r.elevation_string = encode_route_elevation_profile(r.path)
+         AND r.gain IS NOT DISTINCT FROM elevation_stats.gain
+         AND r.gain_loss IS NOT DISTINCT FROM elevation_stats.loss
+         AND r.elevation_source IS NOT DISTINCT FROM $8::text
+         AND r.elevation_source_url IS NOT DISTINCT FROM $9::text
+         AND r.elevation_attribution IS NOT DISTINCT FROM $10::text
+         AND r.elevation_license_url IS NOT DISTINCT FROM $11::text
+         AND r.elevation_retrieved_at IS NOT DISTINCT FROM $12::timestamptz
+         AND (r.status <> 'pending' OR peaks_route_passes_publish_integrity(
+           r.id, $6, 'pending'
+         ))
          AND r.external_links = $7::jsonb
          AND EXISTS (
            SELECT 1
@@ -1457,6 +1486,11 @@ async function createPendingRoute(
         args.trailheadId,
         args.destinationId,
         JSON.stringify(args.sourceLinks),
+        elevationLineage.source,
+        elevationLineage.sourceUrl,
+        elevationLineage.attribution,
+        elevationLineage.licenseUrl,
+        elevationLineage.retrievedAt,
       ]
     );
     if (exactExisting.rows[0]?.status === "pending") {

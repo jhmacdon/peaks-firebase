@@ -173,6 +173,40 @@ test("route writers atomically set or clear terrain elevation credit", () => {
   );
 });
 
+test("restart reuse requires exact XYZ elevation lineage and pending integrity", () => {
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
+  const preflightStart = importer.indexOf("async function findExactExistingRoute(");
+  const pendingStart = importer.indexOf("async function createPendingRoute(");
+  const upgradeStart = importer.indexOf("async function upgradeActiveRoute(");
+  const preflight = importer.slice(preflightStart, pendingStart);
+  const pending = importer.slice(pendingStart, upgradeStart);
+
+  const wrongZAndCredit = {
+    path: "LINESTRING Z (-121 47 100, -121.001 47.001 300)",
+    elevationSource: "stale source",
+  };
+  const exactTerrain = {
+    path: "LINESTRING Z (-121 47 100, -121.001 47.001 200)",
+    elevationSource: "AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",
+  };
+  assert.notEqual(wrongZAndCredit.path, exactTerrain.path);
+  assert.notEqual(wrongZAndCredit.elevationSource, exactTerrain.elevationSource);
+
+  for (const exactMatch of [preflight, pending]) {
+    assert.match(
+      exactMatch,
+      /encode\(ST_AsEWKB\(r\.path::geometry\), 'hex'\) =\s+encode\(ST_AsEWKB\(ST_GeomFromText\(\$4, 4326\)\), 'hex'\)/
+    );
+    assert.doesNotMatch(exactMatch, /ST_Equals\(r\.path::geometry/);
+    assert.match(exactMatch, /r\.elevation_string = encode_route_elevation_profile\(r\.path\)/);
+    assert.match(exactMatch, /r\.gain IS NOT DISTINCT FROM elevation_stats\.gain/);
+    assert.match(exactMatch, /r\.gain_loss IS NOT DISTINCT FROM elevation_stats\.loss/);
+    assert.match(exactMatch, /r\.elevation_source IS NOT DISTINCT FROM \$8::text/);
+    assert.match(exactMatch, /r\.elevation_retrieved_at IS NOT DISTINCT FROM \$12::timestamptz/);
+    assert.match(exactMatch, /peaks_route_passes_publish_integrity\(\s+r\.id, \$6, 'pending'\s+\)/);
+  }
+});
+
 test("the worker runtime can load the importer before claiming a job", () => {
   const result = spawnSync(
     join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
