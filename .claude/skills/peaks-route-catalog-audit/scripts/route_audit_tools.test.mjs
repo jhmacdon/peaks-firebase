@@ -368,13 +368,24 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     ...packetArgs,
   });
 
-  assert.match(reviewer, /model_reasoning_effort = "high"/);
-  assert.match(reviewer, /filtered review packet/);
+  assert.match(reviewer, /model_reasoning_effort = "medium"/);
+  assert.match(reviewer, /Read exactly one file/);
+  assert.match(reviewer, /Do not\s+load a skill, documentation/);
+  assert.doesNotMatch(reviewer, /Use \$peaks-route-factory|Read references\//);
+  assert.match(reviewer, /filtered review-packet/);
   assert.match(reviewer, /Do not open URLs, browse, search/);
-  assert.match(reviewer, /only the packet's compact web_evidence/);
+  assert.match(reviewer, /only the packet's compact fields and web_evidence/);
   assert.match(reviewer, /Finish within two minutes/);
   assert.match(reviewer, /Copy the packet's review_result_template/);
   assert.match(reviewer, /HTTP 200 proves only that the page was fetched/);
+  assert.match(reviewer, /core p95 <= 2 m/);
+  assert.match(reviewer, /standard route name, named trailhead, route shape/);
+  assert.match(reviewer, /scrambling, glacier, avalanche, climbing/);
+  assert.match(
+    reviewer,
+    /unknown, disputed, closed,\s+seasonal, permit, guide, or private-land/
+  );
+  assert.match(reviewer, /source-check\s+access or permit warning/);
   assert.match(reviewer, /Return only the JSON object/);
   assert.match(stageCommands, /Never attach or\s+quote the full candidate result/);
   assert.match(stageCommands, /with one prompt field/);
