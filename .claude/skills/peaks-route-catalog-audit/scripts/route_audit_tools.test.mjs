@@ -385,6 +385,39 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
       /Command failed/
     );
 
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' canonical\n"
+    );
+    const canonicalOutput = execFileSync(
+      wrapper,
+      ["claim", "--worker-id", "supervisor-route-claim", "--apply"],
+      { encoding: "utf8", env: environment }
+    );
+    assert.match(canonicalOutput, /--worker-id\nsupervisor-route-claim/);
+    assert.doesNotMatch(canonicalOutput, /--integrity-repairs-only/);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        ["claim", "--apply"],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "claim",
+          "--worker-id", "supervisor-route-claim",
+          "--integrity-repairs-only",
+          "--apply",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+
     const prompt = readFileSync(routeRepairLunaPrompt, "utf8");
     assert.match(prompt, /at exact\s+`origin\/main`/i);
     assert.match(prompt, /--integrity-repairs-only/);

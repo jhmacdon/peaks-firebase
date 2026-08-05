@@ -14,6 +14,9 @@ if [[ "${args[0]:-}" == "claim" ]]; then
     route-repair)
       expected_worker_id="luna-route-repair-01"
       ;;
+    canonical)
+      expected_worker_id=""
+      ;;
     *)
       echo "claim requires an approved route-factory checkout" >&2
       exit 2
@@ -42,8 +45,12 @@ if [[ "${args[0]:-}" == "claim" ]]; then
     supplied_worker_id="${args[$((index + 1))]}"
   done
   if [[ -z "$supplied_worker_id" ]]; then
+    if [[ -z "$expected_worker_id" ]]; then
+      echo "canonical checkout claims require an explicit --worker-id" >&2
+      exit 2
+    fi
     args+=("--worker-id" "$expected_worker_id")
-  elif [[ "$supplied_worker_id" != "$expected_worker_id" ]]; then
+  elif [[ -n "$expected_worker_id" && "$supplied_worker_id" != "$expected_worker_id" ]]; then
     echo "worker ID $supplied_worker_id does not match checkout $checkout_kind" >&2
     exit 2
   fi
@@ -53,7 +60,7 @@ if [[ "${args[0]:-}" == "claim" ]]; then
   fi
   if [[ "$checkout_kind" == "route-repair" && "$integrity_repairs_only_count" == "0" ]]; then
     args+=("--integrity-repairs-only")
-  elif [[ "$checkout_kind" == "route-factory" && "$integrity_repairs_only_count" != "0" ]]; then
+  elif [[ "$checkout_kind" != "route-repair" && "$integrity_repairs_only_count" != "0" ]]; then
     echo "--integrity-repairs-only requires the route-repair checkout" >&2
     exit 2
   fi
