@@ -342,7 +342,21 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     map_review: { passed: true, notes: "Correct summit and trailhead." },
   };
   const packetArgs = {
-    sourceCheck: { verdict: "PASS" },
+    sourceCheck: {
+      verdict: "PASS",
+      results: [
+        {
+          metrics: {
+            start_connector_m: 1,
+            end_connector_m: 2,
+            core_max_offset_m: 3,
+            core_p95_offset_m: 2.5,
+            core_coverage_pct: 100,
+            ignored_metric: 9,
+          },
+        },
+      ],
+    },
     destinationId: "destination",
     destinationName: "Mount Example",
     trailheadId: "trailhead",
@@ -359,8 +373,58 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
   assert.match(reviewer, /Do not open URLs, browse, search/);
   assert.match(reviewer, /only the packet's compact web_evidence/);
   assert.match(reviewer, /Finish within two minutes/);
+  assert.match(reviewer, /Copy the packet's review_result_template/);
+  assert.match(reviewer, /HTTP 200 proves only that the page was fetched/);
+  assert.match(reviewer, /Return only the JSON object/);
   assert.match(stageCommands, /Never attach or\s+quote the full candidate result/);
+  assert.match(stageCommands, /with one prompt field/);
+  assert.match(stageCommands, /Do not also supply an input, items, files/);
   assert.equal(packet.candidate.identity_sources.length, 2);
+  assert.equal(packet.review_result_template.verdict, null);
+  assert.equal(packet.review_result_template.reviewer, "peaks_route_reviewer");
+  assert.equal(packet.review_result_template.route_id, "route");
+  assert.equal(packet.review_result_template.source_check, "osm");
+  assert.deepEqual(
+    Object.keys(packet.review_result_template.gates),
+    [
+      "route_identity",
+      "geometry_rights",
+      "access",
+      "map_review",
+      "source_geometry",
+      "pending_route",
+      "endpoints",
+      "provenance",
+    ]
+  );
+  assert.ok(
+    Object.values(packet.review_result_template.gates).every(
+      (value) => value === null
+    )
+  );
+  assert.deepEqual(packet.review_result_template.measurements, {
+    start_connector_m: 1,
+    end_connector_m: 2,
+    core_max_offset_m: 3,
+    core_p95_offset_m: 2.5,
+    core_coverage_pct: 100,
+  });
+  assert.match(
+    packet.review_contract.evidence_rule,
+    /proves only that a page was fetched/
+  );
+  const usgsPacket = buildRouteReviewPacket({
+    candidate: {
+      ...candidate,
+      geometry: {
+        source_kind: "usgs-national-map",
+        source_url: "https://apps.nationalmap.gov/",
+        license: "Public domain",
+      },
+    },
+    ...packetArgs,
+  });
+  assert.equal(usgsPacket.review_result_template.source_check, "usgs");
   assert.ok(
     packet.candidate.identity_sources.some((source) => source.url === conflictUrl)
   );

@@ -679,6 +679,55 @@ export async function addReviewWebEvidence(
   return { ...packet, web_evidence: webEvidence };
 }
 
+function sourceCheckKind(candidate) {
+  const sourceKind = candidate?.geometry?.source_kind;
+  if (sourceKind === "openstreetmap") return "osm";
+  if (sourceKind === "usgs-national-map") return "usgs";
+  throw new Error("candidate geometry must identify openstreetmap or usgs");
+}
+
+function sourceCheckMeasurements(sourceCheck) {
+  const metrics = Array.isArray(sourceCheck.results)
+    ? sourceCheck.results[0]?.metrics
+    : null;
+  if (!isObject(metrics)) return {};
+  const measurements = {};
+  for (const key of [
+    "start_connector_m",
+    "end_connector_m",
+    "core_max_offset_m",
+    "core_p95_offset_m",
+    "core_coverage_pct",
+  ]) {
+    if (typeof metrics[key] === "number" && Number.isFinite(metrics[key])) {
+      measurements[key] = metrics[key];
+    }
+  }
+  return measurements;
+}
+
+function reviewResultTemplate(candidate, sourceCheck, routeId) {
+  return {
+    verdict: null,
+    reviewed_at: new Date().toISOString(),
+    reviewer: "peaks_route_reviewer",
+    route_id: routeId,
+    source_check: sourceCheckKind(candidate),
+    gates: {
+      route_identity: null,
+      geometry_rights: null,
+      access: null,
+      map_review: null,
+      source_geometry: null,
+      pending_route: null,
+      endpoints: null,
+      provenance: null,
+    },
+    measurements: sourceCheckMeasurements(sourceCheck),
+    errors: [],
+  };
+}
+
 export function buildRouteReviewPacket({
   candidate,
   sourceCheck,
@@ -713,6 +762,21 @@ export function buildRouteReviewPacket({
       map_review: filteredMapReview(candidate),
     },
     source_check: sourceCheck,
+    review_contract: {
+      instruction:
+        "Return only one JSON object copied from review_result_template. " +
+        "Replace verdict and every null gate, keep every key and flat boolean gate name unchanged, and add no keys.",
+      pass_rule:
+        "PASS requires every listed gate true. Otherwise return FAIL and list each exact defect in errors.",
+      evidence_rule:
+        "web_evidence ok or HTTP 200 proves only that a page was fetched. " +
+        "The page title, description, or excerpt must support the candidate fact used by each gate.",
+    },
+    review_result_template: reviewResultTemplate(
+      candidate,
+      sourceCheck,
+      routeId
+    ),
   };
 }
 

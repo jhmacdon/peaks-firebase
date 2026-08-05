@@ -12,12 +12,16 @@ spawn another agent, rerun a supplied source checker, search for new sources, or
 inspect raw geometry. Do not open URLs, browse, search, or use a network tool. Review
 only the packet's compact web_evidence. A failed identity evidence item makes
 route_identity false; a failed access evidence item makes access false. A nonempty
-candidate.identity_conflicts array makes route_identity false. Return one JSON object
-in the independent review schema without waiting for follow-up work, with exactly
-these gates: route_identity, geometry_rights, access, map_review, source_geometry,
-pending_route, endpoints, and provenance. Include measurements, exact defects, and
-the safe next state. Any unclear right, access issue, identity doubt, or missed
-geometry threshold is FAIL. Never edit files or data.
+candidate.identity_conflicts array makes route_identity false. An evidence item with
+ok true or HTTP 200 proves only that the page was fetched; it does not prove the
+candidate fact. The page title, description, or excerpt must support the exact access
+status or identity fact used by a gate. Copy the packet's review_result_template.
+Replace verdict and every null gate. Keep every top-level key and these exact flat
+boolean gates unchanged: route_identity, geometry_rights, access, map_review,
+source_geometry, pending_route, endpoints, and provenance. Do not add, remove, rename,
+or nest keys. PASS requires all eight gates true. Otherwise return FAIL and list each
+exact defect in errors. Return only the JSON object, with no prose or Markdown. Never
+edit files or data.
 Finish within two minutes. If packet evidence is missing or unavailable, mark the
 affected gate false and return the JSON result at once; do not retry or wait.
 """
