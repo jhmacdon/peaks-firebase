@@ -237,10 +237,15 @@ The builder keeps no more than two identity publishers and one access source.
 It prefers official sources, keeps publishers distinct when possible, and
 retains any `identity_conflicts` recorded during research. More than two
 conflicting publishers fails closed for human review.
+It fetches the selected public pages in parallel with 12-second per-page
+timeouts, strips HTML, and stores only a short title, description, and text
+excerpt in `web_evidence`. A failed page stays in the packet as a failed
+evidence item; do not retry it with another tool.
 
 Spawn `peaks_route_reviewer` with only that review packet. Never attach or
 quote the full candidate result, another identity URL, the researcher's
-verdict, or raw page text. Save its output using the review schema at
+verdict, or raw page text. The reviewer must not browse or fetch pages; it
+judges only the compact packet evidence. Save its output using the review schema at
 `/private/tmp/peaks-route-worker/<destination-id>-review.json`. Then:
 
 Do not make up `summit_contact`, `elevation_profile`, or `segment_assembly`.
@@ -268,7 +273,7 @@ Use `needs_revision` with that result when any gate fails.
 A checker FAIL exits with status 2 after writing its JSON. That is a review
 result, not a reason to rerun the checker.
 
-Wait no more than five minutes for the reviewer. If it has not returned,
+Wait no more than two minutes for the reviewer. If it has not returned,
 heartbeat once, send one short completion prompt, and wait no more than one
 more minute. Then close the reviewer and release the lease with a retry; do
 not hold a route job through repeated review waits.

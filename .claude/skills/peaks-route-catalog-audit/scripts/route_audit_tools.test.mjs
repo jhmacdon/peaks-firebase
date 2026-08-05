@@ -26,7 +26,12 @@ import {
   compareRouteSourceFacts,
   validateSourceFacts,
 } from "./compare_route_source_facts.mjs";
-import { buildRouteReviewPacket } from "../../../../.agents/skills/peaks-route-factory/scripts/build_route_review_packet.mjs";
+import {
+  addReviewWebEvidence,
+  buildRouteReviewPacket,
+  fetchPublicPage,
+  isPublicAddress,
+} from "../../../../.agents/skills/peaks-route-factory/scripts/build_route_review_packet.mjs";
 
 const workerCheckoutResolver = fileURLToPath(
   new URL(
@@ -301,7 +306,7 @@ test("route source-check wrapper owns checker choice and result path", () => {
   );
 });
 
-test("route reviewer gets a small packet and a bounded useful window", () => {
+test("route reviewer gets a small packet and a bounded useful window", async () => {
   const reviewer = readFileSync(routeReviewerConfig, "utf8");
   const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
   const discardedUrl = "https://discarded.example/route";
@@ -351,9 +356,9 @@ test("route reviewer gets a small packet and a bounded useful window", () => {
 
   assert.match(reviewer, /model_reasoning_effort = "high"/);
   assert.match(reviewer, /filtered review packet/);
-  assert.match(reviewer, /one parallel batch/);
-  assert.match(reviewer, /Never use\s+more than two browser/);
-  assert.match(reviewer, /Finish within five minutes/);
+  assert.match(reviewer, /Do not open URLs, browse, search/);
+  assert.match(reviewer, /only the packet's compact web_evidence/);
+  assert.match(reviewer, /Finish within two minutes/);
   assert.match(stageCommands, /Never attach or\s+quote the full candidate result/);
   assert.equal(packet.candidate.identity_sources.length, 2);
   assert.ok(
@@ -410,6 +415,169 @@ test("route reviewer gets a small packet and a bounded useful window", () => {
     JSON.stringify(samePublisherPacket),
     /route-two|route-three/
   );
+  const requestedUrls = [];
+  const evidencePacket = await addReviewWebEvidence(
+    packet,
+    {
+      resolveHost: async () => [
+        { address: "93.184.216.34", family: 4 },
+      ],
+      requestHop: async (url, address) => {
+        requestedUrls.push(url);
+        assert.equal(address, "93.184.216.34");
+        if (url.endsWith("/access")) {
+          return {
+            status: 403,
+            content_type: "text/html",
+            location: null,
+            body: "",
+          };
+        }
+        return {
+          status: 200,
+          content_type: "text/html; charset=utf-8",
+          location: null,
+          body:
+            "<html><head><title>Mount Example Route</title>" +
+            '<meta name="description" content="Standard route from the trailhead.">' +
+            "</head><body><script>discard me</script>Public route facts.</body></html>",
+        };
+      },
+    }
+  );
+  assert.equal(requestedUrls.length, 3);
+  assert.equal(evidencePacket.web_evidence.length, 3);
+  assert.equal(
+    evidencePacket.web_evidence.filter((evidence) => evidence.ok).length,
+    2
+  );
+  assert.ok(
+    evidencePacket.web_evidence.some(
+      (evidence) =>
+        evidence.roles.includes("access") &&
+        evidence.ok === false &&
+        evidence.http_status === 403
+    )
+  );
+  assert.match(JSON.stringify(evidencePacket), /Mount Example Route/);
+  assert.doesNotMatch(JSON.stringify(evidencePacket), /discard me|<html>/);
+  let redirectRequests = 0;
+  await assert.rejects(
+    fetchPublicPage("https://public.example/start", {
+      resolveHost: async (hostname) => [
+        {
+          address:
+            hostname === "www.public.example"
+              ? "10.0.0.8"
+              : "93.184.216.34",
+          family: 4,
+        },
+      ],
+      requestHop: async () => {
+        redirectRequests += 1;
+        return {
+          status: 302,
+          content_type: "text/html",
+          location: "https://www.public.example/secret",
+          body: "",
+        };
+      },
+    }),
+    /resolved to a private address/
+  );
+  assert.equal(redirectRequests, 1);
+  await assert.rejects(
+    fetchPublicPage("https://private-dns.example/route", {
+      resolveHost: async () => [{ address: "fd00::1", family: 6 }],
+      requestHop: async () => assert.fail("private DNS must not be requested"),
+    }),
+    /resolved to a private address/
+  );
+  assert.equal(isPublicAddress("fd00::1"), false);
+  assert.equal(isPublicAddress("fe80::1"), false);
+  assert.equal(isPublicAddress("::ffff:10.0.0.1"), false);
+  assert.equal(isPublicAddress("::ffff:a00:1"), false);
+  assert.equal(isPublicAddress("fec0::1"), false);
+  assert.equal(isPublicAddress("192.0.2.1"), false);
+  assert.equal(isPublicAddress("198.51.100.1"), false);
+  assert.equal(isPublicAddress("203.0.113.1"), false);
+  assert.equal(isPublicAddress("3fff::1"), false);
+  assert.equal(isPublicAddress("2606:2800:220:1:248:1893:25c8:1946"), true);
+  let abortedRequest = false;
+  await assert.rejects(
+    fetchPublicPage("https://slow.example/route", {
+      resolveHost: async () => [
+        { address: "93.184.216.34", family: 4 },
+      ],
+      requestHop: async (_url, _address, _family, _timeoutMs, signal) =>
+        new Promise((_, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              abortedRequest = true;
+              reject(signal.reason);
+            },
+            { once: true }
+          );
+        }),
+      timeoutMs: 20,
+    }),
+    /timed out/
+  );
+  assert.equal(abortedRequest, true);
+  let crossPublisherRequests = 0;
+  await assert.rejects(
+    fetchPublicPage("https://public.example/start", {
+      resolveHost: async () => [
+        { address: "93.184.216.34", family: 4 },
+      ],
+      requestHop: async () => {
+        crossPublisherRequests += 1;
+        return {
+          status: 302,
+          content_type: "text/html",
+          location: "https://another.example/route",
+          body: "",
+        };
+      },
+    }),
+    /another publisher/
+  );
+  assert.equal(crossPublisherRequests, 1);
+  let redirectHops = 0;
+  await assert.rejects(
+    fetchPublicPage("https://redirects.example/start", {
+      resolveHost: async () => [
+        { address: "93.184.216.34", family: 4 },
+      ],
+      requestHop: async () => {
+        redirectHops += 1;
+        return {
+          status: 302,
+          content_type: "text/html",
+          location: "/next",
+          body: "",
+        };
+      },
+      redirectLimit: 3,
+    }),
+    /redirect limit/
+  );
+  assert.equal(redirectHops, 4);
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          identity_sources: [
+            { type: "official", url: "https://127.0.0.1/private" },
+          ],
+          identity_conflicts: [],
+        },
+        ...packetArgs,
+      }),
+    /must use a public host/
+  );
   assert.throws(
     () =>
       buildRouteReviewPacket({
@@ -425,7 +593,7 @@ test("route reviewer gets a small packet and a bounded useful window", () => {
   );
   assert.match(
     stageCommands,
-    /Wait no more than five minutes[\s\S]*one\s+more minute/
+    /Wait no more than two minutes[\s\S]*one\s+more minute/
   );
 });
 

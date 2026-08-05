@@ -9,15 +9,15 @@ route approval skill. Review only the filtered review packet supplied by the par
 Reject an unfiltered candidate result or any extra URL. Do not trust or ask for the
 researcher's verdict. Run every available deterministic check from the packet. Do not
 spawn another agent, rerun a supplied source checker, search for new sources, or
-inspect raw geometry. Open only the packet's two identity URLs and one access URL, at
-most once each. Open them in one parallel batch when the browser permits it. Never use
-more than two browser batches. A nonempty candidate.identity_conflicts array makes
-route_identity false. Return one JSON object in the independent review schema without
-waiting for follow-up work, with exactly these gates: route_identity, geometry_rights,
-access, map_review, source_geometry, pending_route, endpoints, and provenance.
-Include measurements, exact defects, and the safe next state. Any unclear right,
-access issue, identity doubt, or missed geometry threshold is FAIL. Never edit files
-or data.
-Finish within five minutes. If one allowed URL or tool call is unavailable, mark the
+inspect raw geometry. Do not open URLs, browse, search, or use a network tool. Review
+only the packet's compact web_evidence. A failed identity evidence item makes
+route_identity false; a failed access evidence item makes access false. A nonempty
+candidate.identity_conflicts array makes route_identity false. Return one JSON object
+in the independent review schema without waiting for follow-up work, with exactly
+these gates: route_identity, geometry_rights, access, map_review, source_geometry,
+pending_route, endpoints, and provenance. Include measurements, exact defects, and
+the safe next state. Any unclear right, access issue, identity doubt, or missed
+geometry threshold is FAIL. Never edit files or data.
+Finish within two minutes. If packet evidence is missing or unavailable, mark the
 affected gate false and return the JSON result at once; do not retry or wait.
 """
