@@ -440,6 +440,7 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     assert.match(prompt, /more than 5 m/i);
     assert.match(prompt, /must also end within 5 m/i);
     assert.match(prompt, /exact preflighted discovery\s+commands/i);
+    assert.match(prompt, /terminal transition[\s\S]*ends the turn/i);
 
     const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
     for (const helper of [
@@ -455,6 +456,14 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     }
     assert.match(stageCommands, /do not add `bash`[\s\S]*raw public-source request/i);
     assert.match(stageCommands, /tries two approved public Overpass/i);
+    assert.match(
+      stageCommands,
+      /Every claim authorizes only its returned stage[\s\S]*new\s+lease/i
+    );
+    assert.match(
+      stageCommands,
+      /candidate_ready[\s\S]*ends the research turn[\s\S]*Do not materialize/i
+    );
 
     const osmDiscovery = readFileSync(osmDiscoveryHelper, "utf8");
     assert.match(osmDiscovery, /https:\/\/overpass-api\.de\/api\/interpreter/);
