@@ -80,13 +80,6 @@ test(
       assert.equal(result.job.destination_id, targetId);
       assert.equal(result.job.state, "researching");
 
-      await pool.query(
-        `UPDATE standard_route_backfill_jobs
-         SET candidate_artifact = '{}'::jsonb,
-             candidate_sha256 = 'not-used-outside-import'
-         WHERE destination_id = $1`,
-        [targetId]
-      );
       const wrongStageMaterialize = command(
         "materialize",
         "--destination-id", targetId,
@@ -112,14 +105,43 @@ test(
         `UPDATE standard_route_backfill_jobs
          SET state = 'candidate_ready',
              candidate_artifact = $2::jsonb,
-             candidate_sha256 = $3
+             candidate_sha256 = $3,
+             lease_owner = NULL,
+             lease_token = NULL,
+             lease_expires_at = NULL
          WHERE destination_id = $1`,
         [targetId, candidateJson, candidateHash]
       );
-      const importStageMaterialize = command(
+      const expiredResearchMaterialize = command(
         "materialize",
         "--destination-id", targetId,
         "--lease-token", result.job.lease_token,
+        "--output", materializedCandidate
+      );
+      assert.notEqual(expiredResearchMaterialize.status, 0);
+      assert.match(
+        expiredResearchMaterialize.stderr,
+        /active candidate_ready import-stage lease/
+      );
+
+      const importClaim = command(
+        "claim",
+        "--worker-id", "targeted-import-test",
+        "--destination-id", targetId,
+        "--integrity-repairs-only",
+        "--stage", "import",
+        "--apply"
+      );
+      assert.equal(importClaim.status, 0, importClaim.stderr || importClaim.stdout);
+      const importResult = JSON.parse(importClaim.stdout.trim());
+      assert.equal(importResult.job.destination_id, targetId);
+      assert.equal(importResult.job.state, "candidate_ready");
+      assert.notEqual(importResult.job.lease_token, result.job.lease_token);
+
+      const importStageMaterialize = command(
+        "materialize",
+        "--destination-id", targetId,
+        "--lease-token", importResult.job.lease_token,
         "--output", materializedCandidate
       );
       assert.equal(
