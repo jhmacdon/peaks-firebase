@@ -41,6 +41,10 @@ const routeCatalogAudit = fileURLToPath(
   new URL("./audit_catalog_routes.sh", import.meta.url)
 );
 
+const routeCatalogWorker = fileURLToPath(
+  new URL("./audit_catalog_routes_worker.sh", import.meta.url)
+);
+
 const routeAuditSkill = fileURLToPath(
   new URL("../SKILL.md", import.meta.url)
 );
@@ -341,6 +345,56 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
   }
 });
 
+test("recurring catalog checks use the approved preflighted database wrapper", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-catalog-audit/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const preflightLog = join(root, "preflight-log");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    const wrapper = join(skillScripts, "audit_catalog_routes_worker.sh");
+    const checker = join(skillScripts, "audit_catalog_routes.sh");
+    copyFileSync(routeCatalogWorker, wrapper);
+    writeFileSync(
+      checker,
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-audit-01\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\nexec \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      checker,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
+    ]) chmodSync(executable, 0o755);
+    const output = execFileSync(
+      wrapper,
+      ["--destination-id", "destination-1", "--print-sql"],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.match(output, /--destination-id\ndestination-1\n--print-sql/);
+    assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Luna proves setup from a fresh wrapper call and uses bounded leases", () => {
   const skill = readFileSync(routeAuditSkill, "utf8");
   const prompt = readFileSync(routeAuditLunaPrompt, "utf8");
@@ -350,9 +404,10 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /(?:current|this) turn/i);
     assert.match(instructions, /sandbox_permissions=require_escalated/);
     assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
+    assert.match(instructions, /audit_catalog_routes_worker\.sh/);
     assert.match(
       instructions,
-      /Do not\s+first run\s+the wrapper without that permission/i
+      /Do not\s+first run\s+(?:either|the) wrapper without that permission/i
     );
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }

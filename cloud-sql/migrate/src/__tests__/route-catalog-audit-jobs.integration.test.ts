@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 import { Pool } from "pg";
 
@@ -31,22 +31,55 @@ test(
     const segmentId = `route-audit-segment-${suffix}`;
     const evidenceDir = await mkdtemp(join(tmpdir(), "route-audit-job-test-"));
     const resultFile = join(evidenceDir, "result.json");
+    const commandEnvironment = {
+      ...process.env,
+      DB_HOST: databaseUrl.hostname,
+      DB_PORT: databaseUrl.port || "5432",
+      DB_NAME: databaseUrl.pathname.slice(1),
+      DB_USER: decodeURIComponent(databaseUrl.username),
+      DB_PASS: decodeURIComponent(databaseUrl.password),
+    };
+    const commandArguments = (...args: string[]) => [
+      join(MIGRATE_ROOT, "src/route-catalog-audit-jobs.ts"),
+      ...args,
+    ];
     const runCommand = (...args: string[]) =>
       spawnSync(
         join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
-        [join(MIGRATE_ROOT, "src/route-catalog-audit-jobs.ts"), ...args],
+        commandArguments(...args),
         {
           cwd: MIGRATE_ROOT,
           encoding: "utf8",
           timeout: 30_000,
-          env: {
-            ...process.env,
-            DB_HOST: databaseUrl.hostname,
-            DB_PORT: databaseUrl.port || "5432",
-            DB_NAME: databaseUrl.pathname.slice(1),
-            DB_USER: decodeURIComponent(databaseUrl.username),
-            DB_PASS: decodeURIComponent(databaseUrl.password),
-          },
+          env: commandEnvironment,
+        }
+      );
+    const runCommandAsync = (...args: string[]) =>
+      new Promise<{ status: number | null; stdout: string; stderr: string }>(
+        (resolve, reject) => {
+          const child = spawn(
+            join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
+            commandArguments(...args),
+            {
+              cwd: MIGRATE_ROOT,
+              env: commandEnvironment,
+              timeout: 30_000,
+            }
+          );
+          let stdout = "";
+          let stderr = "";
+          child.stdout.setEncoding("utf8");
+          child.stderr.setEncoding("utf8");
+          child.stdout.on("data", (chunk) => {
+            stdout += chunk;
+          });
+          child.stderr.on("data", (chunk) => {
+            stderr += chunk;
+          });
+          child.on("error", reject);
+          child.on("close", (status) => {
+            resolve({ status, stdout, stderr });
+          });
         }
       );
     const command = (...args: string[]) => {
@@ -94,6 +127,53 @@ test(
       );
 
       command("seed", "--apply");
+      const concurrentClaims = await Promise.all([
+        runCommandAsync(
+          "claim", "--worker-id", "concurrency-test", "--apply"
+        ),
+        runCommandAsync(
+          "claim", "--worker-id", "concurrency-test", "--apply"
+        ),
+      ]);
+      for (const result of concurrentClaims) {
+        assert.equal(result.status, 0, result.stderr || result.stdout);
+      }
+      const concurrentJobs = concurrentClaims.map((result) =>
+        JSON.parse(result.stdout.trim())
+      );
+      assert.equal(
+        concurrentJobs[0].job.destination_id,
+        concurrentJobs[1].job.destination_id
+      );
+      assert.equal(
+        concurrentJobs[0].job.lease_token,
+        concurrentJobs[1].job.lease_token
+      );
+      assert.ok(
+        concurrentJobs.some(
+          (result) => result.outcome === "existing_live_lease"
+        )
+      );
+      const concurrentLeaseCounts = await pool.query<{
+        auditing: number;
+        queued: number;
+      }>(
+        `SELECT
+           COUNT(*) FILTER (WHERE state = 'auditing')::int AS auditing,
+           COUNT(*) FILTER (WHERE state = 'queued')::int AS queued
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = ANY($1::text[])`,
+        [[destinationId, secondDestinationId]]
+      );
+      assert.deepEqual(concurrentLeaseCounts.rows[0], {
+        auditing: 1,
+        queued: 1,
+      });
+      command(
+        "release",
+        "--lease-token", concurrentJobs[0].job.lease_token,
+        "--message", "concurrency test cleanup"
+      );
       const firstClaim = command(
         "claim", "--worker-id", "integration-test",
         "--destination-id", destinationId, "--apply"
@@ -122,6 +202,12 @@ test(
         rejectedLongLease.stderr,
         /--lease-minutes must not exceed 30/
       );
+      await pool.query(
+        `UPDATE route_catalog_audit_jobs
+         SET lease_expires_at = now() + interval '90 minutes'
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
       const resumedClaim = command(
         "claim", "--worker-id", "integration-test", "--apply"
       );
@@ -129,6 +215,43 @@ test(
       assert.equal(resumedClaim.job.destination_id, destinationId);
       assert.equal(resumedClaim.job.lease_token, firstClaim.job.lease_token);
       assert.equal(resumedClaim.job.attempt_count, 1);
+      const cappedLeaseWindow = await pool.query<{ lease_seconds: number }>(
+        `SELECT EXTRACT(
+           EPOCH FROM (lease_expires_at - now())
+         )::int AS lease_seconds
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.ok(
+        cappedLeaseWindow.rows[0]!.lease_seconds > 1_700 &&
+          cappedLeaseWindow.rows[0]!.lease_seconds <= 1_800,
+        "resuming must cap an old long lease at 30 minutes"
+      );
+      await pool.query(
+        `UPDATE route_catalog_audit_jobs
+         SET lease_expires_at = now() + interval '1 minute'
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      const renewedClaim = command(
+        "claim", "--worker-id", "integration-test", "--apply"
+      );
+      assert.equal(renewedClaim.outcome, "existing_live_lease");
+      assert.equal(renewedClaim.job.lease_token, firstClaim.job.lease_token);
+      const renewedLeaseWindow = await pool.query<{ lease_seconds: number }>(
+        `SELECT EXTRACT(
+           EPOCH FROM (lease_expires_at - now())
+         )::int AS lease_seconds
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.ok(
+        renewedLeaseWindow.rows[0]!.lease_seconds > 1_700 &&
+          renewedLeaseWindow.rows[0]!.lease_seconds <= 1_800,
+        "resuming must renew a near-expiry lease to 30 minutes"
+      );
       const untouchedSecondJob = await pool.query<{
         state: string;
         lease_token: string | null;

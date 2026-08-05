@@ -434,11 +434,34 @@ async function claim(argv: string[]): Promise<void> {
       );
     }
     if (liveLeases.rows[0]) {
-      await client.query("ROLLBACK");
+      let resumed = liveLeases.rows[0];
+      if (apply) {
+        const renewed = await client.query<AuditJob>(
+          `UPDATE route_catalog_audit_jobs
+           SET lease_expires_at = now() + make_interval(mins => $3),
+               updated_at = now()
+           WHERE destination_id = $1
+             AND lease_token = $2
+             AND state = 'auditing'
+           RETURNING *`,
+          [
+            resumed.destination_id,
+            resumed.lease_token,
+            leaseMinutes,
+          ]
+        );
+        if (!renewed.rows[0]) {
+          throw new Error("Existing live audit lease changed before renewal");
+        }
+        resumed = renewed.rows[0];
+        await client.query("COMMIT");
+      } else {
+        await client.query("ROLLBACK");
+      }
       print({
         mode: apply ? "apply" : "dry_run",
         outcome: "existing_live_lease",
-        job: liveLeases.rows[0],
+        job: resumed,
       });
       return;
     }

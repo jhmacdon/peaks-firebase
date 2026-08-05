@@ -33,14 +33,15 @@ only the durable audit job row and temporary evidence files.
 
 Treat every recurring turn as a fresh run. Execute the current stats wrapper
 before reporting setup or queue state; never reuse a prior turn's result. If
-the automation prompt confirms approval for the narrow local proxy wrapper, run
-every `route_audit_jobs.sh` call with
+the automation prompt confirms approval for the narrow local proxy wrappers,
+run every `route_audit_jobs.sh` call and recurring
+`audit_catalog_routes_worker.sh` call with
 `sandbox_permissions=require_escalated`; never elevate another command. Do not
-first run the wrapper without that permission. Do not report a setup failure
+first run either wrapper without that permission. Do not report a setup failure
 unless a wrapper call in the current turn produced it. If setup fails, do not
 claim. If no job is returned, inspect stats; do not infer completion from an
 empty claim. If claim returns `existing_live_lease`, resume that returned
-destination and token; it is the worker's one job. Never claim again.
+destination and renewed token; it is the worker's one job. Never claim again.
 
 In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
 not exist yet, and its checkout checks do not apply to a direct read-only
@@ -55,17 +56,21 @@ AUDIT_DIR="$(mktemp -d /tmp/peaks-route-audit.XXXXXX)"
 ```
 
 Never create evidence inside the audit checkout; the clean-tree guard will
-reject heartbeats and queue writes. Run the catalog checker for the claimed
-destination and keep the full JSON in the system temporary directory:
+reject heartbeats and queue writes. In recurring mode, run the worker catalog
+checker for the claimed destination and keep the full JSON in the system
+temporary directory:
 
 ```bash
-bash .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes.sh \
+.claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes_worker.sh \
   --destination-id DESTINATION_ID --status catalog --format json \
   > "$AUDIT_DIR/catalog.json"
 
 node .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity.mjs \
   --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
 ```
+
+In one-off mode, use `audit_catalog_routes.sh` directly because the approved
+worker checkout and queue do not apply.
 
 Run the catalog checker with the command tool's `yield_time_ms` set to 30000.
 The read-only query often takes longer than that on a large legacy route. If

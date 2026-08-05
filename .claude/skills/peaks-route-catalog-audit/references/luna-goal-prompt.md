@@ -5,9 +5,10 @@ use another worker's checkout.
 Treat this heartbeat as a fresh run. Execute `route_audit_jobs.sh stats` now;
 never reuse or infer setup, queue, or proxy state from an earlier turn. Do not
 report a setup failure unless the exact wrapper failed in this turn. If it
-is the approved dedicated automation, run every `route_audit_jobs.sh` call with
+is the approved dedicated automation, run every `route_audit_jobs.sh` call and
+every `audit_catalog_routes_worker.sh` call with
 `sandbox_permissions=require_escalated` for the local proxy. Do not first run
-the wrapper without that permission, and never elevate another command.
+either wrapper without that permission, and never elevate another command.
 
 Then claim exactly one job with `route_audit_jobs.sh claim --lease-minutes 30
 --apply`. Do not pass or invent a worker ID; the wrapper derives the worker's
@@ -18,7 +19,7 @@ current official or land-manager source when one exists. Confirm the English
 display name, local names, route name, trailhead, distance basis, shape, gain,
 class, and access. Never sign in, evade a block, or copy private GPX geometry.
 If claim returns `existing_live_lease`, resume that returned destination and
-token as this run's one job. Never claim again.
+renewed token as this run's one job. Never claim again.
 
 Write the compact source-facts JSON, run the deterministic comparator, and
 accept its PASS, FAIL, or REVIEW result. PASS requires every internal gate and
@@ -26,13 +27,13 @@ outside fact to agree. Complete the durable job as `passed`, `needs_repair`, or
 `needs_human`. Do not repair, activate, supersede, rename, migrate, seed, fetch,
 pull, switch branches, edit tracked files, or claim another destination.
 
-Run `audit_catalog_routes.sh` with `yield_time_ms` 30000. If the command returns
-a live `session_id`, poll that same process with `write_stdin`, empty input, and
-`yield_time_ms` 30000 until it exits. Do not inspect `catalog.json`, start the
-identity step, or start a second catalog checker while that session is live.
-An empty redirected stdout while the process is live is not empty JSON and is
-not a retry. If the session cannot finish, send Ctrl-C to that same session
-before releasing the lease.
+Run `audit_catalog_routes_worker.sh` with `yield_time_ms` 30000. If the command
+returns a live `session_id`, poll that same process with `write_stdin`, empty
+input, and `yield_time_ms` 30000 until it exits. Do not inspect `catalog.json`,
+start the identity step, or start a second catalog checker while that session
+is live. An empty redirected stdout while the process is live is not empty JSON
+and is not a retry. If the session cannot finish, send Ctrl-C to that same
+session before releasing the lease.
 
 Heartbeat before browser or map work with `--lease-minutes 30`. Keep raw HTML,
 GPX, OSM payloads, path coordinates, and screenshots out of model context and

@@ -17,6 +17,9 @@ import {
   routeProfileHasRealRange,
 } from "./route-elevation-profile";
 import { sampleTerrariumProfile } from "./lib/terrarium-route-profile";
+import {
+  DEFAULT_PEAKS_PUBLIC_WEB_URL,
+} from "./standard-route-verification";
 
 type JobState = "queued" | "working" | "retry" | "blocked" | "complete" | "out_of_scope";
 type Point = { lat: number; lng: number; elevation: number | null };
@@ -942,15 +945,39 @@ export function publicElevationEvidenceMatches(
   );
 }
 
+export function publicRouteVerifierUrl(
+  routeId: string,
+  fingerprint: string,
+  environment: Record<string, string | undefined> = process.env
+): string {
+  const explicitVerifierBase =
+    environment.PEAKS_PUBLIC_ROUTE_VERIFIER_BASE_URL?.replace(/\/+$/, "");
+  const publicWebBase = (
+    environment.PEAKS_PUBLIC_WEB_URL ||
+    DEFAULT_PEAKS_PUBLIC_WEB_URL
+  ).replace(/\/+$/, "");
+  const verifierBase =
+    explicitVerifierBase || `${publicWebBase}/api/public`;
+  return (
+    `${verifierBase}/routes/${encodeURIComponent(routeId)}` +
+    `?elevation_fingerprint=${encodeURIComponent(fingerprint)}`
+  );
+}
+
 async function verifyPublicRoute(
   route: PersistedRouteEvidence,
   fingerprint: string
 ): Promise<{ kind: string }> {
   if (route.status !== "active") return { kind: "public_not_applicable: pending" };
-  const base = process.env.PEAKS_PUBLIC_ROUTE_VERIFIER_BASE_URL;
-  if (!base) throw new Error("Public route verifier base URL is required for active routes");
-  const response = await fetch(`${base.replace(/\/$/, "")}/routes/${encodeURIComponent(route.id)}?elevation_fingerprint=${encodeURIComponent(fingerprint)}`, {
-    headers: { "cache-control": "no-cache" },
+  const response = await fetch(publicRouteVerifierUrl(route.id, fingerprint), {
+    redirect: "follow",
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      "cache-control": "no-cache",
+      "user-agent":
+        "Peaks route-elevation verifier/1.0 " +
+        "(https://github.com/jhmacdon/peaks-firebase)",
+    },
   });
   if (!response.ok) throw new Error(`Public route verification failed (${response.status})`);
   const body = await response.json() as PublicElevationLineage & {
