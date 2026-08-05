@@ -23,7 +23,9 @@ This is one bounded worker run:
    the lease and stop with the exact fault.
 6. Follow only the returned stage. For rebuild work, research an independent
    OSM, USGS, or other reusable source. Never extend or copy the broken legacy
-   path merely to touch the summit.
+   path merely to touch the summit. Use only the exact preflighted discovery
+   commands in `references/stage-commands.md`; never replace them with a direct
+   helper call or raw public-source request.
 7. The replacement must reach every linked summit within 5 m. An out-and-back
    or point-to-point route must also end within 5 m of its final summit.
 8. Keep every rights, access, route identity, segment, provenance, elevation,

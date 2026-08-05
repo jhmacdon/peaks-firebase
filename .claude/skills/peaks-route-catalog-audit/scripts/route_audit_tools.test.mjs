@@ -143,6 +143,13 @@ const routeRepairLunaPrompt = fileURLToPath(
   )
 );
 
+const routeFactoryStageCommands = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/references/stage-commands.md",
+    import.meta.url
+  )
+);
+
 const routeTsxRunner = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrate/scripts/run-tsx.sh",
@@ -425,6 +432,21 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     assert.match(prompt, /one job|one lease/i);
     assert.match(prompt, /more than 5 m/i);
     assert.match(prompt, /must also end within 5 m/i);
+    assert.match(prompt, /exact preflighted discovery\s+commands/i);
+
+    const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+    for (const helper of [
+      "find_osm_trail_geometry.sh",
+      "find_public_trail_geometry.sh",
+    ]) {
+      assert.match(
+        stageCommands,
+        new RegExp(
+          String.raw`with_route_db\.sh[\s\S]{1,160}${helper.replace(".", String.raw`\.`)}`
+        )
+      );
+    }
+    assert.match(stageCommands, /do not add `bash`[\s\S]*raw public-source request/i);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

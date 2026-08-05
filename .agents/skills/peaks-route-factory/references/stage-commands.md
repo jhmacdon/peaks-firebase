@@ -25,6 +25,31 @@ Create the candidate in
 `cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson`. Read the
 standard-route backfill skill, then use one complete builder command.
 
+Find reusable source IDs through the preflighted database wrapper. Run the
+wrapper directly: do not add `bash`, `zsh`, `sandbox_permissions`, a raw
+database command, or a raw public-source request.
+
+Start with OSM:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
+  .claude/skills/peaks-standard-route-backfill/scripts/find_osm_trail_geometry.sh \
+  --destination-id <destination-id> --radius-m 8000 --format table
+```
+
+Use the USGS public-domain catalog when OSM does not provide a complete,
+correct route:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
+  .claude/skills/peaks-standard-route-backfill/scripts/find_public_trail_geometry.sh \
+  --destination-id <destination-id> --radius-m 20000 --format table
+```
+
+Expand either radius only when route facts require it and never beyond that
+helper's accepted limit. Keep full source payloads out of model context and
+git; use only the compact table to choose source IDs.
+
 For researched OSM way IDs:
 
 ```bash
