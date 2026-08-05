@@ -60,6 +60,9 @@ the next stage with a new lease.
   and build one candidate. `candidate_ready` ends the turn.
 - `import`: restore the saved candidate, cache its terrain bounds, run the
   importer first without and then with `--apply`, and save the pending route ID.
+  Call `scripts/import_route_candidate.sh` directly for both importer runs.
+  It owns the fixed terrain environment and database preflight. Never prefix it
+  with environment assignments, `env`, or another shell command.
   If the job has `replacement_route_id`, pass it to both importer runs.
   Distinct named routes may coexist on one peak. Never treat another route
   variant as the replacement or broaden the queue's replacement binding.

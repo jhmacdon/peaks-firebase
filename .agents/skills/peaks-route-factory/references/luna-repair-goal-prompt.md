@@ -32,7 +32,8 @@ This is one bounded worker run:
    or point-to-point route must also end within 5 m of its final summit.
 8. Keep every rights, access, route identity, segment, provenance, elevation,
    independent-review, activation, and public API gate. Do not lower or waive
-   a gate.
+   a gate. At the `import` stage, call `import_route_candidate.sh` directly.
+   Never put environment assignments, `env`, or a shell before it.
 9. Finish or release this one lease, run final stats, and leave the checkout
    clean. Never claim a second destination in the same run.
 
