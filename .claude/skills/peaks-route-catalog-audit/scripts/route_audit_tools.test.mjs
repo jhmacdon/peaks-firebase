@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -139,6 +139,20 @@ const routeJobsWrapper = fileURLToPath(
 const routeRepairLunaPrompt = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/references/luna-repair-goal-prompt.md",
+    import.meta.url
+  )
+);
+
+const routeFactoryStageCommands = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/references/stage-commands.md",
+    import.meta.url
+  )
+);
+
+const osmDiscoveryHelper = fileURLToPath(
+  new URL(
+    "../../peaks-standard-route-backfill/scripts/find_osm_trail_geometry.sh",
     import.meta.url
   )
 );
@@ -425,6 +439,95 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     assert.match(prompt, /one job|one lease/i);
     assert.match(prompt, /more than 5 m/i);
     assert.match(prompt, /must also end within 5 m/i);
+    assert.match(prompt, /exact preflighted discovery\s+commands/i);
+
+    const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+    for (const helper of [
+      "find_osm_trail_geometry.sh",
+      "find_public_trail_geometry.sh",
+    ]) {
+      assert.match(
+        stageCommands,
+        new RegExp(
+          String.raw`with_route_db\.sh[\s\S]{1,160}${helper.replace(".", String.raw`\.`)}`
+        )
+      );
+    }
+    assert.match(stageCommands, /do not add `bash`[\s\S]*raw public-source request/i);
+    assert.match(stageCommands, /tries two approved public Overpass/i);
+
+    const osmDiscovery = readFileSync(osmDiscoveryHelper, "utf8");
+    assert.match(osmDiscovery, /https:\/\/overpass-api\.de\/api\/interpreter/);
+    assert.match(
+      osmDiscovery,
+      /https:\/\/overpass\.private\.coffee\/api\/interpreter/
+    );
+    assert.match(osmDiscovery, /for candidate_url in "\$\{overpass_urls\[@\]\}"/);
+    assert.match(osmDiscovery, /All approved Overpass endpoints failed/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("OSM discovery falls back after a malformed primary response", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-overpass-fallback-"));
+  const bin = join(root, "bin");
+  const curlCount = join(root, "curl-count");
+  try {
+    mkdirSync(bin);
+    const psql = join(bin, "psql");
+    const curl = join(bin, "curl");
+    writeFileSync(
+      psql,
+      "#!/usr/bin/env bash\nprintf 'Mount Bierstadt\\t39.582596\\t-105.668814\\n'\n"
+    );
+    writeFileSync(
+      curl,
+      [
+        "#!/usr/bin/env bash",
+        "count=0",
+        "if [[ -f \"$FAKE_CURL_COUNT_FILE\" ]]; then",
+        "  count=\"$(tr -d '[:space:]' <\"$FAKE_CURL_COUNT_FILE\")\"",
+        "fi",
+        "count=$((count + 1))",
+        "printf '%s\\n' \"$count\" >\"$FAKE_CURL_COUNT_FILE\"",
+        "if [[ \"$count\" == \"1\" ]]; then",
+        "  printf '%s\\n' '<html>temporary gateway error</html>'",
+        "else",
+        "  printf '%s\\n' '{\"elements\":[]}'",
+        "fi",
+        "",
+      ].join("\n")
+    );
+    chmodSync(psql, 0o755);
+    chmodSync(curl, 0o755);
+
+    const result = spawnSync(
+      osmDiscoveryHelper,
+      [
+        "--destination-id", "BM4y2gvTbqY6R9bGJjUl",
+        "--radius-m", "5000",
+        "--format", "table",
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          DB_PASS: "test-password",
+          FAKE_CURL_COUNT_FILE: curlCount,
+          PATH: `${bin}:${process.env.PATH}`,
+        },
+      }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(curlCount, "utf8").trim(), "2");
+    assert.match(
+      result.stderr,
+      /Source: https:\/\/overpass\.private\.coffee\/api\/interpreter/
+    );
+    assert.doesNotMatch(result.stderr, /parse error|temporary gateway error/i);
+    assert.match(result.stdout, /^way_id\tname\thighway/m);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -94,6 +94,12 @@ Then use the existing deterministic tools:
 .claude/skills/peaks-standard-route-backfill/scripts/
 ```
 
+Run the OSM and USGS discovery helpers only through the exact
+`with_route_db.sh` commands in `references/stage-commands.md`. Do not call a
+helper directly, prefix it with `bash`, or replace it with raw `curl`; the
+preflighted wrapper supplies the database connection and the installed rule
+allows only the named read-only helpers.
+
 Read that skill before choosing a builder. Build, compare, render, and inspect
 the local map. Cache only the route bounding area from AWS terrain tiles. Raw
 HTML, GPX, OSM XML, and terrain tiles stay out of model context and git.

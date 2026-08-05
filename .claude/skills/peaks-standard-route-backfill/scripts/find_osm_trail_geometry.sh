@@ -5,7 +5,6 @@ destination_id=""
 radius_m="3000"
 output_format="table"
 
-overpass_url="${PEAKS_OVERPASS_URL:-https://overpass-api.de/api/interpreter}"
 user_agent="${PEAKS_OVERPASS_USER_AGENT:-Peaks route research/1.0}"
 license_url="https://www.openstreetmap.org/copyright"
 
@@ -127,20 +126,56 @@ IFS=$'\t' read -r destination_name latitude longitude <<<"$destination_row"
 
 overpass_query="[out:json][timeout:25];way(around:${radius_m},${latitude},${longitude})[\"highway\"~\"^(path|footway|track)$\"];out tags geom;"
 
-response="$(
-  curl \
-    --fail \
-    --silent \
-    --show-error \
-    --retry 2 \
-    --max-time 45 \
-    --user-agent "$user_agent" \
-    --data "data=${overpass_query}" \
-    "$overpass_url"
-)"
+if [[ -n "${PEAKS_OVERPASS_URL:-}" ]]; then
+  overpass_urls=("$PEAKS_OVERPASS_URL")
+else
+  overpass_urls=(
+    "https://overpass-api.de/api/interpreter"
+    "https://overpass.private.coffee/api/interpreter"
+  )
+fi
 
-if jq -e '.remark != null' >/dev/null <<<"$response"; then
-  jq -r '.remark' <<<"$response" >&2
+response=""
+overpass_url=""
+failures=()
+for candidate_url in "${overpass_urls[@]}"; do
+  if ! candidate_response="$(
+    curl \
+      --fail \
+      --silent \
+      --show-error \
+      --retry 1 \
+      --connect-timeout 10 \
+      --max-time 35 \
+      --user-agent "$user_agent" \
+      --data "data=${overpass_query}" \
+      "$candidate_url"
+  )"; then
+    failures+=("$candidate_url: request failed")
+    continue
+  fi
+  if ! jq -e '.' >/dev/null 2>&1 <<<"$candidate_response"; then
+    failures+=("$candidate_url: invalid JSON response")
+    continue
+  fi
+  if jq -e 'type == "object" and .remark != null' \
+    >/dev/null 2>&1 <<<"$candidate_response"; then
+    failures+=("$candidate_url: $(jq -r '.remark' <<<"$candidate_response")")
+    continue
+  fi
+  if ! jq -e 'type == "object" and (.elements | type == "array")' \
+    >/dev/null 2>&1 <<<"$candidate_response"; then
+    failures+=("$candidate_url: response has no elements array")
+    continue
+  fi
+  response="$candidate_response"
+  overpass_url="$candidate_url"
+  break
+done
+
+if [[ -z "$overpass_url" ]]; then
+  printf '%s\n' "All approved Overpass endpoints failed:" >&2
+  printf '  %s\n' "${failures[@]}" >&2
   exit 1
 fi
 
