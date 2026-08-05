@@ -41,6 +41,14 @@ const routeCatalogAudit = fileURLToPath(
   new URL("./audit_catalog_routes.sh", import.meta.url)
 );
 
+const routeCatalogWorker = fileURLToPath(
+  new URL("./audit_catalog_routes_worker.sh", import.meta.url)
+);
+
+const routeIdentityWorker = fileURLToPath(
+  new URL("./fetch_destination_identity_worker.sh", import.meta.url)
+);
+
 const routeAuditSkill = fileURLToPath(
   new URL("../SKILL.md", import.meta.url)
 );
@@ -341,6 +349,140 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
   }
 });
 
+test("recurring catalog checks use the approved preflighted database wrapper", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-catalog-audit/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const preflightLog = join(root, "preflight-log");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    const wrapper = join(skillScripts, "audit_catalog_routes_worker.sh");
+    const checker = join(skillScripts, "audit_catalog_routes.sh");
+    copyFileSync(routeCatalogWorker, wrapper);
+    writeFileSync(
+      checker,
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-audit-01\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\nexec \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      checker,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
+    ]) chmodSync(executable, 0o755);
+    const output = execFileSync(
+      wrapper,
+      ["--destination-id", "destination-1", "--print-sql"],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.match(output, /--destination-id\ndestination-1\n--print-sql/);
+    assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("recurring identity checks use the approved preflighted network wrapper", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-identity-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-catalog-audit/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  const preflightLog = join(root, "preflight-log");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(
+      skillScripts,
+      "fetch_destination_identity_worker.sh"
+    );
+    copyFileSync(routeIdentityWorker, wrapper);
+    writeFileSync(
+      join(skillScripts, "fetch_destination_identity.mjs"),
+      "// exercised through the fake node binary\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-audit-02\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "worker_preflight.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\n"
+    );
+    writeFileSync(
+      join(bin, "node"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "worker_preflight.sh"),
+      join(bin, "node"),
+    ]) chmodSync(executable, 0o755);
+    const output = execFileSync(
+      wrapper,
+      ["--catalog", "/tmp/catalog.json", "--output", "/tmp/identity.json"],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          PREFLIGHT_LOG: preflightLog,
+        },
+      }
+    );
+    assert.match(output, /fetch_destination_identity\.mjs/);
+    assert.match(output, /--catalog\n\/tmp\/catalog\.json/);
+    assert.match(output, /--output\n\/tmp\/identity\.json/);
+    assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Luna proves setup from a fresh wrapper call and uses bounded leases", () => {
+  const skill = readFileSync(routeAuditSkill, "utf8");
+  const prompt = readFileSync(routeAuditLunaPrompt, "utf8");
+  for (const instructions of [skill, prompt]) {
+    assert.match(instructions, /fresh run/i);
+    assert.match(instructions, /never reuse|never reuse or infer/i);
+    assert.match(instructions, /(?:current|this) turn/i);
+    assert.match(instructions, /sandbox_permissions=require_escalated/);
+    assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
+    assert.match(instructions, /audit_catalog_routes_worker\.sh/);
+    assert.match(instructions, /fetch_destination_identity_worker\.sh/);
+    assert.match(
+      instructions,
+      /Do not\s+first run\s+(?:any of these|either|the) wrappers? without that\s+permission/i
+    );
+    assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
+  }
+  assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);
+});
+
 test("path-derived elevation stats reject matching wrong route and segment values", () => {
   const sql = execFileSync(routeCatalogAudit, [
     "--route-id", "route-1", "--print-sql",
@@ -373,6 +515,10 @@ test("route audit jobs requeue v2 passes under rule version 3 without stealing l
   const v3Migration = readFileSync(routeAuditJobsV3Migration, "utf8");
   const freshMigration = readFileSync(routeAuditJobsFreshMigration, "utf8");
   assert.match(source, /const AUDIT_RULE_VERSION = 3/);
+  assert.match(source, /const MAX_LEASE_MINUTES = 30/);
+  assert.match(source, /--lease-minutes must not exceed/);
+  assert.match(source, /pg_advisory_xact_lock/);
+  assert.match(source, /outcome: "existing_live_lease"/);
   assert.match(source, /audit_rule_version/);
   assert.match(source, /job\.audit_rule_version < EXCLUDED\.audit_rule_version/);
   assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);

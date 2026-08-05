@@ -21,6 +21,7 @@ import {
   equalRouteIdSets,
   processCompletionOutput,
   publicElevationEvidenceMatches,
+  publicRouteVerifierUrl,
   requireWorkerId,
   retryOutcome,
   routeElevationLineageEvidence,
@@ -142,6 +143,29 @@ test("public elevation evidence requires exact profile bytes and stats", () => {
   assert.equal(
     publicElevationEvidenceMatches(expected, missingLineage),
     false
+  );
+});
+
+test("public route verification uses the deployed public API by default", () => {
+  assert.equal(
+    publicRouteVerifierUrl("route/a", "fingerprint 1", {}),
+    "https://peaks-firebase--donner-a8608.us-central1.hosted.app" +
+      "/api/public/routes/route%2Fa?elevation_fingerprint=fingerprint%201"
+  );
+  assert.equal(
+    publicRouteVerifierUrl("route-1", "hash-1", {
+      PEAKS_PUBLIC_WEB_URL: "https://example.test/",
+    }),
+    "https://example.test/api/public/routes/route-1" +
+      "?elevation_fingerprint=hash-1"
+  );
+  assert.equal(
+    publicRouteVerifierUrl("route-1", "hash-1", {
+      PEAKS_PUBLIC_ROUTE_VERIFIER_BASE_URL:
+        "https://verifier.example.test/custom/",
+    }),
+    "https://verifier.example.test/custom/routes/route-1" +
+      "?elevation_fingerprint=hash-1"
   );
 });
 
