@@ -5,9 +5,9 @@ use another worker's checkout.
 Treat this heartbeat as a fresh run. Execute `route_audit_jobs.sh stats` now;
 never reuse or infer setup, queue, or proxy state from an earlier turn. Do not
 report a setup failure unless the exact wrapper failed in this turn. If it
-reports that the local proxy is blocked by the command sandbox and the command
-tool permits escalation, retry only that same wrapper with
-`sandbox_permissions=require_escalated`.
+is the approved dedicated automation, run every `route_audit_jobs.sh` call with
+`sandbox_permissions=require_escalated` for the local proxy. Do not first run
+the wrapper without that permission, and never elevate another command.
 
 Then claim exactly one job with `route_audit_jobs.sh claim --lease-minutes 30
 --apply`. Do not pass or invent a worker ID; the wrapper derives the worker's
@@ -17,6 +17,8 @@ accepted normal ascent with two independent public publishers, including a
 current official or land-manager source when one exists. Confirm the English
 display name, local names, route name, trailhead, distance basis, shape, gain,
 class, and access. Never sign in, evade a block, or copy private GPX geometry.
+If claim returns `existing_live_lease`, resume that returned destination and
+token as this run's one job. Never claim again.
 
 Write the compact source-facts JSON, run the deterministic comparator, and
 accept its PASS, FAIL, or REVIEW result. PASS requires every internal gate and

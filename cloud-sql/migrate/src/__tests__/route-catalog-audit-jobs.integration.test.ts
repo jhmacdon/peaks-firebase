@@ -26,12 +26,13 @@ test(
     const pool = new Pool({ connectionString: TEST_DATABASE_URL });
     const suffix = `${process.pid}-${Date.now()}`;
     const destinationId = `route-audit-destination-${suffix}`;
+    const secondDestinationId = `route-audit-destination-2-${suffix}`;
     const routeId = `route-audit-route-${suffix}`;
     const segmentId = `route-audit-segment-${suffix}`;
     const evidenceDir = await mkdtemp(join(tmpdir(), "route-audit-job-test-"));
     const resultFile = join(evidenceDir, "result.json");
-    const command = (...args: string[]) => {
-      const result = spawnSync(
+    const runCommand = (...args: string[]) =>
+      spawnSync(
         join(MIGRATE_ROOT, "node_modules/.bin/tsx"),
         [join(MIGRATE_ROOT, "src/route-catalog-audit-jobs.ts"), ...args],
         {
@@ -48,6 +49,8 @@ test(
           },
         }
       );
+    const command = (...args: string[]) => {
+      const result = runCommand(...args);
       assert.equal(result.status, 0, result.stderr || result.stdout);
       return JSON.parse(result.stdout.trim());
     };
@@ -55,9 +58,12 @@ test(
     try {
       await pool.query(
         `INSERT INTO destinations (id, name, features)
-         VALUES ($1, 'Route audit test summit',
-                 ARRAY['summit']::destination_feature[])`,
-        [destinationId]
+         VALUES
+           ($1, 'Route audit test summit',
+            ARRAY['summit']::destination_feature[]),
+           ($2, 'Second route audit test summit',
+            ARRAY['summit']::destination_feature[])`,
+        [destinationId, secondDestinationId]
       );
       await pool.query(
         `INSERT INTO routes (id, name, owner, status)
@@ -83,8 +89,8 @@ test(
       );
       await pool.query(
         `INSERT INTO route_destinations (route_id, destination_id, ordinal)
-         VALUES ($1, $2, 0)`,
-        [routeId, destinationId]
+         VALUES ($1, $2, 0), ($1, $3, 1)`,
+        [routeId, destinationId, secondDestinationId]
       );
 
       command("seed", "--apply");
@@ -93,6 +99,49 @@ test(
         "--destination-id", destinationId, "--apply"
       );
       assert.equal(firstClaim.job.destination_id, destinationId);
+      const leaseWindow = await pool.query<{ lease_seconds: number }>(
+        `SELECT EXTRACT(
+           EPOCH FROM (lease_expires_at - now())
+         )::int AS lease_seconds
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.ok(
+        leaseWindow.rows[0]!.lease_seconds > 1_700 &&
+          leaseWindow.rows[0]!.lease_seconds <= 1_800,
+        "the runtime default lease must be 30 minutes"
+      );
+      const rejectedLongLease = runCommand(
+        "heartbeat",
+        "--lease-token", firstClaim.job.lease_token,
+        "--lease-minutes", "31"
+      );
+      assert.notEqual(rejectedLongLease.status, 0);
+      assert.match(
+        rejectedLongLease.stderr,
+        /--lease-minutes must not exceed 30/
+      );
+      const resumedClaim = command(
+        "claim", "--worker-id", "integration-test", "--apply"
+      );
+      assert.equal(resumedClaim.outcome, "existing_live_lease");
+      assert.equal(resumedClaim.job.destination_id, destinationId);
+      assert.equal(resumedClaim.job.lease_token, firstClaim.job.lease_token);
+      assert.equal(resumedClaim.job.attempt_count, 1);
+      const untouchedSecondJob = await pool.query<{
+        state: string;
+        lease_token: string | null;
+      }>(
+        `SELECT state, lease_token
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [secondDestinationId]
+      );
+      assert.deepEqual(untouchedSecondJob.rows[0], {
+        state: "queued",
+        lease_token: null,
+      });
       await pool.query(
         `UPDATE route_catalog_audit_jobs
          SET lease_expires_at = now() - interval '1 minute'
@@ -255,14 +304,16 @@ test(
       assert.equal(retired.job.lease_token, null);
     } finally {
       await pool.query(
-        `DELETE FROM route_catalog_audit_jobs WHERE destination_id = $1`,
-        [destinationId]
+        `DELETE FROM route_catalog_audit_jobs
+         WHERE destination_id = ANY($1::text[])`,
+        [[destinationId, secondDestinationId]]
       );
       await pool.query(`DELETE FROM routes WHERE id = $1`, [routeId]);
       await pool.query(`DELETE FROM segments WHERE id = $1`, [segmentId]);
-      await pool.query(`DELETE FROM destinations WHERE id = $1`, [
-        destinationId,
-      ]);
+      await pool.query(
+        `DELETE FROM destinations WHERE id = ANY($1::text[])`,
+        [[destinationId, secondDestinationId]]
+      );
       await pool.end();
       await rm(evidenceDir, { recursive: true, force: true });
     }

@@ -349,6 +349,11 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /never reuse|never reuse or infer/i);
     assert.match(instructions, /(?:current|this) turn/i);
     assert.match(instructions, /sandbox_permissions=require_escalated/);
+    assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
+    assert.match(
+      instructions,
+      /Do not\s+first run\s+the wrapper without that permission/i
+    );
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }
   assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);
@@ -386,6 +391,10 @@ test("route audit jobs requeue v2 passes under rule version 3 without stealing l
   const v3Migration = readFileSync(routeAuditJobsV3Migration, "utf8");
   const freshMigration = readFileSync(routeAuditJobsFreshMigration, "utf8");
   assert.match(source, /const AUDIT_RULE_VERSION = 3/);
+  assert.match(source, /const MAX_LEASE_MINUTES = 30/);
+  assert.match(source, /--lease-minutes must not exceed/);
+  assert.match(source, /pg_advisory_xact_lock/);
+  assert.match(source, /outcome: "existing_live_lease"/);
   assert.match(source, /audit_rule_version/);
   assert.match(source, /job\.audit_rule_version < EXCLUDED\.audit_rule_version/);
   assert.match(source, /job\.audit_rule_version !== candidate\.audit_rule_version/);

@@ -37,6 +37,7 @@ interface AuditJob {
 }
 
 const AUDIT_RULE_VERSION = 3;
+const MAX_LEASE_MINUTES = 30;
 
 const candidateSql = `
   WITH catalog_routes AS (
@@ -192,8 +193,8 @@ function usage(exitCode = 2): never {
   console.error(`Usage:
   npm run routes:audit-jobs -- seed [--apply]
   npm run routes:audit-jobs -- claim --worker-id ID [--destination-id ID]
-      [--lease-minutes 90] --apply
-  npm run routes:audit-jobs -- heartbeat --lease-token TOKEN [--lease-minutes 90]
+      [--lease-minutes 30] --apply
+  npm run routes:audit-jobs -- heartbeat --lease-token TOKEN [--lease-minutes 30]
   npm run routes:audit-jobs -- complete --destination-id ID --lease-token TOKEN
       --state passed|needs_repair|needs_human --result-file FILE --apply
   npm run routes:audit-jobs -- release --lease-token TOKEN [--message TEXT]
@@ -219,6 +220,20 @@ function positiveInteger(argv: string[], flag: string, fallback: number): number
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1 || value > 1440) {
     throw new Error(`${flag} must be an integer from 1 through 1440`);
+  }
+  return value;
+}
+
+function auditLeaseMinutes(argv: string[]): number {
+  const value = positiveInteger(
+    argv,
+    "--lease-minutes",
+    MAX_LEASE_MINUTES
+  );
+  if (value > MAX_LEASE_MINUTES) {
+    throw new Error(
+      `--lease-minutes must not exceed ${MAX_LEASE_MINUTES}`
+    );
   }
   return value;
 }
@@ -381,11 +396,17 @@ async function seed(argv: string[]): Promise<void> {
 async function claim(argv: string[]): Promise<void> {
   const workerId = requiredId(argv, "--worker-id");
   const requestedDestinationId = optionalId(argv, "--destination-id");
-  const leaseMinutes = positiveInteger(argv, "--lease-minutes", 90);
+  const leaseMinutes = auditLeaseMinutes(argv);
   const apply = argv.includes("--apply");
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await client.query(
+      `SELECT pg_advisory_xact_lock(
+         hashtext('route_catalog_audit_claim:' || $1)
+       )`,
+      [workerId]
+    );
     await client.query(
       `UPDATE route_catalog_audit_jobs
        SET state = 'queued',
@@ -397,6 +418,30 @@ async function claim(argv: string[]): Promise<void> {
        WHERE state = 'auditing'
          AND lease_expires_at < now()`
     );
+    const liveLeases = await client.query<AuditJob>(
+      `SELECT *
+       FROM route_catalog_audit_jobs
+       WHERE state = 'auditing'
+         AND lease_owner = $1
+         AND lease_expires_at >= now()
+       ORDER BY updated_at DESC, destination_id
+       FOR UPDATE`,
+      [workerId]
+    );
+    if (liveLeases.rows.length > 1) {
+      throw new Error(
+        `worker ${workerId} owns multiple live audit leases`
+      );
+    }
+    if (liveLeases.rows[0]) {
+      await client.query("ROLLBACK");
+      print({
+        mode: apply ? "apply" : "dry_run",
+        outcome: "existing_live_lease",
+        job: liveLeases.rows[0],
+      });
+      return;
+    }
     while (true) {
       const next = await client.query<AuditJob>(
         `SELECT *
@@ -491,7 +536,7 @@ async function claim(argv: string[]): Promise<void> {
 
 async function heartbeat(argv: string[]): Promise<void> {
   const leaseToken = requiredId(argv, "--lease-token");
-  const leaseMinutes = positiveInteger(argv, "--lease-minutes", 90);
+  const leaseMinutes = auditLeaseMinutes(argv);
   const result = await db.query<AuditJob>(
     `UPDATE route_catalog_audit_jobs
      SET lease_expires_at = now() + make_interval(mins => $2),
