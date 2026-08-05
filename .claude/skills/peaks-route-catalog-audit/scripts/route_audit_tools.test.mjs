@@ -4,9 +4,11 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -352,6 +354,7 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
 test("recurring catalog checks use the approved preflighted database wrapper", () => {
   const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
   const evidenceRoot = mkdtempSync("/tmp/peaks-route-audit.");
+  const symlinkTarget = mkdtempSync(join(tmpdir(), "peaks-audit-output-target-"));
   const skillScripts = join(
     root,
     ".claude/skills/peaks-route-catalog-audit/scripts"
@@ -417,6 +420,44 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\npreflight\n");
     assert.equal(statSync(outputFile).mode & 0o777, 0o600);
 
+    rmSync(outputFile);
+    symlinkSync(symlinkTarget, outputFile, "dir");
+    execFileSync(
+      wrapper,
+      [
+        "--destination-id", "destination-symlink",
+        "--format", "json",
+        "--output", outputFile,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.equal(lstatSync(outputFile).isSymbolicLink(), false);
+    assert.match(readFileSync(outputFile, "utf8"), /destination-symlink/);
+    assert.deepEqual(readdirSync(symlinkTarget), []);
+
+    rmSync(outputFile);
+    mkdirSync(outputFile);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "--destination-id", "destination-directory",
+          "--output", outputFile,
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+          stdio: "pipe",
+        }
+      ),
+      /Command failed/
+    );
+    assert.equal(statSync(outputFile).isDirectory(), true);
+    assert.deepEqual(readdirSync(outputFile), []);
+
     assert.throws(
       () => execFileSync(
         wrapper,
@@ -435,6 +476,7 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(evidenceRoot, { recursive: true, force: true });
+    rmSync(symlinkTarget, { recursive: true, force: true });
   }
 });
 

@@ -70,5 +70,8 @@ trap 'rm -f "$temporary_file"' EXIT
   "$script_dir/audit_catalog_routes.sh" "${forward_args[@]}" \
   >"$temporary_file"
 chmod 600 "$temporary_file"
-mv -f "$temporary_file" "$resolved_output_dir/catalog.json"
+node -e '
+  const { renameSync } = require("node:fs");
+  renameSync(process.argv[1], process.argv[2]);
+' "$temporary_file" "$resolved_output_dir/catalog.json"
 trap - EXIT
