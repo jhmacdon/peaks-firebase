@@ -71,8 +71,11 @@ the next stage with a new lease.
   variant as the replacement or broaden the queue's replacement binding.
   `pending_review` ends the turn.
 - `review`: spawn the project `peaks_route_reviewer` agent with only the
-  source manifest, destination, trailhead, pending route ID, and fresh source
-  check. Run the source check only through
+  filtered packet from `scripts/build_route_review_packet.mjs`. Keep the full
+  candidate result durable, but never attach it to the reviewer. The builder
+  limits the copy to two identity URLs and one access URL and retains known
+  conflicts.
+  Run the source check only through
   `scripts/check_pending_route_source.sh`; it owns the fixed checker and result
   path, so never add redirection or another command. Do not give the reviewer
   the researcher's verdict. The review transition ends the turn.

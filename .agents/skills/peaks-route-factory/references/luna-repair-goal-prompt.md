@@ -37,7 +37,9 @@ This is one bounded worker run:
    full route name as one value and require the dry-run `Name:` and
    `route_name` output to match it before apply.
    At `review`, call `check_pending_route_source.sh` directly, with no command
-   prefix or redirection.
+   prefix or redirection. Build and give the reviewer only the filtered
+   `build_route_review_packet.mjs` output, never the full candidate result or
+   extra URLs.
 9. Finish or release this one lease, run final stats, and leave the checkout
    clean. Never claim a second destination in the same run.
 

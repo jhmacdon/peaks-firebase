@@ -220,9 +220,27 @@ append redirection. It runs only the selected fixed checker and writes
 `/private/tmp/peaks-route-worker/<destination-id>-source-check.json`
 atomically. Status 2 means the checker wrote a valid FAIL result.
 
-Spawn `peaks_route_reviewer` with the pending route ID, candidate result,
-identity and access URLs, rendered-map note, and checker JSON. Save its output
-using the review schema at
+Keep the full candidate result unchanged. Build a separate filtered review
+packet:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/build_route_review_packet.mjs \
+  --candidate-result /private/tmp/peaks-route-worker/<destination-id>-candidate.json \
+  --source-check /private/tmp/peaks-route-worker/<destination-id>-source-check.json \
+  --destination-id <destination-id> --destination-name "<destination-name>" \
+  --trailhead-id <trailhead-id> --trailhead-name "<trailhead-name>" \
+  --route-id <pending-route-id> \
+  --output /private/tmp/peaks-route-worker/<destination-id>-review-packet.json
+```
+
+The builder keeps no more than two identity publishers and one access source.
+It prefers official sources, keeps publishers distinct when possible, and
+retains any `identity_conflicts` recorded during research. More than two
+conflicting publishers fails closed for human review.
+
+Spawn `peaks_route_reviewer` with only that review packet. Never attach or
+quote the full candidate result, another identity URL, the researcher's
+verdict, or raw page text. Save its output using the review schema at
 `/private/tmp/peaks-route-worker/<destination-id>-review.json`. Then:
 
 Do not make up `summit_contact`, `elevation_profile`, or `segment_assembly`.
@@ -250,7 +268,7 @@ Use `needs_revision` with that result when any gate fails.
 A checker FAIL exits with status 2 after writing its JSON. That is a review
 result, not a reason to rerun the checker.
 
-Wait no more than three minutes for the reviewer. If it has not returned,
+Wait no more than five minutes for the reviewer. If it has not returned,
 heartbeat once, send one short completion prompt, and wait no more than one
 more minute. Then close the reviewer and release the lease with a retry; do
 not hold a route job through repeated review waits.
