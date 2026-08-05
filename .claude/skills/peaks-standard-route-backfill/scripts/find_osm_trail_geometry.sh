@@ -154,8 +154,18 @@ for candidate_url in "${overpass_urls[@]}"; do
     failures+=("$candidate_url: request failed")
     continue
   fi
-  if jq -e '.remark != null' >/dev/null <<<"$candidate_response"; then
+  if ! jq -e '.' >/dev/null 2>&1 <<<"$candidate_response"; then
+    failures+=("$candidate_url: invalid JSON response")
+    continue
+  fi
+  if jq -e 'type == "object" and .remark != null' \
+    >/dev/null 2>&1 <<<"$candidate_response"; then
     failures+=("$candidate_url: $(jq -r '.remark' <<<"$candidate_response")")
+    continue
+  fi
+  if ! jq -e 'type == "object" and (.elements | type == "array")' \
+    >/dev/null 2>&1 <<<"$candidate_response"; then
+    failures+=("$candidate_url: response has no elements array")
     continue
   fi
   response="$candidate_response"
