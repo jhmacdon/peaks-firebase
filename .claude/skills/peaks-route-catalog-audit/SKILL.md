@@ -42,8 +42,10 @@ wrappers. Never prepend `bash`, `zsh`, `env`, `cd`, a variable assignment, or
 another command. Do not report a setup failure unless a wrapper call in the
 current turn produced it. If setup fails, do not claim. If no job is returned,
 inspect stats; do not infer completion from an empty claim. If claim returns
-`existing_live_lease`, resume that returned destination and renewed token; it
-is the worker's one job. Never claim again.
+`existing_live_lease`, resume that returned destination; it is the worker's
+one job. Never claim again. Never copy, retain, reconstruct, or pass the
+returned `lease_token`. For heartbeat, completion, and release, the wrapper
+selects the checkout's single lease by its derived worker ID.
 
 In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
 not exist yet, and its checkout checks do not apply to a direct read-only
@@ -151,14 +153,15 @@ exact comparator state:
 
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh complete \
-  --destination-id DESTINATION_ID --lease-token LEASE_TOKEN \
-  --state passed --result-file "$AUDIT_PREFIX.result.json" --apply
+  --destination-id DESTINATION_ID --state passed \
+  --result-file "$AUDIT_PREFIX.result.json" --apply
 ```
 
 Use `needs_repair` for `FAIL` and `needs_human` for `REVIEW`. If the run cannot
-produce a valid result, release its lease with a short exact error. End with
-stats and a clean checkout. In one-off mode, do not write an audit job; report
-the result and preserve the checkout's starting git status.
+produce a valid result, release its lease with a short exact error, without a
+lease token. End with stats and a clean checkout. In one-off mode, do not write
+an audit job; report the result and preserve the checkout's starting git
+status.
 
 Read the completion response. `completed` is final.
 `catalog_changed_requeued` and `out_of_scope` have already cleared the lease;

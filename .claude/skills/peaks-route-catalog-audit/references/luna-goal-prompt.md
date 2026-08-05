@@ -20,14 +20,19 @@ accepted normal ascent with two independent public publishers, including a
 current official or land-manager source when one exists. Confirm the English
 display name, local names, route name, trailhead, distance basis, shape, gain,
 class, and access. Never sign in, evade a block, or copy private GPX geometry.
-If claim returns `existing_live_lease`, resume that returned destination and
-renewed token as this run's one job. Never claim again.
+If claim returns `existing_live_lease`, resume that returned destination as
+this run's one job. Never claim again. Never copy, retain, reconstruct, or pass
+the returned `lease_token`. The wrapper finds this checkout's single lease for
+heartbeat, completion, and release.
 
 Write the compact source-facts JSON, run the deterministic comparator, and
 accept its PASS, FAIL, or REVIEW result. PASS requires every internal gate and
 outside fact to agree. Complete the durable job as `passed`, `needs_repair`, or
-`needs_human`. Do not repair, activate, supersede, rename, migrate, seed, fetch,
-pull, switch branches, edit tracked files, or claim another destination.
+`needs_human` with `route_audit_jobs.sh complete --destination-id
+DESTINATION_ID --state STATE --result-file
+/tmp/peaks-route-audit-DESTINATION_ID.result.json --apply`. Do not add
+`--lease-token`. Do not repair, activate, supersede, rename, migrate, seed,
+fetch, pull, switch branches, edit tracked files, or claim another destination.
 
 Run `audit_catalog_routes_worker.sh` with `yield_time_ms` 30000. If the command
 returns a live `session_id`, poll that same process with `write_stdin`, empty
@@ -51,11 +56,14 @@ including `>` or `>>`. This keeps the approved command prefix stable across
 runs and removes a replaceable parent directory from the unsandboxed write
 path.
 
-Heartbeat before browser or map work with `--lease-minutes 30`. Keep raw HTML,
-GPX, OSM payloads, path coordinates, and screenshots out of model context and
-git. If a command fails, make one safe repair attempt, then release the lease
-with an exact error. Stop the lasting goal after the same tool fault or shared
-blocker appears on three consecutive destinations.
+Heartbeat before browser or map work with
+`route_audit_jobs.sh heartbeat --lease-minutes 30`; do not pass a lease token.
+Keep raw HTML, GPX, OSM payloads, path coordinates, and screenshots out of
+model context and git. Complete and release without a lease token. If a
+command fails, make one safe repair attempt, then run
+`route_audit_jobs.sh release --message "EXACT ERROR"` without a lease token.
+Stop the lasting goal after the same tool fault or shared blocker appears on
+three consecutive destinations.
 
 End with a clean checkout, cleared lease, final stats, destination, stored and
 preferred names, standard-route facts, sources, current default, each route
