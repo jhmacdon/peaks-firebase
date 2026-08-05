@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
@@ -29,8 +28,10 @@ test(
     const secondDestinationId = `route-audit-destination-2-${suffix}`;
     const routeId = `route-audit-route-${suffix}`;
     const segmentId = `route-audit-segment-${suffix}`;
-    const evidenceDir = await mkdtemp(join(tmpdir(), "route-audit-job-test-"));
-    const resultFile = join(evidenceDir, "result.json");
+    const resultFile = join(
+      "/tmp",
+      `peaks-route-audit-integration-${suffix}.result.json`
+    );
     const commandEnvironment = {
       ...process.env,
       DB_HOST: databaseUrl.hostname,
@@ -438,7 +439,7 @@ test(
         [[destinationId, secondDestinationId]]
       );
       await pool.end();
-      await rm(evidenceDir, { recursive: true, force: true });
+      await rm(resultFile, { force: true });
     }
   }
 );
