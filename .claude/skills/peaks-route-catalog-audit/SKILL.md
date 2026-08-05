@@ -65,7 +65,7 @@ temporary directory:
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes_worker.sh \
   --destination-id DESTINATION_ID --status catalog --format json \
-  > "$AUDIT_DIR/catalog.json"
+  --output "$AUDIT_DIR/catalog.json"
 
 .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity_worker.sh \
   --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
@@ -83,6 +83,10 @@ with empty input and `yield_time_ms` 30000 until the process exits. Do not read
 session is live. If the session cannot finish, send Ctrl-C to that same session
 before releasing the lease. The database also cancels a checker after five
 minutes so a lost local session cannot leave a lasting query.
+
+In recurring mode, always pass the catalog path with the wrapper's `--output`
+flag. Never use shell redirection for the catalog checker. The fixed wrapper
+output keeps the approved command prefix stable across temporary directories.
 
 Read compact fields with `jq`; never paste path coordinates or full source
 pages into chat. Every `ERROR` blocks PASS. Research every `WARN` and `REVIEW`.

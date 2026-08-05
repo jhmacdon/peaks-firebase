@@ -4,9 +4,11 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -351,6 +353,8 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
 
 test("recurring catalog checks use the approved preflighted database wrapper", () => {
   const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
+  const evidenceRoot = mkdtempSync("/tmp/peaks-route-audit.");
+  const symlinkTarget = mkdtempSync(join(tmpdir(), "peaks-audit-output-target-"));
   const skillScripts = join(
     root,
     ".claude/skills/peaks-route-catalog-audit/scripts"
@@ -394,8 +398,85 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     );
     assert.match(output, /--destination-id\ndestination-1\n--print-sql/);
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+
+    const outputFile = join(evidenceRoot, "catalog.json");
+    const redirectedOutput = execFileSync(
+      wrapper,
+      [
+        "--destination-id", "destination-2",
+        "--format", "json",
+        "--output", outputFile,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.equal(redirectedOutput.trim(), "");
+    assert.match(
+      readFileSync(outputFile, "utf8"),
+      /--destination-id\ndestination-2\n--format\njson/
+    );
+    assert.equal(readFileSync(preflightLog, "utf8"), "preflight\npreflight\n");
+    assert.equal(statSync(outputFile).mode & 0o777, 0o600);
+
+    rmSync(outputFile);
+    symlinkSync(symlinkTarget, outputFile, "dir");
+    execFileSync(
+      wrapper,
+      [
+        "--destination-id", "destination-symlink",
+        "--format", "json",
+        "--output", outputFile,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.equal(lstatSync(outputFile).isSymbolicLink(), false);
+    assert.match(readFileSync(outputFile, "utf8"), /destination-symlink/);
+    assert.deepEqual(readdirSync(symlinkTarget), []);
+
+    rmSync(outputFile);
+    mkdirSync(outputFile);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "--destination-id", "destination-directory",
+          "--output", outputFile,
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+          stdio: "pipe",
+        }
+      ),
+      /Command failed/
+    );
+    assert.equal(statSync(outputFile).isDirectory(), true);
+    assert.deepEqual(readdirSync(outputFile), []);
+
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "--destination-id", "destination-3",
+          "--output", join(root, "catalog.json"),
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+          stdio: "pipe",
+        }
+      ),
+      /Command failed/
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
+    rmSync(evidenceRoot, { recursive: true, force: true });
+    rmSync(symlinkTarget, { recursive: true, force: true });
   }
 });
 
@@ -474,6 +555,8 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
     assert.match(instructions, /audit_catalog_routes_worker\.sh/);
     assert.match(instructions, /fetch_destination_identity_worker\.sh/);
+    assert.match(instructions, /--output.*catalog\.json/s);
+    assert.match(instructions, /Never use.*shell redirection/i);
     assert.match(
       instructions,
       /Do not\s+first run\s+(?:any of these|either|the) wrappers? without that\s+permission/i
