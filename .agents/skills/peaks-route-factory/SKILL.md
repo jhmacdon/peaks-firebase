@@ -63,6 +63,9 @@ the next stage with a new lease.
   Call `scripts/import_route_candidate.sh` directly for both importer runs.
   It owns the fixed terrain environment and database preflight. Never prefix it
   with environment assignments, `env`, or another shell command.
+  Pass the full route name as one quoted `--name` value. The importer rejects
+  names that do not name the linked destination. Confirm the dry run prints the
+  full expected `Name:` before applying.
   If the job has `replacement_route_id`, pass it to both importer runs.
   Distinct named routes may coexist on one peak. Never treat another route
   variant as the replacement or broaden the queue's replacement binding.

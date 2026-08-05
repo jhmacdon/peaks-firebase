@@ -38,7 +38,9 @@ memory:
 8. For the `import` stage, restore the checksummed candidate from the queue,
    cache terrain for its bounds, dry-run the importer, apply it, and save the
    pending route ID before review. Call `import_route_candidate.sh` directly;
-   never put environment assignments, `env`, or a shell before it.
+   never put environment assignments, `env`, or a shell before it. Quote the
+   full route name as one value and require the dry-run `Name:` and
+   `route_name` output to match it before apply.
 9. For `review`, spawn the project `peaks_route_reviewer` agent with fresh
    context. Give it raw evidence, a fresh OSM or USGS source check, and the
    pending route, not the researcher's conclusion. Run the source check only

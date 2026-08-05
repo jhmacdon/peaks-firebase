@@ -164,6 +164,10 @@ Call `import_route_candidate.sh` directly. Do not prefix it with environment
 assignments, `env`, `bash`, `zsh`, or another command. The wrapper fixes the
 terrain cache settings, performs the database preflight, and runs only the
 standard-route importer.
+Pass the complete route name as one quoted `--name` value. The importer rejects
+a generic or truncated name that does not name the linked destination, using
+the catalog display name and stored local/English aliases. Do not apply unless
+the dry run's `Name:` line and `route_name` result match the full expected name.
 
 The importer writes the route ID to that result file. Then:
 
