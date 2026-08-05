@@ -42,10 +42,11 @@ memory:
    full route name as one value and require the dry-run `Name:` and
    `route_name` output to match it before apply.
 9. For `review`, spawn the project `peaks_route_reviewer` agent with fresh
-   context. Give it raw evidence, a fresh OSM or USGS source check, and the
-   pending route, not the researcher's conclusion. Run the source check only
-   through `check_pending_route_source.sh`, with no redirection or command
-   prefix. A failed gate means revision or a named blocker.
+   context. Build its filtered input only with
+   `build_route_review_packet.mjs`; do not attach the full candidate result or
+   any other URLs. Run the source check only through
+   `check_pending_route_source.sh`, with no redirection or command prefix. A
+   failed gate or retained identity conflict means revision or a named blocker.
 10. Publish only after the queue accepts the full independent PASS result,
    segment planning passes, and explicit activation flags succeed.
 11. For `verify`, run the one queue `verify` command and accept its returned

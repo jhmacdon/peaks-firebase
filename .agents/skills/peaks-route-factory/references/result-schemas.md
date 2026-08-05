@@ -12,6 +12,7 @@ Use one JSON object. Do not add raw source text or track points.
     {"type": "official", "url": "https://example.org/route"},
     {"type": "peakbagger", "url": "https://www.peakbagger.com/climber/ascent.aspx?aid=1"}
   ],
+  "identity_conflicts": [],
   "geometry": {
     "source_kind": "openstreetmap",
     "source_url": "https://www.openstreetmap.org/",
@@ -22,6 +23,10 @@ Use one JSON object. Do not add raw source text or track points.
   "map_review": {"passed": true, "notes": "Correct trailhead and summit."}
 }
 ```
+
+When identity publishers conflict, add compact objects with `url` and `note`
+to `identity_conflicts`. The URL must also appear in `identity_sources`. Never
+hide a known conflict by leaving it out of the review packet.
 
 For private GPX evidence, save only summary measurements. Never save its
 coordinates, filename, download URL, or contents.

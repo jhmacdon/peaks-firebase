@@ -26,6 +26,7 @@ import {
   compareRouteSourceFacts,
   validateSourceFacts,
 } from "./compare_route_source_facts.mjs";
+import { buildRouteReviewPacket } from "../../../../.agents/skills/peaks-route-factory/scripts/build_route_review_packet.mjs";
 
 const workerCheckoutResolver = fileURLToPath(
   new URL(
@@ -164,6 +165,13 @@ const routeFactoryStageCommands = fileURLToPath(
   )
 );
 
+const routeReviewerConfig = fileURLToPath(
+  new URL(
+    "../../../../.codex/agents/peaks-route-reviewer.toml",
+    import.meta.url
+  )
+);
+
 const osmDiscoveryHelper = fileURLToPath(
   new URL(
     "../../peaks-standard-route-backfill/scripts/find_osm_trail_geometry.sh",
@@ -290,6 +298,134 @@ test("route source-check wrapper owns checker choice and result path", () => {
   assert.match(
     stageCommands,
     /Call `check_pending_route_source\.sh` directly[\s\S]*do not[\s\S]*redirection/i
+  );
+});
+
+test("route reviewer gets a small packet and a bounded useful window", () => {
+  const reviewer = readFileSync(routeReviewerConfig, "utf8");
+  const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+  const discardedUrl = "https://discarded.example/route";
+  const conflictUrl = "https://www.alltrails.com/trail/example";
+  const candidate = {
+    route_name: "Mount Example via Standard Route",
+    route_shape: "out_and_back",
+    identity_sources: [
+      { type: "official", url: "https://www.nps.gov/example" },
+      { type: "route_guide", url: "https://www.wta.org/go-hiking/example" },
+      { type: "summitpost", url: "https://www.summitpost.org/example" },
+      { type: "peakbagger", url: "https://www.peakbagger.com/peak.aspx?pid=1" },
+      { type: "alltrails", url: conflictUrl },
+      { type: "guide", url: discardedUrl },
+      { type: "guide", url: "https://another.example/route" },
+    ],
+    identity_conflicts: [
+      { url: conflictUrl, note: "This publisher names a different route." },
+    ],
+    geometry: {
+      source_kind: "openstreetmap",
+      source_url: "https://www.openstreetmap.org/way/1",
+      license: "ODbL 1.0",
+    },
+    access: {
+      status: "open",
+      source_url: "https://www.nps.gov/example/access",
+    },
+    comparison: {
+      private_reference_used: false,
+      ignored_url: discardedUrl,
+    },
+    map_review: { passed: true, notes: "Correct summit and trailhead." },
+  };
+  const packetArgs = {
+    sourceCheck: { verdict: "PASS" },
+    destinationId: "destination",
+    destinationName: "Mount Example",
+    trailheadId: "trailhead",
+    trailheadName: "Example Trailhead",
+    routeId: "route",
+  };
+  const packet = buildRouteReviewPacket({
+    candidate,
+    ...packetArgs,
+  });
+
+  assert.match(reviewer, /model_reasoning_effort = "high"/);
+  assert.match(reviewer, /filtered review packet/);
+  assert.match(reviewer, /one parallel batch/);
+  assert.match(reviewer, /Never use\s+more than two browser/);
+  assert.match(reviewer, /Finish within five minutes/);
+  assert.match(stageCommands, /Never attach or\s+quote the full candidate result/);
+  assert.equal(packet.candidate.identity_sources.length, 2);
+  assert.ok(
+    packet.candidate.identity_sources.some((source) => source.url === conflictUrl)
+  );
+  assert.equal(packet.candidate.identity_conflicts.length, 1);
+  assert.equal(packet.candidate.access.source_url, "https://www.nps.gov/example/access");
+  assert.doesNotMatch(JSON.stringify(packet), new RegExp(discardedUrl));
+  const rankedPacket = buildRouteReviewPacket({
+    candidate: {
+      ...candidate,
+      identity_sources: [
+        { type: "unofficial_blog", url: "https://blog.example/route" },
+        { type: "official", url: "https://www.nps.gov/example" },
+        { type: "route_guide", url: "https://www.wta.org/go-hiking/example" },
+      ],
+      identity_conflicts: [],
+    },
+    ...packetArgs,
+  });
+  assert.deepEqual(
+    rankedPacket.candidate.identity_sources.map((source) => source.type),
+    ["official", "route_guide"]
+  );
+  const samePublisherUrls = [
+    "https://conflicts.example/route-one",
+    "https://conflicts.example/route-two",
+    "https://conflicts.example/route-three",
+  ];
+  const samePublisherPacket = buildRouteReviewPacket({
+    candidate: {
+      ...candidate,
+      identity_sources: [
+        ...samePublisherUrls.map((url) => ({ type: "guide", url })),
+        { type: "official", url: "https://www.nps.gov/example" },
+      ],
+      identity_conflicts: samePublisherUrls.map((url, index) => ({
+        url,
+        note: `Conflict ${index + 1}.`,
+      })),
+    },
+    ...packetArgs,
+  });
+  assert.equal(samePublisherPacket.candidate.identity_conflicts.length, 1);
+  assert.equal(
+    samePublisherPacket.candidate.identity_conflicts[0].url,
+    samePublisherUrls[0]
+  );
+  assert.match(
+    samePublisherPacket.candidate.identity_conflicts[0].note,
+    /Conflict 1\. Conflict 2\. Conflict 3\./
+  );
+  assert.doesNotMatch(
+    JSON.stringify(samePublisherPacket),
+    /route-two|route-three/
+  );
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          identity_conflicts: candidate.identity_sources.slice(0, 3).map(
+            (source) => ({ url: source.url, note: "Known conflict." })
+          ),
+        },
+        ...packetArgs,
+      }),
+    /needs human review/
+  );
+  assert.match(
+    stageCommands,
+    /Wait no more than five minutes[\s\S]*one\s+more minute/
   );
 });
 
