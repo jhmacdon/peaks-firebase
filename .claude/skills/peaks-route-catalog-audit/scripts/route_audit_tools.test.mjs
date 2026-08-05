@@ -354,6 +354,7 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
 test("recurring catalog checks use the approved preflighted database wrapper", () => {
   const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
   const evidenceRoot = mkdtempSync("/tmp/peaks-route-audit.");
+  const workerEvidenceRoot = mkdtempSync("/tmp/peaks-route-audit-worker03.");
   const symlinkTarget = mkdtempSync(join(tmpdir(), "peaks-audit-output-target-"));
   const skillScripts = join(
     root,
@@ -420,6 +421,24 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\npreflight\n");
     assert.equal(statSync(outputFile).mode & 0o777, 0o600);
 
+    const workerOutputFile = join(workerEvidenceRoot, "catalog.json");
+    execFileSync(
+      wrapper,
+      [
+        "--destination-id", "destination-worker-prefix",
+        "--format", "json",
+        "--output", workerOutputFile,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+      }
+    );
+    assert.match(
+      readFileSync(workerOutputFile, "utf8"),
+      /destination-worker-prefix/
+    );
+
     rmSync(outputFile);
     symlinkSync(symlinkTarget, outputFile, "dir");
     execFileSync(
@@ -476,6 +495,7 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(evidenceRoot, { recursive: true, force: true });
+    rmSync(workerEvidenceRoot, { recursive: true, force: true });
     rmSync(symlinkTarget, { recursive: true, force: true });
   }
 });
@@ -551,16 +571,15 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /fresh run/i);
     assert.match(instructions, /never reuse|never reuse or infer/i);
     assert.match(instructions, /(?:current|this) turn/i);
-    assert.match(instructions, /sandbox_permissions=require_escalated/);
+    assert.match(instructions, /directly on (?:its|the) first attempt/i);
+    assert.match(instructions, /Do\s+not set `?sandbox_permissions`?/i);
+    assert.doesNotMatch(instructions, /require_escalated/);
     assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
     assert.match(instructions, /audit_catalog_routes_worker\.sh/);
     assert.match(instructions, /fetch_destination_identity_worker\.sh/);
     assert.match(instructions, /--output.*catalog\.json/s);
     assert.match(instructions, /Never use.*shell redirection/i);
-    assert.match(
-      instructions,
-      /Do not\s+first run\s+(?:any of these|either|the) wrappers? without that\s+permission/i
-    );
+    assert.match(instructions, /Never prepend.*(?:bash|`bash`)/is);
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }
   assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);

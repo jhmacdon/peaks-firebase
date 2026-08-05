@@ -41,7 +41,9 @@ fi
 
 case "$output_file" in
   /tmp/peaks-route-audit.*/catalog.json|\
-  /private/tmp/peaks-route-audit.*/catalog.json)
+  /tmp/peaks-route-audit-*/catalog.json|\
+  /private/tmp/peaks-route-audit.*/catalog.json|\
+  /private/tmp/peaks-route-audit-*/catalog.json)
     ;;
   *)
     echo "setup_required: catalog output must be a Peaks audit temp file" >&2
@@ -56,7 +58,8 @@ if [[ ! -d "$output_dir" ]]; then
 fi
 resolved_output_dir="$(cd "$output_dir" && pwd -P)"
 case "$resolved_output_dir" in
-  /tmp/peaks-route-audit.*|/private/tmp/peaks-route-audit.*)
+  /tmp/peaks-route-audit.*|/tmp/peaks-route-audit-*|\
+  /private/tmp/peaks-route-audit.*|/private/tmp/peaks-route-audit-*)
     ;;
   *)
     echo "setup_required: catalog output directory escaped the temp root" >&2

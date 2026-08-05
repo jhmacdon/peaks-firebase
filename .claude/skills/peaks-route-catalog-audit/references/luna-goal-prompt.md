@@ -7,10 +7,10 @@ never reuse or infer setup, queue, or proxy state from an earlier turn. Do not
 report a setup failure unless the exact wrapper failed in this turn. If it
 is the approved dedicated automation, run every `route_audit_jobs.sh` call and
 every `audit_catalog_routes_worker.sh` and
-`fetch_destination_identity_worker.sh` call with
-`sandbox_permissions=require_escalated` for the approved local proxy and public
-identity lookups. Do not first run any of these wrappers without that
-permission, and never elevate another command.
+`fetch_destination_identity_worker.sh` call directly on its first attempt. Do
+not set `sandbox_permissions`; installed prefix rules handle the exact approved
+wrappers for the local proxy and public identity lookups. Never prepend `bash`,
+`zsh`, `env`, `cd`, a variable assignment, or another command.
 
 Then claim exactly one job with `route_audit_jobs.sh claim --lease-minutes 30
 --apply`. Do not pass or invent a worker ID; the wrapper derives the worker's
