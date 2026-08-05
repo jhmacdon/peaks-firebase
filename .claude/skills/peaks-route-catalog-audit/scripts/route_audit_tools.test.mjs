@@ -341,6 +341,19 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
   }
 });
 
+test("Luna proves setup from a fresh wrapper call and uses bounded leases", () => {
+  const skill = readFileSync(routeAuditSkill, "utf8");
+  const prompt = readFileSync(routeAuditLunaPrompt, "utf8");
+  for (const instructions of [skill, prompt]) {
+    assert.match(instructions, /fresh run/i);
+    assert.match(instructions, /never reuse|never reuse or infer/i);
+    assert.match(instructions, /(?:current|this) turn/i);
+    assert.match(instructions, /sandbox_permissions=require_escalated/);
+    assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
+  }
+  assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);
+});
+
 test("path-derived elevation stats reject matching wrong route and segment values", () => {
   const sql = execFileSync(routeCatalogAudit, [
     "--route-id", "route-1", "--print-sql",

@@ -28,11 +28,16 @@ only the durable audit job row and temporary evidence files.
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh stats
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh \
-  claim --apply
+  claim --lease-minutes 30 --apply
 ```
 
-If setup fails, do not claim. If no job is returned, inspect stats; do not infer
-completion from an empty claim.
+Treat every recurring turn as a fresh run. Execute the current stats wrapper
+before reporting setup or queue state; never reuse a prior turn's result. If
+the wrapper reports that the local proxy is blocked by the command sandbox and
+the command tool permits escalation, retry only that same wrapper with
+`sandbox_permissions=require_escalated`. Do not report a setup failure unless a
+wrapper call in the current turn produced it. If setup fails, do not claim. If
+no job is returned, inspect stats; do not infer completion from an empty claim.
 
 In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
 not exist yet, and its checkout checks do not apply to a direct read-only

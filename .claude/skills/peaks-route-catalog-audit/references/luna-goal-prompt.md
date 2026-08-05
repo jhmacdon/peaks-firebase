@@ -2,10 +2,17 @@ Use `$peaks-route-catalog-audit` and follow it exactly for one bounded audit
 run. Work only from the clean checkout named in the automation prompt. Do not
 use another worker's checkout.
 
-Run audit queue stats, then claim exactly one job with `route_audit_jobs.sh
-claim --apply`. Do not pass or invent a worker ID; the wrapper derives the
-worker's unique ID from its checkout. Audit only the returned destination. Run
-the stored-data checker and linked OSM/Wikidata identity check. Research the
+Treat this heartbeat as a fresh run. Execute `route_audit_jobs.sh stats` now;
+never reuse or infer setup, queue, or proxy state from an earlier turn. Do not
+report a setup failure unless the exact wrapper failed in this turn. If it
+reports that the local proxy is blocked by the command sandbox and the command
+tool permits escalation, retry only that same wrapper with
+`sandbox_permissions=require_escalated`.
+
+Then claim exactly one job with `route_audit_jobs.sh claim --lease-minutes 30
+--apply`. Do not pass or invent a worker ID; the wrapper derives the worker's
+unique ID from its checkout. Audit only the returned destination. Run the
+stored-data checker and linked OSM/Wikidata identity check. Research the
 accepted normal ascent with two independent public publishers, including a
 current official or land-manager source when one exists. Confirm the English
 display name, local names, route name, trailhead, distance basis, shape, gain,
@@ -25,11 +32,11 @@ An empty redirected stdout while the process is live is not empty JSON and is
 not a retry. If the session cannot finish, send Ctrl-C to that same session
 before releasing the lease.
 
-Heartbeat before browser or map work. Keep raw HTML, GPX, OSM payloads, path
-coordinates, and screenshots out of model context and git. If a command fails,
-make one safe repair attempt, then release the lease with an exact error. Stop
-the lasting goal after the same tool fault or shared blocker appears on three
-consecutive destinations.
+Heartbeat before browser or map work with `--lease-minutes 30`. Keep raw HTML,
+GPX, OSM payloads, path coordinates, and screenshots out of model context and
+git. If a command fails, make one safe repair attempt, then release the lease
+with an exact error. Stop the lasting goal after the same tool fault or shared
+blocker appears on three consecutive destinations.
 
 End with a clean checkout, cleared lease, final stats, destination, stored and
 preferred names, standard-route facts, sources, current default, each route
