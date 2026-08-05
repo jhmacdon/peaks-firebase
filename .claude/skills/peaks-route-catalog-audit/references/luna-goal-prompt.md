@@ -33,9 +33,14 @@ Run `audit_catalog_routes_worker.sh` with `yield_time_ms` 30000. If the command
 returns a live `session_id`, poll that same process with `write_stdin`, empty
 input, and `yield_time_ms` 30000 until it exits. Do not inspect `catalog.json`,
 start the identity step, or start a second catalog checker while that session
-is live. An empty redirected stdout while the process is live is not empty JSON
+is live. An empty output file while the process is live is not empty JSON
 and is not a retry. If the session cannot finish, send Ctrl-C to that same
 session before releasing the lease.
+
+Pass the catalog file with
+`--output "$AUDIT_DIR/catalog.json"`. Never use shell redirection for the
+catalog checker, including `>` or `>>`. This keeps the approved command prefix
+stable across runs.
 
 Heartbeat before browser or map work with `--lease-minutes 30`. Keep raw HTML,
 GPX, OSM payloads, path coordinates, and screenshots out of model context and
