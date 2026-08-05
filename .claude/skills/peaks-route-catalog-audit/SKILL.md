@@ -33,17 +33,17 @@ only the durable audit job row and temporary evidence files.
 
 Treat every recurring turn as a fresh run. Execute the current stats wrapper
 before reporting setup or queue state; never reuse a prior turn's result. If
-the automation prompt confirms approval for the narrow local proxy wrappers,
-run every `route_audit_jobs.sh` call and recurring
+the automation prompt confirms that the narrow local proxy wrappers are
+allow-listed, run every `route_audit_jobs.sh` call and recurring
 `audit_catalog_routes_worker.sh` and
-`fetch_destination_identity_worker.sh` call with
-`sandbox_permissions=require_escalated`; never elevate another command. Do not
-first run any of these wrappers without that permission. Do not report a setup
-failure unless a wrapper call in the current turn produced it. If setup fails,
-do not claim. If no job is returned, inspect stats; do not infer completion
-from an empty claim. If claim returns `existing_live_lease`, resume that
-returned destination and renewed token; it is the worker's one job. Never claim
-again.
+`fetch_destination_identity_worker.sh` call directly on its first attempt. Do
+not set `sandbox_permissions`; the installed prefix rules handle these exact
+wrappers. Never prepend `bash`, `zsh`, `env`, `cd`, a variable assignment, or
+another command. Do not report a setup failure unless a wrapper call in the
+current turn produced it. If setup fails, do not claim. If no job is returned,
+inspect stats; do not infer completion from an empty claim. If claim returns
+`existing_live_lease`, resume that returned destination and renewed token; it
+is the worker's one job. Never claim again.
 
 In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
 not exist yet, and its checkout checks do not apply to a direct read-only
@@ -51,24 +51,26 @@ audit.
 
 ## Check Stored Data
 
-Create the evidence directory outside the checkout:
+Use one direct system-temp file prefix for the claimed destination:
 
 ```bash
-AUDIT_DIR="$(mktemp -d /tmp/peaks-route-audit.XXXXXX)"
+AUDIT_PREFIX="/tmp/peaks-route-audit-DESTINATION_ID"
 ```
 
-Never create evidence inside the audit checkout; the clean-tree guard will
-reject heartbeats and queue writes. In recurring mode, run the worker catalog
-checker for the claimed destination and keep the full JSON in the system
-temporary directory:
+Replace `DESTINATION_ID` with the exact claimed ID. Never create an evidence
+directory or place evidence inside the audit checkout; the clean-tree guard
+will reject heartbeats and queue writes. In recurring mode, run the worker
+catalog checker for the claimed destination and keep the full JSON in direct
+files under the system temp root:
 
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes_worker.sh \
   --destination-id DESTINATION_ID --status catalog --format json \
-  --output "$AUDIT_DIR/catalog.json"
+  --output "$AUDIT_PREFIX.catalog.json"
 
 .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity_worker.sh \
-  --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
+  --catalog "$AUDIT_PREFIX.catalog.json" \
+  --output "$AUDIT_PREFIX.identity.json"
 ```
 
 In one-off mode, use `audit_catalog_routes.sh` and
@@ -125,10 +127,10 @@ Write the compact source record defined in
 
 ```bash
 node .claude/skills/peaks-route-catalog-audit/scripts/compare_route_source_facts.mjs \
-  --catalog "$AUDIT_DIR/catalog.json" \
-  --identity "$AUDIT_DIR/identity.json" \
-  --facts "$AUDIT_DIR/facts.json" \
-  --output "$AUDIT_DIR/result.json"
+  --catalog "$AUDIT_PREFIX.catalog.json" \
+  --identity "$AUDIT_PREFIX.identity.json" \
+  --facts "$AUDIT_PREFIX.facts.json" \
+  --output "$AUDIT_PREFIX.result.json"
 ```
 
 If a second source or required fact is unavailable, use the reference's
@@ -150,7 +152,7 @@ exact comparator state:
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh complete \
   --destination-id DESTINATION_ID --lease-token LEASE_TOKEN \
-  --state passed --result-file "$AUDIT_DIR/result.json" --apply
+  --state passed --result-file "$AUDIT_PREFIX.result.json" --apply
 ```
 
 Use `needs_repair` for `FAIL` and `needs_human` for `REVIEW`. If the run cannot

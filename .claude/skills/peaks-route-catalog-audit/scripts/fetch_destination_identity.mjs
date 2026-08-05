@@ -1,11 +1,44 @@
 #!/usr/bin/env node
 
+import { constants } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 function option(argv, name) {
   const index = argv.indexOf(`--${name}`);
   return index >= 0 ? argv[index + 1] : null;
+}
+
+async function secureAuditCatalogPath(filePath) {
+  const absolutePath = path.resolve(filePath);
+  const lexicalParent = path.dirname(absolutePath);
+  if (lexicalParent !== "/tmp" && lexicalParent !== "/private/tmp") {
+    throw new Error("setup_required: catalog input must be a direct system temp file");
+  }
+  const fileName = path.basename(absolutePath);
+  if (!/^peaks-route-audit-[A-Za-z0-9][A-Za-z0-9._-]*\.catalog\.json$/.test(fileName)) {
+    throw new Error("setup_required: catalog input name is not approved");
+  }
+  const physicalParent = await fs.realpath(lexicalParent);
+  if (physicalParent !== "/tmp" && physicalParent !== "/private/tmp") {
+    throw new Error("setup_required: system temp root resolved unexpectedly");
+  }
+  return path.join(physicalParent, fileName);
+}
+
+async function readCatalog(filePath, secure) {
+  if (!secure) return fs.readFile(filePath, "utf8");
+  const safePath = await secureAuditCatalogPath(filePath);
+  const handle = await fs.open(
+    safePath,
+    constants.O_RDONLY | constants.O_NOFOLLOW
+  );
+  try {
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
 function compactNames(values) {
@@ -165,10 +198,11 @@ export async function collectDestinationIdentity(catalogAudit, fetchImpl = fetch
 async function main(argv = process.argv.slice(2)) {
   const catalogPath = option(argv, "catalog");
   const outputPath = option(argv, "output");
+  const secureCatalog = argv.includes("--secure-audit-catalog");
   if (!catalogPath) {
     throw new Error("Usage: fetch_destination_identity.mjs --catalog FILE [--output FILE]");
   }
-  const catalogAudit = JSON.parse(await fs.readFile(catalogPath, "utf8"));
+  const catalogAudit = JSON.parse(await readCatalog(catalogPath, secureCatalog));
   const result = await collectDestinationIdentity(catalogAudit);
   const text = `${JSON.stringify(result, null, 2)}\n`;
   if (outputPath) await fs.writeFile(outputPath, text);
