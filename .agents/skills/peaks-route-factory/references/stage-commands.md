@@ -47,8 +47,10 @@ correct route:
 ```
 
 Expand either radius only when route facts require it and never beyond that
-helper's accepted limit. Keep full source payloads out of model context and
-git; use only the compact table to choose source IDs.
+helper's accepted limit. The OSM helper tries two approved public Overpass
+instances before it reports a source outage; do not retry it with raw `curl`.
+Keep full source payloads out of model context and git; use only the compact
+table to choose source IDs.
 
 For researched OSM way IDs:
 

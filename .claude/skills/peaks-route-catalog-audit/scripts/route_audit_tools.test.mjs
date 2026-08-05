@@ -150,6 +150,13 @@ const routeFactoryStageCommands = fileURLToPath(
   )
 );
 
+const osmDiscoveryHelper = fileURLToPath(
+  new URL(
+    "../../peaks-standard-route-backfill/scripts/find_osm_trail_geometry.sh",
+    import.meta.url
+  )
+);
+
 const routeTsxRunner = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrate/scripts/run-tsx.sh",
@@ -447,6 +454,16 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
       );
     }
     assert.match(stageCommands, /do not add `bash`[\s\S]*raw public-source request/i);
+    assert.match(stageCommands, /tries two approved public Overpass/i);
+
+    const osmDiscovery = readFileSync(osmDiscoveryHelper, "utf8");
+    assert.match(osmDiscovery, /https:\/\/overpass-api\.de\/api\/interpreter/);
+    assert.match(
+      osmDiscovery,
+      /https:\/\/overpass\.private\.coffee\/api\/interpreter/
+    );
+    assert.match(osmDiscovery, /for candidate_url in "\$\{overpass_urls\[@\]\}"/);
+    assert.match(osmDiscovery, /All approved Overpass endpoints failed/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
