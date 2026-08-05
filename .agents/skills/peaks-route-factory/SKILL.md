@@ -17,6 +17,8 @@ chat history is not.
    before writing a result.
 3. Run from the dedicated clean checkout at
    `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`. The
+   summit-contact repair lane instead uses
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-repair`. The
    canonical `/Users/josiahm/projects/peaks/firebase` checkout is also allowed
    only when clean and exactly at `origin/main`. Do not search another worktree,
    apply a migration, or seed the queue.
@@ -34,6 +36,17 @@ chat history is not.
 
 If no job is returned, run the audit in the contract. Do not infer completion
 from an empty claim.
+
+Only when the user or supervisor explicitly names one destination for a
+supervised repair may that run add `--destination-id ID` to `claim`. The
+filter never changes the job's stage or gates. A recurring worker must not
+invent a destination filter or keep using one after that named run.
+
+The repair lane must add `--integrity-repairs-only` to every claim. It must
+stop if a claim ever returns a job whose `target_reasons.integrity_repair` is
+not true. The general lane must not add that filter. Use
+[references/luna-repair-goal-prompt.md](references/luna-repair-goal-prompt.md)
+unchanged for the repair lane.
 
 ## Follow the returned stage
 

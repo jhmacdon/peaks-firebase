@@ -69,7 +69,8 @@ type RouteRow = PersistedElevationLineage & Record<string, unknown> & {
 export const DEFAULT_PEAKS_PUBLIC_WEB_URL =
   "https://peaks-firebase--donner-a8608.us-central1.hosted.app";
 
-function arraysEqual(left: unknown[], right: unknown[]): boolean {
+function arraysEqual(left: unknown, right: unknown): boolean {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
   return (
     left.length === right.length &&
     left.every((value, index) => value === right[index])
