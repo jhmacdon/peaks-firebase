@@ -180,6 +180,19 @@ test(
         "--destination-id", destinationId, "--apply"
       );
       assert.equal(firstClaim.job.destination_id, destinationId);
+      const rejectedWrongOwner = runCommand(
+        "heartbeat", "--worker-id", "wrong-integration-worker"
+      );
+      assert.notEqual(rejectedWrongOwner.status, 0);
+      assert.match(
+        rejectedWrongOwner.stderr,
+        /No single live audit lease matched worker/
+      );
+      const workerHeartbeat = command(
+        "heartbeat", "--worker-id", "integration-test",
+        "--lease-minutes", "30"
+      );
+      assert.equal(workerHeartbeat.lease_token, firstClaim.job.lease_token);
       const leaseWindow = await pool.query<{ lease_seconds: number }>(
         `SELECT EXTRACT(
            EPOCH FROM (lease_expires_at - now())
@@ -294,7 +307,7 @@ test(
       const changed = command(
         "complete",
         "--destination-id", destinationId,
-        "--lease-token", recoveredClaim.job.lease_token,
+        "--worker-id", "integration-test",
         "--state", "passed",
         "--result-file", resultFile,
         "--apply"
@@ -392,7 +405,7 @@ test(
         audit_rule_version: 2,
         lease_token: activeV1.job.lease_token,
       });
-      command("release", "--lease-token", activeV1.job.lease_token);
+      command("release", "--worker-id", "integration-test");
       command("seed", "--apply");
       const releasedV2 = await pool.query(
         `SELECT state, audit_rule_version FROM route_catalog_audit_jobs

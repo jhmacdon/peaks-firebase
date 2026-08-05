@@ -49,6 +49,10 @@ const routeCatalogWorker = fileURLToPath(
   new URL("./audit_catalog_routes_worker.sh", import.meta.url)
 );
 
+const routeAuditJobsWrapper = fileURLToPath(
+  new URL("./route_audit_jobs.sh", import.meta.url)
+);
+
 const routeIdentityWorker = fileURLToPath(
   new URL("./fetch_destination_identity_worker.sh", import.meta.url)
 );
@@ -211,6 +215,95 @@ test("elevation wrapper preflights before every queue call and owns its worker I
   assert.match(source, /claim.*--apply/s);
   assert.doesNotMatch(source, /mapfile|readarray|declare -A|\[\[/);
   assert.doesNotThrow(() => execFileSync("bash", ["-n", routeElevationWrapper]));
+});
+
+test("audit queue wrapper owns every recurring lease selector", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-audit-lease-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-catalog-audit/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(skillScripts, "route_audit_jobs.sh");
+    copyFileSync(routeAuditJobsWrapper, wrapper);
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-audit-03\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nexec \"$@\"\n"
+    );
+    writeFileSync(
+      join(bin, "npm"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
+      join(bin, "npm"),
+    ]) chmodSync(executable, 0o755);
+    const environment = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+    };
+
+    for (const args of [
+      ["claim", "--apply"],
+      ["heartbeat", "--lease-minutes", "30"],
+      ["complete", "--destination-id", "peak-1", "--apply"],
+      ["release", "--message", "test"],
+    ]) {
+      const output = execFileSync(wrapper, args, {
+        encoding: "utf8",
+        env: environment,
+      });
+      assert.match(
+        output,
+        /--worker-id\nluna-route-audit-03/,
+        `${args[0]} must use the checkout-derived worker ID`
+      );
+    }
+
+    const matching = execFileSync(
+      wrapper,
+      ["heartbeat", "--worker-id", "luna-route-audit-03"],
+      { encoding: "utf8", env: environment }
+    );
+    assert.equal(
+      matching.match(/--worker-id/g)?.length,
+      1,
+      "a matching explicit worker ID must not be duplicated"
+    );
+    for (const args of [
+      ["heartbeat", "--worker-id", "luna-route-audit-01"],
+      [
+        "release",
+        "--worker-id", "luna-route-audit-03",
+        "--worker-id", "luna-route-audit-03",
+      ],
+    ]) {
+      assert.throws(
+        () => execFileSync(wrapper, args, {
+          encoding: "utf8",
+          env: environment,
+          stdio: "pipe",
+        }),
+        /Command failed/
+      );
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("database wrapper accepts only a private local password cache", () => {
@@ -692,6 +785,12 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }
   assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);
+  assert.match(prompt, /Never copy, retain, reconstruct, or pass.*lease_token/is);
+  assert.match(prompt, /Complete and release without a lease token/i);
+  assert.doesNotMatch(
+    skill,
+    /complete[\s\S]{0,160}--lease-token/i
+  );
 });
 
 test("path-derived elevation stats reject matching wrong route and segment values", () => {

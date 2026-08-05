@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { Pool, PoolClient } from "pg";
 import db from "./db";
 
 type AuditState =
@@ -196,10 +197,13 @@ function usage(exitCode = 2): never {
   npm run routes:audit-jobs -- seed [--apply]
   npm run routes:audit-jobs -- claim --worker-id ID [--destination-id ID]
       [--lease-minutes 30] --apply
-  npm run routes:audit-jobs -- heartbeat --lease-token TOKEN [--lease-minutes 30]
-  npm run routes:audit-jobs -- complete --destination-id ID --lease-token TOKEN
+  npm run routes:audit-jobs -- heartbeat (--lease-token TOKEN | --worker-id ID)
+      [--lease-minutes 30]
+  npm run routes:audit-jobs -- complete --destination-id ID
+      (--lease-token TOKEN | --worker-id ID)
       --state passed|needs_repair|needs_human --result-file FILE --apply
-  npm run routes:audit-jobs -- release --lease-token TOKEN [--message TEXT]
+  npm run routes:audit-jobs -- release (--lease-token TOKEN | --worker-id ID)
+      [--message TEXT]
   npm run routes:audit-jobs -- requeue --destination-id ID --reason TEXT --apply
   npm run routes:audit-jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:audit-jobs -- stats
@@ -280,6 +284,46 @@ function optionalId(argv: string[], flag: string): string | null {
     throw new Error(`${flag} contains unsupported characters`);
   }
   return value;
+}
+
+async function resolveLeaseToken(
+  queryable: Pool | PoolClient,
+  argv: string[],
+  options: {
+    destinationId?: string;
+    requireLive: boolean;
+  }
+): Promise<string> {
+  const explicitToken = optionalId(argv, "--lease-token");
+  const workerId = optionalId(argv, "--worker-id");
+  if (!explicitToken && !workerId) {
+    throw new Error("--lease-token or --worker-id is required");
+  }
+  if (!workerId) return explicitToken!;
+
+  const matches = await queryable.query<{ lease_token: string }>(
+    `SELECT lease_token
+     FROM route_catalog_audit_jobs
+     WHERE lease_owner = $1
+       AND state = 'auditing'
+       AND lease_token IS NOT NULL
+       AND ($2::text IS NULL OR lease_token = $2)
+       AND ($3::text IS NULL OR destination_id = $3)
+       AND (NOT $4::boolean OR lease_expires_at >= now())
+     ORDER BY updated_at DESC, destination_id
+     LIMIT 2`,
+    [
+      workerId,
+      explicitToken,
+      options.destinationId ?? null,
+      options.requireLive,
+    ]
+  );
+  if (matches.rows.length !== 1) {
+    const leaseKind = options.requireLive ? "live audit lease" : "audit lease";
+    throw new Error(`No single ${leaseKind} matched worker ${workerId}`);
+  }
+  return matches.rows[0].lease_token;
 }
 
 function parseState(value: string | null, allowAuditing = false): AuditState {
@@ -585,7 +629,7 @@ async function claim(argv: string[]): Promise<void> {
 }
 
 async function heartbeat(argv: string[]): Promise<void> {
-  const leaseToken = requiredId(argv, "--lease-token");
+  const leaseToken = await resolveLeaseToken(db, argv, { requireLive: true });
   const leaseMinutes = auditLeaseMinutes(argv);
   const result = await db.query<AuditJob>(
     `UPDATE route_catalog_audit_jobs
@@ -604,7 +648,6 @@ async function heartbeat(argv: string[]): Promise<void> {
 async function complete(argv: string[]): Promise<void> {
   if (!argv.includes("--apply")) throw new Error("complete requires --apply");
   const destinationId = requiredId(argv, "--destination-id");
-  const leaseToken = requiredId(argv, "--lease-token");
   const state = parseState(flagValue(argv, "--state"));
   const resultFile = flagValue(argv, "--result-file");
   if (!resultFile) throw new Error("--result-file is required");
@@ -624,6 +667,10 @@ async function complete(argv: string[]): Promise<void> {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    const leaseToken = await resolveLeaseToken(client, argv, {
+      destinationId,
+      requireLive: true,
+    });
     const current = await client.query<AuditCandidate>(
       `SELECT *
        FROM (${candidateSql}) candidates
@@ -725,7 +772,7 @@ async function complete(argv: string[]): Promise<void> {
 }
 
 async function release(argv: string[]): Promise<void> {
-  const leaseToken = requiredId(argv, "--lease-token");
+  const leaseToken = await resolveLeaseToken(db, argv, { requireLive: false });
   const message = flagValue(argv, "--message")?.trim() || "worker released lease";
   const result = await db.query<AuditJob>(
     `UPDATE route_catalog_audit_jobs
