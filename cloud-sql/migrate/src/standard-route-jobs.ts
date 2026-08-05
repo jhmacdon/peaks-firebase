@@ -60,7 +60,9 @@ interface JobRow {
 function usage(exitCode = 2): never {
   console.error(`Usage:
   npm run routes:jobs -- seed [--apply] [--popularity-threshold 25]
-  npm run routes:jobs -- claim --worker-id ID [--stage next] [--lease-minutes 90] [--apply]
+  npm run routes:jobs -- claim --worker-id ID [--destination-id ID]
+      [--integrity-repairs-only]
+      [--stage next] [--lease-minutes 90] [--apply]
   npm run routes:jobs -- materialize --destination-id ID --lease-token TOKEN --output FILE
   npm run routes:jobs -- heartbeat --lease-token TOKEN [--lease-minutes 90]
   npm run routes:jobs -- verify --destination-id ID --lease-token TOKEN
@@ -113,6 +115,15 @@ function requireId(argv: string[], flag: string): string {
   const value = flagValue(argv, flag);
   if (!value || !/^[A-Za-z0-9_.:@/-]+$/.test(value)) {
     throw new Error(`${flag} is required and contains unsupported characters`);
+  }
+  return value;
+}
+
+function optionalId(argv: string[], flag: string): string | null {
+  const value = flagValue(argv, flag);
+  if (value === null) return null;
+  if (!/^[A-Za-z0-9_.:@/-]+$/.test(value)) {
+    throw new Error(`${flag} contains unsupported characters`);
   }
   return value;
 }
@@ -563,6 +574,8 @@ const jobColumns = `
 async function claim(argv: string[]): Promise<void> {
   const apply = argv.includes("--apply");
   const workerId = requireId(argv, "--worker-id");
+  const requestedDestinationId = optionalId(argv, "--destination-id");
+  const integrityRepairsOnly = argv.includes("--integrity-repairs-only");
   const stage = parseStage(argv);
   const leaseMinutes = positiveInteger(argv, "--lease-minutes", 90, 240);
   const states = statesForStage(stage);
@@ -577,14 +590,21 @@ async function claim(argv: string[]): Promise<void> {
        WHERE j.state = ANY($1::text[])
          AND j.next_attempt_at <= now()
          AND (j.lease_expires_at IS NULL OR j.lease_expires_at < now())
+         AND ($2::text IS NULL OR j.destination_id = $2)
+         AND (
+           NOT $3::boolean
+           OR j.target_reasons->>'integrity_repair' = 'true'
+         )
        ORDER BY ${rank}, j.priority DESC, j.updated_at, j.destination_id
        LIMIT 1`,
-      [states]
+      [states, requestedDestinationId, integrityRepairsOnly]
     );
     const job = peek.rows[0] ?? null;
     print({
       mode: "dry_run",
       requested_stage: stage,
+      requested_destination_id: requestedDestinationId,
+      integrity_repairs_only: integrityRepairsOnly,
       stage: job ? stageForState(job.state) : null,
       job,
     });
@@ -601,6 +621,11 @@ async function claim(argv: string[]): Promise<void> {
          WHERE j.state = ANY($1::text[])
            AND j.next_attempt_at <= now()
            AND (j.lease_expires_at IS NULL OR j.lease_expires_at < now())
+           AND ($5::text IS NULL OR j.destination_id = $5)
+           AND (
+             NOT $6::boolean
+             OR j.target_reasons->>'integrity_repair' = 'true'
+           )
          ORDER BY ${rank}, j.priority DESC, j.updated_at, j.destination_id
          FOR UPDATE SKIP LOCKED
          LIMIT 1
@@ -664,13 +689,22 @@ async function claim(argv: string[]): Promise<void> {
          c.updated_at
        FROM claimed c
        JOIN destinations d ON d.id = c.destination_id`,
-      [states, workerId, token, leaseMinutes]
+      [
+        states,
+        workerId,
+        token,
+        leaseMinutes,
+        requestedDestinationId,
+        integrityRepairsOnly,
+      ]
     );
     await client.query("COMMIT");
     const job = result.rows[0] ?? null;
     print({
       mode: "apply",
       requested_stage: stage,
+      requested_destination_id: requestedDestinationId,
+      integrity_repairs_only: integrityRepairsOnly,
       stage: job ? stageForState(job.state) : null,
       job,
     });

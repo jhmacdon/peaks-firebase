@@ -129,6 +129,20 @@ const routeDatabasePasswordCache = fileURLToPath(
   )
 );
 
+const routeJobsWrapper = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/route_jobs.sh",
+    import.meta.url
+  )
+);
+
+const routeRepairLunaPrompt = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/references/luna-repair-goal-prompt.md",
+    import.meta.url
+  )
+);
+
 const routeTsxRunner = fileURLToPath(
   new URL(
     "../../../../cloud-sql/migrate/scripts/run-tsx.sh",
@@ -149,6 +163,10 @@ test("approved worker checkouts resolve by exact path", () => {
     [
       "/Users/josiahm/projects/peaks/.workers/firebase-route-factory",
       "route-factory",
+    ],
+    [
+      "/Users/josiahm/projects/peaks/.workers/firebase-route-repair",
+      "route-repair",
     ],
     [
       "/Users/josiahm/projects/peaks/.workers/firebase-route-audit",
@@ -186,6 +204,7 @@ test("approved worker checkouts resolve by exact path", () => {
     "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-01",
     "/Users/josiahm/projects/peaks/.workers/firebase-route-elevation-02",
     "/Users/josiahm/projects/peaks/.workers/firebase-route-elevations",
+    "/Users/josiahm/projects/peaks/.workers/firebase-route-repair-02",
   ]) {
     assert.throws(
       () => execFileSync(
@@ -301,6 +320,111 @@ test("audit queue wrapper owns every recurring lease selector", () => {
         /Command failed/
       );
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("repair lane owns its claim identity and cannot claim ordinary work", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-route-repair-wrapper-"));
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  try {
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(factoryScripts, "route_jobs.sh");
+    copyFileSync(routeJobsWrapper, wrapper);
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' route-repair\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "with_route_db.sh"),
+      "#!/usr/bin/env bash\nexec \"$@\"\n"
+    );
+    writeFileSync(
+      join(bin, "npm"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "with_route_db.sh"),
+      join(bin, "npm"),
+    ]) chmodSync(executable, 0o755);
+    const environment = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH}`,
+    };
+    const output = execFileSync(
+      wrapper,
+      ["claim", "--stage", "next", "--apply"],
+      { encoding: "utf8", env: environment }
+    );
+    assert.match(output, /--worker-id\nluna-route-repair-01/);
+    assert.match(output, /--integrity-repairs-only/);
+    assert.equal(
+      output.match(/--integrity-repairs-only/g)?.length,
+      1,
+      "the repair wrapper must add its lane filter exactly once"
+    );
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "claim",
+          "--worker-id", "luna-route-worker-01",
+          "--integrity-repairs-only",
+          "--apply",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' canonical\n"
+    );
+    const canonicalOutput = execFileSync(
+      wrapper,
+      ["claim", "--worker-id", "supervisor-route-claim", "--apply"],
+      { encoding: "utf8", env: environment }
+    );
+    assert.match(canonicalOutput, /--worker-id\nsupervisor-route-claim/);
+    assert.doesNotMatch(canonicalOutput, /--integrity-repairs-only/);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        ["claim", "--apply"],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "claim",
+          "--worker-id", "supervisor-route-claim",
+          "--integrity-repairs-only",
+          "--apply",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+
+    const prompt = readFileSync(routeRepairLunaPrompt, "utf8");
+    assert.match(prompt, /at exact\s+`origin\/main`/i);
+    assert.match(prompt, /--integrity-repairs-only/);
+    assert.match(prompt, /Do not set\s+`sandbox_permissions`/i);
+    assert.match(prompt, /one job|one lease/i);
+    assert.match(prompt, /more than 5 m/i);
+    assert.match(prompt, /must also end within 5 m/i);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

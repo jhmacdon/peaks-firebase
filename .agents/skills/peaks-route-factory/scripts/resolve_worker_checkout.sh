@@ -14,6 +14,9 @@ case "$checkout_path" in
   /Users/josiahm/projects/peaks/.workers/firebase-route-factory)
     printf '%s\n' "route-factory"
     ;;
+  /Users/josiahm/projects/peaks/.workers/firebase-route-repair)
+    printf '%s\n' "route-repair"
+    ;;
   /Users/josiahm/projects/peaks/.workers/firebase-route-audit)
     printf '%s\n' "luna-route-audit-01"
     ;;

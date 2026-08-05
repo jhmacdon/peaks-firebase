@@ -78,6 +78,31 @@ test("verification passes only when the public route record matches Cloud SQL", 
   }
 });
 
+test("a malformed public array fails closed instead of crashing verification", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({
+      ...route,
+      final_destination_features: { value: "summit" },
+    }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  try {
+    const result = await verifyStandardRoute(queryable, {
+      routeId: "route-1",
+      destinationId: "peak-1",
+      trailheadId: "trailhead-1",
+      publicBaseUrl: "https://example.test",
+    });
+    assert.equal(result.verdict, "FAIL");
+    assert.equal(result.gates.public_http, false);
+    assert.ok(result.errors.includes("public_http"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("a Bierstadt-like 30.6 metre miss fails summit contact", async () => {
   const shortRoute = {
     ...route,
