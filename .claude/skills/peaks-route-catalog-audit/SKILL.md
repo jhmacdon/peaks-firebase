@@ -51,24 +51,26 @@ audit.
 
 ## Check Stored Data
 
-Create the evidence directory outside the checkout:
+Use one direct system-temp file prefix for the claimed destination:
 
 ```bash
-AUDIT_DIR="$(mktemp -d /tmp/peaks-route-audit.XXXXXX)"
+AUDIT_PREFIX="/tmp/peaks-route-audit-DESTINATION_ID"
 ```
 
-Never create evidence inside the audit checkout; the clean-tree guard will
-reject heartbeats and queue writes. In recurring mode, run the worker catalog
-checker for the claimed destination and keep the full JSON in the system
-temporary directory:
+Replace `DESTINATION_ID` with the exact claimed ID. Never create an evidence
+directory or place evidence inside the audit checkout; the clean-tree guard
+will reject heartbeats and queue writes. In recurring mode, run the worker
+catalog checker for the claimed destination and keep the full JSON in direct
+files under the system temp root:
 
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/audit_catalog_routes_worker.sh \
   --destination-id DESTINATION_ID --status catalog --format json \
-  --output "$AUDIT_DIR/catalog.json"
+  --output "$AUDIT_PREFIX.catalog.json"
 
 .claude/skills/peaks-route-catalog-audit/scripts/fetch_destination_identity_worker.sh \
-  --catalog "$AUDIT_DIR/catalog.json" --output "$AUDIT_DIR/identity.json"
+  --catalog "$AUDIT_PREFIX.catalog.json" \
+  --output "$AUDIT_PREFIX.identity.json"
 ```
 
 In one-off mode, use `audit_catalog_routes.sh` and
@@ -125,10 +127,10 @@ Write the compact source record defined in
 
 ```bash
 node .claude/skills/peaks-route-catalog-audit/scripts/compare_route_source_facts.mjs \
-  --catalog "$AUDIT_DIR/catalog.json" \
-  --identity "$AUDIT_DIR/identity.json" \
-  --facts "$AUDIT_DIR/facts.json" \
-  --output "$AUDIT_DIR/result.json"
+  --catalog "$AUDIT_PREFIX.catalog.json" \
+  --identity "$AUDIT_PREFIX.identity.json" \
+  --facts "$AUDIT_PREFIX.facts.json" \
+  --output "$AUDIT_PREFIX.result.json"
 ```
 
 If a second source or required fact is unavailable, use the reference's
@@ -150,7 +152,7 @@ exact comparator state:
 ```bash
 .claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh complete \
   --destination-id DESTINATION_ID --lease-token LEASE_TOKEN \
-  --state passed --result-file "$AUDIT_DIR/result.json" --apply
+  --state passed --result-file "$AUDIT_PREFIX.result.json" --apply
 ```
 
 Use `needs_repair` for `FAIL` and `needs_human` for `REVIEW`. If the run cannot

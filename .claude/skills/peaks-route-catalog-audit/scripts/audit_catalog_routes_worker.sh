@@ -39,42 +39,7 @@ if [[ -z "$output_file" ]]; then
     "$script_dir/audit_catalog_routes.sh" "${forward_args[@]}"
 fi
 
-case "$output_file" in
-  /tmp/peaks-route-audit.*/catalog.json|\
-  /tmp/peaks-route-audit-*/catalog.json|\
-  /private/tmp/peaks-route-audit.*/catalog.json|\
-  /private/tmp/peaks-route-audit-*/catalog.json)
-    ;;
-  *)
-    echo "setup_required: catalog output must be a Peaks audit temp file" >&2
-    exit 1
-    ;;
-esac
-
-output_dir="$(dirname "$output_file")"
-if [[ ! -d "$output_dir" ]]; then
-  echo "setup_required: catalog output directory does not exist" >&2
-  exit 1
-fi
-resolved_output_dir="$(cd "$output_dir" && pwd -P)"
-case "$resolved_output_dir" in
-  /tmp/peaks-route-audit.*|/tmp/peaks-route-audit-*|\
-  /private/tmp/peaks-route-audit.*|/private/tmp/peaks-route-audit-*)
-    ;;
-  *)
-    echo "setup_required: catalog output directory escaped the temp root" >&2
-    exit 1
-    ;;
-esac
-
-temporary_file="$(mktemp "$resolved_output_dir/.catalog.json.tmp.XXXXXX")"
-trap 'rm -f "$temporary_file"' EXIT
-"$factory_scripts/with_route_db.sh" \
-  "$script_dir/audit_catalog_routes.sh" "${forward_args[@]}" \
-  >"$temporary_file"
-chmod 600 "$temporary_file"
-node -e '
-  const { renameSync } = require("node:fs");
-  renameSync(process.argv[1], process.argv[2]);
-' "$temporary_file" "$resolved_output_dir/catalog.json"
-trap - EXIT
+exec node "$script_dir/write_audit_output_atomically.mjs" \
+  "$output_file" -- \
+  "$factory_scripts/with_route_db.sh" \
+  "$script_dir/audit_catalog_routes.sh" "${forward_args[@]}"

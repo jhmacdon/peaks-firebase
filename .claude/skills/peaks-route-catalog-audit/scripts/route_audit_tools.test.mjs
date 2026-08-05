@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -8,6 +9,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   statSync,
@@ -49,6 +51,14 @@ const routeCatalogWorker = fileURLToPath(
 
 const routeIdentityWorker = fileURLToPath(
   new URL("./fetch_destination_identity_worker.sh", import.meta.url)
+);
+
+const routeIdentityScript = fileURLToPath(
+  new URL("./fetch_destination_identity.mjs", import.meta.url)
+);
+
+const routeAuditOutputWriter = fileURLToPath(
+  new URL("./write_audit_output_atomically.mjs", import.meta.url)
 );
 
 const routeAuditSkill = fileURLToPath(
@@ -353,8 +363,22 @@ test("Luna waits for one bounded catalog checker instead of reading an empty liv
 
 test("recurring catalog checks use the approved preflighted database wrapper", () => {
   const root = mkdtempSync(join(tmpdir(), "peaks-audit-wrapper-"));
-  const evidenceRoot = mkdtempSync("/tmp/peaks-route-audit.");
-  const workerEvidenceRoot = mkdtempSync("/tmp/peaks-route-audit-worker03.");
+  const token = randomUUID();
+  const outputFile = join(
+    "/tmp",
+    `peaks-route-audit-${token}.catalog.json`
+  );
+  const workerOutputFile = join(
+    "/tmp",
+    `peaks-route-audit-worker03-${token}.catalog.json`
+  );
+  const nestedOutputRoot = mkdtempSync(
+    "/tmp/peaks-route-audit-parent."
+  );
+  const symlinkParent = join(
+    "/tmp",
+    `peaks-route-audit-${token}-parent`
+  );
   const symlinkTarget = mkdtempSync(join(tmpdir(), "peaks-audit-output-target-"));
   const skillScripts = join(
     root,
@@ -371,6 +395,10 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     const wrapper = join(skillScripts, "audit_catalog_routes_worker.sh");
     const checker = join(skillScripts, "audit_catalog_routes.sh");
     copyFileSync(routeCatalogWorker, wrapper);
+    copyFileSync(
+      routeAuditOutputWriter,
+      join(skillScripts, "write_audit_output_atomically.mjs")
+    );
     writeFileSync(
       checker,
       "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
@@ -400,7 +428,6 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     assert.match(output, /--destination-id\ndestination-1\n--print-sql/);
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
 
-    const outputFile = join(evidenceRoot, "catalog.json");
     const redirectedOutput = execFileSync(
       wrapper,
       [
@@ -421,7 +448,6 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\npreflight\n");
     assert.equal(statSync(outputFile).mode & 0o777, 0o600);
 
-    const workerOutputFile = join(workerEvidenceRoot, "catalog.json");
     execFileSync(
       wrapper,
       [
@@ -477,12 +503,30 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     assert.equal(statSync(outputFile).isDirectory(), true);
     assert.deepEqual(readdirSync(outputFile), []);
 
+    symlinkSync(symlinkTarget, symlinkParent, "dir");
     assert.throws(
       () => execFileSync(
         wrapper,
         [
-          "--destination-id", "destination-3",
-          "--output", join(root, "catalog.json"),
+          "--destination-id", "destination-parent-symlink",
+          "--output", join(symlinkParent, "catalog.json"),
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, PREFLIGHT_LOG: preflightLog },
+          stdio: "pipe",
+        }
+      ),
+      /Command failed/
+    );
+    assert.deepEqual(readdirSync(symlinkTarget), []);
+
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "--destination-id", "destination-nested",
+          "--output", join(nestedOutputRoot, "catalog.json"),
         ],
         {
           encoding: "utf8",
@@ -494,14 +538,35 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
-    rmSync(evidenceRoot, { recursive: true, force: true });
-    rmSync(workerEvidenceRoot, { recursive: true, force: true });
+    rmSync(outputFile, { recursive: true, force: true });
+    rmSync(workerOutputFile, { recursive: true, force: true });
+    rmSync(nestedOutputRoot, { recursive: true, force: true });
+    rmSync(symlinkParent, { force: true });
     rmSync(symlinkTarget, { recursive: true, force: true });
   }
 });
 
 test("recurring identity checks use the approved preflighted network wrapper", () => {
-  const root = mkdtempSync(join(tmpdir(), "peaks-identity-wrapper-"));
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "peaks-identity-wrapper-"))
+  );
+  const token = randomUUID();
+  const catalogFile = join(
+    "/tmp",
+    `peaks-route-audit-${token}.catalog.json`
+  );
+  const identityFile = join(
+    "/tmp",
+    `peaks-route-audit-${token}.identity.json`
+  );
+  const linkedCatalogFile = join(
+    "/tmp",
+    `peaks-route-audit-${token}-linked.catalog.json`
+  );
+  const linkedIdentityFile = join(
+    "/tmp",
+    `peaks-route-audit-${token}-linked.identity.json`
+  );
   const skillScripts = join(
     root,
     ".claude/skills/peaks-route-catalog-audit/scripts"
@@ -510,20 +575,22 @@ test("recurring identity checks use the approved preflighted network wrapper", (
     root,
     ".agents/skills/peaks-route-factory/scripts"
   );
-  const bin = join(root, "bin");
   const preflightLog = join(root, "preflight-log");
   try {
     mkdirSync(skillScripts, { recursive: true });
     mkdirSync(factoryScripts, { recursive: true });
-    mkdirSync(bin);
     const wrapper = join(
       skillScripts,
       "fetch_destination_identity_worker.sh"
     );
     copyFileSync(routeIdentityWorker, wrapper);
-    writeFileSync(
-      join(skillScripts, "fetch_destination_identity.mjs"),
-      "// exercised through the fake node binary\n"
+    copyFileSync(
+      routeIdentityScript,
+      join(skillScripts, "fetch_destination_identity.mjs")
+    );
+    copyFileSync(
+      routeAuditOutputWriter,
+      join(skillScripts, "write_audit_output_atomically.mjs")
     );
     writeFileSync(
       join(factoryScripts, "resolve_worker_checkout.sh"),
@@ -533,35 +600,71 @@ test("recurring identity checks use the approved preflighted network wrapper", (
       join(factoryScripts, "worker_preflight.sh"),
       "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\n"
     );
-    writeFileSync(
-      join(bin, "node"),
-      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
-    );
+    writeFileSync(catalogFile, JSON.stringify({
+      records: [{
+        type: "identity",
+        destination_id: "destination-identity",
+        metrics: {
+          stored_name: "Test Peak",
+          country_code: "US",
+        },
+      }],
+    }));
     for (const executable of [
       wrapper,
       join(factoryScripts, "resolve_worker_checkout.sh"),
       join(factoryScripts, "worker_preflight.sh"),
-      join(bin, "node"),
     ]) chmodSync(executable, 0o755);
-    const output = execFileSync(
+    execFileSync(
       wrapper,
-      ["--catalog", "/tmp/catalog.json", "--output", "/tmp/identity.json"],
+      ["--catalog", catalogFile, "--output", identityFile],
       {
         encoding: "utf8",
         env: {
           ...process.env,
-          PATH: `${bin}:${process.env.PATH}`,
           PREFLIGHT_LOG: preflightLog,
         },
       }
     );
-    assert.match(output, /fetch_destination_identity\.mjs/);
-    assert.match(output, /--catalog\n\/tmp\/catalog\.json/);
-    assert.match(output, /--output\n\/tmp\/identity\.json/);
+    const identity = JSON.parse(readFileSync(identityFile, "utf8"));
+    assert.equal(identity.destination_id, "destination-identity");
+    assert.equal(identity.stored_name, "Test Peak");
     assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+
+    const linkedTarget = join(root, "linked-catalog.json");
+    writeFileSync(linkedTarget, readFileSync(catalogFile));
+    symlinkSync(linkedTarget, linkedCatalogFile);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        ["--catalog", linkedCatalogFile, "--output", linkedIdentityFile],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            PREFLIGHT_LOG: preflightLog,
+          },
+          stdio: "pipe",
+        }
+      ),
+      /Command failed/
+    );
+    assert.equal(existsSync(linkedIdentityFile), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
+    rmSync(catalogFile, { force: true });
+    rmSync(identityFile, { force: true });
+    rmSync(linkedCatalogFile, { force: true });
+    rmSync(linkedIdentityFile, { force: true });
   }
+});
+
+test("audit completion reads only no-follow direct temp result files", () => {
+  const source = readFileSync(routeAuditJobs, "utf8");
+  assert.match(source, /O_NOFOLLOW/);
+  assert.match(source, /direct system temp file/);
+  assert.match(source, /peaks-route-audit-.*\\\.result\\\.json/);
+  assert.match(source, /readAuditResultFile\(resultFile\)/);
 });
 
 test("Luna proves setup from a fresh wrapper call and uses bounded leases", () => {
@@ -577,8 +680,14 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
     assert.match(instructions, /audit_catalog_routes_worker\.sh/);
     assert.match(instructions, /fetch_destination_identity_worker\.sh/);
-    assert.match(instructions, /--output.*catalog\.json/s);
-    assert.match(instructions, /Never use.*shell redirection/i);
+    assert.match(instructions, /catalog\.json/);
+    assert.match(instructions, /--output/);
+    assert.match(instructions, /Never use\s+shell\s+redirection/i);
+    assert.match(instructions, /Never create an evidence\s+directory/i);
+    assert.match(
+      instructions,
+      /(?:peaks-route-audit-DESTINATION_ID|AUDIT_PREFIX)\.result\.json/i
+    );
     assert.match(instructions, /Never prepend.*(?:bash|`bash`)/is);
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }

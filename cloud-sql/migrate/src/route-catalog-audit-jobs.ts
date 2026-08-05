@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import db from "./db";
 
 type AuditState =
@@ -212,6 +214,31 @@ function flagValue(argv: string[], flag: string): string | null {
   const value = argv[index + 1];
   if (!value || value.startsWith("--")) throw new Error(`${flag} requires a value`);
   return value;
+}
+
+async function readAuditResultFile(filePath: string): Promise<string> {
+  const absolutePath = path.resolve(filePath);
+  const lexicalParent = path.dirname(absolutePath);
+  if (lexicalParent !== "/tmp" && lexicalParent !== "/private/tmp") {
+    throw new Error("--result-file must be a direct system temp file");
+  }
+  const fileName = path.basename(absolutePath);
+  if (!/^peaks-route-audit-[A-Za-z0-9][A-Za-z0-9._-]*\.result\.json$/.test(fileName)) {
+    throw new Error("--result-file name is not approved");
+  }
+  const physicalParent = await fs.realpath(lexicalParent);
+  if (physicalParent !== "/tmp" && physicalParent !== "/private/tmp") {
+    throw new Error("System temp root resolved unexpectedly");
+  }
+  const handle = await fs.open(
+    path.join(physicalParent, fileName),
+    constants.O_RDONLY | constants.O_NOFOLLOW
+  );
+  try {
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
 function positiveInteger(argv: string[], flag: string, fallback: number): number {
@@ -581,7 +608,7 @@ async function complete(argv: string[]): Promise<void> {
   const state = parseState(flagValue(argv, "--state"));
   const resultFile = flagValue(argv, "--result-file");
   if (!resultFile) throw new Error("--result-file is required");
-  const result = JSON.parse(await fs.readFile(resultFile, "utf8")) as {
+  const result = JSON.parse(await readAuditResultFile(resultFile)) as {
     destination_id?: string;
     verdict?: string;
     state?: string;
