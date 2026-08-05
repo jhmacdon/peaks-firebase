@@ -76,6 +76,12 @@ the next stage with a new lease.
   limits the copy to two identity URLs and one access URL and retains known
   conflicts. It fetches those public pages in parallel with hard timeouts and
   stores only compact evidence. The reviewer never browses.
+  The packet includes a route-specific `review_result_template`. Spawn the
+  reviewer with one prompt field that names only the packet path; do not also
+  attach the packet as a second input form. The reviewer copies that template,
+  replaces the verdict and null gates, keeps the flat schema unchanged, and
+  returns JSON only. An evidence item marked `ok` proves only that the page was
+  fetched, not that its text supports the candidate fact.
   Run the source check only through
   `scripts/check_pending_route_source.sh`; it owns the fixed checker and result
   path, so never add redirection or another command. Do not give the reviewer

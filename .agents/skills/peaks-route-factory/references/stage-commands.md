@@ -242,11 +242,15 @@ timeouts, strips HTML, and stores only a short title, description, and text
 excerpt in `web_evidence`. A failed page stays in the packet as a failed
 evidence item; do not retry it with another tool.
 
-Spawn `peaks_route_reviewer` with only that review packet. Never attach or
-quote the full candidate result, another identity URL, the researcher's
-verdict, or raw page text. The reviewer must not browse or fetch pages; it
-judges only the compact packet evidence. Save its output using the review schema at
-`/private/tmp/peaks-route-worker/<destination-id>-review.json`. Then:
+Spawn `peaks_route_reviewer` with one prompt field that names only the filtered
+review-packet path. Do not also supply an input, items, files, attachments, or a
+second prompt form. Never attach or quote the full candidate result, another
+identity URL, the researcher's verdict, or raw page text. The reviewer must not
+browse or fetch pages; it judges only the compact packet evidence. Tell it to
+copy `review_result_template`, replace `verdict` and every null gate, keep the
+flat keys unchanged, and return only that JSON object. Save its output using the
+review schema at `/private/tmp/peaks-route-worker/<destination-id>-review.json`.
+Then:
 
 Do not make up `summit_contact`, `elevation_profile`, or `segment_assembly`.
 The reviewer may omit those three fields and their five count-only
