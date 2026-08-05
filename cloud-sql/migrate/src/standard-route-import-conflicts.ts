@@ -6,6 +6,62 @@ export type DestinationRouteSummary = {
   status: string;
 };
 
+function normalizeRouteName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/\bmt\b/gu, "mount")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function coreDestinationName(value: string): string {
+  return normalizeRouteName(value)
+    .replace(/\b(?:mount|mountain|peak)\b/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function usesUnspacedScript(value: string): boolean {
+  return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u.test(
+    value
+  );
+}
+
+function containsDestinationName(
+  routeName: string,
+  destinationName: string
+): boolean {
+  if (!destinationName) return false;
+  if (usesUnspacedScript(destinationName)) {
+    return routeName.includes(destinationName);
+  }
+  return ` ${routeName} `.includes(` ${destinationName} `);
+}
+
+export function routeNameReferencesDestination(
+  routeName: string,
+  destinationNames: Iterable<string>
+): boolean {
+  const normalizedRoute = normalizeRouteName(routeName);
+  if (!normalizedRoute) return false;
+
+  return Array.from(destinationNames).some((destinationName) => {
+    const normalizedDestination = normalizeRouteName(destinationName);
+    const destinationCore = coreDestinationName(destinationName);
+    if (
+      !normalizedDestination ||
+      Array.from(destinationCore).length < 2
+    ) return false;
+    return (
+      containsDestinationName(normalizedRoute, normalizedDestination) ||
+      containsDestinationName(normalizedRoute, destinationCore)
+    );
+  });
+}
+
 const LOCK_LIVE_DESTINATION_ROUTES_SQL = `
   SELECT r.id, r.name, r.status
   FROM route_destinations rd
@@ -60,4 +116,5 @@ export async function lockAndFindConflictingLiveRoute(
 export default {
   findConflictingLiveRoute,
   lockAndFindConflictingLiveRoute,
+  routeNameReferencesDestination,
 };

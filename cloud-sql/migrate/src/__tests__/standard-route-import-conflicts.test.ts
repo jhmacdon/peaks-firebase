@@ -7,6 +7,7 @@ import type { PoolClient } from "pg";
 import {
   findConflictingLiveRoute,
   lockAndFindConflictingLiveRoute,
+  routeNameReferencesDestination,
 } from "../standard-route-import-conflicts";
 
 const MIGRATE_ROOT = join(__dirname, "../..");
@@ -27,6 +28,58 @@ const routes = [
     status: "active",
   },
 ];
+
+test("route names must name the linked destination", () => {
+  assert.equal(
+    routeNameReferencesDestination(
+      "Mount Bierstadt via West Slopes",
+      ["Mount Bierstadt"]
+    ),
+    true
+  );
+  assert.equal(
+    routeNameReferencesDestination(
+      "Mt. Bierstadt — West Slopes",
+      ["Mount Bierstadt"]
+    ),
+    true
+  );
+  assert.equal(
+    routeNameReferencesDestination(
+      "Daedunsan parking lot–Macheondae",
+      ["대둔산", "Daedunsan"]
+    ),
+    true
+  );
+  assert.equal(
+    routeNameReferencesDestination("대둔산 마천대", ["대둔산", "Daedunsan"]),
+    true
+  );
+  assert.equal(
+    routeNameReferencesDestination("Mount", ["Mount Bierstadt"]),
+    false
+  );
+  assert.equal(
+    routeNameReferencesDestination("West Slopes", ["Mount Bierstadt"]),
+    false
+  );
+  assert.equal(
+    routeNameReferencesDestination("Sierra Trail", ["Mount Si"]),
+    false
+  );
+  assert.equal(
+    routeNameReferencesDestination("Hoodoo Trail", ["Mount Hood"]),
+    false
+  );
+  assert.equal(
+    routeNameReferencesDestination("Trainier Ridge", ["Mount Rainier"]),
+    false
+  );
+  assert.equal(
+    routeNameReferencesDestination("대둔산마천대", ["대둔산", "Daedunsan"]),
+    true
+  );
+});
 
 test("a distinct active route on the same destination can coexist", () => {
   assert.equal(
@@ -289,4 +342,30 @@ test("the worker runtime can load the importer before claiming a job", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /^Usage:/);
+});
+
+test("the importer rejects a truncated route name before writing", () => {
+  const importer = readFileSync(IMPORTER_PATH, "utf8");
+  const validation = importer.indexOf(
+    "routeNameReferencesDestination("
+  );
+  const pendingWrite = importer.indexOf(
+    "async function createPendingRoute("
+  );
+  const main = importer.indexOf("async function main()");
+  const mainValidation = importer.indexOf(
+    "routeNameReferencesDestination(",
+    main
+  );
+  const mainPendingCall = importer.indexOf(
+    "await createPendingRoute(",
+    main
+  );
+
+  assert.ok(validation >= 0);
+  assert.ok(pendingWrite >= 0);
+  assert.ok(mainValidation > main);
+  assert.ok(mainPendingCall > mainValidation);
+  assert.match(importer, /console\.log\(`Name: \$\{args\.name\}`\)/);
+  assert.match(importer, /route_name: args\.name/);
 });

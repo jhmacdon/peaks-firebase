@@ -33,7 +33,9 @@ This is one bounded worker run:
 8. Keep every rights, access, route identity, segment, provenance, elevation,
    independent-review, activation, and public API gate. Do not lower or waive
    a gate. At the `import` stage, call `import_route_candidate.sh` directly.
-   Never put environment assignments, `env`, or a shell before it.
+   Never put environment assignments, `env`, or a shell before it. Quote the
+   full route name as one value and require the dry-run `Name:` and
+   `route_name` output to match it before apply.
    At `review`, call `check_pending_route_source.sh` directly, with no command
    prefix or redirection.
 9. Finish or release this one lease, run final stats, and leave the checkout

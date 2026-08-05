@@ -15,6 +15,7 @@ const db =
 const {
   findConflictingLiveRoute,
   lockAndFindConflictingLiveRoute,
+  routeNameReferencesDestination,
 } = routeConflictHelpers;
 const requireFromMigrate = createRequire(
   new URL("../../../../cloud-sql/migrate/package.json", import.meta.url)
@@ -172,6 +173,7 @@ type RouteElevationLineage = {
 type Place = {
   id: string;
   name: string;
+  alternateNames: string[];
   lat: number;
   lng: number;
   elevation: number | null;
@@ -179,6 +181,18 @@ type Place = {
   prominence: number | null;
   session_count: number;
 };
+
+function flattenNames(value: unknown): string[] {
+  if (typeof value === "string") {
+    const name = value.replace(/\s+/g, " ").trim();
+    return name ? [name] : [];
+  }
+  if (Array.isArray(value)) return value.flatMap(flattenNames);
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).flatMap(flattenNames);
+  }
+  return [];
+}
 
 function computeElevationStats(elevations: number[]): {
   gain: number;
@@ -648,6 +662,7 @@ async function loadPlaces(args: Args): Promise<{
 }> {
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation,
+            COALESCE(d.metadata->'names', '{}'::jsonb) AS alternate_names,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             d.prominence,
@@ -673,6 +688,7 @@ async function loadPlaces(args: Args): Promise<{
       {
         id: String(row.id),
         name: String(row.name),
+        alternateNames: flattenNames(row.alternate_names),
         lat: Number(row.lat),
         lng: Number(row.lng),
         elevation:
@@ -1833,6 +1849,17 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const candidate = await loadCandidate(args.candidatePath, args);
   const { destination, trailhead } = await loadPlaces(args);
+  if (
+    !routeNameReferencesDestination(
+      args.name,
+      [destination.name, ...destination.alternateNames]
+    )
+  ) {
+    throw new Error(
+      `Route name must name destination "${destination.name}"; received ` +
+        `"${args.name}"`
+    );
+  }
   const points = await buildTrack(args, candidate, destination, trailhead);
   const distance = points[points.length - 1].dist;
   const stats = computeElevationStats(points.map((point) => point.ele));
@@ -1869,6 +1896,7 @@ async function main() {
   );
 
   console.log(`Mode: ${args.apply ? "APPLY" : "DRY RUN"}`);
+  console.log(`Name: ${args.name}`);
   console.log(
     `Route: ${trailhead.name} → ${destination.name}` +
       (["loop", "lollipop"].includes(args.routeShape)
@@ -1928,6 +1956,7 @@ async function main() {
       trailhead_id: args.trailheadId,
       reusable_pending_route_id: exactExisting?.id ?? null,
       replacement_route_id: args.replaceActiveRouteId || null,
+      route_name: args.name,
     };
     if (args.resultPath) {
       const resultPath = path.resolve(args.resultPath);
@@ -1950,6 +1979,7 @@ async function main() {
       status: "active",
       route_id: routeId,
       replacement_route_id: null,
+      route_name: args.name,
     };
   } else {
     const routeId = await createPendingRoute(
@@ -1963,6 +1993,7 @@ async function main() {
       status: "pending",
       route_id: routeId,
       replacement_route_id: args.replaceActiveRouteId || null,
+      route_name: args.name,
     };
   }
   if (args.resultPath) {
