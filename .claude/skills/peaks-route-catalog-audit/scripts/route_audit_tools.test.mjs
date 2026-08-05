@@ -45,6 +45,10 @@ const routeCatalogWorker = fileURLToPath(
   new URL("./audit_catalog_routes_worker.sh", import.meta.url)
 );
 
+const routeIdentityWorker = fileURLToPath(
+  new URL("./fetch_destination_identity_worker.sh", import.meta.url)
+);
+
 const routeAuditSkill = fileURLToPath(
   new URL("../SKILL.md", import.meta.url)
 );
@@ -395,6 +399,70 @@ test("recurring catalog checks use the approved preflighted database wrapper", (
   }
 });
 
+test("recurring identity checks use the approved preflighted network wrapper", () => {
+  const root = mkdtempSync(join(tmpdir(), "peaks-identity-wrapper-"));
+  const skillScripts = join(
+    root,
+    ".claude/skills/peaks-route-catalog-audit/scripts"
+  );
+  const factoryScripts = join(
+    root,
+    ".agents/skills/peaks-route-factory/scripts"
+  );
+  const bin = join(root, "bin");
+  const preflightLog = join(root, "preflight-log");
+  try {
+    mkdirSync(skillScripts, { recursive: true });
+    mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(bin);
+    const wrapper = join(
+      skillScripts,
+      "fetch_destination_identity_worker.sh"
+    );
+    copyFileSync(routeIdentityWorker, wrapper);
+    writeFileSync(
+      join(skillScripts, "fetch_destination_identity.mjs"),
+      "// exercised through the fake node binary\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' luna-route-audit-02\n"
+    );
+    writeFileSync(
+      join(factoryScripts, "worker_preflight.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' preflight >>\"$PREFLIGHT_LOG\"\n"
+    );
+    writeFileSync(
+      join(bin, "node"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
+    );
+    for (const executable of [
+      wrapper,
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      join(factoryScripts, "worker_preflight.sh"),
+      join(bin, "node"),
+    ]) chmodSync(executable, 0o755);
+    const output = execFileSync(
+      wrapper,
+      ["--catalog", "/tmp/catalog.json", "--output", "/tmp/identity.json"],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          PREFLIGHT_LOG: preflightLog,
+        },
+      }
+    );
+    assert.match(output, /fetch_destination_identity\.mjs/);
+    assert.match(output, /--catalog\n\/tmp\/catalog\.json/);
+    assert.match(output, /--output\n\/tmp\/identity\.json/);
+    assert.equal(readFileSync(preflightLog, "utf8"), "preflight\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Luna proves setup from a fresh wrapper call and uses bounded leases", () => {
   const skill = readFileSync(routeAuditSkill, "utf8");
   const prompt = readFileSync(routeAuditLunaPrompt, "utf8");
@@ -405,9 +473,10 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
     assert.match(instructions, /sandbox_permissions=require_escalated/);
     assert.match(instructions, /every `?route_audit_jobs\.sh`? call/i);
     assert.match(instructions, /audit_catalog_routes_worker\.sh/);
+    assert.match(instructions, /fetch_destination_identity_worker\.sh/);
     assert.match(
       instructions,
-      /Do not\s+first run\s+(?:either|the) wrapper without that permission/i
+      /Do not\s+first run\s+(?:any of these|either|the) wrappers? without that\s+permission/i
     );
     assert.match(instructions, /claim --lease-minutes 30\s+--apply/);
   }
