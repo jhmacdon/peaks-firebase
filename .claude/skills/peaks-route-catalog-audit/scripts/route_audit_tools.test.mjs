@@ -122,6 +122,13 @@ const routeImporterWrapper = fileURLToPath(
   )
 );
 
+const routeSourceCheckWrapper = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/check_pending_route_source.sh",
+    import.meta.url
+  )
+);
+
 const routeDatabasePasswordLoader = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/load_route_db_password.sh",
@@ -257,6 +264,32 @@ test("route importer wrapper owns terrain settings and the fixed importer", () =
   assert.match(
     stageCommands,
     /Call `import_route_candidate\.sh` directly[\s\S]*Do not prefix it/i
+  );
+});
+
+test("route source-check wrapper owns checker choice and result path", () => {
+  const wrapper = readFileSync(routeSourceCheckWrapper, "utf8");
+  const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+  const syntax = spawnSync("bash", ["-n", routeSourceCheckWrapper], {
+    encoding: "utf8",
+  });
+
+  assert.equal(syntax.status, 0, syntax.stderr);
+  assert.match(wrapper, /check_pending_osm_routes\.mts/);
+  assert.match(wrapper, /check_pending_usgs_routes\.mts/);
+  assert.match(
+    wrapper,
+    /output_file="\$output_dir\/\$destination_id-source-check\.json"/
+  );
+  assert.match(wrapper, /checker_status.*-ne 0.*-ne 2/s);
+  assert.match(wrapper, /mv "\$temporary_file" "\$output_file"/);
+  assert.doesNotMatch(
+    stageCommands,
+    /check_pending_(?:osm|usgs)_routes\.mts[\s\S]{0,160}>/
+  );
+  assert.match(
+    stageCommands,
+    /Call `check_pending_route_source\.sh` directly[\s\S]*do not[\s\S]*redirection/i
   );
 });
 

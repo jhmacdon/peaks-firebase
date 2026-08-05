@@ -190,29 +190,31 @@ If the job already names an older pending route from a failed review, add
 Run the checker that matches the candidate source:
 
 ```bash
-.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/scripts/run-tsx.sh \
-  .claude/skills/peaks-osm-route-approval/scripts/check_pending_osm_routes.mts \
-  --route-id <pending-route-id> --format json \
-  > /private/tmp/peaks-route-worker/<destination-id>-source-check.json
+.agents/skills/peaks-route-factory/scripts/check_pending_route_source.sh \
+  --source osm --destination-id <destination-id> \
+  --route-id <pending-route-id>
 ```
 
 For a USGS candidate, use:
 
 ```bash
-.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/scripts/run-tsx.sh \
-  .claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts \
-  --route-id <pending-route-id> --format json \
-  > /private/tmp/peaks-route-worker/<destination-id>-source-check.json
+.agents/skills/peaks-route-factory/scripts/check_pending_route_source.sh \
+  --source usgs --destination-id <destination-id> \
+  --route-id <pending-route-id>
 ```
 
 When the job has `replacement_route_id`, add
-`--replace-active-route <replacement-route-id>` to the matching checker. The
+`--replace-active-route <replacement-route-id>` to the wrapper. The
 checker validates that exact active route, ignores it as the planned legacy
 replacement, and still rejects another live route with the same name. The
 queue repeats this check from its durable replacement binding before it
 accepts `approved`.
+
+Call `check_pending_route_source.sh` directly. Do not prefix it with
+environment assignments, `env`, `bash`, `zsh`, or another command, and do not
+append redirection. It runs only the selected fixed checker and writes
+`/private/tmp/peaks-route-worker/<destination-id>-source-check.json`
+atomically. Status 2 means the checker wrote a valid FAIL result.
 
 Spawn `peaks_route_reviewer` with the pending route ID, candidate result,
 identity and access URLs, rendered-map note, and checker JSON. Save its output
@@ -244,9 +246,9 @@ Use `needs_revision` with that result when any gate fails.
 A checker FAIL exits with status 2 after writing its JSON. That is a review
 result, not a reason to rerun the checker.
 
-Wait no more than five minutes for the reviewer. If it has not returned,
-heartbeat once, send one short completion prompt, and wait no more than two
-more minutes. Then close the reviewer and release the lease with a retry; do
+Wait no more than three minutes for the reviewer. If it has not returned,
+heartbeat once, send one short completion prompt, and wait no more than one
+more minute. Then close the reviewer and release the lease with a retry; do
 not hold a route job through repeated review waits.
 
 For a fixable failed review:

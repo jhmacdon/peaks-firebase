@@ -69,8 +69,10 @@ the next stage with a new lease.
   `pending_review` ends the turn.
 - `review`: spawn the project `peaks_route_reviewer` agent with only the
   source manifest, destination, trailhead, pending route ID, and fresh source
-  check. Do not give it the researcher's verdict. The review transition ends
-  the turn.
+  check. Run the source check only through
+  `scripts/check_pending_route_source.sh`; it owns the fixed checker and result
+  path, so never add redirection or another command. Do not give the reviewer
+  the researcher's verdict. The review transition ends the turn.
 - `publish`: plan segments and activate the approved pending route. If a prior
   run already activated it, do not activate it again; move it to `published`.
   `published` ends the turn.

@@ -34,6 +34,8 @@ This is one bounded worker run:
    independent-review, activation, and public API gate. Do not lower or waive
    a gate. At the `import` stage, call `import_route_candidate.sh` directly.
    Never put environment assignments, `env`, or a shell before it.
+   At `review`, call `check_pending_route_source.sh` directly, with no command
+   prefix or redirection.
 9. Finish or release this one lease, run final stats, and leave the checkout
    clean. Never claim a second destination in the same run.
 

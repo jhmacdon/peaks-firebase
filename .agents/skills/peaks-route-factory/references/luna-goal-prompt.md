@@ -41,8 +41,9 @@ memory:
    never put environment assignments, `env`, or a shell before it.
 9. For `review`, spawn the project `peaks_route_reviewer` agent with fresh
    context. Give it raw evidence, a fresh OSM or USGS source check, and the
-   pending route, not the researcher's conclusion. A failed gate means revision
-   or a named blocker.
+   pending route, not the researcher's conclusion. Run the source check only
+   through `check_pending_route_source.sh`, with no redirection or command
+   prefix. A failed gate means revision or a named blocker.
 10. Publish only after the queue accepts the full independent PASS result,
    segment planning passes, and explicit activation flags succeed.
 11. For `verify`, run the one queue `verify` command and accept its returned
