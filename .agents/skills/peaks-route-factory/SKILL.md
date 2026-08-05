@@ -50,21 +50,31 @@ unchanged for the repair lane.
 
 ## Follow the returned stage
 
+A claim authorizes exactly one stage. Its successful terminal queue action
+clears that stage's lease. As soon as it succeeds, run final stats and stop the
+turn. Never use the cleared lease, a local artifact, or a saved route ID to
+start the next stage. A later heartbeat must claim the job again and receive
+the next stage with a new lease.
+
 - `research`: the claim moves queued or retry work to `researching`. Research
-  and build one candidate.
+  and build one candidate. `candidate_ready` ends the turn.
 - `import`: restore the saved candidate, cache its terrain bounds, run the
   importer first without and then with `--apply`, and save the pending route ID.
   If the job has `replacement_route_id`, pass it to both importer runs.
   Distinct named routes may coexist on one peak. Never treat another route
   variant as the replacement or broaden the queue's replacement binding.
+  `pending_review` ends the turn.
 - `review`: spawn the project `peaks_route_reviewer` agent with only the
   source manifest, destination, trailhead, pending route ID, and fresh source
-  check. Do not give it the researcher's verdict.
+  check. Do not give it the researcher's verdict. The review transition ends
+  the turn.
 - `publish`: plan segments and activate the approved pending route. If a prior
   run already activated it, do not activate it again; move it to `published`.
+  `published` ends the turn.
 - `verify`: run the single `route_jobs.sh verify` command. It alone chooses
   `verified`, a safe rebuild, a public-API retry, or a true human conflict.
-  Never interpret the gates or transition a verify job by hand.
+  Never interpret the gates or transition a verify job by hand. Its returned
+  action ends the turn.
 
 Use `route_jobs.sh heartbeat` before a long browser or map step. Release the
 lease with a short retry if the run must end. Use `route_jobs.sh transition`

@@ -1325,13 +1325,17 @@ async function materialize(argv: string[]): Promise<void> {
      FROM standard_route_backfill_jobs
      WHERE destination_id = $1
        AND lease_token = $2
-       AND lease_expires_at >= now()`,
+       AND lease_expires_at >= now()
+       AND state = 'candidate_ready'`,
     [destinationId, token]
   );
   const artifact = result.rows[0]?.candidate_artifact;
   const expectedHash = result.rows[0]?.candidate_sha256;
   if (!artifact || !expectedHash) {
-    throw new Error("The leased job has no saved candidate artifact");
+    throw new Error(
+      "materialize requires an active candidate_ready import-stage lease " +
+        "with a saved artifact; claim import after the research turn ends"
+    );
   }
   const contents = `${canonicalJson(artifact)}\n`;
   const actualHash = createHash("sha256")

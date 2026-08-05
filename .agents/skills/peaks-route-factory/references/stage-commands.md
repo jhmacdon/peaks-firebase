@@ -12,6 +12,12 @@ prefix that path with `cloud-sql/migrate/`.
   heartbeat --lease-token <lease-token> --lease-minutes 90
 ```
 
+Every claim authorizes only its returned stage. Each successful transition
+shown below clears the lease. Run final stats and stop as soon as that command
+succeeds. Never run the next section with the cleared token or with a local
+artifact left by the completed stage; the next heartbeat must claim a new
+lease and receive that stage.
+
 ## Research
 
 Create the small worker directories:
@@ -106,6 +112,9 @@ Write the compact candidate JSON from the candidate result schema to
   --apply
 ```
 
+That successful transition ends the research turn. Do not materialize or
+import the candidate until a later claim returns `import`.
+
 The queue normalizes that repo-root artifact path inside the migration package.
 The shorter `route-candidates/luna/<destination-id>.geojson` form is also
 accepted, but use the repo-root form above so the builder, audit, and transition
@@ -169,6 +178,9 @@ The importer writes the route ID to that result file. Then:
   --apply
 ```
 
+That successful transition ends the import turn. Do not run review with the
+cleared lease.
+
 An exact retry reuses the pending route instead of creating a duplicate.
 When the claimed job has `replacement_route_id`, pass
 `--replace-active-route <replacement-route-id>` to both importer runs. This
@@ -227,6 +239,9 @@ from the route path must go to `needs_revision`.
   --result-file /private/tmp/peaks-route-worker/<destination-id>-review.json \
   --apply
 ```
+
+That successful transition ends the review turn. A blocked or revision
+transition also ends it.
 
 Use `needs_revision` with that result when any gate fails.
 A checker FAIL exits with status 2 after writing its JSON. That is a review
@@ -289,6 +304,9 @@ Then:
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to published --route-id <route-id> --apply
 ```
+
+That successful transition ends the publish turn. Verification requires a new
+claim and lease.
 
 ## Verify
 

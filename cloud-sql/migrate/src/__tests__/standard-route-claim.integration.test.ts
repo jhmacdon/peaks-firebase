@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { Pool } from "pg";
+import { canonicalJson } from "../standard-route-job-state";
 
 const TEST_DATABASE_URL = process.env.ROUTE_JOB_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
@@ -21,6 +24,7 @@ test(
     const suffix = `${process.pid}-${Date.now()}`;
     const targetId = `route-claim-target-${suffix}`;
     const otherId = `route-claim-other-${suffix}`;
+    const materializedCandidate = `/tmp/${targetId}.geojson`;
     const pool = new Pool({ connectionString: TEST_DATABASE_URL });
     const environment = {
       ...process.env,
@@ -76,6 +80,80 @@ test(
       assert.equal(result.job.destination_id, targetId);
       assert.equal(result.job.state, "researching");
 
+      const wrongStageMaterialize = command(
+        "materialize",
+        "--destination-id", targetId,
+        "--lease-token", result.job.lease_token,
+        "--output", `/tmp/${targetId}.geojson`
+      );
+      assert.notEqual(wrongStageMaterialize.status, 0);
+      assert.match(
+        wrongStageMaterialize.stderr,
+        /active candidate_ready import-stage lease/
+      );
+
+      const candidateArtifact = {
+        type: "FeatureCollection",
+        peaks_destination_id: targetId,
+        features: [],
+      };
+      const candidateJson = canonicalJson(candidateArtifact);
+      const candidateHash = createHash("sha256")
+        .update(candidateJson)
+        .digest("hex");
+      await pool.query(
+        `UPDATE standard_route_backfill_jobs
+         SET state = 'candidate_ready',
+             candidate_artifact = $2::jsonb,
+             candidate_sha256 = $3,
+             lease_owner = NULL,
+             lease_token = NULL,
+             lease_expires_at = NULL
+         WHERE destination_id = $1`,
+        [targetId, candidateJson, candidateHash]
+      );
+      const expiredResearchMaterialize = command(
+        "materialize",
+        "--destination-id", targetId,
+        "--lease-token", result.job.lease_token,
+        "--output", materializedCandidate
+      );
+      assert.notEqual(expiredResearchMaterialize.status, 0);
+      assert.match(
+        expiredResearchMaterialize.stderr,
+        /active candidate_ready import-stage lease/
+      );
+
+      const importClaim = command(
+        "claim",
+        "--worker-id", "targeted-import-test",
+        "--destination-id", targetId,
+        "--integrity-repairs-only",
+        "--stage", "import",
+        "--apply"
+      );
+      assert.equal(importClaim.status, 0, importClaim.stderr || importClaim.stdout);
+      const importResult = JSON.parse(importClaim.stdout.trim());
+      assert.equal(importResult.job.destination_id, targetId);
+      assert.equal(importResult.job.state, "candidate_ready");
+      assert.notEqual(importResult.job.lease_token, result.job.lease_token);
+
+      const importStageMaterialize = command(
+        "materialize",
+        "--destination-id", targetId,
+        "--lease-token", importResult.job.lease_token,
+        "--output", materializedCandidate
+      );
+      assert.equal(
+        importStageMaterialize.status,
+        0,
+        importStageMaterialize.stderr || importStageMaterialize.stdout
+      );
+      assert.deepEqual(
+        JSON.parse(readFileSync(materializedCandidate, "utf8")),
+        candidateArtifact
+      );
+
       const untouched = await pool.query<{
         state: string;
         lease_token: string | null;
@@ -118,6 +196,7 @@ test(
       assert.equal(missing.status, 0, missing.stderr || missing.stdout);
       assert.equal(JSON.parse(missing.stdout.trim()).job, null);
     } finally {
+      rmSync(materializedCandidate, { force: true });
       await pool.query(
         `DELETE FROM standard_route_backfill_jobs
          WHERE destination_id = ANY($1::text[])`,

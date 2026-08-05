@@ -25,7 +25,9 @@ This is one bounded worker run:
    OSM, USGS, or other reusable source. Never extend or copy the broken legacy
    path merely to touch the summit. Use only the exact preflighted discovery
    commands in `references/stage-commands.md`; never replace them with a direct
-   helper call or raw public-source request.
+   helper call or raw public-source request. A successful terminal transition
+   clears this stage's lease and ends the turn. Never start the next stage with
+   the cleared token or a local artifact; a later heartbeat must claim it.
 7. The replacement must reach every linked summit within 5 m. An out-and-back
    or point-to-point route must also end within 5 m of its final summit.
 8. Keep every rights, access, route identity, segment, provenance, elevation,

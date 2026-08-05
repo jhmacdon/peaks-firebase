@@ -20,6 +20,10 @@ memory:
 2. Use `route_jobs.sh` to check stats, then claim exactly one `next` job as
    `luna-route-worker-01`.
 3. Follow the returned stage. Finish work nearest publication first.
+   A claim authorizes only that one stage. Its successful terminal transition
+   clears the lease; run final stats and stop. Never start the next stage with
+   the cleared token, a local artifact, or a saved route ID. A later heartbeat
+   must claim the next stage with a new lease.
 4. Research route identity with public AllTrails, Peakbagger, SummitPost,
    official land-manager, and local mountaineering pages as available.
 5. Never sign in, evade access controls, or publish geometry from AllTrails,
