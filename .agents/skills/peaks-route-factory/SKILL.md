@@ -74,7 +74,8 @@ the next stage with a new lease.
   filtered packet from `scripts/build_route_review_packet.mjs`. Keep the full
   candidate result durable, but never attach it to the reviewer. The builder
   limits the copy to two identity URLs and one access URL and retains known
-  conflicts.
+  conflicts. It fetches those public pages in parallel with hard timeouts and
+  stores only compact evidence. The reviewer never browses.
   Run the source check only through
   `scripts/check_pending_route_source.sh`; it owns the fixed checker and result
   path, so never add redirection or another command. Do not give the reviewer

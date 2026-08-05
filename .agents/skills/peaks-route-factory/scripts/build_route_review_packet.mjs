@@ -8,11 +8,141 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { request as httpsRequest } from "node:https";
+import { isIP } from "node:net";
 import { dirname, resolve } from "node:path";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { fileURLToPath } from "node:url";
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function requirePublicHostname(hostname, label) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    normalized === "::1" ||
+    (normalized.includes(":") &&
+      (normalized.startsWith("fc") ||
+        normalized.startsWith("fd") ||
+        normalized.startsWith("fe80:")))
+  ) {
+    throw new Error(`${label} must use a public host`);
+  }
+  const ipv4 = normalized.split(".").map(Number);
+  if (
+    ipv4.length === 4 &&
+    ipv4.every(
+      (part) => Number.isInteger(part) && part >= 0 && part <= 255
+    ) &&
+    (ipv4[0] === 10 ||
+      ipv4[0] === 127 ||
+      (ipv4[0] === 169 && ipv4[1] === 254) ||
+      (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31) ||
+      (ipv4[0] === 192 && ipv4[1] === 168))
+  ) {
+    throw new Error(`${label} must use a public host`);
+  }
+}
+
+export function isPublicAddress(address) {
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  const family = isIP(normalized);
+  if (family === 4) {
+    const parts = normalized.split(".").map(Number);
+    return !(
+      parts[0] === 0 ||
+      parts[0] === 10 ||
+      parts[0] === 127 ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 0 && parts[2] === 0) ||
+      (parts[0] === 192 && parts[1] === 0 && parts[2] === 2) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 198 && parts[1] >= 18 && parts[1] <= 19) ||
+      (parts[0] === 198 && parts[1] === 51 && parts[2] === 100) ||
+      (parts[0] === 203 && parts[1] === 0 && parts[2] === 113) ||
+      parts[0] >= 224
+    );
+  }
+  if (family === 6) {
+    const bytes = ipv6Bytes(normalized);
+    if (!bytes) return false;
+    const mapped =
+      bytes.slice(0, 10).every((byte) => byte === 0) &&
+      bytes[10] === 0xff &&
+      bytes[11] === 0xff;
+    if (mapped) {
+      return isPublicAddress(bytes.slice(12).join("."));
+    }
+    const globalUnicast = (bytes[0] & 0xe0) === 0x20;
+    const special2001 =
+      bytes[0] === 0x20 &&
+      bytes[1] === 0x01 &&
+      (bytes[2] & 0xfe) === 0;
+    const documentation =
+      bytes[0] === 0x20 &&
+      bytes[1] === 0x01 &&
+      bytes[2] === 0x0d &&
+      bytes[3] === 0xb8;
+    const sixToFour = bytes[0] === 0x20 && bytes[1] === 0x02;
+    const documentation3fff =
+      bytes[0] === 0x3f &&
+      bytes[1] === 0xff &&
+      bytes[2] < 0x10;
+    return (
+      globalUnicast &&
+      !special2001 &&
+      !documentation &&
+      !sixToFour &&
+      !documentation3fff
+    );
+  }
+  return false;
+}
+
+function ipv6Bytes(address) {
+  let value = address.split("%", 1)[0];
+  const dotted = value.match(/(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    const parts = dotted[1].split(".").map(Number);
+    if (
+      parts.length !== 4 ||
+      parts.some(
+        (part) => !Number.isInteger(part) || part < 0 || part > 255
+      )
+    ) {
+      return null;
+    }
+    value =
+      value.slice(0, -dotted[1].length) +
+      `${((parts[0] << 8) | parts[1]).toString(16)}:` +
+      `${((parts[2] << 8) | parts[3]).toString(16)}`;
+  }
+  if ((value.match(/::/g) ?? []).length > 1) return null;
+  const [leftText, rightText = ""] = value.split("::");
+  const left = leftText ? leftText.split(":") : [];
+  const right = rightText ? rightText.split(":") : [];
+  const missing = 8 - left.length - right.length;
+  if (
+    (value.includes("::") ? missing < 1 : missing !== 0) ||
+    [...left, ...right].some(
+      (group) => !/^[\da-f]{1,4}$/i.test(group)
+    )
+  ) {
+    return null;
+  }
+  const groups = [
+    ...left,
+    ...Array(value.includes("::") ? missing : 0).fill("0"),
+    ...right,
+  ].map((group) => Number.parseInt(group, 16));
+  if (groups.length !== 8) return null;
+  return groups.flatMap((group) => [group >> 8, group & 0xff]);
 }
 
 function httpsUrl(value, label) {
@@ -23,6 +153,14 @@ function httpsUrl(value, label) {
   if (parsed.protocol !== "https:") {
     throw new Error(`${label} must be an HTTPS URL`);
   }
+  if (
+    parsed.username ||
+    parsed.password ||
+    (parsed.port && parsed.port !== "443")
+  ) {
+    throw new Error(`${label} must not use credentials or a custom port`);
+  }
+  requirePublicHostname(parsed.hostname, label);
   return parsed;
 }
 
@@ -226,6 +364,321 @@ function filteredMapReview(candidate) {
   };
 }
 
+function decodeHtml(value) {
+  return value
+    .replace(/&#(\d+);/g, (_, number) =>
+      String.fromCodePoint(Number.parseInt(number, 10))
+    )
+    .replace(/&#x([\da-f]+);/gi, (_, number) =>
+      String.fromCodePoint(Number.parseInt(number, 16))
+    )
+    .replace(
+      /&(amp|lt|gt|quot|apos|nbsp);/gi,
+      (_, entity) =>
+        ({
+          amp: "&",
+          lt: "<",
+          gt: ">",
+          quot: '"',
+          apos: "'",
+          nbsp: " ",
+        })[entity.toLowerCase()]
+    );
+}
+
+function compactText(value, limit) {
+  return decodeHtml(value)
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript|svg)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limit);
+}
+
+function tagAttributes(tag) {
+  const attributes = {};
+  for (const match of tag.matchAll(/([:\w-]+)\s*=\s*(["'])([\s\S]*?)\2/g)) {
+    attributes[match[1].toLowerCase()] = decodeHtml(match[3]).trim();
+  }
+  return attributes;
+}
+
+function pageEvidenceFromHtml(html) {
+  const titleMatch = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  let description = "";
+  for (const tag of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const attributes = tagAttributes(tag[0]);
+    const key = (attributes.name ?? attributes.property ?? "").toLowerCase();
+    if (key === "description" || key === "og:description") {
+      description = compactText(attributes.content ?? "", 600);
+      if (description) break;
+    }
+  }
+  return {
+    title: compactText(titleMatch?.[1] ?? "", 240),
+    description,
+    text_excerpt: compactText(html, 1600),
+  };
+}
+
+function evidenceTargets(packet) {
+  const targets = new Map();
+  const addTarget = (url, role, type) => {
+    const target = targets.get(url) ?? { url, roles: [], source_types: [] };
+    if (!target.roles.includes(role)) target.roles.push(role);
+    if (type && !target.source_types.includes(type)) {
+      target.source_types.push(type);
+    }
+    targets.set(url, target);
+  };
+  for (const source of packet.candidate.identity_sources) {
+    addTarget(source.url, "identity", source.type);
+  }
+  if (packet.candidate.access?.source_url) {
+    addTarget(packet.candidate.access.source_url, "access", "access");
+  }
+  return [...targets.values()];
+}
+
+async function resolvePublicAddresses(hostname) {
+  const addresses = await dnsLookup(hostname, { all: true, verbatim: true });
+  if (addresses.length === 0) {
+    throw new Error(`public page host did not resolve: ${hostname}`);
+  }
+  for (const result of addresses) {
+    if (!isPublicAddress(result.address)) {
+      throw new Error(`public page host resolved to a private address: ${hostname}`);
+    }
+  }
+  return addresses;
+}
+
+function requestPinnedHttps(
+  url,
+  address,
+  family,
+  timeoutMs,
+  signal,
+  byteLimit = 262_144
+) {
+  return new Promise((resolveRequest, rejectRequest) => {
+    const parsed = new URL(url);
+    const request = httpsRequest(
+      parsed,
+      {
+        servername: parsed.hostname,
+        signal,
+        lookup: (_hostname, options, callback) => {
+          if (options?.all) {
+            callback(null, [{ address, family }]);
+          } else {
+            callback(null, address, family);
+          }
+        },
+        headers: {
+          accept: "text/html,application/xhtml+xml,text/plain;q=0.8",
+          host: parsed.host,
+          "user-agent": "PeaksRouteReviewer/1.0 (+https://peak.app)",
+        },
+      },
+      (response) => {
+        const chunks = [];
+        let bytesRead = 0;
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolveRequest({
+            status: response.statusCode ?? 0,
+            content_type: String(response.headers["content-type"] ?? ""),
+            location:
+              typeof response.headers.location === "string"
+                ? response.headers.location
+                : null,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        };
+        response.on("data", (value) => {
+          const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+          const remaining = byteLimit - bytesRead;
+          if (remaining > 0) {
+            chunks.push(chunk.subarray(0, remaining));
+            bytesRead += Math.min(chunk.byteLength, remaining);
+          }
+          if (chunk.byteLength > remaining) {
+            finish();
+            response.destroy();
+          }
+        });
+        response.on("end", finish);
+        response.on("error", (error) => {
+          if (!settled) rejectRequest(error);
+        });
+      }
+    );
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error("public page request timed out"));
+    });
+    request.on("error", rejectRequest);
+    request.end();
+  });
+}
+
+async function withinDeadline(promise, deadline, onTimeout) {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    onTimeout?.();
+    throw new Error("public page request timed out");
+  }
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => {
+            onTimeout?.();
+            reject(new Error("public page request timed out"));
+          },
+          remaining
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchPublicPage(
+  startUrl,
+  {
+    resolveHost = resolvePublicAddresses,
+    requestHop = requestPinnedHttps,
+    redirectLimit = 3,
+    timeoutMs = 12_000,
+  } = {}
+) {
+  const deadline = Date.now() + timeoutMs;
+  const controller = new AbortController();
+  const abortForTimeout = () => {
+    if (!controller.signal.aborted) {
+      controller.abort(new Error("public page request timed out"));
+    }
+  };
+  let current = httpsUrl(startUrl, "public page").href;
+  const originalPublisher = publisherKey(new URL(current).hostname);
+  for (let redirects = 0; ; redirects += 1) {
+    const parsed = httpsUrl(current, "public page");
+    const addresses = await withinDeadline(
+      resolveHost(parsed.hostname),
+      deadline,
+      abortForTimeout
+    );
+    if (
+      !Array.isArray(addresses) ||
+      addresses.length === 0 ||
+      addresses.some((result) => !isPublicAddress(result.address))
+    ) {
+      throw new Error(`public page host resolved to a private address: ${parsed.hostname}`);
+    }
+    const selected = addresses[0];
+    const requestTimeout = deadline - Date.now();
+    if (requestTimeout <= 0) {
+      abortForTimeout();
+      throw new Error("public page request timed out");
+    }
+    const response = await withinDeadline(
+      requestHop(
+        parsed.href,
+        selected.address,
+        selected.family,
+        requestTimeout,
+        controller.signal
+      ),
+      deadline,
+      abortForTimeout
+    );
+    if (
+      [301, 302, 303, 307, 308].includes(response.status) &&
+      response.location
+    ) {
+      if (redirects >= redirectLimit) {
+        throw new Error("public page exceeded the redirect limit");
+      }
+      const next = httpsUrl(
+        new URL(response.location, parsed).href,
+        "public page redirect"
+      );
+      if (publisherKey(next.hostname) !== originalPublisher) {
+        throw new Error("public page redirected to another publisher");
+      }
+      current = next.href;
+      continue;
+    }
+    return response;
+  }
+}
+
+function publisherKey(hostname) {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
+async function fetchEvidence(target, transport) {
+  try {
+    const response = await fetchPublicPage(target.url, transport);
+    if (response.status < 200 || response.status >= 300) {
+      return {
+        ...target,
+        ok: false,
+        http_status: response.status,
+        error: `HTTP ${response.status}`,
+      };
+    }
+    if (
+      response.content_type &&
+      !/text\/html|application\/xhtml\+xml|text\/plain/i.test(
+        response.content_type
+      )
+    ) {
+      return {
+        ...target,
+        ok: false,
+        http_status: response.status,
+        error: `unsupported content type: ${response.content_type}`,
+      };
+    }
+    const page = pageEvidenceFromHtml(response.body);
+    return {
+      ...target,
+      ok: Boolean(page.title || page.description || page.text_excerpt),
+      http_status: response.status,
+      ...page,
+      error:
+        page.title || page.description || page.text_excerpt
+          ? null
+          : "page contained no reviewable text",
+    };
+  } catch (error) {
+    return {
+      ...target,
+      ok: false,
+      http_status: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function addReviewWebEvidence(
+  packet,
+  transport
+) {
+  const webEvidence = await Promise.all(
+    evidenceTargets(packet).map((target) => fetchEvidence(target, transport))
+  );
+  return { ...packet, web_evidence: webEvidence };
+}
+
 export function buildRouteReviewPacket({
   candidate,
   sourceCheck,
@@ -325,17 +778,19 @@ function writeAtomically(output, packet) {
   }
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const packet = buildRouteReviewPacket({
-    candidate: readJson(args["candidate-result"], "candidate result"),
-    sourceCheck: readJson(args["source-check"], "source check"),
-    destinationId: args["destination-id"],
-    destinationName: args["destination-name"],
-    trailheadId: args["trailhead-id"],
-    trailheadName: args["trailhead-name"],
-    routeId: args["route-id"],
-  });
+  const packet = await addReviewWebEvidence(
+    buildRouteReviewPacket({
+      candidate: readJson(args["candidate-result"], "candidate result"),
+      sourceCheck: readJson(args["source-check"], "source check"),
+      destinationId: args["destination-id"],
+      destinationName: args["destination-name"],
+      trailheadId: args["trailhead-id"],
+      trailheadName: args["trailhead-name"],
+      routeId: args["route-id"],
+    })
+  );
   writeAtomically(args.output, packet);
   console.log(
     JSON.stringify({
@@ -344,15 +799,17 @@ function main() {
       access_source_count: packet.candidate.access?.source_url ? 1 : 0,
       known_identity_conflict_count:
         packet.candidate.identity_conflicts.length,
+      web_evidence_ok_count: packet.web_evidence.filter(
+        (evidence) => evidence.ok
+      ).length,
+      web_evidence_count: packet.web_evidence.length,
     })
   );
 }
 
 if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
-  }
+  });
 }
