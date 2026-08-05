@@ -37,7 +37,8 @@ memory:
    bounds to AWS terrain tiles and reuse the cache. Inspect the rendered map.
 8. For the `import` stage, restore the checksummed candidate from the queue,
    cache terrain for its bounds, dry-run the importer, apply it, and save the
-   pending route ID before review.
+   pending route ID before review. Call `import_route_candidate.sh` directly;
+   never put environment assignments, `env`, or a shell before it.
 9. For `review`, spawn the project `peaks_route_reviewer` agent with fresh
    context. Give it raw evidence, a fresh OSM or USGS source check, and the
    pending route, not the researcher's conclusion. A failed gate means revision

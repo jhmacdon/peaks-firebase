@@ -137,11 +137,7 @@ all receive the same path.
 Run this once without the final apply flags:
 
 ```bash
-PEAKS_ELEVATION_SOURCE=terrain-cache \
-PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
-  .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/scripts/run-tsx.sh \
-  .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
+.agents/skills/peaks-route-factory/scripts/import_route_candidate.sh \
   --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
   --trailhead-id <trailhead-id> \
@@ -153,11 +149,7 @@ PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
 After it passes, run the full apply command:
 
 ```bash
-PEAKS_ELEVATION_SOURCE=terrain-cache \
-PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
-  .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
-  cloud-sql/migrate/scripts/run-tsx.sh \
-  .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
+.agents/skills/peaks-route-factory/scripts/import_route_candidate.sh \
   --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
   --trailhead-id <trailhead-id> \
@@ -167,6 +159,11 @@ PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
   --result-file /private/tmp/peaks-route-worker/<destination-id>-import.json \
   --apply --acknowledge-geometry-license --acknowledge-map-review
 ```
+
+Call `import_route_candidate.sh` directly. Do not prefix it with environment
+assignments, `env`, `bash`, `zsh`, or another command. The wrapper fixes the
+terrain cache settings, performs the database preflight, and runs only the
+standard-route importer.
 
 The importer writes the route ID to that result file. Then:
 

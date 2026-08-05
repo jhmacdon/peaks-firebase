@@ -115,6 +115,13 @@ const routeDatabaseWrapper = fileURLToPath(
   )
 );
 
+const routeImporterWrapper = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/import_route_candidate.sh",
+    import.meta.url
+  )
+);
+
 const routeDatabasePasswordLoader = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/scripts/load_route_db_password.sh",
@@ -229,6 +236,28 @@ test("approved worker checkouts resolve by exact path", () => {
       /Command failed/
     );
   }
+});
+
+test("route importer wrapper owns terrain settings and the fixed importer", () => {
+  const wrapper = readFileSync(routeImporterWrapper, "utf8");
+  const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+
+  assert.match(wrapper, /export PEAKS_ELEVATION_SOURCE="terrain-cache"/);
+  assert.match(
+    wrapper,
+    /export PEAKS_TERRAIN_TILE_CACHE="\/private\/tmp\/peaks-route-worker\/terrain"/
+  );
+  assert.match(wrapper, /exec "\$script_dir\/with_route_db\.sh"/);
+  assert.match(wrapper, /import_standard_route_from_osm_candidate\.mts/);
+  assert.match(wrapper, /"\$@"/);
+  assert.doesNotMatch(
+    stageCommands,
+    /PEAKS_ELEVATION_SOURCE=terrain-cache[\s\S]{0,160}import_route_candidate/
+  );
+  assert.match(
+    stageCommands,
+    /Call `import_route_candidate\.sh` directly[\s\S]*Do not prefix it/i
+  );
 });
 
 test("elevation wrapper preflights before every queue call and owns its worker ID", () => {
