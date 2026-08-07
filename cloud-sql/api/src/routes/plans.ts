@@ -4,6 +4,8 @@ import { getUid } from "../auth";
 import db from "../db";
 import { processPlan } from "../processing";
 import { parseStatusIds } from "./sessions";
+import { buildAirQualityResponse, snapToCell, HrrrRow } from "../air-quality";
+import { fetchCams, CamsFetcher } from "../open-meteo";
 
 const router = Router();
 
@@ -322,6 +324,105 @@ router.get("/:id/party", async (req, res: Response) => {
   );
   res.json(result.rows);
 });
+
+// GET /api/plans/:id/air-quality — merged HRRR-Smoke (0–48 h, CONUS) +
+// Open-Meteo/CAMS (7 days, global) forecast at the plan's location, with the
+// plan's own day flagged. Same owner-or-party access rule as GET /:id.
+// Upstream trouble degrades to { available: false } — the plan page must
+// never break because a smoke feed hiccuped.
+// Design: docs/superpowers/specs/2026-08-06-plan-air-quality-design.md
+export async function handlePlanAirQuality(
+  req: Request,
+  res: Response,
+  pool: StatusQueryable = db,
+  cams: CamsFetcher = fetchCams,
+  nowSec: () => number = () => Math.floor(Date.now() / 1000)
+): Promise<void> {
+  const uid = getUid(req);
+  const { id } = req.params;
+  try {
+    const planResult = await pool.query(
+      `SELECT p.date
+       FROM plans p
+       LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
+       WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)`,
+      [id, uid]
+    );
+    if (planResult.rows.length === 0) {
+      res.status(404).json({ error: "Plan not found" });
+      return;
+    }
+    const planDate = (planResult.rows[0] as { date: Date | null }).date;
+
+    const destResult = await pool.query(
+      `SELECT lat, lng FROM (
+         SELECT ST_Y(d.location::geometry) AS lat,
+                ST_X(d.location::geometry) AS lng,
+                pd.ordinal
+         FROM plan_destinations pd
+         JOIN destinations d ON d.id = pd.destination_id
+         WHERE pd.plan_id = $1 AND d.location IS NOT NULL
+         ORDER BY pd.ordinal, pd.destination_id
+         LIMIT 1
+       ) first_destination`,
+      [id]
+    );
+    let point =
+      destResult.rows.length > 0
+        ? (destResult.rows[0] as { lat: number | null; lng: number | null })
+        : null;
+    if (!point) {
+      const pathResult = await pool.query(
+        `SELECT ST_Y(pt) AS lat, ST_X(pt) AS lng
+         FROM (SELECT ST_PointOnSurface(path::geometry) AS pt
+               FROM plans WHERE id = $1 AND path IS NOT NULL) s`,
+        [id]
+      );
+      point =
+        pathResult.rows.length > 0
+          ? (pathResult.rows[0] as { lat: number | null; lng: number | null })
+          : null;
+    }
+    if (!point || point.lat === null || point.lng === null) {
+      res.json({ available: false, reason: "no_location" });
+      return;
+    }
+
+    const cell = snapToCell(point.lat, point.lng);
+    const smokeResult = await pool.query(
+      `SELECT valid_at, run_at, smoke_ug_m3
+       FROM smoke_forecasts
+       WHERE cell_key = $1 AND valid_at >= now() - interval '1 hour'
+       ORDER BY valid_at`,
+      [cell.cellKey]
+    );
+    const hrrrRows: HrrrRow[] = (
+      smokeResult.rows as { valid_at: Date; run_at: Date; smoke_ug_m3: number }[]
+    ).map((r) => ({
+      validAtSec: Math.floor(new Date(r.valid_at).getTime() / 1000),
+      smokeUgM3: r.smoke_ug_m3,
+      runAtIso: new Date(r.run_at).toISOString(),
+    }));
+
+    const camsData = await cams(cell.lat, cell.lng);
+    res.json(
+      buildAirQualityResponse({
+        point: { lat: point.lat, lng: point.lng },
+        hrrrRows,
+        cams: camsData,
+        planDateSec: planDate
+          ? Math.floor(new Date(planDate).getTime() / 1000)
+          : null,
+        nowSec: nowSec(),
+      })
+    );
+  } catch (err) {
+    console.error("[air-quality] lookup failed:", err);
+    res.status(500).json({ error: "air quality lookup failed" });
+  }
+}
+
+router.get("/:id/air-quality", (req, res: Response) => handlePlanAirQuality(req, res));
 
 // POST /api/plans — create a new plan
 router.post("/", async (req, res: Response) => {

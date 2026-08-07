@@ -13,3 +13,5 @@ env:
     value: peaks-api
   - variable: DB_PASS
     secret: peaks-db-password
+  - variable: PEAKS_API_URL
+    value: https://peaks-api-qownl77soa-uc.a.run.app
