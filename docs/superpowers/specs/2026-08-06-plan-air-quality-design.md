@@ -189,7 +189,7 @@ card. iOS work happens in its own repo.
   us-central1, with the Cloud SQL instance attached and the full env/secret
   set pinned in the command, matching the deploy-api pinning policy.
 - Cloud Scheduler trigger (cron `15 2,8,14,20 * * *`, UTC) created once by
-  `scripts/setup-smoke-scheduler.sh` (gcloud, OIDC-authenticated `jobs:run`
+  `scripts/setup-smoke-scheduler.sh` (gcloud, OAuth-authenticated `jobs:run`
   call), not managed by CI.
 - Cost: S3 open data is free; job compute is minutes/day; Open-Meteo is
   keyless. Effectively $0.

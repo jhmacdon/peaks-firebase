@@ -16,7 +16,7 @@ logic: the server already merged HRRR-Smoke and CAMS and labeled every hour.
 ```jsonc
 {
   "available": true,                    // false → hide the card entirely
-  "reason": null,                       // set when available=false
+  "reason": null,                       // key is omitted unless available=false
   "point": { "lat": 44.27, "lng": -71.3 },
   "timezone": "America/New_York",       // IANA name; all times are local ISO8601 with offset
   "planDate": "2026-08-08",             // local date of the plan; null if undated
@@ -35,7 +35,7 @@ logic: the server already merged HRRR-Smoke and CAMS and labeled every hour.
       ]
     }
   ],
-  "sources": { "hrrrRun": "2026-08-06T12:00:00Z", "cams": true }
+  "sources": { "hrrrRun": "2026-08-06T12:00:00.000Z", "cams": true }
 }
 ```
 

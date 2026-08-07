@@ -144,6 +144,33 @@ test("merge: plan beyond horizon flags planDayBeyondHorizon", () => {
   assert.equal(resp.days!.some((d) => d.isPlanDay), false);
 });
 
+// The web stores plan dates as bare YYYY-MM-DD, which Postgres casts to
+// midnight UTC. Shifting that by a negative US offset would land on the
+// previous day, so exactly-midnight-UTC timestamps count as calendar dates.
+test("merge: midnight-UTC plan date is a calendar date, not an instant", () => {
+  const resp = buildAirQualityResponse({
+    point: POINT,
+    hrrrRows: makeHrrr(),
+    cams: makeCams(),
+    planDateSec: sec(2026, 8, 8, 0), // web: bare date → 2026-08-08T00:00Z
+    nowSec: NOW,
+  });
+  assert.equal(resp.planDate, "2026-08-08");
+  const planDay = resp.days!.find((d) => d.date === "2026-08-08");
+  assert.equal(planDay!.isPlanDay, true);
+});
+
+test("merge: non-midnight plan instant still localizes to the plan timezone", () => {
+  const resp = buildAirQualityResponse({
+    point: POINT,
+    hrrrRows: makeHrrr(),
+    cams: makeCams(),
+    planDateSec: sec(2026, 8, 9, 1), // iOS: 01:00 UTC = 21:00 EDT on Aug 8
+    nowSec: NOW,
+  });
+  assert.equal(resp.planDate, "2026-08-08");
+});
+
 test("merge: undated plan → planDate null, no plan day", () => {
   const resp = buildAirQualityResponse({
     point: POINT,

@@ -34,6 +34,10 @@ test("collectSampleCells dedupes to cells, skips nulls and non-CONUS", async () 
   assert.match(pool.calls[0].sql, /p\.date BETWEEN now\(\) - interval '24 hours' AND now\(\) \+ interval '60 hours'/);
   assert.match(pool.calls[0].sql, /ST_PointOnSurface/);
   assert.match(pool.calls[0].sql, /ORDER BY pd\.ordinal/);
+  // Must match the API's first-destination pick exactly (cloud-sql/api/src/routes/plans.ts):
+  // skip region destinations with no point, and break ordinal ties by id.
+  assert.match(pool.calls[0].sql, /d\.location IS NOT NULL/);
+  assert.match(pool.calls[0].sql, /ORDER BY pd\.ordinal, pd\.destination_id/);
 });
 
 test("upsertSmokeRows writes conflict-guarded upserts in one chunk", async () => {

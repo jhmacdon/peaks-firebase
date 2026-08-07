@@ -44,8 +44,8 @@ export async function collectSampleCells(db: Queryable): Promise<Cell[]> {
        SELECT ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng
        FROM plan_destinations pd
        JOIN destinations d ON d.id = pd.destination_id
-       WHERE pd.plan_id = p.id
-       ORDER BY pd.ordinal
+       WHERE pd.plan_id = p.id AND d.location IS NOT NULL
+       ORDER BY pd.ordinal, pd.destination_id
        LIMIT 1
      ) fd ON true
      WHERE p.date BETWEEN now() - interval '24 hours' AND now() + interval '60 hours'`

@@ -165,7 +165,15 @@ export function buildAirQualityResponse(opts: {
     return { available: false, reason: "upstream_unavailable" };
   }
 
-  const planDate = planDateSec === null ? null : localDate(planDateSec, offset);
+  // Plan dates arrive two ways: the web's <input type="date"> stores bare
+  // YYYY-MM-DD, which Postgres casts to midnight UTC — a calendar date, not an
+  // instant — while iOS stores a real pick-time instant. Exactly-midnight-UTC
+  // timestamps therefore read as calendar dates (offset 0); anything else is
+  // an instant localized to the plan's timezone.
+  const planDate =
+    planDateSec === null
+      ? null
+      : localDate(planDateSec, planDateSec % 86400 === 0 ? 0 : offset);
 
   const dayMap = new Map<
     string,
