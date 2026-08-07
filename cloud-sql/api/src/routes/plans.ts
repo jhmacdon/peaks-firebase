@@ -361,8 +361,8 @@ export async function handlePlanAirQuality(
                 pd.ordinal
          FROM plan_destinations pd
          JOIN destinations d ON d.id = pd.destination_id
-         WHERE pd.plan_id = $1
-         ORDER BY pd.ordinal
+         WHERE pd.plan_id = $1 AND d.location IS NOT NULL
+         ORDER BY pd.ordinal, pd.destination_id
          LIMIT 1
        ) first_destination`,
       [id]

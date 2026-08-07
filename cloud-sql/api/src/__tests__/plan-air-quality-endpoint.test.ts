@@ -31,11 +31,11 @@ const noCams = async () => null;
 const NOW = () => Date.UTC(2026, 7, 6, 12) / 1000;
 
 function makePool(handlers: Array<[RegExp, any[]]>) {
-  const seen: string[] = [];
+  const seen: { sql: string; params: unknown[] }[] = [];
   return {
     seen,
-    async query(sql: string, _params: unknown[]) {
-      seen.push(sql);
+    async query(sql: string, params: unknown[]) {
+      seen.push({ sql, params });
       for (const [re, rows] of handlers) {
         if (re.test(sql)) return { rows };
       }
@@ -56,7 +56,8 @@ test("access query scopes to owner OR party member", async () => {
   const pool = makePool([[/FROM plans p/, []]]);
   const req = { params: { id: "p1" }, uid: "u1" } as any;
   await handlePlanAirQuality(req, new FakeResponse() as any, pool, cams, NOW);
-  assert.match(pool.seen[0], /p\.user_id = \$2 OR pp\.user_id = \$2/);
+  assert.match(pool.seen[0].sql, /p\.user_id = \$2 OR pp\.user_id = \$2/);
+  assert.deepEqual(pool.seen[0].params, ["p1", "u1"]);
 });
 
 test("available:false no_location when plan has no destinations and no path", async () => {
@@ -70,6 +71,8 @@ test("available:false no_location when plan has no destinations and no path", as
   await handlePlanAirQuality(req, res as any, pool, cams, NOW);
   assert.equal(res.jsonBody.available, false);
   assert.equal(res.jsonBody.reason, "no_location");
+  // json() was called directly, never status() — proves the HTTP-200 path
+  assert.equal(res.statusCode, undefined);
 });
 
 test("happy path: first destination point, HRRR rows + CAMS merged", async () => {
@@ -90,9 +93,21 @@ test("happy path: first destination point, HRRR rows + CAMS merged", async () =>
   const hours = body.days.flatMap((d: any) => d.hours);
   assert.ok(hours.some((h: any) => h.source === "hrrr_smoke" && Math.abs(h.pm25 - 22.4) < 1e-9));
   assert.ok(hours.some((h: any) => h.source === "cams"));
+
+  // access query is scoped to this plan + this caller
+  const accessCall = pool.seen.find((c) => /FROM plans p/.test(c.sql))!;
+  assert.deepEqual(accessCall.params, ["p1", "u1"]);
+
+  // destination query excludes region-type destinations (NULL location) and
+  // has a deterministic tiebreak on ordinal ties
+  const destCall = pool.seen.find((c) => /plan_destinations/.test(c.sql))!;
+  assert.match(destCall.sql, /d\.location IS NOT NULL/);
+  assert.match(destCall.sql, /ORDER BY pd\.ordinal, pd\.destination_id/);
+
   // smoke query must use the snapped cell key for the destination
-  const smokeSql = pool.seen.find((s) => /smoke_forecasts/.test(s))!;
-  assert.match(smokeSql, /cell_key = \$1/);
+  const smokeCall = pool.seen.find((c) => /smoke_forecasts/.test(c.sql))!;
+  assert.match(smokeCall.sql, /cell_key = \$1/);
+  assert.equal(smokeCall.params[0], "1476:-2377");
 });
 
 test("falls back to ST_PointOnSurface when there are no plan destinations", async () => {
@@ -119,6 +134,8 @@ test("both upstreams empty → available:false upstream_unavailable", async () =
   await handlePlanAirQuality(req, res as any, pool, noCams, NOW);
   assert.equal(res.jsonBody.available, false);
   assert.equal(res.jsonBody.reason, "upstream_unavailable");
+  // json() was called directly, never status() — proves the HTTP-200 path
+  assert.equal(res.statusCode, undefined);
 });
 
 test("pool errors return 500, not a crash", async () => {
