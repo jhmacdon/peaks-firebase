@@ -14,9 +14,11 @@ import {
 } from "../../../../lib/actions/plans";
 import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
 import { getRoute, type RouteDetail } from "../../../../lib/actions/routes";
+import { getPlanAirQuality, type PlanAirQuality } from "../../../../lib/actions/air-quality";
 import PartyList from "../../../../components/party-list";
 import DestinationPicker from "../../../../components/destination-picker";
 import RoutePicker from "../../../../components/route-picker";
+import PlanAirQualityCard from "../../../../components/plan-air-quality-card";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -36,6 +38,7 @@ export default function PlanDetailPage() {
   const [routeDetails, setRouteDetails] = useState<
     Map<string, RouteDetail>
   >(new Map());
+  const [airQuality, setAirQuality] = useState<PlanAirQuality | null>(null);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -63,6 +66,10 @@ export default function PlanDetailPage() {
     const data = await getPlan(token, planId);
     setPlan(data);
     setLoading(false);
+
+    if (data) {
+      getPlanAirQuality(token, planId).then(setAirQuality);
+    }
 
     if (data) {
       // Load destination details
@@ -277,6 +284,13 @@ export default function PlanDetailPage() {
         <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
           <h3 className="font-semibold mb-3">Route Map</h3>
           <RouteMap polyline6={firstPolyline.polyline6} />
+        </div>
+      )}
+
+      {/* Air quality */}
+      {airQuality && (
+        <div className="mb-8">
+          <PlanAirQualityCard aq={airQuality} />
         </div>
       )}
 
