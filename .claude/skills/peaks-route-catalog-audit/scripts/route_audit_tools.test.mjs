@@ -156,6 +156,13 @@ const routeJobsWrapper = fileURLToPath(
   )
 );
 
+const routeWorkerIdResolver = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/resolve_route_worker_id.sh",
+    import.meta.url
+  )
+);
+
 const routeRepairLunaPrompt = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/references/luna-repair-goal-prompt.md",
@@ -292,8 +299,9 @@ test("route source-check wrapper owns checker choice and result path", () => {
   assert.match(wrapper, /check_pending_usgs_routes\.mts/);
   assert.match(
     wrapper,
-    /output_file="\$output_dir\/\$destination_id-source-check\.json"/
+    /output_file="\$output_dir\/\$destination_id-\$lease_token-source-check\.json"/
   );
+  assert.match(wrapper, /worker-artifacts/);
   assert.match(wrapper, /checker_status.*-ne 0.*-ne 2/s);
   assert.match(wrapper, /mv "\$temporary_file" "\$output_file"/);
   assert.doesNotMatch(
@@ -792,9 +800,13 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     mkdirSync(bin);
     const wrapper = join(factoryScripts, "route_jobs.sh");
     copyFileSync(routeJobsWrapper, wrapper);
+    copyFileSync(
+      routeWorkerIdResolver,
+      join(factoryScripts, "resolve_route_worker_id.sh")
+    );
     writeFileSync(
       join(factoryScripts, "resolve_worker_checkout.sh"),
-      "#!/usr/bin/env bash\nprintf '%s\\n' route-repair\n"
+      "#!/usr/bin/env bash\nprintf '%s\\n' route-factory\n"
     );
     writeFileSync(
       join(factoryScripts, "with_route_db.sh"),
@@ -806,6 +818,7 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     );
     for (const executable of [
       wrapper,
+      join(factoryScripts, "resolve_route_worker_id.sh"),
       join(factoryScripts, "resolve_worker_checkout.sh"),
       join(factoryScripts, "with_route_db.sh"),
       join(bin, "npm"),
@@ -814,6 +827,101 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
       ...process.env,
       PATH: `${bin}:${process.env.PATH}`,
     };
+    for (const [kind, workerId] of [
+      ["route-factory", "luna-route-worker-01"],
+      ["route-factory-02", "luna-route-worker-02"],
+      ["route-factory-03", "luna-route-worker-03"],
+      ["route-factory-04", "luna-route-worker-04"],
+    ]) {
+      writeFileSync(
+        join(factoryScripts, "resolve_worker_checkout.sh"),
+        `#!/usr/bin/env bash\nprintf '%s\\n' ${kind}\n`
+      );
+      const generalOutput = execFileSync(
+        wrapper,
+        ["claim", "--stage", "next", "--apply"],
+        { encoding: "utf8", env: environment }
+      );
+      assert.match(
+        generalOutput,
+        new RegExp(`--worker-id\\n${workerId}`)
+      );
+      assert.doesNotMatch(generalOutput, /--integrity-repairs-only/);
+    }
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "transition",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--to", "candidate_ready",
+          "--artifact-path", "/private/tmp/peaks-route-worker/peak-1.geojson",
+          "--result-file", "/private/tmp/peaks-route-worker/peak-1.json",
+          "--apply",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    const isolatedOutput = execFileSync(
+      wrapper,
+      [
+        "transition",
+        "--destination-id", "peak-1",
+        "--lease-token", "lease-1",
+        "--to", "candidate_ready",
+        "--artifact-path",
+        "cloud-sql/migrate/route-candidates/luna/worker-artifacts/peak-1-lease-1.geojson",
+        "--result-file",
+        "cloud-sql/migrate/route-candidates/luna/worker-artifacts/peak-1-lease-1.json",
+        "--apply",
+      ],
+      { encoding: "utf8", env: environment }
+    );
+    assert.match(isolatedOutput, /worker-artifacts/);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "materialize",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--output",
+          "cloud-sql/migrate/route-candidates/luna/worker-artifacts/../escape.geojson",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    const artifactDirectory = join(
+      root,
+      "cloud-sql/migrate/route-candidates/luna/worker-artifacts"
+    );
+    mkdirSync(artifactDirectory, { recursive: true });
+    symlinkSync(
+      join(root, "outside.json"),
+      join(artifactDirectory, "linked.json")
+    );
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "materialize-result",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--kind", "candidate",
+          "--output",
+          "cloud-sql/migrate/route-candidates/luna/worker-artifacts/linked.json",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' route-repair\n"
+    );
     const output = execFileSync(
       wrapper,
       ["claim", "--stage", "next", "--apply"],

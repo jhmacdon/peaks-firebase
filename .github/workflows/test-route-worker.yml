@@ -74,7 +74,9 @@ jobs:
           ROUTE_ELEVATION_JOB_TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
 
       - name: Test Luna route skills
-        run: node --test .claude/skills/peaks-route-catalog-audit/scripts/route_audit_tools.test.mjs
+        run: |
+          .agents/skills/peaks-route-factory/scripts/test_worker_checkout_resolution.sh
+          node --test .claude/skills/peaks-route-catalog-audit/scripts/route_audit_tools.test.mjs
 
       - name: Install web dependencies
         run: npm ci

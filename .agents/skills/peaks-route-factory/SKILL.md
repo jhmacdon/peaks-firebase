@@ -15,9 +15,13 @@ chat history is not.
 2. Read [references/stage-commands.md](references/stage-commands.md) for the
    claimed stage and [references/result-schemas.md](references/result-schemas.md)
    before writing a result.
-3. Run from the dedicated clean checkout at
-   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`. The
-   summit-contact repair lane instead uses
+3. Run from the dedicated clean checkout fixed by the scheduled task. The
+   approved general worker checkouts are
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`,
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory-02`,
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory-03`, and
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory-04`. Never
+   choose or switch checkouts during a run. The summit-contact repair lane uses
    `/Users/josiahm/projects/peaks/.workers/firebase-route-repair`. The
    canonical `/Users/josiahm/projects/peaks/firebase` checkout is also allowed
    only when clean and exactly at `origin/main`. Do not search another worktree,
@@ -31,8 +35,16 @@ chat history is not.
 ```bash
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh stats
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
-  claim --worker-id luna-route-worker-01 --stage next --apply
+  claim --stage next --apply
 ```
+
+The wrapper derives the worker ID from a dedicated checkout. Never pass a
+worker ID there. A clean canonical checkout must pass an explicit worker ID.
+Keep every candidate, result, packet, and review in the ignored
+`cloud-sql/migrate/route-candidates/luna/worker-artifacts` directory in the
+current checkout, with the lease token in its filename. The wrapper rejects
+handoff paths outside that directory. Shared map and terrain caches contain
+only atomic public tile files.
 
 If no job is returned, run the audit in the contract. Do not infer completion
 from an empty claim.
@@ -71,8 +83,10 @@ the next stage with a new lease.
   variant as the replacement or broaden the queue's replacement binding.
   `pending_review` ends the turn.
 - `review`: spawn the project `peaks_route_reviewer` agent with only the
-  filtered packet from `scripts/build_route_review_packet.mjs`. Keep the full
-  candidate result durable, but never attach it to the reviewer. The builder
+  filtered packet from `scripts/build_route_review_packet.mjs`. Restore the
+  full candidate result from the durable queue with `materialize-result`; never
+  trust a file left by another stage or attach the full result to the reviewer.
+  The builder
   limits the copy to two identity URLs and one access URL and retains known
   conflicts. It fetches those public pages in parallel with hard timeouts and
   stores only compact evidence. The reviewer never browses.

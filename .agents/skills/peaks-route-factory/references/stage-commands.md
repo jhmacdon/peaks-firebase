@@ -20,16 +20,18 @@ lease and receive that stage.
 
 ## Research
 
-Create the small worker directories:
+Create the ignored worker-artifact directory inside this checkout:
 
 ```bash
-mkdir -p /private/tmp/peaks-route-worker \
-  cloud-sql/migrate/route-candidates/luna
+mkdir -p cloud-sql/migrate/route-candidates/luna/worker-artifacts
 ```
 
 Create the candidate in
-`cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson`. Read the
-standard-route backfill skill, then use one complete builder command.
+`cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson`.
+Every mutable handoff file includes the lease token and stays inside this
+checkout. Never use `/private/tmp` for a candidate, result, review packet, or
+review. Read the standard-route backfill skill, then use one complete builder
+command.
 
 Find reusable source IDs through the preflighted database wrapper. Run the
 wrapper directly: do not add `bash`, `zsh`, `sandbox_permissions`, a raw
@@ -67,7 +69,7 @@ For researched OSM way IDs:
   --destination-id <destination-id> --trailhead-id <trailhead-id> \
   --way-ids <comma-separated-osm-way-ids> \
   --format geojson \
-  --output cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson
 ```
 
 For researched USGS National Map object IDs:
@@ -78,7 +80,7 @@ For researched USGS National Map object IDs:
   .claude/skills/peaks-standard-route-backfill/scripts/build_usgs_route_candidate.mts \
   --destination-id <destination-id> --trailhead-id <trailhead-id> \
   --object-id <object-id> \
-  --output cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson
 ```
 
 Repeat `--object-id` for each USGS object. Render every candidate:
@@ -87,28 +89,29 @@ Repeat `--object-id` for each USGS object. Render every candidate:
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
   cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/render_route_candidate_local_map.mts \
-  --geojson cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
-  --output /private/tmp/peaks-route-worker/<destination-id>.png \
+  --geojson cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.png \
   --tile-cache /private/tmp/peaks-route-worker/osm-map-tiles
 ```
 
 Inspect that PNG. If a permitted private comparison GPX is already available,
 run `compare_route_reference.mts`; never copy its points into the candidate.
 Write the compact candidate JSON from the candidate result schema to
-`/private/tmp/peaks-route-worker/<destination-id>-candidate.json`. Then:
+`cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-candidate.json`.
+Then:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
   cloud-sql/migrate/scripts/run-tsx.sh \
   .agents/skills/peaks-route-factory/scripts/audit_route_candidates.mts \
-  --file cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
+  --file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
   --format summary
 
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to candidate_ready \
-  --artifact-path cloud-sql/migrate/route-candidates/luna/<destination-id>.geojson \
-  --result-file /private/tmp/peaks-route-worker/<destination-id>-candidate.json \
+  --artifact-path cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
+  --result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-candidate.json \
   --apply
 ```
 
@@ -116,21 +119,20 @@ That successful transition ends the research turn. Do not materialize or
 import the candidate until a later claim returns `import`.
 
 The queue normalizes that repo-root artifact path inside the migration package.
-The shorter `route-candidates/luna/<destination-id>.geojson` form is also
-accepted, but use the repo-root form above so the builder, audit, and transition
-all receive the same path.
+Use the repo-root form above so the builder, audit, and transition all receive
+the same path.
 
 ## Import
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   materialize --destination-id <destination-id> --lease-token <lease-token> \
-  --output /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson
 
 .agents/skills/peaks-route-factory/scripts/with_route_db.sh \
   cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/cache_route_terrain_tiles.mts \
-  --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
+  --candidate cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
   --output-dir /private/tmp/peaks-route-worker/terrain
 ```
 
@@ -138,7 +140,7 @@ Run this once without the final apply flags:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/import_route_candidate.sh \
-  --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
+  --candidate cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
   --trailhead-id <trailhead-id> \
   --name "<route-name>" \
@@ -150,13 +152,13 @@ After it passes, run the full apply command:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/import_route_candidate.sh \
-  --candidate /private/tmp/peaks-route-worker/<destination-id>-<lease-token>.geojson \
+  --candidate cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>.geojson \
   --destination-id <destination-id> \
   --trailhead-id <trailhead-id> \
   --name "<route-name>" \
   --route-shape <route-shape> \
   --source-url '<type>=<direct-identity-url>' \
-  --result-file /private/tmp/peaks-route-worker/<destination-id>-import.json \
+  --result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-import.json \
   --apply --acknowledge-geometry-license --acknowledge-map-review
 ```
 
@@ -175,7 +177,7 @@ The importer writes the route ID to that result file. Then:
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to pending_review --route-id <pending-route-id> \
-  --result-file /private/tmp/peaks-route-worker/<destination-id>-import.json \
+  --result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-import.json \
   --apply
 ```
 
@@ -191,12 +193,21 @@ If the job already names an older pending route from a failed review, add
 
 ## Review
 
+Restore the candidate result from the durable queue into this checkout:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/route_jobs.sh \
+  materialize-result --destination-id <destination-id> \
+  --lease-token <lease-token> --kind candidate \
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-candidate.json
+```
+
 Run the checker that matches the candidate source:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/check_pending_route_source.sh \
   --source osm --destination-id <destination-id> \
-  --route-id <pending-route-id>
+  --route-id <pending-route-id> --lease-token <lease-token>
 ```
 
 For a USGS candidate, use:
@@ -204,7 +215,7 @@ For a USGS candidate, use:
 ```bash
 .agents/skills/peaks-route-factory/scripts/check_pending_route_source.sh \
   --source usgs --destination-id <destination-id> \
-  --route-id <pending-route-id>
+  --route-id <pending-route-id> --lease-token <lease-token>
 ```
 
 When the job has `replacement_route_id`, add
@@ -217,7 +228,7 @@ accepts `approved`.
 Call `check_pending_route_source.sh` directly. Do not prefix it with
 environment assignments, `env`, `bash`, `zsh`, or another command, and do not
 append redirection. It runs only the selected fixed checker and writes
-`/private/tmp/peaks-route-worker/<destination-id>-source-check.json`
+`cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-source-check.json`
 atomically. Status 2 means the checker wrote a valid FAIL result.
 
 Keep the full candidate result unchanged. Build a separate filtered review
@@ -225,12 +236,12 @@ packet:
 
 ```bash
 .agents/skills/peaks-route-factory/scripts/build_route_review_packet.mjs \
-  --candidate-result /private/tmp/peaks-route-worker/<destination-id>-candidate.json \
-  --source-check /private/tmp/peaks-route-worker/<destination-id>-source-check.json \
+  --candidate-result cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-candidate.json \
+  --source-check cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-source-check.json \
   --destination-id <destination-id> --destination-name "<destination-name>" \
   --trailhead-id <trailhead-id> --trailhead-name "<trailhead-name>" \
   --route-id <pending-route-id> \
-  --output /private/tmp/peaks-route-worker/<destination-id>-review-packet.json
+  --output cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-review-packet.json
 ```
 
 The builder keeps no more than two identity publishers and one access source.
@@ -249,7 +260,8 @@ identity URL, the researcher's verdict, or raw page text. The reviewer must not
 browse or fetch pages; it judges only the compact packet evidence. Tell it to
 copy `review_result_template`, replace `verdict` and every null gate, keep the
 flat keys unchanged, and return only that JSON object. Save its output using the
-review schema at `/private/tmp/peaks-route-worker/<destination-id>-review.json`.
+review schema at
+`cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-review.json`.
 Then:
 
 Do not make up `summit_contact`, `elevation_profile`, or `segment_assembly`.
@@ -266,7 +278,7 @@ from the route path must go to `needs_revision`.
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to approved --route-id <pending-route-id> \
-  --result-file /private/tmp/peaks-route-worker/<destination-id>-review.json \
+  --result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-review.json \
   --apply
 ```
 
@@ -288,7 +300,7 @@ For a fixable failed review:
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh \
   transition --destination-id <destination-id> --lease-token <lease-token> \
   --to needs_revision --route-id <pending-route-id> \
-  --result-file /private/tmp/peaks-route-worker/<destination-id>-review.json \
+  --result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<destination-id>-<lease-token>-review.json \
   --apply
 ```
 

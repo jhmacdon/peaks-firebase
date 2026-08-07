@@ -24,7 +24,20 @@ test(
     const suffix = `${process.pid}-${Date.now()}`;
     const targetId = `route-claim-target-${suffix}`;
     const otherId = `route-claim-other-${suffix}`;
-    const materializedCandidate = `/tmp/${targetId}.geojson`;
+    const candidateOutput =
+      `cloud-sql/migrate/route-candidates/luna/worker-artifacts/${targetId}.geojson`;
+    const resultOutput =
+      `cloud-sql/migrate/route-candidates/luna/worker-artifacts/${targetId}-candidate.json`;
+    const materializedCandidate = join(
+      MIGRATE_ROOT,
+      "route-candidates/luna/worker-artifacts",
+      `${targetId}.geojson`
+    );
+    const materializedResult = join(
+      MIGRATE_ROOT,
+      "route-candidates/luna/worker-artifacts",
+      `${targetId}-candidate.json`
+    );
     const pool = new Pool({ connectionString: TEST_DATABASE_URL });
     const environment = {
       ...process.env,
@@ -142,7 +155,7 @@ test(
         "materialize",
         "--destination-id", targetId,
         "--lease-token", importResult.job.lease_token,
-        "--output", materializedCandidate
+        "--output", candidateOutput
       );
       assert.equal(
         importStageMaterialize.status,
@@ -152,6 +165,60 @@ test(
       assert.deepEqual(
         JSON.parse(readFileSync(materializedCandidate, "utf8")),
         candidateArtifact
+      );
+
+      const candidateResult = {
+        route_name: "Targeted route claim summit via Standard Route",
+        route_shape: "out_and_back",
+      };
+      await pool.query(
+        `UPDATE standard_route_backfill_jobs
+         SET state = 'pending_review',
+             candidate = $2::jsonb,
+             lease_owner = NULL,
+             lease_token = NULL,
+             lease_expires_at = NULL
+         WHERE destination_id = $1`,
+        [targetId, JSON.stringify(candidateResult)]
+      );
+      const expiredImportResult = command(
+        "materialize-result",
+        "--destination-id", targetId,
+        "--lease-token", importResult.job.lease_token,
+        "--kind", "candidate",
+        "--output", resultOutput
+      );
+      assert.notEqual(expiredImportResult.status, 0);
+      assert.match(
+        expiredImportResult.stderr,
+        /active pending_review lease/
+      );
+
+      const reviewClaim = command(
+        "claim",
+        "--worker-id", "targeted-review-test",
+        "--destination-id", targetId,
+        "--integrity-repairs-only",
+        "--stage", "review",
+        "--apply"
+      );
+      assert.equal(reviewClaim.status, 0, reviewClaim.stderr || reviewClaim.stdout);
+      const reviewResult = JSON.parse(reviewClaim.stdout.trim());
+      const restoredResult = command(
+        "materialize-result",
+        "--destination-id", targetId,
+        "--lease-token", reviewResult.job.lease_token,
+        "--kind", "candidate",
+        "--output", resultOutput
+      );
+      assert.equal(
+        restoredResult.status,
+        0,
+        restoredResult.stderr || restoredResult.stdout
+      );
+      assert.deepEqual(
+        JSON.parse(readFileSync(materializedResult, "utf8")),
+        candidateResult
       );
 
       const untouched = await pool.query<{
@@ -197,6 +264,7 @@ test(
       assert.equal(JSON.parse(missing.stdout.trim()).job, null);
     } finally {
       rmSync(materializedCandidate, { force: true });
+      rmSync(materializedResult, { force: true });
       await pool.query(
         `DELETE FROM standard_route_backfill_jobs
          WHERE destination_id = ANY($1::text[])`,

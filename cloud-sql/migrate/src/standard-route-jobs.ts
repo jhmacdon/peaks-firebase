@@ -64,6 +64,8 @@ function usage(exitCode = 2): never {
       [--integrity-repairs-only]
       [--stage next] [--lease-minutes 90] [--apply]
   npm run routes:jobs -- materialize --destination-id ID --lease-token TOKEN --output FILE
+  npm run routes:jobs -- materialize-result --destination-id ID
+      --lease-token TOKEN --kind candidate --output FILE
   npm run routes:jobs -- heartbeat --lease-token TOKEN [--lease-minutes 90]
   npm run routes:jobs -- verify --destination-id ID --lease-token TOKEN
       [--retry-minutes 30] --apply
@@ -148,7 +150,9 @@ function parseStage(argv: string[]): JobStage {
 async function readResult(argv: string[]): Promise<JsonObject> {
   const file = flagValue(argv, "--result-file");
   if (!file) return {};
-  const parsed = JSON.parse(await fs.readFile(path.resolve(file), "utf8"));
+  const parsed = JSON.parse(
+    await fs.readFile(resolveRouteArtifactPath(__dirname, file), "utf8")
+  );
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("--result-file must contain one JSON object");
   }
@@ -1344,7 +1348,7 @@ async function materialize(argv: string[]): Promise<void> {
   if (actualHash !== expectedHash) {
     throw new Error("Saved candidate checksum does not match");
   }
-  const outputPath = path.resolve(output);
+  const outputPath = resolveRouteArtifactPath(__dirname, output);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   let reused = false;
   try {
@@ -1364,6 +1368,59 @@ async function materialize(argv: string[]): Promise<void> {
     destination_id: destinationId,
     output: outputPath,
     sha256: actualHash,
+    reused,
+  });
+}
+
+async function materializeResult(argv: string[]): Promise<void> {
+  const destinationId = requireId(argv, "--destination-id");
+  const token = requireId(argv, "--lease-token");
+  const kind = flagValue(argv, "--kind");
+  const output = flagValue(argv, "--output");
+  if (kind !== "candidate") {
+    throw new Error("--kind must be candidate");
+  }
+  if (!output) throw new Error("--output is required");
+  const result = await db.query<{ candidate: JsonObject }>(
+    `SELECT candidate
+     FROM standard_route_backfill_jobs
+     WHERE destination_id = $1
+       AND lease_token = $2
+       AND lease_expires_at >= now()
+       AND state = 'pending_review'`,
+    [destinationId, token]
+  );
+  const saved = result.rows[0]?.candidate;
+  if (
+    !saved ||
+    typeof saved !== "object" ||
+    Array.isArray(saved) ||
+    Object.keys(saved).length === 0
+  ) {
+    throw new Error(
+      "materialize-result requires an active pending_review lease with a saved candidate result"
+    );
+  }
+  const contents = `${canonicalJson(saved)}\n`;
+  const outputPath = resolveRouteArtifactPath(__dirname, output);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  let reused = false;
+  try {
+    await fs.writeFile(outputPath, contents, { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    const existing = JSON.parse(await fs.readFile(outputPath, "utf8"));
+    if (canonicalJson(existing) !== canonicalJson(saved)) {
+      throw new Error(
+        "Existing materialized candidate result differs from the durable queue"
+      );
+    }
+    reused = true;
+  }
+  print({
+    destination_id: destinationId,
+    kind,
+    output: outputPath,
     reused,
   });
 }
@@ -1684,6 +1741,9 @@ async function main(): Promise<void> {
       break;
     case "materialize":
       await materialize(argv);
+      break;
+    case "materialize-result":
+      await materializeResult(argv);
       break;
     case "verify":
       await verifyJob(argv);
