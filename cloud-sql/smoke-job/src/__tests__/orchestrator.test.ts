@@ -63,6 +63,9 @@ test("upsertSmokeRows chunks big batches", async () => {
   }));
   await upsertSmokeRows(pool, rows);
   assert.equal(pool.calls.length, 2);
+  // Chunk 2 has exactly one row; its placeholders restart at $1.
+  assert.equal(pool.calls[1].params!.length, 4);
+  assert.match(pool.calls[1].sql, /\(\$1, to_timestamp\(\$2\)/);
 });
 
 test("upsertSmokeRows no-ops on empty input", async () => {

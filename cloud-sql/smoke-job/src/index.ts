@@ -141,13 +141,24 @@ async function main(): Promise<void> {
         console.warn(`[smoke-job] f${fh}: grib HTTP ${gribRes.status}, skipping hour`);
         continue;
       }
-      const file = join(dir, `massden_f${fh}.grib2`);
+      // Single reused filename: /tmp is in-memory tmpfs on Cloud Run and
+      // counts against the container's memory limit — don't accumulate all
+      // 49 hourly GRIB files for the run.
+      const file = join(dir, "massden.grib2");
       await writeFile(file, Buffer.from(await gribRes.arrayBuffer()));
       for (const cell of cells) {
-        const { stdout } = await run("grib_get", ["-l", `${cell.lat},${cell.lng},1`, file]);
-        const raw = parseGribGetValue(stdout);
+        let raw: number;
+        try {
+          const { stdout } = await run("grib_get", ["-l", `${cell.lat},${cell.lng},1`, file]);
+          raw = parseGribGetValue(stdout);
+        } catch (err) {
+          console.warn(
+            `[smoke-job] f${fh}: cell ${cell.cellKey} grib_get failed, skipping: ${err}`
+          );
+          continue;
+        }
         // ecCodes emits 9999 as a missing-value marker; real MASSDEN values
-        // sit around 1e-9 kg/m³, so anything outside (0, 1] kg/m³ is a
+        // sit around 1e-9 kg/m³, so anything outside [0, 1] kg/m³ is a
         // missing-data sentinel, not a real reading — skip it rather than
         // let it poison smoke_ug_m3 (9999 kg/m³ × 1e9 = nonsense).
         if (raw < 0 || raw > 1) {
