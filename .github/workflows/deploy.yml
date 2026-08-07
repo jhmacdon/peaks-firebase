@@ -187,3 +187,51 @@ jobs:
             exit 1
           fi
           echo "Database connectivity check passed (HTTP $STATUS)"
+
+  deploy-smoke-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: cloud-sql/smoke-job/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: cloud-sql/smoke-job
+
+      - name: Lint
+        run: npm run lint
+        working-directory: cloud-sql/smoke-job
+
+      - name: Test
+        run: npm test
+        working-directory: cloud-sql/smoke-job
+
+      - name: Build
+        run: npm run build
+        working-directory: cloud-sql/smoke-job
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # deploy-cloudrun's `job` input can't source-build, so use gcloud
+      # directly. Like deploy-api, the FULL env/secret set is pinned here on
+      # every deploy — never update it out-of-band.
+      - name: Deploy Cloud Run job
+        run: |
+          gcloud run jobs deploy peaks-smoke-job \
+            --source=cloud-sql/smoke-job \
+            --region=us-central1 \
+            --set-cloudsql-instances=donner-a8608:us-central1:peaks-db \
+            --set-env-vars=INSTANCE_CONNECTION_NAME=donner-a8608:us-central1:peaks-db,DB_NAME=peaks,DB_USER=peaks-api \
+            --set-secrets=DB_PASS=peaks-db-password:latest \
+            --memory=512Mi \
+            --task-timeout=900 \
+            --max-retries=1 \
+            --quiet
