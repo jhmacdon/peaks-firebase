@@ -68,7 +68,7 @@ export default function PlanDetailPage() {
     setLoading(false);
 
     if (data) {
-      getPlanAirQuality(token, planId).then(setAirQuality);
+      getPlanAirQuality(token, planId).then(setAirQuality).catch(() => {});
     }
 
     if (data) {

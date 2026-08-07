@@ -44,9 +44,7 @@ export default function PlanAirQualityCard({ aq }: { aq: PlanAirQuality }) {
 
   return (
     <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        Air quality
-      </h2>
+      <h3 className="font-semibold mb-3">Air quality</h3>
       <div className="font-medium">{text}</div>
       {day && (
         <div className="flex gap-0.5 mt-3">
@@ -71,7 +69,7 @@ export default function PlanAirQualityCard({ aq }: { aq: PlanAirQuality }) {
           ))}
         </div>
       )}
-      <div className="mt-3 text-xs text-gray-400">
+      <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
         NOAA HRRR-Smoke · Open-Meteo (CAMS, CC BY 4.0)
       </div>
     </div>

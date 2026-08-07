@@ -38,7 +38,7 @@ export async function getPlanAirQuality(
   planId: string
 ): Promise<PlanAirQuality | null> {
   try {
-    const res = await fetch(`${API_URL}/api/plans/${planId}/air-quality`, {
+    const res = await fetch(`${API_URL}/api/plans/${encodeURIComponent(planId)}/air-quality`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
