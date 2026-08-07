@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import atomicFileCache from "../../../../cloud-sql/migrate/src/atomic-file-cache";
 
 type Position = [number, number];
 
@@ -16,6 +17,7 @@ type Options = {
 const requireFromMigrate = createRequire(
   new URL("../../../../cloud-sql/migrate/package.json", import.meta.url)
 );
+const { writeAtomicCacheFile } = atomicFileCache;
 const sharp = requireFromMigrate("sharp") as typeof import("sharp");
 
 function usage(): string {
@@ -143,8 +145,7 @@ async function fetchTile(
     throw new Error(`OSM tile ${zoom}/${x}/${y} returned HTTP ${response.status}`);
   }
   const tile = Buffer.from(await response.arrayBuffer());
-  await mkdir(path.dirname(cachePath), { recursive: true });
-  await writeFile(cachePath, tile);
+  await writeAtomicCacheFile(cachePath, tile);
   return tile;
 }
 

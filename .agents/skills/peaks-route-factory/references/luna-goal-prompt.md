@@ -12,18 +12,26 @@ blocker; it does not count as done.
 This is one bounded worker run. Work from the durable Cloud SQL queue, not chat
 memory:
 
-1. Work only from the dedicated clean checkout at
-   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`. If its
-   preflight reports `setup_required`, stop. Never find another worktree, edit
-   tracked files, apply migrations, seed the queue, pull, fetch, switch branches,
-   or install packages.
-2. Use `route_jobs.sh` to check stats, then claim exactly one `next` job as
-   `luna-route-worker-01`.
+1. Work only from the exact dedicated checkout named by the scheduled task.
+   Approved general worker checkouts end in `firebase-route-factory`,
+   `firebase-route-factory-02`, `firebase-route-factory-03`, or
+   `firebase-route-factory-04`. Never choose, search for, or switch to another
+   checkout. If preflight reports `setup_required`, stop. Never edit tracked
+   files, apply migrations, seed the queue, pull, fetch, switch branches, or
+   install packages.
+2. Use `route_jobs.sh` to check stats, then claim exactly one `next` job. Never
+   pass `--worker-id`; the wrapper derives the unique worker ID from the
+   checkout.
 3. Follow the returned stage. Finish work nearest publication first.
    A claim authorizes only that one stage. Its successful terminal transition
    clears the lease; run final stats and stop. Never start the next stage with
    the cleared token, a local artifact, or a saved route ID. A later heartbeat
    must claim the next stage with a new lease.
+   Keep every mutable candidate, result, packet, and review in this checkout's
+   ignored `cloud-sql/migrate/route-candidates/luna/worker-artifacts`
+   directory, with the current lease token in its filename. Never use a shared
+   `/private/tmp` handoff file. Restore prior-stage inputs from the durable
+   queue with the exact materialize command in `stage-commands.md`.
 4. Research route identity with public AllTrails, Peakbagger, SummitPost,
    official land-manager, and local mountaineering pages as available.
 5. Never sign in, evade access controls, or publish geometry from AllTrails,
@@ -42,7 +50,8 @@ memory:
    full route name as one value and require the dry-run `Name:` and
    `route_name` output to match it before apply.
 9. For `review`, spawn the project `peaks_route_reviewer` agent with fresh
-   context. Build its filtered input only with
+   context. First restore the candidate result with `materialize-result`.
+   Build its filtered input only with
    `build_route_review_packet.mjs`; do not attach the full candidate result or
    any other URLs. Run the source check only through
    `check_pending_route_source.sh`, with no redirection or command prefix. A

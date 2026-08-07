@@ -8,6 +8,7 @@ source_kind=""
 destination_id=""
 route_id=""
 replacement_route_id=""
+lease_token=""
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -23,6 +24,10 @@ while [[ "$#" -gt 0 ]]; do
       route_id="${2:-}"
       shift 2
       ;;
+    --lease-token)
+      lease_token="${2:-}"
+      shift 2
+      ;;
     --replace-active-route)
       replacement_route_id="${2:-}"
       shift 2
@@ -34,7 +39,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-for required_id in "$destination_id" "$route_id"; do
+for required_id in "$destination_id" "$route_id" "$lease_token"; do
   if [[ ! "$required_id" =~ ^[A-Za-z0-9_-]+$ ]]; then
     printf '%s\n' "Source check requires safe destination and route IDs" >&2
     exit 2
@@ -58,8 +63,8 @@ case "$source_kind" in
     ;;
 esac
 
-output_dir="/private/tmp/peaks-route-worker"
-output_file="$output_dir/$destination_id-source-check.json"
+output_dir="$repo_root/cloud-sql/migrate/route-candidates/luna/worker-artifacts"
+output_file="$output_dir/$destination_id-$lease_token-source-check.json"
 temporary_file="$output_file.tmp.$$"
 mkdir -p "$output_dir"
 trap 'rm -f "$temporary_file"' EXIT

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import atomicFileCache from "../../../../cloud-sql/migrate/src/atomic-file-cache";
 
 const ZOOM = 14;
+const { writeAtomicCacheFile } = atomicFileCache;
 const TILE_SOURCE =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
 
@@ -143,8 +145,10 @@ for (let start = 0; start < queue.length; start += 12) {
             response.status
         );
       }
-      await mkdir(path.dirname(tilePath), { recursive: true });
-      await writeFile(tilePath, Buffer.from(await response.arrayBuffer()));
+      await writeAtomicCacheFile(
+        tilePath,
+        Buffer.from(await response.arrayBuffer())
+      );
       fetched += 1;
     })
   );

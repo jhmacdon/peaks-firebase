@@ -31,19 +31,23 @@ after the code reaches the canonical `firebase` checkout:
 .agents/skills/peaks-route-factory/scripts/route_jobs.sh seed --apply
 ```
 
-4. Create the clean checkout at
-   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`, install
-   dependencies with
-   `.agents/skills/peaks-route-factory/scripts/install_worker_dependencies.sh`,
-   and keep it at the exact `origin/main` commit. Put a recurring Codex task on
-   that checkout. Pick `gpt-5.6-luna` with Max reasoning and use
-   `luna-goal-prompt.md` unchanged. Start with one run every 30 minutes and one
-   claimed job per run.
+4. Create one to four clean checkouts named
+   `/Users/josiahm/projects/peaks/.workers/firebase-route-factory`,
+   `firebase-route-factory-02`, `firebase-route-factory-03`, and
+   `firebase-route-factory-04`. Install dependencies in each with
+   `.agents/skills/peaks-route-factory/scripts/install_worker_dependencies.sh`
+   and keep each at the exact `origin/main` commit. Put one recurring Codex task
+   on each checkout. Pick `gpt-5.6-luna` with Max reasoning, pin the task to its
+   one checkout, and use `luna-goal-prompt.md` unchanged. For the current budget
+   ramp, run each worker every 15 minutes with starts at minute 0, 4, 8, and 12.
+   End the ramp at 2026-08-07 21:25 America/Denver, before the usage reset.
+   Then run every 30 minutes with starts at minute 0, 7, 15, and 22. Claim one
+   job per run.
 
 This uses the existing Mac, Codex app, Cloud SQL proxy, browser, and cached
-terrain tiles. It adds no always-on service. Its added backend run-rate is near
-$0. Cloud SQL stores small job records and keeps candidate JSON only until
-verification.
+terrain tiles. Four workers add no always-on service and about $0/month in
+fixed backend cost. Cloud SQL stores small job records and keeps candidate JSON
+only until verification.
 
 ## State machine
 
