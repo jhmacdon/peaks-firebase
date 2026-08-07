@@ -32,7 +32,8 @@ web card (new). iOS adopts the endpoint later via the handoff spec.
 
 ### 1. Smoke ingestion job — `cloud-sql/smoke-job/`
 
-A Cloud Run Job (Node 20 + `wgrib2` in the image), triggered by Cloud
+A Cloud Run Job (Node 20 + ecCodes in the image — `libeccodes-tools` is in
+Debian bookworm; `wgrib2` is not packaged there), triggered by Cloud
 Scheduler 4×/day at 02:15, 08:15, 14:15, 20:15 UTC — about 2¼ h after each
 48-hour HRRR cycle, when files are complete.
 
@@ -50,8 +51,10 @@ Each run:
 3. **Fetch the smoke field.** For f00–f48, read the `.idx` sidecar for
    `hrrr.tHHz.wrfsfcfNN.grib2`, find the `MASSDEN` (8 m mass density) record,
    and byte-range-download just that record (~1 MB/hour, ~50 MB/run).
-4. **Extract point values.** Run `wgrib2 <file> -lon <lng> <lat>` per cell;
-   parse `val=` from stdout. Convert kg/m³ → µg/m³ (×10⁹).
+4. **Extract point values.** Run `grib_get -l <lat>,<lng>,1 <file>`
+   (ecCodes nearest-gridpoint mode) per cell; parse the numeric stdout.
+   Convert kg/m³ → µg/m³ (×10⁹). Fallback if nearest-mode ever fails on
+   HRRR's Lambert grid: `grib_get_data` full-field dump + JS nearest match.
 5. **Store.** Upsert into `smoke_forecasts`; newer runs win. Prune rows with
    `valid_at < now() - 24h`.
 
@@ -179,10 +182,12 @@ card. iOS work happens in its own repo.
 
 ## Deployment & ops
 
-- `deploy.yml` gains a `deploy-smoke-job` job: build/lint/test, then deploy
-  `cloud-sql/smoke-job/` (its own Dockerfile with `wgrib2`) as Cloud Run Job
-  `peaks-smoke-job` (project `donner-a8608`, us-central1) with the Cloud SQL
-  instance attached and the same DB env/secret pinning as `deploy-api`.
+- `deploy.yml` gains a `deploy-smoke-job` job: build/lint/test, then
+  `gcloud run jobs deploy peaks-smoke-job --source=cloud-sql/smoke-job`
+  (its own Dockerfile with ecCodes; the deploy-cloudrun action's `job` input
+  has no source builds, so this is a bash step) in `donner-a8608`,
+  us-central1, with the Cloud SQL instance attached and the full env/secret
+  set pinned in the command, matching the deploy-api pinning policy.
 - Cloud Scheduler trigger (cron `15 2,8,14,20 * * *`, UTC) created once by
   `scripts/setup-smoke-scheduler.sh` (gcloud, OIDC-authenticated `jobs:run`
   call), not managed by CI.
