@@ -239,6 +239,42 @@ conversions stay in a separate review class. The same OSM fraction must predate
 the row or its recorded OSM ID backfill. Terrain estimates never qualify.
 The audit adds no service or monthly cost.
 
+The reviewed 2026-08-10 report has SHA-256
+`80153b5afc9a3f59a2fe157e70b36a70c4f525a2d22305d433de3d0a39719006`
+and exactly 117 candidates. Use the separate guarded command to check that
+file and the live rows. Its default mode is read-only.
+
+```bash
+npm run apply:destination-elevation-fractions -- \
+  --report=/absolute/path/final-report.json \
+  --expected-report-sha256=80153b5afc9a3f59a2fe157e70b36a70c4f525a2d22305d433de3d0a39719006 \
+  --expected-candidate-count=117 \
+  --format=json
+```
+
+The preflight checks every current integer value, PointZ value, XY coordinate,
+exact OSM ID, identity proof, and source-history cutoff. It also reports all
+catalog fingerprints affected through shared routes and any route or segment
+summit vertex still pinned to the old integer.
+
+Apply requires `--apply` plus exact database, Cloud SQL instance, and
+instance-named Unix socket flags. It takes one serializable transaction and an
+advisory lock, locks all 117 destination rows and every affected catalog job,
+and stops if any guard or active catalog lease fails. It updates the scalar and
+PointZ together without changing XY, records the source proof in
+`metadata.elevation_fraction_repair`, and queues only affected catalog jobs
+with the normal catalog candidate SQL. It never runs the global catalog
+retirement query. Route-elevation and standard-route fingerprints do not use
+destination elevation or `updated_at`, so this change does not queue them.
+For the two reviewed standard routes whose summit vertex is still the old
+integer, the same transaction changes only that exact PointZ in the route and
+its sole segment. It requires pinned before/after path, XY, other-point, and
+other-field hashes, applies the same sub-metre destination delta, rebuilds the
+canonical elevation string and gain/loss, then checks every hash again. It
+updates the two queued route-elevation fingerprints and adds a receipt to the
+two standard-route jobs without changing their state. The repair adds no
+service or monthly cost.
+
 ## Peak catalog coverage audit
 
 Use the read-only coverage auditor to compare the summit catalog with named

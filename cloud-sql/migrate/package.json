@@ -25,6 +25,7 @@
     "audit:peak-coverage": "tsx src/audit-peak-coverage.ts",
     "audit:elevation-precision": "tsx src/audit-elevation-precision.ts",
     "audit:destination-elevation-fractions": "tsx src/audit-destination-elevation-fractions.ts",
+    "apply:destination-elevation-fractions": "tsx src/apply-destination-elevation-fractions.ts",
     "expand:peak-coverage": "tsx src/expand-peak-coverage.ts",
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
