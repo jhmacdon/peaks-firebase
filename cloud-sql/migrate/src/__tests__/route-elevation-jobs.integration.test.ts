@@ -659,6 +659,67 @@ test(
         AS $legacy$ SELECT 0::double precision, 0::double precision; $legacy$;
       `);
 
+      await client.query(`
+        CREATE FUNCTION elevation_matches_location_z(
+          elevation double precision,
+          location geography
+        ) RETURNS boolean
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $unmarked$ SELECT true; $unmarked$;
+        ALTER TABLE destinations
+          ADD CONSTRAINT destinations_elevation_matches_location_z
+          CHECK (elevation_matches_location_z(elevation, location));
+        ALTER TABLE tracking_points
+          ADD CONSTRAINT tracking_points_elevation_matches_location_z
+          CHECK (elevation_matches_location_z(elevation, location));
+      `);
+      const unmarkedHelperBefore = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      const unmarkedConstraintOidsBefore = await client.query<{ oid: number }>(`
+        SELECT oid
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      await assert.rejects(
+        client.query(migration),
+        /refusing to replace unmarked elevation_matches_location_z behind a validated constraint/
+      );
+      await client.query(`ROLLBACK`);
+      const unmarkedHelperAfter = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      const unmarkedConstraintOidsAfter = await client.query<{ oid: number }>(`
+        SELECT oid
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      assert.deepEqual(unmarkedHelperAfter.rows, unmarkedHelperBefore.rows);
+      assert.deepEqual(unmarkedConstraintOidsAfter.rows, unmarkedConstraintOidsBefore.rows);
+      assert.equal(unmarkedHelperAfter.rows[0]?.marker, null);
+      await client.query(`
+        ALTER TABLE destinations
+          DROP CONSTRAINT destinations_elevation_matches_location_z;
+        ALTER TABLE tracking_points
+          DROP CONSTRAINT tracking_points_elevation_matches_location_z;
+        DROP FUNCTION elevation_matches_location_z(double precision, geography);
+      `);
+
       await client.query(
         `INSERT INTO destinations (id, elevation, location) VALUES
            ('destination', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);
@@ -763,6 +824,63 @@ test(
       assert.equal(Number(legacyAudit.rows[0].elevation_like_jsonb_values), 3);
       assert.equal(Number(legacyAudit.rows[0].fractional_elevation_jsonb), 2);
       assert.equal(Number(legacyAudit.rows[0].nonfinite_elevation_jsonb), 1);
+
+      await client.query(`
+        UPDATE route_elevation_backfill_jobs
+        SET state = 'working',
+            lease_owner = 'fixture-worker',
+            lease_token = 'fixture-lease',
+            lease_expires_at = now() + interval '1 hour'
+        WHERE route_id = 'peaks-valid'
+      `);
+      await assert.rejects(
+        client.query(migration),
+        /elevation precision preflight blocked by active work/
+      );
+      await client.query(`ROLLBACK`);
+
+      const constraintsAfterPrelude = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(`
+        SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      assert.equal(constraintsAfterPrelude.rowCount, 2);
+      assert.equal(constraintsAfterPrelude.rows.every((row) => !row.convalidated), true);
+      assert.equal(
+        constraintsAfterPrelude.rows.every(
+          (row) =>
+            row.definition ===
+            "CHECK (elevation_matches_location_z(elevation, location)) NOT VALID"
+        ),
+        true
+      );
+      const helperAfterPrelude = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.equal(
+        helperAfterPrelude.rows[0]?.marker,
+        "peaks:elevation-matches-location-z:finite-float8-v1"
+      );
+      await client.query(`
+        UPDATE route_elevation_backfill_jobs
+        SET state = 'blocked',
+            lease_owner = NULL,
+            lease_token = NULL,
+            lease_expires_at = NULL
+        WHERE route_id = 'peaks-valid'
+      `);
 
       const pathHashesBefore = await client.query<{ id: string; path_hash: string | null }>(
         `SELECT id,
@@ -883,6 +1001,16 @@ test(
         ),
         true
       );
+      assert.deepEqual(
+        constraintsAfterFirst.rows.map((row) => row.oid),
+        constraintsAfterPrelude.rows.map((row) => row.oid)
+      );
+      const helperAfterFirst = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.deepEqual(helperAfterFirst.rows, helperAfterPrelude.rows);
 
       const snapshotAfterFirst = await client.query<{ snapshot: string }>(`
         SELECT jsonb_build_object(
@@ -935,6 +1063,12 @@ test(
          ORDER BY conname`
       );
       assert.deepEqual(constraintsAfterSecond.rows, constraintsAfterFirst.rows);
+      const helperAfterSecond = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.deepEqual(helperAfterSecond.rows, helperAfterFirst.rows);
     } catch (error) {
       testFailed = true;
       originalError = error;

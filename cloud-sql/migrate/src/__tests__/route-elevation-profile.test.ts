@@ -164,6 +164,7 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
   const schema = sources[1];
   assert.match(schema, /NEW\.elevation_string = encode_route_elevation_profile\(NEW\.path\)/);
   assert.match(schema, /WHEN \(NEW\.owner = 'peaks'\)/);
+  assert.match(schema, /peaks:elevation-matches-location-z:finite-float8-v1/);
   assert.match(schema, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_elevation_backfill_jobs TO "peaks-api"/);
 });
 
@@ -192,11 +193,24 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   assert.match(migration, /pg_advisory_xact_lock/);
   assert.match(migration, /NOT VALID/);
   assert.match(migration, /ELSIF NOT constraint_is_validated THEN/);
+  assert.match(migration, /regexp_replace\(actual_definition, ' NOT VALID\$', ''\)/);
+  assert.match(
+    migration,
+    /peaks:elevation-matches-location-z:finite-float8-v1/
+  );
+  assert.match(migration, /refusing to replace unmarked elevation_matches_location_z/);
   assert.match(migration, /lease_expires_at >= now\(\)/);
+  assert.doesNotMatch(migration, /destination_mismatches|tracking_point_mismatches/);
+  const helperGuardOffset = migration.indexOf(
+    "refusing to replace unmarked elevation_matches_location_z"
+  );
   const matcherOffset = migration.indexOf("CREATE OR REPLACE FUNCTION elevation_matches_location_z");
+  const matcherMarkerOffset = migration.indexOf(
+    "COMMENT ON FUNCTION elevation_matches_location_z"
+  );
   const addConstraintOffset = migration.indexOf("ADD CONSTRAINT destinations_elevation_matches_location_z");
   const lockOffset = migration.indexOf("LOCK TABLE");
-  const preflightOffset = migration.indexOf("SELECT count(*) INTO destination_mismatches");
+  const preflightOffset = migration.indexOf("SELECT count(*) INTO active_elevation_leases");
   const timestampSnapshotOffset = migration.indexOf(
     "CREATE TEMP TABLE elevation_precision_route_timestamps_before"
   );
@@ -212,7 +226,8 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   const validateOffset = migration.indexOf(
     "VALIDATE CONSTRAINT destinations_elevation_matches_location_z"
   );
-  assert.ok(matcherOffset > beginOffsets[0] && matcherOffset < addConstraintOffset);
+  assert.ok(helperGuardOffset > beginOffsets[0] && helperGuardOffset < matcherOffset);
+  assert.ok(matcherOffset < matcherMarkerOffset && matcherMarkerOffset < addConstraintOffset);
   assert.ok(addConstraintOffset < commitOffsets[0]);
   assert.ok(lockOffset > beginOffsets[1] && lockOffset < commitOffsets[1]);
   assert.ok(lockOffset >= 0 && lockOffset < preflightOffset);

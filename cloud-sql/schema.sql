@@ -141,6 +141,9 @@ AS $$
     );
 $$;
 
+COMMENT ON FUNCTION elevation_matches_location_z(DOUBLE PRECISION, geography) IS
+    'peaks:elevation-matches-location-z:finite-float8-v1';
+
 -- ---------------------------------------------------------------------------
 -- destinations
 -- Peaks, trailheads, and other points of interest.

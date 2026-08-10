@@ -9,6 +9,44 @@ SET LOCAL lock_timeout = '5s';
 -- Install the write guards in their own short transaction. ADD CONSTRAINT
 -- NOT VALID checks new and changed rows as soon as this transaction commits,
 -- without scanning either live table or holding either lock during repair.
+DO $$
+DECLARE
+  expected_marker CONSTANT TEXT :=
+    'peaks:elevation-matches-location-z:finite-float8-v1';
+  expected_definition CONSTANT TEXT :=
+    'CHECK (elevation_matches_location_z(elevation, location))';
+  helper_oid OID := to_regprocedure(
+    'elevation_matches_location_z(double precision,geography)'
+  );
+  helper_marker TEXT;
+  has_validated_dependency BOOLEAN;
+BEGIN
+  IF helper_oid IS NULL THEN
+    RETURN;
+  END IF;
+
+  helper_marker := obj_description(helper_oid, 'pg_proc');
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE convalidated
+      AND (
+        (conrelid = 'destinations'::regclass
+          AND conname = 'destinations_elevation_matches_location_z')
+        OR (conrelid = 'tracking_points'::regclass
+          AND conname = 'tracking_points_elevation_matches_location_z')
+      )
+      AND regexp_replace(pg_get_constraintdef(oid, true), ' NOT VALID$', '') =
+          expected_definition
+  ) INTO has_validated_dependency;
+
+  IF has_validated_dependency AND helper_marker IS DISTINCT FROM expected_marker THEN
+    RAISE EXCEPTION
+      'refusing to replace unmarked elevation_matches_location_z behind a validated constraint';
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION elevation_matches_location_z(
   elevation DOUBLE PRECISION,
   location geography
@@ -41,6 +79,9 @@ AS $$
   );
 $$;
 
+COMMENT ON FUNCTION elevation_matches_location_z(DOUBLE PRECISION, geography) IS
+  'peaks:elevation-matches-location-z:finite-float8-v1';
+
 DO $$
 DECLARE
   expected_definition CONSTANT TEXT :=
@@ -56,7 +97,8 @@ BEGIN
     ALTER TABLE destinations
       ADD CONSTRAINT destinations_elevation_matches_location_z
       CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
-  ELSIF actual_definition <> expected_definition THEN
+  ELSIF regexp_replace(actual_definition, ' NOT VALID$', '') <>
+      expected_definition THEN
     RAISE EXCEPTION
       'constraint destinations_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
@@ -71,7 +113,8 @@ BEGIN
     ALTER TABLE tracking_points
       ADD CONSTRAINT tracking_points_elevation_matches_location_z
       CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
-  ELSIF actual_definition <> expected_definition THEN
+  ELSIF regexp_replace(actual_definition, ' NOT VALID$', '') <>
+      expected_definition THEN
     RAISE EXCEPTION
       'constraint tracking_points_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
@@ -266,64 +309,10 @@ $$;
 
 DO $$
 DECLARE
-  destination_mismatches BIGINT;
-  tracking_point_mismatches BIGINT;
   active_elevation_leases BIGINT;
   active_catalog_leases BIGINT;
   active_standard_route_leases BIGINT;
 BEGIN
-  SELECT count(*) INTO destination_mismatches
-  FROM destinations
-  WHERE (
-      location IS NOT NULL
-      AND (
-        ST_Z(location::geometry) IS NULL
-        OR ST_Z(location::geometry) IN (
-          'NaN'::DOUBLE PRECISION,
-          'Infinity'::DOUBLE PRECISION,
-          '-Infinity'::DOUBLE PRECISION
-        )
-      )
-    )
-    OR (
-      elevation IS NOT NULL
-      AND (
-        location IS NULL
-        OR elevation IN (
-          'NaN'::DOUBLE PRECISION,
-          'Infinity'::DOUBLE PRECISION,
-          '-Infinity'::DOUBLE PRECISION
-        )
-        OR elevation IS DISTINCT FROM ST_Z(location::geometry)
-      )
-    );
-
-  SELECT count(*) INTO tracking_point_mismatches
-  FROM tracking_points
-  WHERE (
-      location IS NOT NULL
-      AND (
-        ST_Z(location::geometry) IS NULL
-        OR ST_Z(location::geometry) IN (
-          'NaN'::DOUBLE PRECISION,
-          'Infinity'::DOUBLE PRECISION,
-          '-Infinity'::DOUBLE PRECISION
-        )
-      )
-    )
-    OR (
-      elevation IS NOT NULL
-      AND (
-        location IS NULL
-        OR elevation IN (
-          'NaN'::DOUBLE PRECISION,
-          'Infinity'::DOUBLE PRECISION,
-          '-Infinity'::DOUBLE PRECISION
-        )
-        OR elevation IS DISTINCT FROM ST_Z(location::geometry)
-      )
-    );
-
   SELECT count(*) INTO active_elevation_leases
   FROM route_elevation_backfill_jobs
   WHERE state = 'working' AND lease_expires_at >= now();
@@ -335,13 +324,6 @@ BEGIN
   SELECT count(*) INTO active_standard_route_leases
   FROM standard_route_backfill_jobs
   WHERE lease_token IS NOT NULL AND lease_expires_at >= now();
-
-  IF destination_mismatches <> 0 OR tracking_point_mismatches <> 0 THEN
-    RAISE EXCEPTION
-      'elevation precision preflight failed: % destination and % tracking-point mismatches',
-      destination_mismatches,
-      tracking_point_mismatches;
-  END IF;
 
   IF active_elevation_leases <> 0
     OR active_catalog_leases <> 0
@@ -662,7 +644,8 @@ BEGIN
   IF actual_definition IS NULL THEN
     RAISE EXCEPTION
       'constraint destinations_elevation_matches_location_z disappeared before validation';
-  ELSIF actual_definition <> expected_definition THEN
+  ELSIF regexp_replace(actual_definition, ' NOT VALID$', '') <>
+      expected_definition THEN
     RAISE EXCEPTION
       'constraint destinations_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
@@ -680,7 +663,8 @@ BEGIN
   IF actual_definition IS NULL THEN
     RAISE EXCEPTION
       'constraint tracking_points_elevation_matches_location_z disappeared before validation';
-  ELSIF actual_definition <> expected_definition THEN
+  ELSIF regexp_replace(actual_definition, ' NOT VALID$', '') <>
+      expected_definition THEN
     RAISE EXCEPTION
       'constraint tracking_points_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
