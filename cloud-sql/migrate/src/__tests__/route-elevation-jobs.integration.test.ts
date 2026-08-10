@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { Pool } from "pg";
-import { COUNTS_SQL, applyMigration } from "../audit-elevation-precision";
+import { COUNTS_SQL } from "../audit-elevation-precision";
 import { canonicalElevationToken } from "../route-elevation-profile";
 import {
   ELEVATION_CANDIDATES_SQL,
@@ -723,24 +723,7 @@ test(
          FROM routes ORDER BY id`
       );
 
-      const expectedDatabase = decodeURIComponent(url.pathname.slice(1));
-      const applyEnvironment = {
-        DB_HOST: url.hostname,
-        INSTANCE_CONNECTION_NAME: "test-project:test-region:test-instance",
-      };
-      await applyMigration(
-        { query: (sql: string) => client.query(sql) } as Pool,
-        {
-          database: expectedDatabase,
-          host: url.hostname,
-          instance: "test-project:test-region:test-instance",
-        },
-        applyEnvironment,
-        {
-          async readMigration() { return migration; },
-          seedCatalogJobs() { return 0; },
-        }
-      );
+      await client.query(migration);
 
       const paritySamples = finiteParitySamples();
       await client.query("SET extra_float_digits = -15");

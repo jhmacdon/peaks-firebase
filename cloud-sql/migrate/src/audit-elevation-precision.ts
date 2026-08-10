@@ -168,6 +168,39 @@ WITH profile_paths AS (
   FROM routes r
   JOIN proposed_path_profiles proposed
     ON proposed.source_kind = 'route' AND proposed.source_id = r.id
+), profile_token_candidates AS MATERIALIZED (
+  SELECT route_profile.id,
+         token.value,
+         CASE
+           WHEN length(token.value) <= 1024
+             AND token.value ~ '^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$'
+             AND (
+               token.value !~ '[eE]'
+               OR substring(token.value FROM '[eE][+-]?([0-9]+)$') ~ '^[0-9]{1,4}$'
+             )
+           THEN token.value::numeric
+           ELSE NULL
+         END AS numeric_value
+  FROM route_profiles route_profile
+  CROSS JOIN LATERAL unnest(
+    COALESCE(string_to_array(route_profile.decoded_profile, '|'), ARRAY[]::text[])
+  ) token(value)
+), parsed_profile_tokens AS MATERIALIZED (
+  SELECT id,
+         value,
+         CASE
+           WHEN numeric_value = 0
+             OR abs(numeric_value) BETWEEN
+                '4.9406564584124654e-324'::numeric
+                AND '1.7976931348623157e308'::numeric
+           THEN numeric_value::DOUBLE PRECISION
+           ELSE NULL
+         END AS elevation,
+         numeric_value = 0
+           OR abs(numeric_value) BETWEEN
+              '4.9406564584124654e-324'::numeric
+              AND '1.7976931348623157e308'::numeric AS token_is_finite_float8
+  FROM profile_token_candidates
 ), valid_profiles AS (
   SELECT route_profiles.*,
          cardinality(string_to_array(decoded_profile, '|')) AS profile_samples
@@ -176,17 +209,16 @@ WITH profile_paths AS (
     AND cardinality(string_to_array(decoded_profile, '|')) >= 2
     AND NOT EXISTS (
       SELECT 1
-      FROM unnest(string_to_array(decoded_profile, '|')) invalid(value)
-      WHERE invalid.value !~ '^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$'
-         OR NOT pg_input_is_valid(invalid.value, 'double precision')
+      FROM parsed_profile_tokens parsed
+      WHERE parsed.id = route_profiles.id
+        AND parsed.token_is_finite_float8 IS NOT TRUE
     )
 ), valid_profile_stats AS (
   SELECT length(elevation_string) AS profile_bytes,
          profile_samples,
-         CASE WHEN pg_input_is_valid(token.value, 'double precision')
-              THEN token.value::DOUBLE PRECISION END AS elevation
+         token.elevation
   FROM valid_profiles
-  CROSS JOIN LATERAL unnest(string_to_array(decoded_profile, '|')) token(value)
+  JOIN parsed_profile_tokens token USING (id)
 ), changed_peaks_routes AS (
   SELECT id
   FROM route_profiles
@@ -629,6 +661,7 @@ export async function runElevationPrecisionAudit(
 interface ApplyDependencies {
   readMigration?: () => Promise<string>;
   seedCatalogJobs?: () => number | null;
+  realpath?: (socketPath: string) => Promise<string>;
 }
 
 export async function applyMigration(
@@ -637,19 +670,38 @@ export async function applyMigration(
   environment: NodeJS.ProcessEnv = process.env,
   dependencies: ApplyDependencies = {}
 ): Promise<void> {
-  // PostgreSQL reached through the Auth Proxy cannot name the Cloud SQL
-  // instance behind that proxy. Match the same DB_HOST and
-  // INSTANCE_CONNECTION_NAME values that configured this process against
-  // separate caller-supplied expectations, then ask PostgreSQL for its
-  // database name. The instance value includes project, region, and instance.
-  const configuredInstance = environment.INSTANCE_CONNECTION_NAME;
-  const configuredHost = environment.DB_HOST
-    ?? (configuredInstance ? `/cloudsql/${configuredInstance}` : null);
-  if (configuredInstance !== expected.instance || configuredHost !== expected.host) {
+  // TCP proxies do not bind their listening address to a Cloud SQL instance.
+  // Apply only through an instance-named Unix socket directory and verify that
+  // the Pool was built from that exact DB_HOST. The final directory component
+  // carries the project, region, and instance connection name.
+  const configuredHost = environment.DB_HOST;
+  const poolHost = pool.options.host;
+  if (
+    !configuredHost
+    || !path.isAbsolute(configuredHost)
+    || !path.isAbsolute(expected.host)
+  ) {
     throw new Error(
-      "Refusing elevation repair: configured host/instance " +
-      `${configuredHost ?? "unknown"}/${configuredInstance ?? "unknown"} does not match ` +
-      `${expected.host}/${expected.instance}`
+      "Refusing elevation repair: DB_HOST must be an absolute instance-bound Unix socket directory"
+    );
+  }
+  if (poolHost !== configuredHost) {
+    throw new Error(
+      `Refusing elevation repair: Pool host ${poolHost ?? "unknown"} does not match DB_HOST ${configuredHost}`
+    );
+  }
+  const resolveRealpath = dependencies.realpath ?? fs.realpath;
+  const [realConfiguredHost, realExpectedHost] = await Promise.all([
+    resolveRealpath(configuredHost),
+    resolveRealpath(expected.host),
+  ]);
+  if (
+    realConfiguredHost !== realExpectedHost
+    || path.basename(realConfiguredHost) !== expected.instance
+  ) {
+    throw new Error(
+      "Refusing elevation repair: Unix socket does not match the expected host and " +
+      `Cloud SQL instance ${expected.instance}`
     );
   }
   const target = await pool.query<{ current_database: string }>("SELECT current_database()");

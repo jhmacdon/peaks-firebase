@@ -20,7 +20,10 @@ test("profile inventory counts valid profile rows, not distinct profile text", (
   assert.match(COUNTS_SQL, /proposed_path_profiles/);
   assert.match(COUNTS_SQL, /encoder_state/);
   assert.match(COUNTS_SQL, /profile_affected_routes/);
-  assert.match(COUNTS_SQL, /pg_input_is_valid/);
+  assert.match(COUNTS_SQL, /profile_token_candidates AS MATERIALIZED/);
+  assert.match(COUNTS_SQL, /parsed_profile_tokens AS MATERIALIZED/);
+  assert.match(COUNTS_SQL, /1\.7976931348623157e308/);
+  assert.doesNotMatch(COUNTS_SQL, /pg_input_is_valid/);
 });
 
 test("elevation audit is dry-run JSON by default and apply is explicit", () => {
@@ -31,13 +34,13 @@ test("elevation audit is dry-run JSON by default and apply is explicit", () => {
     "--apply",
     "--expected-database=peaks_test",
     "--expected-instance=donner-a8608:us-central1:peaks-db",
-    "--expected-host=127.0.0.1",
+    "--expected-host=/cloudsql/donner-a8608:us-central1:peaks-db",
   ]), {
     apply: true,
     format: "human",
     expectedDatabase: "peaks_test",
     expectedInstance: "donner-a8608:us-central1:peaks-db",
-    expectedHost: "127.0.0.1",
+    expectedHost: "/cloudsql/donner-a8608:us-central1:peaks-db",
   });
   assert.throws(() => parseAuditArgs(["--write"]), /Unknown argument/);
 });
@@ -193,14 +196,14 @@ test("apply verifies database, host, project/instance and completes catalog seed
   const environment = {
     ELEVATION_PRECISION_EXPECTED_DATABASE: "peaks_test",
     ELEVATION_PRECISION_EXPECTED_INSTANCE: "donner-a8608:us-central1:peaks-db",
-    ELEVATION_PRECISION_EXPECTED_HOST: "127.0.0.1",
-    INSTANCE_CONNECTION_NAME: "donner-a8608:us-central1:peaks-db",
-    DB_HOST: "127.0.0.1",
+    ELEVATION_PRECISION_EXPECTED_HOST: "/cloudsql/donner-a8608:us-central1:peaks-db",
+    DB_HOST: "/cloudsql/donner-a8608:us-central1:peaks-db",
   };
   const target = resolveApplyTarget(args, environment);
   const queries: string[] = [];
   let seeded = false;
   const pool = {
+    options: { host: "/cloudsql/donner-a8608:us-central1:peaks-db" },
     async query(sql: string) {
       queries.push(sql);
       if (sql === "SELECT current_database()") {
@@ -213,6 +216,7 @@ test("apply verifies database, host, project/instance and completes catalog seed
   await applyMigration(pool as never, target, environment, {
     async readMigration() { return "BEGIN; SELECT 'migration'; COMMIT;"; },
     seedCatalogJobs() { seeded = true; return 0; },
+    async realpath(socketPath) { return socketPath; },
   });
 
   assert.equal(seeded, true);
@@ -220,15 +224,29 @@ test("apply verifies database, host, project/instance and completes catalog seed
   await assert.rejects(
     applyMigration(pool as never, target, {
       ...environment,
-      INSTANCE_CONNECTION_NAME: "other-project:us-central1:peaks-db",
+      DB_HOST: "/cloudsql/other-project:us-central1:peaks-db",
     }),
-    /configured host\/instance/
+    /Pool host/
   );
   await assert.rejects(
     applyMigration(pool as never, target, {
       ...environment,
-      DB_HOST: "localhost",
+      DB_HOST: "127.0.0.1",
+      INSTANCE_CONNECTION_NAME: "donner-a8608:us-central1:peaks-db",
     }),
-    /configured host\/instance/
+    /absolute instance-bound Unix socket/
+  );
+  const wrongInstancePool = {
+    ...pool,
+    options: { host: "/cloudsql/other-project:us-central1:peaks-db" },
+  };
+  await assert.rejects(
+    applyMigration(wrongInstancePool as never, target, {
+      ...environment,
+      DB_HOST: "/cloudsql/other-project:us-central1:peaks-db",
+    }, {
+      async realpath(socketPath) { return socketPath; },
+    }),
+    /Unix socket does not match/
   );
 });
