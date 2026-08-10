@@ -93,7 +93,7 @@ interface QueryPool {
 }
 
 export const COUNTS_SQL = `
-WITH profile_paths AS (
+WITH RECURSIVE profile_paths AS (
   SELECT 'route'::text AS source_kind, r.id AS source_id, r.path
   FROM routes r
   UNION ALL
@@ -300,15 +300,33 @@ WITH profile_paths AS (
   UNION ALL SELECT evidence FROM route_integrity_repairs WHERE evidence IS NOT NULL
   UNION ALL SELECT health_data FROM tracking_sessions WHERE health_data IS NOT NULL
   UNION ALL SELECT source_contributions FROM tracking_sessions WHERE source_contributions IS NOT NULL
+), elevation_json_walk AS (
+  SELECT NULL::text AS key,
+         document AS value
+  FROM elevation_json_documents
+  UNION ALL
+  SELECT child.key,
+         child.value
+  FROM elevation_json_walk parent
+  CROSS JOIN LATERAL (
+    SELECT object_member.key,
+           object_member.value
+    FROM jsonb_each(
+      CASE WHEN jsonb_typeof(parent.value) = 'object'
+           THEN parent.value ELSE '{}'::jsonb END
+    ) object_member
+    UNION ALL
+    SELECT NULL::text AS key,
+           array_member.value
+    FROM jsonb_array_elements(
+      CASE WHEN jsonb_typeof(parent.value) = 'array'
+           THEN parent.value ELSE '[]'::jsonb END
+    ) array_member
+  ) child
 ), elevation_json_members AS (
-  SELECT member.value->>'key' AS key,
-         member.value->'value' AS value
-  FROM elevation_json_documents documents
-  CROSS JOIN LATERAL jsonb_path_query(
-    documents.document,
-    '$.**.keyvalue()'
-  ) member(value)
-  WHERE member.value->>'key' ~* '(elevation|prominence|gain|loss|highest|altitude|(^|_)z($|_))'
+  SELECT key, value
+  FROM elevation_json_walk
+  WHERE key ~* '(elevation|prominence|gain|loss|highest|altitude|(^|_)z($|_))'
 )
 SELECT
   (SELECT count(*) FROM destinations

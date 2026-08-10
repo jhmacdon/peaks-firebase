@@ -24,6 +24,11 @@ test("profile inventory counts valid profile rows, not distinct profile text", (
   assert.match(COUNTS_SQL, /parsed_profile_tokens AS MATERIALIZED/);
   assert.match(COUNTS_SQL, /1\.7976931348623157e308/);
   assert.doesNotMatch(COUNTS_SQL, /pg_input_is_valid/);
+  assert.match(COUNTS_SQL, /WITH RECURSIVE profile_paths/);
+  assert.match(COUNTS_SQL, /elevation_json_walk AS/);
+  assert.match(COUNTS_SQL, /jsonb_typeof\(parent\.value\) = 'object'/);
+  assert.match(COUNTS_SQL, /jsonb_typeof\(parent\.value\) = 'array'/);
+  assert.doesNotMatch(COUNTS_SQL, /keyvalue\(\)/);
 });
 
 test("elevation audit is dry-run JSON by default and apply is explicit", () => {

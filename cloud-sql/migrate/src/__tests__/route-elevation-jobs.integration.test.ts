@@ -630,6 +630,9 @@ test(
       await client.query(
         `INSERT INTO destinations (id, elevation, location) VALUES
            ('destination', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);
+         UPDATE destinations
+         SET averages = '{"elevation":1.25,"mixed":[{"gain":2.5},3,["scalar",{"highestPoint":"NaN"}]]}'::jsonb
+         WHERE id = 'destination';
          INSERT INTO tracking_points (id, elevation, location) VALUES
            ('point', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);`
       );
@@ -709,12 +712,18 @@ test(
         catalog_jobs_affected: string;
         standard_jobs_needing_verification: string;
         malformed_or_out_of_range_profiles: string;
+        elevation_like_jsonb_values: string;
+        fractional_elevation_jsonb: string;
+        nonfinite_elevation_jsonb: string;
       }>(COUNTS_SQL);
       assert.equal(Number(legacyAudit.rows[0].recoverable_peaks_profiles), 2);
       assert.equal(Number(legacyAudit.rows[0].stale_elevation_jobs), 2);
       assert.equal(Number(legacyAudit.rows[0].catalog_jobs_affected), 1);
       assert.equal(Number(legacyAudit.rows[0].standard_jobs_needing_verification), 1);
       assert.equal(Number(legacyAudit.rows[0].malformed_or_out_of_range_profiles), 1);
+      assert.equal(Number(legacyAudit.rows[0].elevation_like_jsonb_values), 3);
+      assert.equal(Number(legacyAudit.rows[0].fractional_elevation_jsonb), 2);
+      assert.equal(Number(legacyAudit.rows[0].nonfinite_elevation_jsonb), 1);
 
       const pathHashesBefore = await client.query<{ id: string; path_hash: string | null }>(
         `SELECT id,
