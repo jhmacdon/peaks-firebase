@@ -506,6 +506,8 @@ test(
       "ascii"
     ).toString("base64");
     const outOfRangeProfile = Buffer.from("1000|1e999999", "ascii").toString("base64");
+    let originalError: unknown;
+    let testFailed = false;
     try {
       await client.query(`CREATE SCHEMA "${schema}"`);
       await client.query(`SET search_path TO "${schema}", public`);
@@ -933,11 +935,35 @@ test(
          ORDER BY conname`
       );
       assert.deepEqual(constraintsAfterSecond.rows, constraintsAfterFirst.rows);
+    } catch (error) {
+      testFailed = true;
+      originalError = error;
     } finally {
-      await client.query(`RESET search_path`);
-      await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-      client.release();
-      await pool.end();
+      const cleanupErrors: unknown[] = [];
+      const attemptCleanup = async (operation: () => Promise<unknown>) => {
+        try {
+          await operation();
+        } catch (error) {
+          cleanupErrors.push(error);
+        }
+      };
+
+      await attemptCleanup(() => client.query(`ROLLBACK`));
+      await attemptCleanup(() => client.query(`RESET search_path`));
+      await attemptCleanup(() => client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`));
+      try {
+        client.release();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+      await attemptCleanup(() => pool.end());
+
+      if (testFailed) {
+        throw originalError;
+      }
+      if (cleanupErrors.length > 0) {
+        throw cleanupErrors[0];
+      }
     }
   }
 );
