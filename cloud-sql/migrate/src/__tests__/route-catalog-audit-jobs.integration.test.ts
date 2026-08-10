@@ -26,6 +26,7 @@ test(
     const suffix = `${process.pid}-${Date.now()}`;
     const destinationId = `route-audit-destination-${suffix}`;
     const secondDestinationId = `route-audit-destination-2-${suffix}`;
+    const vanishedDestinationId = `route-audit-vanished-${suffix}`;
     const routeId = `route-audit-route-${suffix}`;
     const segmentId = `route-audit-segment-${suffix}`;
     const resultFile = join(
@@ -96,8 +97,10 @@ test(
            ($1, 'Route audit test summit',
             ARRAY['summit']::destination_feature[]),
            ($2, 'Second route audit test summit',
+            ARRAY['summit']::destination_feature[]),
+           ($3, 'Vanished route audit test summit',
             ARRAY['summit']::destination_feature[])`,
-        [destinationId, secondDestinationId]
+        [destinationId, secondDestinationId, vanishedDestinationId]
       );
       await pool.query(
         `INSERT INTO routes (id, name, owner, status)
@@ -128,6 +131,90 @@ test(
       );
 
       command("seed", "--apply");
+      const targetedCandidateBefore = await pool.query<{
+        catalog_fingerprint: string;
+      }>(
+        `SELECT catalog_fingerprint
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      const unaffectedBefore = await pool.query(
+        `SELECT state, catalog_fingerprint, final_result, audited_at, last_error, updated_at
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [secondDestinationId]
+      );
+      await pool.query(
+        `UPDATE route_catalog_audit_jobs
+         SET state = 'passed',
+             catalog_fingerprint = 'stale-elevation-fingerprint',
+             final_result = jsonb_build_object(
+               'stale_reason', 'elevation_profile_format_changed',
+               'previous_catalog_fingerprint', catalog_fingerprint
+             ),
+             audited_at = now(),
+             last_error = 'stale evidence'
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      await pool.query(
+        `INSERT INTO route_catalog_audit_jobs (
+           destination_id, destination_name, state, catalog_fingerprint,
+           final_result, audited_at, last_error
+         ) VALUES (
+           $1, 'Vanished route audit test summit', 'queued', 'vanished-fingerprint',
+           '{"stale_reason":"elevation_profile_format_changed"}'::jsonb,
+           now(), 'stale evidence'
+         )`,
+        [vanishedDestinationId]
+      );
+      const targetedSeed = command(
+        "seed", "--apply", "--stale-elevation-only"
+      );
+      assert.deepEqual(targetedSeed, {
+        mode: "apply",
+        scope: "stale_elevation_only",
+        seeded: 1,
+        marked_out_of_scope: 1,
+      });
+      const targetedCandidateAfter = await pool.query(
+        `SELECT state, catalog_fingerprint, final_result, audited_at, last_error
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [destinationId]
+      );
+      assert.deepEqual(targetedCandidateAfter.rows[0], {
+        state: "queued",
+        catalog_fingerprint: targetedCandidateBefore.rows[0]?.catalog_fingerprint,
+        final_result: null,
+        audited_at: null,
+        last_error: null,
+      });
+      const unaffectedAfter = await pool.query(
+        `SELECT state, catalog_fingerprint, final_result, audited_at, last_error, updated_at
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [secondDestinationId]
+      );
+      assert.deepEqual(unaffectedAfter.rows, unaffectedBefore.rows);
+      const vanishedAfter = await pool.query<{
+        state: string;
+        final_result: Record<string, unknown>;
+        last_error: string | null;
+      }>(
+        `SELECT state, final_result, last_error
+         FROM route_catalog_audit_jobs
+         WHERE destination_id = $1`,
+        [vanishedDestinationId]
+      );
+      assert.equal(vanishedAfter.rows[0]?.state, "out_of_scope");
+      assert.deepEqual(vanishedAfter.rows[0]?.final_result, {
+        outcome: "out_of_scope",
+        reason: "no active or quarantined legacy route remains",
+        reconciled_stale_reason: "elevation_profile_format_changed",
+      });
+      assert.equal(vanishedAfter.rows[0]?.last_error, null);
       const concurrentClaims = await Promise.all([
         runCommandAsync(
           "claim", "--worker-id", "concurrency-test", "--apply"
@@ -443,13 +530,13 @@ test(
       await pool.query(
         `DELETE FROM route_catalog_audit_jobs
          WHERE destination_id = ANY($1::text[])`,
-        [[destinationId, secondDestinationId]]
+        [[destinationId, secondDestinationId, vanishedDestinationId]]
       );
       await pool.query(`DELETE FROM routes WHERE id = $1`, [routeId]);
       await pool.query(`DELETE FROM segments WHERE id = $1`, [segmentId]);
       await pool.query(
         `DELETE FROM destinations WHERE id = ANY($1::text[])`,
-        [[destinationId, secondDestinationId]]
+        [[destinationId, secondDestinationId, vanishedDestinationId]]
       );
       await pool.end();
       await rm(resultFile, { force: true });

@@ -847,7 +847,7 @@ export async function runElevationPrecisionAudit(
 
 interface ApplyDependencies {
   readMigration?: () => Promise<string>;
-  seedCatalogJobs?: () => number | null;
+  seedCatalogJobs?: (args: string[]) => number | null;
   realpath?: (socketPath: string) => Promise<string>;
 }
 
@@ -906,11 +906,19 @@ export async function applyMigration(
     ), "utf8");
   await pool.query(migration);
 
+  const seedArgs = [
+    "run",
+    "routes:audit-jobs",
+    "--",
+    "seed",
+    "--apply",
+    "--stale-elevation-only",
+  ];
   const seedStatus = dependencies.seedCatalogJobs
-    ? dependencies.seedCatalogJobs()
+    ? dependencies.seedCatalogJobs(seedArgs)
     : spawnSync(
       "npm",
-      ["run", "routes:audit-jobs", "--", "seed", "--apply"],
+      seedArgs,
       { cwd: path.resolve(__dirname, ".."), stdio: "inherit" }
     ).status;
   if (seedStatus !== 0) {

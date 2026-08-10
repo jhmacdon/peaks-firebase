@@ -237,7 +237,7 @@ test("apply verifies database, host, project/instance and completes catalog seed
   };
   const target = resolveApplyTarget(args, environment);
   const queries: string[] = [];
-  let seeded = false;
+  let seedArgs: string[] | null = null;
   const pool = {
     options: { host: "/cloudsql/donner-a8608:us-central1:peaks-db" },
     async query(sql: string) {
@@ -251,12 +251,30 @@ test("apply verifies database, host, project/instance and completes catalog seed
 
   await applyMigration(pool as never, target, environment, {
     async readMigration() { return "BEGIN; SELECT 'migration'; COMMIT;"; },
-    seedCatalogJobs() { seeded = true; return 0; },
+    seedCatalogJobs(args) { seedArgs = args; return 0; },
     async realpath(socketPath) { return socketPath; },
   });
 
-  assert.equal(seeded, true);
+  assert.deepEqual(seedArgs, [
+    "run",
+    "routes:audit-jobs",
+    "--",
+    "seed",
+    "--apply",
+    "--stale-elevation-only",
+  ]);
   assert.equal(queries.at(-1), "BEGIN; SELECT 'migration'; COMMIT;");
+  await assert.rejects(
+    applyMigration(pool as never, target, environment, {
+      async readMigration() { return "SELECT 'already applied';"; },
+      seedCatalogJobs(receivedArgs) {
+        assert.equal(receivedArgs.at(-1), "--stale-elevation-only");
+        return 1;
+      },
+      async realpath(socketPath) { return socketPath; },
+    }),
+    /elevation repair committed, but catalog audit job seeding failed/
+  );
   await assert.rejects(
     applyMigration(pool as never, target, {
       ...environment,

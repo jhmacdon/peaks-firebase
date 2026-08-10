@@ -41,8 +41,20 @@ interface AuditJob {
 
 const AUDIT_RULE_VERSION = 3;
 const MAX_LEASE_MINUTES = 30;
+export const STALE_ELEVATION_REASON = "elevation_profile_format_changed";
 
-const candidateSql = `
+export function buildCandidateSql(staleElevationOnly = false): string {
+  const staleRouteScope = staleElevationOnly ? `
+      AND EXISTS (
+        SELECT 1
+        FROM route_destinations stale_route_destination
+        JOIN stale_elevation_jobs stale_job
+          ON stale_job.destination_id = stale_route_destination.destination_id
+        WHERE stale_route_destination.route_id = r.id
+      )` : "";
+  const staleDestinationScope = staleElevationOnly ? `
+  JOIN stale_elevation_jobs stale_job ON stale_job.destination_id = d.id` : "";
+  return `
   WITH catalog_routes AS (
     SELECT r.*
     FROM routes r
@@ -77,7 +89,7 @@ const candidateSql = `
                   ANY(linked_destination.features)
           )
         )
-      )
+      )${staleRouteScope}
   )
   SELECT
     d.id AS destination_id,
@@ -187,14 +199,68 @@ const candidateSql = `
       '|' ORDER BY r.id
     )) AS catalog_fingerprint
   FROM destinations d
+  ${staleDestinationScope}
   JOIN route_destinations rd ON rd.destination_id = d.id
   JOIN catalog_routes r ON r.id = rd.route_id
   WHERE 'summit'::destination_feature = ANY(d.features)
   GROUP BY d.id, d.name, d.updated_at`;
+}
+
+export const candidateSql = buildCandidateSql();
+export const staleElevationCandidateSql = buildCandidateSql(true);
+export const staleElevationJobScopeSql = `
+  SELECT destination_id
+  FROM route_catalog_audit_jobs
+  WHERE final_result->>'stale_reason' = '${STALE_ELEVATION_REASON}'`;
+
+export const staleElevationSeedSql = `
+  WITH stale_elevation_jobs AS MATERIALIZED (
+    ${staleElevationJobScopeSql}
+  ), candidates AS MATERIALIZED (
+    ${staleElevationCandidateSql}
+  )
+  UPDATE route_catalog_audit_jobs AS job
+  SET destination_name = CASE WHEN candidate.destination_id IS NULL
+        THEN job.destination_name ELSE candidate.destination_name END,
+      priority = CASE WHEN candidate.destination_id IS NULL
+        THEN job.priority ELSE candidate.priority END,
+      route_count = CASE WHEN candidate.destination_id IS NULL
+        THEN job.route_count ELSE candidate.route_count END,
+      audit_rule_version = CASE WHEN candidate.destination_id IS NULL
+        THEN job.audit_rule_version ELSE candidate.audit_rule_version END,
+      catalog_fingerprint = CASE WHEN candidate.destination_id IS NULL
+        THEN job.catalog_fingerprint ELSE candidate.catalog_fingerprint END,
+      state = CASE
+        WHEN candidate.destination_id IS NULL THEN 'out_of_scope'
+        ELSE 'queued'
+      END,
+      final_result = CASE
+        WHEN candidate.destination_id IS NULL THEN jsonb_build_object(
+          'outcome', 'out_of_scope',
+          'reason', 'no active or quarantined legacy route remains',
+          'reconciled_stale_reason', '${STALE_ELEVATION_REASON}'
+        )
+        ELSE NULL
+      END,
+      audited_at = NULL,
+      last_error = NULL,
+      lease_owner = NULL,
+      lease_token = NULL,
+      lease_expires_at = NULL,
+      updated_at = now()
+  FROM stale_elevation_jobs stale_job
+  LEFT JOIN candidates candidate
+    ON candidate.destination_id = stale_job.destination_id
+  WHERE job.destination_id = stale_job.destination_id
+    AND job.state <> 'auditing'
+  RETURNING job.destination_id,
+            job.state,
+            candidate.destination_id IS NOT NULL AS candidate_found`;
 
 function usage(exitCode = 2): never {
   console.error(`Usage:
   npm run routes:audit-jobs -- seed [--apply]
+      [--stale-elevation-only]
   npm run routes:audit-jobs -- claim --worker-id ID [--destination-id ID]
       [--lease-minutes 30] --apply
   npm run routes:audit-jobs -- heartbeat (--lease-token TOKEN | --worker-id ID)
@@ -208,7 +274,9 @@ function usage(exitCode = 2): never {
   npm run routes:audit-jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:audit-jobs -- stats
 
-Seed and claim are dry-run unless --apply is present. Complete requires --apply.`);
+--stale-elevation-only is valid only with seed --apply and reconciles only jobs
+marked stale by the elevation precision migration. Seed and claim are dry-run
+unless --apply is present. Complete requires --apply.`);
   process.exit(exitCode);
 }
 
@@ -347,8 +415,64 @@ function print(value: unknown): void {
   console.log(JSON.stringify(value));
 }
 
+export function validateCatalogAuditArgs(command: string, argv: string[]): void {
+  const targeted = argv.includes("--stale-elevation-only");
+  if (targeted && command !== "seed") {
+    throw new Error("--stale-elevation-only is valid only with seed --apply");
+  }
+  if (command === "seed") {
+    for (const argument of argv) {
+      if (argument !== "--apply" && argument !== "--stale-elevation-only") {
+        throw new Error(`Unknown seed argument ${argument}`);
+      }
+    }
+    if (targeted && !argv.includes("--apply")) {
+      throw new Error("--stale-elevation-only requires seed --apply");
+    }
+  }
+}
+
+async function seedStaleElevationJobs(): Promise<void> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{
+      destination_id: string;
+      state: AuditState;
+      candidate_found: boolean;
+    }>(staleElevationSeedSql);
+    const remaining = await client.query<{ count: number }>(
+      `SELECT count(*)::int AS count
+       FROM (${staleElevationJobScopeSql}) stale_elevation_jobs`
+    );
+    const remainingCount = remaining.rows[0]?.count ?? 0;
+    if (remainingCount !== 0) {
+      throw new Error(
+        `${remainingCount} stale elevation catalog jobs could not be reconciled; ` +
+        "an audit lease may still be active"
+      );
+    }
+    await client.query("COMMIT");
+    print({
+      mode: "apply",
+      scope: "stale_elevation_only",
+      seeded: result.rows.filter((row) => row.candidate_found).length,
+      marked_out_of_scope: result.rows.filter((row) => !row.candidate_found).length,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function seed(argv: string[]): Promise<void> {
   const apply = argv.includes("--apply");
+  if (argv.includes("--stale-elevation-only")) {
+    await seedStaleElevationJobs();
+    return;
+  }
   if (!apply) {
     const result = await db.query<{
       destinations: number;
@@ -862,31 +986,34 @@ async function stats(): Promise<void> {
   });
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  const command = argv[0];
-  if (!command || argv.includes("--help") || argv.includes("-h")) usage(command ? 0 : 2);
+export async function main(argv = process.argv.slice(2)): Promise<void> {
+  const [command, ...args] = argv;
+  if (
+    !command || command === "--help" || command === "-h" ||
+    args.includes("--help") || args.includes("-h")
+  ) usage(command ? 0 : 2);
+  validateCatalogAuditArgs(command, args);
   switch (command) {
     case "seed":
-      await seed(argv);
+      await seed(args);
       break;
     case "claim":
-      await claim(argv);
+      await claim(args);
       break;
     case "heartbeat":
-      await heartbeat(argv);
+      await heartbeat(args);
       break;
     case "complete":
-      await complete(argv);
+      await complete(args);
       break;
     case "release":
-      await release(argv);
+      await release(args);
       break;
     case "requeue":
-      await requeue(argv);
+      await requeue(args);
       break;
     case "show":
-      await show(argv);
+      await show(args);
       break;
     case "stats":
       await stats();
@@ -896,13 +1023,15 @@ async function main(): Promise<void> {
   }
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(JSON.stringify({
-      error: error instanceof Error ? error.message : String(error),
-    }));
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await db.end();
-  });
+if (require.main === module) {
+  main()
+    .catch((error: unknown) => {
+      console.error(JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }));
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await db.end();
+    });
+}
