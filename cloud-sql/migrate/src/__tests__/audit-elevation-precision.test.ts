@@ -27,11 +27,39 @@ test("profile inventory counts valid profile rows, not distinct profile text", (
   assert.match(COUNTS_SQL, /parsed_profile_tokens AS MATERIALIZED/);
   assert.match(COUNTS_SQL, /1\.7976931348623157e308/);
   assert.doesNotMatch(COUNTS_SQL, /pg_input_is_valid/);
-  assert.match(COUNTS_SQL, /WITH RECURSIVE profile_paths/);
+  assert.match(COUNTS_SQL, /WITH RECURSIVE destination_audit_source AS MATERIALIZED/);
+  assert.match(COUNTS_SQL, /profile_paths AS/);
   assert.match(COUNTS_SQL, /elevation_json_walk AS/);
   assert.match(COUNTS_SQL, /jsonb_typeof\(parent\.value\) = 'object'/);
   assert.match(COUNTS_SQL, /jsonb_typeof\(parent\.value\) = 'array'/);
   assert.doesNotMatch(COUNTS_SQL, /keyvalue\(\)/);
+});
+
+test("large elevation sources feed one materialized aggregate pass", () => {
+  for (const aggregate of [
+    "profile_aggregates",
+    "destination_metrics",
+    "tracking_point_metrics",
+    "route_segment_metrics",
+    "tracking_session_metrics",
+    "session_marker_metrics",
+    "plan_metrics",
+    "elevation_json_metrics",
+    "profile_inventory_metrics",
+  ]) {
+    assert.match(COUNTS_SQL, new RegExp(`${aggregate} AS MATERIALIZED`));
+  }
+
+  assert.equal(COUNTS_SQL.match(/\bFROM destinations\b/g)?.length, 1);
+  assert.equal(COUNTS_SQL.match(/\bFROM tracking_points\b/g)?.length, 1);
+  assert.equal(COUNTS_SQL.match(/\bFROM tracking_sessions\b/g)?.length, 1);
+  assert.equal(COUNTS_SQL.match(/\bFROM session_markers\b/g)?.length, 1);
+  assert.equal(COUNTS_SQL.match(/\bFROM plans\b/g)?.length, 1);
+  assert.equal(COUNTS_SQL.match(/ST_DumpPoints\(/g)?.length, 2);
+
+  const finalSelect = COUNTS_SQL.slice(COUNTS_SQL.lastIndexOf("\nSELECT\n"));
+  assert.doesNotMatch(finalSelect, /FROM (?:destinations|tracking_points|tracking_sessions|session_markers|plans)\b/);
+  assert.doesNotMatch(finalSelect, /ST_DumpPoints\(/);
 });
 
 test("elevation audit is dry-run JSON by default and apply is explicit", () => {

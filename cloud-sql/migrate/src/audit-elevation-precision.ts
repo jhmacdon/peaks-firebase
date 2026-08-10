@@ -93,18 +93,30 @@ interface QueryPool {
 }
 
 export const COUNTS_SQL = `
-WITH RECURSIVE profile_paths AS (
-  SELECT 'route'::text AS source_kind, r.id AS source_id, r.path
+WITH RECURSIVE destination_audit_source AS MATERIALIZED (
+  SELECT elevation, prominence, location, external_ids,
+         averages, averages_offset, metadata, amenities
+  FROM destinations
+), tracking_session_audit_source AS MATERIALIZED (
+  SELECT id, gain, highest_point, path, health_data, source_contributions
+  FROM tracking_sessions
+), profile_paths AS (
+  SELECT 'route'::text AS source_kind, r.id AS source_id, r.path,
+         r.gain, r.gain_loss
   FROM routes r
   UNION ALL
-  SELECT 'segment'::text AS source_kind, s.id AS source_id, s.path
+  SELECT 'segment'::text AS source_kind, s.id AS source_id, s.path,
+         s.gain, s.gain_loss
   FROM segments s
-), profile_aggregates AS (
+), profile_aggregates AS MATERIALIZED (
   SELECT profile_paths.*,
          samples.point_count,
          samples.valid_point_count,
          samples.has_nonzero_elevation,
-         samples.profile_text
+         samples.profile_text,
+         samples.nonfinite_z_count,
+         samples.fractional_z_count,
+         samples.unsafe_for_legacy_bigint
   FROM profile_paths
   CROSS JOIN LATERAL (
     SELECT count((dumped).geom) AS point_count,
@@ -135,10 +147,39 @@ WITH RECURSIVE profile_paths AS (
                  'Infinity'::DOUBLE PRECISION,
                  '-Infinity'::DOUBLE PRECISION
                )
-           ) AS profile_text
+           ) AS profile_text,
+           count((dumped).geom) FILTER (
+             WHERE ST_Z((dumped).geom) IN (
+               'NaN'::DOUBLE PRECISION,
+               'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+           ) AS nonfinite_z_count,
+           count((dumped).geom) FILTER (
+             WHERE ST_Z((dumped).geom) NOT IN (
+               'NaN'::DOUBLE PRECISION,
+               'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+               AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
+           ) AS fractional_z_count,
+           COALESCE(bool_or(
+             CASE
+               WHEN profile_paths.source_kind <> 'segment'
+                 OR ST_Z((dumped).geom) IS NULL
+                 OR ST_Z((dumped).geom) IN (
+                   'NaN'::DOUBLE PRECISION,
+                   'Infinity'::DOUBLE PRECISION,
+                   '-Infinity'::DOUBLE PRECISION
+                 ) THEN false
+               ELSE round(ST_Z((dumped).geom)::numeric) NOT BETWEEN
+                    '-9223372036854775808'::numeric
+                    AND '9223372036854775807'::numeric
+             END
+           ), false) AS unsafe_for_legacy_bigint
     FROM ST_DumpPoints(profile_paths.path::geometry) dumped
   ) samples
-), proposed_path_profiles AS (
+), proposed_path_profiles AS MATERIALIZED (
   SELECT source_kind,
          source_id,
          CASE WHEN path IS NOT NULL
@@ -153,7 +194,7 @@ WITH RECURSIVE profile_paths AS (
                 E'\\n', ''), E'\\r', '')
               ELSE NULL END AS canonical_profile
   FROM profile_aggregates
-), route_profiles AS (
+), route_profiles AS MATERIALIZED (
   SELECT r.id,
          r.owner,
          r.path,
@@ -201,7 +242,7 @@ WITH RECURSIVE profile_paths AS (
               '4.9406564584124654e-324'::numeric
               AND '1.7976931348623157e308'::numeric AS token_is_finite_float8
   FROM profile_token_candidates
-), valid_profiles AS (
+), valid_profiles AS MATERIALIZED (
   SELECT route_profiles.*,
          cardinality(string_to_array(decoded_profile, '|')) AS profile_samples
   FROM route_profiles
@@ -213,12 +254,22 @@ WITH RECURSIVE profile_paths AS (
       WHERE parsed.id = route_profiles.id
         AND parsed.token_is_finite_float8 IS NOT TRUE
     )
-), valid_profile_stats AS (
+), valid_profile_stats AS MATERIALIZED (
   SELECT length(elevation_string) AS profile_bytes,
          profile_samples,
          token.elevation
   FROM valid_profiles
   JOIN parsed_profile_tokens token USING (id)
+), profile_inventory_metrics AS MATERIALIZED (
+  SELECT (SELECT count(*) FROM valid_profiles) AS route_profile_count,
+         count(*) AS route_profile_samples,
+         COALESCE(min(profile_samples), 0) AS min_profile_samples,
+         COALESCE(max(profile_samples), 0) AS max_profile_samples,
+         COALESCE(min(profile_bytes), 0) AS min_profile_bytes,
+         COALESCE(max(profile_bytes), 0) AS max_profile_bytes,
+         min(elevation) AS min_profile_elevation,
+         max(elevation) AS max_profile_elevation
+  FROM valid_profile_stats
 ), changed_peaks_routes AS (
   SELECT id
   FROM route_profiles
@@ -233,27 +284,12 @@ WITH RECURSIVE profile_paths AS (
            false
          ) AS supports_full_float8
 ), segment_encoder_safety AS MATERIALIZED (
-  SELECT segment.id,
+  SELECT profile.source_id AS id,
          installed_encoder_capability.supports_full_float8,
-         safety.unsafe_for_legacy_bigint
-  FROM segments segment
+         profile.unsafe_for_legacy_bigint
+  FROM profile_aggregates profile
   CROSS JOIN installed_encoder_capability
-  CROSS JOIN LATERAL (
-    SELECT COALESCE(bool_or(
-      CASE
-        WHEN ST_Z((dumped).geom) IS NULL
-          OR ST_Z((dumped).geom) IN (
-            'NaN'::DOUBLE PRECISION,
-            'Infinity'::DOUBLE PRECISION,
-            '-Infinity'::DOUBLE PRECISION
-          ) THEN false
-        ELSE round(ST_Z((dumped).geom)::numeric) NOT BETWEEN
-             '-9223372036854775808'::numeric
-             AND '9223372036854775807'::numeric
-      END
-    ), false) AS unsafe_for_legacy_bigint
-    FROM ST_DumpPoints(segment.path::geometry) dumped
-  ) safety
+  WHERE profile.source_kind = 'segment'
 ), profile_affected_routes AS (
   SELECT id
   FROM changed_peaks_routes
@@ -301,11 +337,16 @@ WITH RECURSIVE profile_paths AS (
     AND r.status IN ('active', 'pending')
     AND r.path IS NOT NULL
 ), elevation_json_documents AS (
-  SELECT averages AS document FROM destinations WHERE averages IS NOT NULL
-  UNION ALL SELECT averages_offset FROM destinations WHERE averages_offset IS NOT NULL
-  UNION ALL SELECT metadata FROM destinations WHERE metadata IS NOT NULL
-  UNION ALL SELECT external_ids FROM destinations WHERE external_ids IS NOT NULL
-  UNION ALL SELECT amenities FROM destinations WHERE amenities IS NOT NULL
+  SELECT entry.document
+  FROM destination_audit_source destination
+  CROSS JOIN LATERAL (VALUES
+    (destination.averages),
+    (destination.averages_offset),
+    (destination.metadata),
+    (destination.external_ids),
+    (destination.amenities)
+  ) entry(document)
+  WHERE entry.document IS NOT NULL
   UNION ALL SELECT provenance FROM segments WHERE provenance IS NOT NULL
   UNION ALL SELECT external_links FROM routes WHERE external_links IS NOT NULL
   UNION ALL SELECT provenance FROM routes WHERE provenance IS NOT NULL
@@ -317,8 +358,14 @@ WITH RECURSIVE profile_paths AS (
   UNION ALL SELECT review FROM standard_route_backfill_jobs WHERE review IS NOT NULL
   UNION ALL SELECT candidate_artifact FROM standard_route_backfill_jobs WHERE candidate_artifact IS NOT NULL
   UNION ALL SELECT evidence FROM route_integrity_repairs WHERE evidence IS NOT NULL
-  UNION ALL SELECT health_data FROM tracking_sessions WHERE health_data IS NOT NULL
-  UNION ALL SELECT source_contributions FROM tracking_sessions WHERE source_contributions IS NOT NULL
+  UNION ALL
+  SELECT entry.document
+  FROM tracking_session_audit_source session
+  CROSS JOIN LATERAL (VALUES
+    (session.health_data),
+    (session.source_contributions)
+  ) entry(document)
+  WHERE entry.document IS NOT NULL
 ), elevation_json_walk AS (
   SELECT NULL::text AS key,
          document AS value
@@ -346,21 +393,187 @@ WITH RECURSIVE profile_paths AS (
   SELECT key, value
   FROM elevation_json_walk
   WHERE key ~* '(elevation|prominence|gain|loss|highest|altitude|(^|_)z($|_))'
+), destination_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE elevation IS NOT NULL AND (
+             location IS NULL OR ST_Z(location::geometry) IS NULL
+             OR elevation IS DISTINCT FROM ST_Z(location::geometry)
+           )
+         ) AS destination_mismatches,
+         count(*) FILTER (
+           WHERE elevation IS NOT NULL AND elevation = trunc(elevation)
+         ) AS integer_looking_destinations,
+         count(*) FILTER (
+           WHERE elevation IS NOT NULL AND elevation = trunc(elevation)
+             AND external_ids IS NOT NULL AND external_ids <> '{}'::jsonb
+         ) AS destinations_with_source_ids,
+         count(*) FILTER (
+           WHERE elevation IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           ) OR prominence IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_destination_scalars,
+         count(*) FILTER (
+           WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_destination_z,
+         count(*) FILTER (
+           WHERE location IS NOT NULL
+             AND ST_Z(location::geometry) NOT IN (
+               'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+             AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))
+         ) AS fractional_destination_z
+  FROM destination_audit_source
+), tracking_point_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE elevation IS NOT NULL AND (
+             location IS NULL OR ST_Z(location::geometry) IS NULL
+             OR elevation IS DISTINCT FROM ST_Z(location::geometry)
+           )
+         ) AS tracking_point_mismatches,
+         count(*) FILTER (
+           WHERE elevation IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_tracking_scalars,
+         count(*) FILTER (
+           WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_tracking_z,
+         count(*) FILTER (
+           WHERE location IS NOT NULL
+             AND ST_Z(location::geometry) NOT IN (
+               'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+             AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))
+         ) AS fractional_tracking_z
+  FROM tracking_points
+), route_segment_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE source_kind = 'route' AND (
+             gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+             OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+           )
+         ) AS nonfinite_route_scalars,
+         COALESCE(sum(nonfinite_z_count) FILTER (WHERE source_kind = 'route'), 0)
+           AS nonfinite_route_z,
+         count(*) FILTER (
+           WHERE source_kind = 'route' AND (
+             (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+               AND gain <> trunc(gain))
+             OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+               AND gain_loss <> trunc(gain_loss))
+           )
+         ) AS fractional_route_scalars,
+         COALESCE(sum(fractional_z_count) FILTER (WHERE source_kind = 'route'), 0)
+           AS fractional_route_z,
+         count(*) FILTER (
+           WHERE source_kind = 'segment' AND (
+             gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+             OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+           )
+         ) AS nonfinite_segment_scalars,
+         COALESCE(sum(nonfinite_z_count) FILTER (WHERE source_kind = 'segment'), 0)
+           AS nonfinite_segment_z,
+         count(*) FILTER (
+           WHERE source_kind = 'segment' AND (
+             (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+               AND gain <> trunc(gain))
+             OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+               AND gain_loss <> trunc(gain_loss))
+           )
+         ) AS fractional_segment_scalars,
+         COALESCE(sum(fractional_z_count) FILTER (WHERE source_kind = 'segment'), 0)
+           AS fractional_segment_z
+  FROM profile_aggregates
+), tracking_session_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+              OR highest_point IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+         ) AS nonfinite_session_scalars,
+         COALESCE(sum(path_metrics.nonfinite_z_count), 0) AS nonfinite_session_path_z,
+         count(*) FILTER (
+           WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+                  AND gain <> trunc(gain))
+              OR (highest_point NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+                  AND highest_point <> trunc(highest_point))
+         ) AS fractional_session_scalars,
+         COALESCE(sum(path_metrics.fractional_z_count), 0) AS fractional_session_path_z
+  FROM tracking_session_audit_source session
+  CROSS JOIN LATERAL (
+    SELECT count((dumped).geom) FILTER (
+             WHERE ST_Z((dumped).geom) IN (
+               'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+           ) AS nonfinite_z_count,
+           count((dumped).geom) FILTER (
+             WHERE ST_Z((dumped).geom) NOT IN (
+               'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+               AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
+           ) AS fractional_z_count
+    FROM ST_DumpPoints(session.path::geometry) dumped
+  ) path_metrics
+), session_marker_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_marker_z,
+         count(*) FILTER (
+           WHERE location IS NOT NULL
+             AND ST_Z(location::geometry) NOT IN (
+               'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+               '-Infinity'::DOUBLE PRECISION
+             )
+             AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))
+         ) AS fractional_marker_z
+  FROM session_markers
+), plan_metrics AS MATERIALIZED (
+  SELECT count(*) FILTER (
+           WHERE gain IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           )
+         ) AS nonfinite_plan_gain,
+         count(*) FILTER (
+           WHERE gain NOT IN (
+             'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION,
+             '-Infinity'::DOUBLE PRECISION
+           ) AND gain <> trunc(gain)
+         ) AS fractional_plan_gain
+  FROM plans
+), elevation_json_metrics AS MATERIALIZED (
+  SELECT count(*) AS elevation_like_jsonb_values,
+         count(*) FILTER (
+           WHERE jsonb_typeof(value) = 'string'
+             AND value #>> '{}' IN ('NaN', 'Infinity', '-Infinity')
+         ) AS nonfinite_elevation_jsonb,
+         count(*) FILTER (
+           WHERE jsonb_typeof(value) = 'number'
+             AND (value #>> '{}')::numeric <> trunc((value #>> '{}')::numeric)
+         ) AS fractional_elevation_jsonb
+  FROM elevation_json_members
 )
 SELECT
-  (SELECT count(*) FROM destinations
-   WHERE elevation IS NOT NULL AND (
-     location IS NULL OR ST_Z(location::geometry) IS NULL
-     OR elevation IS DISTINCT FROM ST_Z(location::geometry))) AS destination_mismatches,
-  (SELECT count(*) FROM tracking_points
-   WHERE elevation IS NOT NULL AND (
-     location IS NULL OR ST_Z(location::geometry) IS NULL
-     OR elevation IS DISTINCT FROM ST_Z(location::geometry))) AS tracking_point_mismatches,
-  (SELECT count(*) FROM destinations
-   WHERE elevation IS NOT NULL AND elevation = trunc(elevation)) AS integer_looking_destinations,
-  (SELECT count(*) FROM destinations
-   WHERE elevation IS NOT NULL AND elevation = trunc(elevation)
-     AND external_ids IS NOT NULL AND external_ids <> '{}'::jsonb) AS destinations_with_source_ids,
+  (SELECT destination_mismatches FROM destination_metrics) AS destination_mismatches,
+  (SELECT tracking_point_mismatches FROM tracking_point_metrics) AS tracking_point_mismatches,
+  (SELECT integer_looking_destinations FROM destination_metrics) AS integer_looking_destinations,
+  (SELECT destinations_with_source_ids FROM destination_metrics) AS destinations_with_source_ids,
   (SELECT count(*) FROM route_profiles
    WHERE decoded_profile ~ '^-?[0-9]+(\\|-?[0-9]+)+$') AS legacy_integer_profiles,
   (SELECT count(*) FROM route_profiles route_profile
@@ -426,102 +639,39 @@ SELECT
    WHERE job.state = 'verified'
       OR job.evidence ? 'last_verification'
       OR job.evidence ? 'verification_action') AS standard_jobs_needing_verification,
-  (SELECT count(*) FROM destinations
-   WHERE elevation IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-      OR prominence IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_destination_scalars,
-  (SELECT count(*) FROM destinations
-   WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_destination_z,
-  (SELECT count(*) FROM tracking_points
-   WHERE elevation IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_tracking_scalars,
-  (SELECT count(*) FROM tracking_points
-   WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_tracking_z,
-  (SELECT count(*) FROM routes
-   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-      OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_route_scalars,
-  (SELECT count(*) FROM routes r CROSS JOIN LATERAL ST_DumpPoints(r.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_route_z,
-  (SELECT count(*) FROM segments
-   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-      OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_segment_scalars,
-  (SELECT count(*) FROM segments s CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_segment_z,
-  (SELECT count(*) FROM tracking_sessions
-   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-      OR highest_point IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_session_scalars,
-  (SELECT count(*) FROM tracking_sessions session
-   CROSS JOIN LATERAL ST_DumpPoints(session.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_session_path_z,
-  (SELECT count(*) FROM session_markers
-   WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_marker_z,
-  (SELECT count(*) FROM plans
-   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_plan_gain,
-  (SELECT count(*) FROM elevation_json_members
-   WHERE jsonb_typeof(value) = 'string'
-     AND value #>> '{}' IN ('NaN', 'Infinity', '-Infinity')) AS nonfinite_elevation_jsonb,
-  (SELECT count(*) FROM tracking_points
-   WHERE location IS NOT NULL
-     AND ST_Z(location::geometry) NOT IN (
-       'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))) AS fractional_tracking_z,
-  (SELECT count(*) FROM destinations
-   WHERE location IS NOT NULL
-     AND ST_Z(location::geometry) NOT IN (
-       'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))) AS fractional_destination_z,
-  (SELECT count(*) FROM routes
-   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND gain <> trunc(gain))
-      OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND gain_loss <> trunc(gain_loss))) AS fractional_route_scalars,
-  (SELECT count(*) FROM routes r CROSS JOIN LATERAL ST_DumpPoints(r.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) NOT IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_route_z,
-  (SELECT count(*) FROM segments
-   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND gain <> trunc(gain))
-      OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND gain_loss <> trunc(gain_loss))) AS fractional_segment_scalars,
-  (SELECT count(*) FROM segments s CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) NOT IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_segment_z,
-  (SELECT count(*) FROM tracking_sessions
-   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND gain <> trunc(gain))
-      OR (highest_point NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-          AND highest_point <> trunc(highest_point))) AS fractional_session_scalars,
-  (SELECT count(*) FROM tracking_sessions session
-   CROSS JOIN LATERAL ST_DumpPoints(session.path::geometry) dumped
-   WHERE ST_Z((dumped).geom) NOT IN (
-     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_session_path_z,
-  (SELECT count(*) FROM session_markers
-   WHERE location IS NOT NULL
-     AND ST_Z(location::geometry) NOT IN (
-       'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))) AS fractional_marker_z,
-  (SELECT count(*) FROM plans
-   WHERE gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
-     AND gain <> trunc(gain)) AS fractional_plan_gain,
-  (SELECT count(*) FROM elevation_json_members) AS elevation_like_jsonb_values,
-  (SELECT count(*) FROM elevation_json_members
-   WHERE jsonb_typeof(value) = 'number'
-     AND (value #>> '{}')::numeric <> trunc((value #>> '{}')::numeric)) AS fractional_elevation_jsonb,
-  (SELECT count(*) FROM valid_profiles) AS route_profile_count,
-  (SELECT count(*) FROM valid_profile_stats) AS route_profile_samples,
-  COALESCE((SELECT min(profile_samples) FROM valid_profile_stats), 0) AS min_profile_samples,
-  COALESCE((SELECT max(profile_samples) FROM valid_profile_stats), 0) AS max_profile_samples,
-  COALESCE((SELECT min(profile_bytes) FROM valid_profile_stats), 0) AS min_profile_bytes,
-  COALESCE((SELECT max(profile_bytes) FROM valid_profile_stats), 0) AS max_profile_bytes,
-  (SELECT min(elevation) FROM valid_profile_stats) AS min_profile_elevation,
-  (SELECT max(elevation) FROM valid_profile_stats) AS max_profile_elevation
+  (SELECT nonfinite_destination_scalars FROM destination_metrics) AS nonfinite_destination_scalars,
+  (SELECT nonfinite_destination_z FROM destination_metrics) AS nonfinite_destination_z,
+  (SELECT nonfinite_tracking_scalars FROM tracking_point_metrics) AS nonfinite_tracking_scalars,
+  (SELECT nonfinite_tracking_z FROM tracking_point_metrics) AS nonfinite_tracking_z,
+  (SELECT nonfinite_route_scalars FROM route_segment_metrics) AS nonfinite_route_scalars,
+  (SELECT nonfinite_route_z FROM route_segment_metrics) AS nonfinite_route_z,
+  (SELECT nonfinite_segment_scalars FROM route_segment_metrics) AS nonfinite_segment_scalars,
+  (SELECT nonfinite_segment_z FROM route_segment_metrics) AS nonfinite_segment_z,
+  (SELECT nonfinite_session_scalars FROM tracking_session_metrics) AS nonfinite_session_scalars,
+  (SELECT nonfinite_session_path_z FROM tracking_session_metrics) AS nonfinite_session_path_z,
+  (SELECT nonfinite_marker_z FROM session_marker_metrics) AS nonfinite_marker_z,
+  (SELECT nonfinite_plan_gain FROM plan_metrics) AS nonfinite_plan_gain,
+  (SELECT nonfinite_elevation_jsonb FROM elevation_json_metrics) AS nonfinite_elevation_jsonb,
+  (SELECT fractional_tracking_z FROM tracking_point_metrics) AS fractional_tracking_z,
+  (SELECT fractional_destination_z FROM destination_metrics) AS fractional_destination_z,
+  (SELECT fractional_route_scalars FROM route_segment_metrics) AS fractional_route_scalars,
+  (SELECT fractional_route_z FROM route_segment_metrics) AS fractional_route_z,
+  (SELECT fractional_segment_scalars FROM route_segment_metrics) AS fractional_segment_scalars,
+  (SELECT fractional_segment_z FROM route_segment_metrics) AS fractional_segment_z,
+  (SELECT fractional_session_scalars FROM tracking_session_metrics) AS fractional_session_scalars,
+  (SELECT fractional_session_path_z FROM tracking_session_metrics) AS fractional_session_path_z,
+  (SELECT fractional_marker_z FROM session_marker_metrics) AS fractional_marker_z,
+  (SELECT fractional_plan_gain FROM plan_metrics) AS fractional_plan_gain,
+  (SELECT elevation_like_jsonb_values FROM elevation_json_metrics) AS elevation_like_jsonb_values,
+  (SELECT fractional_elevation_jsonb FROM elevation_json_metrics) AS fractional_elevation_jsonb,
+  (SELECT route_profile_count FROM profile_inventory_metrics) AS route_profile_count,
+  (SELECT route_profile_samples FROM profile_inventory_metrics) AS route_profile_samples,
+  (SELECT min_profile_samples FROM profile_inventory_metrics) AS min_profile_samples,
+  (SELECT max_profile_samples FROM profile_inventory_metrics) AS max_profile_samples,
+  (SELECT min_profile_bytes FROM profile_inventory_metrics) AS min_profile_bytes,
+  (SELECT max_profile_bytes FROM profile_inventory_metrics) AS max_profile_bytes,
+  (SELECT min_profile_elevation FROM profile_inventory_metrics) AS min_profile_elevation,
+  (SELECT max_profile_elevation FROM profile_inventory_metrics) AS max_profile_elevation
 `;
 
 export function parseAuditArgs(argv = process.argv.slice(2)): AuditArgs {
