@@ -7,11 +7,42 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SELECT pg_advisory_xact_lock(hashtextextended('peaks:elevation-double-precision:v1', 0));
 
+-- Workers claim a job before they inspect or update its route. Take the three
+-- job-table locks first, then the source and join tables in their normal write
+-- order. SHARE ROW EXCLUSIVE
+-- is the weakest mode that both blocks new ROW EXCLUSIVE writer/claim locks
+-- and lets this transaction update the locked tables without a later upgrade.
+-- Route writers normally take routes before segments and join rows, so those
+-- follow in write order. A few legacy writers use another order; the local
+-- timeout makes an overlap fail this migration closed instead of waiting or
+-- creating a long deadlock chain.
+LOCK TABLE
+  route_elevation_backfill_jobs,
+  route_catalog_audit_jobs,
+  standard_route_backfill_jobs,
+  routes,
+  segments,
+  destinations,
+  tracking_points,
+  route_segments,
+  route_destinations
+IN SHARE ROW EXCLUSIVE MODE;
+
+-- Record whether this transaction is replacing the whole-metre encoder. Do not
+-- call that encoder: an extreme but finite Z could overflow its bigint cast.
+-- The function definition marker makes the segment-derived affected set empty
+-- on every rerun after the decimal encoder is installed.
+CREATE TEMP TABLE elevation_precision_encoder_before ON COMMIT DROP AS
+SELECT pg_get_functiondef(
+         'encode_route_elevation_profile(geography)'::regprocedure
+       ) LIKE '%has_nonzero_rounded_elevation%' AS used_whole_metres;
+
 CREATE OR REPLACE FUNCTION canonical_elevation_token(elevation DOUBLE PRECISION)
 RETURNS TEXT
 LANGUAGE SQL
 IMMUTABLE
 STRICT
+SET extra_float_digits = 1
 AS $$
   SELECT CASE
     WHEN elevation IN (
@@ -249,6 +280,33 @@ FROM routes r
 WHERE r.owner = 'peaks'
   AND r.elevation_string IS DISTINCT FROM encode_route_elevation_profile(r.path);
 
+CREATE TEMP TABLE elevation_precision_profile_affected_routes ON COMMIT DROP AS
+SELECT changed.id
+FROM elevation_precision_changed_routes changed
+UNION
+SELECT DISTINCT r.id
+FROM routes r
+JOIN route_segments linked ON linked.route_id = r.id
+JOIN segments segment ON segment.id = linked.segment_id
+CROSS JOIN elevation_precision_encoder_before encoder_before
+WHERE r.owner = 'peaks'
+  AND encoder_before.used_whole_metres
+  AND EXISTS (
+    SELECT 1
+    FROM ST_DumpPoints(segment.path::geometry) dumped
+    WHERE ST_Z((dumped).geom) IS NOT NULL
+      AND ST_Z((dumped).geom) NOT IN (
+        'NaN'::DOUBLE PRECISION,
+        'Infinity'::DOUBLE PRECISION,
+        '-Infinity'::DOUBLE PRECISION
+      )
+      AND (
+        ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
+        OR ST_Z((dumped).geom)::numeric < '-9223372036854775808'::numeric
+        OR ST_Z((dumped).geom)::numeric > '9223372036854775807'::numeric
+      )
+  );
+
 UPDATE routes r
 SET elevation_string = changed.new_elevation_string,
     updated_at = now()
@@ -256,9 +314,10 @@ FROM elevation_precision_changed_routes changed
 WHERE r.id = changed.id;
 
 -- A profile byte change invalidates saved evidence. No active lease exists due
--- to the preflight above. Elevation jobs get the same current fingerprint used
--- by the worker; catalog jobs keep their truthful old fingerprint and receive
--- an explicit stale marker so
+-- to the locked preflight above. Elevation jobs get the same current fingerprint
+-- used by the worker and return to queued or out-of-scope without claiming that
+-- the new bytes were independently verified. Catalog jobs keep their truthful
+-- old fingerprint and receive an explicit stale marker so
 -- their next seed pass writes the full current catalog fingerprint; verified
 -- standard-route jobs return to their normal verification state.
 WITH current_fingerprints AS (
@@ -281,53 +340,61 @@ WITH current_fingerprints AS (
                JOIN segments s ON s.id = rs.segment_id
                WHERE rs.route_id = r.id), ''))
            ) AS path_fingerprint,
-         (
-           NOT route_elevation_profile_has_real_range(r.path)
-           OR r.gain IS DISTINCT FROM stats.gain
-           OR r.gain_loss IS DISTINCT FROM stats.loss
-           OR EXISTS (
-             SELECT 1
-             FROM route_segments rs
-             JOIN segments s ON s.id = rs.segment_id
-             WHERE rs.route_id = r.id
-               AND (
-                 s.path IS NULL
-                 OR encode_route_elevation_profile(s.path) IS NULL
-                 OR s.gain IS DISTINCT FROM (SELECT gain FROM route_elevation_stats(s.path))
-                 OR s.gain_loss IS DISTINCT FROM (SELECT loss FROM route_elevation_stats(s.path))
-               )
-           )
-         ) AS still_needs_elevation_work,
-         md5(r.elevation_string) AS profile_hash,
-         ST_NPoints(r.path::geometry) AS point_count
+         r.status IN ('active', 'pending') AND r.path IS NOT NULL
+           AS in_worker_scope
   FROM routes r
-  CROSS JOIN LATERAL route_elevation_stats(r.path) stats
-  JOIN elevation_precision_changed_routes changed ON changed.id = r.id
+  JOIN elevation_precision_profile_affected_routes affected ON affected.id = r.id
 )
 UPDATE route_elevation_backfill_jobs job
 SET path_fingerprint = current.path_fingerprint,
-    state = CASE WHEN current.still_needs_elevation_work THEN 'queued' ELSE 'complete' END,
+    state = CASE WHEN current.in_worker_scope THEN 'queued' ELSE 'out_of_scope' END,
     attempt_count = 0,
     last_error = NULL,
-    final_evidence = CASE WHEN current.still_needs_elevation_work THEN NULL
-      ELSE jsonb_build_object(
-        'verification', 'profile_precision_upgraded_from_postgis_path',
-        'profile_hash', current.profile_hash,
-        'point_count', current.point_count
-      ) END,
+    final_evidence = NULL,
     next_attempt_at = now(),
     lease_owner = NULL,
     lease_token = NULL,
     lease_expires_at = NULL,
     updated_at = now()
 FROM current_fingerprints current
-WHERE job.route_id = current.route_id;
+WHERE job.route_id = current.route_id
+  AND job.path_fingerprint IS DISTINCT FROM current.path_fingerprint;
 
 WITH impacted_catalog_jobs AS (
   SELECT DISTINCT job.destination_id
   FROM route_catalog_audit_jobs job
   JOIN route_destinations rd ON rd.destination_id = job.destination_id
-  JOIN elevation_precision_changed_routes changed ON changed.id = rd.route_id
+  JOIN elevation_precision_profile_affected_routes affected ON affected.id = rd.route_id
+  JOIN routes route ON route.id = affected.id
+  WHERE route.status = 'active'
+     OR (
+       route.status = 'superseded'
+       AND route.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
+       AND route.provenance IS NULL
+       AND route.completion = 'none'
+       AND route.shape IS NULL
+       AND route.gain IS NULL
+       AND route.gain_loss IS NULL
+       AND jsonb_typeof(route.external_links) = 'array'
+       AND EXISTS (
+         SELECT 1
+         FROM jsonb_array_elements(route.external_links) link
+         WHERE link->>'type' = 'osm'
+           AND link->>'id' ~ '^relation/[0-9]+$'
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM route_segments linked_segment
+         WHERE linked_segment.route_id = route.id
+       )
+       AND NOT EXISTS (
+         SELECT 1
+         FROM route_destinations linked_destination_route
+         JOIN destinations linked_destination
+           ON linked_destination.id = linked_destination_route.destination_id
+         WHERE linked_destination_route.route_id = route.id
+           AND 'trailhead'::destination_feature = ANY(linked_destination.features)
+       )
+     )
 )
 UPDATE route_catalog_audit_jobs job
 SET state = 'queued',

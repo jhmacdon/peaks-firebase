@@ -10,9 +10,6 @@ test("GPX export keeps a round-trippable fractional elevation", () => {
     time: 1_700_000_000,
     segment_number: 0,
     speed: null,
-    azimuth: null,
-    hdop: null,
-    speed_accuracy: null,
   }]);
 
   assert.match(gpx, /<ele>1234\.567890123<\/ele>/);

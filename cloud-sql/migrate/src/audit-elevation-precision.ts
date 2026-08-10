@@ -16,6 +16,14 @@ export interface AuditArgs {
   apply: boolean;
   format: OutputFormat;
   expectedDatabase: string | null;
+  expectedInstance: string | null;
+  expectedHost: string | null;
+}
+
+export interface ApplyTarget {
+  database: string;
+  instance: string;
+  host: string;
 }
 
 interface AuditCountRow {
@@ -24,6 +32,7 @@ interface AuditCountRow {
   integer_looking_destinations: number | string;
   destinations_with_source_ids: number | string;
   legacy_integer_profiles: number | string;
+  malformed_or_out_of_range_profiles: number | string;
   recoverable_peaks_profiles: number | string;
   invalid_peaks_profiles: number | string;
   user_profiles_preserved: number | string;
@@ -31,16 +40,33 @@ interface AuditCountRow {
   active_catalog_leases: number | string;
   active_standard_route_leases: number | string;
   stale_elevation_jobs: number | string;
-  queued_catalog_jobs: number | string;
+  catalog_jobs_affected: number | string;
   standard_jobs_needing_verification: number | string;
   nonfinite_destination_scalars: number | string;
   nonfinite_destination_z: number | string;
   nonfinite_tracking_scalars: number | string;
   nonfinite_tracking_z: number | string;
+  nonfinite_route_scalars: number | string;
   nonfinite_route_z: number | string;
+  nonfinite_segment_scalars: number | string;
+  nonfinite_segment_z: number | string;
+  nonfinite_session_scalars: number | string;
+  nonfinite_session_path_z: number | string;
+  nonfinite_marker_z: number | string;
+  nonfinite_plan_gain: number | string;
+  nonfinite_elevation_jsonb: number | string;
   fractional_destination_z: number | string;
   fractional_tracking_z: number | string;
+  fractional_route_scalars: number | string;
   fractional_route_z: number | string;
+  fractional_segment_scalars: number | string;
+  fractional_segment_z: number | string;
+  fractional_session_scalars: number | string;
+  fractional_session_path_z: number | string;
+  fractional_marker_z: number | string;
+  fractional_plan_gain: number | string;
+  elevation_like_jsonb_values: number | string;
+  fractional_elevation_jsonb: number | string;
   route_profile_count: number | string;
   route_profile_samples: number | string;
   min_profile_samples: number | string;
@@ -67,11 +93,72 @@ interface QueryPool {
 }
 
 export const COUNTS_SQL = `
-WITH route_profiles AS (
-  SELECT r.owner,
+WITH profile_paths AS (
+  SELECT 'route'::text AS source_kind, r.id AS source_id, r.path
+  FROM routes r
+  UNION ALL
+  SELECT 'segment'::text AS source_kind, s.id AS source_id, s.path
+  FROM segments s
+), profile_aggregates AS (
+  SELECT profile_paths.*,
+         samples.point_count,
+         samples.valid_point_count,
+         samples.has_nonzero_elevation,
+         samples.profile_text
+  FROM profile_paths
+  CROSS JOIN LATERAL (
+    SELECT count((dumped).geom) AS point_count,
+           count((dumped).geom) FILTER (
+             WHERE ST_Z((dumped).geom) IS NOT NULL
+               AND ST_Z((dumped).geom) NOT IN (
+                 'NaN'::DOUBLE PRECISION,
+                 'Infinity'::DOUBLE PRECISION,
+                 '-Infinity'::DOUBLE PRECISION
+               )
+           ) AS valid_point_count,
+           COALESCE(bool_or(ST_Z((dumped).geom) <> 0) FILTER (
+             WHERE ST_Z((dumped).geom) IS NOT NULL
+               AND ST_Z((dumped).geom) NOT IN (
+                 'NaN'::DOUBLE PRECISION,
+                 'Infinity'::DOUBLE PRECISION,
+                 '-Infinity'::DOUBLE PRECISION
+               )
+           ), false) AS has_nonzero_elevation,
+           string_agg(
+             CASE WHEN ST_Z((dumped).geom) = 0 THEN '0'
+                  ELSE ((ST_Z((dumped).geom)::text)::numeric)::text END,
+             '|' ORDER BY (dumped).path
+           ) FILTER (
+             WHERE ST_Z((dumped).geom) IS NOT NULL
+               AND ST_Z((dumped).geom) NOT IN (
+                 'NaN'::DOUBLE PRECISION,
+                 'Infinity'::DOUBLE PRECISION,
+                 '-Infinity'::DOUBLE PRECISION
+               )
+           ) AS profile_text
+    FROM ST_DumpPoints(profile_paths.path::geometry) dumped
+  ) samples
+), proposed_path_profiles AS (
+  SELECT source_kind,
+         source_id,
+         CASE WHEN path IS NOT NULL
+                    AND NOT ST_IsEmpty(path::geometry)
+                    AND ST_GeometryType(path::geometry) = 'ST_LineString'
+                    AND ST_IsValid(path::geometry)
+                    AND point_count >= 2
+                    AND point_count = valid_point_count
+                    AND has_nonzero_elevation
+              THEN replace(replace(
+                encode(convert_to(profile_text, 'SQL_ASCII'), 'base64'),
+                E'\\n', ''), E'\\r', '')
+              ELSE NULL END AS canonical_profile
+  FROM profile_aggregates
+), route_profiles AS (
+  SELECT r.id,
+         r.owner,
          r.path,
          r.elevation_string,
-         encode_route_elevation_profile(r.path) AS canonical_profile,
+         proposed.canonical_profile,
          CASE
            WHEN r.elevation_string ~ '^[A-Za-z0-9+/]+={0,2}$'
              AND length(r.elevation_string) % 4 = 0
@@ -79,6 +166,8 @@ WITH route_profiles AS (
            ELSE NULL
          END AS decoded_profile
   FROM routes r
+  JOIN proposed_path_profiles proposed
+    ON proposed.source_kind = 'route' AND proposed.source_id = r.id
 ), valid_profiles AS (
   SELECT route_profiles.*,
          cardinality(string_to_array(decoded_profile, '|')) AS profile_samples
@@ -89,35 +178,105 @@ WITH route_profiles AS (
       SELECT 1
       FROM unnest(string_to_array(decoded_profile, '|')) invalid(value)
       WHERE invalid.value !~ '^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$'
+         OR NOT pg_input_is_valid(invalid.value, 'double precision')
     )
 ), valid_profile_stats AS (
   SELECT length(elevation_string) AS profile_bytes,
          profile_samples,
-         token.value::DOUBLE PRECISION AS elevation
+         CASE WHEN pg_input_is_valid(token.value, 'double precision')
+              THEN token.value::DOUBLE PRECISION END AS elevation
   FROM valid_profiles
   CROSS JOIN LATERAL unnest(string_to_array(decoded_profile, '|')) token(value)
-  WHERE token.value::DOUBLE PRECISION NOT IN (
-    'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION
-  )
+), changed_peaks_routes AS (
+  SELECT id
+  FROM route_profiles
+  WHERE owner = 'peaks'
+    AND canonical_profile IS DISTINCT FROM elevation_string
+), encoder_state AS (
+  SELECT pg_get_functiondef(
+           'encode_route_elevation_profile(geography)'::regprocedure
+         ) LIKE '%has_nonzero_rounded_elevation%' AS uses_whole_metres
+), profile_affected_routes AS (
+  SELECT id
+  FROM changed_peaks_routes
+  UNION
+  SELECT DISTINCT route.id
+  FROM routes route
+  JOIN route_segments linked ON linked.route_id = route.id
+  JOIN segments segment ON segment.id = linked.segment_id
+  CROSS JOIN encoder_state
+  WHERE route.owner = 'peaks'
+    AND encoder_state.uses_whole_metres
+    AND EXISTS (
+      SELECT 1
+      FROM ST_DumpPoints(segment.path::geometry) dumped
+      WHERE ST_Z((dumped).geom) IS NOT NULL
+        AND ST_Z((dumped).geom) NOT IN (
+          'NaN'::DOUBLE PRECISION,
+          'Infinity'::DOUBLE PRECISION,
+          '-Infinity'::DOUBLE PRECISION
+        )
+        AND (
+          ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
+          OR ST_Z((dumped).geom)::numeric < '-9223372036854775808'::numeric
+          OR ST_Z((dumped).geom)::numeric > '9223372036854775807'::numeric
+        )
+    )
 ), route_job_fingerprints AS (
   SELECT r.id,
          md5(concat_ws('|', r.id, r.owner, r.status, COALESCE(r.name, ''),
              COALESCE(r.distance::text, ''), COALESCE(r.shape::text, ''),
              encode(ST_AsEWKB(r.path::geometry), 'hex'),
-             COALESCE(r.elevation_string, ''), COALESCE(r.gain::text, ''),
+             COALESCE(proposed_route.canonical_profile, ''), COALESCE(r.gain::text, ''),
              COALESCE(r.gain_loss::text, ''), COALESCE(r.elevation_source, ''),
              COALESCE(r.elevation_source_url, ''), COALESCE(r.elevation_attribution, ''),
              COALESCE(r.elevation_license_url, ''),
              COALESCE(r.elevation_retrieved_at::text, ''),
              COALESCE((SELECT string_agg(concat_ws(':', rs.ordinal::text,
                rs.direction, s.id, COALESCE(encode(ST_AsEWKB(s.path::geometry), 'hex'), ''),
-               COALESCE(encode_route_elevation_profile(s.path), ''), COALESCE(s.gain::text, ''),
+               COALESCE(proposed_segment.canonical_profile, ''), COALESCE(s.gain::text, ''),
                COALESCE(s.gain_loss::text, ''), COALESCE(s.provenance::text, '')),
                ',' ORDER BY rs.ordinal, rs.segment_id)
-               FROM route_segments rs JOIN segments s ON s.id = rs.segment_id
+               FROM route_segments rs
+               JOIN segments s ON s.id = rs.segment_id
+               JOIN proposed_path_profiles proposed_segment
+                 ON proposed_segment.source_kind = 'segment'
+                AND proposed_segment.source_id = s.id
                WHERE rs.route_id = r.id), ''))) AS fingerprint
   FROM routes r
-  WHERE r.owner = 'peaks' AND r.path IS NOT NULL
+  JOIN proposed_path_profiles proposed_route
+    ON proposed_route.source_kind = 'route' AND proposed_route.source_id = r.id
+  WHERE r.owner = 'peaks'
+    AND r.status IN ('active', 'pending')
+    AND r.path IS NOT NULL
+), elevation_json_documents AS (
+  SELECT averages AS document FROM destinations WHERE averages IS NOT NULL
+  UNION ALL SELECT averages_offset FROM destinations WHERE averages_offset IS NOT NULL
+  UNION ALL SELECT metadata FROM destinations WHERE metadata IS NOT NULL
+  UNION ALL SELECT external_ids FROM destinations WHERE external_ids IS NOT NULL
+  UNION ALL SELECT amenities FROM destinations WHERE amenities IS NOT NULL
+  UNION ALL SELECT provenance FROM segments WHERE provenance IS NOT NULL
+  UNION ALL SELECT external_links FROM routes WHERE external_links IS NOT NULL
+  UNION ALL SELECT provenance FROM routes WHERE provenance IS NOT NULL
+  UNION ALL SELECT final_evidence FROM route_elevation_backfill_jobs WHERE final_evidence IS NOT NULL
+  UNION ALL SELECT final_result FROM route_catalog_audit_jobs WHERE final_result IS NOT NULL
+  UNION ALL SELECT target_reasons FROM standard_route_backfill_jobs WHERE target_reasons IS NOT NULL
+  UNION ALL SELECT evidence FROM standard_route_backfill_jobs WHERE evidence IS NOT NULL
+  UNION ALL SELECT candidate FROM standard_route_backfill_jobs WHERE candidate IS NOT NULL
+  UNION ALL SELECT review FROM standard_route_backfill_jobs WHERE review IS NOT NULL
+  UNION ALL SELECT candidate_artifact FROM standard_route_backfill_jobs WHERE candidate_artifact IS NOT NULL
+  UNION ALL SELECT evidence FROM route_integrity_repairs WHERE evidence IS NOT NULL
+  UNION ALL SELECT health_data FROM tracking_sessions WHERE health_data IS NOT NULL
+  UNION ALL SELECT source_contributions FROM tracking_sessions WHERE source_contributions IS NOT NULL
+), elevation_json_members AS (
+  SELECT member.value->>'key' AS key,
+         member.value->'value' AS value
+  FROM elevation_json_documents documents
+  CROSS JOIN LATERAL jsonb_path_query(
+    documents.document,
+    '$.**.keyvalue()'
+  ) member(value)
+  WHERE member.value->>'key' ~* '(elevation|prominence|gain|loss|highest|altitude|(^|_)z($|_))'
 )
 SELECT
   (SELECT count(*) FROM destinations
@@ -135,9 +294,14 @@ SELECT
      AND external_ids IS NOT NULL AND external_ids <> '{}'::jsonb) AS destinations_with_source_ids,
   (SELECT count(*) FROM route_profiles
    WHERE decoded_profile ~ '^-?[0-9]+(\\|-?[0-9]+)+$') AS legacy_integer_profiles,
-  (SELECT count(*) FROM route_profiles
-   WHERE owner = 'peaks' AND canonical_profile IS NOT NULL
-     AND elevation_string IS DISTINCT FROM canonical_profile) AS recoverable_peaks_profiles,
+  (SELECT count(*) FROM route_profiles route_profile
+   WHERE elevation_string IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM valid_profiles valid WHERE valid.id = route_profile.id
+     )) AS malformed_or_out_of_range_profiles,
+  (SELECT count(*) FROM route_profiles route_profile
+   JOIN changed_peaks_routes changed USING (id)
+   WHERE route_profile.canonical_profile IS NOT NULL) AS recoverable_peaks_profiles,
   (SELECT count(*) FROM route_profiles
    WHERE owner = 'peaks' AND canonical_profile IS NULL
      AND elevation_string IS NOT NULL) AS invalid_peaks_profiles,
@@ -152,10 +316,47 @@ SELECT
   (SELECT count(*) FROM route_elevation_backfill_jobs job
    JOIN route_job_fingerprints current ON current.id = job.route_id
    WHERE job.path_fingerprint IS DISTINCT FROM current.fingerprint) AS stale_elevation_jobs,
-  (SELECT count(*) FROM route_catalog_audit_jobs WHERE state = 'queued') AS queued_catalog_jobs,
-  (SELECT count(*) FROM standard_route_backfill_jobs
-   WHERE state = 'published'
-     AND NOT (evidence ? 'last_verification')) AS standard_jobs_needing_verification,
+  (SELECT count(DISTINCT job.destination_id)
+   FROM route_catalog_audit_jobs job
+   JOIN route_destinations linked ON linked.destination_id = job.destination_id
+   JOIN profile_affected_routes affected ON affected.id = linked.route_id
+   JOIN routes route ON route.id = affected.id
+   WHERE route.status = 'active'
+      OR (
+        route.status = 'superseded'
+        AND route.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
+        AND route.provenance IS NULL
+        AND route.completion = 'none'
+        AND route.shape IS NULL
+        AND route.gain IS NULL
+        AND route.gain_loss IS NULL
+        AND jsonb_typeof(route.external_links) = 'array'
+        AND EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(route.external_links) link
+          WHERE link->>'type' = 'osm'
+            AND link->>'id' ~ '^relation/[0-9]+$'
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM route_segments linked_segment
+          WHERE linked_segment.route_id = route.id
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM route_destinations linked_destination_route
+          JOIN destinations linked_destination
+            ON linked_destination.id = linked_destination_route.destination_id
+          WHERE linked_destination_route.route_id = route.id
+            AND 'trailhead'::destination_feature = ANY(linked_destination.features)
+        )
+      )) AS catalog_jobs_affected,
+  (SELECT count(DISTINCT job.destination_id)
+   FROM standard_route_backfill_jobs job
+   JOIN changed_peaks_routes changed
+     ON changed.id = job.published_route_id OR changed.id = job.replacement_route_id
+   WHERE job.state = 'verified'
+      OR job.evidence ? 'last_verification'
+      OR job.evidence ? 'verification_action') AS standard_jobs_needing_verification,
   (SELECT count(*) FROM destinations
    WHERE elevation IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
       OR prominence IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_destination_scalars,
@@ -167,9 +368,33 @@ SELECT
   (SELECT count(*) FROM tracking_points
    WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
      'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_tracking_z,
+  (SELECT count(*) FROM routes
+   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+      OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_route_scalars,
   (SELECT count(*) FROM routes r CROSS JOIN LATERAL ST_DumpPoints(r.path::geometry) dumped
    WHERE ST_Z((dumped).geom) IN (
      'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_route_z,
+  (SELECT count(*) FROM segments
+   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+      OR gain_loss IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_segment_scalars,
+  (SELECT count(*) FROM segments s CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
+   WHERE ST_Z((dumped).geom) IN (
+     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_segment_z,
+  (SELECT count(*) FROM tracking_sessions
+   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+      OR highest_point IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_session_scalars,
+  (SELECT count(*) FROM tracking_sessions session
+   CROSS JOIN LATERAL ST_DumpPoints(session.path::geometry) dumped
+   WHERE ST_Z((dumped).geom) IN (
+     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_session_path_z,
+  (SELECT count(*) FROM session_markers
+   WHERE location IS NOT NULL AND ST_Z(location::geometry) IN (
+     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_marker_z,
+  (SELECT count(*) FROM plans
+   WHERE gain IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)) AS nonfinite_plan_gain,
+  (SELECT count(*) FROM elevation_json_members
+   WHERE jsonb_typeof(value) = 'string'
+     AND value #>> '{}' IN ('NaN', 'Infinity', '-Infinity')) AS nonfinite_elevation_jsonb,
   (SELECT count(*) FROM tracking_points
    WHERE location IS NOT NULL
      AND ST_Z(location::geometry) NOT IN (
@@ -180,10 +405,46 @@ SELECT
      AND ST_Z(location::geometry) NOT IN (
        'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
      AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))) AS fractional_destination_z,
+  (SELECT count(*) FROM routes
+   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND gain <> trunc(gain))
+      OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND gain_loss <> trunc(gain_loss))) AS fractional_route_scalars,
   (SELECT count(*) FROM routes r CROSS JOIN LATERAL ST_DumpPoints(r.path::geometry) dumped
    WHERE ST_Z((dumped).geom) NOT IN (
      'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
      AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_route_z,
+  (SELECT count(*) FROM segments
+   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND gain <> trunc(gain))
+      OR (gain_loss NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND gain_loss <> trunc(gain_loss))) AS fractional_segment_scalars,
+  (SELECT count(*) FROM segments s CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
+   WHERE ST_Z((dumped).geom) NOT IN (
+     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+     AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_segment_z,
+  (SELECT count(*) FROM tracking_sessions
+   WHERE (gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND gain <> trunc(gain))
+      OR (highest_point NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+          AND highest_point <> trunc(highest_point))) AS fractional_session_scalars,
+  (SELECT count(*) FROM tracking_sessions session
+   CROSS JOIN LATERAL ST_DumpPoints(session.path::geometry) dumped
+   WHERE ST_Z((dumped).geom) NOT IN (
+     'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+     AND ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))) AS fractional_session_path_z,
+  (SELECT count(*) FROM session_markers
+   WHERE location IS NOT NULL
+     AND ST_Z(location::geometry) NOT IN (
+       'NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+     AND ST_Z(location::geometry) <> trunc(ST_Z(location::geometry))) AS fractional_marker_z,
+  (SELECT count(*) FROM plans
+   WHERE gain NOT IN ('NaN'::DOUBLE PRECISION, 'Infinity'::DOUBLE PRECISION, '-Infinity'::DOUBLE PRECISION)
+     AND gain <> trunc(gain)) AS fractional_plan_gain,
+  (SELECT count(*) FROM elevation_json_members) AS elevation_like_jsonb_values,
+  (SELECT count(*) FROM elevation_json_members
+   WHERE jsonb_typeof(value) = 'number'
+     AND (value #>> '{}')::numeric <> trunc((value #>> '{}')::numeric)) AS fractional_elevation_jsonb,
   (SELECT count(*) FROM valid_profiles) AS route_profile_count,
   (SELECT count(*) FROM valid_profile_stats) AS route_profile_samples,
   COALESCE((SELECT min(profile_samples) FROM valid_profile_stats), 0) AS min_profile_samples,
@@ -198,6 +459,8 @@ export function parseAuditArgs(argv = process.argv.slice(2)): AuditArgs {
   let apply = false;
   let format: OutputFormat = "human";
   let expectedDatabase: string | null = null;
+  let expectedInstance: string | null = null;
+  let expectedHost: string | null = null;
   for (const argument of argv) {
     if (argument === "--apply") apply = true;
     else if (argument === "--format=json") format = "json";
@@ -206,9 +469,39 @@ export function parseAuditArgs(argv = process.argv.slice(2)): AuditArgs {
       expectedDatabase = argument.slice("--expected-database=".length);
       if (!expectedDatabase) throw new Error("--expected-database must not be empty");
     }
+    else if (argument.startsWith("--expected-instance=")) {
+      expectedInstance = argument.slice("--expected-instance=".length);
+      if (!expectedInstance) throw new Error("--expected-instance must not be empty");
+    }
+    else if (argument.startsWith("--expected-host=")) {
+      expectedHost = argument.slice("--expected-host=".length);
+      if (!expectedHost) throw new Error("--expected-host must not be empty");
+    }
     else throw new Error(`Unknown argument: ${argument}`);
   }
-  return { apply, format, expectedDatabase };
+  return { apply, format, expectedDatabase, expectedInstance, expectedHost };
+}
+
+export function resolveApplyTarget(
+  args: AuditArgs,
+  environment: NodeJS.ProcessEnv = process.env
+): ApplyTarget {
+  const database = args.expectedDatabase
+    ?? environment.ELEVATION_PRECISION_EXPECTED_DATABASE;
+  const instance = args.expectedInstance
+    ?? environment.ELEVATION_PRECISION_EXPECTED_INSTANCE;
+  const host = args.expectedHost
+    ?? environment.ELEVATION_PRECISION_EXPECTED_HOST;
+  if (!database || !instance || !host) {
+    throw new Error(
+      "--apply requires expected database, instance, and host flags or matching " +
+      "ELEVATION_PRECISION_EXPECTED_* environment values"
+    );
+  }
+  if (instance.split(":").length !== 3 || instance.split(":").some((part) => !part)) {
+    throw new Error("expected instance must be PROJECT:REGION:INSTANCE");
+  }
+  return { database, instance, host };
 }
 
 const count = (value: number | string): number => Number(value);
@@ -236,6 +529,7 @@ export function buildElevationPrecisionReport(
     },
     profileInventory: {
       legacyIntegerProfiles: count(row.legacy_integer_profiles),
+      malformedOrOutOfRangeProfiles: count(row.malformed_or_out_of_range_profiles),
       userProfilesPreserved: count(row.user_profiles_preserved),
     },
     activeLeases: {
@@ -245,7 +539,7 @@ export function buildElevationPrecisionReport(
     },
     jobEvidence: {
       staleElevationJobs: count(row.stale_elevation_jobs),
-      queuedCatalogJobs: count(row.queued_catalog_jobs),
+      catalogJobsAffected: count(row.catalog_jobs_affected),
       standardJobsNeedingVerification: count(row.standard_jobs_needing_verification),
     },
     nonFinite: {
@@ -253,12 +547,29 @@ export function buildElevationPrecisionReport(
       destinationZ: count(row.nonfinite_destination_z),
       trackingScalars: count(row.nonfinite_tracking_scalars),
       trackingZ: count(row.nonfinite_tracking_z),
+      routeScalars: count(row.nonfinite_route_scalars),
       routeZ: count(row.nonfinite_route_z),
+      segmentScalars: count(row.nonfinite_segment_scalars),
+      segmentZ: count(row.nonfinite_segment_z),
+      sessionScalars: count(row.nonfinite_session_scalars),
+      sessionPathZ: count(row.nonfinite_session_path_z),
+      markerZ: count(row.nonfinite_marker_z),
+      planGain: count(row.nonfinite_plan_gain),
+      elevationLikeJsonb: count(row.nonfinite_elevation_jsonb),
     },
     precisionInventory: {
       fractionalDestinationZ: count(row.fractional_destination_z),
       fractionalTrackingZ: count(row.fractional_tracking_z),
+      fractionalRouteScalars: count(row.fractional_route_scalars),
       fractionalRouteZ: count(row.fractional_route_z),
+      fractionalSegmentScalars: count(row.fractional_segment_scalars),
+      fractionalSegmentZ: count(row.fractional_segment_z),
+      fractionalSessionScalars: count(row.fractional_session_scalars),
+      fractionalSessionPathZ: count(row.fractional_session_path_z),
+      fractionalMarkerZ: count(row.fractional_marker_z),
+      fractionalPlanGain: count(row.fractional_plan_gain),
+      elevationLikeJsonbValues: count(row.elevation_like_jsonb_values),
+      fractionalElevationJsonb: count(row.fractional_elevation_jsonb),
       routeProfiles: count(row.route_profile_count),
       profileSamples: count(row.route_profile_samples),
       profileSampleBounds: [count(row.min_profile_samples), count(row.max_profile_samples)],
@@ -274,6 +585,7 @@ export function buildElevationPrecisionReport(
 async function auditWithClient(client: QueryClient, mode: "read_only" | "applied") {
   await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
   try {
+    await client.query("SET LOCAL extra_float_digits = 1");
     const schema = await client.query(`
       SELECT c.relname AS table_name,
              a.attname AS column_name,
@@ -314,55 +626,93 @@ export async function runElevationPrecisionAudit(
   }
 }
 
-async function applyMigration(pool: Pool, expectedDatabase: string): Promise<void> {
-  const target = await pool.query<{ current_database: string }>("SELECT current_database()");
-  const currentDatabase = target.rows[0]?.current_database;
-  if (currentDatabase !== expectedDatabase) {
+interface ApplyDependencies {
+  readMigration?: () => Promise<string>;
+  seedCatalogJobs?: () => number | null;
+}
+
+export async function applyMigration(
+  pool: Pool,
+  expected: ApplyTarget,
+  environment: NodeJS.ProcessEnv = process.env,
+  dependencies: ApplyDependencies = {}
+): Promise<void> {
+  // PostgreSQL reached through the Auth Proxy cannot name the Cloud SQL
+  // instance behind that proxy. Match the same DB_HOST and
+  // INSTANCE_CONNECTION_NAME values that configured this process against
+  // separate caller-supplied expectations, then ask PostgreSQL for its
+  // database name. The instance value includes project, region, and instance.
+  const configuredInstance = environment.INSTANCE_CONNECTION_NAME;
+  const configuredHost = environment.DB_HOST
+    ?? (configuredInstance ? `/cloudsql/${configuredInstance}` : null);
+  if (configuredInstance !== expected.instance || configuredHost !== expected.host) {
     throw new Error(
-      `Refusing elevation repair: expected database ${expectedDatabase}, connected to ${currentDatabase ?? "unknown"}`
+      "Refusing elevation repair: configured host/instance " +
+      `${configuredHost ?? "unknown"}/${configuredInstance ?? "unknown"} does not match ` +
+      `${expected.host}/${expected.instance}`
     );
   }
-  const migrationPath = path.resolve(
-    __dirname,
-    "../../migrations/20260810_elevation_double_precision.sql"
-  );
-  const migration = await fs.readFile(migrationPath, "utf8");
+  const target = await pool.query<{ current_database: string }>("SELECT current_database()");
+  const currentDatabase = target.rows[0]?.current_database;
+  if (currentDatabase !== expected.database) {
+    throw new Error(
+      `Refusing elevation repair: expected database ${expected.database}, connected to ${currentDatabase ?? "unknown"}`
+    );
+  }
+  const migration = dependencies.readMigration
+    ? await dependencies.readMigration()
+    : await fs.readFile(path.resolve(
+      __dirname,
+      "../../migrations/20260810_elevation_double_precision.sql"
+    ), "utf8");
   await pool.query(migration);
 
-  const seeded = spawnSync(
-    "npm",
-    ["run", "routes:audit-jobs", "--", "seed", "--apply"],
-    { cwd: path.resolve(__dirname, ".."), stdio: "inherit" }
-  );
-  if (seeded.status !== 0) {
+  const seedStatus = dependencies.seedCatalogJobs
+    ? dependencies.seedCatalogJobs()
+    : spawnSync(
+      "npm",
+      ["run", "routes:audit-jobs", "--", "seed", "--apply"],
+      { cwd: path.resolve(__dirname, ".."), stdio: "inherit" }
+    ).status;
+  if (seedStatus !== 0) {
     throw new Error("elevation repair committed, but catalog audit job seeding failed");
   }
 }
 
-function printHuman(report: ReturnType<typeof buildElevationPrecisionReport>): void {
+export function printHuman(report: ReturnType<typeof buildElevationPrecisionReport>): void {
   console.log("Elevation precision audit");
   console.log(`Mode: ${report.mode}`);
   console.log(`Local route-profile repairs: ${report.locallyRecoverable.routeProfiles}`);
   console.log(`Stale invalid Peaks profiles: ${report.locallyRecoverable.staleInvalidPeaksProfiles}`);
+  console.log(`Malformed or out-of-range profiles: ${report.profileInventory.malformedOrOutOfRangeProfiles}`);
   console.log(`Destination plain/Z mismatches: ${report.consistency.destinationPlainZMismatches}`);
   console.log(`Tracking-point plain/Z mismatches: ${report.consistency.trackingPointPlainZMismatches}`);
   console.log(`Whole-metre destinations needing a trusted source: ${report.needsTrustedOutsideSource.integerLookingDestinations}`);
   console.log(`Reviewable through a source ID: ${report.needsTrustedOutsideSource.destinationsWithSourceIds}`);
   console.log(`Active elevation/catalog/standard leases: ${report.activeLeases.elevation}/${report.activeLeases.catalog}/${report.activeLeases.standardRoute}`);
+  console.log(
+    `Stale elevation/catalog/standard verification jobs: ` +
+    `${report.jobEvidence.staleElevationJobs}/${report.jobEvidence.catalogJobsAffected}/` +
+    `${report.jobEvidence.standardJobsNeedingVerification}`
+  );
+  console.log(
+    "Non-finite destination/tracking/route/segment/session/marker/plan/JSONB: " +
+    `${report.nonFinite.destinationScalars + report.nonFinite.destinationZ}/` +
+    `${report.nonFinite.trackingScalars + report.nonFinite.trackingZ}/` +
+    `${report.nonFinite.routeScalars + report.nonFinite.routeZ}/` +
+    `${report.nonFinite.segmentScalars + report.nonFinite.segmentZ}/` +
+    `${report.nonFinite.sessionScalars + report.nonFinite.sessionPathZ}/` +
+    `${report.nonFinite.markerZ}/${report.nonFinite.planGain}/` +
+    `${report.nonFinite.elevationLikeJsonb}`
+  );
 }
 
 async function main(): Promise<void> {
   const args = parseAuditArgs();
   try {
     if (args.apply) {
-      const expectedDatabase = args.expectedDatabase
-        ?? process.env.ELEVATION_PRECISION_EXPECTED_DATABASE;
-      if (!expectedDatabase) {
-        throw new Error(
-          "--apply requires --expected-database=NAME or ELEVATION_PRECISION_EXPECTED_DATABASE"
-        );
-      }
-      await applyMigration(db, expectedDatabase);
+      const target = resolveApplyTarget(args);
+      await applyMigration(db, target);
     }
     const report = await runElevationPrecisionAudit(db, args.apply ? "applied" : "read_only");
     if (args.format === "json") console.log(JSON.stringify(report, null, 2));

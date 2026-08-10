@@ -13,6 +13,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { Pool } from "pg";
+import { COUNTS_SQL, applyMigration } from "../audit-elevation-precision";
+import { canonicalElevationToken } from "../route-elevation-profile";
 import {
   ELEVATION_CANDIDATES_SQL,
   ELEVATION_ROUTE_FINGERPRINT_SQL,
@@ -33,6 +35,39 @@ import {
 
 const TEST_DATABASE_URL = process.env.ROUTE_ELEVATION_JOB_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
+
+function finiteParitySamples(): number[] {
+  const samples = [
+    -0,
+    Number.MIN_VALUE,
+    -Number.MIN_VALUE,
+    Number.MAX_VALUE,
+    -Number.MAX_VALUE,
+    Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER,
+    Number.EPSILON,
+    1e-7,
+    1e20,
+    1e21,
+    1234.567890123,
+  ];
+  let state = 0x6d2b79f5;
+  const next = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state >>> 0;
+  };
+  const bytes = new ArrayBuffer(8);
+  const view = new DataView(bytes);
+  while (samples.length < 524) {
+    view.setUint32(0, next());
+    view.setUint32(4, next());
+    const value = view.getFloat64(0);
+    if (Number.isFinite(value)) samples.push(value);
+  }
+  return samples;
+}
 
 test("route elevation queue accepts only documented command flags", () => {
   assert.doesNotThrow(() => validateArgs("seed", ["--apply"]));
@@ -440,6 +475,7 @@ test(
       "1234.567890123|1236.125",
       "ascii"
     ).toString("base64");
+    const outOfRangeProfile = Buffer.from("1000|1e999999", "ascii").toString("base64");
     try {
       await client.query(`CREATE SCHEMA "${schema}"`);
       await client.query(`SET search_path TO "${schema}", public`);
@@ -447,7 +483,14 @@ test(
         CREATE TABLE destinations (
           id text PRIMARY KEY,
           elevation double precision,
-          location geography(PointZ, 4326)
+          prominence double precision,
+          location geography(PointZ, 4326),
+          features destination_feature[] NOT NULL DEFAULT '{}',
+          averages jsonb,
+          averages_offset jsonb,
+          metadata jsonb,
+          external_ids jsonb NOT NULL DEFAULT '{}'::jsonb,
+          amenities jsonb
         );
         CREATE TABLE tracking_points (
           id text PRIMARY KEY,
@@ -470,6 +513,9 @@ test(
           elevation_attribution text,
           elevation_license_url text,
           elevation_retrieved_at timestamptz,
+          external_links jsonb,
+          provenance jsonb,
+          completion text NOT NULL DEFAULT 'none',
           updated_at timestamptz NOT NULL DEFAULT now()
         );
         CREATE TABLE segments (
@@ -520,7 +566,11 @@ test(
         CREATE TABLE standard_route_backfill_jobs (
           destination_id text PRIMARY KEY,
           state text NOT NULL,
+          target_reasons jsonb NOT NULL DEFAULT '{}'::jsonb,
           evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+          candidate jsonb NOT NULL DEFAULT '{}'::jsonb,
+          review jsonb NOT NULL DEFAULT '{}'::jsonb,
+          candidate_artifact jsonb,
           published_route_id text,
           replacement_route_id text,
           next_attempt_at timestamptz NOT NULL DEFAULT now(),
@@ -528,6 +578,28 @@ test(
           lease_token text,
           lease_expires_at timestamptz,
           updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE route_integrity_repairs (
+          route_id text NOT NULL,
+          destination_id text NOT NULL,
+          evidence jsonb NOT NULL DEFAULT '{}'::jsonb
+        );
+        CREATE TABLE tracking_sessions (
+          id text PRIMARY KEY,
+          gain double precision,
+          highest_point double precision,
+          path geography(LineStringZ, 4326),
+          health_data jsonb,
+          source_contributions jsonb NOT NULL DEFAULT '[]'::jsonb
+        );
+        CREATE TABLE session_markers (
+          id text PRIMARY KEY,
+          location geography(PointZ, 4326)
+        );
+        CREATE TABLE plans (
+          id text PRIMARY KEY,
+          gain double precision,
+          path geography(Geometry, 4326)
         );
 
         CREATE FUNCTION encode_route_elevation_profile(path geography)
@@ -573,21 +645,40 @@ test(
            ), 0, 0, $2, '2026-01-02T00:00:00Z'),
            ('peaks-invalid', 'Invalid', 'peaks', 'active', NULL, 0, 0, $1,
              '2026-01-03T00:00:00Z'),
+           ('peaks-superseded', 'Superseded', 'peaks', 'superseded', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-03T12:00:00Z'),
            ('user-valid', 'User', 'user-1', 'active', ST_GeogFromText(
              'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
-           ), 0, 0, $1, '2026-01-04T00:00:00Z')`,
-        [legacyProfile, preciseProfile]
+           ), 0, 0, $1, '2026-01-04T00:00:00Z'),
+           ('user-out-of-range', 'User malformed', 'user-1', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1000, -121.01 47.01 1001)'
+           ), 0, 0, $3, '2026-01-05T00:00:00Z')`,
+        [legacyProfile, preciseProfile, outOfRangeProfile]
       );
       await client.query(
         `INSERT INTO route_destinations VALUES ('peaks-valid', 'destination');
+         INSERT INTO segments (id, path, gain, gain_loss) VALUES (
+           'fractional-segment',
+           ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ),
+           0,
+           0
+         );
+         INSERT INTO route_segments VALUES ('peaks-current', 'fractional-segment', 0, 'forward');
          INSERT INTO route_elevation_backfill_jobs (
            route_id, state, path_fingerprint, attempt_count, last_error, final_evidence,
            updated_at
          ) VALUES
            ('peaks-valid', 'blocked', 'legacy-valid', 3, 'old failure', '{"old":true}',
              '2026-02-01T00:00:00Z'),
+           ('peaks-current', 'complete', 'legacy-current', 1, NULL, '{"old":true}',
+             '2026-02-01T12:00:00Z'),
            ('peaks-invalid', 'complete', 'legacy-invalid', 1, NULL, '{"old":true}',
-             '2026-02-02T00:00:00Z');
+             '2026-02-02T00:00:00Z'),
+           ('peaks-superseded', 'complete', 'legacy-superseded', 1, NULL, '{"old":true}',
+             '2026-02-02T12:00:00Z');
          INSERT INTO route_catalog_audit_jobs (
            destination_id, state, attempt_count, catalog_fingerprint, final_result,
            audited_at, updated_at
@@ -604,6 +695,27 @@ test(
          );`
       );
 
+      await client.query(
+        `UPDATE route_elevation_backfill_jobs job
+         SET path_fingerprint = current.path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) current
+         WHERE current.route_id = job.route_id`
+      );
+
+      await client.query("SET extra_float_digits = 1");
+      const legacyAudit = await client.query<{
+        recoverable_peaks_profiles: string;
+        stale_elevation_jobs: string;
+        catalog_jobs_affected: string;
+        standard_jobs_needing_verification: string;
+        malformed_or_out_of_range_profiles: string;
+      }>(COUNTS_SQL);
+      assert.equal(Number(legacyAudit.rows[0].recoverable_peaks_profiles), 2);
+      assert.equal(Number(legacyAudit.rows[0].stale_elevation_jobs), 2);
+      assert.equal(Number(legacyAudit.rows[0].catalog_jobs_affected), 1);
+      assert.equal(Number(legacyAudit.rows[0].standard_jobs_needing_verification), 1);
+      assert.equal(Number(legacyAudit.rows[0].malformed_or_out_of_range_profiles), 1);
+
       const pathHashesBefore = await client.query<{ id: string; path_hash: string | null }>(
         `SELECT id,
                 CASE WHEN path IS NULL THEN NULL
@@ -611,7 +723,44 @@ test(
          FROM routes ORDER BY id`
       );
 
-      await client.query(migration);
+      const expectedDatabase = decodeURIComponent(url.pathname.slice(1));
+      const applyEnvironment = {
+        DB_HOST: url.hostname,
+        INSTANCE_CONNECTION_NAME: "test-project:test-region:test-instance",
+      };
+      await applyMigration(
+        { query: (sql: string) => client.query(sql) } as Pool,
+        {
+          database: expectedDatabase,
+          host: url.hostname,
+          instance: "test-project:test-region:test-instance",
+        },
+        applyEnvironment,
+        {
+          async readMigration() { return migration; },
+          seedCatalogJobs() { return 0; },
+        }
+      );
+
+      const paritySamples = finiteParitySamples();
+      await client.query("SET extra_float_digits = -15");
+      const sqlTokens = await client.query<{ ordinal: number; token: string }>(
+        `SELECT ordinality::int AS ordinal, canonical_elevation_token(value) AS token
+         FROM unnest($1::double precision[]) WITH ORDINALITY sample(value, ordinality)
+         ORDER BY ordinality`,
+        [paritySamples]
+      );
+      assert.deepEqual(
+        sqlTokens.rows.map((row) => row.token),
+        paritySamples.map((value) => canonicalElevationToken(value))
+      );
+      const functionConfig = await client.query<{ proconfig: string[] | null }>(
+        `SELECT proconfig
+         FROM pg_proc
+         WHERE oid = 'canonical_elevation_token(double precision)'::regprocedure`
+      );
+      assert.deepEqual(functionConfig.rows[0]?.proconfig, ["extra_float_digits=1"]);
+      await client.query("RESET extra_float_digits");
 
       const routesAfterFirst = await client.query<{
         id: string;
@@ -621,36 +770,42 @@ test(
       const validRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-valid")!;
       const currentRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-current")!;
       const invalidRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-invalid")!;
+      const supersededRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-superseded")!;
       const userRoute = routesAfterFirst.rows.find((row) => row.id === "user-valid")!;
+      const outOfRangeUserRoute = routesAfterFirst.rows.find((row) => row.id === "user-out-of-range")!;
       assert.equal(validRoute.elevation_string, preciseProfile);
       assert.equal(currentRoute.elevation_string, preciseProfile);
       assert.equal(currentRoute.updated_at.toISOString(), "2026-01-02T00:00:00.000Z");
       assert.equal(invalidRoute.elevation_string, null);
+      assert.equal(supersededRoute.elevation_string, preciseProfile);
       assert.equal(userRoute.elevation_string, legacyProfile);
       assert.equal(userRoute.updated_at.toISOString(), "2026-01-04T00:00:00.000Z");
+      assert.equal(outOfRangeUserRoute.elevation_string, outOfRangeProfile);
 
       const elevationJobs = await client.query<{
         route_id: string;
         state: string;
         attempt_count: number;
         last_error: string | null;
-        final_evidence: { verification?: string; profile_hash?: string; point_count?: number } | null;
+        final_evidence: Record<string, unknown> | null;
       }>(
         `SELECT route_id, state, attempt_count, last_error, final_evidence
          FROM route_elevation_backfill_jobs ORDER BY route_id`
       );
       const invalidJob = elevationJobs.rows.find((row) => row.route_id === "peaks-invalid")!;
+      const supersededJob = elevationJobs.rows.find((row) => row.route_id === "peaks-superseded")!;
       const validJob = elevationJobs.rows.find((row) => row.route_id === "peaks-valid")!;
-      assert.equal(invalidJob.state, "queued");
+      const currentJob = elevationJobs.rows.find((row) => row.route_id === "peaks-current")!;
+      assert.equal(invalidJob.state, "out_of_scope");
       assert.equal(invalidJob.final_evidence, null);
-      assert.equal(validJob.state, "complete");
+      assert.equal(supersededJob.state, "out_of_scope");
+      assert.equal(supersededJob.final_evidence, null);
+      assert.equal(validJob.state, "queued");
       assert.equal(validJob.attempt_count, 0);
       assert.equal(validJob.last_error, null);
-      assert.equal(validJob.final_evidence?.verification, "profile_precision_upgraded_from_postgis_path");
-      assert.equal(validJob.final_evidence?.point_count, 2);
-      assert.equal(validJob.final_evidence?.profile_hash,
-        (await client.query<{ hash: string }>(`SELECT md5($1) AS hash`, [preciseProfile])).rows[0].hash
-      );
+      assert.equal(validJob.final_evidence, null);
+      assert.equal(currentJob.state, "queued");
+      assert.equal(currentJob.final_evidence, null);
 
       const catalogJob = (await client.query<{
         state: string;

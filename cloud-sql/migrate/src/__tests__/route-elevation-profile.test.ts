@@ -157,6 +157,7 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
     assert.doesNotMatch(source, /round\(elevation/);
     assert.match(source, /FILTER \(WHERE elevation_is_finite\)/);
     assert.match(source, /FROM \([\s\S]+?\) valid_points/);
+    assert.match(source, /canonical_elevation_token[\s\S]+?SET extra_float_digits = 1/);
     assert.doesNotMatch(source, /isfinite\(elevation\)/);
   }
 
@@ -184,10 +185,38 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   assert.match(migration, /NOT VALID/);
   assert.match(migration, /AND NOT convalidated/);
   assert.match(migration, /lease_expires_at >= now\(\)/);
+  const lockOffset = migration.indexOf("LOCK TABLE");
+  const preflightOffset = migration.indexOf("SELECT count(*) INTO destination_mismatches");
+  const snapshotOffset = migration.indexOf("CREATE TEMP TABLE elevation_precision_route_before");
+  assert.ok(lockOffset >= 0 && lockOffset < preflightOffset);
+  assert.ok(lockOffset < snapshotOffset);
+  let previousTableOffset = -1;
+  for (const table of [
+    "route_elevation_backfill_jobs",
+    "route_catalog_audit_jobs",
+    "standard_route_backfill_jobs",
+    "routes",
+    "segments",
+    "destinations",
+    "tracking_points",
+    "route_segments",
+    "route_destinations",
+  ]) {
+    const tableOffset = migration.slice(lockOffset, preflightOffset).indexOf(table);
+    assert.ok(tableOffset > previousTableOffset, `${table} must follow the prior locked table`);
+    previousTableOffset = tableOffset;
+  }
+  assert.match(migration.slice(lockOffset, preflightOffset), /SHARE ROW EXCLUSIVE MODE/);
   assert.match(migration, /FULL JOIN profile_tokens/);
   assert.match(migration, /md5\(encode\(ST_AsEWKB/);
   assert.match(migration, /SET elevation_string = changed\.new_elevation_string/);
-  assert.match(migration, /profile_precision_upgraded_from_postgis_path/);
+  assert.match(migration, /elevation_precision_encoder_before/);
+  assert.match(migration, /elevation_precision_profile_affected_routes/);
+  assert.match(migration, /job\.path_fingerprint IS DISTINCT FROM current\.path_fingerprint/);
+  assert.match(migration, /state = CASE WHEN current\.in_worker_scope THEN 'queued' ELSE 'out_of_scope' END/);
+  assert.match(migration, /final_evidence = NULL/);
+  assert.doesNotMatch(migration, /profile_precision_upgraded_from_postgis_path/);
+  assert.match(migration, /SET extra_float_digits = 1/);
   assert.doesNotMatch(migration, /UPDATE\s+(?:destinations|tracking_points)/i);
   assert.match(migration, /COMMIT;/);
 });

@@ -486,6 +486,7 @@ RETURNS TEXT
 LANGUAGE SQL
 IMMUTABLE
 STRICT
+SET extra_float_digits = 1
 AS $$
     SELECT CASE
         WHEN elevation IN (
