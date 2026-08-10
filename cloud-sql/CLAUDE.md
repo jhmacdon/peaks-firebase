@@ -279,6 +279,9 @@ PointZ together without changing XY, records the source proof in
 with the normal catalog candidate SQL. It never runs the global catalog
 retirement query or writes an unreviewed 116th catalog job. It repeats the
 session and tracking hashes after all changes and rolls back on any difference.
+Before commit, it also recomputes the normal catalog candidates and requires all
+115 pinned jobs to be queued with the current fingerprint and no result, audit
+time, error, or lease evidence.
 Route-elevation and standard-route fingerprints do not use
 destination elevation or `updated_at`, so this change does not queue them.
 For the two reviewed standard routes whose summit vertex is still the old

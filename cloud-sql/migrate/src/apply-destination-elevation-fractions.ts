@@ -381,6 +381,24 @@ export interface CatalogScopeRow {
   audited_at: string | null;
 }
 
+export interface CatalogPostflightRow {
+  destination_id: string;
+  job_exists: boolean;
+  candidate_exists: boolean;
+  state: string | null;
+  destination_name_matches: boolean;
+  priority_matches: boolean;
+  route_count_matches: boolean;
+  audit_rule_version_matches: boolean;
+  catalog_fingerprint_matches: boolean;
+  final_result_is_null: boolean;
+  audited_at_is_null: boolean;
+  last_error_is_null: boolean;
+  lease_owner_is_null: boolean;
+  lease_token_is_null: boolean;
+  lease_expires_at_is_null: boolean;
+}
+
 interface DestinationUpdateTriggerGuardRow {
   function_exists: boolean;
   function_comment: string | null;
@@ -1799,6 +1817,37 @@ ON CONFLICT (destination_id) DO UPDATE SET
   updated_at = now()
 RETURNING destination_id, state, catalog_fingerprint`;
 
+export const CATALOG_POSTFLIGHT_SQL = `
+WITH reviewed(destination_id) AS (
+  SELECT jsonb_array_elements_text($1::jsonb)
+), candidates AS MATERIALIZED (
+  SELECT normal_candidate.*
+  FROM (${catalogCandidateSql}) normal_candidate
+  JOIN reviewed ON reviewed.destination_id = normal_candidate.destination_id
+)
+SELECT reviewed.destination_id,
+       job.destination_id IS NOT NULL AS job_exists,
+       candidate.destination_id IS NOT NULL AS candidate_exists,
+       job.state,
+       job.destination_name IS NOT DISTINCT FROM candidate.destination_name
+         AS destination_name_matches,
+       job.priority IS NOT DISTINCT FROM candidate.priority AS priority_matches,
+       job.route_count IS NOT DISTINCT FROM candidate.route_count AS route_count_matches,
+       job.audit_rule_version IS NOT DISTINCT FROM candidate.audit_rule_version
+         AS audit_rule_version_matches,
+       job.catalog_fingerprint IS NOT DISTINCT FROM candidate.catalog_fingerprint
+         AS catalog_fingerprint_matches,
+       job.final_result IS NULL AS final_result_is_null,
+       job.audited_at IS NULL AS audited_at_is_null,
+       job.last_error IS NULL AS last_error_is_null,
+       job.lease_owner IS NULL AS lease_owner_is_null,
+       job.lease_token IS NULL AS lease_token_is_null,
+       job.lease_expires_at IS NULL AS lease_expires_at_is_null
+FROM reviewed
+LEFT JOIN candidates candidate ON candidate.destination_id = reviewed.destination_id
+LEFT JOIN route_catalog_audit_jobs job ON job.destination_id = reviewed.destination_id
+ORDER BY reviewed.destination_id`;
+
 export const UPDATE_SQL = `
 WITH incoming AS (${INCOMING_SQL}), updated AS (
   UPDATE destinations d
@@ -1974,6 +2023,49 @@ export function validateCatalogScopeRows(
   };
 }
 
+export function validateCatalogPostflightRows(
+  rows: readonly CatalogPostflightRow[]
+): { destinationCount: number; destinationSetSha256: string } {
+  validateReviewedCatalogManifest();
+  const ids = rows.map((row) => row.destination_id);
+  const destinationSetSha256 = catalogDestinationSetSha256(ids);
+  const reviewedIds = [...REVIEWED_CATALOG_DESTINATION_IDS].sort();
+  const liveIds = [...ids].sort();
+  if (rows.length !== REVIEWED_CATALOG_DESTINATION_COUNT ||
+      destinationSetSha256 !== REVIEWED_CATALOG_DESTINATION_SET_SHA256 ||
+      liveIds.join("\n") !== reviewedIds.join("\n")) {
+    throw new Error(
+      `catalog postflight is not the exact reviewed 115-ID set ` +
+      `(count ${rows.length}, SHA-256 ${destinationSetSha256})`
+    );
+  }
+  const mismatch = rows.find((row) =>
+    !row.job_exists ||
+    !row.candidate_exists ||
+    row.state !== "queued" ||
+    !row.destination_name_matches ||
+    !row.priority_matches ||
+    !row.route_count_matches ||
+    !row.audit_rule_version_matches ||
+    !row.catalog_fingerprint_matches ||
+    !row.final_result_is_null ||
+    !row.audited_at_is_null ||
+    !row.last_error_is_null ||
+    !row.lease_owner_is_null ||
+    !row.lease_token_is_null ||
+    !row.lease_expires_at_is_null
+  );
+  if (mismatch) {
+    throw new Error(
+      `${mismatch.destination_id} catalog postflight is not queued, current, and evidence-free`
+    );
+  }
+  return {
+    destinationCount: rows.length,
+    destinationSetSha256,
+  };
+}
+
 export function destinationUpdateTriggerGuard(
   row: DestinationUpdateTriggerGuardRow
 ): DestinationUpdateTriggerGuard {
@@ -2145,6 +2237,17 @@ async function queryCatalogScope(
   const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
   const result = await client.query<CatalogScopeRow>(CATALOG_SCOPE_SQL, [ids]);
   return validateCatalogScopeRows(result.rows, requireReviewedPreState);
+}
+
+async function queryCatalogPostflight(
+  client: QueryClient
+): Promise<{ destinationCount: number; destinationSetSha256: string }> {
+  const reviewedIds = JSON.stringify(REVIEWED_CATALOG_DESTINATION_IDS);
+  const result = await client.query<CatalogPostflightRow>(
+    CATALOG_POSTFLIGHT_SQL,
+    [reviewedIds]
+  );
+  return validateCatalogPostflightRows(result.rows);
 }
 
 async function inspectDestinationUpdateTrigger(
@@ -2392,7 +2495,10 @@ async function lockAffectedCatalogJobs(
     LOCK_AFFECTED_CATALOG_JOBS_SQL,
     [reviewedIds]
   );
-  validateCatalogScopeRows(locked.rows, true);
+  const lockedState = validateCatalogScopeRows(locked.rows, true);
+  if (lockedState.preStateSha256 !== liveScope.preStateSha256) {
+    throw new Error("catalog job state changed between scope review and row locks");
+  }
   const active = locked.rows.filter((row) =>
     row.state === "auditing" && row.lease_expires_at != null &&
     new Date(row.lease_expires_at).getTime() >= Date.now()
@@ -2401,7 +2507,11 @@ async function lockAffectedCatalogJobs(
     throw new Error(`${active.length} affected catalog audit leases are active`);
   }
   await client.query(RECOVER_EXPIRED_AFFECTED_CATALOG_JOBS_SQL, [reviewedIds]);
-  return liveScope;
+  const recovered = await client.query<CatalogScopeRow>(
+    LOCK_AFFECTED_CATALOG_JOBS_SQL,
+    [reviewedIds]
+  );
+  return validateCatalogScopeRows(recovered.rows, false);
 }
 
 async function seedAffectedCatalogJobs(
@@ -2439,6 +2549,7 @@ async function validateApplySqlPlans(
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${UPDATE_SQL}`, [candidateJson, reportSha256]);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${POST_UPDATE_SQL}`, [candidateJson, reportSha256]);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${TARGETED_CATALOG_SEED_SQL}`, [reviewedCatalogIds]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${CATALOG_POSTFLIGHT_SQL}`, [reviewedCatalogIds]);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${SESSION_TRACKING_INVARIANT_SQL}`, [ids]);
   const repairValues = [candidateJson, pathRepairsJson()];
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${LOCK_REVIEWED_ROUTES_SQL}`, repairValues);
@@ -2744,8 +2855,9 @@ export async function applyReviewedFractions(
       if (postChangeImpact.catalogDestinations !== impact.catalogDestinations ||
           postChangeImpact.catalogRoutes !== impact.catalogRoutes ||
           postChangeCatalogScope.destinationSetSha256 !== catalogScope.destinationSetSha256 ||
+          postChangeCatalogScope.preStateSha256 !== catalogScope.preStateSha256 ||
           postChangeImpact.activeCatalogLeases !== 0) {
-        throw new Error("catalog scope changed unexpectedly after the guarded vertex repair");
+        throw new Error("catalog scope or locked job pre-state changed before targeted seed");
       }
       const reviewedImpact = withReviewedPathFingerprintImpact(
         impact,
@@ -2763,6 +2875,7 @@ export async function applyReviewedFractions(
       if (finalCatalogScope.destinationSetSha256 !== REVIEWED_CATALOG_DESTINATION_SET_SHA256) {
         throw new Error("catalog scope changed during the exact targeted seed");
       }
+      const catalogPostflight = await queryCatalogPostflight(client);
       const afterSessionTracking = await querySessionTrackingInvariant(client, candidates);
       assertSessionTrackingInvariantUnchanged(beforeSessionTracking, afterSessionTracking);
       await client.query("COMMIT");
@@ -2774,6 +2887,7 @@ export async function applyReviewedFractions(
         postChangeFingerprintImpact: reviewedPostChangeImpact,
         catalogScope,
         finalCatalogScope,
+        catalogPostflight,
         destinationUpdateTrigger,
         sessionTrackingInvariant: afterSessionTracking,
         routeVertexImpact: routeVertices,

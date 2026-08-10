@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  CATALOG_POSTFLIGHT_SQL,
   CATALOG_SCOPE_SQL,
   DESTINATION_UPDATE_TRIGGER_GUARD_SQL,
   FINGERPRINT_IMPACT_SQL,
@@ -26,12 +27,14 @@ import {
   assertDestinationUpdateTriggerGuard,
   assertSessionTrackingInvariantUnchanged,
   catalogDestinationSetSha256,
+  catalogPreStateSha256,
   destinationUpdateTriggerGuard,
   parseApplyArgs,
   resolveReviewedExpectation,
   routeVertexImpact,
   sessionTrackingInvariant,
   validateCatalogScopeRows,
+  validateCatalogPostflightRows,
   validateElevationFractionReport,
   validatePathRepairAudit,
   validateReviewedCatalogManifest,
@@ -230,6 +233,19 @@ test("catalog repair uses the normal candidate fingerprint and only queues affec
   assert.match(TARGETED_CATALOG_SEED_SQL, /d\.updated_at::text/);
   assert.match(TARGETED_CATALOG_SEED_SQL, /linked_destination\.updated_at::text/);
   assert.doesNotMatch(TARGETED_CATALOG_SEED_SQL, /state = 'out_of_scope'/);
+  assert.match(CATALOG_POSTFLIGHT_SQL, /FROM \(.+\) normal_candidate/s);
+  assert.match(CATALOG_POSTFLIGHT_SQL, /JOIN reviewed ON reviewed\.destination_id/);
+  assert.match(CATALOG_POSTFLIGHT_SQL, /job\.catalog_fingerprint IS NOT DISTINCT FROM candidate\.catalog_fingerprint/);
+  for (const field of [
+    "final_result",
+    "audited_at",
+    "last_error",
+    "lease_owner",
+    "lease_token",
+    "lease_expires_at",
+  ]) {
+    assert.match(CATALOG_POSTFLIGHT_SQL, new RegExp(`job\\.${field} IS NULL`));
+  }
 });
 
 test("catalog repair pins the exact reviewed 115-ID set and rejects a 116th job", () => {
@@ -256,12 +272,61 @@ test("catalog repair pins the exact reviewed 115-ID set and rejects a 116th job"
     audited_at: null,
   }));
   assert.equal(validateCatalogScopeRows(rows, false).destinationCount, 115);
+  assert.notEqual(
+    catalogPreStateSha256(rows),
+    catalogPreStateSha256([
+      { ...rows[0], attempt_count: 1 },
+      ...rows.slice(1),
+    ])
+  );
   assert.throws(
     () => validateCatalogScopeRows([
       ...rows,
       { ...rows[0], destination_id: "unreviewed-116th-destination" },
     ], false),
     /not the reviewed 115-ID set/
+  );
+});
+
+test("catalog postflight requires all 115 jobs queued, current, and evidence-free", () => {
+  const rows = REVIEWED_CATALOG_DESTINATION_IDS.map((destinationId) => ({
+    destination_id: destinationId,
+    job_exists: true,
+    candidate_exists: true,
+    state: "queued",
+    destination_name_matches: true,
+    priority_matches: true,
+    route_count_matches: true,
+    audit_rule_version_matches: true,
+    catalog_fingerprint_matches: true,
+    final_result_is_null: true,
+    audited_at_is_null: true,
+    last_error_is_null: true,
+    lease_owner_is_null: true,
+    lease_token_is_null: true,
+    lease_expires_at_is_null: true,
+  }));
+  assert.equal(validateCatalogPostflightRows(rows).destinationCount, 115);
+  for (const changed of [
+    { state: "passed" },
+    { catalog_fingerprint_matches: false },
+    { final_result_is_null: false },
+    { audited_at_is_null: false },
+    { last_error_is_null: false },
+    { lease_owner_is_null: false },
+    { candidate_exists: false },
+  ]) {
+    assert.throws(
+      () => validateCatalogPostflightRows([
+        { ...rows[0], ...changed },
+        ...rows.slice(1),
+      ]),
+      /not queued, current, and evidence-free/
+    );
+  }
+  assert.throws(
+    () => validateCatalogPostflightRows(rows.slice(1)),
+    /not the exact reviewed 115-ID set/
   );
 });
 
@@ -444,5 +509,14 @@ test("apply path uses a serializable transaction, advisory lock, and exact row c
   assert.match(source, /pg_advisory_xact_lock/);
   assert.match(source, /updated\.rowCount !== REVIEWED_CANDIDATE_COUNT/);
   assert.match(source, /postUpdate\.rowCount !== REVIEWED_CANDIDATE_COUNT/);
+  assert.match(
+    source,
+    /postChangeCatalogScope\.preStateSha256 !== catalogScope\.preStateSha256/
+  );
+  assert.match(
+    source,
+    /EXPLAIN \(FORMAT JSON, COSTS OFF\).*CATALOG_POSTFLIGHT_SQL/
+  );
+  assert.match(source, /const catalogPostflight = await queryCatalogPostflight\(client\)/);
   assert.match(source, /ROLLBACK/);
 });
