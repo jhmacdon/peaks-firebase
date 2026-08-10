@@ -28,19 +28,58 @@ LOCK TABLE
   route_destinations
 IN SHARE ROW EXCLUSIVE MODE;
 
--- Snapshot bytes from whichever encoder is installed. Comparing this table to
--- the new encoder below is exact and does not depend on the old function body.
+-- Snapshot bytes from whichever encoder is installed. The legacy whole-metre
+-- codec can overflow its bigint cast for an extreme finite Z, so do not invoke
+-- an unmarked codec on those paths. They are affected by definition. The
+-- explicit codec marker lets later runs compare the full finite float8 range.
 CREATE TEMP TABLE elevation_precision_segment_profiles_before ON COMMIT DROP AS
-SELECT segment.id,
-       encode_route_elevation_profile(segment.path) AS elevation_profile
-FROM segments segment
-WHERE EXISTS (
-  SELECT 1
-  FROM route_segments linked
-  JOIN routes route ON route.id = linked.route_id
-  WHERE linked.segment_id = segment.id
-    AND route.owner = 'peaks'
-);
+WITH encoder_capability AS (
+  SELECT COALESCE(
+           obj_description(
+             'encode_route_elevation_profile(geography)'::regprocedure,
+             'pg_proc'
+           ) = 'peaks:route-elevation-profile:finite-float8-v1',
+           false
+         ) AS supports_full_float8
+), segment_safety AS MATERIALIZED (
+  SELECT segment.id,
+         segment.path,
+         encoder_capability.supports_full_float8,
+         safety.unsafe_for_legacy_bigint
+  FROM segments segment
+  CROSS JOIN encoder_capability
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(bool_or(
+      CASE
+        WHEN ST_Z((dumped).geom) IS NULL
+          OR ST_Z((dumped).geom) IN (
+            'NaN'::DOUBLE PRECISION,
+            'Infinity'::DOUBLE PRECISION,
+            '-Infinity'::DOUBLE PRECISION
+          ) THEN false
+        ELSE round(ST_Z((dumped).geom)::numeric) NOT BETWEEN
+             '-9223372036854775808'::numeric
+             AND '9223372036854775807'::numeric
+      END
+    ), false) AS unsafe_for_legacy_bigint
+    FROM ST_DumpPoints(segment.path::geometry) dumped
+  ) safety
+  WHERE EXISTS (
+    SELECT 1
+    FROM route_segments linked
+    JOIN routes route ON route.id = linked.route_id
+    WHERE linked.segment_id = segment.id
+      AND route.owner = 'peaks'
+  )
+)
+SELECT id,
+       NOT supports_full_float8 AND unsafe_for_legacy_bigint AS forced_affected,
+       CASE
+         WHEN supports_full_float8 OR NOT unsafe_for_legacy_bigint
+         THEN encode_route_elevation_profile(path)
+         ELSE NULL
+       END AS elevation_profile
+FROM segment_safety;
 
 CREATE OR REPLACE FUNCTION canonical_elevation_token(elevation DOUBLE PRECISION)
 RETURNS TEXT
@@ -145,6 +184,9 @@ BEGIN
   );
 END;
 $$;
+
+COMMENT ON FUNCTION encode_route_elevation_profile(geography) IS
+  'peaks:route-elevation-profile:finite-float8-v1';
 
 CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range(path geography)
 RETURNS BOOLEAN
@@ -296,8 +338,11 @@ JOIN segments segment ON segment.id = linked.segment_id
 JOIN elevation_precision_segment_profiles_before before_segment
   ON before_segment.id = segment.id
 WHERE r.owner = 'peaks'
-  AND before_segment.elevation_profile IS DISTINCT FROM
-      encode_route_elevation_profile(segment.path);
+  AND (
+    before_segment.forced_affected
+    OR before_segment.elevation_profile IS DISTINCT FROM
+       encode_route_elevation_profile(segment.path)
+  );
 
 UPDATE routes r
 SET elevation_string = changed.new_elevation_string,

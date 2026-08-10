@@ -20,6 +20,9 @@ test("profile inventory counts valid profile rows, not distinct profile text", (
   assert.match(COUNTS_SQL, /proposed_path_profiles/);
   assert.doesNotMatch(COUNTS_SQL, /pg_get_functiondef/);
   assert.match(COUNTS_SQL, /profile_affected_routes/);
+  assert.match(COUNTS_SQL, /segment_encoder_safety AS MATERIALIZED/);
+  assert.match(COUNTS_SQL, /unsafe_for_legacy_bigint/);
+  assert.match(COUNTS_SQL, /peaks:route-elevation-profile:finite-float8-v1/);
   assert.match(COUNTS_SQL, /profile_token_candidates AS MATERIALIZED/);
   assert.match(COUNTS_SQL, /parsed_profile_tokens AS MATERIALIZED/);
   assert.match(COUNTS_SQL, /1\.7976931348623157e308/);

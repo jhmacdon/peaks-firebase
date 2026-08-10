@@ -646,6 +646,9 @@ test(
            ('peaks-current', 'Current', 'peaks', 'active', ST_GeogFromText(
              'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
            ), 0, 0, $2, '2026-01-02T00:00:00Z'),
+           ('peaks-extreme', 'Extreme segment', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $2, '2026-01-02T12:00:00Z'),
            ('peaks-invalid', 'Invalid', 'peaks', 'active', NULL, 0, 0, $1,
              '2026-01-03T00:00:00Z'),
            ('peaks-superseded', 'Superseded', 'peaks', 'superseded', ST_GeogFromText(
@@ -661,15 +664,16 @@ test(
       );
       await client.query(
         `INSERT INTO route_destinations VALUES ('peaks-valid', 'destination');
-         INSERT INTO segments (id, path, gain, gain_loss) VALUES (
-           'fractional-segment',
-           ST_GeogFromText(
+         INSERT INTO segments (id, path, gain, gain_loss) VALUES
+           ('fractional-segment', ST_GeogFromText(
              'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
-           ),
-           0,
-           0
-         );
-         INSERT INTO route_segments VALUES ('peaks-current', 'fractional-segment', 0, 'forward');
+           ), 0, 0),
+           ('extreme-segment', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1e20, -121.01 47.01 1.0000000000000002e20)'
+           ), 0, 0);
+         INSERT INTO route_segments VALUES
+           ('peaks-current', 'fractional-segment', 0, 'forward'),
+           ('peaks-extreme', 'extreme-segment', 0, 'forward');
          INSERT INTO route_elevation_backfill_jobs (
            route_id, state, path_fingerprint, attempt_count, last_error, final_evidence,
            updated_at
@@ -678,6 +682,8 @@ test(
              '2026-02-01T00:00:00Z'),
            ('peaks-current', 'complete', 'legacy-current', 1, NULL, '{"old":true}',
              '2026-02-01T12:00:00Z'),
+           ('peaks-extreme', 'complete', 'legacy-extreme', 1, NULL, '{"old":true}',
+             '2026-02-01T18:00:00Z'),
            ('peaks-invalid', 'complete', 'legacy-invalid', 1, NULL, '{"old":true}',
              '2026-02-02T00:00:00Z'),
            ('peaks-superseded', 'complete', 'legacy-superseded', 1, NULL, '{"old":true}',
@@ -702,7 +708,8 @@ test(
         `UPDATE route_elevation_backfill_jobs job
          SET path_fingerprint = current.path_fingerprint
          FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) current
-         WHERE current.route_id = job.route_id`
+         WHERE current.route_id = job.route_id
+           AND job.route_id <> 'peaks-extreme'`
       );
 
       await client.query("SET extra_float_digits = 1");
@@ -717,7 +724,7 @@ test(
         nonfinite_elevation_jsonb: string;
       }>(COUNTS_SQL);
       assert.equal(Number(legacyAudit.rows[0].recoverable_peaks_profiles), 2);
-      assert.equal(Number(legacyAudit.rows[0].stale_elevation_jobs), 2);
+      assert.equal(Number(legacyAudit.rows[0].stale_elevation_jobs), 3);
       assert.equal(Number(legacyAudit.rows[0].catalog_jobs_affected), 1);
       assert.equal(Number(legacyAudit.rows[0].standard_jobs_needing_verification), 1);
       assert.equal(Number(legacyAudit.rows[0].malformed_or_out_of_range_profiles), 1);
@@ -788,6 +795,7 @@ test(
       const supersededJob = elevationJobs.rows.find((row) => row.route_id === "peaks-superseded")!;
       const validJob = elevationJobs.rows.find((row) => row.route_id === "peaks-valid")!;
       const currentJob = elevationJobs.rows.find((row) => row.route_id === "peaks-current")!;
+      const extremeJob = elevationJobs.rows.find((row) => row.route_id === "peaks-extreme")!;
       assert.equal(invalidJob.state, "out_of_scope");
       assert.equal(invalidJob.final_evidence, null);
       assert.equal(supersededJob.state, "out_of_scope");
@@ -798,6 +806,8 @@ test(
       assert.equal(validJob.final_evidence, null);
       assert.equal(currentJob.state, "queued");
       assert.equal(currentJob.final_evidence, null);
+      assert.equal(extremeJob.state, "queued");
+      assert.equal(extremeJob.final_evidence, null);
 
       const catalogJob = (await client.query<{
         state: string;

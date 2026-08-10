@@ -564,6 +564,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON FUNCTION encode_route_elevation_profile(geography) IS
+    'peaks:route-elevation-profile:finite-float8-v1';
+
 CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range(path geography)
 RETURNS BOOLEAN
 LANGUAGE SQL

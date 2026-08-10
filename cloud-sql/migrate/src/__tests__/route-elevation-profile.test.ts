@@ -211,6 +211,10 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   assert.match(migration, /md5\(encode\(ST_AsEWKB/);
   assert.match(migration, /SET elevation_string = changed\.new_elevation_string/);
   assert.match(migration, /elevation_precision_segment_profiles_before/);
+  assert.match(migration, /segment_safety AS MATERIALIZED/);
+  assert.match(migration, /unsafe_for_legacy_bigint/);
+  assert.match(migration, /COMMENT ON FUNCTION encode_route_elevation_profile/);
+  assert.match(migration, /peaks:route-elevation-profile:finite-float8-v1/);
   assert.match(migration, /elevation_precision_profile_affected_routes/);
   assert.match(migration, /job\.path_fingerprint IS DISTINCT FROM current\.path_fingerprint/);
   assert.match(migration, /state = CASE WHEN current\.in_worker_scope THEN 'queued' ELSE 'out_of_scope' END/);

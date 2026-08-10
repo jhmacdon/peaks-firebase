@@ -224,6 +224,36 @@ WITH RECURSIVE profile_paths AS (
   FROM route_profiles
   WHERE owner = 'peaks'
     AND canonical_profile IS DISTINCT FROM elevation_string
+), installed_encoder_capability AS (
+  SELECT COALESCE(
+           obj_description(
+             'encode_route_elevation_profile(geography)'::regprocedure,
+             'pg_proc'
+           ) = 'peaks:route-elevation-profile:finite-float8-v1',
+           false
+         ) AS supports_full_float8
+), segment_encoder_safety AS MATERIALIZED (
+  SELECT segment.id,
+         installed_encoder_capability.supports_full_float8,
+         safety.unsafe_for_legacy_bigint
+  FROM segments segment
+  CROSS JOIN installed_encoder_capability
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(bool_or(
+      CASE
+        WHEN ST_Z((dumped).geom) IS NULL
+          OR ST_Z((dumped).geom) IN (
+            'NaN'::DOUBLE PRECISION,
+            'Infinity'::DOUBLE PRECISION,
+            '-Infinity'::DOUBLE PRECISION
+          ) THEN false
+        ELSE round(ST_Z((dumped).geom)::numeric) NOT BETWEEN
+             '-9223372036854775808'::numeric
+             AND '9223372036854775807'::numeric
+      END
+    ), false) AS unsafe_for_legacy_bigint
+    FROM ST_DumpPoints(segment.path::geometry) dumped
+  ) safety
 ), profile_affected_routes AS (
   SELECT id
   FROM changed_peaks_routes
@@ -235,9 +265,14 @@ WITH RECURSIVE profile_paths AS (
   JOIN proposed_path_profiles proposed_segment
     ON proposed_segment.source_kind = 'segment'
    AND proposed_segment.source_id = segment.id
+  JOIN segment_encoder_safety safety ON safety.id = segment.id
   WHERE route.owner = 'peaks'
-    AND encode_route_elevation_profile(segment.path) IS DISTINCT FROM
-        proposed_segment.canonical_profile
+    AND CASE
+      WHEN NOT safety.supports_full_float8 AND safety.unsafe_for_legacy_bigint
+      THEN true
+      ELSE encode_route_elevation_profile(segment.path) IS DISTINCT FROM
+           proposed_segment.canonical_profile
+    END
 ), route_job_fingerprints AS (
   SELECT r.id,
          md5(concat_ws('|', r.id, r.owner, r.status, COALESCE(r.name, ''),
