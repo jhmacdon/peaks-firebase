@@ -13,12 +13,12 @@ import {
 test("profile inventory counts valid profile rows, not distinct profile text", () => {
   assert.match(COUNTS_SQL, /SELECT count\(\*\) FROM valid_profiles/);
   assert.doesNotMatch(COUNTS_SQL, /count\(DISTINCT elevation_string\)/);
-  assert.doesNotMatch(
+  assert.match(
     COUNTS_SQL,
-    /encode_route_elevation_profile\((?:r|s|route|segment)\./
+    /encode_route_elevation_profile\(segment\.path\) IS DISTINCT FROM\s+proposed_segment\.canonical_profile/
   );
   assert.match(COUNTS_SQL, /proposed_path_profiles/);
-  assert.match(COUNTS_SQL, /encoder_state/);
+  assert.doesNotMatch(COUNTS_SQL, /pg_get_functiondef/);
   assert.match(COUNTS_SQL, /profile_affected_routes/);
   assert.match(COUNTS_SQL, /profile_token_candidates AS MATERIALIZED/);
   assert.match(COUNTS_SQL, /parsed_profile_tokens AS MATERIALIZED/);

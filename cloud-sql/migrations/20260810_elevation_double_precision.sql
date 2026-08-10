@@ -28,14 +28,19 @@ LOCK TABLE
   route_destinations
 IN SHARE ROW EXCLUSIVE MODE;
 
--- Record whether this transaction is replacing the whole-metre encoder. Do not
--- call that encoder: an extreme but finite Z could overflow its bigint cast.
--- The function definition marker makes the segment-derived affected set empty
--- on every rerun after the decimal encoder is installed.
-CREATE TEMP TABLE elevation_precision_encoder_before ON COMMIT DROP AS
-SELECT pg_get_functiondef(
-         'encode_route_elevation_profile(geography)'::regprocedure
-       ) LIKE '%has_nonzero_rounded_elevation%' AS used_whole_metres;
+-- Snapshot bytes from whichever encoder is installed. Comparing this table to
+-- the new encoder below is exact and does not depend on the old function body.
+CREATE TEMP TABLE elevation_precision_segment_profiles_before ON COMMIT DROP AS
+SELECT segment.id,
+       encode_route_elevation_profile(segment.path) AS elevation_profile
+FROM segments segment
+WHERE EXISTS (
+  SELECT 1
+  FROM route_segments linked
+  JOIN routes route ON route.id = linked.route_id
+  WHERE linked.segment_id = segment.id
+    AND route.owner = 'peaks'
+);
 
 CREATE OR REPLACE FUNCTION canonical_elevation_token(elevation DOUBLE PRECISION)
 RETURNS TEXT
@@ -288,24 +293,11 @@ SELECT DISTINCT r.id
 FROM routes r
 JOIN route_segments linked ON linked.route_id = r.id
 JOIN segments segment ON segment.id = linked.segment_id
-CROSS JOIN elevation_precision_encoder_before encoder_before
+JOIN elevation_precision_segment_profiles_before before_segment
+  ON before_segment.id = segment.id
 WHERE r.owner = 'peaks'
-  AND encoder_before.used_whole_metres
-  AND EXISTS (
-    SELECT 1
-    FROM ST_DumpPoints(segment.path::geometry) dumped
-    WHERE ST_Z((dumped).geom) IS NOT NULL
-      AND ST_Z((dumped).geom) NOT IN (
-        'NaN'::DOUBLE PRECISION,
-        'Infinity'::DOUBLE PRECISION,
-        '-Infinity'::DOUBLE PRECISION
-      )
-      AND (
-        ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
-        OR ST_Z((dumped).geom)::numeric < '-9223372036854775808'::numeric
-        OR ST_Z((dumped).geom)::numeric > '9223372036854775807'::numeric
-      )
-  );
+  AND before_segment.elevation_profile IS DISTINCT FROM
+      encode_route_elevation_profile(segment.path);
 
 UPDATE routes r
 SET elevation_string = changed.new_elevation_string,

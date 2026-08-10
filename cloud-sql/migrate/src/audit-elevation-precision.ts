@@ -224,10 +224,6 @@ WITH RECURSIVE profile_paths AS (
   FROM route_profiles
   WHERE owner = 'peaks'
     AND canonical_profile IS DISTINCT FROM elevation_string
-), encoder_state AS (
-  SELECT pg_get_functiondef(
-           'encode_route_elevation_profile(geography)'::regprocedure
-         ) LIKE '%has_nonzero_rounded_elevation%' AS uses_whole_metres
 ), profile_affected_routes AS (
   SELECT id
   FROM changed_peaks_routes
@@ -236,24 +232,12 @@ WITH RECURSIVE profile_paths AS (
   FROM routes route
   JOIN route_segments linked ON linked.route_id = route.id
   JOIN segments segment ON segment.id = linked.segment_id
-  CROSS JOIN encoder_state
+  JOIN proposed_path_profiles proposed_segment
+    ON proposed_segment.source_kind = 'segment'
+   AND proposed_segment.source_id = segment.id
   WHERE route.owner = 'peaks'
-    AND encoder_state.uses_whole_metres
-    AND EXISTS (
-      SELECT 1
-      FROM ST_DumpPoints(segment.path::geometry) dumped
-      WHERE ST_Z((dumped).geom) IS NOT NULL
-        AND ST_Z((dumped).geom) NOT IN (
-          'NaN'::DOUBLE PRECISION,
-          'Infinity'::DOUBLE PRECISION,
-          '-Infinity'::DOUBLE PRECISION
-        )
-        AND (
-          ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
-          OR ST_Z((dumped).geom)::numeric < '-9223372036854775808'::numeric
-          OR ST_Z((dumped).geom)::numeric > '9223372036854775807'::numeric
-        )
-    )
+    AND encode_route_elevation_profile(segment.path) IS DISTINCT FROM
+        proposed_segment.canonical_profile
 ), route_job_fingerprints AS (
   SELECT r.id,
          md5(concat_ws('|', r.id, r.owner, r.status, COALESCE(r.name, ''),
