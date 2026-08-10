@@ -5,6 +5,85 @@
 BEGIN;
 
 SET LOCAL lock_timeout = '5s';
+
+-- Install the write guards in their own short transaction. ADD CONSTRAINT
+-- NOT VALID checks new and changed rows as soon as this transaction commits,
+-- without scanning either live table or holding either lock during repair.
+CREATE OR REPLACE FUNCTION elevation_matches_location_z(
+  elevation DOUBLE PRECISION,
+  location geography
+)
+RETURNS BOOLEAN
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+  SELECT (
+    location IS NULL
+    OR (
+      ST_Z(location::geometry) IS NOT NULL
+      AND ST_Z(location::geometry) NOT IN (
+        'NaN'::DOUBLE PRECISION,
+        'Infinity'::DOUBLE PRECISION,
+        '-Infinity'::DOUBLE PRECISION
+      )
+    )
+  ) AND (
+    elevation IS NULL
+    OR (
+      location IS NOT NULL
+      AND elevation NOT IN (
+        'NaN'::DOUBLE PRECISION,
+        'Infinity'::DOUBLE PRECISION,
+        '-Infinity'::DOUBLE PRECISION
+      )
+      AND elevation = ST_Z(location::geometry)
+    )
+  );
+$$;
+
+DO $$
+DECLARE
+  expected_definition CONSTANT TEXT :=
+    'CHECK (elevation_matches_location_z(elevation, location))';
+  actual_definition TEXT;
+BEGIN
+  SELECT pg_get_constraintdef(oid, true) INTO actual_definition
+  FROM pg_constraint
+  WHERE conrelid = 'destinations'::regclass
+    AND conname = 'destinations_elevation_matches_location_z';
+
+  IF actual_definition IS NULL THEN
+    ALTER TABLE destinations
+      ADD CONSTRAINT destinations_elevation_matches_location_z
+      CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
+  ELSIF actual_definition <> expected_definition THEN
+    RAISE EXCEPTION
+      'constraint destinations_elevation_matches_location_z has unexpected definition: %',
+      actual_definition;
+  END IF;
+
+  SELECT pg_get_constraintdef(oid, true) INTO actual_definition
+  FROM pg_constraint
+  WHERE conrelid = 'tracking_points'::regclass
+    AND conname = 'tracking_points_elevation_matches_location_z';
+
+  IF actual_definition IS NULL THEN
+    ALTER TABLE tracking_points
+      ADD CONSTRAINT tracking_points_elevation_matches_location_z
+      CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
+  ELSIF actual_definition <> expected_definition THEN
+    RAISE EXCEPTION
+      'constraint tracking_points_elevation_matches_location_z has unexpected definition: %',
+      actual_definition;
+  END IF;
+END;
+$$;
+
+COMMIT;
+
+BEGIN;
+
+SET LOCAL lock_timeout = '5s';
 SELECT pg_advisory_xact_lock(hashtextextended('peaks:elevation-double-precision:v1', 0));
 
 -- Workers claim a job before they inspect or update its route. Take the three
@@ -22,8 +101,6 @@ LOCK TABLE
   standard_route_backfill_jobs,
   routes,
   segments,
-  destinations,
-  tracking_points,
   route_segments,
   route_destinations
 IN SHARE ROW EXCLUSIVE MODE;
@@ -97,38 +174,6 @@ AS $$
     WHEN elevation = 0 THEN '0'
     ELSE ((elevation::text)::numeric)::text
   END;
-$$;
-
-CREATE OR REPLACE FUNCTION elevation_matches_location_z(
-  elevation DOUBLE PRECISION,
-  location geography
-)
-RETURNS BOOLEAN
-LANGUAGE SQL
-IMMUTABLE
-AS $$
-  SELECT (
-    location IS NULL
-    OR (
-      ST_Z(location::geometry) IS NOT NULL
-      AND ST_Z(location::geometry) NOT IN (
-        'NaN'::DOUBLE PRECISION,
-        'Infinity'::DOUBLE PRECISION,
-        '-Infinity'::DOUBLE PRECISION
-      )
-    )
-  ) AND (
-    elevation IS NULL
-    OR (
-      location IS NOT NULL
-      AND elevation NOT IN (
-        'NaN'::DOUBLE PRECISION,
-        'Infinity'::DOUBLE PRECISION,
-        '-Infinity'::DOUBLE PRECISION
-      )
-      AND elevation = ST_Z(location::geometry)
-    )
-  );
 $$;
 
 CREATE OR REPLACE FUNCTION encode_route_elevation_profile(path geography)
@@ -310,22 +355,32 @@ BEGIN
 END;
 $$;
 
-CREATE TEMP TABLE elevation_precision_route_before ON COMMIT DROP AS
-SELECT id,
-       CASE WHEN path IS NULL THEN NULL
-            ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash,
-       elevation_string,
-       updated_at
+-- Keep a cheap all-route timestamp snapshot to prove the update did not touch
+-- unrelated Peaks rows. EWKB hashing is limited to the rows the repair will
+-- update; hashing every route dominated the production migration runtime.
+CREATE TEMP TABLE elevation_precision_route_timestamps_before ON COMMIT DROP AS
+SELECT id, updated_at
 FROM routes
 WHERE owner = 'peaks';
 
 CREATE TEMP TABLE elevation_precision_changed_routes ON COMMIT DROP AS
+WITH profiles AS MATERIALIZED (
+  SELECT r.id,
+         r.elevation_string AS old_elevation_string,
+         encode_route_elevation_profile(r.path) AS new_elevation_string
+  FROM routes r
+  WHERE r.owner = 'peaks'
+)
+SELECT id, old_elevation_string, new_elevation_string
+FROM profiles
+WHERE old_elevation_string IS DISTINCT FROM new_elevation_string;
+
+CREATE TEMP TABLE elevation_precision_changed_route_paths_before ON COMMIT DROP AS
 SELECT r.id,
-       r.elevation_string AS old_elevation_string,
-       encode_route_elevation_profile(r.path) AS new_elevation_string
+       CASE WHEN r.path IS NULL THEN NULL
+            ELSE md5(encode(ST_AsEWKB(r.path::geometry), 'hex')) END AS path_hash
 FROM routes r
-WHERE r.owner = 'peaks'
-  AND r.elevation_string IS DISTINCT FROM encode_route_elevation_profile(r.path);
+JOIN elevation_precision_changed_routes changed USING (id);
 
 CREATE TEMP TABLE elevation_precision_profile_affected_routes ON COMMIT DROP AS
 SELECT changed.id
@@ -468,14 +523,14 @@ DECLARE
 BEGIN
   SELECT count(*) INTO changed_path_count
   FROM routes r
-  JOIN elevation_precision_route_before before_row USING (id)
+  JOIN elevation_precision_changed_route_paths_before before_row USING (id)
   WHERE (CASE WHEN r.path IS NULL THEN NULL
               ELSE md5(encode(ST_AsEWKB(r.path::geometry), 'hex')) END)
         IS DISTINCT FROM before_row.path_hash;
 
   SELECT count(*) INTO unchanged_timestamp_changes
   FROM routes r
-  JOIN elevation_precision_route_before before_row USING (id)
+  JOIN elevation_precision_route_timestamps_before before_row USING (id)
   LEFT JOIN elevation_precision_changed_routes changed USING (id)
   WHERE changed.id IS NULL
     AND r.updated_at IS DISTINCT FROM before_row.updated_at;
@@ -582,62 +637,54 @@ BEGIN
 END;
 $$;
 
+COMMIT;
+
+BEGIN;
+
+SET LOCAL lock_timeout = '5s';
+
+-- Validation scans old rows with SHARE UPDATE EXCLUSIVE. PostgreSQL permits
+-- normal ROW EXCLUSIVE inserts and updates while this final scan runs. Check
+-- the exact definition again and fail closed if it changed after the prelude.
 DO $$
 DECLARE
   expected_definition CONSTANT TEXT :=
     'CHECK (elevation_matches_location_z(elevation, location))';
   actual_definition TEXT;
+  constraint_is_validated BOOLEAN;
 BEGIN
-  SELECT pg_get_constraintdef(oid, true) INTO actual_definition
+  SELECT pg_get_constraintdef(oid, true), convalidated
+  INTO actual_definition, constraint_is_validated
   FROM pg_constraint
   WHERE conrelid = 'destinations'::regclass
     AND conname = 'destinations_elevation_matches_location_z';
 
   IF actual_definition IS NULL THEN
-    ALTER TABLE destinations
-      ADD CONSTRAINT destinations_elevation_matches_location_z
-      CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
+    RAISE EXCEPTION
+      'constraint destinations_elevation_matches_location_z disappeared before validation';
   ELSIF actual_definition <> expected_definition THEN
     RAISE EXCEPTION
       'constraint destinations_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
+  ELSIF NOT constraint_is_validated THEN
+    ALTER TABLE destinations
+      VALIDATE CONSTRAINT destinations_elevation_matches_location_z;
   END IF;
 
-  SELECT pg_get_constraintdef(oid, true) INTO actual_definition
+  SELECT pg_get_constraintdef(oid, true), convalidated
+  INTO actual_definition, constraint_is_validated
   FROM pg_constraint
   WHERE conrelid = 'tracking_points'::regclass
     AND conname = 'tracking_points_elevation_matches_location_z';
 
   IF actual_definition IS NULL THEN
-    ALTER TABLE tracking_points
-      ADD CONSTRAINT tracking_points_elevation_matches_location_z
-      CHECK (elevation_matches_location_z(elevation, location)) NOT VALID;
+    RAISE EXCEPTION
+      'constraint tracking_points_elevation_matches_location_z disappeared before validation';
   ELSIF actual_definition <> expected_definition THEN
     RAISE EXCEPTION
       'constraint tracking_points_elevation_matches_location_z has unexpected definition: %',
       actual_definition;
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'destinations'::regclass
-      AND conname = 'destinations_elevation_matches_location_z'
-      AND NOT convalidated
-  ) THEN
-    ALTER TABLE destinations
-      VALIDATE CONSTRAINT destinations_elevation_matches_location_z;
-  END IF;
-
-  IF EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'tracking_points'::regclass
-      AND conname = 'tracking_points_elevation_matches_location_z'
-      AND NOT convalidated
-  ) THEN
+  ELSIF NOT constraint_is_validated THEN
     ALTER TABLE tracking_points
       VALIDATE CONSTRAINT tracking_points_elevation_matches_location_z;
   END IF;

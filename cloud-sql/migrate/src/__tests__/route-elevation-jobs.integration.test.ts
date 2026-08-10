@@ -470,6 +470,36 @@ test(
       join(MIGRATE_ROOT, "../migrations/20260810_elevation_double_precision.sql"),
       "utf8"
     );
+    const beginOffsets = Array.from(migration.matchAll(/^BEGIN;$/gm), (match) => match.index!);
+    const commitOffsets = Array.from(migration.matchAll(/^COMMIT;$/gm), (match) => match.index!);
+    assert.equal(beginOffsets.length, 3);
+    assert.equal(commitOffsets.length, 3);
+    assert.deepEqual(
+      beginOffsets.map((beginOffset, index) => beginOffset < commitOffsets[index]),
+      [true, true, true]
+    );
+    assert.ok(commitOffsets[0] < beginOffsets[1]);
+    assert.ok(commitOffsets[1] < beginOffsets[2]);
+    const mainLockOffset = migration.indexOf("LOCK TABLE");
+    const mainLockStatement = migration.slice(
+      mainLockOffset,
+      migration.indexOf(";", mainLockOffset) + 1
+    );
+    assert.doesNotMatch(mainLockStatement, /\bdestinations\b|\btracking_points\b/);
+    const changedPathSnapshotOffset = migration.indexOf(
+      "CREATE TEMP TABLE elevation_precision_changed_route_paths_before"
+    );
+    const affectedRoutesOffset = migration.indexOf(
+      "CREATE TEMP TABLE elevation_precision_profile_affected_routes"
+    );
+    assert.match(
+      migration.slice(changedPathSnapshotOffset, affectedRoutesOffset),
+      /JOIN elevation_precision_changed_routes changed USING \(id\)/
+    );
+    assert.ok(
+      migration.indexOf("VALIDATE CONSTRAINT destinations_elevation_matches_location_z") >
+        commitOffsets[1]
+    );
     const legacyProfile = Buffer.from("1235|1236", "ascii").toString("base64");
     const preciseProfile = Buffer.from(
       "1234.567890123|1236.125",

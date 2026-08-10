@@ -173,9 +173,17 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
     "utf8"
   );
 
-  assert.match(migration, /BEGIN;/);
+  const beginOffsets = Array.from(migration.matchAll(/^BEGIN;$/gm), (match) => match.index!);
+  const commitOffsets = Array.from(migration.matchAll(/^COMMIT;$/gm), (match) => match.index!);
+  assert.equal(beginOffsets.length, 3);
+  assert.equal(commitOffsets.length, 3);
+  assert.ok(beginOffsets[0] < commitOffsets[0]);
+  assert.ok(commitOffsets[0] < beginOffsets[1]);
+  assert.ok(beginOffsets[1] < commitOffsets[1]);
+  assert.ok(commitOffsets[1] < beginOffsets[2]);
+  assert.ok(beginOffsets[2] < commitOffsets[2]);
   assert.match(migration, /owner = 'peaks'/);
-  assert.match(migration, /elevation_string IS DISTINCT FROM encode_route_elevation_profile\(r\.path\)/);
+  assert.match(migration, /old_elevation_string IS DISTINCT FROM new_elevation_string/);
   assert.match(migration, /CONSTRAINT destinations_elevation_matches_location_z/);
   assert.match(migration, /CONSTRAINT tracking_points_elevation_matches_location_z/);
   assert.match(migration, /ST_Z\(location::geometry\)/);
@@ -183,13 +191,37 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   assert.match(migration, /profile_ordinal/);
   assert.match(migration, /pg_advisory_xact_lock/);
   assert.match(migration, /NOT VALID/);
-  assert.match(migration, /AND NOT convalidated/);
+  assert.match(migration, /ELSIF NOT constraint_is_validated THEN/);
   assert.match(migration, /lease_expires_at >= now\(\)/);
+  const matcherOffset = migration.indexOf("CREATE OR REPLACE FUNCTION elevation_matches_location_z");
+  const addConstraintOffset = migration.indexOf("ADD CONSTRAINT destinations_elevation_matches_location_z");
   const lockOffset = migration.indexOf("LOCK TABLE");
   const preflightOffset = migration.indexOf("SELECT count(*) INTO destination_mismatches");
-  const snapshotOffset = migration.indexOf("CREATE TEMP TABLE elevation_precision_route_before");
+  const timestampSnapshotOffset = migration.indexOf(
+    "CREATE TEMP TABLE elevation_precision_route_timestamps_before"
+  );
+  const changedRoutesOffset = migration.indexOf(
+    "CREATE TEMP TABLE elevation_precision_changed_routes"
+  );
+  const changedPathSnapshotOffset = migration.indexOf(
+    "CREATE TEMP TABLE elevation_precision_changed_route_paths_before"
+  );
+  const affectedRoutesOffset = migration.indexOf(
+    "CREATE TEMP TABLE elevation_precision_profile_affected_routes"
+  );
+  const validateOffset = migration.indexOf(
+    "VALIDATE CONSTRAINT destinations_elevation_matches_location_z"
+  );
+  assert.ok(matcherOffset > beginOffsets[0] && matcherOffset < addConstraintOffset);
+  assert.ok(addConstraintOffset < commitOffsets[0]);
+  assert.ok(lockOffset > beginOffsets[1] && lockOffset < commitOffsets[1]);
   assert.ok(lockOffset >= 0 && lockOffset < preflightOffset);
-  assert.ok(lockOffset < snapshotOffset);
+  assert.ok(lockOffset < timestampSnapshotOffset);
+  assert.ok(timestampSnapshotOffset < changedRoutesOffset);
+  assert.ok(changedRoutesOffset < changedPathSnapshotOffset);
+  assert.ok(changedPathSnapshotOffset < affectedRoutesOffset);
+  assert.ok(validateOffset > beginOffsets[2] && validateOffset < commitOffsets[2]);
+  assert.ok(validateOffset > commitOffsets[1]);
   let previousTableOffset = -1;
   for (const table of [
     "route_elevation_backfill_jobs",
@@ -197,8 +229,6 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
     "standard_route_backfill_jobs",
     "routes",
     "segments",
-    "destinations",
-    "tracking_points",
     "route_segments",
     "route_destinations",
   ]) {
@@ -206,7 +236,19 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
     assert.ok(tableOffset > previousTableOffset, `${table} must follow the prior locked table`);
     previousTableOffset = tableOffset;
   }
-  assert.match(migration.slice(lockOffset, preflightOffset), /SHARE ROW EXCLUSIVE MODE/);
+  const lockStatement = migration.slice(lockOffset, migration.indexOf(";", lockOffset) + 1);
+  assert.match(lockStatement, /SHARE ROW EXCLUSIVE MODE/);
+  assert.doesNotMatch(lockStatement, /\bdestinations\b/);
+  assert.doesNotMatch(lockStatement, /\btracking_points\b/);
+  assert.doesNotMatch(
+    migration.slice(timestampSnapshotOffset, changedRoutesOffset),
+    /ST_AsEWKB/
+  );
+  assert.match(
+    migration.slice(changedPathSnapshotOffset, affectedRoutesOffset),
+    /JOIN elevation_precision_changed_routes changed USING \(id\)/
+  );
+  assert.doesNotMatch(migration, /elevation_precision_route_before/);
   assert.match(migration, /FULL JOIN profile_tokens/);
   assert.match(migration, /md5\(encode\(ST_AsEWKB/);
   assert.match(migration, /SET elevation_string = changed\.new_elevation_string/);
@@ -222,5 +264,4 @@ test("double-precision migration rebuilds canonical profiles and guards duplicat
   assert.doesNotMatch(migration, /profile_precision_upgraded_from_postgis_path/);
   assert.match(migration, /SET extra_float_digits = 1/);
   assert.doesNotMatch(migration, /UPDATE\s+(?:destinations|tracking_points)/i);
-  assert.match(migration, /COMMIT;/);
 });
