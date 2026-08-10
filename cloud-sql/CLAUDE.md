@@ -219,6 +219,26 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Destination elevation fraction audit
+
+Use the read-only fraction audit after a storage precision change. It checks
+every integer-looking Peaks destination against exact OpenStreetMap and
+Wikidata IDs, caches the provider replies, and writes one result per row.
+
+```bash
+cd migrate
+npm run audit:destination-elevation-fractions -- \
+  --cache-dir=/tmp/peaks-destination-elevation-fractions/cache \
+  --report=/tmp/peaks-destination-elevation-fractions/report.json
+```
+
+The command has no apply mode. A candidate must have a nearby exact provider
+identity, direct metre evidence, agreement between direct metre sources, and a
+positive change below one metre that keeps the stored whole-metre part. Foot
+conversions stay in a separate review class. The same OSM fraction must predate
+the row or its recorded OSM ID backfill. Terrain estimates never qualify.
+The audit adds no service or monthly cost.
+
 ## Peak catalog coverage audit
 
 Use the read-only coverage auditor to compare the summit catalog with named
