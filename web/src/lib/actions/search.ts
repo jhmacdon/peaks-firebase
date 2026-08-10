@@ -125,13 +125,13 @@ export async function searchDestinations(
     return result.rows.map((r: any) => ({
       id: r.id,
       name: r.name,
-      elevation: r.elevation ? Number(r.elevation) : null,
-      prominence: r.prominence ? Number(r.prominence) : null,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
       type: r.type,
       activities: parseArray(r.activities),
       features: parseArray(r.features),
-      lat: r.lat ? Number(r.lat) : null,
-      lng: r.lng ? Number(r.lng) : null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
       score: Number(r.score),
       distance_m: r.distance_m ? Number(r.distance_m) : undefined,
     }));
@@ -158,13 +158,13 @@ export async function searchDestinations(
     return result.rows.map((r: any) => ({
       id: r.id,
       name: r.name,
-      elevation: r.elevation ? Number(r.elevation) : null,
-      prominence: r.prominence ? Number(r.prominence) : null,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
       type: r.type,
       activities: parseArray(r.activities),
       features: parseArray(r.features),
-      lat: r.lat ? Number(r.lat) : null,
-      lng: r.lng ? Number(r.lng) : null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
       score: Number(r.score),
     }));
   }
@@ -196,13 +196,13 @@ export async function getNearbyDestinations(
   return result.rows.map((r: any) => ({
     id: r.id,
     name: r.name,
-    elevation: r.elevation ? Number(r.elevation) : null,
-    prominence: r.prominence ? Number(r.prominence) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
     type: r.type,
     activities: parseArray(r.activities),
     features: parseArray(r.features),
-    lat: r.lat ? Number(r.lat) : null,
-    lng: r.lng ? Number(r.lng) : null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
     distance_m: r.distance_m ? Number(r.distance_m) : undefined,
   }));
 }
@@ -227,13 +227,13 @@ export async function getPopularDestinations(
   return result.rows.map((r: any) => ({
     id: r.id,
     name: r.name,
-    elevation: r.elevation ? Number(r.elevation) : null,
-    prominence: r.prominence ? Number(r.prominence) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
     type: r.type,
     activities: parseArray(r.activities),
     features: parseArray(r.features),
-    lat: r.lat ? Number(r.lat) : null,
-    lng: r.lng ? Number(r.lng) : null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
   }));
 }
 
@@ -415,13 +415,13 @@ export async function getUnclimbedDestinations(
     return result.rows.map((r: any) => ({
       id: r.id,
       name: r.name,
-      elevation: r.elevation ? Number(r.elevation) : null,
-      prominence: r.prominence ? Number(r.prominence) : null,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
       type: r.type,
       activities: parseArray(r.activities),
       features: parseArray(r.features),
-      lat: r.lat ? Number(r.lat) : null,
-      lng: r.lng ? Number(r.lng) : null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
       distance_m: r.distance_m ? Number(r.distance_m) : undefined,
     }));
   } else {
@@ -444,13 +444,13 @@ export async function getUnclimbedDestinations(
     return result.rows.map((r: any) => ({
       id: r.id,
       name: r.name,
-      elevation: r.elevation ? Number(r.elevation) : null,
-      prominence: r.prominence ? Number(r.prominence) : null,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
       type: r.type,
       activities: parseArray(r.activities),
       features: parseArray(r.features),
-      lat: r.lat ? Number(r.lat) : null,
-      lng: r.lng ? Number(r.lng) : null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
     }));
   }
 }
@@ -483,13 +483,13 @@ export async function getDestinationsInViewport(
   return result.rows.map((r: any) => ({
     id: r.id,
     name: r.name,
-    elevation: r.elevation ? Number(r.elevation) : null,
-    prominence: r.prominence ? Number(r.prominence) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
     type: r.type,
     activities: parseArray(r.activities),
     features: parseArray(r.features),
-    lat: r.lat ? Number(r.lat) : null,
-    lng: r.lng ? Number(r.lng) : null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
   }));
 }
 
@@ -523,7 +523,7 @@ export async function getRoutesInViewport(
     name: r.name,
     polyline6: r.polyline6 ?? null,
     distance: r.distance ? Number(r.distance) : null,
-    gain: r.gain ? Number(r.gain) : null,
+    gain: r.gain != null ? Number(r.gain) : null,
     provenance: parseRouteProvenance(r.provenance),
   }));
 }

@@ -493,7 +493,7 @@ function calculateStats(points: GPXSessionPoint[]): GPXSessionStats {
 
   return {
     distance: Math.round(distance * 10) / 10,
-    gain: Math.round(gain * 10) / 10,
+    gain,
     totalTime,
     pace: totalTime > 0 ? distance / totalTime : null,
     highestPoint: highest.elevation,

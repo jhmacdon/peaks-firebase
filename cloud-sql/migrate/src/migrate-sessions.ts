@@ -12,7 +12,7 @@ import db from "./db";
  *   destinationsReached: [destId, ...],
  *   destinationGoals: [destId, ...],
  *   routes: [routeId, ...],
- *   markers: [{ lat, lng, name, created, createdBy, image }, ...],
+ *   markers: [{ lat, lng, elevation, name, created, createdBy, image }, ...],
  *   healthData: { calories: [...], heartRates: [...] },
  *   deleted: boolean
  */
@@ -191,15 +191,19 @@ export async function migrateSessions() {
       // session_markers
       const markers: any[] = d.markers || [];
       for (const m of markers) {
-        if (m.lat == null || m.lng == null) continue;
+        if (![m.lat, m.lng, m.elevation].every(Number.isFinite)) {
+          throw new Error(
+            `Refusing marker for session ${id}: lat, lng, and elevation must be finite`
+          );
+        }
         const markerCreated = toDate(m.created) || new Date();
         try {
           await db.query(
             `INSERT INTO session_markers (session_id, location, name, image, created_by, created_at)
-             VALUES ($1, ST_MakePoint($2, $3, 0)::geography, $4, $5, $6, $7)`,
+             VALUES ($1, ST_MakePoint($2, $3, $4)::geography, $5, $6, $7, $8)`,
             [
               id,
-              m.lng, m.lat,
+              m.lng, m.lat, m.elevation,
               m.name || null,
               m.image || null,
               m.createdBy || null,

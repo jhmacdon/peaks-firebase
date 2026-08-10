@@ -55,7 +55,7 @@ function pathStats(pts) {
     if (dz > 0) gain += dz;
     else loss -= dz;
   }
-  return { dist: Math.round(dist), gain: Math.round(gain), loss: Math.round(loss) };
+  return { dist: Math.round(dist), gain, loss };
 }
 
 /** Google polyline encoding, precision 1e6 (matches route-map.tsx decoder). */
@@ -86,7 +86,7 @@ function encodePolyline6(pts) {
 function lineZWkt(pts) {
   return (
     "LINESTRING Z (" +
-    pts.map(([lat, lng, e]) => `${lng.toFixed(6)} ${lat.toFixed(6)} ${e.toFixed(1)}`).join(", ") +
+    pts.map(([lat, lng, e]) => `${lng.toFixed(6)} ${lat.toFixed(6)} ${String(e)}`).join(", ") +
     ")"
   );
 }

@@ -106,10 +106,9 @@ export function parseRouteProvenance(value: unknown): RouteProvenance | null {
  *   ext: { wta: "...", usfs: "..." },
  *   destinations: [destinationId, ...]
  *
- * Note: polyline6 encodes lat/lng only (no elevation).
- * We store the polyline6 as-is for client use and decode it to build a
- * LineStringZ if elevation data is available (future enhancement).
- * For now, path is NULL — the polyline6 column is the source of truth for route geometry.
+ * Note: polyline6 encodes lat/lng only (no elevation). It can never populate
+ * the canonical LineStringZ path. New rows keep path NULL, and reruns preserve
+ * any trusted 3D path already written by a later import or repair.
  */
 export async function migrateRoutes() {
   console.log("Migrating routes...");
@@ -136,8 +135,7 @@ export async function migrateRoutes() {
       const completion = mapCompletion(d.completion);
       const provenance = parseRouteProvenance(d.provenance);
 
-      // Decode polyline6 to build LineStringZ (2D — no elevation yet)
-      const path = d.polyline6 ? decodePolyline6ToWKT(d.polyline6) : null;
+      const path: null = null;
 
       await db.query(
         `INSERT INTO routes (
@@ -145,19 +143,19 @@ export async function migrateRoutes() {
           distance, gain, gain_loss, elevation_string,
           external_links, provenance, completion
         ) VALUES (
-          $1, $2, ${path ? `ST_GeogFromText($3)` : `$3::geography`}, $4, $5, $6,
+          $1, $2, $3::geography, $4, $5, $6,
           $7, $8, $9, $10,
           $11::jsonb, $12::jsonb, $13::completion_mode
         ) ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
-          path = COALESCE(EXCLUDED.path, routes.path),
+          path = routes.path,
           polyline6 = COALESCE(EXCLUDED.polyline6, routes.polyline6),
           geohashes = EXCLUDED.geohashes,
           owner = EXCLUDED.owner,
           distance = EXCLUDED.distance,
           gain = EXCLUDED.gain,
           gain_loss = EXCLUDED.gain_loss,
-          elevation_string = EXCLUDED.elevation_string,
+          elevation_string = COALESCE(routes.elevation_string, EXCLUDED.elevation_string),
           external_links = COALESCE(EXCLUDED.external_links, routes.external_links),
           provenance = COALESCE(EXCLUDED.provenance, routes.provenance),
           completion = EXCLUDED.completion,
@@ -165,7 +163,7 @@ export async function migrateRoutes() {
         [
           id,
           d.name || null,
-          path, // WKT string or null
+          path,
           d.polyline6 || null,
           geohashes,
           d.owner || "peaks",
@@ -214,50 +212,4 @@ export async function migrateRoutes() {
 function mapCompletion(val: string | undefined): string {
   if (val === "straight" || val === "reverse") return val;
   return "none";
-}
-
-/**
- * Decode a Google Polyline Algorithm string (precision 1e6) to WKT LINESTRING.
- * Since Firestore routes don't store elevation per vertex, this produces a 2D line.
- * We use LINESTRING (not LINESTRINGZ) — path column is geography(LineStringZ)
- * so we produce LINESTRING Z with Z=0 for now.
- */
-function decodePolyline6ToWKT(encoded: string): string | null {
-  const coords: [number, number][] = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-
-  while (index < encoded.length) {
-    let shift = 0;
-    let result = 0;
-    let byte: number;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    lat += result & 1 ? ~(result >> 1) : result >> 1;
-
-    shift = 0;
-    result = 0;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    lng += result & 1 ? ~(result >> 1) : result >> 1;
-
-    coords.push([lng / 1e6, lat / 1e6]); // WKT is lng lat order
-  }
-
-  if (coords.length < 2) return null;
-
-  // LINESTRING Z with Z=0 (no elevation data in polyline)
-  const points = coords.map(([x, y]) => `${x} ${y} 0`).join(", ");
-  return `SRID=4326;LINESTRING Z(${points})`;
 }

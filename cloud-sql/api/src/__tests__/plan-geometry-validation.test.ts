@@ -4,7 +4,7 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { isValidPlanGeometry } from "../routes/plans";
+import { isValidPlanGeometry, isValidRouteGeometry3D } from "../routes/plans";
 
 test("absent geometry is valid (optional field)", () => {
   assert.equal(isValidPlanGeometry(undefined), true);
@@ -13,7 +13,29 @@ test("absent geometry is valid (optional field)", () => {
 
 test("a well-formed LineString is valid", () => {
   assert.equal(
+    isValidPlanGeometry({
+      type: "LineString",
+      coordinates: [[-121.7, 46.85, 1234.567890123], [-121.71, 46.86, 1200.125]],
+    }),
+    true
+  );
+});
+
+test("plan matching geometry may be 2D, while stored route geometry requires finite Z", () => {
+  assert.equal(
     isValidPlanGeometry({ type: "LineString", coordinates: [[-121.7, 46.85], [-121.71, 46.86]] }),
+    true
+  );
+  assert.equal(
+    isValidRouteGeometry3D({ type: "LineString", coordinates: [[-121.7, 46.85], [-121.71, 46.86]] }),
+    false
+  );
+  assert.equal(
+    isValidRouteGeometry3D({ type: "LineString", coordinates: [[-121.7, 46.85, NaN], [-121.71, 46.86, 1]] }),
+    false
+  );
+  assert.equal(
+    isValidRouteGeometry3D({ type: "LineString", coordinates: [[-121.7, 46.85, 0], [-121.71, 46.86, 1.25]] }),
     true
   );
 });
@@ -25,17 +47,17 @@ test("non-LineString geometry types are rejected", () => {
 
 test("a Feature wrapper (not a raw geometry) is rejected", () => {
   assert.equal(
-    isValidPlanGeometry({ type: "Feature", geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } }),
+    isValidPlanGeometry({ type: "Feature", geometry: { type: "LineString", coordinates: [[0, 0, 1], [1, 1, 2]] } }),
     false
   );
 });
 
 test("fewer than 2 points is rejected", () => {
-  assert.equal(isValidPlanGeometry({ type: "LineString", coordinates: [[0, 0]] }), false);
+  assert.equal(isValidPlanGeometry({ type: "LineString", coordinates: [[0, 0, 1]] }), false);
 });
 
 test("NaN / non-finite coordinates are rejected", () => {
-  assert.equal(isValidPlanGeometry({ type: "LineString", coordinates: [[0, 0], [NaN, 1]] }), false);
+  assert.equal(isValidPlanGeometry({ type: "LineString", coordinates: [[0, 0, 1], [NaN, 1, 2]] }), false);
 });
 
 test("non-object input is rejected", () => {

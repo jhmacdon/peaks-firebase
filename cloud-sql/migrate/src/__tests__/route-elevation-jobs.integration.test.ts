@@ -423,6 +423,339 @@ test("sampled profiles without a real range block before writes", () => {
 });
 
 test(
+  "legacy elevation state upgrades through the real migration and stays unchanged on rerun",
+  { skip: TEST_DATABASE_URL ? false : "ROUTE_ELEVATION_JOB_TEST_DATABASE_URL not set" },
+  async () => {
+    const url = new URL(TEST_DATABASE_URL!);
+    assert.match(url.pathname, /_test$/);
+    const pool = new Pool({ connectionString: TEST_DATABASE_URL });
+    const client = await pool.connect();
+    const schema = `elevation_precision_${process.pid}_${Date.now()}`;
+    const migration = readFileSync(
+      join(MIGRATE_ROOT, "../migrations/20260810_elevation_double_precision.sql"),
+      "utf8"
+    );
+    const legacyProfile = Buffer.from("1235|1236", "ascii").toString("base64");
+    const preciseProfile = Buffer.from(
+      "1234.567890123|1236.125",
+      "ascii"
+    ).toString("base64");
+    try {
+      await client.query(`CREATE SCHEMA "${schema}"`);
+      await client.query(`SET search_path TO "${schema}", public`);
+      await client.query(`
+        CREATE TABLE destinations (
+          id text PRIMARY KEY,
+          elevation double precision,
+          location geography(PointZ, 4326)
+        );
+        CREATE TABLE tracking_points (
+          id text PRIMARY KEY,
+          elevation double precision,
+          location geography(PointZ, 4326)
+        );
+        CREATE TABLE routes (
+          id text PRIMARY KEY,
+          name text,
+          owner text NOT NULL,
+          status text NOT NULL,
+          shape text,
+          path geography(LineStringZ, 4326),
+          distance double precision,
+          gain double precision,
+          gain_loss double precision,
+          elevation_string text,
+          elevation_source text,
+          elevation_source_url text,
+          elevation_attribution text,
+          elevation_license_url text,
+          elevation_retrieved_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE segments (
+          id text PRIMARY KEY,
+          path geography(LineStringZ, 4326),
+          gain double precision,
+          gain_loss double precision,
+          provenance jsonb
+        );
+        CREATE TABLE route_segments (
+          route_id text NOT NULL,
+          segment_id text NOT NULL,
+          ordinal integer NOT NULL,
+          direction text NOT NULL
+        );
+        CREATE TABLE route_destinations (
+          route_id text NOT NULL,
+          destination_id text NOT NULL
+        );
+        CREATE TABLE route_elevation_backfill_jobs (
+          route_id text PRIMARY KEY,
+          state text NOT NULL,
+          path_fingerprint text NOT NULL,
+          priority integer NOT NULL DEFAULT 0,
+          attempt_count integer NOT NULL DEFAULT 0,
+          source_kind text NOT NULL DEFAULT 'unknown',
+          last_error text,
+          final_evidence jsonb,
+          next_attempt_at timestamptz NOT NULL DEFAULT now(),
+          lease_owner text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE route_catalog_audit_jobs (
+          destination_id text PRIMARY KEY,
+          state text NOT NULL,
+          attempt_count integer NOT NULL DEFAULT 0,
+          catalog_fingerprint text NOT NULL,
+          last_error text,
+          final_result jsonb,
+          audited_at timestamptz,
+          lease_owner text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE standard_route_backfill_jobs (
+          destination_id text PRIMARY KEY,
+          state text NOT NULL,
+          evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+          published_route_id text,
+          replacement_route_id text,
+          next_attempt_at timestamptz NOT NULL DEFAULT now(),
+          last_error text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+
+        CREATE FUNCTION encode_route_elevation_profile(path geography)
+        RETURNS text
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$
+          SELECT encode(convert_to(string_agg(
+            round(ST_Z((dumped).geom))::bigint::text,
+            '|' ORDER BY (dumped).path
+          ), 'SQL_ASCII'), 'base64')
+          FROM ST_DumpPoints(path::geometry) dumped;
+        $legacy$;
+
+        CREATE FUNCTION route_elevation_profile_has_real_range(path geography)
+        RETURNS boolean
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$ SELECT path IS NOT NULL; $legacy$;
+
+        CREATE FUNCTION route_elevation_stats(path geography)
+        RETURNS TABLE(gain double precision, loss double precision)
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$ SELECT 0::double precision, 0::double precision; $legacy$;
+      `);
+
+      await client.query(
+        `INSERT INTO destinations (id, elevation, location) VALUES
+           ('destination', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);
+         INSERT INTO tracking_points (id, elevation, location) VALUES
+           ('point', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);`
+      );
+      await client.query(
+        `INSERT INTO routes (
+           id, name, owner, status, path, gain, gain_loss, elevation_string, updated_at
+         ) VALUES
+           ('peaks-valid', 'Valid', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-01T00:00:00Z'),
+           ('peaks-current', 'Current', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $2, '2026-01-02T00:00:00Z'),
+           ('peaks-invalid', 'Invalid', 'peaks', 'active', NULL, 0, 0, $1,
+             '2026-01-03T00:00:00Z'),
+           ('user-valid', 'User', 'user-1', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-04T00:00:00Z')`,
+        [legacyProfile, preciseProfile]
+      );
+      await client.query(
+        `INSERT INTO route_destinations VALUES ('peaks-valid', 'destination');
+         INSERT INTO route_elevation_backfill_jobs (
+           route_id, state, path_fingerprint, attempt_count, last_error, final_evidence,
+           updated_at
+         ) VALUES
+           ('peaks-valid', 'blocked', 'legacy-valid', 3, 'old failure', '{"old":true}',
+             '2026-02-01T00:00:00Z'),
+           ('peaks-invalid', 'complete', 'legacy-invalid', 1, NULL, '{"old":true}',
+             '2026-02-02T00:00:00Z');
+         INSERT INTO route_catalog_audit_jobs (
+           destination_id, state, attempt_count, catalog_fingerprint, final_result,
+           audited_at, updated_at
+         ) VALUES (
+           'destination', 'passed', 2, 'truthful-old-fingerprint', '{"old":true}',
+           '2026-02-03T00:00:00Z', '2026-02-03T00:00:00Z'
+         );
+         INSERT INTO standard_route_backfill_jobs (
+           destination_id, state, evidence, published_route_id, last_error, updated_at
+         ) VALUES (
+           'destination', 'verified',
+           '{"keep":"yes","last_verification":{"old":true},"verification_action":"old"}',
+           'peaks-valid', 'old failure', '2026-02-04T00:00:00Z'
+         );`
+      );
+
+      const pathHashesBefore = await client.query<{ id: string; path_hash: string | null }>(
+        `SELECT id,
+                CASE WHEN path IS NULL THEN NULL
+                  ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash
+         FROM routes ORDER BY id`
+      );
+
+      await client.query(migration);
+
+      const routesAfterFirst = await client.query<{
+        id: string;
+        elevation_string: string | null;
+        updated_at: Date;
+      }>(`SELECT id, elevation_string, updated_at FROM routes ORDER BY id`);
+      const validRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-valid")!;
+      const currentRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-current")!;
+      const invalidRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-invalid")!;
+      const userRoute = routesAfterFirst.rows.find((row) => row.id === "user-valid")!;
+      assert.equal(validRoute.elevation_string, preciseProfile);
+      assert.equal(currentRoute.elevation_string, preciseProfile);
+      assert.equal(currentRoute.updated_at.toISOString(), "2026-01-02T00:00:00.000Z");
+      assert.equal(invalidRoute.elevation_string, null);
+      assert.equal(userRoute.elevation_string, legacyProfile);
+      assert.equal(userRoute.updated_at.toISOString(), "2026-01-04T00:00:00.000Z");
+
+      const elevationJobs = await client.query<{
+        route_id: string;
+        state: string;
+        attempt_count: number;
+        last_error: string | null;
+        final_evidence: { verification?: string; profile_hash?: string; point_count?: number } | null;
+      }>(
+        `SELECT route_id, state, attempt_count, last_error, final_evidence
+         FROM route_elevation_backfill_jobs ORDER BY route_id`
+      );
+      const invalidJob = elevationJobs.rows.find((row) => row.route_id === "peaks-invalid")!;
+      const validJob = elevationJobs.rows.find((row) => row.route_id === "peaks-valid")!;
+      assert.equal(invalidJob.state, "queued");
+      assert.equal(invalidJob.final_evidence, null);
+      assert.equal(validJob.state, "complete");
+      assert.equal(validJob.attempt_count, 0);
+      assert.equal(validJob.last_error, null);
+      assert.equal(validJob.final_evidence?.verification, "profile_precision_upgraded_from_postgis_path");
+      assert.equal(validJob.final_evidence?.point_count, 2);
+      assert.equal(validJob.final_evidence?.profile_hash,
+        (await client.query<{ hash: string }>(`SELECT md5($1) AS hash`, [preciseProfile])).rows[0].hash
+      );
+
+      const catalogJob = (await client.query<{
+        state: string;
+        catalog_fingerprint: string;
+        final_result: { stale_reason?: string; previous_catalog_fingerprint?: string };
+      }>(`SELECT state, catalog_fingerprint, final_result FROM route_catalog_audit_jobs`)).rows[0];
+      assert.equal(catalogJob.state, "queued");
+      assert.equal(catalogJob.catalog_fingerprint, "truthful-old-fingerprint");
+      assert.equal(catalogJob.final_result.stale_reason, "elevation_profile_format_changed");
+      assert.equal(catalogJob.final_result.previous_catalog_fingerprint, "truthful-old-fingerprint");
+
+      const standardJob = (await client.query<{
+        state: string;
+        evidence: Record<string, unknown>;
+        last_error: string | null;
+      }>(`SELECT state, evidence, last_error FROM standard_route_backfill_jobs`)).rows[0];
+      assert.equal(standardJob.state, "published");
+      assert.deepEqual(standardJob.evidence, { keep: "yes" });
+      assert.equal(standardJob.last_error, null);
+
+      const constraintsAfterFirst = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(
+        `SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+         FROM pg_constraint
+         WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+           AND conname IN (
+             'destinations_elevation_matches_location_z',
+             'tracking_points_elevation_matches_location_z'
+           )
+         ORDER BY conname`
+      );
+      assert.equal(constraintsAfterFirst.rowCount, 2);
+      assert.equal(constraintsAfterFirst.rows.every((row) => row.convalidated), true);
+      assert.equal(
+        constraintsAfterFirst.rows.every(
+          (row) => row.definition === "CHECK (elevation_matches_location_z(elevation, location))"
+        ),
+        true
+      );
+
+      const snapshotAfterFirst = await client.query<{ snapshot: string }>(`
+        SELECT jsonb_build_object(
+          'routes', (SELECT jsonb_agg(to_jsonb(r) ORDER BY r.id) FROM routes r),
+          'elevation_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.route_id)
+            FROM route_elevation_backfill_jobs j),
+          'catalog_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM route_catalog_audit_jobs j),
+          'standard_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM standard_route_backfill_jobs j)
+        )::text AS snapshot
+      `);
+
+      await client.query(migration);
+
+      const pathHashesAfter = await client.query<{ id: string; path_hash: string | null }>(
+        `SELECT id,
+                CASE WHEN path IS NULL THEN NULL
+                  ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash
+         FROM routes ORDER BY id`
+      );
+      assert.deepEqual(pathHashesAfter.rows, pathHashesBefore.rows);
+
+      const snapshotAfterSecond = await client.query<{ snapshot: string }>(`
+        SELECT jsonb_build_object(
+          'routes', (SELECT jsonb_agg(to_jsonb(r) ORDER BY r.id) FROM routes r),
+          'elevation_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.route_id)
+            FROM route_elevation_backfill_jobs j),
+          'catalog_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM route_catalog_audit_jobs j),
+          'standard_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM standard_route_backfill_jobs j)
+        )::text AS snapshot
+      `);
+      assert.equal(snapshotAfterSecond.rows[0].snapshot, snapshotAfterFirst.rows[0].snapshot);
+
+      const constraintsAfterSecond = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(
+        `SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+         FROM pg_constraint
+         WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+           AND conname IN (
+             'destinations_elevation_matches_location_z',
+             'tracking_points_elevation_matches_location_z'
+           )
+         ORDER BY conname`
+      );
+      assert.deepEqual(constraintsAfterSecond.rows, constraintsAfterFirst.rows);
+    } finally {
+      await client.query(`RESET search_path`);
+      await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      client.release();
+      await pool.end();
+    }
+  }
+);
+
+test(
   "route elevation jobs seed Peaks paths, atomically lease distinct work, and recover expired leases",
   { skip: TEST_DATABASE_URL ? false : "ROUTE_ELEVATION_JOB_TEST_DATABASE_URL not set" },
   async () => {

@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   computeRouteElevationStats,
+  canonicalElevationToken,
   decodeElevationProfile,
   decodeElevationProfileResult,
   encodeElevationProfile,
@@ -11,16 +12,23 @@ import {
   routeProfileHasRealRange,
 } from "../route-elevation-profile";
 
-test("route elevation profile rounds metre samples and decodes every sample", () => {
-  const encoded = encodeElevationProfile([1000.4, 1001.6]);
+test("canonical tokens use plain decimal text and normalize negative zero", () => {
+  assert.equal(canonicalElevationToken(-0), "0");
+  assert.equal(canonicalElevationToken(1e-7), "0.0000001");
+  assert.equal(canonicalElevationToken(1e21), "1000000000000000000000");
+  assert.equal(canonicalElevationToken(Number.NaN), null);
+});
 
-  assert.deepEqual(decodeElevationProfile(encoded), [1000, 1002]);
-  assert.equal(decodeElevationProfile(encoded).length, 2);
-  assert.equal(encoded, "MTAwMHwxMDAy");
-  assert.deepEqual(decodeElevationProfile(encodeElevationProfile([-2.5, 2.5])), [
-    -3,
-    3,
-  ]);
+test("route elevation profile keeps round-trippable decimal metre samples", () => {
+  const elevations = [1234.567890123, -0.125, 0, 4321.0000001];
+  const encoded = encodeElevationProfile(elevations);
+
+  assert.deepEqual(decodeElevationProfile(encoded), elevations);
+  assert.equal(decodeElevationProfile(encoded).length, elevations.length);
+  assert.equal(
+    Buffer.from(encoded!, "base64").toString("ascii"),
+    "1234.567890123|-0.125|0|4321.0000001"
+  );
 });
 
 test("route elevation profile encodes long profiles without line breaks", () => {
@@ -30,15 +38,19 @@ test("route elevation profile encodes long profiles without line breaks", () => 
   assert.equal(decodeElevationProfile(encoded).length, 200);
   assert.equal(routeProfileHasRealRange(decodeElevationProfile(encoded)), false);
   assert.equal(routeProfileHasRealRange([1200, 1200.49, 1201]), true);
+  assert.equal(routeProfileHasRealRange([1200, 1200.999999999]), false);
 });
 
 test("route elevation profile rejects flat, empty, and non-finite samples", () => {
   assert.equal(profileIsUsable([0, 0, 0]), false);
-  assert.equal(profileIsUsable([0.4, -0.4]), false);
+  assert.equal(profileIsUsable([0.4, -0.4]), true);
   assert.equal(encodeElevationProfile([0, 0, 0]), null);
   assert.equal(encodeElevationProfile([]), null);
   assert.equal(encodeElevationProfile([1200]), null);
-  assert.equal(encodeElevationProfile([0.4, -0.4]), null);
+  assert.deepEqual(
+    decodeElevationProfile(encodeElevationProfile([0.4, -0.4])),
+    [0.4, -0.4]
+  );
   assert.equal(encodeElevationProfile([1000, Number.NaN]), null);
   assert.equal(encodeElevationProfile([1000, Number.POSITIVE_INFINITY]), null);
 });
@@ -49,9 +61,15 @@ test("route elevation profile rejects non-canonical base64 and mismatched counts
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy="), []);
   assert.deepEqual(decodeElevationProfile("MQ==junk"), []);
   assert.deepEqual(
-    decodeElevationProfile(Buffer.from("1000|1000.5").toString("base64")),
-    [1000, 1000.5]
+    decodeElevationProfile(Buffer.from("1000|1000.5|-1.25|1e3").toString("base64")),
+    [1000, 1000.5, -1.25, 1000]
   );
+  for (const invalid of ["NaN", "Infinity", "-Infinity", "1.2.3", "", "+1"]) {
+    assert.deepEqual(
+      decodeElevationProfile(Buffer.from(`1000|${invalid}`).toString("base64")),
+      []
+    );
+  }
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 3), []);
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 2), [1000, 1002]);
 });
@@ -124,7 +142,7 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
   const migrateRoot = path.resolve(__dirname, "../..");
   const sources = [
     fs.readFileSync(
-      path.join(migrateRoot, "../migrations/20260803_route_elevation_backfill.sql"),
+      path.join(migrateRoot, "../migrations/20260810_elevation_double_precision.sql"),
       "utf8"
     ),
     fs.readFileSync(path.join(migrateRoot, "../schema.sql"), "utf8"),
@@ -133,31 +151,43 @@ test("route elevation SQL materializes only valid Peaks-owned paths", () => {
   for (const source of sources) {
     assert.match(source, /ST_GeometryType\(path::geometry\) <> 'ST_LineString'/);
     assert.match(source, /point_count < 2/);
-    assert.match(source, /has_nonzero_rounded_elevation/);
+    assert.match(source, /has_nonzero_elevation/);
     assert.match(source, /CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range/);
-    assert.match(source, /max_rounded_elevation - min_rounded_elevation >= 1/);
+    assert.match(source, /max_elevation - min_elevation >= 1/);
+    assert.doesNotMatch(source, /round\(elevation/);
     assert.match(source, /FILTER \(WHERE elevation_is_finite\)/);
     assert.match(source, /FROM \([\s\S]+?\) valid_points/);
     assert.doesNotMatch(source, /isfinite\(elevation\)/);
-    assert.match(source, /NEW\.elevation_string = encode_route_elevation_profile\(NEW\.path\)/);
-    assert.match(source, /WHEN \(NEW\.owner = 'peaks'\)/);
-    assert.match(source, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_elevation_backfill_jobs TO "peaks-api"/);
-    for (const column of [
-      "elevation_source",
-      "elevation_source_url",
-      "elevation_attribution",
-      "elevation_license_url",
-      "elevation_retrieved_at",
-    ]) {
-      assert.match(source, new RegExp(column));
-    }
-    assert.match(
-      source,
-      /CREATE OR REPLACE FUNCTION touch_route_elevation_backfill_job\(\)\s+RETURNS TRIGGER\s+LANGUAGE plpgsql\s+AS \$\$\s+BEGIN\s+NEW\.updated_at = now\(\)/
-    );
-    assert.match(
-      source,
-      /CREATE TRIGGER trg_route_elevation_backfill_jobs_updated\s+BEFORE UPDATE ON route_elevation_backfill_jobs/
-    );
   }
+
+  const schema = sources[1];
+  assert.match(schema, /NEW\.elevation_string = encode_route_elevation_profile\(NEW\.path\)/);
+  assert.match(schema, /WHEN \(NEW\.owner = 'peaks'\)/);
+  assert.match(schema, /GRANT SELECT, INSERT, UPDATE, DELETE\s+ON route_elevation_backfill_jobs TO "peaks-api"/);
+});
+
+test("double-precision migration rebuilds canonical profiles and guards duplicate Z values", () => {
+  const migration = fs.readFileSync(
+    path.resolve(__dirname, "../../../migrations/20260810_elevation_double_precision.sql"),
+    "utf8"
+  );
+
+  assert.match(migration, /BEGIN;/);
+  assert.match(migration, /owner = 'peaks'/);
+  assert.match(migration, /elevation_string IS DISTINCT FROM encode_route_elevation_profile\(r\.path\)/);
+  assert.match(migration, /CONSTRAINT destinations_elevation_matches_location_z/);
+  assert.match(migration, /CONSTRAINT tracking_points_elevation_matches_location_z/);
+  assert.match(migration, /ST_Z\(location::geometry\)/);
+  assert.match(migration, /RAISE EXCEPTION/);
+  assert.match(migration, /profile_ordinal/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /NOT VALID/);
+  assert.match(migration, /AND NOT convalidated/);
+  assert.match(migration, /lease_expires_at >= now\(\)/);
+  assert.match(migration, /FULL JOIN profile_tokens/);
+  assert.match(migration, /md5\(encode\(ST_AsEWKB/);
+  assert.match(migration, /SET elevation_string = changed\.new_elevation_string/);
+  assert.match(migration, /profile_precision_upgraded_from_postgis_path/);
+  assert.doesNotMatch(migration, /UPDATE\s+(?:destinations|tracking_points)/i);
+  assert.match(migration, /COMMIT;/);
 });

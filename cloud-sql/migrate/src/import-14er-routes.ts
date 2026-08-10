@@ -62,7 +62,7 @@ async function fetchElevations(points: { lat: number; lng: number }[]): Promise<
     const ch = info.channels;
     for (const pt of g.indices) {
       const px = Math.min(pt.px, info.width - 1), py = Math.min(pt.py, info.height - 1), off = (py * info.width + px) * ch;
-      elev[pt.idx] = Math.round((-10000 + (data[off] * 65536 + data[off + 1] * 256 + data[off + 2]) * 0.1) * 10) / 10;
+      elev[pt.idx] = -10000 + (data[off] * 65536 + data[off + 1] * 256 + data[off + 2]) * 0.1;
     }
   }
   return elev;
@@ -87,7 +87,7 @@ function computeStats(elevations: number[]) {
     else { if (pending > 4) gain += pending; else if (pending < -4) loss += Math.abs(pending); pending = d; }
   }
   if (pending > 4) gain += pending; else if (pending < -4) loss += Math.abs(pending);
-  return { gain: Math.round(gain * 10) / 10, loss: Math.round(loss * 10) / 10 };
+  return { gain, loss };
 }
 
 // ─── Helpers ───

@@ -1,23 +1,19 @@
 const REVERSAL_DEAD_BAND_METRES = 4;
 
-function roundMetres(elevation: number): number {
-  return elevation < 0 ? -Math.round(-elevation) : Math.round(elevation);
-}
-
 export function profileIsUsable(elevations: number[]): boolean {
   if (elevations.length < 2) {
     return false;
   }
 
-  let hasNonzeroRoundedSample = false;
+  let hasNonzeroSample = false;
   for (const elevation of elevations) {
     if (!Number.isFinite(elevation)) {
       return false;
     }
-    hasNonzeroRoundedSample ||= roundMetres(elevation) !== 0;
+    hasNonzeroSample ||= elevation !== 0;
   }
 
-  return hasNonzeroRoundedSample;
+  return hasNonzeroSample;
 }
 
 export function routeProfileHasRealRange(elevations: number[]): boolean {
@@ -28,11 +24,40 @@ export function routeProfileHasRealRange(elevations: number[]): boolean {
   let maximum = Number.NEGATIVE_INFINITY;
   for (const elevation of elevations) {
     if (!Number.isFinite(elevation)) return false;
-    const rounded = roundMetres(elevation);
-    minimum = Math.min(minimum, rounded);
-    maximum = Math.max(maximum, rounded);
+    minimum = Math.min(minimum, elevation);
+    maximum = Math.max(maximum, elevation);
   }
   return maximum - minimum >= 1;
+}
+
+/**
+ * Canonical route-profile token shared with PostgreSQL and Swift: the shortest
+ * round-trippable decimal expanded to plain notation, with negative zero folded
+ * to zero. Decoders still accept scientific notation from older writers.
+ */
+export function canonicalElevationToken(elevation: number): string | null {
+  if (!Number.isFinite(elevation)) return null;
+  if (Object.is(elevation, -0) || elevation === 0) return "0";
+
+  const raw = String(elevation);
+  const exponentMarker = raw.search(/[eE]/);
+  if (exponentMarker < 0) return raw;
+
+  const sign = raw.startsWith("-") ? "-" : "";
+  const unsigned = sign ? raw.slice(1) : raw;
+  const [coefficient, exponentText] = unsigned.toLowerCase().split("e");
+  const exponent = Number(exponentText);
+  const [whole, fraction = ""] = coefficient.split(".");
+  const digits = whole + fraction;
+  const decimalIndex = whole.length + exponent;
+
+  if (decimalIndex <= 0) {
+    return `${sign}0.${"0".repeat(-decimalIndex)}${digits}`;
+  }
+  if (decimalIndex >= digits.length) {
+    return `${sign}${digits}${"0".repeat(decimalIndex - digits.length)}`;
+  }
+  return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
 }
 
 export function encodeElevationProfile(elevations: number[]): string | null {
@@ -40,7 +65,7 @@ export function encodeElevationProfile(elevations: number[]): string | null {
     return null;
   }
 
-  const profile = elevations.map(roundMetres).join("|");
+  const profile = elevations.map((elevation) => canonicalElevationToken(elevation)!).join("|");
   return Buffer.from(profile, "ascii").toString("base64");
 }
 

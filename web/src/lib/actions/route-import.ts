@@ -448,7 +448,7 @@ async function createAndLinkTrailhead(
     `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type)
      VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, $6), 4326)::geography,
              $6, ARRAY['trailhead']::destination_feature[], 'peaks', 'point')`,
-    [thId, name, normalizeSearchName(name), startPoint.lng, startPoint.lat, Math.round(startPoint.ele)]
+    [thId, name, normalizeSearchName(name), startPoint.lng, startPoint.lat, startPoint.ele]
   );
 
   await client.query(

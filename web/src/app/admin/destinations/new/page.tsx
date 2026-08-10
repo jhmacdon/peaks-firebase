@@ -367,7 +367,7 @@ function NewDestinationContent() {
                     setConfirm({
                       ...confirm,
                       elevation: e.target.value
-                        ? Math.round(parseFloat(e.target.value) / 3.28084)
+                        ? parseFloat(e.target.value) / 3.28084
                         : null,
                     })
                   }

@@ -138,11 +138,11 @@ export async function getListDestinations(
   return result.rows.map((r: any) => ({
     id: r.id,
     name: r.name,
-    elevation: r.elevation ? Number(r.elevation) : null,
-    prominence: r.prominence ? Number(r.prominence) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
     features: parseArray(r.features),
-    lat: r.lat ? Number(r.lat) : null,
-    lng: r.lng ? Number(r.lng) : null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
     ordinal: Number(r.ordinal),
   }));
 }

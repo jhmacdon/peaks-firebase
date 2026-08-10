@@ -174,7 +174,7 @@ All files in `src/lib/actions/` use `"use server"` directive.
 - **Import alias**: `@/` → `src/`
 - **IDs**: `generateId()` produces 20-char alphanumeric strings (matches Firebase style)
 - **Units**: database stores meters; UI converts to feet (`* 3.28084`) and miles (`/ 1609.34`)
-- **Elevation**: always `Math.round()` before inserting; use `::double precision` cast in COALESCE
+- **Elevation**: keep every finite source value as a `number`; round only in UI text or at a named external boundary
 - **Features row**: always shows Features in detail pages (displays "—" when empty, not hidden)
 - **Geocoding**: Mapbox v6 API for reverse geocoding (country/state codes, place names)
 - **Session names**: derived from destinations reached (sorted by elevation), not explicit `name` field. See `ARCHITECTURE.md` for details.

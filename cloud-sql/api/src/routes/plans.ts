@@ -6,6 +6,7 @@ import { processPlan } from "../processing";
 import { parseStatusIds } from "./sessions";
 import { buildAirQualityResponse, snapToCell, HrrrRow } from "../air-quality";
 import { fetchCams, CamsFetcher } from "../open-meteo";
+import { isOptionalFiniteNumber } from "../lib/finite-number";
 
 const router = Router();
 
@@ -42,7 +43,20 @@ export function isValidPlanGeometry(g: unknown): boolean {
   if (!Array.isArray(geo.coordinates) || geo.coordinates.length < 2) return false;
   return geo.coordinates.every(
     (c) =>
-      Array.isArray(c) && c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1])
+      Array.isArray(c)
+      && c.length >= 2
+      && Number.isFinite(c[0])
+      && Number.isFinite(c[1])
+      && (c.length < 3 || Number.isFinite(c[2]))
+  );
+}
+
+export function isValidRouteGeometry3D(g: unknown): boolean {
+  if (!isValidPlanGeometry(g) || g === undefined || g === null) return false;
+  const geo = g as { coordinates: unknown[] };
+  return geo.coordinates.every(
+    (coordinate) => Array.isArray(coordinate) && coordinate.length >= 3
+      && Number.isFinite(coordinate[2])
   );
 }
 
@@ -61,7 +75,7 @@ export function parsePlanRouteRecords(
     if (typeof item !== "object" || item === null || Array.isArray(item)) return null;
     const record = item as Record<string, unknown>;
     if (typeof record.id !== "string" || !routeIds.has(record.id)) return null;
-    if (!isValidPlanGeometry(record.geometry) || record.geometry == null) return null;
+    if (!isValidRouteGeometry3D(record.geometry)) return null;
 
     for (const key of ["name", "polyline6", "elevation_string"] as const) {
       if (record[key] !== undefined && typeof record[key] !== "string") return null;
@@ -101,7 +115,7 @@ async function upsertPlanRouteRecords(
          distance, gain, gain_loss, elevation_string, completion, status
        ) VALUES (
          $1, $2,
-         ST_Force3DZ(ST_SetSRID(ST_GeomFromGeoJSON($3), 4326))::geography,
+         ST_SetSRID(ST_GeomFromGeoJSON($3), 4326)::geography,
          $4, $5, $6, $7, $8, $9, $10, $11::completion_mode, 'active'
        )
        ON CONFLICT (id) DO UPDATE SET
@@ -441,6 +455,10 @@ router.post("/", async (req, res: Response) => {
     res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
     return;
   }
+  if (!isOptionalFiniteNumber(distance) || !isOptionalFiniteNumber(gain)) {
+    res.status(400).json({ error: "distance and gain must be finite numbers or null" });
+    return;
+  }
   if (routeRecords === null) {
     res.status(400).json({ error: "route_records must contain valid routes listed in routes" });
     return;
@@ -538,6 +556,10 @@ router.put("/:id", async (req, res: Response) => {
 
   if (!isValidPlanGeometry(geometry)) {
     res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
+    return;
+  }
+  if (!isOptionalFiniteNumber(distance) || !isOptionalFiniteNumber(gain)) {
+    res.status(400).json({ error: "distance and gain must be finite numbers or null" });
     return;
   }
   if (routeRecords === null) {
