@@ -21,6 +21,132 @@ export const REVIEWED_DESTINATION_COUNT = 41_320;
 export const MAX_REPORT_BYTES = 128 * 1024 * 1024;
 export const ADVISORY_LOCK_NAME = "destination-elevation-fraction-repair-v1";
 export const REPAIR_METADATA_KEY = "elevation_fraction_repair";
+export const DESTINATION_UPDATE_TRIGGER_SAFE_COMMENT =
+  "peaks:destination-session-link-update:xy-only-with-rejection-v1";
+export const DESTINATION_UPDATE_TRIGGER_SAFE_BODY_MARKER =
+  "peaks_destination_session_link_xy_guard_v1";
+export const REVIEWED_CATALOG_DESTINATION_COUNT = 115;
+export const REVIEWED_CATALOG_DESTINATION_IDS: readonly string[] = [
+  "0gOgdFeUjdmcX2czFRJA",
+  "0JBxhaoJWiVQQXgw2uUV",
+  "0vX1ItjGVfF13Jzg6R07",
+  "179FA758A520AC2C03BF",
+  "1xMvDymATUfAwfSzwkMr",
+  "2AmpkxmynD62sU618AoO",
+  "3Sq6qcWle2Yjoz95x28W",
+  "4PcL0PKgiVXJThoKp4on",
+  "4tid6zCXqb5ofZFoL3o1",
+  "53E03125EE116FF42129",
+  "56132C631B14DEF7D935",
+  "56Semg0Xsq1rZc9pyUAQ",
+  "5dMVfDQl6wKeH0F41uCn",
+  "67483F5B0605425E2DE0",
+  "6EDA17ED94B617C62667",
+  "6EO576elY8r21xwORhiK",
+  "7571AAC348F5062210D3",
+  "81R5i2lkUjv00DZ7RWGZ",
+  "88664781F9CBC2708044",
+  "8F1CFBC1CA329D7AAE81",
+  "8PW4zjoMM7ztTxI2zTPD",
+  "91F740DFA715C195EFD2",
+  "9A51A6816379DD89C626",
+  "9tG5PRGWHnMyoCRIbvx5",
+  "AO7D7nRZCWNIsEfCiX0q",
+  "AOnzIJTWMIrXau7YvRxw",
+  "auJp6P3XMRtdqqlrfuK4",
+  "B7bF0d9njRnfJzryT7te",
+  "BE881F1892C436E00192",
+  "C6quyfEJeKDny4s7i9mC",
+  "CC9259BAC86F2277D22A",
+  "cvJtXkcB4c7T8IxRqRUE",
+  "D03E1609D19822D13E4F",
+  "D8CB466E19319267173D",
+  "DDFB929775A703F3AA69",
+  "dZSVuW8UKm6ew42jKNtk",
+  "E5983D9A0031297B2D73",
+  "ebNg6H2UU7myxdOgSwE0",
+  "EE203772460B7EE49833",
+  "EhsmPjd7xoDxxEsyWkUC",
+  "elREhc1iUNtsZdCqEsNW",
+  "EytY8UYQNL0yeXUhqWFa",
+  "F5NgW3n6v4BcIniehd95",
+  "FA7B0381CB5F4F936D71",
+  "FC4A16E846EE0AE76CB4",
+  "fC9zpl4WpEUZvU4HTsSI",
+  "fqfRt9QLCJZDFwwqZg3T",
+  "FTm7JzK2MmAxXfXWKxp4",
+  "fYqSbjmi9raKEiGXxsWC",
+  "fYtpYbEAeIEGlmq2Jq3f",
+  "g6ZTtk7NqMXxzCcmHVa9",
+  "GKYFnmdM5xpDMShh8DUX",
+  "GwLKVzkyBpklFRhl69MR",
+  "hAtC19h5jNQ54F4N6I85",
+  "HdoumN7EGXqJdDeHXWW1",
+  "In7TUP56kLdEBwC2TopT",
+  "jMcHR8HJL80agcUgZ09P",
+  "jMcY2yoTHVX3SPXFOKEH",
+  "JRALLj6uMy0g2dk0O5qh",
+  "JtMYJqhtJirdDsZwv2qx",
+  "jyrNSCXDRAZSyApTkEIR",
+  "jZGktQptdSqU7rEkJPg2",
+  "K6DbIauPe1Dydwntzipv",
+  "kNdNMPMLDXfGziXrIUVl",
+  "kXqFyY3n4p28TIvJS2YA",
+  "LaLahdbKh9Y9UhwVXhua",
+  "lcTpveFIwm2jDxH6E8uh",
+  "Miv6kWqljhiYnA5IlzSq",
+  "mNSItDblaRgQcTOJ2Otl",
+  "Moyx7QVvepvbXTMWiotN",
+  "MRGO5QC8mOOTfNyuCa6y",
+  "MYXvib5txX2JadUoCPeT",
+  "MyZUwK9Jv86tQ1da1bNT",
+  "nhsnF042ynS83t0zV1Fq",
+  "O42VnWbqd7PUORA4YlDI",
+  "O5ffVp9k5HJyNkxgKtvl",
+  "oFzOuiWWqqwp4ITgFkGL",
+  "olUVpqTDVciqg3oY0Qcd",
+  "ozDA1s77KdutO545ygjc",
+  "OzMPz93jcirXRCcIDm18",
+  "p8tLTkJdGMQ99RcUM4L7",
+  "PqCVlM7W06uteYp4kkbC",
+  "Q4DLhH68xvTC5wkGBps0",
+  "QCZWtFoogjFwBi2SttNK",
+  "QkAXELOaEsMBnuArw2ZL",
+  "qpHrtElXFEnpBS0N4K2q",
+  "qzdOp9vxfR7vhAcetFrv",
+  "sfu8DFVHbliSzInIpa8S",
+  "SijgW70vauJkInNK8V45",
+  "SodRp0PgexNg7qQOYJQB",
+  "solpQKVv1y747QjhEtVM",
+  "TdLJMxOHZW6y0qyI4PqQ",
+  "UFby19xyuWOJXCBT7IO7",
+  "UfM6na5hYhJGvSKkbJhq",
+  "UoCmEVIzFDYUFh7SvS8f",
+  "uqOvTNvOs0Wa70ydHSI3",
+  "UXokVD4BTb9B4eODNhVn",
+  "vd2moSN7260lv3jfHM2W",
+  "W0k5oFLiNYeUYGtKFXL4",
+  "W0MFobFkHvxfJ58N9cTe",
+  "wfhPviBAZ4wbiqFR1OqR",
+  "WIbJ0SsW17MBQ7JeFfgp",
+  "Wn75NKalAGToCkBCC5ir",
+  "wnaKQD1UAQQwPBD0eapZ",
+  "wpCvAQphggswkLWJQiKQ",
+  "wzemhHXqqqeUpfDCns2C",
+  "xGE4CV7zyFgR3llPpZUd",
+  "Xj5eypVslqwHk3YLcsiF",
+  "xjwtWth2ie35pFqgvV8L",
+  "xoddbMqeMfYKTs8odJqo",
+  "Y4zxDvca6kFrxy5aHQ6z",
+  "yfAu9cSgdH6IK7oSoFUb",
+  "YOBHRXWT5Xt1ItVUMAmU",
+  "YS051qLKOrNlrnI6QjQL",
+  "zVH2thn6KOHXHXNU5uWu",
+] as const;
+export const REVIEWED_CATALOG_DESTINATION_SET_SHA256 =
+  "0148b3dfaab0322255d1196c2b2df558fc37c3e14956a2d482c20ba4c033f742";
+export const REVIEWED_CATALOG_PRESTATE_SHA256 =
+  "5c5eca2180d65920d005bce406eb3260214cb0dfaff1ae5e78a83c3ca1473a9c";
 const MAX_IDENTITY_DISTANCE_M = 100;
 const FLOAT_TOLERANCE_M = 1e-9;
 
@@ -236,6 +362,70 @@ interface ImpactRow {
   active_route_elevation_leases_on_linked_routes: number | string;
   standard_route_jobs: number | string;
   active_standard_route_leases: number | string;
+}
+
+export interface CatalogScopeRow {
+  destination_id: string;
+  destination_name: string | null;
+  state: string | null;
+  priority: number | string | null;
+  route_count: number | string | null;
+  audit_rule_version: number | string | null;
+  catalog_fingerprint: string | null;
+  attempt_count: number | string | null;
+  lease_owner: string | null;
+  lease_token: string | null;
+  lease_expires_at: string | null;
+  last_error: string | null;
+  final_result_text: string | null;
+  audited_at: string | null;
+}
+
+interface DestinationUpdateTriggerGuardRow {
+  function_exists: boolean;
+  function_comment: string | null;
+  function_definition: string | null;
+  function_definition_md5: string | null;
+  trigger_count: number | string;
+  enabled_trigger_count: number | string;
+  trigger_definition: string | null;
+}
+
+export interface DestinationUpdateTriggerGuard {
+  safe: boolean;
+  functionExists: boolean;
+  functionDefinitionMd5: string | null;
+  safeComment: boolean;
+  safeBodyMarker: boolean;
+  xyOnlyPredicate: boolean;
+  rejectionAntiJoin: boolean;
+  exactEnabledTrigger: boolean;
+}
+
+export interface SessionTrackingInvariant {
+  sessionDestinationsCount: number;
+  sessionDestinationsHash: string;
+  sessionDestinationRejectionsCount: number;
+  sessionDestinationRejectionsHash: string;
+  destinationAreasCount: number;
+  destinationAreasHash: string;
+  relevantTrackingSessionsCount: number;
+  relevantTrackingSessionsHash: string;
+  relevantTrackingPointsCount: number;
+  relevantTrackingPointsHash: string;
+}
+
+interface SessionTrackingInvariantRow {
+  session_destinations_count: number | string;
+  session_destinations_hash: string;
+  session_destination_rejections_count: number | string;
+  session_destination_rejections_hash: string;
+  destination_areas_count: number | string;
+  destination_areas_hash: string;
+  relevant_tracking_sessions_count: number | string;
+  relevant_tracking_sessions_hash: string;
+  relevant_tracking_points_count: number | string;
+  relevant_tracking_points_hash: string;
 }
 
 interface RouteVertexImpactRow {
@@ -1134,6 +1324,126 @@ JOIN destinations other ON (
 GROUP BY incoming.destination_id
 ORDER BY incoming.destination_id`;
 
+export const DESTINATION_UPDATE_TRIGGER_GUARD_SQL = `
+WITH target AS (
+  SELECT to_regprocedure('public.link_sessions_on_destination_update()') AS function_oid
+), function_state AS (
+  SELECT target.function_oid,
+         p.oid IS NOT NULL AS function_exists,
+         obj_description(p.oid, 'pg_proc') AS function_comment,
+         pg_get_functiondef(p.oid) AS function_definition
+  FROM target
+  LEFT JOIN pg_proc p ON p.oid = target.function_oid
+), trigger_state AS (
+  SELECT count(*) AS trigger_count,
+         count(*) FILTER (WHERE trg.tgenabled IN ('O', 'A')) AS enabled_trigger_count,
+         min(pg_get_triggerdef(trg.oid)) AS trigger_definition
+  FROM pg_trigger trg
+  CROSS JOIN function_state fn_state
+  WHERE NOT trg.tgisinternal
+    AND trg.tgrelid = to_regclass('public.destinations')
+    AND trg.tgname = 'trg_destination_update_link_sessions'
+    AND trg.tgfoid = fn_state.function_oid
+)
+SELECT fn_state.function_exists,
+       fn_state.function_comment,
+       fn_state.function_definition,
+       md5(fn_state.function_definition) AS function_definition_md5,
+       trg_state.trigger_count,
+       trg_state.enabled_trigger_count,
+       trg_state.trigger_definition
+FROM function_state fn_state
+CROSS JOIN trigger_state trg_state`;
+
+export const SESSION_TRACKING_INVARIANT_SQL = `
+WITH changed(destination_id) AS (
+  SELECT jsonb_array_elements_text($1::jsonb)
+), candidate_destinations AS MATERIALIZED (
+  SELECT d.id, d.location, d.boundary, d.features
+  FROM destinations d
+  JOIN changed ON changed.destination_id = d.id
+), nearby_sessions AS MATERIALIZED (
+  SELECT DISTINCT ts.id
+  FROM candidate_destinations d
+  JOIN tracking_points point
+    ON d.boundary IS NULL
+   AND d.location IS NOT NULL
+   AND point.location IS NOT NULL
+   AND ST_DWithin(
+         d.location,
+         point.location,
+         CASE WHEN 'summit'::destination_feature = ANY(d.features) THEN 30
+              WHEN 'trailhead'::destination_feature = ANY(d.features) THEN 100
+              ELSE 50 END
+       )
+  JOIN tracking_sessions ts ON ts.id = point.session_id AND ts.ended = true
+), related_sessions AS MATERIALIZED (
+  SELECT session_id
+  FROM session_destinations link
+  JOIN changed ON changed.destination_id = link.destination_id
+  UNION
+  SELECT session_id
+  FROM session_destination_rejections rejection
+  JOIN changed ON changed.destination_id = rejection.destination_id
+  UNION
+  SELECT id FROM nearby_sessions
+), session_destinations_state AS (
+  SELECT count(*) AS row_count,
+         md5(COALESCE(string_agg(md5(to_jsonb(link)::text), '' ORDER BY link.session_id, link.destination_id), '')) AS row_hash
+  FROM session_destinations link
+  JOIN changed ON changed.destination_id = link.destination_id
+), session_rejections_state AS (
+  SELECT count(*) AS row_count,
+         md5(COALESCE(string_agg(md5(to_jsonb(rejection)::text), '' ORDER BY rejection.session_id, rejection.destination_id), '')) AS row_hash
+  FROM session_destination_rejections rejection
+  JOIN changed ON changed.destination_id = rejection.destination_id
+), destination_areas_state AS (
+  SELECT count(*) AS row_count,
+         md5(COALESCE(string_agg(md5(to_jsonb(link)::text), '' ORDER BY link.destination_id, link.area_id), '')) AS row_hash
+  FROM destination_areas link
+  JOIN changed ON changed.destination_id = link.destination_id
+), tracking_sessions_state AS (
+  SELECT count(*) AS row_count,
+         md5(COALESCE(string_agg(md5(to_jsonb(ts_row)::text), '' ORDER BY ts_row.id), '')) AS row_hash
+  FROM tracking_sessions ts_row
+  JOIN related_sessions related ON related.session_id = ts_row.id
+), tracking_points_state AS (
+  SELECT count(*) AS row_count,
+         md5(COALESCE(string_agg(
+           md5(jsonb_build_array(
+             point.session_id,
+             point.time,
+             point.segment_number,
+             CASE WHEN point.location IS NULL THEN NULL
+                  ELSE encode(ST_AsEWKB(point.location::geometry), 'hex') END,
+             point.elevation,
+             point.speed,
+             point.azimuth,
+             point.hdop,
+             point.speed_accuracy,
+             point.geohash
+           )::text),
+           '' ORDER BY point.session_id, point.time
+         ), '')) AS row_hash
+  FROM tracking_points point
+  JOIN related_sessions related ON related.session_id = point.session_id
+)
+SELECT destinations.row_count AS session_destinations_count,
+       destinations.row_hash AS session_destinations_hash,
+       rejections.row_count AS session_destination_rejections_count,
+       rejections.row_hash AS session_destination_rejections_hash,
+       areas.row_count AS destination_areas_count,
+       areas.row_hash AS destination_areas_hash,
+       sessions.row_count AS relevant_tracking_sessions_count,
+       sessions.row_hash AS relevant_tracking_sessions_hash,
+       points.row_count AS relevant_tracking_points_count,
+       points.row_hash AS relevant_tracking_points_hash
+FROM session_destinations_state destinations
+CROSS JOIN session_rejections_state rejections
+CROSS JOIN destination_areas_state areas
+CROSS JOIN tracking_sessions_state sessions
+CROSS JOIN tracking_points_state points`;
+
 export const FINGERPRINT_IMPACT_SQL = `
 WITH changed(destination_id) AS (
   SELECT jsonb_array_elements_text($1::jsonb)
@@ -1206,6 +1516,74 @@ SELECT
    JOIN affected_standard_jobs affected ON affected.destination_id = job.destination_id
    WHERE job.lease_token IS NOT NULL AND job.lease_expires_at >= now())
     AS active_standard_route_leases`;
+
+export const CATALOG_SCOPE_SQL = `
+WITH changed(destination_id) AS (
+  SELECT jsonb_array_elements_text($1::jsonb)
+), catalog_routes AS MATERIALIZED (
+  SELECT r.id
+  FROM routes r
+  WHERE r.owner = 'peaks'
+    AND EXISTS (
+      SELECT 1
+      FROM route_destinations changed_link
+      JOIN changed ON changed.destination_id = changed_link.destination_id
+      WHERE changed_link.route_id = r.id
+    )
+    AND (
+      r.status = 'active'
+      OR (
+        r.status = 'superseded'
+        AND r.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
+        AND r.provenance IS NULL
+        AND r.completion = 'none'
+        AND r.shape IS NULL
+        AND r.gain IS NULL
+        AND r.gain_loss IS NULL
+        AND jsonb_typeof(r.external_links) = 'array'
+        AND EXISTS (
+          SELECT 1 FROM jsonb_array_elements(r.external_links) link
+          WHERE link->>'type' = 'osm' AND link->>'id' ~ '^relation/[0-9]+$'
+        )
+        AND NOT EXISTS (SELECT 1 FROM route_segments rs WHERE rs.route_id = r.id)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM route_destinations rd
+          JOIN destinations linked_destination ON linked_destination.id = rd.destination_id
+          WHERE rd.route_id = r.id
+            AND 'trailhead'::destination_feature = ANY(linked_destination.features)
+        )
+      )
+    )
+), affected AS MATERIALIZED (
+  SELECT DISTINCT linked.destination_id
+  FROM catalog_routes route
+  JOIN route_destinations linked ON linked.route_id = route.id
+  JOIN destinations destination ON destination.id = linked.destination_id
+  WHERE 'summit'::destination_feature = ANY(destination.features)
+)
+SELECT affected.destination_id,
+       job.destination_name,
+       job.state,
+       job.priority,
+       job.route_count,
+       job.audit_rule_version,
+       job.catalog_fingerprint,
+       job.attempt_count,
+       job.lease_owner,
+       job.lease_token,
+       CASE WHEN job.lease_expires_at IS NULL THEN NULL ELSE
+         to_char(job.lease_expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+       END AS lease_expires_at,
+       job.last_error,
+       job.final_result::text AS final_result_text,
+       CASE WHEN job.audited_at IS NULL THEN NULL ELSE
+         to_char(job.audited_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+       END AS audited_at
+FROM affected
+LEFT JOIN route_catalog_audit_jobs job
+  ON job.destination_id = affected.destination_id
+ORDER BY affected.destination_id`;
 
 export const ROUTE_VERTEX_IMPACT_SQL = `
 WITH incoming AS (${INCOMING_SQL}), linked_peaks_routes AS MATERIALIZED (
@@ -1320,53 +1698,29 @@ SELECT
   ), '[]'::jsonb) AS segment_pins`;
 
 export const LOCK_AFFECTED_CATALOG_JOBS_SQL = `
-WITH changed(destination_id) AS (
+WITH reviewed(destination_id) AS (
   SELECT jsonb_array_elements_text($1::jsonb)
-), catalog_routes AS MATERIALIZED (
-  SELECT r.id
-  FROM routes r
-  WHERE r.owner = 'peaks'
-    AND EXISTS (
-      SELECT 1
-      FROM route_destinations changed_link
-      JOIN changed ON changed.destination_id = changed_link.destination_id
-      WHERE changed_link.route_id = r.id
-    )
-    AND (
-      r.status = 'active'
-      OR (
-        r.status = 'superseded'
-        AND r.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
-        AND r.provenance IS NULL
-        AND r.completion = 'none'
-        AND r.shape IS NULL
-        AND r.gain IS NULL
-        AND r.gain_loss IS NULL
-        AND jsonb_typeof(r.external_links) = 'array'
-        AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements(r.external_links) link
-          WHERE link->>'type' = 'osm' AND link->>'id' ~ '^relation/[0-9]+$'
-        )
-        AND NOT EXISTS (SELECT 1 FROM route_segments rs WHERE rs.route_id = r.id)
-        AND NOT EXISTS (
-          SELECT 1
-          FROM route_destinations rd
-          JOIN destinations linked_destination ON linked_destination.id = rd.destination_id
-          WHERE rd.route_id = r.id
-            AND 'trailhead'::destination_feature = ANY(linked_destination.features)
-        )
-      )
-    )
-), affected AS MATERIALIZED (
-  SELECT DISTINCT linked.destination_id
-  FROM catalog_routes route
-  JOIN route_destinations linked ON linked.route_id = route.id
-  JOIN destinations destination ON destination.id = linked.destination_id
-  WHERE 'summit'::destination_feature = ANY(destination.features)
 )
-SELECT job.destination_id, job.state, job.lease_expires_at
+SELECT job.destination_id,
+       job.destination_name,
+       job.state,
+       job.priority,
+       job.route_count,
+       job.audit_rule_version,
+       job.catalog_fingerprint,
+       job.attempt_count,
+       job.lease_owner,
+       job.lease_token,
+       CASE WHEN job.lease_expires_at IS NULL THEN NULL ELSE
+         to_char(job.lease_expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+       END AS lease_expires_at,
+       job.last_error,
+       job.final_result::text AS final_result_text,
+       CASE WHEN job.audited_at IS NULL THEN NULL ELSE
+         to_char(job.audited_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+       END AS audited_at
 FROM route_catalog_audit_jobs job
-JOIN affected ON affected.destination_id = job.destination_id
+JOIN reviewed ON reviewed.destination_id = job.destination_id
 ORDER BY job.destination_id
 FOR UPDATE OF job`;
 
@@ -1382,57 +1736,16 @@ SET state = 'queued',
 FROM locked
 WHERE job.destination_id = locked.destination_id
   AND locked.state = 'auditing'
-  AND locked.lease_expires_at < now()
+  AND locked.lease_expires_at::timestamptz < now()
 RETURNING job.destination_id`;
 
 export const TARGETED_CATALOG_SEED_SQL = `
-WITH changed(destination_id) AS (
+WITH reviewed(destination_id) AS (
   SELECT jsonb_array_elements_text($1::jsonb)
-), catalog_routes AS MATERIALIZED (
-  SELECT r.id
-  FROM routes r
-  WHERE r.owner = 'peaks'
-    AND EXISTS (
-      SELECT 1
-      FROM route_destinations changed_link
-      JOIN changed ON changed.destination_id = changed_link.destination_id
-      WHERE changed_link.route_id = r.id
-    )
-    AND (
-      r.status = 'active'
-      OR (
-        r.status = 'superseded'
-        AND r.id ~ '^osm-route-[0-9]+-[0-9a-f]{10}$'
-        AND r.provenance IS NULL
-        AND r.completion = 'none'
-        AND r.shape IS NULL
-        AND r.gain IS NULL
-        AND r.gain_loss IS NULL
-        AND jsonb_typeof(r.external_links) = 'array'
-        AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements(r.external_links) link
-          WHERE link->>'type' = 'osm' AND link->>'id' ~ '^relation/[0-9]+$'
-        )
-        AND NOT EXISTS (SELECT 1 FROM route_segments rs WHERE rs.route_id = r.id)
-        AND NOT EXISTS (
-          SELECT 1
-          FROM route_destinations rd
-          JOIN destinations linked_destination ON linked_destination.id = rd.destination_id
-          WHERE rd.route_id = r.id
-            AND 'trailhead'::destination_feature = ANY(linked_destination.features)
-        )
-      )
-    )
-), affected AS MATERIALIZED (
-  SELECT DISTINCT linked.destination_id
-  FROM catalog_routes route
-  JOIN route_destinations linked ON linked.route_id = route.id
-  JOIN destinations destination ON destination.id = linked.destination_id
-  WHERE 'summit'::destination_feature = ANY(destination.features)
 ), candidates AS MATERIALIZED (
   SELECT normal_candidate.*
   FROM (${catalogCandidateSql}) normal_candidate
-  JOIN affected ON affected.destination_id = normal_candidate.destination_id
+  JOIN reviewed ON reviewed.destination_id = normal_candidate.destination_id
 )
 INSERT INTO route_catalog_audit_jobs AS job (
   destination_id, destination_name, priority, route_count,
@@ -1589,6 +1902,167 @@ function number(value: number | string): number {
   return Number(value);
 }
 
+export function catalogDestinationSetSha256(destinationIds: readonly string[]): string {
+  return crypto.createHash("sha256").update([...destinationIds].sort().join("\n")).digest("hex");
+}
+
+export function catalogPreStateSha256(rows: readonly CatalogScopeRow[]): string {
+  const payload = [...rows]
+    .sort((a, b) => a.destination_id.localeCompare(b.destination_id))
+    .map((row) => JSON.stringify({
+      destinationId: row.destination_id,
+      destinationName: row.destination_name,
+      state: row.state,
+      priority: row.priority == null ? null : number(row.priority),
+      routeCount: row.route_count == null ? null : number(row.route_count),
+      auditRuleVersion: row.audit_rule_version == null ? null : number(row.audit_rule_version),
+      catalogFingerprint: row.catalog_fingerprint,
+      attemptCount: row.attempt_count == null ? null : number(row.attempt_count),
+      leaseOwner: row.lease_owner,
+      leaseToken: row.lease_token,
+      leaseExpiresAt: row.lease_expires_at,
+      lastError: row.last_error,
+      finalResult: row.final_result_text,
+      auditedAt: row.audited_at,
+    }))
+    .join("\n");
+  return crypto.createHash("sha256").update(payload).digest("hex");
+}
+
+export function validateReviewedCatalogManifest(): void {
+  if (REVIEWED_CATALOG_DESTINATION_IDS.length !== REVIEWED_CATALOG_DESTINATION_COUNT) {
+    throw new Error("reviewed catalog manifest must contain exactly 115 destination IDs");
+  }
+  if (new Set(REVIEWED_CATALOG_DESTINATION_IDS).size !== REVIEWED_CATALOG_DESTINATION_COUNT) {
+    throw new Error("reviewed catalog manifest contains a duplicate destination ID");
+  }
+  if (catalogDestinationSetSha256(REVIEWED_CATALOG_DESTINATION_IDS) !==
+      REVIEWED_CATALOG_DESTINATION_SET_SHA256) {
+    throw new Error("reviewed catalog manifest set hash does not match its pinned SHA-256");
+  }
+}
+
+export function validateCatalogScopeRows(
+  rows: readonly CatalogScopeRow[],
+  requireReviewedPreState = true
+): { destinationCount: number; destinationSetSha256: string; preStateSha256: string } {
+  validateReviewedCatalogManifest();
+  const ids = rows.map((row) => row.destination_id);
+  const setSha256 = catalogDestinationSetSha256(ids);
+  const reviewedIds = [...REVIEWED_CATALOG_DESTINATION_IDS].sort();
+  const liveIds = [...ids].sort();
+  if (rows.length !== REVIEWED_CATALOG_DESTINATION_COUNT ||
+      setSha256 !== REVIEWED_CATALOG_DESTINATION_SET_SHA256 ||
+      liveIds.join("\n") !== reviewedIds.join("\n")) {
+    throw new Error(
+      `live catalog scope is not the reviewed 115-ID set (count ${rows.length}, SHA-256 ${setSha256})`
+    );
+  }
+  if (rows.some((row) => row.state == null || row.catalog_fingerprint == null)) {
+    throw new Error("one or more reviewed catalog destinations has no audit job");
+  }
+  const preStateSha256 = catalogPreStateSha256(rows);
+  if (requireReviewedPreState && preStateSha256 !== REVIEWED_CATALOG_PRESTATE_SHA256) {
+    throw new Error(
+      `live catalog job pre-state SHA-256 ${preStateSha256} does not match review`
+    );
+  }
+  return {
+    destinationCount: rows.length,
+    destinationSetSha256: setSha256,
+    preStateSha256,
+  };
+}
+
+export function destinationUpdateTriggerGuard(
+  row: DestinationUpdateTriggerGuardRow
+): DestinationUpdateTriggerGuard {
+  const definition = row.function_definition ?? "";
+  const triggerDefinition = row.trigger_definition ?? "";
+  const safeComment = row.function_comment === DESTINATION_UPDATE_TRIGGER_SAFE_COMMENT;
+  const safeBodyMarker = definition.includes(DESTINATION_UPDATE_TRIGGER_SAFE_BODY_MARKER);
+  const xyOnlyPredicate =
+    definition.includes(
+      "(OLD.location IS NULL) IS DISTINCT FROM (NEW.location IS NULL)"
+    ) &&
+    definition.includes(
+      "ST_X(OLD.location::geometry) IS DISTINCT FROM ST_X(NEW.location::geometry)"
+    ) &&
+    definition.includes(
+      "ST_Y(OLD.location::geometry) IS DISTINCT FROM ST_Y(NEW.location::geometry)"
+    ) &&
+    !definition.includes("OLD.location != NEW.location");
+  const rejectionAntiJoin =
+    definition.split("FROM session_destination_rejections r").length - 1 === 2 &&
+    definition.includes("r.session_id = tp.session_id") &&
+    definition.includes("r.destination_id = NEW.id");
+  const exactEnabledTrigger =
+    number(row.trigger_count) === 1 &&
+    number(row.enabled_trigger_count) === 1 &&
+    triggerDefinition.includes("AFTER UPDATE OF boundary, location ON public.destinations") &&
+    triggerDefinition.includes("EXECUTE FUNCTION link_sessions_on_destination_update()");
+  const guard = {
+    safe: row.function_exists && safeComment && safeBodyMarker && xyOnlyPredicate &&
+      rejectionAntiJoin && exactEnabledTrigger,
+    functionExists: row.function_exists,
+    functionDefinitionMd5: row.function_definition_md5,
+    safeComment,
+    safeBodyMarker,
+    xyOnlyPredicate,
+    rejectionAntiJoin,
+    exactEnabledTrigger,
+  };
+  return guard;
+}
+
+export function assertDestinationUpdateTriggerGuard(
+  guard: DestinationUpdateTriggerGuard
+): void {
+  if (!guard.safe) {
+    throw new Error(
+      "destination session-link update trigger lacks the reviewed XY-only/rejection guard"
+    );
+  }
+}
+
+export function sessionTrackingInvariant(
+  row: SessionTrackingInvariantRow
+): SessionTrackingInvariant {
+  const invariant = {
+    sessionDestinationsCount: number(row.session_destinations_count),
+    sessionDestinationsHash: row.session_destinations_hash,
+    sessionDestinationRejectionsCount: number(row.session_destination_rejections_count),
+    sessionDestinationRejectionsHash: row.session_destination_rejections_hash,
+    destinationAreasCount: number(row.destination_areas_count),
+    destinationAreasHash: row.destination_areas_hash,
+    relevantTrackingSessionsCount: number(row.relevant_tracking_sessions_count),
+    relevantTrackingSessionsHash: row.relevant_tracking_sessions_hash,
+    relevantTrackingPointsCount: number(row.relevant_tracking_points_count),
+    relevantTrackingPointsHash: row.relevant_tracking_points_hash,
+  };
+  for (const hash of [
+    invariant.sessionDestinationsHash,
+    invariant.sessionDestinationRejectionsHash,
+    invariant.destinationAreasHash,
+    invariant.relevantTrackingSessionsHash,
+    invariant.relevantTrackingPointsHash,
+  ]) {
+    if (!/^[0-9a-f]{32}$/.test(hash)) {
+      throw new Error("session/tracking invariant query returned an invalid hash");
+    }
+  }
+  return invariant;
+}
+
+export function assertSessionTrackingInvariantUnchanged(
+  before: SessionTrackingInvariant,
+  after: SessionTrackingInvariant
+): void {
+  if (JSON.stringify(before) !== JSON.stringify(after)) {
+    throw new Error("session, destination-area, or tracking rows changed during elevation repair");
+  }
+}
+
 export function fingerprintImpact(row: ImpactRow): FingerprintImpact {
   const catalogDestinations = number(row.catalog_destinations);
   return {
@@ -1657,6 +2131,47 @@ async function queryImpact(client: QueryClient, candidates: ValidatedCandidate[]
   const result = await client.query<ImpactRow>(FINGERPRINT_IMPACT_SQL, [JSON.stringify(ids)]);
   if (result.rows.length !== 1) throw new Error("fingerprint impact query returned no result");
   return fingerprintImpact(result.rows[0]);
+}
+
+async function queryCatalogScope(
+  client: QueryClient,
+  candidates: ValidatedCandidate[],
+  requireReviewedPreState = true
+): Promise<{
+  destinationCount: number;
+  destinationSetSha256: string;
+  preStateSha256: string;
+}> {
+  const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
+  const result = await client.query<CatalogScopeRow>(CATALOG_SCOPE_SQL, [ids]);
+  return validateCatalogScopeRows(result.rows, requireReviewedPreState);
+}
+
+async function inspectDestinationUpdateTrigger(
+  client: QueryClient
+): Promise<DestinationUpdateTriggerGuard> {
+  const result = await client.query<DestinationUpdateTriggerGuardRow>(
+    DESTINATION_UPDATE_TRIGGER_GUARD_SQL
+  );
+  if (result.rows.length !== 1) {
+    throw new Error("destination update trigger guard query returned no result");
+  }
+  return destinationUpdateTriggerGuard(result.rows[0]);
+}
+
+async function querySessionTrackingInvariant(
+  client: QueryClient,
+  candidates: ValidatedCandidate[]
+): Promise<SessionTrackingInvariant> {
+  const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
+  const result = await client.query<SessionTrackingInvariantRow>(
+    SESSION_TRACKING_INVARIANT_SQL,
+    [ids]
+  );
+  if (result.rows.length !== 1) {
+    throw new Error("session/tracking invariant query returned no result");
+  }
+  return sessionTrackingInvariant(result.rows[0]);
 }
 
 async function queryRouteVertexImpact(
@@ -1864,13 +2379,20 @@ async function lockReviewedPathRepairRows(
 async function lockAffectedCatalogJobs(
   client: QueryClient,
   candidates: ValidatedCandidate[]
-): Promise<void> {
-  const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
-  const locked = await client.query<{
-    destination_id: string;
-    state: string;
-    lease_expires_at: string | null;
-  }>(LOCK_AFFECTED_CATALOG_JOBS_SQL, [ids]);
+): Promise<{
+  destinationCount: number;
+  destinationSetSha256: string;
+  preStateSha256: string;
+}> {
+  // Validate the dynamic normal-workflow scope before taking any catalog job
+  // lock. The lock and every later write use only the pinned 115-ID manifest.
+  const liveScope = await queryCatalogScope(client, candidates, true);
+  const reviewedIds = JSON.stringify(REVIEWED_CATALOG_DESTINATION_IDS);
+  const locked = await client.query<CatalogScopeRow>(
+    LOCK_AFFECTED_CATALOG_JOBS_SQL,
+    [reviewedIds]
+  );
+  validateCatalogScopeRows(locked.rows, true);
   const active = locked.rows.filter((row) =>
     row.state === "auditing" && row.lease_expires_at != null &&
     new Date(row.lease_expires_at).getTime() >= Date.now()
@@ -1878,15 +2400,15 @@ async function lockAffectedCatalogJobs(
   if (active.length > 0) {
     throw new Error(`${active.length} affected catalog audit leases are active`);
   }
-  await client.query(RECOVER_EXPIRED_AFFECTED_CATALOG_JOBS_SQL, [ids]);
+  await client.query(RECOVER_EXPIRED_AFFECTED_CATALOG_JOBS_SQL, [reviewedIds]);
+  return liveScope;
 }
 
 async function seedAffectedCatalogJobs(
   client: QueryClient,
-  candidates: ValidatedCandidate[],
   expectedCount: number
 ): Promise<number> {
-  const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
+  const ids = JSON.stringify(REVIEWED_CATALOG_DESTINATION_IDS);
   const result = await client.query<{ destination_id: string; state: string }>(
     TARGETED_CATALOG_SEED_SQL,
     [ids]
@@ -1909,11 +2431,15 @@ async function validateApplySqlPlans(
   reportSha256: string
 ): Promise<void> {
   const ids = JSON.stringify(candidates.map((candidate) => candidate.destinationId));
+  const reviewedCatalogIds = JSON.stringify(REVIEWED_CATALOG_DESTINATION_IDS);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${LIVE_ROWS_FOR_UPDATE_SQL}`, [candidateJson]);
-  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${RECOVER_EXPIRED_AFFECTED_CATALOG_JOBS_SQL}`, [ids]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${CATALOG_SCOPE_SQL}`, [ids]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${LOCK_AFFECTED_CATALOG_JOBS_SQL}`, [reviewedCatalogIds]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${RECOVER_EXPIRED_AFFECTED_CATALOG_JOBS_SQL}`, [reviewedCatalogIds]);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${UPDATE_SQL}`, [candidateJson, reportSha256]);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${POST_UPDATE_SQL}`, [candidateJson, reportSha256]);
-  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${TARGETED_CATALOG_SEED_SQL}`, [ids]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${TARGETED_CATALOG_SEED_SQL}`, [reviewedCatalogIds]);
+  await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${SESSION_TRACKING_INVARIANT_SQL}`, [ids]);
   const repairValues = [candidateJson, pathRepairsJson()];
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${LOCK_REVIEWED_ROUTES_SQL}`, repairValues);
   await client.query(`EXPLAIN (FORMAT JSON, COSTS OFF) ${LOCK_REVIEWED_SEGMENTS_SQL}`, repairValues);
@@ -2056,13 +2582,20 @@ export async function runPreflight(
   reportSha256: string
 ): Promise<JsonObject> {
   validateReviewedPathRepairs(candidates);
+  validateReviewedCatalogManifest();
   const client = await pool.connect();
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     try {
       await client.query("SET LOCAL extra_float_digits = 1");
       const candidateJson = await loadAndValidateLiveRows(client, candidates, false);
+      const destinationUpdateTrigger = await inspectDestinationUpdateTrigger(client);
+      const catalogScope = await queryCatalogScope(client, candidates, true);
+      const sessionTracking = await querySessionTrackingInvariant(client, candidates);
       const impact = await queryImpact(client, candidates);
+      if (impact.catalogDestinations !== REVIEWED_CATALOG_DESTINATION_COUNT) {
+        throw new Error("fingerprint impact does not match the reviewed 115 catalog destinations");
+      }
       const routeVertices = await queryRouteVertexImpact(client, candidateJson);
       validateReviewedRouteVertexScope(routeVertices);
       const pathRepairRows = await queryPathRepairAudit(client, candidateJson);
@@ -2078,6 +2611,9 @@ export async function runPreflight(
         minimumDeltaM: Math.min(...candidates.map((candidate) => candidate.deltaM)),
         maximumDeltaM: Math.max(...candidates.map((candidate) => candidate.deltaM)),
         fingerprintImpact: reviewedImpact,
+        catalogScope,
+        destinationUpdateTrigger,
+        sessionTrackingInvariant: sessionTracking,
         routeVertexImpact: routeVertices,
         pathRepairPlan: {
           routeUpdates: pathRepairRows.length,
@@ -2101,6 +2637,7 @@ export async function runPreflight(
         },
         applySqlPlansValidated: true,
         applyBlockedByActiveCatalogLease: impact.activeCatalogLeases > 0,
+        applyBlockedByUnsafeDestinationUpdateTrigger: !destinationUpdateTrigger.safe,
         productionWrites: 0,
       };
     } catch (error) {
@@ -2152,6 +2689,7 @@ export async function applyReviewedFractions(
     throw new Error("apply requires the exact reviewed report and all 117 candidates");
   }
   validateReviewedPathRepairs(candidates);
+  validateReviewedCatalogManifest();
   const client = await pool.connect();
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
@@ -2160,12 +2698,18 @@ export async function applyReviewedFractions(
       await client.query("SET LOCAL statement_timeout = '60s'");
       await client.query("SET LOCAL extra_float_digits = 1");
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [ADVISORY_LOCK_NAME]);
+      const destinationUpdateTrigger = await inspectDestinationUpdateTrigger(client);
+      assertDestinationUpdateTriggerGuard(destinationUpdateTrigger);
       const candidateJson = await loadAndValidateLiveRows(client, candidates, true);
+      const beforeSessionTracking = await querySessionTrackingInvariant(client, candidates);
       await lockReviewedPathRepairRows(client, candidateJson);
       const beforePathRepair = await queryPathRepairAudit(client, candidateJson);
       validatePathRepairAudit(beforePathRepair, "before", reportSha256);
-      await lockAffectedCatalogJobs(client, candidates);
+      const catalogScope = await lockAffectedCatalogJobs(client, candidates);
       const impact = await queryImpact(client, candidates);
+      if (impact.catalogDestinations !== REVIEWED_CATALOG_DESTINATION_COUNT) {
+        throw new Error("fingerprint impact does not match the reviewed 115 catalog destinations");
+      }
       if (impact.activeCatalogLeases !== 0) {
         throw new Error(
           `${impact.activeCatalogLeases} affected catalog audit leases are active; retry after they finish`
@@ -2196,8 +2740,10 @@ export async function applyReviewedFractions(
         reportSha256
       );
       const postChangeImpact = await queryImpact(client, candidates);
+      const postChangeCatalogScope = await queryCatalogScope(client, candidates, false);
       if (postChangeImpact.catalogDestinations !== impact.catalogDestinations ||
           postChangeImpact.catalogRoutes !== impact.catalogRoutes ||
+          postChangeCatalogScope.destinationSetSha256 !== catalogScope.destinationSetSha256 ||
           postChangeImpact.activeCatalogLeases !== 0) {
         throw new Error("catalog scope changed unexpectedly after the guarded vertex repair");
       }
@@ -2211,9 +2757,14 @@ export async function applyReviewedFractions(
       );
       const catalogJobsQueued = await seedAffectedCatalogJobs(
         client,
-        candidates,
-        impact.catalogDestinations
+        REVIEWED_CATALOG_DESTINATION_COUNT
       );
+      const finalCatalogScope = await queryCatalogScope(client, candidates, false);
+      if (finalCatalogScope.destinationSetSha256 !== REVIEWED_CATALOG_DESTINATION_SET_SHA256) {
+        throw new Error("catalog scope changed during the exact targeted seed");
+      }
+      const afterSessionTracking = await querySessionTrackingInvariant(client, candidates);
+      assertSessionTrackingInvariantUnchanged(beforeSessionTracking, afterSessionTracking);
       await client.query("COMMIT");
       return {
         mode: "applied",
@@ -2221,6 +2772,10 @@ export async function applyReviewedFractions(
         updatedDestinations: updated.rows.length,
         fingerprintImpact: reviewedImpact,
         postChangeFingerprintImpact: reviewedPostChangeImpact,
+        catalogScope,
+        finalCatalogScope,
+        destinationUpdateTrigger,
+        sessionTrackingInvariant: afterSessionTracking,
         routeVertexImpact: routeVertices,
         pathRepair,
         catalogJobsQueued,

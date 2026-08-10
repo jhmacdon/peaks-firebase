@@ -255,7 +255,20 @@ npm run apply:destination-elevation-fractions -- \
 The preflight checks every current integer value, PointZ value, XY coordinate,
 exact OSM ID, identity proof, and source-history cutoff. It also reports all
 catalog fingerprints affected through shared routes and any route or segment
-summit vertex still pinned to the old integer.
+summit vertex still pinned to the old integer. It requires the exact reviewed
+115-destination catalog scope (set SHA-256
+`0148b3dfaab0322255d1196c2b2df558fc37c3e14956a2d482c20ba4c033f742`)
+and its reviewed job pre-state. It also snapshots counts and hashes for linked
+sessions, explicit rejections, destination-area links, nearby tracking
+sessions, and their points.
+
+Before data apply, deploy
+`20260810_session_link_update_xy_guard.sql`. It patches the old destination
+update function only when its body matches the reviewed production function,
+keeps the rejection anti-join, and marks the new XY-only guard. It refuses
+unknown drift. A PointZ change in Z alone must not rerun historical session
+matching. The guarded data command checks the function body, marker, and exact
+enabled trigger before its first update.
 
 Apply requires `--apply` plus exact database, Cloud SQL instance, and
 instance-named Unix socket flags. It takes one serializable transaction and an
@@ -264,7 +277,9 @@ and stops if any guard or active catalog lease fails. It updates the scalar and
 PointZ together without changing XY, records the source proof in
 `metadata.elevation_fraction_repair`, and queues only affected catalog jobs
 with the normal catalog candidate SQL. It never runs the global catalog
-retirement query. Route-elevation and standard-route fingerprints do not use
+retirement query or writes an unreviewed 116th catalog job. It repeats the
+session and tracking hashes after all changes and rolls back on any difference.
+Route-elevation and standard-route fingerprints do not use
 destination elevation or `updated_at`, so this change does not queue them.
 For the two reviewed standard routes whose summit vertex is still the old
 integer, the same transaction changes only that exact PointZ in the route and

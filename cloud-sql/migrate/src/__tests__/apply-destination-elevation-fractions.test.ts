@@ -3,24 +3,38 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  CATALOG_SCOPE_SQL,
+  DESTINATION_UPDATE_TRIGGER_GUARD_SQL,
   FINGERPRINT_IMPACT_SQL,
   LIVE_ROWS_FOR_UPDATE_SQL,
+  LOCK_AFFECTED_CATALOG_JOBS_SQL,
   REPAIR_METADATA_KEY,
   REVIEWED_CANDIDATE_COUNT,
+  REVIEWED_CATALOG_DESTINATION_COUNT,
+  REVIEWED_CATALOG_DESTINATION_IDS,
+  REVIEWED_CATALOG_DESTINATION_SET_SHA256,
   REVIEWED_PATH_REPAIRS,
   REVIEWED_REPORT_SHA256,
   RECONCILE_ROUTE_ELEVATION_JOBS_SQL,
   RECONCILE_STANDARD_ROUTE_JOBS_SQL,
   ROUTE_VERTEX_IMPACT_SQL,
+  SESSION_TRACKING_INVARIANT_SQL,
   TARGETED_CATALOG_SEED_SQL,
   UPDATE_REVIEWED_ROUTE_VERTICES_SQL,
   UPDATE_REVIEWED_SEGMENT_VERTICES_SQL,
   UPDATE_SQL,
+  assertDestinationUpdateTriggerGuard,
+  assertSessionTrackingInvariantUnchanged,
+  catalogDestinationSetSha256,
+  destinationUpdateTriggerGuard,
   parseApplyArgs,
   resolveReviewedExpectation,
   routeVertexImpact,
+  sessionTrackingInvariant,
+  validateCatalogScopeRows,
   validateElevationFractionReport,
   validatePathRepairAudit,
+  validateReviewedCatalogManifest,
 } from "../apply-destination-elevation-fractions";
 
 const sha256 = "a".repeat(64);
@@ -208,11 +222,98 @@ test("guarded SQL locks rows, preserves XY, updates scalar and PointZ, and recor
 
 test("catalog repair uses the normal candidate fingerprint and only queues affected jobs", () => {
   assert.match(FINGERPRINT_IMPACT_SQL, /affected_catalog_destinations/);
-  assert.match(TARGETED_CATALOG_SEED_SQL, /JOIN affected ON affected\.destination_id/);
+  assert.match(CATALOG_SCOPE_SQL, /JOIN changed ON changed\.destination_id/);
+  assert.match(LOCK_AFFECTED_CATALOG_JOBS_SQL, /JOIN reviewed ON reviewed\.destination_id/);
+  assert.match(TARGETED_CATALOG_SEED_SQL, /JOIN reviewed ON reviewed\.destination_id/);
+  assert.doesNotMatch(TARGETED_CATALOG_SEED_SQL, /JOIN affected ON affected\.destination_id/);
   assert.match(TARGETED_CATALOG_SEED_SQL, /INSERT INTO route_catalog_audit_jobs/);
   assert.match(TARGETED_CATALOG_SEED_SQL, /d\.updated_at::text/);
   assert.match(TARGETED_CATALOG_SEED_SQL, /linked_destination\.updated_at::text/);
   assert.doesNotMatch(TARGETED_CATALOG_SEED_SQL, /state = 'out_of_scope'/);
+});
+
+test("catalog repair pins the exact reviewed 115-ID set and rejects a 116th job", () => {
+  validateReviewedCatalogManifest();
+  assert.equal(REVIEWED_CATALOG_DESTINATION_IDS.length, REVIEWED_CATALOG_DESTINATION_COUNT);
+  assert.equal(
+    catalogDestinationSetSha256(REVIEWED_CATALOG_DESTINATION_IDS),
+    REVIEWED_CATALOG_DESTINATION_SET_SHA256
+  );
+  const rows = REVIEWED_CATALOG_DESTINATION_IDS.map((destinationId) => ({
+    destination_id: destinationId,
+    destination_name: `Destination ${destinationId}`,
+    state: "queued",
+    priority: 1,
+    route_count: 1,
+    audit_rule_version: 3,
+    catalog_fingerprint: "fingerprint",
+    attempt_count: 0,
+    lease_owner: null,
+    lease_token: null,
+    lease_expires_at: null,
+    last_error: null,
+    final_result_text: null,
+    audited_at: null,
+  }));
+  assert.equal(validateCatalogScopeRows(rows, false).destinationCount, 115);
+  assert.throws(
+    () => validateCatalogScopeRows([
+      ...rows,
+      { ...rows[0], destination_id: "unreviewed-116th-destination" },
+    ], false),
+    /not the reviewed 115-ID set/
+  );
+});
+
+test("apply requires the marked XY-only session trigger and session hashes stay fixed", () => {
+  assert.match(DESTINATION_UPDATE_TRIGGER_GUARD_SQL, /pg_get_functiondef/);
+  assert.match(DESTINATION_UPDATE_TRIGGER_GUARD_SQL, /trg_destination_update_link_sessions/);
+  assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM session_destinations/);
+  assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM tracking_sessions/);
+  assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM tracking_points/);
+  const guard = destinationUpdateTriggerGuard({
+    function_exists: true,
+    function_comment: "peaks:destination-session-link-update:xy-only-with-rejection-v1",
+    function_definition: `
+      -- peaks_destination_session_link_xy_guard_v1
+      (OLD.location IS NULL) IS DISTINCT FROM (NEW.location IS NULL)
+      ST_X(OLD.location::geometry) IS DISTINCT FROM ST_X(NEW.location::geometry)
+      ST_Y(OLD.location::geometry) IS DISTINCT FROM ST_Y(NEW.location::geometry)
+      FROM session_destination_rejections r
+      r.session_id = tp.session_id AND r.destination_id = NEW.id
+      FROM session_destination_rejections r
+    `,
+    function_definition_md5: "a".repeat(32),
+    trigger_count: 1,
+    enabled_trigger_count: 1,
+    trigger_definition: "CREATE TRIGGER trg_destination_update_link_sessions AFTER UPDATE OF boundary, location ON public.destinations FOR EACH ROW EXECUTE FUNCTION link_sessions_on_destination_update()",
+  });
+  assertDestinationUpdateTriggerGuard(guard);
+  assert.throws(
+    () => assertDestinationUpdateTriggerGuard({ ...guard, safe: false }),
+    /lacks the reviewed XY-only/
+  );
+
+  const invariant = sessionTrackingInvariant({
+    session_destinations_count: 2,
+    session_destinations_hash: "a".repeat(32),
+    session_destination_rejections_count: 1,
+    session_destination_rejections_hash: "b".repeat(32),
+    destination_areas_count: 3,
+    destination_areas_hash: "c".repeat(32),
+    relevant_tracking_sessions_count: 4,
+    relevant_tracking_sessions_hash: "d".repeat(32),
+    relevant_tracking_points_count: 5,
+    relevant_tracking_points_hash: "e".repeat(32),
+  });
+  assertSessionTrackingInvariantUnchanged(invariant, { ...invariant });
+  assert.throws(
+    () => assertSessionTrackingInvariantUnchanged(
+      invariant,
+      { ...invariant, sessionDestinationsCount: 3 }
+    ),
+    /changed during elevation repair/
+  );
 });
 
 test("route vertex audit finds importer-pinned route and segment elevations", () => {
