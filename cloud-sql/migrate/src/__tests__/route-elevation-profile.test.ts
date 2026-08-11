@@ -48,7 +48,10 @@ test("route elevation profile rejects non-canonical base64 and mismatched counts
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy!"), []);
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy="), []);
   assert.deepEqual(decodeElevationProfile("MQ==junk"), []);
-  assert.deepEqual(decodeElevationProfile(Buffer.from("1000|1000.5").toString("base64")), []);
+  assert.deepEqual(
+    decodeElevationProfile(Buffer.from("1000|1000.5").toString("base64")),
+    [1000, 1000.5]
+  );
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 3), []);
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 2), [1000, 1002]);
 });
@@ -61,15 +64,21 @@ test("route elevation profile reports safe decode failure causes", () => {
   );
   assert.equal(
     decodeElevationProfileResult(
-      Buffer.from("1000|1000.5").toString("base64")
+      Buffer.from("1000| 1001").toString("base64")
     ).failure,
     "invalid_sample"
   );
   assert.equal(
     decodeElevationProfileResult(
-      Buffer.from(`${Number.MAX_SAFE_INTEGER + 1}|1000`).toString("base64")
+      Buffer.from("1000|1e999").toString("base64")
     ).failure,
-    "unsafe_integer"
+    "nonfinite_sample"
+  );
+  assert.equal(
+    decodeElevationProfileResult(
+      Buffer.from("1000|12000.1").toString("base64")
+    ).failure,
+    "out_of_range_sample"
   );
   assert.equal(
     decodeElevationProfileResult("MTAwMHwxMDAy", -1).failure,
@@ -81,6 +90,13 @@ test("route elevation profile reports safe decode failure causes", () => {
   );
   assert.deepEqual(decodeElevationProfileResult("MTAwMHwxMDAy", 2), {
     elevations: [1000, 1002],
+    failure: null,
+  });
+  const decimalProfile = Buffer.from("1000.25|1.001e3|-0.5").toString(
+    "base64"
+  );
+  assert.deepEqual(decodeElevationProfileResult(decimalProfile, 3), {
+    elevations: [1000.25, 1001, -0.5],
     failure: null,
   });
 });

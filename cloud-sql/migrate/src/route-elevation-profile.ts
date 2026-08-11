@@ -48,7 +48,8 @@ export type ElevationProfileDecodeFailure =
   | "missing"
   | "noncanonical_base64"
   | "invalid_sample"
-  | "unsafe_integer"
+  | "nonfinite_sample"
+  | "out_of_range_sample"
   | "invalid_expected_count"
   | "point_count_mismatch";
 
@@ -74,14 +75,22 @@ export function decodeElevationProfileResult(
   const samples = profile.split("|");
   if (
     samples.length === 0 ||
-    samples.some((sample) => !/^(?:0|[1-9]\d*|-[1-9]\d*)$/.test(sample))
+    samples.some(
+      (sample) =>
+        !/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(sample)
+    )
   ) {
     return { elevations: [], failure: "invalid_sample" };
   }
 
   const elevations = samples.map(Number);
-  if (elevations.some((elevation) => !Number.isSafeInteger(elevation))) {
-    return { elevations: [], failure: "unsafe_integer" };
+  if (elevations.some((elevation) => !Number.isFinite(elevation))) {
+    return { elevations: [], failure: "nonfinite_sample" };
+  }
+  if (
+    elevations.some((elevation) => elevation < -12_000 || elevation > 12_000)
+  ) {
+    return { elevations: [], failure: "out_of_range_sample" };
   }
   if (
     expectedVertexCount !== undefined &&
