@@ -162,7 +162,7 @@ async function ensureTrailhead(
     nearbyDestinations.unshift({
       id: row.id,
       name: row.name,
-      elevation: row.elevation ? Number(row.elevation) : null,
+      elevation: row.elevation != null ? Number(row.elevation) : null,
       features: Array.isArray(row.features)
         ? row.features
         : typeof row.features === "string" && row.features.startsWith("{")
@@ -199,7 +199,7 @@ async function ensureTrailhead(
       name,
       lat: start.lat,
       lng: start.lng,
-      elevation: Math.round(start.ele),
+      elevation: start.ele,
       features: ["trailhead"],
     });
     if ("duplicate" in created) {
@@ -210,7 +210,7 @@ async function ensureTrailhead(
     nearbyDestinations.unshift({
       id,
       name,
-      elevation: Math.round(start.ele),
+      elevation: start.ele,
       features: ["trailhead"],
       lat: start.lat,
       lng: start.lng,
@@ -296,7 +296,7 @@ async function matchDestinations(points: TrackPoint[]): Promise<NearbyDestinatio
       destinations.push({
         id: row.id,
         name: row.name,
-        elevation: row.elevation ? Number(row.elevation) : null,
+        elevation: row.elevation != null ? Number(row.elevation) : null,
         features,
         lat: dLat,
         lng: dLng,

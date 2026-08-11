@@ -172,10 +172,10 @@ export async function getDestinations(
   return {
     destinations: result.rows.map((r: any) => ({
       ...r,
-      elevation: r.elevation ? Number(r.elevation) : null,
-      prominence: r.prominence ? Number(r.prominence) : null,
-      lat: r.lat ? Number(r.lat) : null,
-      lng: r.lng ? Number(r.lng) : null,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
       features: parseArray(r.features),
       activities: parseArray(r.activities),
       route_count: Number(r.route_count),
@@ -228,10 +228,10 @@ export async function getDestination(
   return {
     ...r,
     areas: parseAreas(r.areas),
-    elevation: r.elevation ? Number(r.elevation) : null,
-    prominence: r.prominence ? Number(r.prominence) : null,
-    lat: r.lat ? Number(r.lat) : null,
-    lng: r.lng ? Number(r.lng) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
     boundary: r.boundary || null,
     amenities: r.amenities ?? null,
     averages: mergeDestinationAverages(r.averages, r.averages_offset),
@@ -263,7 +263,7 @@ export async function getDestinationRoutes(
   return result.rows.map((r: any) => ({
     ...r,
     distance: r.distance ? Number(r.distance) : null,
-    gain: r.gain ? Number(r.gain) : null,
+    gain: r.gain != null ? Number(r.gain) : null,
     ordinal: Number(r.ordinal),
     provenance: parseRouteProvenance(r.provenance),
   }));
@@ -424,7 +424,12 @@ export async function bulkImportDestinations(
     }
 
     const id = generateId();
-    const ele = wpt.ele != null ? Math.round(wpt.ele) : null;
+    const ele = wpt.ele;
+    if (ele != null && !Number.isFinite(ele)) {
+      results.push({ name: wpt.name, status: "skipped", reason: "Invalid elevation" });
+      skipped++;
+      continue;
+    }
 
     let country_code: string | null = null;
     let state_code: string | null = null;
@@ -436,7 +441,9 @@ export async function bulkImportDestinations(
 
     await db.query(
       `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type, country_code, state_code)
-       VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, COALESCE($6::double precision, 0)), 4326)::geography,
+       VALUES ($1, $2, $3,
+               CASE WHEN $6::double precision IS NULL THEN NULL
+                    ELSE ST_SetSRID(ST_MakePoint($4, $5, $6), 4326)::geography END,
                $6, ARRAY[$7]::destination_feature[], 'peaks', 'point', $8, $9)`,
       [id, wpt.name.trim(), normalizeSearchName(wpt.name.trim()), wpt.lng, wpt.lat, ele, wpt.feature, country_code, state_code]
     );
@@ -463,6 +470,9 @@ export async function createDestination(input: {
   type?: string;
   external_ids?: ExternalIds;
 }): Promise<{ id: string } | { duplicate: { id: string; name: string | null } }> {
+  if (input.elevation != null && !Number.isFinite(input.elevation)) {
+    throw new Error("elevation must be a finite number or null");
+  }
   // Duplicate guard: if any external_ids key matches an existing row, surface
   // the existing destination instead of creating a duplicate. The @> jsonb
   // containment form uses the destinations_external_ids_idx GIN index;
@@ -497,14 +507,15 @@ export async function createDestination(input: {
     // Non-fatal — location data is nice-to-have
   }
 
-  const roundedEle = input.elevation != null ? Math.round(input.elevation) : null;
   const externalIdsJson = JSON.stringify(input.external_ids ?? {});
 
   await db.query(
     `INSERT INTO destinations (id, name, search_name, location, elevation, features, owner, type, country_code, state_code, external_ids)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5, COALESCE($6::double precision, 0)), 4326)::geography,
+     VALUES ($1, $2, $3,
+             CASE WHEN $6::double precision IS NULL THEN NULL
+                  ELSE ST_SetSRID(ST_MakePoint($4, $5, $6), 4326)::geography END,
              $6, $7::destination_feature[], 'peaks', $8::destination_type, $9, $10, $11::jsonb)`,
-    [id, input.name, searchName, input.lng, input.lat, roundedEle, input.features, destType, country_code, state_code, externalIdsJson]
+    [id, input.name, searchName, input.lng, input.lat, input.elevation, input.features, destType, country_code, state_code, externalIdsJson]
   );
 
   // Tag any existing sessions whose track passes through the new destination.
@@ -546,7 +557,7 @@ export async function searchNearbyExisting(
 
   return result.rows.map((r: any) => ({
     ...r,
-    elevation: r.elevation ? Number(r.elevation) : null,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
     lat: Number(r.lat),
     lng: Number(r.lng),
     distance: Number(r.distance),
@@ -807,7 +818,7 @@ export async function lookupElevation(
 ): Promise<number | null> {
   try {
     const [ele] = await fetchElevations([{ lat, lng }]);
-    return Math.round(ele);
+    return Number.isFinite(ele) ? ele : null;
   } catch {
     return null;
   }

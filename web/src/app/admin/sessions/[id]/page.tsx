@@ -122,8 +122,9 @@ function SessionDetailContent() {
 
   const distances = buildDistances(points);
   const elevationPoints = points
-    .map((p, i) => ({ dist: distances[i], ele: p.elevation ?? 0 }))
-    .filter((p) => p.ele !== 0);
+    .flatMap((p, i) => p.elevation == null
+      ? []
+      : [{ dist: distances[i], ele: p.elevation }]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">

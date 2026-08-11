@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test": "node --test --import tsx src/lib/*.test.ts src/lib/__tests__/*.test.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -31,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.5.7",
     "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }

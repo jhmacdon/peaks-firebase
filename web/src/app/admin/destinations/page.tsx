@@ -294,7 +294,7 @@ function DestinationsContent() {
                             </select>
                           </td>
                           <td className="px-3 py-2 text-gray-500">
-                            {w.ele ? `${Math.round(w.ele * 3.28084).toLocaleString()} ft` : "—"}
+                            {w.ele != null ? `${Math.round(w.ele * 3.28084).toLocaleString()} ft` : "—"}
                           </td>
                           <td className="px-3 py-2 font-mono text-xs text-gray-500">
                             {w.lat.toFixed(4)}, {w.lng.toFixed(4)}

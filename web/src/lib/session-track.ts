@@ -109,7 +109,7 @@ export function buildSessionGpx(
         .map((point) => {
           const elevation =
             point.elevation != null && Number.isFinite(point.elevation)
-              ? `\n          <ele>${point.elevation.toFixed(2)}</ele>`
+              ? `\n          <ele>${String(point.elevation)}</ele>`
               : "";
           const time = Number.isFinite(point.time)
             ? `\n          <time>${new Date(point.time * 1000).toISOString()}</time>`

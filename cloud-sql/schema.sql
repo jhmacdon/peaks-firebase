@@ -109,6 +109,41 @@ $$;
 -- Tables
 -- =============================================================================
 
+CREATE OR REPLACE FUNCTION elevation_matches_location_z(
+    elevation DOUBLE PRECISION,
+    location geography
+)
+RETURNS BOOLEAN
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+    SELECT (
+        location IS NULL
+        OR (
+            ST_Z(location::geometry) IS NOT NULL
+            AND ST_Z(location::geometry) NOT IN (
+                'NaN'::DOUBLE PRECISION,
+                'Infinity'::DOUBLE PRECISION,
+                '-Infinity'::DOUBLE PRECISION
+            )
+        )
+    ) AND (
+        elevation IS NULL
+        OR (
+            location IS NOT NULL
+            AND elevation NOT IN (
+                'NaN'::DOUBLE PRECISION,
+                'Infinity'::DOUBLE PRECISION,
+                '-Infinity'::DOUBLE PRECISION
+            )
+            AND elevation = ST_Z(location::geometry)
+        )
+    );
+$$;
+
+COMMENT ON FUNCTION elevation_matches_location_z(DOUBLE PRECISION, geography) IS
+    'peaks:elevation-matches-location-z:finite-float8-v1';
+
 -- ---------------------------------------------------------------------------
 -- destinations
 -- Peaks, trailheads, and other points of interest.
@@ -122,6 +157,8 @@ CREATE TABLE destinations (
     elevation       DOUBLE PRECISION,  -- meters
     prominence      DOUBLE PRECISION,  -- meters
     location        geography(PointZ, 4326),
+    CONSTRAINT destinations_elevation_matches_location_z
+        CHECK (elevation_matches_location_z(elevation, location)),
     boundary        geography(Polygon, 4326),  -- optional shape for area destinations (lakes, camps, etc.)
     geohash         TEXT,
     type            destination_type NOT NULL DEFAULT 'point',
@@ -447,6 +484,24 @@ CREATE TABLE route_destinations (
     PRIMARY KEY (route_id, destination_id)
 );
 
+CREATE OR REPLACE FUNCTION canonical_elevation_token(elevation DOUBLE PRECISION)
+RETURNS TEXT
+LANGUAGE SQL
+IMMUTABLE
+STRICT
+SET extra_float_digits = 1
+AS $$
+    SELECT CASE
+        WHEN elevation IN (
+            'NaN'::DOUBLE PRECISION,
+            'Infinity'::DOUBLE PRECISION,
+            '-Infinity'::DOUBLE PRECISION
+        ) THEN NULL
+        WHEN elevation = 0 THEN '0'
+        ELSE ((elevation::text)::numeric)::text
+    END;
+$$;
+
 CREATE OR REPLACE FUNCTION encode_route_elevation_profile(path geography)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -455,7 +510,7 @@ AS $$
 DECLARE
     point_count BIGINT;
     valid_point_count BIGINT;
-    has_nonzero_rounded_elevation BOOLEAN;
+    has_nonzero_elevation BOOLEAN;
     elevation_profile TEXT;
 BEGIN
     IF path IS NULL
@@ -484,23 +539,23 @@ BEGIN
     SELECT
         count(*),
         count(*) FILTER (WHERE has_valid_elevation),
-        COALESCE(bool_or(round(elevation::numeric)::bigint <> 0) FILTER (
+        COALESCE(bool_or(elevation <> 0) FILTER (
             WHERE has_valid_elevation
         ), false),
         string_agg(
-            (round(elevation::numeric)::bigint)::text,
+            canonical_elevation_token(elevation),
             '|' ORDER BY point_path
         ) FILTER (WHERE has_valid_elevation)
     INTO
         point_count,
         valid_point_count,
-        has_nonzero_rounded_elevation,
+        has_nonzero_elevation,
         elevation_profile
     FROM valid_points;
 
     IF point_count < 2
         OR point_count <> valid_point_count
-        OR NOT has_nonzero_rounded_elevation THEN
+        OR NOT has_nonzero_elevation THEN
         RETURN NULL;
     END IF;
 
@@ -512,6 +567,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON FUNCTION encode_route_elevation_profile(geography) IS
+    'peaks:route-elevation-profile:finite-float8-v1';
+
 CREATE OR REPLACE FUNCTION route_elevation_profile_has_real_range(path geography)
 RETURNS BOOLEAN
 LANGUAGE SQL
@@ -521,17 +579,17 @@ AS $$
         (
             SELECT point_count >= 2
                 AND point_count = valid_point_count
-                AND max_rounded_elevation - min_rounded_elevation >= 1
+                AND max_elevation - min_elevation >= 1
             FROM (
                 SELECT count(*) AS point_count,
                        count(elevation) FILTER (WHERE elevation_is_finite)
                            AS valid_point_count,
-                       max(round(elevation::numeric)::bigint)
+                       max(elevation)
                            FILTER (WHERE elevation_is_finite)
-                           AS max_rounded_elevation,
-                       min(round(elevation::numeric)::bigint)
+                           AS max_elevation,
+                       min(elevation)
                            FILTER (WHERE elevation_is_finite)
-                           AS min_rounded_elevation
+                           AS min_elevation
                 FROM (
                     SELECT ST_Z((dumped).geom) AS elevation,
                            ST_Z((dumped).geom) IS NOT NULL
@@ -1164,6 +1222,8 @@ CREATE TABLE tracking_points (
 
     location        geography(PointZ, 4326),
     elevation       DOUBLE PRECISION,  -- denormalized Z for fast non-spatial queries
+    CONSTRAINT tracking_points_elevation_matches_location_z
+        CHECK (elevation_matches_location_z(elevation, location)),
 
     speed           DOUBLE PRECISION,  -- m/s
     azimuth         DOUBLE PRECISION,  -- bearing in degrees

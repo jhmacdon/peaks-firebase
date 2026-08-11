@@ -56,7 +56,7 @@ export async function migrateDestinations() {
         (d.searchName || d.name || "").toLowerCase(),
         elevation,
         d.prominence ?? null,
-        lng, lat, elevation ?? 0, // for ST_MakePoint(lng, lat, elev)
+        lng, lat, elevation,
         d.g || null,
         mapDestinationType(d.type),
         `{${activities.join(",")}}`,
@@ -89,7 +89,8 @@ export async function migrateDestinations() {
             averages, recency
           ) VALUES (
             $1, $2, $3, $4, $5,
-            ST_MakePoint($6, $7, $8)::geography,
+            CASE WHEN $8::double precision IS NULL THEN NULL
+                 ELSE ST_MakePoint($6, $7, $8)::geography END,
             $9, $10::destination_type, $11::activity_type[], $12::destination_feature[], $13,
             $14, $15, $16, $17,
             $18, $19,

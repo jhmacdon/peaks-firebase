@@ -13,6 +13,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { Pool } from "pg";
+import { COUNTS_SQL } from "../audit-elevation-precision";
+import { canonicalElevationToken } from "../route-elevation-profile";
 import {
   ELEVATION_CANDIDATES_SQL,
   ELEVATION_ROUTE_FINGERPRINT_SQL,
@@ -33,6 +35,39 @@ import {
 
 const TEST_DATABASE_URL = process.env.ROUTE_ELEVATION_JOB_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
+
+function finiteParitySamples(): number[] {
+  const samples = [
+    -0,
+    Number.MIN_VALUE,
+    -Number.MIN_VALUE,
+    Number.MAX_VALUE,
+    -Number.MAX_VALUE,
+    Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER,
+    Number.EPSILON,
+    1e-7,
+    1e20,
+    1e21,
+    1234.567890123,
+  ];
+  let state = 0x6d2b79f5;
+  const next = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state >>> 0;
+  };
+  const bytes = new ArrayBuffer(8);
+  const view = new DataView(bytes);
+  while (samples.length < 524) {
+    view.setUint32(0, next());
+    view.setUint32(4, next());
+    const value = view.getFloat64(0);
+    if (Number.isFinite(value)) samples.push(value);
+  }
+  return samples;
+}
 
 test("route elevation queue accepts only documented command flags", () => {
   assert.doesNotThrow(() => validateArgs("seed", ["--apply"]));
@@ -421,6 +456,651 @@ test("sampled profiles without a real range block before writes", () => {
     /async function blockLease[\s\S]+?lease_expires_at >= now\(\)/
   );
 });
+
+test(
+  "legacy elevation state upgrades through the real migration and stays unchanged on rerun",
+  { skip: TEST_DATABASE_URL ? false : "ROUTE_ELEVATION_JOB_TEST_DATABASE_URL not set" },
+  async () => {
+    const url = new URL(TEST_DATABASE_URL!);
+    assert.match(url.pathname, /_test$/);
+    const pool = new Pool({ connectionString: TEST_DATABASE_URL });
+    const client = await pool.connect();
+    const schema = `elevation_precision_${process.pid}_${Date.now()}`;
+    const migration = readFileSync(
+      join(MIGRATE_ROOT, "../migrations/20260810_elevation_double_precision.sql"),
+      "utf8"
+    );
+    const beginOffsets = Array.from(migration.matchAll(/^BEGIN;$/gm), (match) => match.index!);
+    const commitOffsets = Array.from(migration.matchAll(/^COMMIT;$/gm), (match) => match.index!);
+    assert.equal(beginOffsets.length, 3);
+    assert.equal(commitOffsets.length, 3);
+    assert.deepEqual(
+      beginOffsets.map((beginOffset, index) => beginOffset < commitOffsets[index]),
+      [true, true, true]
+    );
+    assert.ok(commitOffsets[0] < beginOffsets[1]);
+    assert.ok(commitOffsets[1] < beginOffsets[2]);
+    const mainLockOffset = migration.indexOf("LOCK TABLE");
+    const mainLockStatement = migration.slice(
+      mainLockOffset,
+      migration.indexOf(";", mainLockOffset) + 1
+    );
+    assert.doesNotMatch(mainLockStatement, /\bdestinations\b|\btracking_points\b/);
+    const changedPathSnapshotOffset = migration.indexOf(
+      "CREATE TEMP TABLE elevation_precision_changed_route_paths_before"
+    );
+    const affectedRoutesOffset = migration.indexOf(
+      "CREATE TEMP TABLE elevation_precision_profile_affected_routes"
+    );
+    assert.match(
+      migration.slice(changedPathSnapshotOffset, affectedRoutesOffset),
+      /JOIN elevation_precision_changed_routes changed USING \(id\)/
+    );
+    assert.ok(
+      migration.indexOf("VALIDATE CONSTRAINT destinations_elevation_matches_location_z") >
+        commitOffsets[1]
+    );
+    const legacyProfile = Buffer.from("1235|1236", "ascii").toString("base64");
+    const preciseProfile = Buffer.from(
+      "1234.567890123|1236.125",
+      "ascii"
+    ).toString("base64");
+    const outOfRangeProfile = Buffer.from("1000|1e999999", "ascii").toString("base64");
+    let originalError: unknown;
+    let testFailed = false;
+    try {
+      await client.query(`CREATE SCHEMA "${schema}"`);
+      await client.query(`SET search_path TO "${schema}", public`);
+      await client.query(`
+        CREATE TABLE destinations (
+          id text PRIMARY KEY,
+          elevation double precision,
+          prominence double precision,
+          location geography(PointZ, 4326),
+          features destination_feature[] NOT NULL DEFAULT '{}',
+          averages jsonb,
+          averages_offset jsonb,
+          metadata jsonb,
+          external_ids jsonb NOT NULL DEFAULT '{}'::jsonb,
+          amenities jsonb
+        );
+        CREATE TABLE tracking_points (
+          id text PRIMARY KEY,
+          elevation double precision,
+          location geography(PointZ, 4326)
+        );
+        CREATE TABLE routes (
+          id text PRIMARY KEY,
+          name text,
+          owner text NOT NULL,
+          status text NOT NULL,
+          shape text,
+          path geography(LineStringZ, 4326),
+          distance double precision,
+          gain double precision,
+          gain_loss double precision,
+          elevation_string text,
+          elevation_source text,
+          elevation_source_url text,
+          elevation_attribution text,
+          elevation_license_url text,
+          elevation_retrieved_at timestamptz,
+          external_links jsonb,
+          provenance jsonb,
+          completion text NOT NULL DEFAULT 'none',
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE segments (
+          id text PRIMARY KEY,
+          path geography(LineStringZ, 4326),
+          gain double precision,
+          gain_loss double precision,
+          provenance jsonb
+        );
+        CREATE TABLE route_segments (
+          route_id text NOT NULL,
+          segment_id text NOT NULL,
+          ordinal integer NOT NULL,
+          direction text NOT NULL
+        );
+        CREATE TABLE route_destinations (
+          route_id text NOT NULL,
+          destination_id text NOT NULL
+        );
+        CREATE TABLE route_elevation_backfill_jobs (
+          route_id text PRIMARY KEY,
+          state text NOT NULL,
+          path_fingerprint text NOT NULL,
+          priority integer NOT NULL DEFAULT 0,
+          attempt_count integer NOT NULL DEFAULT 0,
+          source_kind text NOT NULL DEFAULT 'unknown',
+          last_error text,
+          final_evidence jsonb,
+          next_attempt_at timestamptz NOT NULL DEFAULT now(),
+          lease_owner text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE route_catalog_audit_jobs (
+          destination_id text PRIMARY KEY,
+          state text NOT NULL,
+          attempt_count integer NOT NULL DEFAULT 0,
+          catalog_fingerprint text NOT NULL,
+          last_error text,
+          final_result jsonb,
+          audited_at timestamptz,
+          lease_owner text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE standard_route_backfill_jobs (
+          destination_id text PRIMARY KEY,
+          state text NOT NULL,
+          target_reasons jsonb NOT NULL DEFAULT '{}'::jsonb,
+          evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+          candidate jsonb NOT NULL DEFAULT '{}'::jsonb,
+          review jsonb NOT NULL DEFAULT '{}'::jsonb,
+          candidate_artifact jsonb,
+          published_route_id text,
+          replacement_route_id text,
+          next_attempt_at timestamptz NOT NULL DEFAULT now(),
+          last_error text,
+          lease_token text,
+          lease_expires_at timestamptz,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE TABLE route_integrity_repairs (
+          route_id text NOT NULL,
+          destination_id text NOT NULL,
+          evidence jsonb NOT NULL DEFAULT '{}'::jsonb
+        );
+        CREATE TABLE tracking_sessions (
+          id text PRIMARY KEY,
+          gain double precision,
+          highest_point double precision,
+          path geography(LineStringZ, 4326),
+          health_data jsonb,
+          source_contributions jsonb NOT NULL DEFAULT '[]'::jsonb
+        );
+        CREATE TABLE session_markers (
+          id text PRIMARY KEY,
+          location geography(PointZ, 4326)
+        );
+        CREATE TABLE plans (
+          id text PRIMARY KEY,
+          gain double precision,
+          path geography(Geometry, 4326)
+        );
+
+        CREATE FUNCTION encode_route_elevation_profile(path geography)
+        RETURNS text
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$
+          SELECT encode(convert_to(string_agg(
+            round(ST_Z((dumped).geom))::bigint::text,
+            '|' ORDER BY (dumped).path
+          ), 'SQL_ASCII'), 'base64')
+          FROM ST_DumpPoints(path::geometry) dumped;
+        $legacy$;
+
+        CREATE FUNCTION route_elevation_profile_has_real_range(path geography)
+        RETURNS boolean
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$ SELECT path IS NOT NULL; $legacy$;
+
+        CREATE FUNCTION route_elevation_stats(path geography)
+        RETURNS TABLE(gain double precision, loss double precision)
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $legacy$ SELECT 0::double precision, 0::double precision; $legacy$;
+      `);
+
+      await client.query(`
+        CREATE FUNCTION elevation_matches_location_z(
+          elevation double precision,
+          location geography
+        ) RETURNS boolean
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $unmarked$ SELECT true; $unmarked$;
+        ALTER TABLE destinations
+          ADD CONSTRAINT destinations_elevation_matches_location_z
+          CHECK (elevation_matches_location_z(elevation, location));
+        ALTER TABLE tracking_points
+          ADD CONSTRAINT tracking_points_elevation_matches_location_z
+          CHECK (elevation_matches_location_z(elevation, location));
+      `);
+      const unmarkedHelperBefore = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      const unmarkedConstraintOidsBefore = await client.query<{ oid: number }>(`
+        SELECT oid
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      await assert.rejects(
+        client.query(migration),
+        /refusing to replace unmarked elevation_matches_location_z behind a validated constraint/
+      );
+      await client.query(`ROLLBACK`);
+      const unmarkedHelperAfter = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      const unmarkedConstraintOidsAfter = await client.query<{ oid: number }>(`
+        SELECT oid
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      assert.deepEqual(unmarkedHelperAfter.rows, unmarkedHelperBefore.rows);
+      assert.deepEqual(unmarkedConstraintOidsAfter.rows, unmarkedConstraintOidsBefore.rows);
+      assert.equal(unmarkedHelperAfter.rows[0]?.marker, null);
+      await client.query(`
+        ALTER TABLE destinations
+          DROP CONSTRAINT destinations_elevation_matches_location_z;
+        ALTER TABLE tracking_points
+          DROP CONSTRAINT tracking_points_elevation_matches_location_z;
+        DROP FUNCTION elevation_matches_location_z(double precision, geography);
+      `);
+
+      await client.query(
+        `INSERT INTO destinations (id, elevation, location) VALUES
+           ('destination', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);
+         UPDATE destinations
+         SET averages = '{"elevation":1.25,"mixed":[{"gain":2.5},3,["scalar",{"highestPoint":"NaN"}]]}'::jsonb
+         WHERE id = 'destination';
+         INSERT INTO tracking_points (id, elevation, location) VALUES
+           ('point', 100.25, ST_SetSRID(ST_MakePoint(-121, 47, 100.25), 4326)::geography);`
+      );
+      await client.query(
+        `INSERT INTO routes (
+           id, name, owner, status, path, gain, gain_loss, elevation_string, updated_at
+         ) VALUES
+           ('peaks-valid', 'Valid', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-01T00:00:00Z'),
+           ('peaks-current', 'Current', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $2, '2026-01-02T00:00:00Z'),
+           ('peaks-extreme', 'Extreme segment', 'peaks', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $2, '2026-01-02T12:00:00Z'),
+           ('peaks-invalid', 'Invalid', 'peaks', 'active', NULL, 0, 0, $1,
+             '2026-01-03T00:00:00Z'),
+           ('peaks-superseded', 'Superseded', 'peaks', 'superseded', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-03T12:00:00Z'),
+           ('user-valid', 'User', 'user-1', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0, $1, '2026-01-04T00:00:00Z'),
+           ('user-out-of-range', 'User malformed', 'user-1', 'active', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1000, -121.01 47.01 1001)'
+           ), 0, 0, $3, '2026-01-05T00:00:00Z')`,
+        [legacyProfile, preciseProfile, outOfRangeProfile]
+      );
+      await client.query(
+        `INSERT INTO route_destinations VALUES ('peaks-valid', 'destination');
+         INSERT INTO segments (id, path, gain, gain_loss) VALUES
+           ('fractional-segment', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1234.567890123, -121.01 47.01 1236.125)'
+           ), 0, 0),
+           ('extreme-segment', ST_GeogFromText(
+             'SRID=4326;LINESTRING Z (-121 47 1e20, -121.01 47.01 1.0000000000000002e20)'
+           ), 0, 0);
+         INSERT INTO route_segments VALUES
+           ('peaks-current', 'fractional-segment', 0, 'forward'),
+           ('peaks-extreme', 'extreme-segment', 0, 'forward');
+         INSERT INTO route_elevation_backfill_jobs (
+           route_id, state, path_fingerprint, attempt_count, last_error, final_evidence,
+           updated_at
+         ) VALUES
+           ('peaks-valid', 'blocked', 'legacy-valid', 3, 'old failure', '{"old":true}',
+             '2026-02-01T00:00:00Z'),
+           ('peaks-current', 'complete', 'legacy-current', 1, NULL, '{"old":true}',
+             '2026-02-01T12:00:00Z'),
+           ('peaks-extreme', 'complete', 'legacy-extreme', 1, NULL, '{"old":true}',
+             '2026-02-01T18:00:00Z'),
+           ('peaks-invalid', 'complete', 'legacy-invalid', 1, NULL, '{"old":true}',
+             '2026-02-02T00:00:00Z'),
+           ('peaks-superseded', 'complete', 'legacy-superseded', 1, NULL, '{"old":true}',
+             '2026-02-02T12:00:00Z');
+         INSERT INTO route_catalog_audit_jobs (
+           destination_id, state, attempt_count, catalog_fingerprint, final_result,
+           audited_at, updated_at
+         ) VALUES (
+           'destination', 'passed', 2, 'truthful-old-fingerprint', '{"old":true}',
+           '2026-02-03T00:00:00Z', '2026-02-03T00:00:00Z'
+         );
+         INSERT INTO standard_route_backfill_jobs (
+           destination_id, state, evidence, published_route_id, last_error, updated_at
+         ) VALUES (
+           'destination', 'verified',
+           '{"keep":"yes","last_verification":{"old":true},"verification_action":"old"}',
+           'peaks-valid', 'old failure', '2026-02-04T00:00:00Z'
+         );`
+      );
+
+      await client.query(
+        `UPDATE route_elevation_backfill_jobs job
+         SET path_fingerprint = current.path_fingerprint
+         FROM (${ELEVATION_ROUTE_FINGERPRINT_SQL}) current
+         WHERE current.route_id = job.route_id
+           AND job.route_id <> 'peaks-extreme'`
+      );
+
+      await client.query("SET extra_float_digits = 1");
+      const legacyAudit = await client.query<{
+        recoverable_peaks_profiles: string;
+        stale_elevation_jobs: string;
+        catalog_jobs_affected: string;
+        standard_jobs_needing_verification: string;
+        malformed_or_out_of_range_profiles: string;
+        elevation_like_jsonb_values: string;
+        fractional_elevation_jsonb: string;
+        nonfinite_elevation_jsonb: string;
+      }>(COUNTS_SQL);
+      assert.equal(Number(legacyAudit.rows[0].recoverable_peaks_profiles), 2);
+      assert.equal(Number(legacyAudit.rows[0].stale_elevation_jobs), 3);
+      assert.equal(Number(legacyAudit.rows[0].catalog_jobs_affected), 1);
+      assert.equal(Number(legacyAudit.rows[0].standard_jobs_needing_verification), 1);
+      assert.equal(Number(legacyAudit.rows[0].malformed_or_out_of_range_profiles), 1);
+      assert.equal(Number(legacyAudit.rows[0].elevation_like_jsonb_values), 3);
+      assert.equal(Number(legacyAudit.rows[0].fractional_elevation_jsonb), 2);
+      assert.equal(Number(legacyAudit.rows[0].nonfinite_elevation_jsonb), 1);
+
+      await client.query(`
+        UPDATE route_elevation_backfill_jobs
+        SET state = 'working',
+            lease_owner = 'fixture-worker',
+            lease_token = 'fixture-lease',
+            lease_expires_at = now() + interval '1 hour'
+        WHERE route_id = 'peaks-valid'
+      `);
+      await assert.rejects(
+        client.query(migration),
+        /elevation precision preflight blocked by active work/
+      );
+      await client.query(`ROLLBACK`);
+
+      const constraintsAfterPrelude = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(`
+        SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+        FROM pg_constraint
+        WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+          AND conname IN (
+            'destinations_elevation_matches_location_z',
+            'tracking_points_elevation_matches_location_z'
+          )
+        ORDER BY conname
+      `);
+      assert.equal(constraintsAfterPrelude.rowCount, 2);
+      assert.equal(constraintsAfterPrelude.rows.every((row) => !row.convalidated), true);
+      assert.equal(
+        constraintsAfterPrelude.rows.every(
+          (row) =>
+            row.definition ===
+            "CHECK (elevation_matches_location_z(elevation, location)) NOT VALID"
+        ),
+        true
+      );
+      const helperAfterPrelude = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.equal(
+        helperAfterPrelude.rows[0]?.marker,
+        "peaks:elevation-matches-location-z:finite-float8-v1"
+      );
+      await client.query(`
+        UPDATE route_elevation_backfill_jobs
+        SET state = 'blocked',
+            lease_owner = NULL,
+            lease_token = NULL,
+            lease_expires_at = NULL
+        WHERE route_id = 'peaks-valid'
+      `);
+
+      const pathHashesBefore = await client.query<{ id: string; path_hash: string | null }>(
+        `SELECT id,
+                CASE WHEN path IS NULL THEN NULL
+                  ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash
+         FROM routes ORDER BY id`
+      );
+
+      await client.query(migration);
+
+      const paritySamples = finiteParitySamples();
+      await client.query("SET extra_float_digits = -15");
+      const sqlTokens = await client.query<{ ordinal: number; token: string }>(
+        `SELECT ordinality::int AS ordinal, canonical_elevation_token(value) AS token
+         FROM unnest($1::double precision[]) WITH ORDINALITY sample(value, ordinality)
+         ORDER BY ordinality`,
+        [paritySamples]
+      );
+      assert.deepEqual(
+        sqlTokens.rows.map((row) => row.token),
+        paritySamples.map((value) => canonicalElevationToken(value))
+      );
+      const functionConfig = await client.query<{ proconfig: string[] | null }>(
+        `SELECT proconfig
+         FROM pg_proc
+         WHERE oid = 'canonical_elevation_token(double precision)'::regprocedure`
+      );
+      assert.deepEqual(functionConfig.rows[0]?.proconfig, ["extra_float_digits=1"]);
+      await client.query("RESET extra_float_digits");
+
+      const routesAfterFirst = await client.query<{
+        id: string;
+        elevation_string: string | null;
+        updated_at: Date;
+      }>(`SELECT id, elevation_string, updated_at FROM routes ORDER BY id`);
+      const validRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-valid")!;
+      const currentRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-current")!;
+      const invalidRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-invalid")!;
+      const supersededRoute = routesAfterFirst.rows.find((row) => row.id === "peaks-superseded")!;
+      const userRoute = routesAfterFirst.rows.find((row) => row.id === "user-valid")!;
+      const outOfRangeUserRoute = routesAfterFirst.rows.find((row) => row.id === "user-out-of-range")!;
+      assert.equal(validRoute.elevation_string, preciseProfile);
+      assert.equal(currentRoute.elevation_string, preciseProfile);
+      assert.equal(currentRoute.updated_at.toISOString(), "2026-01-02T00:00:00.000Z");
+      assert.equal(invalidRoute.elevation_string, null);
+      assert.equal(supersededRoute.elevation_string, preciseProfile);
+      assert.equal(userRoute.elevation_string, legacyProfile);
+      assert.equal(userRoute.updated_at.toISOString(), "2026-01-04T00:00:00.000Z");
+      assert.equal(outOfRangeUserRoute.elevation_string, outOfRangeProfile);
+
+      const elevationJobs = await client.query<{
+        route_id: string;
+        state: string;
+        attempt_count: number;
+        last_error: string | null;
+        final_evidence: Record<string, unknown> | null;
+      }>(
+        `SELECT route_id, state, attempt_count, last_error, final_evidence
+         FROM route_elevation_backfill_jobs ORDER BY route_id`
+      );
+      const invalidJob = elevationJobs.rows.find((row) => row.route_id === "peaks-invalid")!;
+      const supersededJob = elevationJobs.rows.find((row) => row.route_id === "peaks-superseded")!;
+      const validJob = elevationJobs.rows.find((row) => row.route_id === "peaks-valid")!;
+      const currentJob = elevationJobs.rows.find((row) => row.route_id === "peaks-current")!;
+      const extremeJob = elevationJobs.rows.find((row) => row.route_id === "peaks-extreme")!;
+      assert.equal(invalidJob.state, "out_of_scope");
+      assert.equal(invalidJob.final_evidence, null);
+      assert.equal(supersededJob.state, "out_of_scope");
+      assert.equal(supersededJob.final_evidence, null);
+      assert.equal(validJob.state, "queued");
+      assert.equal(validJob.attempt_count, 0);
+      assert.equal(validJob.last_error, null);
+      assert.equal(validJob.final_evidence, null);
+      assert.equal(currentJob.state, "queued");
+      assert.equal(currentJob.final_evidence, null);
+      assert.equal(extremeJob.state, "queued");
+      assert.equal(extremeJob.final_evidence, null);
+
+      const catalogJob = (await client.query<{
+        state: string;
+        catalog_fingerprint: string;
+        final_result: { stale_reason?: string; previous_catalog_fingerprint?: string };
+      }>(`SELECT state, catalog_fingerprint, final_result FROM route_catalog_audit_jobs`)).rows[0];
+      assert.equal(catalogJob.state, "queued");
+      assert.equal(catalogJob.catalog_fingerprint, "truthful-old-fingerprint");
+      assert.equal(catalogJob.final_result.stale_reason, "elevation_profile_format_changed");
+      assert.equal(catalogJob.final_result.previous_catalog_fingerprint, "truthful-old-fingerprint");
+
+      const standardJob = (await client.query<{
+        state: string;
+        evidence: Record<string, unknown>;
+        last_error: string | null;
+      }>(`SELECT state, evidence, last_error FROM standard_route_backfill_jobs`)).rows[0];
+      assert.equal(standardJob.state, "published");
+      assert.deepEqual(standardJob.evidence, { keep: "yes" });
+      assert.equal(standardJob.last_error, null);
+
+      const constraintsAfterFirst = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(
+        `SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+         FROM pg_constraint
+         WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+           AND conname IN (
+             'destinations_elevation_matches_location_z',
+             'tracking_points_elevation_matches_location_z'
+           )
+         ORDER BY conname`
+      );
+      assert.equal(constraintsAfterFirst.rowCount, 2);
+      assert.equal(constraintsAfterFirst.rows.every((row) => row.convalidated), true);
+      assert.equal(
+        constraintsAfterFirst.rows.every(
+          (row) => row.definition === "CHECK (elevation_matches_location_z(elevation, location))"
+        ),
+        true
+      );
+      assert.deepEqual(
+        constraintsAfterFirst.rows.map((row) => row.oid),
+        constraintsAfterPrelude.rows.map((row) => row.oid)
+      );
+      const helperAfterFirst = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.deepEqual(helperAfterFirst.rows, helperAfterPrelude.rows);
+
+      const snapshotAfterFirst = await client.query<{ snapshot: string }>(`
+        SELECT jsonb_build_object(
+          'routes', (SELECT jsonb_agg(to_jsonb(r) ORDER BY r.id) FROM routes r),
+          'elevation_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.route_id)
+            FROM route_elevation_backfill_jobs j),
+          'catalog_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM route_catalog_audit_jobs j),
+          'standard_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM standard_route_backfill_jobs j)
+        )::text AS snapshot
+      `);
+
+      await client.query(migration);
+
+      const pathHashesAfter = await client.query<{ id: string; path_hash: string | null }>(
+        `SELECT id,
+                CASE WHEN path IS NULL THEN NULL
+                  ELSE md5(encode(ST_AsEWKB(path::geometry), 'hex')) END AS path_hash
+         FROM routes ORDER BY id`
+      );
+      assert.deepEqual(pathHashesAfter.rows, pathHashesBefore.rows);
+
+      const snapshotAfterSecond = await client.query<{ snapshot: string }>(`
+        SELECT jsonb_build_object(
+          'routes', (SELECT jsonb_agg(to_jsonb(r) ORDER BY r.id) FROM routes r),
+          'elevation_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.route_id)
+            FROM route_elevation_backfill_jobs j),
+          'catalog_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM route_catalog_audit_jobs j),
+          'standard_jobs', (SELECT jsonb_agg(to_jsonb(j) ORDER BY j.destination_id)
+            FROM standard_route_backfill_jobs j)
+        )::text AS snapshot
+      `);
+      assert.equal(snapshotAfterSecond.rows[0].snapshot, snapshotAfterFirst.rows[0].snapshot);
+
+      const constraintsAfterSecond = await client.query<{
+        conname: string;
+        oid: number;
+        convalidated: boolean;
+        definition: string;
+      }>(
+        `SELECT conname, oid, convalidated, pg_get_constraintdef(oid, true) AS definition
+         FROM pg_constraint
+         WHERE conrelid IN ('destinations'::regclass, 'tracking_points'::regclass)
+           AND conname IN (
+             'destinations_elevation_matches_location_z',
+             'tracking_points_elevation_matches_location_z'
+           )
+         ORDER BY conname`
+      );
+      assert.deepEqual(constraintsAfterSecond.rows, constraintsAfterFirst.rows);
+      const helperAfterSecond = await client.query<{ oid: number; marker: string | null }>(`
+        SELECT oid, obj_description(oid, 'pg_proc') AS marker
+        FROM pg_proc
+        WHERE oid = 'elevation_matches_location_z(double precision,geography)'::regprocedure
+      `);
+      assert.deepEqual(helperAfterSecond.rows, helperAfterFirst.rows);
+    } catch (error) {
+      testFailed = true;
+      originalError = error;
+    } finally {
+      const cleanupErrors: unknown[] = [];
+      const attemptCleanup = async (operation: () => Promise<unknown>) => {
+        try {
+          await operation();
+        } catch (error) {
+          cleanupErrors.push(error);
+        }
+      };
+
+      await attemptCleanup(() => client.query(`ROLLBACK`));
+      await attemptCleanup(() => client.query(`RESET search_path`));
+      await attemptCleanup(() => client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`));
+      try {
+        client.release();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+      await attemptCleanup(() => pool.end());
+
+      if (testFailed) {
+        throw originalError;
+      }
+      if (cleanupErrors.length > 0) {
+        throw cleanupErrors[0];
+      }
+    }
+  }
+);
 
 test(
   "route elevation jobs seed Peaks paths, atomically lease distinct work, and recover expired leases",

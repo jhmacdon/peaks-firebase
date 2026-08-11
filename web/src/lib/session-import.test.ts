@@ -28,6 +28,18 @@ test("accepts a valid GPX document without an XML declaration", () => {
   assert.equal(parsed.points.length, 2);
 });
 
+test("keeps fractional elevation and gain from GPX", () => {
+  const gpx = `<gpx version="1.1" creator="Peaks test"><trk><trkseg>
+    <trkpt lat="47.1" lon="-121.9"><ele>1234.567890123</ele><time>2026-07-28T10:00:00Z</time></trkpt>
+    <trkpt lat="47.101" lon="-121.9"><ele>1240.123456789</ele><time>2026-07-28T10:01:00Z</time></trkpt>
+  </trkseg></trk></gpx>`;
+
+  const parsed = parseSessionGPX(gpx, "fractional.gpx");
+  assert.equal(parsed.points[0].elevation, 1234.567890123);
+  assert.equal(parsed.stats.gain, 1240.123456789 - 1234.567890123);
+  assert.equal(parsed.stats.highestPoint, 1240.123456789);
+});
+
 test("rejects excessive point elements before extracting their bodies", () => {
   const points = '<trkpt lat="0" lon="0" />'.repeat(
     MAX_GPX_SESSION_POINTS + 1

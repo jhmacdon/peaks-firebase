@@ -56,9 +56,13 @@ export async function migratePoints() {
       let paramIdx = 1;
 
       for (const p of chunk) {
-        if (p.lat == null || p.lng == null || p.time == null) continue;
+        if (![p.lat, p.lng, p.time, p.elevation].every(Number.isFinite)) {
+          throw new Error(
+            `Refusing points for session ${sessionId}: lat, lng, time, and elevation must be finite`
+          );
+        }
 
-        const elevation = p.elevation ?? 0;
+        const elevation = p.elevation;
 
         placeholders.push(
           `($${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, ` +

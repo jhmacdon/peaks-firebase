@@ -537,7 +537,7 @@ function NewRouteContent() {
                   <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
                     Drag the marker to adjust the location.
                     Current: {trailheadLat.toFixed(5)}, {trailheadLng.toFixed(5)}
-                    {points[0]?.ele ? ` (${Math.round(points[0].ele * 3.28084).toLocaleString()} ft)` : ""}
+                    {points[0]?.ele != null ? ` (${Math.round(points[0].ele * 3.28084).toLocaleString()} ft)` : ""}
                   </p>
                   <LocationPickerMap
                     lat={trailheadLat}

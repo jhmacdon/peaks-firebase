@@ -10,6 +10,10 @@ interface DecodedTile {
 
 const tileCache = new Map<string, DecodedTile>();
 
+export function decodeTerrariumElevation(r: number, g: number, b: number): number {
+  return r * 256 + g + b / 256 - 32768;
+}
+
 function lngLatToTile(lat: number, lng: number, z: number): { x: number; y: number; px: number; py: number } {
   const n = 2 ** z;
   const xExact = ((lng + 180) / 360) * n;
@@ -80,5 +84,5 @@ export async function lookupElevation(lat: number, lng: number): Promise<number 
   const r = tile.data[idx];
   const g = tile.data[idx + 1];
   const b = tile.data[idx + 2];
-  return Math.round((r * 256 + g + b / 256) - 32768);
+  return decodeTerrariumElevation(r, g, b);
 }

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
+import { isFiniteNumber, isOptionalFiniteNumber } from "../lib/finite-number";
 import {
   buildCompleteRouteEffortCurves,
   buildEffortCurves,
@@ -490,17 +491,26 @@ export async function applyDestinationRejections(
   };
 }
 
+export function isValidTrackingPoint(point: unknown): boolean {
+  if (typeof point !== "object" || point === null || Array.isArray(point)) return false;
+  const value = point as Record<string, unknown>;
+  return isFiniteNumber(value.lat)
+    && isFiniteNumber(value.lng)
+    && isFiniteNumber(value.time)
+    && isFiniteNumber(value.elevation);
+}
+
+export function isValidMarkerPoint(lat: unknown, lng: unknown, elevation: unknown): boolean {
+  return isFiniteNumber(lat) && isFiniteNumber(lng) && isFiniteNumber(elevation);
+}
+
 function buildPointInsertQuery(sessionId: string, points: any[]) {
   const values: any[] = [];
   const placeholders: string[] = [];
   let parameterIndex = 1;
 
   for (const point of points) {
-    if (point.lat == null || point.lng == null || point.time == null) {
-      continue;
-    }
-
-    const elevation = point.elevation ?? 0;
+    if (!isValidTrackingPoint(point)) continue;
 
     placeholders.push(
       `($${parameterIndex}, $${parameterIndex + 1}, $${parameterIndex + 2}, ` +
@@ -514,7 +524,7 @@ function buildPointInsertQuery(sessionId: string, points: any[]) {
       point.segment_number ?? point.segmentNumber ?? 0,
       point.lat,
       point.lng,
-      elevation,
+      point.elevation,
       point.speed ?? null,
       point.azimuth ?? null,
       point.hdop ?? null,
@@ -1465,6 +1475,10 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
     res.status(400).json({ error: "id is required" });
     return;
   }
+  if (!isOptionalFiniteNumber(gain) || !isOptionalFiniteNumber(high_point)) {
+    res.status(400).json({ error: "gain and high_point must be finite numbers or null" });
+    return;
+  }
 
   const client = await db.connect();
   try {
@@ -1493,7 +1507,7 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
         id, uid, name || null,
         start_date || null, end_date || null,
         distance || null, total_time || null, pace || null,
-        gain || null, high_point || null,
+        gain ?? null, high_point ?? null,
         ascent_time || null, descent_time || null, still_time || null,
         activity_type || null, source || null, external_id || null,
         jsonbParam(mergedHealthData), jsonbParam(mergedSourceContributions),
@@ -1577,6 +1591,11 @@ router.put("/:id", async (req, res: Response) => {
     health_data, source_contributions,
     destinations_reached, destination_goals, routes: routeIds,
   } = req.body;
+
+  if (!isOptionalFiniteNumber(gain) || !isOptionalFiniteNumber(high_point)) {
+    res.status(400).json({ error: "gain and high_point must be finite numbers or null" });
+    return;
+  }
 
   const client = await db.connect();
   try {
@@ -1750,6 +1769,11 @@ router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>,
     res.status(400).json({ error: "points array is required" });
     return;
   }
+  const invalidPointCount = points.filter((point) => !isValidTrackingPoint(point)).length;
+  if (invalidPointCount > 0) {
+    res.status(400).json({ error: "invalid_points", invalid: invalidPointCount });
+    return;
+  }
 
   // Verify ownership
   const session = await db.query(
@@ -1845,7 +1869,7 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
   const seenTimes = new Set<unknown>();
 
   for (const point of points) {
-    if (point == null || point.lat == null || point.lng == null || point.time == null) {
+    if (!isValidTrackingPoint(point)) {
       invalidPoints++;
       continue;
     }
@@ -2099,6 +2123,11 @@ router.post("/:id/markers", async (req, res: Response) => {
   const { id } = req.params;
   const { name, image, lat, lng, elevation } = req.body;
 
+  if (!isValidMarkerPoint(lat, lng, elevation)) {
+    res.status(400).json({ error: "lat, lng, and elevation must be finite numbers" });
+    return;
+  }
+
   // Verify ownership
   const session = await db.query(
     `SELECT id FROM tracking_sessions WHERE id = $1 AND user_id = $2`,
@@ -2118,7 +2147,7 @@ router.post("/:id/markers", async (req, res: Response) => {
                ST_Y(location::geometry) AS lat,
                ST_X(location::geometry) AS lng,
                ST_Z(location::geometry) AS elevation`,
-    [id, lat ?? 0, lng ?? 0, elevation ?? 0, name ?? null, image ?? null, uid]
+    [id, lat, lng, elevation, name ?? null, image ?? null, uid]
   );
   res.status(201).json(result.rows[0]);
 });

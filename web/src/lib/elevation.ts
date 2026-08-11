@@ -112,7 +112,7 @@ export async function fetchElevations(points: LatLng[]): Promise<number[]> {
           const g = data[offset + 1];
           const b = data[offset + 2];
 
-          elevations[pt.idx] = Math.round(rgbToElevation(r, g, b) * 10) / 10;
+          elevations[pt.idx] = rgbToElevation(r, g, b);
         }
       })
     );
@@ -222,9 +222,9 @@ export function computeElevationStats(
   else if (pending < -threshold) loss += Math.abs(pending);
 
   return {
-    gain: Math.round(gain * 10) / 10,
-    loss: Math.round(loss * 10) / 10,
-    min: Math.round(min * 10) / 10,
-    max: Math.round(max * 10) / 10,
+    gain,
+    loss,
+    min,
+    max,
   };
 }
