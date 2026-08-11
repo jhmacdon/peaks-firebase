@@ -988,12 +988,13 @@ test(
                 s.gain IS NOT DISTINCT FROM stats.gain
                   AND s.gain_loss IS NOT DISTINCT FROM stats.loss
                   AS stats_valid
-         FROM segments s
+         FROM route_segments rs
+         JOIN segments s ON s.id = rs.segment_id
          CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
          CROSS JOIN LATERAL route_elevation_stats(s.path) stats
-         WHERE s.id = $1
+         WHERE rs.route_id = $1
          GROUP BY s.gain, s.gain_loss, stats.gain, stats.loss`,
-        [segmentId]
+        [sourceId]
       );
       assert.equal(
         fractionalSegmentStats.rows[0]?.has_fractional_z,
