@@ -1291,6 +1291,7 @@ async function blockLease(
      WHERE route_id = $1
        AND state = 'working'
        AND lease_token = $2
+       AND lease_expires_at >= now()
      RETURNING *`,
     [routeId, token, fingerprint, safeError(cause), JSON.stringify(evidence)]
   );
@@ -1920,10 +1921,48 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       error instanceof SampledElevationProfileNoRealRangeError &&
       preflightFingerprint
     ) {
+      if (!await hasLiveLease(routeId, token)) {
+        throw new Error(
+          "Route elevation lease expired before sampled profile classification"
+        );
+      }
+      const fingerprint = await currentFingerprint(db, routeId);
+      if (fingerprint !== preflightFingerprint) {
+        const state = fingerprint ? "queued" : "out_of_scope";
+        const changed = await db.query<Job>(
+          `UPDATE route_elevation_backfill_jobs
+           SET state = $3,
+               path_fingerprint = COALESCE($4, path_fingerprint),
+               attempt_count = CASE WHEN $4 IS NULL THEN attempt_count ELSE 0 END,
+               lease_owner = NULL,
+               lease_token = NULL,
+               lease_expires_at = NULL,
+               next_attempt_at = now(),
+               final_evidence = CASE WHEN $4 IS NULL THEN final_evidence ELSE NULL END,
+               last_error = CASE WHEN $4 IS NULL THEN 'route is out of scope' ELSE NULL END
+           WHERE route_id = $1
+             AND state = 'working'
+             AND lease_token = $2
+             AND lease_expires_at >= now()
+           RETURNING *`,
+          [routeId, token, state, fingerprint]
+        );
+        if (!changed.rows[0]) {
+          throw new Error("No live route elevation lease matched");
+        }
+        print({
+          outcome: fingerprint ? "path_changed_requeued" : "out_of_scope",
+          job: compactJob({
+            ...changed.rows[0],
+            route_name: processRouteName,
+          }),
+        });
+        return;
+      }
       await blockLease(
         routeId,
         token,
-        preflightFingerprint,
+        fingerprint,
         error.message,
         {
           verification: "blocked_before_write",
