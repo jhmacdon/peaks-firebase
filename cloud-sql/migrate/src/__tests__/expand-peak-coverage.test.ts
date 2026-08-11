@@ -5,6 +5,7 @@ import {
   deduplicatePeakSelections,
   filterPeakSelectionsAgainstCatalog,
   parseExpansionArgs,
+  selectOsmCoordinateCorrection,
   selectOsmIdBackfills,
 } from "../expand-peak-coverage";
 import { matchReferencePeak, ReferencePeak } from "../peak-coverage";
@@ -67,6 +68,19 @@ test("parses dry-run and batch expansion modes", () => {
   assert.throws(() => parseExpansionArgs(["--state=WA", "--country=US"]), /Choose exactly one/);
   assert.throws(() => parseExpansionArgs(["--all-countries", "--concurrency=5"]), /from 1 to 4/);
   assert.throws(() => parseExpansionArgs(["--all-countries", "--resume"]), /requires --apply/);
+  assert.throws(
+    () => parseExpansionArgs(["--states=CO,WA", "--correct-coordinate=destination-1"]),
+    /exactly one jurisdiction/
+  );
+  assert.throws(
+    () => parseExpansionArgs(["--state=CO", "--correct-coordinate="]),
+    /requires a destination ID/
+  );
+  assert.equal(
+    parseExpansionArgs(["--state=CO", "--correct-coordinate=destination-1"])
+      .correctCoordinateDestinationId,
+    "destination-1"
+  );
 });
 
 test("selects a unique normalized-name OSM ID backfill", () => {
@@ -107,6 +121,45 @@ test("does not backfill even an identical name when coordinates differ by more t
   assert.equal(match.method, "name_spatial");
   assert.ok((match.distanceMeters ?? 0) > 500);
   assert.equal(selectOsmIdBackfills([match], [existing]).selected.length, 0);
+});
+
+test("selects a bounded coordinate correction for a confirmed OSM identity", () => {
+  const existing = catalog({
+    lat: 47.3608,
+    lng: -121.46127,
+    osmId: "123",
+  });
+  const match = matchReferencePeak(reference(), [existing]);
+  assert.equal(match.method, "osm_id");
+  assert.ok((match.distanceMeters ?? 0) > 1);
+  const correction = selectOsmCoordinateCorrection([match], existing.id);
+  assert.equal(correction?.destinationId, existing.id);
+  assert.equal(correction?.osmId, "123");
+  assert.equal(correction?.lat, 47.36154);
+  assert.equal(correction?.lng, -121.46127);
+});
+
+test("does not correct an unconfirmed spatial match", () => {
+  const existing = catalog({
+    lat: 47.3614,
+    lng: -121.46127,
+    osmId: null,
+  });
+  const match = matchReferencePeak(reference(), [existing]);
+  assert.equal(match.method, "spatial");
+  assert.equal(selectOsmCoordinateCorrection([match], existing.id), null);
+});
+
+test("does not auto-correct a confirmed OSM coordinate conflict over 500m", () => {
+  const existing = catalog({
+    lat: 47.355,
+    lng: -121.46127,
+    osmId: "123",
+  });
+  const match = matchReferencePeak(reference(), [existing]);
+  assert.equal(match.method, "osm_id");
+  assert.ok((match.distanceMeters ?? 0) > 500);
+  assert.equal(selectOsmCoordinateCorrection([match], existing.id), null);
 });
 
 test("collapses same-name nearby OSM nodes before a bulk insert", () => {
