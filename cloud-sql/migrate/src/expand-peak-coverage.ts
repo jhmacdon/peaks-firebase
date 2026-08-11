@@ -4,6 +4,8 @@
  *
  * Dry-run is the default. Use --apply only after reviewing the report. Batch
  * runs are resumable with --cache-dir and emit one JSON report per scope.
+ * --correct-coordinate=<destination-id> enters a single-scope, correction-only
+ * mode and never applies additions or ID backfills.
  */
 
 import crypto from "node:crypto";
@@ -56,6 +58,7 @@ export interface ExpansionArgs {
   popularWikipediaSitelinks: number;
   maxAdditionsPerScope: number | null;
   continueOnError: boolean;
+  correctCoordinateDestinationId: string | null;
 }
 
 export interface ExpansionCatalogPeak extends CatalogPeak {
@@ -72,10 +75,29 @@ export interface OsmIdBackfill {
   distanceMeters: number;
 }
 
+export interface OsmCoordinateCorrection {
+  destinationId: string;
+  destinationName: string;
+  osmId: string;
+  referenceName: string;
+  distanceMeters: number;
+  lat: number;
+  lng: number;
+}
+
 interface AppliedChanges {
   inserted: Array<{ id: string; osmId: string }>;
   backfilled: Array<{ destinationId: string; osmId: string }>;
+  corrected: Array<{
+    destinationId: string;
+    osmId: string;
+    lat: number;
+    lng: number;
+  }>;
 }
+
+export const MIN_OSM_COORDINATE_CORRECTION_METERS = 1;
+export const MAX_OSM_COORDINATE_CORRECTION_METERS = 500;
 
 const value = (argv: string[], key: string) =>
   argv.find((arg) => arg.startsWith(`--${key}=`))?.slice(key.length + 3);
@@ -144,6 +166,13 @@ export function parseExpansionArgs(argv = process.argv.slice(2)): ExpansionArgs 
   if (resume && (!apply || !reportDir)) {
     throw new Error("--resume requires --apply and --report-dir");
   }
+  const correctCoordinateDestinationId = value(argv, "correct-coordinate") ?? null;
+  if (argv.some((arg) => arg.startsWith("--correct-coordinate=")) && !correctCoordinateDestinationId) {
+    throw new Error("--correct-coordinate requires a destination ID");
+  }
+  if (correctCoordinateDestinationId && scopes.length !== 1) {
+    throw new Error("--correct-coordinate requires exactly one jurisdiction");
+  }
 
   return {
     scopes,
@@ -156,6 +185,7 @@ export function parseExpansionArgs(argv = process.argv.slice(2)): ExpansionArgs 
     popularWikipediaSitelinks,
     maxAdditionsPerScope,
     continueOnError: scopes.length > 1 && !argv.includes("--stop-on-error"),
+    correctCoordinateDestinationId,
   };
 }
 
@@ -298,6 +328,34 @@ export function selectOsmIdBackfills(
   return { selected, ambiguousDestinationIds };
 }
 
+export function selectOsmCoordinateCorrection(
+  matches: PeakMatch[],
+  destinationId: string | null,
+  minimumDistanceMeters = MIN_OSM_COORDINATE_CORRECTION_METERS,
+  maximumDistanceMeters = MAX_OSM_COORDINATE_CORRECTION_METERS
+): OsmCoordinateCorrection | null {
+  if (!destinationId) return null;
+  const match = matches.find((candidate) => candidate.destinationId === destinationId);
+  if (
+    !match ||
+    match.method !== "osm_id" ||
+    !match.destinationName ||
+    match.distanceMeters == null ||
+    match.distanceMeters <= minimumDistanceMeters ||
+    match.distanceMeters > maximumDistanceMeters
+  ) return null;
+
+  return {
+    destinationId,
+    destinationName: match.destinationName,
+    osmId: match.reference.osmId,
+    referenceName: match.reference.name,
+    distanceMeters: match.distanceMeters,
+    lat: match.reference.lat,
+    lng: match.reference.lng,
+  };
+}
+
 function selectionPriority(lhs: PeakSelection, rhs: PeakSelection): number {
   return (rhs.prominenceM ?? -1) - (lhs.prominenceM ?? -1) ||
     rhs.wikipediaSitelinks - lhs.wikipediaSitelinks ||
@@ -343,6 +401,7 @@ async function applyChanges(
   scope: CoverageScope,
   selections: PeakSelection[],
   backfills: OsmIdBackfill[],
+  correction: OsmCoordinateCorrection | null,
   minimumProminenceM: number
 ): Promise<AppliedChanges> {
   const client = await db.connect();
@@ -400,6 +459,72 @@ async function applyChanges(
            )
          RETURNING d.id AS destination_id, d.external_ids->>'osm' AS osm_id`,
         [JSON.stringify(backfillRows), scope.countryCode, scope.stateCode, scope.key]
+      );
+
+    const correctionResult = correction == null
+      ? { rows: [] as Array<{
+        destination_id: string;
+        osm_id: string;
+        lat: string | number;
+        lng: string | number;
+      }> }
+      : await client.query<{
+        destination_id: string;
+        osm_id: string;
+        lat: string | number;
+        lng: string | number;
+      }>(
+        `WITH incoming AS (
+           SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
+             destination_id text, osm_id text, lat double precision, lng double precision
+           )
+         ), prepared AS (
+           SELECT incoming.*,
+                  ST_SetSRID(ST_MakePoint(incoming.lng, incoming.lat), 4326)::geography AS location
+           FROM incoming
+         )
+         UPDATE destinations d
+         SET location = ST_SetSRID(ST_MakePoint(
+               prepared.lng,
+               prepared.lat,
+               COALESCE(d.elevation, ST_Z(d.location::geometry), 0)
+             ), 4326)::geography,
+             metadata = jsonb_set(
+               COALESCE(d.metadata, '{}'::jsonb),
+               '{coordinate_corrections}',
+               COALESCE(d.metadata->'coordinate_corrections', '[]'::jsonb) ||
+                 jsonb_build_array(jsonb_build_object(
+                   'source', 'osm',
+                   'osmId', prepared.osm_id,
+                   'jurisdiction', $2::text,
+                   'distanceMeters', ST_Distance(d.location, prepared.location),
+                   'previousLat', ST_Y(d.location::geometry),
+                   'previousLng', ST_X(d.location::geometry),
+                   'appliedAt', now()
+                 )),
+               true
+             ),
+             updated_at = now()
+         FROM prepared
+         WHERE d.id = prepared.destination_id
+           AND d.external_ids->>'osm' = prepared.osm_id
+           AND ST_Distance(d.location, prepared.location) > $3
+           AND ST_DWithin(d.location, prepared.location, $4)
+         RETURNING d.id AS destination_id,
+                   d.external_ids->>'osm' AS osm_id,
+                   ST_Y(d.location::geometry) AS lat,
+                   ST_X(d.location::geometry) AS lng`,
+        [
+          JSON.stringify([{
+            destination_id: correction.destinationId,
+            osm_id: correction.osmId,
+            lat: correction.lat,
+            lng: correction.lng,
+          }]),
+          scope.key,
+          MIN_OSM_COORDINATE_CORRECTION_METERS,
+          MAX_OSM_COORDINATE_CORRECTION_METERS,
+        ]
       );
 
     const latestCatalogResult = await client.query<{
@@ -541,6 +666,12 @@ async function applyChanges(
         destinationId: row.destination_id,
         osmId: row.osm_id,
       })),
+      corrected: correctionResult.rows.map((row) => ({
+        destinationId: row.destination_id,
+        osmId: row.osm_id,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+      })),
     };
   } catch (error) {
     await client.query("ROLLBACK");
@@ -591,7 +722,12 @@ async function runScope(
   scope: CoverageScope,
   args: ExpansionArgs,
   catalog: ExpansionCatalogPeak[]
-): Promise<{ report: Record<string, unknown>; additions: ExpansionCatalogPeak[]; backfilled: AppliedChanges["backfilled"] }> {
+): Promise<{
+  report: Record<string, unknown>;
+  additions: ExpansionCatalogPeak[];
+  backfilled: AppliedChanges["backfilled"];
+  corrected: AppliedChanges["corrected"];
+}> {
   console.error(`[peak-expand] ${scope.label}: loading OSM reference peaks`);
   const data = await loadScopeData(scope, args.cacheDir);
   const reference = parseReferencePeaks(data, scope.stateCode);
@@ -599,27 +735,31 @@ async function runScope(
     const report = { jurisdiction: scope, status: "complete_empty", referencePeaks: 0 };
     await writeReport(args.reportDir, scope, report, args.apply ? "apply" : "dry-run");
     console.log(`${scope.label}: no named OSM peaks`);
-    return { report, additions: [], backfilled: [] };
+    return { report, additions: [], backfilled: [], corrected: [] };
   }
 
   const catalogIndex = buildPeakCatalogIndex(catalog);
   const matches = reference.map((peak) => matchReferencePeakFromIndex(peak, catalogIndex));
   const unmatched = matches.filter((match) => match.method == null);
-  const evidence = await loadSessionEvidence(matches);
-  const wikidata = await loadWikidataData(
-    scope,
-    unmatched.flatMap((match) => match.reference.wikidataId ? [match.reference.wikidataId] : []),
-    args.cacheDir
-  );
-  const elementById = new Map(data.elements.map((element) => [String(element.id), element]));
-  const allSelections = unmatched.map((match) => selectPeakCandidate(
-    match,
-    evidenceFor(match.reference.osmId, evidence),
-    elementById.get(match.reference.osmId),
-    match.reference.wikidataId ? wikidata.get(match.reference.wikidataId) : undefined,
-    args.minimumProminenceM,
-    args.popularWikipediaSitelinks
-  ));
+  const correctionOnly = args.correctCoordinateDestinationId != null;
+  let allSelections: PeakSelection[] = [];
+  if (!correctionOnly) {
+    const evidence = await loadSessionEvidence(matches);
+    const wikidata = await loadWikidataData(
+      scope,
+      unmatched.flatMap((match) => match.reference.wikidataId ? [match.reference.wikidataId] : []),
+      args.cacheDir
+    );
+    const elementById = new Map(data.elements.map((element) => [String(element.id), element]));
+    allSelections = unmatched.map((match) => selectPeakCandidate(
+      match,
+      evidenceFor(match.reference.osmId, evidence),
+      elementById.get(match.reference.osmId),
+      match.reference.wikidataId ? wikidata.get(match.reference.wikidataId) : undefined,
+      args.minimumProminenceM,
+      args.popularWikipediaSitelinks
+    ));
+  }
   const eligibleBeforeReferenceDedup = allSelections
     .filter((selection) => selection.decision === "add")
     .sort(selectionPriority);
@@ -628,10 +768,40 @@ async function runScope(
   const selected = args.maxAdditionsPerScope == null
     ? eligible
     : eligible.slice(0, args.maxAdditionsPerScope);
-  const backfillSelection = selectOsmIdBackfills(matches, catalog);
+  const backfillSelection = correctionOnly
+    ? { selected: [] as OsmIdBackfill[], ambiguousDestinationIds: [] as string[] }
+    : selectOsmIdBackfills(matches, catalog);
+  const coordinateCorrection = selectOsmCoordinateCorrection(
+    matches,
+    args.correctCoordinateDestinationId
+  );
+  let coordinateCorrectionStatus: "ready" | "already_aligned" | null = null;
+  if (correctionOnly) {
+    const requestedId = args.correctCoordinateDestinationId!;
+    const targetMatch = matches.find((match) => match.destinationId === requestedId);
+    if (!targetMatch) {
+      throw new Error(`Destination ${requestedId} did not match an OSM peak in ${scope.key}`);
+    }
+    if (targetMatch.method !== "osm_id" || targetMatch.distanceMeters == null) {
+      throw new Error(`Destination ${requestedId} does not have a confirmed OSM peak identity`);
+    }
+    if (targetMatch.distanceMeters > MAX_OSM_COORDINATE_CORRECTION_METERS) {
+      throw new Error(
+        `Destination ${requestedId} differs from its OSM peak by ` +
+        `${Math.round(targetMatch.distanceMeters)}m; manual review is required`
+      );
+    }
+    coordinateCorrectionStatus = coordinateCorrection == null ? "already_aligned" : "ready";
+  }
   const applied = args.apply
-    ? await applyChanges(scope, selected, backfillSelection.selected, args.minimumProminenceM)
-    : { inserted: [], backfilled: [] };
+    ? await applyChanges(
+      scope,
+      selected,
+      backfillSelection.selected,
+      coordinateCorrection,
+      args.minimumProminenceM
+    )
+    : { inserted: [], backfilled: [], corrected: [] };
   const insertedOsmIds = new Set(applied.inserted.map((row) => row.osmId));
   const insertedSelections = selected.filter((selection) => insertedOsmIds.has(selection.match.reference.osmId));
   const additions: ExpansionCatalogPeak[] = insertedSelections.map((selection) => ({
@@ -647,6 +817,7 @@ async function runScope(
     generatedAt: new Date().toISOString(),
     jurisdiction: scope,
     apply: args.apply,
+    mode: correctionOnly ? "coordinate_correction" : "coverage_expansion",
     thresholds: {
       minimumProminenceM: args.minimumProminenceM,
       popularWikipediaSitelinks: args.popularWikipediaSitelinks,
@@ -663,6 +834,8 @@ async function runScope(
       safeOsmIdBackfills: backfillSelection.selected.length,
       ambiguousOsmIdBackfills: backfillSelection.ambiguousDestinationIds.length,
       osmIdsBackfilled: applied.backfilled.length,
+      safeOsmCoordinateCorrections: coordinateCorrection == null ? 0 : 1,
+      osmCoordinatesCorrected: applied.corrected.length,
     },
     deferredByReason: deferredCounts(allSelections.filter((selection) => selection.decision === "defer")),
     additions: selected.map((selection) => ({
@@ -682,6 +855,13 @@ async function runScope(
       applied: applied.backfilled.some((row) => row.destinationId === backfill.destinationId),
     })),
     ambiguousOsmIdBackfillDestinationIds: backfillSelection.ambiguousDestinationIds,
+    osmCoordinateCorrection: coordinateCorrection == null ? null : {
+      ...coordinateCorrection,
+      applied: applied.corrected.some((row) => row.destinationId === coordinateCorrection.destinationId),
+    },
+    osmCoordinateCorrectionStatus: coordinateCorrectionStatus === "ready" && applied.corrected.length > 0
+      ? "applied"
+      : coordinateCorrectionStatus,
     duplicateReferenceNodes: referenceDedup.skipped.map((duplicate) => ({
       skippedOsmId: duplicate.skipped.match.reference.osmId,
       keptOsmId: duplicate.kept.match.reference.osmId,
@@ -697,9 +877,16 @@ async function runScope(
   console.log(
     `${scope.label}: ${totals.matchedBefore}/${totals.referencePeaks} matched before; ` +
     `${totals.eligibleAdditions} eligible, ${totals.inserted} inserted; ` +
-    `${totals.safeOsmIdBackfills} safe ID backfills, ${totals.osmIdsBackfilled} applied`
+    `${totals.safeOsmIdBackfills} safe ID backfills, ${totals.osmIdsBackfilled} applied; ` +
+    `${totals.safeOsmCoordinateCorrections} coordinate correction, ` +
+    `${totals.osmCoordinatesCorrected} applied`
   );
-  return { report, additions, backfilled: applied.backfilled };
+  return {
+    report,
+    additions,
+    backfilled: applied.backfilled,
+    corrected: applied.corrected,
+  };
 }
 
 async function main(): Promise<void> {
@@ -728,6 +915,13 @@ async function main(): Promise<void> {
           for (const backfilled of result.backfilled) {
             const destination = catalog.find((peak) => peak.id === backfilled.destinationId);
             if (destination) destination.osmId = backfilled.osmId;
+          }
+          for (const corrected of result.corrected) {
+            const destination = catalog.find((peak) => peak.id === corrected.destinationId);
+            if (destination) {
+              destination.lat = corrected.lat;
+              destination.lng = corrected.lng;
+            }
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
