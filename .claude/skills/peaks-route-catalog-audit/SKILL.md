@@ -43,9 +43,9 @@ another command. Do not report a setup failure unless a wrapper call in the
 current turn produced it. If setup fails, do not claim. If no job is returned,
 inspect stats; do not infer completion from an empty claim. If claim returns
 `existing_live_lease`, resume that returned destination; it is the worker's
-one job. Never claim again. Never copy, retain, reconstruct, or pass the
-returned `lease_token`. For heartbeat, completion, and release, the wrapper
-selects the checkout's single lease by its derived worker ID.
+one job. Never claim again. Never copy, retain, reconstruct, or pass a
+`lease_token`; queue output omits it. For heartbeat, completion, and release,
+the wrapper selects the checkout's single lease by its derived worker ID.
 
 In one-off mode, do not run `route_audit_jobs.sh` at all. The audit queue may
 not exist yet, and its checkout checks do not apply to a direct read-only
@@ -166,6 +166,22 @@ status.
 Read the completion response. `completed` is final.
 `catalog_changed_requeued` and `out_of_scope` have already cleared the lease;
 do not release them again. Report the outcome and stop that run.
+
+If heartbeat, completion, or release reports `No single live audit lease
+matched`, `No live audit lease matched`, `No single audit lease matched`, or
+`No audit lease matched`, do not run release again. Diagnose the claimed
+destination once:
+
+```bash
+.claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh \
+  diagnose-loss --destination-id DESTINATION_ID
+```
+
+If the outcome is `destination_deleted`, the destination and its cascading job
+were deleted during the audit. Treat it as terminal `out_of_scope`, run final
+stats, confirm a clean checkout, and stop without operator action. If the
+outcome is `lease_live`, retry the failed lease command once. For any other
+outcome, do not release or claim; report the diagnosis for operator action.
 
 Report the destination, stored and preferred names, standard-route facts,
 sources, current default, each route action (`keep`, `repair`, `supersede`, or

@@ -6,7 +6,7 @@ repo_root="$(cd "$script_dir/../../../.." && pwd)"
 
 args=("$@")
 case "${args[0]:-}" in
-  claim|heartbeat|complete|release)
+  claim|heartbeat|complete|release|diagnose-loss)
     owns_lease=1
     ;;
   *)

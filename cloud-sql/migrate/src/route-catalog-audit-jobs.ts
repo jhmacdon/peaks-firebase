@@ -21,7 +21,7 @@ type AuditCandidate = Pick<
   "catalog_fingerprint" | "audit_rule_version"
 >;
 
-interface AuditJob {
+export interface AuditJob {
   destination_id: string;
   destination_name: string;
   state: AuditState;
@@ -38,6 +38,18 @@ interface AuditJob {
   audited_at: string | null;
   updated_at: string;
 }
+
+export interface AuditLeaseLossRow {
+  destination_exists: boolean;
+  job_exists: boolean;
+  live_worker_lease: boolean;
+}
+
+export type AuditLeaseLossOutcome =
+  | "destination_deleted"
+  | "job_missing"
+  | "lease_missing"
+  | "lease_live";
 
 const AUDIT_RULE_VERSION = 3;
 const MAX_LEASE_MINUTES = 30;
@@ -257,6 +269,33 @@ export const staleElevationSeedSql = `
             job.state,
             candidate.destination_id IS NOT NULL AS candidate_found`;
 
+export const auditLeaseLossSql = `
+  SELECT EXISTS (
+           SELECT 1 FROM destinations WHERE id = $1
+         ) AS destination_exists,
+         EXISTS (
+           SELECT 1
+           FROM route_catalog_audit_jobs
+           WHERE destination_id = $1
+         ) AS job_exists,
+         EXISTS (
+           SELECT 1
+           FROM route_catalog_audit_jobs
+           WHERE destination_id = $1
+             AND state = 'auditing'
+             AND lease_owner = $2
+             AND lease_expires_at >= now()
+         ) AS live_worker_lease`;
+
+export function classifyAuditLeaseLoss(
+  row: AuditLeaseLossRow
+): AuditLeaseLossOutcome {
+  if (!row.destination_exists && !row.job_exists) return "destination_deleted";
+  if (row.live_worker_lease) return "lease_live";
+  if (!row.job_exists) return "job_missing";
+  return "lease_missing";
+}
+
 function usage(exitCode = 2): never {
   console.error(`Usage:
   npm run routes:audit-jobs -- seed [--apply]
@@ -270,6 +309,7 @@ function usage(exitCode = 2): never {
       --state passed|needs_repair|needs_human --result-file FILE --apply
   npm run routes:audit-jobs -- release (--lease-token TOKEN | --worker-id ID)
       [--message TEXT]
+  npm run routes:audit-jobs -- diagnose-loss --destination-id ID --worker-id ID
   npm run routes:audit-jobs -- requeue --destination-id ID --reason TEXT --apply
   npm run routes:audit-jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:audit-jobs -- stats
@@ -415,6 +455,13 @@ function print(value: unknown): void {
   console.log(JSON.stringify(value));
 }
 
+export function redactAuditJob(
+  job: AuditJob
+): Omit<AuditJob, "lease_token"> {
+  const { lease_token: _leaseToken, ...safeJob } = job;
+  return safeJob;
+}
+
 export function validateCatalogAuditArgs(command: string, argv: string[]): void {
   const targeted = argv.includes("--stale-elevation-only");
   if (targeted && command !== "seed") {
@@ -428,6 +475,21 @@ export function validateCatalogAuditArgs(command: string, argv: string[]): void 
     }
     if (targeted && !argv.includes("--apply")) {
       throw new Error("--stale-elevation-only requires seed --apply");
+    }
+  }
+  if (command === "diagnose-loss") {
+    const allowedFlags = new Set(["--destination-id", "--worker-id"]);
+    const destinationIds = argv.filter((value) => value === "--destination-id");
+    const workerIds = argv.filter((value) => value === "--worker-id");
+    const validPairs = argv.length === 4 && argv.every((value, index) =>
+      index % 2 === 0
+        ? allowedFlags.has(value)
+        : value.trim().length > 0 && !value.startsWith("--")
+    );
+    if (destinationIds.length !== 1 || workerIds.length !== 1 || !validPairs) {
+      throw new Error(
+        "diagnose-loss requires exactly one --destination-id and --worker-id"
+      );
     }
   }
 }
@@ -656,7 +718,7 @@ async function claim(argv: string[]): Promise<void> {
       print({
         mode: apply ? "apply" : "dry_run",
         outcome: "existing_live_lease",
-        job: resumed,
+        job: redactAuditJob(resumed),
       });
       return;
     }
@@ -689,7 +751,7 @@ async function claim(argv: string[]): Promise<void> {
           await client.query("ROLLBACK");
           print({
             mode: "dry_run",
-            job,
+            job: redactAuditJob(job),
             action: "mark_out_of_scope",
           });
           return;
@@ -708,7 +770,10 @@ async function claim(argv: string[]): Promise<void> {
       }
       if (!apply) {
         await client.query("ROLLBACK");
-        print({ mode: "dry_run", job: { ...job, ...candidate } });
+        print({
+          mode: "dry_run",
+          job: redactAuditJob({ ...job, ...candidate }),
+        });
         return;
       }
       const leaseToken = randomUUID();
@@ -741,7 +806,7 @@ async function claim(argv: string[]): Promise<void> {
         ]
       );
       await client.query("COMMIT");
-      print({ mode: "apply", job: claimed.rows[0] });
+      print({ mode: "apply", job: redactAuditJob(claimed.rows[0]) });
       return;
     }
   } catch (error) {
@@ -766,7 +831,7 @@ async function heartbeat(argv: string[]): Promise<void> {
     [leaseToken, leaseMinutes]
   );
   if (!result.rows[0]) throw new Error("No live audit lease matched");
-  print(result.rows[0]);
+  print(redactAuditJob(result.rows[0]));
 }
 
 async function complete(argv: string[]): Promise<void> {
@@ -822,7 +887,7 @@ async function complete(argv: string[]): Promise<void> {
       );
       if (!retired.rows[0]) throw new Error("No live audit lease matched");
       await client.query("COMMIT");
-      print({ outcome: "out_of_scope", job: retired.rows[0] });
+      print({ outcome: "out_of_scope", job: redactAuditJob(retired.rows[0]) });
       return;
     }
     const currentJob = await client.query<AuditJob>(
@@ -866,7 +931,10 @@ async function complete(argv: string[]): Promise<void> {
         ]
       );
       await client.query("COMMIT");
-      print({ outcome: "catalog_changed_requeued", job: requeued.rows[0] });
+      print({
+        outcome: "catalog_changed_requeued",
+        job: redactAuditJob(requeued.rows[0]),
+      });
       return;
     }
     const updated = await client.query<AuditJob>(
@@ -886,7 +954,7 @@ async function complete(argv: string[]): Promise<void> {
       [destinationId, leaseToken, state, JSON.stringify(result)]
     );
     await client.query("COMMIT");
-    print({ outcome: "completed", job: updated.rows[0] });
+    print({ outcome: "completed", job: redactAuditJob(updated.rows[0]) });
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -912,7 +980,23 @@ async function release(argv: string[]): Promise<void> {
     [leaseToken, message.slice(0, 500)]
   );
   if (!result.rows[0]) throw new Error("No audit lease matched");
-  print(result.rows[0]);
+  print(redactAuditJob(result.rows[0]));
+}
+
+async function diagnoseLoss(argv: string[]): Promise<void> {
+  const destinationId = requiredId(argv, "--destination-id");
+  const workerId = requiredId(argv, "--worker-id");
+  const result = await db.query<AuditLeaseLossRow>(auditLeaseLossSql, [
+    destinationId,
+    workerId,
+  ]);
+  const row = result.rows[0];
+  if (!row) throw new Error("Lease-loss diagnosis returned no row");
+  print({
+    destination_id: destinationId,
+    outcome: classifyAuditLeaseLoss(row),
+    ...row,
+  });
 }
 
 async function requeue(argv: string[]): Promise<void> {
@@ -935,7 +1019,7 @@ async function requeue(argv: string[]): Promise<void> {
   if (!result.rows[0]) {
     throw new Error("No completed audit job matched");
   }
-  print(result.rows[0]);
+  print(redactAuditJob(result.rows[0]));
 }
 
 async function show(argv: string[]): Promise<void> {
@@ -952,7 +1036,7 @@ async function show(argv: string[]): Promise<void> {
      LIMIT $3`,
     [destinationId, state, limit]
   );
-  print(result.rows);
+  print(result.rows.map(redactAuditJob));
 }
 
 async function stats(): Promise<void> {
@@ -1008,6 +1092,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       break;
     case "release":
       await release(args);
+      break;
+    case "diagnose-loss":
+      await diagnoseLoss(args);
       break;
     case "requeue":
       await requeue(args);
