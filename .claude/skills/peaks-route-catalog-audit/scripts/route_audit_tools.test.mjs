@@ -736,6 +736,7 @@ test("audit queue wrapper owns every recurring lease selector", () => {
       ["heartbeat", "--lease-minutes", "30"],
       ["complete", "--destination-id", "peak-1", "--apply"],
       ["release", "--message", "test"],
+      ["diagnose-loss", "--destination-id", "peak-1"],
     ]) {
       const output = execFileSync(wrapper, args, {
         encoding: "utf8",

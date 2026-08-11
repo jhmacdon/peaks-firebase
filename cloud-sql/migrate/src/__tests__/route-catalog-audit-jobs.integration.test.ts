@@ -215,6 +215,24 @@ test(
         reconciled_stale_reason: "elevation_profile_format_changed",
       });
       assert.equal(vanishedAfter.rows[0]?.last_error, null);
+      await pool.query(
+        `DELETE FROM route_catalog_audit_jobs WHERE destination_id = $1`,
+        [vanishedDestinationId]
+      );
+      assert.equal(command(
+        "diagnose-loss",
+        "--destination-id", vanishedDestinationId,
+        "--worker-id", "diagnosis-test"
+      ).outcome, "job_missing");
+      await pool.query(
+        `DELETE FROM destinations WHERE id = $1`,
+        [vanishedDestinationId]
+      );
+      assert.equal(command(
+        "diagnose-loss",
+        "--destination-id", vanishedDestinationId,
+        "--worker-id", "diagnosis-test"
+      ).outcome, "destination_deleted");
       const concurrentClaims = await Promise.all([
         runCommandAsync(
           "claim", "--worker-id", "concurrency-test", "--apply"
@@ -234,8 +252,12 @@ test(
         concurrentJobs[1].job.destination_id
       );
       assert.equal(
-        concurrentJobs[0].job.lease_token,
-        concurrentJobs[1].job.lease_token
+        Object.prototype.hasOwnProperty.call(concurrentJobs[0].job, "lease_token"),
+        false
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(concurrentJobs[1].job, "lease_token"),
+        false
       );
       assert.ok(
         concurrentJobs.some(
@@ -259,7 +281,7 @@ test(
       });
       command(
         "release",
-        "--lease-token", concurrentJobs[0].job.lease_token,
+        "--worker-id", "concurrency-test",
         "--message", "concurrency test cleanup"
       );
       const firstClaim = command(
@@ -267,6 +289,20 @@ test(
         "--destination-id", destinationId, "--apply"
       );
       assert.equal(firstClaim.job.destination_id, destinationId);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(firstClaim.job, "lease_token"),
+        false
+      );
+      assert.equal(command(
+        "diagnose-loss",
+        "--destination-id", destinationId,
+        "--worker-id", "integration-test"
+      ).outcome, "lease_live");
+      assert.equal(command(
+        "diagnose-loss",
+        "--destination-id", destinationId,
+        "--worker-id", "wrong-integration-worker"
+      ).outcome, "lease_missing");
       const rejectedWrongOwner = runCommand(
         "heartbeat", "--worker-id", "wrong-integration-worker"
       );
@@ -279,7 +315,11 @@ test(
         "heartbeat", "--worker-id", "integration-test",
         "--lease-minutes", "30"
       );
-      assert.equal(workerHeartbeat.lease_token, firstClaim.job.lease_token);
+      assert.equal(workerHeartbeat.destination_id, destinationId);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(workerHeartbeat, "lease_token"),
+        false
+      );
       const leaseWindow = await pool.query<{ lease_seconds: number }>(
         `SELECT EXTRACT(
            EPOCH FROM (lease_expires_at - now())
@@ -295,7 +335,7 @@ test(
       );
       const rejectedLongLease = runCommand(
         "heartbeat",
-        "--lease-token", firstClaim.job.lease_token,
+        "--worker-id", "integration-test",
         "--lease-minutes", "31"
       );
       assert.notEqual(rejectedLongLease.status, 0);
@@ -314,7 +354,10 @@ test(
       );
       assert.equal(resumedClaim.outcome, "existing_live_lease");
       assert.equal(resumedClaim.job.destination_id, destinationId);
-      assert.equal(resumedClaim.job.lease_token, firstClaim.job.lease_token);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(resumedClaim.job, "lease_token"),
+        false
+      );
       assert.equal(resumedClaim.job.attempt_count, 1);
       const cappedLeaseWindow = await pool.query<{ lease_seconds: number }>(
         `SELECT EXTRACT(
@@ -339,7 +382,10 @@ test(
         "claim", "--worker-id", "integration-test", "--apply"
       );
       assert.equal(renewedClaim.outcome, "existing_live_lease");
-      assert.equal(renewedClaim.job.lease_token, firstClaim.job.lease_token);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(renewedClaim.job, "lease_token"),
+        false
+      );
       const renewedLeaseWindow = await pool.query<{ lease_seconds: number }>(
         `SELECT EXTRACT(
            EPOCH FROM (lease_expires_at - now())
@@ -372,6 +418,11 @@ test(
          WHERE destination_id = $1`,
         [destinationId]
       );
+      assert.equal(command(
+        "diagnose-loss",
+        "--destination-id", destinationId,
+        "--worker-id", "integration-test"
+      ).outcome, "lease_missing");
       const recoveredClaim = command(
         "claim", "--worker-id", "integration-test",
         "--destination-id", destinationId, "--apply"
@@ -401,16 +452,20 @@ test(
       );
       assert.equal(changed.outcome, "catalog_changed_requeued");
       assert.equal(changed.job.state, "queued");
-      assert.equal(changed.job.lease_token, null);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(changed.job, "lease_token"),
+        false
+      );
 
       const passedClaim = command(
         "claim", "--worker-id", "integration-test",
         "--destination-id", destinationId, "--apply"
       );
+      assert.equal(passedClaim.job.destination_id, destinationId);
       const passed = command(
         "complete",
         "--destination-id", destinationId,
-        "--lease-token", passedClaim.job.lease_token,
+        "--worker-id", "integration-test",
         "--state", "passed",
         "--result-file", resultFile,
         "--apply"
@@ -475,6 +530,7 @@ test(
         "claim", "--worker-id", "integration-test",
         "--destination-id", destinationId, "--apply"
       );
+      assert.equal(activeV1.job.destination_id, destinationId);
       await pool.query(
         `UPDATE route_catalog_audit_jobs
         SET audit_rule_version = 2
@@ -483,14 +539,14 @@ test(
       );
       command("seed", "--apply");
       const protectedLease = await pool.query(
-        `SELECT state, audit_rule_version, lease_token
+        `SELECT state, audit_rule_version, lease_owner
          FROM route_catalog_audit_jobs WHERE destination_id = $1`,
         [destinationId]
       );
       assert.deepEqual(protectedLease.rows[0], {
         state: "auditing",
         audit_rule_version: 2,
-        lease_token: activeV1.job.lease_token,
+        lease_owner: "integration-test",
       });
       command("release", "--worker-id", "integration-test");
       command("seed", "--apply");
@@ -508,6 +564,7 @@ test(
         "claim", "--worker-id", "integration-test",
         "--destination-id", destinationId, "--apply"
       );
+      assert.equal(finalClaim.job.destination_id, destinationId);
       await pool.query(
         `UPDATE routes
          SET status = 'superseded',
@@ -518,14 +575,17 @@ test(
       const retired = command(
         "complete",
         "--destination-id", destinationId,
-        "--lease-token", finalClaim.job.lease_token,
+        "--worker-id", "integration-test",
         "--state", "passed",
         "--result-file", resultFile,
         "--apply"
       );
       assert.equal(retired.outcome, "out_of_scope");
       assert.equal(retired.job.state, "out_of_scope");
-      assert.equal(retired.job.lease_token, null);
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(retired.job, "lease_token"),
+        false
+      );
     } finally {
       await pool.query(
         `DELETE FROM route_catalog_audit_jobs

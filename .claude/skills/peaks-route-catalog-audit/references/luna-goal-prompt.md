@@ -22,8 +22,8 @@ display name, local names, route name, trailhead, distance basis, shape, gain,
 class, and access. Never sign in, evade a block, or copy private GPX geometry.
 If claim returns `existing_live_lease`, resume that returned destination as
 this run's one job. Never claim again. Never copy, retain, reconstruct, or pass
-the returned `lease_token`. The wrapper finds this checkout's single lease for
-heartbeat, completion, and release.
+a `lease_token`; queue output omits it. The wrapper finds this checkout's single
+lease for heartbeat, completion, and release.
 
 Write the compact source-facts JSON, run the deterministic comparator, and
 accept its PASS, FAIL, or REVIEW result. PASS requires every internal gate and
@@ -60,9 +60,11 @@ Heartbeat before browser or map work with
 `route_audit_jobs.sh heartbeat --lease-minutes 30`; do not pass a lease token.
 Keep raw HTML, GPX, OSM payloads, path coordinates, and screenshots out of
 model context and git. Complete and release without a lease token. If
-heartbeat, completion, or release says no single matching lease, do not run
-release again. Run `route_audit_jobs.sh diagnose-loss --destination-id
-DESTINATION_ID` once. An outcome of `destination_deleted` is terminal
+heartbeat, completion, or release says `No single live audit lease matched`,
+`No live audit lease matched`, `No single audit lease matched`, or `No audit
+lease matched`, do not run release again. Run `route_audit_jobs.sh
+diagnose-loss --destination-id DESTINATION_ID` once. An outcome of
+`destination_deleted` is terminal
 `out_of_scope`: run final stats, confirm a clean checkout, and stop without
 operator action. For `lease_live`, retry the failed lease command once. For any
 other diagnosis, do not release or claim; stop and report operator action. For
