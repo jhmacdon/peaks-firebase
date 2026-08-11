@@ -149,6 +149,12 @@ echo "  migrations: $applied applied, $skipped skipped"
 echo "  applying grants"
 psql_admin -v "test_role=$TEST_DB_ROLE" -f "$HERE/grants.sql" > /dev/null
 
+# Two integration tests create isolated schemas, then drop them in cleanup.
+# This grant applies only after the *_test name gate above. The production API
+# role does not need or receive database-level CREATE.
+psql_admin -v "db_name=$DB_NAME" -v "test_role=$TEST_DB_ROLE" \
+  -c 'GRANT CREATE ON DATABASE :"db_name" TO :"test_role"'
+
 # ---------------------------------------------------------------------------
 # Report. A structural summary makes drift visible without a second tool: these
 # counts are what the live `peaks` database reports for the same queries.
