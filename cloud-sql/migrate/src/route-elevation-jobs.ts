@@ -11,7 +11,7 @@ import {
   type PublicElevationLineage,
 } from "./elevation-lineage";
 import {
-  decodeElevationProfile,
+  decodeElevationProfileResult,
   profileIsUsable,
   routeProfileHasRealRange,
 } from "./route-elevation-profile";
@@ -1093,7 +1093,7 @@ async function verifyPersistedRoute(
     [routeId]
   );
   const saved = result.rows[0];
-  const profile = decodeElevationProfile(
+  const decodedProfile = decodeElevationProfileResult(
     saved?.elevation_string ?? null,
     saved?.point_count
   );
@@ -1107,7 +1107,11 @@ async function verifyPersistedRoute(
     if (saved.elevation_string !== saved.encoded_profile) {
       failedGates.push("encoded_profile");
     }
-    if (!routeProfileHasRealRange(profile)) failedGates.push("decoded_range");
+    if (decodedProfile.failure) {
+      failedGates.push(`decoded_profile_${decodedProfile.failure}`);
+    } else if (!routeProfileHasRealRange(decodedProfile.elevations)) {
+      failedGates.push("decoded_range");
+    }
     if (saved.gain !== saved.computed_gain) failedGates.push("gain");
     if (saved.gain_loss !== saved.computed_loss) failedGates.push("loss");
     if (!saved.elevation_string) failedGates.push("profile");
@@ -1197,7 +1201,7 @@ async function verifyLegacyPersistedRoute(
     [routeId]
   );
   const saved = result.rows[0];
-  const profile = decodeElevationProfile(
+  const decodedProfile = decodeElevationProfileResult(
     saved?.elevation_string ?? null,
     saved?.point_count
   );
@@ -1211,7 +1215,11 @@ async function verifyLegacyPersistedRoute(
     if (saved.elevation_string !== saved.encoded_profile) {
       failedGates.push("encoded_profile");
     }
-    if (!routeProfileHasRealRange(profile)) failedGates.push("decoded_range");
+    if (decodedProfile.failure) {
+      failedGates.push(`decoded_profile_${decodedProfile.failure}`);
+    } else if (!routeProfileHasRealRange(decodedProfile.elevations)) {
+      failedGates.push("decoded_range");
+    }
     if (saved.gain !== saved.computed_gain) failedGates.push("gain");
     if (saved.gain_loss !== saved.computed_loss) failedGates.push("loss");
     if (!saved.elevation_string) failedGates.push("profile");

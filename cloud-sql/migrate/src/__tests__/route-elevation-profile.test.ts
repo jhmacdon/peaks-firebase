@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   computeRouteElevationStats,
   decodeElevationProfile,
+  decodeElevationProfileResult,
   encodeElevationProfile,
   profileIsUsable,
   routeProfileHasRealRange,
@@ -50,6 +51,38 @@ test("route elevation profile rejects non-canonical base64 and mismatched counts
   assert.deepEqual(decodeElevationProfile(Buffer.from("1000|1000.5").toString("base64")), []);
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 3), []);
   assert.deepEqual(decodeElevationProfile("MTAwMHwxMDAy", 2), [1000, 1002]);
+});
+
+test("route elevation profile reports safe decode failure causes", () => {
+  assert.equal(decodeElevationProfileResult(null).failure, "missing");
+  assert.equal(
+    decodeElevationProfileResult("MTAwMHwxMDAy=").failure,
+    "noncanonical_base64"
+  );
+  assert.equal(
+    decodeElevationProfileResult(
+      Buffer.from("1000|1000.5").toString("base64")
+    ).failure,
+    "invalid_sample"
+  );
+  assert.equal(
+    decodeElevationProfileResult(
+      Buffer.from(`${Number.MAX_SAFE_INTEGER + 1}|1000`).toString("base64")
+    ).failure,
+    "unsafe_integer"
+  );
+  assert.equal(
+    decodeElevationProfileResult("MTAwMHwxMDAy", -1).failure,
+    "invalid_expected_count"
+  );
+  assert.equal(
+    decodeElevationProfileResult("MTAwMHwxMDAy", 3).failure,
+    "point_count_mismatch"
+  );
+  assert.deepEqual(decodeElevationProfileResult("MTAwMHwxMDAy", 2), {
+    elevations: [1000, 1002],
+    failure: null,
+  });
 });
 
 test("route elevation profile counts gain and loss beyond the four-metre dead band", () => {

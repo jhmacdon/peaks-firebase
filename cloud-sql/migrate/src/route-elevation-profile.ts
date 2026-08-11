@@ -44,17 +44,30 @@ export function encodeElevationProfile(elevations: number[]): string | null {
   return Buffer.from(profile, "ascii").toString("base64");
 }
 
-export function decodeElevationProfile(
+export type ElevationProfileDecodeFailure =
+  | "missing"
+  | "noncanonical_base64"
+  | "invalid_sample"
+  | "unsafe_integer"
+  | "invalid_expected_count"
+  | "point_count_mismatch";
+
+export interface ElevationProfileDecodeResult {
+  elevations: number[];
+  failure: ElevationProfileDecodeFailure | null;
+}
+
+export function decodeElevationProfileResult(
   encoded: string | null,
   expectedVertexCount?: number
-): number[] {
+): ElevationProfileDecodeResult {
   if (!encoded) {
-    return [];
+    return { elevations: [], failure: "missing" };
   }
 
   const bytes = Buffer.from(encoded, "base64");
   if (bytes.toString("base64") !== encoded) {
-    return [];
+    return { elevations: [], failure: "noncanonical_base64" };
   }
 
   const profile = bytes.toString("ascii");
@@ -63,21 +76,34 @@ export function decodeElevationProfile(
     samples.length === 0 ||
     samples.some((sample) => !/^(?:0|[1-9]\d*|-[1-9]\d*)$/.test(sample))
   ) {
-    return [];
+    return { elevations: [], failure: "invalid_sample" };
   }
 
   const elevations = samples.map(Number);
+  if (elevations.some((elevation) => !Number.isSafeInteger(elevation))) {
+    return { elevations: [], failure: "unsafe_integer" };
+  }
   if (
-    elevations.some((elevation) => !Number.isSafeInteger(elevation)) ||
-    (expectedVertexCount !== undefined &&
-      (!Number.isSafeInteger(expectedVertexCount) ||
-        expectedVertexCount < 0 ||
-        elevations.length !== expectedVertexCount))
+    expectedVertexCount !== undefined &&
+    (!Number.isSafeInteger(expectedVertexCount) || expectedVertexCount < 0)
   ) {
-    return [];
+    return { elevations: [], failure: "invalid_expected_count" };
+  }
+  if (
+    expectedVertexCount !== undefined &&
+    elevations.length !== expectedVertexCount
+  ) {
+    return { elevations: [], failure: "point_count_mismatch" };
   }
 
-  return elevations;
+  return { elevations, failure: null };
+}
+
+export function decodeElevationProfile(
+  encoded: string | null,
+  expectedVertexCount?: number
+): number[] {
+  return decodeElevationProfileResult(encoded, expectedVertexCount).elevations;
 }
 
 export function computeRouteElevationStats(
