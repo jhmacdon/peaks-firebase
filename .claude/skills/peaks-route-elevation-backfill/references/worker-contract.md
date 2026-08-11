@@ -20,7 +20,8 @@ Report a compact route ID and name when returned, source kind, point count,
 profile hash, queue totals, expired lease count, and any blocker. A `blocked`
 result after a write means the worker saved safe elevation data but a separate
 publish gate, such as summit contact, still failed. Do not retry it in the same
-run. Do not include coordinates.
+run. `sampled_elevation_profile_has_no_real_range_requires_route_factory`
+blocks before any write and needs route repair. Do not include coordinates.
 
 The script rebuilds Peaks route caches from their stored ordered segments. If a
 bad segment is also linked to a user route, it clones that segment and moves

@@ -370,7 +370,7 @@ test("compact worker output exposes names and safe completion evidence only", ()
   );
 });
 
-test("elevation writes cast array parameters before subscripting", () => {
+test("elevation writes cast arrays and derive persisted stats from rebuilt paths", () => {
   const source = readFileSync(
     join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
     "utf8"
@@ -381,6 +381,45 @@ test("elevation writes cast array parameters before subscripting", () => {
     "segment and legacy route writes must give PostgreSQL a concrete array type"
   );
   assert.doesNotMatch(source, /\$2\[n\]/);
+  assert.equal(
+    source.match(
+      /CROSS JOIN LATERAL route_elevation_stats\(rebuilt\.path\) elevation_stats/g
+    )?.length,
+    2,
+    "segment and legacy writes must store the database's stats for the rebuilt path"
+  );
+  assert.doesNotMatch(
+    source,
+    /computeRouteElevationStats\(elevations\)/,
+    "persisted double stats must not cross the JavaScript/PostgreSQL boundary"
+  );
+});
+
+test("sampled profiles without a real range block before writes", () => {
+  const source = readFileSync(
+    join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
+    "utf8"
+  );
+  assert.match(
+    source,
+    /if \(!routeProfileHasRealRange\(elevations\)\) \{\s+throw new SampledElevationProfileNoRealRangeError\(\)/
+  );
+  assert.match(
+    source,
+    /sampled_elevation_profile_has_no_real_range_requires_route_factory/
+  );
+  assert.match(
+    source,
+    /error instanceof SampledElevationProfileNoRealRangeError[\s\S]+?blockLease\(/
+  );
+  assert.match(
+    source,
+    /error instanceof SampledElevationProfileNoRealRangeError[\s\S]+?hasLiveLease\(routeId, token\)[\s\S]+?currentFingerprint\(db, routeId\)[\s\S]+?path_changed_requeued/
+  );
+  assert.match(
+    source,
+    /async function blockLease[\s\S]+?lease_expires_at >= now\(\)/
+  );
 });
 
 test(
@@ -905,6 +944,7 @@ test(
       for (let offset = 0; offset < rgba.length; offset += 4) { rgba[offset] = 128; rgba[offset + 1] = 1; rgba[offset + 3] = 255; }
       for (let pixel = 0; pixel < 256 * 256; pixel += 1) {
         rgba[pixel * 4 + 1] = pixel % 256;
+        rgba[pixel * 4 + 2] = pixel % 251;
       }
       await mkdir(cacheDir, { recursive: true });
       await writeFile(join(cacheDir, `terrarium-z${z}-x${x}-y${y}.rgba`), rgba);
@@ -938,6 +978,30 @@ test(
       assert.equal(done.point_count, 2);
       assert.equal(done.verification, "public_not_applicable: pending");
       assert.match(done.profile_hash, /^[0-9a-f]{32}$/);
+      const fractionalSegmentStats = await pool.query<{
+        has_fractional_z: boolean;
+        stats_valid: boolean;
+      }>(
+        `SELECT bool_or(
+                  ST_Z((dumped).geom) <> trunc(ST_Z((dumped).geom))
+                ) AS has_fractional_z,
+                s.gain IS NOT DISTINCT FROM stats.gain
+                  AND s.gain_loss IS NOT DISTINCT FROM stats.loss
+                  AS stats_valid
+         FROM route_segments rs
+         JOIN segments s ON s.id = rs.segment_id
+         CROSS JOIN LATERAL ST_DumpPoints(s.path::geometry) dumped
+         CROSS JOIN LATERAL route_elevation_stats(s.path) stats
+         WHERE rs.route_id = $1
+         GROUP BY s.gain, s.gain_loss, stats.gain, stats.loss`,
+        [sourceId]
+      );
+      assert.equal(
+        fractionalSegmentStats.rows[0]?.has_fractional_z,
+        true,
+        "the process fixture must exercise fractional terrain samples"
+      );
+      assert.equal(fractionalSegmentStats.rows[0]?.stats_valid, true);
       const shown = command("show", "--route-id", sourceId);
       assert.equal(shown[0]?.route_name, sourceId);
       assert.deepEqual(shown[0]?.final_evidence, {
@@ -1374,6 +1438,7 @@ test(
         canonical: boolean;
         stats_valid: boolean;
         has_range: boolean;
+        has_fractional_z: boolean;
         elevation_source: string | null;
       }>(
         `SELECT r.id,
@@ -1389,6 +1454,12 @@ test(
                   AS stats_valid,
                 route_elevation_profile_has_real_range(r.path)
                   AS has_range,
+                EXISTS (
+                  SELECT 1
+                  FROM ST_DumpPoints(r.path::geometry) dumped
+                  WHERE ST_Z((dumped).geom) <>
+                    trunc(ST_Z((dumped).geom))
+                ) AS has_fractional_z,
                 r.elevation_source
          FROM routes r
          CROSS JOIN LATERAL route_elevation_stats(r.path) stats
@@ -1415,6 +1486,12 @@ test(
         legacyAfter.rows.find((row) => row.id === legacyFlatId)
           ?.elevation_source ?? "",
         /Terrarium/
+      );
+      assert.equal(
+        legacyAfter.rows.find((row) => row.id === legacyFlatId)
+          ?.has_fractional_z,
+        true,
+        "legacy processing must persist fractional terrain samples"
       );
       assert.equal(
         legacyAfter.rows.find((row) => row.id === legacyVariedId)

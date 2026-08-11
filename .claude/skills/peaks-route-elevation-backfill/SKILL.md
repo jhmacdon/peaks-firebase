@@ -31,6 +31,8 @@ End with stats and a clean checkout; report the lease outcome, compact route
 ID/name if returned, source kind, point count, queue totals, expired lease
 count, safe profile hash, and blocker. Do not report coordinates. If processing
 returns `blocked`, report its compact cause and stop; do not retry that route.
+`sampled_elevation_profile_has_no_real_range_requires_route_factory` means the
+worker rejected the terrain sample before any write; send it to route repair.
 
 Do not research sources or use a browser. Do not edit route XY or shape data,
 destinations, migrations, git state, or user-owned records. Do not run raw SQL,
