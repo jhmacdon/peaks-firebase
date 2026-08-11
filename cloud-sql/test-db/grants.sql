@@ -15,9 +15,15 @@
 --                                                 geometry_columns,
 --                                                 spatial_ref_sys) only
 --
--- Invoked with:  psql -v test_role=peaks_test -f grants.sql
+-- Invoked with:
+--   psql -v db_name=peaks_test -v test_role=peaks_test -f grants.sql
 
 \set ON_ERROR_STOP on
+
+-- Two integration tests create isolated schemas, then drop them in cleanup.
+-- provision.sh runs this only after its *_test database-name gate. The
+-- production API role does not need or receive database-level CREATE.
+GRANT CREATE ON DATABASE :"db_name" TO :"test_role";
 
 GRANT USAGE ON SCHEMA public TO :"test_role";
 
