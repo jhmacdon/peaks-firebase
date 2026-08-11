@@ -11,7 +11,6 @@ import {
   type PublicElevationLineage,
 } from "./elevation-lineage";
 import {
-  computeRouteElevationStats,
   decodeElevationProfile,
   profileIsUsable,
   routeProfileHasRealRange,
@@ -661,12 +660,28 @@ async function completeProfile(
 ): Promise<{ elevations: number[]; sourceKind: string }> {
   const existing = forceTerrain ? null : existingProfile(points);
   if (existing) return { elevations: existing, sourceKind: "existing_z" };
+  const elevations = await sampleTerrariumProfile(
+    points.map(({ lat, lng }) => ({ lat, lng })),
+    {
+      cacheDir:
+        process.env.PEAKS_TERRARIUM_CACHE_DIR ??
+        join(tmpdir(), "peaks-route-elevation-terrarium"),
+    }
+  );
+  if (!routeProfileHasRealRange(elevations)) {
+    throw new SampledElevationProfileNoRealRangeError();
+  }
   return {
-    elevations: await sampleTerrariumProfile(points.map(({ lat, lng }) => ({ lat, lng })), {
-      cacheDir: process.env.PEAKS_TERRARIUM_CACHE_DIR ?? join(tmpdir(), "peaks-route-elevation-terrarium"),
-    }),
+    elevations,
     sourceKind: "terrarium_z14",
   };
+}
+
+class SampledElevationProfileNoRealRangeError extends Error {
+  constructor() {
+    super("sampled_elevation_profile_has_no_real_range_requires_route_factory");
+    this.name = "SampledElevationProfileNoRealRangeError";
+  }
 }
 
 async function applySegmentProfile(
@@ -674,7 +689,6 @@ async function applySegmentProfile(
   id: string,
   elevations: number[]
 ): Promise<void> {
-  const stats = computeRouteElevationStats(elevations);
   const result = await client.query(
     `WITH points AS (
        SELECT row_number() OVER (ORDER BY (dumped).path)::int AS n, (dumped).geom AS geom
@@ -682,9 +696,14 @@ async function applySegmentProfile(
      ), rebuilt AS (
        SELECT ST_SetSRID(ST_MakeLine(array_agg(ST_SetSRID(ST_MakePoint(ST_X(geom), ST_Y(geom), ($2::float8[])[n]), 4326) ORDER BY n)), 4326)::geography AS path
        FROM points
-     ) UPDATE segments SET path = rebuilt.path, gain = $3, gain_loss = $4
-       FROM rebuilt WHERE id = $1`,
-    [id, elevations, stats.gain, stats.loss]
+     ), computed AS (
+       SELECT rebuilt.path, elevation_stats.gain, elevation_stats.loss
+       FROM rebuilt
+       CROSS JOIN LATERAL route_elevation_stats(rebuilt.path) elevation_stats
+     ) UPDATE segments SET path = computed.path, gain = computed.gain,
+         gain_loss = computed.loss
+       FROM computed WHERE id = $1`,
+    [id, elevations]
   );
   if (result.rowCount !== 1) throw new Error("Could not update segment");
 }
@@ -694,7 +713,6 @@ async function applyLegacyRouteProfile(
   id: string,
   elevations: number[]
 ): Promise<void> {
-  const stats = computeRouteElevationStats(elevations);
   const result = await client.query(
     `WITH points AS (
        SELECT row_number() OVER (ORDER BY (dumped).path)::int AS n,
@@ -715,19 +733,23 @@ async function applyLegacyRouteProfile(
                 4326
               )::geography AS path
        FROM points
+     ), computed AS (
+       SELECT rebuilt.path, elevation_stats.gain, elevation_stats.loss
+       FROM rebuilt
+       CROSS JOIN LATERAL route_elevation_stats(rebuilt.path) elevation_stats
      )
      UPDATE routes
-     SET path = rebuilt.path,
-         gain = $3,
-         gain_loss = $4
-     FROM rebuilt
+     SET path = computed.path,
+         gain = computed.gain,
+         gain_loss = computed.loss
+     FROM computed
      WHERE id = $1
        AND owner = 'peaks'
        AND status IN ('active', 'pending')
        AND NOT EXISTS (
          SELECT 1 FROM route_segments WHERE route_id = $1
        )`,
-    [id, elevations, stats.gain, stats.loss]
+    [id, elevations]
   );
   if (result.rowCount !== 1) {
     throw new Error("Legacy route gained source segments before elevation write");
@@ -1075,30 +1097,37 @@ async function verifyPersistedRoute(
     saved?.elevation_string ?? null,
     saved?.point_count
   );
-  if (
-    !saved ||
-    !saved.valid_z ||
-    !saved.assembly_matches ||
-    !saved.has_real_range ||
-    saved.elevation_string !== saved.encoded_profile ||
-    !routeProfileHasRealRange(profile) ||
-    saved.gain !== saved.computed_gain ||
-    saved.gain_loss !== saved.computed_loss ||
-    !saved.elevation_string ||
-    !saved.profile_hash ||
-    saved.gain === null ||
-    saved.gain_loss === null
-  ) {
-    throw new Error("Affected route verification failed");
+  const failedGates: string[] = [];
+  if (!saved) {
+    failedGates.push("missing_route");
+  } else {
+    if (!saved.valid_z) failedGates.push("valid_z");
+    if (!saved.assembly_matches) failedGates.push("assembly");
+    if (!saved.has_real_range) failedGates.push("stored_range");
+    if (saved.elevation_string !== saved.encoded_profile) {
+      failedGates.push("encoded_profile");
+    }
+    if (!routeProfileHasRealRange(profile)) failedGates.push("decoded_range");
+    if (saved.gain !== saved.computed_gain) failedGates.push("gain");
+    if (saved.gain_loss !== saved.computed_loss) failedGates.push("loss");
+    if (!saved.elevation_string) failedGates.push("profile");
+    if (!saved.profile_hash) failedGates.push("profile_hash");
+    if (saved.gain === null) failedGates.push("gain_null");
+    if (saved.gain_loss === null) failedGates.push("loss_null");
+  }
+  if (failedGates.length > 0) {
+    throw new Error(
+      `Affected route verification failed: ${failedGates.join(",")}`
+    );
   }
   return {
     id: saved.id,
     status: saved.status,
     point_count: saved.point_count,
-    elevation_string: saved.elevation_string,
-    profile_hash: saved.profile_hash,
-    gain: saved.gain,
-    gain_loss: saved.gain_loss,
+    elevation_string: saved.elevation_string!,
+    profile_hash: saved.profile_hash!,
+    gain: saved.gain!,
+    gain_loss: saved.gain_loss!,
     elevation_source: saved.elevation_source,
     elevation_source_url: saved.elevation_source_url,
     elevation_attribution: saved.elevation_attribution,
@@ -1172,30 +1201,37 @@ async function verifyLegacyPersistedRoute(
     saved?.elevation_string ?? null,
     saved?.point_count
   );
-  if (
-    !saved ||
-    saved.xy_hash !== expectedXyHash ||
-    !saved.valid_z ||
-    !saved.has_real_range ||
-    saved.elevation_string !== saved.encoded_profile ||
-    !routeProfileHasRealRange(profile) ||
-    saved.gain !== saved.computed_gain ||
-    saved.gain_loss !== saved.computed_loss ||
-    !saved.elevation_string ||
-    !saved.profile_hash ||
-    saved.gain === null ||
-    saved.gain_loss === null
-  ) {
-    throw new Error("Legacy route elevation verification failed");
+  const failedGates: string[] = [];
+  if (!saved) {
+    failedGates.push("missing_route");
+  } else {
+    if (saved.xy_hash !== expectedXyHash) failedGates.push("xy_hash");
+    if (!saved.valid_z) failedGates.push("valid_z");
+    if (!saved.has_real_range) failedGates.push("stored_range");
+    if (saved.elevation_string !== saved.encoded_profile) {
+      failedGates.push("encoded_profile");
+    }
+    if (!routeProfileHasRealRange(profile)) failedGates.push("decoded_range");
+    if (saved.gain !== saved.computed_gain) failedGates.push("gain");
+    if (saved.gain_loss !== saved.computed_loss) failedGates.push("loss");
+    if (!saved.elevation_string) failedGates.push("profile");
+    if (!saved.profile_hash) failedGates.push("profile_hash");
+    if (saved.gain === null) failedGates.push("gain_null");
+    if (saved.gain_loss === null) failedGates.push("loss_null");
+  }
+  if (failedGates.length > 0) {
+    throw new Error(
+      `Legacy route elevation verification failed: ${failedGates.join(",")}`
+    );
   }
   return {
     id: saved.id,
     status: saved.status,
     point_count: saved.point_count,
-    elevation_string: saved.elevation_string,
-    profile_hash: saved.profile_hash,
-    gain: saved.gain,
-    gain_loss: saved.gain_loss,
+    elevation_string: saved.elevation_string!,
+    profile_hash: saved.profile_hash!,
+    gain: saved.gain!,
+    gain_loss: saved.gain_loss!,
     elevation_source: saved.elevation_source,
     elevation_source_url: saved.elevation_source_url,
     elevation_attribution: saved.elevation_attribution,
@@ -1880,6 +1916,23 @@ async function processRoute(routeId: string, token: string, apply: boolean): Pro
       }));
     } catch (error) { await completeClient.query("ROLLBACK"); throw error; } finally { completeClient.release(); }
   } catch (error) {
+    if (
+      error instanceof SampledElevationProfileNoRealRangeError &&
+      preflightFingerprint
+    ) {
+      await blockLease(
+        routeId,
+        token,
+        preflightFingerprint,
+        error.message,
+        {
+          verification: "blocked_before_write",
+          cause: error.message,
+        },
+        processRouteName
+      );
+      return;
+    }
     await failLease(routeId, token, error, processRouteName);
   }
 }

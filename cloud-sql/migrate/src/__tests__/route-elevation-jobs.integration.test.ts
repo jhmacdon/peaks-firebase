@@ -370,7 +370,7 @@ test("compact worker output exposes names and safe completion evidence only", ()
   );
 });
 
-test("elevation writes cast array parameters before subscripting", () => {
+test("elevation writes cast arrays and derive persisted stats from rebuilt paths", () => {
   const source = readFileSync(
     join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
     "utf8"
@@ -381,6 +381,37 @@ test("elevation writes cast array parameters before subscripting", () => {
     "segment and legacy route writes must give PostgreSQL a concrete array type"
   );
   assert.doesNotMatch(source, /\$2\[n\]/);
+  assert.equal(
+    source.match(
+      /CROSS JOIN LATERAL route_elevation_stats\(rebuilt\.path\) elevation_stats/g
+    )?.length,
+    2,
+    "segment and legacy writes must store the database's stats for the rebuilt path"
+  );
+  assert.doesNotMatch(
+    source,
+    /computeRouteElevationStats\(elevations\)/,
+    "persisted double stats must not cross the JavaScript/PostgreSQL boundary"
+  );
+});
+
+test("sampled profiles without a real range block before writes", () => {
+  const source = readFileSync(
+    join(MIGRATE_ROOT, "src/route-elevation-jobs.ts"),
+    "utf8"
+  );
+  assert.match(
+    source,
+    /if \(!routeProfileHasRealRange\(elevations\)\) \{\s+throw new SampledElevationProfileNoRealRangeError\(\)/
+  );
+  assert.match(
+    source,
+    /sampled_elevation_profile_has_no_real_range_requires_route_factory/
+  );
+  assert.match(
+    source,
+    /error instanceof SampledElevationProfileNoRealRangeError[\s\S]+?blockLease\(/
+  );
 });
 
 test(
