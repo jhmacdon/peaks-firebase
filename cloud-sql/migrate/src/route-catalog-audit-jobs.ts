@@ -39,6 +39,18 @@ interface AuditJob {
   updated_at: string;
 }
 
+export interface AuditLeaseLossRow {
+  destination_exists: boolean;
+  job_exists: boolean;
+  live_worker_lease: boolean;
+}
+
+export type AuditLeaseLossOutcome =
+  | "destination_deleted"
+  | "job_missing"
+  | "lease_missing"
+  | "lease_live";
+
 const AUDIT_RULE_VERSION = 3;
 const MAX_LEASE_MINUTES = 30;
 export const STALE_ELEVATION_REASON = "elevation_profile_format_changed";
@@ -257,6 +269,33 @@ export const staleElevationSeedSql = `
             job.state,
             candidate.destination_id IS NOT NULL AS candidate_found`;
 
+export const auditLeaseLossSql = `
+  SELECT EXISTS (
+           SELECT 1 FROM destinations WHERE id = $1
+         ) AS destination_exists,
+         EXISTS (
+           SELECT 1
+           FROM route_catalog_audit_jobs
+           WHERE destination_id = $1
+         ) AS job_exists,
+         EXISTS (
+           SELECT 1
+           FROM route_catalog_audit_jobs
+           WHERE destination_id = $1
+             AND state = 'auditing'
+             AND lease_owner = $2
+             AND lease_expires_at >= now()
+         ) AS live_worker_lease`;
+
+export function classifyAuditLeaseLoss(
+  row: AuditLeaseLossRow
+): AuditLeaseLossOutcome {
+  if (!row.destination_exists && !row.job_exists) return "destination_deleted";
+  if (row.live_worker_lease) return "lease_live";
+  if (!row.job_exists) return "job_missing";
+  return "lease_missing";
+}
+
 function usage(exitCode = 2): never {
   console.error(`Usage:
   npm run routes:audit-jobs -- seed [--apply]
@@ -270,6 +309,7 @@ function usage(exitCode = 2): never {
       --state passed|needs_repair|needs_human --result-file FILE --apply
   npm run routes:audit-jobs -- release (--lease-token TOKEN | --worker-id ID)
       [--message TEXT]
+  npm run routes:audit-jobs -- diagnose-loss --destination-id ID --worker-id ID
   npm run routes:audit-jobs -- requeue --destination-id ID --reason TEXT --apply
   npm run routes:audit-jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:audit-jobs -- stats
@@ -915,6 +955,22 @@ async function release(argv: string[]): Promise<void> {
   print(result.rows[0]);
 }
 
+async function diagnoseLoss(argv: string[]): Promise<void> {
+  const destinationId = requiredId(argv, "--destination-id");
+  const workerId = requiredId(argv, "--worker-id");
+  const result = await db.query<AuditLeaseLossRow>(auditLeaseLossSql, [
+    destinationId,
+    workerId,
+  ]);
+  const row = result.rows[0];
+  if (!row) throw new Error("Lease-loss diagnosis returned no row");
+  print({
+    destination_id: destinationId,
+    outcome: classifyAuditLeaseLoss(row),
+    ...row,
+  });
+}
+
 async function requeue(argv: string[]): Promise<void> {
   if (!argv.includes("--apply")) throw new Error("requeue requires --apply");
   const destinationId = requiredId(argv, "--destination-id");
@@ -1008,6 +1064,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       break;
     case "release":
       await release(args);
+      break;
+    case "diagnose-loss":
+      await diagnoseLoss(args);
       break;
     case "requeue":
       await requeue(args);

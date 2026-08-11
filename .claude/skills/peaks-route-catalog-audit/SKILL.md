@@ -167,6 +167,20 @@ Read the completion response. `completed` is final.
 `catalog_changed_requeued` and `out_of_scope` have already cleared the lease;
 do not release them again. Report the outcome and stop that run.
 
+If heartbeat, completion, or release reports no single matching lease, do not
+run release again. Diagnose the claimed destination once:
+
+```bash
+.claude/skills/peaks-route-catalog-audit/scripts/route_audit_jobs.sh \
+  diagnose-loss --destination-id DESTINATION_ID
+```
+
+If the outcome is `destination_deleted`, the destination and its cascading job
+were deleted during the audit. Treat it as terminal `out_of_scope`, run final
+stats, confirm a clean checkout, and stop without operator action. If the
+outcome is `lease_live`, retry the failed lease command once. For any other
+outcome, do not release or claim; report the diagnosis for operator action.
+
 Report the destination, stored and preferred names, standard-route facts,
 sources, current default, each route action (`keep`, `repair`, `supersede`, or
 `needs human review`), final state, lease health, and remaining total. Do not
