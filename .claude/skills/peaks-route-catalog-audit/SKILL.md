@@ -40,8 +40,10 @@ allow-listed, run every `route_audit_jobs.sh` call and recurring
 not set `sandbox_permissions`; the installed prefix rules handle these exact
 wrappers. Never prepend `bash`, `zsh`, `env`, `cd`, a variable assignment, or
 another command. Do not report a setup failure unless a wrapper call in the
-current turn produced it. If setup fails, do not claim. If no job is returned,
-inspect stats; do not infer completion from an empty claim. If claim returns
+current turn produced it. If the proxy is unreachable, the bounded worker must
+not claim; its supervisor must use `$peaks-cloud-sql-proxy-recovery` before
+counting another shared setup fault. If setup fails, do not claim. If no job
+is returned, inspect stats; do not infer completion from an empty claim. If claim returns
 `existing_live_lease`, resume that returned destination; it is the worker's
 one job. Never claim again. Never copy, retain, reconstruct, or pass a
 `lease_token`; queue output omits it. For heartbeat, completion, and release,

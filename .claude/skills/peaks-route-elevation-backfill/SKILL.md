@@ -16,6 +16,10 @@ lockfile dependency check before every queue command:
 .claude/skills/peaks-route-elevation-backfill/scripts/route_elevation_jobs.sh claim --apply
 ```
 
+If the proxy is unreachable, the bounded worker must not claim. Its supervisor
+must use `$peaks-cloud-sql-proxy-recovery` before counting another shared setup
+fault.
+
 Read [references/worker-contract.md](references/worker-contract.md). Run stats,
 then claim exactly one job. If the claim returns no route, report stats and
 stop. Process only the returned route ID and lease token:
