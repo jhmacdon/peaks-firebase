@@ -71,6 +71,7 @@ install_agent() {
     <string>--http-port</string>
     <string>${HEALTH_PORT}</string>
     <string>--exit-zero-on-sigterm</string>
+    <string>--quiet</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

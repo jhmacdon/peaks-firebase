@@ -19,6 +19,7 @@ test("proxy recovery pins the Peaks instance and quota project", () => {
   assert.match(script, /<key>RunAtLoad<\/key>/);
   assert.match(script, /<key>KeepAlive<\/key>/);
   assert.match(script, /\/readiness/);
+  assert.match(script, /<string>--quiet<\/string>/);
 });
 
 test("route workers route reboot failures to proxy recovery", () => {
