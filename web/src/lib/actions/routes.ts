@@ -11,6 +11,10 @@ import {
   type RouteProvenanceInput,
 } from "../route-provenance";
 import { extractSubPoints } from "../segment-geometry";
+import {
+  chooseActivationSegmentReference,
+  insertRouteSpecificActivationSegment,
+} from "../route-segment-reuse";
 
 export interface RouteRow {
   id: string;
@@ -885,21 +889,26 @@ export async function acceptRouteWithSegments(
 
     for (const seg of decomposition.segments) {
       if (seg.type === "existing") {
-        // If this references our own deleted standalone segment, create a new one instead
-        if (deletedSegIds.has(seg.existingSegmentId!)) {
-          const newId = generateId();
-          const wkt = pointsToLineStringZ(seg.points);
-          const poly = encodePolyline6(seg.points);
-          await client.query(
-            `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
-             VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
-            [newId, seg.name || seg.existingSegmentName, wkt, poly, seg.distance, seg.gain, seg.loss,
-             routeProvenance]
-          );
-          routeSegRefs.push({ segmentId: newId, direction: seg.direction || "forward" });
-        } else {
-          routeSegRefs.push({ segmentId: seg.existingSegmentId!, direction: seg.direction || "forward" });
-        }
+        const createRouteSpecificSegment = async (): Promise<string> => {
+          return insertRouteSpecificActivationSegment({
+            client,
+            name: seg.name || seg.existingSegmentName || null,
+            points: seg.points,
+            distance: seg.distance,
+            routeProvenance,
+          });
+        };
+        routeSegRefs.push(
+          await chooseActivationSegmentReference({
+            client,
+            existingSegmentId: seg.existingSegmentId!,
+            points: seg.points,
+            direction: seg.direction || "forward",
+            routeProvenance,
+            forceRouteSpecific: deletedSegIds.has(seg.existingSegmentId!),
+            createRouteSpecificSegment,
+          })
+        );
       } else if (seg.type === "split") {
         const subIds = splitResults.get(seg.parentSegmentId!);
         if (subIds) {
@@ -915,14 +924,13 @@ export async function acceptRouteWithSegments(
           }
         }
       } else {
-        const newId = generateId();
-        const wkt = pointsToLineStringZ(seg.points);
-        const poly = encodePolyline6(seg.points);
-        await client.query(
-          `INSERT INTO segments (id, name, path, polyline6, distance, gain, gain_loss, provenance)
-           VALUES ($1, $2, ST_GeomFromText($3, 4326)::geography, $4, $5, $6, $7, $8::jsonb)`,
-          [newId, seg.name, wkt, poly, seg.distance, seg.gain, seg.loss, routeProvenance]
-        );
+        const newId = await insertRouteSpecificActivationSegment({
+          client,
+          name: seg.name,
+          points: seg.points,
+          distance: seg.distance,
+          routeProvenance,
+        });
         routeSegRefs.push({ segmentId: newId, direction: "forward" });
       }
     }
