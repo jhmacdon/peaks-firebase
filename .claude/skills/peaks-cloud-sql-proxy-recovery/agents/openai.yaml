@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peaks Cloud SQL Proxy Recovery"
+  short_description: "Restore Peaks database access after restarts"
+  default_prompt: "Use $peaks-cloud-sql-proxy-recovery to restore and verify the local Peaks Cloud SQL proxy."
