@@ -69,11 +69,26 @@ type RouteRow = PersistedElevationLineage & Record<string, unknown> & {
 export const DEFAULT_PEAKS_PUBLIC_WEB_URL =
   "https://peaks-firebase--donner-a8608.us-central1.hosted.app";
 
-function arraysEqual(left: unknown, right: unknown): boolean {
+function stringArraysEqual(left: unknown, right: unknown): boolean {
   if (!Array.isArray(left) || !Array.isArray(right)) return false;
   return (
     left.length === right.length &&
-    left.every((value, index) => value === right[index])
+    left.every(
+      (value, index) =>
+        typeof value === "string" &&
+        typeof right[index] === "string" &&
+        value === right[index]
+    )
+  );
+}
+
+function nestedStringArraysEqual(left: unknown, right: unknown): boolean {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  return (
+    left.length === right.length &&
+    left.every((values, index) =>
+      stringArraysEqual(values, right[index])
+    )
   );
 }
 
@@ -251,7 +266,7 @@ export async function verifyStandardRoute(
               LIMIT 1
             ) AS endpoint_gap_meters,
             (
-              SELECT final_destination.features
+              SELECT to_jsonb(final_destination.features)
               FROM route_destinations final_rd
               JOIN destinations final_destination
                 ON final_destination.id = final_rd.destination_id
@@ -377,8 +392,12 @@ export async function verifyStandardRoute(
     publicPayload.shape === route?.shape &&
     route?.publish_integrity_valid === true &&
     publicPayload.publish_integrity_valid === true &&
-    arraysEqual(publicPayload.final_destination_features ?? [], route?.final_destination_features ?? []) &&
-    arraysEqual(publicPayload.destination_ids ?? [], destinationIds);
+    stringArraysEqual(
+      publicPayload.final_destination_features,
+      route.final_destination_features
+    ) &&
+    stringArraysEqual(publicPayload.destination_ids, destinationIds) &&
+    nestedStringArraysEqual(publicPayload.destination_features, features);
 
   const gates = {
     owner: route?.owner === "peaks",

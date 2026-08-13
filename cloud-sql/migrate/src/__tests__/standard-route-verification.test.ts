@@ -33,7 +33,7 @@ const route = {
   summit_fault_count: 0,
   summit_max_gap_meters: 1.2,
   endpoint_gap_meters: 1.2,
-  final_destination_features: ["summit"],
+  final_destination_features: ["summit", "volcano"],
   shape: "out_and_back",
   segment_count: 1,
   matching_segment_count: 1,
@@ -45,7 +45,7 @@ const route = {
   matching_assembly_point_count: 20,
   publish_integrity_valid: true,
   destination_ids: ["trailhead-1", "peak-1"],
-  destination_features: [["trailhead"], ["summit"]],
+  destination_features: [["trailhead"], ["summit", "volcano"]],
 };
 
 const queryable = {
@@ -100,6 +100,64 @@ test("a malformed public array fails closed instead of crashing verification", a
     assert.ok(result.errors.includes("public_http"));
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("wrong or malformed nested destination features fail public parity", async (t) => {
+  const cases: Array<{ name: string; destinationFeatures: unknown }> = [
+    {
+      name: "missing final feature",
+      destinationFeatures: [["trailhead"], ["summit"]],
+    },
+    {
+      name: "wrong inner order",
+      destinationFeatures: [["trailhead"], ["volcano", "summit"]],
+    },
+    {
+      name: "wrong destination order",
+      destinationFeatures: [["summit", "volcano"], ["trailhead"]],
+    },
+    {
+      name: "outer value is not an array",
+      destinationFeatures: { trailhead: ["trailhead"] },
+    },
+    {
+      name: "inner value is not an array",
+      destinationFeatures: ["trailhead", ["summit", "volcano"]],
+    },
+    {
+      name: "inner feature is not a string",
+      destinationFeatures: [["trailhead"], ["summit", 1]],
+    },
+  ];
+
+  for (const { name, destinationFeatures } of cases) {
+    await t.test(name, async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            ...route,
+            destination_features: destinationFeatures,
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }
+        );
+      try {
+        const result = await verifyStandardRoute(queryable, {
+          routeId: "route-1",
+          destinationId: "peak-1",
+          trailheadId: "trailhead-1",
+          publicBaseUrl: "https://example.test",
+        });
+        assert.equal(result.gates.public_http, false);
+        assert.ok(result.errors.includes("public_http"));
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
   }
 });
 
@@ -391,7 +449,7 @@ test("an unrelated HTTP 200 shell cannot pass public verification", async () => 
   }
 });
 
-test("verification query aggregates variable destination features as JSON", async () => {
+test("verification query serializes destination feature arrays as JSON", async () => {
   let queryText = "";
   const recordingQueryable = {
     async query<T extends Record<string, unknown>>(text: string) {
@@ -412,9 +470,26 @@ test("verification query aggregates variable destination features as JSON", asyn
       trailheadId: "trailhead-1",
       publicBaseUrl: "https://example.test",
     });
+    assert.match(
+      queryText,
+      /SELECT\s+to_jsonb\(final_destination\.features\)[\s\S]+?AS final_destination_features/
+    );
     assert.match(queryText, /JSONB_AGG\(to_jsonb\(d\.features\)/);
     assert.doesNotMatch(queryText, /ARRAY_AGG\(d\.features::text\[\]/);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("public route query serializes final destination features as JSON", () => {
+  const root = path.resolve(__dirname, "../../../..");
+  const api = fs.readFileSync(
+    path.join(root, "web/src/app/api/public/routes/[id]/route.ts"),
+    "utf8"
+  );
+
+  assert.match(
+    api,
+    /SELECT\s+to_jsonb\(final_destination\.features\)[\s\S]+?AS final_destination_features/
+  );
 });

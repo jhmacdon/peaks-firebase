@@ -176,7 +176,7 @@ export async function GET(_request: Request, context: Context) {
               LIMIT 1
             ) AS endpoint_gap_meters,
             (
-              SELECT final_destination.features
+              SELECT to_jsonb(final_destination.features)
               FROM route_destinations final_rd
               JOIN destinations final_destination
                 ON final_destination.id = final_rd.destination_id
