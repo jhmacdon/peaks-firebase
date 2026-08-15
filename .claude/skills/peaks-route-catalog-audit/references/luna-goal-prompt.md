@@ -59,16 +59,20 @@ path.
 Heartbeat before browser or map work with
 `route_audit_jobs.sh heartbeat --lease-minutes 30`; do not pass a lease token.
 Keep raw HTML, GPX, OSM payloads, path coordinates, and screenshots out of
-model context and git. Complete and release without a lease token. If
+model context and git. Complete on success or release on failure, without a
+lease token; never run both commands for one result. If
 heartbeat, completion, or release says `No single live audit lease matched`,
 `No live audit lease matched`, `No single audit lease matched`, or `No audit
 lease matched`, do not run release again. Run `route_audit_jobs.sh
 diagnose-loss --destination-id DESTINATION_ID` once. An outcome of
 `destination_deleted` is terminal
 `out_of_scope`: run final stats, confirm a clean checkout, and stop without
-operator action. For `lease_live`, retry the failed lease command once. For any
-other diagnosis, do not release or claim; stop and report operator action. For
-any other command failure, make one safe repair attempt, then run
+operator action. `job_terminal` means the earlier completion succeeded, and
+`job_requeued` means the job is safely queued again; for either, run final
+stats, confirm a clean checkout, and stop without operator action. For
+`lease_live`, retry the failed lease command once. For any other diagnosis, do
+not release or claim; stop and report operator action. For any other command
+failure, make one safe repair attempt, then run
 `route_audit_jobs.sh release --message "EXACT ERROR"` without a lease token.
 Stop the lasting goal after the same tool fault or shared blocker appears on
 three consecutive destinations.
