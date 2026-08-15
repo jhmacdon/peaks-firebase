@@ -1464,7 +1464,8 @@ test("Luna proves setup from a fresh wrapper call and uses bounded leases", () =
   }
   assert.match(prompt, /Heartbeat .*--lease-minutes 30/i);
   assert.match(prompt, /Never copy, retain, reconstruct, or pass.*lease_token/is);
-  assert.match(prompt, /Complete and release without a lease token/i);
+  assert.match(prompt, /Complete on success or release on failure/i);
+  assert.match(prompt, /never run both commands for one result/i);
   assert.doesNotMatch(
     skill,
     /complete[\s\S]{0,160}--lease-token/i
