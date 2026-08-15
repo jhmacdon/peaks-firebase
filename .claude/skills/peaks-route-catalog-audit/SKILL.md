@@ -182,8 +182,12 @@ destination once:
 If the outcome is `destination_deleted`, the destination and its cascading job
 were deleted during the audit. Treat it as terminal `out_of_scope`, run final
 stats, confirm a clean checkout, and stop without operator action. If the
-outcome is `lease_live`, retry the failed lease command once. For any other
-outcome, do not release or claim; report the diagnosis for operator action.
+outcome is `job_terminal`, the earlier completion already finished the job; run
+final stats, confirm a clean checkout, and stop without operator action. If the
+outcome is `job_requeued`, the job is safely back in the queue; run final stats,
+confirm a clean checkout, and stop without operator action. If the outcome is
+`lease_live`, retry the failed lease command once. For any other outcome, do not
+release or claim; report the diagnosis for operator action.
 
 Report the destination, stored and preferred names, standard-route facts,
 sources, current default, each route action (`keep`, `repair`, `supersede`, or

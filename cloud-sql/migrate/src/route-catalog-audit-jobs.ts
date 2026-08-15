@@ -42,12 +42,15 @@ export interface AuditJob {
 export interface AuditLeaseLossRow {
   destination_exists: boolean;
   job_exists: boolean;
+  job_state: AuditState | null;
   live_worker_lease: boolean;
 }
 
 export type AuditLeaseLossOutcome =
   | "destination_deleted"
   | "job_missing"
+  | "job_requeued"
+  | "job_terminal"
   | "lease_missing"
   | "lease_live";
 
@@ -278,6 +281,11 @@ export const auditLeaseLossSql = `
            FROM route_catalog_audit_jobs
            WHERE destination_id = $1
          ) AS job_exists,
+         (
+           SELECT state
+           FROM route_catalog_audit_jobs
+           WHERE destination_id = $1
+         ) AS job_state,
          EXISTS (
            SELECT 1
            FROM route_catalog_audit_jobs
@@ -293,6 +301,8 @@ export function classifyAuditLeaseLoss(
   if (!row.destination_exists && !row.job_exists) return "destination_deleted";
   if (row.live_worker_lease) return "lease_live";
   if (!row.job_exists) return "job_missing";
+  if (row.job_state === "queued") return "job_requeued";
+  if (row.job_state && row.job_state !== "auditing") return "job_terminal";
   return "lease_missing";
 }
 

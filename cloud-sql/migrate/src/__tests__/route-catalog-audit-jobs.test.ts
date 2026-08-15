@@ -44,25 +44,49 @@ test("lease-loss diagnosis distinguishes a deleted destination from an unsafe lo
   assert.equal(classifyAuditLeaseLoss({
     destination_exists: false,
     job_exists: false,
+    job_state: null,
     live_worker_lease: false,
   }), "destination_deleted");
   assert.equal(classifyAuditLeaseLoss({
     destination_exists: true,
     job_exists: false,
+    job_state: null,
     live_worker_lease: false,
   }), "job_missing");
   assert.equal(classifyAuditLeaseLoss({
     destination_exists: true,
     job_exists: true,
+    job_state: "auditing",
     live_worker_lease: false,
   }), "lease_missing");
   assert.equal(classifyAuditLeaseLoss({
     destination_exists: true,
     job_exists: true,
+    job_state: "auditing",
     live_worker_lease: true,
   }), "lease_live");
+  assert.equal(classifyAuditLeaseLoss({
+    destination_exists: true,
+    job_exists: true,
+    job_state: "queued",
+    live_worker_lease: false,
+  }), "job_requeued");
+  for (const job_state of [
+    "passed",
+    "needs_repair",
+    "needs_human",
+    "out_of_scope",
+  ] as const) {
+    assert.equal(classifyAuditLeaseLoss({
+      destination_exists: true,
+      job_exists: true,
+      job_state,
+      live_worker_lease: false,
+    }), "job_terminal");
+  }
   assert.match(auditLeaseLossSql, /FROM destinations WHERE id = \$1/);
   assert.match(auditLeaseLossSql, /FROM route_catalog_audit_jobs/);
+  assert.match(auditLeaseLossSql, /SELECT state/);
   assert.match(auditLeaseLossSql, /lease_owner = \$2/);
   assert.doesNotMatch(auditLeaseLossSql, /lease_token/);
 });
