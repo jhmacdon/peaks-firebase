@@ -219,6 +219,21 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Peakbagger list audit/import
+
+The Peakbagger importer reads a saved browser audit, resolves each source peak
+to one summit destination, and shows a dry-run diff. It stops on missing or
+unclear rows and never drops an unresolved source peak.
+
+```bash
+cd migrate
+npm run import:peakbagger-lists -- --input=/tmp/peakbagger-list-candidates.json
+npm run import:peakbagger-lists -- --input=/tmp/peakbagger-list-candidates.json --apply
+```
+
+The reviewed 2026-08-18 scope and held lists are in
+`docs/data-audits/peakbagger-lists-2026-08-18.md`.
+
 ## Destination elevation fraction audit
 
 Use the read-only fraction audit after a storage precision change. It checks
