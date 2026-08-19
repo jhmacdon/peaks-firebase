@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import { getUid } from "../auth";
 import { buildAreaDescription } from "../area-description";
 import db from "../db";
@@ -228,7 +229,7 @@ export function mapAreaDetailRow(row: any): any {
 }
 
 // GET /api/areas/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const requestedLimit = Number.parseInt(String(req.query.session_limit ?? "25"), 10);
   const requestedOffset = Number.parseInt(String(req.query.session_offset ?? "0"), 10);
   const sessionLimit = Number.isFinite(requestedLimit)
@@ -242,6 +243,6 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(mapAreaDetailRow(result.rows[0]));
-});
+}));
 
 export default router;

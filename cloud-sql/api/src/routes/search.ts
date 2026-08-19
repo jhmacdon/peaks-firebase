@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import db, { createDbClient } from "../db";
 import { normalizeSearchName } from "../search-utils";
 
@@ -554,7 +555,7 @@ async function runSearchRows(
 //   - Prominence                     5%  — tiebreaker: more prominent peaks edge ahead
 // When lat/lng are not provided, uses no-geo ranking.
 // Abbreviations are expanded (mt→mount, etc.) on both query and stored names.
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", asyncRoute(async (req: Request, res: Response) => {
   const routeClose = watchSearchRouteClose(req, res);
 
   try {
@@ -599,12 +600,12 @@ router.get("/", async (req: Request, res: Response) => {
   } finally {
     routeClose.dispose();
   }
-});
+}));
 
 // GET /api/search/all?q=rainier&lat=46.85&lng=-121.7&limit=20
 // Typed search buckets for the NewUI sheet. Keeps GET /api/search backwards
 // compatible for older clients that expect a raw destination array.
-router.get("/all", async (req: Request, res: Response) => {
+router.get("/all", asyncRoute(async (req: Request, res: Response) => {
   const routeClose = watchSearchRouteClose(req, res);
 
   try {
@@ -646,11 +647,11 @@ router.get("/all", async (req: Request, res: Response) => {
   } finally {
     routeClose.dispose();
   }
-});
+}));
 
 // GET /api/search/features?features=summit,volcano&activities=outdoor-trek&lat=...&lng=...&radius=50000
 // Filter by features/activities with optional spatial constraint
-router.get("/features", async (req, res: Response) => {
+router.get("/features", asyncRoute(async (req, res: Response) => {
   const features = (req.query.features as string || "").split(",").filter(Boolean);
   const activities = (req.query.activities as string || "").split(",").filter(Boolean);
   const lat = parseFloat(req.query.lat as string);
@@ -699,6 +700,6 @@ router.get("/features", async (req, res: Response) => {
     params
   );
   res.json(result.rows);
-});
+}));
 
 export default router;

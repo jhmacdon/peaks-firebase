@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import db from "../db";
 
 const router = Router();
@@ -6,7 +7,7 @@ const router = Router();
 // GET /api/lists/popular?limit=N
 // Lists ordered by destination count desc (proxy for "substantive" / popular).
 // Must precede /:id so "popular" isn't captured as an id.
-router.get("/popular", async (req, res: Response) => {
+router.get("/popular", asyncRoute(async (req, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 10;
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
@@ -19,13 +20,13 @@ router.get("/popular", async (req, res: Response) => {
     [limit]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/lists/by-destinations?ids=id1,id2,id3
 // All distinct lists that contain any of the given destination IDs.
 // Replaces Firestore arrayContainsAny on iOS.
 // Must precede /:id so the literal segment isn't captured as an id.
-router.get("/by-destinations", async (req, res: Response) => {
+router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
   const idsParam = (req.query.ids as string) || "";
   const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) {
@@ -44,10 +45,10 @@ router.get("/by-destinations", async (req, res: Response) => {
     [ids]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/lists/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT id, name, description, owner, created_at, updated_at
@@ -59,18 +60,18 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
-});
+}));
 
 // GET /api/lists/:id/destinations
 // Each row carries a best-route summary (community-most-climbed route, falling
 // back to shortest) and the destination's top popularity months, so the list
 // screen can enrich unclimbed peaks in a single fetch.
-router.get("/:id/destinations", async (req, res: Response) => {
+router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildListDestinationsQuery(id);
   const result = await db.query(query.text, query.values);
   res.json(result.rows.map(mapListDestinationRow));
-});
+}));
 
 export function buildListDestinationsQuery(listId: string) {
   return {
@@ -142,7 +143,7 @@ export function mapListDestinationRow(row: Record<string, unknown>) {
 }
 
 // GET /api/lists — all lists (paginated)
-router.get("/", async (req, res: Response) => {
+router.get("/", asyncRoute(async (req, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const offset = parseInt(req.query.offset as string) || 0;
 
@@ -156,6 +157,6 @@ router.get("/", async (req, res: Response) => {
     [limit, offset]
   );
   res.json(result.rows);
-});
+}));
 
 export default router;

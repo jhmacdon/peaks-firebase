@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
@@ -189,10 +190,10 @@ export async function handlePlanProcessingStatus(
   res.json(result.rows);
 }
 
-router.get("/processing-status", (req, res: Response) => handlePlanProcessingStatus(req, res));
+router.get("/processing-status", asyncRoute((req, res: Response) => handlePlanProcessingStatus(req, res)));
 
 // GET /api/plans — current user's plans (owned + party member)
-router.get("/", async (req, res: Response) => {
+router.get("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const requestedLimit = parseInt(req.query.limit as string);
   const requestedOffset = parseInt(req.query.offset as string);
@@ -228,10 +229,10 @@ router.get("/", async (req, res: Response) => {
     [uid, limit, offset]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/plans/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -261,7 +262,7 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
-});
+}));
 
 export function buildPlanDestinationsQuery(
   id: string,
@@ -286,16 +287,16 @@ export function buildPlanDestinationsQuery(
 }
 
 // GET /api/plans/:id/destinations — owner or party member only
-router.get("/:id/destinations", async (req, res: Response) => {
+router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const query = buildPlanDestinationsQuery(req.params.id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 // GET /api/plans/:id/reached-destinations — auto-matched destinations along the
 // plan path, ordered. Powers the clockless plan timeline (route import + plan
 // detail). Distinct from /:id/destinations (user-chosen goals).
-router.get("/:id/reached-destinations", async (req, res: Response) => {
+router.get("/:id/reached-destinations", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
@@ -315,7 +316,7 @@ router.get("/:id/reached-destinations", async (req, res: Response) => {
     [id, uid]
   );
   res.json(result.rows);
-});
+}));
 
 export function buildPlanRoutesQuery(
   id: string,
@@ -341,11 +342,11 @@ export function buildPlanRoutesQuery(
 }
 
 // GET /api/plans/:id/routes — owner or party member only
-router.get("/:id/routes", async (req, res: Response) => {
+router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
   const query = buildPlanRoutesQuery(req.params.id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 export function buildPlanPartyQuery(
   id: string,
@@ -365,11 +366,11 @@ export function buildPlanPartyQuery(
 }
 
 // GET /api/plans/:id/party — owner or party member only
-router.get("/:id/party", async (req, res: Response) => {
+router.get("/:id/party", asyncRoute(async (req, res: Response) => {
   const query = buildPlanPartyQuery(req.params.id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 // GET /api/plans/:id/air-quality — merged HRRR-Smoke (0–48 h, CONUS) +
 // Open-Meteo/CAMS (7 days, global) forecast at the plan's location, with the
@@ -468,10 +469,10 @@ export async function handlePlanAirQuality(
   }
 }
 
-router.get("/:id/air-quality", (req, res: Response) => handlePlanAirQuality(req, res));
+router.get("/:id/air-quality", asyncRoute((req, res: Response) => handlePlanAirQuality(req, res)));
 
 // POST /api/plans — create a new plan
-router.post("/", async (req, res: Response) => {
+router.post("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const {
     id, name, description, date, destinations, routes: routeIds,
@@ -573,10 +574,10 @@ router.post("/", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // PUT /api/plans/:id — update plan metadata
-router.put("/:id", async (req, res: Response) => {
+router.put("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const {
@@ -677,10 +678,10 @@ router.put("/:id", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // DELETE /api/plans/:id
-router.delete("/:id", async (req, res: Response) => {
+router.delete("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -693,12 +694,12 @@ router.delete("/:id", async (req, res: Response) => {
     return;
   }
   res.json({ deleted: true, id });
-});
+}));
 
 // POST /api/plans/:id/process — trigger server-side plan processing (match
 // reached destinations against plans.path). Used for explicit re-process; the
 // create/update endpoints already kick processing inline when geometry changes.
-router.post("/:id/process", async (req, res: Response) => {
+router.post("/:id/process", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const plan = await db.query(`SELECT id FROM plans WHERE id = $1 AND user_id = $2`, [id, uid]);
@@ -721,10 +722,10 @@ router.post("/:id/process", async (req, res: Response) => {
     console.error("Error processing plan:", err);
     res.status(500).json({ error: "Failed to process plan" });
   }
-});
+}));
 
 // POST /api/plans/:id/party — add a party member
-router.post("/:id/party", async (req, res: Response) => {
+router.post("/:id/party", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { user_id: memberId } = req.body;
@@ -750,10 +751,10 @@ router.post("/:id/party", async (req, res: Response) => {
     [id, memberId]
   );
   res.status(201).json({ plan_id: id, user_id: memberId });
-});
+}));
 
 // DELETE /api/plans/:id/party/:userId — remove a party member
-router.delete("/:id/party/:userId", async (req, res: Response) => {
+router.delete("/:id/party/:userId", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id, userId: memberId } = req.params;
 
@@ -776,6 +777,6 @@ router.delete("/:id/party/:userId", async (req, res: Response) => {
     [id, memberId]
   );
   res.json({ deleted: true, plan_id: id, user_id: memberId });
-});
+}));
 
 export default router;
