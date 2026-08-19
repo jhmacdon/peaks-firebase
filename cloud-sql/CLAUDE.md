@@ -483,6 +483,49 @@ Summits are flagged with their areas automatically, so you rarely need to re-run
 Both are wrapped in an exception block so a linking failure can never abort the underlying insert.
 Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_session_destination.sql`.
 
+## Trailhead facts import
+
+Parking, fee, and bathroom facts for existing trailheads, imported from the
+normalized US Forest Service JSONL in `docs/trailheads/data/` (that directory
+lives in the `peaks` checkout, not this repo). The importer never creates a
+destination: a fact with no trailhead to hang on is reported, not invented.
+
+```bash
+cd migrate
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --apply
+```
+
+A source row is imported only when both gates pass: a destination with the
+`trailhead` feature within **250 m**, and a name similarity at or above the
+threshold (0.5 with `pg_trgm`, 0.7 for the JS token-overlap fallback; both
+override with `--name-threshold`). Rejected rows go to
+`import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with the
+reason and the nearest candidate.
+
+Writes merge per leaf into `destinations.amenities` as `TrailheadAmenities`
+(`migrate/src/lib/amenities.ts`), each leaf carrying its own source. Unrelated
+blocks survive, unchanged rows are not rewritten, and a leaf owned by a source
+outside `MANAGED_SOURCE_KINDS` is never overwritten. Conflicts: `fee_required`
+true beats false, an explicit page capacity beats any other capacity, and
+otherwise the agency dataset (`usfs_edw`) beats the web page (`usfs_web`).
+
+**Never write `fee_required: false` without a verbatim quote.** The upstream
+`fee_charged='N'` flag is a lying default; the guard lives in
+`feeLeafCandidates` in `migrate/src/trailhead-facts-utils.ts`.
+
+Each run records a `data_source_runs` row per source (`--no-log` skips it;
+a dry run is logged as `dry_run`, so it never counts as a refresh). Check
+staleness with:
+
+```bash
+npm run check:data-freshness
+```
+
+It exits non-zero when a required source is more than 90 days past its last
+successful import or has never run. Quarterly cadence and the full refresh
+sequence: `migrate/docs/trailhead-data-refresh.md`.
+
 ## Session comparisons ("Your Efforts")
 
 Pairwise overlap between a user's sessions, stored in `session_comparisons`
