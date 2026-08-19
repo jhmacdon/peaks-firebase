@@ -168,6 +168,82 @@ export function buildSessionDetailQuery(
   };
 }
 
+export const ALTITUDE_TIME_THRESHOLDS_METERS = {
+  feet14000: 14_000 * 0.3048,
+  feet13000: 13_000 * 0.3048,
+  meters4000: 4_000,
+  meters3000: 3_000,
+} as const;
+export const ALTITUDE_TIME_MAX_GAP_SECONDS = 60;
+
+function secondsAboveThresholdSql(thresholdParameter: string): string {
+  return `CASE
+      WHEN elevation > ${thresholdParameter} AND next_elevation > ${thresholdParameter}
+        THEN duration_seconds
+      WHEN elevation <= ${thresholdParameter} AND next_elevation > ${thresholdParameter}
+        THEN duration_seconds * (next_elevation - ${thresholdParameter})
+             / NULLIF(next_elevation - elevation, 0)
+      WHEN elevation > ${thresholdParameter} AND next_elevation <= ${thresholdParameter}
+        THEN duration_seconds * (elevation - ${thresholdParameter})
+             / NULLIF(elevation - next_elevation, 0)
+      ELSE 0
+    END`;
+}
+
+/**
+ * One compact row per session, with time above each unit system's useful
+ * altitude marks. Linear interpolation gives threshold crossings their share
+ * of the sample interval. Segment changes and bad clocks end an interval, so a
+ * pause never turns into time spent high on the mountain.
+ */
+export function buildAltitudeTimeStatsQuery(uid: string): {
+  text: string;
+  values: unknown[];
+} {
+  const feet14000 = secondsAboveThresholdSql("$2");
+  const feet13000 = secondsAboveThresholdSql("$3");
+  const meters4000 = secondsAboveThresholdSql("$4");
+  const meters3000 = secondsAboveThresholdSql("$5");
+
+  return {
+    text: `WITH ordered_points AS (
+      SELECT tp.session_id, tp.time, tp.segment_number, tp.elevation,
+             LEAD(tp.time) OVER session_points AS next_time,
+             LEAD(tp.segment_number) OVER session_points AS next_segment_number,
+             LEAD(tp.elevation) OVER session_points AS next_elevation
+      FROM tracking_points tp
+      JOIN tracking_sessions s ON s.id = tp.session_id
+      WHERE s.user_id = $1
+      WINDOW session_points AS (PARTITION BY tp.session_id ORDER BY tp.time)
+    ), valid_intervals AS (
+      SELECT session_id, elevation, next_elevation,
+             (next_time - time)::double precision AS duration_seconds
+      FROM ordered_points
+      WHERE next_time > time
+        AND next_time - time <= $6
+        AND next_segment_number = segment_number
+        AND elevation IS NOT NULL
+        AND next_elevation IS NOT NULL
+    )
+    SELECT session_id,
+           ROUND(SUM(${feet14000}))::bigint AS seconds_above_14000_ft,
+           ROUND(SUM(${feet13000}))::bigint AS seconds_above_13000_ft,
+           ROUND(SUM(${meters4000}))::bigint AS seconds_above_4000_m,
+           ROUND(SUM(${meters3000}))::bigint AS seconds_above_3000_m
+    FROM valid_intervals
+    GROUP BY session_id
+    ORDER BY session_id`,
+    values: [
+      uid,
+      ALTITUDE_TIME_THRESHOLDS_METERS.feet14000,
+      ALTITUDE_TIME_THRESHOLDS_METERS.feet13000,
+      ALTITUDE_TIME_THRESHOLDS_METERS.meters4000,
+      ALTITUDE_TIME_THRESHOLDS_METERS.meters3000,
+      ALTITUDE_TIME_MAX_GAP_SECONDS,
+    ],
+  };
+}
+
 function parseLimit(raw: unknown, fallback = 200, max = 1000): number {
   const parsed = typeof raw === "string" ? parseInt(raw, 10) : NaN;
   if (Number.isNaN(parsed) || parsed <= 0) {
@@ -763,6 +839,13 @@ export async function handleProcessingStatus(
 }
 
 router.get("/processing-status", (req, res: Response) => handleProcessingStatus(req, res));
+
+// GET /api/sessions/stats/altitude-time — compact per-session altitude clocks
+router.get("/stats/altitude-time", heavyWriteGuard, async (req, res: Response) => {
+  const query = buildAltitudeTimeStatsQuery(getUid(req));
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows);
+});
 
 // GET /api/sessions/:id
 router.get("/:id", async (req, res: Response) => {
