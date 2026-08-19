@@ -800,8 +800,11 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: str
   if (parking?.capacity_vehicles?.value != null) {
     rows.push({ label: "Parking capacity", value: `${parking.capacity_vehicles.value} vehicles` });
   }
-  if (parking?.passes_accepted?.value?.length) {
-    rows.push({ label: "Passes accepted", value: parking.passes_accepted.value.join(", ") });
+  const passes = parking?.passes_accepted?.value;
+  if (Array.isArray(passes) && passes.length > 0) {
+    // Guarded with Array.isArray: `value` comes from unvalidated JSONB, so a
+    // malformed row could store a non-array here and .join would throw.
+    rows.push({ label: "Passes accepted", value: passes.join(", ") });
   }
 
   if (bathrooms?.status) {

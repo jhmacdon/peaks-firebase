@@ -3,9 +3,10 @@
 // HutAmenities as that feature grows facts to store. The DB only enforces
 // JSONB validity; the contract here is the source of truth.
 //
-// Keep this file and its web copy (web/src/lib/amenities.ts) in sync —
-// there is no shared package between the two apps, so any change here
-// must be mirrored there by hand.
+// Keep cloud-sql/migrate/src/lib/amenities.ts and web/src/lib/amenities.ts
+// in sync — there is no shared package between the two apps, so any change
+// to one must be mirrored to the other by hand. web/src/lib/amenities.test.ts
+// asserts the two files are byte-identical.
 
 export type ToiletType = 'flush' | 'pit' | 'vault' | 'none';
 export type WaterAvailability = 'yes' | 'no' | 'seasonal';
@@ -109,8 +110,19 @@ export type Amenities = CampsiteAmenities | TrailheadAmenities;
 // writer (e.g. import-osm-campsites-wa.ts) would have to start setting.
 // `{}` narrows as CampsiteAmenities, matching prior behavior (before this
 // union existed, every Amenities value was read as CampsiteAmenities).
+//
+// TRAILHEAD_BLOCKS is keyed off `keyof TrailheadAmenities` rather than a
+// hand-typed list of block names, so adding a fourth block to the interface
+// (e.g. `water`) fails the build here instead of silently falling through to
+// the campsite renderer.
+const TRAILHEAD_BLOCKS: Record<keyof TrailheadAmenities, true> = {
+  parking: true,
+  road_access: true,
+  bathrooms: true,
+};
+
 export function isTrailheadAmenities(amenities: Amenities): amenities is TrailheadAmenities {
-  return 'parking' in amenities || 'road_access' in amenities || 'bathrooms' in amenities;
+  return Object.keys(TRAILHEAD_BLOCKS).some((key) => key in amenities);
 }
 
 export function isCampsiteAmenities(amenities: Amenities): amenities is CampsiteAmenities {
