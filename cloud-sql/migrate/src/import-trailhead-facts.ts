@@ -78,6 +78,7 @@ export interface ImportTrailheadFactsDependencies {
   console?: Pick<Console, "log" | "warn">;
   readFile?: (filePath: string) => string;
   writeFile?: (filePath: string, contents: string) => void;
+  mkdir?: (dir: string) => void;
   now?: () => Date;
 }
 
@@ -675,10 +676,18 @@ export async function importTrailheadFacts(
   const readFile = deps.readFile ?? ((filePath: string) => fs.readFileSync(filePath, "utf8"));
   const writeFile =
     deps.writeFile ?? ((filePath: string, contents: string) => fs.writeFileSync(filePath, contents, "utf8"));
+  const mkdir = deps.mkdir ?? ((dir: string) => fs.mkdirSync(dir, { recursive: true }));
   const now = deps.now ?? (() => new Date());
   const database = (deps.db ?? db) as ImportDatabase;
 
   if (!args.dataDir) throw new Error(`${usage()}\n\n--data-dir is required`);
+
+  // The reports are written at the very end, after the apply transaction has
+  // already committed. A report directory that does not exist must therefore
+  // fail here, before anything is read or written, and not after the database
+  // has taken the writes but before the run is logged as a success.
+  const reportDir = args.reportDir ?? args.dataDir;
+  mkdir(reportDir);
 
   const startedAt = now();
   const counts: Record<TrailheadFactSource, SourceCounts> = {
@@ -864,7 +873,6 @@ export async function importTrailheadFacts(
     }
   }
 
-  const reportDir = args.reportDir ?? (args.dataDir as string);
   const reportNames: Record<TrailheadFactSource, string> = {
     usfs_fees: "import-unmatched-fees.jsonl",
     usfs_bathrooms: "import-unmatched-bathrooms.jsonl",

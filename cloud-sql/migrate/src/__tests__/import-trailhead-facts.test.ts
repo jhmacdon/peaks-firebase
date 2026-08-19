@@ -234,8 +234,10 @@ function testArgs(overrides: Partial<Args> = {}): Args {
 
 function createIo(files: Record<string, string>) {
   const written: Record<string, string> = {};
+  const dirs: string[] = [];
   return {
     written,
+    dirs,
     readFile: (filePath: string) => {
       const contents = files[filePath];
       if (contents === undefined) throw new Error(`missing test file ${filePath}`);
@@ -243,6 +245,9 @@ function createIo(files: Record<string, string>) {
     },
     writeFile: (filePath: string, contents: string) => {
       written[filePath] = contents;
+    },
+    mkdir: (dir: string) => {
+      dirs.push(dir);
     },
   };
 }
@@ -296,6 +301,43 @@ test("a missing --data-dir fails with the usage text", async () => {
     () => importTrailheadFacts(testArgs({ dataDir: null }), { console: silent }),
     /--data-dir is required/
   );
+});
+
+test("the report directory is prepared before the database is touched", async () => {
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(defaultFiles());
+  await importTrailheadFacts(testArgs({ reportDir: "/tmp/somewhere-else" }), {
+    db,
+    console: silent,
+    ...io,
+  });
+  assert.deepEqual(io.dirs, ["/tmp/somewhere-else"]);
+  assert.equal(calls.length > 0, true);
+});
+
+test("an unusable report directory fails before any query or write", async () => {
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(defaultFiles());
+  await assert.rejects(
+    () =>
+      importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+        db,
+        console: silent,
+        ...io,
+        mkdir: () => {
+          throw new Error("EACCES: permission denied");
+        },
+      }),
+    /EACCES/
+  );
+  // The reports are written after the apply transaction commits, so a bad
+  // report directory must stop the run before it writes to the database.
+  assert.deepEqual(calls, []);
+  assert.deepEqual(io.written, {});
 });
 
 // --- dry run ----------------------------------------------------------------
