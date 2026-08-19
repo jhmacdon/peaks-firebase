@@ -56,6 +56,10 @@ test("destination detail query selects amenities and external ids", () => {
   // ::json cast, and no JSON string for the client to parse a second time.
   assert.match(query.text, /d\.amenities\b/);
   assert.match(query.text, /d\.external_ids\b/);
+  // Pin the second half of that claim: `d.amenities::text` would still match
+  // the pattern above while handing the client a string to parse again.
+  assert.doesNotMatch(query.text, /amenities::(text|json)\b/);
+  assert.doesNotMatch(query.text, /external_ids::(text|json)\b/);
   assert.deepEqual(query.values, ["dest-1"]);
 });
 

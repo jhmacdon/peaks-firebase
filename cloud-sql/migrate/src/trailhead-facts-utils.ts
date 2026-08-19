@@ -663,6 +663,34 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
 
+/** Leaves in a merged amenities object, counted across every block. */
+export function countAmenityLeaves(amenities: Record<string, unknown>): number {
+  let leaves = 0;
+  for (const block of Object.values(amenities)) {
+    if (isPlainObject(block)) leaves += Object.keys(block).length;
+    else leaves += 1;
+  }
+  return leaves;
+}
+
+/**
+ * Which payloads to show a human before they approve an apply. Richest first,
+ * so the sample shows what a full row looks like, and ties broken by id so two
+ * dry runs over the same data print the same rows.
+ */
+export function selectSamplePayloads<T extends { id: string; merged: Record<string, unknown> }>(
+  pending: readonly T[],
+  limit: number
+): T[] {
+  if (limit <= 0) return [];
+  return [...pending]
+    .sort((a, b) => {
+      const byLeaves = countAmenityLeaves(b.merged) - countAmenityLeaves(a.merged);
+      return byLeaves !== 0 ? byLeaves : a.id.localeCompare(b.id);
+    })
+    .slice(0, limit);
+}
+
 export interface MergeResult {
   merged: Record<string, unknown>;
   changed: boolean;

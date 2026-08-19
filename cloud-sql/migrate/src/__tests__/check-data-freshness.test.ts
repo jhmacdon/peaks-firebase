@@ -39,9 +39,19 @@ function createDb(options: { viewReady?: boolean; rows?: FreshnessRow[] }): {
   return { db, seen };
 }
 
-test("the required sources are the three USFS feeds", () => {
-  assert.deepEqual([...REQUIRED_SOURCES], ["usfs_fees", "usfs_bathrooms", "usfs_pages"]);
+test("the required sources are the two USFS feeds that carry real coverage", () => {
+  // usfs_pages is imported and logged, but contributes a single leaf across the
+  // catalog, so it is reported without being able to fail the check.
+  assert.deepEqual([...REQUIRED_SOURCES], ["usfs_fees", "usfs_bathrooms"]);
   assert.equal(STALE_AFTER_DAYS, 90);
+});
+
+test("usfs_pages is reported but never fails the check", () => {
+  const report = evaluateFreshness([fresh("usfs_fees", 1), fresh("usfs_bathrooms", 1), fresh("usfs_pages", 400)]);
+  assert.equal(report.ok, true);
+  const pages = report.assessments.find((a) => a.source === "usfs_pages");
+  assert.equal(pages?.required, false);
+  assert.equal(pages?.state, "stale");
 });
 
 test("every required source current means ok", () => {
@@ -50,12 +60,12 @@ test("every required source current means ok", () => {
   assert.deepEqual(report.failures, []);
   assert.deepEqual(
     report.assessments.map((a) => a.state),
-    ["ok", "ok", "ok"]
+    ["ok", "ok"]
   );
 });
 
 test("a source past the window is stale", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 91), fresh("usfs_bathrooms", 90), fresh("usfs_pages", 1)]);
+  const report = evaluateFreshness([fresh("usfs_fees", 91), fresh("usfs_bathrooms", 90)]);
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => f.source),
@@ -65,25 +75,24 @@ test("a source past the window is stale", () => {
 });
 
 test("a source with no run at all fails", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 1), fresh("usfs_bathrooms", 1)]);
+  const report = evaluateFreshness([fresh("usfs_fees", 1)]);
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => [f.source, f.state]),
-    [["usfs_pages", "never_run"]]
+    [["usfs_bathrooms", "never_run"]]
   );
 });
 
 test("a source that has run but never succeeded fails", () => {
   const rows: FreshnessRow[] = [
     fresh("usfs_fees", 1),
-    fresh("usfs_bathrooms", 1),
-    { source: "usfs_pages", last_successful_at: null, days_stale: null, is_stale: true },
+    { source: "usfs_bathrooms", last_successful_at: null, days_stale: null, is_stale: true },
   ];
   const report = evaluateFreshness(rows);
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => [f.source, f.state]),
-    [["usfs_pages", "never_succeeded"]]
+    [["usfs_bathrooms", "never_succeeded"]]
   );
 });
 
@@ -103,12 +112,12 @@ test("a custom window changes the verdict", () => {
 });
 
 test("the printed report names each state plainly", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 200), fresh("usfs_bathrooms", 1)]);
+  const report = evaluateFreshness([fresh("usfs_fees", 200), fresh("usfs_pages", 1)]);
   const lines = formatReport(report, STALE_AFTER_DAYS).join("\n");
   assert.match(lines, /usfs_fees \[required\]: last success .* \(200 days ago\) — STALE/);
-  assert.match(lines, /usfs_bathrooms \[required\]: last success .* — ok/);
-  assert.match(lines, /usfs_pages \[required\]: no run recorded — NEVER RUN/);
-  assert.match(lines, /Stale or missing required sources: usfs_fees, usfs_pages/);
+  assert.match(lines, /usfs_bathrooms \[required\]: no run recorded — NEVER RUN/);
+  assert.match(lines, /usfs_pages \[other\]: last success .* — ok/);
+  assert.match(lines, /Stale or missing required sources: usfs_fees, usfs_bathrooms/);
 });
 
 test("the check reads the view and returns a failing report", async () => {
@@ -139,5 +148,5 @@ test("arguments parse and validate", () => {
   assert.equal(parseArgs(["--json"]).json, true);
   assert.equal(parseArgs(["--help"]).help, true);
   assert.throws(() => parseArgs(["--stale-days=0"]), /--stale-days/);
-  assert.match(usage(), /usfs_fees, usfs_bathrooms, usfs_pages/);
+  assert.match(usage(), /Required sources: usfs_fees, usfs_bathrooms/);
 });

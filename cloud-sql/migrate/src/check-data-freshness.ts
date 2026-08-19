@@ -5,7 +5,11 @@ import db from "./db";
 // takes no --apply. Exit code 1 means at least one required source needs a
 // refresh (see cloud-sql/migrate/docs/trailhead-data-refresh.md).
 
-export const REQUIRED_SOURCES: readonly string[] = ["usfs_fees", "usfs_bathrooms", "usfs_pages"];
+// usfs_pages is imported and logged like the others but is not required: the
+// page sections contribute a single leaf across the whole catalog, so a
+// quarterly alarm on it would be noise. It still shows in the report as an
+// [other] source.
+export const REQUIRED_SOURCES: readonly string[] = ["usfs_fees", "usfs_bathrooms"];
 export const STALE_AFTER_DAYS = 90;
 
 export const FRESHNESS_VIEW_PROBE_SQL =

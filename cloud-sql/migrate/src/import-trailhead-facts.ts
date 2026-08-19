@@ -19,6 +19,7 @@ import {
   recSiteKey,
   resolveLeafConflicts,
   resolveLocation,
+  selectSamplePayloads,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
   TRAILHEAD_FACT_SOURCES,
@@ -53,6 +54,7 @@ export interface Args {
   nameThreshold: number | null;
   radiusM: number;
   limit: number | null;
+  samplePayloads: number;
   help: boolean;
 }
 
@@ -161,6 +163,9 @@ export function usage(): string {
     "  --limit=N             match at most N rows per source (smoke runs); every",
     "                        file is still read whole, since the location index",
     "                        and the fee guard need all of it",
+    "  --sample-payloads=N   on a dry run, print N would-be amenity payloads",
+    "                        (richest first) so a human can read real output",
+    "                        before approving --apply",
     "  --help                print this and exit",
   ].join("\n");
 }
@@ -193,6 +198,10 @@ export function parseArgs(argv: string[]): Args {
   if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
     throw new Error("--limit must be a positive integer");
   }
+  const samplePayloads = numberArg(argv, "--sample-payloads") ?? 0;
+  if (!Number.isInteger(samplePayloads) || samplePayloads < 0) {
+    throw new Error("--sample-payloads must be a whole number, zero or more");
+  }
 
   return {
     dataDir: textArg(argv, "--data-dir"),
@@ -208,6 +217,7 @@ export function parseArgs(argv: string[]): Args {
     nameThreshold,
     radiusM,
     limit,
+    samplePayloads,
     help: argv.includes("--help") || argv.includes("-h"),
   };
 }
@@ -721,6 +731,7 @@ export async function importTrailheadFacts(
   for (const record of skipped) reports[record.source].push(record);
   const byDestination = new Map<string, LeafCandidate[]>();
   const rowsByDestination = new Map<string, Set<string>>();
+  const destinationNames = new Map<string, string>();
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -759,6 +770,7 @@ export async function importTrailheadFacts(
 
     counts[row.source].matched += 1;
     const id = outcome.candidate.destinationId;
+    destinationNames.set(id, outcome.candidate.destinationName);
     const existing = byDestination.get(id) ?? [];
     existing.push(...row.leaves);
     byDestination.set(id, existing);
@@ -886,8 +898,29 @@ export async function importTrailheadFacts(
 
   await recordRun(args.dryRun ? "dry_run" : "success");
 
+  if (args.dryRun) logSamplePayloads(pending, destinationNames, args.samplePayloads, logger);
   logSummary(summary, skippedShape, logger);
   return summary;
+}
+
+/**
+ * Show a human what would actually land in destinations.amenities. A dry run
+ * that only prints counts asks for approval of a number; this prints the row.
+ */
+function logSamplePayloads(
+  pending: ReadonlyArray<{ id: string; merged: Record<string, unknown> }>,
+  names: Map<string, string>,
+  limit: number,
+  logger: Pick<Console, "log" | "warn">
+): void {
+  const samples = selectSamplePayloads(pending, limit);
+  if (samples.length === 0) return;
+  logger.log("");
+  logger.log(`Sample amenity payloads (${samples.length} of ${pending.length}, richest first):`);
+  for (const sample of samples) {
+    logger.log(`  ${sample.id}  ${names.get(sample.id) ?? "(unnamed)"}`);
+    logger.log(JSON.stringify(sample.merged, null, 2));
+  }
 }
 
 function logSummary(

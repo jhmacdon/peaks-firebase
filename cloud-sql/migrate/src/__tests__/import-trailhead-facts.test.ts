@@ -10,7 +10,7 @@ import {
   type Args,
   type ImportDatabase,
 } from "../import-trailhead-facts";
-import { distanceMeters, normalizeTrailheadName } from "../trailhead-facts-utils";
+import { distanceMeters, normalizeTrailheadName, selectSamplePayloads } from "../trailhead-facts-utils";
 
 const DATA_DIR = "/tmp/trailhead-facts-test";
 
@@ -227,6 +227,7 @@ function testArgs(overrides: Partial<Args> = {}): Args {
     nameThreshold: null,
     radiusM: 250,
     limit: null,
+    samplePayloads: 0,
     help: false,
     ...overrides,
   };
@@ -919,6 +920,61 @@ test("--limit does not shrink the index a page row is located from", async () =>
   });
   assert.equal(summary.counts.usfs_fees.rowsIn, 1, "matching still honours the limit");
   assert.equal(summary.counts.usfs_pages.matched, 1, "the page still finds its point");
+});
+
+test("a dry run can print real payloads for the human apply gate", async () => {
+  const { db } = createFakeDb({
+    destinations: [
+      { id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE },
+      { id: "dest-other", name: "Nowhere Trailhead", lat: 10, lng: 10 },
+    ],
+  });
+  const logs: string[] = [];
+  const summary = await importTrailheadFacts(testArgs({ samplePayloads: 2 }), {
+    db,
+    console: { log: (message: string) => logs.push(String(message)), warn: () => undefined },
+    ...createIo(defaultFiles()),
+  });
+
+  const header = logs.find((line) => line.startsWith("Sample amenity payloads"));
+  assert.ok(header, "the sample section is printed");
+  assert.match(header as string, new RegExp(`of ${summary.destinationsChanged}, richest first`));
+  assert.ok(
+    logs.some((line) => line.includes("dest-snow") && line.includes("Snow Lake Trailhead")),
+    "each payload names the destination it would land on"
+  );
+
+  const payloads = logs.filter((line) => line.startsWith("{")).map((line) => JSON.parse(line));
+  assert.equal(payloads.length, summary.destinationsChanged);
+  const parking = payloads[0].parking;
+  assert.equal(parking.fee_required.value, true);
+  assert.equal(parking.fee_required.source.kind, "usfs_edw");
+  assert.equal(parking.fee_required.retrieved_at, "2026-08-19");
+});
+
+test("payload sampling is richest-first and stable across runs", async () => {
+  const pending = [
+    { id: "b", merged: { parking: { fee_required: {}, day_fee_usd: {} } } },
+    { id: "a", merged: { parking: { fee_required: {}, day_fee_usd: {} } } },
+    { id: "c", merged: { parking: { fee_required: {}, day_fee_usd: {} }, bathrooms: { status: {} } } },
+    { id: "d", merged: { bathrooms: { status: {} } } },
+  ];
+  assert.deepEqual(selectSamplePayloads(pending, 3).map((row) => row.id), ["c", "a", "b"]);
+  assert.deepEqual(selectSamplePayloads(pending, 3).map((row) => row.id), ["c", "a", "b"]);
+  assert.deepEqual(selectSamplePayloads(pending, 0), []);
+});
+
+test("an apply prints no payload sample", async () => {
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const logs: string[] = [];
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false, samplePayloads: 5 }), {
+    db,
+    console: { log: (message: string) => logs.push(String(message)), warn: () => undefined },
+    ...createIo(defaultFiles()),
+  });
+  assert.equal(logs.some((line) => line.startsWith("Sample amenity payloads")), false);
 });
 
 test("--limit bounds how many rows each source contributes", async () => {

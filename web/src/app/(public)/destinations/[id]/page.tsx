@@ -786,15 +786,20 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: str
   const rows: Array<{ label: string; value: string }> = [];
   const { parking, road_access, bathrooms } = amenities;
 
-  if (parking?.fee_required) {
-    const dayFee = parking.day_fee_usd?.value;
+  // A dollar amount is a fee fact on its own. The importer writes day_fee_usd
+  // without fee_required whenever the source dataset contradicts a no-fee
+  // claim, so gating this row on the boolean would hide the price.
+  const feeRequired = parking?.fee_required?.value;
+  const dayFee = parking?.day_fee_usd?.value;
+  const annualFee = parking?.annual_fee_usd?.value;
+  const feeAmounts: string[] = [];
+  if (dayFee != null) feeAmounts.push(`$${dayFee}/day`);
+  if (annualFee != null) feeAmounts.push(`$${annualFee}/year`);
+  if (feeAmounts.length > 0 || feeRequired != null) {
     rows.push({
       label: "Parking fee",
-      value: parking.fee_required.value
-        ? dayFee != null
-          ? `$${dayFee}/day`
-          : "Required"
-        : "None",
+      value:
+        feeAmounts.length > 0 ? feeAmounts.join(", ") : feeRequired ? "Required" : "None",
     });
   }
   if (parking?.capacity_vehicles?.value != null) {
@@ -813,7 +818,9 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: str
       value:
         bathrooms.status.value === "absent"
           ? "None"
-          : TRAILHEAD_BATHROOM_TYPE_LABELS[bathrooms.type?.value ?? "unspecified"],
+          : // `type` comes from unvalidated JSONB, so a value outside the union
+            // would otherwise render an empty cell.
+            TRAILHEAD_BATHROOM_TYPE_LABELS[bathrooms.type?.value ?? "unspecified"] ?? "Present",
     });
   }
 

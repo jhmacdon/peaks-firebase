@@ -642,12 +642,15 @@ function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
   const out: string[] = [];
   const { parking, road_access, bathrooms } = a;
 
-  if (parking?.fee_required?.value) {
-    const dayFee = parking.day_fee_usd?.value;
-    out.push(dayFee != null ? `parking fee ($${dayFee}/day)` : "parking fee");
-  } else if (parking?.fee_required?.value === false) {
-    out.push("free parking");
-  }
+  // A dollar amount is a fee fact on its own: the importer writes day_fee_usd
+  // without fee_required whenever the source dataset contradicts a no-fee
+  // claim, so the boolean cannot be the gate.
+  const dayFee = parking?.day_fee_usd?.value;
+  const annualFee = parking?.annual_fee_usd?.value;
+  if (dayFee != null) out.push(`parking fee ($${dayFee}/day)`);
+  else if (parking?.fee_required?.value) out.push("parking fee");
+  else if (annualFee != null) out.push(`parking fee (annual $${annualFee})`);
+  else if (parking?.fee_required?.value === false) out.push("free parking");
   if (parking?.capacity_vehicles?.value != null) out.push(`${parking.capacity_vehicles.value} parking spaces`);
 
   if (bathrooms?.status?.value === "present") {

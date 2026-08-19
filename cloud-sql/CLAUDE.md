@@ -120,7 +120,7 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   destination place-copy and hero-credit columns, `areas.parent_area_id`, the
   destination search vector — and it carries no `GRANT`s. Provisioning applies
   `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
-  `peaks` exactly (28 tables, 281 columns, 17 triggers).
+  `peaks` exactly (29 tables, 1 view, 292 columns, 17 triggers).
 - **A migration that fails provisioning is a real conflict** with `schema.sql`.
   Reconcile the two. Don't extend the skip list in `provision.sh`.
 - **Pool max drops to 2 under `NODE_ENV=test`.** Each test file is its own
@@ -492,9 +492,12 @@ destination: a fact with no trailhead to hang on is reported, not invented.
 
 ```bash
 cd migrate
-npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --sample-payloads=5
 npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --apply
 ```
+
+`--sample-payloads=N` makes a dry run print the N richest would-be payloads
+with the destination each lands on — read those before approving an apply.
 
 A source row is imported only when both gates pass: a destination with the
 `trailhead` feature within **250 m**, and a name similarity at or above the
@@ -547,8 +550,11 @@ staleness with:
 npm run check:data-freshness
 ```
 
-It exits non-zero when a required source is more than 90 days past its last
-successful import or has never run. Quarterly cadence and the full refresh
+It exits non-zero when a required source — `usfs_fees` or `usfs_bathrooms` —
+is more than 90 days past its last successful import or has never run.
+`usfs_pages` is imported and logged the same way but cannot fail the check: it
+contributes a single leaf across the catalog, so the report lists it as
+`[other]` rather than alarming on it. Quarterly cadence and the full refresh
 sequence: `migrate/docs/trailhead-data-refresh.md`.
 
 ## Session comparisons ("Your Efforts")

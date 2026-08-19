@@ -36,11 +36,14 @@ Point the Cloud SQL Auth Proxy and the `DB_*` variables at the target database
 
 ```bash
 cd cloud-sql/migrate
-npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --sample-payloads=5
 ```
 
 The dry run reads every row, matches it against the catalog, and prints what
-would change without writing. Check the counts, then apply:
+would change without writing. `--sample-payloads=N` prints the N richest
+would-be payloads with the destination each would land on, so the decision to
+apply rests on real output rather than on counts alone. Read those, check the
+counts, then apply:
 
 ```bash
 npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --apply
@@ -75,7 +78,12 @@ does not count as a refresh.
 npm run check:data-freshness
 ```
 
-It reads the `data_source_freshness` view and exits non-zero when
-`usfs_fees`, `usfs_bathrooms`, or `usfs_pages` has gone more than 90 days
-without a successful import, or has never run. A non-zero exit means step 1 is
-due. `--json` prints the same assessment for a script to read.
+It reads the `data_source_freshness` view and exits non-zero when `usfs_fees`
+or `usfs_bathrooms` has gone more than 90 days without a successful import, or
+has never run. A non-zero exit means step 1 is due. `--json` prints the same
+assessment for a script to read.
+
+`usfs_pages` is imported and logged the same way but does not fail the check:
+the page sections contribute a single leaf across the whole catalog, so an
+alarm on them would be noise. The report still lists the source, marked
+`[other]`, so its age is visible.

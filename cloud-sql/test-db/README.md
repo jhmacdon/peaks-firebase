@@ -95,8 +95,9 @@ partly-maintained baseline. Building a database from it and diffing against live
 `peaks` shows it missing the `link_sessions_on_destination_update` trigger,
 `areas_refresh_boundary_display`, the destination place-copy and hero-credit
 columns, `areas.parent_area_id`, and the destination search vector. Applying
-`schema.sql` **and** `migrations/` reproduces live `peaks` exactly: 28 tables,
-281 columns, 17 triggers, all matching.
+`schema.sql` **and** `migrations/` reproduces live `peaks` exactly: 29 tables,
+1 view, 292 columns, 17 triggers, all matching. (`data_source_runs` and the
+`data_source_freshness` view arrived with `20260819_data_source_runs.sql`.)
 
 `schema.sql` also carries no `GRANT` statements — production privileges were
 applied by hand when the instance was built — so `grants.sql` restates them.
