@@ -113,6 +113,8 @@ export interface MatchCandidate {
   destinationName: string;
   distanceM: number;
   similarity: number;
+  /** Which of the row's names produced that similarity. */
+  matchedName: string;
 }
 
 export type MatchOutcome =
@@ -148,7 +150,14 @@ export interface SourcePoint {
   lng: number;
 }
 
-export type LocationIndex = Map<string, SourcePoint[]>;
+export interface LocationPoint extends SourcePoint {
+  /** Forest Service region, normalized to two digits. */
+  region: string | null;
+  /** The EDW public site name, when the raw pull knows one. */
+  publicName: string | null;
+}
+
+export type LocationIndex = Map<string, LocationPoint[]>;
 
 /** Metres between two points, good enough at trailhead scale. */
 export function distanceMeters(a: SourcePoint, b: SourcePoint): number {
@@ -164,42 +173,66 @@ export function distanceMeters(a: SourcePoint, b: SourcePoint): number {
  * carries no coordinates, so a page row borrows the coordinates of the EDW
  * trailhead with the same name.
  */
-export function buildLocationIndex(rows: Array<{ name: string; lat: number; lng: number }>): LocationIndex {
+export function buildLocationIndex(
+  rows: Array<{ name: string; lat: number; lng: number; region?: string | null; publicName?: string | null }>
+): LocationIndex {
   const index: LocationIndex = new Map();
   for (const row of rows) {
     if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) continue;
     const key = normalizeTrailheadName(row.name);
     if (key.length === 0) continue;
+    const point: LocationPoint = {
+      lat: row.lat,
+      lng: row.lng,
+      region: normalizeRegion(row.region),
+      publicName: row.publicName ?? null,
+    };
     const points = index.get(key);
-    if (points) points.push({ lat: row.lat, lng: row.lng });
-    else index.set(key, [{ lat: row.lat, lng: row.lng }]);
+    if (points) points.push(point);
+    else index.set(key, [point]);
   }
   return index;
 }
 
 export type LocationLookup =
-  | { kind: "located"; point: SourcePoint }
+  | { kind: "located"; point: LocationPoint }
   | { kind: "unknown_name" }
+  | { kind: "region_mismatch"; regions: string[] }
   | { kind: "ambiguous"; spreadM: number };
 
 /**
- * Resolve one name to a point. A name shared by trailheads further apart than
- * maxSpreadM is ambiguous — two different places, no way to tell which page
- * belongs to which — so it stays unlocated rather than risking a wrong write.
+ * Resolve one name to a point.
+ *
+ * Two guards, and both are needed. The same trailhead name appears in
+ * different forests across the country, so the page's own Forest Service
+ * region has to agree with the EDW point's region — without that a single
+ * same-named point anywhere in the country looks like a confident answer.
+ * And a name that survives the region check but still covers points further
+ * apart than maxSpreadM is ambiguous, so it stays unlocated rather than
+ * risking a write onto the wrong trailhead.
  */
 export function resolveLocation(
   index: LocationIndex,
   name: string,
+  region: string | null | undefined,
   maxSpreadM: number = TRAILHEAD_MATCH_RADIUS_M
 ): LocationLookup {
   const points = index.get(normalizeTrailheadName(name));
   if (!points || points.length === 0) return { kind: "unknown_name" };
+
+  const wanted = normalizeRegion(region);
+  const inRegion = points.filter((point) => wanted !== null && point.region === wanted);
+  if (inRegion.length === 0) {
+    const regions = [...new Set(points.map((point) => point.region ?? "unknown"))];
+    return { kind: "region_mismatch", regions };
+  }
+
   let spread = 0;
-  for (const point of points) {
-    spread = Math.max(spread, distanceMeters(points[0], point));
+  for (const point of inRegion) {
+    spread = Math.max(spread, distanceMeters(inRegion[0], point));
   }
   if (spread > maxSpreadM) return { kind: "ambiguous", spreadM: spread };
-  return { kind: "located", point: points[0] };
+  return { kind: "located", point: inRegion[0] };
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +282,80 @@ export interface PageSectionRow {
 export interface RegistryRow {
   url: string;
   name: string;
+  region?: string | null;
+}
+
+/**
+ * A row of the raw EDW recreation-site pull. The normalized fee and bathroom
+ * files drop these fields, but the importer needs them: fee_charged
+ * contradicts a normalized no-fee claim, public_site_name is the name the
+ * public (and Peaks) uses, and region keeps a page from borrowing a point in
+ * another part of the country.
+ */
+export interface RawRecSiteRow {
+  site_cn?: string | number | null;
+  site_name?: string | null;
+  public_site_name?: string | null;
+  region?: string | null;
+  fee_charged?: string | null;
+  fee_type?: string | null;
+}
+
+export interface RecSiteFacts {
+  sourceId: string;
+  feeCharged: string | null;
+  feeType: string | null;
+  publicName: string | null;
+  region: string | null;
+}
+
+export type RecSiteIndex = Map<string, RecSiteFacts>;
+
+/** Forest Service region as two digits: "r09", "9" and "09" all become "09". */
+export function normalizeRegion(value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const digits = String(value).replace(/[^0-9]/g, "");
+  if (digits.length === 0) return null;
+  const parsed = Number.parseInt(digits, 10);
+  if (!Number.isFinite(parsed)) return null;
+  return String(parsed).padStart(2, "0");
+}
+
+/** Index the raw pull by site_cn, which is the source_id of the normalized rows. */
+export function buildRecSiteIndex(rows: RawRecSiteRow[]): RecSiteIndex {
+  const index: RecSiteIndex = new Map();
+  for (const row of rows) {
+    const sourceId = row.site_cn === null || row.site_cn === undefined ? "" : String(row.site_cn).trim();
+    if (sourceId.length === 0) continue;
+    index.set(sourceId, {
+      sourceId,
+      feeCharged: row.fee_charged ? String(row.fee_charged).trim().toUpperCase() : null,
+      feeType: row.fee_type ? String(row.fee_type).trim() : null,
+      publicName: row.public_site_name ? String(row.public_site_name).trim() : null,
+      region: normalizeRegion(row.region),
+    });
+  }
+  return index;
+}
+
+/**
+ * Every name worth putting through the name gate: the normalized row's own
+ * name plus the EDW public site name, which differs on most rows and is the
+ * name Peaks catalogs trailheads under.
+ */
+export function candidateNames(name: string, facts: RecSiteFacts | null | undefined): string[] {
+  const names = [name, facts?.publicName ?? null].filter((value): value is string => {
+    return typeof value === "string" && value.trim().length > 0;
+  });
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const value of names) {
+    const key = normalizeTrailheadName(value);
+    if (key.length === 0 || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(value);
+  }
+  return unique;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,11 +430,17 @@ export interface LeafExtraction {
 /**
  * Fee row → parking leaves.
  *
- * Hard guard: fee_required=false never gets written without a verbatim quote.
- * The upstream `fee_charged='N'` flag is a lying default, so a no-fee claim
- * needs source text behind it or Peaks would tell people a fee site is free.
+ * Two guards on a no-fee claim, because telling someone a fee site is free is
+ * the worst thing this importer could do:
+ *
+ * 1. Never write fee_required=false without a verbatim quote.
+ * 2. Never write it when the raw EDW row says fee_charged='Y'. The quote guard
+ *    alone is vacuous — 2,551 of the 3,254 false rows quote the boilerplate
+ *    "No fees are required for this site" that ships as the EDW default — and
+ *    66 of those rows sit on records the same dataset marks as charging, 22 of
+ *    them with an explicit STANDARD AMENITY FEE. The stricter claim wins.
  */
-export function feeLeafCandidates(row: FeeRow): LeafExtraction {
+export function feeLeafCandidates(row: FeeRow, facts?: RecSiteFacts | null): LeafExtraction {
   const leaves: LeafCandidate[] = [];
   const refusals: string[] = [];
   const rowKey = `${row.source_dataset}:${row.source_id}`;
@@ -338,7 +451,8 @@ export function feeLeafCandidates(row: FeeRow): LeafExtraction {
   if (row.fee_required === true) {
     push("fee_required", true);
   } else if (row.fee_required === false) {
-    if (nonEmptyText(row.verbatim_quote)) push("fee_required", false);
+    if (facts?.feeCharged === "Y") refusals.push("fee_required_false_contradicted_by_fee_charged");
+    else if (nonEmptyText(row.verbatim_quote)) push("fee_required", false);
     else refusals.push("fee_required_false_without_quote");
   }
 

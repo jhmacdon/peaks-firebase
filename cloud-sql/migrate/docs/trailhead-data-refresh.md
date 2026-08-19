@@ -19,6 +19,11 @@ rewrites these files in `docs/trailheads/data/`:
 - `trailhead-bathrooms.jsonl`
 - `fs-page-sections.jsonl`
 - `fs-trailhead-page-registry.jsonl`
+- `raw/usfs-rec-sites-trailheads.jsonl` — the raw EDW pull. The importer reads
+  it too and refuses to run without it: the normalized files drop
+  `fee_charged`, `public_site_name`, and `region`, and the importer needs all
+  three (a no-fee claim the dataset contradicts, the name Peaks catalogs a
+  trailhead under, and the region a page row's coordinates must come from).
 
 The work order also updates `STATUS.md` with row counts and the sample-audit
 error rate. Read it before importing: an error rate above about 1 percent means
@@ -42,7 +47,8 @@ npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
 ```
 
 A row is imported only when a Peaks destination with the `trailhead` feature
-sits within 250 m of the source point **and** the two names are similar enough.
+sits within 250 m of the source point **and** one of the row's names — the EDW
+site name or the public site name — is similar enough to the destination's.
 Rows that fail either gate are written to `import-unmatched-fees.jsonl`,
 `import-unmatched-bathrooms.jsonl`, and `import-unmatched-pages.jsonl` in the
 data directory, each with the reason and the nearest candidate. Those files are

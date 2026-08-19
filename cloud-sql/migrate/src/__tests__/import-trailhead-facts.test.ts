@@ -2,8 +2,10 @@ import { strict as assert } from "node:assert";
 import path from "path";
 import { test } from "node:test";
 import {
+  CANDIDATE_CHUNK_SIZE,
   importTrailheadFacts,
   parseArgs,
+  SIMILARITY_CHUNK_SIZE,
   usage,
   type Args,
   type ImportDatabase,
@@ -185,6 +187,25 @@ function defaultFiles(overrides: Record<string, string> = {}): Record<string, st
       {
         url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
         name: "Snow Lake Trailhead",
+        region: "r06",
+      },
+    ]),
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      {
+        site_cn: "1001",
+        site_name: "SNOW LAKE TRAILHEAD",
+        public_site_name: "Snow Lake Trailhead",
+        region: "06",
+        fee_charged: "Y",
+        fee_type: "STANDARD AMENITY FEE",
+      },
+      {
+        site_cn: "1002",
+        site_name: "NOWHERE TRAILHEAD",
+        public_site_name: "Nowhere Trailhead",
+        region: "06",
+        fee_charged: "N",
+        fee_type: null,
       },
     ]),
     ...overrides,
@@ -198,6 +219,7 @@ function testArgs(overrides: Partial<Args> = {}): Args {
     bathroomsPath: null,
     sectionsPath: null,
     registryPath: null,
+    rawRecSitesPath: null,
     reportDir: null,
     apply: false,
     dryRun: true,
@@ -452,8 +474,8 @@ test("pg_trgm scores the name gate when the extension is present", async () => {
   assert.equal(summary.counts.usfs_fees.matched, 1);
 });
 
-test("fee_required=false without a quote never reaches the row", async () => {
-  const files = defaultFiles({
+function noFeeFiles(overrides: { quote: string; feeCharged: string }): Record<string, string> {
+  return defaultFiles({
     [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
       {
         source_dataset: "usfs_rec_sites",
@@ -467,11 +489,70 @@ test("fee_required=false without a quote never reaches the row", async () => {
         passes_accepted: [],
         fee_waived_for: [],
         confidence: "low",
-        verbatim_quote: "",
+        verbatim_quote: overrides.quote,
         as_of: "2026-08-19",
       },
     ]),
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      {
+        site_cn: "1001",
+        site_name: "SNOW LAKE TRAILHEAD",
+        public_site_name: "Snow Lake Trailhead",
+        region: "06",
+        fee_charged: overrides.feeCharged,
+        fee_type: overrides.feeCharged === "Y" ? "STANDARD AMENITY FEE" : null,
+      },
+    ]),
   });
+}
+
+test("a no-fee claim the raw dataset contradicts never reaches the row", async () => {
+  // The quote is the EDW boilerplate that ships as the default, so the quote
+  // guard passes; fee_charged='Y' is what stops it.
+  const files = noFeeFiles({ quote: "No fees are required for this site", feeCharged: "Y" });
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_fees.refusals.fee_required_false_contradicted_by_fee_charged, 1);
+  assert.equal(summary.counts.usfs_fees.matched, 0);
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.parking.fee_required, undefined, "the contradicted no-fee claim is dropped");
+});
+
+test("the same row is written when the raw dataset agrees there is no fee", async () => {
+  const files = noFeeFiles({ quote: "No fees are required for this site", feeCharged: "N" });
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.parking.fee_required.value, false);
+});
+
+test("a missing raw EDW pull stops the import rather than weakening the guard", async () => {
+  const files = defaultFiles();
+  delete files[path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")];
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  await assert.rejects(
+    () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
+    /usfs-rec-sites-trailheads\.jsonl/
+  );
+});
+
+test("fee_required=false without a quote never reaches the row", async () => {
+  const files = noFeeFiles({ quote: "", feeCharged: "N" });
   const { db, calls } = createFakeDb({
     destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
   });
@@ -520,6 +601,186 @@ test("a page row whose name cannot be located is counted, not guessed", async ()
   );
 });
 
+test("a page never borrows a point from another Forest Service region", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
+      {
+        url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
+        name: "Snow Lake Trailhead",
+        region: "r09",
+      },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_pages.matched, 0);
+  assert.equal(summary.counts.usfs_pages.refusals.region_mismatch, 1);
+  const reported = io.written[path.join(DATA_DIR, "import-unmatched-pages.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual(
+    reported.map((record) => record.reason),
+    ["region_mismatch"]
+  );
+});
+
+test("the public site name can clear the gate when the internal name cannot", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "2001",
+        name: "MARTIN BRIDGE TRAILHEAD",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "$5 per vehicle",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      {
+        site_cn: "2001",
+        site_name: "MARTIN BRIDGE TRAILHEAD",
+        public_site_name: "Eagle Forks Trailhead",
+        region: "06",
+        fee_charged: "Y",
+        fee_type: null,
+      },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-eagle", name: "Eagle Forks Trailhead", ...SNOW_LAKE }],
+  });
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) });
+  assert.equal(summary.counts.usfs_fees.matched, 1);
+  assert.equal(summary.destinationsChanged, 1);
+});
+
+test("the report says which name scored best", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "2001",
+        name: "MARTIN BRIDGE TRAILHEAD",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "$5 per vehicle",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      {
+        site_cn: "2001",
+        site_name: "MARTIN BRIDGE TRAILHEAD",
+        public_site_name: "Eagle Forks Trailhead",
+        region: "06",
+        fee_charged: "Y",
+        fee_type: null,
+      },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-basin", name: "Eagle Fork Basin", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_fees.nameRejected, 1);
+  const rejected = io.written[path.join(DATA_DIR, "import-unmatched-fees.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .find((record) => record.reason === "name_below_threshold");
+  assert.equal(rejected.best_candidate.matched_name, "Eagle Forks Trailhead");
+});
+
+test("--limit does not shrink the index a page row is located from", async () => {
+  const pageUrl = "https://www.fs.usda.gov/r06/mbs/recreation/second-trailhead";
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "3001",
+        name: "FIRST TRAILHEAD",
+        lat: 40,
+        lng: -120,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      },
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "3002",
+        name: "SECOND TRAILHEAD",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: jsonl([
+      {
+        url: pageUrl,
+        capacity_estimate: 30,
+        fills_early_note: null,
+        fee_text: null,
+        restroom_text: null,
+        road_text: null,
+        fetched_at: "2026-08-19T20:43:51+00:00",
+      },
+    ]),
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
+      { url: pageUrl, name: "Second Trailhead", region: "r06" },
+    ]),
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      { site_cn: "3001", site_name: "FIRST TRAILHEAD", region: "06", fee_charged: "Y" },
+      { site_cn: "3002", site_name: "SECOND TRAILHEAD", region: "06", fee_charged: "Y" },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-second", name: "Second Trailhead", ...SNOW_LAKE }],
+  });
+  // The fee row that locates the page sits past the limit, so a limited run
+  // must still read the whole file to build the location index.
+  const summary = await importTrailheadFacts(testArgs({ limit: 1 }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  assert.equal(summary.counts.usfs_fees.rowsIn, 1, "matching still honours the limit");
+  assert.equal(summary.counts.usfs_pages.matched, 1, "the page still finds its point");
+});
+
 test("--limit bounds how many rows each source contributes", async () => {
   const { db } = createFakeDb({
     destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
@@ -528,4 +789,108 @@ test("--limit bounds how many rows each source contributes", async () => {
   const summary = await importTrailheadFacts(testArgs({ limit: 1 }), { db, console: silent, ...io });
   assert.equal(summary.counts.usfs_fees.rowsIn, 1);
   assert.equal(summary.counts.usfs_fees.noNearbyTrailhead, 0);
+});
+
+// --- chunk boundaries -------------------------------------------------------
+
+test("rows keep their own candidates across candidate and similarity chunks", async () => {
+  // 1,201 rows × 4 candidates spans four CANDIDATE_CHUNK_SIZE chunks and three
+  // SIMILARITY_CHUNK_SIZE chunks, so any off-by-one in the chunk arithmetic
+  // would hand a row another row's candidates.
+  const rowCount = 1201;
+  const candidatesPerRow = 4;
+  assert.ok(rowCount > CANDIDATE_CHUNK_SIZE * 2, "spans at least three candidate chunks");
+  assert.ok(rowCount * candidatesPerRow > SIMILARITY_CHUNK_SIZE * 2, "spans at least three similarity chunks");
+
+  const files = {
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl(
+      Array.from({ length: rowCount }, (_, i) => ({
+        source_dataset: "usfs_rec_sites",
+        source_id: `chunk-${i}`,
+        name: `Trailhead ${i}`,
+        lat: 40 + i * 0.01,
+        lng: -120,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      }))
+    ),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
+      { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
+    ]),
+  };
+
+  let candidateQueries = 0;
+  let similarityQueries = 0;
+  const updates: Array<{ id: string; amenities: string }> = [];
+  const db: ImportDatabase = {
+    query: (async (sql: string, params?: unknown[]) => {
+      if (sql.includes("extname = 'pg_trgm'")) return rows([{ pg_trgm_ready: true }]);
+      if (sql.includes("to_regclass('public.data_source_runs')")) return rows([{ runs_table_ready: false }]);
+      if (sql.includes("JOIN LATERAL")) {
+        candidateQueries += 1;
+        const idx = params?.[0] as number[];
+        const out: Array<{ idx: number; destination_id: string; destination_name: string; distance_m: number }> = [];
+        for (const value of idx) {
+          out.push({ idx: value, destination_id: `dest-${value}`, destination_name: `Trailhead ${value}`, distance_m: 10 });
+          for (let decoy = 1; decoy < candidatesPerRow; decoy++) {
+            out.push({
+              idx: value,
+              destination_id: `decoy-${value}-${decoy}`,
+              destination_name: `Other Place ${value}`,
+              distance_m: 10 + decoy,
+            });
+          }
+        }
+        return rows(out);
+      }
+      if (sql.includes("similarity(")) {
+        similarityQueries += 1;
+        const idx = params?.[0] as number[];
+        const sourceNames = params?.[1] as string[];
+        const destNames = params?.[2] as string[];
+        return rows(idx.map((value, i) => ({ idx: value, similarity: sourceNames[i] === destNames[i] ? 1 : 0.2 })));
+      }
+      if (sql.includes("SELECT id, amenities")) return rows([]);
+      return rows([]);
+    }) as never,
+    connect: async () => ({
+      query: (async (sql: string, params?: unknown[]) => {
+        if (sql.includes("UPDATE destinations")) {
+          updates.push({ id: params?.[0] as string, amenities: params?.[1] as string });
+        }
+        if (sql.includes("destinations_ready")) {
+          return rows([
+            { destinations_ready: true, amenities_ready: true, trailhead_feature_ready: true, postgis_ready: true },
+          ]);
+        }
+        return rows([]);
+      }) as never,
+      release: () => undefined,
+    }),
+  };
+
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+
+  assert.equal(candidateQueries, Math.ceil(rowCount / CANDIDATE_CHUNK_SIZE));
+  assert.equal(similarityQueries, Math.ceil((rowCount * candidatesPerRow) / SIMILARITY_CHUNK_SIZE));
+  assert.equal(summary.counts.usfs_fees.matched, rowCount);
+  assert.equal(updates.length, rowCount);
+  assert.deepEqual(
+    updates.map((update) => update.id).sort(),
+    Array.from({ length: rowCount }, (_, i) => `dest-${i}`).sort(),
+    "every row matched its own destination, not a neighbouring chunk's"
+  );
 });

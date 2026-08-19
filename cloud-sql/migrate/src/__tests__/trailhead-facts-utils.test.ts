@@ -3,12 +3,15 @@ import { test } from "node:test";
 import {
   bathroomLeafCandidates,
   buildLocationIndex,
+  buildRecSiteIndex,
+  candidateNames,
   buildTrailheadAmenities,
   canonicalJson,
   chooseMatch,
   feeLeafCandidates,
   isOffSiteBathroomNote,
   mergeTrailheadAmenities,
+  normalizeRegion,
   normalizeTrailheadName,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
@@ -20,6 +23,7 @@ import {
   type FeeRow,
   type LeafCandidate,
   type PageSectionRow,
+  type RecSiteFacts,
 } from "../trailhead-facts-utils";
 
 function feeRow(overrides: Partial<FeeRow> = {}): FeeRow {
@@ -37,6 +41,17 @@ function feeRow(overrides: Partial<FeeRow> = {}): FeeRow {
     confidence: "high",
     verbatim_quote: null,
     as_of: "2026-08-19",
+    ...overrides,
+  };
+}
+
+function recSiteFacts(overrides: Partial<RecSiteFacts> = {}): RecSiteFacts {
+  return {
+    sourceId: "10001010386",
+    feeCharged: null,
+    feeType: null,
+    publicName: null,
+    region: "06",
     ...overrides,
   };
 }
@@ -109,8 +124,8 @@ test("no candidate within the radius reports the distance gate", () => {
 test("the best similarity wins and distance breaks a tie", () => {
   const outcome = chooseMatch(
     [
-      { destinationId: "a", destinationName: "Snow Lake", distanceM: 20, similarity: 0.6 },
-      { destinationId: "b", destinationName: "Snow Lake Trailhead", distanceM: 200, similarity: 0.9 },
+      { destinationId: "a", destinationName: "Snow Lake", distanceM: 20, similarity: 0.6, matchedName: "Snow Lake TH" },
+      { destinationId: "b", destinationName: "Snow Lake Trailhead", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake TH" },
     ],
     0.5
   );
@@ -119,8 +134,8 @@ test("the best similarity wins and distance breaks a tie", () => {
 
   const tie = chooseMatch(
     [
-      { destinationId: "far", destinationName: "Snow Lake", distanceM: 200, similarity: 0.9 },
-      { destinationId: "near", destinationName: "Snow Lake", distanceM: 20, similarity: 0.9 },
+      { destinationId: "far", destinationName: "Snow Lake", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake" },
+      { destinationId: "near", destinationName: "Snow Lake", distanceM: 20, similarity: 0.9, matchedName: "Snow Lake" },
     ],
     0.5
   );
@@ -129,7 +144,7 @@ test("the best similarity wins and distance breaks a tie", () => {
 
 test("a nearby destination with a different name is rejected and reported", () => {
   const outcome = chooseMatch(
-    [{ destinationId: "a", destinationName: "Baker Creek", distanceM: 30, similarity: 0.4 }],
+    [{ destinationId: "a", destinationName: "Baker Creek", distanceM: 30, similarity: 0.4, matchedName: "Baker Lake" }],
     0.5
   );
   assert.equal(outcome.kind, "name_below_threshold");
@@ -138,23 +153,95 @@ test("a nearby destination with a different name is rejected and reported", () =
 
 // --- locating page rows -----------------------------------------------------
 
-test("a page row borrows coordinates from the same-named EDW trailhead", () => {
+test("a page row borrows coordinates from the same-named EDW trailhead in its region", () => {
   const index = buildLocationIndex([
-    { name: "BAKER LAKE TRAILHEAD", lat: 45.8, lng: -114.3 },
-    { name: "Baker Lake TH", lat: 45.80001, lng: -114.30001 },
+    { name: "BAKER LAKE TRAILHEAD", lat: 45.8, lng: -114.3, region: "01", publicName: "Baker Lake" },
+    { name: "Baker Lake TH", lat: 45.80001, lng: -114.30001, region: "01" },
   ]);
-  const located = resolveLocation(index, "Baker Lake Trailhead");
+  const located = resolveLocation(index, "Baker Lake Trailhead", "r01");
   assert.equal(located.kind, "located");
   assert.equal(located.kind === "located" && located.point.lat, 45.8);
+  assert.equal(located.kind === "located" && located.point.publicName, "Baker Lake");
 });
 
-test("a name shared by far-apart places stays unlocated", () => {
+test("a page never borrows a point from another region", () => {
   const index = buildLocationIndex([
-    { name: "Baker Lake Trailhead", lat: 45.8, lng: -114.3 },
-    { name: "Baker Lake Trailhead", lat: 48.7, lng: -121.6 },
+    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
   ]);
-  assert.equal(resolveLocation(index, "Baker Lake Trailhead").kind, "ambiguous");
-  assert.equal(resolveLocation(index, "Nowhere Trailhead").kind, "unknown_name");
+  const mismatch = resolveLocation(index, "Blue Hole Trailhead", "r09");
+  assert.equal(mismatch.kind, "region_mismatch");
+  assert.deepEqual(mismatch.kind === "region_mismatch" && mismatch.regions, ["08"]);
+  assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r08").kind, "located");
+});
+
+test("a point of unknown region is never borrowed", () => {
+  const index = buildLocationIndex([{ name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5 }]);
+  assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r09").kind, "region_mismatch");
+  assert.equal(resolveLocation(index, "Blue Hole Trailhead", null).kind, "region_mismatch");
+});
+
+test("a name shared by far-apart places in one region stays unlocated", () => {
+  const index = buildLocationIndex([
+    { name: "Baker Lake Trailhead", lat: 45.8, lng: -114.3, region: "06" },
+    { name: "Baker Lake Trailhead", lat: 48.7, lng: -121.6, region: "06" },
+  ]);
+  assert.equal(resolveLocation(index, "Baker Lake Trailhead", "r06").kind, "ambiguous");
+  assert.equal(resolveLocation(index, "Nowhere Trailhead", "r06").kind, "unknown_name");
+});
+
+test("regions normalize across the registry and raw spellings", () => {
+  assert.equal(normalizeRegion("r09"), "09");
+  assert.equal(normalizeRegion("09"), "09");
+  assert.equal(normalizeRegion(9), "09");
+  assert.equal(normalizeRegion("R6"), "06");
+  assert.equal(normalizeRegion(null), null);
+  assert.equal(normalizeRegion(""), null);
+});
+
+// --- raw EDW enrichment -----------------------------------------------------
+
+test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
+  const index = buildRecSiteIndex([
+    {
+      site_cn: "5927010263",
+      site_name: "MARTIN BRIDGE TRAILHEAD",
+      public_site_name: "Eagle Forks Trailhead",
+      region: "06",
+      fee_charged: "n",
+      fee_type: null,
+    },
+    { site_cn: null, site_name: "no id" },
+  ]);
+  assert.equal(index.size, 1);
+  const facts = index.get("5927010263");
+  assert.equal(facts?.publicName, "Eagle Forks Trailhead");
+  assert.equal(facts?.region, "06");
+  assert.equal(facts?.feeCharged, "N", "fee_charged is compared upper-case");
+});
+
+test("both names go through the gate, deduplicated", () => {
+  assert.deepEqual(
+    candidateNames("MARTIN BRIDGE TRAILHEAD", {
+      sourceId: "1",
+      feeCharged: null,
+      feeType: null,
+      publicName: "Eagle Forks Trailhead",
+      region: "06",
+    }),
+    ["MARTIN BRIDGE TRAILHEAD", "Eagle Forks Trailhead"]
+  );
+  assert.deepEqual(
+    candidateNames("SNOW LAKE TRAILHEAD", {
+      sourceId: "1",
+      feeCharged: null,
+      feeType: null,
+      publicName: "Snow Lake TH",
+      region: "06",
+    }),
+    ["SNOW LAKE TRAILHEAD"],
+    "names that normalize the same are one name"
+  );
+  assert.deepEqual(candidateNames("Snow Lake Trailhead", null), ["Snow Lake Trailhead"]);
 });
 
 // --- fee leaves -------------------------------------------------------------
@@ -210,11 +297,40 @@ test("fee_required=false without a verbatim quote is refused", () => {
 
 test("fee_required=false with a verbatim quote is written", () => {
   const { leaves, refusals } = feeLeafCandidates(
-    feeRow({ fee_required: false, verbatim_quote: "No fees are required for this site" })
+    feeRow({ fee_required: false, verbatim_quote: "No fees are required for this site" }),
+    recSiteFacts({ feeCharged: "N" })
   );
   assert.deepEqual(refusals, []);
   assert.equal(leaves.length, 1);
   assert.equal(leaves[0].sourced.value, false);
+});
+
+test("fee_required=false is refused when the raw row says the site charges", () => {
+  // The quote guard alone is vacuous: 2,551 of the 3,254 false rows carry the
+  // EDW boilerplate "No fees are required for this site", and 66 of them sit on
+  // records the same dataset marks fee_charged='Y'.
+  const { leaves, refusals } = feeLeafCandidates(
+    feeRow({ fee_required: false, verbatim_quote: "No fees are required for this site" }),
+    recSiteFacts({ feeCharged: "Y", feeType: "STANDARD AMENITY FEE" })
+  );
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["fee_required_false_contradicted_by_fee_charged"]);
+});
+
+test("a fee_charged=Y row still writes its other fee facts and a true claim", () => {
+  const { leaves, refusals } = feeLeafCandidates(
+    feeRow({ fee_required: false, verbatim_quote: "free", day_fee_usd: 5 }),
+    recSiteFacts({ feeCharged: "Y" })
+  );
+  assert.deepEqual(
+    leaves.map((leaf) => leaf.leaf),
+    ["day_fee_usd"]
+  );
+  assert.deepEqual(refusals, ["fee_required_false_contradicted_by_fee_charged"]);
+
+  const claimed = feeLeafCandidates(feeRow({ fee_required: true }), recSiteFacts({ feeCharged: "Y" }));
+  assert.equal(claimed.leaves[0].sourced.value, true);
+  assert.deepEqual(claimed.refusals, []);
 });
 
 test("empty pass lists and null amounts produce no leaves", () => {

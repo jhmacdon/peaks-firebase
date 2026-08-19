@@ -499,9 +499,20 @@ npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
 A source row is imported only when both gates pass: a destination with the
 `trailhead` feature within **250 m**, and a name similarity at or above the
 threshold (0.5 with `pg_trgm`, 0.7 for the JS token-overlap fallback; both
-override with `--name-threshold`). Rejected rows go to
-`import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with the
-reason and the nearest candidate.
+override with `--name-threshold`). The gate tries both the EDW `site_name` and
+the `public_site_name` — they differ on 70 percent of rows, and Peaks catalogs
+trailheads under the public one — and passes if either clears. Rejected rows go
+to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with
+the reason, the nearest candidate, and which name scored best.
+
+The importer also reads the raw EDW pull
+(`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)
+and refuses to run without it. The normalized files drop three fields it needs:
+`fee_charged` (the fee guard below), `public_site_name` (the name gate), and
+`region` — a Forest Service page borrows coordinates from the same-named EDW
+trailhead, and without a region check a single same-named point anywhere in the
+country looks confident. Region equality is required; mismatches are dropped and
+counted.
 
 Writes merge per leaf into `destinations.amenities` as `TrailheadAmenities`
 (`migrate/src/lib/amenities.ts`), each leaf carrying its own source. Unrelated
@@ -510,9 +521,14 @@ outside `MANAGED_SOURCE_KINDS` is never overwritten. Conflicts: `fee_required`
 true beats false, an explicit page capacity beats any other capacity, and
 otherwise the agency dataset (`usfs_edw`) beats the web page (`usfs_web`).
 
-**Never write `fee_required: false` without a verbatim quote.** The upstream
-`fee_charged='N'` flag is a lying default; the guard lives in
-`feeLeafCandidates` in `migrate/src/trailhead-facts-utils.ts`.
+**Never write `fee_required: false` without a verbatim quote, and never when
+the raw row says `fee_charged='Y'`.** Both halves matter. The `fee_charged='N'`
+flag is a lying default, so a no-fee claim needs source text — but the quote
+alone proves little, since 2,551 of the 3,254 false rows quote the EDW
+boilerplate "No fees are required for this site", 66 of them on records the
+same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
+stricter claim wins. Both guards live in `feeLeafCandidates` in
+`migrate/src/trailhead-facts-utils.ts`.
 
 Each run records a `data_source_runs` row per source (`--no-log` skips it;
 a dry run is logged as `dry_run`, so it never counts as a refresh). Check

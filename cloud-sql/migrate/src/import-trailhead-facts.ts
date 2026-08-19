@@ -3,7 +3,9 @@ import path from "path";
 import db from "./db";
 import {
   buildLocationIndex,
+  buildRecSiteIndex,
   buildTrailheadAmenities,
+  candidateNames,
   chooseMatch,
   bathroomLeafCandidates,
   feeLeafCandidates,
@@ -24,6 +26,7 @@ import {
   type LeafCandidate,
   type MatchCandidate,
   type PageSectionRow,
+  type RawRecSiteRow,
   type RegistryRow,
   type SourcePoint,
   type TrailheadFactSource,
@@ -40,6 +43,7 @@ export interface Args {
   bathroomsPath: string | null;
   sectionsPath: string | null;
   registryPath: string | null;
+  rawRecSitesPath: string | null;
   reportDir: string | null;
   apply: boolean;
   dryRun: boolean;
@@ -144,6 +148,7 @@ export function usage(): string {
     "  --bathrooms=FILE      override <data-dir>/trailhead-bathrooms.jsonl",
     "  --sections=FILE       override <data-dir>/fs-page-sections.jsonl",
     "  --registry=FILE       override <data-dir>/fs-trailhead-page-registry.jsonl",
+    "  --raw-rec-sites=FILE  override <data-dir>/raw/usfs-rec-sites-trailheads.jsonl",
     "  --report-dir=DIR      where the unmatched/rejected reports go (default: data dir)",
     "  --apply               write; without it the run is a dry run",
     "  --dry-run             the default, stated explicitly",
@@ -190,6 +195,7 @@ export function parseArgs(argv: string[]): Args {
     bathroomsPath: textArg(argv, "--bathrooms"),
     sectionsPath: textArg(argv, "--sections"),
     registryPath: textArg(argv, "--registry"),
+    rawRecSitesPath: textArg(argv, "--raw-rec-sites"),
     reportDir: textArg(argv, "--report-dir"),
     apply,
     dryRun: dryRunFlag || !apply,
@@ -222,11 +228,13 @@ function parseJsonl<T>(contents: string, limit: number | null): ParsedFile<T> {
   return { rows, malformed };
 }
 
-/** One input row lifted to a common shape: a point, a name, and its facts. */
+/** One input row lifted to a common shape: a point, its names, and its facts. */
 interface FactRow {
   source: TrailheadFactSource;
   rowKey: string;
   name: string;
+  /** Every name the gate may match on: the row's own, plus the EDW public one. */
+  names: string[];
   point: SourcePoint;
   leaves: LeafCandidate[];
   refusals: string[];
@@ -271,7 +279,14 @@ interface ReportRecord {
   name: string;
   lat?: number;
   lng?: number;
-  best_candidate?: { destination_id: string; destination_name: string; distance_m: number; similarity: number };
+  best_candidate?: {
+    destination_id: string;
+    destination_name: string;
+    distance_m: number;
+    similarity: number;
+    /** Which of the row's names scored best against that destination. */
+    matched_name: string;
+  };
   refusals?: string[];
   row: Record<string, unknown>;
 }
@@ -318,6 +333,7 @@ async function chunkedCandidates(
         destinationName: row.destination_name ?? "",
         distanceM: Number(row.distance_m),
         similarity: 0,
+        matchedName: "",
       });
       byIndex.set(row.idx, list);
     }
@@ -325,25 +341,50 @@ async function chunkedCandidates(
   return byIndex;
 }
 
+/**
+ * Score every (candidate, source name) pair and keep the best per candidate.
+ * A row carries more than one name — the EDW site name is an internal code
+ * name that differs from the public one on most rows — and Peaks catalogs
+ * trailheads under the public name, so either name may clear the gate.
+ */
 async function scoreNames(
   database: QueryExecutor,
   rows: FactRow[],
   candidates: Map<number, MatchCandidate[]>,
   usePgTrgm: boolean
 ): Promise<void> {
-  const pairs: Array<{ rowIndex: number; candidate: MatchCandidate }> = [];
+  const pairs: Array<{ candidate: MatchCandidate; sourceName: string; destinationName: string }> = [];
   for (const [rowIndex, list] of candidates) {
-    for (const candidate of list) pairs.push({ rowIndex, candidate });
+    for (const candidate of list) {
+      for (const sourceName of rows[rowIndex].names) {
+        pairs.push({
+          candidate,
+          sourceName,
+          destinationName: candidate.destinationName,
+        });
+      }
+    }
   }
   if (pairs.length === 0) return;
 
-  if (!usePgTrgm) {
-    for (const { rowIndex, candidate } of pairs) {
-      candidate.similarity = tokenOverlapSimilarity(
-        normalizeTrailheadName(rows[rowIndex].name),
-        normalizeTrailheadName(candidate.destinationName)
-      );
+  const keepBest = (pairIndex: number, similarity: number) => {
+    const pair = pairs[pairIndex];
+    if (pair.candidate.matchedName === "" || similarity > pair.candidate.similarity) {
+      pair.candidate.similarity = similarity;
+      pair.candidate.matchedName = pair.sourceName;
     }
+  };
+
+  if (!usePgTrgm) {
+    pairs.forEach((pair, index) => {
+      keepBest(
+        index,
+        tokenOverlapSimilarity(
+          normalizeTrailheadName(pair.sourceName),
+          normalizeTrailheadName(pair.destinationName)
+        )
+      );
+    });
     return;
   }
 
@@ -351,11 +392,11 @@ async function scoreNames(
     const chunk = pairs.slice(start, start + SIMILARITY_CHUNK_SIZE);
     const result = await database.query<{ idx: number; similarity: number }>(SIMILARITY_SQL, [
       chunk.map((_, i) => start + i),
-      chunk.map((pair) => normalizeTrailheadName(rows[pair.rowIndex].name)),
-      chunk.map((pair) => normalizeTrailheadName(pair.candidate.destinationName)),
+      chunk.map((pair) => normalizeTrailheadName(pair.sourceName)),
+      chunk.map((pair) => normalizeTrailheadName(pair.destinationName)),
     ]);
     for (const row of result.rows) {
-      pairs[row.idx].candidate.similarity = Number(row.similarity ?? 0);
+      keepBest(row.idx, Number(row.similarity ?? 0));
     }
   }
 }
@@ -372,19 +413,35 @@ function readSources(
   const bathroomsPath = args.bathroomsPath ?? path.join(dataDir, "trailhead-bathrooms.jsonl");
   const sectionsPath = args.sectionsPath ?? path.join(dataDir, "fs-page-sections.jsonl");
   const registryPath = args.registryPath ?? path.join(dataDir, "fs-trailhead-page-registry.jsonl");
+  const rawRecSitesPath =
+    args.rawRecSitesPath ?? path.join(dataDir, "raw", "usfs-rec-sites-trailheads.jsonl");
 
-  const fees = parseJsonl<FeeRow>(readFile(feesPath), args.limit);
-  const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath), args.limit);
-  const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath), args.limit);
+  // Every file is read whole, even under --limit. The raw pull carries the
+  // fee_charged flag, the public site name, and the region; the fee and
+  // bathroom files carry the coordinates a page row borrows. Reading a slice
+  // of any of them would change which rows can be located or believed, so
+  // --limit is applied further down, to the rows that go on to match.
+  const rawRecSites = parseJsonl<RawRecSiteRow>(readFile(rawRecSitesPath), null);
+  const recSites = buildRecSiteIndex(rawRecSites.rows);
+  if (recSites.size === 0) {
+    throw new Error(
+      `${rawRecSitesPath} yielded no usable rows — the fee guard and the region check need the raw EDW pull (--raw-rec-sites=FILE)`
+    );
+  }
+  const fees = parseJsonl<FeeRow>(readFile(feesPath), null);
+  const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath), null);
+  const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath), null);
   const registry = parseJsonl<RegistryRow>(readFile(registryPath), null);
+  logger.log(`  Raw EDW rec-site rows indexed: ${recSites.size}`);
 
   counts.usfs_fees.malformed = fees.malformed;
   counts.usfs_bathrooms.malformed = bathrooms.malformed;
   counts.usfs_pages.malformed = sections.malformed;
 
+  const limited = <T>(list: T[]): T[] => (args.limit === null ? list : list.slice(0, args.limit));
   const rows: FactRow[] = [];
 
-  for (const row of fees.rows) {
+  for (const row of limited(fees.rows)) {
     counts.usfs_fees.rowsIn += 1;
     if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
       counts.usfs_fees.noLocation += 1;
@@ -396,7 +453,8 @@ function readSources(
       });
       continue;
     }
-    const extraction = feeLeafCandidates(row);
+    const facts = recSites.get(String(row.source_id)) ?? null;
+    const extraction = feeLeafCandidates(row, facts);
     countRefusals(counts.usfs_fees, extraction.refusals);
     if (extraction.leaves.length === 0) {
       counts.usfs_fees.noFacts += 1;
@@ -406,6 +464,7 @@ function readSources(
       source: "usfs_fees",
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
+      names: candidateNames(row.name, facts),
       point: { lat: row.lat, lng: row.lng },
       leaves: extraction.leaves,
       refusals: extraction.refusals,
@@ -413,7 +472,7 @@ function readSources(
     });
   }
 
-  for (const row of bathrooms.rows) {
+  for (const row of limited(bathrooms.rows)) {
     counts.usfs_bathrooms.rowsIn += 1;
     if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
       counts.usfs_bathrooms.noLocation += 1;
@@ -435,6 +494,7 @@ function readSources(
       source: "usfs_bathrooms",
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
+      names: candidateNames(row.name, recSites.get(String(row.source_id)) ?? null),
       point: { lat: row.lat, lng: row.lng },
       leaves: extraction.leaves,
       refusals: extraction.refusals,
@@ -443,20 +503,31 @@ function readSources(
   }
 
   // The page registry carries no coordinates, so a page row borrows the point
-  // of the EDW trailhead with the same name. A name that is shared by places
-  // far apart stays unlocated — a wrong point would write facts onto the wrong
-  // trailhead.
+  // of the EDW trailhead with the same name, in the same Forest Service
+  // region. Region is the guard that matters: without it a single same-named
+  // point anywhere in the country looks confident, and a Missouri page took a
+  // point in Tennessee. A name that clears the region check but still covers
+  // far-apart points stays unlocated.
   const registryByUrl = new Map<string, RegistryRow>();
   for (const entry of registry.rows) registryByUrl.set(entry.url, entry);
-  const locationIndex = buildLocationIndex([
-    ...fees.rows.filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng)),
-    ...bathrooms.rows.filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng)),
-  ]);
+  const locatable = [...fees.rows, ...bathrooms.rows]
+    .filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng))
+    .map((row) => {
+      const facts = recSites.get(String(row.source_id)) ?? null;
+      return {
+        name: row.name,
+        lat: row.lat,
+        lng: row.lng,
+        region: facts?.region ?? null,
+        publicName: facts?.publicName ?? null,
+      };
+    });
+  const locationIndex = buildLocationIndex(locatable);
   logger.log(
     `  Page registry rows: ${registry.rows.length}; EDW names available for locating: ${locationIndex.size}`
   );
 
-  for (const row of sections.rows) {
+  for (const row of limited(sections.rows)) {
     counts.usfs_pages.rowsIn += 1;
     const entry = registryByUrl.get(row.url);
     if (!entry) {
@@ -470,9 +541,14 @@ function readSources(
       });
       continue;
     }
-    const located = resolveLocation(locationIndex, entry.name);
+    const located = resolveLocation(locationIndex, entry.name, entry.region);
     if (located.kind !== "located") {
-      const reason = located.kind === "ambiguous" ? "ambiguous_name_location" : "no_edw_name_location";
+      const reason =
+        located.kind === "ambiguous"
+          ? "ambiguous_name_location"
+          : located.kind === "region_mismatch"
+            ? "region_mismatch"
+            : "no_edw_name_location";
       counts.usfs_pages.noLocation += 1;
       countRefusals(counts.usfs_pages, [reason]);
       skipped.push({
@@ -493,6 +569,13 @@ function readSources(
       source: "usfs_pages",
       rowKey: row.url,
       name: entry.name,
+      names: candidateNames(entry.name, {
+        sourceId: row.url,
+        feeCharged: null,
+        feeType: null,
+        publicName: located.point.publicName,
+        region: located.point.region,
+      }),
       point: located.point,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
@@ -633,6 +716,7 @@ export async function importTrailheadFacts(
           destination_name: outcome.best.destinationName,
           distance_m: outcome.best.distanceM,
           similarity: outcome.best.similarity,
+          matched_name: outcome.best.matchedName,
         },
         row: row.raw,
       });
