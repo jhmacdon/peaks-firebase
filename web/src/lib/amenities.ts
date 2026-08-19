@@ -98,9 +98,21 @@ export interface TrailheadAmenities {
   bathrooms?: TrailheadBathrooms;
 }
 
-// Not yet unioned with CampsiteAmenities: every current Amenities consumer
-// (web destination pages) reads fields straight off the object assuming the
-// campsite shape, with no per-feature branch to pick the right member first.
-// Widening this alias needs that branch added at each read site — leave that
-// to the phase that makes trailhead pages actually render TrailheadAmenities.
-export type Amenities = CampsiteAmenities;
+export type Amenities = CampsiteAmenities | TrailheadAmenities;
+
+// CampsiteAmenities and TrailheadAmenities share no keys, so presence of any
+// trailhead-only block is a reliable discriminant — the same
+// `(value): value is T` type-predicate idiom used everywhere else in this
+// codebase to narrow a union (e.g. route-integrity-repairs.ts'
+// `validRepairState`, standard-route-job-state.ts's `isJobState`), rather
+// than adding a `kind` tag field that every existing CampsiteAmenities
+// writer (e.g. import-osm-campsites-wa.ts) would have to start setting.
+// `{}` narrows as CampsiteAmenities, matching prior behavior (before this
+// union existed, every Amenities value was read as CampsiteAmenities).
+export function isTrailheadAmenities(amenities: Amenities): amenities is TrailheadAmenities {
+  return 'parking' in amenities || 'road_access' in amenities || 'bathrooms' in amenities;
+}
+
+export function isCampsiteAmenities(amenities: Amenities): amenities is CampsiteAmenities {
+  return !isTrailheadAmenities(amenities);
+}

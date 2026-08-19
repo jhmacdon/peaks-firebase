@@ -20,7 +20,12 @@ import {
   type DestinationRoute,
   type DestinationList,
 } from "../../../../lib/actions/destinations";
-import type { Amenities } from "../../../../lib/amenities";
+import {
+  isTrailheadAmenities,
+  type Amenities,
+  type CampsiteAmenities,
+  type TrailheadAmenities,
+} from "../../../../lib/amenities";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -603,6 +608,10 @@ function DetailRow({
 }
 
 function formatAmenityBadges(a: Amenities): string[] {
+  return isTrailheadAmenities(a) ? formatTrailheadAmenityBadges(a) : formatCampsiteAmenityBadges(a);
+}
+
+function formatCampsiteAmenityBadges(a: CampsiteAmenities): string[] {
   const out: string[] = [];
   if (a.toilet === "flush") out.push("flush toilet");
   else if (a.toilet === "pit") out.push("pit toilet");
@@ -623,5 +632,39 @@ function formatAmenityBadges(a: Amenities): string[] {
   if (a.max_length != null) out.push(`max ${a.max_length}m`);
   if (a.backcountry) out.push("backcountry");
   if (a.power_supply) out.push("power");
+  return out;
+}
+
+// A representative subset, not every leaf — matches formatCampsiteAmenityBadges
+// above. Free-text notes and seasonal_window/limiting_segment_ref are left out
+// of these short chips; structured facts only.
+function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
+  const out: string[] = [];
+  const { parking, road_access, bathrooms } = a;
+
+  if (parking?.fee_required?.value) {
+    const dayFee = parking.day_fee_usd?.value;
+    out.push(dayFee != null ? `parking fee ($${dayFee}/day)` : "parking fee");
+  } else if (parking?.fee_required?.value === false) {
+    out.push("free parking");
+  }
+  if (parking?.capacity_vehicles?.value != null) out.push(`${parking.capacity_vehicles.value} parking spaces`);
+
+  if (bathrooms?.status?.value === "present") {
+    switch (bathrooms.type?.value) {
+      case "flush": out.push("flush toilet"); break;
+      case "vault_pit": out.push("vault toilet"); break;
+      case "portable": out.push("portable toilet"); break;
+      case "composting": out.push("composting toilet"); break;
+      default: out.push("restroom");
+    }
+  } else if (bathrooms?.status?.value === "absent") {
+    out.push("no restroom");
+  }
+
+  if (road_access?.high_clearance?.value === "required") out.push("high clearance required");
+  else if (road_access?.high_clearance?.value === "recommended") out.push("high clearance recommended");
+  if (road_access?.four_wheel_drive?.value) out.push("4WD");
+
   return out;
 }

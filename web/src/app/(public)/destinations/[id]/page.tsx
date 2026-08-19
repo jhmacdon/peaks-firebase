@@ -40,7 +40,12 @@ import {
   StatRow,
   titleize,
 } from "../../../../components/detail-sections";
-import type { Amenities } from "../../../../lib/amenities";
+import {
+  isTrailheadAmenities,
+  type Amenities,
+  type CampsiteAmenities,
+  type TrailheadAmenities,
+} from "../../../../lib/amenities";
 import { AreaChips } from "../../../../components/area-chip";
 import SaveDestinationButton from "../../../../components/save-destination-button";
 import { useAuth } from "../../../../lib/auth-context";
@@ -718,6 +723,12 @@ function formatDistanceAway(meters: number): string {
 }
 
 function amenityRows(amenities: Amenities): Array<{ label: string; value: string }> {
+  return isTrailheadAmenities(amenities)
+    ? trailheadAmenityRows(amenities)
+    : campsiteAmenityRows(amenities);
+}
+
+function campsiteAmenityRows(amenities: CampsiteAmenities): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [];
   if (amenities.toilet) {
     rows.push({
@@ -756,6 +767,63 @@ function amenityRows(amenities: Amenities): Array<{ label: string; value: string
       value: amenities.backcountry ? "Backcountry" : "Frontcountry",
     });
   }
+  return rows;
+}
+
+const TRAILHEAD_BATHROOM_TYPE_LABELS: Record<string, string> = {
+  vault_pit: "Vault/pit toilet",
+  flush: "Flush toilet",
+  portable: "Portable toilet",
+  composting: "Composting toilet",
+  unspecified: "Present",
+};
+
+// A representative subset, not every leaf — matches campsiteAmenityRows above
+// (which also skips some CampsiteAmenities fields). Free-text notes
+// (fills_early_note, location_note, season_note, limiting_segment_ref) are
+// left out of this compact side-panel list; structured facts only.
+function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const { parking, road_access, bathrooms } = amenities;
+
+  if (parking?.fee_required) {
+    const dayFee = parking.day_fee_usd?.value;
+    rows.push({
+      label: "Parking fee",
+      value: parking.fee_required.value
+        ? dayFee != null
+          ? `$${dayFee}/day`
+          : "Required"
+        : "None",
+    });
+  }
+  if (parking?.capacity_vehicles?.value != null) {
+    rows.push({ label: "Parking capacity", value: `${parking.capacity_vehicles.value} vehicles` });
+  }
+  if (parking?.passes_accepted?.value?.length) {
+    rows.push({ label: "Passes accepted", value: parking.passes_accepted.value.join(", ") });
+  }
+
+  if (bathrooms?.status) {
+    rows.push({
+      label: "Restroom",
+      value:
+        bathrooms.status.value === "absent"
+          ? "None"
+          : TRAILHEAD_BATHROOM_TYPE_LABELS[bathrooms.type?.value ?? "unspecified"],
+    });
+  }
+
+  if (road_access?.surface?.value) {
+    rows.push({ label: "Road surface", value: titleize(road_access.surface.value) });
+  }
+  if (road_access?.high_clearance?.value) {
+    rows.push({ label: "High clearance", value: titleize(road_access.high_clearance.value) });
+  }
+  if (road_access?.four_wheel_drive?.value) {
+    rows.push({ label: "4WD", value: "Required" });
+  }
+
   return rows;
 }
 
