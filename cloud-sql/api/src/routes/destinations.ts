@@ -136,6 +136,57 @@ router.get("/averages", async (req, res: Response) => {
   res.json(out);
 });
 
+type NearbyDestinationsQueryOptions = {
+  lat: number;
+  lng: number;
+  radius: number;
+  limit: number;
+  eye?: number;
+};
+
+/** Build the nearby query with explicit PostgreSQL types for optional values. */
+export function buildNearbyDestinationsQuery(
+  options: NearbyDestinationsQueryOptions
+): { text: string; values: unknown[] } {
+  const { lat, lng, radius, limit, eye } = options;
+  if (eye !== undefined) {
+    return {
+      text: `
+      SELECT * FROM (
+        SELECT id, name, elevation, prominence, type,
+               activities, features,
+               ST_Y(location::geometry) AS lat,
+               ST_X(location::geometry) AS lng,
+               ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
+        FROM destinations
+        WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+          AND elevation IS NOT NULL
+      ) c
+      WHERE c.distance_m <= 4123 * (
+        sqrt(GREATEST($5::double precision, 0::double precision))
+        + sqrt(GREATEST(c.elevation, 0))
+      )
+      ORDER BY COALESCE(c.prominence, 100) / GREATEST(c.distance_m, 500) DESC
+      LIMIT $4`,
+      values: [lat, lng, radius, limit, eye],
+    };
+  }
+
+  return {
+    text: `
+      SELECT id, name, elevation, prominence, type,
+             activities, features,
+             ST_Y(location::geometry) AS lat,
+             ST_X(location::geometry) AS lng,
+             ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
+      FROM destinations
+      WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+      ORDER BY distance_m
+      LIMIT $4`,
+    values: [lat, lng, radius, limit],
+  };
+}
+
 // GET /api/destinations/nearby?lat=46.85&lng=-121.7&radius=10000&limit=50
 //
 // IMPORTANT: keep the static `/nearby` and `/viewport` routes registered
@@ -159,55 +210,30 @@ router.get("/nearby", async (req, res: Response) => {
     return;
   }
 
-  let queryText: string;
-  let values: unknown[];
-  if (useApparent) {
-    // Long-range mountain viewfinder ranking — "fill the horizon with the peaks you can see",
-    // tuned for sight lines up to ~110 km where Earth curvature dominates:
-    //
-    //   • Visibility gate — spherical-earth inter-visibility. A summit clears the horizon (is not
-    //     hidden by the Earth's bulge) when
-    //         distance <= sqrt(2 * R_eff) * (sqrt(eye) + sqrt(summit))
-    //     with both heights above sea level. sqrt(2 * R_eff) ~= 4123 (m^0.5) using an R_eff that
-    //     folds in generous atmospheric refraction (k ~= 0.25), so we keep distant giants like
-    //     Rainier AND the lower peaks you look down at, and drop the thousands of hills that sit
-    //     below the curve at range. A naive "summit above eye" / "(elev-eye)/dist" rule gets both
-    //     of those wrong. Final occlusion by nearer terrain is the client's job (it has the DEM).
-    //
-    //   • Ranking — apparent angular size: prominence / distance, i.e. how large the peak looms in
-    //     view. Prominence is the rise above the connecting saddle (what you actually see standing
-    //     up), so dividing by distance balances near prominent summits against far giants. Unknown
-    //     prominence falls back to a small constant so un-surveyed bumps rank low but still appear.
-    queryText = `
-      SELECT * FROM (
-        SELECT id, name, elevation, prominence, type,
-               activities, features,
-               ST_Y(location::geometry) AS lat,
-               ST_X(location::geometry) AS lng,
-               ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
-        FROM destinations
-        WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
-          AND elevation IS NOT NULL
-      ) c
-      WHERE c.distance_m <= 4123 * (sqrt(GREATEST($5, 0)) + sqrt(GREATEST(c.elevation, 0)))
-      ORDER BY COALESCE(c.prominence, 100) / GREATEST(c.distance_m, 500) DESC
-      LIMIT $4`;
-    values = [lat, lng, radius, limit, eye];
-  } else {
-    queryText = `
-      SELECT id, name, elevation, prominence, type,
-             activities, features,
-             ST_Y(location::geometry) AS lat,
-             ST_X(location::geometry) AS lng,
-             ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
-      FROM destinations
-      WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
-      ORDER BY distance_m
-      LIMIT $4`;
-    values = [lat, lng, radius, limit];
-  }
-
-  const result = await db.query(queryText, values);
+  // Long-range mountain viewfinder ranking — "fill the horizon with the peaks you can see",
+  // tuned for sight lines up to ~110 km where Earth curvature dominates:
+  //
+  //   • Visibility gate — spherical-earth inter-visibility. A summit clears the horizon (is not
+  //     hidden by the Earth's bulge) when
+  //         distance <= sqrt(2 * R_eff) * (sqrt(eye) + sqrt(summit))
+  //     with both heights above sea level. sqrt(2 * R_eff) ~= 4123 (m^0.5) using an R_eff that
+  //     folds in generous atmospheric refraction (k ~= 0.25), so we keep distant giants like
+  //     Rainier AND the lower peaks you look down at, and drop the thousands of hills that sit
+  //     below the curve at range. A naive "summit above eye" / "(elev-eye)/dist" rule gets both
+  //     of those wrong. Final occlusion by nearer terrain is the client's job (it has the DEM).
+  //
+  //   • Ranking — apparent angular size: prominence / distance, i.e. how large the peak looms in
+  //     view. Prominence is the rise above the connecting saddle (what you actually see standing
+  //     up), so dividing by distance balances near prominent summits against far giants. Unknown
+  //     prominence falls back to a small constant so un-surveyed bumps rank low but still appear.
+  const query = buildNearbyDestinationsQuery({
+    lat,
+    lng,
+    radius,
+    limit,
+    eye: useApparent ? eye : undefined,
+  });
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 
