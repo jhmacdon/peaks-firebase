@@ -9,6 +9,7 @@ import {
   canonicalJson,
   chooseMatch,
   feeLeafCandidates,
+  recSiteKey,
   isOffSiteBathroomNote,
   mergeTrailheadAmenities,
   normalizeRegion,
@@ -174,10 +175,47 @@ test("a page never borrows a point from another region", () => {
   assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r08").kind, "located");
 });
 
-test("a point of unknown region is never borrowed", () => {
-  const index = buildLocationIndex([{ name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5 }]);
-  assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r09").kind, "region_mismatch");
-  assert.equal(resolveLocation(index, "Blue Hole Trailhead", null).kind, "region_mismatch");
+test("an unlabelled point is a different failure from a cross-region one", () => {
+  // Conflating the two would blame cross-country borrowing for points that
+  // simply carry no region label (a recreation-opportunity point has no raw
+  // row, so no region).
+  const unlabelled = buildLocationIndex([{ name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5 }]);
+  const missing = resolveLocation(unlabelled, "Blue Hole Trailhead", "r09");
+  assert.equal(missing.kind, "region_unknown");
+  assert.equal(missing.kind === "region_unknown" && missing.wanted, "09");
+  assert.deepEqual(missing.kind === "region_unknown" && missing.regions, []);
+
+  const labelled = buildLocationIndex([
+    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
+  ]);
+  const noWanted = resolveLocation(labelled, "Blue Hole Trailhead", null);
+  assert.equal(noWanted.kind, "region_unknown");
+  assert.equal(noWanted.kind === "region_unknown" && noWanted.wanted, null);
+  assert.deepEqual(noWanted.kind === "region_unknown" && noWanted.regions, ["08"]);
+});
+
+test("the raw index is keyed by dataset, so ids never cross datasets", () => {
+  const index = buildRecSiteIndex([
+    { site_cn: "5001", site_name: "SHARED ID TRAILHEAD", region: "06", fee_charged: "Y" },
+  ]);
+  assert.equal(index.get(recSiteKey("usfs_rec_sites", "5001"))?.feeCharged, "Y");
+  assert.equal(index.get(recSiteKey("usfs_recreation_opportunities", "5001")), undefined);
+});
+
+test("a no-fee claim with no raw row to check is written but counted", () => {
+  const { leaves, refusals, notices } = feeLeafCandidates(
+    feeRow({ source_dataset: "usfs_recreation_opportunities", fee_required: false, verbatim_quote: "No fee" }),
+    null
+  );
+  assert.equal(leaves[0].sourced.value, false);
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(notices, ["fee_required_false_quote_only"]);
+
+  const corroborated = feeLeafCandidates(
+    feeRow({ fee_required: false, verbatim_quote: "No fee" }),
+    recSiteFacts({ feeCharged: "N" })
+  );
+  assert.deepEqual(corroborated.notices, [], "a fee_charged='N' row is cross-checked, not quote-only");
 });
 
 test("a name shared by far-apart places in one region stays unlocated", () => {
@@ -213,7 +251,7 @@ test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
     { site_cn: null, site_name: "no id" },
   ]);
   assert.equal(index.size, 1);
-  const facts = index.get("5927010263");
+  const facts = index.get(recSiteKey("usfs_rec_sites", "5927010263"));
   assert.equal(facts?.publicName, "Eagle Forks Trailhead");
   assert.equal(facts?.region, "06");
   assert.equal(facts?.feeCharged, "N", "fee_charged is compared upper-case");
@@ -255,7 +293,8 @@ test("a fee row becomes sourced parking leaves with the dataset service url", ()
       passes_accepted: ["Northwest Forest"],
       fee_waived_for: ["Senior/Access/Military"],
       verbatim_quote: "$5 per vehicle per day",
-    })
+    }),
+    recSiteFacts({ feeCharged: "Y" })
   );
   assert.deepEqual(refusals, []);
   assert.deepEqual(
@@ -277,7 +316,8 @@ test("a fee row becomes sourced parking leaves with the dataset service url", ()
 
 test("the recreation-opportunities dataset carries its own service url", () => {
   const { leaves } = feeLeafCandidates(
-    feeRow({ source_dataset: "usfs_recreation_opportunities", fee_required: true })
+    feeRow({ source_dataset: "usfs_recreation_opportunities", fee_required: true }),
+    null
   );
   assert.equal(
     leaves[0].sourced.source.url,
@@ -286,11 +326,11 @@ test("the recreation-opportunities dataset carries its own service url", () => {
 });
 
 test("fee_required=false without a verbatim quote is refused", () => {
-  const { leaves, refusals } = feeLeafCandidates(feeRow({ fee_required: false, verbatim_quote: null }));
+  const { leaves, refusals } = feeLeafCandidates(feeRow({ fee_required: false, verbatim_quote: null }), null);
   assert.deepEqual(leaves, []);
   assert.deepEqual(refusals, ["fee_required_false_without_quote"]);
 
-  const blank = feeLeafCandidates(feeRow({ fee_required: false, verbatim_quote: "   " }));
+  const blank = feeLeafCandidates(feeRow({ fee_required: false, verbatim_quote: "   " }), null);
   assert.deepEqual(blank.leaves, []);
   assert.deepEqual(blank.refusals, ["fee_required_false_without_quote"]);
 });
@@ -334,7 +374,7 @@ test("a fee_charged=Y row still writes its other fee facts and a true claim", ()
 });
 
 test("empty pass lists and null amounts produce no leaves", () => {
-  const { leaves } = feeLeafCandidates(feeRow({ fee_required: null }));
+  const { leaves } = feeLeafCandidates(feeRow({ fee_required: null }), null);
   assert.deepEqual(leaves, []);
 });
 

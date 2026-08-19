@@ -12,9 +12,11 @@ import {
   isPlainObject,
   leafKey,
   mergeTrailheadAmenities,
+  normalizeRegion,
   normalizeTrailheadName,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
+  recSiteKey,
   resolveLeafConflicts,
   resolveLocation,
   TOKEN_OVERLAP_NAME_THRESHOLD,
@@ -155,7 +157,9 @@ export function usage(): string {
     "  --no-log              skip the data_source_runs entries",
     `  --name-threshold=N    name-gate cut (default ${PG_TRGM_NAME_THRESHOLD} with pg_trgm, ${TOKEN_OVERLAP_NAME_THRESHOLD} without)`,
     `  --radius-m=N          match radius in metres (default ${TRAILHEAD_MATCH_RADIUS_M})`,
-    "  --limit=N             read at most N rows per source (smoke runs)",
+    "  --limit=N             match at most N rows per source (smoke runs); every",
+    "                        file is still read whole, since the location index",
+    "                        and the fee guard need all of it",
     "  --help                print this and exit",
   ].join("\n");
 }
@@ -209,16 +213,16 @@ export function parseArgs(argv: string[]): Args {
 
 interface ParsedFile<T> {
   rows: T[];
+  /** Unparseable lines in the whole file — --limit never hides one. */
   malformed: number;
 }
 
-function parseJsonl<T>(contents: string, limit: number | null): ParsedFile<T> {
+function parseJsonl<T>(contents: string): ParsedFile<T> {
   const rows: T[] = [];
   let malformed = 0;
   for (const line of contents.split("\n")) {
     const text = line.trim();
     if (text.length === 0) continue;
-    if (limit !== null && rows.length >= limit) break;
     try {
       rows.push(JSON.parse(text) as T);
     } catch {
@@ -251,6 +255,7 @@ interface SourceCounts {
   matched: number;
   rowsWritten: number;
   refusals: Record<string, number>;
+  notices: Record<string, number>;
 }
 
 function emptyCounts(): SourceCounts {
@@ -264,12 +269,19 @@ function emptyCounts(): SourceCounts {
     matched: 0,
     rowsWritten: 0,
     refusals: {},
+    notices: {},
   };
 }
 
 function countRefusals(counts: SourceCounts, refusals: string[]): void {
   for (const reason of refusals) {
     counts.refusals[reason] = (counts.refusals[reason] ?? 0) + 1;
+  }
+}
+
+function countNotices(counts: SourceCounts, notices: string[]): void {
+  for (const note of notices) {
+    counts.notices[note] = (counts.notices[note] ?? 0) + 1;
   }
 }
 
@@ -288,6 +300,9 @@ interface ReportRecord {
     matched_name: string;
   };
   refusals?: string[];
+  /** Page rows only: the region asked for and the regions the name lives in. */
+  wanted_region?: string | null;
+  point_regions?: string[];
   row: Record<string, unknown>;
 }
 
@@ -421,17 +436,17 @@ function readSources(
   // bathroom files carry the coordinates a page row borrows. Reading a slice
   // of any of them would change which rows can be located or believed, so
   // --limit is applied further down, to the rows that go on to match.
-  const rawRecSites = parseJsonl<RawRecSiteRow>(readFile(rawRecSitesPath), null);
+  const rawRecSites = parseJsonl<RawRecSiteRow>(readFile(rawRecSitesPath));
   const recSites = buildRecSiteIndex(rawRecSites.rows);
   if (recSites.size === 0) {
     throw new Error(
       `${rawRecSitesPath} yielded no usable rows — the fee guard and the region check need the raw EDW pull (--raw-rec-sites=FILE)`
     );
   }
-  const fees = parseJsonl<FeeRow>(readFile(feesPath), null);
-  const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath), null);
-  const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath), null);
-  const registry = parseJsonl<RegistryRow>(readFile(registryPath), null);
+  const fees = parseJsonl<FeeRow>(readFile(feesPath));
+  const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath));
+  const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath));
+  const registry = parseJsonl<RegistryRow>(readFile(registryPath));
   logger.log(`  Raw EDW rec-site rows indexed: ${recSites.size}`);
 
   counts.usfs_fees.malformed = fees.malformed;
@@ -453,9 +468,10 @@ function readSources(
       });
       continue;
     }
-    const facts = recSites.get(String(row.source_id)) ?? null;
+    const facts = recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null;
     const extraction = feeLeafCandidates(row, facts);
     countRefusals(counts.usfs_fees, extraction.refusals);
+    countNotices(counts.usfs_fees, extraction.notices);
     if (extraction.leaves.length === 0) {
       counts.usfs_fees.noFacts += 1;
       continue;
@@ -486,6 +502,7 @@ function readSources(
     }
     const extraction = bathroomLeafCandidates(row);
     countRefusals(counts.usfs_bathrooms, extraction.refusals);
+    countNotices(counts.usfs_bathrooms, extraction.notices);
     if (extraction.leaves.length === 0) {
       counts.usfs_bathrooms.noFacts += 1;
       continue;
@@ -494,7 +511,7 @@ function readSources(
       source: "usfs_bathrooms",
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
-      names: candidateNames(row.name, recSites.get(String(row.source_id)) ?? null),
+      names: candidateNames(row.name, recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null),
       point: { lat: row.lat, lng: row.lng },
       leaves: extraction.leaves,
       refusals: extraction.refusals,
@@ -513,7 +530,7 @@ function readSources(
   const locatable = [...fees.rows, ...bathrooms.rows]
     .filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng))
     .map((row) => {
-      const facts = recSites.get(String(row.source_id)) ?? null;
+      const facts = recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null;
       return {
         name: row.name,
         lat: row.lat,
@@ -548,19 +565,27 @@ function readSources(
           ? "ambiguous_name_location"
           : located.kind === "region_mismatch"
             ? "region_mismatch"
-            : "no_edw_name_location";
+            : located.kind === "region_unknown"
+              ? "region_unknown"
+              : "no_edw_name_location";
       counts.usfs_pages.noLocation += 1;
       countRefusals(counts.usfs_pages, [reason]);
       skipped.push({
         reason,
         source: "usfs_pages",
         name: entry.name,
+        // Say what was compared, so a reader can tell a cross-country name
+        // clash from a point that simply carries no region label.
+        ...(located.kind === "region_mismatch" || located.kind === "region_unknown"
+          ? { wanted_region: normalizeRegion(entry.region), point_regions: located.regions }
+          : {}),
         row: row as unknown as Record<string, unknown>,
       });
       continue;
     }
     const extraction = pageLeafCandidates(row);
     countRefusals(counts.usfs_pages, extraction.refusals);
+    countNotices(counts.usfs_pages, extraction.notices);
     if (extraction.leaves.length === 0) {
       counts.usfs_pages.noFacts += 1;
       continue;
@@ -729,7 +754,7 @@ export async function importTrailheadFacts(
     existing.push(...row.leaves);
     byDestination.set(id, existing);
     const rowKeys = rowsByDestination.get(id) ?? new Set<string>();
-    rowKeys.add(`${row.source} ${row.rowKey}`);
+    rowKeys.add(`${row.source} ${row.rowKey}`);
     rowsByDestination.set(id, rowKeys);
   }
 
@@ -776,10 +801,10 @@ export async function importTrailheadFacts(
   for (const update of pending) {
     const written = new Set<string>();
     for (const leaf of byDestination.get(update.id) ?? []) {
-      if (update.appliedLeaves.has(leafKey(leaf))) written.add(`${leaf.source} ${leaf.rowKey}`);
+      if (update.appliedLeaves.has(leafKey(leaf))) written.add(`${leaf.source} ${leaf.rowKey}`);
     }
     for (const key of written) {
-      const source = key.split(" ")[0] as TrailheadFactSource;
+      const source = key.split(" ")[0] as TrailheadFactSource;
       counts[source].rowsWritten += 1;
     }
   }
@@ -867,7 +892,7 @@ function logSummary(
     const counts = summary.counts[source];
     logger.log(`${source}:`);
     logger.log(`  rows read:            ${counts.rowsIn}`);
-    if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed}`);
+    if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed} (whole file, never limited)`);
     logger.log(`  no usable location:   ${counts.noLocation}`);
     logger.log(`  no fact to write:     ${counts.noFacts}`);
     logger.log(`  no trailhead in ${summary.radiusM}m: ${counts.noNearbyTrailhead}`);
@@ -875,7 +900,9 @@ function logSummary(
     logger.log(`  matched:              ${counts.matched}`);
     logger.log(`  rows written:         ${counts.rowsWritten}`);
     const refusals = Object.entries(counts.refusals).sort((a, b) => b[1] - a[1]);
-    for (const [reason, count] of refusals) logger.log(`    - ${reason}: ${count}`);
+    for (const [reason, count] of refusals) logger.log(`    - not written, ${reason}: ${count}`);
+    const notices = Object.entries(counts.notices).sort((a, b) => b[1] - a[1]);
+    for (const [note, count] of notices) logger.log(`    - written with a caveat, ${note}: ${count}`);
   }
   logger.log("");
   logger.log(`Destinations with facts:  ${summary.destinationsConsidered}`);

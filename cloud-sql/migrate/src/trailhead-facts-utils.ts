@@ -197,7 +197,10 @@ export function buildLocationIndex(
 export type LocationLookup =
   | { kind: "located"; point: LocationPoint }
   | { kind: "unknown_name" }
-  | { kind: "region_mismatch"; regions: string[] }
+  /** The name exists, but nothing on either side carries a region to compare. */
+  | { kind: "region_unknown"; wanted: string | null; regions: string[] }
+  /** Both sides carry a region and they disagree — a different place. */
+  | { kind: "region_mismatch"; wanted: string; regions: string[] }
   | { kind: "ambiguous"; spreadM: number };
 
 /**
@@ -221,10 +224,16 @@ export function resolveLocation(
   if (!points || points.length === 0) return { kind: "unknown_name" };
 
   const wanted = normalizeRegion(region);
+  const labelled = [...new Set(points.map((point) => point.region).filter((value): value is string => value !== null))];
   const inRegion = points.filter((point) => wanted !== null && point.region === wanted);
   if (inRegion.length === 0) {
-    const regions = [...new Set(points.map((point) => point.region ?? "unknown"))];
-    return { kind: "region_mismatch", regions };
+    // Two different failures, and conflating them would blame cross-country
+    // borrowing for points that simply carry no region label (a
+    // recreation-opportunity point has no raw row, so no region).
+    if (wanted === null || labelled.length === 0) {
+      return { kind: "region_unknown", wanted, regions: labelled };
+    }
+    return { kind: "region_mismatch", wanted, regions: labelled };
   }
 
   let spread = 0;
@@ -311,6 +320,18 @@ export interface RecSiteFacts {
 
 export type RecSiteIndex = Map<string, RecSiteFacts>;
 
+/** The only dataset the raw pull covers. */
+export const REC_SITE_DATASET = "usfs_rec_sites";
+
+/**
+ * Index key. Source ids are only unique within a dataset, so a
+ * recreation-opportunity row must never inherit the facts of a recreation site
+ * that happens to share its id.
+ */
+export function recSiteKey(sourceDataset: string, sourceId: string | number): string {
+  return `${sourceDataset}:${sourceId}`;
+}
+
 /** Forest Service region as two digits: "r09", "9" and "09" all become "09". */
 export function normalizeRegion(value: string | number | null | undefined): string | null {
   if (value === null || value === undefined) return null;
@@ -327,7 +348,7 @@ export function buildRecSiteIndex(rows: RawRecSiteRow[]): RecSiteIndex {
   for (const row of rows) {
     const sourceId = row.site_cn === null || row.site_cn === undefined ? "" : String(row.site_cn).trim();
     if (sourceId.length === 0) continue;
-    index.set(sourceId, {
+    index.set(recSiteKey(REC_SITE_DATASET, sourceId), {
       sourceId,
       feeCharged: row.fee_charged ? String(row.fee_charged).trim().toUpperCase() : null,
       feeType: row.fee_type ? String(row.fee_type).trim() : null,
@@ -425,6 +446,8 @@ export interface LeafExtraction {
   leaves: LeafCandidate[];
   /** Facts deliberately not written, keyed by a short reason. */
   refusals: string[];
+  /** Facts written with a caveat worth counting — a weaker guard, say. */
+  notices: string[];
 }
 
 /**
@@ -439,11 +462,17 @@ export interface LeafExtraction {
  *    "No fees are required for this site" that ships as the EDW default — and
  *    66 of those rows sit on records the same dataset marks as charging, 22 of
  *    them with an explicit STANDARD AMENITY FEE. The stricter claim wins.
+ *
+ * `facts` is required, not optional, so a future caller cannot quietly drop
+ * back to guard 1 alone. Pass null when the row has no raw counterpart — the
+ * recreation-opportunities dataset has none — and the no-fee claim it writes
+ * rests on its quote alone, counted as fee_required_false_quote_only.
  */
-export function feeLeafCandidates(row: FeeRow, facts?: RecSiteFacts | null): LeafExtraction {
+export function feeLeafCandidates(row: FeeRow, facts: RecSiteFacts | null): LeafExtraction {
   const leaves: LeafCandidate[] = [];
   const refusals: string[] = [];
-  const rowKey = `${row.source_dataset}:${row.source_id}`;
+  const notices: string[] = [];
+  const rowKey = recSiteKey(row.source_dataset, row.source_id);
   const push = (leaf: ParkingLeaf, value: unknown) => {
     leaves.push({ block: "parking", leaf, source: "usfs_fees", rowKey, sourced: edwSourced(row, value) });
   };
@@ -451,9 +480,14 @@ export function feeLeafCandidates(row: FeeRow, facts?: RecSiteFacts | null): Lea
   if (row.fee_required === true) {
     push("fee_required", true);
   } else if (row.fee_required === false) {
-    if (facts?.feeCharged === "Y") refusals.push("fee_required_false_contradicted_by_fee_charged");
-    else if (nonEmptyText(row.verbatim_quote)) push("fee_required", false);
-    else refusals.push("fee_required_false_without_quote");
+    if (facts?.feeCharged === "Y") {
+      refusals.push("fee_required_false_contradicted_by_fee_charged");
+    } else if (nonEmptyText(row.verbatim_quote)) {
+      push("fee_required", false);
+      if (facts?.feeCharged !== "N") notices.push("fee_required_false_quote_only");
+    } else {
+      refusals.push("fee_required_false_without_quote");
+    }
   }
 
   const dayFee = positiveNumber(row.day_fee_usd);
@@ -468,7 +502,7 @@ export function feeLeafCandidates(row: FeeRow, facts?: RecSiteFacts | null): Lea
   const waived = stringList(row.fee_waived_for);
   if (waived) push("fee_waived_for", waived);
 
-  return { leaves, refusals };
+  return { leaves, refusals, notices };
 }
 
 export function isOffSiteBathroomNote(rawString: string | null | undefined): boolean {
@@ -483,10 +517,10 @@ export function isOffSiteBathroomNote(rawString: string | null | undefined): boo
 export function bathroomLeafCandidates(row: BathroomRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
   const refusals: string[] = [];
-  const rowKey = `${row.source_dataset}:${row.source_id}`;
+  const rowKey = recSiteKey(row.source_dataset, row.source_id);
   if (row.status !== "present" && row.status !== "absent") {
     refusals.push("status_unknown");
-    return { leaves, refusals };
+    return { leaves, refusals, notices: [] };
   }
   const status = row.status as TrailheadBathroomStatus;
   const push = (leaf: BathroomLeaf, value: unknown) => {
@@ -509,7 +543,7 @@ export function bathroomLeafCandidates(row: BathroomRow): LeafExtraction {
   const seasonNote = nonEmptyText(row.season_note);
   if (seasonNote) push("season_note", seasonNote);
 
-  return { leaves, refusals };
+  return { leaves, refusals, notices: [] };
 }
 
 /** Page section row → parking leaves (capacity and the fills-early note). */
@@ -527,7 +561,7 @@ export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   if (fillsEarly) push("fills_early_note", fillsEarly);
 
   if (leaves.length === 0) refusals.push("no_structured_facts");
-  return { leaves, refusals };
+  return { leaves, refusals, notices: [] };
 }
 
 // ---------------------------------------------------------------------------

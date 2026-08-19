@@ -58,6 +58,13 @@ Writes merge into `destinations.amenities`: unrelated blocks stay, unchanged
 rows are not rewritten, and a leaf written by another source is left alone. A
 re-run is safe.
 
+Read the per-source counts the run prints. Two of them matter most: rows
+refused because the raw dataset contradicts a no-fee claim, and rows written on
+a quote alone. The raw pull covers recreation sites only, so fee rows from the
+recreation-opportunities dataset have nothing to cross-check — their no-fee
+claims rest on their extracted quote, and they are counted as
+`fee_required_false_quote_only` rather than passed off as verified.
+
 Every run records one row per source in `data_source_runs` (`--no-log` skips
 it). `run_kind` is `import`; a dry run is logged with status `dry_run`, so it
 does not count as a refresh.

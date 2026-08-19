@@ -500,10 +500,11 @@ A source row is imported only when both gates pass: a destination with the
 `trailhead` feature within **250 m**, and a name similarity at or above the
 threshold (0.5 with `pg_trgm`, 0.7 for the JS token-overlap fallback; both
 override with `--name-threshold`). The gate tries both the EDW `site_name` and
-the `public_site_name` — they differ on 70 percent of rows, and Peaks catalogs
-trailheads under the public one — and passes if either clears. Rejected rows go
-to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with
-the reason, the nearest candidate, and which name scored best.
+the `public_site_name` — 16 percent of raw rows (1,151 of 7,357) yield a second,
+genuinely different name once normalized, and Peaks catalogs trailheads under
+the public one — and passes if either clears. Rejected rows go to
+`import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with the
+reason, the nearest candidate, and which name scored best.
 
 The importer also reads the raw EDW pull
 (`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)
@@ -511,8 +512,16 @@ and refuses to run without it. The normalized files drop three fields it needs:
 `fee_charged` (the fee guard below), `public_site_name` (the name gate), and
 `region` — a Forest Service page borrows coordinates from the same-named EDW
 trailhead, and without a region check a single same-named point anywhere in the
-country looks confident. Region equality is required; mismatches are dropped and
-counted.
+country looks confident. Region equality is required; failures are dropped and
+counted under two separate reasons — `region_mismatch` when both sides carry a
+region and they disagree, `region_unknown` when one side has no region to
+compare — and the report records both regions.
+
+The raw pull covers recreation **sites** only. The 1,243 fee rows from the
+recreation-**opportunities** dataset have no raw counterpart, so their no-fee
+claims rest on their quote text alone with nothing to cross-check: 632 rows
+today, counted as `fee_required_false_quote_only` and printed in the run
+summary. They also go through the gate under one name only.
 
 Writes merge per leaf into `destinations.amenities` as `TrailheadAmenities`
 (`migrate/src/lib/amenities.ts`), each leaf carrying its own source. Unrelated

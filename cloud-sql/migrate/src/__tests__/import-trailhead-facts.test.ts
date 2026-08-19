@@ -627,6 +627,104 @@ test("a page never borrows a point from another Forest Service region", async ()
     reported.map((record) => record.reason),
     ["region_mismatch"]
   );
+  assert.equal(reported[0].wanted_region, "09", "the report says what was compared");
+  assert.deepEqual(reported[0].point_regions, ["06"]);
+});
+
+test("a page whose EDW point carries no region is counted separately", async () => {
+  // The point comes from a recreation-opportunity fee row, which has no raw
+  // counterpart and therefore no region — not a cross-country name clash.
+  const pageUrl = "https://www.fs.usda.gov/r09/marktwain/recreation/blue-hole-trailhead";
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_recreation_opportunities",
+        source_id: "9001",
+        name: "BLUE HOLE TRAILHEAD",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: jsonl([
+      {
+        url: pageUrl,
+        capacity_estimate: 12,
+        fills_early_note: null,
+        fee_text: null,
+        restroom_text: null,
+        road_text: null,
+        fetched_at: "2026-08-19T20:43:51+00:00",
+      },
+    ]),
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
+      { url: pageUrl, name: "Blue Hole Trailhead", region: "r09" },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-blue", name: "Blue Hole Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_pages.refusals.region_unknown, 1);
+  assert.equal(summary.counts.usfs_pages.refusals.region_mismatch, undefined);
+  const reported = io.written[path.join(DATA_DIR, "import-unmatched-pages.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(reported[0].reason, "region_unknown");
+  assert.equal(reported[0].wanted_region, "09");
+  assert.deepEqual(reported[0].point_regions, []);
+});
+
+test("a quote-only no-fee claim is written and counted", async () => {
+  // A recreation-opportunity row has no raw counterpart, so its no-fee claim
+  // rests on its quote alone. It writes — and it is counted, not silent.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_recreation_opportunities",
+        // The same id as a rec-site row with fee_charged='Y': a dataset-blind
+        // lookup would inherit that flag and wrongly refuse this row.
+        source_id: "1001",
+        name: "SNOW LAKE TRAILHEAD",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: false,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "No fees are required for this site",
+        as_of: "2026-08-19",
+      },
+    ]),
+  });
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_fees.notices.fee_required_false_quote_only, 1);
+  assert.equal(summary.counts.usfs_fees.refusals.fee_required_false_contradicted_by_fee_charged, undefined);
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.parking.fee_required.value, false);
 });
 
 test("the public site name can clear the gate when the internal name cannot", async () => {
