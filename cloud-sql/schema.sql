@@ -1473,6 +1473,27 @@ CREATE TABLE session_tombstones (
     PRIMARY KEY (session_id, user_id)
 );
 
+-- ---------------------------------------------------------------------------
+-- data_source_runs
+-- Durable log of automated data-source runs (fetch / normalize / import /
+-- check) for trailhead facts (parking, road access, bathrooms) and similar
+-- imported data. status = 'dry_run' covers a run that touched no data on
+-- purpose. See migrations/20260819_data_source_runs.sql.
+-- ---------------------------------------------------------------------------
+CREATE TABLE data_source_runs (
+    id            BIGSERIAL PRIMARY KEY,
+    source        TEXT NOT NULL,
+    run_kind      TEXT NOT NULL CHECK (run_kind IN ('fetch', 'normalize', 'import', 'check')),
+    status        TEXT NOT NULL CHECK (status IN ('success', 'partial', 'failed', 'dry_run')),
+    started_at    TIMESTAMPTZ NOT NULL,
+    finished_at   TIMESTAMPTZ,
+    rows_in       INT,
+    rows_matched  INT,
+    rows_written  INT,
+    notes         TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- =============================================================================
 -- Indexes
 -- =============================================================================
@@ -1554,6 +1575,9 @@ CREATE INDEX idx_tracking_sessions_link_opt_out ON tracking_sessions (user_id) W
 
 CREATE INDEX idx_session_markers_session    ON session_markers (session_id);
 CREATE INDEX idx_session_tombstones_sync    ON session_tombstones (user_id, server_updated_at ASC, session_id ASC);
+
+CREATE INDEX idx_data_source_runs_source_started_at
+    ON data_source_runs (source, started_at DESC);
 
 CREATE INDEX idx_list_destinations_dest     ON list_destinations (destination_id);
 CREATE INDEX idx_destination_areas_area     ON destination_areas (area_id);
@@ -2045,6 +2069,35 @@ AFTER INSERT ON destinations
 REFERENCING NEW TABLE AS new_destinations
 FOR EACH STATEMENT
 EXECUTE FUNCTION link_areas_on_destination_insert();
+
+-- =============================================================================
+-- Views
+-- =============================================================================
+
+-- One row per source that has ever run: the latest finished_at of a
+-- successful, non-dry-run 'import' or 'normalize' run, how many days old
+-- that is, and whether it has gone stale (no such run in the last 90 days).
+-- A source with no successful run yet still gets a row, with a NULL
+-- last_successful_at and is_stale = true.
+CREATE OR REPLACE VIEW data_source_freshness AS
+WITH successful_runs AS (
+    SELECT source, MAX(finished_at) AS last_successful_at
+    FROM data_source_runs
+    WHERE run_kind IN ('import', 'normalize')
+      AND status = 'success'
+      AND finished_at IS NOT NULL
+    GROUP BY source
+)
+SELECT
+    known.source,
+    successful_runs.last_successful_at,
+    EXTRACT(DAY FROM (now() - successful_runs.last_successful_at))::INT AS days_stale,
+    (
+        successful_runs.last_successful_at IS NULL
+        OR successful_runs.last_successful_at < now() - INTERVAL '90 days'
+    ) AS is_stale
+FROM (SELECT DISTINCT source FROM data_source_runs) AS known
+LEFT JOIN successful_runs ON successful_runs.source = known.source;
 
 -- =============================================================================
 -- Example Queries (reference, not executed)
