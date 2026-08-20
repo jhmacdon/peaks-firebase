@@ -7,8 +7,26 @@ Canonical source: `docs/plans/web-overhaul.md` ("Global Constraints" and
 `web/src/app/layout.tsx` (font loading).
 
 Everything here is a CSS custom property registered through Tailwind 4's
-`@theme`, so it's usable both as a Tailwind utility (`bg-page`, `text-ink`)
-and as a raw variable (`var(--color-page)`) in one-off CSS.
+`@theme`. **Color, radius, and shadow tokens** are usable both as a Tailwind
+utility (`bg-page`, `text-ink`, `rounded-ctl`, `shadow-float`) and as a raw
+variable (`var(--color-page)`) in one-off CSS — they're declared under plain
+`@theme`, which emits a real `:root`-scoped custom property.
+
+**Font tokens are utility-class-only** (`font-sans`, `font-mono`,
+`font-display`, `font-mono-num`). They're declared under `@theme inline`,
+which compiles each utility rule with the underlying next/font variable's
+own name baked in directly, rather than routing through `--font-sans` at
+the point of use. `--font-sans` itself is still registered at `:root`, but
+its computed value is guaranteed-invalid there — `--font-geist-sans` (what
+it points to) only exists where next/font's `.variable` className is
+applied (currently `<body>`), and that invalidity inherits down unchanged
+rather than being fixed by a descendant's own local `--font-geist-sans`.
+Verified live: `getComputedStyle(el).getPropertyValue('--font-sans')`
+returns `""` on both `:root` and `<body>`. Practical rule: never
+`var(--font-sans)` (or `--font-mono`/`--font-display`/`--font-mono-num`) in
+hand-written CSS — apply the utility class to an element that also carries
+the matching next/font `.variable` className (an ancestor is enough;
+today that's always `<body>`).
 
 ## The laws (apply everywhere, not just detail pages)
 
@@ -57,9 +75,14 @@ explicit dark list. Derived here, not authoritative from the plan:
 `faint` sits at the same proportional position between `muted` and `border`
 that light-mode `faint` occupies between light `muted` and `border`;
 `success` is brightened to a comparable lightness bump as the plan's given
-`alert` dark value, same hue family as light `success`. Both checked at
-≥4.5:1 contrast against `page` and `surface`. Revisit if a future task wants
-different values.
+`alert` dark value, same hue family as light `success`.
+
+`--color-success` (dark) checked at ≥4.5:1 contrast against `page` and
+`surface`. `--color-faint` (dark) is **sub-AA by design** — 3.97:1 on
+`page`, 3.67:1 on `surface` — matching light-mode `faint`'s own sub-AA
+contrast (3.54:1 on `page`). Faint is the lowest-emphasis text tier in both
+themes: decorative/secondary only, never information a user must read.
+Revisit if a future task wants different values.
 
 ² `--color-accent` has a progressive-enhancement override: on displays that
 support the P3 gamut (`@supports (color: color(display-p3 0 0 0))`), it
@@ -76,13 +99,26 @@ Teal (`accent` / `accent-text`) is rationed, per surface:
   backgrounds. `--color-alert` is a separate token for errors — don't reach
   for accent there.
 
+**Primary buttons: accent fill + ink text, not white.** White-on-accent is
+~2.64:1 (fails even the 3:1 UI-component floor) — this teal is too light
+for white text. Light ink (`#21211F`) on accent measures **6.12:1** (AA
+pass) and is the pairing to use. Use it **fixed**, not the theme-varying
+`text-ink` token: dark-mode `--color-ink` (`#ECEAE6`, near-white) on accent
+is ~2.19:1 — worse than white. `--color-accent` doesn't shift between
+themes, so its button text shouldn't either. Task 8's `Button` primary
+variant should pin the light-ink value for its text color rather than
+reaching for `text-ink`.
+
 ### Adding a light/dark toggle later
 
-Dark values live in exactly one place: the `@media (prefers-color-scheme:
-dark)` block in `globals.css`. To add an explicit user toggle, duplicate
-that block's declarations under `:root.dark { … }` and have the toggle
-add/remove the class — no other CSS restructuring required. Not built in
-this task; scoped for later.
+Dark values live in exactly one place: `@media (prefers-color-scheme: dark)
+{ :root:not(.light) { … } }` in `globals.css`. The `:not(.light)` guard is
+already in place (a no-op today — nothing sets that class yet) specifically
+so this stays a pure addition later: an explicit toggle just needs to
+duplicate the block's declarations under `:root.dark { … }` and add/remove
+`.dark`/`.light` on `:root`. Without the guard, an explicit "light" choice
+couldn't beat a dark OS preference, since the media query would keep
+matching regardless of the class. Not built in this task; scoped for later.
 
 ## Type
 

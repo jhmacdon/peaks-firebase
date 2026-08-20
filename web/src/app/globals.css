@@ -12,9 +12,12 @@
  * of this block, unlayered so it always wins). Components never need a
  * `dark:` variant for these tokens — the variable itself repaints.
  *
- * To add an explicit light/dark toggle later: duplicate the dark block's
- * declarations under a `:root.dark { … }` rule and have the toggle add/remove
- * that class. No other restructuring needed — this is the only place dark
+ * To add an explicit light/dark toggle later: the dark media block below is
+ * already guarded with `:not(.light)`, so an explicit "light" choice will
+ * correctly beat a dark OS preference once that class exists. Adding the
+ * toggle is then a pure addition — duplicate the dark block's declarations
+ * under a `:root.dark { … }` rule and have the toggle add/remove `.dark`/
+ * `.light`. No other restructuring needed — this is the only place dark
  * values are defined.
  */
 @theme {
@@ -49,9 +52,25 @@
     0 0 1px rgb(0 0 0 / 0.2);
 }
 
-/* Font families. `inline` avoids a second indirection so the next/font
-   variables (scoped to <body> via their `.variable` className) resolve
-   correctly rather than being redeclared at :root. */
+/* Font families. `inline` makes Tailwind compile each utility rule with the
+   next/font variable's OWN name baked in directly (e.g.
+   `.font-sans { font-family: var(--font-geist-sans) }`) rather than routing
+   through --font-sans at the point of use. That matters: next/font's own
+   variables (--font-geist-sans etc.) are only ever declared where their
+   `.variable` className is applied (currently <body>), never globally.
+   Tailwind still registers --font-sans itself at :root (it's in the
+   compiled theme block), but its computed value is guaranteed-invalid
+   there, since --font-geist-sans doesn't exist at :root — and that invalid
+   status inherits down unchanged rather than being "fixed" by a
+   descendant's own local --font-geist-sans. Verified live:
+   `getComputedStyle(el).getPropertyValue('--font-sans')` returns `""` on
+   both :root and <body>.
+   Consequence: --font-sans/--font-mono/--font-display/--font-mono-num are
+   NOT usable as raw CSS variables anywhere — var(--font-sans) in
+   hand-written CSS never resolves. Consume them only via their utility
+   class — `font-sans`, `font-mono`, `font-display`, `font-mono-num` — on
+   an element that also carries the matching next/font `.variable`
+   className (an ancestor is enough; currently that's always <body>). */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -78,15 +97,19 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  /* :not(.light) is a no-op today (nothing sets that class yet) but means
+     an explicit light-mode toggle, once one exists, can beat a dark OS
+     preference without touching this block. */
+  :root:not(.light) {
     /* Warm dark, not slate — same R>G>B warm cast as the light ramp. */
     --color-ink: #eceae6;
     --color-ink-2: #c6c3bc;
     --color-muted: #96938a;
     /* Not specified in the plan's dark list; interpolated at the same
        proportional position between --muted and --border as light-mode
-       --faint sits between --muted and --border (~4:1 contrast on
-       --page/--surface). */
+       --faint sits between --muted and --border. Sub-AA by design (3.97:1
+       page / 3.67:1 surface) — lowest-emphasis decorative text only, never
+       information a user must read. */
     --color-faint: #797770;
 
     --color-border: #3a3936;
@@ -107,9 +130,11 @@
 
 body {
   min-height: 100vh;
-  font-family: var(--font-sans), sans-serif;
   font-size: 16px;
   line-height: 1.55;
+  /* Family comes from the `font-sans` utility class on <body> in
+     layout.tsx, not from a rule here — see the @theme inline comment
+     above for why var(--font-sans) can't be used directly in this file. */
 }
 
 ::selection {
