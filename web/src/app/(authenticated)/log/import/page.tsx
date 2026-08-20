@@ -189,7 +189,7 @@ export default function ImportGPXPage() {
                 />
               </div>
               {preview.ignoredPointCount > 0 && (
-                <p className="mt-4 text-xs text-alert">
+                <p className="mt-4 text-xs text-muted">
                   {preview.ignoredPointCount.toLocaleString()} invalid or
                   duplicate points will be skipped.
                 </p>
@@ -254,14 +254,11 @@ export default function ImportGPXPage() {
         )}
 
         {result?.warning && (
-          <div
-            role="status"
-            className="rounded-ctl border border-alert/30 bg-alert/10 p-4 text-sm text-alert"
-          >
+          <div role="status" className="text-sm text-ink-2">
             <p>{result.warning}</p>
             <Link
               href={`/log/${result.id}`}
-              className="mt-2 inline-block font-semibold underline underline-offset-2"
+              className="mt-2 inline-block font-semibold text-accent-text underline underline-offset-2"
             >
               Open activity
             </Link>

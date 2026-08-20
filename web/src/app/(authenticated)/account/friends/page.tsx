@@ -188,7 +188,12 @@ export default function FriendsPage() {
                 value={`${typeof window !== "undefined" ? window.location.origin : ""}/account/friends?invite=${inviteCode}`}
                 className="flex-1 text-xs text-ink-2 truncate"
               />
-              <Button onClick={handleCopyInvite} size="sm" className="shrink-0">
+              <Button
+                onClick={handleCopyInvite}
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+              >
                 {copied ? "Copied!" : "Copy"}
               </Button>
             </div>
@@ -229,6 +234,7 @@ export default function FriendsPage() {
             />
             <Button
               type="submit"
+              variant="secondary"
               disabled={accepting || !codeInput.trim()}
               size="sm"
               className="shrink-0"
