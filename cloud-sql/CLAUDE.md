@@ -234,6 +234,39 @@ npm run import:peakbagger-lists -- --input=/tmp/peakbagger-list-candidates.json 
 The reviewed 2026-08-18 scope and held lists are in
 `docs/data-audits/peakbagger-lists-2026-08-18.md`.
 
+## Named viewpoint audit/import
+
+The viewpoint importer reads one saved, state-wide OpenStreetMap snapshot and a
+complete set of review decisions. It can also add a small set of named hiking
+turnarounds whose OSM points have no name. Dry-run is the default. Apply needs
+the reviewed report and its SHA-256, and stops if the source, reviews, planned
+writes, or target rows changed after review.
+
+```bash
+cd migrate
+npm run expand:viewpoint-coverage -- \
+  --state=WA \
+  --input=/tmp/US-WA.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/review-1.json,/tmp/review-2.json,/tmp/review-3.json \
+  --supplement=data/wa-viewpoint-supplements-2026-08-19.json \
+  --report=/tmp/wa-viewpoint-dry-run.json
+
+npm run expand:viewpoint-coverage -- \
+  --state=WA \
+  --input=/tmp/US-WA.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/review-1.json,/tmp/review-2.json,/tmp/review-3.json \
+  --supplement=data/wa-viewpoint-supplements-2026-08-19.json \
+  --apply \
+  --review-report=/tmp/wa-viewpoint-dry-run.json \
+  --expected-report-sha256=<reviewed-report-sha256>
+```
+
+The importer adds type-qualified OSM IDs, keeps all existing destination data,
+and links old ended sessions only when both the saved path and a real tracking
+point pass the destination radius. It honors saved session-destination
+rejections. The first reviewed scope is in
+`docs/data-audits/wa-viewpoints-2026-08-19.md`.
+
 ## Destination elevation fraction audit
 
 Use the read-only fraction audit after a storage precision change. It checks

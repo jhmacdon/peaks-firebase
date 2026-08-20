@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "osm_type": "node",
+      "osm_id": "6125426578",
+      "name": "Mount Si Viewpoint below Haystack",
+      "lat": 47.5049473,
+      "lng": -121.7395588,
+      "features": ["viewpoint"],
+      "evidence_urls": [
+        "https://www.openstreetmap.org/node/6125426578",
+        "https://www.wta.org/go-hiking/hikes/mount-si"
+      ]
+    },
+    {
+      "osm_type": "node",
+      "osm_id": "4884818393",
+      "name": "Mount Storm King Viewpoint",
+      "lat": 48.0554065,
+      "lng": -123.773622,
+      "features": ["viewpoint"],
+      "evidence_urls": [
+        "https://www.openstreetmap.org/node/4884818393",
+        "https://www.nps.gov/olym/planyourvisit/mount-storm-king-trail.htm"
+      ]
+    },
+    {
+      "osm_type": "node",
+      "osm_id": "331502433",
+      "name": "Mount St. Helens Crater Rim (Monitor Ridge)",
+      "lat": 46.1898487,
+      "lng": -122.1888783,
+      "features": ["viewpoint", "landform"],
+      "evidence_urls": [
+        "https://www.openstreetmap.org/node/331502433",
+        "https://www.openstreetmap.org/relation/7006673",
+        "https://www.wta.org/go-hiking/hikes/mount-st-helens-monitor-ridge"
+      ]
+    }
+  ]
+}
