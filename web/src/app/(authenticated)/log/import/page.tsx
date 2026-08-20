@@ -14,6 +14,9 @@ import {
   type ParsedGPXSession,
 } from "../../../../lib/session-import";
 import type { SessionActivityType } from "../../../../lib/actions/sessions";
+import { Button } from "../../../../components/ui/button";
+import { Input, Label, Select } from "../../../../components/ui/field";
+import { StatCluster } from "../../../../components/ui/stat";
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -113,19 +116,16 @@ export default function ImportGPXPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-8">
-      <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
-        <Link
-          href="/log"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
+      <div className="mb-4 flex items-center gap-2 text-sm text-muted">
+        <Link href="/log" className="hover:text-ink hover:underline">
           Session Log
         </Link>
         <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">Import GPX</span>
+        <span className="text-ink-2">Import GPX</span>
       </div>
 
-      <h1 className="text-2xl font-semibold">Import a GPX activity</h1>
-      <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+      <h1 className="text-2xl font-semibold text-ink">Import a GPX activity</h1>
+      <p className="mt-2 text-sm leading-6 text-ink-2">
         Add a recorded track from Garmin, Gaia GPS, Strava, or another GPX
         source. Peaks will match places, protected areas, and routes after the
         upload.
@@ -133,73 +133,63 @@ export default function ImportGPXPage() {
 
       <form onSubmit={submit} className="mt-8 space-y-6">
         <div>
-          <label
-            htmlFor="gpx-file"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            GPX file
-          </label>
+          <Label htmlFor="gpx-file">GPX file</Label>
           <input
             id="gpx-file"
             type="file"
             accept=".gpx,application/gpx+xml,application/xml,text/xml"
             disabled={reading || submitting}
             onChange={(event) => chooseFile(event.target.files?.[0])}
-            className="mt-1.5 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-teal-50 file:px-3 file:py-1.5 file:font-medium file:text-teal-800 hover:file:bg-teal-100 dark:border-gray-700 dark:bg-gray-900 dark:file:bg-teal-950 dark:file:text-teal-200"
+            className="mt-1.5 block w-full rounded-ctl border border-border bg-page px-3 py-2 text-sm text-ink file:mr-3 file:rounded-ctl file:border-0 file:bg-fill file:px-3 file:py-1.5 file:font-medium file:text-accent-text hover:file:bg-border"
           />
-          <p className="mt-1.5 text-xs text-gray-500">
+          <p className="mt-1.5 text-xs text-muted">
             Up to 8 MB and 25,000 timed track points.
           </p>
         </div>
 
         {reading && (
-          <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900">
+          <div className="rounded-media border border-border bg-surface p-5 text-sm text-muted">
             Reading track…
           </div>
         )}
 
         {preview && (
           <>
-            <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <p className="text-3xl font-semibold tracking-tight">
-                {preview.points.length.toLocaleString()}
-              </p>
-              <p className="mt-0.5 text-sm text-gray-500">
-                timed track points ·{" "}
-                {new Date(preview.startTime * 1000).toLocaleDateString(
-                  "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }
-                )}
-              </p>
-              <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4 dark:border-gray-800">
-                <div>
-                  <dt className="text-xs text-gray-500">Distance</dt>
-                  <dd className="mt-1 text-sm font-semibold">
-                    {(preview.stats.distance / 1609.34).toFixed(1)} mi
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Elevation</dt>
-                  <dd className="mt-1 text-sm font-semibold">
-                    {Math.round(
-                      preview.stats.gain * 3.28084
-                    ).toLocaleString()}{" "}
-                    ft
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-gray-500">Time</dt>
-                  <dd className="mt-1 text-sm font-semibold">
-                    {formatDuration(preview.stats.totalTime)}
-                  </dd>
-                </div>
-              </dl>
+            <section className="rounded-media border border-border bg-surface p-5">
+              <StatCluster
+                value={preview.points.length.toLocaleString()}
+                label={`timed track points · ${new Date(
+                  preview.startTime * 1000
+                ).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}`}
+                scale="page"
+              />
+              <div className="mt-5 grid grid-cols-3 gap-4 border-t border-hairline pt-4">
+                <StatCluster
+                  value={(preview.stats.distance / 1609.34).toFixed(1)}
+                  unit="mi"
+                  label="Distance"
+                  scale="card"
+                />
+                <StatCluster
+                  value={Math.round(
+                    preview.stats.gain * 3.28084
+                  ).toLocaleString()}
+                  unit="ft"
+                  label="Elevation"
+                  scale="card"
+                />
+                <StatCluster
+                  value={formatDuration(preview.stats.totalTime)}
+                  label="Time"
+                  scale="card"
+                />
+              </div>
               {preview.ignoredPointCount > 0 && (
-                <p className="mt-4 text-xs text-amber-700 dark:text-amber-300">
+                <p className="mt-4 text-xs text-alert">
                   {preview.ignoredPointCount.toLocaleString()} invalid or
                   duplicate points will be skipped.
                 </p>
@@ -207,58 +197,46 @@ export default function ImportGPXPage() {
             </section>
 
             <div>
-              <label
-                htmlFor="activity-name"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Activity name
-              </label>
-              <input
+              <Label htmlFor="activity-name">Activity name</Label>
+              <Input
                 id="activity-name"
                 type="text"
                 maxLength={120}
                 value={name}
                 disabled={submitting}
                 onChange={(event) => setName(event.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-900"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="activity-type"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Activity type
-              </label>
-              <select
+              <Label htmlFor="activity-type">Activity type</Label>
+              <Select
                 id="activity-type"
                 value={activityType}
                 disabled={submitting}
                 onChange={(event) =>
                   setActivityType(event.target.value as SessionActivityType)
                 }
-                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 dark:border-gray-700 dark:bg-gray-900"
               >
                 <option value="outdoor-trek">Hike</option>
                 <option value="ski">Ski</option>
                 <option value="outdoor-moto">Moto</option>
-              </select>
+              </Select>
             </div>
 
-            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+            <label className="flex items-start gap-3 rounded-ctl border border-border bg-page p-4">
               <input
                 type="checkbox"
                 checked={isPublic}
                 disabled={submitting}
                 onChange={(event) => setIsPublic(event.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-teal-700"
+                className="mt-0.5 h-4 w-4 accent-accent"
               />
               <span>
-                <span className="block text-sm font-medium">
+                <span className="block text-sm font-medium text-ink">
                   Make this activity public
                 </span>
-                <span className="mt-0.5 block text-xs leading-5 text-gray-500">
+                <span className="mt-0.5 block text-xs leading-5 text-muted">
                   Anyone with its link can view the track and activity details.
                 </span>
               </span>
@@ -269,7 +247,7 @@ export default function ImportGPXPage() {
         {error && (
           <div
             role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+            className="rounded-ctl border border-alert/30 bg-alert/10 p-3 text-sm text-alert"
           >
             {error}
           </div>
@@ -278,7 +256,7 @@ export default function ImportGPXPage() {
         {result?.warning && (
           <div
             role="status"
-            className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+            className="rounded-ctl border border-alert/30 bg-alert/10 p-4 text-sm text-alert"
           >
             <p>{result.warning}</p>
             <Link
@@ -291,19 +269,12 @@ export default function ImportGPXPage() {
         )}
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={!preview || reading || submitting}
-            className="rounded-lg bg-teal-700 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-teal-800 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={!preview || reading || submitting}>
             {submitting ? "Importing and matching…" : "Import activity"}
-          </button>
-          <Link
-            href="/log"
-            className="rounded-lg border border-gray-200 bg-white px-6 py-2.5 text-sm font-medium transition-colors hover:border-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-600"
-          >
+          </Button>
+          <Button href="/log" variant="secondary">
             Cancel
-          </Link>
+          </Button>
         </div>
       </form>
     </div>

@@ -14,8 +14,11 @@ import {
   getDestination,
   type DestinationDetail,
 } from "../../../../../lib/actions/destinations";
+import { LOADING_LABEL } from "../../../../../lib/constants";
 import BlockEditor from "../../../../../components/block-editor";
 import DestinationPicker from "../../../../../components/destination-picker";
+import { Button } from "../../../../../components/ui/button";
+import { Input, Label } from "../../../../../components/ui/field";
 
 interface SelectedDestination {
   id: string;
@@ -175,7 +178,7 @@ export default function EditTripReportPage() {
   if (loadState === "loading") {
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-muted py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }
@@ -183,20 +186,20 @@ export default function EditTripReportPage() {
   if (loadState !== "ready") {
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center">
-          <h1 className="text-xl font-semibold mb-2">
+        <div className="rounded-media border border-border bg-surface p-8 text-center">
+          <h1 className="text-xl font-semibold mb-2 text-ink">
             {loadState === "not-found"
               ? "Trip report not found"
               : "This report cannot be edited"}
           </h1>
-          <p className="text-sm text-gray-500 mb-5">
+          <p className="text-sm text-muted mb-5">
             {loadState === "not-found"
               ? "The report may have been removed."
               : "Only the report owner can open this page."}
           </p>
           <Link
             href={`/reports/${reportId}`}
-            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            className="text-sm font-medium text-accent-text hover:underline"
           >
             Back to trip report
           </Link>
@@ -207,63 +210,46 @@ export default function EditTripReportPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/discover"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
+      <div className="flex items-center gap-2 text-sm text-muted mb-4">
+        <Link href="/discover" className="hover:text-ink hover:underline">
           Discover
         </Link>
         <span>/</span>
         <Link
           href={`/reports/${reportId}`}
-          className="hover:text-gray-900 dark:hover:text-gray-100 truncate"
+          className="hover:text-ink hover:underline truncate"
         >
           {title || "Trip Report"}
         </Link>
         <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">Edit</span>
+        <span className="text-ink-2">Edit</span>
       </div>
 
-      <h1 className="text-2xl font-semibold mb-8">Edit Trip Report</h1>
+      <h1 className="text-2xl font-semibold mb-8 text-ink">Edit Trip Report</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Title
-          </label>
-          <input
+          <Label htmlFor="title">Title</Label>
+          <Input
             id="title"
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="date"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Date
-          </label>
-          <input
+          <Label htmlFor="date">Date</Label>
+          <Input
             id="date"
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Destinations
-          </label>
+          <Label>Destinations</Label>
           <DestinationPicker
             selectedIds={destinationIds}
             selectedDestinations={selectedDestinations}
@@ -276,73 +262,67 @@ export default function EditTripReportPage() {
         {saveError && (
           <div
             role="alert"
-            className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300"
+            className="p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert"
           >
             {saveError}
           </div>
         )}
 
         <div className="flex items-center gap-4 pt-4">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
           <Link
             href={`/reports/${reportId}`}
-            className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            className="text-sm text-muted hover:text-ink-2 hover:underline"
           >
             Cancel
           </Link>
         </div>
       </form>
 
-      <section className="mt-12 pt-8 border-t border-red-200 dark:border-red-900">
-        <h2 className="font-semibold text-red-600 dark:text-red-400 mb-2">
-          Delete Trip Report
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
+      <section className="mt-12 pt-8 border-t border-alert/30">
+        <h2 className="font-semibold text-alert mb-2">Delete Trip Report</h2>
+        <p className="text-sm text-muted mb-4">
           This removes the report for everyone and cannot be undone.
         </p>
 
         {!confirmDelete ? (
-          <button
+          <Button
             type="button"
+            variant="danger"
             onClick={() => {
               setConfirmDelete(true);
               setDeleteError(null);
             }}
-            className="px-4 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
           >
             Delete Report
-          </button>
+          </Button>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm font-medium">
+            <p className="text-sm font-medium text-ink">
               Are you sure you want to delete “{title}”?
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
                 type="button"
+                variant="danger"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {deleting ? "Deleting..." : "Yes, Delete Report"}
-              </button>
-              <button
+                {deleting ? "Deleting…" : "Yes, Delete Report"}
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setConfirmDelete(false);
                   setDeleteError(null);
                 }}
                 disabled={deleting}
-                className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-gray-400 disabled:opacity-50 transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -350,7 +330,7 @@ export default function EditTripReportPage() {
         {deleteError && (
           <div
             role="alert"
-            className="mt-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300"
+            className="mt-4 p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert"
           >
             {deleteError}
           </div>

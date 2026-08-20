@@ -6,6 +6,8 @@ import { useAuth } from "../../../../lib/auth-context";
 import { createPlan } from "../../../../lib/actions/plans";
 import DestinationPicker from "../../../../components/destination-picker";
 import RoutePicker from "../../../../components/route-picker";
+import { Button } from "../../../../components/ui/button";
+import { Input, Label, Textarea } from "../../../../components/ui/field";
 
 export default function NewPlanPage() {
   const { getIdToken } = useAuth();
@@ -54,67 +56,49 @@ export default function NewPlanPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-6">New Trip Plan</h1>
+      <h1 className="text-2xl font-semibold mb-6 text-ink">New Trip Plan</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Name */}
         <div>
-          <label
-            htmlFor="plan-name"
-            className="block text-sm font-medium mb-1.5"
-          >
-            Plan Name <span className="text-red-500">*</span>
-          </label>
-          <input
+          <Label htmlFor="plan-name">
+            Plan Name <span className="text-alert">*</span>
+          </Label>
+          <Input
             id="plan-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Mt. Rainier Weekend"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
         {/* Description */}
         <div>
-          <label
-            htmlFor="plan-desc"
-            className="block text-sm font-medium mb-1.5"
-          >
-            Description
-          </label>
-          <textarea
+          <Label htmlFor="plan-desc">Description</Label>
+          <Textarea
             id="plan-desc"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             placeholder="Notes about your trip..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
           />
         </div>
 
         {/* Date */}
         <div>
-          <label
-            htmlFor="plan-date"
-            className="block text-sm font-medium mb-1.5"
-          >
-            Date
-          </label>
-          <input
+          <Label htmlFor="plan-date">Date</Label>
+          <Input
             id="plan-date"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
         {/* Destinations */}
         <div>
-          <label className="block text-sm font-medium mb-1.5">
-            Destinations
-          </label>
+          <Label>Destinations</Label>
           <DestinationPicker
             selectedIds={destinations}
             onChange={setDestinations}
@@ -123,33 +107,25 @@ export default function NewPlanPage() {
 
         {/* Routes */}
         <div>
-          <label className="block text-sm font-medium mb-1.5">Routes</label>
+          <Label>Routes</Label>
           <RoutePicker selectedIds={routes} onChange={setRoutes} />
         </div>
 
         {/* Error */}
         {error && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+          <div role="alert" className="rounded-ctl border border-alert/30 bg-alert/10 p-3 text-sm text-alert">
             {error}
           </div>
         )}
 
         {/* Submit */}
         <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {submitting ? "Creating..." : "Create Plan"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
-          >
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Creating…" : "Create Plan"}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>
