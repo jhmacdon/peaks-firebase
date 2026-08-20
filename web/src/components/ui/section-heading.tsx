@@ -17,17 +17,30 @@ const SIZE_CLASSES: Record<SectionHeadingSize, string> = {
   lg: "text-[24px]",
 };
 
+// `level` is the outline rank, and it is independent of `size` above. Almost
+// every section on this site hangs directly off the page H1, so 2 is the
+// default. A section that genuinely sits under another heading — the typed
+// result groups beneath "Results for …" on Discover — passes 3, so the
+// document outline matches the nesting a reader sees. Styling doesn't change
+// with the rank: a subsection heading at the app scale is still 18px; only
+// the tag differs.
+export type SectionHeadingLevel = 2 | 3;
+
 export function SectionHeading({
   eyebrow,
   children,
   size = "md",
+  level = 2,
   className = "",
 }: {
   eyebrow?: string;
   children: React.ReactNode;
   size?: SectionHeadingSize;
+  level?: SectionHeadingLevel;
   className?: string;
 }) {
+  const Heading = level === 3 ? "h3" : "h2";
+
   return (
     <div className={className}>
       {eyebrow ? (
@@ -35,7 +48,9 @@ export function SectionHeading({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className={`${SIZE_CLASSES[size]} font-medium text-ink`}>{children}</h2>
+      <Heading className={`${SIZE_CLASSES[size]} font-medium text-ink`}>
+        {children}
+      </Heading>
     </div>
   );
 }

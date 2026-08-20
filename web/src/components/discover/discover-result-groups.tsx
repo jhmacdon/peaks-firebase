@@ -78,10 +78,12 @@ export function ResultGroups({
   );
 }
 
+// level={3}: these sit under the island's own "Results for …" H2, unlike the
+// browse sections, which hang straight off the page H1.
 function ResultGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <SectionHeading>{title}</SectionHeading>
+      <SectionHeading level={3}>{title}</SectionHeading>
       <div className={`mt-5 ${DISCOVER_GRID}`}>{children}</div>
     </section>
   );
