@@ -120,7 +120,7 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   destination place-copy and hero-credit columns, `areas.parent_area_id`, the
   destination search vector — and it carries no `GRANT`s. Provisioning applies
   `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
-  `peaks` exactly (28 tables, 281 columns, 17 triggers).
+  `peaks` exactly (29 tables, 1 view, 292 columns, 17 triggers).
 - **A migration that fails provisioning is a real conflict** with `schema.sql`.
   Reconcile the two. Don't extend the skip list in `provision.sh`.
 - **Pool max drops to 2 under `NODE_ENV=test`.** Each test file is its own
@@ -515,6 +515,97 @@ Summits are flagged with their areas automatically, so you rarely need to re-run
 
 Both are wrapped in an exception block so a linking failure can never abort the underlying insert.
 Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_session_destination.sql`.
+
+## Trailhead facts import
+
+Parking, fee, and bathroom facts for existing trailheads, imported from the
+normalized US Forest Service JSONL in `docs/trailheads/data/` (that directory
+lives in the `peaks` checkout, not this repo). The importer never creates a
+destination: a fact with no trailhead to hang on is reported, not invented.
+
+```bash
+cd migrate
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --sample-payloads=5
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --apply
+```
+
+`--sample-payloads=N` makes a dry run print the N richest would-be payloads
+with the destination each lands on — read those before approving an apply.
+
+A source row is imported only when both gates pass: a destination with the
+`trailhead` feature within **250 m**, and the name gate. The name gate passes on
+either of two rules:
+
+- **similarity** at or above the threshold (0.5 with `pg_trgm`, 0.7 for the JS
+  token-overlap fallback; both override with `--name-threshold`);
+- **token containment** — every token of the shorter normalized name appears in
+  the longer one, and the shorter has at least two tokens.
+
+Containment exists because Peaks appends qualifiers the agency does not
+("Parking", "Picnic Area", "Day Use"), which trigram similarity punishes:
+"Windy Peak Trailhead/Long Swamp" against "Windy Peak Trailhead" scores 0.344 at
+0.0 m. Measured over the production dry run's 175 near-misses it recovers 40
+rows across 28 pairs with no wrong match, and still rejects pairs that merely
+share a word (Willow Lake / Willow Creek, Ape Canyon / Lava Canyon). The
+two-token floor is what keeps "Butte" out of "Driveway Butte".
+
+Both rules try the EDW `site_name` and the `public_site_name` — 16 percent of
+raw rows (1,151 of 7,357) yield a second, genuinely different name once
+normalized, and Peaks catalogs trailheads under the public one.
+
+Rejected rows go to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data
+directory with the reason, the nearest candidate, and which name scored best.
+Matches go to `import-matched.jsonl` with the rule that carried each one, so
+containment matches can be audited apart from threshold matches; the run summary
+prints the same split.
+
+The importer also reads the raw EDW pull
+(`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)
+and refuses to run without it. The normalized files drop three fields it needs:
+`fee_charged` (the fee guard below), `public_site_name` (the name gate), and
+`region` — a Forest Service page borrows coordinates from the same-named EDW
+trailhead, and without a region check a single same-named point anywhere in the
+country looks confident. Region equality is required; failures are dropped and
+counted under two separate reasons — `region_mismatch` when both sides carry a
+region and they disagree, `region_unknown` when one side has no region to
+compare — and the report records both regions.
+
+The raw pull covers recreation **sites** only. The 1,243 fee rows from the
+recreation-**opportunities** dataset have no raw counterpart, so their no-fee
+claims rest on their quote text alone with nothing to cross-check: 632 rows
+today, counted as `fee_required_false_quote_only` and printed in the run
+summary. They also go through the gate under one name only.
+
+Writes merge per leaf into `destinations.amenities` as `TrailheadAmenities`
+(`migrate/src/lib/amenities.ts`), each leaf carrying its own source. Unrelated
+blocks survive, unchanged rows are not rewritten, and a leaf owned by a source
+outside `MANAGED_SOURCE_KINDS` is never overwritten. Conflicts: `fee_required`
+true beats false, an explicit page capacity beats any other capacity, and
+otherwise the agency dataset (`usfs_edw`) beats the web page (`usfs_web`).
+
+**Never write `fee_required: false` without a verbatim quote, and never when
+the raw row says `fee_charged='Y'`.** Both halves matter. The `fee_charged='N'`
+flag is a lying default, so a no-fee claim needs source text — but the quote
+alone proves little, since 2,551 of the 3,254 false rows quote the EDW
+boilerplate "No fees are required for this site", 66 of them on records the
+same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
+stricter claim wins. Both guards live in `feeLeafCandidates` in
+`migrate/src/trailhead-facts-utils.ts`.
+
+Each run records a `data_source_runs` row per source (`--no-log` skips it;
+a dry run is logged as `dry_run`, so it never counts as a refresh). Check
+staleness with:
+
+```bash
+npm run check:data-freshness
+```
+
+It exits non-zero when a required source — `usfs_fees` or `usfs_bathrooms` —
+is more than 90 days past its last successful import or has never run.
+`usfs_pages` is imported and logged the same way but cannot fail the check: it
+contributes a single leaf across the catalog, so the report lists it as
+`[other]` rather than alarming on it. Quarterly cadence and the full refresh
+sequence: `migrate/docs/trailhead-data-refresh.md`.
 
 ## Session comparisons ("Your Efforts")
 

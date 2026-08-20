@@ -47,28 +47,15 @@ export function buildRouteDetailQuery(id: string): { text: string; values: unkno
   };
 }
 
-export function mapRouteDetailRow(row: any): any {
-  row.areas = Array.isArray(row.areas) ? row.areas : [];
-  return row;
-}
-
-// GET /api/routes/:id
-router.get("/:id", async (req, res: Response) => {
-  const { id } = req.params;
-  const query = buildRouteDetailQuery(id);
-  const result = await db.query(query.text, query.values);
-  if (result.rows.length === 0) {
-    res.status(404).json({ error: "Route not found" });
-    return;
-  }
-  res.json(mapRouteDetailRow(result.rows[0]));
-});
-
-// GET /api/routes/:id/destinations
-router.get("/:id/destinations", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT d.id, d.name, d.elevation, d.features,
+/** Ordered destinations for one route, trailhead amenities included.
+ *
+ *  One builder serves both `GET /:id/destinations` and the array embedded in
+ *  `GET /:id`, so the two can never drift into different shapes — the client
+ *  decodes them with the same reader and falls back from one to the other.
+ *  `amenities` is JSONB, so it arrives as an object and serializes as one. */
+export function buildRouteDestinationsQuery(id: string): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT d.id, d.name, d.elevation, d.features, d.amenities,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             rd.ordinal
@@ -76,8 +63,39 @@ router.get("/:id/destinations", async (req, res: Response) => {
      JOIN route_destinations rd ON rd.destination_id = d.id
      WHERE rd.route_id = $1
      ORDER BY rd.ordinal`,
-    [id]
-  );
+    values: [id],
+  };
+}
+
+export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
+  row.areas = Array.isArray(row.areas) ? row.areas : [];
+  // Embedded in ordinal order, straight from the query — route detail costs
+  // the client one request instead of two.
+  row.destinations = Array.isArray(destinations) ? destinations : [];
+  return row;
+}
+
+// GET /api/routes/:id
+router.get("/:id", async (req, res: Response) => {
+  const { id } = req.params;
+  const query = buildRouteDetailQuery(id);
+  const destinationsQuery = buildRouteDestinationsQuery(id);
+  const [result, destinations] = await Promise.all([
+    db.query(query.text, query.values),
+    db.query(destinationsQuery.text, destinationsQuery.values),
+  ]);
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Route not found" });
+    return;
+  }
+  res.json(mapRouteDetailRow(result.rows[0], destinations.rows));
+});
+
+// GET /api/routes/:id/destinations
+router.get("/:id/destinations", async (req, res: Response) => {
+  const { id } = req.params;
+  const query = buildRouteDestinationsQuery(id);
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 

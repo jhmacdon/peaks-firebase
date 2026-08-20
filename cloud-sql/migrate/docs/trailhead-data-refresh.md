@@ -1,0 +1,94 @@
+# Trailhead data refresh
+
+Parking, fee, and bathroom facts on Peaks trailheads come from two public US
+Forest Service sources: the EDW recreation-site and recreation-opportunity
+datasets, and the Forest Service site pages. Both drift — fees change every
+season, restrooms close, pages get rewritten — so refresh the whole chain once
+a quarter, or sooner when the freshness check fails.
+
+The importer only fills in facts on trailheads Peaks already has. It never
+creates a destination and never deletes one.
+
+## 1. Regenerate the normalized JSONL
+
+Re-run the Codex work order at `docs/trailheads/codex-handoff.md` (in the
+`peaks` checkout, outside this repo). It downloads the sources again and
+rewrites these files in `docs/trailheads/data/`:
+
+- `trailhead-fees.jsonl`
+- `trailhead-bathrooms.jsonl`
+- `fs-page-sections.jsonl`
+- `fs-trailhead-page-registry.jsonl`
+- `raw/usfs-rec-sites-trailheads.jsonl` — the raw EDW pull. The importer reads
+  it too and refuses to run without it: the normalized files drop
+  `fee_charged`, `public_site_name`, and `region`, and the importer needs all
+  three (a no-fee claim the dataset contradicts, the name Peaks catalogs a
+  trailhead under, and the region a page row's coordinates must come from).
+
+The work order also updates `STATUS.md` with row counts and the sample-audit
+error rate. Read it before importing: an error rate above about 1 percent means
+fix the extraction first, not the import.
+
+## 2. Import
+
+Point the Cloud SQL Auth Proxy and the `DB_*` variables at the target database
+(see the Migration section of `cloud-sql/CLAUDE.md`), then dry-run:
+
+```bash
+cd cloud-sql/migrate
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --sample-payloads=5
+```
+
+The dry run reads every row, matches it against the catalog, and prints what
+would change without writing. `--sample-payloads=N` prints the N richest
+would-be payloads with the destination each would land on, so the decision to
+apply rests on real output rather than on counts alone. Read those, check the
+counts, then apply:
+
+```bash
+npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data --apply
+```
+
+A row is imported only when a Peaks destination with the `trailhead` feature
+sits within 250 m of the source point **and** one of the row's names — the EDW
+site name or the public site name — either scores above the similarity
+threshold or is a whole-token subset of the destination's name (at least two
+tokens). Matched rows are listed in `import-matched.jsonl` with the rule that
+carried each one; read the containment matches on a dry run before applying,
+since that rule is the looser of the two.
+
+Rows that fail either gate are written to `import-unmatched-fees.jsonl`,
+`import-unmatched-bathrooms.jsonl`, and `import-unmatched-pages.jsonl` in the
+data directory, each with the reason and the nearest candidate. Those files are
+the place to look when expected facts do not appear.
+
+Writes merge into `destinations.amenities`: unrelated blocks stay, unchanged
+rows are not rewritten, and a leaf written by another source is left alone. A
+re-run is safe.
+
+Read the per-source counts the run prints. Two of them matter most: rows
+refused because the raw dataset contradicts a no-fee claim, and rows written on
+a quote alone. The raw pull covers recreation sites only, so fee rows from the
+recreation-opportunities dataset have nothing to cross-check — their no-fee
+claims rest on their extracted quote, and they are counted as
+`fee_required_false_quote_only` rather than passed off as verified.
+
+Every run records one row per source in `data_source_runs` (`--no-log` skips
+it). `run_kind` is `import`; a dry run is logged with status `dry_run`, so it
+does not count as a refresh.
+
+## 3. Check freshness
+
+```bash
+npm run check:data-freshness
+```
+
+It reads the `data_source_freshness` view and exits non-zero when `usfs_fees`
+or `usfs_bathrooms` has gone more than 90 days without a successful import, or
+has never run. A non-zero exit means step 1 is due. `--json` prints the same
+assessment for a script to read.
+
+`usfs_pages` is imported and logged the same way but does not fail the check:
+the page sections contribute a single leaf across the whole catalog, so an
+alarm on them would be noise. The report still lists the source, marked
+`[other]`, so its age is visible.

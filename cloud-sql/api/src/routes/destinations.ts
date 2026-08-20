@@ -244,6 +244,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             d.activities, d.features, d.owner,
             d.country_code, d.state_code,
             COALESCE(d.metadata->'names', '{}'::jsonb) AS names,
+            d.external_ids, d.amenities,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
@@ -315,6 +316,16 @@ export function mapDestinationDetailRow(row: any): any {
   row.names = row.names && typeof row.names === "object" && !Array.isArray(row.names)
     ? row.names
     : {};
+  row.external_ids =
+    row.external_ids && typeof row.external_ids === "object" && !Array.isArray(row.external_ids)
+      ? row.external_ids
+      : {};
+
+  // Amenities pass through exactly as stored. The credit guard below withholds
+  // place copy when the row-wide credit is short, but every amenity leaf ships
+  // its own source envelope, so the client credits each fact where it shows it.
+  // A row with no facts sends an explicit null rather than dropping the key.
+  row.amenities = row.amenities ?? null;
 
   row.description_source_name = textOrNull(row.description_source_name);
   row.description_source_url = textOrNull(row.description_source_url);
