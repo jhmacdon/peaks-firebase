@@ -1,8 +1,9 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   bathroomLeafCandidates,
-  buildLocationIndex,
   buildRecSiteIndex,
   candidateNames,
   buildTrailheadAmenities,
@@ -14,14 +15,15 @@ import {
   isOffSiteBathroomNote,
   mergeTrailheadAmenities,
   nameTokensContained,
-  normalizeRegion,
   normalizeTrailheadName,
+  npsBathroomLeafCandidates,
+  npsParkingLeafCandidates,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
   resolveLeafConflicts,
-  resolveLocation,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
+  usableSourcePoint,
   type BathroomRow,
   type FeeRow,
   type LeafCandidate,
@@ -54,7 +56,6 @@ function recSiteFacts(overrides: Partial<RecSiteFacts> = {}): RecSiteFacts {
     feeCharged: null,
     feeType: null,
     publicName: null,
-    region: "06",
     ...overrides,
   };
 }
@@ -79,11 +80,9 @@ function bathroomRow(overrides: Partial<BathroomRow> = {}): BathroomRow {
 function pageRow(overrides: Partial<PageSectionRow> = {}): PageSectionRow {
   return {
     url: "https://www.fs.usda.gov/r01/bitterroot/recreation/baker-lake-trailhead",
-    capacity_estimate: null,
-    fills_early_note: null,
-    fee_text: null,
-    restroom_text: null,
-    road_text: null,
+    name: "Baker Lake Trailhead",
+    lat: 45.894398,
+    lng: -114.241692,
     fetched_at: "2026-08-19T20:43:51+00:00",
     ...overrides,
   };
@@ -274,51 +273,33 @@ test("nothing passing either rule still reports the best candidate", () => {
   assert.equal(outcome.kind === "name_below_threshold" && outcome.best.destinationId, "dest-a");
 });
 
-// --- locating page rows -----------------------------------------------------
+// --- page coordinates -------------------------------------------------------
 
-test("a page row borrows coordinates from the same-named EDW trailhead in its region", () => {
-  const index = buildLocationIndex([
-    { name: "BAKER LAKE TRAILHEAD", lat: 45.8, lng: -114.3, region: "01", publicName: "Baker Lake" },
-    { name: "Baker Lake TH", lat: 45.80001, lng: -114.30001, region: "01" },
-  ]);
-  const located = resolveLocation(index, "Baker Lake Trailhead", "r01");
-  assert.equal(located.kind, "located");
-  assert.equal(located.kind === "located" && located.point.lat, 45.8);
-  assert.equal(located.kind === "located" && located.point.publicName, "Baker Lake");
-});
-
-test("a page never borrows a point from another region", () => {
-  const index = buildLocationIndex([
-    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
-  ]);
-  const mismatch = resolveLocation(index, "Blue Hole Trailhead", "r09");
-  assert.equal(mismatch.kind, "region_mismatch");
-  assert.deepEqual(mismatch.kind === "region_mismatch" && mismatch.regions, ["08"]);
-  assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r08").kind, "located");
-});
-
-test("an unlabelled point is a different failure from a cross-region one", () => {
-  // Conflating the two would blame cross-country borrowing for points that
-  // simply carry no region label (a recreation-opportunity point has no raw
-  // row, so no region).
-  const unlabelled = buildLocationIndex([{ name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5 }]);
-  const missing = resolveLocation(unlabelled, "Blue Hole Trailhead", "r09");
-  assert.equal(missing.kind, "region_unknown");
-  assert.equal(missing.kind === "region_unknown" && missing.wanted, "09");
-  assert.deepEqual(missing.kind === "region_unknown" && missing.regions, []);
-
-  const labelled = buildLocationIndex([
-    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
-  ]);
-  const noWanted = resolveLocation(labelled, "Blue Hole Trailhead", null);
-  assert.equal(noWanted.kind, "region_unknown");
-  assert.equal(noWanted.kind === "region_unknown" && noWanted.wanted, null);
-  assert.deepEqual(noWanted.kind === "region_unknown" && noWanted.regions, ["08"]);
+test("a page point is used only when it is a real coordinate", () => {
+  assert.deepEqual(usableSourcePoint(45.894398, -114.241692), {
+    lat: 45.894398,
+    lng: -114.241692,
+  });
+  // The 23 Alaska pages are real places, and no US-bounds assumption may
+  // quietly drop them: they leave here as points and fail the distance gate.
+  assert.deepEqual(usableSourcePoint(60.99542101, -149.27770625), {
+    lat: 60.99542101,
+    lng: -149.27770625,
+  });
+  assert.equal(usableSourcePoint(null, -114.2), null, "a page with no coordinate");
+  assert.equal(usableSourcePoint(undefined, undefined), null);
+  assert.equal(usableSourcePoint("45.8", -114.2), null, "a string is not a coordinate");
+  assert.equal(usableSourcePoint(Number.NaN, -114.2), null);
+  // ST_MakePoint takes a latitude of 200 and the geography cast turns it into
+  // some point on the globe, so the range check is what keeps a wrong
+  // coordinate from coming back as a confident distance.
+  assert.equal(usableSourcePoint(200, -114.2), null);
+  assert.equal(usableSourcePoint(45.8, -400), null);
 });
 
 test("the raw index is keyed by dataset, so ids never cross datasets", () => {
   const index = buildRecSiteIndex([
-    { site_cn: "5001", site_name: "SHARED ID TRAILHEAD", region: "06", fee_charged: "Y" },
+    { site_cn: "5001", site_name: "SHARED ID TRAILHEAD", fee_charged: "Y" },
   ]);
   assert.equal(index.get(recSiteKey("usfs_rec_sites", "5001"))?.feeCharged, "Y");
   assert.equal(index.get(recSiteKey("usfs_recreation_opportunities", "5001")), undefined);
@@ -340,24 +321,6 @@ test("a no-fee claim with no raw row to check is written but counted", () => {
   assert.deepEqual(corroborated.notices, [], "a fee_charged='N' row is cross-checked, not quote-only");
 });
 
-test("a name shared by far-apart places in one region stays unlocated", () => {
-  const index = buildLocationIndex([
-    { name: "Baker Lake Trailhead", lat: 45.8, lng: -114.3, region: "06" },
-    { name: "Baker Lake Trailhead", lat: 48.7, lng: -121.6, region: "06" },
-  ]);
-  assert.equal(resolveLocation(index, "Baker Lake Trailhead", "r06").kind, "ambiguous");
-  assert.equal(resolveLocation(index, "Nowhere Trailhead", "r06").kind, "unknown_name");
-});
-
-test("regions normalize across the registry and raw spellings", () => {
-  assert.equal(normalizeRegion("r09"), "09");
-  assert.equal(normalizeRegion("09"), "09");
-  assert.equal(normalizeRegion(9), "09");
-  assert.equal(normalizeRegion("R6"), "06");
-  assert.equal(normalizeRegion(null), null);
-  assert.equal(normalizeRegion(""), null);
-});
-
 // --- raw EDW enrichment -----------------------------------------------------
 
 test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
@@ -366,7 +329,6 @@ test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
       site_cn: "5927010263",
       site_name: "MARTIN BRIDGE TRAILHEAD",
       public_site_name: "Eagle Forks Trailhead",
-      region: "06",
       fee_charged: "n",
       fee_type: null,
     },
@@ -375,7 +337,6 @@ test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
   assert.equal(index.size, 1);
   const facts = index.get(recSiteKey("usfs_rec_sites", "5927010263"));
   assert.equal(facts?.publicName, "Eagle Forks Trailhead");
-  assert.equal(facts?.region, "06");
   assert.equal(facts?.feeCharged, "N", "fee_charged is compared upper-case");
 });
 
@@ -386,7 +347,6 @@ test("both names go through the gate, deduplicated", () => {
       feeCharged: null,
       feeType: null,
       publicName: "Eagle Forks Trailhead",
-      region: "06",
     }),
     ["MARTIN BRIDGE TRAILHEAD", "Eagle Forks Trailhead"]
   );
@@ -396,7 +356,6 @@ test("both names go through the gate, deduplicated", () => {
       feeCharged: null,
       feeType: null,
       publicName: "Snow Lake TH",
-      region: "06",
     }),
     ["SNOW LAKE TRAILHEAD"],
     "names that normalize the same are one name"
@@ -584,14 +543,204 @@ test("a page section becomes parking capacity and the fills-early note", () => {
     ]
   );
   assert.equal(leaves[0].sourced.source.kind, "usfs_web");
+  assert.equal(leaves[0].sourced.source.name, "US Forest Service");
   assert.equal(leaves[0].sourced.source.url, pageRow().url);
-  assert.equal(leaves[0].sourced.retrieved_at, "2026-08-19T20:43:51+00:00");
+  assert.equal(leaves[0].sourced.source.license, "public domain (US federal government)");
+  // The page row records the instant it was fetched; every other source in this
+  // importer stamps a day, and the clients read a day.
+  assert.equal(leaves[0].sourced.retrieved_at, "2026-08-19");
+  assert.equal(leaves[0].rowKey, pageRow().url);
 });
 
 test("a page section with no structured fact is refused", () => {
   const { leaves, refusals } = pageLeafCandidates(pageRow({ restroom_text: "No restroom available" }));
   assert.deepEqual(leaves, []);
   assert.deepEqual(refusals, ["no_structured_facts"]);
+});
+
+test("the page's prose and its evidence are read as guards and never imported", () => {
+  // Every one of these is on the row and none of them is a parking fact. The
+  // fee, restroom and road text describe what the EDW, MVUM and RoadCore
+  // datasets already publish as fields; the verbatim spans are the extraction's
+  // evidence, for a person auditing it. Two of them are read as guards below —
+  // a guard may take a fact away or make it smaller, never supply one — and
+  // none of them reaches a leaf.
+  const { leaves } = pageLeafCandidates(
+    pageRow({
+      capacity_estimate: 12,
+      fee_text: "No fees are required for this site",
+      restroom_text: "Vault toilet available",
+      road_text: "Follow FS 363 for 7.5 miles to the trailhead.",
+      elevation_ft: 6200,
+      verbatim_spans: {
+        capacity: "Parking for 12 vehicles",
+        coordinates: "Latitude: 45.894398 Longitude: -114.241692",
+        fee: "No fees are required for this site",
+      },
+    })
+  );
+  assert.deepEqual(
+    leaves.map((leaf) => leaf.leaf),
+    ["capacity_vehicles"]
+  );
+  const serialized = JSON.stringify(leaves);
+  for (const absent of ["verbatim", "Latitude", "restroom", "elevation", "FS 363", "No fees"]) {
+    assert.equal(serialized.includes(absent), false, `${absent} stayed out of the leaf`);
+  }
+});
+
+test("a page whose fetched_at is not a real day is refused, not trimmed", () => {
+  for (const fetchedAt of ["", "yesterday", "2026-13-02T00:00:00+00:00", "26-08-19"]) {
+    const { leaves, refusals } = pageLeafCandidates(
+      pageRow({ capacity_estimate: 12, fetched_at: fetchedAt })
+    );
+    assert.deepEqual(leaves, [], `${fetchedAt || "(empty)"} carries no leaf`);
+    assert.deepEqual(refusals, ["fetched_at_not_iso"]);
+  }
+});
+
+test("a page url that is not an http link never becomes a tappable source", () => {
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 12, url: "javascript:alert(1)" })
+  );
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["page_url_unusable"]);
+});
+
+// --- page guards ------------------------------------------------------------
+
+test("a capacity counted in rigs is dropped rather than written as cars", () => {
+  // "Up to 6 truck/trailer combinations" is a real number and it is not six
+  // cars. Two matched rows say this today: Edds Mountain 6, Bear Pot 4.
+  for (const span of [
+    "up to 6 truck/trailer combinations",
+    "up to 4 truck/trailer combos",
+    "20 vehicles with trailers",
+    "about 3 trucks with horse trailers",
+  ]) {
+    const { leaves, refusals } = pageLeafCandidates(
+      pageRow({ capacity_estimate: 6, verbatim_spans: { capacity: span } })
+    );
+    assert.deepEqual(leaves, [], span);
+    assert.deepEqual(refusals, ["capacity_counted_in_trucks_or_trailers"], span);
+  }
+});
+
+test("a capacity the page states as a range publishes the low end", () => {
+  // The extraction keeps the high end. A driver who finds ten spaces where
+  // fifteen were promised has driven up a forest road for nothing.
+  const { leaves, refusals, notices } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 15, verbatim_spans: { capacity: "10-15 cars" } })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(notices, ["capacity_lowered_to_stated_range_floor"]);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value]),
+    [["capacity_vehicles", 10]]
+  );
+  // An en dash and the word "to" are the same range.
+  for (const span of ["10–15 cars", "10 to 15 cars", "fits 1-2 cars"]) {
+    const low = span.startsWith("fits") ? 1 : 10;
+    const stated = span.startsWith("fits") ? 2 : 15;
+    const result = pageLeafCandidates(
+      pageRow({ capacity_estimate: stated, verbatim_spans: { capacity: span } })
+    );
+    assert.equal(result.leaves[0].sourced.value, low, span);
+  }
+});
+
+test("a span with no range leaves the stated number alone", () => {
+  const { leaves, notices } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 6, verbatim_spans: { capacity: "approximately 6 passenger vehicles" } })
+  );
+  assert.deepEqual(notices, []);
+  assert.equal(leaves[0].sourced.value, 6);
+  // And a row whose extraction kept no span at all still publishes.
+  const bare = pageLeafCandidates(pageRow({ capacity_estimate: 6 }));
+  assert.equal(bare.leaves[0].sourced.value, 6);
+});
+
+test("a capacity that is not a positive whole number is refused", () => {
+  // Zero renders as "0 vehicles", which reads as "there is no parking here" —
+  // a claim no page in this set makes. Half a space is an extraction that has
+  // gone wrong.
+  for (const capacity of [0, 4.5, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const { leaves, refusals } = pageLeafCandidates(pageRow({ capacity_estimate: capacity }));
+    assert.deepEqual(leaves, [], `${capacity}`);
+    assert.deepEqual(refusals, ["capacity_not_a_positive_whole_number"], `${capacity}`);
+  }
+  // A missing capacity is not a refusal; it is a page that said nothing.
+  assert.deepEqual(pageLeafCandidates(pageRow({})).refusals, ["no_structured_facts"]);
+});
+
+test("a fills-early note lifted out of the driving directions is refused", () => {
+  const directions =
+    "Turn right onto Road 225 and continue approximately 4 miles to the small trailhead parking area.";
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({ road_text: directions, fills_early_note: directions })
+  );
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["fills_early_note_lifted_from_directions"]);
+
+  // A sentence taken out of the middle of the paragraph is the same failure,
+  // and re-wrapped whitespace does not hide it.
+  const inside = pageLeafCandidates(
+    pageRow({
+      road_text: `From the highway, drive 8 miles.  ${directions}  The trail starts at the sign.`,
+      fills_early_note: "Turn right onto Road 225 and continue approximately 4 miles\nto the small trailhead parking area.",
+    })
+  );
+  assert.deepEqual(inside.refusals, ["fills_early_note_lifted_from_directions"]);
+});
+
+test("a real fills-early note survives, directions or no directions", () => {
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({
+      road_text: "Follow FS 363 for 7.5 miles to the trailhead.",
+      fills_early_note: "The lot fills by 8am on summer weekends.",
+    })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => entry.leaf),
+    ["fills_early_note"]
+  );
+});
+
+test("a note about the lot filling survives even when it sits in the directions", () => {
+  // The guard's one known false positive, closed. Dog Mountain writes its
+  // fills-early sentence inside the paragraph about how to drive there, and the
+  // substring rule alone threw it away. Measured over the whole extraction the
+  // rule fires on 51 rows and only two of them say anything about filling —
+  // this one and Max Patch's "if the parking lot is full" — so the exception
+  // readmits two real facts and not one line of directions.
+  const dogMountain = "There are about 70 spots fill quickly on weekends.";
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({
+      road_text: `Park in the pullout on the left. ${dogMountain} The trail begins at the kiosk.`,
+      fills_early_note: dogMountain,
+    })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value]),
+    [["fills_early_note", dogMountain]]
+  );
+
+  const maxPatch = "You may not park on the road if the parking lot is full.";
+  assert.deepEqual(
+    pageLeafCandidates(pageRow({ road_text: `Take SR 1181 about 3.5 miles to the end. ${maxPatch}`, fills_early_note: maxPatch }))
+      .refusals,
+    []
+  );
+
+  // And the exception is words about filling, not any word containing them: a
+  // bare /full/ matches "carefully", which is directions vocabulary.
+  const careful = "Drive carefully to the small parking area at the end of the road.";
+  assert.deepEqual(
+    pageLeafCandidates(pageRow({ road_text: careful, fills_early_note: careful })).refusals,
+    ["fills_early_note_lifted_from_directions"]
+  );
 });
 
 // --- conflicts --------------------------------------------------------------
@@ -730,4 +879,313 @@ test("a leaf owned by another source is left alone", () => {
 test("canonical json ignores key order", () => {
   assert.equal(canonicalJson({ b: 1, a: [2, { d: 4, c: 3 }] }), canonicalJson({ a: [2, { c: 3, d: 4 }], b: 1 }));
   assert.notEqual(canonicalJson({ a: 1 }), canonicalJson({ a: 2 }));
+});
+
+// --- National Park Service leaves -------------------------------------------
+
+const NPS_POIS_SOURCE = {
+  kind: "nps_pois",
+  name: "National Park Service",
+  url: "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_POIs/FeatureServer/0/query",
+  license: "public domain (US federal government)",
+};
+const NPS_PARKING_SOURCE = { ...NPS_POIS_SOURCE, kind: "nps_parking" };
+
+function npsLeaf(value: unknown, source: Record<string, unknown>): Record<string, unknown> {
+  return { value, source, retrieved_at: "2026-08-19" };
+}
+
+test("an NPS bathroom block becomes present, its type, and its season note", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("present", NPS_POIS_SOURCE),
+      type: npsLeaf("vault_pit", NPS_POIS_SOURCE),
+      season_note: npsLeaf("May 1 - Oct 31 (check park website)", NPS_POIS_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.block, entry.leaf, entry.sourced.value]),
+    [
+      ["bathrooms", "status", "present"],
+      ["bathrooms", "type", "vault_pit"],
+      ["bathrooms", "season_note", "May 1 - Oct 31 (check park website)"],
+    ]
+  );
+  assert.equal(leaves[0].source, "nps_pois");
+  assert.equal(leaves[0].rowKey, "dest-paradise");
+});
+
+test("an NPS bathroom status of absent is refused, and takes the block with it", () => {
+  // NPS is presence-only. A trailhead with no toilet POI near it is one nobody
+  // surveyed, so `absent` cannot come from this source at all.
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("absent", NPS_POIS_SOURCE),
+      type: npsLeaf("vault_pit", NPS_POIS_SOURCE),
+    },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_not_present"]);
+});
+
+test("an NPS envelope is rebuilt field by field, and drops what it does not know", () => {
+  const { leaves } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: {
+        value: "present",
+        source: { ...NPS_POIS_SOURCE, external_id: "{ABC}", trust_me: true },
+        retrieved_at: "2026-08-19",
+        last_verified_at: "2026-08-19",
+      },
+    },
+  });
+  assert.deepEqual(Object.keys(leaves[0].sourced).sort(), ["retrieved_at", "source", "value"]);
+  assert.deepEqual(Object.keys(leaves[0].sourced.source).sort(), ["kind", "license", "name", "url"]);
+});
+
+test("an NPS leaf with a bad retrieval date is refused", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: { status: { value: "present", source: NPS_POIS_SOURCE, retrieved_at: "August 2026" } },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_source_unusable"]);
+});
+
+test("a javascript: url never becomes a source link", () => {
+  const { leaves } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("present", { ...NPS_POIS_SOURCE, url: "javascript:alert(1)" }),
+    },
+  });
+  assert.equal("url" in leaves[0].sourced.source, false);
+});
+
+test("an NPS parking block becomes a lot and its note", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      location_note: npsLeaf("PARADISE PARKING (UPPER LOT)", NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value, entry.source]),
+    [
+      ["type", "lot", "nps_parking"],
+      ["location_note", "PARADISE PARKING (UPPER LOT)", "nps_parking"],
+    ]
+  );
+});
+
+test("a vehicle count on an NPS parking leaf is refused by name", () => {
+  // The Park Service publishes no capacity field. A number here could only be
+  // a regression that started turning polygon area into vehicles, and it would
+  // read exactly like a number somebody counted.
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      capacity_vehicles: npsLeaf(29, NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, ["unexpected_parking_leaf_capacity_vehicles"]);
+  assert.deepEqual(
+    leaves.map((entry) => entry.leaf),
+    ["type"]
+  );
+});
+
+test("an NPS capacity range passes through with its own envelope", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      capacity_range: npsLeaf("50_to_100", NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value, entry.source]),
+    [
+      ["type", "lot", "nps_parking"],
+      ["capacity_range", "50_to_100", "nps_parking"],
+    ]
+  );
+  const envelope = leaves[1].sourced;
+  assert.equal(envelope.source.kind, "nps_parking");
+  assert.equal(envelope.source.name, "National Park Service");
+  assert.equal(envelope.retrieved_at, "2026-08-19");
+});
+
+test("a capacity range spelled any other way is refused", () => {
+  // The list is checked, never parsed. A bucket the renderer has no words for
+  // would otherwise be printed as the database read aloud.
+  for (const value of ["25-50", "25_to_60", "lots", "", 40, null, { value: "25_to_50" }]) {
+    const { leaves, refusals } = npsParkingLeafCandidates({
+      destination_id: "dest-paradise",
+      parking: { capacity_range: npsLeaf(value, NPS_PARKING_SOURCE) },
+    });
+    assert.deepEqual(leaves, [], JSON.stringify(value));
+    assert.deepEqual(refusals, ["parking_capacity_range_unusable"], JSON.stringify(value));
+  }
+});
+
+test("a capacity range wearing another service's kind is refused", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: { capacity_range: npsLeaf("50_to_100", { ...NPS_PARKING_SOURCE, kind: "usfs_web" }) },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["parking_capacity_range_source_unusable"]);
+});
+
+// --- the range and the count are different claims ---------------------------
+
+test("a range never becomes a count and a count never becomes a range", () => {
+  // Both leaves, on one destination, from the two sources that produce them.
+  // They coexist; neither is rewritten as the other; nothing averages them.
+  const { chosen, conflicts } = resolveLeafConflicts([
+    leaf("parking", "capacity_vehicles", 30, "usfs_web", "usfs_pages"),
+    leaf("parking", "capacity_range", "50_to_100", "nps_parking", "nps_parking"),
+  ]);
+  assert.deepEqual(conflicts, []);
+  assert.deepEqual(
+    chosen.map((entry) => [entry.leaf, entry.sourced.value]),
+    [
+      ["capacity_vehicles", 30],
+      ["capacity_range", "50_to_100"],
+    ]
+  );
+  const merged = mergeTrailheadAmenities({}, buildTrailheadAmenities(chosen)) as unknown as {
+    merged: { parking: Record<string, { value: unknown }> };
+  };
+  assert.equal(merged.merged.parking.capacity_vehicles.value, 30);
+  assert.equal(merged.merged.parking.capacity_range.value, "50_to_100");
+});
+
+test("a stored count is not disturbed by an incoming range, or the other way", () => {
+  const stored = {
+    parking: {
+      capacity_vehicles: { value: 30, source: { kind: "usfs_web", name: "US Forest Service" }, retrieved_at: "2026-08-19" },
+    },
+  };
+  const incoming = buildTrailheadAmenities([
+    leaf("parking", "capacity_range", "50_to_100", "nps_parking", "nps_parking"),
+  ]);
+  const result = mergeTrailheadAmenities(stored, incoming);
+  const parking = (result.merged as Record<string, Record<string, { value: unknown }>>).parking;
+  assert.equal(parking.capacity_vehicles.value, 30);
+  assert.equal(parking.capacity_range.value, "50_to_100");
+  assert.deepEqual(result.appliedLeaves, ["parking.capacity_range"]);
+});
+
+test("the leaf builder can name a bucket and cannot compute one", () => {
+  // The structural half of the same rule, read off the source. This module
+  // builds every leaf that reaches destinations.amenities, so it may check that
+  // a range is spelled the way the calibration spells it — and may not import
+  // the function that turns an area into a bucket, nor the one that turns an
+  // area into a number of cars.
+  const source = readFileSync(join(__dirname, "../trailhead-facts-utils.ts"), "utf8");
+  const importLine = /import\s*\{([^}]*)\}\s*from\s*"\.\/parking-capacity";/.exec(source);
+  assert.ok(importLine, "trailhead-facts-utils.ts should import the bucket names");
+  const imported = importLine[1]
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  assert.deepEqual(imported, ["CAPACITY_RANGES"]);
+});
+
+test("a bathroom leaf wearing the parking service's kind is refused", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: { status: npsLeaf("present", NPS_PARKING_SOURCE) },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_source_unusable"]);
+});
+
+test("a row with no block at all yields nothing and refuses nothing", () => {
+  assert.deepEqual(npsBathroomLeafCandidates({ destination_id: "dest-paradise" }), {
+    leaves: [],
+    refusals: [],
+    notices: [],
+  });
+  assert.deepEqual(npsParkingLeafCandidates({ destination_id: "dest-paradise" }), {
+    leaves: [],
+    refusals: [],
+    notices: [],
+  });
+});
+
+test("an explicit agency claim beats an NPS spatial join on the same leaf", () => {
+  const { chosen, conflicts } = resolveLeafConflicts([
+    leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+    leaf("bathrooms", "type", "vault_pit", "usfs_edw", "usfs_bathrooms"),
+  ]);
+  assert.equal(chosen[0].sourced.value, "vault_pit");
+  assert.equal(conflicts[0].reason, "explicit_over_nps_join");
+
+  // And in the other arrival order, since resolution must not depend on it.
+  const reversed = resolveLeafConflicts([
+    leaf("bathrooms", "type", "vault_pit", "usfs_edw", "usfs_bathrooms"),
+    leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+  ]);
+  assert.equal(reversed.chosen[0].sourced.value, "vault_pit");
+  assert.equal(reversed.conflicts[0].reason, "explicit_over_nps_join");
+});
+
+test("two NPS leaves fall back to the ordinary rule", () => {
+  const { chosen } = resolveLeafConflicts([
+    leaf("parking", "location_note", "first", "nps_parking", "nps_parking"),
+    leaf("parking", "location_note", "second", "nps_parking", "nps_parking"),
+  ]);
+  assert.equal(chosen[0].sourced.value, "first");
+});
+
+test("an NPS leaf does not overwrite an agency claim already on the row", () => {
+  const existing = {
+    bathrooms: {
+      type: { value: "vault_pit", source: { kind: "usfs_edw", name: "US Forest Service" }, retrieved_at: "2026-08-19" },
+    },
+  };
+  const merge = mergeTrailheadAmenities(
+    existing,
+    buildTrailheadAmenities([
+      leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+      leaf("bathrooms", "status", "present", "nps_pois", "nps_pois"),
+    ])
+  );
+  assert.deepEqual(merge.deferredLeaves, ["bathrooms.type"]);
+  assert.deepEqual(merge.appliedLeaves, ["bathrooms.status"]);
+  const bathrooms = merge.merged.bathrooms as Record<string, { value: unknown }>;
+  assert.equal(bathrooms.type.value, "vault_pit");
+  assert.equal(bathrooms.status.value, "present");
+});
+
+test("an NPS leaf does overwrite the NPS leaf it wrote last quarter", () => {
+  const existing = {
+    parking: {
+      location_note: {
+        value: "PARADISE PARKING (LOWER LOT)",
+        source: { kind: "nps_parking", name: "National Park Service" },
+        retrieved_at: "2026-05-01",
+      },
+    },
+  };
+  const merge = mergeTrailheadAmenities(
+    existing,
+    buildTrailheadAmenities([
+      leaf("parking", "location_note", "PARADISE PARKING (UPPER LOT)", "nps_parking", "nps_parking"),
+    ])
+  );
+  assert.deepEqual(merge.deferredLeaves, []);
+  const parking = merge.merged.parking as Record<string, { value: unknown }>;
+  assert.equal(parking.location_note.value, "PARADISE PARKING (UPPER LOT)");
 });

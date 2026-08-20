@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import db from "./db";
 import {
-  buildLocationIndex,
   buildRecSiteIndex,
   buildTrailheadAmenities,
   candidateNames,
@@ -13,27 +12,28 @@ import {
   leafKey,
   mergeTrailheadAmenities,
   nameTokensContained,
-  normalizeRegion,
   normalizeTrailheadName,
+  npsBathroomLeafCandidates,
+  npsParkingLeafCandidates,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
   recSiteKey,
   resolveLeafConflicts,
-  resolveLocation,
   roadAccessLeafCandidates,
   selectSamplePayloads,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
   TRAILHEAD_FACT_SOURCES,
   TRAILHEAD_MATCH_RADIUS_M,
+  usableSourcePoint,
   type BathroomRow,
   type FeeRow,
   type LeafCandidate,
   type MatchCandidate,
   type NameRule,
+  type NpsFactRow,
   type PageSectionRow,
   type RawRecSiteRow,
-  type RegistryRow,
   type RoadAccessRow,
   type SourcePoint,
   type TrailheadFactSource,
@@ -45,20 +45,23 @@ import {
 // trailhead to hang on is reported, not invented. Dry-run by default; --apply
 // writes.
 //
-// Three sources are matched to a trailhead by place and name. The fourth,
-// usfs_roads, is not matched at all: `roads:derive` walked the road network
-// starting from the production trailhead rows, so every row already carries
-// the destination id it belongs to. The only question left is whether that
-// destination is still there and still a trailhead.
+// Three sources are matched to a trailhead by place and name — the fee rows,
+// the bathroom rows and the site pages, each of which carries its own
+// coordinates. The other three — usfs_roads and the two National Park Service
+// layers — are not matched at all: `roads:derive` and
+// `normalize:nps-trailhead-facts` both started from the production trailhead
+// rows, so every row already carries the destination id it belongs to. The
+// only question left is whether that destination is still there and still a
+// trailhead.
 
 export interface Args {
   dataDir: string | null;
   feesPath: string | null;
   bathroomsPath: string | null;
   sectionsPath: string | null;
-  registryPath: string | null;
   rawRecSitesPath: string | null;
   roadAccessPath: string | null;
+  npsFactsPath: string | null;
   reportDir: string | null;
   apply: boolean;
   dryRun: boolean;
@@ -171,10 +174,10 @@ export function usage(): string {
     "  --data-dir=DIR        directory holding the normalized JSONL (required)",
     "  --fees=FILE           override <data-dir>/trailhead-fees.jsonl",
     "  --bathrooms=FILE      override <data-dir>/trailhead-bathrooms.jsonl",
-    "  --sections=FILE       override <data-dir>/fs-page-sections.jsonl",
-    "  --registry=FILE       override <data-dir>/fs-trailhead-page-registry.jsonl",
+    "  --sections=FILE       override <data-dir>/fs-page-sections-full.jsonl",
     "  --raw-rec-sites=FILE  override <data-dir>/raw/usfs-rec-sites-trailheads.jsonl",
     "  --road-access=FILE    override <data-dir>/trailhead-road-access.jsonl",
+    "  --nps-facts=FILE      override <data-dir>/nps-trailhead-facts.jsonl",
     "  --report-dir=DIR      where the unmatched/rejected reports go (default: data dir)",
     "  --apply               write; without it the run is a dry run",
     "  --dry-run             the default, stated explicitly",
@@ -229,9 +232,9 @@ export function parseArgs(argv: string[]): Args {
     feesPath: textArg(argv, "--fees"),
     bathroomsPath: textArg(argv, "--bathrooms"),
     sectionsPath: textArg(argv, "--sections"),
-    registryPath: textArg(argv, "--registry"),
     rawRecSitesPath: textArg(argv, "--raw-rec-sites"),
     roadAccessPath: textArg(argv, "--road-access"),
+    npsFactsPath: textArg(argv, "--nps-facts"),
     reportDir: textArg(argv, "--report-dir"),
     apply,
     dryRun: dryRunFlag || !apply,
@@ -248,6 +251,28 @@ interface ParsedFile<T> {
   rows: T[];
   /** Unparseable lines in the whole file — --limit never hides one. */
   malformed: number;
+}
+
+/**
+ * A file that is present and says nothing is a failure, not an empty result.
+ *
+ * Every input file is written whole by a command that either starts from the
+ * catalog (the road facts, the NPS facts) or from an agency download (the fee,
+ * bathroom and page extractions). Zero rows in any of them means that command
+ * did not run, ran against nothing, or was truncated — each one a refresh that
+ * did not happen. Letting the import continue would report it as a source with
+ * nothing to say rather than a source that is missing, and the run would be
+ * logged as a success, which keeps `check:data-freshness` green on the very
+ * thing it exists to catch.
+ *
+ * The raw EDW pull has been guarded this way since the fee importer shipped
+ * and the two derived files since the NPS one. The three extraction files had
+ * the same hole and now have the same guard: `usfs_pages` becoming a required
+ * source made the hole reachable there, and the three behave alike.
+ */
+function assertNotEmpty(rows: number, filePath: string, needs: string): void {
+  if (rows > 0) return;
+  throw new Error(`${filePath} yielded no usable rows — the import needs ${needs}`);
 }
 
 function parseJsonl<T>(contents: string): ParsedFile<T> {
@@ -282,6 +307,15 @@ interface SourceCounts {
   rowsIn: number;
   malformed: number;
   noLocation: number;
+  /**
+   * Rows with a point and no name, which is a different failure.
+   *
+   * It used to be counted under `noLocation`, where it read as a coordinate
+   * problem. A page with no name has a perfectly good coordinate and nothing
+   * for the second gate to weigh, and the fix for the two is not the same: one
+   * wants the extraction's coordinates looked at, the other its titles.
+   */
+  noName: number;
   noFacts: number;
   noNearbyTrailhead: number;
   nameRejected: number;
@@ -300,6 +334,7 @@ function emptyCounts(): SourceCounts {
     rowsIn: 0,
     malformed: 0,
     noLocation: 0,
+    noName: 0,
     noFacts: 0,
     noNearbyTrailhead: 0,
     nameRejected: 0,
@@ -339,9 +374,6 @@ interface ReportRecord {
     matched_name: string;
   };
   refusals?: string[];
-  /** Page rows only: the region asked for and the regions the name lives in. */
-  wanted_region?: string | null;
-  point_regions?: string[];
   /** Road rows only: the id the derivation wrote the row for. */
   destination_id?: string;
   row: Record<string, unknown>;
@@ -372,6 +404,8 @@ export interface TrailheadFactsSummary {
   destinationsUnchanged: number;
   leafConflicts: number;
   preservedForeignLeaves: number;
+  /** NPS leaves that yielded to an explicit agency claim already on the row. */
+  deferredToExplicitLeaves: number;
   reportFiles: string[];
 }
 
@@ -491,27 +525,35 @@ function readSources(
   const dataDir = args.dataDir as string;
   const feesPath = args.feesPath ?? path.join(dataDir, "trailhead-fees.jsonl");
   const bathroomsPath = args.bathroomsPath ?? path.join(dataDir, "trailhead-bathrooms.jsonl");
-  const sectionsPath = args.sectionsPath ?? path.join(dataDir, "fs-page-sections.jsonl");
-  const registryPath = args.registryPath ?? path.join(dataDir, "fs-trailhead-page-registry.jsonl");
+  const sectionsPath = args.sectionsPath ?? path.join(dataDir, "fs-page-sections-full.jsonl");
   const rawRecSitesPath =
     args.rawRecSitesPath ?? path.join(dataDir, "raw", "usfs-rec-sites-trailheads.jsonl");
 
-  // Every file is read whole, even under --limit. The raw pull carries the
-  // fee_charged flag, the public site name, and the region; the fee and
-  // bathroom files carry the coordinates a page row borrows. Reading a slice
-  // of any of them would change which rows can be located or believed, so
-  // --limit is applied further down, to the rows that go on to match.
+  // The raw pull is read whole, even under --limit: it carries the fee_charged
+  // flag every no-fee claim is checked against and the public site name half
+  // the name gate runs on, so a slice of it would change which rows can be
+  // believed. --limit is applied further down, to the rows that go on to match.
   const rawRecSites = parseJsonl<RawRecSiteRow>(readFile(rawRecSitesPath));
   const recSites = buildRecSiteIndex(rawRecSites.rows);
   if (recSites.size === 0) {
     throw new Error(
-      `${rawRecSitesPath} yielded no usable rows — the fee guard and the region check need the raw EDW pull (--raw-rec-sites=FILE)`
+      `${rawRecSitesPath} yielded no usable rows — the fee guard and the name gate need the raw EDW pull (--raw-rec-sites=FILE)`
     );
   }
   const fees = parseJsonl<FeeRow>(readFile(feesPath));
+  assertNotEmpty(fees.rows.length, feesPath, "the normalized fee rows (--fees=FILE)");
   const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath));
+  assertNotEmpty(
+    bathrooms.rows.length,
+    bathroomsPath,
+    "the normalized bathroom rows (--bathrooms=FILE)"
+  );
   const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath));
-  const registry = parseJsonl<RegistryRow>(readFile(registryPath));
+  assertNotEmpty(
+    sections.rows.length,
+    sectionsPath,
+    "the extracted Forest Service page rows (--sections=FILE)"
+  );
   logger.log(`  Raw EDW rec-site rows indexed: ${recSites.size}`);
 
   counts.usfs_fees.malformed = fees.malformed;
@@ -521,9 +563,18 @@ function readSources(
   const limited = <T>(list: T[]): T[] => (args.limit === null ? list : list.slice(0, args.limit));
   const rows: FactRow[] = [];
 
+  // Every source's point goes through the same check. `Number.isFinite` used to
+  // be enough here, and it is not: `ST_MakePoint` takes a latitude of 200
+  // without complaint and the geography cast turns it into some point on the
+  // globe, so an extraction that got a sign or a column wrong comes back as a
+  // confident distance to a real trailhead rather than as an error. The page
+  // rows have been checked this way since they started carrying their own
+  // coordinates; the fee and bathroom rows have the same failure mode and now
+  // the same guard.
   for (const row of limited(fees.rows)) {
     counts.usfs_fees.rowsIn += 1;
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    const feePoint = usableSourcePoint(row.lat, row.lng);
+    if (feePoint === null) {
       counts.usfs_fees.noLocation += 1;
       skipped.push({
         reason: "no_coordinates",
@@ -546,7 +597,7 @@ function readSources(
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
       names: candidateNames(row.name, facts),
-      point: { lat: row.lat, lng: row.lng },
+      point: feePoint,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
       raw: row as unknown as Record<string, unknown>,
@@ -555,7 +606,8 @@ function readSources(
 
   for (const row of limited(bathrooms.rows)) {
     counts.usfs_bathrooms.rowsIn += 1;
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    const bathroomPoint = usableSourcePoint(row.lat, row.lng);
+    if (bathroomPoint === null) {
       counts.usfs_bathrooms.noLocation += 1;
       skipped.push({
         reason: "no_coordinates",
@@ -577,74 +629,49 @@ function readSources(
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
       names: candidateNames(row.name, recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null),
-      point: { lat: row.lat, lng: row.lng },
+      point: bathroomPoint,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
       raw: row as unknown as Record<string, unknown>,
     });
   }
 
-  // The page registry carries no coordinates, so a page row borrows the point
-  // of the EDW trailhead with the same name, in the same Forest Service
-  // region. Region is the guard that matters: without it a single same-named
-  // point anywhere in the country looks confident, and a Missouri page took a
-  // point in Tennessee. A name that clears the region check but still covers
-  // far-apart points stays unlocated.
-  const registryByUrl = new Map<string, RegistryRow>();
-  for (const entry of registry.rows) registryByUrl.set(entry.url, entry);
-  const locatable = [...fees.rows, ...bathrooms.rows]
-    .filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng))
-    .map((row) => {
-      const facts = recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null;
-      return {
-        name: row.name,
-        lat: row.lat,
-        lng: row.lng,
-        region: facts?.region ?? null,
-        publicName: facts?.publicName ?? null,
-      };
-    });
-  const locationIndex = buildLocationIndex(locatable);
-  logger.log(
-    `  Page registry rows: ${registry.rows.length}; EDW names available for locating: ${locationIndex.size}`
-  );
-
+  // A Forest Service site page carries its own coordinates and its own name, so
+  // it goes through the same two gates as a fee row: a trailhead within the
+  // radius, and a name that agrees. It used to borrow the point of the
+  // same-named EDW trailhead, guarded by Forest Service region — a mechanism
+  // that located 710 pages, imported one fact between them, and got every one
+  // of its 98 far-outlier attaches wrong. Nothing infers a point any more: a
+  // page without coordinates is counted, not placed.
   for (const row of limited(sections.rows)) {
     counts.usfs_pages.rowsIn += 1;
-    const entry = registryByUrl.get(row.url);
-    if (!entry) {
+    const raw = row as unknown as Record<string, unknown>;
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const point = usableSourcePoint(row.lat, row.lng);
+    if (point === null) {
       counts.usfs_pages.noLocation += 1;
-      countRefusals(counts.usfs_pages, ["no_registry_row"]);
+      countRefusals(counts.usfs_pages, ["no_coordinates"]);
       skipped.push({
-        reason: "no_registry_row",
+        reason: "no_coordinates",
         source: "usfs_pages",
-        name: row.url,
-        row: row as unknown as Record<string, unknown>,
+        name: name.length > 0 ? name : row.url,
+        row: raw,
       });
       continue;
     }
-    const located = resolveLocation(locationIndex, entry.name, entry.region);
-    if (located.kind !== "located") {
-      const reason =
-        located.kind === "ambiguous"
-          ? "ambiguous_name_location"
-          : located.kind === "region_mismatch"
-            ? "region_mismatch"
-            : located.kind === "region_unknown"
-              ? "region_unknown"
-              : "no_edw_name_location";
-      counts.usfs_pages.noLocation += 1;
-      countRefusals(counts.usfs_pages, [reason]);
+    // A page with no name leaves the second gate nothing to weigh, and
+    // distance alone would attach it to whichever trailhead is nearest.
+    const names = candidateNames(name, null);
+    if (names.length === 0) {
+      counts.usfs_pages.noName += 1;
+      countRefusals(counts.usfs_pages, ["no_page_name"]);
       skipped.push({
-        reason,
+        reason: "no_page_name",
         source: "usfs_pages",
-        name: entry.name,
-        // Say what was compared, so a reader can tell a cross-country name
-        // clash from a point that simply carries no region label.
-        ...(located.kind === "region_mismatch" || located.kind === "region_unknown"
-          ? { wanted_region: normalizeRegion(entry.region), point_regions: located.regions }
-          : {}),
-        row: row as unknown as Record<string, unknown>,
+        name: row.url,
+        lat: point.lat,
+        lng: point.lng,
+        row: raw,
       });
       continue;
     }
@@ -658,26 +685,26 @@ function readSources(
     rows.push({
       source: "usfs_pages",
       rowKey: row.url,
-      name: entry.name,
-      names: candidateNames(entry.name, {
-        sourceId: row.url,
-        feeCharged: null,
-        feeType: null,
-        publicName: located.point.publicName,
-        region: located.point.region,
-      }),
-      point: located.point,
+      name,
+      names,
+      point,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
-      raw: row as unknown as Record<string, unknown>,
+      raw,
     });
   }
 
   return rows;
 }
 
-/** One road row lifted to the shape the merge needs: an id and its leaves. */
-interface RoadFactRow {
+/**
+ * One row of an exact-id source, lifted to the shape the merge needs.
+ *
+ * Both derived sources — the road facts and the NPS facts — were built from
+ * the destination table itself, so neither carries a place or a name to gate
+ * on: an id and its leaves is the whole of what a row is.
+ */
+interface ExactIdRow {
   destinationId: string;
   name: string;
   leaves: LeafCandidate[];
@@ -700,15 +727,16 @@ function readRoadAccess(
   skipped: ReportRecord[],
   logger: Pick<Console, "log" | "warn">,
   runYear: number
-): RoadFactRow[] {
+): ExactIdRow[] {
   const filePath =
     args.roadAccessPath ?? path.join(args.dataDir as string, "trailhead-road-access.jsonl");
   const parsed = parseJsonl<RoadAccessRow>(readFile(filePath));
+  assertNotEmpty(parsed.rows.length, filePath, "the derived access-road facts (--road-access=FILE)");
   counts.malformed = parsed.malformed;
   logger.log(`  Road access rows read: ${parsed.rows.length} (window year ${runYear} ± 1)`);
 
   const limited = args.limit === null ? parsed.rows : parsed.rows.slice(0, args.limit);
-  const rows: RoadFactRow[] = [];
+  const rows: ExactIdRow[] = [];
   for (const row of limited) {
     counts.rowsIn += 1;
     const raw = row as unknown as Record<string, unknown>;
@@ -758,7 +786,100 @@ function readRoadAccess(
   return rows;
 }
 
-/** Which of the road rows' destinations are still there and still trailheads. */
+/** The two NPS layers, which arrive in one file and log as two sources. */
+const NPS_SOURCES: readonly TrailheadFactSource[] = ["nps_pois", "nps_parking"];
+
+/** Sources whose rows carry a destination id instead of a place and a name. */
+const EXACT_ID_SOURCES: readonly TrailheadFactSource[] = ["usfs_roads", ...NPS_SOURCES];
+
+function isExactIdSource(source: TrailheadFactSource): boolean {
+  return EXACT_ID_SOURCES.includes(source);
+}
+
+/**
+ * Read the normalized National Park Service facts.
+ *
+ * Like the road file and for the same reason: `normalize:nps-trailhead-facts`
+ * started from the production trailhead rows, so each row names the
+ * destination it belongs to and there is nothing to match. The file is
+ * required — a refresh that rebuilt the Forest Service files and left this one
+ * at last quarter's snapshot is an incomplete refresh, and importing most of
+ * itself quietly would hide that.
+ *
+ * One file, two sources. A row carries a `bathrooms` block, a `parking` block
+ * or both, each with its own service behind it, so each block is counted and
+ * reported under its own source rather than the file being called one thing.
+ */
+function readNpsFacts(
+  args: Args,
+  readFile: (filePath: string) => string,
+  counts: Record<TrailheadFactSource, SourceCounts>,
+  skipped: ReportRecord[],
+  logger: Pick<Console, "log" | "warn">
+): ExactIdRow[] {
+  const filePath = args.npsFactsPath ?? path.join(args.dataDir as string, "nps-trailhead-facts.jsonl");
+  const parsed = parseJsonl<NpsFactRow>(readFile(filePath));
+  assertNotEmpty(
+    parsed.rows.length,
+    filePath,
+    "the NPS restroom and parking facts (--nps-facts=FILE)"
+  );
+  // The same file backs both sources, so its malformed lines are the same
+  // number twice rather than two different failures.
+  for (const source of NPS_SOURCES) counts[source].malformed = parsed.malformed;
+  logger.log(`  NPS fact rows read: ${parsed.rows.length}`);
+
+  const limited = args.limit === null ? parsed.rows : parsed.rows.slice(0, args.limit);
+  const rows: ExactIdRow[] = [];
+  for (const row of limited) {
+    const raw = row as unknown as Record<string, unknown>;
+    const name = typeof row.destination_name === "string" ? row.destination_name : "";
+    const destinationId = typeof row.destination_id === "string" ? row.destination_id.trim() : "";
+    const blocks: Array<{ source: TrailheadFactSource; extraction: ReturnType<typeof npsBathroomLeafCandidates> }> = [];
+    if (row.bathrooms !== undefined) {
+      blocks.push({ source: "nps_pois", extraction: npsBathroomLeafCandidates(row) });
+    }
+    if (row.parking !== undefined) {
+      blocks.push({ source: "nps_parking", extraction: npsParkingLeafCandidates(row) });
+    }
+    // A row with neither block is about nothing. The normalizer never writes
+    // one — a trailhead it found nothing for gets no row, so that silence
+    // cannot be read as "no restroom here".
+    if (blocks.length === 0) continue;
+
+    const leaves: LeafCandidate[] = [];
+    for (const { source, extraction } of blocks) {
+      counts[source].rowsIn += 1;
+      if (destinationId.length === 0) {
+        counts[source].noLocation += 1;
+        countRefusals(counts[source], ["no_destination_id"]);
+        skipped.push({ reason: "no_destination_id", source, name, row: raw });
+        continue;
+      }
+      countRefusals(counts[source], extraction.refusals);
+      if (extraction.refusals.length > 0) {
+        skipped.push({
+          reason: extraction.refusals[0],
+          source,
+          name,
+          destination_id: destinationId,
+          refusals: extraction.refusals,
+          row: raw,
+        });
+      }
+      if (extraction.leaves.length === 0) {
+        counts[source].noFacts += 1;
+        continue;
+      }
+      leaves.push(...extraction.leaves);
+    }
+    if (leaves.length === 0) continue;
+    rows.push({ destinationId, name, leaves, raw });
+  }
+  return rows;
+}
+
+/** Which of the exact-id rows' destinations are still there and still trailheads. */
 async function liveTrailheads(
   database: QueryExecutor,
   ids: readonly string[]
@@ -812,10 +933,10 @@ async function logRuns(
   }
   for (const source of TRAILHEAD_FACT_SOURCES) {
     const counts = summary.counts[source];
-    // The road rows never went through the name gate, so its threshold would
-    // be noise on their run row; what they refused is the story instead.
+    // The derived rows never went through the name gate, so its threshold
+    // would be noise on their run row; what they refused is the story instead.
     const notes = (
-      source === "usfs_roads"
+      isExactIdSource(source)
         ? [
             `no_location=${counts.noLocation}`,
             `no_facts=${counts.noFacts}`,
@@ -824,6 +945,7 @@ async function logRuns(
           ]
         : [
             `no_location=${counts.noLocation}`,
+            `no_name=${counts.noName}`,
             `no_facts=${counts.noFacts}`,
             `no_nearby_trailhead=${counts.noNearbyTrailhead}`,
             `name_rejected=${counts.nameRejected}`,
@@ -871,6 +993,8 @@ export async function importTrailheadFacts(
     usfs_bathrooms: emptyCounts(),
     usfs_pages: emptyCounts(),
     usfs_roads: emptyCounts(),
+    nps_pois: emptyCounts(),
+    nps_parking: emptyCounts(),
   };
 
   logger.log(args.dryRun ? "Trailhead facts import (dry run)" : "Trailhead facts import (apply)");
@@ -888,6 +1012,8 @@ export async function importTrailheadFacts(
     startedAt.getUTCFullYear()
   );
   logger.log(`  Road rows carrying at least one fact: ${roadRows.length}`);
+  const npsRows = readNpsFacts(args, readFile, counts, skipped, logger);
+  logger.log(`  NPS rows carrying at least one fact: ${npsRows.length}`);
 
   const trgmProbe = await database.query<{ pg_trgm_ready: boolean }>(PG_TRGM_PROBE_SQL);
   const usePgTrgm = trgmProbe.rows[0]?.pg_trgm_ready === true;
@@ -904,6 +1030,8 @@ export async function importTrailheadFacts(
     usfs_bathrooms: [],
     usfs_pages: [],
     usfs_roads: [],
+    nps_pois: [],
+    nps_parking: [],
   };
   // Rows dropped before matching (no coordinates, no way to locate a page)
   // belong in the same report as the ones the gates rejected.
@@ -971,48 +1099,63 @@ export async function importTrailheadFacts(
     rowsByDestination.set(id, rowKeys);
   }
 
-  // The road rows join the same per-leaf merge, by exact id rather than by
+  // The derived rows join the same per-leaf merge, by exact id rather than by
   // gate. An id the catalog no longer holds — or holds as something other than
   // a trailhead — is reported and dropped, never written.
-  const roadCounts = counts.usfs_roads;
-  const live = await liveTrailheads(
-    database,
-    roadRows.map((row) => row.destinationId)
-  );
-  for (const row of roadRows) {
-    const destination = live.get(row.destinationId);
-    if (destination === undefined || !destination.isTrailhead) {
-      const reason = destination === undefined ? "destination_missing" : "destination_not_trailhead";
-      roadCounts.destinationVanished += 1;
-      countRefusals(roadCounts, [reason]);
-      reports.usfs_roads.push({
-        reason,
-        source: "usfs_roads",
-        name: row.name,
-        destination_id: row.destinationId,
-        row: row.raw,
-      });
-      continue;
+  //
+  // One NPS row can answer for both services, so the counts follow the leaves
+  // rather than the row: a row carrying only a parking block is a `nps_parking`
+  // row and nothing else.
+  const live = await liveTrailheads(database, [
+    ...new Set([
+      ...roadRows.map((row) => row.destinationId),
+      ...npsRows.map((row) => row.destinationId),
+    ]),
+  ]);
+  const mergeExactIdRows = (exactRows: readonly ExactIdRow[]): void => {
+    for (const row of exactRows) {
+      const sources = [...new Set(row.leaves.map((leaf) => leaf.source))];
+      const destination = live.get(row.destinationId);
+      if (destination === undefined || !destination.isTrailhead) {
+        const reason =
+          destination === undefined ? "destination_missing" : "destination_not_trailhead";
+        for (const source of sources) {
+          counts[source].destinationVanished += 1;
+          countRefusals(counts[source], [reason]);
+          reports[source].push({
+            reason,
+            source,
+            name: row.name,
+            destination_id: row.destinationId,
+            row: row.raw,
+          });
+        }
+        continue;
+      }
+      destinationNames.set(row.destinationId, destination.name);
+      const rowKeys = rowsByDestination.get(row.destinationId) ?? new Set<string>();
+      for (const source of sources) {
+        counts[source].matched += 1;
+        counts[source].matchedByRule.exact_id += 1;
+        matches.push({
+          source,
+          rule: "exact_id",
+          row_key: row.destinationId,
+          source_name: row.name,
+          matched_name: destination.name,
+          destination_id: row.destinationId,
+          destination_name: destination.name,
+        });
+        rowKeys.add(`${source} ${row.destinationId}`);
+      }
+      const existing = byDestination.get(row.destinationId) ?? [];
+      existing.push(...row.leaves);
+      byDestination.set(row.destinationId, existing);
+      rowsByDestination.set(row.destinationId, rowKeys);
     }
-    roadCounts.matched += 1;
-    roadCounts.matchedByRule.exact_id += 1;
-    destinationNames.set(row.destinationId, destination.name);
-    matches.push({
-      source: "usfs_roads",
-      rule: "exact_id",
-      row_key: row.destinationId,
-      source_name: row.name,
-      matched_name: destination.name,
-      destination_id: row.destinationId,
-      destination_name: destination.name,
-    });
-    const existing = byDestination.get(row.destinationId) ?? [];
-    existing.push(...row.leaves);
-    byDestination.set(row.destinationId, existing);
-    const rowKeys = rowsByDestination.get(row.destinationId) ?? new Set<string>();
-    rowKeys.add(`usfs_roads ${row.destinationId}`);
-    rowsByDestination.set(row.destinationId, rowKeys);
-  }
+  };
+  mergeExactIdRows(roadRows);
+  mergeExactIdRows(npsRows);
 
   const destinationIds = [...byDestination.keys()];
   const existingById = new Map<string, unknown>();
@@ -1031,6 +1174,7 @@ export async function importTrailheadFacts(
   const pending: PendingUpdate[] = [];
   let leafConflicts = 0;
   let preservedForeignLeaves = 0;
+  let deferredToExplicitLeaves = 0;
   let unchanged = 0;
   let skippedShape = 0;
 
@@ -1045,6 +1189,7 @@ export async function importTrailheadFacts(
     leafConflicts += conflicts.length;
     const merge = mergeTrailheadAmenities(existing, buildTrailheadAmenities(chosen));
     preservedForeignLeaves += merge.preservedLeaves.length;
+    deferredToExplicitLeaves += merge.deferredLeaves.length;
     if (!merge.changed) {
       unchanged += 1;
       continue;
@@ -1076,6 +1221,7 @@ export async function importTrailheadFacts(
     destinationsUnchanged: unchanged,
     leafConflicts,
     preservedForeignLeaves,
+    deferredToExplicitLeaves,
     reportFiles: [],
   };
 
@@ -1124,8 +1270,12 @@ export async function importTrailheadFacts(
     usfs_fees: "import-unmatched-fees.jsonl",
     usfs_bathrooms: "import-unmatched-bathrooms.jsonl",
     usfs_pages: "import-unmatched-pages.jsonl",
-    // Nothing here failed to match — a road row is refused on its own facts.
+    // Nothing here failed to match — a derived row is refused on its own
+    // facts. The two NPS layers arrive in one file and are reported apart,
+    // because a refused restroom and a refused lot are different failures.
     usfs_roads: "import-rejected-roads.jsonl",
+    nps_pois: "import-rejected-nps-pois.jsonl",
+    nps_parking: "import-rejected-nps-parking.jsonl",
   };
   for (const source of TRAILHEAD_FACT_SOURCES) {
     const filePath = path.join(reportDir, reportNames[source]);
@@ -1177,8 +1327,12 @@ function logSummary(
     logger.log(`  rows read:            ${counts.rowsIn}`);
     if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed} (whole file, never limited)`);
     logger.log(`  no usable location:   ${counts.noLocation}`);
+    // Printed at zero like every other funnel line. A counter that appears only
+    // when it fires reads as an alarm, and a reader who has never seen it
+    // cannot tell "none today" from "this run does not count that".
+    logger.log(`  no usable name:       ${counts.noName}`);
     logger.log(`  no fact to write:     ${counts.noFacts}`);
-    if (source === "usfs_roads") {
+    if (isExactIdSource(source)) {
       logger.log(`  destination vanished: ${counts.destinationVanished}`);
       logger.log(`  matched by exact id:  ${counts.matched}`);
     } else {
@@ -1201,6 +1355,9 @@ function logSummary(
   if (skippedShape > 0) logger.log(`  skipped (bad amenities): ${skippedShape}`);
   logger.log(`Leaf conflicts resolved:  ${summary.leafConflicts}`);
   logger.log(`Leaves left to other sources: ${summary.preservedForeignLeaves}`);
+  if (summary.deferredToExplicitLeaves > 0) {
+    logger.log(`NPS leaves yielding to an explicit claim: ${summary.deferredToExplicitLeaves}`);
+  }
   logger.log("Reports:");
   for (const file of summary.reportFiles) logger.log(`  ${file}`);
   if (summary.dryRun) logger.log("DRY RUN - no rows written. Re-run with --apply to persist.");

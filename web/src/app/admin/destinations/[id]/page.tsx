@@ -28,6 +28,7 @@ import {
   type TrailheadAmenities,
 } from "../../../../lib/amenities";
 import { roadAccessBadge } from "../../../../lib/trailhead-road-access";
+import { parkingBadge } from "../../../../lib/trailhead-parking";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -644,9 +645,10 @@ function formatCampsiteAmenityBadges(a: CampsiteAmenities): string[] {
 }
 
 // A representative subset, not every leaf — matches formatCampsiteAmenityBadges
-// above. Free-text notes and seasonal_window/limiting_segment_ref are left out
-// of these short chips; structured facts only. The road chip is composed by the
-// same helper the public page prints, so the two cannot drift.
+// above. Structured facts, plus the lot's own name, which is what someone
+// checking an import against a map actually needs. The road and parking chips
+// are composed by the same helpers the public page prints, so the two cannot
+// drift.
 function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
   const out: string[] = [];
   const { parking, road_access, bathrooms } = a;
@@ -660,7 +662,10 @@ function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
   else if (parking?.fee_required?.value) out.push("parking fee");
   else if (annualFee != null) out.push(`parking fee (annual $${annualFee})`);
   else if (parking?.fee_required?.value === false) out.push("free parking");
-  if (parking?.capacity_vehicles?.value != null) out.push(`${parking.capacity_vehicles.value} parking spaces`);
+  // Spaces where they were counted, otherwise the kind of parking — the same
+  // helper the public page prints, so the two cannot drift.
+  const parkingChip = parkingBadge(parking);
+  if (parkingChip) out.push(parkingChip);
 
   if (bathrooms?.status?.value === "present") {
     switch (bathrooms.type?.value) {

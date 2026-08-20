@@ -59,18 +59,52 @@ export type TrailheadHighClearance = 'required' | 'recommended' | 'not_required'
 export type TrailheadBathroomStatus = 'present' | 'absent';
 export type TrailheadBathroomType = 'vault_pit' | 'flush' | 'portable' | 'composting' | 'unspecified';
 
+// What the parking is, not how much of it there is. A source can map a lot
+// without counting a single space — the National Park Service publishes 6,740
+// lot polygons and no capacity field at all — and "there is a lot here" is a
+// fact worth printing on its own. 'roadside' is a pullout or shoulder rather
+// than a marked lot; 'garage' is a structure. Never infer capacity from this.
+export type TrailheadParkingType = 'lot' | 'roadside' | 'garage' | 'other';
+
+// How much parking there is, when a source that only mapped the lot is all
+// there is. The buckets are the ones cloud-sql/migrate/src/parking-capacity.ts
+// fits and names; the two lists must stay spelled the same word for word.
+export type TrailheadParkingCapacityRange =
+  | 'under_10'
+  | '10_to_25'
+  | '25_to_50'
+  | '50_to_100'
+  | '100_plus';
+
 export interface TrailheadSeasonalWindow {
   opens: string;   // e.g. "05-15" (MM-DD) or a provider's raw seasonal text
   closes: string;
 }
 
 export interface TrailheadParking {
+  type?: SourcedValue<TrailheadParkingType>;
   fee_required?: SourcedValue<boolean>;
   day_fee_usd?: SourcedValue<number>;
   annual_fee_usd?: SourcedValue<number>;
   passes_accepted?: SourcedValue<string[]>;   // e.g. ["America the Beautiful", "Northwest Forest Pass"]
   fee_waived_for?: SourcedValue<string[]>;    // e.g. ["holders of Access Pass"]
+  // Two different claims about how much parking there is, and they must never
+  // be mistaken for each other.
+  //
+  // capacity_vehicles is a count somebody made — a Forest Service page saying
+  // "parking for 12 vehicles". capacity_range is a bucket read off the lot's
+  // mapped area, for a source that draws a polygon and counts nothing.
+  //
+  // NO CODE PATH MAY TURN A RANGE INTO A COUNT. Not by a bucket's midpoint,
+  // not by its edge, not by carrying the fitted curve's own number across.
+  // That curve is a centre line through a cloud a full order of magnitude wide
+  // — real trailhead lots run from 11 to 250 m² a car — and a number nobody
+  // counted, written where counted numbers live, reads exactly like a number
+  // somebody did. The other direction is barred too: a counted 12 says more
+  // than "roughly 10-25", and rounding it into a bucket throws that away. Both
+  // directions are pinned by tests.
   capacity_vehicles?: SourcedValue<number>;
+  capacity_range?: SourcedValue<TrailheadParkingCapacityRange>;
   fills_early_note?: SourcedValue<string>;    // free text, e.g. "full by 7am on summer weekends"
   location_note?: SourcedValue<string>;
 }

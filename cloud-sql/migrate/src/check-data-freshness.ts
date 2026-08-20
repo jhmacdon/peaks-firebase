@@ -5,20 +5,38 @@ import db from "./db";
 // takes no --apply. Exit code 1 means at least one required source needs a
 // refresh (see cloud-sql/migrate/docs/trailhead-data-refresh.md).
 
-// usfs_pages is imported and logged like the others but is not required: the
-// page sections contribute a single leaf across the whole catalog, so a
-// quarterly alarm on it would be noise. It still shows in the report as an
-// [other] source.
+// usfs_pages is required again. It spent one release as an [other] source
+// because the page sections contributed a single leaf across the whole
+// catalog, and an alarm on one leaf is noise. That was a fault in how pages
+// were located, not in the pages: the registry carried no coordinates, so a
+// page had to borrow the point of a same-named EDW trailhead and almost none
+// of them could. The extraction now reads each page's own coordinates, the
+// rows go through the same two gates as the fee rows, and the source carries
+// real coverage — the two facts no agency dataset publishes at all, how many
+// cars fit and whether the lot fills early. Both go stale the way a web page
+// does: the agency rewrites the page and nothing tells us.
 //
 // usfs_roads is required. It is a real pipeline behind a real claim — 328
 // trailheads with a vehicle, a surface and a road to name — and its facts go
 // stale in a way the others do not: a gate window is a published schedule that
 // the agency reissues, and a road can be regraded or washed out between
 // refreshes.
+//
+// nps_pois and nps_parking are required for a different reason. They cover 32
+// and 37 trailheads, fewer than any other source, but every one of those rows
+// is a spatial join with no name behind it: the fact is true only while the
+// restroom and the lot are still where the layer put them and the trailhead is
+// still where the catalog puts it. A stale Forest Service fee is last season's
+// price; a stale NPS join can be a restroom that was removed. They are also
+// the pair covering the busiest trailheads Peaks has — Paradise among them — so
+// a silent expiry there is the most-read wrong answer in the catalog.
 export const REQUIRED_SOURCES: readonly string[] = [
   "usfs_fees",
   "usfs_bathrooms",
+  "usfs_pages",
   "usfs_roads",
+  "nps_pois",
+  "nps_parking",
 ];
 export const STALE_AFTER_DAYS = 90;
 

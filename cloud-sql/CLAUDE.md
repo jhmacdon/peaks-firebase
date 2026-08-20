@@ -595,10 +595,10 @@ Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_sess
 ## Trailhead facts import
 
 Parking, fee, bathroom and access-road facts for existing trailheads, imported
-from the normalized US Forest Service JSONL in `docs/trailheads/data/` (that
-directory lives in the `peaks` checkout, not this repo). The importer never
-creates a destination: a fact with no trailhead to hang on is reported, not
-invented.
+from the normalized US Forest Service and National Park Service JSONL in
+`docs/trailheads/data/` (that directory lives in the `peaks` checkout, not this
+repo). The importer never creates a destination: a fact with no trailhead to
+hang on is reported, not invented.
 
 ```bash
 cd migrate
@@ -626,9 +626,10 @@ rows across 28 pairs with no wrong match, and still rejects pairs that merely
 share a word (Willow Lake / Willow Creek, Ape Canyon / Lava Canyon). The
 two-token floor is what keeps "Butte" out of "Driveway Butte".
 
-Both rules try the EDW `site_name` and the `public_site_name` — 16 percent of
-raw rows (1,151 of 7,357) yield a second, genuinely different name once
-normalized, and Peaks catalogs trailheads under the public one.
+On a fee or bathroom row both rules try the EDW `site_name` and the
+`public_site_name` — 16 percent of raw rows (1,151 of 7,357) yield a second,
+genuinely different name once normalized, and Peaks catalogs trailheads under
+the public one. A page row offers the one name printed on the page.
 
 Rejected rows go to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data
 directory with the reason, the nearest candidate, and which name scored best.
@@ -638,14 +639,16 @@ prints the same split.
 
 The importer also reads the raw EDW pull
 (`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)
-and refuses to run without it. The normalized files drop three fields it needs:
-`fee_charged` (the fee guard below), `public_site_name` (the name gate), and
-`region` — a Forest Service page borrows coordinates from the same-named EDW
-trailhead, and without a region check a single same-named point anywhere in the
-country looks confident. Region equality is required; failures are dropped and
-counted under two separate reasons — `region_mismatch` when both sides carry a
-region and they disagree, `region_unknown` when one side has no region to
-compare — and the report records both regions.
+and refuses to run without it. The normalized files drop two fields it needs:
+`fee_charged` (the fee guard below) and `public_site_name` (the name gate).
+
+**Every input file is required, and one that is present and empty fails the
+same way a missing one does** — `assertNotEmpty`, one test per file. Zero rows
+means the command that writes it did not run, ran against nothing, or was
+truncated; importing that as a source with nothing to say logs the run as a
+success and leaves `check:data-freshness` green on the failure it exists to
+catch. The guard started on the raw pull, spread to the two derived files with
+the NPS import, and now covers the three extraction files too.
 
 The raw pull covers recreation **sites** only. The 1,243 fee rows from the
 recreation-**opportunities** dataset have no raw counterpart, so their no-fee
@@ -668,6 +671,72 @@ boilerplate "No fees are required for this site", 66 of them on records the
 same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
 stricter claim wins. Both guards live in `feeLeafCandidates` in
 `migrate/src/trailhead-facts-utils.ts`.
+
+### The third gated source: Forest Service site pages
+
+`usfs_pages` reads `<data-dir>/fs-page-sections-full.jsonl` (`--sections=FILE`
+overrides) and fills two parking leaves: `capacity_vehicles` from the page's
+stated capacity, `fills_early_note` from its sentence about the lot filling.
+Envelopes are `usfs_web` / US Forest Service / the page url / public domain,
+stamped with the day part of `fetched_at`. **These are the only two facts in
+this importer that no agency dataset publishes anywhere**, which is why a
+web page is worth reading at all.
+
+**Every row carries the page's own coordinates and goes through the same two
+gates as a fee row.** It did not always. The registry has no coordinates, so a
+page used to borrow the point of the same-named EDW trailhead, guarded by
+Forest Service region equality. That mechanism located 710 pages, imported one
+fact between them, and a cross-check against the extracted coordinates found
+**all 98 of its far-outlier borrows to be wrong attaches**. It is gone, and so
+are its four skip reasons (`no_edw_name_location`, `region_unknown`,
+`region_mismatch`, `ambiguous_name_location`) and the region field that fed
+them. A page with no coordinate of its own is counted under `no_coordinates`
+and dropped — nothing infers one.
+
+The rest of the row is read and none of it is imported. `fee_text`,
+`restroom_text` and `road_text` are prose about facts the EDW, MVUM and
+RoadCore datasets already publish as fields, and corroborating one against the
+other is its own piece of work; `verbatim_spans` is the evidence a person
+auditing the extraction reads, and `elevation_ft` belongs to the destination
+rather than to its amenities. Two envelope guards are pinned by tests: a
+`fetched_at` whose day part is not a real calendar day is refused rather than
+trimmed into one, and a url that is not an `http(s)` link never becomes a
+tappable source.
+
+**Two of those unimported fields are read as guards, and a guard may only take
+a fact away or make it smaller** — the same rule the road importer's single read
+of its `derivation` block obeys. Three fire, all pinned by tests:
+
+- **A capacity whose own words say truck, trailer, RV or stock is dropped.** The
+  page counted rigs and there is no leaf for rigs; a multiplier would be a
+  guess. Five rows in the file, two of them matched (Edds Mountain 6, Bear Pot 4).
+- **A capacity stated as a range publishes the low end.** The extraction keeps
+  the high end, and over-claiming parking is what strands a driver. Two rows
+  ("10-15 cars", "fits 1-2 cars"), neither matched today.
+- **A `fills_early_note` that appears word for word inside `road_text` is
+  dropped, unless the sentence itself says fill, full, crowd or overflow.** The
+  extraction found no sentence about the lot filling and lifted one out of the
+  paragraph about how to get there. The substring rule fires on 51 rows and the
+  exception readmits exactly two of them — Dog Mountain's "There are about 70
+  spots fill quickly on weekends" and Max Patch's "You may not park on the road
+  if the parking lot is full", both real facts a page happened to write inside
+  its directions. The other 49 are directions or a sentence about how much room
+  there is; none is readmitted. Three touch matched rows, of which two lose
+  their whole row (Suntop, Tunnel Creek) and one keeps a capacity leaf (Corral
+  Pass, whose note only repeats the capacity the leaf already carries). The
+  exception's words carry word boundaries on purpose: a bare `full` also
+  matches "carefully".
+
+A capacity is also required to be a **positive whole number** rather than merely
+non-negative: `0` renders as "0 vehicles", which reads as "there is no parking
+here", and half a space is an extraction that went wrong. Fees keep the looser
+check, because $0.00 and $5.50 are both real. Nothing in the file trips it today.
+
+The registry (`fs-trailhead-page-registry.jsonl`) is still the crawl's source
+of truth for which pages exist. The importer does not read it, and does not
+read the older partial `fs-page-sections.jsonl` either. Refresh the pages by
+re-running the Codex T6 work order (`docs/trailheads/codex-handoff-2.md`) and
+then this importer.
 
 ### The fourth source: access roads
 
@@ -708,6 +777,123 @@ Refusals drop one leaf, not the row: a trailhead whose dates are refused still
 gets its vehicle, surface and road reference. Rejected rows go to
 `import-rejected-roads.jsonl` with the reason.
 
+### The National Park Service pair: `nps_pois` and `nps_parking`
+
+The Forest Service sources stop at the forest boundary, so a trailhead in a
+national park had nothing. Two key-free NPS layers fill that in, joined by
+`normalize:nps-trailhead-facts` and imported by exact id like the road facts:
+
+```bash
+cd migrate
+npm run normalize:nps-trailhead-facts -- \
+  --data-dir=/path/to/peaks/docs/trailheads/data --show=<destination-id>
+```
+
+It reads the catalog once, read-only, for trailhead ids, names and coordinates,
+joins each trailhead to the nearest usable toilet POI and the nearest usable
+parking polygon within **150 m**, and writes `nps-trailhead-facts.jsonl` — one
+row per trailhead that got at least one of them, keyed by destination id, with
+the join evidence in a `diagnostics` block the importer never reads. Today 32
+trailheads get a restroom, 37 a lot, 15 both, 54 rows in all. The gate is 150 m
+rather than the 250 m the fee and bathroom sources match at because this join
+has no name to check itself against — only the distance.
+
+Three binding rules, all pinned by tests:
+
+- **NPS is presence-only** (`docs/trailheads/research-bathrooms.md` §3.2). It
+  records the restrooms it has mapped and says nothing about the ones it has
+  not, so nothing writes `bathrooms.status: absent`, and a trailhead the join
+  found nothing for gets **no row at all** — an emitted row saying "considered,
+  found nothing" is that forbidden negative written where a later reader takes
+  it for one. `npsBathroomLeafCandidates` refuses a non-`present` status again
+  on arrival, block and all, including a `type` that arrives without a status.
+- **A count never comes from an area; a range may.** `research-parking.md` §2.5
+  offered polygon area as a proxy at 30 m² a space and admitted the ratio had
+  never been calibrated. It has been now — `migrate/src/parking-capacity.ts` and
+  `migrate/docs/parking-capacity-calibration.md` — and it yields a bucket, not a
+  number: `parking.capacity_range`, one of `under_10`, `10_to_25`, `25_to_50`,
+  `50_to_100`, `100_plus`. `capacity_vehicles` is not merely absent from the NPS
+  allow-list: a row carrying one is **refused by name**, because a number nobody
+  counted, in the leaf counted numbers live in, reads exactly like a counted
+  one. No code path converts between the two in either direction.
+
+  The area obeys the contract in that module's header, kept in `npsLotCapacity`:
+  the **nearest exterior part** of the feature (a multi-part feature is not one
+  lot), **net of that part's interior rings** (gross-for-net moves 229 of the
+  layer's buckets), measured **geodesically** on the WGS84 ellipsoid — checked
+  against `ST_Area(geom::geography)` over 160 lots at a median 0.9 parts per
+  million and a worst 17.9 inside the gates, and pinned by tests. Ring winding
+  says which ring is which, except where a ring wound like an exterior is drawn
+  inside one, which is read as a hole (14 rings in 11 features, all slivers
+  under a square metre, no bucket moved — tidying, not a correction).
+  `diagnostics.area` records `area_rank` (largest-first ordering, this code's)
+  and `source_ring_index` (the layer's own ring number); only the second means
+  anything outside this process.
+
+  **The buckets are computed and not published.** The held-out re-validation
+  cannot run — none of the 137 Forest Service pages with a stated capacity has
+  an NPS lot within 200 m, and the OSM pull behind the calibration was deleted
+  under ODbL — so `CAPACITY_RANGE_EMISSION_DEFAULT` is `false` and every run
+  reports the ranges in its diagnostics instead. The gate is human:
+  `npm run spotcheck:nps-capacity` writes 60 stratified lots **and all 37 that
+  would actually publish** to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`,
+  each with a satellite link. Rows flagged `road?` — the layer draws some access
+  roads and parking loops as parking polygons, and area says nothing useful
+  about a carriageway — are scored but **excluded from the fraction**. At 80%
+  correct-or-adjacent with a few exact `100_plus` hits, flip the default and
+  pass `--capacity-range` (`--no-capacity-range` forces it shut).
+
+  **Opening that gate is a one-way door for the data.** `mergeTrailheadAmenities`
+  only ever sets a leaf; nothing removes one. A range that has been applied
+  cannot be withdrawn by re-running with the gate shut — it simply stops being
+  refreshed and stays on the row.
+- **A candidate the layer disowns is stepped past, never negated.** `POISTATUS`
+  in {`Planned`, `Not Existing`, `Decommissioned`, `Temporarily Closed`} — the
+  POI layer only, the parking layer has no such field — plus `OPENTOPUBLIC=No`
+  and `ISEXTANT=False`, which both layers carry. `npsFeatureAnomaly` also fails
+  closed on a present-but-non-string value: a boolean `false` in `OPENTOPUBLIC`
+  says the lot is shut as plainly as `"No"` does, and string-coercing it to `""`
+  would publish it as visitor parking.
+- **A lot whose name says it belongs to the staff is stepped past**, from a
+  token list built off the layer's own spellings (121 names hold `maintenance`,
+  101 `concession`, 80 `quarters`, 63 `residence`, and `main?t\w*` covers the
+  four misspellings including `maitenance`). `LOTTYPE` is null on 5,448 of
+  6,740 rows and `OPENTOPUBLIC` is Unknown on 6,091, so the name is the only
+  signal: Longmire's yard sits 88 m from the Eagle Peak trailhead. The list
+  errs wide on purpose — a false positive costs one trailhead its parking row,
+  a false negative publishes a maintenance yard as somewhere to park.
+
+**Conflict rule: an explicit agency claim beats an NPS spatial join on the same
+leaf.** A Forest Service row saying `Vault toilet(s)` is the agency describing a
+site it named; an NPS leaf is a restroom that happens to be within 150 m of a
+point. It is enforced in `preferCandidate` for two candidates in the same run
+and again in `mergeTrailheadAmenities` against a leaf already stored — the
+second covers the run where last quarter's Forest Service row no longer clears
+the name gate and the spatial join is the only candidate left.
+
+`LOTNAME` is filled on 1,314 lots and `MAPLABEL` on 5,672, and every lot this
+join matches today has a MAPLABEL and no LOTNAME — Paradise's upper lot
+included — so the label is load-bearing, not a nicety. A name becomes a note
+only when it says more than "Parking Lot" (375 rows) does, and a label the
+source truncated with a trailing `*` is refused rather than trimmed into
+"PARKI". The published note is title-cased — the layer shouts, and a detail
+sheet should not — while `diagnostics.lot_name` keeps the original. A name that
+already carries one lowercase letter is left exactly as the agency wrote it, so
+codes like "SD (U)" survive.
+
+Two more facts the normalizer reads that the type field alone would lose. Where
+`POITYPE` is generic and the point's own `POINAME` names the fixture — "Kautz
+Creek Vault Toilet", typed `Restroom` — the name sets the type, and
+`diagnostics.type_from_poi_name` records that it did; a specific type is never
+overruled by a name, and a name holding two fixture words is refused rather
+than guessed at. And a restroom flagged `SEASONAL=Yes` with no `SEASDESC` gets
+the one word the layer actually said, `season_note: "Seasonal"` — thin, and
+still the difference between planning around a closure and never hearing of it.
+
+Rejected rows go to `import-rejected-nps-pois.jsonl` and
+`import-rejected-nps-parking.jsonl`: one file in, two sources out, because a
+refused restroom and a refused lot are different failures.
+
 Each run records a `data_source_runs` row per source (`--no-log` skips it;
 a dry run is logged as `dry_run`, so it never counts as a refresh). Check
 staleness with:
@@ -716,12 +902,17 @@ staleness with:
 npm run check:data-freshness
 ```
 
-It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms` or
-`usfs_roads` — is more than 90 days past its last successful import or has
-never run. `usfs_pages` is imported and logged the same way but cannot fail the
-check: it contributes a single leaf across the catalog, so the report lists it
-as `[other]` rather than alarming on it. Quarterly cadence and the full refresh
-sequence: `migrate/docs/trailhead-data-refresh.md`.
+It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms`,
+`usfs_pages`, `usfs_roads`, `nps_pois` or `nps_parking` — is more than 90 days
+past its last successful import or has never run. The NPS pair covers fewer
+trailheads than anything else on that list and is required anyway: a spatial
+join with no name behind it is true only while both ends stay put, and it
+covers the busiest trailheads Peaks has. `usfs_pages` is required again after
+one release outside the list — the single-leaf yield that demoted it was the
+old borrowing mechanism's, not the pages'; with each page's own coordinates the
+source carries real coverage, and a rewritten agency page goes stale without
+saying so. Quarterly cadence and the full refresh sequence:
+`migrate/docs/trailhead-data-refresh.md`.
 
 ## Access-road processing store
 
