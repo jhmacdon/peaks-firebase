@@ -20,6 +20,7 @@ import {
   type SearchRouteResult,
 } from "../../lib/actions/search";
 import { getLists, type ListRow } from "../../lib/actions/lists";
+import { mapSearchHref } from "../../lib/map-view";
 
 interface Results {
   /** The query these rows answer, so a stale set is never labelled with the
@@ -134,12 +135,23 @@ export function DiscoverResults() {
               ? `Results for “${query}”`
               : "Searching…"}
         </h2>
-        <Link
-          href={buildDiscoverHref(currentSearch, { query: null, scope: null })}
-          className="text-sm font-medium text-accent-text hover:underline"
-        >
-          Clear search
-        </Link>
+        <div className="flex items-center gap-5">
+          {/* The map runs the same search and flies to the best match, so
+              the reader can carry a query straight into the explorer
+              instead of finding it again there. */}
+          <Link
+            href={mapSearchHref(query)}
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            View on map
+          </Link>
+          <Link
+            href={buildDiscoverHref(currentSearch, { query: null, scope: null })}
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            Clear search
+          </Link>
+        </div>
       </div>
 
       {error ? (
