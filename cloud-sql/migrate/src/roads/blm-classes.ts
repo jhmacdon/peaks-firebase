@@ -16,15 +16,24 @@ import type { BlmRouteUseClass, RoadSurface } from "./road-enums";
 /** How a raw value found its canonical class. */
 export type RouteUseClassMatch = "exact" | "normalized" | "unmapped";
 
+/** One reviewed decision: what the class means, and whether it is a road. */
+export interface RouteUseClassEntry {
+  routeClass: BlmRouteUseClass;
+  /** Null when the map row carries no `drivable` flag — unreviewed, not false. */
+  drivable: boolean | null;
+}
+
 export interface RouteUseClassResult {
   routeClass: BlmRouteUseClass | null;
+  /** Null when unmapped, or mapped by a row with no `drivable` flag. */
+  drivable: boolean | null;
   match: RouteUseClassMatch;
 }
 
 /** The reviewed map, indexed for exact and for forgiving lookup. */
 export interface RouteUseClassMap {
-  exact: Map<string, BlmRouteUseClass>;
-  normalized: Map<string, BlmRouteUseClass>;
+  exact: Map<string, RouteUseClassEntry>;
+  normalized: Map<string, RouteUseClassEntry>;
   size: number;
 }
 
@@ -64,22 +73,37 @@ export function normalizeRouteUseClassValue(raw: string | null | undefined): str
  * would otherwise spread silently through every BLM segment.
  */
 export function parseRouteUseClassMap(fileContents: string): RouteUseClassMap {
-  const exact = new Map<string, BlmRouteUseClass>();
-  const normalized = new Map<string, BlmRouteUseClass>();
+  const exact = new Map<string, RouteUseClassEntry>();
+  const normalized = new Map<string, RouteUseClassEntry>();
   let size = 0;
   for (const line of fileContents.split("\n")) {
     const trimmed = line.trim();
     if (trimmed === "") continue;
-    const row = JSON.parse(trimmed) as { raw_value?: string | null; canonical_class?: string };
+    const row = JSON.parse(trimmed) as {
+      raw_value?: string | null;
+      canonical_class?: string;
+      drivable?: unknown;
+    };
     const canonical = row.canonical_class as BlmRouteUseClass | undefined;
     if (canonical === undefined || !CANONICAL_CLASSES.includes(canonical)) {
       throw new Error(
         `blm-route-use-class-map: unknown canonical_class ${JSON.stringify(row.canonical_class)}`,
       );
     }
-    exact.set(exactKey(row.raw_value), canonical);
+    if (row.drivable !== undefined && typeof row.drivable !== "boolean") {
+      throw new Error(
+        `blm-route-use-class-map: drivable must be a boolean, got ${JSON.stringify(row.drivable)}`,
+      );
+    }
+    // A row with no flag is unreviewed for drivability, which is not the same
+    // as reviewed-and-false. It reads as null and gets reported.
+    const entry: RouteUseClassEntry = {
+      routeClass: canonical,
+      drivable: typeof row.drivable === "boolean" ? row.drivable : null,
+    };
+    exact.set(exactKey(row.raw_value), entry);
     const key = normalizeRouteUseClassValue(row.raw_value);
-    if (!normalized.has(key)) normalized.set(key, canonical);
+    if (!normalized.has(key)) normalized.set(key, entry);
     size += 1;
   }
   if (size === 0) throw new Error("blm-route-use-class-map: no rows");
@@ -92,53 +116,83 @@ export function applyRouteUseClass(
   raw: string | null | undefined,
 ): RouteUseClassResult {
   const direct = map.exact.get(exactKey(raw));
-  if (direct !== undefined) return { routeClass: direct, match: "exact" };
+  if (direct !== undefined) {
+    return { routeClass: direct.routeClass, drivable: direct.drivable, match: "exact" };
+  }
   const loose = map.normalized.get(normalizeRouteUseClassValue(raw));
-  if (loose !== undefined) return { routeClass: loose, match: "normalized" };
-  return { routeClass: null, match: "unmapped" };
+  if (loose !== undefined) {
+    return { routeClass: loose.routeClass, drivable: loose.drivable, match: "normalized" };
+  }
+  return { routeClass: null, drivable: null, match: "unmapped" };
 }
 
-// Observed classes that describe something a car or truck cannot drive. The
-// canonical map folds all of these into "unknown", which is right for "what
-// vehicle" — there is no vehicle answer — but it loses the fact that they do
-// not belong in a drivable graph at all. An unranked edge left in the graph is
-// the §A3 failure mode in another costume: a walk crosses a motorcycle
-// single-track and reports nothing worse than the gravel before it.
-const NON_DRIVABLE_ROUTE_CLASSES = new Set([
-  "non-motorized",
-  "non-mechanized",
-  "motorized single track",
-  "over snow vehicle",
-]);
-
 // `PLAN_ALLOW_MODE_TRNSPRT` codes that permit only vehicles narrower than a
-// car. The shared codes are not exclusive and stay in; `TECH_HI_CLEAR_VEH_ONLY`
-// is a vehicle, just a demanding one, so it stays in too.
+// car. This one stays in code rather than in the reviewed map, because it reads
+// a different field: the map is keyed by observed route-use class, and a route
+// carries both. The shared codes are not exclusive and stay in;
+// `TECH_HI_CLEAR_VEH_ONLY` is a vehicle, just a demanding one, so it stays too.
 const NON_DRIVABLE_ALLOWED_MODES = new Set(["MTC_ONLY", "MTC_ATV_UTV_ONLY"]);
+
+/** Why a route was kept out of the drivable graph, or `null` when it is in. */
+export type NotDrivableReason = "route_class" | "allowed_modes" | "unreviewed_class";
+
+export interface DrivableResult {
+  drivable: boolean;
+  reason: NotDrivableReason | null;
+}
 
 /**
  * Whether a BLM route belongs in the drivable road graph.
  *
- * The layer is "public display", which sounds like it is already only drivable
- * roads, and two of its planning fields agree: `PLAN_MODE_TRNSPRT` is
- * `Motorized` on all 111,149 rows and `PLAN_ASSET_CLASS` is always Road or
- * Primitive Road, so neither can exclude anything. `OHV_ROUTE_DSGNTN_LIM` only
- * says a limit exists, never that a car is barred. The observed class and the
- * allowed-mode code are the two fields that actually carry the answer.
+ * The class half of this answer lives in the reviewed map beside the canonical
+ * class, as a `drivable` flag, so a spelling that arrives in a later refresh
+ * cannot pass through as a road on nobody's authority. **A class the map does
+ * not cover, or covers without a flag, is kept out and reported** — a new
+ * unreviewed value should stop a road appearing rather than invent a
+ * connection. Failing the other way is the quiet one: a hiking trail admitted
+ * to the graph fabricates a route to a trailhead nothing can drive to.
  *
- * ATV and UTV routes deliberately stay in. They are motorized and a walk that
- * crosses one should say "ATV only" — which `vehicleRank` already does — rather
- * than lose the connection.
+ * Why the flag is needed at all: the canonical map folds Non-Motorized,
+ * Motorized Single Track and Over Snow Vehicle into "unknown", which is the
+ * right answer for "what vehicle" — there is none — and the wrong one for "is
+ * this a road".
+ *
+ * The layer is "public display", which sounds like it would already be only
+ * drivable roads, and two of its planning fields agree uselessly:
+ * `PLAN_MODE_TRNSPRT` is `Motorized` on all 111,149 rows and
+ * `PLAN_ASSET_CLASS` is always Road or Primitive Road, so neither can exclude
+ * anything. `OHV_ROUTE_DSGNTN_LIM` only says a limit exists, never that a car
+ * is barred. The observed class and the allowed-mode code carry the answer.
+ *
+ * ATV and UTV routes deliberately stay in — the map flags them drivable. They
+ * are motorized, and a walk that crosses one should say "ATV only", which
+ * `vehicleRank` already does, rather than lose the connection.
  */
+export function classifyBlmDrivability(
+  map: RouteUseClassMap,
+  rawRouteClass: string | null | undefined,
+  rawAllowedModes: string | null | undefined,
+): DrivableResult {
+  const modes = (rawAllowedModes ?? "").trim().toUpperCase();
+  if (NON_DRIVABLE_ALLOWED_MODES.has(modes)) {
+    return { drivable: false, reason: "allowed_modes" };
+  }
+  const applied = applyRouteUseClass(map, rawRouteClass);
+  if (applied.drivable === null) {
+    return { drivable: false, reason: "unreviewed_class" };
+  }
+  return applied.drivable
+    ? { drivable: true, reason: null }
+    : { drivable: false, reason: "route_class" };
+}
+
+/** The plain yes/no, for callers that do not need the reason. */
 export function isDrivableBlmRoute(
+  map: RouteUseClassMap,
   rawRouteClass: string | null | undefined,
   rawAllowedModes: string | null | undefined,
 ): boolean {
-  const routeClass = (rawRouteClass ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-  if (NON_DRIVABLE_ROUTE_CLASSES.has(routeClass)) return false;
-  const modes = (rawAllowedModes ?? "").trim().toUpperCase();
-  if (NON_DRIVABLE_ALLOWED_MODES.has(modes)) return false;
-  return true;
+  return classifyBlmDrivability(map, rawRouteClass, rawAllowedModes).drivable;
 }
 
 // BLM surface values are dirty in the same way but small enough to fold by

@@ -4,6 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 import {
   applyRouteUseClass,
+  classifyBlmDrivability,
   isDrivableBlmRoute,
   normalizeBlmSeasonRestriction,
   normalizeBlmSurface,
@@ -12,19 +13,29 @@ import {
 } from "../roads/blm-classes";
 
 const SAMPLE_MAP = [
-  { raw_value: null, canonical_class: "unknown" },
-  { raw_value: "", canonical_class: "unknown" },
-  { raw_value: " ", canonical_class: "unknown" },
-  { raw_value: "2wd Low", canonical_class: "2wd" },
-  { raw_value: "2WD LOW", canonical_class: "2wd" },
-  { raw_value: "4WD Low", canonical_class: "4wd" },
-  { raw_value: "4WD High Clearance/Specialized", canonical_class: "4wd_high_clearance" },
-  { raw_value: "Primitive Road - 4WD high clearance", canonical_class: "4wd_high_clearance" },
-  { raw_value: "ATV", canonical_class: "atv" },
-  { raw_value: "Non-Motorized", canonical_class: "unknown" },
+  { raw_value: null, canonical_class: "unknown", drivable: true },
+  { raw_value: "", canonical_class: "unknown", drivable: true },
+  { raw_value: " ", canonical_class: "unknown", drivable: true },
+  { raw_value: "2wd Low", canonical_class: "2wd", drivable: true },
+  { raw_value: "2WD LOW", canonical_class: "2wd", drivable: true },
+  { raw_value: "4WD Low", canonical_class: "4wd", drivable: true },
+  {
+    raw_value: "4WD High Clearance/Specialized",
+    canonical_class: "4wd_high_clearance",
+    drivable: true,
+  },
+  {
+    raw_value: "Primitive Road - 4WD high clearance",
+    canonical_class: "4wd_high_clearance",
+    drivable: true,
+  },
+  { raw_value: "ATV", canonical_class: "atv", drivable: true },
+  { raw_value: "Non-Motorized", canonical_class: "unknown", drivable: false },
 ]
   .map((row) => JSON.stringify(row))
   .join("\n");
+
+const SAMPLE = parseRouteUseClassMap(SAMPLE_MAP);
 
 test("the map loads and indexes every row", () => {
   const map = parseRouteUseClassMap(SAMPLE_MAP);
@@ -108,10 +119,35 @@ test("the reviewed map covers every value the BLM extract carries", (t) => {
     "Over Snow Vehicle",
     "Trail - UTV",
   ]) {
+    const applied = applyRouteUseClass(map, value);
+    assert.notEqual(applied.match, "unmapped", `unmapped: ${JSON.stringify(value)}`);
     assert.notEqual(
-      applyRouteUseClass(map, value).match,
-      "unmapped",
-      `unmapped: ${JSON.stringify(value)}`,
+      applied.drivable,
+      null,
+      `no drivable flag: ${JSON.stringify(value)}`,
+    );
+  }
+  // The six the reviewed map says are not roads.
+  for (const value of [
+    "Non-Motorized",
+    "NON-MOTORIZED",
+    "Non-Mechanized",
+    "Motorized Single Track",
+    "MOTORIZED SINGLE TRACK",
+    "Over Snow Vehicle",
+  ]) {
+    assert.equal(
+      isDrivableBlmRoute(map, value, "ALL_MOTO_VEH"),
+      false,
+      `should not be drivable: ${JSON.stringify(value)}`,
+    );
+  }
+  // And the ones it says are, including ATV and UTV.
+  for (const value of ["2WD LOW", "4wd Low", "ATV", "UTV", "Trail - UTV", "Unknown", null]) {
+    assert.equal(
+      isDrivableBlmRoute(map, value, "ALL_MOTO_VEH"),
+      true,
+      `should be drivable: ${JSON.stringify(value)}`,
     );
   }
 });
@@ -135,39 +171,75 @@ test("an unknown or absent BLM surface is null", () => {
   assert.equal(normalizeBlmSurface("Rammed Earth"), null);
 });
 
-test("routes no car can drive stay out of the graph", () => {
-  // These all fold to "unknown" in the canonical map, which is right for "what
-  // vehicle" and wrong for "is this a road". Left in the graph, a walk crosses
-  // a motorcycle track and reports nothing worse than the gravel before it.
-  assert.equal(isDrivableBlmRoute("Non-Motorized", "ALL_MOTO_VEH"), false);
-  assert.equal(isDrivableBlmRoute("NON-MOTORIZED", "ALL_MOTO_VEH"), false);
-  assert.equal(isDrivableBlmRoute("Non-Mechanized", "ALL_MOTO_VEH"), false);
-  assert.equal(isDrivableBlmRoute("Motorized Single Track", "ALL_MOTO_VEH"), false);
-  assert.equal(isDrivableBlmRoute("MOTORIZED SINGLE TRACK", "ALL_MOTO_VEH"), false);
-  assert.equal(isDrivableBlmRoute("Over Snow Vehicle", "ALL_MOTO_VEH"), false);
+test("drivability comes from the reviewed map, not from code", () => {
+  // The flag lives beside the canonical class in the reviewed file, so a
+  // spelling that arrives in a later refresh cannot decide for itself whether
+  // it is a road. Non-Motorized folds to "unknown" for "what vehicle" — right
+  // answer, wrong question for "is this a road".
+  assert.equal(isDrivableBlmRoute(SAMPLE, "Non-Motorized", "ALL_MOTO_VEH"), false);
+  assert.equal(classifyBlmDrivability(SAMPLE, "Non-Motorized", null).reason, "route_class");
+  // The forgiving match carries the flag with it.
+  assert.equal(isDrivableBlmRoute(SAMPLE, "NON-MOTORIZED", "ALL_MOTO_VEH"), false);
 });
 
 test("an allowed-mode code that bars full-size vehicles keeps a route out", () => {
-  assert.equal(isDrivableBlmRoute("4WD Low", "MTC_ONLY"), false);
-  assert.equal(isDrivableBlmRoute("4WD Low", "MTC_ATV_UTV_ONLY"), false);
+  // A separate field from the class, so this half stays in code.
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD Low", "MTC_ONLY"), false);
+  assert.equal(classifyBlmDrivability(SAMPLE, "4WD Low", "MTC_ONLY").reason, "allowed_modes");
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD Low", "MTC_ATV_UTV_ONLY"), false);
   // Shared codes are not exclusive, and a technical high-clearance vehicle is
   // still a vehicle — both stay in, with their rank carrying the difficulty.
-  assert.equal(isDrivableBlmRoute("4WD Low", "MTC_ATV_SHARED"), true);
-  assert.equal(isDrivableBlmRoute("4WD Low", "TECH_HI_CLEAR_VEH_ONLY"), true);
-  assert.equal(isDrivableBlmRoute("4WD Low", "TECH_VEH_SHARED"), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD Low", "MTC_ATV_SHARED"), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD Low", "TECH_HI_CLEAR_VEH_ONLY"), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD Low", "TECH_VEH_SHARED"), true);
 });
 
 test("ordinary and unknown BLM routes stay in the graph", () => {
-  assert.equal(isDrivableBlmRoute("2WD Low", "ALL_MOTO_VEH"), true);
-  assert.equal(isDrivableBlmRoute("4WD High Clearance/Specialized", "UNK"), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "2WD Low", "ALL_MOTO_VEH"), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "4WD High Clearance/Specialized", "UNK"), true);
   // ATV routes are motorized: the rank says "ATV only", which is the honest
   // answer, and dropping them would break connections instead.
-  assert.equal(isDrivableBlmRoute("ATV", "ALL_MOTO_VEH"), true);
-  assert.equal(isDrivableBlmRoute("UTV", null), true);
-  // An unknown class is unknown, not undrivable — the whole BLM layer is
-  // planned motorized, and half of it has no observed class recorded.
-  assert.equal(isDrivableBlmRoute("Unknown", "ALL_MOTO_VEH"), true);
-  assert.equal(isDrivableBlmRoute(null, null), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, "ATV", "ALL_MOTO_VEH"), true);
+  // A blank class is unknown, not undrivable — the whole BLM layer is planned
+  // motorized, and half of it has no observed class recorded.
+  assert.equal(isDrivableBlmRoute(SAMPLE, null, null), true);
+  assert.equal(isDrivableBlmRoute(SAMPLE, " ", null), true);
+});
+
+test("a class the map has never seen is kept out, not waved through", () => {
+  // The hazard this closes: a refresh introduces a spelling, and the old
+  // hardcoded list quietly called it a road. Failing this way costs a missing
+  // road, which shows up as "no approach found"; failing the other way invents
+  // a drive to a trailhead nothing can reach.
+  const verdict = classifyBlmDrivability(SAMPLE, "Hovercraft Route", "ALL_MOTO_VEH");
+  assert.equal(verdict.drivable, false);
+  assert.equal(verdict.reason, "unreviewed_class");
+});
+
+test("a mapped class with no drivable flag is treated as unreviewed", () => {
+  const partial = parseRouteUseClassMap(
+    [
+      JSON.stringify({ raw_value: "Sled Route", canonical_class: "unknown" }),
+      JSON.stringify({ raw_value: "2WD Low", canonical_class: "2wd", drivable: true }),
+    ].join("\n"),
+  );
+  assert.equal(applyRouteUseClass(partial, "Sled Route").routeClass, "unknown");
+  assert.equal(applyRouteUseClass(partial, "Sled Route").drivable, null);
+  const verdict = classifyBlmDrivability(partial, "Sled Route", null);
+  assert.equal(verdict.drivable, false);
+  assert.equal(verdict.reason, "unreviewed_class");
+  // The reviewed neighbour is unaffected.
+  assert.equal(isDrivableBlmRoute(partial, "2WD Low", null), true);
+});
+
+test("a non-boolean drivable flag stops the load", () => {
+  assert.throws(
+    () =>
+      parseRouteUseClassMap(
+        JSON.stringify({ raw_value: "x", canonical_class: "2wd", drivable: "yes" }),
+      ),
+    /drivable must be a boolean/,
+  );
 });
 
 test("the BLM seasonal flag is a flag, and UNK is not a no", () => {

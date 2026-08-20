@@ -92,3 +92,41 @@ assessment for a script to read.
 the page sections contribute a single leaf across the whole catalog, so an
 alarm on them would be noise. The report still lists the source, marked
 `[other]`, so its age is visible.
+
+## 4. Access-road data (separate cadence)
+
+The road sources — USFS RoadCore, USFS MVUM and BLM GTLF — refresh on their own
+schedule and never touch the `peaks` database. Full detail in
+`roads-processing-store.md`; the refresh sequence is: re-download per
+`docs/trailheads/data/raw-datasets-manifest.jsonl`, then
+
+```bash
+npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
+```
+
+Watch two things in the output. Row counts print against the manifest, so a
+short download is obvious. And any BLM route-use-class value the reviewed map
+cannot answer for is printed as a **WARNING**, with the row count and the
+reason.
+
+### The reviewed BLM map carries two decisions per row
+
+`docs/trailheads/data/blm-route-use-class-map.jsonl` is the shared reviewed
+artifact for BLM's dirty `OBSRVE_ROUTE_USE_CLASS`. Each of its 26 rows carries:
+
+- **`canonical_class`** — what vehicle the class means (`2wd`, `4wd`,
+  `4wd_high_clearance`, `atv`, `unknown`).
+- **`drivable`** — whether the class belongs in the road graph at all. Six rows
+  are `false`: Non-Motorized, Non-Mechanized, Motorized Single Track (both
+  spellings) and Over Snow Vehicle. ATV and UTV are `true` — they are motorized,
+  and the vehicle rank already says "ATV only".
+
+Both are needed because they answer different questions. The canonical class
+folds a motorcycle single-track into `unknown`, which is right for "what
+vehicle" — there is none — and useless for "is this a road".
+
+**A class the map does not cover, or covers without a `drivable` flag, is kept
+out of the graph and reported.** So when a refresh introduces a new spelling,
+the run warns and the road goes missing rather than a hiking trail quietly
+becoming a drivable connection. Review the value, add a row with both fields,
+and re-run. Do not add a row with only a `canonical_class`.

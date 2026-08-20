@@ -24,10 +24,12 @@ import path from "node:path";
 
 import {
   applyRouteUseClass,
-  isDrivableBlmRoute,
+  classifyBlmDrivability,
   normalizeBlmSeasonRestriction,
   normalizeBlmSurface,
   parseRouteUseClassMap,
+  type NotDrivableReason,
+  type RouteUseClassMap,
 } from "./blm-classes";
 import {
   MVUM_VEHICLE_CLASSES,
@@ -283,24 +285,37 @@ async function buildPublicMotorizedLookup(store: RoadStore): Promise<number> {
   return rows.length;
 }
 
+/** A class value the reviewed map cannot answer for, and why. */
+export interface BlmClassGap {
+  raw: string | null;
+  rows: number;
+  /** `unmapped` — no such class in the map. `no_drivable_flag` — class but no verdict. */
+  reason: "unmapped" | "no_drivable_flag";
+}
+
 interface BlmClassStats {
   mapped: number;
-  unmapped: { raw: string | null; rows: number }[];
+  gaps: BlmClassGap[];
 }
 
 /** The reviewed BLM class map, applied to every distinct observed value. */
 async function buildBlmClassLookup(
   store: RoadStore,
-  mapPath: string,
+  map: RouteUseClassMap,
 ): Promise<BlmClassStats> {
-  const map = parseRouteUseClassMap(await readFile(mapPath, "utf8"));
   const counts = await store.all<{ v: string | null; n: unknown }>(
     `SELECT OBSRVE_ROUTE_USE_CLASS AS v, count(*) AS n FROM raw_blm GROUP BY 1`,
   );
-  const unmapped: { raw: string | null; rows: number }[] = [];
+  const gaps: BlmClassGap[] = [];
   const rows = counts.map(({ v, n }) => {
     const result = applyRouteUseClass(map, v);
-    if (result.match === "unmapped") unmapped.push({ raw: v, rows: toCount(n) });
+    // Both gaps are the same hazard — a value nobody reviewed silently
+    // deciding what a road is — so both are reported the same way.
+    if (result.match === "unmapped") {
+      gaps.push({ raw: v, rows: toCount(n), reason: "unmapped" });
+    } else if (result.drivable === null) {
+      gaps.push({ raw: v, rows: toCount(n), reason: "no_drivable_flag" });
+    }
     const vehicle = vehicleRequirementFromBlmClass(result.routeClass);
     return [
       v,
@@ -322,30 +337,42 @@ async function buildBlmClassLookup(
     ],
     rows,
   );
-  return { mapped: rows.length, unmapped };
+  return { mapped: rows.length, gaps };
 }
 
 /**
  * Which BLM routes belong in the drivable graph, one row per distinct
- * class/allowed-mode pair. Returns how many rows each verdict covers so the run
- * can report what it dropped.
+ * class/allowed-mode pair. Returns how many source rows each reason excluded so
+ * the run can report exactly what it dropped and why.
  */
-async function buildBlmDrivableLookup(store: RoadStore): Promise<number> {
+async function buildBlmDrivableLookup(
+  store: RoadStore,
+  map: RouteUseClassMap,
+): Promise<Record<NotDrivableReason, number>> {
   const pairs = await store.all<{ route_class: string | null; modes: string | null; n: unknown }>(
     `SELECT OBSRVE_ROUTE_USE_CLASS AS route_class,
             PLAN_ALLOW_MODE_TRNSPRT AS modes, count(*) AS n
      FROM raw_blm GROUP BY 1, 2`,
   );
-  let excluded = 0;
+  const excluded: Record<NotDrivableReason, number> = {
+    route_class: 0,
+    allowed_modes: 0,
+    unreviewed_class: 0,
+  };
   const rows = pairs.map((pair) => {
-    const drivable = isDrivableBlmRoute(pair.route_class, pair.modes);
-    if (!drivable) excluded += toCount(pair.n);
-    return [pair.route_class, pair.modes, drivable];
+    const verdict = classifyBlmDrivability(map, pair.route_class, pair.modes);
+    if (verdict.reason !== null) excluded[verdict.reason] += toCount(pair.n);
+    return [pair.route_class, pair.modes, verdict.drivable, verdict.reason];
   });
   await createLookup(
     store,
     "map_blm_drivable",
-    ["route_class_raw VARCHAR", "allowed_modes_raw VARCHAR", "drivable BOOLEAN"],
+    [
+      "route_class_raw VARCHAR",
+      "allowed_modes_raw VARCHAR",
+      "drivable BOOLEAN",
+      "not_drivable_reason VARCHAR",
+    ],
     rows,
   );
   return excluded;
@@ -1030,8 +1057,11 @@ export async function importRoadNetwork(args: Args): Promise<void> {
       const levels = await buildMaintLevelLookup(store);
       const surfaces = await buildSurfaceLookup(store);
       const audiences = await buildPublicMotorizedLookup(store);
-      const blmClasses = await buildBlmClassLookup(store, paths.routeUseClassMap);
-      const blmExcluded = await buildBlmDrivableLookup(store);
+      const routeUseClassMap = parseRouteUseClassMap(
+        await readFile(paths.routeUseClassMap, "utf8"),
+      );
+      const blmClasses = await buildBlmClassLookup(store, routeUseClassMap);
+      const blmExcluded = await buildBlmDrivableLookup(store, routeUseClassMap);
       await buildBlmSeasonLookup(store);
       await buildSeasonalLookup(store);
       console.log(
@@ -1039,16 +1069,26 @@ export async function importRoadNetwork(args: Args): Promise<void> {
           `${audiences} audience/level pairs, ${blmClasses.mapped} BLM classes`,
       );
       console.log(
-        `  BLM routes excluded as not drivable: ${blmExcluded.toLocaleString()} ` +
-          `(non-motorized, motorcycle single-track, over-snow)`,
+        `  BLM routes excluded as not drivable: ` +
+          `${blmExcluded.route_class.toLocaleString()} by reviewed class, ` +
+          `${blmExcluded.allowed_modes.toLocaleString()} by allowed mode, ` +
+          `${blmExcluded.unreviewed_class.toLocaleString()} unreviewed`,
       );
-      if (blmClasses.unmapped.length > 0) {
+      // A class the map does not answer for decides what counts as a road on
+      // nobody's authority, whether it is missing outright or merely missing
+      // its verdict. Both are the same hazard and get the same warning.
+      if (blmClasses.gaps.length > 0) {
         console.log(
-          `  WARNING unmapped BLM route-use-class values (add them to ` +
-            `blm-route-use-class-map.jsonl after review):`,
+          `  WARNING BLM route-use-class values the reviewed map cannot answer for. ` +
+            `They are kept OUT of the drivable graph until reviewed — add them to ` +
+            `blm-route-use-class-map.jsonl with a canonical_class and a drivable flag:`,
         );
-        for (const entry of blmClasses.unmapped) {
-          console.log(`    ${JSON.stringify(entry.raw)} — ${entry.rows} rows`);
+        for (const gap of blmClasses.gaps) {
+          const why =
+            gap.reason === "unmapped" ? "not in the map" : "no drivable flag on its map row";
+          console.log(
+            `    ${JSON.stringify(gap.raw)} — ${gap.rows.toLocaleString()} rows — ${why}`,
+          );
         }
       }
       await buildRoadSegments(store);

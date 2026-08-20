@@ -743,13 +743,18 @@ pinned by `roads-approach-summary.test.ts`:
   holds an unrated edge, with counts saying why. Render unknown as unknown.
 
 BLM's `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
-`<data-dir>/blm-route-use-class-map.jsonl` — don't rebuild it. A spelling the
-map has not seen is **reported as unmapped in the run summary**, never folded
-into `unknown`, so a refresh that adds one gets reviewed. Plan against 43.5%
-usable class (48,301 of 111,149), not the 87.3% "populated" figure — 48,784 of
-the populated rows say literally "Unknown". `isDrivableBlmRoute` also keeps 334
-non-motorized, motorcycle-single-track and over-snow routes out of the graph;
-an unrated non-road left in it is the same failure in another costume.
+`<data-dir>/blm-route-use-class-map.jsonl` — don't rebuild it. Each of its 26
+rows carries **two** reviewed decisions: `canonical_class` (what vehicle) and
+`drivable` (whether it is a road at all). Both are needed — the class folds a
+motorcycle single-track into `unknown`, which is right for "what vehicle" and
+useless for "is this a road". A value the map cannot answer for, whether it is
+unmapped or merely missing its `drivable` flag, is **kept out of the graph and
+reported in the run summary**, so a refresh that adds a spelling gets reviewed
+instead of silently becoming a road. 334 routes are excluded today: 306 by the
+reviewed class, 28 by `PLAN_ALLOW_MODE_TRNSPRT` (`MTC_ONLY`,
+`MTC_ATV_UTV_ONLY` — that check reads a different field so it stays in code).
+Plan against 43.5% usable class (48,301 of 111,149), not the 87.3% "populated"
+figure — 48,784 of the populated rows say literally "Unknown".
 
 The graph is noded, not just endpoint-snapped. Snapping endpoints alone left
 165,323 components with the largest holding 0.4% of nodes, because a spur that

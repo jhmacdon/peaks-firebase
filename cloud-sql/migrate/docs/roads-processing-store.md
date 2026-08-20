@@ -153,24 +153,35 @@ unknown rule in the traversal contract matters.
 The layer is called "public display" and every row is planned motorized, but
 that does not make every row a road. 334 are excluded from the graph:
 
-- **308 by observed class** — Non-Motorized, Non-Mechanized, Motorized Single
-  Track (a motorcycle trail) and Over Snow Vehicle. The canonical map folds all
+- **306 by reviewed class** — the map's `drivable` flag. Six spellings are
+  false: Non-Motorized, Non-Mechanized, Motorized Single Track (a motorcycle
+  trail, both spellings) and Over Snow Vehicle. The canonical class folds all
   of these into `unknown`, which is the right answer for "what vehicle" and the
   wrong one for "is this a road": left in, a walk crosses a motorcycle track
   and reports nothing worse than the gravel before it.
-- **26 by allowed mode** — `PLAN_ALLOW_MODE_TRNSPRT` of `MTC_ONLY` or
+- **28 by allowed mode** — `PLAN_ALLOW_MODE_TRNSPRT` of `MTC_ONLY` or
   `MTC_ATV_UTV_ONLY`, the two codes that admit only vehicles narrower than a
-  car. The `*_SHARED` codes are not exclusive and stay in, and
+  car. This half stays in code rather than the map because it reads a different
+  field; the allowed-mode check runs first, so a route excluded on both counts
+  is reported here. The `*_SHARED` codes are not exclusive and stay in, and
   `TECH_HI_CLEAR_VEH_ONLY` is a vehicle — a demanding one, which its rank says.
+
+**The class half lives in the reviewed map, not in code.** `drivable` sits
+beside `canonical_class` on each of the 26 rows, so a spelling that arrives in
+a later refresh cannot decide for itself whether it is a road. A class the map
+does not cover, or covers without a flag, is **kept out and reported** — the
+same warning an unmapped class gets, because it is the same hazard. Failing
+that way costs a missing road, which surfaces as "no approach found"; failing
+the other way invents a drive to a trailhead nothing can reach.
 
 The other two planning fields carry no signal and are not used:
 `PLAN_MODE_TRNSPRT` is `Motorized` on all 111,149 rows, `PLAN_ASSET_CLASS` is
 always Road or Primitive Road, and `OHV_ROUTE_DSGNTN_LIM` says only that a
 limit exists, never that a car is barred.
 
-ATV and UTV routes stay in on purpose. They are motorized, `vehicleRank` already
-says "ATV only", and dropping them would break connections rather than improve
-an answer.
+ATV and UTV routes are flagged drivable on purpose. They are motorized,
+`vehicleRank` already says "ATV only", and dropping them would break
+connections rather than improve an answer.
 
 ## Tables
 
