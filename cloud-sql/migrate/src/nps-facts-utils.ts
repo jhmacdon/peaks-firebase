@@ -692,10 +692,15 @@ export interface NpsParkingResult {
  * is `lot` whatever `LOTTYPE` says — an `Overlook` lot is still a lot, and
  * `roadside` in the Peaks vocabulary means a pullout this layer does not carry.
  *
- * **No capacity, ever.** research-parking.md §2.5 offers polygon area as a
- * proxy at 30 m² a space and says in the same breath that the ratio was never
- * calibrated, because Overpass went down before the regression could run. A
- * number nobody checked reads exactly like a number somebody did.
+ * **No capacity here, still.** research-parking.md §2.5 offered polygon area as
+ * a proxy at 30 m² a space and admitted the ratio had never been calibrated. It
+ * has been now — see `parking-capacity.ts` and
+ * docs/parking-capacity-calibration.md, which found 30 m² roughly twice as
+ * dense as a real trailhead lot — but what that calibration yields is a
+ * *range*, and `TrailheadParking` has nowhere to put one yet. This join keeps
+ * emitting no capacity until the schema carries `capacity_range`; a fitted
+ * range squeezed into `capacity_vehicles` would read exactly like a number
+ * somebody counted.
  */
 export function npsParkingFacts(
   candidates: readonly NpsCandidate[],
