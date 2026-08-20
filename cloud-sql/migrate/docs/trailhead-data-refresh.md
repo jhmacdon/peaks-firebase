@@ -31,6 +31,13 @@ The work order also updates `STATUS.md` with row counts and the sample-audit
 error rate. Read it before importing: an error rate above about 1 percent means
 fix the extraction first, not the import.
 
+**Every input file the importer reads is required, and a file that is present
+and holds no rows fails exactly as a missing one does.** Zero rows means the
+command did not run, ran against nothing, or was truncated, and all three are a
+refresh that did not happen. Importing such a file as "a source with nothing to
+say" would log the run as a success and leave the freshness check green on the
+one thing it exists to catch.
+
 ## 1b. Re-extract the Forest Service site pages
 
 The pages are their own crawl and their own work order:
@@ -43,6 +50,9 @@ one of them.
 `fs-trailhead-page-registry.jsonl` stays the crawl's source of truth for which
 pages exist; the importer no longer reads it, and no longer reads the older
 partial `fs-page-sections.jsonl` either. Both are left in place.
+
+The same rule applies here: an empty `fs-page-sections-full.jsonl` stops the
+import rather than importing as silence.
 
 Two numbers to read in `STATUS.md` before importing: the sample-audit error
 rate, same bar as above, and **coordinate coverage** — how many of the 2,900

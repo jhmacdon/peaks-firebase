@@ -256,13 +256,19 @@ interface ParsedFile<T> {
 /**
  * A file that is present and says nothing is a failure, not an empty result.
  *
- * The two derived files — the road facts and the NPS facts — are written whole
- * by a command that starts from the catalog, so zero rows means that command
- * did not run, or ran against an empty store, or was truncated. Every one of
- * those is a refresh that did not happen, and letting the import continue would
- * report it as a source with nothing to say rather than a source that is
- * missing. The raw EDW pull has been guarded this way since the fee importer
- * shipped; these two had the same weakness and now have the same guard.
+ * Every input file is written whole by a command that either starts from the
+ * catalog (the road facts, the NPS facts) or from an agency download (the fee,
+ * bathroom and page extractions). Zero rows in any of them means that command
+ * did not run, ran against nothing, or was truncated — each one a refresh that
+ * did not happen. Letting the import continue would report it as a source with
+ * nothing to say rather than a source that is missing, and the run would be
+ * logged as a success, which keeps `check:data-freshness` green on the very
+ * thing it exists to catch.
+ *
+ * The raw EDW pull has been guarded this way since the fee importer shipped
+ * and the two derived files since the NPS one. The three extraction files had
+ * the same hole and now have the same guard: `usfs_pages` becoming a required
+ * source made the hole reachable there, and the three behave alike.
  */
 function assertNotEmpty(rows: number, filePath: string, needs: string): void {
   if (rows > 0) return;
@@ -525,8 +531,19 @@ function readSources(
     );
   }
   const fees = parseJsonl<FeeRow>(readFile(feesPath));
+  assertNotEmpty(fees.rows.length, feesPath, "the normalized fee rows (--fees=FILE)");
   const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath));
+  assertNotEmpty(
+    bathrooms.rows.length,
+    bathroomsPath,
+    "the normalized bathroom rows (--bathrooms=FILE)"
+  );
   const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath));
+  assertNotEmpty(
+    sections.rows.length,
+    sectionsPath,
+    "the extracted Forest Service page rows (--sections=FILE)"
+  );
   logger.log(`  Raw EDW rec-site rows indexed: ${recSites.size}`);
 
   counts.usfs_fees.malformed = fees.malformed;

@@ -642,6 +642,14 @@ The importer also reads the raw EDW pull
 and refuses to run without it. The normalized files drop two fields it needs:
 `fee_charged` (the fee guard below) and `public_site_name` (the name gate).
 
+**Every input file is required, and one that is present and empty fails the
+same way a missing one does** — `assertNotEmpty`, one test per file. Zero rows
+means the command that writes it did not run, ran against nothing, or was
+truncated; importing that as a source with nothing to say logs the run as a
+success and leaves `check:data-freshness` green on the failure it exists to
+catch. The guard started on the raw pull, spread to the two derived files with
+the NPS import, and now covers the three extraction files too.
+
 The raw pull covers recreation **sites** only. The 1,243 fee rows from the
 recreation-**opportunities** dataset have no raw counterpart, so their no-fee
 claims rest on their quote text alone with nothing to cross-check: 632 rows

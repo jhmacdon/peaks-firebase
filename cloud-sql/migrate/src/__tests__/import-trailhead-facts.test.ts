@@ -238,6 +238,44 @@ function roadRow(overrides: Record<string, unknown> = {}): Record<string, unknow
 }
 
 /**
+ * Rows carrying no fact at all, for tests isolating one source from the rest.
+ *
+ * Every input file must hold at least one row, so a source is kept out of the
+ * way with a row that says nothing rather than with an empty file — the shape
+ * the road and NPS suites already used. A row with no leaf never reaches the
+ * gates, so the source under test still runs alone.
+ */
+const NO_FACT_FEE_ROW = {
+  source_dataset: "usfs_rec_sites",
+  source_id: "9999",
+  name: "SAYS NOTHING TRAILHEAD",
+  lat: 10,
+  lng: 10,
+  fee_required: null,
+  day_fee_usd: null,
+  annual_fee_usd: null,
+  passes_accepted: [],
+  fee_waived_for: [],
+  confidence: "low",
+  verbatim_quote: null,
+  as_of: "2026-08-19",
+};
+
+const NO_FACT_BATHROOM_ROW = {
+  source_dataset: "usfs_rec_sites",
+  source_id: "9999",
+  name: "SAYS NOTHING TRAILHEAD",
+  lat: 10,
+  lng: 10,
+  status: "unknown",
+  type: null,
+  season_note: null,
+  raw_string: null,
+  verbatim_quote: null,
+  as_of: "2026-08-19",
+};
+
+/**
  * A row shaped exactly as the T6 page extraction writes one: the page's own
  * coordinates, its own name, and far more prose than the importer takes.
  */
@@ -263,6 +301,13 @@ function pageRow(overrides: Record<string, unknown> = {}): Record<string, unknow
     ...overrides,
   };
 }
+
+const NO_FACT_PAGE_ROW = pageRow({
+  url: "https://www.fs.usda.gov/r06/mbs/recreation/says-nothing-trailhead",
+  name: "Says Nothing Trailhead",
+  capacity_estimate: null,
+  fills_early_note: null,
+});
 
 function defaultFiles(overrides: Record<string, string> = {}): Record<string, string> {
   return {
@@ -850,8 +895,8 @@ test("a page beside a differently named trailhead is rejected by the name gate",
     [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
       pageRow({ name: "Denny Creek Trailhead" }),
     ]),
-    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([NO_FACT_FEE_ROW]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
@@ -1085,7 +1130,7 @@ test("a page is located by its own row, so --limit no longer moves it", async ()
         as_of: "2026-08-19",
       },
     ]),
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
     [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
       pageRow({
         url: "https://www.fs.usda.gov/r06/mbs/recreation/second-trailhead",
@@ -1185,8 +1230,8 @@ test("a qualifier-only difference matches on containment and says so", async () 
         as_of: "2026-08-19",
       },
     ]),
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-windy", name: "Windy Peak Trailhead", ...SNOW_LAKE }],
@@ -1232,8 +1277,8 @@ test("a name that only shares a word still fails both rules", async () => {
         as_of: "2026-08-19",
       },
     ]),
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-willow", name: "Willow Creek Trailhead", ...SNOW_LAKE }],
@@ -1307,8 +1352,8 @@ test("rows keep their own candidates across candidate and similarity chunks", as
         as_of: "2026-08-19",
       }))
     ),
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
       { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
     ]),
@@ -1393,9 +1438,9 @@ const SNOW_DEST = { id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }
 /** A data directory holding one road row and nothing else worth matching. */
 function roadOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, string> {
   return defaultFiles({
-    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([NO_FACT_FEE_ROW]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl(rows),
     // Both derived files must hold at least one row or the import refuses to
     // start, so the source under test is isolated with a row that lands
@@ -1419,9 +1464,9 @@ const UNANSWERED_ROAD_ROW = {
 /** A data directory holding one NPS row and nothing else worth matching. */
 function npsOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, string> {
   return defaultFiles({
-    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
-    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([NO_FACT_FEE_ROW]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([NO_FACT_BATHROOM_ROW]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl([UNANSWERED_ROAD_ROW]),
     [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl(rows),
   });
@@ -2236,3 +2281,32 @@ test("an empty derived file stops the run before the database is touched", async
   assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
   assert.equal(calls.some((call) => call.sql === "BEGIN"), false);
 });
+
+// The three extraction files carry the same guard as the two derived ones, and
+// for the same reason: an empty file imports as a source with nothing to say,
+// the run logs as a success, and `check:data-freshness` stays green on exactly
+// the failure it exists to catch. All three sources are required, so all three
+// files are guarded — the hole was reachable on any of them.
+for (const [label, fileName] of [
+  ["fee", "trailhead-fees.jsonl"],
+  ["bathroom", "trailhead-bathrooms.jsonl"],
+  ["page", "fs-page-sections-full.jsonl"],
+] as const) {
+  test(`a present but empty ${label} file fails loudly rather than importing as silence`, async () => {
+    // Blank lines only: parseJsonl skips them, so "no usable rows" is the same
+    // failure as a file with nothing in it at all.
+    const files = defaultFiles({ [path.join(DATA_DIR, fileName)]: "\n  \n" });
+    const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+    await assert.rejects(
+      () =>
+        importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+          db,
+          console: silent,
+          ...createIo(files),
+        }),
+      new RegExp(`${fileName.replace(".", "\\.")} yielded no usable rows`)
+    );
+    assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+    assert.equal(calls.some((call) => call.sql === "BEGIN"), false);
+  });
+}

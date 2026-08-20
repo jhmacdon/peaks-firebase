@@ -33,6 +33,46 @@ ring that is plainly not one lot.
 Nothing exports a vehicle count. The curve is a centre line through a cloud a
 full order of magnitude wide, and the honest unit of publication is the range.
 
+## The area contract
+
+**Binding on every caller.** `areaM2` must be the *geodesic ground area of one
+lot's footprint, net of interior rings* — in PostGIS, `ST_Area(geom::geography)`,
+which is what this schema's `geography(...)` columns give for free. The
+calibration was fitted on geodesic areas, so a caller measuring anything else is
+measuring a different quantity than these constants describe. Two ways to get it
+wrong, both of which move buckets silently.
+
+**1. Never pass a planar Web Mercator (EPSG:3857) area.** Mercator inflates area
+by 1/cos²(latitude):
+
+| Latitude | Area inflation | Effect on cars (through the 0.735 exponent) |
+|---|---|---|
+| 35°N | ×1.49 | ×1.34 |
+| 45°N | ×2.00 | ×1.66 |
+| 49°N | ×2.32 | ×1.86 |
+
+That is enough to push the majority of lots a full bucket high, in the direction
+that tells a hiker there is more parking than there is.
+
+**2. A multi-part feature is not one lot.** Measured on the NPS public parking
+layer, 1,114 of 6,739 features carry more than one ring:
+
+| | Features | Effect |
+|---|---|---|
+| ≥1 *interior* ring (hole, median, planted island) | 1,006 | Using gross instead of net area flips **232** bucket assignments |
+| >1 *exterior* ring (genuinely multi-part) | 147 | Sum-of-parts and largest-part disagree on **36** |
+| both | 39 | |
+
+Holes are not a rounding error: the median hole is 15% of its exterior ring, the
+90th percentile 42%, and 60 features have holes covering more than half.
+
+Two lots either side of a road are two lots. **The contract: split per exterior
+part and call this once per part, or make no claim.** Never sum disjoint parts
+into one answer.
+
+Enforcement belongs at the call site, where the geometry is — this module takes
+a number and cannot tell a good one from a bad one. The wiring task owns it.
+
 ## The data
 
 Every `amenity=parking` **way** in the contiguous United States carrying both a
@@ -73,6 +113,11 @@ Median area per car, by segment:
 | … unpaved | 285 | 42.6 |
 | … surface untagged | 327 | 37.0 |
 | USFS page prose (held out) | 63 | 57.0 |
+| … pages mentioning no trailer | 54 | 51.6 |
+
+That ladder — **28.5 → 39.3 → 57.0** — is the load-bearing evidence in this
+document. It is what rejected the national calibration, and it is measured on
+samples of 56,124, 914 and 63 rather than inferred from an accuracy score.
 
 "Trailhead context" means the lot is within 150 m of an OSM
 `highway=trailhead`/`information=trailhead` node (10,521 of them nationally),
@@ -118,15 +163,56 @@ is why the answer is a range.
 ## Accuracy
 
 Measured with the gates applied, over the lots the function actually answers
-for, on data never used to fit or to choose thresholds.
+for. The trailhead-context rows are the ones that matter — that is the
+population this is calibrated for and applied to. The national slice is
+reported for completeness and is the least relevant number here, being
+dominated by urban lots this function is not for.
 
 | Set | Answered | Exact bucket | Correct or adjacent |
 |---|---|---|---|
-| Held-out OSM pairs (30% id-hashed slice) | 15,197 of 16,805 | 54.8% | **97.8%** |
-| … restricted to trailhead context | 242 of 256 | 62.8% | **97.9%** |
-| USFS page prose | 62 of 63 | 50.0% | **91.9%** |
+| **Trailhead-context held-out OSM pairs** | 242 of 256 | **62.8%** | 97.9% |
+| **USFS page prose** | 62 of 63 | **50.0%** | 91.9% |
+| National held-out slice (30% id hash) | 15,197 of 16,805 | 54.8% | 97.8% |
 
-The ship bar was 80% correct-or-adjacent on both required sets. Both clear it.
+The ship bar was 80% correct-or-adjacent on both required sets. Both clear it —
+and that is worth much less than it sounds.
+
+### The adjacency bar is mostly bucket geometry
+
+With buckets this wide and a residual spread of ×1.64, the correct-or-adjacent
+band spans a factor of five or more in cars. Simulating a model with the
+*correct* scale and nothing but the observed log-normal noise:
+
+| Model | Exact | Correct or adjacent |
+|---|---|---|
+| Correctly scaled | ~68% | ~98% |
+| Wrong by ×1.66 | ~56% | ~94% |
+| **Wrong by ×2.0** | ~48% | **~90%** |
+
+A model wrong by a full factor of two — precisely the mistake calibrating on
+the national population would have made — still clears an 80% adjacency bar.
+**The bar cannot distinguish this calibration from the one it replaced.** What
+discriminates is exact accuracy, and behind that the m²/car scale ladder in the
+segment table above. `__tests__/parking-capacity.test.ts` runs this simulation
+and pins the claim, so it cannot quietly rot.
+
+### Two honest caveats on the prose number
+
+**The 91.9% is a selection-maximum.** The thresholds themselves were analytic
+throughout — the fitted curve evaluated at the bucket edges, never tuned to any
+dataset. But five candidate threshold families (national analytic, national
+DP-optimal, trailhead with borrowed exponent, trailhead pure, trailhead
+DP-optimal) were each scored against the prose set before this one was chosen,
+and the prose score was part of why. On n = 62 that makes 91.9% optimistic. The
+prose set is held out from *fitting*; it is not held out from *model selection*.
+
+**50.0% exact is below par, and the errors lean one way.** A correctly scaled
+model should reach about 68%. Against the prose set the shipped curve reaches
+50%, with **19 over-claims against 12 under-claims** — it still reads high
+against the most rural population in the study. Over-claiming is the
+user-unsafe direction: it tells a hiker there is more parking than there is.
+Some of that gap is trailer parking (the trailer-free prose median is 51.6 m²
+a car against 57.0 overall), and some is genuine residual bias.
 
 The 1,608 held-out OSM lots the floor declines were nearly all correct
 `under_10` calls given up on purpose. The gate costs exact accuracy to buy the
@@ -163,10 +249,23 @@ Each of the 108 was joined to the nearest mapped lot polygon within 120 m —
 OSM first, NPS lot polygons as a fallback. 63 found one. The rest have no
 mapped lot, which is its own finding about coverage.
 
-This set was never used for fitting or for choosing thresholds. It is the only
-evidence here that is both trailhead-specific and independent of OSM's own
-capacity tags, and it is the reason to trust the trailhead calibration over the
-national one.
+**It was never used for fitting, and it was used for model selection.** No
+constant was fitted to it and no threshold was tuned on it — the thresholds are
+the curve at the bucket edges throughout. But five candidate threshold families
+were scored against it before one was chosen, so its 91.9% is a maximum over
+five, on n = 62. Treat it as strong evidence about *scale* and weak evidence
+about the last few points of accuracy.
+
+With that caveat it is still the only evidence here that is both
+trailhead-specific and independent of OSM's own capacity tags, and it is the
+reason to trust the trailhead calibration over the national one.
+
+**A larger replacement now exists.** `fs-page-sections-full.jsonl` — the full
+2,900-page LLM extraction, with 137 stated capacities — landed after this pull
+was taken, so the calibration did not see it. Re-validating against it, with the
+threshold family frozen first, would give a genuinely clean held-out number and
+retire the selection caveat above. That is recorded as work for the wiring task,
+not done here.
 
 ## Surface is a proxy, not a driver
 
@@ -174,12 +273,16 @@ The function takes a `surface` hint and does not use it. That is a measurement,
 not an oversight.
 
 Nationally the gap looks decisive — 40.6 m² a car unpaved against 29.4 paved.
-Inside trailhead context it closes to 42.6 against 37.8, and adding surface
-dummies to the fit moves the residual standard deviation only from 0.496 to
-0.489 on n = 914. Scored end to end, an adjustment built from those dummies
-left the prose set unchanged and cost a point of exact accuracy on held-out
-trailhead pairs. Surface was standing in for setting; once the setting is
-already known, it has little left to say.
+Inside trailhead context it closes to 42.6 against 37.8 (n = 285 and 302), a gap
+far inside the ×1.64 spread the fit already carries. Surface was standing in for
+setting; once the setting is known, it has little left to say.
+
+**That median comparison is the whole of the surviving evidence.** A
+dummy-variable regression and a scoring pass run during the study also found no
+gain, but both were ad-hoc scripts over the raw OSM pull, which ODbL required
+deleting — so neither is reproducible from this repository, and neither is
+quoted as a figure here. A future refit that wants to revisit surface should
+measure it again rather than trust a remembered number.
 
 The parameter stays in the signature because callers have the value and a
 bigger trailhead sample may yet find a use for it. A test pins the current
@@ -208,11 +311,23 @@ geometry, so a range and a count are never mistaken for each other downstream.
 The thresholds are the curve evaluated at the bucket edges, and
 `__tests__/parking-capacity.test.ts` fails if the two stop agreeing — so refit,
 do not nudge. A refit needs: the OSM pull filtered as above, the trailhead
-context flag, the 70/30 id hash split, and the prose set left alone until the
-constants are frozen. Then re-run both validations and update the numbers here
-and in the module header together.
+context flag, the 70/30 id hash split, and the prose set left alone until both
+the constants **and the threshold family** are frozen — the family choice is
+where this study leaked, and freezing it first is what makes the prose number
+clean. Then re-run both validations and update the numbers here and in the
+module header together.
+
+Report exact accuracy first and adjacency second, with the simulated baseline
+beside it. Adjacency alone will clear 80% for almost any scale, so quoting it
+on its own overstates what a refit has shown.
 
 Worth revisiting when any of these change:
+
+- **The top bucket has no positive validation at all.** Look at the prose
+  confusion matrix: the `100_plus` row and column contain not one correct call.
+  Two prose lots are truly `100_plus` and both were called lower; one lot called
+  `100_plus` was truly `25_to_50`. Nothing has confirmed the top bucket works,
+  in either direction. Any copy leaning on "100+ cars" is unvalidated.
 
 - **The trailhead sample grows.** 914 lots is the binding constraint on
   everything above; the national sample is 60 times bigger and cannot be used
