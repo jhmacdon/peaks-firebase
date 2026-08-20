@@ -37,6 +37,21 @@ The live dry-run planned:
 The import changes destination data only. It does not change iOS route labels or
 how the app treats a route end as its top or turnaround.
 
+## Applied result
+
+The guarded transaction inserted all 361 rows and enriched all 5 existing rows.
+The normal destination triggers created the 108 planned session links before the
+script's explicit backfill ran. A second dry-run found 366 unchanged reviewed
+destinations, no missing links, and no new writes.
+
+The live Washington totals after the import are 366 viewpoint destinations and
+115 viewpoint-to-session links. The four requested examples have these links:
+
+- Dirty Harry's Balcony: 1
+- Mount Si Viewpoint below Haystack: 17
+- Mount Storm King Viewpoint: 1
+- Mount St. Helens Crater Rim (Monitor Ridge): 19
+
 ## Review record
 
 - OSM snapshot SHA-256: `f28d9b9bd3ea6ee4aa9dbeebd3fde993d3dd378c57e7e0d7566461a882f6ca10`
