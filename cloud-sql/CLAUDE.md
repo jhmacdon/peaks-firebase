@@ -239,11 +239,18 @@ The reviewed 2026-08-18 scope and held lists are in
 
 ## Named viewpoint audit/import
 
-The viewpoint importer reads one saved, state-wide OpenStreetMap snapshot and a
-complete set of review decisions. It can also add a small set of named hiking
-turnarounds whose OSM points have no name. Dry-run is the default. Apply needs
-the reviewed report and its SHA-256, and stops if the source, reviews, planned
-writes, or target rows changed after review.
+The viewpoint importer reads one saved OpenStreetMap snapshot and a complete
+set of review decisions. It supports a US state or a country. A country job may
+use a fixed bounding box and named scope for a mountain region. An ISO 3166-2
+subdivision gives a tighter boundary when the region follows a state or
+province. The importer can also add a small set of named hiking turnarounds
+whose OSM points have no name. A country plus an OSM boundary relation can
+define a national park or other mapped hiking area. International runs make a
+second live OSM identity check inside the chosen country and region.
+`--skip-scope-verification` permits an offline dry-run, but its report cannot
+be applied. Dry-run is the default. Apply needs the reviewed report and its
+SHA-256, and stops if the source, reviews, scope check, planned writes, or
+target rows changed after review.
 
 ```bash
 cd migrate
@@ -262,13 +269,40 @@ npm run expand:viewpoint-coverage -- \
   --apply \
   --review-report=/tmp/wa-viewpoint-dry-run.json \
   --expected-report-sha256=<reviewed-report-sha256>
+
+# A bounded country scope intersects the country boundary with these bounds.
+npm run expand:viewpoint-coverage -- \
+  --country=IT \
+  --scope=dolomites \
+  --bbox=46.20,10.80,47.20,13.10 \
+  --input=/tmp/dolomites.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/dolomites.review.json \
+  --report=/tmp/dolomites-viewpoint-dry-run.json
+
+# Use an ISO subdivision when it is the safer regional boundary.
+npm run expand:viewpoint-coverage -- \
+  --subdivision=IN-HP \
+  --input=/tmp/himachal-pradesh.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/himachal-pradesh.review.json \
+  --report=/tmp/himachal-pradesh-viewpoint-dry-run.json
+
+# A reviewed OSM relation can define a protected hiking area.
+npm run expand:viewpoint-coverage -- \
+  --country=NP \
+  --scope=sagarmatha \
+  --osm-relation=3531450 \
+  --input=/tmp/sagarmatha.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/sagarmatha.review.json \
+  --report=/tmp/sagarmatha-viewpoint-dry-run.json
 ```
 
 The importer adds type-qualified OSM IDs, keeps all existing destination data,
 and links old ended sessions only when both the saved path and a real tracking
 point pass the destination radius. It honors saved session-destination
 rejections. The first reviewed scope is in
-`docs/data-audits/wa-viewpoints-2026-08-19.md`.
+`docs/data-audits/wa-viewpoints-2026-08-19.md`. The 49-state follow-up is in
+`docs/data-audits/us-viewpoints-2026-08-19.md`. The first international review
+is in `docs/data-audits/global-hiking-viewpoints-2026-08-20.md`.
 
 ## Destination elevation fraction audit
 

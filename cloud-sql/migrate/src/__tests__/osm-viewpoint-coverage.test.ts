@@ -30,6 +30,23 @@ test("parses a named public OSM viewpoint", () => {
   assert.ok(Math.abs((viewpoint.elevationM ?? 0) - 816.864) < 0.001);
 });
 
+test("prefers an English OSM name when one is present", () => {
+  const viewpoint = parseOsmViewpointElement({
+    type: "node",
+    id: 456,
+    lat: 27.9,
+    lon: 86.6,
+    tags: {
+      tourism: "viewpoint",
+      name: "兰巴拉",
+      "name:en": "Nangpa La",
+    },
+  });
+
+  assert.equal(viewpoint?.name, "Nangpa La");
+  assert.equal(viewpoint?.tags.name, "兰巴拉");
+});
+
 test("requires a name and excludes private or closed viewpoints", () => {
   assert.equal(parseOsmViewpointElement({
     type: "node",

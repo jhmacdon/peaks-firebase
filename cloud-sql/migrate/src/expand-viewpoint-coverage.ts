@@ -1,5 +1,7 @@
 /**
- * Audit and optionally expand named OSM viewpoint coverage for one US state.
+ * Audit and optionally expand named OSM viewpoint coverage for one guarded
+ * jurisdiction. US state imports remain the default. Country imports may use
+ * a fixed bounding box for a named mountain region.
  *
  * Dry-run is the default. Apply requires the reviewed dry-run report, its
  * SHA-256, and the same cached Overpass snapshot. The importer only adds rows,
@@ -27,7 +29,7 @@ import {
   parseOsmViewpointElement,
   parseOsmViewpointElements,
 } from "./osm-viewpoint-coverage";
-import { US_STATE_CODES } from "./peak-coverage-jurisdictions";
+import { ISO_COUNTRY_CODES, US_STATE_CODES } from "./peak-coverage-jurisdictions";
 
 const OVERPASS_ENDPOINTS = [
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
@@ -40,7 +42,13 @@ const OSM_LICENSE_NAME = "Open Data Commons Open Database License (ODbL) 1.0";
 const OSM_LICENSE_URL = "https://www.openstreetmap.org/copyright";
 
 interface ViewpointExpansionArgs {
-  stateCode: string;
+  scopeMode: "us_state" | "country" | "subdivision";
+  countryCode: string;
+  stateCode: string | null;
+  subdivisionCode: string | null;
+  scopeKey: string;
+  bbox: [number, number, number, number] | null;
+  osmRelationId: string | null;
   apply: boolean;
   concurrency: number;
   cacheDir: string | null;
@@ -50,6 +58,34 @@ interface ViewpointExpansionArgs {
   supplement: string | null;
   reviewReport: string | null;
   expectedReportSha256: string | null;
+  skipScopeVerification: boolean;
+}
+
+type ViewpointScope = Pick<
+  ViewpointExpansionArgs,
+  "scopeMode" | "countryCode" | "stateCode" | "subdivisionCode" |
+  "scopeKey" | "bbox" | "osmRelationId"
+>;
+
+interface ScopeVerification {
+  status: "not_required" | "verified" | "skipped";
+  querySha256: string | null;
+  identitySha256: string;
+  identityCount: number;
+}
+
+export function assertViewpointScopeVerificationForApply(
+  scopeMode: ViewpointExpansionArgs["scopeMode"],
+  reviewed: ScopeVerification | undefined,
+  current: ScopeVerification | undefined
+): void {
+  if (scopeMode === "us_state") return;
+  if (reviewed?.status !== "verified" || current?.status !== "verified" ||
+      reviewed.querySha256 !== current.querySha256 ||
+      reviewed.identitySha256 !== current.identitySha256 ||
+      reviewed.identityCount !== current.identityCount) {
+    throw new Error("International apply requires the same live scope verification as dry-run");
+  }
 }
 
 interface PreparedViewpointCandidate extends OsmViewpointCandidate {
@@ -131,6 +167,7 @@ interface PlannedAmbiguity {
     | "multiple_external_id_matches"
     | "multiple_name_proximity_matches"
     | "external_id_conflict"
+    | "jurisdiction_mismatch"
     | "multiple_osm_candidates_for_destination";
   destinationIds: string[];
 }
@@ -147,7 +184,15 @@ interface ViewpointPlan {
 interface ViewpointDryRunReport {
   version: 1;
   generatedAt: string;
-  scope: { countryCode: "US"; stateCode: string };
+  scope: {
+    mode?: ViewpointExpansionArgs["scopeMode"];
+    countryCode: string;
+    stateCode: string | null;
+    subdivisionCode?: string | null;
+    key?: string;
+    bbox?: [number, number, number, number] | null;
+    osmRelationId?: string | null;
+  };
   query: string;
   querySha256: string;
   sourceFile: string | null;
@@ -158,6 +203,7 @@ interface ViewpointDryRunReport {
   reviewedCandidateCount: number;
   supplementCount: number;
   candidateReview: CandidateReviewSummary;
+  scopeVerification?: ScopeVerification;
   potentialNewSessionLinks: number | null;
   plan: ViewpointPlan;
 }
@@ -170,16 +216,88 @@ const optionValue = (argv: string[], name: string) =>
 export function parseViewpointExpansionArgs(
   argv = process.argv.slice(2)
 ): ViewpointExpansionArgs {
-  const stateCode = (optionValue(argv, "state") ?? "WA").toUpperCase();
-  if (!(US_STATE_CODES as readonly string[]).includes(stateCode)) {
+  const requestedState = optionValue(argv, "state");
+  const requestedCountry = optionValue(argv, "country");
+  const requestedSubdivision = optionValue(argv, "subdivision");
+  if ([requestedState, requestedCountry, requestedSubdivision].filter(Boolean).length > 1) {
+    throw new Error("Choose one of --state, --country, or --subdivision");
+  }
+
+  const normalizedSubdivision = requestedSubdivision?.toUpperCase() ?? null;
+  if (normalizedSubdivision && !/^[A-Z]{2}-[A-Z0-9]{1,3}$/.test(normalizedSubdivision)) {
+    throw new Error("--subdivision must be an ISO 3166-2 code such as IN-HP");
+  }
+  const stateCode = normalizedSubdivision
+    ? normalizedSubdivision.split("-")[1]
+    : requestedCountry ? null : (requestedState ?? "WA").toUpperCase();
+  if (!normalizedSubdivision && stateCode &&
+      !(US_STATE_CODES as readonly string[]).includes(stateCode)) {
     throw new Error("--state must be a valid two-letter US state code");
   }
+  const countryCode = normalizedSubdivision
+    ? normalizedSubdivision.split("-")[0]
+    : stateCode ? "US" : requestedCountry!.toUpperCase();
+  if (!(ISO_COUNTRY_CODES as readonly string[]).includes(countryCode)) {
+    throw new Error("--country must be a valid ISO 3166-1 alpha-2 code");
+  }
+  const subdivisionCode = normalizedSubdivision ??
+    (stateCode ? `US-${stateCode}` : null);
+  const isUsStateScope = !requestedCountry && !requestedSubdivision;
+  const scopeMode: ViewpointExpansionArgs["scopeMode"] = isUsStateScope
+    ? "us_state"
+    : normalizedSubdivision ? "subdivision" : "country";
+
+  const rawBbox = optionValue(argv, "bbox");
+  if (rawBbox && isUsStateScope) {
+    throw new Error("--bbox is supported with --country or --subdivision");
+  }
+  let bbox: [number, number, number, number] | null = null;
+  if (rawBbox) {
+    const values = rawBbox.split(",").map((value) => Number(value.trim()));
+    if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+      throw new Error("--bbox must be south,west,north,east");
+    }
+    const [south, west, north, east] = values;
+    if (south < -90 || north > 90 || west < -180 || east > 180 ||
+        south >= north || west >= east) {
+      throw new Error("--bbox must contain ordered latitude and longitude bounds");
+    }
+    bbox = [south, west, north, east];
+  }
+
+  const osmRelationId = optionValue(argv, "osm-relation") ?? null;
+  if (osmRelationId && !/^[1-9][0-9]*$/.test(osmRelationId)) {
+    throw new Error("--osm-relation must be a positive OpenStreetMap relation ID");
+  }
+  if (osmRelationId && (!requestedCountry || requestedState || requestedSubdivision)) {
+    throw new Error("--osm-relation requires --country");
+  }
+  if (osmRelationId && bbox) {
+    throw new Error("Choose either --bbox or --osm-relation");
+  }
+
+  const requestedScope = optionValue(argv, "scope");
+  if (requestedScope && isUsStateScope) {
+    throw new Error("--scope is supported with --country or --subdivision");
+  }
+  if ((bbox || osmRelationId) && !requestedScope) {
+    throw new Error("Bounded country imports require --scope");
+  }
+  if (requestedScope && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(requestedScope)) {
+    throw new Error("--scope must be a lowercase slug of letters, numbers, and hyphens");
+  }
+  const scopeBase = subdivisionCode ?? countryCode;
+  const scopeKey = requestedScope ? `${scopeBase}-${requestedScope}` : scopeBase;
   const concurrency = Number.parseInt(optionValue(argv, "concurrency") ?? "8", 10);
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 12) {
     throw new Error("--concurrency must be an integer from 1 to 12");
   }
 
   const apply = argv.includes("--apply");
+  const skipScopeVerification = argv.includes("--skip-scope-verification");
+  if (apply && skipScopeVerification) {
+    throw new Error("--skip-scope-verification cannot be used with --apply");
+  }
   const reviewReport = optionValue(argv, "review-report") ?? null;
   const expectedReportSha256 =
     optionValue(argv, "expected-report-sha256")?.toLowerCase() ?? null;
@@ -191,7 +309,13 @@ export function parseViewpointExpansionArgs(
   }
 
   return {
+    scopeMode,
+    countryCode,
     stateCode,
+    subdivisionCode,
+    scopeKey,
+    bbox,
+    osmRelationId,
     apply,
     concurrency,
     cacheDir: optionValue(argv, "cache-dir") ?? null,
@@ -202,6 +326,7 @@ export function parseViewpointExpansionArgs(
     supplement: optionValue(argv, "supplement") ?? null,
     reviewReport,
     expectedReportSha256,
+    skipScopeVerification,
   };
 }
 
@@ -210,6 +335,102 @@ export function buildViewpointOverpassQuery(stateCode: string): string {
 area["ISO3166-2"="US-${stateCode}"]["boundary"="administrative"]->.region;
 nwr["tourism"="viewpoint"]["name"](area.region);
 out tags center qt;`;
+}
+
+export function buildCountryViewpointOverpassQuery(
+  countryCode: string,
+  bbox: [number, number, number, number] | null = null
+): string {
+  const bounds = bbox ? bbox.join(",") : null;
+  return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.region;
+nwr["tourism"="viewpoint"]["name"](area.region)${bounds ? `(${bounds})` : ""};
+out tags center qt;`;
+}
+
+export function buildSubdivisionViewpointOverpassQuery(
+  subdivisionCode: string,
+  bbox: [number, number, number, number] | null = null
+): string {
+  const countryCode = subdivisionCode.split("-")[0];
+  const bounds = bbox ? bbox.join(",") : null;
+  return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.country;
+area["ISO3166-2"="${subdivisionCode}"]["boundary"="administrative"]->.region;
+nwr["tourism"="viewpoint"]["name"](area.country)(area.region)${bounds ? `(${bounds})` : ""};
+out tags center qt;`;
+}
+
+export function buildRelationViewpointOverpassQuery(
+  countryCode: string,
+  relationId: string
+): string {
+  const areaId = (3_600_000_000n + BigInt(relationId)).toString();
+  return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.country;
+area(id:${areaId})->.region;
+nwr["tourism"="viewpoint"]["name"](area.country)(area.region);
+out tags center qt;`;
+}
+
+export function queryForScope(args: ViewpointExpansionArgs): string {
+  if (args.osmRelationId) {
+    return buildRelationViewpointOverpassQuery(args.countryCode, args.osmRelationId);
+  }
+  if (args.scopeMode === "us_state") {
+    return buildViewpointOverpassQuery(args.stateCode!);
+  }
+  return args.subdivisionCode
+    ? buildSubdivisionViewpointOverpassQuery(args.subdivisionCode, args.bbox)
+    : buildCountryViewpointOverpassQuery(args.countryCode, args.bbox);
+}
+
+function verificationSelector(
+  type: OsmViewpointElementType,
+  ids: string[],
+  areaFilters: string,
+  bbox: [number, number, number, number] | null
+): string | null {
+  if (ids.length === 0) return null;
+  const keyword = type === "relation" ? "rel" : type;
+  return `${keyword}(id:${ids.join(",")})${areaFilters}${bbox ? `(${bbox.join(",")})` : ""};`;
+}
+
+export function buildViewpointScopeVerificationQuery(
+  scope: ViewpointScope,
+  candidates: OsmViewpointCandidate[]
+): string {
+  const byType = {
+    node: candidates.filter((candidate) => candidate.osmType === "node")
+      .map((candidate) => candidate.osmId).sort(),
+    way: candidates.filter((candidate) => candidate.osmType === "way")
+      .map((candidate) => candidate.osmId).sort(),
+    relation: candidates.filter((candidate) => candidate.osmType === "relation")
+      .map((candidate) => candidate.osmId).sort(),
+  };
+  const setup = [
+    `area["ISO3166-1"="${scope.countryCode}"]["boundary"="administrative"]->.country;`,
+  ];
+  let areaFilters = "(area.country)";
+  if (scope.osmRelationId) {
+    const areaId = (3_600_000_000n + BigInt(scope.osmRelationId)).toString();
+    setup.push(`area(id:${areaId})->.region;`);
+    areaFilters += "(area.region)";
+  } else if (scope.scopeMode === "subdivision") {
+    setup.push(
+      `area["ISO3166-2"="${scope.subdivisionCode}"]["boundary"="administrative"]->.region;`
+    );
+    areaFilters += "(area.region)";
+  }
+  const selectors = (Object.keys(byType) as OsmViewpointElementType[])
+    .map((type) => verificationSelector(type, byType[type], areaFilters, scope.bbox))
+    .filter((selector): selector is string => selector != null);
+  return `[out:json][timeout:180];
+${setup.join("\n")}
+(
+  ${selectors.join("\n  ")}
+);
+out ids qt;`;
 }
 
 function sha256(value: string | Buffer): string {
@@ -279,11 +500,74 @@ async function fetchOverpass(query: string): Promise<string> {
   throw lastError instanceof Error ? lastError : new Error("All Overpass endpoints failed");
 }
 
+function sortedCandidateIdentities(candidates: OsmViewpointCandidate[]): string[] {
+  return candidates.map((candidate) =>
+    osmViewpointIdentity(candidate.osmType, candidate.osmId)
+  ).sort();
+}
+
+async function verifyViewpointScope(
+  args: ViewpointExpansionArgs,
+  candidates: OsmViewpointCandidate[]
+): Promise<ScopeVerification> {
+  const expected = sortedCandidateIdentities(candidates);
+  const identitySha256 = sha256(stableJson(expected));
+  if (args.scopeMode === "us_state") {
+    return {
+      status: "not_required",
+      querySha256: null,
+      identitySha256,
+      identityCount: expected.length,
+    };
+  }
+  if (args.skipScopeVerification) {
+    return {
+      status: "skipped",
+      querySha256: null,
+      identitySha256,
+      identityCount: expected.length,
+    };
+  }
+  if (expected.length === 0) {
+    return {
+      status: "verified",
+      querySha256: sha256(buildViewpointScopeVerificationQuery(args, candidates)),
+      identitySha256,
+      identityCount: 0,
+    };
+  }
+
+  const query = buildViewpointScopeVerificationQuery(args, candidates);
+  const payload = JSON.parse(await fetchOverpass(query)) as {
+    elements?: Array<{ type?: unknown; id?: unknown }>;
+  };
+  const expectedSet = new Set(expected);
+  const actual = (payload.elements ?? []).flatMap((element) => {
+    if ((element.type !== "node" && element.type !== "way" && element.type !== "relation") ||
+        element.id == null) return [];
+    const identity = osmViewpointIdentity(element.type, element.id as string | number);
+    return expectedSet.has(identity) ? [identity] : [];
+  }).sort();
+  const missing = expected.filter((identity, index) => identity !== actual[index]);
+  if (missing.length > 0 || actual.length !== expected.length) {
+    throw new Error(
+      `Scope verification failed for ${missing.length || expected.length - actual.length} ` +
+      `candidate identities; first missing: ${missing.slice(0, 5).join(", ")}`
+    );
+  }
+  return {
+    status: "verified",
+    querySha256: sha256(query),
+    identitySha256,
+    identityCount: expected.length,
+  };
+}
+
 async function loadSnapshot(args: ViewpointExpansionArgs): Promise<OverpassSnapshot> {
-  const query = buildViewpointOverpassQuery(args.stateCode);
+  const query = queryForScope(args);
   const querySha256 = sha256(query);
   const cacheFile = args.cacheDir
-    ? path.join(args.cacheDir, `US-${args.stateCode}.viewpoints.overpass.json`)
+    ? path.join(args.cacheDir, `${args.scopeKey}.viewpoints.overpass.json`)
     : null;
   const sourceFile = args.input ?? cacheFile;
   let raw: string;
@@ -473,7 +757,7 @@ function destinationFromRow(row: Record<string, unknown>): ExistingDestination {
 
 async function loadExistingDestinations(
   queryable: Queryable,
-  stateCode: string,
+  scope: ViewpointScope,
   candidates: OsmViewpointCandidate[]
 ): Promise<ExistingDestination[]> {
   const nodeIds = candidates.filter((candidate) => candidate.osmType === "node").map((candidate) => candidate.osmId);
@@ -486,15 +770,30 @@ async function loadExistingDestinations(
      FROM destinations
      WHERE location IS NOT NULL
        AND (
-         state_code = $1
-         OR external_ids->>'osm_node' = ANY($2::text[])
-         OR external_ids->>'osm' = ANY($2::text[])
-         OR external_ids->>'osm_way' = ANY($3::text[])
-         OR external_ids->>'osm_relation' = ANY($4::text[])
+         ($2::text IS NOT NULL AND (
+           state_code = $2 OR ($1 <> 'US' AND country_code = $1)
+         ))
+         OR ($2::text IS NULL AND country_code = $1)
+         OR external_ids->>'osm_node' = ANY($3::text[])
+         OR external_ids->>'osm' = ANY($3::text[])
+         OR external_ids->>'osm_way' = ANY($4::text[])
+         OR external_ids->>'osm_relation' = ANY($5::text[])
        )`,
-    [stateCode, nodeIds, wayIds, relationIds]
+    [scope.countryCode, scope.stateCode, nodeIds, wayIds, relationIds]
   );
   return result.rows.map((row) => destinationFromRow(row));
+}
+
+function destinationMatchesScope(
+  destination: ExistingDestination,
+  scope: ViewpointScope
+): boolean {
+  if (destination.countryCode != null && destination.countryCode !== scope.countryCode) {
+    return false;
+  }
+  return scope.stateCode == null ||
+    destination.stateCode == null ||
+    destination.stateCode === scope.stateCode;
 }
 
 function exactIdentityMatches(
@@ -565,11 +864,11 @@ async function parallelMap<T, R>(
 
 async function buildPlan(
   candidates: PreparedViewpointCandidate[],
-  stateCode: string,
+  scope: ViewpointScope,
   concurrency: number,
   queryable: Queryable = db
 ): Promise<ViewpointPlan> {
-  const existing = await loadExistingDestinations(queryable, stateCode, candidates);
+  const existing = await loadExistingDestinations(queryable, scope, candidates);
   const provisionalEnrichments: Array<{
     candidate: PreparedViewpointCandidate;
     enrichment: PlannedEnrichment;
@@ -590,6 +889,15 @@ async function buildPlan(
       continue;
     }
     if (exact.length === 1) {
+      if (!destinationMatchesScope(exact[0], scope)) {
+        ambiguities.push({
+          identity,
+          name: candidate.name,
+          reason: "jurisdiction_mismatch",
+          destinationIds: [exact[0].id],
+        });
+        continue;
+      }
       provisionalEnrichments.push({
         candidate,
         enrichment: buildEnrichment(candidate, exact[0], "exact_external_id", 0),
@@ -599,10 +907,7 @@ async function buildPlan(
 
     const nearby = exactNameProximityMatches(
       candidate,
-      existing.filter((destination) =>
-        (destination.countryCode == null || destination.countryCode === "US") &&
-        (destination.stateCode == null || destination.stateCode === stateCode)
-      ),
+      existing.filter((destination) => destinationMatchesScope(destination, scope)),
       DEFAULT_VIEWPOINT_NAME_PROXIMITY_METERS
     );
     if (nearby.length > 1) {
@@ -698,6 +1003,7 @@ async function buildPlan(
         osm_type: candidate.osmType,
         elevation_source: prepared.elevationSource,
         catalog_provenance: candidate.provenance,
+        catalog_scope: scope.scopeKey,
         evidence_urls: candidate.evidenceUrls,
       },
       features: candidate.features,
@@ -816,13 +1122,22 @@ async function buildReport(
   reviewedCandidateCount: number,
   supplementCount: number,
   candidateReview: CandidateReviewSummary,
+  scopeVerification: ScopeVerification,
   plan: ViewpointPlan
 ): Promise<ViewpointDryRunReport> {
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
-    scope: { countryCode: "US", stateCode: args.stateCode },
-    query: buildViewpointOverpassQuery(args.stateCode),
+    scope: {
+      mode: args.scopeMode,
+      countryCode: args.countryCode,
+      stateCode: args.stateCode,
+      subdivisionCode: args.subdivisionCode,
+      key: args.scopeKey,
+      bbox: args.bbox,
+      osmRelationId: args.osmRelationId,
+    },
+    query: queryForScope(args),
     querySha256: snapshot.querySha256,
     sourceFile: snapshot.sourceFile,
     sourceRawSha256: snapshot.rawSha256,
@@ -832,6 +1147,7 @@ async function buildReport(
     reviewedCandidateCount,
     supplementCount,
     candidateReview,
+    scopeVerification,
     potentialNewSessionLinks: await countPotentialSessionLinks(plan),
     plan,
   };
@@ -855,6 +1171,7 @@ function reportSummary(report: ViewpointDryRunReport): Record<string, unknown> {
     curatedSupplements: report.supplementCount,
     reviewExcluded: report.candidateReview.excluded,
     reviewNeedsHuman: report.candidateReview.needsHuman,
+    scopeVerification: report.scopeVerification?.status ?? "not_recorded",
     insertions: report.plan.additions.length,
     enrichments: report.plan.enrichments.length,
     unchanged: report.plan.unchanged.length,
@@ -871,8 +1188,26 @@ async function readReviewedReport(args: ViewpointExpansionArgs): Promise<Viewpoi
     throw new Error("Reviewed report SHA-256 does not match --expected-report-sha256");
   }
   const report = JSON.parse(raw) as ViewpointDryRunReport;
-  if (report.version !== 1 || report.scope?.countryCode !== "US" ||
-      report.scope?.stateCode !== args.stateCode) {
+  const reportKey = report.scope?.key ??
+    (report.scope?.countryCode === "US" && report.scope?.stateCode
+      ? `US-${report.scope.stateCode}`
+      : report.scope?.countryCode);
+  const reportBbox = report.scope?.bbox ?? null;
+  const reportRelationId = report.scope?.osmRelationId ?? null;
+  const reportSubdivision = report.scope?.subdivisionCode ??
+    (report.scope?.countryCode === "US" && report.scope?.stateCode
+      ? `US-${report.scope.stateCode}`
+      : null);
+  const reportMode = report.scope?.mode ??
+    (report.scope?.countryCode === "US" && report.scope?.stateCode
+      ? "us_state"
+      : reportSubdivision ? "subdivision" : "country");
+  if (report.version !== 1 || report.scope?.countryCode !== args.countryCode ||
+      report.scope?.stateCode !== args.stateCode ||
+      reportMode !== args.scopeMode || reportSubdivision !== args.subdivisionCode ||
+      reportKey !== args.scopeKey ||
+      JSON.stringify(reportBbox) !== JSON.stringify(args.bbox) ||
+      reportRelationId !== args.osmRelationId) {
     throw new Error("Reviewed report scope or version does not match this run");
   }
   return report;
@@ -880,7 +1215,7 @@ async function readReviewedReport(args: ViewpointExpansionArgs): Promise<Viewpoi
 
 async function insertAdditions(
   client: PoolClient,
-  stateCode: string,
+  scope: ViewpointScope,
   additions: PlannedAddition[]
 ): Promise<number> {
   if (additions.length === 0) return 0;
@@ -899,7 +1234,7 @@ async function insertAdditions(
      )
      SELECT destination_id, name, search_name, elevation, NULL,
             ST_SetSRID(ST_MakePoint(lng, lat, elevation), 4326)::geography,
-            NULL, 'point', '{outdoor-trek}', features, 'US', $2,
+            NULL, 'point', '{outdoor-trek}', features, $2, $3,
             NULL, external_ids, metadata, 'peaks', NOW(), NOW()
      FROM incoming
      RETURNING id`,
@@ -913,7 +1248,7 @@ async function insertAdditions(
       features: addition.features,
       external_ids: addition.externalIds,
       metadata: addition.metadata,
-    }))), stateCode]
+    }))), scope.countryCode, scope.stateCode]
   );
   return result.rowCount ?? 0;
 }
@@ -1024,7 +1359,7 @@ async function applyPlan(
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
-      `peaks-viewpoint-import-US-${args.stateCode}`,
+      `peaks-viewpoint-import-${args.scopeKey}`,
     ]);
 
     const targetIds = report.plan.enrichments.map((enrichment) => enrichment.destinationId);
@@ -1046,7 +1381,7 @@ async function applyPlan(
     if (enriched !== report.plan.enrichments.length) {
       throw new Error("An enrichment target changed after dry-run; rerun review");
     }
-    const inserted = await insertAdditions(client, args.stateCode, report.plan.additions);
+    const inserted = await insertAdditions(client, args, report.plan.additions);
     if (inserted !== report.plan.additions.length) {
       throw new Error("Not every reviewed viewpoint was inserted");
     }
@@ -1084,7 +1419,8 @@ export async function runViewpointExpansion(
   if (new Set(combinedIdentities).size !== combinedIdentities.length) {
     throw new Error("A curated supplement repeats a reviewed named OSM candidate");
   }
-  const plan = await buildPlan(combinedCandidates, args.stateCode, args.concurrency);
+  const scopeVerification = await verifyViewpointScope(args, combinedCandidates);
+  const plan = await buildPlan(combinedCandidates, args, args.concurrency);
   const report = await buildReport(
     args,
     snapshot,
@@ -1092,6 +1428,7 @@ export async function runViewpointExpansion(
     reviewedCandidates.candidates.length,
     supplements.length,
     reviewedCandidates.summary,
+    scopeVerification,
     plan
   );
 
@@ -1107,6 +1444,11 @@ export async function runViewpointExpansion(
       reviewed!.plan.decisionFingerprint !== report.plan.decisionFingerprint) {
     throw new Error("OSM snapshot or database decisions changed after dry-run; rerun review");
   }
+  assertViewpointScopeVerificationForApply(
+    args.scopeMode,
+    reviewed!.scopeVerification,
+    report.scopeVerification
+  );
   if (report.plan.ambiguities.length > 0 || report.plan.elevationFailures.length > 0) {
     throw new Error("Apply is blocked while ambiguities or elevation failures remain");
   }
