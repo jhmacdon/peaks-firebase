@@ -11,6 +11,7 @@ import {
   getDestinationSessionCountCached,
 } from "../../../../lib/actions/cached-destinations";
 import { getNearbyDestinations } from "../../../../lib/actions/search";
+import { getDestinationWeatherCached } from "../../../../lib/actions/cached-weather";
 import {
   getTripReportsForDestination,
   getTripReportCountForDestination,
@@ -40,6 +41,7 @@ import { DestinationPlanning } from "../../../../components/destination/destinat
 import { DestinationReports } from "../../../../components/destination/destination-reports";
 import { DestinationRoutes } from "../../../../components/destination/destination-routes";
 import { DestinationSeasonality } from "../../../../components/destination/destination-seasonality";
+import { DestinationWeather } from "../../../../components/destination/destination-weather";
 import {
   Topline,
   type ToplineStat,
@@ -83,7 +85,7 @@ export default async function DestinationDetailPage({
 
   const hasCoords = dest.lat != null && dest.lng != null;
 
-  const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw] =
+  const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw, weather] =
     await Promise.all([
       settled(getDestinationRoutes(id, { publicOnly: true }), []),
       settled(getDestinationLists(id), []),
@@ -93,6 +95,7 @@ export default async function DestinationDetailPage({
       hasCoords
         ? settled(getNearbyDestinations(dest.lat!, dest.lng!, 15000, 7), [])
         : Promise.resolve([]),
+      settled(getDestinationWeatherCached(id), null),
     ]);
 
   const nearby = nearbyRaw.filter((n) => n.id !== id).slice(0, 6);
@@ -217,6 +220,10 @@ export default async function DestinationDetailPage({
             facilities={facilities}
             forecastUrl={forecastUrl}
           />
+
+          {weather ? (
+            <DestinationWeather days={weather.days} forecastUrl={forecastUrl} />
+          ) : null}
 
           {months ? <DestinationSeasonality counts={months} /> : null}
 
