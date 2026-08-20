@@ -9,7 +9,9 @@ const LINKS = [
   { href: "/discover", label: "Discover" },
   { href: "/map", label: "Map" },
   { href: "/lists", label: "Lists" },
-  { href: "/", label: "Home" },
+  // Not "Home": `/` redirects to `/discover`, so it would repeat the first
+  // link. Areas is the fourth thing the nav browses.
+  { href: "/areas", label: "Areas" },
 ];
 
 export function NotFoundContent() {

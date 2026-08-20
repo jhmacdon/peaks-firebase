@@ -92,6 +92,43 @@ function useStuck() {
   return { sentinelRef, stuck };
 }
 
+/**
+ * Desktop-only search affordance: one quiet icon-link to Discover, which is
+ * where the search field lives. Icon-only, so the accessible name is an
+ * `aria-label` and the glyph is hidden from the tree. Neutral ink, not
+ * accent — the accent budget is spent on the primary action and the active
+ * nav marker. Mobile doesn't get one: its Discover tab already sits in the
+ * bottom bar, one tap from anywhere.
+ *
+ * `/discover` renders SearchBar, which syncs to a `?q=` param and has no
+ * hash-based focus hook — so this links to the page, not to a focused field.
+ * If a `#search` focus target lands later, point the href at it.
+ */
+function SearchLink() {
+  return (
+    <Link
+      href="/discover"
+      aria-label="Search"
+      className="flex h-8 w-8 items-center justify-center text-ink-2 transition-colors hover:text-ink"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    </Link>
+  );
+}
+
 function Wordmark({ className = "" }: { className?: string }) {
   return (
     <Link
@@ -189,17 +226,21 @@ export default function AppNav() {
                     </Link>
                   ))}
                 </nav>
+                <SearchLink />
                 <AccountMenu />
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button href="/login" variant="quiet" size="sm">
-                  Log in
-                </Button>
-                <Button href={APP_STORE_URL} variant="primary" size="sm" external>
-                  Get the app
-                </Button>
-              </div>
+              <>
+                <SearchLink />
+                <div className="flex items-center gap-2">
+                  <Button href="/login" variant="quiet" size="sm">
+                    Log in
+                  </Button>
+                  <Button href={APP_STORE_URL} variant="primary" size="sm" external>
+                    Get the app
+                  </Button>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -296,15 +337,18 @@ function AccountMenu() {
     <div className="relative">
       {/* A disclosure button: a fixed accessible name plus `aria-expanded`,
           which already carries the open/closed state. No `aria-haspopup`,
-          which would advertise menu semantics this doesn't implement. */}
+          which would advertise menu semantics this doesn't implement. The
+          name comes from `aria-label` alone — one mechanism, not two. An
+          sr-only span alongside would concatenate with the avatar's own
+          initial and be read out as "Account menu J". */}
       <button
         ref={triggerRef}
         type="button"
+        aria-label="Account menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className="flex items-center rounded-full"
       >
-        <span className="sr-only">Account menu</span>
         <Avatar name={name} avatarUrl={user.photoURL} size="sm" />
       </button>
 
