@@ -47,6 +47,16 @@ function RegisterContent() {
     e.preventDefault();
     setError("");
 
+    if (!name.trim()) {
+      setError("Enter your name.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Enter your email.");
+      return;
+    }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -166,7 +176,7 @@ function RegisterContent() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-1">
                 Name
