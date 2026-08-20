@@ -645,9 +645,10 @@ function formatCampsiteAmenityBadges(a: CampsiteAmenities): string[] {
 }
 
 // A representative subset, not every leaf — matches formatCampsiteAmenityBadges
-// above. Free-text notes and seasonal_window/limiting_segment_ref are left out
-// of these short chips; structured facts only. The road chip is composed by the
-// same helper the public page prints, so the two cannot drift.
+// above. Structured facts, plus the lot's own name, which is what someone
+// checking an import against a map actually needs. The road and parking chips
+// are composed by the same helpers the public page prints, so the two cannot
+// drift.
 function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
   const out: string[] = [];
   const { parking, road_access, bathrooms } = a;

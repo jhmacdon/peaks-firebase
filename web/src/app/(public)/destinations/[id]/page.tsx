@@ -825,9 +825,11 @@ const TRAILHEAD_BATHROOM_TYPE_LABELS: Record<string, string> = {
 };
 
 // A representative subset, not every leaf — matches campsiteAmenityRows above
-// (which also skips some CampsiteAmenities fields). Free-text notes
-// (fills_early_note, location_note, season_note, limiting_segment_ref) are
-// left out of this compact side-panel list; structured facts only.
+// (which also skips some CampsiteAmenities fields). Structured facts, plus the
+// short sentences that qualify them: the road row prints its gate window and
+// its last rough stretch, and the parking row prints which lot. The two notes
+// left out of this compact side-panel list are bathrooms.season_note and
+// parking.fills_early_note.
 function trailheadAmenityRows(amenities: TrailheadAmenities): AmenityRow[] {
   const rows: AmenityRow[] = [];
   const { parking, road_access, bathrooms } = amenities;

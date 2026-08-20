@@ -5,7 +5,16 @@
 // one. Where there is none — every National Park Service lot, since NPS
 // publishes 6,740 lot polygons and no capacity field — the kind of parking is
 // still worth a line: "Parking lot" tells a driver there is somewhere to leave
-// the car, which is most of what the question was.
+// the car, which is most of what the question was. The lot's own name stands
+// under either answer.
+//
+// It prints as a caption, the same way the road row already prints its last
+// rough stretch. The two notes that stay unprinted — bathrooms.season_note and
+// parking.fills_early_note — stay unprinted by the phase-0 product call that
+// this compact list carries structured facts and the sentences that qualify
+// them, not every note in the block. The lot name earns its place because it
+// resolves an ambiguity the structured fact creates rather than adding a new
+// one: Paradise has four lots, and "Parking lot" alone does not say which.
 //
 // **No number is ever derived from a lot's size here or anywhere upstream.**
 // docs/trailheads/research-parking.md §2.5 offers polygon area as a proxy at
@@ -66,35 +75,72 @@ function capacityVehicles(parking: TrailheadParking): number | null {
 }
 
 /**
+ * Which lot, in the words the land manager uses for it.
+ *
+ * The highest-value note this block carries: "Paradise Parking (Upper Lot)"
+ * is the sign a driver is looking for, and Paradise has four lots. It prints
+ * under the answer rather than beside it — the row's job is to say whether
+ * there is parking, and this says which parking.
+ */
+function locationNote(parking: TrailheadParking): string | null {
+  const value = leafValue(parking.location_note);
+  if (typeof value !== "string") return null;
+  const note = value.trim();
+  return note.length > 0 ? note : null;
+}
+
+/**
  * The whole parking row, or null when the block says nothing worth printing.
  *
  * Capacity outranks kind because it answers the harder question. Where a lot
  * has a counted capacity the kind adds nothing — thirty spaces is a lot — so
- * the two never print together.
+ * the two never print together. The lot's name stands under either of them.
  */
 export function parkingRow(block: TrailheadParking | undefined | null): AmenityRow | null {
   if (!isRecord(block)) return null;
   const parking = block as TrailheadParking;
+
+  const note = locationNote(parking);
+  const captions = note === null ? [] : [note];
+  const noteCredit = note === null ? null : leafCredit(parking.location_note);
 
   const capacity = capacityVehicles(parking);
   if (capacity !== null) {
     return {
       label: "Parking capacity",
       value: `${capacity} vehicles`,
-      credits: dedupeCredits([leafCredit(parking.capacity_vehicles)]),
+      captions,
+      credits: dedupeCredits([leafCredit(parking.capacity_vehicles), noteCredit]),
     };
   }
 
   const label = parkingTypeLabel(leafValue(parking.type));
-  if (label === null) return null;
-  const credits: Array<AmenityCredit | null> = [leafCredit(parking.type)];
-  return { label: "Parking", value: label, credits: dedupeCredits(credits) };
+  if (label === null) {
+    // A name with nothing to hang it on is still a fact: the catalog knows
+    // which lot, and printing it beats printing nothing.
+    if (note === null) return null;
+    return { label: "Parking", value: note, credits: dedupeCredits([noteCredit]) };
+  }
+  const credits: Array<AmenityCredit | null> = [leafCredit(parking.type), noteCredit];
+  return { label: "Parking", value: label, captions, credits: dedupeCredits(credits) };
 }
 
-/** The parking row as one short chip, for the admin page's badge list. */
+/**
+ * The parking row as one short chip, for the admin page's badge list.
+ *
+ * The lot's name rides along in brackets, because the admin page is where
+ * someone checks whether an import landed on the right lot, and "parking lot"
+ * on its own cannot answer that.
+ */
 export function parkingBadge(block: TrailheadParking | undefined | null): string | null {
-  const capacity = isRecord(block) ? capacityVehicles(block as TrailheadParking) : null;
-  if (capacity !== null) return `${capacity} parking spaces`;
-  const label = parkingTypeLabel(leafValue(isRecord(block) ? block.type : undefined));
-  return label === null ? null : label.toLowerCase();
+  if (!isRecord(block)) return null;
+  const parking = block as TrailheadParking;
+  const note = locationNote(parking);
+  const capacity = capacityVehicles(parking);
+  const answer =
+    capacity !== null
+      ? `${capacity} parking spaces`
+      : (parkingTypeLabel(leafValue(parking.type))?.toLowerCase() ?? null);
+  if (answer === null) return note;
+  return note === null ? answer : `${answer} (${note})`;
 }
