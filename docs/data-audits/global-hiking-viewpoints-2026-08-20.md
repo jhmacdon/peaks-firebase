@@ -41,9 +41,31 @@ OSM tags.
 The Dolomites review added Ponte, Pagoda, and Punto video. It holds one newer
 `Drei Zinnen Blick` marker because it may repeat an older marker.
 
-These are reviewed plans only. No international destination or session row was
-written. The iOS app is unchanged and will still treat the route end or
-turnaround as the top.
+## Applied result — 2026-08-20
+
+All four guarded transactions matched their pinned plans and passed the live
+scope check:
+
+| Scope | Inserted | Enriched | Session links |
+|---|---:|---:|---:|
+| Dolomites | 221 | 9 | 0 |
+| Sagarmatha | 16 | 1 | 0 |
+| Annapurna | 20 | 0 | 0 |
+| Langtang | 3 | 0 | 0 |
+| **Total** | **260** | **10** | **0** |
+
+A fresh post-import dry-run resolved all 270 included candidates as unchanged.
+It found no pending inserts, enrichments, unclear matches, elevation gaps, or
+session links.
+
+- Applied result receipt SHA-256: `e3576cd7a8bcd61e5bcd00cdf57d1996c8348667eebc5efea0c27955b9e59c05`
+- Dolomites post-import report SHA-256: `8c4edfb8a236a6a738ddb11975cccdacf5c74f7fdab682677b73dc8e959b9d01`
+- Sagarmatha post-import report SHA-256: `2bad02007d16425484911a59e8b0478c4562433bc0855f4ccbe215550ba3349b`
+- Annapurna post-import report SHA-256: `eb530d21ba60c21a9497cd75caf07acac839e705dd0a87dbbc109a43e7daaf7b`
+- Langtang post-import report SHA-256: `8c09ee5d41e67cf66acb1d43cb4a2caf2eff253e37f5dab6895f6169e709d52c`
+
+The iOS app is unchanged and will still treat the route end or turnaround as
+the top.
 
 ## Review record
 
