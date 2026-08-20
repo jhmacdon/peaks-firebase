@@ -5,9 +5,9 @@ import { settled } from "../../../../lib/settled";
 import { Breadcrumb } from "../../../../components/detail-sections";
 import { PageHeader } from "../../../../components/ui/page-header";
 import {
-  DestinationTopline,
+  Topline,
   type ToplineStat,
-} from "../../../../components/destination/destination-topline";
+} from "../../../../components/ui/topline";
 import { ListProgress } from "../../../../components/list/list-progress";
 import { ListDestinations } from "../../../../components/list/list-destinations";
 
@@ -45,7 +45,7 @@ export default async function ListDetailPage({
         meta={<p>{ownerLabel}</p>}
       />
 
-      <DestinationTopline stats={toplineStats} className="mt-10" />
+      <Topline stats={toplineStats} className="mt-10" />
 
       <div className="mt-12 space-y-12">
         {paragraphs.length > 0 || sourceUrl ? (

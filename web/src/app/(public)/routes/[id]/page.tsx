@@ -28,9 +28,9 @@ import { AreaChips } from "../../../../components/area-chip";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { DestinationMetaRow } from "../../../../components/destination/destination-meta-row";
 import {
-  DestinationTopline,
+  Topline,
   type ToplineStat,
-} from "../../../../components/destination/destination-topline";
+} from "../../../../components/ui/topline";
 import { DestinationNearby } from "../../../../components/destination/destination-nearby";
 import { RouteHero } from "../../../../components/route/route-hero";
 import { RouteActions } from "../../../../components/route/route-actions";
@@ -144,7 +144,7 @@ export default async function RouteDetailPage({
 
       <RouteActions directionsUrl={directionsUrl} className="mt-8" />
 
-      <DestinationTopline stats={toplineStats} className="mt-10" />
+      <Topline stats={toplineStats} className="mt-10" />
 
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">

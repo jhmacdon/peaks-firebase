@@ -41,9 +41,9 @@ import { DestinationReports } from "../../../../components/destination/destinati
 import { DestinationRoutes } from "../../../../components/destination/destination-routes";
 import { DestinationSeasonality } from "../../../../components/destination/destination-seasonality";
 import {
-  DestinationTopline,
+  Topline,
   type ToplineStat,
-} from "../../../../components/destination/destination-topline";
+} from "../../../../components/ui/topline";
 
 // The catalog page is a server component: this one template renders ~70,000
 // pages, and every one of them used to arrive as a "Loading…" shell that
@@ -198,7 +198,7 @@ export default async function DestinationDetailPage({
         className="mt-8"
       />
 
-      <DestinationTopline stats={toplineStats} className="mt-10" />
+      <Topline stats={toplineStats} className="mt-10" />
 
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">

@@ -16,7 +16,11 @@ export function PageHeader({
   return (
     <header className={`flex flex-col gap-3 ${className}`.trim()}>
       {breadcrumb}
-      <h1 className="font-display text-[40px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink">
+      {/* 32 then 40 — both are steps on the display ladder
+          (design-tokens.md, "Type"). A 40px wide-cut Archivo H1 takes five
+          lines on a 375px screen for a long title, which an activity named
+          after every destination it reached hits routinely. */}
+      <h1 className="font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]">
         {title}
       </h1>
       {meta ? (

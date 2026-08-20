@@ -7,9 +7,9 @@ import { Breadcrumb } from "../../../../components/detail-sections";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { DestinationMetaRow } from "../../../../components/destination/destination-meta-row";
 import {
-  DestinationTopline,
+  Topline,
   type ToplineStat,
-} from "../../../../components/destination/destination-topline";
+} from "../../../../components/ui/topline";
 import { AreaHero } from "../../../../components/area/area-hero";
 import { AreaAbout } from "../../../../components/area/area-about";
 import { AreaFacts } from "../../../../components/area/area-facts";
@@ -80,7 +80,7 @@ export default async function AreaDetailPage({
 
       <AreaHero area={area} designationLabel={designationLabel} className="mt-8" />
 
-      <DestinationTopline stats={toplineStats} className="mt-10" />
+      <Topline stats={toplineStats} className="mt-10" />
 
       <div className="mt-12 space-y-12">
         <AreaActivity areaId={area.id} />
