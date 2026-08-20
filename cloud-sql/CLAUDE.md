@@ -683,6 +683,63 @@ contributes a single leaf across the catalog, so the report lists it as
 `[other]` rather than alarming on it. Quarterly cadence and the full refresh
 sequence: `migrate/docs/trailhead-data-refresh.md`.
 
+## Access-road processing store
+
+Phase 2 of the trailhead work: USFS RoadCore, USFS MVUM and BLM GTLF, loaded
+and normalized so a later task can derive each trailhead's access vehicle,
+surface and gate window. **Road segments never enter the `peaks` database** —
+only the derived per-trailhead facts will. Processing happens in a local DuckDB
+file, by default `<data-dir>/processing/roads.duckdb` (about 4.5 GB, beside the
+raw downloads in the `peaks` checkout).
+
+```bash
+cd migrate
+npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
+npm run roads:import -- --data-dir=... --only=topology --snap-tolerance=20
+```
+
+A full run deletes the store and rebuilds it from the three source files in
+about 30 seconds; `--only=` rebuilds single stages (`roadcore, mvum, blm,
+normalize, seasons, link, topology`). Row counts print against the download
+manifest, so a short load is obvious. There is no GDAL on the host and none is
+needed — DuckDB's spatial extension reads both geodatabases out of their zip
+files through `/vsizip`.
+
+Cloud SQL was the alternative and was rejected on measurement: pgRouting 3.6.2
+is available there, but the instance is a `db-f1-micro` serving production with
+3.1 GB used of a 10 GB disk that cannot shrink. Full reasoning, the table
+inventory, and the traversal handover: `migrate/docs/roads-processing-store.md`.
+
+**Two rules from `docs/trailheads/research-roads.md` §A3 are binding and both
+are pinned by tests.** Break either and the app publishes a confident wrong
+answer, which is worse than no answer.
+
+- **Vehicle needed comes from `OPER_MAINT_LEVEL` or the BLM observed class,
+  never from an MVUM permission flag.** 82.1% of segments MVUM marks open to
+  passenger vehicles are built to high-clearance standard only — FR 8040-500 to
+  the Mount Adams South Climb trailhead is tagged "yearlong, passenger vehicle
+  open, 01/01-12/31" while the same database rates it high-clearance. The MVUM
+  permission columns load into `raw_mvum` and go no further. Levels 3, 4 and 5
+  are all passenger car; the difference is comfort, not capability.
+- **`yearlong` and a lone `01/01-12/31` mean no seasonal data, not open all
+  year.** A window is stored only where the cleaned flag is `seasonal` *and*
+  the dates are narrower than the whole year. `seasonWindowsForClass` returns
+  `null`, never an empty list, so "no window recorded" cannot be read as
+  "closed all year".
+
+BLM's `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
+`<data-dir>/blm-route-use-class-map.jsonl` — don't rebuild it. A spelling the
+map has not seen is **reported as unmapped in the run summary**, never folded
+into `unknown`, so a refresh that adds one gets reviewed.
+
+The graph is noded, not just endpoint-snapped. Snapping endpoints alone left
+165,323 components with the largest holding 0.4% of nodes, because a spur that
+joins the middle of a road shares no endpoint with it. Segments are also split
+where they pass within the tolerance of a junction, at the single closest
+vertex — splitting at every vertex inside the tolerance produced half a million
+self-loop stubs. `metresBetweenSql` mirrors `metresBetween` for the 25-million
+vertex pass that has to run in SQL, and a test asserts the two agree.
+
 ## Session comparisons ("Your Efforts")
 
 Pairwise overlap between a user's sessions, stored in `session_comparisons`
