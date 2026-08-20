@@ -16,15 +16,32 @@ function stringValue(value: unknown): string {
   return value === undefined || value === null ? "" : String(value);
 }
 
+// Scope is activity identity only (source, external_id) — date fields drift
+// between re-imports of the same activity and must not fragment its scope.
 function contributionScopeKey(contribution: JsonObject): string {
-  return [
-    "source",
-    "external_id",
-    "original_start_date",
-    "original_end_date",
-    "fragment_start_date",
-    "fragment_end_date",
-  ].map((key) => stringValue(contribution[key])).join("\u001f");
+  return ["source", "external_id"].map((key) => stringValue(contribution[key])).join("\u001f");
+}
+
+function parsedTime(value: unknown): number {
+  return Date.parse(stringValue(value));
+}
+
+function widenedStart(a: unknown, b: unknown): unknown {
+  const ta = parsedTime(a);
+  const tb = parsedTime(b);
+  if (Number.isNaN(ta)) return b;
+  if (Number.isNaN(tb)) return a;
+  return ta <= tb ? a : b;
+}
+
+// undefined/null is open-ended and therefore the widest end.
+function widenedEnd(a: unknown, b: unknown): unknown {
+  if (a === undefined || a === null || b === undefined || b === null) return undefined;
+  const ta = parsedTime(a);
+  const tb = parsedTime(b);
+  if (Number.isNaN(ta)) return b;
+  if (Number.isNaN(tb)) return a;
+  return ta >= tb ? a : b;
 }
 
 function mergeContribution(existing: JsonObject, incoming: JsonObject): JsonObject {
@@ -35,26 +52,32 @@ function mergeContribution(existing: JsonObject, incoming: JsonObject): JsonObje
     ? incoming.contribution_types.map(String)
     : [];
 
-  return {
+  const merged: JsonObject = {
     ...existing,
     ...incoming,
+    original_start_date: widenedStart(existing.original_start_date, incoming.original_start_date),
+    original_end_date: widenedEnd(existing.original_end_date, incoming.original_end_date),
+    fragment_start_date: widenedStart(existing.fragment_start_date, incoming.fragment_start_date),
+    fragment_end_date: widenedEnd(existing.fragment_end_date, incoming.fragment_end_date),
     contribution_types: Array.from(new Set([...existingTypes, ...incomingTypes])).sort(),
     summary: asObject(incoming.summary) ?? asObject(existing.summary) ?? undefined,
   };
+  if (merged.fragment_end_date === undefined) delete merged.fragment_end_date;
+  if (merged.original_end_date === undefined) delete merged.original_end_date;
+  return merged;
 }
 
 export function mergeSourceContributions(existing: unknown, incoming: unknown): JsonObject[] {
-  const merged = [...asArray(existing)];
-  for (const incomingContribution of asArray(incoming)) {
-    const incomingKey = contributionScopeKey(incomingContribution);
-    const existingIndex = merged.findIndex((contribution) => (
-      contributionScopeKey(contribution) === incomingKey
-    ));
-
-    if (existingIndex >= 0) {
-      merged[existingIndex] = mergeContribution(merged[existingIndex], incomingContribution);
+  // The stored list can carry drifted near-duplicates written before scope
+  // became identity-only, so it folds through the same merge as incoming.
+  const merged: JsonObject[] = [];
+  for (const contribution of [...asArray(existing), ...asArray(incoming)]) {
+    const key = contributionScopeKey(contribution);
+    const index = merged.findIndex((c) => contributionScopeKey(c) === key);
+    if (index >= 0) {
+      merged[index] = mergeContribution(merged[index], contribution);
     } else {
-      merged.push(incomingContribution);
+      merged.push(contribution);
     }
   }
   return merged;
