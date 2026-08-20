@@ -16,6 +16,8 @@ import {
   nameTokensContained,
   normalizeRegion,
   normalizeTrailheadName,
+  npsBathroomLeafCandidates,
+  npsParkingLeafCandidates,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
   resolveLeafConflicts,
@@ -730,4 +732,210 @@ test("a leaf owned by another source is left alone", () => {
 test("canonical json ignores key order", () => {
   assert.equal(canonicalJson({ b: 1, a: [2, { d: 4, c: 3 }] }), canonicalJson({ a: [2, { c: 3, d: 4 }], b: 1 }));
   assert.notEqual(canonicalJson({ a: 1 }), canonicalJson({ a: 2 }));
+});
+
+// --- National Park Service leaves -------------------------------------------
+
+const NPS_POIS_SOURCE = {
+  kind: "nps_pois",
+  name: "National Park Service",
+  url: "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_POIs/FeatureServer/0/query",
+  license: "public domain (US federal government)",
+};
+const NPS_PARKING_SOURCE = { ...NPS_POIS_SOURCE, kind: "nps_parking" };
+
+function npsLeaf(value: unknown, source: Record<string, unknown>): Record<string, unknown> {
+  return { value, source, retrieved_at: "2026-08-19" };
+}
+
+test("an NPS bathroom block becomes present, its type, and its season note", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("present", NPS_POIS_SOURCE),
+      type: npsLeaf("vault_pit", NPS_POIS_SOURCE),
+      season_note: npsLeaf("May 1 - Oct 31 (check park website)", NPS_POIS_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.block, entry.leaf, entry.sourced.value]),
+    [
+      ["bathrooms", "status", "present"],
+      ["bathrooms", "type", "vault_pit"],
+      ["bathrooms", "season_note", "May 1 - Oct 31 (check park website)"],
+    ]
+  );
+  assert.equal(leaves[0].source, "nps_pois");
+  assert.equal(leaves[0].rowKey, "dest-paradise");
+});
+
+test("an NPS bathroom status of absent is refused, and takes the block with it", () => {
+  // NPS is presence-only. A trailhead with no toilet POI near it is one nobody
+  // surveyed, so `absent` cannot come from this source at all.
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("absent", NPS_POIS_SOURCE),
+      type: npsLeaf("vault_pit", NPS_POIS_SOURCE),
+    },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_not_present"]);
+});
+
+test("an NPS envelope is rebuilt field by field, and drops what it does not know", () => {
+  const { leaves } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: {
+        value: "present",
+        source: { ...NPS_POIS_SOURCE, external_id: "{ABC}", trust_me: true },
+        retrieved_at: "2026-08-19",
+        last_verified_at: "2026-08-19",
+      },
+    },
+  });
+  assert.deepEqual(Object.keys(leaves[0].sourced).sort(), ["retrieved_at", "source", "value"]);
+  assert.deepEqual(Object.keys(leaves[0].sourced.source).sort(), ["kind", "license", "name", "url"]);
+});
+
+test("an NPS leaf with a bad retrieval date is refused", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: { status: { value: "present", source: NPS_POIS_SOURCE, retrieved_at: "August 2026" } },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_source_unusable"]);
+});
+
+test("a javascript: url never becomes a source link", () => {
+  const { leaves } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: {
+      status: npsLeaf("present", { ...NPS_POIS_SOURCE, url: "javascript:alert(1)" }),
+    },
+  });
+  assert.equal("url" in leaves[0].sourced.source, false);
+});
+
+test("an NPS parking block becomes a lot and its note", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      location_note: npsLeaf("PARADISE PARKING (UPPER LOT)", NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value, entry.source]),
+    [
+      ["type", "lot", "nps_parking"],
+      ["location_note", "PARADISE PARKING (UPPER LOT)", "nps_parking"],
+    ]
+  );
+});
+
+test("a capacity on an NPS parking leaf is refused by name", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      capacity_vehicles: npsLeaf(29, NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, ["unexpected_parking_leaf_capacity_vehicles"]);
+  assert.deepEqual(
+    leaves.map((entry) => entry.leaf),
+    ["type"]
+  );
+});
+
+test("a bathroom leaf wearing the parking service's kind is refused", () => {
+  const { leaves, refusals } = npsBathroomLeafCandidates({
+    destination_id: "dest-paradise",
+    bathrooms: { status: npsLeaf("present", NPS_PARKING_SOURCE) },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["bathroom_status_source_unusable"]);
+});
+
+test("a row with no block at all yields nothing and refuses nothing", () => {
+  assert.deepEqual(npsBathroomLeafCandidates({ destination_id: "dest-paradise" }), {
+    leaves: [],
+    refusals: [],
+    notices: [],
+  });
+  assert.deepEqual(npsParkingLeafCandidates({ destination_id: "dest-paradise" }), {
+    leaves: [],
+    refusals: [],
+    notices: [],
+  });
+});
+
+test("an explicit agency claim beats an NPS spatial join on the same leaf", () => {
+  const { chosen, conflicts } = resolveLeafConflicts([
+    leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+    leaf("bathrooms", "type", "vault_pit", "usfs_edw", "usfs_bathrooms"),
+  ]);
+  assert.equal(chosen[0].sourced.value, "vault_pit");
+  assert.equal(conflicts[0].reason, "explicit_over_nps_join");
+
+  // And in the other arrival order, since resolution must not depend on it.
+  const reversed = resolveLeafConflicts([
+    leaf("bathrooms", "type", "vault_pit", "usfs_edw", "usfs_bathrooms"),
+    leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+  ]);
+  assert.equal(reversed.chosen[0].sourced.value, "vault_pit");
+  assert.equal(reversed.conflicts[0].reason, "explicit_over_nps_join");
+});
+
+test("two NPS leaves fall back to the ordinary rule", () => {
+  const { chosen } = resolveLeafConflicts([
+    leaf("parking", "location_note", "first", "nps_parking", "nps_parking"),
+    leaf("parking", "location_note", "second", "nps_parking", "nps_parking"),
+  ]);
+  assert.equal(chosen[0].sourced.value, "first");
+});
+
+test("an NPS leaf does not overwrite an agency claim already on the row", () => {
+  const existing = {
+    bathrooms: {
+      type: { value: "vault_pit", source: { kind: "usfs_edw", name: "US Forest Service" }, retrieved_at: "2026-08-19" },
+    },
+  };
+  const merge = mergeTrailheadAmenities(
+    existing,
+    buildTrailheadAmenities([
+      leaf("bathrooms", "type", "unspecified", "nps_pois", "nps_pois"),
+      leaf("bathrooms", "status", "present", "nps_pois", "nps_pois"),
+    ])
+  );
+  assert.deepEqual(merge.deferredLeaves, ["bathrooms.type"]);
+  assert.deepEqual(merge.appliedLeaves, ["bathrooms.status"]);
+  const bathrooms = merge.merged.bathrooms as Record<string, { value: unknown }>;
+  assert.equal(bathrooms.type.value, "vault_pit");
+  assert.equal(bathrooms.status.value, "present");
+});
+
+test("an NPS leaf does overwrite the NPS leaf it wrote last quarter", () => {
+  const existing = {
+    parking: {
+      location_note: {
+        value: "PARADISE PARKING (LOWER LOT)",
+        source: { kind: "nps_parking", name: "National Park Service" },
+        retrieved_at: "2026-05-01",
+      },
+    },
+  };
+  const merge = mergeTrailheadAmenities(
+    existing,
+    buildTrailheadAmenities([
+      leaf("parking", "location_note", "PARADISE PARKING (UPPER LOT)", "nps_parking", "nps_parking"),
+    ])
+  );
+  assert.deepEqual(merge.deferredLeaves, []);
+  const parking = merge.merged.parking as Record<string, { value: unknown }>;
+  assert.equal(parking.location_note.value, "PARADISE PARKING (UPPER LOT)");
 });

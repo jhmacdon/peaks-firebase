@@ -39,12 +39,17 @@ function createDb(options: { viewReady?: boolean; rows?: FreshnessRow[] }): {
   return { db, seen };
 }
 
-test("the required sources are the three feeds that carry real coverage", () => {
+test("the required sources are the feeds that carry real coverage", () => {
   // usfs_pages is imported and logged, but contributes a single leaf across the
   // catalog, so it is reported without being able to fail the check. The roads
   // pipeline is nothing like that: 328 trailheads carry a vehicle answer, a
-  // surface and a road reference from it.
-  assert.deepEqual([...REQUIRED_SOURCES], ["usfs_fees", "usfs_bathrooms", "usfs_roads"]);
+  // surface and a road reference from it. The two NPS layers cover fewer
+  // trailheads than anything else here and are still required, because a
+  // spatial join with no name behind it is only true while both ends stay put.
+  assert.deepEqual(
+    [...REQUIRED_SOURCES],
+    ["usfs_fees", "usfs_bathrooms", "usfs_roads", "nps_pois", "nps_parking"]
+  );
   assert.equal(STALE_AFTER_DAYS, 90);
 });
 
@@ -74,6 +79,8 @@ test("a source past the window is stale", () => {
     fresh("usfs_fees", 91),
     fresh("usfs_bathrooms", 90),
     fresh("usfs_roads", 1),
+    fresh("nps_pois", 1),
+    fresh("nps_parking", 1),
   ]);
   assert.equal(report.ok, false);
   assert.deepEqual(
@@ -88,7 +95,12 @@ test("a source with no run at all fails", () => {
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => [f.source, f.state]),
-    [["usfs_bathrooms", "never_run"], ["usfs_roads", "never_run"]]
+    [
+      ["usfs_bathrooms", "never_run"],
+      ["usfs_roads", "never_run"],
+      ["nps_pois", "never_run"],
+      ["nps_parking", "never_run"],
+    ]
   );
 });
 
@@ -96,7 +108,12 @@ test("a roads import that has never run fails the check", () => {
   // The one that would otherwise pass unnoticed: the fee and bathroom files
   // refresh on their own cadence, and a data directory with no rebuilt road
   // store still imports three quarters of itself.
-  const report = evaluateFreshness([fresh("usfs_fees", 1), fresh("usfs_bathrooms", 1)]);
+  const report = evaluateFreshness([
+    fresh("usfs_fees", 1),
+    fresh("usfs_bathrooms", 1),
+    fresh("nps_pois", 1),
+    fresh("nps_parking", 1),
+  ]);
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => [f.source, f.state]),
@@ -104,10 +121,28 @@ test("a roads import that has never run fails the check", () => {
   );
 });
 
+test("an NPS normalize that has never been imported fails the check", () => {
+  // The same trap one source along: the Forest Service half of a refresh can
+  // succeed while the NPS join is never re-run, and the catalog would go on
+  // showing a restroom nobody re-checked.
+  const report = evaluateFreshness([
+    fresh("usfs_fees", 1),
+    fresh("usfs_bathrooms", 1),
+    fresh("usfs_roads", 1),
+  ]);
+  assert.equal(report.ok, false);
+  assert.deepEqual(
+    report.failures.map((f) => [f.source, f.state]),
+    [["nps_pois", "never_run"], ["nps_parking", "never_run"]]
+  );
+});
+
 test("a source that has run but never succeeded fails", () => {
   const rows: FreshnessRow[] = [
     fresh("usfs_fees", 1),
     fresh("usfs_roads", 1),
+    fresh("nps_pois", 1),
+    fresh("nps_parking", 1),
     { source: "usfs_bathrooms", last_successful_at: null, days_stale: null, is_stale: true },
   ];
   const report = evaluateFreshness(rows);
@@ -175,5 +210,8 @@ test("arguments parse and validate", () => {
   assert.equal(parseArgs(["--json"]).json, true);
   assert.equal(parseArgs(["--help"]).help, true);
   assert.throws(() => parseArgs(["--stale-days=0"]), /--stale-days/);
-  assert.match(usage(), /Required sources: usfs_fees, usfs_bathrooms, usfs_roads/);
+  assert.match(
+    usage(),
+    /Required sources: usfs_fees, usfs_bathrooms, usfs_roads, nps_pois, nps_parking/
+  );
 });

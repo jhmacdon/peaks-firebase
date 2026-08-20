@@ -15,10 +15,21 @@ import db from "./db";
 // stale in a way the others do not: a gate window is a published schedule that
 // the agency reissues, and a road can be regraded or washed out between
 // refreshes.
+//
+// nps_pois and nps_parking are required for a different reason. They cover 32
+// and 37 trailheads, fewer than any other source, but every one of those rows
+// is a spatial join with no name behind it: the fact is true only while the
+// restroom and the lot are still where the layer put them and the trailhead is
+// still where the catalog puts it. A stale Forest Service fee is last season's
+// price; a stale NPS join can be a restroom that was removed. They are also
+// the pair covering the busiest trailheads Peaks has — Paradise among them — so
+// a silent expiry there is the most-read wrong answer in the catalog.
 export const REQUIRED_SOURCES: readonly string[] = [
   "usfs_fees",
   "usfs_bathrooms",
   "usfs_roads",
+  "nps_pois",
+  "nps_parking",
 ];
 export const STALE_AFTER_DAYS = 90;
 

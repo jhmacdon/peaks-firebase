@@ -14,6 +14,7 @@ import type {
   TrailheadBathroomType,
   TrailheadHighClearance,
   TrailheadParking,
+  TrailheadParkingType,
   TrailheadRoadAccess,
 } from "./lib/amenities";
 
@@ -22,13 +23,17 @@ export type TrailheadFactSource =
   | "usfs_fees"
   | "usfs_bathrooms"
   | "usfs_pages"
-  | "usfs_roads";
+  | "usfs_roads"
+  | "nps_pois"
+  | "nps_parking";
 
 export const TRAILHEAD_FACT_SOURCES: readonly TrailheadFactSource[] = [
   "usfs_fees",
   "usfs_bathrooms",
   "usfs_pages",
   "usfs_roads",
+  "nps_pois",
+  "nps_parking",
 ];
 
 /** Gate 1: a Peaks trailhead this far from the source point or nearer. */
@@ -62,11 +67,28 @@ export const ROAD_SOURCE_KINDS: readonly string[] = [
   "blm_gtlf",
 ];
 
+/**
+ * The National Park Service layers, named as the normalizer names them.
+ *
+ * These two are the only kinds in this importer that carry a **derived** fact:
+ * a restroom or a lot is attached to a trailhead because it is within 150 m of
+ * it, with no name, no site id and no agency sentence tying the two together.
+ * Everything else here is a fact an agency published about a named site. That
+ * difference is what `preferCandidate` and `mergeTrailheadAmenities` act on
+ * below — an explicit claim beats a spatial join on the same leaf, always.
+ */
+export const NPS_SOURCE_KINDS: readonly string[] = ["nps_pois", "nps_parking"];
+
+export function isNpsSourceKind(kind: string | undefined): boolean {
+  return typeof kind === "string" && NPS_SOURCE_KINDS.includes(kind);
+}
+
 /** Source kinds this importer owns and may overwrite on a re-run. */
 export const MANAGED_SOURCE_KINDS: readonly string[] = [
   EDW_SOURCE_KIND,
   WEB_SOURCE_KIND,
   ...ROAD_SOURCE_KINDS,
+  ...NPS_SOURCE_KINDS,
 ];
 
 /** Service URL per EDW dataset, recorded as the source url on every fee leaf. */
@@ -724,10 +746,14 @@ export function parseIsoDate(value: unknown): { year: number; month: number; day
  * url as something tappable, and a `javascript:` string arriving from a data
  * file has no business becoming one.
  */
-function roadSourcedValue(raw: unknown, value: unknown): SourcedValue<unknown> | null {
+export function fileSourcedValue(
+  raw: unknown,
+  value: unknown,
+  allowedKinds: readonly string[]
+): SourcedValue<unknown> | null {
   if (!isPlainObject(raw) || !isPlainObject(raw.source)) return null;
   const { kind, name, url, license } = raw.source;
-  if (typeof kind !== "string" || !ROAD_SOURCE_KINDS.includes(kind)) return null;
+  if (typeof kind !== "string" || !allowedKinds.includes(kind)) return null;
   if (typeof name !== "string" || name.trim().length === 0) return null;
   if (parseIsoDate(raw.retrieved_at) === null) return null;
   const link = typeof url === "string" && /^https?:\/\/\S/i.test(url.trim()) ? url.trim() : null;
@@ -742,6 +768,10 @@ function roadSourcedValue(raw: unknown, value: unknown): SourcedValue<unknown> |
     },
     retrieved_at: raw.retrieved_at as string,
   };
+}
+
+function roadSourcedValue(raw: unknown, value: unknown): SourcedValue<unknown> | null {
+  return fileSourcedValue(raw, value, ROAD_SOURCE_KINDS);
 }
 
 /**
@@ -854,6 +884,182 @@ export function roadAccessLeafCandidates(row: RoadAccessRow, runYear: number): L
 }
 
 // ---------------------------------------------------------------------------
+// National Park Service facts
+// ---------------------------------------------------------------------------
+
+/**
+ * One row of `nps-trailhead-facts.jsonl`, as it arrives: unvalidated.
+ *
+ * `normalize:nps-trailhead-facts` shapes both blocks the way `amenities`
+ * stores them, so the import is a copy — but the file is a file, and
+ * `destinations.amenities` is unvalidated JSONB, so nothing is trusted until
+ * it is checked. `diagnostics` is declared so its absence from everything
+ * below is visible: it holds the join distance, the POI id and the lot name,
+ * it is there for a person auditing a match, and **it is never imported.**
+ */
+export interface NpsFactRow {
+  destination_id?: unknown;
+  destination_name?: unknown;
+  bathrooms?: unknown;
+  parking?: unknown;
+  diagnostics?: unknown;
+}
+
+/**
+ * The only bathroom leaves an NPS row may carry.
+ *
+ * An allow-list rather than a filter, because the failure it guards against is
+ * a leaf nobody reviewed arriving in a data file and landing in production
+ * JSONB unread. A key outside this list is refused and counted by name.
+ */
+export const NPS_BATHROOM_LEAVES: readonly BathroomLeaf[] = ["status", "type", "season_note"];
+
+/**
+ * The only parking leaves an NPS row may carry — and the reason the list is
+ * this short.
+ *
+ * NPS publishes 6,740 lot polygons and **no capacity field at all**.
+ * research-parking.md §2.5 offers polygon area as a proxy at 30 m² a space and
+ * says in the same paragraph that the ratio was never calibrated against
+ * ground truth, because Overpass went down before the regression could run.
+ * So `capacity_vehicles` is not merely absent from this list: a row carrying
+ * one is refused and counted, because the only way a number could appear on an
+ * NPS parking leaf is a regression that started dividing area by an
+ * uncalibrated constant.
+ */
+export const NPS_PARKING_LEAVES: readonly ParkingLeaf[] = ["type", "location_note"];
+
+const PARKING_TYPES: readonly TrailheadParkingType[] = ["lot", "roadside", "garage", "other"];
+
+function nonEmptyStringValue(leaf: unknown): string | null {
+  const value = isPlainObject(leaf) ? leaf.value : undefined;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function npsRowKey(row: NpsFactRow): string {
+  return typeof row.destination_id === "string" ? row.destination_id : "";
+}
+
+/**
+ * NPS row → bathroom leaves, with every binding rule applied.
+ *
+ * The rule that outranks the rest: **`status` may only ever be `present`.**
+ * NPS records the restrooms it has mapped and says nothing about the ones it
+ * has not (research-bathrooms.md §3.2), so a trailhead with no toilet POI near
+ * it is a trailhead nobody surveyed, not a trailhead without a toilet. The
+ * normalizer cannot write `absent` — and this refuses it again here, the whole
+ * block with it, because a rule enforced in only one of two places is a rule
+ * the next writer of the other place does not know about. A block carrying a
+ * type but no status is refused by the same line: a type alone says "present"
+ * without saying it.
+ *
+ * The rest follow the road importer's shape:
+ *
+ * - Leaves must carry this service's own source kind, `nps_pois`, so a
+ *   hand-edited file cannot move a leaf between services.
+ * - Every envelope is rebuilt field by field rather than copied.
+ * - A leaf outside `NPS_BATHROOM_LEAVES` is refused and counted by name.
+ * - `diagnostics` is not read. The distance a match rested on is evidence for
+ *   a person, not a fact about a trailhead.
+ */
+export function npsBathroomLeafCandidates(row: NpsFactRow): LeafExtraction {
+  const leaves: LeafCandidate[] = [];
+  const refusals: string[] = [];
+  const rowKey = npsRowKey(row);
+  if (row.bathrooms === undefined) return { leaves, refusals, notices: [] };
+
+  const block = isPlainObject(row.bathrooms) ? row.bathrooms : null;
+  if (block === null) {
+    refusals.push("bathrooms_block_unusable");
+    return { leaves, refusals, notices: [] };
+  }
+  const status = isPlainObject(block.status) ? block.status.value : undefined;
+  if (status !== "present") {
+    refusals.push(status === undefined ? "bathroom_status_missing" : "bathroom_status_not_present");
+    return { leaves, refusals, notices: [] };
+  }
+
+  const usable: Array<{ leaf: BathroomLeaf; value: unknown }> = [];
+  for (const [name, leaf] of Object.entries(block)) {
+    if (!NPS_BATHROOM_LEAVES.includes(name as BathroomLeaf)) {
+      refusals.push(`unexpected_bathroom_leaf_${name}`);
+      continue;
+    }
+    if (name === "status") {
+      usable.push({ leaf: "status", value: "present" });
+    } else if (name === "type") {
+      const value = isPlainObject(leaf) ? leaf.value : undefined;
+      if (BATHROOM_TYPES.includes(value as TrailheadBathroomType)) {
+        usable.push({ leaf: "type", value });
+      } else {
+        refusals.push("bathroom_type_unusable");
+      }
+    } else {
+      const note = nonEmptyStringValue(leaf);
+      if (note === null) refusals.push("bathroom_season_note_unusable");
+      else usable.push({ leaf: "season_note", value: note });
+    }
+  }
+  for (const candidate of usable) {
+    const sourced = fileSourcedValue(block[candidate.leaf], candidate.value, ["nps_pois"]);
+    if (sourced === null) {
+      refusals.push(`bathroom_${candidate.leaf}_source_unusable`);
+      continue;
+    }
+    leaves.push({ block: "bathrooms", leaf: candidate.leaf, source: "nps_pois", rowKey, sourced });
+  }
+  return { leaves, refusals, notices: [] };
+}
+
+/**
+ * NPS row → parking leaves.
+ *
+ * Same shape as the bathroom half, and one rule of its own: the allow-list is
+ * `type` and `location_note`, so **a `capacity_vehicles` arriving on an NPS
+ * leaf is refused by name**. The Park Service publishes no capacity field —
+ * the only way a number could appear here is a regression that started
+ * dividing polygon area by the uncalibrated 30 m² constant
+ * research-parking.md §2.5 warned about, and that number would read exactly
+ * like a counted one.
+ */
+export function npsParkingLeafCandidates(row: NpsFactRow): LeafExtraction {
+  const leaves: LeafCandidate[] = [];
+  const refusals: string[] = [];
+  const rowKey = npsRowKey(row);
+  if (row.parking === undefined) return { leaves, refusals, notices: [] };
+
+  const block = isPlainObject(row.parking) ? row.parking : null;
+  if (block === null) {
+    refusals.push("parking_block_unusable");
+    return { leaves, refusals, notices: [] };
+  }
+  for (const [name, leaf] of Object.entries(block)) {
+    if (!NPS_PARKING_LEAVES.includes(name as ParkingLeaf)) {
+      refusals.push(`unexpected_parking_leaf_${name}`);
+      continue;
+    }
+    let value: unknown = null;
+    if (name === "type") {
+      const raw = isPlainObject(leaf) ? leaf.value : undefined;
+      value = PARKING_TYPES.includes(raw as TrailheadParkingType) ? raw : null;
+    } else {
+      value = nonEmptyStringValue(leaf);
+    }
+    if (value === null) {
+      refusals.push(`parking_${name}_unusable`);
+      continue;
+    }
+    const sourced = fileSourcedValue(leaf, value, ["nps_parking"]);
+    if (sourced === null) {
+      refusals.push(`parking_${name}_source_unusable`);
+      continue;
+    }
+    leaves.push({ block: "parking", leaf: name as ParkingLeaf, source: "nps_parking", rowKey, sourced });
+  }
+  return { leaves, refusals, notices: [] };
+}
+
+// ---------------------------------------------------------------------------
 // Conflict resolution
 // ---------------------------------------------------------------------------
 
@@ -872,8 +1078,17 @@ function sourceKind(candidate: LeafCandidate): string {
  * Which of two claims about the same leaf wins:
  *   - fee_required: true wins, the stricter claim;
  *   - capacity_vehicles: an explicit page number beats anything else;
+ *   - an explicit agency claim beats an NPS spatial join;
  *   - otherwise the agency dataset (usfs_edw) beats the web page (usfs_web).
  * Equal footing keeps the incumbent, so resolution is order-stable.
+ *
+ * The NPS rule sits above the last one and below the first two because of what
+ * the two kinds of claim are. A Forest Service row saying `Vault toilet(s)` is
+ * the agency describing a site it named; an NPS bathroom leaf is a restroom
+ * that happens to be within 150 m of a point, with no name on either side
+ * tying them together. Where a trailhead sits near a park boundary both can
+ * land on `bathrooms.type` — and the one that knows which site it is talking
+ * about is the one to keep.
  */
 export function preferCandidate(
   current: LeafCandidate,
@@ -891,6 +1106,13 @@ export function preferCandidate(
     if (nextIsPage && !currentIsPage) return { winner: next, reason: "page_capacity_wins" };
     if (currentIsPage && !nextIsPage) return { winner: current, reason: "page_capacity_wins" };
     return { winner: current, reason: "first_seen" };
+  }
+  const currentIsNps = isNpsSourceKind(sourceKind(current));
+  const nextIsNps = isNpsSourceKind(sourceKind(next));
+  if (currentIsNps !== nextIsNps) {
+    return currentIsNps
+      ? { winner: next, reason: "explicit_over_nps_join" }
+      : { winner: current, reason: "explicit_over_nps_join" };
   }
   const currentIsEdw = sourceKind(current) === EDW_SOURCE_KIND;
   const nextIsEdw = sourceKind(next) === EDW_SOURCE_KIND;
@@ -987,6 +1209,8 @@ export interface MergeResult {
   appliedLeaves: string[];
   /** Leaf keys held by another source and left alone. */
   preservedLeaves: string[];
+  /** NPS leaves that yielded to an explicit agency claim already stored. */
+  deferredLeaves: string[];
 }
 
 /**
@@ -994,6 +1218,13 @@ export interface MergeResult {
  * leaves this importer did not produce survive untouched, and a leaf written
  * by a source outside MANAGED_SOURCE_KINDS (a human check, a future importer)
  * is never overwritten.
+ *
+ * One more rule, and it is the same one `preferCandidate` applies inside a
+ * single run: **an NPS leaf never overwrites an explicit agency claim already
+ * on the row.** Both are needed because they catch different runs. The
+ * resolver settles a leaf two sources both produced today; this settles the
+ * run where the Forest Service row that wrote the leaf last quarter no longer
+ * clears the name gate, and the only candidate left is a spatial join.
  */
 export function mergeTrailheadAmenities(existing: unknown, incoming: TrailheadAmenities): MergeResult {
   const base: Record<string, unknown> = isPlainObject(existing)
@@ -1002,6 +1233,7 @@ export function mergeTrailheadAmenities(existing: unknown, incoming: TrailheadAm
   const before = canonicalJson(isPlainObject(existing) ? existing : {});
   const appliedLeaves: string[] = [];
   const preservedLeaves: string[] = [];
+  const deferredLeaves: string[] = [];
 
   for (const [blockName, blockValue] of Object.entries(incoming)) {
     if (!isPlainObject(blockValue)) continue;
@@ -1009,10 +1241,22 @@ export function mergeTrailheadAmenities(existing: unknown, incoming: TrailheadAm
     for (const [leafName, leafValue] of Object.entries(blockValue)) {
       const key = `${blockName}.${leafName}`;
       const currentLeaf = currentBlock[leafName];
+      const incomingKind =
+        isPlainObject(leafValue) && isPlainObject(leafValue.source)
+          ? leafValue.source.kind
+          : undefined;
       if (isPlainObject(currentLeaf)) {
         const currentKind = isPlainObject(currentLeaf.source) ? currentLeaf.source.kind : undefined;
         if (typeof currentKind === "string" && !MANAGED_SOURCE_KINDS.includes(currentKind)) {
           preservedLeaves.push(key);
+          continue;
+        }
+        if (
+          isNpsSourceKind(incomingKind as string | undefined) &&
+          typeof currentKind === "string" &&
+          !isNpsSourceKind(currentKind)
+        ) {
+          deferredLeaves.push(key);
           continue;
         }
       }
@@ -1027,5 +1271,6 @@ export function mergeTrailheadAmenities(existing: unknown, incoming: TrailheadAm
     changed: canonicalJson(base) !== before,
     appliedLeaves,
     preservedLeaves,
+    deferredLeaves,
   };
 }

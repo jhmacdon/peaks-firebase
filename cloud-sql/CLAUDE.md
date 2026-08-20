@@ -595,10 +595,10 @@ Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_sess
 ## Trailhead facts import
 
 Parking, fee, bathroom and access-road facts for existing trailheads, imported
-from the normalized US Forest Service JSONL in `docs/trailheads/data/` (that
-directory lives in the `peaks` checkout, not this repo). The importer never
-creates a destination: a fact with no trailhead to hang on is reported, not
-invented.
+from the normalized US Forest Service and National Park Service JSONL in
+`docs/trailheads/data/` (that directory lives in the `peaks` checkout, not this
+repo). The importer never creates a destination: a fact with no trailhead to
+hang on is reported, not invented.
 
 ```bash
 cd migrate
@@ -708,6 +708,70 @@ Refusals drop one leaf, not the row: a trailhead whose dates are refused still
 gets its vehicle, surface and road reference. Rejected rows go to
 `import-rejected-roads.jsonl` with the reason.
 
+### The National Park Service pair: `nps_pois` and `nps_parking`
+
+The Forest Service sources stop at the forest boundary, so a trailhead in a
+national park had nothing. Two key-free NPS layers fill that in, joined by
+`normalize:nps-trailhead-facts` and imported by exact id like the road facts:
+
+```bash
+cd migrate
+npm run normalize:nps-trailhead-facts -- \
+  --data-dir=/path/to/peaks/docs/trailheads/data --show=<destination-id>
+```
+
+It reads the catalog once, read-only, for trailhead ids, names and coordinates,
+joins each trailhead to the nearest usable toilet POI and the nearest usable
+parking polygon within **150 m**, and writes `nps-trailhead-facts.jsonl` — one
+row per trailhead that got at least one of them, keyed by destination id, with
+the join evidence in a `diagnostics` block the importer never reads. Today 32
+trailheads get a restroom, 37 a lot, 15 both, 54 rows in all. The gate is 150 m
+rather than the 250 m the fee and bathroom sources match at because this join
+has no name to check itself against — only the distance.
+
+Three binding rules, all pinned by tests:
+
+- **NPS is presence-only** (`docs/trailheads/research-bathrooms.md` §3.2). It
+  records the restrooms it has mapped and says nothing about the ones it has
+  not, so nothing writes `bathrooms.status: absent`, and a trailhead the join
+  found nothing for gets **no row at all** — an emitted row saying "considered,
+  found nothing" is that forbidden negative written where a later reader takes
+  it for one. `npsBathroomLeafCandidates` refuses a non-`present` status again
+  on arrival, block and all, including a `type` that arrives without a status.
+- **No capacity from area, ever.** `research-parking.md` §2.5 offers polygon
+  area as a proxy at 30 m² a space and says in the same paragraph that the
+  ratio was never calibrated, because Overpass went down before the regression
+  could run. Parking gets `type: 'lot'` and, where the lot has an informative
+  name, a `location_note`. `capacity_vehicles` is not merely absent from the
+  NPS allow-list: a row carrying one is **refused by name**, because the only
+  way a number reaches that leaf is a regression that started dividing area by
+  the uncalibrated constant.
+- **A candidate the layer disowns is stepped past, never negated** — `Planned`,
+  `Not Existing`, `Decommissioned`, `Temporarily Closed`, `OPENTOPUBLIC=No`,
+  `ISEXTANT=False` — and so is a lot whose name says it belongs to the staff.
+  `LOTTYPE` is null on 5,448 of 6,740 rows and `OPENTOPUBLIC` is Unknown on
+  6,091, so the name is the only thing between a visitor lot and the park's
+  maintenance yard: Longmire's yard sits 88 m from the Eagle Peak trailhead.
+
+**Conflict rule: an explicit agency claim beats an NPS spatial join on the same
+leaf.** A Forest Service row saying `Vault toilet(s)` is the agency describing a
+site it named; an NPS leaf is a restroom that happens to be within 150 m of a
+point. It is enforced in `preferCandidate` for two candidates in the same run
+and again in `mergeTrailheadAmenities` against a leaf already stored — the
+second covers the run where last quarter's Forest Service row no longer clears
+the name gate and the spatial join is the only candidate left.
+
+`LOTNAME` is filled on 1,314 lots and `MAPLABEL` on 5,672, and every lot this
+join matches today has a MAPLABEL and no LOTNAME — Paradise's upper lot
+included — so the label is load-bearing, not a nicety. A name becomes a note
+only when it says more than "Parking Lot" (375 rows) does, and a label the
+source truncated with a trailing `*` is refused rather than trimmed into
+"PARKI".
+
+Rejected rows go to `import-rejected-nps-pois.jsonl` and
+`import-rejected-nps-parking.jsonl`: one file in, two sources out, because a
+refused restroom and a refused lot are different failures.
+
 Each run records a `data_source_runs` row per source (`--no-log` skips it;
 a dry run is logged as `dry_run`, so it never counts as a refresh). Check
 staleness with:
@@ -716,12 +780,15 @@ staleness with:
 npm run check:data-freshness
 ```
 
-It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms` or
-`usfs_roads` — is more than 90 days past its last successful import or has
-never run. `usfs_pages` is imported and logged the same way but cannot fail the
-check: it contributes a single leaf across the catalog, so the report lists it
-as `[other]` rather than alarming on it. Quarterly cadence and the full refresh
-sequence: `migrate/docs/trailhead-data-refresh.md`.
+It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms`,
+`usfs_roads`, `nps_pois` or `nps_parking` — is more than 90 days past its last
+successful import or has never run. The NPS pair covers fewer trailheads than
+anything else on that list and is required anyway: a spatial join with no name
+behind it is true only while both ends stay put, and it covers the busiest
+trailheads Peaks has. `usfs_pages` is imported and logged the same way but
+cannot fail the check: it contributes a single leaf across the catalog, so the
+report lists it as `[other]` rather than alarming on it. Quarterly cadence and
+the full refresh sequence: `migrate/docs/trailhead-data-refresh.md`.
 
 ## Access-road processing store
 

@@ -153,6 +153,54 @@ const MVUM_SOURCE = {
   name: "USFS Motor Vehicle Use Map roads",
   license: FEDERAL_PUBLIC_DOMAIN,
 };
+const NPS_POIS_SOURCE = {
+  kind: "nps_pois",
+  name: "National Park Service",
+  url: "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_POIs/FeatureServer/0/query",
+  license: FEDERAL_PUBLIC_DOMAIN,
+};
+const NPS_PARKING_SOURCE = {
+  kind: "nps_parking",
+  name: "National Park Service",
+  url: "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_ParkingLots/MapServer/0/query",
+  license: FEDERAL_PUBLIC_DOMAIN,
+};
+
+function npsLeaf(value: unknown, source: Record<string, unknown>): Record<string, unknown> {
+  return { value, source, retrieved_at: "2026-08-19" };
+}
+
+/** A row shaped exactly as `normalize:nps-trailhead-facts` writes one. */
+function npsRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    destination_id: "dest-snow",
+    destination_name: "Snow Lake Trailhead",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      location_note: npsLeaf("SNOW LAKE PARKING (UPPER LOT)", NPS_PARKING_SOURCE),
+    },
+    diagnostics: {
+      parking: {
+        distance_m: 0,
+        inside_lot: true,
+        lot_name: "SNOW LAKE PARKING (UPPER LOT)",
+        lot_name_field: "MAPLABEL",
+        candidates_within_gate: 1,
+        skipped: [],
+      },
+    },
+    ...overrides,
+  };
+}
+
+/** The bathroom half, which the default fixture leaves to the Forest Service. */
+function npsBathroomBlock(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    status: npsLeaf("present", NPS_POIS_SOURCE),
+    type: npsLeaf("unspecified", NPS_POIS_SOURCE),
+    ...overrides,
+  };
+}
 
 /** A row shaped exactly as `roads:derive` writes one. */
 function roadRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -285,6 +333,7 @@ function defaultFiles(overrides: Record<string, string> = {}): Record<string, st
         skip_reason: "no_snap",
       },
     ]),
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([npsRow()]),
     ...overrides,
   };
 }
@@ -298,6 +347,7 @@ function testArgs(overrides: Partial<Args> = {}): Args {
     registryPath: null,
     rawRecSitesPath: null,
     roadAccessPath: null,
+    npsFactsPath: null,
     reportDir: null,
     apply: false,
     dryRun: true,
@@ -443,10 +493,10 @@ test("a dry run writes nothing, reports the unmatched rows, and logs a dry_run",
   assert.equal(calls.some((call) => call.sql === "BEGIN"), false);
 
   const runInserts = calls.filter((call) => call.sql.includes("INSERT INTO data_source_runs"));
-  assert.equal(runInserts.length, 4);
+  assert.equal(runInserts.length, 6);
   assert.deepEqual(
     runInserts.map((call) => call.params?.[0]),
-    ["usfs_fees", "usfs_bathrooms", "usfs_pages", "usfs_roads"]
+    ["usfs_fees", "usfs_bathrooms", "usfs_pages", "usfs_roads", "nps_pois", "nps_parking"]
   );
   for (const insert of runInserts) {
     assert.equal(insert.params?.[1], "import");
@@ -519,7 +569,7 @@ test("apply merges every source into one destination row inside a transaction", 
   const runInserts = calls.filter((call) => call.sql.includes("INSERT INTO data_source_runs"));
   assert.deepEqual(
     runInserts.map((call) => call.params?.[2]),
-    ["success", "success", "success", "success"]
+    ["success", "success", "success", "success", "success", "success"]
   );
   assert.deepEqual(
     runInserts.map((call) => [call.params?.[0], call.params?.[5], call.params?.[6], call.params?.[7]]),
@@ -528,8 +578,14 @@ test("apply merges every source into one destination row inside a transaction", 
       ["usfs_bathrooms", 1, 1, 1],
       ["usfs_pages", 1, 1, 1],
       ["usfs_roads", 2, 1, 1],
+      // The default NPS row carries a parking block only, so the POI service
+      // reads no rows at all while the parking service reads and writes one.
+      ["nps_pois", 0, 0, 0],
+      ["nps_parking", 1, 1, 1],
     ]
   );
+  assert.equal(merged.parking.type.value, "lot");
+  assert.equal(merged.parking.type.source.kind, "nps_parking");
 });
 
 test("a second apply over the same facts rewrites nothing", async () => {
@@ -1164,7 +1220,7 @@ test("a threshold match is recorded as one", async () => {
   ]);
   assert.deepEqual(
     matched.map((record) => record.source).sort(),
-    ["usfs_bathrooms", "usfs_fees", "usfs_pages", "usfs_roads"]
+    ["nps_parking", "usfs_bathrooms", "usfs_fees", "usfs_pages", "usfs_roads"]
   );
 });
 
@@ -1214,6 +1270,7 @@ test("rows keep their own candidates across candidate and similarity chunks", as
       { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
     ]),
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "",
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "",
   };
 
   let candidateQueries = 0;
@@ -1295,6 +1352,19 @@ function roadOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, str
     [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
     [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl(rows),
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "",
+  });
+}
+
+/** A data directory holding one NPS row and nothing else worth matching. */
+function npsOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, string> {
+  return defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "",
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl(rows),
   });
 }
 
@@ -1769,4 +1839,281 @@ test("a missing road-access file stops the import rather than importing three qu
     () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
     /trailhead-road-access\.jsonl/
   );
+});
+
+// --- National Park Service facts --------------------------------------------
+
+function npsReport(io: ReturnType<typeof createIo>, file: string): Array<Record<string, unknown>> {
+  return io.written[path.join(DATA_DIR, file)]
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+}
+
+test("an NPS row lands on its own destination id, with no name gate at all", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(npsOnlyFiles([npsRow({ bathrooms: npsBathroomBlock() })]));
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.nps_pois.matched, 1);
+  assert.equal(summary.counts.nps_pois.matchedByRule.exact_id, 1);
+  assert.equal(summary.counts.nps_parking.matched, 1);
+  assert.equal(summary.counts.nps_parking.matchedByRule.exact_id, 1);
+  assert.equal(summary.destinationsChanged, 1);
+  // The name gate is not consulted: the normalizer started from this row.
+  assert.equal(calls.some((call) => call.sql.includes("JOIN LATERAL")), false);
+
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  assert.equal(update?.params?.[0], "dest-snow");
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.bathrooms.status.value, "present");
+  assert.equal(merged.bathrooms.type.value, "unspecified");
+  assert.equal(merged.parking.type.value, "lot");
+  assert.equal(merged.parking.location_note.value, "SNOW LAKE PARKING (UPPER LOT)");
+  assert.equal(merged.parking.type.source.kind, "nps_parking");
+  assert.equal(merged.parking.type.source.name, "National Park Service");
+  assert.equal(merged.parking.type.source.license, "public domain (US federal government)");
+  assert.equal(merged.parking.type.retrieved_at, "2026-08-19");
+});
+
+test("the join evidence stays in the file — no diagnostics reach amenities", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(npsOnlyFiles([npsRow({ bathrooms: npsBathroomBlock() })])),
+  });
+  const written = calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string;
+  const merged = JSON.parse(written);
+  assert.equal("diagnostics" in merged, false);
+  // The distance a match rested on is evidence for a person, not a fact about
+  // a trailhead — and neither is the lot id or the POI type.
+  assert.equal(/distance_m|inside_lot|candidates_within_gate|lot_name_field/.test(written), false);
+});
+
+test("a bathroom status other than present is refused, block and all", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    npsOnlyFiles([
+      npsRow({
+        parking: undefined,
+        bathrooms: npsBathroomBlock({ status: npsLeaf("absent", NPS_POIS_SOURCE) }),
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+  assert.equal(summary.counts.nps_pois.refusals.bathroom_status_not_present, 1);
+  assert.equal(summary.counts.nps_pois.matched, 0);
+  assert.equal(summary.counts.nps_pois.noFacts, 1);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+  assert.equal(npsReport(io, "import-rejected-nps-pois.jsonl")[0].reason, "bathroom_status_not_present");
+});
+
+test("a bathroom type with no status is refused — a type alone claims presence", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([
+        npsRow({ parking: undefined, bathrooms: { type: npsLeaf("flush", NPS_POIS_SOURCE) } }),
+      ])
+    ),
+  });
+  assert.equal(summary.counts.nps_pois.refusals.bathroom_status_missing, 1);
+  assert.equal(summary.counts.nps_pois.matched, 0);
+});
+
+test("a parking capacity on an NPS leaf is refused by name", async () => {
+  // NPS publishes no capacity field. A number here could only come from the
+  // uncalibrated 30 m²-a-space area proxy, and it would read like a count.
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([
+        npsRow({
+          parking: {
+            type: npsLeaf("lot", NPS_PARKING_SOURCE),
+            capacity_vehicles: npsLeaf(29, NPS_PARKING_SOURCE),
+          },
+        }),
+      ])
+    ),
+  });
+  assert.equal(summary.counts.nps_parking.refusals.unexpected_parking_leaf_capacity_vehicles, 1);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  // The refusal drops one leaf, not the row: the lot still publishes.
+  assert.equal(merged.parking.type.value, "lot");
+  assert.equal("capacity_vehicles" in merged.parking, false);
+});
+
+test("a parking type outside the vocabulary is refused", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([npsRow({ parking: { type: npsLeaf("carpark", NPS_PARKING_SOURCE) } })])
+    ),
+  });
+  assert.equal(summary.counts.nps_parking.refusals.parking_type_unusable, 1);
+  assert.equal(summary.counts.nps_parking.matched, 0);
+});
+
+test("a leaf carrying the other service's source kind is refused", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([
+        npsRow({
+          parking: undefined,
+          bathrooms: npsBathroomBlock({ status: npsLeaf("present", NPS_PARKING_SOURCE) }),
+        }),
+      ])
+    ),
+  });
+  assert.equal(summary.counts.nps_pois.refusals.bathroom_status_source_unusable, 1);
+});
+
+test("an NPS leaf never overwrites an explicit Forest Service claim on the row", async () => {
+  const before = {
+    bathrooms: {
+      type: {
+        value: "vault_pit",
+        source: { kind: "usfs_edw", name: "US Forest Service" },
+        retrieved_at: "2026-08-19",
+      },
+    },
+  };
+  const { db, calls } = createFakeDb({
+    destinations: [{ ...SNOW_DEST, amenities: before }],
+  });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(npsOnlyFiles([npsRow({ bathrooms: npsBathroomBlock() })])),
+  });
+  assert.equal(summary.deferredToExplicitLeaves, 1);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  // The agency named the site; the spatial join only stood near it.
+  assert.equal(merged.bathrooms.type.value, "vault_pit");
+  assert.equal(merged.bathrooms.type.source.kind, "usfs_edw");
+  // The leaf the Forest Service never wrote is still the NPS one's to fill.
+  assert.equal(merged.bathrooms.status.source.kind, "nps_pois");
+});
+
+test("in one run the Forest Service row beats the NPS join on the same leaf", async () => {
+  // Both sources land on dest-snow: the EDW bathroom row says vault_pit, the
+  // NPS join says unspecified. The agency's own claim wins.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([
+      npsRow({ bathrooms: npsBathroomBlock() }),
+    ]),
+  });
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  assert.equal(summary.leafConflicts > 0, true);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.bathrooms.type.value, "vault_pit");
+  assert.equal(merged.bathrooms.type.source.kind, "usfs_edw");
+});
+
+test("an NPS row for a destination that is no longer a trailhead is reported, not written", async () => {
+  const { db, calls } = createFakeDb({
+    destinations: [{ ...SNOW_DEST, isTrailhead: false }],
+  });
+  const io = createIo(npsOnlyFiles([npsRow({ bathrooms: npsBathroomBlock() })]));
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+  assert.equal(summary.counts.nps_pois.destinationVanished, 1);
+  assert.equal(summary.counts.nps_parking.destinationVanished, 1);
+  assert.equal(summary.counts.nps_pois.matched, 0);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+  assert.equal(
+    npsReport(io, "import-rejected-nps-parking.jsonl")[0].reason,
+    "destination_not_trailhead"
+  );
+});
+
+test("a row carrying only one block is counted under only that source", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(npsOnlyFiles([npsRow()])),
+  });
+  assert.equal(summary.counts.nps_parking.rowsIn, 1);
+  assert.equal(summary.counts.nps_parking.matched, 1);
+  assert.equal(summary.counts.nps_pois.rowsIn, 0);
+  assert.equal(summary.counts.nps_pois.matched, 0);
+});
+
+test("the NPS run rows record what they refused, one per service", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([
+        npsRow({
+          bathrooms: npsBathroomBlock({ status: npsLeaf("absent", NPS_POIS_SOURCE) }),
+          parking: { type: npsLeaf("lot", NPS_PARKING_SOURCE) },
+        }),
+      ])
+    ),
+  });
+  const runs = calls.filter((call) => call.sql.includes("INSERT INTO data_source_runs"));
+  const pois = runs.find((call) => call.params?.[0] === "nps_pois");
+  const parking = runs.find((call) => call.params?.[0] === "nps_parking");
+  assert.match(String(pois?.params?.[8]), /bathroom_status_not_present=1/);
+  assert.equal(parking?.params?.[7], 1);
+});
+
+test("a missing NPS facts file stops the import rather than importing most of itself", async () => {
+  const files = defaultFiles();
+  delete files[path.join(DATA_DIR, "nps-trailhead-facts.jsonl")];
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  await assert.rejects(
+    () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
+    /nps-trailhead-facts\.jsonl/
+  );
+});
+
+test("--nps-facts points the import at another file", async () => {
+  const files = defaultFiles({
+    "/tmp/elsewhere/nps.jsonl": jsonl([npsRow({ destination_id: "dest-snow" })]),
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "",
+  });
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(
+    testArgs({ npsFactsPath: "/tmp/elsewhere/nps.jsonl" }),
+    { db, console: silent, ...createIo(files) }
+  );
+  assert.equal(summary.counts.nps_parking.matched, 1);
 });
