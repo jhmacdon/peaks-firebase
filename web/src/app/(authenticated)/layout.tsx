@@ -5,6 +5,7 @@ import { AuthProvider } from "../../lib/auth-context";
 import AppNav from "../../components/app-nav";
 import { SiteFooter } from "../../components/site-footer";
 import UserAuthGuard from "../../components/user-auth-guard";
+import { LOADING_LABEL } from "../../lib/constants";
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,7 +13,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center text-muted">
-            Loading...
+            {LOADING_LABEL}
           </div>
         }
       >

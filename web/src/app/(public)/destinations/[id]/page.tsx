@@ -47,6 +47,7 @@ import type { Amenities } from "../../../../lib/amenities";
 import { AreaChips } from "../../../../components/area-chip";
 import SaveDestinationButton from "../../../../components/save-destination-button";
 import { useAuth } from "../../../../lib/auth-context";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -145,7 +146,7 @@ export default function DestinationDetailPage() {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <div className="text-gray-500 py-16 text-center text-sm">Loading…</div>
+          <div className="text-gray-500 py-16 text-center text-sm">{LOADING_LABEL}</div>
         </div>
       </div>
     );

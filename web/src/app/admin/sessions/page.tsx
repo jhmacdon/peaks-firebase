@@ -13,6 +13,7 @@ import {
   type SortDir,
 } from "../../../lib/actions/admin-sessions";
 import { getDestination } from "../../../lib/actions/destinations";
+import { LOADING_LABEL } from "../../../lib/constants";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -131,7 +132,7 @@ function SessionsContent() {
                 href={`/admin/destinations/${destinationId}`}
                 className="font-medium hover:underline"
               >
-                {destinationName || "Loading..."}
+                {destinationName || LOADING_LABEL}
               </Link>
               <button
                 onClick={clearDestinationFilter}
@@ -157,7 +158,7 @@ function SessionsContent() {
         </div>
 
         {loading ? (
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         ) : sessions.length === 0 ? (
           <div className="text-gray-500 py-12 text-center">
             No sessions found

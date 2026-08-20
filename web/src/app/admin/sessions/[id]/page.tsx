@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
+import { LOADING_LABEL } from "../../../../lib/constants";
 import {
   getAdminSession,
   getAdminSessionPoints,
@@ -91,7 +92,7 @@ function SessionDetailContent() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <AdminNav />
         <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </main>
       </div>
     );

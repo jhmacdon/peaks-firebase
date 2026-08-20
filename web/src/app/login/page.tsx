@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AuthProvider } from "../../lib/auth-context";
 import AppNav from "../../components/app-nav";
 import { safeNextPath } from "../../lib/safe-next-path";
+import { LOADING_LABEL } from "../../lib/constants";
 
 export default function LoginPage() {
   return (
@@ -284,7 +285,7 @@ function LoginContent() {
 function AuthPageFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="text-gray-500">Loading...</div>
+      <div className="text-gray-500">{LOADING_LABEL}</div>
     </div>
   );
 }

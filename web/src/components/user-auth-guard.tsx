@@ -3,6 +3,7 @@
 import { useAuth } from "../lib/auth-context";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { LOADING_LABEL } from "../lib/constants";
 
 export default function UserAuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,7 +22,7 @@ export default function UserAuthGuard({ children }: { children: React.ReactNode 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500">{LOADING_LABEL}</div>
       </div>
     );
   }

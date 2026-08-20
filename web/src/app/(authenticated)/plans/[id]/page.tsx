@@ -19,6 +19,7 @@ import PartyList from "../../../../components/party-list";
 import DestinationPicker from "../../../../components/destination-picker";
 import RoutePicker from "../../../../components/route-picker";
 import PlanAirQualityCard from "../../../../components/plan-air-quality-card";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -176,7 +177,7 @@ export default function PlanDetailPage() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }
@@ -319,7 +320,7 @@ export default function PlanDetailPage() {
                   >
                     <div>
                       <div className="font-medium text-sm">
-                        {detail?.name || "Loading..."}
+                        {detail?.name || LOADING_LABEL}
                       </div>
                       {detail?.elevation != null && (
                         <div className="text-xs text-gray-500">
@@ -358,7 +359,7 @@ export default function PlanDetailPage() {
                   >
                     <div>
                       <div className="font-medium text-sm">
-                        {detail?.name || "Loading..."}
+                        {detail?.name || LOADING_LABEL}
                       </div>
                       <div className="text-xs text-gray-500">
                         {detail?.distance != null &&

@@ -8,6 +8,7 @@ import { getDestination, type DestinationDetail } from "../../../../../lib/actio
 import TripReportCard from "../../../../../components/trip-report-card";
 import type { TripReport } from "../../../../../lib/actions/trip-reports";
 import { useAuth } from "../../../../../lib/auth-context";
+import { LOADING_LABEL } from "../../../../../lib/constants";
 
 export default function DestinationReportsPage() {
   const params = useParams();
@@ -34,7 +35,7 @@ export default function DestinationReportsPage() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }

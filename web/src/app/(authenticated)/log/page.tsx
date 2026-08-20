@@ -11,6 +11,7 @@ import type {
 } from "../../../lib/actions/sessions";
 import StatsBanner from "../../../components/stats-banner";
 import SessionCard from "../../../components/session-card";
+import { LOADING_LABEL } from "../../../lib/constants";
 
 const LIMIT = 20;
 const ACTIVITY_FILTERS: {
@@ -193,7 +194,7 @@ export default function LogPage() {
 
       {/* Session List */}
       {loading ? (
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       ) : loadError && sessions.length === 0 ? (
         null
       ) : sessions.length === 0 ? (
@@ -224,7 +225,7 @@ export default function LogPage() {
                 disabled={loadingMore}
                 className="px-6 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-blue-300 dark:hover:border-blue-700 disabled:opacity-50 transition-colors"
               >
-                {loadingMore ? "Loading..." : "Load More"}
+                {loadingMore ? LOADING_LABEL : "Load More"}
               </button>
             </div>
           )}

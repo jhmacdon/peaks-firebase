@@ -21,6 +21,7 @@ import {
 } from "../../../../lib/actions/routes";
 import type { RouteDecomposition } from "../../../../lib/actions/segment-matcher";
 import UserPopover from "../../../../components/user-popover";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), { ssr: false });
 
@@ -115,7 +116,7 @@ function RouteDetailContent() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <AdminNav />
         <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </main>
       </div>
     );

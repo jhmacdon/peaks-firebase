@@ -24,6 +24,7 @@ import SessionPlayback from "../../../../components/session-playback";
 import SessionActions from "../../../../components/session-actions";
 import SessionHealthSummary from "../../../../components/session-health-summary";
 import { sessionActivityLabel } from "../../../../lib/session-track";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -115,7 +116,7 @@ export default function SessionDetailPage() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }

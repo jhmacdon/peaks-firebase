@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getUser, type UserInfo } from "../lib/actions/users";
+import { LOADING_LABEL } from "../lib/constants";
 
 interface UserPopoverProps {
   uid: string;
@@ -50,7 +51,7 @@ export default function UserPopover({ uid }: UserPopoverProps) {
         <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-md z-50 p-4">
           {loading ? (
             <div className="text-sm text-gray-500 text-center py-2">
-              Loading…
+              {LOADING_LABEL}
             </div>
           ) : user ? (
             <div className="flex items-center gap-3">

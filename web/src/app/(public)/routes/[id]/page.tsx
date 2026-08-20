@@ -36,6 +36,7 @@ import {
 } from "../../../../components/detail-sections";
 import { AreaChips } from "../../../../components/area-chip";
 import RouteProvenanceNotice from "../../../../components/route-provenance";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const RouteMap = dynamic(() => import("../../../../components/route-map"), {
   ssr: false,
@@ -81,7 +82,7 @@ export default function RouteDetailPage() {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <div className="text-gray-500 py-16 text-center text-sm">Loading…</div>
+          <div className="text-gray-500 py-16 text-center text-sm">{LOADING_LABEL}</div>
         </div>
       </div>
     );

@@ -21,6 +21,7 @@ import {
   type DestinationList,
 } from "../../../../lib/actions/destinations";
 import type { Amenities } from "../../../../lib/amenities";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -133,7 +134,7 @@ function DestinationDetailContent() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <AdminNav />
         <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </main>
       </div>
     );
