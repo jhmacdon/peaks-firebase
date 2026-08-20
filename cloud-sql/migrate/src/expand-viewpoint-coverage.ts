@@ -47,6 +47,7 @@ interface ViewpointExpansionArgs {
   subdivisionCode: string | null;
   scopeKey: string;
   bbox: [number, number, number, number] | null;
+  osmRelationId: string | null;
   apply: boolean;
   concurrency: number;
   cacheDir: string | null;
@@ -60,7 +61,8 @@ interface ViewpointExpansionArgs {
 
 type ViewpointScope = Pick<
   ViewpointExpansionArgs,
-  "countryCode" | "stateCode" | "subdivisionCode" | "scopeKey" | "bbox"
+  "countryCode" | "stateCode" | "subdivisionCode" | "scopeKey" | "bbox" |
+  "osmRelationId"
 >;
 
 interface PreparedViewpointCandidate extends OsmViewpointCandidate {
@@ -165,6 +167,7 @@ interface ViewpointDryRunReport {
     subdivisionCode?: string | null;
     key?: string;
     bbox?: [number, number, number, number] | null;
+    osmRelationId?: string | null;
   };
   query: string;
   querySha256: string;
@@ -233,11 +236,22 @@ export function parseViewpointExpansionArgs(
     bbox = [south, west, north, east];
   }
 
+  const osmRelationId = optionValue(argv, "osm-relation") ?? null;
+  if (osmRelationId && !/^[1-9][0-9]*$/.test(osmRelationId)) {
+    throw new Error("--osm-relation must be a positive OpenStreetMap relation ID");
+  }
+  if (osmRelationId && (!requestedCountry || requestedState || requestedSubdivision)) {
+    throw new Error("--osm-relation requires --country");
+  }
+  if (osmRelationId && bbox) {
+    throw new Error("Choose either --bbox or --osm-relation");
+  }
+
   const requestedScope = optionValue(argv, "scope");
   if (requestedScope && requestedState) {
     throw new Error("--scope is supported with --country or --subdivision");
   }
-  if (bbox && !requestedScope) {
+  if ((bbox || osmRelationId) && !requestedScope) {
     throw new Error("Bounded country imports require --scope");
   }
   if (requestedScope && !/^[a-z0-9][a-z0-9-]{0,63}$/.test(requestedScope)) {
@@ -267,6 +281,7 @@ export function parseViewpointExpansionArgs(
     subdivisionCode,
     scopeKey,
     bbox,
+    osmRelationId,
     apply,
     concurrency,
     cacheDir: optionValue(argv, "cache-dir") ?? null,
@@ -309,7 +324,18 @@ nwr["tourism"="viewpoint"]["name"](area.region)${bounds ? `(${bounds})` : ""};
 out tags center qt;`;
 }
 
+export function buildRelationViewpointOverpassQuery(relationId: string): string {
+  const areaId = (3_600_000_000n + BigInt(relationId)).toString();
+  return `[out:json][timeout:180];
+area(id:${areaId})->.region;
+nwr["tourism"="viewpoint"]["name"](area.region);
+out tags center qt;`;
+}
+
 function queryForScope(args: ViewpointExpansionArgs): string {
+  if (args.osmRelationId) {
+    return buildRelationViewpointOverpassQuery(args.osmRelationId);
+  }
   if (args.countryCode === "US" && args.stateCode) {
     return buildViewpointOverpassQuery(args.stateCode);
   }
@@ -955,6 +981,7 @@ async function buildReport(
       subdivisionCode: args.subdivisionCode,
       key: args.scopeKey,
       bbox: args.bbox,
+      osmRelationId: args.osmRelationId,
     },
     query: queryForScope(args),
     querySha256: snapshot.querySha256,
@@ -1010,6 +1037,7 @@ async function readReviewedReport(args: ViewpointExpansionArgs): Promise<Viewpoi
       ? `US-${report.scope.stateCode}`
       : report.scope?.countryCode);
   const reportBbox = report.scope?.bbox ?? null;
+  const reportRelationId = report.scope?.osmRelationId ?? null;
   const reportSubdivision = report.scope?.subdivisionCode ??
     (report.scope?.countryCode === "US" && report.scope?.stateCode
       ? `US-${report.scope.stateCode}`
@@ -1017,7 +1045,8 @@ async function readReviewedReport(args: ViewpointExpansionArgs): Promise<Viewpoi
   if (report.version !== 1 || report.scope?.countryCode !== args.countryCode ||
       report.scope?.stateCode !== args.stateCode ||
       reportSubdivision !== args.subdivisionCode || reportKey !== args.scopeKey ||
-      JSON.stringify(reportBbox) !== JSON.stringify(args.bbox)) {
+      JSON.stringify(reportBbox) !== JSON.stringify(args.bbox) ||
+      reportRelationId !== args.osmRelationId) {
     throw new Error("Reviewed report scope or version does not match this run");
   }
   return report;

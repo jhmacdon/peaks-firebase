@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   buildCountryViewpointOverpassQuery,
+  buildRelationViewpointOverpassQuery,
   buildSubdivisionViewpointOverpassQuery,
   buildViewpointOverpassQuery,
   parseViewpointExpansionArgs,
@@ -19,11 +20,26 @@ test("defaults to a Washington dry-run", () => {
   assert.equal(args.subdivisionCode, "US-WA");
   assert.equal(args.scopeKey, "US-WA");
   assert.equal(args.bbox, null);
+  assert.equal(args.osmRelationId, null);
   assert.equal(args.apply, false);
   assert.equal(args.concurrency, 4);
   assert.equal(args.input, null);
   assert.deepEqual(args.candidateReviews, []);
   assert.equal(args.supplement, null);
+});
+
+test("reads a protected-area relation scope", () => {
+  const args = parseViewpointExpansionArgs([
+    "--country=np",
+    "--scope=sagarmatha",
+    "--osm-relation=3531450",
+    "--input=/tmp/sagarmatha.json",
+  ]);
+
+  assert.equal(args.countryCode, "NP");
+  assert.equal(args.stateCode, null);
+  assert.equal(args.scopeKey, "NP-sagarmatha");
+  assert.equal(args.osmRelationId, "3531450");
 });
 
 test("reads a bounded country scope", () => {
@@ -68,6 +84,12 @@ test("rejects unclear or invalid jurisdiction scopes", () => {
     "--country=IT",
     "--scope=Dolomites",
   ]), /lowercase slug/);
+  assert.throws(() => parseViewpointExpansionArgs([
+    "--country=NP",
+    "--scope=sagarmatha",
+    "--bbox=27,86,29,88",
+    "--osm-relation=3531450",
+  ]), /either --bbox or --osm-relation/);
 });
 
 test("reads a complete reviewed import argument set", () => {
@@ -115,5 +137,11 @@ test("builds a country query with fixed regional bounds", () => {
 test("builds a precise ISO subdivision query", () => {
   const query = buildSubdivisionViewpointOverpassQuery("IN-HP");
   assert.match(query, /area\["ISO3166-2"="IN-HP"\]\["boundary"="administrative"\]->\.region;/);
+  assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.region\);/);
+});
+
+test("builds a protected-area relation query", () => {
+  const query = buildRelationViewpointOverpassQuery("3531450");
+  assert.match(query, /area\(id:3603531450\)->\.region;/);
   assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.region\);/);
 });

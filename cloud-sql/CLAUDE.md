@@ -241,9 +241,10 @@ set of review decisions. It supports a US state or a country. A country job may
 use a fixed bounding box and named scope for a mountain region. An ISO 3166-2
 subdivision gives a tighter boundary when the region follows a state or
 province. The importer can also add a small set of named hiking turnarounds
-whose OSM points have no name. Dry-run is the default. Apply needs the reviewed
-report and its SHA-256, and stops if the source, reviews, scope, planned writes,
-or target rows changed after review.
+whose OSM points have no name. A country plus an OSM boundary relation can
+define a national park or other mapped hiking area. Dry-run is the default.
+Apply needs the reviewed report and its SHA-256, and stops if the source,
+reviews, scope, planned writes, or target rows changed after review.
 
 ```bash
 cd migrate
@@ -278,6 +279,15 @@ npm run expand:viewpoint-coverage -- \
   --input=/tmp/himachal-pradesh.viewpoints.overpass.json \
   --candidate-reviews=/tmp/himachal-pradesh.review.json \
   --report=/tmp/himachal-pradesh-viewpoint-dry-run.json
+
+# A reviewed OSM relation can define a protected hiking area.
+npm run expand:viewpoint-coverage -- \
+  --country=NP \
+  --scope=sagarmatha \
+  --osm-relation=3531450 \
+  --input=/tmp/sagarmatha.viewpoints.overpass.json \
+  --candidate-reviews=/tmp/sagarmatha.review.json \
+  --report=/tmp/sagarmatha-viewpoint-dry-run.json
 ```
 
 The importer adds type-qualified OSM IDs, keeps all existing destination data,
