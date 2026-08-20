@@ -46,10 +46,12 @@ is unpacked and a re-run needs no cleanup.
 
 Two things to know about that path:
 
-- **True curves.** 18 RoadCore rows and 11 MVUM rows are stored as ArcGIS
-  `MULTICURVE`, which the extension cannot parse. Every row is read as WKB and
-  classified by its type bytes, so those rows load with their attributes and a
-  `geom_kind` of `unsupported_curve` instead of failing the whole scan.
+- **True curves.** 18 RoadCore rows (14 of them in the open layer) and 11 MVUM
+  rows are stored as ArcGIS `MULTICURVE`, which the extension cannot parse.
+  Every row is read as WKB and classified by its type bytes, so those rows load
+  with their attributes and a `geom_kind` of `unsupported_curve` instead of
+  failing the whole scan. The run prints what each source lost, one line per
+  reason, under `dropped before the graph`.
 - **The spheroid functions are broken in this build.** `ST_Length_Spheroid`
   and `ST_Distance_Spheroid` return `NaN` for every input, including literals.
   Lengths therefore come from the agency's own `GIS_MILES`, and distances from
@@ -138,6 +140,38 @@ not resolve it is **reported in the run summary as unmapped**, not folded into
 `unknown` — a value that appears in a later refresh should be reviewed and
 added to the map.
 
+**The field is far thinner than the headline coverage suggests.** The research
+reports it as 87.3% populated, and that is true — 97,085 of 111,149 rows have
+something in the column. But 48,784 of those populated rows say literally
+"Unknown", so counting the blanks too, **62,848 rows have no usable class and
+only 48,301 (43.5%) carry one you can act on**. That is the number to plan
+against, and it is why 55% of BLM edges have no `vehicleRank` and why the
+unknown rule in the traversal contract matters.
+
+### Which BLM routes are drivable
+
+The layer is called "public display" and every row is planned motorized, but
+that does not make every row a road. 334 are excluded from the graph:
+
+- **308 by observed class** — Non-Motorized, Non-Mechanized, Motorized Single
+  Track (a motorcycle trail) and Over Snow Vehicle. The canonical map folds all
+  of these into `unknown`, which is the right answer for "what vehicle" and the
+  wrong one for "is this a road": left in, a walk crosses a motorcycle track
+  and reports nothing worse than the gravel before it.
+- **26 by allowed mode** — `PLAN_ALLOW_MODE_TRNSPRT` of `MTC_ONLY` or
+  `MTC_ATV_UTV_ONLY`, the two codes that admit only vehicles narrower than a
+  car. The `*_SHARED` codes are not exclusive and stay in, and
+  `TECH_HI_CLEAR_VEH_ONLY` is a vehicle — a demanding one, which its rank says.
+
+The other two planning fields carry no signal and are not used:
+`PLAN_MODE_TRNSPRT` is `Motorized` on all 111,149 rows, `PLAN_ASSET_CLASS` is
+always Road or Primitive Road, and `OHV_ROUTE_DSGNTN_LIM` says only that a
+limit exists, never that a car is barred.
+
+ATV and UTV routes stay in on purpose. They are motorized, `vehicleRank` already
+says "ATV only", and dropping them would break connections rather than improve
+an answer.
+
 ## Tables
 
 | Table | Rows | What it is |
@@ -149,8 +183,8 @@ added to the map.
 | `mvum_segment` | 150,722 | MVUM normalized — an attribute overlay, not a graph source |
 | `mvum_season_window` | 406,589 | one row per segment, vehicle class and window |
 | `roadcore_mvum_link` | 147,658 | MVUM segment to the open RoadCore segments it describes |
-| `road_node` | 441,692 | graph nodes |
-| `road_edge` | 429,978 | graph edges, with the attributes a walk aggregates |
+| `road_node` | 441,370 | graph nodes |
+| `road_edge` | 429,514 | graph edges, with the attributes a walk aggregates |
 | `road_load_run` | 3 | one provenance row per source file |
 
 MVUM is deliberately **not** in the graph. Its geometry repeats RoadCore's, so
@@ -159,6 +193,24 @@ attaches through `roadcore_mvum_link` instead, which pairs the two on `RTE_CN`
 plus overlapping mileposts — `RTE_CN` names the route, not the segment, and
 31,087 RoadCore route numbers repeat. 146,931 of 150,722 MVUM segments link;
 the 3,791 that do not are mostly roads absent from the open RoadCore layer.
+
+### Reading the link, and its quality
+
+The link is many-to-many by construction, and two properties of it change what
+a caller should do:
+
+- **2,895 RoadCore segments link to more than one MVUM segment, and 1,537 of
+  them end up carrying two or more different passenger-vehicle windows.** A
+  RoadCore segment can span a stretch that MVUM splits at a gate. **Intersect
+  every window the link returns** rather than picking one: the intersection is
+  the conservative read, and picking the first or the longest would publish a
+  road as open on a date one of its own halves says it is shut.
+- **`overlap_miles` is the shared milepost length, and 6,330 links overlap less
+  than 0.05 mi** (the median is 0.6 mi, the smallest 0.0001). Those are
+  end-to-end touches between segments that merely abut, not real shared road.
+  The column is there so a caller can weight or filter on it. Nothing is
+  dropped here on that basis, because a short overlap is sometimes a genuinely
+  short segment — the judgement belongs to the task that reads it.
 
 ## The graph
 
@@ -186,10 +238,22 @@ same formula `metresBetween` uses. `roads-topology.test.ts` runs both over the
 same pairs and asserts they agree, so the split tolerance cannot drift from the
 clustering tolerance.
 
-Result at the 10 m default: 138,951 mid-segment splits, 429,978 edges over
-441,692 nodes, 7,299 closed loops. Nodes of degree three went from 32,471 to
+Result at the 10 m default: 138,828 mid-segment splits, 429,514 edges over
+441,370 nodes, 7,276 closed loops. Nodes of degree three went from 32,471 to
 163,326 — real T-junctions now exist — and the share of nodes in components of
 ten or more went from 17% to 71%.
+
+**But connectedness is not the number that matters.** A component with no
+maintenance level 4 or 5 edge in it has no anchor: a walk inside it runs to the
+end of the component and returns nothing, however large and well-stitched that
+component is. The figure the traversal task actually starts from is:
+
+> **3,673 of 49,873 components hold a level 4/5 road, covering 142,753 of
+> 441,370 nodes — 32%.**
+
+The run prints it as `anchor reach` beside the noding stats. Two thirds of the
+graph cannot answer the question at all today, and adding TIGER S1500 so that a
+state highway also counts as an anchor is the change most likely to move it.
 
 **What it still misses.** A crossroads where neither road ends and neither
 carries a vertex at the crossing is not noded. Nor is a spur that ends within
@@ -211,7 +275,7 @@ import { openRoadStore } from "./roads/store";
 import { snapTrailhead, loadGraph, otherNode } from "./roads/graph";
 
 const store = await openRoadStore(storePath, { readOnly: true });
-const { adjacency, byId } = await loadGraph(store);   // ~1.2 s, 430k edges
+const { adjacency, byId, nodes } = await loadGraph(store);  // ~1.2 s, 430k edges
 
 const candidates = await snapTrailhead(store, { lon, lat, radiusMetres: 250 });
 ```
@@ -231,14 +295,52 @@ const candidates = await snapTrailhead(store, { lon, lat, radiusMetres: 250 });
   Stop on an edge with `approachTerminus` — maintenance level 4 or 5, a road
   built for passenger comfort. State highways are not in these sources; adding
   TIGER S1500 would extend the stopping rule to them.
-- Along the chosen path take the **maximum** `vehicleRank` and the **maximum**
-  `surfaceRank`, and keep the edge that set each. That edge id is the
-  explanation the user reads: "the last 6.2 mi of FR 3512 is high-clearance
-  gravel."
+- Pass the path to **`summarizeApproach`**. It applies the worst-on-the-path
+  rule and the unknown rule together, and returns the segment that set each
+  answer: "the last 6.2 mi of FR 3512 is high-clearance gravel."
 - Seasonal windows are not on the edge. Join the path's `segmentKey` values
   through `roadcore_mvum_link` to `mvum_season_window` and intersect the
   windows. **An edge with no window has no seasonal data — never render that as
   open all year.**
+
+### Store the segment key, never the edge id
+
+`summarizeApproach` returns `limitingSegmentKey` and `limitingEdgeId`. Only the
+first belongs in a stored answer.
+
+An edge id is an artefact of this build. 46% of them carry an `@piece` suffix
+from the noding, and the piece numbers and node ids are both positional, so a
+source refresh renumbers them and every stored reference silently points
+somewhere else. `segmentKey` is `<source>:<GLOBALID or OBJECTID>` — the
+agency's own identifier, carried through unchanged — and it is what makes a
+Tier-1 answer auditable a year after it was derived. `summary.segmentKeys`
+gives the whole path in the same terms.
+
+### An unknown edge poisons the whole path
+
+This is the §A3 failure mode in another costume, and the plain
+maximum-over-the-path rule walks straight into it.
+
+**55% of BLM edges (71,158 of 129,888) have no `vehicleRank`**, because BLM's
+observed class is literally "Unknown" across nearly half its network, and 3,071
+edges have no length because the source carried no `GIS_MILES`. Take a plain
+maximum over a path holding one of those and you report the second-worst
+*known* edge as though it were the answer — a confident claim about a road
+nobody rated. Sum the lengths and a missing one counts as zero, making the
+drive shorter than it is.
+
+So the contract is: **a path containing even one unranked edge has an unknown
+vehicle answer**, one containing an unranked surface has an unknown surface
+answer, and one containing an unmeasured edge has an unknown length.
+`summarizeApproach` enforces all three and returns `unrankedEdges`,
+`unsurfacedEdges` and `unmeasuredEdges` so a caller can say *why* it does not
+know. Render the unknown as unknown; do not fall back to the best-known edge.
+
+Measured today the rule changes nothing: none of the 314 production trailheads
+that reach a terminus has an unranked edge on its path, because those paths are
+Forest Service roads and the unranked edges are almost all BLM. That is exactly
+why it needs pinning now — the first desert peak added to the catalog is the
+first wrong answer, and nothing in the measurement would have warned you.
 
 Ranks are ordinals, so "worst on the path" is a maximum:
 
@@ -260,6 +362,9 @@ Against the 918 trailhead destinations in production, at a 250 m snap radius:
   BLM land only: a trailhead on a county road, a state highway or a National
   Park road has nothing here to snap to. TIGER S1500 is the documented next
   source for that gap.
+- Of the 314 that reach a terminus, **none has an unranked or unmeasured edge
+  on its path**, so all 314 produce a full vehicle, surface and distance
+  answer. That is 34% of the catalog, and it is the honest ceiling today.
 
 Both figures are floors, not ceilings, and both are worth re-measuring after
 any change to the noding.

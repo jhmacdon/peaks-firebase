@@ -24,6 +24,7 @@ import path from "node:path";
 
 import {
   applyRouteUseClass,
+  isDrivableBlmRoute,
   normalizeBlmSeasonRestriction,
   normalizeBlmSurface,
   parseRouteUseClassMap,
@@ -324,6 +325,32 @@ async function buildBlmClassLookup(
   return { mapped: rows.length, unmapped };
 }
 
+/**
+ * Which BLM routes belong in the drivable graph, one row per distinct
+ * class/allowed-mode pair. Returns how many rows each verdict covers so the run
+ * can report what it dropped.
+ */
+async function buildBlmDrivableLookup(store: RoadStore): Promise<number> {
+  const pairs = await store.all<{ route_class: string | null; modes: string | null; n: unknown }>(
+    `SELECT OBSRVE_ROUTE_USE_CLASS AS route_class,
+            PLAN_ALLOW_MODE_TRNSPRT AS modes, count(*) AS n
+     FROM raw_blm GROUP BY 1, 2`,
+  );
+  let excluded = 0;
+  const rows = pairs.map((pair) => {
+    const drivable = isDrivableBlmRoute(pair.route_class, pair.modes);
+    if (!drivable) excluded += toCount(pair.n);
+    return [pair.route_class, pair.modes, drivable];
+  });
+  await createLookup(
+    store,
+    "map_blm_drivable",
+    ["route_class_raw VARCHAR", "allowed_modes_raw VARCHAR", "drivable BOOLEAN"],
+    rows,
+  );
+  return excluded;
+}
+
 /** The `seasonal` column, cleaned once per distinct raw value. */
 async function buildSeasonalLookup(store: RoadStore): Promise<number> {
   const rows = (await distinctValues(store, "raw_mvum", "SEASONAL")).map((value) => [
@@ -445,7 +472,7 @@ async function buildRoadSegments(store: RoadStore): Promise<void> {
       b.ADMIN_ST AS state_code,
       NULL::DOUBLE AS begin_milepost,
       NULL::DOUBLE AS end_milepost,
-      TRUE AS public_motorized,
+      coalesce(d.drivable, FALSE) AS public_motorized,
       NULL::VARCHAR AS maint_level,
       NULL::INTEGER AS maint_level_num,
       c.route_class AS blm_route_class,
@@ -460,7 +487,10 @@ async function buildRoadSegments(store: RoadStore): Promise<void> {
     FROM raw_blm b
     LEFT JOIN map_blm_route_class c ON c.raw IS NOT DISTINCT FROM b.OBSRVE_ROUTE_USE_CLASS
     LEFT JOIN map_blm_surface s ON s.raw IS NOT DISTINCT FROM b.OBSRVE_SRFCE_TYPE
-    LEFT JOIN map_blm_season se ON se.raw IS NOT DISTINCT FROM b.PLAN_SEASON_RSTRCT_CODE`);
+    LEFT JOIN map_blm_season se ON se.raw IS NOT DISTINCT FROM b.PLAN_SEASON_RSTRCT_CODE
+    LEFT JOIN map_blm_drivable d
+      ON d.route_class_raw IS NOT DISTINCT FROM b.OBSRVE_ROUTE_USE_CLASS
+     AND d.allowed_modes_raw IS NOT DISTINCT FROM b.PLAN_ALLOW_MODE_TRNSPRT`);
 
   // The graph carries what a driver may use and what we can place on a map.
   await store.run("ALTER TABLE road_segment ADD COLUMN in_graph BOOLEAN");
@@ -551,6 +581,56 @@ interface TopologyStats {
   nodes: number;
   edgesWithoutLength: number;
   isolatedEdges: number;
+  components: number;
+  anchoredComponents: number;
+  anchoredNodes: number;
+}
+
+/**
+ * How much of the graph can actually reach a stopping point.
+ *
+ * This is the number the traversal task starts from, and it is not the same as
+ * how connected the graph looks. A component with no maintenance level 4 or 5
+ * edge in it has no anchor: a walk inside it runs to the end and returns
+ * nothing, however large and well-connected the component is.
+ */
+function measureAnchorReach(
+  edges: readonly { from_node: number; to_node: number; approach_terminus: unknown }[],
+): { components: number; anchoredComponents: number; anchoredNodes: number } {
+  const parent = new Map<number, number>();
+  const find = (node: number): number => {
+    let root = node;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    let walk = node;
+    while (parent.get(walk) !== root) {
+      const next = parent.get(walk)!;
+      parent.set(walk, root);
+      walk = next;
+    }
+    return root;
+  };
+  const add = (node: number): void => {
+    if (!parent.has(node)) parent.set(node, node);
+  };
+  for (const edge of edges) {
+    add(edge.from_node);
+    add(edge.to_node);
+    const a = find(edge.from_node);
+    const b = find(edge.to_node);
+    if (a !== b) parent.set(a, b);
+  }
+  const anchored = new Set<number>();
+  for (const edge of edges) {
+    if (edge.approach_terminus === true) anchored.add(find(edge.from_node));
+  }
+  const components = new Set<number>();
+  let anchoredNodes = 0;
+  for (const node of parent.keys()) {
+    const root = find(node);
+    components.add(root);
+    if (anchored.has(root)) anchoredNodes += 1;
+  }
+  return { components: components.size, anchoredComponents: anchored.size, anchoredNodes };
 }
 
 // Cell size for the coarse grid that pairs road vertices with junction
@@ -856,6 +936,11 @@ async function buildTopology(
             sum(CASE WHEN from_node = to_node THEN 1 ELSE 0 END) AS isolated
      FROM road_edge`,
   );
+  const reach = measureAnchorReach(
+    await store.all<{ from_node: number; to_node: number; approach_terminus: unknown }>(
+      "SELECT from_node, to_node, approach_terminus FROM road_edge",
+    ),
+  );
   return {
     parts: partCount,
     junctionCandidates: junctions.nodes.length,
@@ -864,6 +949,7 @@ async function buildTopology(
     nodes: clustered.nodes.length,
     edgesWithoutLength: toCount(stats.no_length),
     isolatedEdges: toCount(stats.isolated),
+    ...reach,
   };
 }
 
@@ -945,11 +1031,16 @@ export async function importRoadNetwork(args: Args): Promise<void> {
       const surfaces = await buildSurfaceLookup(store);
       const audiences = await buildPublicMotorizedLookup(store);
       const blmClasses = await buildBlmClassLookup(store, paths.routeUseClassMap);
+      const blmExcluded = await buildBlmDrivableLookup(store);
       await buildBlmSeasonLookup(store);
       await buildSeasonalLookup(store);
       console.log(
         `  value maps: ${levels} maintenance levels, ${surfaces} surfaces, ` +
           `${audiences} audience/level pairs, ${blmClasses.mapped} BLM classes`,
+      );
+      console.log(
+        `  BLM routes excluded as not drivable: ${blmExcluded.toLocaleString()} ` +
+          `(non-motorized, motorcycle single-track, over-snow)`,
       );
       if (blmClasses.unmapped.length > 0) {
         console.log(
@@ -966,22 +1057,17 @@ export async function importRoadNetwork(args: Args): Promise<void> {
       const segments = await store.one<{
         total: unknown;
         open_roadcore: unknown;
-        blm: unknown;
+        blm_drivable: unknown;
         graph: unknown;
-        no_geom: unknown;
-        curves: unknown;
       }>(`SELECT count(*) AS total,
              sum(CASE WHEN source = 'usfs_roadcore' AND public_motorized THEN 1 ELSE 0 END)
                AS open_roadcore,
-             sum(CASE WHEN source = 'blm_gtlf' THEN 1 ELSE 0 END) AS blm,
-             sum(CASE WHEN in_graph THEN 1 ELSE 0 END) AS graph,
-             sum(CASE WHEN geom_kind = 'missing' THEN 1 ELSE 0 END) AS no_geom,
-             sum(CASE WHEN geom_kind = 'unsupported_curve' THEN 1 ELSE 0 END) AS curves
+             sum(CASE WHEN source = 'blm_gtlf' AND public_motorized THEN 1 ELSE 0 END)
+               AS blm_drivable,
+             sum(CASE WHEN in_graph THEN 1 ELSE 0 END) AS graph
           FROM road_segment`);
       console.log(
-        `  road_segment: ${toCount(segments.total).toLocaleString()} rows ` +
-          `(${toCount(segments.no_geom).toLocaleString()} without geometry, ` +
-          `${toCount(segments.curves)} true-curve geometries unread)`,
+        `  road_segment: ${toCount(segments.total).toLocaleString()} rows`,
       );
       console.log(
         "  " + compare(
@@ -990,7 +1076,39 @@ export async function importRoadNetwork(args: Args): Promise<void> {
           EXPECTED_ROW_COUNTS.roadcore_open,
         ),
       );
-      console.log(`  graph-eligible segments: ${toCount(segments.graph).toLocaleString()}`);
+
+      // Every row that will not reach the graph, counted where it is dropped
+      // rather than left as arithmetic across three separate figures.
+      const dropped = await store.all<{ source: string; reason: string; n: unknown }>(
+        `SELECT source,
+                CASE WHEN NOT public_motorized THEN 'not open to public motor vehicles'
+                     WHEN geom_kind = 'missing' THEN 'no geometry in the source'
+                     WHEN geom_kind = 'unsupported_curve' THEN 'true-curve geometry unreadable'
+                END AS reason,
+                count(*) AS n
+         FROM road_segment
+         WHERE NOT in_graph
+         GROUP BY 1, 2 ORDER BY 1, 3 DESC`,
+      );
+      console.log("  dropped before the graph:");
+      for (const row of dropped) {
+        console.log(`    ${row.source}: ${toCount(row.n).toLocaleString()} — ${row.reason}`);
+      }
+      const mvumDropped = await store.all<{ reason: string; n: unknown }>(
+        `SELECT geom_kind AS reason, count(*) AS n FROM mvum_segment
+         WHERE geom_kind <> 'multilinestring' GROUP BY 1 ORDER BY 2 DESC`,
+      );
+      for (const row of mvumDropped) {
+        console.log(
+          `    usfs_mvum: ${toCount(row.n).toLocaleString()} — ${row.reason} ` +
+            `(overlay only, never in the graph)`,
+        );
+      }
+      console.log(
+        `  graph-eligible segments: ${toCount(segments.graph).toLocaleString()} ` +
+          `(${toCount(segments.open_roadcore).toLocaleString()} RoadCore, ` +
+          `${toCount(segments.blm_drivable).toLocaleString()} BLM, before geometry drops)`,
+      );
     }
 
     if (run.has("seasons")) {
@@ -1039,6 +1157,15 @@ export async function importRoadNetwork(args: Args): Promise<void> {
           `${stats.nodes.toLocaleString()} nodes ` +
           `(${stats.edgesWithoutLength.toLocaleString()} without a length, ` +
           `${stats.isolatedEdges.toLocaleString()} closed loops)`,
+      );
+      // The number the traversal task starts from: a walk can only answer
+      // inside a component that holds a maintenance level 4 or 5 road.
+      const anchoredShare = (100 * stats.anchoredNodes) / Math.max(stats.nodes, 1);
+      console.log(
+        `  anchor reach: ${stats.anchoredComponents.toLocaleString()} of ` +
+          `${stats.components.toLocaleString()} components hold a level 4/5 road, ` +
+          `covering ${stats.anchoredNodes.toLocaleString()} nodes ` +
+          `(${anchoredShare.toFixed(0)}%)`,
       );
     }
 

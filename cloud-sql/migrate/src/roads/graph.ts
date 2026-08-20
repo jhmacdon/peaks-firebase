@@ -20,19 +20,35 @@
 //      `approachTerminus` — maintenance level 4 or 5, a road built for
 //      passenger comfort. State highways are not in these sources, so add
 //      TIGER before treating a highway as a stop.
-//   4. Along the chosen path take the maximum `vehicleRank` and the maximum
-//      `surfaceRank`, and keep the edge that set each one. That edge id is the
-//      explanation: "the last 6.2 mi of FR 3512 is high-clearance gravel."
+//   4. Summarize the chosen path with `summarizeApproach`, which applies the
+//      worst-on-the-path rule and the unknown rule together. Store
+//      `limitingSegmentKey` — not the edge id — as the answer's evidence.
 //   5. Seasonal windows are not on the edge. Join through
 //      `roadcore_mvum_link` to `mvum_season_window` for the segments on the
 //      path and intersect the windows. An edge with no window has no seasonal
 //      data — never read that as open all year.
+//
+// Two contracts that are easy to get wrong, and wrong quietly:
+//
+// **Store the segment key, never the edge id.** An edge id is an artefact of
+// this build: 46% of them carry an `@piece` suffix from the noding, and both
+// that suffix and the node ids are positional, so a source refresh renumbers
+// them. `segmentKey` is `<source>:<GLOBALID or OBJECTID>` — the agency's own
+// identifier — and it is what makes a stored answer auditable a year later.
+//
+// **An unknown edge poisons the whole path.** 55% of BLM edges have no
+// `vehicleRank` at all, because BLM's observed class is literally "Unknown" on
+// nearly half its network, and 3,072 edges have no length. Taking a plain
+// maximum over that silently reports the second-worst *known* edge as if it
+// were the answer — §A3's failure mode wearing a different hat. A path holding
+// even one unranked edge has an unknown vehicle answer, and a path holding one
+// unmeasured edge has an unknown length. `summarizeApproach` enforces both.
 
-import { metresBetween, buildAdjacency, type GraphEdge } from "./topology";
+import { metresBetween, buildAdjacency, type Endpoint, type GraphEdge } from "./topology";
 import { sqlLiteral, type RoadStore } from "./store";
 
 export { buildAdjacency } from "./topology";
-export type { Adjacency, GraphEdge } from "./topology";
+export type { Adjacency, Endpoint, GraphEdge } from "./topology";
 
 /** Metres per degree of latitude, as in topology.ts. */
 const METRES_PER_DEGREE_LAT = 111_320;
@@ -50,7 +66,9 @@ export interface SnapOptions {
 }
 
 export interface SnapCandidate {
+  /** This build's edge id. Positional — never store it as a reference. */
   edgeId: string;
+  /** `<source>:<GLOBALID or OBJECTID>`. The durable, auditable reference. */
   segmentKey: string;
   source: string;
   routeId: string | null;
@@ -144,12 +162,15 @@ export async function snapTrailhead(
 
 /** One edge as the walk sees it: topology plus the attributes it aggregates. */
 export interface TraversalEdge extends GraphEdge {
+  /** `<source>:<GLOBALID or OBJECTID>`. Store this, not `edgeId`. */
   segmentKey: string;
   source: string;
   routeId: string | null;
   name: string | null;
+  /** Null where the source carried no `GIS_MILES`. Never treat null as zero. */
   lengthMiles: number | null;
   vehicleRequirement: string | null;
+  /** Null on 55% of BLM edges. Null means unknown, not "easy". */
   vehicleRank: number | null;
   surface: string | null;
   surfaceRank: number | null;
@@ -198,15 +219,152 @@ export function otherNode(edge: GraphEdge, node: number): number {
   return edge.fromNode === node ? edge.toNode : edge.fromNode;
 }
 
+/** The worst value found on a path, and the segment that set it. */
+export interface LimitingValue<T> {
+  value: T;
+  rank: number;
+  /** The agency identifier to store as the answer's evidence. */
+  limitingSegmentKey: string;
+  /** This build's edge id. Useful for debugging, not for storage. */
+  limitingEdgeId: string;
+  /** The road's name, for the sentence the user reads. */
+  limitingName: string | null;
+  limitingRouteId: string | null;
+}
+
+/**
+ * What an approach path adds up to.
+ *
+ * `vehicle` and `surface` are null when the answer is unknown, which is not
+ * the same as "nothing was found" — see `unrankedEdges`. `lengthMiles` is null
+ * when any edge on the path has no length.
+ */
+export interface ApproachSummary {
+  vehicle: LimitingValue<string> | null;
+  surface: LimitingValue<string> | null;
+  lengthMiles: number | null;
+  /** Edges with no vehicle rank. Any at all makes `vehicle` null. */
+  unrankedEdges: number;
+  /** Edges with no surface rank. Any at all makes `surface` null. */
+  unsurfacedEdges: number;
+  /** Edges with no length. Any at all makes `lengthMiles` null. */
+  unmeasuredEdges: number;
+  /** Every segment on the path, in order, deduplicated. */
+  segmentKeys: string[];
+}
+
+/**
+ * Apply the worst-on-the-path rule, and the unknown rule with it.
+ *
+ * The worst-on-the-path rule alone is not safe on this data. Taking a plain
+ * maximum over a path where some edges have no rank quietly returns the
+ * second-worst *known* edge, which reads as a confident answer and is not one.
+ * So a single unranked edge makes the whole vehicle answer unknown, a single
+ * unranked surface makes the surface answer unknown, and a single edge with no
+ * length makes the distance unknown rather than short.
+ *
+ * The counts come back too, so a caller can say *why* it is unknown, and
+ * `segmentKeys` gives the durable references for the whole path.
+ */
+export function summarizeApproach(path: readonly TraversalEdge[]): ApproachSummary {
+  let vehicle: LimitingValue<string> | null = null;
+  let surface: LimitingValue<string> | null = null;
+  let unrankedEdges = 0;
+  let unsurfacedEdges = 0;
+  let unmeasuredEdges = 0;
+  let miles = 0;
+  const segmentKeys: string[] = [];
+  const seenSegments = new Set<string>();
+
+  for (const edge of path) {
+    if (!seenSegments.has(edge.segmentKey)) {
+      seenSegments.add(edge.segmentKey);
+      segmentKeys.push(edge.segmentKey);
+    }
+    if (edge.lengthMiles === null) unmeasuredEdges += 1;
+    else miles += edge.lengthMiles;
+
+    if (edge.vehicleRank === null || edge.vehicleRequirement === null) {
+      unrankedEdges += 1;
+    } else if (vehicle === null || edge.vehicleRank > vehicle.rank) {
+      vehicle = {
+        value: edge.vehicleRequirement,
+        rank: edge.vehicleRank,
+        limitingSegmentKey: edge.segmentKey,
+        limitingEdgeId: edge.edgeId,
+        limitingName: edge.name,
+        limitingRouteId: edge.routeId,
+      };
+    }
+
+    if (edge.surfaceRank === null || edge.surface === null) {
+      unsurfacedEdges += 1;
+    } else if (surface === null || edge.surfaceRank > surface.rank) {
+      surface = {
+        value: edge.surface,
+        rank: edge.surfaceRank,
+        limitingSegmentKey: edge.segmentKey,
+        limitingEdgeId: edge.edgeId,
+        limitingName: edge.name,
+        limitingRouteId: edge.routeId,
+      };
+    }
+  }
+
+  return {
+    vehicle: unrankedEdges > 0 ? null : vehicle,
+    surface: unsurfacedEdges > 0 ? null : surface,
+    lengthMiles: unmeasuredEdges > 0 ? null : miles,
+    unrankedEdges,
+    unsurfacedEdges,
+    unmeasuredEdges,
+    segmentKeys,
+  };
+}
+
 /** Re-exported so a caller needs one import to build and walk the graph. */
 export { metresBetween };
 
-/** Assemble the adjacency map straight from the store. */
+/**
+ * Where every node sits.
+ *
+ * A walk needs this to bound itself — "stop looking past 15 miles of straight
+ * line from the trailhead" is the cheap guard that keeps a search inside a
+ * large component from wandering across a whole national forest. Reading the
+ * table once beats a query per step, and it saves the next task hand-rolling
+ * the same SQL.
+ */
+export async function loadNodePositions(store: RoadStore): Promise<Map<number, Endpoint>> {
+  const rows = await store.all<{ node_id: number; lon: number; lat: number }>(
+    "SELECT node_id, lon, lat FROM road_node",
+  );
+  const positions = new Map<number, Endpoint>();
+  for (const row of rows) positions.set(row.node_id, { lon: row.lon, lat: row.lat });
+  return positions;
+}
+
+/** Straight-line metres between two nodes. Null if either is unknown. */
+export function metresBetweenNodes(
+  positions: Map<number, Endpoint>,
+  a: number,
+  b: number,
+): number | null {
+  const from = positions.get(a);
+  const to = positions.get(b);
+  if (from === undefined || to === undefined) return null;
+  return metresBetween(from, to);
+}
+
+/** Everything a walk needs, read in one go. */
 export async function loadGraph(store: RoadStore): Promise<{
   edges: TraversalEdge[];
   adjacency: ReturnType<typeof buildAdjacency>;
   byId: Map<string, TraversalEdge>;
+  nodes: Map<number, Endpoint>;
 }> {
-  const edges = await loadTraversalEdges(store);
-  return { edges, adjacency: buildAdjacency(edges), byId: indexEdges(edges) };
+  const [edges, nodes] = await Promise.all([
+    loadTraversalEdges(store),
+    loadNodePositions(store),
+  ]);
+  return { edges, adjacency: buildAdjacency(edges), byId: indexEdges(edges), nodes };
 }

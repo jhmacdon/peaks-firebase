@@ -727,10 +727,29 @@ answer, which is worse than no answer.
   `null`, never an empty list, so "no window recorded" cannot be read as
   "closed all year".
 
+Two more rules the traversal task must obey, both in `roads/graph.ts` and both
+pinned by `roads-approach-summary.test.ts`:
+
+- **Store `limitingSegmentKey`, never `edgeId`.** 46% of edge ids carry an
+  `@piece` suffix from the noding, and piece numbers and node ids are
+  positional, so a source refresh renumbers them and every stored reference
+  quietly moves. `segmentKey` is `<source>:<GLOBALID or OBJECTID>` — the
+  agency's own id, and the only thing that keeps a Tier-1 answer auditable.
+- **An unknown edge poisons the whole path.** 55% of BLM edges have no
+  `vehicleRank` (BLM's observed class is literally "Unknown" on nearly half its
+  network) and 3,071 edges have no length. A plain maximum over that reports
+  the second-worst *known* edge as the answer, and a plain sum counts a missing
+  length as zero. `summarizeApproach` returns null for any answer whose path
+  holds an unrated edge, with counts saying why. Render unknown as unknown.
+
 BLM's `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
 `<data-dir>/blm-route-use-class-map.jsonl` — don't rebuild it. A spelling the
 map has not seen is **reported as unmapped in the run summary**, never folded
-into `unknown`, so a refresh that adds one gets reviewed.
+into `unknown`, so a refresh that adds one gets reviewed. Plan against 43.5%
+usable class (48,301 of 111,149), not the 87.3% "populated" figure — 48,784 of
+the populated rows say literally "Unknown". `isDrivableBlmRoute` also keeps 334
+non-motorized, motorcycle-single-track and over-snow routes out of the graph;
+an unrated non-road left in it is the same failure in another costume.
 
 The graph is noded, not just endpoint-snapped. Snapping endpoints alone left
 165,323 components with the largest holding 0.4% of nodes, because a spur that
@@ -739,6 +758,13 @@ where they pass within the tolerance of a junction, at the single closest
 vertex — splitting at every vertex inside the tolerance produced half a million
 self-loop stubs. `metresBetweenSql` mirrors `metresBetween` for the 25-million
 vertex pass that has to run in SQL, and a test asserts the two agree.
+
+**The graph's real coverage number is anchor reach, not connectedness**, and
+the run prints it: only 3,673 of 49,873 components hold a maintenance level 4/5
+road, covering 32% of nodes. A walk inside an unanchored component runs to the
+end and returns nothing however well-stitched that component is. Adding TIGER
+S1500 so a state highway also counts as an anchor is the change most likely to
+move it.
 
 ## Session comparisons ("Your Efforts")
 
