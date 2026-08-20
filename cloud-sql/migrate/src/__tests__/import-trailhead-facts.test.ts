@@ -977,6 +977,105 @@ test("an apply prints no payload sample", async () => {
   assert.equal(logs.some((line) => line.startsWith("Sample amenity payloads")), false);
 });
 
+test("a qualifier-only difference matches on containment and says so", async () => {
+  // "Windy Peak Trailhead/Long Swamp" against "Windy Peak Trailhead": a real
+  // near-miss from the production dry run, 0.0 m apart, below the threshold.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "7001",
+        name: "WINDY PEAK TRAILHEAD/LONG SWAMP",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-windy", name: "Windy Peak Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_fees.matched, 1);
+  assert.deepEqual(summary.counts.usfs_fees.matchedByRule, { threshold: 0, containment: 1 });
+  assert.equal(summary.destinationsChanged, 1);
+
+  const matched = io.written[path.join(DATA_DIR, "import-matched.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(matched.length, 1);
+  assert.equal(matched[0].rule, "containment");
+  assert.equal(matched[0].destination_id, "dest-windy");
+  assert.equal(matched[0].matched_name, "WINDY PEAK TRAILHEAD/LONG SWAMP");
+  assert.ok(matched[0].similarity < summary.nameThreshold, "it did not clear the threshold");
+});
+
+test("a name that only shares a word still fails both rules", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      {
+        source_dataset: "usfs_rec_sites",
+        source_id: "7002",
+        name: "WILLOW LAKE",
+        lat: SNOW_LAKE.lat,
+        lng: SNOW_LAKE.lng,
+        fee_required: true,
+        day_fee_usd: null,
+        annual_fee_usd: null,
+        passes_accepted: [],
+        fee_waived_for: [],
+        confidence: "high",
+        verbatim_quote: "fee",
+        as_of: "2026-08-19",
+      },
+    ]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-willow", name: "Willow Creek Trailhead", ...SNOW_LAKE }],
+  });
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) });
+
+  assert.equal(summary.counts.usfs_fees.matched, 0);
+  assert.equal(summary.counts.usfs_fees.nameRejected, 1);
+  assert.equal(summary.destinationsChanged, 0);
+});
+
+test("a threshold match is recorded as one", async () => {
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(defaultFiles());
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_fees.matchedByRule.threshold, 1);
+  assert.equal(summary.counts.usfs_fees.matchedByRule.containment, 0);
+  const matched = io.written[path.join(DATA_DIR, "import-matched.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.deepEqual([...new Set(matched.map((record) => record.rule))], ["threshold"]);
+  assert.deepEqual(
+    matched.map((record) => record.source).sort(),
+    ["usfs_bathrooms", "usfs_fees", "usfs_pages"]
+  );
+});
+
 test("--limit bounds how many rows each source contributes", async () => {
   const { db } = createFakeDb({
     destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],

@@ -8,10 +8,12 @@ import {
   buildTrailheadAmenities,
   canonicalJson,
   chooseMatch,
+  CONTAINMENT_MIN_TOKENS,
   feeLeafCandidates,
   recSiteKey,
   isOffSiteBathroomNote,
   mergeTrailheadAmenities,
+  nameTokensContained,
   normalizeRegion,
   normalizeTrailheadName,
   pageLeafCandidates,
@@ -125,8 +127,8 @@ test("no candidate within the radius reports the distance gate", () => {
 test("the best similarity wins and distance breaks a tie", () => {
   const outcome = chooseMatch(
     [
-      { destinationId: "a", destinationName: "Snow Lake", distanceM: 20, similarity: 0.6, matchedName: "Snow Lake TH" },
-      { destinationId: "b", destinationName: "Snow Lake Trailhead", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake TH" },
+      { destinationId: "a", destinationName: "Snow Lake", distanceM: 20, similarity: 0.6, matchedName: "Snow Lake TH", contained: false },
+      { destinationId: "b", destinationName: "Snow Lake Trailhead", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake TH", contained: false },
     ],
     0.5
   );
@@ -135,8 +137,8 @@ test("the best similarity wins and distance breaks a tie", () => {
 
   const tie = chooseMatch(
     [
-      { destinationId: "far", destinationName: "Snow Lake", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake" },
-      { destinationId: "near", destinationName: "Snow Lake", distanceM: 20, similarity: 0.9, matchedName: "Snow Lake" },
+      { destinationId: "far", destinationName: "Snow Lake", distanceM: 200, similarity: 0.9, matchedName: "Snow Lake", contained: false },
+      { destinationId: "near", destinationName: "Snow Lake", distanceM: 20, similarity: 0.9, matchedName: "Snow Lake", contained: false },
     ],
     0.5
   );
@@ -145,11 +147,131 @@ test("the best similarity wins and distance breaks a tie", () => {
 
 test("a nearby destination with a different name is rejected and reported", () => {
   const outcome = chooseMatch(
-    [{ destinationId: "a", destinationName: "Baker Creek", distanceM: 30, similarity: 0.4, matchedName: "Baker Lake" }],
+    [{ destinationId: "a", destinationName: "Baker Creek", distanceM: 30, similarity: 0.4, matchedName: "Baker Lake", contained: false }],
     0.5
   );
   assert.equal(outcome.kind, "name_below_threshold");
   assert.equal(outcome.kind === "name_below_threshold" && outcome.best.destinationId, "a");
+});
+
+test("containment passes a name the threshold loses to a qualifier", () => {
+  // Real near-misses from the production dry run: Peaks appends a qualifier
+  // the agency does not, and trigram similarity punishes the length.
+  const pairs: Array<[string, string]> = [
+    ["Windy Peak Trailhead/Long Swamp", "Windy Peak Trailhead"],
+    ["Talapus Lake Trailhead", "Talapus Lake Trailhead Parking Lot"],
+    ["Coal Lake/Independence Lake Trailhead", "Coal Lake Trailhead"],
+    ["Jack Lake Trailhead", "Jack Lake Trailhead (Canyon Creek Meadows)"],
+  ];
+  for (const [source, destination] of pairs) {
+    assert.equal(
+      nameTokensContained(normalizeTrailheadName(source), normalizeTrailheadName(destination)),
+      true,
+      `${source} ↔ ${destination}`
+    );
+  }
+});
+
+test("containment refuses names that merely share a word", () => {
+  // The two pairs the production dry run named as known-bad.
+  assert.equal(
+    nameTokensContained(normalizeTrailheadName("WILLOW LAKE"), normalizeTrailheadName("Willow Creek Trailhead")),
+    false
+  );
+  assert.equal(
+    nameTokensContained(normalizeTrailheadName("APE CANYON TH"), normalizeTrailheadName("Lava Canyon Trailhead")),
+    false
+  );
+});
+
+test("a one-token name never passes containment", () => {
+  // "Butte" sits inside "Driveway Butte" without being the same trailhead.
+  assert.equal(
+    nameTokensContained(normalizeTrailheadName("DRIVEWAY BUTTE"), normalizeTrailheadName("Butte Trailhead")),
+    false
+  );
+  assert.equal(nameTokensContained("beverly", "beverly turnpike"), false);
+  assert.equal(CONTAINMENT_MIN_TOKENS, 2);
+});
+
+test("the gate reports which rule carried the match", () => {
+  const contained = chooseMatch(
+    [
+      {
+        destinationId: "dest-windy",
+        destinationName: "Windy Peak Trailhead",
+        distanceM: 0,
+        similarity: 0.344,
+        matchedName: "Windy Peak Trailhead/Long Swamp",
+        contained: true,
+        containedName: "Windy Peak Trailhead/Long Swamp",
+      },
+    ],
+    0.5
+  );
+  assert.equal(contained.kind, "matched");
+  assert.equal(contained.kind === "matched" && contained.rule, "containment");
+
+  const scored = chooseMatch(
+    [
+      {
+        destinationId: "dest-snow",
+        destinationName: "Snow Lake Trailhead",
+        distanceM: 10,
+        similarity: 0.9,
+        matchedName: "Snow Lake",
+        contained: false,
+      },
+    ],
+    0.5
+  );
+  assert.equal(scored.kind === "matched" && scored.rule, "threshold");
+});
+
+test("a containment match wins even when a higher-scoring candidate fails both rules", () => {
+  const outcome = chooseMatch(
+    [
+      {
+        destinationId: "dest-loud",
+        destinationName: "Willow Creek Trailhead",
+        distanceM: 5,
+        similarity: 0.4,
+        matchedName: "Willow Lake",
+        contained: false,
+      },
+      {
+        destinationId: "dest-right",
+        destinationName: "Willow Lake Trailhead Parking",
+        distanceM: 40,
+        similarity: 0.35,
+        matchedName: "Willow Lake",
+        contained: true,
+        containedName: "Willow Lake",
+      },
+    ],
+    0.5
+  );
+  assert.equal(outcome.kind, "matched");
+  assert.equal(outcome.kind === "matched" && outcome.candidate.destinationId, "dest-right");
+  assert.equal(outcome.kind === "matched" && outcome.candidate.matchedName, "Willow Lake");
+});
+
+test("nothing passing either rule still reports the best candidate", () => {
+  const outcome = chooseMatch(
+    [
+      {
+        destinationId: "dest-a",
+        destinationName: "Lava Canyon Trailhead",
+        distanceM: 164,
+        similarity: 0.438,
+        matchedName: "Ape Canyon",
+        contained: false,
+      },
+    ],
+    0.5
+  );
+  assert.equal(outcome.kind, "name_below_threshold");
+  assert.equal(outcome.kind === "name_below_threshold" && outcome.best.destinationId, "dest-a");
 });
 
 // --- locating page rows -----------------------------------------------------

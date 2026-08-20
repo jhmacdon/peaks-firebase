@@ -51,7 +51,12 @@ npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
 
 A row is imported only when a Peaks destination with the `trailhead` feature
 sits within 250 m of the source point **and** one of the row's names — the EDW
-site name or the public site name — is similar enough to the destination's.
+site name or the public site name — either scores above the similarity
+threshold or is a whole-token subset of the destination's name (at least two
+tokens). Matched rows are listed in `import-matched.jsonl` with the rule that
+carried each one; read the containment matches on a dry run before applying,
+since that rule is the looser of the two.
+
 Rows that fail either gate are written to `import-unmatched-fees.jsonl`,
 `import-unmatched-bathrooms.jsonl`, and `import-unmatched-pages.jsonl` in the
 data directory, each with the reason and the nearest candidate. Those files are

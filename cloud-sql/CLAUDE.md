@@ -500,14 +500,31 @@ npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
 with the destination each lands on — read those before approving an apply.
 
 A source row is imported only when both gates pass: a destination with the
-`trailhead` feature within **250 m**, and a name similarity at or above the
-threshold (0.5 with `pg_trgm`, 0.7 for the JS token-overlap fallback; both
-override with `--name-threshold`). The gate tries both the EDW `site_name` and
-the `public_site_name` — 16 percent of raw rows (1,151 of 7,357) yield a second,
-genuinely different name once normalized, and Peaks catalogs trailheads under
-the public one — and passes if either clears. Rejected rows go to
-`import-unmatched-{fees,bathrooms,pages}.jsonl` in the data directory with the
-reason, the nearest candidate, and which name scored best.
+`trailhead` feature within **250 m**, and the name gate. The name gate passes on
+either of two rules:
+
+- **similarity** at or above the threshold (0.5 with `pg_trgm`, 0.7 for the JS
+  token-overlap fallback; both override with `--name-threshold`);
+- **token containment** — every token of the shorter normalized name appears in
+  the longer one, and the shorter has at least two tokens.
+
+Containment exists because Peaks appends qualifiers the agency does not
+("Parking", "Picnic Area", "Day Use"), which trigram similarity punishes:
+"Windy Peak Trailhead/Long Swamp" against "Windy Peak Trailhead" scores 0.344 at
+0.0 m. Measured over the production dry run's 175 near-misses it recovers 40
+rows across 28 pairs with no wrong match, and still rejects pairs that merely
+share a word (Willow Lake / Willow Creek, Ape Canyon / Lava Canyon). The
+two-token floor is what keeps "Butte" out of "Driveway Butte".
+
+Both rules try the EDW `site_name` and the `public_site_name` — 16 percent of
+raw rows (1,151 of 7,357) yield a second, genuinely different name once
+normalized, and Peaks catalogs trailheads under the public one.
+
+Rejected rows go to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data
+directory with the reason, the nearest candidate, and which name scored best.
+Matches go to `import-matched.jsonl` with the rule that carried each one, so
+containment matches can be audited apart from threshold matches; the run summary
+prints the same split.
 
 The importer also reads the raw EDW pull
 (`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)

@@ -93,6 +93,38 @@ export function nameTokens(normalized: string): string[] {
  * Dice coefficient over token sets — the fallback name measure when the
  * database has no pg_trgm. 1 means the same token set, 0 means no shared token.
  */
+/**
+ * The shorter name needs at least this many tokens before containment can pass
+ * it. One token is not evidence: "Butte" sits inside "Driveway Butte" without
+ * being the same trailhead.
+ */
+export const CONTAINMENT_MIN_TOKENS = 2;
+
+/**
+ * The second half of the name gate, beside the similarity threshold: every
+ * token of the shorter normalized name appears in the longer one.
+ *
+ * Nearly every good match the threshold loses fails for one reason — Peaks
+ * appends a qualifier the agency does not ("Parking", "Picnic Area", "Day
+ * Use"), and trigram similarity punishes the length difference. "Windy Peak
+ * Trailhead/Long Swamp" against "Windy Peak Trailhead" scores 0.344 at 0.0 m.
+ * Measured over the 175 near-misses from the production dry run, this recovers
+ * 40 rows across 28 pairs with no wrong match, and still rejects the pairs that
+ * merely share a word (Willow Lake / Willow Creek, Ape Canyon / Lava Canyon).
+ *
+ * Both arguments must already be normalized.
+ */
+export function nameTokensContained(a: string, b: string): boolean {
+  const left = new Set(nameTokens(a));
+  const right = new Set(nameTokens(b));
+  const [shorter, longer] = left.size <= right.size ? [left, right] : [right, left];
+  if (shorter.size < CONTAINMENT_MIN_TOKENS) return false;
+  for (const token of shorter) {
+    if (!longer.has(token)) return false;
+  }
+  return true;
+}
+
 export function tokenOverlapSimilarity(a: string, b: string): number {
   const left = new Set(nameTokens(a));
   const right = new Set(nameTokens(b));
@@ -108,6 +140,8 @@ export function tokenOverlapSimilarity(a: string, b: string): number {
 // Matching
 // ---------------------------------------------------------------------------
 
+export type NameRule = "threshold" | "containment";
+
 export interface MatchCandidate {
   destinationId: string;
   destinationName: string;
@@ -115,30 +149,51 @@ export interface MatchCandidate {
   similarity: number;
   /** Which of the row's names produced that similarity. */
   matchedName: string;
+  /** True when one of the row's names is a token subset of this destination's. */
+  contained: boolean;
+  /** Which name satisfied containment, when one did. */
+  containedName?: string;
 }
 
 export type MatchOutcome =
-  | { kind: "matched"; candidate: MatchCandidate }
+  | { kind: "matched"; candidate: MatchCandidate; rule: NameRule }
   | { kind: "name_below_threshold"; best: MatchCandidate }
   | { kind: "no_nearby_trailhead" };
 
+function betterCandidate(current: MatchCandidate, next: MatchCandidate): MatchCandidate {
+  if (next.similarity > current.similarity) return next;
+  if (next.similarity === current.similarity && next.distanceM < current.distanceM) return next;
+  return current;
+}
+
 /**
  * Gate 2. Candidates have already passed gate 1 (a trailhead-featured
- * destination within the radius). Best similarity wins; the nearer point
- * breaks a tie.
+ * destination within the radius). A candidate passes on either rule — the
+ * similarity threshold or token containment — and among those that pass, the
+ * best similarity wins with the nearer point breaking a tie. When none pass,
+ * the best-scoring candidate is reported so the rejection can be audited.
  */
 export function chooseMatch(candidates: MatchCandidate[], threshold: number): MatchOutcome {
   if (candidates.length === 0) return { kind: "no_nearby_trailhead" };
+
   let best = candidates[0];
-  for (const candidate of candidates.slice(1)) {
-    if (
-      candidate.similarity > best.similarity ||
-      (candidate.similarity === best.similarity && candidate.distanceM < best.distanceM)
-    ) {
-      best = candidate;
+  let passing: MatchCandidate | null = null;
+  for (const candidate of candidates) {
+    best = betterCandidate(best, candidate);
+    if (candidate.similarity >= threshold || candidate.contained) {
+      passing = passing === null ? candidate : betterCandidate(passing, candidate);
     }
   }
-  return best.similarity >= threshold ? { kind: "matched", candidate: best } : { kind: "name_below_threshold", best };
+
+  if (passing === null) return { kind: "name_below_threshold", best };
+  const rule: NameRule = passing.similarity >= threshold ? "threshold" : "containment";
+  // Containment matched on its own name, which may not be the one that scored
+  // best; report the name that actually carried the match.
+  const candidate =
+    rule === "containment" && passing.containedName
+      ? { ...passing, matchedName: passing.containedName }
+      : passing;
+  return { kind: "matched", candidate, rule };
 }
 
 // ---------------------------------------------------------------------------

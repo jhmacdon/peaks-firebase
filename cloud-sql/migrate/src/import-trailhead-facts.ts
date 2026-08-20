@@ -12,6 +12,7 @@ import {
   isPlainObject,
   leafKey,
   mergeTrailheadAmenities,
+  nameTokensContained,
   normalizeRegion,
   normalizeTrailheadName,
   pageLeafCandidates,
@@ -28,6 +29,7 @@ import {
   type FeeRow,
   type LeafCandidate,
   type MatchCandidate,
+  type NameRule,
   type PageSectionRow,
   type RawRecSiteRow,
   type RegistryRow,
@@ -264,6 +266,8 @@ interface SourceCounts {
   noNearbyTrailhead: number;
   nameRejected: number;
   matched: number;
+  /** Matches by which half of the name gate carried them. */
+  matchedByRule: Record<NameRule, number>;
   rowsWritten: number;
   refusals: Record<string, number>;
   notices: Record<string, number>;
@@ -278,6 +282,7 @@ function emptyCounts(): SourceCounts {
     noNearbyTrailhead: 0,
     nameRejected: 0,
     matched: 0,
+    matchedByRule: { threshold: 0, containment: 0 },
     rowsWritten: 0,
     refusals: {},
     notices: {},
@@ -315,6 +320,19 @@ interface ReportRecord {
   wanted_region?: string | null;
   point_regions?: string[];
   row: Record<string, unknown>;
+}
+
+/** One matched row, so a dry run's containment matches can be audited. */
+interface MatchRecord {
+  source: TrailheadFactSource;
+  rule: NameRule;
+  row_key: string;
+  source_name: string;
+  matched_name: string;
+  destination_id: string;
+  destination_name: string;
+  distance_m: number;
+  similarity: number;
 }
 
 export interface TrailheadFactsSummary {
@@ -360,6 +378,7 @@ async function chunkedCandidates(
         distanceM: Number(row.distance_m),
         similarity: 0,
         matchedName: "",
+        contained: false,
       });
       byIndex.set(row.idx, list);
     }
@@ -388,6 +407,15 @@ async function scoreNames(
           sourceName,
           destinationName: candidate.destinationName,
         });
+        // Containment is decided on the tokens alone, so it needs no database
+        // round trip whichever measure scores the similarity.
+        if (
+          !candidate.contained &&
+          nameTokensContained(normalizeTrailheadName(sourceName), normalizeTrailheadName(candidate.destinationName))
+        ) {
+          candidate.contained = true;
+          candidate.containedName = sourceName;
+        }
       }
     }
   }
@@ -729,6 +757,7 @@ export async function importTrailheadFacts(
   // Rows dropped before matching (no coordinates, no way to locate a page)
   // belong in the same report as the ones the gates rejected.
   for (const record of skipped) reports[record.source].push(record);
+  const matches: MatchRecord[] = [];
   const byDestination = new Map<string, LeafCandidate[]>();
   const rowsByDestination = new Map<string, Set<string>>();
   const destinationNames = new Map<string, string>();
@@ -769,8 +798,20 @@ export async function importTrailheadFacts(
     }
 
     counts[row.source].matched += 1;
+    counts[row.source].matchedByRule[outcome.rule] += 1;
     const id = outcome.candidate.destinationId;
     destinationNames.set(id, outcome.candidate.destinationName);
+    matches.push({
+      source: row.source,
+      rule: outcome.rule,
+      row_key: row.rowKey,
+      source_name: row.name,
+      matched_name: outcome.candidate.matchedName,
+      destination_id: id,
+      destination_name: outcome.candidate.destinationName,
+      distance_m: outcome.candidate.distanceM,
+      similarity: outcome.candidate.similarity,
+    });
     const existing = byDestination.get(id) ?? [];
     existing.push(...row.leaves);
     byDestination.set(id, existing);
@@ -895,6 +936,11 @@ export async function importTrailheadFacts(
     writeFile(filePath, reports[source].map((record) => JSON.stringify(record)).join("\n") + "\n");
     summary.reportFiles.push(filePath);
   }
+  // Matches go to their own file, with the rule that carried each one, so a
+  // containment match can be audited apart from a threshold match.
+  const matchedPath = path.join(reportDir, "import-matched.jsonl");
+  writeFile(matchedPath, matches.map((record) => JSON.stringify(record)).join("\n") + "\n");
+  summary.reportFiles.push(matchedPath);
 
   await recordRun(args.dryRun ? "dry_run" : "success");
 
@@ -939,6 +985,8 @@ function logSummary(
     logger.log(`  no trailhead in ${summary.radiusM}m: ${counts.noNearbyTrailhead}`);
     logger.log(`  name gate rejected:   ${counts.nameRejected}`);
     logger.log(`  matched:              ${counts.matched}`);
+    logger.log(`    by name similarity: ${counts.matchedByRule.threshold}`);
+    logger.log(`    by token containment: ${counts.matchedByRule.containment}`);
     logger.log(`  rows written:         ${counts.rowsWritten}`);
     const refusals = Object.entries(counts.refusals).sort((a, b) => b[1] - a[1]);
     for (const [reason, count] of refusals) logger.log(`    - not written, ${reason}: ${count}`);
