@@ -2,9 +2,10 @@ import { strict as assert } from "node:assert";
 import { after, before, describe, test } from "node:test";
 import { Pool, type PoolClient } from "pg";
 
-const skipReason = process.env.DATABASE_URL
+const TEST_DATABASE_URL = process.env.AREAS_LINKING_TEST_DATABASE_URL;
+const skipReason = TEST_DATABASE_URL
   ? null
-  : "DATABASE_URL not set - skipping PostGIS integration tests";
+  : "AREAS_LINKING_TEST_DATABASE_URL not set - skipping PostGIS integration tests";
 
 const runPrefix = `area-link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const areaId = `${runPrefix}-area`;
@@ -16,8 +17,8 @@ const trailheadId = `${runPrefix}-trailhead`;
 const nearId = `${runPrefix}-near`;
 const farId = `${runPrefix}-far`;
 
-const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = TEST_DATABASE_URL
+  ? new Pool({ connectionString: TEST_DATABASE_URL })
   : null;
 
 let client: PoolClient | null = null;
@@ -30,6 +31,11 @@ async function query(sql: string, params?: unknown[]) {
 describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipReason ?? undefined }, () => {
   before(async () => {
     if (!pool) return;
+    assert.match(
+      new URL(TEST_DATABASE_URL!).pathname,
+      /_test$/,
+      "areas linking tests require a disposable *_test database"
+    );
     client = await pool.connect();
     await query("BEGIN");
     await query(
@@ -83,10 +89,14 @@ describe("link_summit_destinations_to_areas PostGIS containment", { skip: skipRe
       [areaId]
     );
     const linkedIds = rows.rows.map((row) => row.destination_id);
+    // Catalog summits from data migrations (e.g. 20260721_cascades_coverage_
+    // summits.sql) also sit inside this one-degree box and link correctly, so
+    // only fixture-owned ids are asserted exactly.
+    const fixtureLinkedIds = linkedIds.filter((id) => id.startsWith(runPrefix));
 
     // inside + on-boundary + ~31 m outside (tolerance) link; trailhead + ~100 m
     // outside summit do not.
-    assert.deepEqual(linkedIds, [boundaryId, insideId, nearId].sort());
+    assert.deepEqual(fixtureLinkedIds, [boundaryId, insideId, nearId].sort());
     assert.ok(!linkedIds.includes(trailheadId));
     assert.ok(!linkedIds.includes(farId));
   });

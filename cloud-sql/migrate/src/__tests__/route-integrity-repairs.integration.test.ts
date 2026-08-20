@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { Pool, type QueryResult } from "pg";
 
 const TEST_DATABASE_URL = process.env.ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL;
 const MIGRATE_ROOT = join(__dirname, "../..");
-const REPAIR_MIGRATION = join(MIGRATE_ROOT, "../migrations/20260803_route_integrity_repairs.sql");
 
 test(
   "shared bad routes require every summit to be covered and feed the repair job safely",
@@ -67,6 +65,12 @@ test(
                  (SELECT loss FROM route_elevation_stats(ST_GeogFromText($3))))`,
         [id, owner, line, routeProvenance, profile, shape]
       );
+      if (!profile) {
+        // trg_routes_materialize_peaks_elevation_profile rebuilds elevation_string
+        // from path on INSERT for owner = 'peaks', so the NULL set above never
+        // lands. Only an UPDATE that doesn't touch path/owner can leave it unset.
+        await pool.query(`UPDATE routes SET elevation_string = NULL WHERE id = $1`, [id]);
+      }
     };
     const link = (route: string, destination: string, ordinal: number) => pool.query(
       `INSERT INTO route_destinations (route_id, destination_id, ordinal) VALUES ($1, $2, $3)`, [route, destination, ordinal]
@@ -86,7 +90,9 @@ test(
       await pool.query(`INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES ($1, $2, $3, $4)`, [route, id, ordinal, direction]);
     };
     try {
-      await pool.query(await readFile(REPAIR_MIGRATION, "utf8"));
+      // 20260803_route_integrity_repairs.sql is applied by test-db/provision.sh
+      // as the admin role (locally and in CI). The test role deliberately holds
+      // no DDL on schema public — see test-db/grants.sql.
       await pool.query(`INSERT INTO destinations (id, features, location) VALUES
         ($1, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121 47 1000)')),
         ($2, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 1000)')),

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "test": "NODE_ENV=test node --test --import tsx src/__tests__/*.test.ts",
+    "test:db": "./scripts/test-db.sh",
     "migrate": "tsx src/index.ts",
     "migrate:destinations": "tsx src/index.ts --only destinations",
     "migrate:lists": "tsx src/index.ts --only lists",

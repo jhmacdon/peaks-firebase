@@ -2,17 +2,18 @@ import { strict as assert } from "node:assert";
 import { after, before, describe, test } from "node:test";
 import { Pool, type PoolClient } from "pg";
 
-const skipReason = process.env.DATABASE_URL
+const TEST_DATABASE_URL = process.env.AREAS_LINKING_TEST_DATABASE_URL;
+const skipReason = TEST_DATABASE_URL
   ? null
-  : "DATABASE_URL not set - skipping PostGIS integration tests";
+  : "AREAS_LINKING_TEST_DATABASE_URL not set - skipping PostGIS integration tests";
 
 const runPrefix = `route-area-link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const routeId = `${runPrefix}-route`;
 const matchedAreaId = `${runPrefix}-matched-area`;
 const manualAreaId = `${runPrefix}-manual-area`;
 
-const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = TEST_DATABASE_URL
+  ? new Pool({ connectionString: TEST_DATABASE_URL })
   : null;
 
 let client: PoolClient | null = null;
@@ -25,6 +26,11 @@ async function query(sql: string, params?: unknown[]) {
 describe("route area write invariant", { skip: skipReason ?? undefined }, () => {
   before(async () => {
     if (!pool) return;
+    assert.match(
+      new URL(TEST_DATABASE_URL!).pathname,
+      /_test$/,
+      "areas linking tests require a disposable *_test database"
+    );
     client = await pool.connect();
     await query("BEGIN");
     await query(
