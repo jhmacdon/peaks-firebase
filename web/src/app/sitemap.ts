@@ -145,6 +145,10 @@ export default async function sitemap({
         lastModified,
       },
       {
+        url: absoluteUrl("/features"),
+        lastModified,
+      },
+      {
         url: absoluteUrl("/lists"),
         lastModified,
       },

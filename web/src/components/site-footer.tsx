@@ -32,6 +32,7 @@ const COLUMNS: Array<{
     heading: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "Features", href: "/features" },
       { label: "App Store", href: APP_STORE_URL, external: true },
     ],
   },
