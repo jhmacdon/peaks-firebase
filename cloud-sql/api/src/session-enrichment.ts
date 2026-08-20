@@ -59,11 +59,19 @@ function mergeContribution(existing: JsonObject, incoming: JsonObject): JsonObje
     original_end_date: widenedEnd(existing.original_end_date, incoming.original_end_date),
     fragment_start_date: widenedStart(existing.fragment_start_date, incoming.fragment_start_date),
     fragment_end_date: widenedEnd(existing.fragment_end_date, incoming.fragment_end_date),
+    // Matches the iOS merge: keep the earlier import, not whichever side spread last.
+    imported_at: widenedStart(existing.imported_at, incoming.imported_at),
     contribution_types: Array.from(new Set([...existingTypes, ...incomingTypes])).sort(),
     summary: asObject(incoming.summary) ?? asObject(existing.summary) ?? undefined,
   };
+  // Drop keys that stayed undefined so JSON.stringify and `in` checks agree
+  // with a contribution that never had the field, instead of an own key set to undefined.
   if (merged.fragment_end_date === undefined) delete merged.fragment_end_date;
   if (merged.original_end_date === undefined) delete merged.original_end_date;
+  if (merged.original_start_date === undefined) delete merged.original_start_date;
+  if (merged.fragment_start_date === undefined) delete merged.fragment_start_date;
+  if (merged.imported_at === undefined) delete merged.imported_at;
+  if (merged.summary === undefined) delete merged.summary;
   return merged;
 }
 
