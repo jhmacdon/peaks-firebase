@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider } from "../../lib/auth-context";
+import { safeNextPath } from "../../lib/safe-next-path";
 
 export default function LoginPage() {
   return (
@@ -32,7 +33,7 @@ function LoginContent() {
   const [error, setError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const next = searchParams.get("next") || "/discover";
+  const next = safeNextPath(searchParams.get("next"));
 
   const registerHref = useMemo(
     () => `/register${next !== "/discover" ? `?next=${encodeURIComponent(next)}` : ""}`,
