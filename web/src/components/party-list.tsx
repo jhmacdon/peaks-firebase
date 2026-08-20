@@ -25,12 +25,19 @@ export default function PartyList({ partyIds }: PartyListProps) {
 
     let cancelled = false;
 
-    loadMembers(partyIds).then((result) => {
-      if (!cancelled) {
-        setMembers(result);
-        setLoaded(true);
-      }
-    });
+    loadMembers(partyIds)
+      .then((result) => {
+        if (!cancelled) {
+          setMembers(result);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMembers([]);
+          setLoaded(true);
+        }
+      });
 
     return () => {
       cancelled = true;

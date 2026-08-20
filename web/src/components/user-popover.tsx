@@ -20,11 +20,16 @@ export default function UserPopover({ uid }: UserPopoverProps) {
     setOpen((prev) => !prev);
     if (!fetched) {
       setLoading(true);
-      const token = await getIdToken();
-      const result = token ? await getUser(token, uid) : null;
-      setUser(result);
-      setFetched(true);
-      setLoading(false);
+      try {
+        const token = await getIdToken();
+        const result = token ? await getUser(token, uid) : null;
+        setUser(result);
+      } catch {
+        setUser(null);
+      } finally {
+        setFetched(true);
+        setLoading(false);
+      }
     }
   };
 
