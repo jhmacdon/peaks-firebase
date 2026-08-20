@@ -265,7 +265,8 @@ The importer adds type-qualified OSM IDs, keeps all existing destination data,
 and links old ended sessions only when both the saved path and a real tracking
 point pass the destination radius. It honors saved session-destination
 rejections. The first reviewed scope is in
-`docs/data-audits/wa-viewpoints-2026-08-19.md`.
+`docs/data-audits/wa-viewpoints-2026-08-19.md`. The 49-state follow-up is in
+`docs/data-audits/us-viewpoints-2026-08-19.md`.
 
 ## Destination elevation fraction audit
 
