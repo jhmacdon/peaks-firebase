@@ -53,6 +53,7 @@ import {
   type AmenityCredit,
   type AmenityRow,
 } from "../../../../lib/trailhead-road-access";
+import { parkingRow } from "../../../../lib/trailhead-parking";
 import { AreaChips } from "../../../../components/area-chip";
 import SaveDestinationButton from "../../../../components/save-destination-button";
 import { useAuth } from "../../../../lib/auth-context";
@@ -852,13 +853,12 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): AmenityRow[] {
       ]),
     });
   }
-  if (parking?.capacity_vehicles?.value != null) {
-    rows.push({
-      label: "Parking capacity",
-      value: `${parking.capacity_vehicles.value} vehicles`,
-      credits: dedupeCredits([leafCredit(parking.capacity_vehicles)]),
-    });
-  }
+  // Spaces where the catalog counted them, the kind of parking where it did
+  // not. Every National Park Service lot is the second case: NPS maps the
+  // polygon and publishes no capacity at all, and "Parking lot" is still the
+  // answer to most of what a driver was asking.
+  const parkingPresence = parkingRow(parking);
+  if (parkingPresence) rows.push(parkingPresence);
   const passes = parking?.passes_accepted?.value;
   if (Array.isArray(passes) && passes.length > 0) {
     // Guarded with Array.isArray: `value` comes from unvalidated JSONB, so a
