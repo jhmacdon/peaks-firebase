@@ -97,6 +97,8 @@ User-scoped actions accept a Firebase ID token as the first parameter:
 Admin actions accept a Firebase ID token as the first parameter and verify it
 server-side with `verifyAdminToken(token)` (`src/lib/auth-actions.ts`), which
 requires the `admin` custom claim. `AdminGuard` remains the client-side gate.
+Some admin write paths (destination create, bulk import, boundary edits, route
+import) still have no server-side check and rely on `AdminGuard` alone.
 
 ## Auth Architecture
 
