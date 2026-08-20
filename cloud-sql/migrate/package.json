@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "test": "NODE_ENV=test node --test --import tsx src/__tests__/*.test.ts",
+    "test:db": "./scripts/test-db.sh",
     "migrate": "tsx src/index.ts",
     "migrate:destinations": "tsx src/index.ts --only destinations",
     "migrate:lists": "tsx src/index.ts --only lists",
@@ -23,20 +24,29 @@
     "import:14ers": "tsx src/import-14er-routes.ts",
     "import:peakbagger-lists": "tsx src/import-peakbagger-lists.ts",
     "import:wa-campsites": "tsx src/import-osm-campsites-wa.ts",
+    "import:trailhead-facts": "tsx src/import-trailhead-facts.ts",
+    "normalize:nps-trailhead-facts": "tsx src/normalize-nps-trailhead-facts.ts",
+    "spotcheck:nps-capacity": "tsx src/nps-capacity-spotcheck.ts",
+    "check:data-freshness": "tsx src/check-data-freshness.ts",
     "audit:peak-coverage": "tsx src/audit-peak-coverage.ts",
     "audit:elevation-precision": "tsx src/audit-elevation-precision.ts",
     "audit:destination-elevation-fractions": "tsx src/audit-destination-elevation-fractions.ts",
     "apply:destination-elevation-fractions": "tsx src/apply-destination-elevation-fractions.ts",
     "expand:peak-coverage": "tsx src/expand-peak-coverage.ts",
+    "expand:viewpoint-coverage": "tsx src/expand-viewpoint-coverage.ts",
+    "expand:lake-coverage": "tsx src/expand-lake-coverage.ts",
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
     "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",
     "routes:integrity-repairs": "./scripts/run-tsx.sh src/route-integrity-repairs.ts",
     "routes:audit-jobs": "./scripts/run-tsx.sh src/route-catalog-audit-jobs.ts",
-    "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts"
+    "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts",
+    "roads:import": "tsx src/roads/import-road-network.ts",
+    "roads:derive": "tsx src/roads/derive-trailhead-approaches.ts"
   },
   "dependencies": {
+    "@duckdb/node-api": "^1.5.5-r.4",
     "firebase-admin": "^13.0.0",
     "pg": "^8.13.0",
     "sharp": "^0.33.0"

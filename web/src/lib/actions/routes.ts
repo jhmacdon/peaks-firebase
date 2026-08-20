@@ -3,7 +3,7 @@
 
 import db from "../db";
 import type { PoolClient } from "pg";
-import { verifyToken } from "../auth-actions";
+import { verifyAdminToken, verifyToken } from "../auth-actions";
 import { parseAreas, type ProtectedArea } from "../area-types";
 import type { RouteAttempt } from "../route-history";
 import {
@@ -254,6 +254,7 @@ export async function getRouteSessionCount(
 }
 
 export async function updateRoute(
+  token: string,
   id: string,
   data: {
     name?: string;
@@ -262,6 +263,9 @@ export async function updateRoute(
     provenance?: RouteProvenanceInput | null;
   }
 ): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const sets: string[] = [];
   const params: any[] = [];
   let paramIdx = 1;
@@ -302,7 +306,10 @@ export async function updateRoute(
 /**
  * Accept a pending route — sets status to 'active'.
  */
-export async function acceptRoute(id: string): Promise<void> {
+export async function acceptRoute(token: string, id: string): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const client = await db.connect();
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
@@ -336,7 +343,10 @@ export async function acceptRoute(id: string): Promise<void> {
  * Reject a pending route — deletes the route and its standalone segments.
  * CASCADE handles route_segments, route_destinations.
  */
-export async function rejectRoute(id: string): Promise<void> {
+export async function rejectRoute(token: string, id: string): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const client = await db.connect();
   try {
     await client.query("BEGIN");
@@ -635,9 +645,13 @@ async function settleReplacementCoverage(
  * transaction so existing plan and session links remain intact.
  */
 export async function acceptRouteWithSegments(
+  token: string,
   id: string,
   factoryActivation?: RouteFactoryActivation | null
 ): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const replacementRouteId =
     factoryActivation?.replacementRouteId ?? null;
   const replacementDestinationId =

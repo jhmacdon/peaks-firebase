@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
+import { useAuth } from "../../../../lib/auth-context";
 import { LOADING_LABEL } from "../../../../lib/constants";
 import {
   getAdminSession,
@@ -64,6 +65,7 @@ export default function AdminSessionDetailPage() {
 function SessionDetailContent() {
   const params = useParams();
   const id = params.id as string;
+  const { getIdToken } = useAuth();
 
   const [session, setSession] = useState<AdminSessionDetail | null>(null);
   const [points, setPoints] = useState<AdminSessionPoint[]>([]);
@@ -74,10 +76,12 @@ function SessionDetailContent() {
 
   useEffect(() => {
     async function load() {
+      const token = await getIdToken();
+      if (!token) return;
       const [s, p, d] = await Promise.all([
-        getAdminSession(id),
-        getAdminSessionPoints(id),
-        getAdminSessionDestinations(id),
+        getAdminSession(token, id),
+        getAdminSessionPoints(token, id),
+        getAdminSessionDestinations(token, id),
       ]);
       setSession(s);
       setPoints(p);
@@ -85,7 +89,7 @@ function SessionDetailContent() {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [getIdToken, id]);
 
   if (loading) {
     return (

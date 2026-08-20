@@ -1,4 +1,17 @@
-import type { Amenities } from "./amenities";
+import {
+  isTrailheadAmenities,
+  type Amenities,
+  type CampsiteAmenities,
+  type TrailheadAmenities,
+} from "./amenities";
+import {
+  dedupeCredits,
+  leafCredit,
+  roadAccessRow,
+  type AmenityCredit,
+  type AmenityRow,
+} from "./trailhead-road-access";
+import { parkingRow } from "./trailhead-parking";
 
 type CountMap = Record<string, number>;
 
@@ -254,11 +267,22 @@ export function peakMonthIndexes(counts: number[]): number[] {
 }
 
 /** Campsite/hut facts, in a fixed reading order, with every raw enum turned
- * into a word. Absent facts are left out, never printed as "Unknown". */
+ * into a word. Absent facts are left out, never printed as "Unknown".
+ *
+ * `destinations.amenities` holds one of two shapes and they share no keys, so
+ * a trailhead-shaped block returns nothing here and is read by
+ * `trailheadAmenityRows` instead — the two sets of facts answer different
+ * questions and get their own sections on the page. */
 export function amenityRows(
   amenities: Amenities | null | undefined
 ): Array<{ label: string; value: string }> {
-  if (!amenities) return [];
+  if (!amenities || isTrailheadAmenities(amenities)) return [];
+  return campsiteAmenityRows(amenities);
+}
+
+function campsiteAmenityRows(
+  amenities: CampsiteAmenities
+): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [];
   if (amenities.toilet) {
     rows.push({
@@ -298,6 +322,101 @@ export function amenityRows(
     });
   }
   return rows;
+}
+
+const TRAILHEAD_BATHROOM_TYPE_LABELS: Record<string, string> = {
+  vault_pit: "Vault/pit toilet",
+  flush: "Flush toilet",
+  portable: "Portable toilet",
+  composting: "Composting toilet",
+  unspecified: "Present",
+};
+
+/** The drive in and what waits at the end of it. Returns nothing for a
+ * campsite-shaped block, which `amenityRows` above reads instead.
+ *
+ * A representative subset, not every leaf — matches campsiteAmenityRows above
+ * (which also skips some CampsiteAmenities fields). Structured facts, plus the
+ * short sentences that qualify them: the road row prints its gate window and
+ * its last rough stretch, and the parking row prints which lot. The two notes
+ * left out of this compact list are bathrooms.season_note and
+ * parking.fills_early_note. */
+export function trailheadAmenityRows(
+  amenities: Amenities | null | undefined
+): AmenityRow[] {
+  if (!amenities || !isTrailheadAmenities(amenities)) return [];
+  return trailheadRows(amenities);
+}
+
+function trailheadRows(amenities: TrailheadAmenities): AmenityRow[] {
+  const rows: AmenityRow[] = [];
+  const { parking, road_access, bathrooms } = amenities;
+
+  // A dollar amount is a fee fact on its own. The importer writes day_fee_usd
+  // without fee_required whenever the source dataset contradicts a no-fee
+  // claim, so gating this row on the boolean would hide the price.
+  const feeRequired = parking?.fee_required?.value;
+  const dayFee = parking?.day_fee_usd?.value;
+  const annualFee = parking?.annual_fee_usd?.value;
+  const feeAmounts: string[] = [];
+  if (dayFee != null) feeAmounts.push(`$${dayFee}/day`);
+  if (annualFee != null) feeAmounts.push(`$${annualFee}/year`);
+  if (feeAmounts.length > 0 || feeRequired != null) {
+    rows.push({
+      label: "Parking fee",
+      value:
+        feeAmounts.length > 0 ? feeAmounts.join(", ") : feeRequired ? "Required" : "None",
+      credits: dedupeCredits([
+        leafCredit(parking?.day_fee_usd),
+        leafCredit(parking?.annual_fee_usd),
+        leafCredit(parking?.fee_required),
+      ]),
+    });
+  }
+  // Spaces where the catalog counted them, the kind of parking where it did
+  // not. Every National Park Service lot is the second case: NPS maps the
+  // polygon and publishes no capacity at all, and "Parking lot" is still the
+  // answer to most of what a driver was asking.
+  const parkingPresence = parkingRow(parking);
+  if (parkingPresence) rows.push(parkingPresence);
+  const passes = parking?.passes_accepted?.value;
+  if (Array.isArray(passes) && passes.length > 0) {
+    // Guarded with Array.isArray: `value` comes from unvalidated JSONB, so a
+    // malformed row could store a non-array here and .join would throw.
+    rows.push({
+      label: "Passes accepted",
+      value: passes.join(", "),
+      credits: dedupeCredits([leafCredit(parking?.passes_accepted)]),
+    });
+  }
+
+  if (bathrooms?.status) {
+    rows.push({
+      label: "Restroom",
+      value:
+        bathrooms.status.value === "absent"
+          ? "None"
+          : // `type` comes from unvalidated JSONB, so a value outside the union
+            // would otherwise render an empty cell.
+            TRAILHEAD_BATHROOM_TYPE_LABELS[bathrooms.type?.value ?? "unspecified"] ?? "Present",
+      credits: dedupeCredits([leafCredit(bathrooms.status), leafCredit(bathrooms.type)]),
+    });
+  }
+
+  // The drive in, as one answer: what the road asks of a car and what it is
+  // made of, with the gate dates and the last rough stretch under it. Three
+  // separate rows said the same thing worse — "High clearance: Required" is a
+  // database column read aloud, and neither the gate nor the road it names had
+  // anywhere to go.
+  const road = roadAccessRow(road_access);
+  if (road) rows.push(road);
+
+  return rows;
+}
+
+/** Every source behind a printed fact, once each, in the order it was printed. */
+export function amenityCredits(rows: AmenityRow[]): AmenityCredit[] {
+  return dedupeCredits(rows.flatMap((row) => row.credits ?? []));
 }
 
 /** The first paragraph of a trip report, clipped for a list row. Structural

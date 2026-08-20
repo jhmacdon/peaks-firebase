@@ -13,7 +13,7 @@ import {
   parseRouteProvenance,
   type RouteProvenance,
 } from "../route-provenance";
-import { verifyToken } from "../auth-actions";
+import { verifyToken, verifyAdminToken } from "../auth-actions";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -339,9 +339,13 @@ export async function getUserDestinationActivity(
 }
 
 export async function updateDestination(
+  token: string,
   id: string,
   updates: { name?: string; type?: string; features?: string[]; activities?: string[] }
 ): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const sets: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;

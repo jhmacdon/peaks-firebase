@@ -6,6 +6,7 @@ import { parseGPX, detectRouteShape, simplifyTrack, totalDistance, haversineDist
 import { encodePolyline6, pointsToLineStringZ, generateId, type TrackPoint } from "../route-utils";
 import { createDestination, reverseGeocodePointName } from "./destinations";
 import { normalizeSearchName } from "../search-utils";
+import { verifyAdminToken } from "../auth-actions";
 
 // Re-export TrackPoint so existing consumers don't break
 export type { TrackPoint } from "../route-utils";
@@ -348,16 +349,22 @@ export async function chopOutAndBack(
 /**
  * Save a route with its segments to the database (simple version without segment matching).
  */
-export async function saveRoute(input: {
-  name: string;
-  shape: string;
-  completion: string;
-  segments: {
-    name: string | null;
-    points: TrackPoint[];
-  }[];
-  destinationIds: string[];
-}): Promise<{ routeId: string }> {
+export async function saveRoute(
+  token: string,
+  input: {
+    name: string;
+    shape: string;
+    completion: string;
+    segments: {
+      name: string | null;
+      points: TrackPoint[];
+    }[];
+    destinationIds: string[];
+  }
+): Promise<{ routeId: string }> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const routeId = generateId();
 
   // Build full route points from all segments

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import { PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
@@ -614,7 +615,7 @@ function buildPointInsertQuery(sessionId: string, points: any[]) {
 }
 
 // GET /api/sessions — current user's sessions with inline destinations
-router.get("/", async (req, res: Response) => {
+router.get("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const limit = parseLimit(req.query.limit);
   const offset = parseOffset(req.query.offset);
@@ -648,10 +649,10 @@ router.get("/", async (req, res: Response) => {
     [uid, processingStates, limit, offset]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/sessions/changes — incremental session sync feed
-router.get("/changes", async (req, res: Response) => {
+router.get("/changes", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const limit = parseLimit(req.query.limit);
   const afterId =
@@ -766,10 +767,10 @@ router.get("/changes", async (req, res: Response) => {
       : null,
     has_more: result.rows.length === limit,
   });
-});
+}));
 
 // GET /api/sessions/dedup — check if session already imported
-router.get("/dedup", async (req, res: Response) => {
+router.get("/dedup", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const source = req.query.source as string;
   const externalId = req.query.externalId as string;
@@ -785,7 +786,7 @@ router.get("/dedup", async (req, res: Response) => {
     [uid, source, externalId]
   );
   res.json({ exists: result.rows.length > 0, sessionId: result.rows[0]?.id || null });
-});
+}));
 
 // Parse the comma-separated `ids` query param for the batch status endpoint:
 // trim, drop empties, dedupe preserving first-seen order, and cap the count so
@@ -838,17 +839,17 @@ export async function handleProcessingStatus(
   res.json(result.rows);
 }
 
-router.get("/processing-status", (req, res: Response) => handleProcessingStatus(req, res));
+router.get("/processing-status", asyncRoute((req, res: Response) => handleProcessingStatus(req, res)));
 
 // GET /api/sessions/stats/altitude-time — compact per-session altitude clocks
-router.get("/stats/altitude-time", heavyWriteGuard, async (req, res: Response) => {
+router.get("/stats/altitude-time", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const query = buildAltitudeTimeStatsQuery(getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 // GET /api/sessions/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -861,10 +862,10 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
-});
+}));
 
 // GET /api/sessions/:id/areas — areas crossed by the saved GPS path
-router.get("/:id/areas", async (req, res: Response) => {
+router.get("/:id/areas", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const query = buildSessionAreasQuery(req.params.id, uid);
   const result = await db.query(query.text, query.values);
@@ -873,10 +874,10 @@ router.get("/:id/areas", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0].areas);
-});
+}));
 
 // GET /api/sessions/:id/points — GPS breadcrumbs
-router.get("/:id/points", async (req, res: Response) => {
+router.get("/:id/points", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -904,10 +905,10 @@ router.get("/:id/points", async (req, res: Response) => {
      ORDER BY time`,
     [id]
   );
-});
+}));
 
 // GET /api/sessions/:id/elevation — elevation profile by time
-router.get("/:id/elevation", async (req, res: Response) => {
+router.get("/:id/elevation", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -932,10 +933,10 @@ router.get("/:id/elevation", async (req, res: Response) => {
      ORDER BY time`,
     [id]
   );
-});
+}));
 
 // GET /api/sessions/:id/destinations
-router.get("/:id/destinations", async (req, res: Response) => {
+router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
@@ -953,10 +954,10 @@ router.get("/:id/destinations", async (req, res: Response) => {
     [id, uid]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/sessions/:id/routes
-router.get("/:id/routes", async (req, res: Response) => {
+router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
@@ -972,7 +973,7 @@ router.get("/:id/routes", async (req, res: Response) => {
     [id, uid]
   );
   res.json(result.rows);
-});
+}));
 
 // GET /api/sessions/:id/comparisons/:otherId — effort curves for the race
 // chart. Recomputes the (2-session, bounded) checkpoint model on demand
@@ -981,7 +982,7 @@ router.get("/:id/routes", async (req, res: Response) => {
 // Guarded by heavyWriteGuard: this route materializes two full point sets per
 // request (loadSampledTrack × 2), the same pool/memory budget concern as the
 // heavy write endpoints (OOM-regression class — see rate-guard.ts).
-router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ id: string; otherId: string }>, res: Response) => {
+router.get("/:id/comparisons/:otherId", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id, otherId } = req.params;
 
@@ -1061,13 +1062,13 @@ router.get("/:id/comparisons/:otherId", heavyWriteGuard, async (req: Request<{ i
       })),
     },
   });
-});
+}));
 
 // GET /api/sessions/:id/comparisons — "Your Efforts": this session vs the
 // owner's PRIOR overlapping sessions. Owner-only: comparisons reference the
 // owner's other (possibly private) sessions, so is_public does NOT grant
 // access. Prior-only: other side must have started before this session.
-router.get("/:id/comparisons", async (req, res: Response) => {
+router.get("/:id/comparisons", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -1098,10 +1099,10 @@ router.get("/:id/comparisons", async (req, res: Response) => {
     session_id: id,
     comparisons: shapeComparisonList(result.rows, id, COMPARISON_LIST_CAP),
   });
-});
+}));
 
 // GET /api/sessions/:id/markers
-router.get("/:id/markers", async (req, res: Response) => {
+router.get("/:id/markers", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const result = await db.query(
@@ -1119,7 +1120,7 @@ router.get("/:id/markers", async (req, res: Response) => {
     [id, uid]
   );
   res.json(result.rows);
-});
+}));
 
 // Candidate-selection SQL for process-all (param $1 = user_id). Drains pending
 // + failed AND stale 'processing' claims. Sessions claimed during a storm whose
@@ -1145,7 +1146,7 @@ export function buildProcessAllCandidateSql(): string {
 }
 
 // POST /api/sessions/process-all — batch process all unprocessed sessions for this user
-router.post("/process-all", async (req, res: Response) => {
+router.post("/process-all", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
 
   const unprocessed = await db.query(buildProcessAllCandidateSql(), [uid]);
@@ -1170,10 +1171,10 @@ router.post("/process-all", async (req, res: Response) => {
   }
 
   res.json({ processed: results.length, skipped, candidates: unprocessed.rows.length });
-});
+}));
 
 // POST /api/sessions/:id/process — trigger server-side session processing
-router.post("/:id/process", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
+router.post("/:id/process", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -1228,10 +1229,10 @@ router.post("/:id/process", heavyWriteGuard, async (req: Request<{ id: string }>
     console.error("Error processing session:", err);
     res.status(500).json({ error: "Failed to process session" });
   }
-});
+}));
 
 // GET /api/sessions/:id/group — get previous attempts (group members)
-router.get("/:id/group", async (req, res: Response) => {
+router.get("/:id/group", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -1277,10 +1278,10 @@ router.get("/:id/group", async (req, res: Response) => {
     group: groupMeta.rows[0] ?? null,
     sessions: result.rows,
   });
-});
+}));
 
 // POST /api/sessions/groups — create a group containing two or more sessions
-router.post("/groups", async (req, res: Response) => {
+router.post("/groups", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { session_ids, manually_linked } = req.body as { session_ids?: string[]; manually_linked?: boolean };
 
@@ -1320,10 +1321,10 @@ router.post("/groups", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // POST /api/sessions/:id/group/:groupId — join an existing group
-router.post("/:id/group/:groupId", async (req, res: Response) => {
+router.post("/:id/group/:groupId", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id, groupId } = req.params;
 
@@ -1370,10 +1371,10 @@ router.post("/:id/group/:groupId", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // DELETE /api/sessions/:id/group — leave the current group; auto-link will skip this session going forward
-router.delete("/:id/group", async (req, res: Response) => {
+router.delete("/:id/group", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -1417,12 +1418,12 @@ router.delete("/:id/group", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // POST /api/sessions/groups/:id/merge — merge another group into this one
 // Body: { other_group_id: string }
 // Survivor is the group with older created_at; tie-break on lex id.
-router.post("/groups/:id/merge", async (req, res: Response) => {
+router.post("/groups/:id/merge", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { other_group_id } = req.body as { other_group_id?: string };
@@ -1482,10 +1483,10 @@ router.post("/groups/:id/merge", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // PATCH /api/sessions/groups/:id — rename or toggle manually_linked
-router.patch("/groups/:id", async (req, res: Response) => {
+router.patch("/groups/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { name, manually_linked } = req.body as { name?: string | null; manually_linked?: boolean };
@@ -1512,7 +1513,7 @@ router.patch("/groups/:id", async (req, res: Response) => {
     return;
   }
   res.json(result.rows[0]);
-});
+}));
 
 export const SESSION_UPSERT_SQL = `INSERT INTO tracking_sessions
   (id, user_id, name, start_time, end_time,
@@ -1542,7 +1543,7 @@ export const SESSION_UPSERT_SQL = `INSERT INTO tracking_sessions
  RETURNING id`;
 
 // POST /api/sessions — create a new session
-router.post("/", heavyWriteGuard, async (req, res: Response) => {
+router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const {
     id, name, start_date, end_date,
@@ -1660,10 +1661,10 @@ router.post("/", heavyWriteGuard, async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // PUT /api/sessions/:id — update session metadata
-router.put("/:id", async (req, res: Response) => {
+router.put("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const {
@@ -1784,10 +1785,10 @@ router.put("/:id", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // DELETE /api/sessions/:id — delete session (cascades to points, markers, etc.)
-router.delete("/:id", async (req, res: Response) => {
+router.delete("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
 
@@ -1840,10 +1841,10 @@ router.delete("/:id", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // POST /api/sessions/:id/points — batch insert GPS points
-router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
+router.post("/:id/points", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { points } = req.body;
@@ -1917,7 +1918,7 @@ router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>,
   } finally {
     client.release();
   }
-});
+}));
 
 // PUT /api/sessions/:id/points — REPLACE the session's entire point set.
 //
@@ -1930,7 +1931,7 @@ router.post("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>,
 // so a mid-write failure can never leave a half-replaced track. Mirrors the
 // PUT /api/plans/:id geometry flow — new geometry, then processing_state
 // 'pending', then processing kicked after COMMIT.
-router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, res: Response) => {
+router.put("/:id/points", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { points } = req.body;
@@ -2094,7 +2095,7 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
   } finally {
     client.release();
   }
-});
+}));
 
 // POST /api/sessions/:id/destinations — set reached/goal destinations, record
 // rejections ("I didn't reach this") and clear them again.
@@ -2104,7 +2105,7 @@ router.put("/:id/points", heavyWriteGuard, async (req: Request<{ id: string }>, 
 // body naming only `rejected` disturbs no manual row. A veto is cleared ONLY by
 // naming the id in `unreject` — never as a side effect of a `reached` list,
 // which iOS resends from possibly stale local state.
-router.post("/:id/destinations", async (req, res: Response) => {
+router.post("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { reached, goals, rejected, unreject } = req.body;
@@ -2198,10 +2199,10 @@ router.post("/:id/destinations", async (req, res: Response) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // POST /api/sessions/:id/markers — create a marker
-router.post("/:id/markers", async (req, res: Response) => {
+router.post("/:id/markers", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const { name, image, lat, lng, elevation } = req.body;
@@ -2233,10 +2234,10 @@ router.post("/:id/markers", async (req, res: Response) => {
     [id, lat, lng, elevation, name ?? null, image ?? null, uid]
   );
   res.status(201).json(result.rows[0]);
-});
+}));
 
 // DELETE /api/sessions/:id/markers/:markerId — delete a marker
-router.delete("/:id/markers/:markerId", async (req, res: Response) => {
+router.delete("/:id/markers/:markerId", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id, markerId } = req.params;
 
@@ -2259,6 +2260,6 @@ router.delete("/:id/markers/:markerId", async (req, res: Response) => {
     return;
   }
   res.json({ deleted: true, id: markerId });
-});
+}));
 
 export default router;

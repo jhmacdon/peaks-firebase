@@ -11,6 +11,7 @@ import {
   generateId,
 } from "../route-utils";
 import { extractSubPoints } from "../segment-geometry";
+import { verifyAdminToken } from "../auth-actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -599,13 +600,19 @@ export async function analyzeRouteSegments(
 
 // ─── Public API: Save ───────────────────────────────────────────────────────
 
-export async function saveRouteWithSegments(input: {
-  name: string;
-  shape: string;
-  completion: string;
-  decomposition: RouteDecomposition;
-  destinationIds: string[];
-}): Promise<{ routeId: string }> {
+export async function saveRouteWithSegments(
+  token: string,
+  input: {
+    name: string;
+    shape: string;
+    completion: string;
+    decomposition: RouteDecomposition;
+    destinationIds: string[];
+  }
+): Promise<{ routeId: string }> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const { decomposition } = input;
   const routeId = generateId();
 

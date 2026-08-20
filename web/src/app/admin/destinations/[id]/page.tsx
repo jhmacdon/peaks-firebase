@@ -7,6 +7,7 @@ import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
 import dynamic from "next/dynamic";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getDestination,
   getDestinationRoutes,
@@ -20,7 +21,14 @@ import {
   type DestinationRoute,
   type DestinationList,
 } from "../../../../lib/actions/destinations";
-import type { Amenities } from "../../../../lib/amenities";
+import {
+  isTrailheadAmenities,
+  type Amenities,
+  type CampsiteAmenities,
+  type TrailheadAmenities,
+} from "../../../../lib/amenities";
+import { roadAccessBadge } from "../../../../lib/trailhead-road-access";
+import { parkingBadge } from "../../../../lib/trailhead-parking";
 import { LOADING_LABEL } from "../../../../lib/constants";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
@@ -42,6 +50,7 @@ export default function DestinationDetailPage() {
 function DestinationDetailContent() {
   const params = useParams();
   const id = params.id as string;
+  const { getIdToken } = useAuth();
 
   const [dest, setDest] = useState<DestinationDetail | null>(null);
   const [routes, setRoutes] = useState<DestinationRoute[]>([]);
@@ -82,7 +91,12 @@ function DestinationDetailContent() {
 
   const handleSave = async () => {
     setSaving(true);
-    await updateDestination(id, { name: editName, type: editType, features: editFeatures });
+    const token = await getIdToken();
+    if (!token) {
+      setSaving(false);
+      return;
+    }
+    await updateDestination(token, id, { name: editName, type: editType, features: editFeatures });
     setDest((prev) =>
       prev ? { ...prev, name: editName, type: editType, features: editFeatures } : prev
     );
@@ -610,6 +624,10 @@ function DetailRow({
 }
 
 function formatAmenityBadges(a: Amenities): string[] {
+  return isTrailheadAmenities(a) ? formatTrailheadAmenityBadges(a) : formatCampsiteAmenityBadges(a);
+}
+
+function formatCampsiteAmenityBadges(a: CampsiteAmenities): string[] {
   const out: string[] = [];
   if (a.toilet === "flush") out.push("flush toilet");
   else if (a.toilet === "pit") out.push("pit toilet");
@@ -630,5 +648,46 @@ function formatAmenityBadges(a: Amenities): string[] {
   if (a.max_length != null) out.push(`max ${a.max_length}m`);
   if (a.backcountry) out.push("backcountry");
   if (a.power_supply) out.push("power");
+  return out;
+}
+
+// A representative subset, not every leaf — matches formatCampsiteAmenityBadges
+// above. Structured facts, plus the lot's own name, which is what someone
+// checking an import against a map actually needs. The road and parking chips
+// are composed by the same helpers the public page prints, so the two cannot
+// drift.
+function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
+  const out: string[] = [];
+  const { parking, road_access, bathrooms } = a;
+
+  // A dollar amount is a fee fact on its own: the importer writes day_fee_usd
+  // without fee_required whenever the source dataset contradicts a no-fee
+  // claim, so the boolean cannot be the gate.
+  const dayFee = parking?.day_fee_usd?.value;
+  const annualFee = parking?.annual_fee_usd?.value;
+  if (dayFee != null) out.push(`parking fee ($${dayFee}/day)`);
+  else if (parking?.fee_required?.value) out.push("parking fee");
+  else if (annualFee != null) out.push(`parking fee (annual $${annualFee})`);
+  else if (parking?.fee_required?.value === false) out.push("free parking");
+  // Spaces where they were counted, otherwise the kind of parking — the same
+  // helper the public page prints, so the two cannot drift.
+  const parkingChip = parkingBadge(parking);
+  if (parkingChip) out.push(parkingChip);
+
+  if (bathrooms?.status?.value === "present") {
+    switch (bathrooms.type?.value) {
+      case "flush": out.push("flush toilet"); break;
+      case "vault_pit": out.push("vault toilet"); break;
+      case "portable": out.push("portable toilet"); break;
+      case "composting": out.push("composting toilet"); break;
+      default: out.push("restroom");
+    }
+  } else if (bathrooms?.status?.value === "absent") {
+    out.push("no restroom");
+  }
+
+  const road = roadAccessBadge(road_access);
+  if (road) out.push(road);
+
   return out;
 }

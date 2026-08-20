@@ -13,30 +13,38 @@ import { SectionHeading } from "../ui/section-heading";
  * signed-out reader, rather than a progress bar for a progress no one is
  * tracking. */
 export function ListProgress({ listId }: { listId: string }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getIdToken } = useAuth();
   const [progress, setProgress] = useState<ListProgressData | null>(null);
+
+  // getListProgress reads whose progress to count off the verified token, not
+  // off a uid the client hands it — so the island sends the ID token and
+  // never a caller-chosen user id.
+  const userId = user?.uid ?? null;
 
   useEffect(() => {
     let cancelled = false;
 
     if (authLoading) return;
-    if (!user) {
+    if (!userId) {
       setProgress(null);
       return;
     }
 
-    getListProgress(listId, user.uid)
-      .then((result) => {
-        if (!cancelled) setProgress(result);
-      })
-      .catch(() => {
-        if (!cancelled) setProgress(null);
-      });
+    async function load() {
+      const token = await getIdToken();
+      if (!token) return;
+      const result = await getListProgress(token, listId);
+      if (!cancelled) setProgress(result);
+    }
+
+    load().catch(() => {
+      if (!cancelled) setProgress(null);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [authLoading, listId, user]);
+  }, [authLoading, listId, userId, getIdToken]);
 
   if (!user || !progress) return null;
 

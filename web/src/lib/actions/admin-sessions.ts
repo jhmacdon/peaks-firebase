@@ -2,6 +2,7 @@
 "use server";
 
 import db from "../db";
+import { verifyAdminToken } from "../auth-actions";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -32,12 +33,16 @@ export type AdminSessionSort = "start_time" | "distance" | "gain" | "total_time"
 export type SortDir = "asc" | "desc";
 
 export async function getAdminSessions(
+  token: string,
   search: string = "",
   limit: number = 50,
   offset: number = 0,
   sort?: { field: AdminSessionSort; dir: SortDir },
   filters?: { user_id?: string; destination_id?: string }
 ): Promise<{ sessions: AdminSessionRow[]; total: number }> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
@@ -155,8 +160,12 @@ export interface AdminSessionDetail {
 }
 
 export async function getAdminSession(
+  token: string,
   sessionId: string
 ): Promise<AdminSessionDetail | null> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const result = await db.query(
     `SELECT id, user_id, name, start_time, end_time, distance, total_time,
             pace, gain, highest_point, ascent_time, descent_time, still_time,
@@ -196,8 +205,12 @@ export interface AdminSessionPoint {
 }
 
 export async function getAdminSessionPoints(
+  token: string,
   sessionId: string
 ): Promise<AdminSessionPoint[]> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const result = await db.query(
     `SELECT time, segment_number,
             ST_Y(location::geometry) AS lat,
@@ -243,8 +256,12 @@ export interface AdminSessionDestination {
 }
 
 export async function getAdminSessionDestinations(
+  token: string,
   sessionId: string
 ): Promise<AdminSessionDestination[]> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.features,
             ST_Y(d.location::geometry) AS lat,

@@ -22,7 +22,9 @@ import {
   describeSessionNoun,
   formatFeetValue,
   monthlyVisitCounts,
+  amenityCredits,
   amenityRows,
+  trailheadAmenityRows,
 } from "../../../../lib/destination-detail";
 import { formatRegion } from "../../../../lib/regions";
 import { Breadcrumb } from "../../../../components/detail-sections";
@@ -41,6 +43,7 @@ import { DestinationPlanning } from "../../../../components/destination/destinat
 import { DestinationReports } from "../../../../components/destination/destination-reports";
 import { DestinationRoutes } from "../../../../components/destination/destination-routes";
 import { DestinationSeasonality } from "../../../../components/destination/destination-seasonality";
+import { DestinationTrailheads } from "../../../../components/destination/destination-trailheads";
 import { DestinationWeather } from "../../../../components/destination/destination-weather";
 import {
   Topline,
@@ -108,6 +111,10 @@ export default async function DestinationDetailPage({
   const prominenceValue = formatFeetValue(dest.prominence);
   const months = monthlyVisitCounts(dest.averages);
   const facilities = amenityRows(dest.amenities);
+  // A destination's amenities are campsite-shaped or trailhead-shaped, never
+  // both, so exactly one of these two lists ever has rows.
+  const trailheadFacts = trailheadAmenityRows(dest.amenities);
+  const trailheadCredits = amenityCredits(trailheadFacts);
 
   const directionsUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`
@@ -220,6 +227,8 @@ export default async function DestinationDetailPage({
             facilities={facilities}
             forecastUrl={forecastUrl}
           />
+
+          <DestinationTrailheads rows={trailheadFacts} credits={trailheadCredits} />
 
           {weather ? (
             <DestinationWeather days={weather.days} forecastUrl={forecastUrl} />

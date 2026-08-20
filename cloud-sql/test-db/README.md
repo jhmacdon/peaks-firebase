@@ -30,6 +30,16 @@ npm run test:db
 
 `npm test` still works and needs no database — the DB-backed files skip.
 
+The migrate package has DB-backed suites too, behind its own `test:db`:
+
+```bash
+cd cloud-sql/migrate
+export TEST_DATABASE_URL="postgres://peaks_test:$(gcloud secrets versions access latest --secret=peaks-test-db-password)@127.0.0.1:5432/peaks_test"
+npm run test:db
+```
+
+Its per-suite variables are listed in `cloud-sql/migrate/README.md`.
+
 ## What exists
 
 | Thing | Where | Notes |
@@ -66,8 +76,8 @@ drops the `public` schema.
 
 ## Running in parallel
 
-`--test-concurrency=1` is no longer needed. `npm run test:db` defaults to 6 and
-takes `TEST_CONCURRENCY` to override.
+`--test-concurrency=1` is no longer needed. api's `npm run test:db` defaults to
+6 and takes `TEST_CONCURRENCY` to override.
 
 What made parallel runs fail was never the test code — it was connections. Each
 test file is its own child process with its own pool. At the old default of 8
@@ -95,8 +105,14 @@ partly-maintained baseline. Building a database from it and diffing against live
 `peaks` shows it missing the `link_sessions_on_destination_update` trigger,
 `areas_refresh_boundary_display`, the destination place-copy and hero-credit
 columns, `areas.parent_area_id`, and the destination search vector. Applying
-`schema.sql` **and** `migrations/` reproduces live `peaks` exactly: 28 tables,
-281 columns, 17 triggers, all matching.
+`schema.sql` **and** `migrations/` reproduces the live `peaks` schema: 41
+tables, 1 application view (`data_source_freshness`), 392 columns and 22
+triggers — measured 2026-08-19 via a provision run, `spatial_ref_sys`
+included. Live `peaks` also carries nine backup and worklist tables left over
+from the June 2026 area dedupe; they are not schema and the provisioner
+rightly omits them. `provision.sh` prints table and trigger counts every run,
+so drift shows up without a second tool. (`data_source_runs` and the
+`data_source_freshness` view arrived with `20260819_data_source_runs.sql`.)
 
 `schema.sql` also carries no `GRANT` statements — production privileges were
 applied by hand when the instance was built — so `grants.sql` restates them.

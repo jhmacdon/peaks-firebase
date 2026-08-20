@@ -1,5 +1,6 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
+import { asyncRoute } from "./lib/async-route";
 import { requireAuth } from "./auth";
 import destinations from "./routes/destinations";
 import routes from "./routes/routes";
@@ -35,7 +36,7 @@ const SWEEP_AUDIENCE =
 const SWEEP_INVOKER =
   process.env.SWEEP_INVOKER || "peaks-sweeper@donner-a8608.iam.gserviceaccount.com";
 let isSweeping = false;
-app.post("/internal/sweep", async (req, res) => {
+app.post("/internal/sweep", asyncRoute(async (req, res) => {
   const header = req.headers.authorization || "";
   const idToken = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
   if (!idToken) {
@@ -72,7 +73,7 @@ app.post("/internal/sweep", async (req, res) => {
   } finally {
     isSweeping = false;
   }
-});
+}));
 
 // All API routes require Firebase Auth
 app.use("/api", requireAuth);
@@ -85,6 +86,34 @@ app.use("/api/lists", lists);
 app.use("/api/plans", plans);
 app.use("/api/search", search);
 app.use("/api/trip-reports", tripReports);
+
+// A rejected handler promise lands here via asyncRoute (lib/async-route.ts).
+// Express 4 ignores the promise an async handler returns, so without that
+// wrapper and this middleware a single rejected query would crash the
+// instance (Node's default --unhandled-rejections=throw). A response that
+// already sent headers (streaming endpoints) falls through to Express's
+// default handler, which closes the connection.
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    console.error("[api] request failed:", error);
+    next(error);
+    return;
+  }
+  // express.json() rejections carry their own status — 400 for malformed
+  // JSON, 413 for a body over the 5mb limit. A 4xx must pass through: the
+  // 413 in particular is load-bearing, because the iOS chunked uploader is
+  // sized against the limit and treats a 500 as transient, so flattening it
+  // invites endless retries.
+  const err = error as { status?: unknown; statusCode?: unknown } | null;
+  const status = err?.status ?? err?.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    console.warn("[api] request rejected:", status, error instanceof Error ? error.message : error);
+    res.status(status).json({ error: "Bad request" });
+    return;
+  }
+  console.error("[api] request failed:", error);
+  res.status(500).json({ error: "Request failed" });
+});
 
 // Don't bind a port when imported by tests.
 if (process.env.NODE_ENV !== "test") {

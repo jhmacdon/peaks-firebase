@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getUser, type UserInfo } from "../lib/actions/users";
+import { useAuth } from "../lib/auth-context";
 import { LOADING_LABEL } from "../lib/constants";
 
 interface UserPopoverProps {
@@ -14,15 +15,22 @@ export default function UserPopover({ uid }: UserPopoverProps) {
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { getIdToken } = useAuth();
 
   const handleClick = async () => {
     setOpen((prev) => !prev);
     if (!fetched) {
       setLoading(true);
-      const result = await getUser(uid);
-      setUser(result);
-      setFetched(true);
-      setLoading(false);
+      try {
+        const token = await getIdToken();
+        const result = token ? await getUser(token, uid) : null;
+        setUser(result);
+      } catch {
+        setUser(null);
+      } finally {
+        setFetched(true);
+        setLoading(false);
+      }
     }
   };
 

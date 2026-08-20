@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { NextFunction, Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import admin from "firebase-admin";
 import { Pool, PoolClient } from "pg";
 import { getUid } from "../auth";
@@ -639,14 +640,6 @@ async function handleFlag(req: Request, res: Response): Promise<void> {
   res.status(204).end();
 }
 
-type AsyncHandler = (req: Request, res: Response) => Promise<void>;
-
-function asyncRoute(handler: AsyncHandler) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    void handler(req, res).catch(next);
-  };
-}
-
 const router = Router();
 router.get("/", asyncRoute(handleList));
 router.get("/session/:sessionId", asyncRoute(handleGetBySession));
@@ -655,9 +648,5 @@ router.post("/", asyncRoute(handleCreateTripReport));
 router.put("/:id", asyncRoute(handleUpdate));
 router.delete("/:id", asyncRoute(handleDelete));
 router.post("/:id/flag", asyncRoute(handleFlag));
-router.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("[trip-reports] request failed", error);
-  if (!res.headersSent) res.status(500).json({ error: "Trip Report request failed" });
-});
 
 export default router;

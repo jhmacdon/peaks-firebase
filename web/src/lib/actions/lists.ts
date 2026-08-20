@@ -2,6 +2,7 @@
 "use server";
 
 import db from "../db";
+import { verifyToken } from "../auth-actions";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -156,9 +157,12 @@ export async function getListDestinations(
  * (via session_destinations with relation = 'reached').
  */
 export async function getListProgress(
-  listId: string,
-  userId: string
+  token: string,
+  listId: string
 ): Promise<ListProgress> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
   const totalResult = await db.query(
     `SELECT COUNT(*) FROM list_destinations WHERE list_id = $1`,
     [listId]
@@ -172,7 +176,7 @@ export async function getListProgress(
      WHERE ld.list_id = $1
        AND ts.user_id = $2
        AND sd.relation = 'reached'`,
-    [listId, userId]
+    [listId, user.uid]
   );
 
   return {
