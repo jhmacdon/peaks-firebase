@@ -1,15 +1,15 @@
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   getDestinationsInViewport,
   getRoutesInViewport,
@@ -17,15 +17,28 @@ import {
   type SearchDestination,
   type ViewportRoute,
 } from "../../../lib/actions/search";
-import { Badge } from "../../../components/ui/badge";
+import { ExploreChips } from "../../../components/explore/explore-chips";
+import { ExploreControls } from "../../../components/explore/explore-controls";
+import { ExplorePanel } from "../../../components/explore/explore-panel";
 import {
-  formatDistanceMeters,
-  formatElevationMeters,
-} from "../../../lib/route-guide";
+  buildExploreResults,
+  describeDestination,
+  type ExploreResult,
+} from "../../../lib/explore-results";
 import {
+  DEFAULT_MAP_VIEW,
+  MAP_TYPES,
   ROUTE_MIN_ZOOM,
-  parseMapViewFromUrl,
-  mapViewToQuery,
+  VIEWPORT_DESTINATION_LIMIT,
+  VIEWPORT_ROUTE_LIMIT,
+  clampViewportBounds,
+  destinationFeatureFilter,
+  destinationTypesSelected,
+  mapExploreHref,
+  parseMapExploreUrl,
+  routesSelected,
+  toggleMapType,
+  type MapTypeId,
 } from "../../../lib/map-view";
 import type {
   ExploreMapHandle,
@@ -37,104 +50,236 @@ import type {
 const ExploreMap = dynamic(() => import("../../../components/explore-map"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800">
-      <span className="text-gray-500">Loading map…</span>
+    <div className="flex h-full w-full items-center justify-center bg-fill">
+      <span className="text-sm text-muted">Loading map…</span>
     </div>
   ),
 });
 
-type MapSelection =
-  | { kind: "destination"; destination: MapDestination }
-  | { kind: "route"; route: MapRoute }
-  | null;
+/** How long the map has to sit still before the viewport is read again. */
+const VIEWPORT_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 250;
+const MIN_SEARCH_LENGTH = 2;
+const SEARCH_RESULT_LIMIT = 12;
 
-type ListTab = "peaks" | "routes";
-
-function featureSummary(features: string[]): string | null {
-  if (features.length === 0) return null;
-  return features.slice(0, 2).join(", ");
+/**
+ * The explorer reads the URL, and the URL says where to look, what to show,
+ * and what to search for — so nothing above it can be rendered on the
+ * server. The Suspense boundary is what makes that legal: /map prerenders
+ * as the shell below, and the explorer itself renders in the browser, where
+ * the query string exists. Without it the server would render an empty
+ * search and the browser a full one, and hydration would tear.
+ */
+export default function MapPage() {
+  return (
+    <div className="relative h-[calc(100dvh-var(--chrome-top-h)-var(--chrome-bottom-h))] overflow-hidden bg-fill md:h-[calc(100dvh-var(--chrome-h))]">
+      <Suspense
+        fallback={
+          <div className="flex h-full w-full items-center justify-center">
+            <span className="text-sm text-muted">Loading map…</span>
+          </div>
+        }
+      >
+        <MapExplorer />
+      </Suspense>
+    </div>
+  );
 }
 
-export default function MapPage() {
-  // Snapshot ?lat/lng/z once so a shared link opens exactly where it was saved.
-  const [initialView] = useState(parseMapViewFromUrl);
+function MapExplorer() {
+  // Snapshot the URL once: a shared link opens exactly where it was saved,
+  // and `?q=` handed over from Discover runs as a search. A snapshot, not a
+  // subscription — from here on the map drives the URL, not the other way
+  // round, and re-reading it on every pan would fight the reader.
+  const searchParams = useSearchParams();
+  const [initial] = useState(() => parseMapExploreUrl(searchParams.toString()));
+
+  const [types, setTypes] = useState<MapTypeId[]>(initial.types);
+  const [query, setQuery] = useState(initial.query);
 
   const [destinations, setDestinations] = useState<SearchDestination[]>([]);
   const [routes, setRoutes] = useState<ViewportRoute[]>([]);
-  const [loadingViewport, setLoadingViewport] = useState(false);
-  const [zoom, setZoom] = useState<number>(initialView?.zoom ?? 5);
+  const [loading, setLoading] = useState(false);
 
-  const [selection, setSelection] = useState<MapSelection>(null);
-  const [hoveredDestId, setHoveredDestId] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchDestination[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const [centerLat, setCenterLat] = useState(
+    initial.view?.lat ?? DEFAULT_MAP_VIEW.lat
+  );
+  const [centerLng, setCenterLng] = useState(
+    initial.view?.lng ?? DEFAULT_MAP_VIEW.lng
+  );
+  const [zoom, setZoom] = useState(initial.view?.zoom ?? DEFAULT_MAP_VIEW.zoom);
+  const [viewportKey, setViewportKey] = useState("");
+
+  const [selectedDestinationId, setSelectedDestinationId] = useState<
+    string | null
+  >(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [hoveredDestinationId, setHoveredDestinationId] = useState<
+    string | null
+  >(null);
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
 
   const [basemap, setBasemap] = useState<"topo" | "satellite">("topo");
-  const [railOpen, setRailOpen] = useState(true);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [tab, setTab] = useState<ListTab>("peaks");
-
-  const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchDestination[]>([]);
-  const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const mapHandleRef = useRef<ExploreMapHandle | null>(null);
-  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportRef = useRef<MapViewport | null>(null);
   const viewportSeqRef = useRef(0);
   const searchSeqRef = useRef(0);
-  const centerRef = useRef<{ lat: number; lng: number } | null>(
-    initialView ? { lat: initialView.lat, lng: initialView.lng } : null
+  /** A destination picked before its marker existed (a search hit outside
+   * the loaded viewport). The popup opens once the marker arrives. */
+  const pendingPopupRef = useRef<string | null>(null);
+  /** A result picked before the map finished loading — a `?q=` link can
+   * resolve its search well before the Leaflet chunk lands. */
+  const pendingFocusRef = useRef<ExploreResult | null>(null);
+  /** A `?q=` handed over from Discover flies to its best match once — after
+   * that the reader is driving. Only when the link pinned no view of its
+   * own, which would have said where to look. */
+  const followUrlQueryRef = useRef(
+    initial.query.length >= MIN_SEARCH_LENGTH && initial.view === null
   );
 
+  // Read during render (not in an effect) so the effects below, which run
+  // after the render that changed them, always see the current values
+  // without listing an array in their dependencies.
+  const typesRef = useRef(types);
+  typesRef.current = types;
+  const centerRef = useRef({ lat: centerLat, lng: centerLng });
+  centerRef.current = { lat: centerLat, lng: centerLng };
+
+  const typesKey = types.join(",");
+  const searchActive = query.trim().length >= MIN_SEARCH_LENGTH;
+
   const handleViewportChange = useCallback((viewport: MapViewport) => {
+    viewportRef.current = viewport;
+    setCenterLat(viewport.centerLat);
+    setCenterLng(viewport.centerLng);
     setZoom(viewport.zoom);
-    centerRef.current = { lat: viewport.centerLat, lng: viewport.centerLng };
-
-    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-    fetchTimerRef.current = setTimeout(async () => {
-      window.history.replaceState(
-        null,
-        "",
-        `/map?${mapViewToQuery({
-          lat: viewport.centerLat,
-          lng: viewport.centerLng,
-          zoom: viewport.zoom,
-        })}`
-      );
-
-      const seq = ++viewportSeqRef.current;
-      setLoadingViewport(true);
-      try {
-        const [dests, rts] = await Promise.all([
-          getDestinationsInViewport(
-            viewport.minLat,
-            viewport.maxLat,
-            viewport.minLng,
-            viewport.maxLng
-          ),
-          getRoutesInViewport(
-            viewport.minLat,
-            viewport.maxLat,
-            viewport.minLng,
-            viewport.maxLng
-          ),
-        ]);
-        if (seq === viewportSeqRef.current) {
-          setDestinations(dests);
-          setRoutes(rts);
-        }
-      } catch {
-        // Keep whatever was previously loaded; the next pan retries.
-      } finally {
-        if (seq === viewportSeqRef.current) setLoadingViewport(false);
-      }
-    }, 300);
+    // Rounded to ~100m so a sub-pixel nudge doesn't re-query the database.
+    setViewportKey(
+      [
+        viewport.minLat.toFixed(3),
+        viewport.maxLat.toFixed(3),
+        viewport.minLng.toFixed(3),
+        viewport.maxLng.toFixed(3),
+        viewport.zoom,
+      ].join(",")
+    );
   }, []);
 
-  // Debounced destination search, proximity-biased toward the map center.
+  // Viewport reads. Debounced, sequence-guarded, and skipped entirely for a
+  // layer nothing has asked for — routes below ROUTE_MIN_ZOOM cost seconds
+  // on a continent-sized box and wouldn't be drawn anyway.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const timer = setTimeout(() => {
+      const selectedTypes = typesRef.current;
+      const bounds = clampViewportBounds(viewport);
+      const center = {
+        centerLat: viewport.centerLat,
+        centerLng: viewport.centerLng,
+      };
+      const wantDestinations =
+        destinationTypesSelected(selectedTypes).length > 0;
+      const wantRoutes =
+        routesSelected(selectedTypes) && viewport.zoom >= ROUTE_MIN_ZOOM;
+
+      const seq = ++viewportSeqRef.current;
+      setLoading(true);
+      Promise.all([
+        wantDestinations
+          ? getDestinationsInViewport({
+              ...bounds,
+              ...center,
+              features: destinationFeatureFilter(selectedTypes),
+            })
+          : Promise.resolve<SearchDestination[]>([]),
+        wantRoutes
+          ? getRoutesInViewport({ ...bounds, ...center })
+          : Promise.resolve<ViewportRoute[]>([]),
+      ])
+        .then(([nextDestinations, nextRoutes]) => {
+          if (seq !== viewportSeqRef.current) return;
+          setDestinations(nextDestinations);
+          setRoutes(nextRoutes);
+        })
+        .catch(() => {
+          // Keep whatever was already loaded; the next pan retries.
+        })
+        .finally(() => {
+          if (seq === viewportSeqRef.current) setLoading(false);
+        });
+    }, VIEWPORT_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [viewportKey, typesKey]);
+
+  // The URL is the view: pan, zoom, filter or search and the address bar
+  // follows, so any view can be shared or bookmarked. replaceState, not a
+  // router push — a pan is not a page in the reader's history. Nothing is
+  // written until the map has reported a real viewport, so a link that
+  // pinned no view never gets one invented for it.
+  useEffect(() => {
+    if (viewportKey === "") return;
+    window.history.replaceState(
+      null,
+      "",
+      mapExploreHref({
+        view: { lat: centerLat, lng: centerLng, zoom },
+        types: typesRef.current,
+        query,
+      })
+    );
+  }, [viewportKey, centerLat, centerLng, zoom, typesKey, query]);
+
+  const focusResult = useCallback((result: ExploreResult) => {
+    if (result.kind === "route") {
+      setSelectedRouteId(result.id);
+      setSelectedDestinationId(null);
+    } else {
+      setSelectedDestinationId(result.id);
+      setSelectedRouteId(null);
+    }
+
+    const handle = mapHandleRef.current;
+    if (!handle) {
+      // The map is still loading — hold the pick and run it on ready.
+      pendingFocusRef.current = result;
+      return;
+    }
+
+    if (result.kind === "route") {
+      handle.focusRoute(result.id);
+      return;
+    }
+    // A false answer means no marker yet — a search hit from outside the
+    // loaded viewport. The map is already flying there; the popup opens
+    // when the marker arrives.
+    const opened = handle.openDestination(result.id, result.lat, result.lng);
+    pendingPopupRef.current = opened ? null : result.id;
+  }, []);
+
+  const handleMapReady = useCallback(
+    (handle: ExploreMapHandle) => {
+      mapHandleRef.current = handle;
+      const pending = pendingFocusRef.current;
+      if (!pending) return;
+      pendingFocusRef.current = null;
+      focusResult(pending);
+    },
+    [focusResult]
+  );
+
+  // Destination search, proximity-biased toward the map centre.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
+    if (q.length < MIN_SEARCH_LENGTH) {
       setSearchResults([]);
       setSearching(false);
       return;
@@ -142,34 +287,29 @@ export default function MapPage() {
 
     setSearching(true);
     const seq = ++searchSeqRef.current;
-    const timer = setTimeout(async () => {
-      try {
-        const center = centerRef.current;
-        const results = await searchDestinations(
-          q,
-          center?.lat,
-          center?.lng,
-          8
-        );
-        if (seq === searchSeqRef.current) {
-          setSearchResults(results.filter((r) => r.lat != null && r.lng != null));
-        }
-      } catch {
-        // Leave prior results in place; typing again retries.
-      } finally {
-        if (seq === searchSeqRef.current) setSearching(false);
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [query]);
+    const timer = setTimeout(() => {
+      const center = centerRef.current;
+      searchDestinations(q, center.lat, center.lng, SEARCH_RESULT_LIMIT)
+        .then((results) => {
+          if (seq !== searchSeqRef.current) return;
+          const located = results.filter((r) => r.lat != null && r.lng != null);
+          setSearchResults(located);
+          if (followUrlQueryRef.current && located.length > 0) {
+            followUrlQueryRef.current = false;
+            const first = describeDestination(located[0], center.lat, center.lng);
+            if (first) focusResult(first);
+          }
+        })
+        .catch(() => {
+          // Leave prior results in place; typing again retries.
+        })
+        .finally(() => {
+          if (seq === searchSeqRef.current) setSearching(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelection(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [query, focusResult]);
 
   const mapDestinations = useMemo<MapDestination[]>(
     () =>
@@ -179,22 +319,11 @@ export default function MapPage() {
           id: d.id,
           name: d.name,
           elevation: d.elevation,
-          lat: d.lat!,
-          lng: d.lng!,
+          lat: d.lat as number,
+          lng: d.lng as number,
           features: d.features,
         })),
     [destinations]
-  );
-
-  const sortedDestinations = useMemo(
-    () =>
-      [...mapDestinations].sort((a, b) => {
-        if (a.elevation == null && b.elevation == null) return 0;
-        if (a.elevation == null) return 1;
-        if (b.elevation == null) return -1;
-        return b.elevation - a.elevation;
-      }),
-    [mapDestinations]
   );
 
   const mapRoutes = useMemo<MapRoute[]>(
@@ -209,71 +338,116 @@ export default function MapPage() {
     [routes]
   );
 
-  const sortedRoutes = useMemo(
+  const viewportResults = useMemo(
     () =>
-      [...mapRoutes].sort((a, b) => {
-        if (a.distance == null && b.distance == null) return 0;
-        if (a.distance == null) return 1;
-        if (b.distance == null) return -1;
-        return a.distance - b.distance;
+      buildExploreResults({
+        destinations: mapDestinations,
+        routes: mapRoutes,
+        centerLat,
+        centerLng,
       }),
-    [mapRoutes]
+    [mapDestinations, mapRoutes, centerLat, centerLng]
   );
+
+  const searchRows = useMemo(
+    () =>
+      searchResults
+        .map((result) => describeDestination(result, centerLat, centerLng))
+        .filter((result): result is ExploreResult => result !== null),
+    [searchResults, centerLat, centerLng]
+  );
+
+  const results = searchActive ? searchRows : viewportResults;
 
   const hasOsmRouteGeometry = useMemo(
     () => routes.some((r) => r.provenance?.contains_osm_geometry),
     [routes]
   );
 
-  const selectedDestinationId =
-    selection?.kind === "destination" ? selection.destination.id : null;
-  const selectedRouteId = selection?.kind === "route" ? selection.route.id : null;
+  // A cap is a fact about the query, not a label to hang on a filter. The
+  // tabs used to read "Peaks · 200" whether the viewport held 200 peaks or
+  // 20,000; now the count says what it is, and only claims "nearest" when
+  // the read was actually cut short.
+  const capped =
+    destinations.length >= VIEWPORT_DESTINATION_LIMIT ||
+    routes.length >= VIEWPORT_ROUTE_LIMIT;
+  const countLine = searchActive
+    ? searching
+      ? "Searching…"
+      : `${results.length} ${results.length === 1 ? "match" : "matches"}`
+    : (loading || viewportKey === "") && results.length === 0
+      ? // A read in flight — or a map that hasn't reported its first
+        // viewport — is not the same fact as an empty viewport.
+        "Loading results…"
+      : capped
+      ? `Showing the nearest ${results.length.toLocaleString()} results`
+      : `${results.length.toLocaleString()} ${
+          results.length === 1 ? "result" : "results"
+        } in view`;
+
+  const hint =
+    !searchActive && routesSelected(types) && zoom < ROUTE_MIN_ZOOM
+      ? "Routes appear once you zoom in."
+      : null;
+
+  // Re-open a popup for a destination picked before its marker existed.
+  useEffect(() => {
+    const pending = pendingPopupRef.current;
+    if (!pending) return;
+    const match = mapDestinations.find((d) => d.id === pending);
+    if (!match) return;
+    if (mapHandleRef.current?.openDestination(match.id, match.lat, match.lng)) {
+      pendingPopupRef.current = null;
+    }
+  }, [mapDestinations]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelectedDestinationId(null);
+      setSelectedRouteId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const handleSelectDestination = useCallback((destination: MapDestination) => {
-    setSelection({ kind: "destination", destination });
-    setSheetOpen(false);
+    setSelectedDestinationId(destination.id);
+    setSelectedRouteId(null);
   }, []);
 
   const handleSelectRoute = useCallback((route: MapRoute) => {
-    setSelection({ kind: "route", route });
-    setSheetOpen(false);
+    setSelectedRouteId(route.id);
+    setSelectedDestinationId(null);
   }, []);
 
-  const handleClearSelection = useCallback(() => setSelection(null), []);
+  const handleClearSelection = useCallback(() => {
+    setSelectedDestinationId(null);
+    setSelectedRouteId(null);
+  }, []);
 
-  const openDestination = useCallback(
-    (destination: MapDestination) => {
-      handleSelectDestination(destination);
-      mapHandleRef.current?.focusDestination(destination.lat, destination.lng);
+  const handlePick = useCallback(
+    (result: ExploreResult) => {
+      setSheetOpen(false);
+      focusResult(result);
     },
-    [handleSelectDestination]
+    [focusResult]
   );
 
-  const openRoute = useCallback(
-    (route: MapRoute) => {
-      handleSelectRoute(route);
-      mapHandleRef.current?.focusRoute(route.id);
-    },
-    [handleSelectRoute]
-  );
+  const handleHover = useCallback((result: ExploreResult | null) => {
+    setHoveredDestinationId(
+      result && result.kind === "destination" ? result.id : null
+    );
+    setHoveredRouteId(result && result.kind === "route" ? result.id : null);
+  }, []);
 
-  const pickSearchResult = useCallback(
-    (result: SearchDestination) => {
-      const destination: MapDestination = {
-        id: result.id,
-        name: result.name,
-        elevation: result.elevation,
-        lat: result.lat!,
-        lng: result.lng!,
-        features: result.features,
-      };
-      setQuery("");
-      setSearchResults([]);
-      handleSelectDestination(destination);
-      mapHandleRef.current?.focusDestination(destination.lat, destination.lng);
-    },
-    [handleSelectDestination]
-  );
+  const handleToggleType = useCallback((id: MapTypeId) => {
+    setTypes((current) => toggleMapType(current, id));
+  }, []);
+
+  const handleSelectAllTypes = useCallback(() => {
+    setTypes(MAP_TYPES.map((type) => type.id));
+  }, []);
 
   const locateMe = useCallback(() => {
     if (!navigator.geolocation || locating) return;
@@ -291,113 +465,46 @@ export default function MapPage() {
     );
   }, [locating]);
 
-  const searchActive = query.trim().length >= 2;
-  const routesHidden = zoom < ROUTE_MIN_ZOOM && sortedRoutes.length > 0;
-
-  const listPanel = (
-    <ListPanel
-      tab={tab}
-      onTabChange={setTab}
-      loading={loadingViewport}
-      destinations={sortedDestinations}
-      routes={sortedRoutes}
-      selectedDestinationId={selectedDestinationId}
-      selectedRouteId={selectedRouteId}
-      onPickDestination={openDestination}
-      onPickRoute={openRoute}
-      onHoverDestination={setHoveredDestId}
-      onHoverRoute={setHoveredRouteId}
-      routesHidden={routesHidden}
+  const panel = (withHeading: boolean) => (
+    <ExplorePanel
+      showHeading={withHeading}
+      countLine={countLine}
+      hint={hint}
+      loading={loading}
+      query={query}
+      onQueryChange={setQuery}
+      searching={searching}
+      searchActive={searchActive}
+      results={results}
+      selectedId={selectedDestinationId ?? selectedRouteId}
+      onPick={handlePick}
+      onHover={handleHover}
     />
   );
 
-  const searchResultsPanel = (
-    <div className="flex-1 overflow-y-auto">
-      {searching ? (
-        <p className="px-4 py-6 text-center text-sm text-gray-500">
-          Searching…
-        </p>
-      ) : searchResults.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-gray-500">
-          No matches. Try a different name.
-        </p>
-      ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-          {searchResults.map((result) => (
-            <li key={result.id}>
-              <button
-                onClick={() => pickSearchResult(result)}
-                className="w-full px-4 py-2.5 text-left transition-colors hover:bg-blue-50/60 dark:hover:bg-blue-950/30"
-              >
-                <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {result.name || "Unnamed"}
-                </div>
-                <div className="mt-0.5 truncate text-xs text-gray-500">
-                  {[
-                    result.elevation != null
-                      ? formatElevationMeters(result.elevation)
-                      : null,
-                    featureSummary(result.features),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-
-  const searchInput = (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-        <SearchIcon />
-      </span>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setQuery("");
-        }}
-        placeholder="Search peaks & places"
-        className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-8 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-      />
-      {query && (
-        <button
-          onClick={() => setQuery("")}
-          aria-label="Clear search"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-        >
-          <CloseIcon />
-        </button>
-      )}
-    </div>
-  );
-
+  // Full-bleed: the map fills whatever the nav leaves — the wrapper in
+  // MapPage sizes itself off the --chrome-* variables in globals.css rather
+  // than hardcoded pixels, and `(public)/layout.tsx` withholds the footer
+  // and the tab-bar gutter from this segment for the same reason.
+  //
+  // Every piece of chrome below is its own absolutely-positioned element
+  // sized to its own content. Nothing spans the viewport: an overlay
+  // wrapper with pointer-events across the whole page used to swallow drags
+  // and clicks meant for the map.
   return (
-    // Full-bleed: the map fills whatever the nav leaves. Heights come from
-    // the --chrome-* variables in globals.css rather than hardcoded pixels,
-    // so the two stay in step — mobile now has a top bar as well as the tab
-    // bar. `(public)/layout.tsx` withholds the footer and the tab-bar gutter
-    // from this segment for the same reason.
-    <div className="relative h-[calc(100dvh-var(--chrome-top-h)-var(--chrome-bottom-h))] overflow-hidden bg-gray-100 md:h-[calc(100dvh-var(--chrome-h))] dark:bg-gray-900">
+    <>
       <div className="absolute inset-0 z-0">
         <ExploreMap
-          destinations={sortedDestinations}
+          destinations={mapDestinations}
           routes={mapRoutes}
           basemap={basemap}
           selectedDestinationId={selectedDestinationId}
           selectedRouteId={selectedRouteId}
-          hoveredDestinationId={hoveredDestId}
+          hoveredDestinationId={hoveredDestinationId}
           hoveredRouteId={hoveredRouteId}
           showRouteAttribution={hasOsmRouteGeometry}
-          initialView={initialView}
-          onReady={(handle) => {
-            mapHandleRef.current = handle;
-          }}
+          initialView={initial.view}
+          onReady={handleMapReady}
           onViewportChange={handleViewportChange}
           onSelectDestination={handleSelectDestination}
           onSelectRoute={handleSelectRoute}
@@ -405,467 +512,73 @@ export default function MapPage() {
         />
       </div>
 
-      {/* Desktop rail: search + in-view results */}
-      {railOpen ? (
-        <div className="absolute bottom-3 left-3 top-3 z-10 hidden w-[21.5rem] md:block">
-          <div className="flex max-h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white/95 shadow-lg backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
-            <div className="flex items-center gap-2 border-b border-gray-100 p-3 dark:border-gray-800">
-              <div className="flex-1">{searchInput}</div>
-              <button
-                onClick={() => setRailOpen(false)}
-                aria-label="Collapse panel"
-                title="Collapse panel"
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-              >
-                <ChevronLeftIcon />
-              </button>
-            </div>
-            {searchActive ? searchResultsPanel : listPanel}
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setRailOpen(true)}
-          aria-label="Open search and results"
-          title="Search & results"
-          className="absolute left-3 top-3 z-10 hidden items-center gap-2 rounded-lg border border-gray-200 bg-white/95 px-3 py-2.5 text-sm font-medium text-gray-700 shadow-lg backdrop-blur transition-colors hover:bg-white md:flex dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-200 dark:hover:bg-gray-900"
-        >
-          <SearchIcon />
-          Search & results
-        </button>
-      )}
+      {/* Desktop: the floating panel, 400px against the left edge. */}
+      <aside
+        aria-label="Map results"
+        className="absolute bottom-6 left-6 top-6 z-20 hidden w-[400px] flex-col overflow-hidden rounded-media border border-border bg-page shadow-float md:flex"
+      >
+        {panel(true)}
+      </aside>
 
-      {/* Mobile search pill */}
-      <div className="absolute left-3 right-[3.75rem] top-3 z-10 md:hidden">
-        <div className="rounded-xl border border-gray-200 bg-white/95 p-1.5 shadow-lg backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
-          {searchInput}
-        </div>
-        {searchActive && (
-          <div className="mt-2 flex max-h-[45dvh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
-            {searchResultsPanel}
-          </div>
-        )}
-      </div>
+      {/* The panel's heading is the page's h1, and the panel is desktop-only.
+          Below md the sheet's handle names the view instead, so the heading
+          survives for a screen reader without printing twice. */}
+      <h1 className="sr-only md:hidden">Explore the map</h1>
 
-      {/* Map controls */}
-      <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
-        <div className="flex flex-col divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:divide-gray-700 dark:border-gray-800 dark:bg-gray-900">
-          <ControlButton
-            label="Zoom in"
-            onClick={() => mapHandleRef.current?.zoomIn()}
-          >
-            <PlusIcon />
-          </ControlButton>
-          <ControlButton
-            label="Zoom out"
-            onClick={() => mapHandleRef.current?.zoomOut()}
-          >
-            <MinusIcon />
-          </ControlButton>
-        </div>
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
-          <ControlButton
-            label={
-              basemap === "topo"
-                ? "Switch to satellite"
-                : "Switch to topo"
-            }
-            onClick={() =>
-              setBasemap((prev) => (prev === "topo" ? "satellite" : "topo"))
-            }
-          >
-            <LayersIcon />
-          </ControlButton>
-        </div>
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900">
-          <ControlButton label="Show my location" onClick={locateMe}>
-            <span className={locating ? "animate-pulse" : undefined}>
-              <CrosshairIcon />
-            </span>
-          </ControlButton>
-        </div>
-      </div>
+      {/* Filters float over the map: clear of the panel on desktop, across
+          the top on mobile, where they scroll sideways. */}
+      <ExploreChips
+        types={types}
+        onToggle={handleToggleType}
+        onSelectAll={handleSelectAllTypes}
+        className="absolute left-3 right-3 top-3 z-20 md:left-[28rem] md:right-24 md:top-6"
+      />
 
-      {/* Routes-hidden hint */}
-      {routesHidden && !selection && (
-        <button
-          onClick={() => mapHandleRef.current?.zoomTo(ROUTE_MIN_ZOOM)}
-          className="absolute left-1/2 top-[3.75rem] z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-gray-200 bg-white/95 px-3.5 py-1.5 text-xs font-medium text-gray-700 shadow-lg backdrop-blur transition-colors hover:bg-white md:bottom-6 md:top-auto dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-200 dark:hover:bg-gray-900"
-        >
-          {sortedRoutes.length}{" "}
-          {sortedRoutes.length === 1 ? "route" : "routes"} here — zoom in to
-          see {sortedRoutes.length === 1 ? "it" : "them"}
-        </button>
-      )}
+      <ExploreControls
+        onZoomIn={() => mapHandleRef.current?.zoomIn()}
+        onZoomOut={() => mapHandleRef.current?.zoomOut()}
+        onLocate={locateMe}
+        locating={locating}
+        basemap={basemap}
+        onToggleBasemap={() =>
+          setBasemap((current) => (current === "topo" ? "satellite" : "topo"))
+        }
+        className="absolute right-3 top-14 z-20 md:right-6 md:top-6"
+      />
 
-      {/* Selection card */}
-      {selection && (
-        <div className="absolute inset-x-3 bottom-14 z-20 md:inset-x-auto md:bottom-6 md:right-3 md:w-80">
-          <div className="relative rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-800 dark:bg-gray-900">
-            <button
-              onClick={handleClearSelection}
-              aria-label="Close"
-              className="absolute right-2.5 top-2.5 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            >
-              <CloseIcon />
-            </button>
-            {selection.kind === "destination" ? (
-              <>
-                <div className="pr-8 text-base font-semibold leading-tight text-gray-950 dark:text-white">
-                  {selection.destination.name || "Unnamed destination"}
-                </div>
-                <div className="mt-1 text-sm text-gray-500">
-                  {selection.destination.elevation != null
-                    ? formatElevationMeters(selection.destination.elevation)
-                    : "Destination guide"}
-                </div>
-                {selection.destination.features.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {selection.destination.features
-                      .slice(0, 3)
-                      .map((feature, i) => (
-                        <Badge key={feature} tone={i === 0 ? "emerald" : "gray"}>
-                          {feature}
-                        </Badge>
-                      ))}
-                  </div>
-                )}
-                <Link
-                  href={`/destinations/${selection.destination.id}`}
-                  className="mt-3.5 block rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                >
-                  View guide
-                </Link>
-              </>
-            ) : (
-              <>
-                <div className="pr-8 text-base font-semibold leading-tight text-gray-950 dark:text-white">
-                  {selection.route.name || "Unnamed route"}
-                </div>
-                <div className="mt-1 text-sm text-gray-500">
-                  {formatDistanceMeters(selection.route.distance)} ·{" "}
-                  {formatElevationMeters(selection.route.gain)} gain
-                </div>
-                <Link
-                  href={`/routes/${selection.route.id}`}
-                  className="mt-3.5 block rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                >
-                  View route
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Mobile bottom sheet */}
-      <div className="absolute inset-x-0 bottom-0 z-10 md:hidden">
+      {/* Mobile: the same panel as a bottom sheet. Collapsed it is a handle
+          and the count; the wrapper takes no pointer events so the map
+          underneath stays draggable right up to the sheet itself. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 md:hidden">
         {sheetOpen ? (
-          <div className="flex h-[55dvh] flex-col overflow-hidden rounded-t-2xl border-x border-t border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+          <div className="pointer-events-auto flex h-[60dvh] flex-col overflow-hidden rounded-t-media border-x border-t border-border bg-page shadow-float">
+            {/* Open, the handle is only a handle — the panel under it
+                carries the count, and printing it twice reads as a bug. */}
             <button
+              type="button"
               onClick={() => setSheetOpen(false)}
-              className="flex w-full flex-col items-center gap-1 border-b border-gray-100 py-2 dark:border-gray-800"
-              aria-label="Collapse list"
+              aria-expanded="true"
+              aria-label="Collapse results"
+              className="flex w-full shrink-0 flex-col items-center py-3"
             >
-              <span className="h-1 w-9 rounded-full bg-gray-300 dark:bg-gray-700" />
-              <span className="text-xs font-medium text-gray-500">
-                {inViewSummary(sortedDestinations.length, sortedRoutes.length)}
-              </span>
+              <span className="h-1 w-9 rounded-full bg-border" />
             </button>
-            {listPanel}
+            {panel(false)}
           </div>
         ) : (
-          <div className="pointer-events-none flex justify-center pb-3">
+          <div className="p-3">
             <button
+              type="button"
               onClick={() => setSheetOpen(true)}
-              className="pointer-events-auto flex items-center gap-2 rounded-full border border-gray-200 bg-white/95 px-4 py-2 text-sm font-medium text-gray-700 shadow-lg backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-200"
+              aria-expanded="false"
+              className="pointer-events-auto flex w-full flex-col items-center gap-1.5 rounded-media border border-border bg-page py-2.5 shadow-float"
             >
-              {loadingViewport ? (
-                <Spinner />
-              ) : (
-                <ChevronUpIcon />
-              )}
-              {inViewSummary(sortedDestinations.length, sortedRoutes.length)}
+              <span className="h-1 w-9 rounded-full bg-border" />
+              <span className="text-[13px] text-muted">{countLine}</span>
             </button>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function inViewSummary(peakCount: number, routeCount: number): string {
-  const peaks = `${peakCount.toLocaleString()} ${peakCount === 1 ? "peak" : "peaks"}`;
-  const routes = `${routeCount.toLocaleString()} ${routeCount === 1 ? "route" : "routes"}`;
-  return `${peaks} · ${routes} in view`;
-}
-
-function ListPanel({
-  tab,
-  onTabChange,
-  loading,
-  destinations,
-  routes,
-  selectedDestinationId,
-  selectedRouteId,
-  onPickDestination,
-  onPickRoute,
-  onHoverDestination,
-  onHoverRoute,
-  routesHidden,
-}: {
-  tab: ListTab;
-  onTabChange: (tab: ListTab) => void;
-  loading: boolean;
-  destinations: MapDestination[];
-  routes: MapRoute[];
-  selectedDestinationId: string | null;
-  selectedRouteId: string | null;
-  onPickDestination: (destination: MapDestination) => void;
-  onPickRoute: (route: MapRoute) => void;
-  onHoverDestination: (id: string | null) => void;
-  onHoverRoute: (id: string | null) => void;
-  routesHidden: boolean;
-}) {
-  return (
-    <>
-      <div className="flex items-center gap-1 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-        <TabButton active={tab === "peaks"} onClick={() => onTabChange("peaks")}>
-          Peaks · {destinations.length.toLocaleString()}
-        </TabButton>
-        <TabButton
-          active={tab === "routes"}
-          onClick={() => onTabChange("routes")}
-        >
-          Routes · {routes.length.toLocaleString()}
-        </TabButton>
-        {loading && (
-          <span className="ml-auto pr-1 text-gray-400">
-            <Spinner />
-          </span>
-        )}
-      </div>
-      <div className="flex-1 overflow-y-auto overscroll-contain">
-        {tab === "peaks" ? (
-          destinations.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-gray-500">
-              No peaks in view. Pan or zoom out to load more.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {destinations.map((destination) => (
-                <li key={destination.id}>
-                  <button
-                    onClick={() => onPickDestination(destination)}
-                    onMouseEnter={() => onHoverDestination(destination.id)}
-                    onMouseLeave={() => onHoverDestination(null)}
-                    className={`w-full px-4 py-2.5 text-left transition-colors hover:bg-blue-50/60 dark:hover:bg-blue-950/30 ${
-                      destination.id === selectedDestinationId
-                        ? "bg-blue-50 dark:bg-blue-950/40"
-                        : ""
-                    }`}
-                  >
-                    <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {destination.name || "Unnamed"}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-gray-500">
-                      {[
-                        destination.elevation != null
-                          ? formatElevationMeters(destination.elevation)
-                          : null,
-                        featureSummary(destination.features),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "Destination guide"}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : routes.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-gray-500">
-            No published routes in view. Pan across route-dense terrain to load
-            some.
-          </p>
-        ) : (
-          <>
-            {routesHidden && (
-              <p className="border-b border-gray-100 bg-amber-50/60 px-4 py-2 text-xs text-amber-800 dark:border-gray-800 dark:bg-amber-950/30 dark:text-amber-300">
-                Route lines appear on the map once you zoom in. Tap a route to
-                fly to it.
-              </p>
-            )}
-            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {routes.map((route) => (
-                <li key={route.id}>
-                  <button
-                    onClick={() => onPickRoute(route)}
-                    onMouseEnter={() => onHoverRoute(route.id)}
-                    onMouseLeave={() => onHoverRoute(null)}
-                    className={`w-full px-4 py-2.5 text-left transition-colors hover:bg-orange-50/60 dark:hover:bg-orange-950/20 ${
-                      route.id === selectedRouteId
-                        ? "bg-orange-50 dark:bg-orange-950/30"
-                        : ""
-                    }`}
-                  >
-                    <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {route.name || "Unnamed route"}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-gray-500">
-                      {formatDistanceMeters(route.distance)} ·{" "}
-                      {formatElevationMeters(route.gain)} gain
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
         )}
       </div>
     </>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-        active
-          ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-          : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ControlButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="flex h-10 w-10 items-center justify-center text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg
-      className="h-4 w-4 animate-spin"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"
-      />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function LayersIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
-  );
-}
-
-function CrosshairIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="7" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-      <line x1="12" y1="2" x2="12" y2="5" />
-      <line x1="12" y1="19" x2="12" y2="22" />
-      <line x1="2" y1="12" x2="5" y2="12" />
-      <line x1="19" y1="12" x2="22" y2="12" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronUpIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="18 15 12 9 6 15" />
-    </svg>
   );
 }

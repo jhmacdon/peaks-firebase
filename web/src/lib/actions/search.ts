@@ -8,6 +8,10 @@ import {
   type RouteProvenance,
 } from "../route-provenance";
 import { normalizeAreaKind, type AreaKind } from "../area-types";
+import {
+  VIEWPORT_DESTINATION_LIMIT,
+  VIEWPORT_ROUTE_LIMIT,
+} from "../map-view";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -531,28 +535,63 @@ export async function getUnclimbedDestinations(
 }
 
 /**
- * All destinations whose location falls within the given bounding box.
- * Uses ST_Intersects with ST_MakeEnvelope for spatial index efficiency.
+ * What the map explorer asks for: the box it is showing, the point it is
+ * centred on, and (for destinations) which features to keep.
+ */
+export interface ViewportQuery {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  /** Ordering anchor. Rows come back nearest-first, so the row cap keeps
+   * the results closest to the middle of the screen — which is what lets
+   * the panel say "the nearest 200" and mean it. */
+  centerLat: number;
+  centerLng: number;
+  limit?: number;
+}
+
+export interface DestinationViewportQuery extends ViewportQuery {
+  /** `destination_feature` values to keep. Null or omitted keeps every
+   * destination in the box. */
+  features?: string[] | null;
+}
+
+/**
+ * Destinations inside the viewport, nearest to the centre first.
+ *
+ * `&&` (bounding-box overlap on the GiST index) rather than
+ * `ST_Intersects`: for a point column the two answer identically, and the
+ * bbox operator lets the index do all the work — measured on prod, a
+ * continent-wide box went from 2.4s to 250ms. Ordering is the geography KNN
+ * operator, which walks the same index in distance order instead of sorting
+ * every match.
  */
 export async function getDestinationsInViewport(
-  minLat: number,
-  maxLat: number,
-  minLng: number,
-  maxLng: number,
-  limit: number = 200
+  query: DestinationViewportQuery
 ): Promise<SearchDestination[]> {
+  const features = query.features?.length ? query.features : null;
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
             activities, features,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
-     WHERE ST_Intersects(
-       location,
-       ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
-     )
-     LIMIT $5`,
-    [minLng, minLat, maxLng, maxLat, limit]
+     WHERE location && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
+       AND ($7::destination_feature[] IS NULL
+            OR features && $7::destination_feature[])
+     ORDER BY location <-> ST_MakePoint($6, $5)::geography
+     LIMIT $8`,
+    [
+      query.minLng,
+      query.minLat,
+      query.maxLng,
+      query.maxLat,
+      query.centerLat,
+      query.centerLng,
+      features,
+      query.limit ?? VIEWPORT_DESTINATION_LIMIT,
+    ]
   );
 
   return result.rows.map((r: any) => ({
@@ -569,15 +608,18 @@ export async function getDestinationsInViewport(
 }
 
 /**
- * All routes whose path intersects the given bounding box.
- * Returns lightweight data suitable for map overlays.
+ * Routes crossing the viewport, nearest to the centre first.
+ *
+ * Same bbox-first shape as the destination query. Here `&&` is genuinely
+ * looser than `ST_Intersects` — a route whose bounding box clips the corner
+ * of the screen can come back without a metre of it being visible — but the
+ * exact test walks every vertex of every candidate path, which measured 21s
+ * on a continent-wide box against 2s for this. The explorer only calls this
+ * at ROUTE_MIN_ZOOM and above, where a route's bounding box is a fair proxy
+ * for the route.
  */
 export async function getRoutesInViewport(
-  minLat: number,
-  maxLat: number,
-  minLng: number,
-  maxLng: number,
-  limit: number = 100
+  query: ViewportQuery
 ): Promise<ViewportRoute[]> {
   const result = await db.query(
     `SELECT id, name, polyline6, distance, gain, provenance
@@ -585,12 +627,18 @@ export async function getRoutesInViewport(
      WHERE path IS NOT NULL
        AND owner = 'peaks'
        AND status = 'active'
-       AND ST_Intersects(
-         path,
-         ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
-       )
-     LIMIT $5`,
-    [minLng, minLat, maxLng, maxLat, limit]
+       AND path && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
+     ORDER BY path <-> ST_MakePoint($6, $5)::geography
+     LIMIT $7`,
+    [
+      query.minLng,
+      query.minLat,
+      query.maxLng,
+      query.maxLat,
+      query.centerLat,
+      query.centerLng,
+      query.limit ?? VIEWPORT_ROUTE_LIMIT,
+    ]
   );
 
   return result.rows.map((r: any) => ({

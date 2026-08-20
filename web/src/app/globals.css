@@ -164,8 +164,11 @@ a {
 .btn-danger:hover {
   background: color-mix(in srgb, var(--color-alert) 8%, transparent);
 }
+/* Mixed into the page colour rather than into transparency: on a page the
+   two are identical, but a chip floating over map tiles has to be opaque or
+   the terrain reads straight through the selected state. */
 .chip-selected {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-page));
 }
 
 /* ── App chrome (components/app-nav.tsx) ──────────────────────────────────
@@ -251,9 +254,10 @@ a {
    (components/destination-map.tsx). The credit has to stay readable and
    clickable — it's the tile licence — but Leaflet's default 12px white bar
    reads as page furniture on a 16px-radius media tile. Scoped to the class
-   rather than styling `.leaflet-control-attribution` globally so the map
-   explorer and the admin maps keep Leaflet's own chrome until Task 16
-   settles them. */
+   rather than styling `.leaflet-control-attribution` globally so the admin
+   maps keep Leaflet's own chrome; the reader-facing maps — the two detail
+   embeds, the area map, and (since Task 16) the explorer — all carry
+   `.map-embed`. */
 /* `.leaflet-container` is the same element as `.map-embed` — both classes
    land on the div handed to L.map(). It's in the selector only to outweigh
    Leaflet's own `.leaflet-container .leaflet-control-attribution`, which is
@@ -272,15 +276,65 @@ a {
   text-decoration: underline;
 }
 
-/* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
-.peak-label {
+/* Popups and tooltips inside a `.map-embed`. Leaflet's defaults are a white
+   card with a 12px radius and a blue link; these put both on the page's
+   tokens so a popup over the map reads as part of the site. Content is
+   built as DOM nodes in the map components (never HTML strings), so the
+   only styling hooks are these classes. */
+.map-embed .leaflet-popup-content-wrapper,
+.map-embed .leaflet-popup-tip {
+  background: var(--color-page);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+}
+
+.map-embed .leaflet-popup-content-wrapper {
+  border-radius: var(--radius-ctl);
+}
+
+.map-embed .leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.45;
+}
+
+.map-embed .map-popup-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent-text);
+}
+
+.map-embed .leaflet-popup-close-button {
+  color: var(--color-faint);
+}
+
+.map-embed .leaflet-tooltip {
+  background: var(--color-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-ctl);
+  box-shadow: none;
+  color: var(--color-ink-2);
+  font-size: 12px;
+}
+
+.map-embed .leaflet-tooltip-top::before {
+  border-top-color: var(--color-border);
+}
+
+/* Map explorer peak labels (Leaflet tooltips promoted to permanent). Not
+   theme tokens: these sit directly on topo tiles, which are the same pale
+   paper in either theme, so a token that inverts with the OS would put
+   near-white type on near-white contours half the time. Same reasoning as
+   `.photo-credit` above. */
+.map-embed .peak-label {
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
   font-weight: 600;
   font-size: 11px;
-  color: #111827;
+  color: #21211f;
   text-shadow:
     -1px -1px 0 rgba(255, 255, 255, 0.9),
     1px -1px 0 rgba(255, 255, 255, 0.9),
@@ -288,6 +342,19 @@ a {
     1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.peak-label::before {
+.map-embed .peak-label::before {
   display: none;
+}
+
+/* "You are here" dot, dropped by the explorer's locate control. Fixed
+   colours for the same reason as the peak labels — it sits on tiles. */
+.map-user-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #46adbc;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 6px rgb(70 173 188 / 0.25),
+    0 1px 4px rgb(0 0 0 / 0.4);
 }

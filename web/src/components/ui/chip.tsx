@@ -31,16 +31,23 @@ export function Chip({
     : "border-border text-ink-2 hover:border-ink-2";
   const removeLabel = `Remove${typeof children === "string" ? ` ${children}` : ""}`;
 
+  // With no remove control the label button IS the pill, so the padding
+  // lives on the button and the whole chip is clickable — a chip floating
+  // over a map is a touch target, not a label with a small button in it.
+  // With one, the two controls share the pill and the padding stays on the
+  // wrapper so they sit side by side.
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border py-1 pl-3 ${
-        onRemove ? "pr-1.5" : "pr-3"
+      className={`inline-flex items-center gap-1 rounded-full border ${
+        onRemove ? "py-1 pl-3 pr-1.5" : ""
       } text-[13px] font-medium transition-colors ${tone} ${className}`.trim()}
     >
       <button
         type="button"
         aria-pressed={selected}
-        className="appearance-none border-0 bg-transparent p-0 text-current"
+        className={`appearance-none rounded-full border-0 bg-transparent text-current ${
+          onRemove ? "p-0" : "px-3 py-1.5"
+        }`}
         {...rest}
       >
         {children}
