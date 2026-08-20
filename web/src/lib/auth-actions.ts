@@ -12,3 +12,14 @@ export async function verifyToken(
     return null;
   }
 }
+
+export async function verifyAdminToken(
+  token: string
+): Promise<{ uid: string } | null> {
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    return decoded.admin === true ? { uid: decoded.uid } : null;
+  } catch {
+    return null;
+  }
+}
