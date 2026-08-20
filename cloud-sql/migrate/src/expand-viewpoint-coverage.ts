@@ -217,9 +217,10 @@ export function parseViewpointExpansionArgs(
   }
   const subdivisionCode = normalizedSubdivision ??
     (stateCode ? `US-${stateCode}` : null);
+  const isUsStateScope = !requestedCountry && !requestedSubdivision;
 
   const rawBbox = optionValue(argv, "bbox");
-  if (rawBbox && requestedState) {
+  if (rawBbox && isUsStateScope) {
     throw new Error("--bbox is supported with --country or --subdivision");
   }
   let bbox: [number, number, number, number] | null = null;
@@ -248,7 +249,7 @@ export function parseViewpointExpansionArgs(
   }
 
   const requestedScope = optionValue(argv, "scope");
-  if (requestedScope && requestedState) {
+  if (requestedScope && isUsStateScope) {
     throw new Error("--scope is supported with --country or --subdivision");
   }
   if ((bbox || osmRelationId) && !requestedScope) {

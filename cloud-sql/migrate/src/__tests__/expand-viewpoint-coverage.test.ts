@@ -90,6 +90,10 @@ test("rejects unclear or invalid jurisdiction scopes", () => {
     "--bbox=27,86,29,88",
     "--osm-relation=3531450",
   ]), /either --bbox or --osm-relation/);
+  assert.throws(() => parseViewpointExpansionArgs([
+    "--scope=hidden-washington-box",
+    "--bbox=46,-123,49,-117",
+  ]), /supported with --country or --subdivision/);
 });
 
 test("reads a complete reviewed import argument set", () => {
