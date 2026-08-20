@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { textPopup } from "./map-popups";
 
 interface DestinationMapProps {
   lat: number;
@@ -41,7 +42,7 @@ export default function DestinationMap({ lat, lng, name, boundary }: Destination
     });
 
     const marker = L.marker([lat, lng], { icon }).addTo(map);
-    if (name) marker.bindPopup(name);
+    if (name) marker.bindPopup(textPopup(name));
 
     if (boundary) {
       const polygon = L.geoJSON(

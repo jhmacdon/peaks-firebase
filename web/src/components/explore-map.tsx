@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { destinationPopup, routePopup } from "./map-popups";
 
 interface ExploreMapProps {
   destinations: Array<{
@@ -175,19 +176,6 @@ export default function ExploreMap({
     for (const dest of destinations) {
       if (dest.lat == null || dest.lng == null) continue;
 
-      const elevFt =
-        dest.elevation != null
-          ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-          : "";
-      const popupContent = `
-        <div style="min-width:140px">
-          <div style="font-weight:600;margin-bottom:4px">${dest.name || "Unnamed"}</div>
-          ${elevFt ? `<div style="font-size:12px;color:#666">${elevFt}</div>` : ""}
-          ${dest.features.length > 0 ? `<div style="font-size:11px;color:#888;margin-top:2px">${dest.features.join(", ")}</div>` : ""}
-          <a href="/destinations/${dest.id}" style="display:inline-block;margin-top:6px;font-size:12px;color:#2563eb;text-decoration:none">View Details</a>
-        </div>
-      `;
-
       L.circleMarker([dest.lat, dest.lng], {
         radius: 5,
         fillColor: "#2563eb",
@@ -195,20 +183,19 @@ export default function ExploreMap({
         color: "#ffffff",
         weight: 1.5,
       })
-        .bindPopup(popupContent)
+        .bindPopup(destinationPopup(dest))
         .addTo(layer);
     }
   }, [destinations]);
 
-  // Update route polylines
-  useEffect(() => {
+  // Draw route polylines; routes only show at zoom >= 11
+  const renderRoutes = useCallback(() => {
     const layer = routesLayerRef.current;
     const map = mapInstance.current;
     if (!layer || !map) return;
 
     layer.clearLayers();
 
-    // Only show routes at zoom >= 11
     if (map.getZoom() < 11) return;
 
     for (const route of routes) {
@@ -224,60 +211,28 @@ export default function ExploreMap({
       });
 
       if (route.name) {
-        polyline.bindPopup(
-          `<div>
-            <div style="font-weight:600">${route.name}</div>
-            <a href="/routes/${route.id}" style="display:inline-block;margin-top:4px;font-size:12px;color:#2563eb;text-decoration:none">View Route</a>
-          </div>`
-        );
+        polyline.bindPopup(routePopup({ id: route.id, name: route.name }));
       }
 
       polyline.addTo(layer);
     }
   }, [routes]);
 
+  // Update route polylines when data changes
+  useEffect(() => {
+    renderRoutes();
+  }, [renderRoutes]);
+
   // Re-render routes on zoom change (show/hide based on zoom level)
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
 
-    const onZoom = () => {
-      const layer = routesLayerRef.current;
-      if (!layer) return;
-
-      layer.clearLayers();
-
-      if (map.getZoom() < 11) return;
-
-      for (const route of routes) {
-        if (!route.polyline6) continue;
-        const coords = decodePolyline6(route.polyline6);
-        if (coords.length < 2) continue;
-
-        const polyline = L.polyline(coords, {
-          color: "#f97316",
-          weight: 2.5,
-          opacity: 0.8,
-        });
-
-        if (route.name) {
-          polyline.bindPopup(
-            `<div>
-              <div style="font-weight:600">${route.name}</div>
-              <a href="/routes/${route.id}" style="display:inline-block;margin-top:4px;font-size:12px;color:#2563eb;text-decoration:none">View Route</a>
-            </div>`
-          );
-        }
-
-        polyline.addTo(layer);
-      }
-    };
-
-    map.on("zoomend", onZoom);
+    map.on("zoomend", renderRoutes);
     return () => {
-      map.off("zoomend", onZoom);
+      map.off("zoomend", renderRoutes);
     };
-  }, [routes]);
+  }, [renderRoutes]);
 
   return (
     <div
