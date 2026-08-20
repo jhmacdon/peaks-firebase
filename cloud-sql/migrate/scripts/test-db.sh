@@ -31,7 +31,13 @@ export ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL="${ROUTE_INTEGRITY_REPAIR_TEST_D
 export DESTINATION_SESSION_LINK_TEST_DATABASE_URL="${DESTINATION_SESSION_LINK_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
 export AREAS_LINKING_TEST_DATABASE_URL="${AREAS_LINKING_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
 
+# These DB-backed suites share one database, and several run global job-seed
+# commands (e.g. "seed" CLI invocations that scan/claim across a shared job
+# queue table) rather than scoping to rows they created. Node runs test files
+# concurrently by default, so two such suites racing against the same tables
+# collide. Test files must not run concurrently here. TEST_CONCURRENCY
+# overrides this for a subset of files known not to collide.
 if [[ $# -gt 0 ]]; then
-  exec env NODE_ENV=test node --test --import tsx "$@"
+  exec env NODE_ENV=test node --test --test-concurrency="${TEST_CONCURRENCY:-1}" --import tsx "$@"
 fi
-exec env NODE_ENV=test node --test --import tsx src/__tests__/*.test.ts
+exec env NODE_ENV=test node --test --test-concurrency="${TEST_CONCURRENCY:-1}" --import tsx src/__tests__/*.test.ts
