@@ -17,7 +17,7 @@ import { Button } from "./ui/button";
 // brand invisible on phones — the top bar fixes that.
 //
 // Exactly one sign-in affordance is visible per viewport: the desktop bar's
-// quiet "Log in", or the mobile tab bar's "Sign In" tab. Neither viewport
+// quiet "Log in", or the mobile tab bar's "Log in" tab. Neither viewport
 // shows both.
 
 const APP_STORE_URL =
@@ -156,7 +156,7 @@ export default function AppNav() {
   // Account — and Lists stops disappearing the moment a user signs in.
   const tabs: NavLink[] = signedIn
     ? [...MOBILE_BROWSE_TABS, ...ACTIVITY_LINKS]
-    : [...MOBILE_BROWSE_TABS, { href: "/login", label: "Sign In" }];
+    : [...MOBILE_BROWSE_TABS, { href: "/login", label: "Log in" }];
 
   return (
     <>
@@ -438,7 +438,7 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
       );
-    case "Sign In":
+    case "Log in":
       return (
         <svg {...props}>
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />

@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { TripReportBlock } from "../lib/actions/trip-reports";
+import { Button } from "./ui/button";
+import { Label, Input, Textarea } from "./ui/field";
 
 interface BlockEditorProps {
   blocks: TripReportBlock[];
@@ -51,12 +53,10 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
   return (
     <div className="space-y-4">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        Content Blocks
-      </label>
+      <Label>Content Blocks</Label>
 
       {blocks.length === 0 && (
-        <div className="text-sm text-gray-500 py-6 text-center bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+        <div className="text-sm text-muted py-6 text-center rounded-media border border-border bg-surface">
           No blocks yet. Add a text or photo block to get started.
         </div>
       )}
@@ -65,7 +65,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         {blocks.map((block, index) => (
           <div
             key={index}
-            className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 ${
+            className={`rounded-media border border-border bg-surface p-4 ${
               dragIndex === index ? "opacity-50" : ""
             }`}
             draggable
@@ -85,7 +85,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             {/* Block header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="cursor-grab text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <span className="cursor-grab text-faint hover:text-ink-2">
                   <svg
                     width="16"
                     height="16"
@@ -104,7 +104,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                     <circle cx="15" cy="18" r="1" fill="currentColor" />
                   </svg>
                 </span>
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <span className="text-xs font-medium text-muted uppercase tracking-wide">
                   {block.type === "text"
                     ? "Text"
                     : block.placement === "header"
@@ -117,7 +117,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   type="button"
                   onClick={() => moveBlock(index, "up")}
                   disabled={index === 0}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1 text-faint hover:text-ink-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Move up"
                 >
                   <svg
@@ -137,7 +137,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   type="button"
                   onClick={() => moveBlock(index, "down")}
                   disabled={index === blocks.length - 1}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1 text-faint hover:text-ink-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Move down"
                 >
                   <svg
@@ -156,7 +156,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 <button
                   type="button"
                   onClick={() => deleteBlock(index)}
-                  className="p-1 text-red-400 hover:text-red-600"
+                  className="p-1 text-alert/70 hover:text-alert"
                   title="Delete block"
                 >
                   <svg
@@ -178,28 +178,27 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
             {/* Block content */}
             {block.type === "text" ? (
-              <textarea
+              <Textarea
                 value={block.content}
                 onChange={(e) =>
                   updateBlock(index, { content: e.target.value })
                 }
                 placeholder="Write your text here..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-y"
+                className="resize-y"
               />
             ) : (
               <div className="space-y-2">
-                <input
+                <Input
                   type="url"
                   value={block.content}
                   onChange={(e) =>
                     updateBlock(index, { content: e.target.value })
                   }
                   placeholder="Peaks Firebase Storage image URL"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 {block.content && (
-                  <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <div className="rounded-ctl overflow-hidden border border-border">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={block.content}
@@ -211,14 +210,13 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                     />
                   </div>
                 )}
-                <input
+                <Input
                   type="text"
                   value={block.caption || ""}
                   onChange={(e) =>
                     updateBlock(index, { caption: e.target.value })
                   }
                   placeholder="Caption (optional)"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
             )}
@@ -228,11 +226,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
       {/* Add block buttons */}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={addTextBlock}
-          className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-        >
+        <Button type="button" variant="secondary" onClick={addTextBlock}>
           <svg
             width="14"
             height="14"
@@ -247,12 +241,8 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Add Text
-        </button>
-        <button
-          type="button"
-          onClick={addPhotoBlock}
-          className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-        >
+        </Button>
+        <Button type="button" variant="secondary" onClick={addPhotoBlock}>
           <svg
             width="14"
             height="14"
@@ -267,7 +257,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Add Photo
-        </button>
+        </Button>
       </div>
     </div>
   );
