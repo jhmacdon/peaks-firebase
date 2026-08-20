@@ -1,16 +1,144 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { TripReportBlock } from "../lib/actions/trip-reports";
+import { maybeDownscaleImage } from "../lib/image-downscale";
+import { REPORT_PHOTO_UPLOAD_LIMITS, validateImageFile } from "../lib/image-upload";
+import { uploadReportPhoto } from "../lib/storage";
 import { Button } from "./ui/button";
 import { Label, Input, Textarea } from "./ui/field";
+
+const REPORT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+
+interface PhotoBlockFieldsProps {
+  content: string;
+  caption: string;
+  userId: string;
+  sessionId: string | null;
+  onChange: (updates: Partial<TripReportBlock>) => void;
+}
+
+/** The photo half of a block: upload control (with progress + inline
+ * error), preview, and caption. Upload state (uploading/progress/error) is
+ * local to one block, not lifted to BlockEditor, since each photo block
+ * uploads independently. */
+function PhotoBlockFields({
+  content,
+  caption,
+  userId,
+  sessionId,
+  onChange,
+}: PhotoBlockFieldsProps) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = ""; // allow re-selecting the same file after an error
+      if (!file) return;
+
+      const validation = validateImageFile(file, REPORT_PHOTO_UPLOAD_LIMITS);
+      if (!validation.ok) {
+        setError(validation.error);
+        return;
+      }
+
+      setError(null);
+      setUploading(true);
+      setProgress(0);
+      try {
+        const { blob, contentType } = await maybeDownscaleImage(file);
+        const url = await uploadReportPhoto(
+          userId,
+          sessionId,
+          blob,
+          contentType,
+          (fraction) => setProgress(Math.round(fraction * 100))
+        );
+        onChange({ content: url });
+      } catch {
+        setError("Upload failed. Try again.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onChange, userId, sessionId]
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading
+            ? `Uploading… ${progress}%`
+            : content
+              ? "Replace photo"
+              : "Choose photo"}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={REPORT_PHOTO_ACCEPT}
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <span className="text-xs text-faint">{REPORT_PHOTO_UPLOAD_LIMITS.label}. Up to 10MB.</span>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-alert">
+          {error}
+        </p>
+      )}
+
+      {content && (
+        <div className="rounded-ctl overflow-hidden border border-border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={content}
+            alt={caption || "Photo"}
+            className="max-h-48 w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </div>
+      )}
+
+      <Input
+        type="text"
+        value={caption}
+        onChange={(e) => onChange({ caption: e.target.value })}
+        placeholder="Caption (optional)"
+      />
+    </div>
+  );
+}
 
 interface BlockEditorProps {
   blocks: TripReportBlock[];
   onChange: (blocks: TripReportBlock[]) => void;
+  /** Needed to scope uploaded photos under `trip-reports/{userId}/{sessionId}/…`
+   * per storage.rules. */
+  userId: string;
+  sessionId: string | null;
 }
 
-export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
+export default function BlockEditor({
+  blocks,
+  onChange,
+  userId,
+  sessionId,
+}: BlockEditorProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const addTextBlock = useCallback(() => {
@@ -188,37 +316,13 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 className="resize-y"
               />
             ) : (
-              <div className="space-y-2">
-                <Input
-                  type="url"
-                  value={block.content}
-                  onChange={(e) =>
-                    updateBlock(index, { content: e.target.value })
-                  }
-                  placeholder="Peaks Firebase Storage image URL"
-                />
-                {block.content && (
-                  <div className="rounded-ctl overflow-hidden border border-border">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={block.content}
-                      alt={block.caption || "Photo"}
-                      className="max-h-48 w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-                )}
-                <Input
-                  type="text"
-                  value={block.caption || ""}
-                  onChange={(e) =>
-                    updateBlock(index, { caption: e.target.value })
-                  }
-                  placeholder="Caption (optional)"
-                />
-              </div>
+              <PhotoBlockFields
+                content={block.content}
+                caption={block.caption || ""}
+                userId={userId}
+                sessionId={sessionId}
+                onChange={(updates) => updateBlock(index, updates)}
+              />
             )}
           </div>
         ))}

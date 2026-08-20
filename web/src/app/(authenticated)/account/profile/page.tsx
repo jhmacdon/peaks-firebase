@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../../../lib/auth-context";
 import { getProfile, updateProfile } from "../../../../lib/actions/profile";
 import { uploadAvatar } from "../../../../lib/storage";
+import { maybeDownscaleImage } from "../../../../lib/image-downscale";
+import { AVATAR_UPLOAD_LIMITS, validateImageFile } from "../../../../lib/image-upload";
 import type { UserProfile } from "../../../../lib/actions/profile";
 import { LOADING_LABEL } from "../../../../lib/constants";
 import Avatar from "../../../../components/avatar";
@@ -12,6 +14,8 @@ import { Button } from "../../../../components/ui/button";
 import { Input, Label } from "../../../../components/ui/field";
 import { EmptyState } from "../../../../components/ui/empty-state";
 
+const AVATAR_MAX_MB = AVATAR_UPLOAD_LIMITS.maxBytes / (1024 * 1024);
+
 export default function EditProfilePage() {
   const { user, getIdToken } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -19,6 +23,7 @@ export default function EditProfilePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -54,12 +59,23 @@ export default function EditProfilePage() {
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file after an error
     if (!file || !user) return;
 
+    const validation = validateImageFile(file, AVATAR_UPLOAD_LIMITS);
+    if (!validation.ok) {
+      setMessage({ type: "error", text: validation.error });
+      return;
+    }
+
     setUploading(true);
+    setUploadProgress(0);
     setMessage(null);
     try {
-      const url = await uploadAvatar(user.uid, file);
+      const { blob, contentType } = await maybeDownscaleImage(file);
+      const url = await uploadAvatar(user.uid, blob, contentType, (fraction) =>
+        setUploadProgress(Math.round(fraction * 100))
+      );
       setAvatarUrl(url);
 
       // Also save to profile immediately
@@ -130,16 +146,18 @@ export default function EditProfilePage() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                 >
-                  {uploading ? "Uploading…" : "Change avatar"}
+                  {uploading ? `Uploading… ${uploadProgress}%` : "Change avatar"}
                 </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png"
                   onChange={handleAvatarChange}
                   className="hidden"
                 />
-                <p className="mt-1.5 text-xs text-faint">JPG or PNG, up to 5MB.</p>
+                <p className="mt-1.5 text-xs text-faint">
+                  {AVATAR_UPLOAD_LIMITS.label}, up to {AVATAR_MAX_MB}MB.
+                </p>
               </div>
             </div>
 

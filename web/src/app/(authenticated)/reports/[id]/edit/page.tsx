@@ -35,11 +35,12 @@ export default function EditTripReportPage() {
   const params = useParams();
   const reportId = params.id as string;
   const router = useRouter();
-  const { getIdToken } = useAuth();
+  const { user, getIdToken } = useAuth();
 
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<TripReportBlock[]>([]);
   const [destinationIds, setDestinationIds] = useState<string[]>([]);
   const [selectedDestinations, setSelectedDestinations] = useState<
@@ -82,6 +83,7 @@ export default function EditTripReportPage() {
 
         setTitle(report.title);
         setDate(dateInputValue(report.date));
+        setSessionId(report.sessionId);
         setBlocks(
           report.blocks.length > 0
             ? report.blocks.map((block) => ({ ...block }))
@@ -257,7 +259,12 @@ export default function EditTripReportPage() {
           />
         </div>
 
-        <BlockEditor blocks={blocks} onChange={setBlocks} />
+        <BlockEditor
+          blocks={blocks}
+          onChange={setBlocks}
+          userId={user?.uid ?? ""}
+          sessionId={sessionId}
+        />
 
         {saveError && (
           <div

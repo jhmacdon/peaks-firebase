@@ -2,6 +2,7 @@
 
 import { adminAuth } from "../firebase-admin";
 import { adminDb } from "../firebase-admin";
+import { resolveAvatarUrl, resolveProfileName } from "../user-profile-shape";
 
 export interface UserInfo {
   uid: string;
@@ -17,18 +18,25 @@ export async function getUser(uid: string): Promise<UserInfo | null> {
     // Get Firebase Auth record
     const authUser = await adminAuth.getUser(uid);
 
-    // Get Firestore profile for name/avatar (may have more detail than Auth)
+    // Get Firestore profile for name/avatar (may have more detail than
+    // Auth). The profile doc has two possible shapes — iOS writes `avatar`
+    // + `name.first`/`name.last`, web writes `avatarUrl` + a string `name`
+    // — resolveAvatarUrl/resolveProfileName read both.
     let firstName: string | null = null;
     let lastName: string | null = null;
+    let profileDisplayName: string | null = null;
     let photoURL = authUser.photoURL || null;
 
     try {
       const userDoc = await adminDb.collection("users").doc(uid).get();
       if (userDoc.exists) {
-        const data = userDoc.data();
-        firstName = data?.name?.first || null;
-        lastName = data?.name?.last || null;
-        if (data?.avatar) photoURL = data.avatar;
+        const data = userDoc.data() ?? {};
+        const resolvedName = resolveProfileName(data);
+        firstName = resolvedName.firstName;
+        lastName = resolvedName.lastName;
+        profileDisplayName = resolvedName.displayName;
+        const resolvedAvatar = resolveAvatarUrl(data);
+        if (resolvedAvatar) photoURL = resolvedAvatar;
       }
     } catch {
       // Firestore profile may not exist
@@ -37,7 +45,11 @@ export async function getUser(uid: string): Promise<UserInfo | null> {
     return {
       uid: authUser.uid,
       email: authUser.email || null,
-      displayName: authUser.displayName || [firstName, lastName].filter(Boolean).join(" ") || null,
+      displayName:
+        authUser.displayName ||
+        profileDisplayName ||
+        [firstName, lastName].filter(Boolean).join(" ") ||
+        null,
       photoURL,
       firstName,
       lastName,
