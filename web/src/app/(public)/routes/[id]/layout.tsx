@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import { JsonLdScript } from "../../../../components/json-ld-script";
-import { getRoute, getRouteDestinations } from "../../../../lib/actions/routes";
+import {
+  getRouteCached,
+  getRouteDestinationsCached,
+} from "../../../../lib/actions/cached-routes";
 import { buildRouteJsonLd } from "../../../../lib/json-ld";
 import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
@@ -25,8 +27,6 @@ export async function generateStaticParams() {
   return [];
 }
 
-const getRouteForSeo = cache((id: string) => getRoute(id, { publicOnly: true }));
-
 export default async function RouteLayout({
   children,
   params,
@@ -38,7 +38,7 @@ export default async function RouteLayout({
   let jsonLd: ReturnType<typeof buildRouteJsonLd> | null = null;
 
   try {
-    const route = await getRouteForSeo(id);
+    const route = await getRouteCached(id);
     if (route) {
       jsonLd = buildRouteJsonLd({
         name: route.name,
@@ -68,7 +68,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const route = await getRouteForSeo(id);
+    const route = await getRouteCached(id);
     if (!route) {
       return {
         title: "Route not found",
@@ -79,7 +79,7 @@ export async function generateMetadata({
       };
     }
 
-    const destinations = await getRouteDestinations(id, { publicOnly: true });
+    const destinations = await getRouteDestinationsCached(id);
 
     const title = route.name || "Unnamed route";
     const primaryDestinationName = pickPrimaryRouteDestinationName(destinations);

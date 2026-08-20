@@ -58,11 +58,14 @@ const SATELLITE_TILE =
 const SATELLITE_ATTRIBUTION =
   '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics';
 
-// Same teal as components/destination-map.tsx's ACCENT (design-tokens.md,
-// "Accent budget" — a map selection is one of the places the accent is
-// spent) on a narrow pale edge with a low-opacity fill, so the topo
-// underneath stays readable. Fixed hex rather than the token: painted into
-// a Leaflet canvas/SVG layer, which never sees the page's CSS variables.
+// Same teal as components/destination-map.tsx's ACCENT and
+// route-map.tsx's ACCENT (design-tokens.md, "Accent budget" — a map
+// selection is one of the places the accent is spent) — the one map
+// color, used for the boundary (on a narrow pale edge with a low-opacity
+// fill so the topo underneath stays readable), the routes drawn through
+// it, and the destination markers. Fixed hex rather than the token:
+// painted into a Leaflet canvas/SVG layer, which never sees the page's
+// CSS variables.
 const AREA_TEAL = "#46ADBC";
 const AREA_PALE_EDGE = "#CFEEF2";
 
@@ -197,7 +200,7 @@ export default function AreaMap({
       if (coordinates.length < 2) continue;
 
       const line = L.polyline(coordinates, {
-        color: "#2563eb",
+        color: AREA_TEAL,
         weight: 2,
         opacity: 0.62,
       }).addTo(map);
@@ -210,7 +213,7 @@ export default function AreaMap({
         radius: 4,
         color: "#ffffff",
         weight: 1.5,
-        fillColor: "#1d4ed8",
+        fillColor: AREA_TEAL,
         fillOpacity: 0.95,
       }).addTo(map);
       if (interactive) {
@@ -269,7 +272,7 @@ function detailLink(label: string, href: string): HTMLElement {
   link.textContent = "View details";
   link.style.display = "inline-block";
   link.style.marginTop = "4px";
-  link.style.color = "#2563eb";
+  link.style.color = AREA_TEAL;
   wrapper.append(title, link);
   return wrapper;
 }

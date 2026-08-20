@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { getTripReport } from "../../../../lib/actions/trip-reports";
+// The same wrapped reference `page.tsx` uses — importing the raw action
+// here instead would read the report row a second time per request.
+import { getTripReportCached } from "../../../../lib/actions/cached-reports";
 import { adminDb } from "../../../../lib/firebase-admin";
 import { formatDate } from "../../../../lib/format";
 import { describeTripReport } from "../../../../lib/seo-descriptions";
@@ -48,7 +50,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const report = await getTripReport(id);
+    const report = await getTripReportCached(id);
     if (!report) {
       return {
         title: "Trip report not found",

@@ -116,7 +116,9 @@ export default async function AreasIndexPage({
                     <span id={`area-state-${state.code}`}>{stateLabel}</span>
                   </SectionHeading>
                   <span className="text-[13px] text-muted">
-                    {state.count.toLocaleString("en-US")} {state.count === 1 ? "area" : "areas"}
+                    {stateAreas.length < state.count
+                      ? `Showing ${stateAreas.length.toLocaleString("en-US")} of ${state.count.toLocaleString("en-US")}`
+                      : `${state.count.toLocaleString("en-US")} ${state.count === 1 ? "area" : "areas"}`}
                   </span>
                 </div>
                 <ul className="mt-4 divide-y divide-hairline border-y border-hairline">

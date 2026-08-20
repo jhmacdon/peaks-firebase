@@ -1,12 +1,16 @@
 import { notFound } from "next/navigation";
 import {
-  getRoute,
-  getRouteDestinations,
   getRouteElevation,
   getRouteSegments,
   getRouteSessionCount,
   type RouteElevationPoint,
 } from "../../../../lib/actions/routes";
+// The same wrapped references `layout.tsx` uses — importing the raw
+// actions here instead would read both rows a second time per request.
+import {
+  getRouteCached,
+  getRouteDestinationsCached,
+} from "../../../../lib/actions/cached-routes";
 import { getNearbyDestinations } from "../../../../lib/actions/search";
 import {
   buildRouteAbout,
@@ -43,11 +47,11 @@ export default async function RouteDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const route = await getRoute(id, { publicOnly: true });
+  const route = await getRouteCached(id);
   if (!route) notFound();
 
   const [destinations, segments, elevationPoints, sessionCount] = await Promise.all([
-    settled(getRouteDestinations(id, { publicOnly: true }), []),
+    settled(getRouteDestinationsCached(id), []),
     settled(getRouteSegments(id, { publicOnly: true }), []),
     settled(getRouteElevation(id, { publicOnly: true }), []),
     settled(getRouteSessionCount(id, { publicOnly: true }), 0),

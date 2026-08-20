@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
-import { getTripReport } from "../../../../lib/actions/trip-reports";
+// The same wrapped reference `layout.tsx` uses — importing the raw action
+// here instead would read the report row a second time per request.
+import { getTripReportCached } from "../../../../lib/actions/cached-reports";
 import { formatDate } from "../../../../lib/format";
 import { formatFeetValue } from "../../../../lib/destination-detail";
 import { Breadcrumb } from "../../../../components/detail-sections";
@@ -16,7 +18,7 @@ export default async function TripReportDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const report = await getTripReport(id);
+  const report = await getTripReportCached(id);
   if (!report) notFound();
 
   // Each lookup catches its own failure — a single missing/errored
