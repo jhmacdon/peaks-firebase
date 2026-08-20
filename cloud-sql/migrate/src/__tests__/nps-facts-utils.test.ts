@@ -17,6 +17,14 @@ import {
   toiletTypeFromName,
   ringsBounds,
   toiletTypeForPoi,
+  nearestExteriorPart,
+  npsLotCapacity,
+  partAreasM2,
+  polygonParts,
+  ringAreaM2,
+  ringsOrigin,
+  signedRingAreaM2,
+  CAPACITY_RANGE_EMISSION_DEFAULT,
   NPS_JOIN_RADIUS_M,
   NPS_LICENSE,
   NPS_SOURCE_NAME,
@@ -48,8 +56,40 @@ function lot(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { MAPLABEL: "PARADISE PARKING (UPPER LOT)", OPENTOPUBLIC: "Unknown", ...overrides };
 }
 
-function candidate(distanceM: number, row: Record<string, unknown>): NpsCandidate {
-  return { distanceM, row };
+/** Paradise's upper lot, which is where most of these fixtures stand. */
+const TEST_POINT = { lat: 46.786721, lng: -121.734541 };
+
+function candidate(
+  distanceM: number,
+  row: Record<string, unknown>,
+  rings?: PolygonRings
+): NpsCandidate {
+  return rings === undefined ? { distanceM, row } : { distanceM, row, rings };
+}
+
+/**
+ * A rectangle of `metres` by `metres` with its south-west corner on `origin`,
+ * wound clockwise — the way this layer draws an exterior ring.
+ */
+function squareRings(origin: { lat: number; lng: number }, metres: number): PolygonRings {
+  return [squareRing(origin, metres, true)];
+}
+
+function squareRing(
+  origin: { lat: number; lng: number },
+  metres: number,
+  clockwise: boolean
+): Array<readonly [number, number]> {
+  const dLat = metres / 111_320;
+  const dLng = metres / (111_320 * Math.cos((origin.lat * Math.PI) / 180));
+  const ring: Array<readonly [number, number]> = [
+    [origin.lng, origin.lat],
+    [origin.lng + dLng, origin.lat],
+    [origin.lng + dLng, origin.lat + dLat],
+    [origin.lng, origin.lat + dLat],
+    [origin.lng, origin.lat],
+  ];
+  return clockwise ? ring.slice().reverse() : ring;
 }
 
 // --- the vocabulary ---------------------------------------------------------
@@ -291,7 +331,7 @@ test("a real season description rides along; a placeholder does not", () => {
 // --- the parking block ------------------------------------------------------
 
 test("a matched lot publishes its type and its name, and no number", () => {
-  const result = npsParkingFacts([candidate(0, lot())], PARKING_SOURCE);
+  const result = npsParkingFacts([candidate(0, lot())], PARKING_SOURCE, TEST_POINT);
   assert.ok(result.outcome);
   assert.equal(result.outcome.facts.type.value, "lot");
   assert.equal(result.outcome.facts.location_note?.value, "Paradise Parking (Upper Lot)");
@@ -303,7 +343,7 @@ test("a matched lot publishes its type and its name, and no number", () => {
 });
 
 test("an overlook lot is still a lot", () => {
-  const result = npsParkingFacts([candidate(4, lot({ LOTTYPE: "Overlook" }))], PARKING_SOURCE);
+  const result = npsParkingFacts([candidate(4, lot({ LOTTYPE: "Overlook" }))], PARKING_SOURCE, TEST_POINT);
   assert.equal(result.outcome?.facts.type.value, "lot");
   assert.equal(result.outcome?.diagnostics.lot_type, "Overlook");
 });
@@ -314,7 +354,8 @@ test("the maintenance yard is stepped past for the visitor lot behind it", () =>
       candidate(44.9, lot({ MAPLABEL: "LONGMIRE MAINTENANCE AREA PARKING" })),
       candidate(88, lot({ MAPLABEL: "LONGMIRE NATIONAL PARK INN PARKING LOOP" })),
     ],
-    PARKING_SOURCE
+    PARKING_SOURCE,
+    TEST_POINT
   );
   assert.equal(result.outcome?.facts.location_note?.value, "Longmire National Park Inn Parking Loop");
   assert.deepEqual(result.skipped, [
@@ -325,14 +366,15 @@ test("the maintenance yard is stepped past for the visitor lot behind it", () =>
 test("a lot with only staff lots near it publishes no parking at all", () => {
   const result = npsParkingFacts(
     [candidate(88, lot({ MAPLABEL: "LONGMIRE MAINTENANCE AREA PARKING" }))],
-    PARKING_SOURCE
+    PARKING_SOURCE,
+    TEST_POINT
   );
   assert.equal(result.outcome, null);
   assert.equal(result.candidates, 1);
 });
 
 test("a generic label leaves the lot without a note, and says why", () => {
-  const result = npsParkingFacts([candidate(2, lot({ MAPLABEL: "Parking Lot" }))], PARKING_SOURCE);
+  const result = npsParkingFacts([candidate(2, lot({ MAPLABEL: "Parking Lot" }))], PARKING_SOURCE, TEST_POINT);
   assert.equal(result.outcome?.facts.location_note, undefined);
   assert.equal(result.outcome?.facts.type.value, "lot");
   assert.equal(result.outcome?.diagnostics.location_note_refused, "generic_name");
@@ -344,10 +386,197 @@ test("a lot's seasonal text is carried in the diagnostics, not published", () =>
   // own sake, so the evidence waits in the file instead.
   const result = npsParkingFacts(
     [candidate(2, lot({ SEASDESC: "winter closure December 1 - April 15" }))],
-    PARKING_SOURCE
+    PARKING_SOURCE,
+    TEST_POINT
   );
   assert.equal(result.outcome?.diagnostics.seasonal_description, "winter closure December 1 - April 15");
   assert.deepEqual(Object.keys(result.outcome?.facts ?? {}).sort(), ["location_note", "type"]);
+});
+
+// --- the area contract ------------------------------------------------------
+//
+// The reference numbers below come from PostGIS itself: each polygon was run
+// through `SELECT ST_Area(ST_GeomFromText(...)::geography)` on the production
+// instance, which is the quantity `parking-capacity.ts` was fitted on and the
+// quantity its header binds every caller to. Anything that drifts from them is
+// measuring something else.
+
+const SQUARE_45N: PolygonRings = [
+  [
+    [-121.0, 45.0],
+    [-121.0, 45.001],
+    [-120.999, 45.001],
+    [-120.999, 45.0],
+    [-121.0, 45.0],
+  ],
+];
+const HOLE_45N: ReadonlyArray<readonly [number, number]> = [
+  [-120.9997, 45.0003],
+  [-120.9993, 45.0003],
+  [-120.9993, 45.0007],
+  [-120.9997, 45.0007],
+  [-120.9997, 45.0003],
+];
+
+test("a ring's area is the geodesic one PostGIS returns, not a planar one", () => {
+  // ST_Area(::geography) on the same three squares: 8762.313, 8137.335 and
+  // 12309.072 m². One thousandth of a degree square covers less ground the
+  // further north it sits, and a Web Mercator area would say the opposite —
+  // ×2.00 at 45°N, ×2.32 at 49°N, in the direction that promises a hiker more
+  // parking than there is.
+  const at = (lat: number) =>
+    ringAreaM2(
+      [
+        [-121.0, lat],
+        [-121.0, lat + 0.001],
+        [-120.999, lat + 0.001],
+        [-120.999, lat],
+        [-121.0, lat],
+      ],
+      { lat: lat + 0.0005, lng: -120.9995 }
+    );
+  assert.ok(Math.abs(at(45) - 8762.313) < 0.05, `45°N: ${at(45)}`);
+  assert.ok(Math.abs(at(49) - 8137.335) < 0.05, `49°N: ${at(49)}`);
+  assert.ok(Math.abs(at(0) - 12309.072) < 0.05, `0°: ${at(0)}`);
+});
+
+test("winding says which ring is the lot and which is the hole in it", () => {
+  const origin = ringsOrigin(SQUARE_45N);
+  assert.ok(origin);
+  // Esri draws an exterior clockwise, which is a negative shoelace with
+  // longitude east and latitude north.
+  assert.ok(signedRingAreaM2(SQUARE_45N[0], origin) < 0);
+  assert.ok(signedRingAreaM2(HOLE_45N, origin) > 0);
+  const { parts, orphanHoles, demotedHoles } = polygonParts([SQUARE_45N[0], HOLE_45N]);
+  assert.equal(parts.length, 1);
+  assert.equal(parts[0].holes.length, 1);
+  assert.equal(orphanHoles, 0);
+  assert.equal(demotedHoles, 0);
+});
+
+test("net of the hole is what the calibration is handed, and it moves the bucket", () => {
+  // PostGIS puts the square at 8762.313 m² and the square-with-hole at
+  // 7360.343. The 100-car edge is 8,759 m², so the hole is the difference
+  // between telling a reader "roughly 100+ cars" and "roughly 50-100".
+  const origin = ringsOrigin([SQUARE_45N[0], HOLE_45N]);
+  assert.ok(origin);
+  const { parts } = polygonParts([SQUARE_45N[0], HOLE_45N]);
+  const areas = partAreasM2(parts[0], origin);
+  assert.ok(Math.abs(areas.grossM2 - 8762.313) < 0.05, `gross ${areas.grossM2}`);
+  assert.ok(Math.abs(areas.netM2 - 7360.343) < 0.05, `net ${areas.netM2}`);
+  const capacity = npsLotCapacity({ lat: 45.0005, lng: -120.9995 }, [SQUARE_45N[0], HOLE_45N]);
+  assert.equal(capacity?.capacity_range, "50_to_100");
+  assert.equal(capacity?.holes, 1);
+});
+
+test("a multi-part feature answers with the part the trailhead stands in", () => {
+  // Two lots either side of a road are two lots. Summing them would say the
+  // near one holds what both hold together.
+  const near = squareRing({ lat: 45.0, lng: -121.0 }, 30, true);
+  const far = squareRing({ lat: 45.01, lng: -121.0 }, 200, true);
+  const { parts } = polygonParts([far, near]);
+  assert.equal(parts.length, 2);
+  const standing = { lat: 45.0001, lng: -120.99995 };
+  const nearest = nearestExteriorPart(standing, parts);
+  assert.equal(nearest?.distanceM, 0);
+  const capacity = npsLotCapacity(standing, [far, near]);
+  assert.equal(capacity?.parts, 2);
+  // 30 m by 30 m is 900 m², which is 10_to_25. The far part is 40,000 m² and
+  // would have been 100_plus; their sum would have been too.
+  assert.equal(capacity?.capacity_range, "10_to_25");
+  assert.ok(Math.abs(capacity!.net_area_m2 - 900) < 5, `${capacity?.net_area_m2}`);
+});
+
+test("a ring wound like a lot but drawn inside one is read as a hole", () => {
+  // 21 rings in 18 of the layer's features contradict their own winding.
+  // Believing them leaves a building counted as parking.
+  const outer = squareRing({ lat: 45.0, lng: -121.0 }, 100, true);
+  const inner = squareRing({ lat: 45.0002, lng: -120.99975 }, 40, true);
+  const { parts, demotedHoles } = polygonParts([outer, inner]);
+  assert.equal(parts.length, 1);
+  assert.equal(demotedHoles, 1);
+  const origin = ringsOrigin([outer, inner]);
+  const areas = partAreasM2(parts[0], origin!);
+  assert.ok(Math.abs(areas.grossM2 - 10_000) < 30, `gross ${areas.grossM2}`);
+  assert.ok(Math.abs(areas.netM2 - 8_400) < 40, `net ${areas.netM2}`);
+});
+
+test("a hole inside no lot is dropped rather than counted as one", () => {
+  const lotRing = squareRing({ lat: 45.0, lng: -121.0 }, 100, true);
+  const stray = squareRing({ lat: 45.02, lng: -121.0 }, 60, false);
+  const { parts, orphanHoles } = polygonParts([lotRing, stray]);
+  assert.equal(parts.length, 1);
+  assert.equal(orphanHoles, 1);
+  assert.equal(parts[0].holes.length, 0);
+});
+
+test("the gates say why they made no claim", () => {
+  const pullout = npsLotCapacity({ lat: 45.0, lng: -121.0 }, squareRings({ lat: 45, lng: -121 }, 8));
+  assert.equal(pullout?.capacity_range, null);
+  assert.equal(pullout?.capacity_range_withheld, "below_floor");
+  const enormous = npsLotCapacity(
+    { lat: 45.0, lng: -121.0 },
+    squareRings({ lat: 45, lng: -121 }, 400)
+  );
+  assert.equal(enormous?.capacity_range, null);
+  assert.equal(enormous?.capacity_range_withheld, "above_cap");
+  assert.equal(npsLotCapacity({ lat: 45, lng: -121 }, undefined), null);
+  assert.equal(npsLotCapacity({ lat: 45, lng: -121 }, []), null);
+});
+
+// --- the capacity range as a leaf -------------------------------------------
+
+test("the range is computed on every run and published on none by default", () => {
+  // Off until a person has read the spot-check sample against imagery. The
+  // measurement still happens, so a reviewer can see what would be published.
+  assert.equal(CAPACITY_RANGE_EMISSION_DEFAULT, false);
+  const rings = squareRings({ lat: 46.786721, lng: -121.734541 }, 60);
+  const quiet = npsParkingFacts([candidate(0, lot(), rings)], PARKING_SOURCE, TEST_POINT);
+  assert.equal(quiet.outcome?.facts.capacity_range, undefined);
+  assert.equal(quiet.outcome?.diagnostics.area?.capacity_range, "50_to_100");
+  assert.equal(quiet.outcome?.diagnostics.area?.capacity_range_withheld, "emission_disabled");
+});
+
+test("with emission on, the range rides the same envelope as the other leaves", () => {
+  const rings = squareRings({ lat: 46.786721, lng: -121.734541 }, 60);
+  const result = npsParkingFacts([candidate(0, lot(), rings)], PARKING_SOURCE, TEST_POINT, {
+    emitCapacityRange: true,
+  });
+  const leaf = result.outcome?.facts.capacity_range;
+  assert.equal(leaf?.value, "50_to_100");
+  assert.equal(leaf?.source.kind, "nps_parking");
+  assert.equal(leaf?.source.name, NPS_SOURCE_NAME);
+  assert.equal(leaf?.source.license, NPS_LICENSE);
+  assert.equal(leaf?.retrieved_at, "2026-08-19");
+  assert.equal(leaf?.source.url, PARKING_SOURCE.url);
+});
+
+test("no lot ever publishes a vehicle count, whatever its area", () => {
+  // The structural rule, over the whole size range: an area may become a
+  // bucket and may never become a number of cars.
+  for (const metres of [5, 9, 20, 35, 60, 95, 150, 224, 400]) {
+    const rings = squareRings({ lat: 46.786721, lng: -121.734541 }, metres);
+    const result = npsParkingFacts([candidate(0, lot(), rings)], PARKING_SOURCE, TEST_POINT, {
+      emitCapacityRange: true,
+    });
+    const keys = Object.keys(result.outcome?.facts ?? {});
+    assert.equal(keys.includes("capacity_vehicles"), false, `${metres} m published a count`);
+    for (const key of keys) {
+      assert.ok(
+        ["type", "capacity_range", "location_note"].includes(key),
+        `${metres} m published an unexpected leaf ${key}`
+      );
+    }
+  }
+});
+
+test("a lot with no geometry publishes its type and says nothing about size", () => {
+  const result = npsParkingFacts([candidate(3, lot())], PARKING_SOURCE, TEST_POINT, {
+    emitCapacityRange: true,
+  });
+  assert.equal(result.outcome?.facts.capacity_range, undefined);
+  assert.equal(result.outcome?.diagnostics.area, null);
+  assert.equal(result.outcome?.facts.type.value, "lot");
 });
 
 // --- the row ----------------------------------------------------------------
@@ -363,7 +592,7 @@ test("a trailhead with nothing near it gets no row at all", () => {
 
 test("a row carries the blocks that answered and their evidence apart from them", () => {
   const bathroom = npsBathroomFacts([candidate(89.6, poi())], POI_SOURCE).outcome;
-  const parking = npsParkingFacts([candidate(0, lot())], PARKING_SOURCE).outcome;
+  const parking = npsParkingFacts([candidate(0, lot())], PARKING_SOURCE, TEST_POINT).outcome;
   const row = buildNpsFactRow(TRAILHEAD, bathroom, parking);
   assert.ok(row);
   assert.equal(row.destination_id, "xaMGyHut8CoGCSkCPKh6");
@@ -376,7 +605,7 @@ test("a row carries the blocks that answered and their evidence apart from them"
 });
 
 test("one block answering is enough for a row", () => {
-  const parking = npsParkingFacts([candidate(5, lot())], PARKING_SOURCE).outcome;
+  const parking = npsParkingFacts([candidate(5, lot())], PARKING_SOURCE, TEST_POINT).outcome;
   const row = buildNpsFactRow(TRAILHEAD, null, parking);
   assert.ok(row);
   assert.equal(row.bathrooms, undefined);

@@ -18,9 +18,14 @@
 //     nothing about the ones it has not (research-bathrooms.md §3.2). Nothing
 //     here writes `absent`, and a trailhead with no NPS feature near it gets no
 //     row at all rather than a row that reads like a survey.
-//   - **No capacity from area.** research-parking.md §2.5 offers polygon area
-//     as a proxy at 30 m² a space and says in the same paragraph that the ratio
-//     was never calibrated against ground truth. Nothing numeric is emitted.
+//   - **Capacity is a range, or it is nothing.** research-parking.md §2.5 offered
+//     polygon area as a proxy at 30 m² a space and said in the same paragraph
+//     that the ratio was never calibrated. It has been now, and it yields a
+//     bucket rather than a number: `parking.capacity_range`, read off the lot's
+//     own ground area by the contract in `npsLotCapacity`. No count is emitted
+//     from an area, ever, and the buckets themselves stay unpublished until a
+//     person has checked the spot-check sample against imagery — see
+//     `CAPACITY_RANGE_EMISSION_DEFAULT` and `--capacity-range`.
 
 import fs from "fs";
 import path from "path";
@@ -36,6 +41,7 @@ import {
   boundsContain,
   ringsBounds,
   toiletTypeForPoi,
+  CAPACITY_RANGE_EMISSION_DEFAULT,
   NPS_JOIN_RADIUS_M,
   NPS_LICENSE,
   NPS_PARKING_DATASET,
@@ -51,6 +57,7 @@ import {
   type PolygonRings,
   type Trailhead,
 } from "./nps-facts-utils";
+import { estimateCapacityRange } from "./parking-capacity";
 import type { SourcePoint } from "./trailhead-facts-utils";
 
 export interface Args {
@@ -62,6 +69,15 @@ export interface Args {
   radiusM: number;
   limit: number | null;
   show: string[];
+  /**
+   * Publish the capacity range each lot's area comes to.
+   *
+   * Off by default and computed either way, so a run always says in its
+   * diagnostics what it would have published. See
+   * `CAPACITY_RANGE_EMISSION_DEFAULT` for what has to happen before this is
+   * turned on.
+   */
+  capacityRange: boolean;
   help: boolean;
 }
 
@@ -87,6 +103,9 @@ export function usage(): string {
     `  --radius-m=N        join radius in metres (default ${NPS_JOIN_RADIUS_M})`,
     "  --limit=N           consider at most N trailheads (smoke runs)",
     "  --show=ID[,ID]      print these destinations' rows in full",
+    "  --capacity-range    publish the lot-area capacity range " +
+      `(default ${CAPACITY_RANGE_EMISSION_DEFAULT ? "on" : "off"}; the range is`,
+    "                      computed and reported either way)",
     "  --help              print this and exit",
   ].join("\n");
 }
@@ -117,6 +136,7 @@ export function parseArgs(argv: string[]): Args {
     radiusM,
     limit,
     show,
+    capacityRange: argv.includes("--capacity-range") || CAPACITY_RANGE_EMISSION_DEFAULT,
     help: argv.includes("--help") || argv.includes("-h"),
   };
 }
@@ -280,6 +300,20 @@ export interface NormalizeSummary {
   notesRefused: Record<string, number>;
   /** Matched lots carrying seasonal text the parking block has no leaf for. */
   parkingSeasonalWithoutLeaf: number;
+  /** Whether the computed capacity ranges were published or only reported. */
+  capacityRangeEmitted: boolean;
+  /**
+   * Matched lots by the bucket their area came to, plus the ones that make no
+   * claim. Reported whether or not the ranges are published, because "what
+   * would this say" is the question a reviewer is asking.
+   */
+  capacityRanges: Record<string, number>;
+  /** Matched lots whose feature carried more than one exterior part. */
+  parkingMultiPartLots: number;
+  /** Matched lots whose nearest part had at least one hole in it. */
+  parkingHoledLots: number;
+  /** Matched lots where gross and net areas fall in different buckets. */
+  parkingGrossNetBucketFlips: number;
   outPath: string;
 }
 
@@ -340,6 +374,11 @@ export async function normalizeNpsTrailheadFacts(
     skipped: {},
     notesRefused: {},
     parkingSeasonalWithoutLeaf: 0,
+    capacityRangeEmitted: args.capacityRange,
+    capacityRanges: {},
+    parkingMultiPartLots: 0,
+    parkingHoledLots: 0,
+    parkingGrossNetBucketFlips: 0,
     outPath,
   };
   const rows: NpsFactRow[] = [];
@@ -355,12 +394,17 @@ export async function normalizeNpsTrailheadFacts(
       if (!boundsContain(lot.bounds, trailhead)) continue;
       const distanceM = metresToPolygon(trailhead, lot.rings);
       if (distanceM === null || distanceM > args.radiusM) continue;
-      lotCandidates.push({ distanceM, row: lot.row });
+      // The rings ride along: the capacity range is read off this lot's own
+      // ground area, and re-parsing the geometry out of the row would be a
+      // second reader of the same thing.
+      lotCandidates.push({ distanceM, row: lot.row, rings: lot.rings });
     }
     lotCandidates.sort((a, b) => a.distanceM - b.distanceM);
 
     const bathroom = npsBathroomFacts(poiCandidates, sources.pois);
-    const parking = npsParkingFacts(lotCandidates, sources.parking);
+    const parking = npsParkingFacts(lotCandidates, sources.parking, trailhead, {
+      emitCapacityRange: args.capacityRange,
+    });
     const row = buildNpsFactRow(trailhead, bathroom.outcome, parking.outcome);
 
     // Counted before the row is, so a trailhead whose only nearby lot is the
@@ -385,6 +429,20 @@ export async function normalizeNpsTrailheadFacts(
     const refused = parking.outcome?.diagnostics.location_note_refused ?? null;
     if (refused !== null) count(summary.notesRefused, refused);
     if (parking.outcome?.diagnostics.seasonal_description) summary.parkingSeasonalWithoutLeaf += 1;
+    const area = parking.outcome?.diagnostics.area ?? null;
+    if (area !== null) {
+      count(summary.capacityRanges, area.capacity_range ?? `none (${area.capacity_range_withheld})`);
+      if (area.parts > 1) summary.parkingMultiPartLots += 1;
+      if (area.holes > 0) summary.parkingHoledLots += 1;
+      // The area contract's second half, measured on the lots it applies to:
+      // reading the gross outline where the net area belongs moves this many
+      // answers, and each one moves upward.
+      if (estimateCapacityRange(area.gross_area_m2) !== area.capacity_range) {
+        summary.parkingGrossNetBucketFlips += 1;
+      }
+    } else if (parking.outcome !== null) {
+      count(summary.capacityRanges, "none (no_usable_ring)");
+    }
     rows.push(row);
   }
   summary.rows = rows.length;
@@ -424,6 +482,16 @@ function logSummary(
         `${summary.parkingSeasonalWithoutLeaf}`
     );
   }
+  logger.log(
+    `Lot capacity ranges       ${
+      summary.capacityRangeEmitted ? "(published)" : "(computed, NOT published)"
+    }`
+  );
+  const ranges = Object.entries(summary.capacityRanges).sort((a, b) => b[1] - a[1]);
+  for (const [range, count] of ranges) logger.log(`    ${range}: ${count}`);
+  logger.log(`    multi-part lots:      ${summary.parkingMultiPartLots}`);
+  logger.log(`    lots with a hole:     ${summary.parkingHoledLots}`);
+  logger.log(`    gross would move it:  ${summary.parkingGrossNetBucketFlips}`);
   logger.log(`Rows written:             ${summary.rows}`);
   logger.log(`  ${summary.outPath}`);
 

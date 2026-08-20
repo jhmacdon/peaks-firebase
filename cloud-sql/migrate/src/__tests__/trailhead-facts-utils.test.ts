@@ -1,4 +1,6 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   bathroomLeafCandidates,
@@ -556,11 +558,13 @@ test("a page section with no structured fact is refused", () => {
   assert.deepEqual(refusals, ["no_structured_facts"]);
 });
 
-test("the page's prose and its evidence are read and never imported", () => {
+test("the page's prose and its evidence are read as guards and never imported", () => {
   // Every one of these is on the row and none of them is a parking fact. The
   // fee, restroom and road text describe what the EDW, MVUM and RoadCore
   // datasets already publish as fields; the verbatim spans are the extraction's
-  // evidence, for a person auditing it.
+  // evidence, for a person auditing it. Two of them are read as guards below —
+  // a guard may take a fact away or make it smaller, never supply one — and
+  // none of them reaches a leaf.
   const { leaves } = pageLeafCandidates(
     pageRow({
       capacity_estimate: 12,
@@ -601,6 +605,106 @@ test("a page url that is not an http link never becomes a tappable source", () =
   );
   assert.deepEqual(leaves, []);
   assert.deepEqual(refusals, ["page_url_unusable"]);
+});
+
+// --- page guards ------------------------------------------------------------
+
+test("a capacity counted in rigs is dropped rather than written as cars", () => {
+  // "Up to 6 truck/trailer combinations" is a real number and it is not six
+  // cars. Two matched rows say this today: Edds Mountain 6, Bear Pot 4.
+  for (const span of [
+    "up to 6 truck/trailer combinations",
+    "up to 4 truck/trailer combos",
+    "20 vehicles with trailers",
+    "about 3 trucks with horse trailers",
+  ]) {
+    const { leaves, refusals } = pageLeafCandidates(
+      pageRow({ capacity_estimate: 6, verbatim_spans: { capacity: span } })
+    );
+    assert.deepEqual(leaves, [], span);
+    assert.deepEqual(refusals, ["capacity_counted_in_trucks_or_trailers"], span);
+  }
+});
+
+test("a capacity the page states as a range publishes the low end", () => {
+  // The extraction keeps the high end. A driver who finds ten spaces where
+  // fifteen were promised has driven up a forest road for nothing.
+  const { leaves, refusals, notices } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 15, verbatim_spans: { capacity: "10-15 cars" } })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(notices, ["capacity_lowered_to_stated_range_floor"]);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value]),
+    [["capacity_vehicles", 10]]
+  );
+  // An en dash and the word "to" are the same range.
+  for (const span of ["10–15 cars", "10 to 15 cars", "fits 1-2 cars"]) {
+    const low = span.startsWith("fits") ? 1 : 10;
+    const stated = span.startsWith("fits") ? 2 : 15;
+    const result = pageLeafCandidates(
+      pageRow({ capacity_estimate: stated, verbatim_spans: { capacity: span } })
+    );
+    assert.equal(result.leaves[0].sourced.value, low, span);
+  }
+});
+
+test("a span with no range leaves the stated number alone", () => {
+  const { leaves, notices } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 6, verbatim_spans: { capacity: "approximately 6 passenger vehicles" } })
+  );
+  assert.deepEqual(notices, []);
+  assert.equal(leaves[0].sourced.value, 6);
+  // And a row whose extraction kept no span at all still publishes.
+  const bare = pageLeafCandidates(pageRow({ capacity_estimate: 6 }));
+  assert.equal(bare.leaves[0].sourced.value, 6);
+});
+
+test("a capacity that is not a positive whole number is refused", () => {
+  // Zero renders as "0 vehicles", which reads as "there is no parking here" —
+  // a claim no page in this set makes. Half a space is an extraction that has
+  // gone wrong.
+  for (const capacity of [0, 4.5, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const { leaves, refusals } = pageLeafCandidates(pageRow({ capacity_estimate: capacity }));
+    assert.deepEqual(leaves, [], `${capacity}`);
+    assert.deepEqual(refusals, ["capacity_not_a_positive_whole_number"], `${capacity}`);
+  }
+  // A missing capacity is not a refusal; it is a page that said nothing.
+  assert.deepEqual(pageLeafCandidates(pageRow({})).refusals, ["no_structured_facts"]);
+});
+
+test("a fills-early note lifted out of the driving directions is refused", () => {
+  const directions =
+    "Turn right onto Road 225 and continue approximately 4 miles to the small trailhead parking area.";
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({ road_text: directions, fills_early_note: directions })
+  );
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["fills_early_note_lifted_from_directions"]);
+
+  // A sentence taken out of the middle of the paragraph is the same failure,
+  // and re-wrapped whitespace does not hide it.
+  const inside = pageLeafCandidates(
+    pageRow({
+      road_text: `From the highway, drive 8 miles.  ${directions}  The trail starts at the sign.`,
+      fills_early_note: "Turn right onto Road 225 and continue approximately 4 miles\nto the small trailhead parking area.",
+    })
+  );
+  assert.deepEqual(inside.refusals, ["fills_early_note_lifted_from_directions"]);
+});
+
+test("a real fills-early note survives, directions or no directions", () => {
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({
+      road_text: "Follow FS 363 for 7.5 miles to the trailhead.",
+      fills_early_note: "The lot fills by 8am on summer weekends.",
+    })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => entry.leaf),
+    ["fills_early_note"]
+  );
 });
 
 // --- conflicts --------------------------------------------------------------
@@ -844,7 +948,10 @@ test("an NPS parking block becomes a lot and its note", () => {
   );
 });
 
-test("a capacity on an NPS parking leaf is refused by name", () => {
+test("a vehicle count on an NPS parking leaf is refused by name", () => {
+  // The Park Service publishes no capacity field. A number here could only be
+  // a regression that started turning polygon area into vehicles, and it would
+  // read exactly like a number somebody counted.
   const { leaves, refusals } = npsParkingLeafCandidates({
     destination_id: "dest-paradise",
     parking: {
@@ -857,6 +964,106 @@ test("a capacity on an NPS parking leaf is refused by name", () => {
     leaves.map((entry) => entry.leaf),
     ["type"]
   );
+});
+
+test("an NPS capacity range passes through with its own envelope", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: {
+      type: npsLeaf("lot", NPS_PARKING_SOURCE),
+      capacity_range: npsLeaf("50_to_100", NPS_PARKING_SOURCE),
+    },
+  });
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value, entry.source]),
+    [
+      ["type", "lot", "nps_parking"],
+      ["capacity_range", "50_to_100", "nps_parking"],
+    ]
+  );
+  const envelope = leaves[1].sourced;
+  assert.equal(envelope.source.kind, "nps_parking");
+  assert.equal(envelope.source.name, "National Park Service");
+  assert.equal(envelope.retrieved_at, "2026-08-19");
+});
+
+test("a capacity range spelled any other way is refused", () => {
+  // The list is checked, never parsed. A bucket the renderer has no words for
+  // would otherwise be printed as the database read aloud.
+  for (const value of ["25-50", "25_to_60", "lots", "", 40, null, { value: "25_to_50" }]) {
+    const { leaves, refusals } = npsParkingLeafCandidates({
+      destination_id: "dest-paradise",
+      parking: { capacity_range: npsLeaf(value, NPS_PARKING_SOURCE) },
+    });
+    assert.deepEqual(leaves, [], JSON.stringify(value));
+    assert.deepEqual(refusals, ["parking_capacity_range_unusable"], JSON.stringify(value));
+  }
+});
+
+test("a capacity range wearing another service's kind is refused", () => {
+  const { leaves, refusals } = npsParkingLeafCandidates({
+    destination_id: "dest-paradise",
+    parking: { capacity_range: npsLeaf("50_to_100", { ...NPS_PARKING_SOURCE, kind: "usfs_web" }) },
+  });
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["parking_capacity_range_source_unusable"]);
+});
+
+// --- the range and the count are different claims ---------------------------
+
+test("a range never becomes a count and a count never becomes a range", () => {
+  // Both leaves, on one destination, from the two sources that produce them.
+  // They coexist; neither is rewritten as the other; nothing averages them.
+  const { chosen, conflicts } = resolveLeafConflicts([
+    leaf("parking", "capacity_vehicles", 30, "usfs_web", "usfs_pages"),
+    leaf("parking", "capacity_range", "50_to_100", "nps_parking", "nps_parking"),
+  ]);
+  assert.deepEqual(conflicts, []);
+  assert.deepEqual(
+    chosen.map((entry) => [entry.leaf, entry.sourced.value]),
+    [
+      ["capacity_vehicles", 30],
+      ["capacity_range", "50_to_100"],
+    ]
+  );
+  const merged = mergeTrailheadAmenities({}, buildTrailheadAmenities(chosen)) as unknown as {
+    merged: { parking: Record<string, { value: unknown }> };
+  };
+  assert.equal(merged.merged.parking.capacity_vehicles.value, 30);
+  assert.equal(merged.merged.parking.capacity_range.value, "50_to_100");
+});
+
+test("a stored count is not disturbed by an incoming range, or the other way", () => {
+  const stored = {
+    parking: {
+      capacity_vehicles: { value: 30, source: { kind: "usfs_web", name: "US Forest Service" }, retrieved_at: "2026-08-19" },
+    },
+  };
+  const incoming = buildTrailheadAmenities([
+    leaf("parking", "capacity_range", "50_to_100", "nps_parking", "nps_parking"),
+  ]);
+  const result = mergeTrailheadAmenities(stored, incoming);
+  const parking = (result.merged as Record<string, Record<string, { value: unknown }>>).parking;
+  assert.equal(parking.capacity_vehicles.value, 30);
+  assert.equal(parking.capacity_range.value, "50_to_100");
+  assert.deepEqual(result.appliedLeaves, ["parking.capacity_range"]);
+});
+
+test("the leaf builder can name a bucket and cannot compute one", () => {
+  // The structural half of the same rule, read off the source. This module
+  // builds every leaf that reaches destinations.amenities, so it may check that
+  // a range is spelled the way the calibration spells it — and may not import
+  // the function that turns an area into a bucket, nor the one that turns an
+  // area into a number of cars.
+  const source = readFileSync(join(__dirname, "../trailhead-facts-utils.ts"), "utf8");
+  const importLine = /import\s*\{([^}]*)\}\s*from\s*"\.\/parking-capacity";/.exec(source);
+  assert.ok(importLine, "trailhead-facts-utils.ts should import the bucket names");
+  const imported = importLine[1]
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  assert.deepEqual(imported, ["CAPACITY_RANGES"]);
 });
 
 test("a bathroom leaf wearing the parking service's kind is refused", () => {

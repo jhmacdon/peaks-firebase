@@ -703,6 +703,29 @@ rather than to its amenities. Two envelope guards are pinned by tests: a
 trimmed into one, and a url that is not an `http(s)` link never becomes a
 tappable source.
 
+**Two of those unimported fields are read as guards, and a guard may only take
+a fact away or make it smaller** — the same rule the road importer's single read
+of its `derivation` block obeys. Three fire, all pinned by tests:
+
+- **A capacity whose own words say truck, trailer, RV or stock is dropped.** The
+  page counted rigs and there is no leaf for rigs; a multiplier would be a
+  guess. Five rows in the file, two of them matched (Edds Mountain 6, Bear Pot 4).
+- **A capacity stated as a range publishes the low end.** The extraction keeps
+  the high end, and over-claiming parking is what strands a driver. Two rows
+  ("10-15 cars", "fits 1-2 cars"), neither matched today.
+- **A `fills_early_note` that appears word for word inside `road_text` is
+  dropped.** The extraction found no sentence about the lot filling and lifted
+  one out of the paragraph about how to get there. 51 rows in the file; four
+  touch matched rows, of which two lose their whole row (Suntop, Tunnel Creek)
+  and two keep a capacity leaf (Corral Pass, Dog Mountain). Dog Mountain's note
+  is a real fills-early sentence and this guard costs it — the one known
+  false positive.
+
+A capacity is also required to be a **positive whole number** rather than merely
+non-negative: `0` renders as "0 vehicles", which reads as "there is no parking
+here", and half a space is an extraction that went wrong. Fees keep the looser
+check, because $0.00 and $5.50 are both real. Nothing in the file trips it today.
+
 The registry (`fs-trailhead-page-registry.jsonl`) is still the crawl's source
 of truth for which pages exist. The importer does not read it, and does not
 read the older partial `fs-page-sections.jsonl` either. Refresh the pages by
@@ -778,14 +801,33 @@ Three binding rules, all pinned by tests:
   found nothing" is that forbidden negative written where a later reader takes
   it for one. `npsBathroomLeafCandidates` refuses a non-`present` status again
   on arrival, block and all, including a `type` that arrives without a status.
-- **No capacity from area, ever.** `research-parking.md` §2.5 offers polygon
-  area as a proxy at 30 m² a space and says in the same paragraph that the
-  ratio was never calibrated, because Overpass went down before the regression
-  could run. Parking gets `type: 'lot'` and, where the lot has an informative
-  name, a `location_note`. `capacity_vehicles` is not merely absent from the
-  NPS allow-list: a row carrying one is **refused by name**, because the only
-  way a number reaches that leaf is a regression that started dividing area by
-  the uncalibrated constant.
+- **A count never comes from an area; a range may.** `research-parking.md` §2.5
+  offered polygon area as a proxy at 30 m² a space and admitted the ratio had
+  never been calibrated. It has been now — `migrate/src/parking-capacity.ts` and
+  `migrate/docs/parking-capacity-calibration.md` — and it yields a bucket, not a
+  number: `parking.capacity_range`, one of `under_10`, `10_to_25`, `25_to_50`,
+  `50_to_100`, `100_plus`. `capacity_vehicles` is not merely absent from the NPS
+  allow-list: a row carrying one is **refused by name**, because a number nobody
+  counted, in the leaf counted numbers live in, reads exactly like a counted
+  one. No code path converts between the two in either direction.
+
+  The area obeys the contract in that module's header, kept in `npsLotCapacity`:
+  the **nearest exterior part** of the feature (a multi-part feature is not one
+  lot), **net of that part's interior rings** (gross-for-net moves 229 of the
+  layer's buckets), measured **geodesically** on the WGS84 ellipsoid — checked
+  against `ST_Area(geom::geography)` to four parts per million and pinned by
+  tests. Ring winding says which ring is which, except where a ring wound like
+  an exterior is drawn inside one, which is read as a hole.
+
+  **The buckets are computed and not published.** The held-out re-validation
+  cannot run — none of the 137 Forest Service pages with a stated capacity has
+  an NPS lot within 200 m, and the OSM pull behind the calibration was deleted
+  under ODbL — so `CAPACITY_RANGE_EMISSION_DEFAULT` is `false` and every run
+  reports the ranges in its diagnostics instead. The gate is human:
+  `npm run spotcheck:nps-capacity` writes 60 stratified lots with satellite
+  links to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`; at 80%
+  correct-or-adjacent with a few exact `100_plus` hits, flip the default and
+  pass `--capacity-range`.
 - **A candidate the layer disowns is stepped past, never negated.** `POISTATUS`
   in {`Planned`, `Not Existing`, `Decommissioned`, `Temporarily Closed`} — the
   POI layer only, the parking layer has no such field — plus `OPENTOPUBLIC=No`

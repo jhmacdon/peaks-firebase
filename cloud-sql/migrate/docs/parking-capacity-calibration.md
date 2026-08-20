@@ -71,7 +71,27 @@ part and call this once per part, or make no claim.** Never sum disjoint parts
 into one answer.
 
 Enforcement belongs at the call site, where the geometry is — this module takes
-a number and cannot tell a good one from a bad one. The wiring task owns it.
+a number and cannot tell a good one from a bad one.
+
+**The call site is `npsLotCapacity` in `nps-facts-utils.ts`, and it keeps both
+halves.** `polygonParts` splits a feature on ring winding — Esri draws an
+exterior clockwise — gives each hole to the exterior ring that contains it, and
+reads a ring wound like an exterior but drawn inside one as a hole anyway (21
+rings in 18 features contradict their own winding, and believing them leaves a
+building counted as parking). `nearestExteriorPart` then picks the part the
+trailhead stands nearest, and `partAreasM2` subtracts that part's holes.
+
+The areas are geodesic: a local equal-area frame built from the WGS84
+meridional and prime-vertical radii at the feature's own latitude. Checked
+against `ST_Area(geom::geography)` on twelve real lots spanning 253 to 18,836 m²,
+the two agree to four parts per million, the worst case being 18,835.94 against
+18,836.01. Three fixed squares from that comparison are pinned in
+`__tests__/nps-facts-utils.test.ts`, so a rewrite that quietly goes planar fails.
+
+Measured over the layer with that code: 6,739 usable features, 1,114 carrying
+more than one ring, 987 with at least one interior ring, 164 with more than one
+exterior part, and **229 features whose bucket would move if the gross outline
+were used instead of the net area** — the study's own count was 232.
 
 ## The data
 
@@ -168,14 +188,48 @@ population this is calibrated for and applied to. The national slice is
 reported for completeness and is the least relevant number here, being
 dominated by urban lots this function is not for.
 
-| Set | Answered | Exact bucket | Correct or adjacent |
-|---|---|---|---|
-| **Trailhead-context held-out OSM pairs** | 242 of 256 | **62.8%** | 97.9% |
-| **USFS page prose** | 62 of 63 | **50.0%** | 91.9% |
-| National held-out slice (30% id hash) | 15,197 of 16,805 | 54.8% | 97.8% |
+| Set | Date | Answered | Exact bucket | Correct or adjacent |
+|---|---|---|---|---|
+| **Trailhead-context held-out OSM pairs** | 2026-08-20 | 242 of 256 | **62.8%** | 97.9% |
+| **USFS page prose** | 2026-08-20 | 62 of 63 | **50.0%** | 91.9% |
+| National held-out slice (30% id hash) | 2026-08-20 | 15,197 of 16,805 | 54.8% | 97.8% |
+| **`fs-page-sections-full.jsonl` re-validation** | 2026-08-20 | **0 of 137** | — | — |
 
 The ship bar was 80% correct-or-adjacent on both required sets. Both clear it —
 and that is worth much less than it sounds.
+
+### The re-validation could not be run, and that is a finding
+
+The last row is the one the wiring task was to fill in, and it came back empty.
+The plan was to score the frozen thresholds against the 137 stated capacities in
+`fs-page-sections-full.jsonl`, joined to lot polygons the way the prose set was
+joined — OpenStreetMap first, NPS lots as the fallback — but without pulling OSM
+again, since the pull this study used was deleted under ODbL.
+
+**Without OSM there is no join at all.** Not one of the 137 pages has an NPS
+parking polygon within 200 m: the nearest is 1.0 km away and the median is
+57 km. Forest Service trailheads are not in national parks, so the NPS layer
+cannot stand in for the OSM one here, and every one of the 137 rows skips for
+want of a polygon. Exact and adjacent accuracy are not low — they are
+unmeasured.
+
+That leaves the selection caveat below standing, and it leaves the population
+this calibration is actually applied to — NPS lots — with no validation of any
+kind, which is the last item in "Worth revisiting" and the one most likely to
+bite. **So `capacity_range` is computed on every run and published on none:**
+`CAPACITY_RANGE_EMISSION_DEFAULT` in `nps-facts-utils.ts` is false, and
+`normalize:nps-trailhead-facts --capacity-range` is the only way to turn it on.
+
+What can clear it is imagery. `npm run spotcheck:nps-capacity` writes 60
+post-gate lots — 10 each in the three lower buckets, 15 each in the two upper
+ones — to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`, each row
+carrying its areas, its part, and a satellite link. A person (or an
+imagery-reading agent) marking those at 80% correct-or-adjacent, with a few
+exact hits among the `100_plus` rows, is the evidence this population has never
+had. Flip the default in the same change that records the result here.
+
+The other way to clear it is a fresh OSM pull, at which point the row above
+should be filled in properly rather than deleted.
 
 ### The adjacency bar is mostly bucket geometry
 
@@ -260,12 +314,15 @@ With that caveat it is still the only evidence here that is both
 trailhead-specific and independent of OSM's own capacity tags, and it is the
 reason to trust the trailhead calibration over the national one.
 
-**A larger replacement now exists.** `fs-page-sections-full.jsonl` — the full
-2,900-page LLM extraction, with 137 stated capacities — landed after this pull
-was taken, so the calibration did not see it. Re-validating against it, with the
-threshold family frozen first, would give a genuinely clean held-out number and
-retire the selection caveat above. That is recorded as work for the wiring task,
-not done here.
+**A larger replacement exists and cannot be reached.**
+`fs-page-sections-full.jsonl` — the full 2,900-page LLM extraction, with 137
+stated capacities — landed after this pull was taken, so the calibration did not
+see it. Re-validating against it with the threshold family frozen would have
+given a clean held-out number and retired the selection caveat. The wiring task
+ran it and got nothing: the 137 pages need lot polygons, the OSM pull that
+supplied them was deleted under ODbL, and the NPS layer has no lot within 200 m
+of any of the 137. See "The re-validation could not be run" above. The caveat
+stands, and the leaf is gated off because of it.
 
 ## Surface is a proxy, not a driver
 
@@ -288,11 +345,11 @@ The parameter stays in the signature because callers have the value and a
 bigger trailhead sample may yet find a use for it. A test pins the current
 behaviour so it cannot start shifting buckets without a recalibration behind it.
 
-## The schema decision this feeds
+## The schema this feeds
 
-Proposed for `TrailheadParking`, as a sibling of the existing
-`capacity_vehicles` — a source that counted spaces keeps writing the count, and
-this is what a source that only mapped a polygon can offer:
+`TrailheadParking` now carries the range as a sibling of `capacity_vehicles` —
+a source that counted spaces keeps writing the count, and this is what a source
+that only mapped a polygon can offer:
 
 ```ts
 export type TrailheadParkingCapacityRange =
@@ -301,10 +358,19 @@ export type TrailheadParkingCapacityRange =
 capacity_range?: SourcedValue<TrailheadParkingCapacityRange>;
 ```
 
-`amenities.ts` is deliberately untouched by the calibration change; wiring the
-schema is a separate piece of work, and the type in `parking-capacity.ts` is its
-input. Whatever writes the leaf should mark its source as derived from lot
-geometry, so a range and a count are never mistaken for each other downstream.
+**No code path may turn one into the other**, in either direction: not by a
+bucket's midpoint, not by its edge, not by carrying this curve's own number
+across, and not by rounding a count into a bucket. The rule is written into
+`amenities.ts` beside the two leaves and pinned three ways — the importer
+refuses a `capacity_vehicles` on an NPS leaf by name, `trailhead-facts-utils.ts`
+is allowed to import the bucket *names* from this module and nothing else (a
+test reads its import list), and the web renders a count as "30 vehicles" and a
+range as "Roughly 25–50 cars", never both and never mixed.
+
+The leaf carries `kind: 'nps_parking'` like the other NPS leaves; what marks it
+as derived from geometry is its own name. The evidence sits beside it in the
+normalizer's diagnostics — part index, gross and net area, the fitted car count
+— and none of that is ever imported.
 
 ## Recalibrating
 

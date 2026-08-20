@@ -6,6 +6,14 @@
 // unit-tested without a database — the same split as padus-area-utils.ts and
 // import-padus-areas.ts.
 
+// The bucket names, and nothing else, come from the calibration module. This
+// file builds every leaf that reaches `destinations.amenities`, so it may check
+// that a range is spelled the way the calibration spells it and may do nothing
+// else with the calibration at all — it cannot compute a bucket from an area
+// (`estimateCapacityRange`) and cannot compute a car count from one
+// (`fittedCapacityCurve`). A test reads this import list and fails if either
+// name appears in it.
+import { CAPACITY_RANGES } from "./parking-capacity";
 import type {
   SourcedValue,
   TrailheadAmenities,
@@ -333,6 +341,14 @@ export interface BathroomRow {
  * other is its own piece of work. `verbatim_spans` is the evidence a person
  * auditing the extraction reads, and `elevation_ft` belongs to the
  * destination, not to its amenities.
+ *
+ * **Two of them are read as guards, and a guard may only take away.**
+ * `verbatim_spans.capacity` is the page's own words behind its number, and
+ * `road_text` is its driving directions; between them they drop a capacity
+ * counted in trailers, lower one stated as a range to its floor, and refuse a
+ * "fills early" note that turns out to be a sentence of directions. Neither
+ * ever supplies a fact — the same rule the road importer's single read of its
+ * `derivation` block obeys.
  */
 export interface PageSectionRow {
   url: string;
@@ -493,6 +509,69 @@ function positiveNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
+/**
+ * A count of things, which is what a capacity is.
+ *
+ * Stricter than `positiveNumber` in two ways, and the fees keep the looser one
+ * because a fee of $0.00 and a fee of $5.50 are both real.
+ *
+ * **Zero is refused.** `capacity_vehicles: 0` renders as "0 vehicles", which
+ * reads as "there is no parking here" — a claim no page in this set makes and
+ * one an extraction bug could produce from a sentence it did not understand.
+ * Silence is the honest form of not knowing.
+ *
+ * **A fraction is refused.** Half a parking space is an extraction that has
+ * gone wrong, not a lot with a half space in it.
+ */
+function positiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
+}
+
+/**
+ * Words that mean the page counted something bigger than a car.
+ *
+ * "Up to 6 truck/trailer combinations" is a real capacity and it is not six
+ * cars — an ORV or stock trailhead rates its lot in rigs, and each rig is two
+ * or three car spaces. Writing 6 into `capacity_vehicles` understates the lot
+ * for a driver in a car and overstates it for one towing. Two matched rows say
+ * this today (Edds Mountain 6, Bear Pot 4) and three more wait one catalog
+ * addition away.
+ *
+ * There is no leaf for "6 rigs", so the count is dropped rather than converted:
+ * the multiplier is a guess, and a guessed number is the thing this importer
+ * spends most of its rules avoiding.
+ */
+export const TRAILER_CAPACITY_PATTERN =
+  /\b(truck|trucks|trailer|trailers|rv|rvs|motorhome|motorhomes|semi|stock|horse|horses)\b/i;
+
+/** The page's own words behind its capacity, when the extraction kept them. */
+export function capacitySpanText(spans: unknown): string | null {
+  if (!isPlainObject(spans)) return null;
+  const capacity = spans.capacity;
+  return typeof capacity === "string" && capacity.trim().length > 0 ? capacity.trim() : null;
+}
+
+/**
+ * The low end of a range the page states, when it states one.
+ *
+ * "Parking for 10-15 cars" is two numbers and the extraction keeps the high
+ * one. **The low end is the one to publish.** A driver who arrives to find ten
+ * spaces where fifteen were promised has been sent up a forest road for
+ * nothing; the other error costs them a pleasant surprise.
+ */
+export function rangeLowEnd(span: string | null): number | null {
+  if (span === null) return null;
+  const match = /(\d+)\s*(?:-|–|—|\bto\b)\s*(\d+)/.exec(span);
+  if (match === null) return null;
+  const low = Math.min(Number(match[1]), Number(match[2]));
+  return Number.isInteger(low) && low >= 1 ? low : null;
+}
+
+/** Whitespace and case flattened, so two spellings of one sentence compare equal. */
+function flattenText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 function stringList(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const items = value.map((item) => String(item).trim()).filter((item) => item.length > 0);
@@ -612,10 +691,27 @@ export function bathroomLeafCandidates(row: BathroomRow): LeafExtraction {
  * datasets already publish as fields, and its verbatim spans are the
  * extraction's evidence rather than a fact about the trailhead. Only the two
  * things no dataset carries are imported.
+ *
+ * **Three guards, and every one of them can only take a claim away or make it
+ * smaller.** They read `verbatim_spans` and `road_text`, which are otherwise
+ * unimported, in the same spirit as the road importer's one read of its audit
+ * block: evidence is allowed to withhold a fact, never to supply one.
+ *
+ * 1. A capacity whose own words say truck, trailer, RV or stock is dropped.
+ *    The page counted rigs, and there is no leaf for rigs.
+ * 2. A capacity whose words state a range is published at the range's low end.
+ *    The extraction keeps the high end; over-claiming parking is what strands
+ *    a driver.
+ * 3. A `fills_early_note` that appears word for word inside the page's driving
+ *    directions is dropped. The extraction found no sentence about the lot
+ *    filling and lifted one out of the paragraph about how to get there —
+ *    "Turn right onto Road 225 and continue approximately 4 miles to the small
+ *    trailhead parking area" is not a fact about when the lot fills.
  */
 export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
   const refusals: string[] = [];
+  const notices: string[] = [];
 
   const url = typeof row.url === "string" ? row.url.trim() : "";
   if (!/^https?:\/\/\S/i.test(url)) {
@@ -638,14 +734,33 @@ export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
     });
   };
 
-  const capacity = positiveNumber(row.capacity_estimate);
-  if (capacity !== null) push("capacity_vehicles", capacity);
+  const span = capacitySpanText(row.verbatim_spans);
+  const stated = positiveInteger(row.capacity_estimate);
+  if (row.capacity_estimate !== null && row.capacity_estimate !== undefined && stated === null) {
+    refusals.push("capacity_not_a_positive_whole_number");
+  } else if (stated !== null) {
+    if (span !== null && TRAILER_CAPACITY_PATTERN.test(span)) {
+      refusals.push("capacity_counted_in_trucks_or_trailers");
+    } else {
+      const low = rangeLowEnd(span);
+      const capacity = low !== null && low < stated ? low : stated;
+      if (capacity !== stated) notices.push("capacity_lowered_to_stated_range_floor");
+      push("capacity_vehicles", capacity);
+    }
+  }
 
   const fillsEarly = nonEmptyText(row.fills_early_note);
-  if (fillsEarly) push("fills_early_note", fillsEarly);
+  if (fillsEarly) {
+    const directions = typeof row.road_text === "string" ? flattenText(row.road_text) : "";
+    if (directions.length > 0 && directions.includes(flattenText(fillsEarly))) {
+      refusals.push("fills_early_note_lifted_from_directions");
+    } else {
+      push("fills_early_note", fillsEarly);
+    }
+  }
 
-  if (leaves.length === 0) refusals.push("no_structured_facts");
-  return { leaves, refusals, notices: [] };
+  if (leaves.length === 0 && refusals.length === 0) refusals.push("no_structured_facts");
+  return { leaves, refusals, notices };
 }
 
 // ---------------------------------------------------------------------------
@@ -892,19 +1007,26 @@ export interface NpsFactRow {
 export const NPS_BATHROOM_LEAVES: readonly BathroomLeaf[] = ["status", "type", "season_note"];
 
 /**
- * The only parking leaves an NPS row may carry — and the reason the list is
- * this short.
+ * The only parking leaves an NPS row may carry — and the reason the list reads
+ * the way it does.
  *
- * NPS publishes 6,740 lot polygons and **no capacity field at all**.
- * research-parking.md §2.5 offers polygon area as a proxy at 30 m² a space and
- * says in the same paragraph that the ratio was never calibrated against
- * ground truth, because Overpass went down before the regression could run.
- * So `capacity_vehicles` is not merely absent from this list: a row carrying
- * one is refused and counted, because the only way a number could appear on an
- * NPS parking leaf is a regression that started dividing area by an
- * uncalibrated constant.
+ * NPS publishes 6,740 lot polygons and **no capacity field at all**, so what
+ * this source can say about how much parking there is comes from the lot's own
+ * mapped area, through the calibration in `parking-capacity.ts`. That yields a
+ * bucket, and the bucket goes in `capacity_range`.
+ *
+ * **`capacity_vehicles` is not merely absent from this list: a row carrying one
+ * is refused and counted by name.** A count is a claim somebody made by
+ * counting; a range is a claim a curve made by measuring ground. The only way a
+ * number could appear on an NPS parking leaf is a regression that started
+ * turning area into vehicles, and it would read exactly like a number somebody
+ * counted.
  */
-export const NPS_PARKING_LEAVES: readonly ParkingLeaf[] = ["type", "location_note"];
+export const NPS_PARKING_LEAVES: readonly ParkingLeaf[] = [
+  "type",
+  "capacity_range",
+  "location_note",
+];
 
 const PARKING_TYPES: readonly TrailheadParkingType[] = ["lot", "roadside", "garage", "other"];
 
@@ -1011,13 +1133,19 @@ export function npsBathroomLeafCandidates(row: NpsFactRow): LeafExtraction {
 /**
  * NPS row → parking leaves.
  *
- * Same shape as the bathroom half, and one rule of its own: the allow-list is
- * `type` and `location_note`, so **a `capacity_vehicles` arriving on an NPS
- * leaf is refused by name**. The Park Service publishes no capacity field —
- * the only way a number could appear here is a regression that started
- * dividing polygon area by the uncalibrated 30 m² constant
- * research-parking.md §2.5 warned about, and that number would read exactly
- * like a counted one.
+ * Same shape as the bathroom half, and two rules of its own.
+ *
+ * **A `capacity_vehicles` arriving on an NPS leaf is refused by name.** The
+ * Park Service publishes no capacity field, so a number here can only be a
+ * regression that started turning polygon area into vehicles — and a number
+ * nobody counted, in the leaf counted numbers live in, reads exactly like a
+ * counted one.
+ *
+ * **A `capacity_range` must be spelled one of the five ways the calibration
+ * spells it.** The list is checked, never parsed: an unknown bucket string is
+ * refused rather than passed through to a renderer that would print the raw
+ * value, and a number arriving in this leaf is refused for the same reason it
+ * would be refused in the other one.
  */
 export function npsParkingLeafCandidates(row: NpsFactRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
@@ -1039,6 +1167,9 @@ export function npsParkingLeafCandidates(row: NpsFactRow): LeafExtraction {
     if (name === "type") {
       const raw = isPlainObject(leaf) ? leaf.value : undefined;
       value = PARKING_TYPES.includes(raw as TrailheadParkingType) ? raw : null;
+    } else if (name === "capacity_range") {
+      const raw = isPlainObject(leaf) ? leaf.value : undefined;
+      value = CAPACITY_RANGES.includes(raw as (typeof CAPACITY_RANGES)[number]) ? raw : null;
     } else {
       value = nonEmptyStringValue(leaf);
     }

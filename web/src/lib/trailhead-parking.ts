@@ -16,17 +16,21 @@
 // resolves an ambiguity the structured fact creates rather than adding a new
 // one: Paradise has four lots, and "Parking lot" alone does not say which.
 //
-// **No number is ever derived from a lot's size here or anywhere upstream.**
-// docs/trailheads/research-parking.md §2.5 offers polygon area as a proxy at
-// 30 m² a space and says in the same paragraph that the ratio was never
-// calibrated against ground truth. An uncalibrated estimate reads exactly like
-// a counted one.
+// **A lot's size never becomes a number of cars, here or anywhere upstream.**
+// It can become a range. docs/trailheads/research-parking.md §2.5 offered
+// polygon area as a proxy at 30 m² a space and said in the same paragraph that
+// the ratio had never been calibrated; the calibration exists now and its
+// honest unit is a bucket, because the fitted curve runs through a cloud a full
+// order of magnitude wide. So `capacity_range` prints as a range and says
+// "roughly", `capacity_vehicles` prints as a count, and neither is ever
+// rendered in the other's words. A counted 30 beats an estimated 25-50 and
+// wins the row outright.
 //
 // Everything here reads unvalidated JSONB out of `destinations.amenities`, so
 // nothing is trusted: a leaf is used only when its value is the shape the
 // contract says it is, and an unusable leaf prints nothing at all.
 
-import type { TrailheadParking } from "./amenities";
+import type { TrailheadParking, TrailheadParkingCapacityRange } from "./amenities";
 import {
   dedupeCredits,
   leafCredit,
@@ -75,6 +79,41 @@ function capacityVehicles(parking: TrailheadParking): number | null {
 }
 
 /**
+ * How much parking, when the only evidence is how much ground the lot covers.
+ *
+ * One phrasing per bucket, written out rather than assembled from the numbers,
+ * because the two ends are not the same kind of thing: `under_10` has no lower
+ * bound to print and `100_plus` no upper one, and "Roughly under 10 cars" is
+ * two hedges in four words. The en dash is the one a range takes.
+ *
+ * "Roughly" is doing real work. The estimate comes from the lot's mapped area
+ * through a curve whose residual spread is a factor of 1.6, so the word is the
+ * difference between what this is and what a count would be.
+ */
+const CAPACITY_RANGE_LABELS: Record<TrailheadParkingCapacityRange, string> = {
+  under_10: "Under 10 cars",
+  "10_to_25": "Roughly 10–25 cars",
+  "25_to_50": "Roughly 25–50 cars",
+  "50_to_100": "Roughly 50–100 cars",
+  "100_plus": "Roughly 100+ cars",
+};
+
+/**
+ * The range in words, or null when the leaf holds something else.
+ *
+ * A value outside the five is data this page does not know how to read, and
+ * printing it raw would be the database read aloud.
+ */
+export function capacityRangeLabel(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  return CAPACITY_RANGE_LABELS[raw as TrailheadParkingCapacityRange] ?? null;
+}
+
+function capacityRange(parking: TrailheadParking): string | null {
+  return capacityRangeLabel(leafValue(parking.capacity_range));
+}
+
+/**
  * Which lot, in the words the land manager uses for it.
  *
  * The highest-value note this block carries: "Paradise Parking (Upper Lot)"
@@ -92,9 +131,16 @@ function locationNote(parking: TrailheadParking): string | null {
 /**
  * The whole parking row, or null when the block says nothing worth printing.
  *
- * Capacity outranks kind because it answers the harder question. Where a lot
- * has a counted capacity the kind adds nothing — thirty spaces is a lot — so
- * the two never print together. The lot's name stands under either of them.
+ * Three answers, in the order of how much they say. A counted capacity is
+ * best and wins outright — thirty spaces is a lot, so the kind adds nothing
+ * beside it. An estimated range comes next: it is less than a count and much
+ * more than "there is a lot here". The kind of parking answers last. The lot's
+ * name stands under whichever of them prints.
+ *
+ * **The count and the range never print together and never merge.** They are
+ * different claims — one somebody made by counting, one a curve made by
+ * measuring ground — and a row reading "30 vehicles (roughly 25-50)" would
+ * invite the reader to average them.
  */
 export function parkingRow(block: TrailheadParking | undefined | null): AmenityRow | null {
   if (!isRecord(block)) return null;
@@ -111,6 +157,16 @@ export function parkingRow(block: TrailheadParking | undefined | null): AmenityR
       value: `${capacity} vehicles`,
       captions,
       credits: dedupeCredits([leafCredit(parking.capacity_vehicles), noteCredit]),
+    };
+  }
+
+  const range = capacityRange(parking);
+  if (range !== null) {
+    return {
+      label: "Parking capacity",
+      value: range,
+      captions,
+      credits: dedupeCredits([leafCredit(parking.capacity_range), noteCredit]),
     };
   }
 
@@ -137,10 +193,13 @@ export function parkingBadge(block: TrailheadParking | undefined | null): string
   const parking = block as TrailheadParking;
   const note = locationNote(parking);
   const capacity = capacityVehicles(parking);
+  const range = capacityRange(parking);
   const answer =
     capacity !== null
       ? `${capacity} parking spaces`
-      : (parkingTypeLabel(leafValue(parking.type))?.toLowerCase() ?? null);
+      : range !== null
+        ? range.charAt(0).toLowerCase() + range.slice(1)
+        : (parkingTypeLabel(leafValue(parking.type))?.toLowerCase() ?? null);
   if (answer === null) return note;
   return note === null ? answer : `${answer} (${note})`;
 }

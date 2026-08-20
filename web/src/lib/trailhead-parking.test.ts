@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parkingBadge, parkingRow, parkingTypeLabel } from "./trailhead-parking";
+import {
+  capacityRangeLabel,
+  parkingBadge,
+  parkingRow,
+  parkingTypeLabel,
+} from "./trailhead-parking";
 import type { TrailheadParking } from "./amenities";
 
 const NPS_SOURCE = {
@@ -116,10 +121,76 @@ test("a source with no name credits nobody", () => {
   assert.deepEqual(row?.credits, []);
 });
 
+// --- the estimated range ----------------------------------------------------
+
+test("each bucket has words of its own, with an en dash between the ends", () => {
+  assert.equal(capacityRangeLabel("under_10"), "Under 10 cars");
+  assert.equal(capacityRangeLabel("10_to_25"), "Roughly 10–25 cars");
+  assert.equal(capacityRangeLabel("25_to_50"), "Roughly 25–50 cars");
+  assert.equal(capacityRangeLabel("50_to_100"), "Roughly 50–100 cars");
+  assert.equal(capacityRangeLabel("100_plus"), "Roughly 100+ cars");
+  // "Roughly under 10" would be two hedges in three words, and "100+" has no
+  // upper end to print.
+  assert.equal(capacityRangeLabel("under_10")?.startsWith("Roughly"), false);
+});
+
+test("a bucket outside the vocabulary prints nothing", () => {
+  for (const value of ["25-50", "25_to_60", "", 40, null, undefined, { value: "50_to_100" }]) {
+    assert.equal(capacityRangeLabel(value), null, JSON.stringify(value));
+  }
+});
+
+test("an estimated range answers when nobody counted", () => {
+  const row = parkingRow(block({ type: leaf("lot"), capacity_range: leaf("25_to_50") }));
+  assert.equal(row?.label, "Parking capacity");
+  assert.equal(row?.value, "Roughly 25–50 cars");
+  assert.deepEqual(row?.credits, [{ name: "National Park Service", url: NPS_SOURCE.url }]);
+});
+
+test("a counted capacity beats an estimated range outright", () => {
+  // Different claims, and the row prints one of them. "30 vehicles (roughly
+  // 25-50)" would invite the reader to average a count with a guess.
+  const row = parkingRow(
+    block({
+      capacity_vehicles: leaf(30, { kind: "usfs_web", name: "US Forest Service" }),
+      capacity_range: leaf("25_to_50"),
+      type: leaf("lot"),
+    })
+  );
+  assert.equal(row?.value, "30 vehicles");
+  assert.equal(row?.value.includes("Roughly"), false);
+  assert.deepEqual(row?.credits, [{ name: "US Forest Service" }]);
+});
+
+test("a range never prints as a count", () => {
+  // The whole vocabulary, checked for a bare number of vehicles.
+  for (const bucket of ["under_10", "10_to_25", "25_to_50", "50_to_100", "100_plus"]) {
+    const row = parkingRow(block({ capacity_range: leaf(bucket) }));
+    assert.equal(row?.value.includes("vehicles"), false, bucket);
+    assert.equal(parkingBadge(block({ capacity_range: leaf(bucket) }))?.includes("spaces"), false, bucket);
+  }
+});
+
+test("a malformed range falls through to the kind rather than printing itself", () => {
+  const row = parkingRow(block({ type: leaf("lot"), capacity_range: leaf("25-50") }));
+  assert.equal(row?.value, "Parking lot");
+  assert.equal(parkingRow(block({ type: leaf("lot"), capacity_range: "50_to_100" }))?.value, "Parking lot");
+});
+
+test("the range stands over the lot's own name too", () => {
+  const row = parkingRow(
+    block({ capacity_range: leaf("100_plus"), location_note: leaf("Paradise Parking (Upper Lot)") })
+  );
+  assert.equal(row?.value, "Roughly 100+ cars");
+  assert.deepEqual(row?.captions, ["Paradise Parking (Upper Lot)"]);
+});
+
 test("the admin chip says the same thing, shorter", () => {
   assert.equal(parkingBadge(block({ type: leaf("lot") })), "parking lot");
   assert.equal(parkingBadge(block({ type: leaf("garage") })), "parking garage");
   assert.equal(parkingBadge(block({ capacity_vehicles: leaf(30) })), "30 parking spaces");
+  assert.equal(parkingBadge(block({ capacity_range: leaf("25_to_50") })), "roughly 25–50 cars");
+  assert.equal(parkingBadge(block({ capacity_range: leaf("under_10") })), "under 10 cars");
   assert.equal(parkingBadge(block({ fee_required: leaf(true) })), null);
   assert.equal(parkingBadge(undefined), null);
 });

@@ -859,6 +859,141 @@ test("a page with no coordinates is counted, never placed by its name", async ()
   );
 });
 
+test("a page with no name is counted apart from a page with no point", async () => {
+  // Two different failures wanting two different fixes: one asks for the
+  // extraction's coordinates to be looked at, the other for its titles.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({ name: "" }),
+      pageRow({
+        url: "https://www.fs.usda.gov/r06/mbs/recreation/no-point-trailhead",
+        lat: null,
+        lng: null,
+      }),
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(files);
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_pages.noName, 1);
+  assert.equal(summary.counts.usfs_pages.noLocation, 1);
+  assert.equal(summary.counts.usfs_pages.refusals.no_page_name, 1);
+  assert.equal(summary.counts.usfs_pages.refusals.no_coordinates, 1);
+  assert.equal(summary.counts.usfs_pages.matched, 0);
+});
+
+test("a coordinate off the globe is refused on every source, not only the pages", async () => {
+  // ST_MakePoint takes a latitude of 200 without complaint and the geography
+  // cast turns it into some point on the globe, so an extraction that got a
+  // sign or a column wrong would come back as a confident distance to a real
+  // trailhead. The page rows have always been checked this way; the fee and
+  // bathroom rows have the same failure and now the same guard.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
+      { ...NO_FACT_FEE_ROW, lat: 200, lng: -121.4231, fee_required: true },
+    ]),
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: jsonl([
+      { ...NO_FACT_BATHROOM_ROW, lat: 47.4459, lng: 999, status: "present" },
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+
+  assert.equal(summary.counts.usfs_fees.noLocation, 1);
+  assert.equal(summary.counts.usfs_fees.matched, 0);
+  assert.equal(summary.counts.usfs_bathrooms.noLocation, 1);
+  assert.equal(summary.counts.usfs_bathrooms.matched, 0);
+});
+
+test("a page capacity counted in trailers never lands as cars", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({
+        capacity_estimate: 6,
+        fills_early_note: null,
+        verbatim_spans: { capacity: "up to 6 truck/trailer combinations" },
+      }),
+    ]),
+  });
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const summary = await importTrailheadFacts(testArgs(), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  assert.equal(summary.counts.usfs_pages.refusals.capacity_counted_in_trucks_or_trailers, 1);
+  assert.equal(summary.counts.usfs_pages.matched, 0);
+});
+
+test("an NPS capacity range reaches the row, and a count never does", async () => {
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([
+      npsRow({
+        parking: {
+          type: npsLeaf("lot", NPS_PARKING_SOURCE),
+          capacity_range: npsLeaf("50_to_100", NPS_PARKING_SOURCE),
+        },
+      }),
+    ]),
+    // The page's counted capacity would otherwise sit on the same row, which
+    // is fine and is a different test; this one wants the range alone.
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([NO_FACT_PAGE_ROW]),
+  });
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  assert.equal(summary.counts.nps_parking.matched, 1);
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.parking.capacity_range.value, "50_to_100");
+  assert.equal(merged.parking.capacity_range.source.kind, "nps_parking");
+  assert.equal(merged.parking.capacity_vehicles, undefined);
+});
+
+test("a counted capacity and an estimated range sit side by side, unmerged", async () => {
+  // Different claims about the same lot, kept apart. The page counted 30; the
+  // Park Service mapped a polygon this code read as 50-100. Neither is
+  // rewritten as the other and nothing averages them.
+  const files = defaultFiles({
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([
+      npsRow({
+        parking: {
+          type: npsLeaf("lot", NPS_PARKING_SOURCE),
+          capacity_range: npsLeaf("50_to_100", NPS_PARKING_SOURCE),
+        },
+      }),
+    ]),
+  });
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.parking.capacity_vehicles.value, 30);
+  assert.equal(merged.parking.capacity_range.value, "50_to_100");
+});
+
 test("an Alaska page is unmatched rather than an error", async () => {
   // 23 of the 2,900 pages are Alaskan and Peaks has no Alaskan trailhead
   // today. Nothing in the match path may assume a lower-48 bounding box: these

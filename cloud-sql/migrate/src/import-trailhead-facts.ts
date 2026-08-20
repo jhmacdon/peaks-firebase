@@ -307,6 +307,15 @@ interface SourceCounts {
   rowsIn: number;
   malformed: number;
   noLocation: number;
+  /**
+   * Rows with a point and no name, which is a different failure.
+   *
+   * It used to be counted under `noLocation`, where it read as a coordinate
+   * problem. A page with no name has a perfectly good coordinate and nothing
+   * for the second gate to weigh, and the fix for the two is not the same: one
+   * wants the extraction's coordinates looked at, the other its titles.
+   */
+  noName: number;
   noFacts: number;
   noNearbyTrailhead: number;
   nameRejected: number;
@@ -325,6 +334,7 @@ function emptyCounts(): SourceCounts {
     rowsIn: 0,
     malformed: 0,
     noLocation: 0,
+    noName: 0,
     noFacts: 0,
     noNearbyTrailhead: 0,
     nameRejected: 0,
@@ -553,9 +563,18 @@ function readSources(
   const limited = <T>(list: T[]): T[] => (args.limit === null ? list : list.slice(0, args.limit));
   const rows: FactRow[] = [];
 
+  // Every source's point goes through the same check. `Number.isFinite` used to
+  // be enough here, and it is not: `ST_MakePoint` takes a latitude of 200
+  // without complaint and the geography cast turns it into some point on the
+  // globe, so an extraction that got a sign or a column wrong comes back as a
+  // confident distance to a real trailhead rather than as an error. The page
+  // rows have been checked this way since they started carrying their own
+  // coordinates; the fee and bathroom rows have the same failure mode and now
+  // the same guard.
   for (const row of limited(fees.rows)) {
     counts.usfs_fees.rowsIn += 1;
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    const feePoint = usableSourcePoint(row.lat, row.lng);
+    if (feePoint === null) {
       counts.usfs_fees.noLocation += 1;
       skipped.push({
         reason: "no_coordinates",
@@ -578,7 +597,7 @@ function readSources(
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
       names: candidateNames(row.name, facts),
-      point: { lat: row.lat, lng: row.lng },
+      point: feePoint,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
       raw: row as unknown as Record<string, unknown>,
@@ -587,7 +606,8 @@ function readSources(
 
   for (const row of limited(bathrooms.rows)) {
     counts.usfs_bathrooms.rowsIn += 1;
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    const bathroomPoint = usableSourcePoint(row.lat, row.lng);
+    if (bathroomPoint === null) {
       counts.usfs_bathrooms.noLocation += 1;
       skipped.push({
         reason: "no_coordinates",
@@ -609,7 +629,7 @@ function readSources(
       rowKey: `${row.source_dataset}:${row.source_id}`,
       name: row.name,
       names: candidateNames(row.name, recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null),
-      point: { lat: row.lat, lng: row.lng },
+      point: bathroomPoint,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
       raw: row as unknown as Record<string, unknown>,
@@ -643,7 +663,7 @@ function readSources(
     // distance alone would attach it to whichever trailhead is nearest.
     const names = candidateNames(name, null);
     if (names.length === 0) {
-      counts.usfs_pages.noLocation += 1;
+      counts.usfs_pages.noName += 1;
       countRefusals(counts.usfs_pages, ["no_page_name"]);
       skipped.push({
         reason: "no_page_name",
@@ -925,6 +945,7 @@ async function logRuns(
           ]
         : [
             `no_location=${counts.noLocation}`,
+            `no_name=${counts.noName}`,
             `no_facts=${counts.noFacts}`,
             `no_nearby_trailhead=${counts.noNearbyTrailhead}`,
             `name_rejected=${counts.nameRejected}`,
@@ -1306,6 +1327,7 @@ function logSummary(
     logger.log(`  rows read:            ${counts.rowsIn}`);
     if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed} (whole file, never limited)`);
     logger.log(`  no usable location:   ${counts.noLocation}`);
+    if (counts.noName > 0) logger.log(`  no usable name:       ${counts.noName}`);
     logger.log(`  no fact to write:     ${counts.noFacts}`);
     if (isExactIdSource(source)) {
       logger.log(`  destination vanished: ${counts.destinationVanished}`);

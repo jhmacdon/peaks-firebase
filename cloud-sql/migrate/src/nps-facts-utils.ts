@@ -12,6 +12,12 @@
 // with no NPS feature near it — an emitted row saying "considered, found
 // nothing" is that forbidden negative wearing a diagnostic's clothes.
 
+import {
+  estimateCapacityRange,
+  fittedCapacityCurve,
+  PARKING_CAPACITY_CALIBRATION,
+  type TrailheadParkingCapacityRange,
+} from "./parking-capacity";
 import { distanceMeters, type SourcePoint } from "./trailhead-facts-utils";
 import type {
   SourcedValue,
@@ -475,6 +481,250 @@ export function metresToPolygon(point: SourcePoint, rings: PolygonRings): number
 }
 
 // ---------------------------------------------------------------------------
+// Lot area — the call site the area contract binds
+// ---------------------------------------------------------------------------
+//
+// `parking-capacity.ts` takes a number and, as its header says, cannot tell a
+// good one from a bad one. This is where the number is made, so this is where
+// the contract is kept. It has two halves and both move buckets silently.
+//
+// **Geodesic, not planar.** A Web Mercator area is inflated by 1/cos²(latitude)
+// — ×2.00 at 45°N — which through the fitted 0.735 exponent is ×1.66 in cars,
+// enough to push most lots a whole bucket high, in the direction that tells a
+// hiker there is more parking than there is. What follows is the ground area.
+//
+// **One lot, net of its holes.** Of the layer's 6,739 usable features 1,006
+// carry at least one interior ring — a median, a planted island, a building —
+// and reading the gross outline as the area flips 232 buckets. A further 147
+// carry more than one *exterior* ring, and two lots either side of a road are
+// two lots: the contract is one call per exterior part, never a sum.
+
+/** WGS84, the datum every coordinate in these layers is written in. */
+const WGS84_SEMI_MAJOR_M = 6_378_137;
+const WGS84_ECCENTRICITY_SQUARED = 0.006_694_379_990_141_32;
+
+/**
+ * One lot: an exterior ring and the holes inside it.
+ *
+ * A feature with two exterior rings yields two of these, and each is asked
+ * about separately. Nothing here ever adds two parts together.
+ */
+export interface PolygonPart {
+  exterior: ReadonlyArray<readonly [number, number]>;
+  holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
+}
+
+/**
+ * The shoelace area of a ring in a local metre frame — signed, so the sign
+ * says which way the ring winds.
+ *
+ * The frame is an equal-area tangent one: metres east are degrees of longitude
+ * times the prime-vertical radius at the origin latitude, metres north are
+ * degrees of latitude times the meridional radius there. Both radii come from
+ * the WGS84 ellipsoid, so this is the same quantity `ST_Area(geom::geography)`
+ * returns rather than a spherical approximation of it. Across a polygon a few
+ * hundred metres wide the frame's own error is parts per million; the largest
+ * ring in this layer is 500 m across.
+ *
+ * Every ring of one feature must share an origin, or the exterior and its
+ * holes are measured with two different rulers and the subtraction is wrong.
+ */
+export function signedRingAreaM2(
+  ring: ReadonlyArray<readonly [number, number]>,
+  origin: SourcePoint
+): number {
+  const rad = Math.PI / 180;
+  const sinLat = Math.sin(origin.lat * rad);
+  const w = 1 - WGS84_ECCENTRICITY_SQUARED * sinLat * sinLat;
+  const meridional = (WGS84_SEMI_MAJOR_M * (1 - WGS84_ECCENTRICITY_SQUARED)) / Math.pow(w, 1.5);
+  const primeVertical = WGS84_SEMI_MAJOR_M / Math.sqrt(w);
+  const eastPerDegree = primeVertical * rad * Math.cos(origin.lat * rad);
+  const northPerDegree = meridional * rad;
+
+  const points: Array<[number, number]> = [];
+  for (const vertex of ring) {
+    const lng = Number(vertex[0]);
+    const lat = Number(vertex[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    points.push([(lng - origin.lng) * eastPerDegree, (lat - origin.lat) * northPerDegree]);
+  }
+  if (points.length < 3) return 0;
+  let twice = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    twice += x1 * y2 - x2 * y1;
+  }
+  return twice / 2;
+}
+
+/** A ring's ground area, whichever way it winds. */
+export function ringAreaM2(
+  ring: ReadonlyArray<readonly [number, number]>,
+  origin: SourcePoint
+): number {
+  return Math.abs(signedRingAreaM2(ring, origin));
+}
+
+/** The centre of a polygon's box — one origin for every ring of one feature. */
+export function ringsOrigin(rings: PolygonRings): SourcePoint | null {
+  const bounds = ringsBounds(rings);
+  if (bounds === null) return null;
+  return {
+    lat: (bounds.minLat + bounds.maxLat) / 2,
+    lng: (bounds.minLng + bounds.maxLng) / 2,
+  };
+}
+
+/** True when a point falls inside one ring, by the even-odd rule. */
+function pointInRing(
+  point: readonly [number, number],
+  ring: ReadonlyArray<readonly [number, number]>
+): boolean {
+  let inside = false;
+  const [px, py] = point;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = Number(ring[i][0]);
+    const yi = Number(ring[i][1]);
+    const xj = Number(ring[j][0]);
+    const yj = Number(ring[j][1]);
+    if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(xj) || !Number.isFinite(yj)) {
+      continue;
+    }
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+export interface PolygonPartsResult {
+  parts: PolygonPart[];
+  /** Interior rings sitting inside no exterior ring, dropped rather than kept. */
+  orphanHoles: number;
+  /**
+   * Rings wound like an exterior and drawn inside one, so read as holes.
+   *
+   * 21 rings across 18 of the layer's features. Winding is the layer's own
+   * statement about which ring is which, and where it contradicts the geometry
+   * the geometry wins: a ring inside another ring is ground the outer ring does
+   * not cover, whichever way its vertices run.
+   */
+  demotedHoles: number;
+}
+
+/**
+ * An ArcGIS ring list split into lots.
+ *
+ * The layer follows the Esri convention: an exterior ring is drawn clockwise, a
+ * hole counter-clockwise. In a frame with longitude east and latitude north,
+ * clockwise is a negative shoelace area, so the sign is the whole test. Each
+ * hole is then given to the exterior ring that contains it.
+ *
+ * **A hole inside nothing is dropped, never promoted to a lot of its own.** It
+ * is a ring this code cannot place, and the two ways to be wrong about it are
+ * not the same size: dropped, it costs a candidate part and the answer comes
+ * from the lot next to it; promoted, it adds ground to the total and the answer
+ * says there is more parking than there is.
+ *
+ * **A ring wound like an exterior but drawn inside one is a hole.** The same
+ * asymmetry decides it. The layer's winding is a statement about intent, and 21
+ * rings in 18 features contradict their own geometry; believing the winding
+ * there leaves a building or a planted island counted as parking.
+ */
+export function polygonParts(rings: PolygonRings): PolygonPartsResult {
+  const origin = ringsOrigin(rings);
+  if (origin === null) return { parts: [], orphanHoles: 0, demotedHoles: 0 };
+  const exteriors: PolygonPart[] = [];
+  const holes: Array<ReadonlyArray<readonly [number, number]>> = [];
+  for (const ring of rings) {
+    if (ring.length < 3) continue;
+    if (signedRingAreaM2(ring, origin) <= 0) exteriors.push({ exterior: ring, holes: [] });
+    else holes.push(ring);
+  }
+
+  // Largest first, so a nested ring always meets its container before it is
+  // asked to contain anything, and the demotion needs no second pass.
+  exteriors.sort(
+    (a, b) => ringAreaM2(b.exterior, origin) - ringAreaM2(a.exterior, origin)
+  );
+  const parts: PolygonPart[] = [];
+  let demotedHoles = 0;
+  for (const candidate of exteriors) {
+    const probe = firstFiniteVertex(candidate.exterior);
+    const container =
+      probe === undefined ? undefined : parts.find((part) => pointInRing(probe, part.exterior));
+    if (container === undefined) {
+      parts.push(candidate);
+      continue;
+    }
+    // Holes have not been handed out yet, so there is only the ring to move. A
+    // hole later found inside a demoted ring is subtracted from the container
+    // twice, which reads a lot as smaller than it is — the safe direction.
+    (container.holes as Array<ReadonlyArray<readonly [number, number]>>).push(candidate.exterior);
+    demotedHoles += 1;
+  }
+
+  let orphanHoles = 0;
+  for (const hole of holes) {
+    const probe = firstFiniteVertex(hole);
+    const owner =
+      probe === undefined ? undefined : parts.find((part) => pointInRing(probe, part.exterior));
+    if (owner === undefined) orphanHoles += 1;
+    else (owner.holes as Array<ReadonlyArray<readonly [number, number]>>).push(hole);
+  }
+  return { parts, orphanHoles, demotedHoles };
+}
+
+function firstFiniteVertex(
+  ring: ReadonlyArray<readonly [number, number]>
+): readonly [number, number] | undefined {
+  return ring.find(
+    (vertex) => Number.isFinite(Number(vertex[0])) && Number.isFinite(Number(vertex[1]))
+  );
+}
+
+export interface PartAreas {
+  /** The exterior ring's own area. */
+  grossM2: number;
+  /** The exterior ring less its holes — the only number the calibration takes. */
+  netM2: number;
+}
+
+/** One part's gross and net ground area, measured in one frame. */
+export function partAreasM2(part: PolygonPart, origin: SourcePoint): PartAreas {
+  const grossM2 = ringAreaM2(part.exterior, origin);
+  let holes = 0;
+  for (const hole of part.holes) holes += ringAreaM2(hole, origin);
+  return { grossM2, netM2: Math.max(0, grossM2 - holes) };
+}
+
+export interface NearestPart {
+  index: number;
+  distanceM: number;
+  part: PolygonPart;
+}
+
+/**
+ * The part of a feature the trailhead is nearest, which is the lot it means.
+ *
+ * A multi-part feature is not one lot, and the question of which part answers
+ * is not a matter of precision but of identity: the driver parks in the one in
+ * front of them. Distance is to the part's edge and zero inside it, holes
+ * included, so a trailhead standing in a lot's planted island is not "in" it.
+ */
+export function nearestExteriorPart(
+  point: SourcePoint,
+  parts: readonly PolygonPart[]
+): NearestPart | null {
+  let best: NearestPart | null = null;
+  parts.forEach((part, index) => {
+    const distanceM = metresToPolygon(point, [part.exterior, ...part.holes]);
+    if (distanceM === null) return;
+    if (best === null || distanceM < best.distanceM) best = { index, distanceM, part };
+  });
+  return best;
+}
+
+// ---------------------------------------------------------------------------
 // The join
 // ---------------------------------------------------------------------------
 
@@ -505,6 +755,13 @@ export function npsSourcedValue<T>(value: T, source: NpsSource): SourcedValue<T>
 export interface NpsCandidate {
   distanceM: number;
   row: Record<string, unknown>;
+  /**
+   * A lot's rings, parsed once by the reader that boxed them.
+   *
+   * Only the parking join carries them, and only because the capacity range is
+   * read off the lot's own ground area. A toilet POI is a point and has none.
+   */
+  rings?: PolygonRings;
 }
 
 /** A candidate this join walked past, and why. */
@@ -642,7 +899,109 @@ export function npsBathroomFacts(
 
 export interface NpsParkingFacts {
   type: SourcedValue<TrailheadParkingType>;
+  capacity_range?: SourcedValue<TrailheadParkingCapacityRange>;
   location_note?: SourcedValue<string>;
+}
+
+/**
+ * Whether a run publishes the capacity range it computes.
+ *
+ * **Off, and off for a reason a date will not fix.** The calibration's own
+ * held-out numbers come from Forest Service prose joined to OpenStreetMap lot
+ * polygons, and the re-validation this wiring was supposed to run — the 137
+ * stated capacities in `fs-page-sections-full.jsonl`, scored against the frozen
+ * thresholds — cannot be run without pulling OSM again: **not one of the 137
+ * pages has an NPS lot within 200 m**, because Forest Service trailheads are
+ * not in national parks. So the buckets this join is about to publish rest on
+ * evidence gathered somewhere else entirely, over a population the calibration
+ * doc itself names as the most likely reason its numbers would be wrong in
+ * practice: "No NPS lot carries a capacity, so this is untested."
+ *
+ * The gate that clears it is a person's, not a script's:
+ * `docs/trailheads/data/nps-capacity-spotcheck.md` is a stratified sample of
+ * sixty lots with a maps link on each row, and the apply is gated on someone
+ * reading it against imagery at 80% correct-or-adjacent. Pass
+ * `emitCapacityRange: true` — `--capacity-range` on the normalizer — once that
+ * has happened, and flip this default in the same change.
+ */
+export const CAPACITY_RANGE_EMISSION_DEFAULT = false;
+
+export interface NpsParkingOptions {
+  /** Publish the computed range. Default `CAPACITY_RANGE_EMISSION_DEFAULT`. */
+  emitCapacityRange?: boolean;
+}
+
+/**
+ * Everything the area computation found, whether or not a range was published.
+ *
+ * Written to the row's diagnostics and never imported, which is what lets it
+ * hold the fitted car count: the curve is a centre line through a cloud a full
+ * order of magnitude wide, so the number is evidence for a person checking a
+ * bucket against imagery and is not a fact about the trailhead. It is also the
+ * only place the gross area survives, and gross against net is the difference
+ * that flips 232 of the layer's buckets.
+ */
+export interface NpsLotAreaDiagnostics {
+  /** Which exterior part answered, counting from zero. */
+  part_index: number;
+  parts: number;
+  /** Metres from the trailhead to that part, zero inside it. */
+  part_distance_m: number;
+  gross_area_m2: number;
+  net_area_m2: number;
+  /** Interior rings this feature carries, across every part. */
+  holes: number;
+  /** Interior rings inside no exterior ring, dropped rather than counted. */
+  orphan_holes: number;
+  /** Exterior-wound rings drawn inside another, read as holes. */
+  demoted_holes: number;
+  /** The fitted curve at the net area. Diagnostic only — never published. */
+  fitted_cars: number;
+  capacity_range: TrailheadParkingCapacityRange | null;
+  /** Why no range, when there is none: below the floor, above the cap, or off. */
+  capacity_range_withheld: string | null;
+}
+
+/**
+ * The lot's area as a capacity range, plus everything the measurement saw.
+ *
+ * The area contract in one place: split the feature into exterior parts, take
+ * the part the trailhead is nearest, subtract that part's holes, and hand the
+ * geodesic result to `estimateCapacityRange`. A feature with no usable ring
+ * makes no claim; so does one whose part is under the three-car floor or over
+ * the fifty-thousand-square-metre cap, and the withheld reason says which.
+ */
+export function npsLotCapacity(
+  point: SourcePoint,
+  rings: PolygonRings | undefined
+): NpsLotAreaDiagnostics | null {
+  if (rings === undefined) return null;
+  const origin = ringsOrigin(rings);
+  if (origin === null) return null;
+  const { parts, orphanHoles, demotedHoles } = polygonParts(rings);
+  const nearest = nearestExteriorPart(point, parts);
+  if (nearest === null) return null;
+  const areas = partAreasM2(nearest.part, origin);
+  const range = estimateCapacityRange(areas.netM2);
+  const withheld =
+    range !== null
+      ? null
+      : areas.netM2 < PARKING_CAPACITY_CALIBRATION.minLotAreaM2
+        ? "below_floor"
+        : "above_cap";
+  return {
+    part_index: nearest.index,
+    parts: parts.length,
+    part_distance_m: Number(nearest.distanceM.toFixed(1)),
+    gross_area_m2: Number(areas.grossM2.toFixed(1)),
+    net_area_m2: Number(areas.netM2.toFixed(1)),
+    holes: parts.reduce((total, part) => total + part.holes.length, 0),
+    orphan_holes: orphanHoles,
+    demoted_holes: demotedHoles,
+    fitted_cars: Number(fittedCapacityCurve(areas.netM2).toFixed(2)),
+    capacity_range: range,
+    capacity_range_withheld: withheld,
+  };
 }
 
 export interface NpsParkingDiagnostics {
@@ -669,6 +1028,14 @@ export interface NpsParkingDiagnostics {
    * a seasonal leaf exists, the evidence for it is already in the file.
    */
   seasonal_description: string | null;
+  /**
+   * What the lot's own ground area came to, and what it was read as.
+   *
+   * Null where the feature carried no usable ring. Present even when no range
+   * was published — a lot refused for being under the three-car floor is the
+   * gate working, and the areas are what say so.
+   */
+  area: NpsLotAreaDiagnostics | null;
   candidates_within_gate: number;
   skipped: SkippedCandidate[];
 }
@@ -692,20 +1059,29 @@ export interface NpsParkingResult {
  * is `lot` whatever `LOTTYPE` says — an `Overlook` lot is still a lot, and
  * `roadside` in the Peaks vocabulary means a pullout this layer does not carry.
  *
- * **No capacity here, still.** research-parking.md §2.5 offered polygon area as
- * a proxy at 30 m² a space and admitted the ratio had never been calibrated. It
- * has been now — see `parking-capacity.ts` and
- * docs/parking-capacity-calibration.md, which found 30 m² roughly twice as
- * dense as a real trailhead lot — but what that calibration yields is a
- * *range*, and `TrailheadParking` has nowhere to put one yet. This join keeps
- * emitting no capacity until the schema carries `capacity_range`; a fitted
- * range squeezed into `capacity_vehicles` would read exactly like a number
- * somebody counted.
+ * **The capacity here is a range and can never be anything else.**
+ * research-parking.md §2.5 offered polygon area as a proxy at 30 m² a space and
+ * admitted the ratio had never been calibrated. It has been now — see
+ * `parking-capacity.ts` and docs/parking-capacity-calibration.md, which found
+ * 30 m² about twice as dense as a real trailhead lot — and what the calibration
+ * yields is a bucket, published in `capacity_range` beside `capacity_vehicles`
+ * and never in it. A fitted range written where counted numbers live would read
+ * exactly like a number somebody counted. `capacity_vehicles` is not merely
+ * absent from what this returns; the importer refuses an NPS row carrying one
+ * by name.
+ *
+ * The area behind the bucket obeys the contract in `npsLotCapacity`: the
+ * nearest exterior part, net of its holes, measured on the ellipsoid. Whether
+ * the bucket is *published* is a separate question, and its default answer is
+ * no — see `CAPACITY_RANGE_EMISSION_DEFAULT`.
  */
 export function npsParkingFacts(
   candidates: readonly NpsCandidate[],
-  source: NpsSource
+  source: NpsSource,
+  trailhead: SourcePoint,
+  options: NpsParkingOptions = {}
 ): NpsParkingResult {
+  const emitCapacityRange = options.emitCapacityRange ?? CAPACITY_RANGE_EMISSION_DEFAULT;
   const skipped: SkippedCandidate[] = [];
   for (const candidate of candidates) {
     const distance = Number(candidate.distanceM.toFixed(1));
@@ -720,6 +1096,11 @@ export function npsParkingFacts(
       continue;
     }
     const facts: NpsParkingFacts = { type: npsSourcedValue("lot" as const, source) };
+    const area = npsLotCapacity(trailhead, candidate.rings);
+    if (area !== null && area.capacity_range !== null) {
+      if (emitCapacityRange) facts.capacity_range = npsSourcedValue(area.capacity_range, source);
+      else area.capacity_range_withheld = "emission_disabled";
+    }
     const note = npsLotLocationNote(candidate.row);
     if (note.kind === "note") facts.location_note = npsSourcedValue(note.text, source);
     return {
@@ -738,6 +1119,7 @@ export function npsParkingFacts(
           open_to_public: orNull(candidate.row.OPENTOPUBLIC),
           seasonal: orNull(candidate.row.SEASONAL),
           seasonal_description: npsSeasonNote(candidate.row.SEASDESC),
+          area,
           candidates_within_gate: candidates.length,
           skipped,
         },
