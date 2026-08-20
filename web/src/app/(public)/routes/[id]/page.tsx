@@ -340,10 +340,7 @@ export default function RouteDetailPage() {
                     guide.estimatedHoursHigh
                   )}
                 />
-                <StatRow
-                  label="Sessions"
-                  value={sessionCount.toLocaleString("en-US")}
-                />
+                <StatRow label="Sessions" value={formatSessionCount(sessionCount)} />
               </dl>
             </SidePanel>
 

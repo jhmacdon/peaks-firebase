@@ -134,20 +134,18 @@ const DESIGNATION_CODES: Record<string, string> = {
   REC: "Recreation Area",
 };
 
-/** Designation display text: expands a known PAD-US code, passes through
- * already-spelled-out text, and otherwise falls back to the kind label —
- * never a raw code, never nothing. */
+/** Designation display text: expands a known PAD-US code and otherwise
+ * falls back to the kind label — never a raw code, never nothing. Fails
+ * closed: an unlisted value is never passed through as-is, even if it looks
+ * "already spelled out", since that heuristic can't be verified against
+ * every code PAD-US might use. */
 export function describeDesignation(
   designation: string | null | undefined,
   kind: AreaKind
 ): string {
   if (!designation) return areaKindLabel(kind);
   const mapped = DESIGNATION_CODES[designation.toUpperCase()];
-  if (mapped) return mapped;
-  // PAD-US sometimes stores the designation already spelled out (e.g.
-  // "Wilderness Area" instead of "WA") — a code has no space or lowercase.
-  if (/[a-z]/.test(designation) || /\s/.test(designation)) return designation;
-  return areaKindLabel(kind);
+  return mapped ?? areaKindLabel(kind);
 }
 
 // PAD-US `Mang_Name` manager codes actually present in `areas.manager`
@@ -165,15 +163,11 @@ const MANAGER_CODES: Record<string, string> = {
   FED: "Federal government",
 };
 
-/** Manager display text: expands a known code, passes through already-
- * spelled-out text, and otherwise omits the row (null) rather than show a
- * raw code. */
+/** Manager display text: expands a known code and otherwise omits the row
+ * (null) rather than show a raw code. Fails closed — see describeDesignation. */
 export function describeManager(manager: string | null | undefined): string | null {
   if (!manager) return null;
-  const mapped = MANAGER_CODES[manager.toUpperCase()];
-  if (mapped) return mapped;
-  if (/[a-z]/.test(manager) || /\s/.test(manager)) return manager;
-  return null;
+  return MANAGER_CODES[manager.toUpperCase()] ?? null;
 }
 
 /** Shared contract — must match the iOS `ProtectedArea.isNationalParkService`. */
