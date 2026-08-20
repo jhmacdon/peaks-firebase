@@ -16,6 +16,7 @@ import {
   parseMapTypes,
   routesSelected,
   serializeMapTypes,
+  shouldAutoLocate,
   toggleMapType,
   type MapTypeId,
 } from "./map-view";
@@ -99,6 +100,27 @@ test("a search handed to the map carries only the query", () => {
     parseMapExploreUrl(mapSearchHref("rainier").slice("/map".length)).query,
     "rainier"
   );
+});
+
+test("the browser is only asked for a location when the URL asked for nothing", () => {
+  assert.equal(shouldAutoLocate({ view: null, query: "" }), true);
+  assert.equal(shouldAutoLocate({ view: null, query: " " }), true);
+  // A single letter never runs a search, so it never says where to look.
+  assert.equal(shouldAutoLocate({ view: null, query: "r" }), true);
+  // A query says where to look — the map flies to its best match, and a
+  // late "allow" must not drag the reader off it.
+  assert.equal(shouldAutoLocate({ view: null, query: "rainier" }), false);
+  // A pinned view says it outright.
+  assert.equal(shouldAutoLocate({ view: DEFAULT_MAP_VIEW, query: "" }), false);
+  assert.equal(
+    shouldAutoLocate({ view: DEFAULT_MAP_VIEW, query: "rainier" }),
+    false
+  );
+  assert.equal(
+    shouldAutoLocate(parseMapExploreUrl(mapSearchHref("rainier").slice(4))),
+    false
+  );
+  assert.equal(shouldAutoLocate(parseMapExploreUrl("")), true);
 });
 
 test("toggling a chip adds and removes it, but never empties the map", () => {

@@ -24,6 +24,9 @@ export const DEFAULT_MAP_VIEW: MapViewState = { lat: 47.5, lng: -121.5, zoom: 9 
 /** Zoom the map settles on once geolocation answers. */
 export const GEOLOCATED_ZOOM = 10;
 
+/** Shortest text the explorer will search on. */
+export const MIN_SEARCH_LENGTH = 2;
+
 export type MapTypeId = "peaks" | "routes" | "lakes" | "waterfalls";
 
 /**
@@ -189,6 +192,22 @@ export function mapExploreHref(state: {
   const query = state.query?.trim();
   if (query) params.set("q", query);
   return `/map?${params.toString()}`;
+}
+
+/**
+ * Whether to ask the browser where the reader is when the map opens.
+ *
+ * Only when the URL asked for nothing. A pinned view says where to look;
+ * so does a query, which the explorer answers by flying to its best match.
+ * Either way the link's intent outranks ambient location, and starting a
+ * permission prompt whose answer we would then have to ignore is worse
+ * than not asking.
+ */
+export function shouldAutoLocate(state: {
+  view: MapViewState | null;
+  query: string;
+}): boolean {
+  return state.view === null && state.query.trim().length < MIN_SEARCH_LENGTH;
 }
 
 /** A link that hands a search over to the explorer, which runs it on load

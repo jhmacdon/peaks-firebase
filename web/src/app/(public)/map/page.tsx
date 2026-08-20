@@ -28,6 +28,7 @@ import {
 import {
   DEFAULT_MAP_VIEW,
   MAP_TYPES,
+  MIN_SEARCH_LENGTH,
   ROUTE_MIN_ZOOM,
   VIEWPORT_DESTINATION_LIMIT,
   VIEWPORT_ROUTE_LIMIT,
@@ -37,6 +38,7 @@ import {
   mapExploreHref,
   parseMapExploreUrl,
   routesSelected,
+  shouldAutoLocate,
   toggleMapType,
   type MapTypeId,
 } from "../../../lib/map-view";
@@ -59,7 +61,6 @@ const ExploreMap = dynamic(() => import("../../../components/explore-map"), {
 /** How long the map has to sit still before the viewport is read again. */
 const VIEWPORT_DEBOUNCE_MS = 300;
 const SEARCH_DEBOUNCE_MS = 250;
-const MIN_SEARCH_LENGTH = 2;
 const SEARCH_RESULT_LIMIT = 12;
 
 /**
@@ -504,6 +505,7 @@ function MapExplorer() {
           hoveredRouteId={hoveredRouteId}
           showRouteAttribution={hasOsmRouteGeometry}
           initialView={initial.view}
+          autoLocate={shouldAutoLocate(initial)}
           onReady={handleMapReady}
           onViewportChange={handleViewportChange}
           onSelectDestination={handleSelectDestination}

@@ -64,6 +64,9 @@ interface ExploreMapProps {
   hoveredRouteId: string | null;
   showRouteAttribution: boolean;
   initialView: MapViewState | null;
+  /** Ask the browser where the reader is once the map is up. False when the
+   * URL already said where to look — see shouldAutoLocate in map-view.ts. */
+  autoLocate: boolean;
   onReady: (handle: ExploreMapHandle) => void;
   onViewportChange: (viewport: MapViewport) => void;
   onSelectDestination: (destination: MapDestination) => void;
@@ -195,6 +198,7 @@ export default function ExploreMap({
   hoveredRouteId,
   showRouteAttribution,
   initialView,
+  autoLocate,
   onReady,
   onViewportChange,
   onSelectDestination,
@@ -220,6 +224,11 @@ export default function ExploreMap({
   const hoveredRouteIdRef = useRef<string | null>(hoveredRouteId);
   const suppressMapClickRef = useRef(false);
   const initialViewRef = useRef(initialView);
+  const autoLocateRef = useRef(autoLocate);
+  /** Set as soon as anything has told the map where to be — a panel pick,
+   * a route fly-to, a zoom button, or the reader's own hand on the map.
+   * Geolocation is the one thing that must never overrule it. */
+  const mapDirectedRef = useRef(false);
 
   const onReadyRef = useRef(onReady);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -323,6 +332,9 @@ export default function ExploreMap({
       marker.bindPopup(() => destinationPopup(dest), { closeButton: true });
 
       marker.on("click", () => {
+        // Reading a popup counts as direction: a late geolocation answer
+        // must not yank the reader off the place they just opened.
+        mapDirectedRef.current = true;
         suppressMapClickRef.current = true;
         setTimeout(() => {
           suppressMapClickRef.current = false;
@@ -377,6 +389,7 @@ export default function ExploreMap({
       line.bindPopup(() => routePopup(route), { closeButton: true });
 
       line.on("click", () => {
+        mapDirectedRef.current = true;
         suppressMapClickRef.current = true;
         setTimeout(() => {
           suppressMapClickRef.current = false;
@@ -453,6 +466,10 @@ export default function ExploreMap({
       });
     };
 
+    const markDirected = () => {
+      mapDirectedRef.current = true;
+    };
+
     emitViewport();
     map.on("moveend", emitViewport);
     map.on("zoomend", () => {
@@ -463,6 +480,11 @@ export default function ExploreMap({
       if (suppressMapClickRef.current) return;
       onClearSelectionRef.current();
     });
+    // The reader's own hand counts as direction too — a drag or a wheel
+    // zoom while the permission prompt sits open must not be undone by the
+    // answer to it.
+    map.on("dragstart", markDirected);
+    map.on("zoomstart", markDirected);
 
     // A full-bleed container inside a freshly-mounted layout can measure
     // 0×0 the first time Leaflet reads it, and this map is never told to
@@ -478,13 +500,21 @@ export default function ExploreMap({
     });
     observer.observe(container);
 
-    // Only geolocate when the URL didn't pin a view — a shared link opens
-    // where it was saved. A refusal, a timeout, or a browser without the
-    // API all leave the map on DEFAULT_MAP_VIEW, which is already on screen.
-    if (!view && navigator.geolocation) {
+    // Geolocation only runs when the URL asked for nothing at all — no view
+    // and no query (shouldAutoLocate). A refusal, a timeout, or a browser
+    // without the API all leave the map on DEFAULT_MAP_VIEW, which is
+    // already on screen.
+    //
+    // The answer can arrive long after the prompt: a reader who grants the
+    // permission a minute in would otherwise be dragged away from whatever
+    // they had opened by then. So the success handler only moves a map
+    // nothing else has moved.
+    // `!view` is belt and braces — shouldAutoLocate already covers it, but a
+    // pinned view is a promise this component keeps on its own.
+    if (autoLocateRef.current && !view && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          if (!mapInstance.current) return;
+          if (!mapInstance.current || mapDirectedRef.current) return;
           map.setView(
             [pos.coords.latitude, pos.coords.longitude],
             GEOLOCATED_ZOOM
@@ -499,6 +529,7 @@ export default function ExploreMap({
 
     const handle: ExploreMapHandle = {
       openDestination: (id, lat, lng) => {
+        markDirected();
         const entry = destMarkersRef.current.get(id);
         map.flyTo([lat, lng], Math.max(map.getZoom(), 12), { duration: 0.8 });
         if (!entry) return false;
@@ -506,6 +537,7 @@ export default function ExploreMap({
         return true;
       },
       focusRoute: (id) => {
+        markDirected();
         const route = routesRef.current.find((r) => r.id === id);
         if (!route?.polyline6) return;
         const coords = decodePolyline6(route.polyline6);
@@ -522,10 +554,20 @@ export default function ExploreMap({
           routeLinesRef.current.get(id)?.openPopup();
         });
       },
-      zoomIn: () => map.zoomIn(),
-      zoomOut: () => map.zoomOut(),
-      zoomTo: (zoom) => map.flyTo(map.getCenter(), zoom, { duration: 0.5 }),
+      zoomIn: () => {
+        markDirected();
+        map.zoomIn();
+      },
+      zoomOut: () => {
+        markDirected();
+        map.zoomOut();
+      },
+      zoomTo: (zoom) => {
+        markDirected();
+        map.flyTo(map.getCenter(), zoom, { duration: 0.5 });
+      },
       showUserLocation: (lat, lng) => {
+        markDirected();
         userMarkerRef.current?.remove();
         const dot = document.createElement("div");
         dot.className = "map-user-dot";
