@@ -23,28 +23,35 @@ export function DifficultyPill({ label }: { label: string | null }) {
   );
 }
 
+// Unified on the "›" separator (design-tokens.md-era convention) — several
+// other pages still hand-roll a "/"-separated breadcrumb inline; those are
+// out of scope here and get folded onto this component in a later nav task.
 export function Breadcrumb({ current }: { current: string }) {
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-      <Link
-        href="/discover"
-        className="hover:text-gray-900 hover:underline dark:hover:text-gray-100"
-      >
+    <nav className="flex items-center gap-1.5 text-sm text-muted">
+      <Link href="/discover" className="hover:text-ink hover:underline">
         Discover
       </Link>
       <span aria-hidden>›</span>
-      <span className="text-gray-700 dark:text-gray-300">{current}</span>
+      <span className="text-ink-2">{current}</span>
     </nav>
   );
 }
 
+// StatCell / StatRow — retinted to tokens. Every numeral is Geist Mono
+// (design-tokens.md "Type"). StatCell's callers (destination/route detail
+// pages) lay it out with a `gap-px` + gray background grid — a 1px-divider
+// trick that depends on each cell painting its own opaque background, so a
+// true "never box a stat" (law 2) flatten here would turn that grid into a
+// solid block on two pages Task 8 is scoped not to touch (their flagship
+// re-skin is Task 13/14, where this reverts to StatCluster `topline` and
+// the grid wrapper goes away). `bg-page` keeps the divider illusion working
+// with a real token in the meantime instead of raw `bg-white`/`gray-950`.
 export function StatCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white px-4 py-3 dark:bg-gray-950">
-      <div className="text-lg font-semibold text-gray-900 dark:text-white">
-        {value}
-      </div>
-      <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+    <div className="bg-page px-4 py-3">
+      <div className="font-mono-num tabular-nums text-lg text-ink">{value}</div>
+      <div className="text-xs text-muted">{label}</div>
     </div>
   );
 }
@@ -60,10 +67,10 @@ export function StatRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-sm">
-      <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
+      <dt className="text-muted">{label}</dt>
       <dd
-        className={`text-right font-medium text-gray-900 dark:text-white ${
-          mono ? "font-mono text-[13px]" : ""
+        className={`text-right font-medium text-ink ${
+          mono ? "font-mono-num tabular-nums text-[13px]" : ""
         }`}
       >
         {value}

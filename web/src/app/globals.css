@@ -150,6 +150,24 @@ a {
   outline-offset: 2px;
 }
 
+/* Button/Chip hover fills — ui/button.tsx, ui/chip.tsx. Law 6: hover may
+   darken a fill slightly (≤8%), never lift/scale/grow a shadow. Uses
+   color-mix on the tokens themselves (same technique as ::selection above)
+   rather than a second raw color, so these track light/dark automatically. */
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--color-accent) 92%, black);
+}
+.btn-secondary:hover,
+.btn-quiet:hover {
+  background: var(--color-fill);
+}
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--color-alert) 8%, transparent);
+}
+.chip-selected {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
 .peak-label {
   background: transparent;

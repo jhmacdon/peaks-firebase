@@ -144,6 +144,18 @@ export default async function sitemap({
         url: absoluteUrl("/lists"),
         lastModified,
       },
+      {
+        url: absoluteUrl("/about"),
+        lastModified,
+      },
+      {
+        url: absoluteUrl("/privacy"),
+        lastModified,
+      },
+      {
+        url: absoluteUrl("/terms"),
+        lastModified,
+      },
     ];
   }
 
