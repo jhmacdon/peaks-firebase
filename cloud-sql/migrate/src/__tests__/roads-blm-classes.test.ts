@@ -1,10 +1,11 @@
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import { test } from "node:test";
+import { parseArgs, sourcePaths } from "../roads/import-road-network";
 import {
   applyRouteUseClass,
   classifyBlmDrivability,
+  defaultRouteUseClassMapPath,
   isDrivableBlmRoute,
   normalizeBlmSeasonRestriction,
   normalizeBlmSurface,
@@ -81,23 +82,27 @@ test("normalizing collapses case, padding and the spaces around a slash", () => 
   assert.equal(normalizeRouteUseClassValue("2WD  LOW"), "2wd low");
 });
 
-test("the reviewed map covers every value the BLM extract carries", (t) => {
-  // The real map, not the sample. The data directory lives in the peaks
-  // checkout rather than this repo, so the file can legitimately be absent —
-  // but skip loudly when it is, because a silent pass here looks like coverage
-  // that was never checked.
-  const mapPath = path.join(
-    __dirname,
-    "../../../../../docs/trailheads/data/blm-route-use-class-map.jsonl",
-  );
-  let contents: string;
-  try {
-    contents = readFileSync(mapPath, "utf8");
-  } catch {
-    t.skip(`no BLM class map at ${mapPath} — the peaks data directory is not checked out`);
-    return;
-  }
+test("the reviewed map covers every value the BLM extract carries", () => {
+  // The real map, not the sample — and the repository's own copy, which is the
+  // default the loader reads. It used to live only in the peaks data directory,
+  // outside any git repository, where this test could do nothing but skip and a
+  // reviewed judgement had no history behind it.
+  const mapPath = defaultRouteUseClassMapPath();
+  const contents = readFileSync(mapPath, "utf8");
   const map = parseRouteUseClassMap(contents);
+  const rows = contents
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as { raw_value?: string | null; drivable?: unknown });
+  assert.equal(rows.length, 26, "the 26 reviewed spellings");
+  assert.equal(map.size, 26);
+  for (const row of rows) {
+    assert.equal(
+      typeof row.drivable,
+      "boolean",
+      `no drivable verdict on ${JSON.stringify(row.raw_value)}`,
+    );
+  }
   for (const value of [
     "Unknown",
     null,
@@ -250,4 +255,23 @@ test("the BLM seasonal flag is a flag, and UNK is not a no", () => {
   assert.equal(normalizeBlmSeasonRestriction("UNK"), null);
   assert.equal(normalizeBlmSeasonRestriction("N/A"), null);
   assert.equal(normalizeBlmSeasonRestriction(null), null);
+});
+
+test("the loader reads the repo copy by default and --map overrides it", () => {
+  const fallback = sourcePaths("/somewhere/peaks/docs/trailheads/data", null);
+  assert.equal(fallback.routeUseClassMap, defaultRouteUseClassMapPath());
+  assert.equal(
+    fallback.routeUseClassMap.includes("/docs/trailheads/data/"),
+    false,
+    "the default is the repository copy, not a data-directory one",
+  );
+  // The downloads still come from the data directory; only the judgement moved.
+  assert.ok(fallback.blm.includes("/docs/trailheads/data/"));
+
+  const parsed = parseArgs(["--data-dir=/somewhere", "--map=/tmp/reviewed.jsonl"]);
+  assert.equal(parsed.routeUseClassMapPath, "/tmp/reviewed.jsonl");
+  assert.equal(
+    sourcePaths("/somewhere", parsed.routeUseClassMapPath).routeUseClassMap,
+    "/tmp/reviewed.jsonl",
+  );
 });

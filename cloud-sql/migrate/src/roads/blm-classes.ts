@@ -4,14 +4,32 @@
 // an engineering standard — and its values are filthy: "2WD LOW", "2WD Low"
 // and "2wd Low" all occur, as do four spellings of "4WD High Clearance /
 // Specialized" and both "" and " " for empty. The canonical map was reviewed
-// once and lives in docs/trailheads/data/blm-route-use-class-map.jsonl. This
-// module applies it; it does not rebuild it.
+// once and lives in this repository, at migrate/data/blm-route-use-class-map.jsonl.
+// This module applies it; it does not rebuild it.
+//
+// It is version-controlled because it is a reviewed decision rather than
+// downloaded data: the sources it describes change, the review does not, and a
+// judgement nobody can diff is a judgement nobody can review. A copy in a data
+// directory is derived — `--map=FILE` reads one deliberately, and a change
+// belongs back in the repo copy.
 //
 // A value the map has never seen is reported as unmapped, not quietly folded
 // into "unknown" — a new spelling arriving in a later refresh should show up
 // in the run summary rather than disappear.
 
+import path from "node:path";
+
 import type { BlmRouteUseClass, RoadSurface } from "./road-enums";
+
+/**
+ * The canonical map, in this repository.
+ *
+ * `../../data` from either `src/roads` or the compiled `dist/roads` is
+ * `migrate/data`, so the path holds for a `tsx` run and a built one alike.
+ */
+export function defaultRouteUseClassMapPath(): string {
+  return path.join(__dirname, "..", "..", "data", "blm-route-use-class-map.jsonl");
+}
 
 /** How a raw value found its canonical class. */
 export type RouteUseClassMatch = "exact" | "normalized" | "unmapped";

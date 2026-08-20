@@ -66,7 +66,8 @@ cd cloud-sql/migrate
 npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
 ```
 
-Flags: `--store=` for a different file, `--snap-tolerance=` in metres (default
+Flags: `--store=` for a different file, `--map=` for a BLM class map other than
+the repository's own, `--snap-tolerance=` in metres (default
 10), `--memory-limit=` (default 6GB), and `--only=` with a comma-separated list
 of stages — `roadcore, mvum, blm, normalize, seasons, link, topology`. A run
 with every stage deletes the store first and rebuilds it, because DuckDB never
@@ -134,8 +135,16 @@ alone that is 31,741 segments, against the 31,254 the research measured live.
 ### BLM classes
 
 `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
-`<data-dir>/blm-route-use-class-map.jsonl`, which covers all 26 spellings in
-the extract. This code does not rebuild that map. A spelling the map has not
+`migrate/data/blm-route-use-class-map.jsonl`, which covers all 26 spellings in
+the extract. This code does not rebuild that map. The canonical copy is in this
+repository rather than in the data directory, because it is a reviewed
+judgement rather than downloaded data — the sources it describes change, the
+review does not, and an artifact with no history behind it cannot be reviewed
+at all. `--map=FILE` reads another copy deliberately; any copy in a data
+directory is derived, and a change belongs back here. A test asserts the repo
+copy parses, holds all 26 rows, and carries a `drivable` verdict on every one.
+
+A spelling the map has not
 seen is matched again with case and slash spacing ignored, and if it still does
 not resolve it is **reported in the run summary as unmapped**, not folded into
 `unknown` — a value that appears in a later refresh should be reviewed and

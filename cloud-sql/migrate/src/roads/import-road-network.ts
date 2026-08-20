@@ -25,6 +25,7 @@ import path from "node:path";
 import {
   applyRouteUseClass,
   classifyBlmDrivability,
+  defaultRouteUseClassMapPath,
   normalizeBlmSeasonRestriction,
   normalizeBlmSurface,
   parseRouteUseClassMap,
@@ -82,6 +83,8 @@ export type Stage = (typeof STAGES)[number];
 export interface Args {
   dataDir: string | null;
   storePath: string | null;
+  /** The reviewed BLM class map. Defaults to the repo copy; --map overrides. */
+  routeUseClassMapPath: string | null;
   snapToleranceMetres: number;
   memoryLimit: string | null;
   stages: Stage[];
@@ -105,14 +108,22 @@ export function parseArgs(argv: string[]): Args {
   return {
     dataDir: value("data-dir"),
     storePath: value("store"),
+    routeUseClassMapPath: value("map"),
     snapToleranceMetres: tolerance ? Number(tolerance) : DEFAULT_SNAP_TOLERANCE_M,
     memoryLimit: value("memory-limit"),
     stages,
   };
 }
 
-/** Where each source sits under the data directory. */
-export function sourcePaths(dataDir: string) {
+/**
+ * Where each source sits.
+ *
+ * The downloads live under the data directory, in the `peaks` checkout. The
+ * reviewed class map does not: it is a judgement rather than data, so its
+ * canonical copy is version-controlled here and `mapPath` — `--map` — is what
+ * points somewhere else.
+ */
+export function sourcePaths(dataDir: string, mapPath?: string | null) {
   const raw = path.join(dataDir, "raw");
   return {
     roadcore: `/vsizip/${path.join(raw, "Trans_RoadCore_FS.gdb.zip")}/Trans_RoadCore_FS.gdb`,
@@ -120,7 +131,7 @@ export function sourcePaths(dataDir: string) {
     mvum: `/vsizip/${path.join(raw, "Trans_MVUM_Road.gdb.zip")}/Trans_MVUM_Road.gdb`,
     mvumZip: path.join(raw, "Trans_MVUM_Road.gdb.zip"),
     blm: path.join(raw, "blm-gtlf-public-display.jsonl"),
-    routeUseClassMap: path.join(dataDir, "blm-route-use-class-map.jsonl"),
+    routeUseClassMap: mapPath ?? defaultRouteUseClassMapPath(),
   };
 }
 
@@ -1008,7 +1019,7 @@ export async function importRoadNetwork(args: Args): Promise<void> {
     throw new Error("--data-dir is required (the peaks docs/trailheads/data directory)");
   }
   const dataDir = path.resolve(args.dataDir);
-  const paths = sourcePaths(dataDir);
+  const paths = sourcePaths(dataDir, args.routeUseClassMapPath);
   for (const required of [paths.roadcoreZip, paths.mvumZip, paths.blm, paths.routeUseClassMap]) {
     if (!existsSync(required)) throw new Error(`missing input: ${required}`);
   }
@@ -1081,7 +1092,7 @@ export async function importRoadNetwork(args: Args): Promise<void> {
         console.log(
           `  WARNING BLM route-use-class values the reviewed map cannot answer for. ` +
             `They are kept OUT of the drivable graph until reviewed — add them to ` +
-            `blm-route-use-class-map.jsonl with a canonical_class and a drivable flag:`,
+            `${paths.routeUseClassMap} with a canonical_class and a drivable flag:`,
         );
         for (const gap of blmClasses.gaps) {
           const why =

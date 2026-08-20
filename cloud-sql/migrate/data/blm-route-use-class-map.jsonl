@@ -1,0 +1,26 @@
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": true, "raw_value": null, "source_dataset": "blm_gtlf_public_display", "verbatim_quote": null}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": true, "raw_value": "", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": ""}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": true, "raw_value": " ", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": " "}
+{"as_of": "2026-08-19", "canonical_class": "2wd", "drivable": true, "raw_value": "2wd Low", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "2wd Low"}
+{"as_of": "2026-08-19", "canonical_class": "2wd", "drivable": true, "raw_value": "2WD Low", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "2WD Low"}
+{"as_of": "2026-08-19", "canonical_class": "2wd", "drivable": true, "raw_value": "2WD LOW", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "2WD LOW"}
+{"as_of": "2026-08-19", "canonical_class": "4wd_high_clearance", "drivable": true, "raw_value": "4wd High Clearance / Specialized", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4wd High Clearance / Specialized"}
+{"as_of": "2026-08-19", "canonical_class": "4wd_high_clearance", "drivable": true, "raw_value": "4WD HIGH CLEARANCE / SPECIALIZED", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4WD HIGH CLEARANCE / SPECIALIZED"}
+{"as_of": "2026-08-19", "canonical_class": "4wd_high_clearance", "drivable": true, "raw_value": "4WD High Clearance/ Specialized", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4WD High Clearance/ Specialized"}
+{"as_of": "2026-08-19", "canonical_class": "4wd_high_clearance", "drivable": true, "raw_value": "4WD High Clearance/Specialized", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4WD High Clearance/Specialized"}
+{"as_of": "2026-08-19", "canonical_class": "4wd", "drivable": true, "raw_value": "4wd Low", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4wd Low"}
+{"as_of": "2026-08-19", "canonical_class": "4wd", "drivable": true, "raw_value": "4WD Low", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4WD Low"}
+{"as_of": "2026-08-19", "canonical_class": "4wd", "drivable": true, "raw_value": "4WD LOW", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "4WD LOW"}
+{"as_of": "2026-08-19", "canonical_class": "atv", "drivable": true, "raw_value": "ATV", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "ATV"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "Motorized Single Track", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Motorized Single Track"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "MOTORIZED SINGLE TRACK", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "MOTORIZED SINGLE TRACK"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "Non-Mechanized", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Non-Mechanized"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "Non-Motorized", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Non-Motorized"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "NON-MOTORIZED", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "NON-MOTORIZED"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": false, "raw_value": "Over Snow Vehicle", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Over Snow Vehicle"}
+{"as_of": "2026-08-19", "canonical_class": "4wd_high_clearance", "drivable": true, "raw_value": "Primitive Road - 4WD high clearance", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Primitive Road - 4WD high clearance"}
+{"as_of": "2026-08-19", "canonical_class": "4wd", "drivable": true, "raw_value": "Primitive Road - 4WD low clearance", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Primitive Road - 4WD low clearance"}
+{"as_of": "2026-08-19", "canonical_class": "atv", "drivable": true, "raw_value": "Trail - UTV", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Trail - UTV"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": true, "raw_value": "Unknown", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "Unknown"}
+{"as_of": "2026-08-19", "canonical_class": "unknown", "drivable": true, "raw_value": "UNKNOWN", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "UNKNOWN"}
+{"as_of": "2026-08-19", "canonical_class": "atv", "drivable": true, "raw_value": "UTV", "source_dataset": "blm_gtlf_public_display", "verbatim_quote": "UTV"}
