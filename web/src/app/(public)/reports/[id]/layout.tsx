@@ -5,7 +5,18 @@ import { formatDate } from "../../../../lib/format";
 import { describeTripReport } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template serving every trip report, and a published report doesn't
+// change after the fact except for a rare edit — same ISR contract as
+// destinations/[id]/layout.tsx (Task 13). The empty `generateStaticParams`
+// is what makes it real: with no paths pre-generated, Next still registers
+// the route as ISR (first request renders and fills the cache) instead of
+// answering every request with `Cache-Control: private, no-cache, no-store`.
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 export default function ReportLayout({
   children,

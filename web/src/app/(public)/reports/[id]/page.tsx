@@ -1,190 +1,79 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "../../../../lib/auth-context";
-import { LOADING_LABEL } from "../../../../lib/constants";
+import { notFound } from "next/navigation";
+import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
+import { getTripReport } from "../../../../lib/actions/trip-reports";
 import { formatDate } from "../../../../lib/format";
-import {
-  canEditTripReport,
-  getTripReport,
-  type TripReport,
-} from "../../../../lib/actions/trip-reports";
-import {
-  getDestination,
-  type DestinationDetail,
-} from "../../../../lib/actions/destinations";
+import { formatFeetValue } from "../../../../lib/destination-detail";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { PageHeader } from "../../../../components/ui/page-header";
+import { DestinationMetaRow } from "../../../../components/destination/destination-meta-row";
+import { ReportEditLink } from "../../../../components/report/report-edit-link";
 
-export default function TripReportDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const { user, loading: authLoading, getIdToken } = useAuth();
-  const userId = user?.uid ?? null;
+export default async function TripReportDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const report = await getTripReport(id);
+  if (!report) notFound();
 
-  const [report, setReport] = useState<TripReport | null>(null);
-  const [destinations, setDestinations] = useState<DestinationDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [canEdit, setCanEdit] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoadError(null);
+  // Each lookup catches its own failure — a single missing/errored
+  // destination drops out of the chip row rather than taking the whole
+  // report page down with it.
+  const destinationRows = await Promise.all(
+    report.destinations.map(async (destId) => {
       try {
-        const r = await getTripReport(id);
-        if (cancelled) return;
-        setReport(r);
-
-        if (r && r.destinations.length > 0) {
-          const dests = await Promise.all(
-            r.destinations.map(async (destId) => {
-              try {
-                return await getDestination(destId);
-              } catch {
-                return null;
-              }
-            })
-          );
-          if (!cancelled) {
-            setDestinations(
-              dests.filter((d): d is DestinationDetail => d !== null)
-            );
-          }
-        }
+        return await getDestination(destId);
       } catch {
-        if (!cancelled) {
-          setLoadError("The trip report could not be loaded. Try again.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+        return null;
       }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkOwnership() {
-      if (authLoading) return;
-
-      if (!userId) {
-        setCanEdit(false);
-        return;
-      }
-
-      try {
-        const token = await getIdToken();
-        const isOwner = token ? await canEditTripReport(token, id) : false;
-        if (!cancelled) setCanEdit(isOwner);
-      } catch {
-        if (!cancelled) setCanEdit(false);
-      }
-    }
-
-    checkOwnership();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authLoading, getIdToken, id, userId]);
-
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
-      </div>
-    );
-  }
-
-  if (!report) {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">
-          {loadError || "Trip report not found"}
-        </div>
-      </div>
-    );
-  }
+    })
+  );
+  const destinations = destinationRows.filter(
+    (dest): dest is DestinationDetail => dest !== null
+  );
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/discover"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          Discover
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">Trip Report</span>
+    <div className="mx-auto max-w-[760px] px-6 py-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader
+          breadcrumb={<Breadcrumb current={report.title} />}
+          title={report.title}
+          meta={<DestinationMetaRow alert={null} parts={[report.userName, formatDate(report.date)]} />}
+          className="min-w-0"
+        />
+        <ReportEditLink reportId={report.id} />
       </div>
 
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{report.title}</h1>
-          <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-            <span>{report.userName}</span>
-            <span>&middot;</span>
-            <span>{formatDate(report.date)}</span>
-          </div>
-        </div>
-        {canEdit && (
-          <Link
-            href={`/reports/${report.id}/edit`}
-            className="shrink-0 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-          >
-            Edit
-          </Link>
-        )}
-      </div>
-
-      {/* Linked Destinations */}
-      {destinations.length > 0 && (
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <h3 className="text-sm font-medium text-gray-500 mb-2">
-            Destinations
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {destinations.map((dest) => (
+      {destinations.length > 0 ? (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {destinations.map((dest) => {
+            const elevation = formatFeetValue(dest.elevation);
+            return (
               <Link
                 key={dest.id}
                 href={`/destinations/${dest.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-ink-2"
               >
                 <span>{dest.name || "Unnamed"}</span>
-                {dest.elevation != null && (
-                  <span className="text-gray-400 text-xs">
-                    {Math.round(dest.elevation * 3.28084).toLocaleString()} ft
-                  </span>
-                )}
+                {elevation ? (
+                  <span className="font-mono-num tabular-nums text-faint">{elevation} ft</span>
+                ) : null}
               </Link>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
+      ) : null}
 
-      {/* Content Blocks */}
-      <div className="space-y-6">
+      <div className="mt-10 max-w-[68ch] space-y-6">
         {report.blocks.map((block, index) => {
           if (block.type === "text") {
             return (
-              <div key={index} className="prose dark:prose-invert max-w-none">
-                {block.content.split("\n").map((paragraph, pIdx) => (
-                  <p
-                    key={pIdx}
-                    className="text-gray-800 dark:text-gray-200 leading-relaxed"
-                  >
-                    {paragraph}
-                  </p>
+              <div key={index} className="space-y-4 text-[17px] leading-[1.7] text-ink-2">
+                {block.content.split("\n").filter(Boolean).map((paragraph, paragraphIndex) => (
+                  <p key={paragraphIndex}>{paragraph}</p>
                 ))}
               </div>
             );
@@ -192,20 +81,29 @@ export default function TripReportDetailPage() {
 
           if (block.type === "photo") {
             return (
-              <figure key={index} className="space-y-2">
-                <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+              <figure key={index}>
+                {/* `fill` rather than literal width/height: trip photos
+                    have no stored dimensions, and declaring a guessed
+                    width/height pair would stretch a portrait phone photo
+                    to whatever aspect that guess implied. A fixed-ratio
+                    container with `object-cover` gets the same next/image
+                    wins (responsive, lazy, no CLS) without distorting the
+                    source photo. */}
+                <div className="rounded-media bg-fill relative aspect-[4/3] w-full overflow-hidden">
+                  <Image
                     src={block.content}
                     alt={block.caption || "Trip photo"}
-                    className="w-full"
+                    fill
+                    sizes="(min-width: 760px) 700px, 100vw"
+                    className="object-cover"
+                    loading="lazy"
                   />
                 </div>
-                {block.caption && (
-                  <figcaption className="text-sm text-gray-500 text-center">
+                {block.caption ? (
+                  <figcaption className="mt-2 text-center text-sm text-muted">
                     {block.caption}
                   </figcaption>
-                )}
+                ) : null}
               </figure>
             );
           }
@@ -214,25 +112,24 @@ export default function TripReportDetailPage() {
         })}
       </div>
 
-      {/* Footer */}
-      {destinations.length > 0 && (
-        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
-          <h3 className="text-sm font-medium text-gray-500 mb-3">
+      {destinations.length > 0 ? (
+        <div className="mt-12 border-t border-hairline pt-8">
+          <p className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase">
             More reports for these destinations
-          </h3>
-          <div className="flex flex-wrap gap-2">
+          </p>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
             {destinations.map((dest) => (
               <Link
                 key={dest.id}
                 href={`/destinations/${dest.id}/reports`}
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-sm font-medium text-accent-text hover:underline"
               >
                 {dest.name || "Unnamed"} reports
               </Link>
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

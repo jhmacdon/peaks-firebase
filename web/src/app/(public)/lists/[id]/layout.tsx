@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
-import { cache } from "react";
+import {
+  getCachedList,
+  getCachedListDestinations,
+} from "../../../../lib/actions/cached-lists";
 import { JsonLdScript } from "../../../../components/json-ld-script";
-import { getList } from "../../../../lib/actions/lists";
-import { getCachedListDestinations } from "../../../../lib/actions/cached-lists";
 import { buildListJsonLd } from "../../../../lib/json-ld";
 import { describeList } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template serving every curated list, and a list's membership changes
+// on the order of months, not requests — same ISR contract as
+// destinations/[id]/layout.tsx (Task 13). The empty `generateStaticParams`
+// is what makes it real: with no paths pre-generated, Next still registers
+// the route as ISR (first request renders and fills the cache) instead of
+// answering every request with `Cache-Control: private, no-cache, no-store`.
+export const revalidate = 3600;
+export const dynamicParams = true;
 
-const getListForSeo = cache(getList);
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function ListLayout({
   children,
@@ -23,7 +33,7 @@ export default async function ListLayout({
 
   try {
     const [list, destinations] = await Promise.all([
-      getListForSeo(id),
+      getCachedList(id),
       getCachedListDestinations(id),
     ]);
     if (list) {
@@ -58,7 +68,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const list = await getListForSeo(id);
+    const list = await getCachedList(id);
     if (!list) {
       return {
         title: "List not found",
