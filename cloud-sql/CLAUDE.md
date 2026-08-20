@@ -714,12 +714,18 @@ of its `derivation` block obeys. Three fire, all pinned by tests:
   the high end, and over-claiming parking is what strands a driver. Two rows
   ("10-15 cars", "fits 1-2 cars"), neither matched today.
 - **A `fills_early_note` that appears word for word inside `road_text` is
-  dropped.** The extraction found no sentence about the lot filling and lifted
-  one out of the paragraph about how to get there. 51 rows in the file; four
-  touch matched rows, of which two lose their whole row (Suntop, Tunnel Creek)
-  and two keep a capacity leaf (Corral Pass, Dog Mountain). Dog Mountain's note
-  is a real fills-early sentence and this guard costs it — the one known
-  false positive.
+  dropped, unless the sentence itself says fill, full, crowd or overflow.** The
+  extraction found no sentence about the lot filling and lifted one out of the
+  paragraph about how to get there. The substring rule fires on 51 rows and the
+  exception readmits exactly two of them — Dog Mountain's "There are about 70
+  spots fill quickly on weekends" and Max Patch's "You may not park on the road
+  if the parking lot is full", both real facts a page happened to write inside
+  its directions. The other 49 are directions or a sentence about how much room
+  there is; none is readmitted. Three touch matched rows, of which two lose
+  their whole row (Suntop, Tunnel Creek) and one keeps a capacity leaf (Corral
+  Pass, whose note only repeats the capacity the leaf already carries). The
+  exception's words carry word boundaries on purpose: a bare `full` also
+  matches "carefully".
 
 A capacity is also required to be a **positive whole number** rather than merely
 non-negative: `0` renders as "0 vehicles", which reads as "there is no parking

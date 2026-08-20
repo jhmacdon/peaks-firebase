@@ -567,6 +567,26 @@ export function rangeLowEnd(span: string | null): number | null {
   return Number.isInteger(low) && low >= 1 ? low : null;
 }
 
+/**
+ * Words that make a sentence a fact about the lot filling rather than prose
+ * about how to drive there.
+ *
+ * The substring guard below asks whether a `fills_early_note` was lifted out of
+ * the driving directions. Sitting inside that paragraph is good evidence and
+ * not proof: a page that writes its one sentence about the lot filling in the
+ * middle of the directions has still written it. Measured over the whole
+ * extraction, the guard fires on 51 rows and exactly two of them say any of
+ * these words — Dog Mountain's "There are about 70 spots fill quickly on
+ * weekends" and Max Patch's "You may not park on the road if the parking lot is
+ * full". Both are real; the other 49 are directions or a sentence about how
+ * much room there is, and none of them is readmitted.
+ *
+ * Word boundaries are load-bearing: a bare `/full/` also matches "carefully",
+ * which is exactly the kind of word a directions paragraph is full of.
+ */
+export const FILLS_EARLY_SUBSTANCE_PATTERN =
+  /\b(fill|fills|filled|filling|full|crowd|crowds|crowded|overflow|overflows|overflowing)\b/i;
+
 /** Whitespace and case flattened, so two spellings of one sentence compare equal. */
 function flattenText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -703,10 +723,14 @@ export function bathroomLeafCandidates(row: BathroomRow): LeafExtraction {
  *    The extraction keeps the high end; over-claiming parking is what strands
  *    a driver.
  * 3. A `fills_early_note` that appears word for word inside the page's driving
- *    directions is dropped. The extraction found no sentence about the lot
- *    filling and lifted one out of the paragraph about how to get there —
- *    "Turn right onto Road 225 and continue approximately 4 miles to the small
- *    trailhead parking area" is not a fact about when the lot fills.
+ *    directions is dropped, **unless the sentence itself says something about
+ *    filling, being full, crowds or overflow**. The extraction found no
+ *    sentence about the lot filling and lifted one out of the paragraph about
+ *    how to get there — "Turn right onto Road 225 and continue approximately 4
+ *    miles to the small trailhead parking area" is not a fact about when the
+ *    lot fills. But a page that writes its one real such sentence inside the
+ *    directions has still written it, and dropping that is the guard costing a
+ *    fact rather than saving one. See `FILLS_EARLY_SUBSTANCE_PATTERN`.
  */
 export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
@@ -752,7 +776,8 @@ export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   const fillsEarly = nonEmptyText(row.fills_early_note);
   if (fillsEarly) {
     const directions = typeof row.road_text === "string" ? flattenText(row.road_text) : "";
-    if (directions.length > 0 && directions.includes(flattenText(fillsEarly))) {
+    const lifted = directions.length > 0 && directions.includes(flattenText(fillsEarly));
+    if (lifted && !FILLS_EARLY_SUBSTANCE_PATTERN.test(fillsEarly)) {
       refusals.push("fills_early_note_lifted_from_directions");
     } else {
       push("fills_early_note", fillsEarly);

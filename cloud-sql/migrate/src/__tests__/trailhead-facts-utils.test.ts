@@ -707,6 +707,42 @@ test("a real fills-early note survives, directions or no directions", () => {
   );
 });
 
+test("a note about the lot filling survives even when it sits in the directions", () => {
+  // The guard's one known false positive, closed. Dog Mountain writes its
+  // fills-early sentence inside the paragraph about how to drive there, and the
+  // substring rule alone threw it away. Measured over the whole extraction the
+  // rule fires on 51 rows and only two of them say anything about filling —
+  // this one and Max Patch's "if the parking lot is full" — so the exception
+  // readmits two real facts and not one line of directions.
+  const dogMountain = "There are about 70 spots fill quickly on weekends.";
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({
+      road_text: `Park in the pullout on the left. ${dogMountain} The trail begins at the kiosk.`,
+      fills_early_note: dogMountain,
+    })
+  );
+  assert.deepEqual(refusals, []);
+  assert.deepEqual(
+    leaves.map((entry) => [entry.leaf, entry.sourced.value]),
+    [["fills_early_note", dogMountain]]
+  );
+
+  const maxPatch = "You may not park on the road if the parking lot is full.";
+  assert.deepEqual(
+    pageLeafCandidates(pageRow({ road_text: `Take SR 1181 about 3.5 miles to the end. ${maxPatch}`, fills_early_note: maxPatch }))
+      .refusals,
+    []
+  );
+
+  // And the exception is words about filling, not any word containing them: a
+  // bare /full/ matches "carefully", which is directions vocabulary.
+  const careful = "Drive carefully to the small parking area at the end of the road.";
+  assert.deepEqual(
+    pageLeafCandidates(pageRow({ road_text: careful, fills_early_note: careful })).refusals,
+    ["fills_early_note_lifted_from_directions"]
+  );
+});
+
 // --- conflicts --------------------------------------------------------------
 
 function leaf(
