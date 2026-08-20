@@ -40,6 +40,7 @@ import SessionActions from "../../../../components/session-actions";
 import { ActivityGlyph } from "../../../../components/session/activity-glyph";
 import { SessionAchievements } from "../../../../components/session/session-achievements";
 import { SessionRelated } from "../../../../components/session/session-related";
+import { SessionRouteHistory } from "../../../../components/session/session-route-history";
 import { SessionSecondaryStats } from "../../../../components/session/session-secondary-stats";
 import { SessionSplits } from "../../../../components/session/session-splits";
 import { Breadcrumb } from "../../../../components/detail-sections";
@@ -241,6 +242,19 @@ export default function SessionDetailPage() {
         routes={routes}
         className="mt-12"
       />
+
+      {/* Personal data — a public reader must never see another user's
+          attempt history, so this only ever renders for the session's own
+          owner (the same ownership check the Public/Private label above
+          uses; `session.user_id` itself is blanked to "" by getSession's
+          query for anyone who isn't the owner). */}
+      {userId === session.user_id && session.user_id ? (
+        <SessionRouteHistory
+          sessionId={session.id}
+          routes={routes}
+          className="mt-12"
+        />
+      ) : null}
 
       {/* Rendered for signed-out readers too — a public activity's Share
           button is theirs to use; the component gates edit, export and

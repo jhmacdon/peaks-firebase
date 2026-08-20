@@ -35,6 +35,7 @@ import { DestinationNearby } from "../../../../components/destination/destinatio
 import { RouteHero } from "../../../../components/route/route-hero";
 import { RouteActions } from "../../../../components/route/route-actions";
 import { RouteAbout } from "../../../../components/route/route-about";
+import { RouteHistorySummary } from "../../../../components/route/route-history-summary";
 import { RouteElevationProfile } from "../../../../components/route/route-elevation-profile";
 import { RouteWaypoints } from "../../../../components/route/route-waypoints";
 import { RouteSegments } from "../../../../components/route/route-segments";
@@ -145,6 +146,8 @@ export default async function RouteDetailPage({
       <RouteActions directionsUrl={directionsUrl} className="mt-8" />
 
       <Topline stats={toplineStats} className="mt-10" />
+
+      <RouteHistorySummary routeId={id} className="mt-4" />
 
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">

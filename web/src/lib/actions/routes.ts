@@ -3,7 +3,9 @@
 
 import db from "../db";
 import type { PoolClient } from "pg";
+import { verifyToken } from "../auth-actions";
 import { parseAreas, type ProtectedArea } from "../area-types";
+import type { RouteAttempt } from "../route-history";
 import {
   normalizeRouteProvenance,
   parseRouteProvenance,
@@ -975,4 +977,40 @@ export async function getPendingRouteCount(): Promise<number> {
     `SELECT COUNT(*)::int AS count FROM routes WHERE status = 'pending'`
   );
   return result.rows[0].count;
+}
+
+/**
+ * The requesting user's own attempt history on one route — every session of
+ * theirs that `session_routes` matched to it (Task 22, "efforts-lite" route
+ * history). Strictly own-data: filtered by the verified caller's uid, never
+ * a parameter, so this can never return another user's sessions. No
+ * leaderboard, no other users' rows — session_routes carries no data this
+ * can't honestly answer read-only.
+ *
+ * A route can be matched to a session either 'manual' (no coverage
+ * recorded) or 'auto' (coverage ~0.7-1 in production); both count as a real
+ * attempt; there's no principled coverage cutoff that wouldn't also drop
+ * legitimate manual matches, which never set coverage at all.
+ */
+export async function getUserRouteHistory(
+  token: string,
+  routeId: string
+): Promise<RouteAttempt[]> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
+  const result = await db.query(
+    `SELECT ts.id AS session_id, ts.start_time, ts.total_time
+     FROM session_routes sr
+     JOIN tracking_sessions ts ON ts.id = sr.session_id
+     WHERE sr.route_id = $1 AND ts.user_id = $2
+     ORDER BY ts.start_time ASC`,
+    [routeId, user.uid]
+  );
+
+  return result.rows.map((r) => ({
+    sessionId: r.session_id,
+    startTime: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
+    totalTime: r.total_time != null ? Number(r.total_time) : null,
+  }));
 }
