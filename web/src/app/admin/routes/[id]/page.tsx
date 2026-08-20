@@ -6,6 +6,7 @@ import Link from "next/link";
 import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import dynamic from "next/dynamic";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getRoute,
   getRouteDestinations,
@@ -35,6 +36,7 @@ export default function RouteDetailPage() {
 function RouteDetailContent() {
   const params = useParams();
   const id = params.id as string;
+  const { getIdToken } = useAuth();
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [destinations, setDestinations] = useState<RouteDestination[]>([]);
@@ -83,7 +85,12 @@ function RouteDetailContent() {
 
   const handleSave = async () => {
     setSaving(true);
-    await updateRoute(id, { name: editName, completion: editCompletion });
+    const token = await getIdToken();
+    if (!token) {
+      setSaving(false);
+      return;
+    }
+    await updateRoute(token, id, { name: editName, completion: editCompletion });
     setRoute((prev) =>
       prev ? { ...prev, name: editName, completion: editCompletion } : prev
     );
@@ -94,8 +101,13 @@ function RouteDetailContent() {
   const handleAccept = async () => {
     if (!decomposition) return;
     setReviewAction("accepting");
+    const token = await getIdToken();
+    if (!token) {
+      setReviewAction(null);
+      return;
+    }
     // Server re-analyzes with full point data — client decomposition is just for preview
-    await acceptRouteWithSegments(id);
+    await acceptRouteWithSegments(token, id);
     setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
     setDecomposition(null);
     setReviewAction(null);
@@ -106,7 +118,12 @@ function RouteDetailContent() {
   const handleReject = async () => {
     if (!confirm("Delete this pending route? This cannot be undone.")) return;
     setReviewAction("rejecting");
-    await rejectRoute(id);
+    const token = await getIdToken();
+    if (!token) {
+      setReviewAction(null);
+      return;
+    }
+    await rejectRoute(token, id);
     window.location.href = "/admin/routes";
   };
 
