@@ -34,6 +34,11 @@ a {
   text-underline-offset: 0.2em;
 }
 
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
 .peak-label {
   background: transparent;

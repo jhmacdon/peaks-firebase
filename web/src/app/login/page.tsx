@@ -5,10 +5,13 @@ import { useAuth } from "../../lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider } from "../../lib/auth-context";
+import AppNav from "../../components/app-nav";
+import { safeNextPath } from "../../lib/safe-next-path";
 
 export default function LoginPage() {
   return (
     <AuthProvider>
+      <AppNav />
       <Suspense fallback={<AuthPageFallback />}>
         <LoginContent />
       </Suspense>
@@ -32,7 +35,7 @@ function LoginContent() {
   const [error, setError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const next = searchParams.get("next") || "/discover";
+  const next = safeNextPath(searchParams.get("next"));
 
   const registerHref = useMemo(
     () => `/register${next !== "/discover" ? `?next=${encodeURIComponent(next)}` : ""}`,
@@ -146,6 +149,7 @@ function LoginContent() {
 
           <div className="mt-6 space-y-3">
             <button
+              type="button"
               onClick={handleGoogle}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -170,6 +174,7 @@ function LoginContent() {
               Continue with Google
             </button>
             <button
+              type="button"
               onClick={handleApple}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -193,9 +198,14 @@ function LoginContent() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium mb-1">
+                Email
+              </label>
               <input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
@@ -204,7 +214,9 @@ function LoginContent() {
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="block text-sm font-medium">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium">
+                  Password
+                </label>
                 <button
                   type="button"
                   onClick={handlePasswordReset}
@@ -214,7 +226,10 @@ function LoginContent() {
                 </button>
               </div>
               <input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"

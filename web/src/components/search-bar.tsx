@@ -98,7 +98,7 @@ export default function SearchBar({
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-[15px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
+        className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-[15px] text-gray-900 transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
       />
       {value && (
         <button

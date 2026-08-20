@@ -5,10 +5,13 @@ import { useAuth } from "../../lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider } from "../../lib/auth-context";
+import AppNav from "../../components/app-nav";
+import { safeNextPath } from "../../lib/safe-next-path";
 
 export default function RegisterPage() {
   return (
     <AuthProvider>
+      <AppNav />
       <Suspense fallback={<AuthPageFallback />}>
         <RegisterContent />
       </Suspense>
@@ -25,7 +28,7 @@ function RegisterContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const next = searchParams.get("next") || "/discover";
+  const next = safeNextPath(searchParams.get("next"));
 
   const loginHref = useMemo(
     () => `/login${next !== "/discover" ? `?next=${encodeURIComponent(next)}` : ""}`,
@@ -44,8 +47,8 @@ function RegisterContent() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
 
@@ -130,6 +133,7 @@ function RegisterContent() {
 
           <div className="mt-6 space-y-3">
             <button
+              type="button"
               onClick={handleGoogle}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -142,6 +146,7 @@ function RegisterContent() {
               Continue with Google
             </button>
             <button
+              type="button"
               onClick={handleApple}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -163,9 +168,14 @@ function RegisterContent() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
+              <label htmlFor="name" className="block text-sm font-medium mb-1">
+                Name
+              </label>
               <input
+                id="name"
+                name="name"
                 type="text"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
@@ -173,9 +183,14 @@ function RegisterContent() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium mb-1">
+                Email
+              </label>
               <input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
@@ -183,17 +198,22 @@ function RegisterContent() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium mb-1">
+                Password
+              </label>
               <input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                 required
-                minLength={6}
+                minLength={8}
               />
               <p className="mt-1 text-xs text-gray-500">
-                Use at least 6 characters. You can add profile details later.
+                Use at least 8 characters. You can add profile details later.
               </p>
             </div>
 
