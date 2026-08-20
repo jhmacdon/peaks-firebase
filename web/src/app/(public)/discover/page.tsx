@@ -572,7 +572,7 @@ function DiscoverContent() {
           )}
 
           {!isSearching && !searchError && visibleSearchResults === 0 && (
-            <EmptyState className="border-dashed py-8">
+            <EmptyState className="border border-dashed border-hairline py-8">
               <div className="text-lg font-semibold text-gray-900 dark:text-white">
                 No matches for &ldquo;{query}&rdquo; in this view.
               </div>
