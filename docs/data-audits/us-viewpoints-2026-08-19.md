@@ -37,6 +37,24 @@ The live dry-run planned:
 The import changes destination data only. It does not change iOS route labels or
 how the app treats a route end as its top or turnaround.
 
+## Applied result — 2026-08-20
+
+The guarded import applied all 49 state plans:
+
+- 5,247 destinations inserted
+- 38 exact existing destinations enriched with the `viewpoint` feature
+- 27 new session links made by the normal destination trigger
+- 0 unclear matches and 0 elevation gaps
+
+The live United States catalog now has 5,651 viewpoint destinations across 49
+states and 149 viewpoint-session links. That link total includes the 115 links
+already counted in Washington, the 27 new links, and 7 old links on destinations
+that this pass enriched.
+
+A fresh 49-state dry-run resolved all 5,285 included rows as unchanged. It found
+0 pending inserts, enrichments, session links, unclear matches, or elevation
+gaps.
+
 | State | Candidates | Included | Excluded | Held | Inserts | Enrichments | Links |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | AK | 4 | 3 | 0 | 1 | 3 | 0 | 0 |
@@ -95,6 +113,8 @@ how the app treats a route end as its top or turnaround.
 - Central review summary SHA-256: `d740ddacd2ff7bb90ec869d5052583f985f29849a195143832f19c4b06783457`
 - East review summary SHA-256: `075e595c220df8c085f06b64b4113cf4923d30585c305da69ea5980520c7d5e0`
 - West review summary SHA-256: `a7cbcec656a10892a7839b63d8ec10462bf2854116ca8a42234ea48ad8fe2a26`
+- Applied result receipts SHA-256: `db5666c53b88640409171c7c31fd8d5a09a4f8afa4d74461dc7c611bc8def413`
+- Post-import preview summary SHA-256: `15bbb12f61a888e28d92977d07fc900e5f329972bed856bcc3e67231aa5bb22a`
 
 The script adds no service, schedule, or always-on process. Monthly
 infrastructure cost stays at `$0`.
