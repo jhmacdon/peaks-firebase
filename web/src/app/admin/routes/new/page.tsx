@@ -7,6 +7,7 @@ import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import dynamic from "next/dynamic";
 import ElevationProfile from "../../../../components/elevation-profile";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   processGPX,
   chopOutAndBack,
@@ -45,6 +46,7 @@ type Step = "upload" | "review" | "segments" | "save";
 
 function NewRouteContent() {
   const router = useRouter();
+  const { getIdToken } = useAuth();
   const [step, setStep] = useState<Step>("upload");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,7 +276,10 @@ function NewRouteContent() {
         name: segmentNames.get(i)?.trim() || seg.name,
       }));
 
-      const result = await saveRouteWithSegments({
+      const token = await getIdToken();
+      if (!token) throw new Error("Not signed in");
+
+      const result = await saveRouteWithSegments(token, {
         name: routeName.trim(),
         shape,
         completion,

@@ -16,7 +16,7 @@ test("route-bearing API queries expose route provenance", () => {
   });
   const listDestinations = buildListDestinationsQuery("list-1");
   const areaDetail = buildAreaDetailQuery("area-1", "user-1");
-  const planRoutes = buildPlanRoutesQuery("plan-1");
+  const planRoutes = buildPlanRoutesQuery("plan-1", "user-1");
 
   assert.match(routeDetail.text, /r\.provenance/);
   assert.match(routeSearch.text, /r\.provenance/);

@@ -18,7 +18,7 @@ import {
 export default function ListDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
 
   const [list, setList] = useState<ListDetail | null>(null);
   const [destinations, setDestinations] = useState<ListDestination[]>([]);
@@ -44,7 +44,9 @@ export default function ListDetailPage() {
     if (!userId) return;
     let cancelled = false;
     async function loadProgress() {
-      const p = await getListProgress(id, userId!);
+      const token = await getIdToken();
+      if (!token) return;
+      const p = await getListProgress(token, id);
       if (!cancelled) {
         setProgress(p);
       }
@@ -53,7 +55,7 @@ export default function ListDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, userId]);
+  }, [id, userId, getIdToken]);
 
   if (loading) {
     return (

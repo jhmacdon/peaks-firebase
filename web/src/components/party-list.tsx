@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getUser, type UserInfo } from "../lib/actions/users";
+import { useAuth } from "../lib/auth-context";
 
 interface PartyListProps {
   partyIds: string[];
@@ -10,23 +11,33 @@ interface PartyListProps {
 export default function PartyList({ partyIds }: PartyListProps) {
   const [members, setMembers] = useState<UserInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const { getIdToken } = useAuth();
 
   const loadMembers = useCallback(async (ids: string[]) => {
-    const results = await Promise.all(ids.map((uid) => getUser(uid)));
+    const token = await getIdToken();
+    if (!token) return [];
+    const results = await Promise.all(ids.map((uid) => getUser(token, uid)));
     return results.filter((u): u is UserInfo => u !== null);
-  }, []);
+  }, [getIdToken]);
 
   useEffect(() => {
     if (partyIds.length === 0) return;
 
     let cancelled = false;
 
-    loadMembers(partyIds).then((result) => {
-      if (!cancelled) {
-        setMembers(result);
-        setLoaded(true);
-      }
-    });
+    loadMembers(partyIds)
+      .then((result) => {
+        if (!cancelled) {
+          setMembers(result);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMembers([]);
+          setLoaded(true);
+        }
+      });
 
     return () => {
       cancelled = true;

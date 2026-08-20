@@ -263,20 +263,32 @@ router.get("/:id", async (req, res: Response) => {
   res.json(result.rows[0]);
 });
 
-// GET /api/plans/:id/destinations
-router.get("/:id/destinations", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT d.id, d.name, d.elevation, d.features,
+export function buildPlanDestinationsQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT d.id, d.name, d.elevation, d.features,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             pd.ordinal
      FROM destinations d
      JOIN plan_destinations pd ON pd.destination_id = d.id
      WHERE pd.plan_id = $1
+       AND EXISTS (
+         SELECT 1 FROM plans p
+         LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
+         WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)
+       )
      ORDER BY pd.ordinal`,
-    [id]
-  );
+    values: [id, uid],
+  };
+}
+
+// GET /api/plans/:id/destinations — owner or party member only
+router.get("/:id/destinations", async (req, res: Response) => {
+  const query = buildPlanDestinationsQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 
@@ -305,7 +317,10 @@ router.get("/:id/reached-destinations", async (req, res: Response) => {
   res.json(result.rows);
 });
 
-export function buildPlanRoutesQuery(id: string): { text: string; values: unknown[] } {
+export function buildPlanRoutesQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.geohashes, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
@@ -315,27 +330,44 @@ export function buildPlanRoutesQuery(id: string): { text: string; values: unknow
      JOIN plan_routes pr ON pr.route_id = r.id
      WHERE pr.plan_id = $1
        AND r.status IN ('active', 'superseded')
+       AND EXISTS (
+         SELECT 1 FROM plans p
+         LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
+         WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)
+       )
      ORDER BY pr.ordinal`,
-    values: [id],
+    values: [id, uid],
   };
 }
 
-// GET /api/plans/:id/routes
+// GET /api/plans/:id/routes — owner or party member only
 router.get("/:id/routes", async (req, res: Response) => {
-  const query = buildPlanRoutesQuery(req.params.id);
+  const query = buildPlanRoutesQuery(req.params.id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 
-// GET /api/plans/:id/party
-router.get("/:id/party", async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT user_id, joined_at FROM plan_party
+export function buildPlanPartyQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT user_id, joined_at FROM plan_party
      WHERE plan_id = $1
+       AND EXISTS (
+         SELECT 1 FROM plans p
+         LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
+         WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)
+       )
      ORDER BY joined_at`,
-    [id]
-  );
+    values: [id, uid],
+  };
+}
+
+// GET /api/plans/:id/party — owner or party member only
+router.get("/:id/party", async (req, res: Response) => {
+  const query = buildPlanPartyQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 });
 

@@ -12,7 +12,16 @@ export interface UserInfo {
   lastName: string | null;
 }
 
-export async function getUser(uid: string): Promise<UserInfo | null> {
+export async function getUser(token: string, uid: string): Promise<UserInfo | null> {
+  let caller;
+  try {
+    caller = await adminAuth.verifyIdToken(token);
+  } catch {
+    throw new Error("Unauthorized");
+  }
+  // Email is private: only an admin or the user themself may see it.
+  const includeEmail = caller.admin === true || caller.uid === uid;
+
   try {
     // Get Firebase Auth record
     const authUser = await adminAuth.getUser(uid);
@@ -36,7 +45,7 @@ export async function getUser(uid: string): Promise<UserInfo | null> {
 
     return {
       uid: authUser.uid,
-      email: authUser.email || null,
+      email: includeEmail ? authUser.email || null : null,
       displayName: authUser.displayName || [firstName, lastName].filter(Boolean).join(" ") || null,
       photoURL,
       firstName,

@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import AdminGuard from "../../../components/admin-guard";
 import AdminNav from "../../../components/admin-nav";
 import UserPopover from "../../../components/user-popover";
+import { useAuth } from "../../../lib/auth-context";
 import {
   getAdminSessions,
   type AdminSessionRow,
@@ -41,6 +42,7 @@ export default function AdminSessionsPage() {
 function SessionsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { getIdToken } = useAuth();
   const destinationId = searchParams.get("destination") || "";
 
   const [sessions, setSessions] = useState<AdminSessionRow[]>([]);
@@ -65,7 +67,10 @@ function SessionsContent() {
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
+    const token = await getIdToken();
+    if (!token) return;
     const result = await getAdminSessions(
+      token,
       search,
       pageSize,
       page * pageSize,
@@ -75,7 +80,7 @@ function SessionsContent() {
     setSessions(result.sessions);
     setTotal(result.total);
     setLoading(false);
-  }, [search, page, sortField, sortDir, destinationId]);
+  }, [getIdToken, search, page, sortField, sortDir, destinationId]);
 
   useEffect(() => {
     if (!destinationId) {

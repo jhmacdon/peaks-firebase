@@ -2,6 +2,7 @@
 "use server";
 
 import db from "../db";
+import { verifyToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
 import {
   parseRouteProvenance,
@@ -387,11 +388,14 @@ export async function getDiscoverStats(): Promise<DiscoverStats> {
  * If lat/lng provided, ordered by proximity; otherwise by elevation descending.
  */
 export async function getUnclimbedDestinations(
-  userId: string,
+  token: string,
   lat?: number,
   lng?: number,
   limit: number = 20
 ): Promise<SearchDestination[]> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
   const hasGeo = lat != null && lng != null && !isNaN(lat) && !isNaN(lng);
 
   if (hasGeo) {
@@ -409,7 +413,7 @@ export async function getUnclimbedDestinations(
        )
        ORDER BY distance_m ASC
        LIMIT $4`,
-      [userId, lat, lng, limit]
+      [user.uid, lat, lng, limit]
     );
 
     return result.rows.map((r: any) => ({
@@ -438,7 +442,7 @@ export async function getUnclimbedDestinations(
        )
        ORDER BY d.elevation DESC NULLS LAST
        LIMIT $2`,
-      [userId, limit]
+      [user.uid, limit]
     );
 
     return result.rows.map((r: any) => ({

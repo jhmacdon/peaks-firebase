@@ -7,6 +7,7 @@ import AdminGuard from "../../../../components/admin-guard";
 import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
 import dynamic from "next/dynamic";
+import { useAuth } from "../../../../lib/auth-context";
 import {
   getDestination,
   getDestinationRoutes,
@@ -46,6 +47,7 @@ export default function DestinationDetailPage() {
 function DestinationDetailContent() {
   const params = useParams();
   const id = params.id as string;
+  const { getIdToken } = useAuth();
 
   const [dest, setDest] = useState<DestinationDetail | null>(null);
   const [routes, setRoutes] = useState<DestinationRoute[]>([]);
@@ -86,7 +88,12 @@ function DestinationDetailContent() {
 
   const handleSave = async () => {
     setSaving(true);
-    await updateDestination(id, { name: editName, type: editType, features: editFeatures });
+    const token = await getIdToken();
+    if (!token) {
+      setSaving(false);
+      return;
+    }
+    await updateDestination(token, id, { name: editName, type: editType, features: editFeatures });
     setDest((prev) =>
       prev ? { ...prev, name: editName, type: editType, features: editFeatures } : prev
     );
