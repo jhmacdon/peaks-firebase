@@ -20,6 +20,8 @@ interface FakeDestination {
   lat: number;
   lng: number;
   amenities?: unknown;
+  /** Road rows land by id, so a destination can be present and not a trailhead. */
+  isTrailhead?: boolean;
 }
 
 interface QueryCall {
@@ -95,6 +97,18 @@ function createFakeDb(options: FakeDbOptions) {
         }))
       );
     }
+    if (sql.includes("is_trailhead")) {
+      const ids = (params?.[0] as string[]) ?? [];
+      return rows(
+        options.destinations
+          .filter((dest) => ids.includes(dest.id))
+          .map((dest) => ({
+            id: dest.id,
+            name: dest.name,
+            is_trailhead: dest.isTrailhead !== false,
+          }))
+      );
+    }
     if (sql.includes("SELECT id, amenities")) {
       const ids = (params?.[0] as string[]) ?? [];
       return rows(
@@ -122,6 +136,57 @@ function jsonl(records: unknown[]): string {
 }
 
 const SNOW_LAKE = { lat: 47.4459, lng: -121.4231 };
+
+// The run's year decides how far a gate window may sit from today, so it is
+// pinned rather than read off the wall clock.
+const RUN_DATE = new Date(Date.UTC(2026, 7, 20));
+
+const FEDERAL_PUBLIC_DOMAIN = "public domain (US federal government)";
+const ROADCORE_SOURCE = {
+  kind: "usfs_roadcore",
+  name: "USFS National Forest System Roads (RoadCore)",
+  url: "https://example.invalid/roadcore",
+  license: FEDERAL_PUBLIC_DOMAIN,
+};
+const MVUM_SOURCE = {
+  kind: "usfs_mvum",
+  name: "USFS Motor Vehicle Use Map roads",
+  license: FEDERAL_PUBLIC_DOMAIN,
+};
+
+/** A row shaped exactly as `roads:derive` writes one. */
+function roadRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    destination_id: "dest-snow",
+    destination_name: "Snow Lake Trailhead",
+    snapped: true,
+    snap_distance_m: 18,
+    anchor_reached: true,
+    high_clearance: { value: "required", source: ROADCORE_SOURCE, retrieved_at: "2026-08-19" },
+    four_wheel_drive: { value: false, source: ROADCORE_SOURCE, retrieved_at: "2026-08-19" },
+    surface: { value: "gravel", source: ROADCORE_SOURCE, retrieved_at: "2026-08-19" },
+    seasonal_window: {
+      value: { opens: "2026-04-02", closes: "2026-11-30" },
+      source: MVUM_SOURCE,
+      retrieved_at: "2026-08-19",
+    },
+    limiting_segment_ref: {
+      value: "FR 8040-550",
+      source: ROADCORE_SOURCE,
+      retrieved_at: "2026-08-19",
+    },
+    derivation: {
+      snap_segment_key: "usfs_roadcore:{A}",
+      path_miles: 39.17,
+      path_segment_keys: ["usfs_roadcore:{A}", "usfs_roadcore:{Z}"],
+      season_segments: 2,
+      season_segments_with_window: 2,
+      season_segments_without_evidence: 0,
+      season_windows_found: 1,
+    },
+    ...overrides,
+  };
+}
 
 function defaultFiles(overrides: Record<string, string> = {}): Record<string, string> {
   return {
@@ -208,6 +273,18 @@ function defaultFiles(overrides: Record<string, string> = {}): Record<string, st
         fee_type: null,
       },
     ]),
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl([
+      roadRow(),
+      // The derivation writes a row per trailhead whether or not it answered.
+      {
+        destination_id: "dest-nothing",
+        destination_name: "Nowhere Trailhead",
+        snapped: false,
+        snap_distance_m: null,
+        anchor_reached: false,
+        skip_reason: "no_snap",
+      },
+    ]),
     ...overrides,
   };
 }
@@ -220,6 +297,7 @@ function testArgs(overrides: Partial<Args> = {}): Args {
     sectionsPath: null,
     registryPath: null,
     rawRecSitesPath: null,
+    roadAccessPath: null,
     reportDir: null,
     apply: false,
     dryRun: true,
@@ -239,6 +317,9 @@ function createIo(files: Record<string, string>) {
   return {
     written,
     dirs,
+    // Every run gets the same clock with its file handles, so the gate-window
+    // year bound is a fixed distance from the run rather than from today.
+    now: () => RUN_DATE,
     readFile: (filePath: string) => {
       const contents = files[filePath];
       if (contents === undefined) throw new Error(`missing test file ${filePath}`);
@@ -362,10 +443,10 @@ test("a dry run writes nothing, reports the unmatched rows, and logs a dry_run",
   assert.equal(calls.some((call) => call.sql === "BEGIN"), false);
 
   const runInserts = calls.filter((call) => call.sql.includes("INSERT INTO data_source_runs"));
-  assert.equal(runInserts.length, 3);
+  assert.equal(runInserts.length, 4);
   assert.deepEqual(
     runInserts.map((call) => call.params?.[0]),
-    ["usfs_fees", "usfs_bathrooms", "usfs_pages"]
+    ["usfs_fees", "usfs_bathrooms", "usfs_pages", "usfs_roads"]
   );
   for (const insert of runInserts) {
     assert.equal(insert.params?.[1], "import");
@@ -431,11 +512,14 @@ test("apply merges every source into one destination row inside a transaction", 
   assert.equal(merged.parking.fills_early_note.value, "The lot fills before 8am on summer weekends.");
   assert.equal(merged.bathrooms.status.value, "present");
   assert.equal(merged.bathrooms.type.value, "vault_pit");
+  assert.equal(merged.road_access.high_clearance.value, "required");
+  assert.equal(merged.road_access.surface.value, "gravel");
+  assert.equal(merged.road_access.surface.source.kind, "usfs_roadcore");
 
   const runInserts = calls.filter((call) => call.sql.includes("INSERT INTO data_source_runs"));
   assert.deepEqual(
     runInserts.map((call) => call.params?.[2]),
-    ["success", "success", "success"]
+    ["success", "success", "success", "success"]
   );
   assert.deepEqual(
     runInserts.map((call) => [call.params?.[0], call.params?.[5], call.params?.[6], call.params?.[7]]),
@@ -443,6 +527,7 @@ test("apply merges every source into one destination row inside a transaction", 
       ["usfs_fees", 2, 1, 1],
       ["usfs_bathrooms", 1, 1, 1],
       ["usfs_pages", 1, 1, 1],
+      ["usfs_roads", 2, 1, 1],
     ]
   );
 });
@@ -1009,7 +1094,11 @@ test("a qualifier-only difference matches on containment and says so", async () 
   const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
 
   assert.equal(summary.counts.usfs_fees.matched, 1);
-  assert.deepEqual(summary.counts.usfs_fees.matchedByRule, { threshold: 0, containment: 1 });
+  assert.deepEqual(summary.counts.usfs_fees.matchedByRule, {
+    threshold: 0,
+    containment: 1,
+    exact_id: 0,
+  });
   assert.equal(summary.destinationsChanged, 1);
 
   const matched = io.written[path.join(DATA_DIR, "import-matched.jsonl")]
@@ -1069,10 +1158,13 @@ test("a threshold match is recorded as one", async () => {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  assert.deepEqual([...new Set(matched.map((record) => record.rule))], ["threshold"]);
+  assert.deepEqual([...new Set(matched.map((record) => record.rule))].sort(), [
+    "exact_id",
+    "threshold",
+  ]);
   assert.deepEqual(
     matched.map((record) => record.source).sort(),
-    ["usfs_bathrooms", "usfs_fees", "usfs_pages"]
+    ["usfs_bathrooms", "usfs_fees", "usfs_pages", "usfs_roads"]
   );
 });
 
@@ -1121,6 +1213,7 @@ test("rows keep their own candidates across candidate and similarity chunks", as
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
       { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
     ]),
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "",
   };
 
   let candidateQueries = 0;
@@ -1187,5 +1280,493 @@ test("rows keep their own candidates across candidate and similarity chunks", as
     updates.map((update) => update.id).sort(),
     Array.from({ length: rowCount }, (_, i) => `dest-${i}`).sort(),
     "every row matched its own destination, not a neighbouring chunk's"
+  );
+});
+
+// --- access-road facts ------------------------------------------------------
+
+const SNOW_DEST = { id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE };
+
+/** A data directory holding one road row and nothing else worth matching. */
+function roadOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, string> {
+  return defaultFiles({
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl(rows),
+  });
+}
+
+function roadReport(io: ReturnType<typeof createIo>): Array<Record<string, unknown>> {
+  return io.written[path.join(DATA_DIR, "import-rejected-roads.jsonl")]
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line));
+}
+
+test("a road row lands on its own destination id, with no name gate at all", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow()]));
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.matched, 1);
+  assert.equal(summary.counts.usfs_roads.matchedByRule.exact_id, 1);
+  assert.equal(summary.counts.usfs_roads.rowsWritten, 1);
+  assert.equal(summary.destinationsChanged, 1);
+  // The name gate is not consulted: the derivation started from this row.
+  assert.equal(calls.some((call) => call.sql.includes("JOIN LATERAL")), false);
+
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  assert.equal(update?.params?.[0], "dest-snow");
+  const merged = JSON.parse(update?.params?.[1] as string);
+  assert.equal(merged.road_access.high_clearance.value, "required");
+  assert.equal(merged.road_access.four_wheel_drive.value, false);
+  assert.equal(merged.road_access.surface.value, "gravel");
+  assert.deepEqual(merged.road_access.seasonal_window.value, {
+    opens: "2026-04-02",
+    closes: "2026-11-30",
+  });
+  assert.equal(merged.road_access.limiting_segment_ref.value, "FR 8040-550");
+  // Every leaf carries the layer that answered it, and its own retrieval date.
+  assert.equal(merged.road_access.seasonal_window.source.kind, "usfs_mvum");
+  assert.equal(merged.road_access.high_clearance.source.kind, "usfs_roadcore");
+  assert.equal(merged.road_access.high_clearance.source.url, "https://example.invalid/roadcore");
+  assert.equal(merged.road_access.high_clearance.retrieved_at, "2026-08-19");
+  // The terms travel with the name: a credit that says who told us and not
+  // whether a reader may repeat it is half a credit.
+  for (const leaf of Object.values(merged.road_access) as Array<Record<string, never>>) {
+    assert.equal(
+      (leaf as unknown as { source: { license?: string } }).source.license,
+      FEDERAL_PUBLIC_DOMAIN
+    );
+  }
+});
+
+test("a source url that is not an http link never reaches the row", async () => {
+  // The clients render a source url as something tappable.
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        surface: {
+          value: "gravel",
+          source: { ...ROADCORE_SOURCE, url: "javascript:alert(1)" },
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "gravel", "the fact still lands");
+  assert.equal(merged.road_access.surface.source.url, undefined);
+  assert.equal(merged.road_access.surface.source.license, FEDERAL_PUBLIC_DOMAIN);
+});
+
+test("a leaf with no licence still lands, crediting the name alone", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        surface: {
+          value: "gravel",
+          source: { kind: "usfs_roadcore", name: "RoadCore" },
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "gravel");
+  assert.equal("license" in merged.road_access.surface.source, false);
+});
+
+test("the audit block never reaches the database, and neither does the drive", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow()]));
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+
+  const written = calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string;
+  assert.equal(written.includes("derivation"), false);
+  assert.equal(written.includes("path_miles"), false);
+  assert.equal(written.includes("39.17"), false);
+  assert.equal(written.includes("snap_segment_key"), false);
+  const merged = JSON.parse(written);
+  assert.deepEqual(Object.keys(merged.road_access).sort(), [
+    "four_wheel_drive",
+    "high_clearance",
+    "limiting_segment_ref",
+    "seasonal_window",
+    "surface",
+  ]);
+});
+
+test("a row the derivation could not answer is skipped by its own reason", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      {
+        destination_id: "dest-snow",
+        destination_name: "Snow Lake Trailhead",
+        snapped: true,
+        snap_distance_m: 30,
+        anchor_reached: false,
+        skip_reason: "no_anchor",
+      },
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.refusals.skipped_no_anchor, 1);
+  assert.equal(summary.counts.usfs_roads.noFacts, 1);
+  assert.equal(summary.counts.usfs_roads.matched, 0);
+  assert.equal(summary.destinationsChanged, 0);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+});
+
+test("an unranked path is skipped whole, surface and road reference included", async () => {
+  // The derivation still publishes what it knows on such a row. The importer
+  // does not: a partial answer under a skip reason reads as a complete one.
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow({ skip_reason: "unranked_path" })]));
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_roads.refusals.skipped_unranked_path, 1);
+  assert.equal(summary.destinationsChanged, 0);
+});
+
+test("a gate window resting on unchecked road is refused and named", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const warnings: string[] = [];
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        derivation: { season_segments: 7, season_segments_without_evidence: 2 },
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: { log: () => undefined, warn: (message: string) => warnings.push(String(message)) },
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.refusals.seasonal_window_evidence_gap, 1);
+  // The emission gate should have caught this, so arriving here is loud.
+  assert.ok(warnings.some((message) => message.includes("dest-snow")));
+  // The rest of the row is still a good answer and still lands.
+  assert.equal(summary.counts.usfs_roads.matched, 1);
+  assert.equal(summary.destinationsChanged, 1);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.seasonal_window, undefined);
+  assert.equal(merged.road_access.high_clearance.value, "required");
+});
+
+test("a row with no evidence counter at all keeps its window to itself", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow({ derivation: undefined })]));
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+  assert.equal(summary.counts.usfs_roads.refusals.seasonal_window_evidence_gap, 1);
+});
+
+test("a gate date that is not an ISO day is refused, never reformatted", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        seasonal_window: {
+          value: { opens: "04/02", closes: "2026-11-30" },
+          source: MVUM_SOURCE,
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.refusals.seasonal_window_not_iso, 1);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.seasonal_window, undefined);
+  assert.equal(merged.road_access.surface.value, "gravel", "the rest of the row still lands");
+});
+
+test("a day the calendar does not have is not an ISO date", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        seasonal_window: {
+          value: { opens: "2026-04-02", closes: "2026-02-30" },
+          source: MVUM_SOURCE,
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+  assert.equal(summary.counts.usfs_roads.refusals.seasonal_window_not_iso, 1);
+});
+
+test("a window anchored years from the run is refused and reported", async () => {
+  // The real one: "Stewart Creek Trailhead", whose window touches February 29
+  // and is therefore anchored to the next leap year, two years out.
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        seasonal_window: {
+          value: { opens: "2027-05-28", closes: "2028-02-29" },
+          source: MVUM_SOURCE,
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_roads.refusals.seasonal_window_out_of_range, 1);
+  assert.equal(summary.counts.usfs_roads.matched, 1, "the vehicle answer is unaffected");
+
+  // A thrown-away fact needs somewhere a person can go and read it.
+  const reported = roadReport(io);
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0].reason, "seasonal_window_out_of_range");
+  assert.equal(reported[0].destination_id, "dest-snow");
+  assert.deepEqual(reported[0].refusals, ["seasonal_window_out_of_range"]);
+});
+
+test("a row the derivation could not answer is not written to the report", async () => {
+  // 590 of the 918 rows today. The counts already say so, and a report that
+  // reprints them every run is one nobody reads.
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow({ skip_reason: "no_snap" })]));
+  await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+  assert.deepEqual(roadReport(io), []);
+});
+
+test("a window one year either side of the run still lands", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        seasonal_window: {
+          value: { opens: "2026-12-20", closes: "2027-03-15" },
+          source: MVUM_SOURCE,
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.deepEqual(merged.road_access.seasonal_window.value, {
+    opens: "2026-12-20",
+    closes: "2027-03-15",
+  });
+});
+
+test("a leaf from a source kind this pipeline does not own is refused", async () => {
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        surface: {
+          value: "gravel",
+          source: { kind: "someone_elses_map", name: "Someone else's map" },
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+  assert.equal(summary.counts.usfs_roads.refusals.surface_unusable, 1);
+});
+
+test("a destination the catalog no longer holds is reported, not written", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow({ destination_id: "dest-gone" })]));
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.destinationVanished, 1);
+  assert.equal(summary.counts.usfs_roads.refusals.destination_missing, 1);
+  assert.equal(summary.counts.usfs_roads.matched, 0);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+
+  const reported = roadReport(io);
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0].reason, "destination_missing");
+  assert.equal(reported[0].destination_id, "dest-gone");
+});
+
+test("a destination that is no longer a trailhead gets no road facts", async () => {
+  const { db, calls } = createFakeDb({
+    destinations: [{ ...SNOW_DEST, isTrailhead: false }],
+  });
+  const io = createIo(roadOnlyFiles([roadRow()]));
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  assert.equal(summary.counts.usfs_roads.destinationVanished, 1);
+  assert.equal(summary.counts.usfs_roads.refusals.destination_not_trailhead, 1);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+  assert.equal(roadReport(io)[0].reason, "destination_not_trailhead");
+});
+
+test("a second road import over the same file rewrites nothing", async () => {
+  const files = roadOnlyFiles([roadRow()]);
+  const first = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(files);
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db: first.db,
+    console: silent,
+    ...io,
+  });
+  const stored = JSON.parse(
+    first.calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+
+  const second = createFakeDb({ destinations: [{ ...SNOW_DEST, amenities: stored }] });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db: second.db,
+    console: silent,
+    ...io,
+  });
+  assert.equal(summary.destinationsChanged, 0);
+  assert.equal(summary.destinationsUnchanged, 1);
+  assert.equal(second.calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+});
+
+test("a refreshed road fact overwrites the one this importer wrote before", async () => {
+  const files = roadOnlyFiles([roadRow({ surface: {
+    value: "dirt",
+    source: ROADCORE_SOURCE,
+    retrieved_at: "2026-11-01",
+  } })]);
+  const before = {
+    road_access: {
+      surface: { value: "gravel", source: ROADCORE_SOURCE, retrieved_at: "2026-08-19" },
+    },
+  };
+  const { db, calls } = createFakeDb({
+    destinations: [{ ...SNOW_DEST, amenities: before }],
+  });
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(files),
+  });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "dirt");
+  assert.equal(merged.road_access.surface.retrieved_at, "2026-11-01");
+});
+
+test("a road leaf a human wrote is left alone", async () => {
+  const before = {
+    road_access: {
+      surface: {
+        value: "washed out",
+        source: { kind: "ranger_district_call", name: "Ranger district" },
+        retrieved_at: "2026-08-01",
+      },
+    },
+  };
+  const { db, calls } = createFakeDb({
+    destinations: [{ ...SNOW_DEST, amenities: before }],
+  });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(roadOnlyFiles([roadRow()])),
+  });
+  assert.equal(summary.preservedForeignLeaves, 1);
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "washed out");
+  assert.equal(merged.road_access.high_clearance.value, "required");
+});
+
+test("a dry run writes no road fact and logs the run as a dry run", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(roadOnlyFiles([roadRow()]));
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.dryRun, true);
+  assert.equal(summary.destinationsChanged, 1);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+  const roadRun = calls
+    .filter((call) => call.sql.includes("INSERT INTO data_source_runs"))
+    .find((call) => call.params?.[0] === "usfs_roads");
+  assert.equal(roadRun?.params?.[2], "dry_run");
+  assert.equal(roadRun?.params?.[1], "import");
+});
+
+test("--no-log leaves no road run row either", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  await importTrailheadFacts(testArgs({ log: false }), {
+    db,
+    console: silent,
+    ...createIo(roadOnlyFiles([roadRow()])),
+  });
+  assert.equal(calls.some((call) => call.sql.includes("data_source_runs")), false);
+});
+
+test("the road run row records what it refused", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(
+      roadOnlyFiles([roadRow({ skip_reason: "no_snap" }), roadRow({ destination_id: "dest-gone" })])
+    ),
+  });
+  const roadRun = calls
+    .filter((call) => call.sql.includes("INSERT INTO data_source_runs"))
+    .find((call) => call.params?.[0] === "usfs_roads");
+  assert.match(String(roadRun?.params?.[8]), /vanished=1/);
+  assert.match(String(roadRun?.params?.[8]), /skipped_no_snap=1/);
+});
+
+test("a missing road-access file stops the import rather than importing three quarters", async () => {
+  const files = defaultFiles();
+  delete files[path.join(DATA_DIR, "trailhead-road-access.jsonl")];
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  await assert.rejects(
+    () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
+    /trailhead-road-access\.jsonl/
   );
 });

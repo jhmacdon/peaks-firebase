@@ -46,6 +46,13 @@ import {
   type CampsiteAmenities,
   type TrailheadAmenities,
 } from "../../../../lib/amenities";
+import {
+  dedupeCredits,
+  leafCredit,
+  roadAccessRow,
+  type AmenityCredit,
+  type AmenityRow,
+} from "../../../../lib/trailhead-road-access";
 import { AreaChips } from "../../../../components/area-chip";
 import SaveDestinationButton from "../../../../components/save-destination-button";
 import { useAuth } from "../../../../lib/auth-context";
@@ -197,6 +204,7 @@ export default function DestinationDetailPage() {
 
   const months = monthlyCounts(dest.averages);
   const facilities = dest.amenities ? amenityRows(dest.amenities) : [];
+  const facilityCredits = amenityCredits(facilities);
 
   function copyCoords() {
     if (!coordText) return;
@@ -499,9 +507,41 @@ export default function DestinationDetailPage() {
                     </div>
                     <dl className="mt-2 space-y-2">
                       {facilities.map((row) => (
-                        <StatRow key={row.label} label={row.label} value={row.value} />
+                        <div key={row.label}>
+                          <StatRow label={row.label} value={row.value} />
+                          {row.captions?.map((caption) => (
+                            <div
+                              key={caption}
+                              className="mt-0.5 text-right text-xs text-gray-500 dark:text-gray-400"
+                            >
+                              {caption}
+                            </div>
+                          ))}
+                        </div>
                       ))}
                     </dl>
+                    {facilityCredits.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                        From{" "}
+                        {facilityCredits.map((credit, i) => (
+                          <span key={credit.name}>
+                            {i > 0 && " · "}
+                            {credit.url ? (
+                              <a
+                                href={credit.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {credit.name}
+                              </a>
+                            ) : (
+                              credit.name
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </SidePanel>
@@ -722,14 +762,19 @@ function formatDistanceAway(meters: number): string {
   return `${(meters / 1609.34).toFixed(1)} mi away`;
 }
 
-function amenityRows(amenities: Amenities): Array<{ label: string; value: string }> {
+function amenityRows(amenities: Amenities): AmenityRow[] {
   return isTrailheadAmenities(amenities)
     ? trailheadAmenityRows(amenities)
     : campsiteAmenityRows(amenities);
 }
 
-function campsiteAmenityRows(amenities: CampsiteAmenities): Array<{ label: string; value: string }> {
-  const rows: Array<{ label: string; value: string }> = [];
+/** Every source behind a printed fact, once each, in the order it was printed. */
+function amenityCredits(rows: AmenityRow[]): AmenityCredit[] {
+  return dedupeCredits(rows.flatMap((row) => row.credits ?? []));
+}
+
+function campsiteAmenityRows(amenities: CampsiteAmenities): AmenityRow[] {
+  const rows: AmenityRow[] = [];
   if (amenities.toilet) {
     rows.push({
       label: "Toilet",
@@ -782,8 +827,8 @@ const TRAILHEAD_BATHROOM_TYPE_LABELS: Record<string, string> = {
 // (which also skips some CampsiteAmenities fields). Free-text notes
 // (fills_early_note, location_note, season_note, limiting_segment_ref) are
 // left out of this compact side-panel list; structured facts only.
-function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: string; value: string }> {
-  const rows: Array<{ label: string; value: string }> = [];
+function trailheadAmenityRows(amenities: TrailheadAmenities): AmenityRow[] {
+  const rows: AmenityRow[] = [];
   const { parking, road_access, bathrooms } = amenities;
 
   // A dollar amount is a fee fact on its own. The importer writes day_fee_usd
@@ -800,16 +845,29 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: str
       label: "Parking fee",
       value:
         feeAmounts.length > 0 ? feeAmounts.join(", ") : feeRequired ? "Required" : "None",
+      credits: dedupeCredits([
+        leafCredit(parking?.day_fee_usd),
+        leafCredit(parking?.annual_fee_usd),
+        leafCredit(parking?.fee_required),
+      ]),
     });
   }
   if (parking?.capacity_vehicles?.value != null) {
-    rows.push({ label: "Parking capacity", value: `${parking.capacity_vehicles.value} vehicles` });
+    rows.push({
+      label: "Parking capacity",
+      value: `${parking.capacity_vehicles.value} vehicles`,
+      credits: dedupeCredits([leafCredit(parking.capacity_vehicles)]),
+    });
   }
   const passes = parking?.passes_accepted?.value;
   if (Array.isArray(passes) && passes.length > 0) {
     // Guarded with Array.isArray: `value` comes from unvalidated JSONB, so a
     // malformed row could store a non-array here and .join would throw.
-    rows.push({ label: "Passes accepted", value: passes.join(", ") });
+    rows.push({
+      label: "Passes accepted",
+      value: passes.join(", "),
+      credits: dedupeCredits([leafCredit(parking?.passes_accepted)]),
+    });
   }
 
   if (bathrooms?.status) {
@@ -821,18 +879,17 @@ function trailheadAmenityRows(amenities: TrailheadAmenities): Array<{ label: str
           : // `type` comes from unvalidated JSONB, so a value outside the union
             // would otherwise render an empty cell.
             TRAILHEAD_BATHROOM_TYPE_LABELS[bathrooms.type?.value ?? "unspecified"] ?? "Present",
+      credits: dedupeCredits([leafCredit(bathrooms.status), leafCredit(bathrooms.type)]),
     });
   }
 
-  if (road_access?.surface?.value) {
-    rows.push({ label: "Road surface", value: titleize(road_access.surface.value) });
-  }
-  if (road_access?.high_clearance?.value) {
-    rows.push({ label: "High clearance", value: titleize(road_access.high_clearance.value) });
-  }
-  if (road_access?.four_wheel_drive?.value) {
-    rows.push({ label: "4WD", value: "Required" });
-  }
+  // The drive in, as one answer: what the road asks of a car and what it is
+  // made of, with the gate dates and the last rough stretch under it. Three
+  // separate rows said the same thing worse — "High clearance: Required" is a
+  // database column read aloud, and neither the gate nor the road it names had
+  // anywhere to go.
+  const road = roadAccessRow(road_access);
+  if (road) rows.push(road);
 
   return rows;
 }

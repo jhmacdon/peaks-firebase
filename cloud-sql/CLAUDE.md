@@ -594,10 +594,11 @@ Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_sess
 
 ## Trailhead facts import
 
-Parking, fee, and bathroom facts for existing trailheads, imported from the
-normalized US Forest Service JSONL in `docs/trailheads/data/` (that directory
-lives in the `peaks` checkout, not this repo). The importer never creates a
-destination: a fact with no trailhead to hang on is reported, not invented.
+Parking, fee, bathroom and access-road facts for existing trailheads, imported
+from the normalized US Forest Service JSONL in `docs/trailheads/data/` (that
+directory lives in the `peaks` checkout, not this repo). The importer never
+creates a destination: a fact with no trailhead to hang on is reported, not
+invented.
 
 ```bash
 cd migrate
@@ -668,6 +669,45 @@ same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
 stricter claim wins. Both guards live in `feeLeafCandidates` in
 `migrate/src/trailhead-facts-utils.ts`.
 
+### The fourth source: access roads
+
+`usfs_roads` reads `<data-dir>/trailhead-road-access.jsonl`, written by
+`roads:derive` (see "Access-road processing store" below), and fills the
+`road_access` block. It is the one source that goes through **no gate at all**:
+the derivation walked the road network starting from the production trailhead
+rows, so every row carries the destination id it belongs to and the write is by
+exact id. The only question left is whether that destination is still there and
+still carries the `trailhead` feature — an id that has gone, or has stopped
+being a trailhead, is counted and reported, never written.
+
+The file is required like the raw EDW pull: a refresh that rewrote the fee and
+bathroom files but not this one is an incomplete refresh, and importing three
+quarters of it quietly would hide that. `--road-access=FILE` overrides the
+path.
+
+Five binding rules, all pinned by tests in `import-trailhead-facts.test.ts`:
+
+- **A row with any `skip_reason` is skipped whole**, including the facts it does
+  carry. An `unranked_path` row still publishes a surface and a road reference;
+  importing those under a skip reason would read as a complete answer.
+- **`derivation` is never imported, and `path_miles` least of all.** The audit
+  block is read for exactly one thing — the gate-window evidence count — and
+  written nowhere.
+- **A window whose path holds a segment MVUM never described is refused**, with
+  a warning naming the destination. `buildApproachRow` already withholds these,
+  so one arriving here means that gate regressed.
+- **A gate date must be a real `YYYY-MM-DD` day**, never reformatted or guessed
+  at, and **the window must sit within a year of the run**. Nothing in
+  production trips the range guard today; it stands against a derived file kept
+  across a year boundary, or an anchoring bug upstream.
+- **A leaf whose source kind is not one of `usfs_roadcore`, `usfs_mvum`,
+  `blm_gtlf` is refused**, and each leaf's envelope is rebuilt field by field
+  rather than copied — the file is a file, and `amenities` is unvalidated JSONB.
+
+Refusals drop one leaf, not the row: a trailhead whose dates are refused still
+gets its vehicle, surface and road reference. Rejected rows go to
+`import-rejected-roads.jsonl` with the reason.
+
 Each run records a `data_source_runs` row per source (`--no-log` skips it;
 a dry run is logged as `dry_run`, so it never counts as a refresh). Check
 staleness with:
@@ -676,12 +716,163 @@ staleness with:
 npm run check:data-freshness
 ```
 
-It exits non-zero when a required source — `usfs_fees` or `usfs_bathrooms` —
-is more than 90 days past its last successful import or has never run.
-`usfs_pages` is imported and logged the same way but cannot fail the check: it
-contributes a single leaf across the catalog, so the report lists it as
-`[other]` rather than alarming on it. Quarterly cadence and the full refresh
+It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms` or
+`usfs_roads` — is more than 90 days past its last successful import or has
+never run. `usfs_pages` is imported and logged the same way but cannot fail the
+check: it contributes a single leaf across the catalog, so the report lists it
+as `[other]` rather than alarming on it. Quarterly cadence and the full refresh
 sequence: `migrate/docs/trailhead-data-refresh.md`.
+
+## Access-road processing store
+
+Phase 2 of the trailhead work: USFS RoadCore, USFS MVUM and BLM GTLF, loaded
+and normalized so a later task can derive each trailhead's access vehicle,
+surface and gate window. **Road segments never enter the `peaks` database** —
+only the derived per-trailhead facts will. Processing happens in a local DuckDB
+file, by default `<data-dir>/processing/roads.duckdb` (about 4.5 GB, beside the
+raw downloads in the `peaks` checkout).
+
+```bash
+cd migrate
+npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
+npm run roads:import -- --data-dir=... --only=topology --snap-tolerance=20
+npm run roads:derive -- --data-dir=/path/to/peaks/docs/trailheads/data --sample=20
+```
+
+A full run deletes the store and rebuilds it from the three source files in
+about 30 seconds; `--only=` rebuilds single stages (`roadcore, mvum, blm,
+normalize, seasons, link, topology`). Row counts print against the download
+manifest, so a short load is obvious. There is no GDAL on the host and none is
+needed — DuckDB's spatial extension reads both geodatabases out of their zip
+files through `/vsizip`.
+
+Cloud SQL was the alternative and was rejected on measurement: pgRouting 3.6.2
+is available there, but the instance is a `db-f1-micro` serving production with
+3.1 GB used of a 10 GB disk that cannot shrink. Full reasoning, the table
+inventory, and the traversal handover: `migrate/docs/roads-processing-store.md`.
+
+**Two rules from `docs/trailheads/research-roads.md` §A3 are binding and both
+are pinned by tests.** Break either and the app publishes a confident wrong
+answer, which is worse than no answer.
+
+- **Vehicle needed comes from `OPER_MAINT_LEVEL` or the BLM observed class,
+  never from an MVUM permission flag.** 82.1% of segments MVUM marks open to
+  passenger vehicles are built to high-clearance standard only — FR 8040-500 to
+  the Mount Adams South Climb trailhead is tagged "yearlong, passenger vehicle
+  open, 01/01-12/31" while the same database rates it high-clearance. The MVUM
+  permission columns load into `raw_mvum` and go no further. Levels 3, 4 and 5
+  are all passenger car; the difference is comfort, not capability.
+- **`yearlong` and a lone `01/01-12/31` mean no seasonal data, not open all
+  year.** A window is stored only where the cleaned flag is `seasonal` *and*
+  the dates are narrower than the whole year. `seasonWindowsForClass` returns
+  `null`, never an empty list, so "no window recorded" cannot be read as
+  "closed all year".
+
+Two more rules the traversal task must obey, both in `roads/graph.ts` and both
+pinned by `roads-approach-summary.test.ts`:
+
+- **Store `limitingSegmentKey`, never `edgeId`.** 46% of edge ids carry an
+  `@piece` suffix from the noding, and piece numbers and node ids are
+  positional, so a source refresh renumbers them and every stored reference
+  quietly moves. `segmentKey` is `<source>:<GLOBALID or OBJECTID>` — the
+  agency's own id, and the only thing that keeps a Tier-1 answer auditable.
+- **An unknown edge poisons the whole path.** 55% of BLM edges have no
+  `vehicleRank` (BLM's observed class is literally "Unknown" on nearly half its
+  network) and 3,071 edges have no length. A plain maximum over that reports
+  the second-worst *known* edge as the answer, and a plain sum counts a missing
+  length as zero. `summarizeApproach` returns null for any answer whose path
+  holds an unrated edge, with counts saying why. Render unknown as unknown.
+
+BLM's `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
+`migrate/data/blm-route-use-class-map.jsonl` — version-controlled here because
+it is a reviewed judgement rather than downloaded data, and the default the
+loader reads (`--map=FILE` overrides; a data-directory copy is derived). Don't
+rebuild it. Each of its 26
+rows carries **two** reviewed decisions: `canonical_class` (what vehicle) and
+`drivable` (whether it is a road at all). Both are needed — the class folds a
+motorcycle single-track into `unknown`, which is right for "what vehicle" and
+useless for "is this a road". A value the map cannot answer for, whether it is
+unmapped or merely missing its `drivable` flag, is **kept out of the graph and
+reported in the run summary**, so a refresh that adds a spelling gets reviewed
+instead of silently becoming a road. 334 routes are excluded today: 306 by the
+reviewed class, 28 by `PLAN_ALLOW_MODE_TRNSPRT` (`MTC_ONLY`,
+`MTC_ATV_UTV_ONLY` — that check reads a different field so it stays in code).
+Plan against 43.5% usable class (48,301 of 111,149), not the 87.3% "populated"
+figure — 48,784 of the populated rows say literally "Unknown".
+
+The graph is noded, not just endpoint-snapped. Snapping endpoints alone left
+165,323 components with the largest holding 0.4% of nodes, because a spur that
+joins the middle of a road shares no endpoint with it. Segments are also split
+where they pass within the tolerance of a junction, at the single closest
+vertex — splitting at every vertex inside the tolerance produced half a million
+self-loop stubs. `metresBetweenSql` mirrors `metresBetween` for the 25-million
+vertex pass that has to run in SQL, and a test asserts the two agree.
+
+**The graph's real coverage number is anchor reach, not connectedness**, and
+the run prints it: only 3,673 of 49,873 components hold a maintenance level 4/5
+road, covering 32% of nodes. A walk inside an unanchored component runs to the
+end and returns nothing however well-stitched that component is. Adding TIGER
+S1500 so a state highway also counts as an anchor is the change most likely to
+move it.
+
+`roads:derive` walks that graph once per trailhead and writes one JSONL row per
+trailhead to `<data-dir>/trailhead-road-access.jsonl`, each leaf shaped like
+`TrailheadRoadAccess` in `lib/amenities.ts` and carrying its own source. It
+reads the production database once, read-only, for trailhead ids, names and
+coordinates. Today 568 of 918 trailheads snap and **328 reach an anchor and get
+a full answer** (36% of the catalog); 104 of those carry a gate window. Six
+rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
+
+- **A gate date is stored as `YYYY-MM-DD`.** The source has no year and the
+  window recurs, but the iOS client parses ISO first and treats `MM/DD` as a
+  provider fallback. A window through New Year closes in the next year.
+  **February 29 is never published** — it exists one year in four, so a leap day
+  moves one day the way that cannot overstate access (opens March 1, closes
+  February 28).
+- **Windows are intersected, never picked from** — across every MVUM segment
+  the link returns and across every segment on the path. A segment with no
+  window is left out rather than treated as open; an intersection covering the
+  whole year is stored as no window at all.
+- **Levels 3, 4 and 5 store `high_clearance: not_required`**, per §A3, with the
+  surface leaf carrying the roughness. An ATV-only or unmaintained path stores
+  no vehicle leaf at all.
+- **`limiting_segment_key` in the audit block is the agency id**; the human
+  `limiting_segment_ref` is derived from it ("FR 8040-500"), and `snap_edge_id`
+  is positional and for debugging only. Where several segments tie at the worst
+  rank the one named is the first on the path — the first rough road a driver
+  meets, not the last.
+- **An ATV-only or unmaintained path publishes no leaf at all** — not the
+  surface, not the gate window, not the limiting road. "Dirt road, gate opens
+  in April" is true of a route no highway vehicle belongs on and reads as an
+  invitation. `skip_reason: not_car_passable` carries the reason instead.
+- **`derivation` is diagnostic; never publish `path_miles`.** With no state
+  highways in these sources the walk runs on to the next level 4/5 forest road,
+  so South Climb derives 39.17 miles against about 13 real ones. It becomes a
+  publishable number when TIGER lands. Likewise **no `seasonal_window` is
+  emitted when `season_segments_without_evidence` is above zero** — a segment
+  MVUM never described is not the same as one it describes without a gate. The
+  gate is in `buildApproachRow`, so a copy-shaped importer cannot publish
+  around it; the importer checks again and treats a window arriving with a gap
+  as a validation failure (1 window withheld today).
+
+The default path preference is `--prefer=easiest` — the gentlest way out, not
+the shortest. It matches `nearest` on 320 of 328 answers and finds a
+passenger-car way out on the other 8 for 3.11 extra miles across the catalog;
+those rows carry `derivation.differs_from_nearest`. Watch item: an unranked
+edge searches as worse than the worst real rank, so `easiest` routes around
+unranked ground — once BLM trailheads appear it could answer confidently where
+`nearest` would honestly answer nothing. Revisit at the first desert-peak data,
+together with `season_restricted_without_dates`: a mixed path can publish an
+MVUM window off its Forest Service segments while a BLM stretch of the same
+drive is restricted on dates nobody has. Both ask what a mixed path may claim,
+and both trip on the first BLM-served trailhead.
+
+A second noding pass — projecting dangling endpoints onto the centrelines they
+nearly touch — was measured against the 240 trailheads that snap without
+reaching an anchor and **not implemented**: it would lift 12 of them at the
+graph's own 10 m tolerance, and 20 only at 30 m, where parallel switchbacks
+start welding together. For 194 of those 240 the nearest level 4/5 road is over
+3 km away in a straight line, so the gap is coverage, not stitching.
 
 ## Session comparisons ("Your Efforts")
 

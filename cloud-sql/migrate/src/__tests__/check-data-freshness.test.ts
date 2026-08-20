@@ -39,15 +39,20 @@ function createDb(options: { viewReady?: boolean; rows?: FreshnessRow[] }): {
   return { db, seen };
 }
 
-test("the required sources are the two USFS feeds that carry real coverage", () => {
+test("the required sources are the three feeds that carry real coverage", () => {
   // usfs_pages is imported and logged, but contributes a single leaf across the
-  // catalog, so it is reported without being able to fail the check.
-  assert.deepEqual([...REQUIRED_SOURCES], ["usfs_fees", "usfs_bathrooms"]);
+  // catalog, so it is reported without being able to fail the check. The roads
+  // pipeline is nothing like that: 328 trailheads carry a vehicle answer, a
+  // surface and a road reference from it.
+  assert.deepEqual([...REQUIRED_SOURCES], ["usfs_fees", "usfs_bathrooms", "usfs_roads"]);
   assert.equal(STALE_AFTER_DAYS, 90);
 });
 
 test("usfs_pages is reported but never fails the check", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 1), fresh("usfs_bathrooms", 1), fresh("usfs_pages", 400)]);
+  const report = evaluateFreshness([
+    ...REQUIRED_SOURCES.map((source) => fresh(source, 1)),
+    fresh("usfs_pages", 400),
+  ]);
   assert.equal(report.ok, true);
   const pages = report.assessments.find((a) => a.source === "usfs_pages");
   assert.equal(pages?.required, false);
@@ -60,12 +65,16 @@ test("every required source current means ok", () => {
   assert.deepEqual(report.failures, []);
   assert.deepEqual(
     report.assessments.map((a) => a.state),
-    ["ok", "ok"]
+    REQUIRED_SOURCES.map(() => "ok")
   );
 });
 
 test("a source past the window is stale", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 91), fresh("usfs_bathrooms", 90)]);
+  const report = evaluateFreshness([
+    fresh("usfs_fees", 91),
+    fresh("usfs_bathrooms", 90),
+    fresh("usfs_roads", 1),
+  ]);
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => f.source),
@@ -79,13 +88,26 @@ test("a source with no run at all fails", () => {
   assert.equal(report.ok, false);
   assert.deepEqual(
     report.failures.map((f) => [f.source, f.state]),
-    [["usfs_bathrooms", "never_run"]]
+    [["usfs_bathrooms", "never_run"], ["usfs_roads", "never_run"]]
+  );
+});
+
+test("a roads import that has never run fails the check", () => {
+  // The one that would otherwise pass unnoticed: the fee and bathroom files
+  // refresh on their own cadence, and a data directory with no rebuilt road
+  // store still imports three quarters of itself.
+  const report = evaluateFreshness([fresh("usfs_fees", 1), fresh("usfs_bathrooms", 1)]);
+  assert.equal(report.ok, false);
+  assert.deepEqual(
+    report.failures.map((f) => [f.source, f.state]),
+    [["usfs_roads", "never_run"]]
   );
 });
 
 test("a source that has run but never succeeded fails", () => {
   const rows: FreshnessRow[] = [
     fresh("usfs_fees", 1),
+    fresh("usfs_roads", 1),
     { source: "usfs_bathrooms", last_successful_at: null, days_stale: null, is_stale: true },
   ];
   const report = evaluateFreshness(rows);
@@ -112,10 +134,15 @@ test("a custom window changes the verdict", () => {
 });
 
 test("the printed report names each state plainly", () => {
-  const report = evaluateFreshness([fresh("usfs_fees", 200), fresh("usfs_pages", 1)]);
+  const report = evaluateFreshness([
+    fresh("usfs_fees", 200),
+    fresh("usfs_roads", 1),
+    fresh("usfs_pages", 1),
+  ]);
   const lines = formatReport(report, STALE_AFTER_DAYS).join("\n");
   assert.match(lines, /usfs_fees \[required\]: last success .* \(200 days ago\) — STALE/);
   assert.match(lines, /usfs_bathrooms \[required\]: no run recorded — NEVER RUN/);
+  assert.match(lines, /usfs_roads \[required\]: last success .* — ok/);
   assert.match(lines, /usfs_pages \[other\]: last success .* — ok/);
   assert.match(lines, /Stale or missing required sources: usfs_fees, usfs_bathrooms/);
 });
@@ -148,5 +175,5 @@ test("arguments parse and validate", () => {
   assert.equal(parseArgs(["--json"]).json, true);
   assert.equal(parseArgs(["--help"]).help, true);
   assert.throws(() => parseArgs(["--stale-days=0"]), /--stale-days/);
-  assert.match(usage(), /Required sources: usfs_fees, usfs_bathrooms/);
+  assert.match(usage(), /Required sources: usfs_fees, usfs_bathrooms, usfs_roads/);
 });

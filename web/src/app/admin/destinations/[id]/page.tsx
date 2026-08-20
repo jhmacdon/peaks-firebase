@@ -27,6 +27,7 @@ import {
   type CampsiteAmenities,
   type TrailheadAmenities,
 } from "../../../../lib/amenities";
+import { roadAccessBadge } from "../../../../lib/trailhead-road-access";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -644,7 +645,8 @@ function formatCampsiteAmenityBadges(a: CampsiteAmenities): string[] {
 
 // A representative subset, not every leaf — matches formatCampsiteAmenityBadges
 // above. Free-text notes and seasonal_window/limiting_segment_ref are left out
-// of these short chips; structured facts only.
+// of these short chips; structured facts only. The road chip is composed by the
+// same helper the public page prints, so the two cannot drift.
 function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
   const out: string[] = [];
   const { parking, road_access, bathrooms } = a;
@@ -672,9 +674,8 @@ function formatTrailheadAmenityBadges(a: TrailheadAmenities): string[] {
     out.push("no restroom");
   }
 
-  if (road_access?.high_clearance?.value === "required") out.push("high clearance required");
-  else if (road_access?.high_clearance?.value === "recommended") out.push("high clearance recommended");
-  if (road_access?.four_wheel_drive?.value) out.push("4WD");
+  const road = roadAccessBadge(road_access);
+  if (road) out.push(road);
 
   return out;
 }

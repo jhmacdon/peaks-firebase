@@ -12,16 +12,23 @@ import type {
   TrailheadBathrooms,
   TrailheadBathroomStatus,
   TrailheadBathroomType,
+  TrailheadHighClearance,
   TrailheadParking,
+  TrailheadRoadAccess,
 } from "./lib/amenities";
 
 /** Source names recorded in data_source_runs, one per input file. */
-export type TrailheadFactSource = "usfs_fees" | "usfs_bathrooms" | "usfs_pages";
+export type TrailheadFactSource =
+  | "usfs_fees"
+  | "usfs_bathrooms"
+  | "usfs_pages"
+  | "usfs_roads";
 
 export const TRAILHEAD_FACT_SOURCES: readonly TrailheadFactSource[] = [
   "usfs_fees",
   "usfs_bathrooms",
   "usfs_pages",
+  "usfs_roads",
 ];
 
 /** Gate 1: a Peaks trailhead this far from the source point or nearer. */
@@ -42,8 +49,25 @@ export const USFS_LICENSE = "public domain (US federal government)";
 export const EDW_SOURCE_KIND = "usfs_edw";
 export const WEB_SOURCE_KIND = "usfs_web";
 
+/**
+ * The road layers, named as `roads:derive` names them on every leaf it emits.
+ *
+ * A leaf whose source kind is outside this list is not a road fact this
+ * importer produced, so it is refused rather than copied: the kind is the only
+ * thing standing between a hand-edited JSONL and `destinations.amenities`.
+ */
+export const ROAD_SOURCE_KINDS: readonly string[] = [
+  "usfs_roadcore",
+  "usfs_mvum",
+  "blm_gtlf",
+];
+
 /** Source kinds this importer owns and may overwrite on a re-run. */
-export const MANAGED_SOURCE_KINDS: readonly string[] = [EDW_SOURCE_KIND, WEB_SOURCE_KIND];
+export const MANAGED_SOURCE_KINDS: readonly string[] = [
+  EDW_SOURCE_KIND,
+  WEB_SOURCE_KIND,
+  ...ROAD_SOURCE_KINDS,
+];
 
 /** Service URL per EDW dataset, recorded as the source url on every fee leaf. */
 export const DATASET_SERVICE_URLS: Record<string, string> = {
@@ -140,7 +164,12 @@ export function tokenOverlapSimilarity(a: string, b: string): number {
 // Matching
 // ---------------------------------------------------------------------------
 
-export type NameRule = "threshold" | "containment";
+/**
+ * How a source row reached its destination. The two name-gate rules are for
+ * the sources matched by place and name; `exact_id` is the road rows, which
+ * were derived from the destination table itself and carry its id.
+ */
+export type NameRule = "threshold" | "containment" | "exact_id";
 
 export interface MatchCandidate {
   destinationId: string;
@@ -440,10 +469,11 @@ export function candidateNames(name: string, facts: RecSiteFacts | null | undefi
 
 export type ParkingLeaf = keyof TrailheadParking;
 export type BathroomLeaf = keyof TrailheadBathrooms;
+export type RoadAccessLeaf = keyof TrailheadRoadAccess;
 
 export interface LeafCandidate {
-  block: "parking" | "bathrooms";
-  leaf: ParkingLeaf | BathroomLeaf;
+  block: "parking" | "bathrooms" | "road_access";
+  leaf: ParkingLeaf | BathroomLeaf | RoadAccessLeaf;
   source: TrailheadFactSource;
   /** Identifies the input row, for the run counts and the report files. */
   rowKey: string;
@@ -616,6 +646,210 @@ export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   if (fillsEarly) push("fills_early_note", fillsEarly);
 
   if (leaves.length === 0) refusals.push("no_structured_facts");
+  return { leaves, refusals, notices: [] };
+}
+
+// ---------------------------------------------------------------------------
+// Access-road facts
+// ---------------------------------------------------------------------------
+
+/**
+ * One row of `trailhead-road-access.jsonl`, as it arrives: unvalidated.
+ *
+ * `roads:derive` shapes every leaf like `SourcedValue` already, so the import
+ * is a copy rather than a translation — but the file is a file, so nothing
+ * here is trusted until it is checked. Only the five published leaves are
+ * declared. **`derivation` is read for exactly one thing, the gate below, and
+ * never written**: it holds `path_miles`, which is far longer than the drive
+ * wherever the way out of the forest is a state highway these sources do not
+ * carry.
+ */
+export interface RoadAccessRow {
+  destination_id?: unknown;
+  destination_name?: unknown;
+  skip_reason?: unknown;
+  surface?: unknown;
+  high_clearance?: unknown;
+  four_wheel_drive?: unknown;
+  seasonal_window?: unknown;
+  limiting_segment_ref?: unknown;
+  derivation?: unknown;
+}
+
+const HIGH_CLEARANCE_VALUES: readonly TrailheadHighClearance[] = [
+  "required",
+  "recommended",
+  "not_required",
+];
+
+/** A window may not sit further than this many years from the import run. */
+export const ROAD_SEASON_YEAR_TOLERANCE = 1;
+
+/**
+ * A real calendar day written the one way the clients read first.
+ *
+ * Strict on purpose: no trimming, no `MM/DD` fallback, no February 30. The
+ * derivation writes `YYYY-MM-DD` and the iOS formatter parses ISO before it
+ * tries anything else, so a date in any other shape here means something
+ * upstream changed and the honest response is to drop the leaf and count it.
+ */
+export function parseIsoDate(value: unknown): { year: number; month: number; day: number } | null {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+/**
+ * Rebuild one leaf's envelope from the file, field by field.
+ *
+ * Nothing is spread: the value, the source kind, name, url and licence, and
+ * the retrieval date are copied by name and everything else in the file's
+ * object is left there. A JSONL row is not a schema, and
+ * `destinations.amenities` is unvalidated JSONB — whatever this function
+ * returns is what lands in it.
+ *
+ * The url is kept only when it is an http(s) link. The clients render a source
+ * url as something tappable, and a `javascript:` string arriving from a data
+ * file has no business becoming one.
+ */
+function roadSourcedValue(raw: unknown, value: unknown): SourcedValue<unknown> | null {
+  if (!isPlainObject(raw) || !isPlainObject(raw.source)) return null;
+  const { kind, name, url, license } = raw.source;
+  if (typeof kind !== "string" || !ROAD_SOURCE_KINDS.includes(kind)) return null;
+  if (typeof name !== "string" || name.trim().length === 0) return null;
+  if (parseIsoDate(raw.retrieved_at) === null) return null;
+  const link = typeof url === "string" && /^https?:\/\/\S/i.test(url.trim()) ? url.trim() : null;
+  const terms = typeof license === "string" && license.trim().length > 0 ? license.trim() : null;
+  return {
+    value,
+    source: {
+      kind,
+      name: name.trim(),
+      ...(link ? { url: link } : {}),
+      ...(terms ? { license: terms } : {}),
+    },
+    retrieved_at: raw.retrieved_at as string,
+  };
+}
+
+/**
+ * Road access row → road_access leaves, with every binding rule applied.
+ *
+ * Four refusals, and each one exists because publishing the fact would be
+ * worse than publishing nothing:
+ *
+ * 1. **Any `skip_reason` skips the whole row.** The derivation only sets one
+ *    when it could not answer honestly — no road within the snap radius, no
+ *    maintained road reachable, an unrated edge on the path, or a route no
+ *    highway vehicle belongs on. A partial answer from such a row reads as a
+ *    complete one.
+ * 2. **A window resting on a segment MVUM never described is refused.**
+ *    `buildApproachRow` already withholds it, so a window arriving with a gap
+ *    means that gate regressed; this counts it loudly rather than letting the
+ *    claim through on the strength of a road nobody checked.
+ * 3. **A date that is not ISO is refused**, never reformatted or guessed at.
+ * 4. **A window anchored years away from the run is refused.** The year is a
+ *    carrier for a window that recurs every season, but a window intersected
+ *    through February 29 is anchored to the next leap year, which can land two
+ *    years out — a date nobody should be reading off a detail sheet.
+ */
+export function roadAccessLeafCandidates(row: RoadAccessRow, runYear: number): LeafExtraction {
+  const leaves: LeafCandidate[] = [];
+  const refusals: string[] = [];
+  const rowKey = typeof row.destination_id === "string" ? row.destination_id : "";
+
+  const skipReason = typeof row.skip_reason === "string" ? row.skip_reason.trim() : "";
+  if (skipReason.length > 0) {
+    refusals.push(`skipped_${skipReason}`);
+    return { leaves, refusals, notices: [] };
+  }
+
+  const push = (leaf: RoadAccessLeaf, sourced: SourcedValue<unknown> | null, reason: string) => {
+    if (sourced === null) refusals.push(reason);
+    else leaves.push({ block: "road_access", leaf, source: "usfs_roads", rowKey, sourced });
+  };
+
+  if (row.surface !== undefined) {
+    const value = isPlainObject(row.surface) ? row.surface.value : undefined;
+    const word = typeof value === "string" ? value.trim() : "";
+    push(
+      "surface",
+      word.length === 0 ? null : roadSourcedValue(row.surface, word),
+      "surface_unusable",
+    );
+  }
+
+  if (row.high_clearance !== undefined) {
+    const value = isPlainObject(row.high_clearance) ? row.high_clearance.value : undefined;
+    const known = HIGH_CLEARANCE_VALUES.includes(value as TrailheadHighClearance);
+    push(
+      "high_clearance",
+      known ? roadSourcedValue(row.high_clearance, value) : null,
+      "high_clearance_unusable",
+    );
+  }
+
+  if (row.four_wheel_drive !== undefined) {
+    const value = isPlainObject(row.four_wheel_drive) ? row.four_wheel_drive.value : undefined;
+    push(
+      "four_wheel_drive",
+      typeof value === "boolean" ? roadSourcedValue(row.four_wheel_drive, value) : null,
+      "four_wheel_drive_unusable",
+    );
+  }
+
+  if (row.limiting_segment_ref !== undefined) {
+    const value = isPlainObject(row.limiting_segment_ref)
+      ? row.limiting_segment_ref.value
+      : undefined;
+    const ref = typeof value === "string" ? value.trim() : "";
+    push(
+      "limiting_segment_ref",
+      ref.length === 0 ? null : roadSourcedValue(row.limiting_segment_ref, ref),
+      "limiting_segment_ref_unusable",
+    );
+  }
+
+  if (row.seasonal_window !== undefined) {
+    // The one read of the audit block, and it can only ever withhold a leaf.
+    const derivation = isPlainObject(row.derivation) ? row.derivation : {};
+    const gaps = derivation.season_segments_without_evidence;
+    const value = isPlainObject(row.seasonal_window) ? row.seasonal_window.value : undefined;
+    const opens = isPlainObject(value) ? value.opens : undefined;
+    const closes = isPlainObject(value) ? value.closes : undefined;
+    const openDay = parseIsoDate(opens);
+    const closeDay = parseIsoDate(closes);
+    const inRange = (year: number): boolean =>
+      Math.abs(year - runYear) <= ROAD_SEASON_YEAR_TOLERANCE;
+
+    if (typeof gaps !== "number" || !Number.isFinite(gaps) || gaps > 0) {
+      refusals.push("seasonal_window_evidence_gap");
+    } else if (openDay === null || closeDay === null) {
+      refusals.push("seasonal_window_not_iso");
+    } else if (!inRange(openDay.year) || !inRange(closeDay.year)) {
+      refusals.push("seasonal_window_out_of_range");
+    } else {
+      push(
+        "seasonal_window",
+        roadSourcedValue(row.seasonal_window, { opens, closes }),
+        "seasonal_window_unusable",
+      );
+    }
+  }
+
+  if (leaves.length === 0 && refusals.length === 0) refusals.push("no_road_facts");
   return { leaves, refusals, notices: [] };
 }
 
