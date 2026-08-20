@@ -42,6 +42,7 @@ const OSM_LICENSE_NAME = "Open Data Commons Open Database License (ODbL) 1.0";
 const OSM_LICENSE_URL = "https://www.openstreetmap.org/copyright";
 
 interface ViewpointExpansionArgs {
+  scopeMode: "us_state" | "country" | "subdivision";
   countryCode: string;
   stateCode: string | null;
   subdivisionCode: string | null;
@@ -57,13 +58,35 @@ interface ViewpointExpansionArgs {
   supplement: string | null;
   reviewReport: string | null;
   expectedReportSha256: string | null;
+  skipScopeVerification: boolean;
 }
 
 type ViewpointScope = Pick<
   ViewpointExpansionArgs,
-  "countryCode" | "stateCode" | "subdivisionCode" | "scopeKey" | "bbox" |
-  "osmRelationId"
+  "scopeMode" | "countryCode" | "stateCode" | "subdivisionCode" |
+  "scopeKey" | "bbox" | "osmRelationId"
 >;
+
+interface ScopeVerification {
+  status: "not_required" | "verified" | "skipped";
+  querySha256: string | null;
+  identitySha256: string;
+  identityCount: number;
+}
+
+export function assertViewpointScopeVerificationForApply(
+  scopeMode: ViewpointExpansionArgs["scopeMode"],
+  reviewed: ScopeVerification | undefined,
+  current: ScopeVerification | undefined
+): void {
+  if (scopeMode === "us_state") return;
+  if (reviewed?.status !== "verified" || current?.status !== "verified" ||
+      reviewed.querySha256 !== current.querySha256 ||
+      reviewed.identitySha256 !== current.identitySha256 ||
+      reviewed.identityCount !== current.identityCount) {
+    throw new Error("International apply requires the same live scope verification as dry-run");
+  }
+}
 
 interface PreparedViewpointCandidate extends OsmViewpointCandidate {
   features: Array<"viewpoint" | "landform">;
@@ -162,6 +185,7 @@ interface ViewpointDryRunReport {
   version: 1;
   generatedAt: string;
   scope: {
+    mode?: ViewpointExpansionArgs["scopeMode"];
     countryCode: string;
     stateCode: string | null;
     subdivisionCode?: string | null;
@@ -179,6 +203,7 @@ interface ViewpointDryRunReport {
   reviewedCandidateCount: number;
   supplementCount: number;
   candidateReview: CandidateReviewSummary;
+  scopeVerification?: ScopeVerification;
   potentialNewSessionLinks: number | null;
   plan: ViewpointPlan;
 }
@@ -218,6 +243,9 @@ export function parseViewpointExpansionArgs(
   const subdivisionCode = normalizedSubdivision ??
     (stateCode ? `US-${stateCode}` : null);
   const isUsStateScope = !requestedCountry && !requestedSubdivision;
+  const scopeMode: ViewpointExpansionArgs["scopeMode"] = isUsStateScope
+    ? "us_state"
+    : normalizedSubdivision ? "subdivision" : "country";
 
   const rawBbox = optionValue(argv, "bbox");
   if (rawBbox && isUsStateScope) {
@@ -266,6 +294,10 @@ export function parseViewpointExpansionArgs(
   }
 
   const apply = argv.includes("--apply");
+  const skipScopeVerification = argv.includes("--skip-scope-verification");
+  if (apply && skipScopeVerification) {
+    throw new Error("--skip-scope-verification cannot be used with --apply");
+  }
   const reviewReport = optionValue(argv, "review-report") ?? null;
   const expectedReportSha256 =
     optionValue(argv, "expected-report-sha256")?.toLowerCase() ?? null;
@@ -277,6 +309,7 @@ export function parseViewpointExpansionArgs(
   }
 
   return {
+    scopeMode,
     countryCode,
     stateCode,
     subdivisionCode,
@@ -293,6 +326,7 @@ export function parseViewpointExpansionArgs(
     supplement: optionValue(argv, "supplement") ?? null,
     reviewReport,
     expectedReportSha256,
+    skipScopeVerification,
   };
 }
 
@@ -318,31 +352,85 @@ export function buildSubdivisionViewpointOverpassQuery(
   subdivisionCode: string,
   bbox: [number, number, number, number] | null = null
 ): string {
+  const countryCode = subdivisionCode.split("-")[0];
   const bounds = bbox ? bbox.join(",") : null;
   return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.country;
 area["ISO3166-2"="${subdivisionCode}"]["boundary"="administrative"]->.region;
-nwr["tourism"="viewpoint"]["name"](area.region)${bounds ? `(${bounds})` : ""};
+nwr["tourism"="viewpoint"]["name"](area.country)(area.region)${bounds ? `(${bounds})` : ""};
 out tags center qt;`;
 }
 
-export function buildRelationViewpointOverpassQuery(relationId: string): string {
+export function buildRelationViewpointOverpassQuery(
+  countryCode: string,
+  relationId: string
+): string {
   const areaId = (3_600_000_000n + BigInt(relationId)).toString();
   return `[out:json][timeout:180];
+area["ISO3166-1"="${countryCode}"]["boundary"="administrative"]->.country;
 area(id:${areaId})->.region;
-nwr["tourism"="viewpoint"]["name"](area.region);
+nwr["tourism"="viewpoint"]["name"](area.country)(area.region);
 out tags center qt;`;
 }
 
-function queryForScope(args: ViewpointExpansionArgs): string {
+export function queryForScope(args: ViewpointExpansionArgs): string {
   if (args.osmRelationId) {
-    return buildRelationViewpointOverpassQuery(args.osmRelationId);
+    return buildRelationViewpointOverpassQuery(args.countryCode, args.osmRelationId);
   }
-  if (args.countryCode === "US" && args.stateCode) {
-    return buildViewpointOverpassQuery(args.stateCode);
+  if (args.scopeMode === "us_state") {
+    return buildViewpointOverpassQuery(args.stateCode!);
   }
   return args.subdivisionCode
     ? buildSubdivisionViewpointOverpassQuery(args.subdivisionCode, args.bbox)
     : buildCountryViewpointOverpassQuery(args.countryCode, args.bbox);
+}
+
+function verificationSelector(
+  type: OsmViewpointElementType,
+  ids: string[],
+  areaFilters: string,
+  bbox: [number, number, number, number] | null
+): string | null {
+  if (ids.length === 0) return null;
+  const keyword = type === "relation" ? "rel" : type;
+  return `${keyword}(id:${ids.join(",")})${areaFilters}${bbox ? `(${bbox.join(",")})` : ""};`;
+}
+
+export function buildViewpointScopeVerificationQuery(
+  scope: ViewpointScope,
+  candidates: OsmViewpointCandidate[]
+): string {
+  const byType = {
+    node: candidates.filter((candidate) => candidate.osmType === "node")
+      .map((candidate) => candidate.osmId).sort(),
+    way: candidates.filter((candidate) => candidate.osmType === "way")
+      .map((candidate) => candidate.osmId).sort(),
+    relation: candidates.filter((candidate) => candidate.osmType === "relation")
+      .map((candidate) => candidate.osmId).sort(),
+  };
+  const setup = [
+    `area["ISO3166-1"="${scope.countryCode}"]["boundary"="administrative"]->.country;`,
+  ];
+  let areaFilters = "(area.country)";
+  if (scope.osmRelationId) {
+    const areaId = (3_600_000_000n + BigInt(scope.osmRelationId)).toString();
+    setup.push(`area(id:${areaId})->.region;`);
+    areaFilters += "(area.region)";
+  } else if (scope.scopeMode === "subdivision") {
+    setup.push(
+      `area["ISO3166-2"="${scope.subdivisionCode}"]["boundary"="administrative"]->.region;`
+    );
+    areaFilters += "(area.region)";
+  }
+  const selectors = (Object.keys(byType) as OsmViewpointElementType[])
+    .map((type) => verificationSelector(type, byType[type], areaFilters, scope.bbox))
+    .filter((selector): selector is string => selector != null);
+  return `[out:json][timeout:180];
+${setup.join("\n")}
+(
+  ${selectors.join("\n  ")}
+);
+out ids qt;`;
 }
 
 function sha256(value: string | Buffer): string {
@@ -410,6 +498,69 @@ async function fetchOverpass(query: string): Promise<string> {
     }
   }
   throw lastError instanceof Error ? lastError : new Error("All Overpass endpoints failed");
+}
+
+function sortedCandidateIdentities(candidates: OsmViewpointCandidate[]): string[] {
+  return candidates.map((candidate) =>
+    osmViewpointIdentity(candidate.osmType, candidate.osmId)
+  ).sort();
+}
+
+async function verifyViewpointScope(
+  args: ViewpointExpansionArgs,
+  candidates: OsmViewpointCandidate[]
+): Promise<ScopeVerification> {
+  const expected = sortedCandidateIdentities(candidates);
+  const identitySha256 = sha256(stableJson(expected));
+  if (args.scopeMode === "us_state") {
+    return {
+      status: "not_required",
+      querySha256: null,
+      identitySha256,
+      identityCount: expected.length,
+    };
+  }
+  if (args.skipScopeVerification) {
+    return {
+      status: "skipped",
+      querySha256: null,
+      identitySha256,
+      identityCount: expected.length,
+    };
+  }
+  if (expected.length === 0) {
+    return {
+      status: "verified",
+      querySha256: sha256(buildViewpointScopeVerificationQuery(args, candidates)),
+      identitySha256,
+      identityCount: 0,
+    };
+  }
+
+  const query = buildViewpointScopeVerificationQuery(args, candidates);
+  const payload = JSON.parse(await fetchOverpass(query)) as {
+    elements?: Array<{ type?: unknown; id?: unknown }>;
+  };
+  const expectedSet = new Set(expected);
+  const actual = (payload.elements ?? []).flatMap((element) => {
+    if ((element.type !== "node" && element.type !== "way" && element.type !== "relation") ||
+        element.id == null) return [];
+    const identity = osmViewpointIdentity(element.type, element.id as string | number);
+    return expectedSet.has(identity) ? [identity] : [];
+  }).sort();
+  const missing = expected.filter((identity, index) => identity !== actual[index]);
+  if (missing.length > 0 || actual.length !== expected.length) {
+    throw new Error(
+      `Scope verification failed for ${missing.length || expected.length - actual.length} ` +
+      `candidate identities; first missing: ${missing.slice(0, 5).join(", ")}`
+    );
+  }
+  return {
+    status: "verified",
+    querySha256: sha256(query),
+    identitySha256,
+    identityCount: expected.length,
+  };
 }
 
 async function loadSnapshot(args: ViewpointExpansionArgs): Promise<OverpassSnapshot> {
@@ -971,12 +1122,14 @@ async function buildReport(
   reviewedCandidateCount: number,
   supplementCount: number,
   candidateReview: CandidateReviewSummary,
+  scopeVerification: ScopeVerification,
   plan: ViewpointPlan
 ): Promise<ViewpointDryRunReport> {
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
     scope: {
+      mode: args.scopeMode,
       countryCode: args.countryCode,
       stateCode: args.stateCode,
       subdivisionCode: args.subdivisionCode,
@@ -994,6 +1147,7 @@ async function buildReport(
     reviewedCandidateCount,
     supplementCount,
     candidateReview,
+    scopeVerification,
     potentialNewSessionLinks: await countPotentialSessionLinks(plan),
     plan,
   };
@@ -1017,6 +1171,7 @@ function reportSummary(report: ViewpointDryRunReport): Record<string, unknown> {
     curatedSupplements: report.supplementCount,
     reviewExcluded: report.candidateReview.excluded,
     reviewNeedsHuman: report.candidateReview.needsHuman,
+    scopeVerification: report.scopeVerification?.status ?? "not_recorded",
     insertions: report.plan.additions.length,
     enrichments: report.plan.enrichments.length,
     unchanged: report.plan.unchanged.length,
@@ -1043,9 +1198,14 @@ async function readReviewedReport(args: ViewpointExpansionArgs): Promise<Viewpoi
     (report.scope?.countryCode === "US" && report.scope?.stateCode
       ? `US-${report.scope.stateCode}`
       : null);
+  const reportMode = report.scope?.mode ??
+    (report.scope?.countryCode === "US" && report.scope?.stateCode
+      ? "us_state"
+      : reportSubdivision ? "subdivision" : "country");
   if (report.version !== 1 || report.scope?.countryCode !== args.countryCode ||
       report.scope?.stateCode !== args.stateCode ||
-      reportSubdivision !== args.subdivisionCode || reportKey !== args.scopeKey ||
+      reportMode !== args.scopeMode || reportSubdivision !== args.subdivisionCode ||
+      reportKey !== args.scopeKey ||
       JSON.stringify(reportBbox) !== JSON.stringify(args.bbox) ||
       reportRelationId !== args.osmRelationId) {
     throw new Error("Reviewed report scope or version does not match this run");
@@ -1259,6 +1419,7 @@ export async function runViewpointExpansion(
   if (new Set(combinedIdentities).size !== combinedIdentities.length) {
     throw new Error("A curated supplement repeats a reviewed named OSM candidate");
   }
+  const scopeVerification = await verifyViewpointScope(args, combinedCandidates);
   const plan = await buildPlan(combinedCandidates, args, args.concurrency);
   const report = await buildReport(
     args,
@@ -1267,6 +1428,7 @@ export async function runViewpointExpansion(
     reviewedCandidates.candidates.length,
     supplements.length,
     reviewedCandidates.summary,
+    scopeVerification,
     plan
   );
 
@@ -1282,6 +1444,11 @@ export async function runViewpointExpansion(
       reviewed!.plan.decisionFingerprint !== report.plan.decisionFingerprint) {
     throw new Error("OSM snapshot or database decisions changed after dry-run; rerun review");
   }
+  assertViewpointScopeVerificationForApply(
+    args.scopeMode,
+    reviewed!.scopeVerification,
+    report.scopeVerification
+  );
   if (report.plan.ambiguities.length > 0 || report.plan.elevationFailures.length > 0) {
     throw new Error("Apply is blocked while ambiguities or elevation failures remain");
   }

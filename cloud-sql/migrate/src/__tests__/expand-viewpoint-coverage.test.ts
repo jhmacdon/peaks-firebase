@@ -1,11 +1,14 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
+  assertViewpointScopeVerificationForApply,
   buildCountryViewpointOverpassQuery,
   buildRelationViewpointOverpassQuery,
   buildSubdivisionViewpointOverpassQuery,
+  buildViewpointScopeVerificationQuery,
   buildViewpointOverpassQuery,
   parseViewpointExpansionArgs,
+  queryForScope,
 } from "../expand-viewpoint-coverage";
 
 test("defaults to a Washington dry-run", () => {
@@ -16,6 +19,7 @@ test("defaults to a Washington dry-run", () => {
   ]);
 
   assert.equal(args.stateCode, "WA");
+  assert.equal(args.scopeMode, "us_state");
   assert.equal(args.countryCode, "US");
   assert.equal(args.subdivisionCode, "US-WA");
   assert.equal(args.scopeKey, "US-WA");
@@ -37,6 +41,7 @@ test("reads a protected-area relation scope", () => {
   ]);
 
   assert.equal(args.countryCode, "NP");
+  assert.equal(args.scopeMode, "country");
   assert.equal(args.stateCode, null);
   assert.equal(args.scopeKey, "NP-sagarmatha");
   assert.equal(args.osmRelationId, "3531450");
@@ -64,6 +69,7 @@ test("reads an ISO subdivision scope", () => {
   ]);
 
   assert.equal(args.countryCode, "IN");
+  assert.equal(args.scopeMode, "subdivision");
   assert.equal(args.stateCode, "HP");
   assert.equal(args.subdivisionCode, "IN-HP");
   assert.equal(args.scopeKey, "IN-HP");
@@ -94,6 +100,11 @@ test("rejects unclear or invalid jurisdiction scopes", () => {
     "--scope=hidden-washington-box",
     "--bbox=46,-123,49,-117",
   ]), /supported with --country or --subdivision/);
+  assert.throws(() => parseViewpointExpansionArgs([
+    "--country=NP",
+    "--apply",
+    "--skip-scope-verification",
+  ]), /cannot be used with --apply/);
 });
 
 test("reads a complete reviewed import argument set", () => {
@@ -124,6 +135,33 @@ test("requires reviewed report data for apply", () => {
   ]), /64-character/);
 });
 
+test("requires a matching live scope check for international apply", () => {
+  const verified = {
+    status: "verified" as const,
+    querySha256: "query",
+    identitySha256: "identities",
+    identityCount: 2,
+  };
+
+  assert.doesNotThrow(() =>
+    assertViewpointScopeVerificationForApply("country", verified, verified)
+  );
+  assert.throws(() =>
+    assertViewpointScopeVerificationForApply("country", undefined, verified),
+    /same live scope verification/
+  );
+  assert.throws(() =>
+    assertViewpointScopeVerificationForApply("subdivision", verified, {
+      ...verified,
+      identityCount: 1,
+    }),
+    /same live scope verification/
+  );
+  assert.doesNotThrow(() =>
+    assertViewpointScopeVerificationForApply("us_state", undefined, undefined)
+  );
+});
+
 test("builds a narrow named-viewpoint Overpass query", () => {
   const query = buildViewpointOverpassQuery("WA");
   assert.match(query, /^\[out:json\]\[timeout:180\];/);
@@ -140,12 +178,61 @@ test("builds a country query with fixed regional bounds", () => {
 
 test("builds a precise ISO subdivision query", () => {
   const query = buildSubdivisionViewpointOverpassQuery("IN-HP");
+  assert.match(query, /area\["ISO3166-1"="IN"\]\["boundary"="administrative"\]->\.country;/);
   assert.match(query, /area\["ISO3166-2"="IN-HP"\]\["boundary"="administrative"\]->\.region;/);
-  assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.region\);/);
+  assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.country\)\(area\.region\);/);
 });
 
 test("builds a protected-area relation query", () => {
-  const query = buildRelationViewpointOverpassQuery("3531450");
+  const query = buildRelationViewpointOverpassQuery("NP", "3531450");
+  assert.match(query, /area\["ISO3166-1"="NP"\]\["boundary"="administrative"\]->\.country;/);
   assert.match(query, /area\(id:3603531450\)->\.region;/);
-  assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.region\);/);
+  assert.match(query, /nwr\["tourism"="viewpoint"\]\["name"\]\(area\.country\)\(area\.region\);/);
+});
+
+test("keeps a US subdivision bbox in the selected query", () => {
+  const args = parseViewpointExpansionArgs([
+    "--subdivision=US-WA",
+    "--scope=cascades",
+    "--bbox=46,-123,49,-117",
+  ]);
+  const query = queryForScope(args);
+
+  assert.match(query, /area\["ISO3166-2"="US-WA"\]/);
+  assert.match(query, /\(46,-123,49,-117\);/);
+});
+
+test("builds a live identity check inside both country and relation", () => {
+  const args = parseViewpointExpansionArgs([
+    "--country=NP",
+    "--scope=sagarmatha",
+    "--osm-relation=3531450",
+  ]);
+  const query = buildViewpointScopeVerificationQuery(args, [
+    {
+      osmType: "node",
+      osmId: "703894849",
+      name: "Everest View",
+      normalizedName: "everest view",
+      lat: 27.79,
+      lng: 86.71,
+      tags: { tourism: "viewpoint", name: "Everest View" },
+      elevationM: null,
+    },
+    {
+      osmType: "way",
+      osmId: "1436984991",
+      name: "Pangthompo Sharpo",
+      normalizedName: "pangthompo sharpo",
+      lat: 28.1,
+      lng: 85.4,
+      tags: { tourism: "viewpoint", name: "Pangthompo Sharpo" },
+      elevationM: null,
+    },
+  ]);
+
+  assert.match(query, /area\["ISO3166-1"="NP"\].*->\.country;/);
+  assert.match(query, /area\(id:3603531450\)->\.region;/);
+  assert.match(query, /node\(id:703894849\)\(area\.country\)\(area\.region\);/);
+  assert.match(query, /way\(id:1436984991\)\(area\.country\)\(area\.region\);/);
 });

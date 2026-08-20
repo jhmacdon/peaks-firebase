@@ -192,7 +192,7 @@ export function parseOsmViewpointElement(value: unknown): OsmViewpointCandidate 
   const access = tags.access?.trim().toLowerCase();
   if (access === "no" || access === "private") return null;
 
-  const name = tags.name?.trim() ?? "";
+  const name = tags["name:en"]?.trim() || tags.name?.trim() || "";
   const normalizedName = normalizeViewpointName(name);
   if (!name || !normalizedName) return null;
 

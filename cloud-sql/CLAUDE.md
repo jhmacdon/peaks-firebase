@@ -242,9 +242,12 @@ use a fixed bounding box and named scope for a mountain region. An ISO 3166-2
 subdivision gives a tighter boundary when the region follows a state or
 province. The importer can also add a small set of named hiking turnarounds
 whose OSM points have no name. A country plus an OSM boundary relation can
-define a national park or other mapped hiking area. Dry-run is the default.
-Apply needs the reviewed report and its SHA-256, and stops if the source,
-reviews, scope, planned writes, or target rows changed after review.
+define a national park or other mapped hiking area. International runs make a
+second live OSM identity check inside the chosen country and region.
+`--skip-scope-verification` permits an offline dry-run, but its report cannot
+be applied. Dry-run is the default. Apply needs the reviewed report and its
+SHA-256, and stops if the source, reviews, scope check, planned writes, or
+target rows changed after review.
 
 ```bash
 cd migrate
@@ -295,7 +298,8 @@ and links old ended sessions only when both the saved path and a real tracking
 point pass the destination radius. It honors saved session-destination
 rejections. The first reviewed scope is in
 `docs/data-audits/wa-viewpoints-2026-08-19.md`. The 49-state follow-up is in
-`docs/data-audits/us-viewpoints-2026-08-19.md`.
+`docs/data-audits/us-viewpoints-2026-08-19.md`. The first international review
+is in `docs/data-audits/global-hiking-viewpoints-2026-08-20.md`.
 
 ## Destination elevation fraction audit
 
