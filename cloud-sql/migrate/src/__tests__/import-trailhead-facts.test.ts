@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import fs from "fs";
 import path from "path";
 import { test } from "node:test";
 import {
@@ -236,6 +237,33 @@ function roadRow(overrides: Record<string, unknown> = {}): Record<string, unknow
   };
 }
 
+/**
+ * A row shaped exactly as the T6 page extraction writes one: the page's own
+ * coordinates, its own name, and far more prose than the importer takes.
+ */
+function pageRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
+    name: "Snow Lake Trailhead",
+    lat: SNOW_LAKE.lat,
+    lng: SNOW_LAKE.lng,
+    capacity_estimate: 30,
+    fills_early_note: "The lot fills before 8am on summer weekends.",
+    fee_text: "A Northwest Forest Pass is required",
+    restroom_text: "Vault toilet available",
+    road_text: "Paved to the trailhead from Exit 47.",
+    elevation_ft: 3800,
+    verbatim_spans: {
+      capacity: "Parking for about 30 vehicles",
+      coordinates: "Latitude: 47.4459\nLongitude: -121.4231",
+      fills_early: "The lot fills before 8am on summer weekends.",
+      page_name: "Snow Lake Trailhead",
+    },
+    fetched_at: "2026-08-19T20:43:51+00:00",
+    ...overrides,
+  };
+}
+
 function defaultFiles(overrides: Record<string, string> = {}): Record<string, string> {
   return {
     [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
@@ -285,24 +313,7 @@ function defaultFiles(overrides: Record<string, string> = {}): Record<string, st
         as_of: "2026-08-19",
       },
     ]),
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: jsonl([
-      {
-        url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
-        capacity_estimate: 30,
-        fills_early_note: "The lot fills before 8am on summer weekends.",
-        fee_text: null,
-        restroom_text: null,
-        road_text: null,
-        fetched_at: "2026-08-19T20:43:51+00:00",
-      },
-    ]),
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
-      {
-        url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
-        name: "Snow Lake Trailhead",
-        region: "r06",
-      },
-    ]),
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([pageRow()]),
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
       {
         site_cn: "1001",
@@ -344,7 +355,6 @@ function testArgs(overrides: Partial<Args> = {}): Args {
     feesPath: null,
     bathroomsPath: null,
     sectionsPath: null,
-    registryPath: null,
     rawRecSitesPath: null,
     roadAccessPath: null,
     npsFactsPath: null,
@@ -756,13 +766,33 @@ test("fee_required=false without a quote never reaches the row", async () => {
   assert.equal(merged.bathrooms.status.value, "present");
 });
 
-test("a page row whose name cannot be located is counted, not guessed", async () => {
+test("a page lands on the trailhead its own coordinates and name point at", async () => {
+  const { db } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(defaultFiles());
+  const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
+
+  assert.equal(summary.counts.usfs_pages.matched, 1);
+  assert.equal(summary.counts.usfs_pages.noLocation, 0);
+  const matched = io.written[path.join(DATA_DIR, "import-matched.jsonl")]
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .find((record) => record.source === "usfs_pages");
+  assert.equal(matched.destination_id, "dest-snow");
+  assert.equal(matched.row_key, "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead");
+  assert.equal(matched.source_name, "Snow Lake Trailhead");
+  assert.ok(matched.distance_m < 1, "the page's own point, not a borrowed one");
+});
+
+test("a page with no coordinates is counted, never placed by its name", async () => {
+  // The extraction emits a row with the coordinate field absent rather than
+  // inferring one from the forest, and nothing downstream may fill it in: the
+  // borrowing this replaced got every one of its far-outlier attaches wrong.
   const files = defaultFiles({
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
-      {
-        url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
-        name: "Some Page With No EDW Row",
-      },
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({ lat: null, lng: null }),
     ]),
   });
   const { db } = createFakeDb({
@@ -772,27 +802,30 @@ test("a page row whose name cannot be located is counted, not guessed", async ()
   const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
 
   assert.equal(summary.counts.usfs_pages.noLocation, 1);
-  assert.equal(summary.counts.usfs_pages.refusals.no_edw_name_location, 1);
+  assert.equal(summary.counts.usfs_pages.refusals.no_coordinates, 1);
   assert.equal(summary.counts.usfs_pages.matched, 0);
-
   const reported = io.written[path.join(DATA_DIR, "import-unmatched-pages.jsonl")]
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.deepEqual(
     reported.map((record) => record.reason),
-    ["no_edw_name_location"]
+    ["no_coordinates"]
   );
 });
 
-test("a page never borrows a point from another Forest Service region", async () => {
+test("an Alaska page is unmatched rather than an error", async () => {
+  // 23 of the 2,900 pages are Alaskan and Peaks has no Alaskan trailhead
+  // today. Nothing in the match path may assume a lower-48 bounding box: these
+  // rows go through the distance gate like any other and come out unmatched.
   const files = defaultFiles({
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
-      {
-        url: "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead",
-        name: "Snow Lake Trailhead",
-        region: "r09",
-      },
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({
+        url: "https://www.fs.usda.gov/r10/chugach/recreation/ptarmigan-creek-trailhead",
+        name: "Ptarmigan Creek Trailhead",
+        lat: 60.99542101,
+        lng: -149.27770625,
+      }),
     ]),
   });
   const { db } = createFakeDb({
@@ -801,74 +834,94 @@ test("a page never borrows a point from another Forest Service region", async ()
   const io = createIo(files);
   const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
 
+  assert.equal(summary.counts.usfs_pages.noNearbyTrailhead, 1);
+  assert.equal(summary.counts.usfs_pages.noLocation, 0);
   assert.equal(summary.counts.usfs_pages.matched, 0);
-  assert.equal(summary.counts.usfs_pages.refusals.region_mismatch, 1);
   const reported = io.written[path.join(DATA_DIR, "import-unmatched-pages.jsonl")]
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  assert.deepEqual(
-    reported.map((record) => record.reason),
-    ["region_mismatch"]
-  );
-  assert.equal(reported[0].wanted_region, "09", "the report says what was compared");
-  assert.deepEqual(reported[0].point_regions, ["06"]);
+  assert.equal(reported[0].reason, "no_nearby_trailhead");
+  assert.equal(reported[0].lat, 60.99542101);
 });
 
-test("a page whose EDW point carries no region is counted separately", async () => {
-  // The point comes from a recreation-opportunity fee row, which has no raw
-  // counterpart and therefore no region — not a cross-country name clash.
-  const pageUrl = "https://www.fs.usda.gov/r09/marktwain/recreation/blue-hole-trailhead";
+test("a page beside a differently named trailhead is rejected by the name gate", async () => {
   const files = defaultFiles({
-    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
-      {
-        source_dataset: "usfs_recreation_opportunities",
-        source_id: "9001",
-        name: "BLUE HOLE TRAILHEAD",
-        lat: SNOW_LAKE.lat,
-        lng: SNOW_LAKE.lng,
-        fee_required: true,
-        day_fee_usd: null,
-        annual_fee_usd: null,
-        passes_accepted: [],
-        fee_waived_for: [],
-        confidence: "high",
-        verbatim_quote: "fee",
-        as_of: "2026-08-19",
-      },
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({ name: "Denny Creek Trailhead" }),
     ]),
+    [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: jsonl([
-      {
-        url: pageUrl,
-        capacity_estimate: 12,
-        fills_early_note: null,
-        fee_text: null,
-        restroom_text: null,
-        road_text: null,
-        fetched_at: "2026-08-19T20:43:51+00:00",
-      },
-    ]),
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
-      { url: pageUrl, name: "Blue Hole Trailhead", region: "r09" },
-    ]),
   });
   const { db } = createFakeDb({
-    destinations: [{ id: "dest-blue", name: "Blue Hole Trailhead", ...SNOW_LAKE }],
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
   });
   const io = createIo(files);
   const summary = await importTrailheadFacts(testArgs(), { db, console: silent, ...io });
 
-  assert.equal(summary.counts.usfs_pages.refusals.region_unknown, 1);
-  assert.equal(summary.counts.usfs_pages.refusals.region_mismatch, undefined);
+  assert.equal(summary.counts.usfs_pages.nameRejected, 1);
+  assert.equal(summary.counts.usfs_pages.matched, 0);
   const reported = io.written[path.join(DATA_DIR, "import-unmatched-pages.jsonl")]
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  assert.equal(reported[0].reason, "region_unknown");
-  assert.equal(reported[0].wanted_region, "09");
-  assert.deepEqual(reported[0].point_regions, []);
+  assert.equal(reported[0].reason, "name_below_threshold");
+  assert.equal(reported[0].best_candidate.destination_id, "dest-snow");
 });
+
+test("the page's quotes, prose and elevation never reach the row", async () => {
+  const { db, calls } = createFakeDb({
+    destinations: [{ id: "dest-snow", name: "Snow Lake Trailhead", ...SNOW_LAKE }],
+  });
+  const io = createIo(defaultFiles());
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...io,
+  });
+
+  const update = calls.find((call) => call.sql.includes("UPDATE destinations"));
+  const payload = update?.params?.[1] as string;
+  const merged = JSON.parse(payload);
+  assert.equal(merged.parking.capacity_vehicles.value, 30);
+  assert.equal(merged.parking.capacity_vehicles.source.url, pageRow().url);
+  assert.equal(merged.parking.capacity_vehicles.retrieved_at, "2026-08-19");
+  for (const absent of [
+    "verbatim",
+    "Latitude",
+    "elevation",
+    "Northwest Forest Pass",
+    "Vault toilet available",
+    "Exit 47",
+  ]) {
+    assert.equal(payload.includes(absent), false, `${absent} stayed out of the payload`);
+  }
+});
+
+test("nothing of the retired borrowing mechanism is left in the source", () => {
+  // The page rows carry their own coordinates now. The registry, the EDW name
+  // index and the Forest Service region check that guarded it are gone, and so
+  // are the four skip reasons they produced — a reason string left behind is a
+  // path left behind.
+  const sources = [
+    fs.readFileSync(path.join(__dirname, "..", "import-trailhead-facts.ts"), "utf8"),
+    fs.readFileSync(path.join(__dirname, "..", "trailhead-facts-utils.ts"), "utf8"),
+  ].join("\n");
+  for (const gone of [
+    "no_edw_name_location",
+    "region_unknown",
+    "region_mismatch",
+    "ambiguous_name_location",
+    "no_registry_row",
+    "buildLocationIndex",
+    "resolveLocation",
+    "normalizeRegion",
+    "fs-trailhead-page-registry",
+  ]) {
+    assert.equal(sources.includes(gone), false, `${gone} is gone from the importer`);
+  }
+});
+
 
 test("a quote-only no-fee claim is written and counted", async () => {
   // A recreation-opportunity row has no raw counterpart, so its no-fee claim
@@ -994,8 +1047,11 @@ test("the report says which name scored best", async () => {
   assert.equal(rejected.best_candidate.matched_name, "Eagle Forks Trailhead");
 });
 
-test("--limit does not shrink the index a page row is located from", async () => {
-  const pageUrl = "https://www.fs.usda.gov/r06/mbs/recreation/second-trailhead";
+test("a page is located by its own row, so --limit no longer moves it", async () => {
+  // The old page path borrowed its point from a same-named fee or bathroom
+  // row, which made a limited run land pages somewhere else — or nowhere. A
+  // page now carries its own coordinates, so the limit bounds what is read and
+  // nothing else.
   const files = defaultFiles({
     [path.join(DATA_DIR, "trailhead-fees.jsonl")]: jsonl([
       {
@@ -1030,37 +1086,27 @@ test("--limit does not shrink the index a page row is located from", async () =>
       },
     ]),
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: jsonl([
-      {
-        url: pageUrl,
-        capacity_estimate: 30,
-        fills_early_note: null,
-        fee_text: null,
-        restroom_text: null,
-        road_text: null,
-        fetched_at: "2026-08-19T20:43:51+00:00",
-      },
-    ]),
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: jsonl([
-      { url: pageUrl, name: "Second Trailhead", region: "r06" },
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: jsonl([
+      pageRow({
+        url: "https://www.fs.usda.gov/r06/mbs/recreation/second-trailhead",
+        name: "Second Trailhead",
+      }),
     ]),
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
-      { site_cn: "3001", site_name: "FIRST TRAILHEAD", region: "06", fee_charged: "Y" },
-      { site_cn: "3002", site_name: "SECOND TRAILHEAD", region: "06", fee_charged: "Y" },
+      { site_cn: "3001", site_name: "FIRST TRAILHEAD", fee_charged: "Y" },
+      { site_cn: "3002", site_name: "SECOND TRAILHEAD", fee_charged: "Y" },
     ]),
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-second", name: "Second Trailhead", ...SNOW_LAKE }],
   });
-  // The fee row that locates the page sits past the limit, so a limited run
-  // must still read the whole file to build the location index.
   const summary = await importTrailheadFacts(testArgs({ limit: 1 }), {
     db,
     console: silent,
     ...createIo(files),
   });
   assert.equal(summary.counts.usfs_fees.rowsIn, 1, "matching still honours the limit");
-  assert.equal(summary.counts.usfs_pages.matched, 1, "the page still finds its point");
+  assert.equal(summary.counts.usfs_pages.matched, 1, "the page carries its own point");
 });
 
 test("a dry run can print real payloads for the human apply gate", async () => {
@@ -1140,8 +1186,7 @@ test("a qualifier-only difference matches on containment and says so", async () 
       },
     ]),
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-windy", name: "Windy Peak Trailhead", ...SNOW_LAKE }],
@@ -1188,8 +1233,7 @@ test("a name that only shares a word still fails both rules", async () => {
       },
     ]),
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
   });
   const { db } = createFakeDb({
     destinations: [{ id: "dest-willow", name: "Willow Creek Trailhead", ...SNOW_LAKE }],
@@ -1264,8 +1308,7 @@ test("rows keep their own candidates across candidate and similarity chunks", as
       }))
     ),
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
       { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
     ]),
@@ -1352,8 +1395,7 @@ function roadOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, str
   return defaultFiles({
     [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl(rows),
     // Both derived files must hold at least one row or the import refuses to
     // start, so the source under test is isolated with a row that lands
@@ -1379,8 +1421,7 @@ function npsOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, stri
   return defaultFiles({
     [path.join(DATA_DIR, "trailhead-fees.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
-    [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
+    [path.join(DATA_DIR, "fs-page-sections-full.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl([UNANSWERED_ROAD_ROW]),
     [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl(rows),
   });

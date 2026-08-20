@@ -14,7 +14,7 @@ quarter, or sooner when the freshness check fails.
 The importer only fills in facts on trailheads Peaks already has. It never
 creates a destination and never deletes one.
 
-## 1. Regenerate the normalized JSONL
+## 1. Regenerate the normalized EDW JSONL
 
 Re-run the Codex work order at `docs/trailheads/codex-handoff.md` (in the
 `peaks` checkout, outside this repo). It downloads the sources again and
@@ -22,17 +22,35 @@ rewrites these files in `docs/trailheads/data/`:
 
 - `trailhead-fees.jsonl`
 - `trailhead-bathrooms.jsonl`
-- `fs-page-sections.jsonl`
-- `fs-trailhead-page-registry.jsonl`
 - `raw/usfs-rec-sites-trailheads.jsonl` — the raw EDW pull. The importer reads
   it too and refuses to run without it: the normalized files drop
-  `fee_charged`, `public_site_name`, and `region`, and the importer needs all
-  three (a no-fee claim the dataset contradicts, the name Peaks catalogs a
-  trailhead under, and the region a page row's coordinates must come from).
+  `fee_charged` and `public_site_name`, and the importer needs both — a no-fee
+  claim the dataset contradicts, and the name Peaks catalogs a trailhead under.
 
 The work order also updates `STATUS.md` with row counts and the sample-audit
 error rate. Read it before importing: an error rate above about 1 percent means
 fix the extraction first, not the import.
+
+## 1b. Re-extract the Forest Service site pages
+
+The pages are their own crawl and their own work order:
+**re-run `docs/trailheads/codex-handoff-2.md` (T6), then this importer.** It
+re-fetches the 2,900 pages the registry lists and rewrites
+`fs-page-sections-full.jsonl` — one row per page, carrying the page's own
+`lat`/`lng`, its name, the two parking facts, and a verbatim span behind every
+one of them.
+
+`fs-trailhead-page-registry.jsonl` stays the crawl's source of truth for which
+pages exist; the importer no longer reads it, and no longer reads the older
+partial `fs-page-sections.jsonl` either. Both are left in place.
+
+Two numbers to read in `STATUS.md` before importing: the sample-audit error
+rate, same bar as above, and **coordinate coverage** — how many of the 2,900
+pages carry a usable coordinate. A page without one is counted and dropped, so
+that number is the ceiling on what this source can match. Never let a
+coordinate be inferred from the forest to raise it: the mechanism this
+replaced inferred a page's location from the same-named EDW trailhead, and a
+cross-check found all 98 of its far-outlier attaches to be wrong.
 
 ## 2. Rebuild the access-road facts
 
@@ -249,12 +267,20 @@ npm run import:trailhead-facts -- --data-dir=/path/to/peaks/docs/trailheads/data
 
 A fee, bathroom or page row is imported only when a Peaks destination with the
 `trailhead` feature sits within 250 m of the source point **and** one of the
-row's names — the EDW
-site name or the public site name — either scores above the similarity
-threshold or is a whole-token subset of the destination's name (at least two
-tokens). Matched rows are listed in `import-matched.jsonl` with the rule that
-carried each one; read the containment matches on a dry run before applying,
-since that rule is the looser of the two.
+row's names either scores above the similarity threshold or is a whole-token
+subset of the destination's name (at least two tokens). A fee or bathroom row
+offers two names, the EDW site name and the public site name; a page row offers
+the name printed on the page. Matched rows are listed in `import-matched.jsonl`
+with the rule that carried each one; read the containment matches on a dry run
+before applying, since that rule is the looser of the two.
+
+All three carry their own coordinates. The page rows did not always: the
+registry has none, so a page used to borrow the point of the same-named EDW
+trailhead in the same Forest Service region. That mechanism located 710 pages,
+imported one fact between them, and attached the ones it did place to the wrong
+trailhead — all 98 of its far-outlier borrows were wrong. It is gone, along
+with its skip reasons. A page with no coordinate of its own is now counted
+under `no_coordinates` and dropped.
 
 Rows that fail either gate are written to `import-unmatched-fees.jsonl`,
 `import-unmatched-bathrooms.jsonl`, and `import-unmatched-pages.jsonl` in the
@@ -326,9 +352,10 @@ npm run check:data-freshness
 ```
 
 It reads the `data_source_freshness` view and exits non-zero when `usfs_fees`,
-`usfs_bathrooms`, `usfs_roads`, `nps_pois` or `nps_parking` has gone more than
-90 days without a successful import, or has never run. A non-zero exit means
-step 1 is due. `--json` prints the same assessment for a script to read.
+`usfs_bathrooms`, `usfs_pages`, `usfs_roads`, `nps_pois` or `nps_parking` has
+gone more than 90 days without a successful import, or has never run. A
+non-zero exit means step 1 is due — step 1b when the source named is
+`usfs_pages`. `--json` prints the same assessment for a script to read.
 
 The two NPS sources cover fewer trailheads than anything else on that list — 32
 restrooms and 37 lots — and are required anyway. Every one of those rows is a
@@ -342,7 +369,11 @@ Peaks has, Paradise among them.
 non-zero**, because that source has never run. That is the check working: the
 alarm is on data the catalog is missing, not on a deployment step.
 
-`usfs_pages` is imported and logged the same way but does not fail the check:
-the page sections contribute a single leaf across the whole catalog, so an
-alarm on them would be noise. The report still lists the source, marked
-`[other]`, so its age is visible.
+`usfs_pages` is required again. It spent one release marked `[other]`, on the
+grounds that the page sections contributed a single leaf across the whole
+catalog and an alarm on one leaf is noise. That was true of the old borrowing
+mechanism, not of the pages: with each page's own coordinates the source
+carries real coverage, and it carries the two facts no agency dataset publishes
+at all — how many cars fit, and whether the lot fills early. It also goes stale
+the way a web page does, which is to say silently: the agency rewrites the page
+and nothing tells us.

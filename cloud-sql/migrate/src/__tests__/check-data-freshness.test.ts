@@ -39,29 +39,29 @@ function createDb(options: { viewReady?: boolean; rows?: FreshnessRow[] }): {
   return { db, seen };
 }
 
-test("the required sources are the feeds that carry real coverage", () => {
-  // usfs_pages is imported and logged, but contributes a single leaf across the
-  // catalog, so it is reported without being able to fail the check. The roads
-  // pipeline is nothing like that: 328 trailheads carry a vehicle answer, a
-  // surface and a road reference from it. The two NPS layers cover fewer
-  // trailheads than anything else here and are still required, because a
-  // spatial join with no name behind it is only true while both ends stay put.
+test("every trailhead source that carries real coverage is required", () => {
+  // usfs_pages spent one release outside this list, when a page could only be
+  // located by borrowing a same-named EDW point and the whole source
+  // contributed a single leaf. Pages now carry their own coordinates and
+  // publish the two parking facts no agency dataset holds, so the source is
+  // required again — and it goes stale the way a web page does, silently.
   assert.deepEqual(
     [...REQUIRED_SOURCES],
-    ["usfs_fees", "usfs_bathrooms", "usfs_roads", "nps_pois", "nps_parking"]
+    ["usfs_fees", "usfs_bathrooms", "usfs_pages", "usfs_roads", "nps_pois", "nps_parking"]
   );
   assert.equal(STALE_AFTER_DAYS, 90);
 });
 
-test("usfs_pages is reported but never fails the check", () => {
+test("a stale usfs_pages now fails the check", () => {
   const report = evaluateFreshness([
-    ...REQUIRED_SOURCES.map((source) => fresh(source, 1)),
+    ...REQUIRED_SOURCES.filter((source) => source !== "usfs_pages").map((source) => fresh(source, 1)),
     fresh("usfs_pages", 400),
   ]);
-  assert.equal(report.ok, true);
+  assert.equal(report.ok, false);
   const pages = report.assessments.find((a) => a.source === "usfs_pages");
-  assert.equal(pages?.required, false);
+  assert.equal(pages?.required, true);
   assert.equal(pages?.state, "stale");
+  assert.deepEqual(report.failures.map((failure) => failure.source), ["usfs_pages"]);
 });
 
 test("every required source current means ok", () => {
@@ -78,6 +78,7 @@ test("a source past the window is stale", () => {
   const report = evaluateFreshness([
     fresh("usfs_fees", 91),
     fresh("usfs_bathrooms", 90),
+    fresh("usfs_pages", 1),
     fresh("usfs_roads", 1),
     fresh("nps_pois", 1),
     fresh("nps_parking", 1),
@@ -97,6 +98,7 @@ test("a source with no run at all fails", () => {
     report.failures.map((f) => [f.source, f.state]),
     [
       ["usfs_bathrooms", "never_run"],
+      ["usfs_pages", "never_run"],
       ["usfs_roads", "never_run"],
       ["nps_pois", "never_run"],
       ["nps_parking", "never_run"],
@@ -111,6 +113,7 @@ test("a roads import that has never run fails the check", () => {
   const report = evaluateFreshness([
     fresh("usfs_fees", 1),
     fresh("usfs_bathrooms", 1),
+    fresh("usfs_pages", 1),
     fresh("nps_pois", 1),
     fresh("nps_parking", 1),
   ]);
@@ -128,6 +131,7 @@ test("an NPS normalize that has never been imported fails the check", () => {
   const report = evaluateFreshness([
     fresh("usfs_fees", 1),
     fresh("usfs_bathrooms", 1),
+    fresh("usfs_pages", 1),
     fresh("usfs_roads", 1),
   ]);
   assert.equal(report.ok, false);
@@ -140,6 +144,7 @@ test("an NPS normalize that has never been imported fails the check", () => {
 test("a source that has run but never succeeded fails", () => {
   const rows: FreshnessRow[] = [
     fresh("usfs_fees", 1),
+    fresh("usfs_pages", 1),
     fresh("usfs_roads", 1),
     fresh("nps_pois", 1),
     fresh("nps_parking", 1),
@@ -173,12 +178,14 @@ test("the printed report names each state plainly", () => {
     fresh("usfs_fees", 200),
     fresh("usfs_roads", 1),
     fresh("usfs_pages", 1),
+    fresh("padus", 1),
   ]);
   const lines = formatReport(report, STALE_AFTER_DAYS).join("\n");
   assert.match(lines, /usfs_fees \[required\]: last success .* \(200 days ago\) — STALE/);
   assert.match(lines, /usfs_bathrooms \[required\]: no run recorded — NEVER RUN/);
   assert.match(lines, /usfs_roads \[required\]: last success .* — ok/);
-  assert.match(lines, /usfs_pages \[other\]: last success .* — ok/);
+  assert.match(lines, /usfs_pages \[required\]: last success .* — ok/);
+  assert.match(lines, /padus \[other\]: last success .* — ok/);
   assert.match(lines, /Stale or missing required sources: usfs_fees, usfs_bathrooms/);
 });
 
@@ -212,6 +219,6 @@ test("arguments parse and validate", () => {
   assert.throws(() => parseArgs(["--stale-days=0"]), /--stale-days/);
   assert.match(
     usage(),
-    /Required sources: usfs_fees, usfs_bathrooms, usfs_roads, nps_pois, nps_parking/
+    /Required sources: usfs_fees, usfs_bathrooms, usfs_pages, usfs_roads, nps_pois, nps_parking/
   );
 });

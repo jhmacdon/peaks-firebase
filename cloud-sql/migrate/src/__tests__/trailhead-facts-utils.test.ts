@@ -2,7 +2,6 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   bathroomLeafCandidates,
-  buildLocationIndex,
   buildRecSiteIndex,
   candidateNames,
   buildTrailheadAmenities,
@@ -14,16 +13,15 @@ import {
   isOffSiteBathroomNote,
   mergeTrailheadAmenities,
   nameTokensContained,
-  normalizeRegion,
   normalizeTrailheadName,
   npsBathroomLeafCandidates,
   npsParkingLeafCandidates,
   pageLeafCandidates,
   PG_TRGM_NAME_THRESHOLD,
   resolveLeafConflicts,
-  resolveLocation,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
+  usableSourcePoint,
   type BathroomRow,
   type FeeRow,
   type LeafCandidate,
@@ -56,7 +54,6 @@ function recSiteFacts(overrides: Partial<RecSiteFacts> = {}): RecSiteFacts {
     feeCharged: null,
     feeType: null,
     publicName: null,
-    region: "06",
     ...overrides,
   };
 }
@@ -81,11 +78,9 @@ function bathroomRow(overrides: Partial<BathroomRow> = {}): BathroomRow {
 function pageRow(overrides: Partial<PageSectionRow> = {}): PageSectionRow {
   return {
     url: "https://www.fs.usda.gov/r01/bitterroot/recreation/baker-lake-trailhead",
-    capacity_estimate: null,
-    fills_early_note: null,
-    fee_text: null,
-    restroom_text: null,
-    road_text: null,
+    name: "Baker Lake Trailhead",
+    lat: 45.894398,
+    lng: -114.241692,
     fetched_at: "2026-08-19T20:43:51+00:00",
     ...overrides,
   };
@@ -276,51 +271,33 @@ test("nothing passing either rule still reports the best candidate", () => {
   assert.equal(outcome.kind === "name_below_threshold" && outcome.best.destinationId, "dest-a");
 });
 
-// --- locating page rows -----------------------------------------------------
+// --- page coordinates -------------------------------------------------------
 
-test("a page row borrows coordinates from the same-named EDW trailhead in its region", () => {
-  const index = buildLocationIndex([
-    { name: "BAKER LAKE TRAILHEAD", lat: 45.8, lng: -114.3, region: "01", publicName: "Baker Lake" },
-    { name: "Baker Lake TH", lat: 45.80001, lng: -114.30001, region: "01" },
-  ]);
-  const located = resolveLocation(index, "Baker Lake Trailhead", "r01");
-  assert.equal(located.kind, "located");
-  assert.equal(located.kind === "located" && located.point.lat, 45.8);
-  assert.equal(located.kind === "located" && located.point.publicName, "Baker Lake");
-});
-
-test("a page never borrows a point from another region", () => {
-  const index = buildLocationIndex([
-    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
-  ]);
-  const mismatch = resolveLocation(index, "Blue Hole Trailhead", "r09");
-  assert.equal(mismatch.kind, "region_mismatch");
-  assert.deepEqual(mismatch.kind === "region_mismatch" && mismatch.regions, ["08"]);
-  assert.equal(resolveLocation(index, "Blue Hole Trailhead", "r08").kind, "located");
-});
-
-test("an unlabelled point is a different failure from a cross-region one", () => {
-  // Conflating the two would blame cross-country borrowing for points that
-  // simply carry no region label (a recreation-opportunity point has no raw
-  // row, so no region).
-  const unlabelled = buildLocationIndex([{ name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5 }]);
-  const missing = resolveLocation(unlabelled, "Blue Hole Trailhead", "r09");
-  assert.equal(missing.kind, "region_unknown");
-  assert.equal(missing.kind === "region_unknown" && missing.wanted, "09");
-  assert.deepEqual(missing.kind === "region_unknown" && missing.regions, []);
-
-  const labelled = buildLocationIndex([
-    { name: "Blue Hole Trailhead", lat: 35.6, lng: -83.5, region: "08" },
-  ]);
-  const noWanted = resolveLocation(labelled, "Blue Hole Trailhead", null);
-  assert.equal(noWanted.kind, "region_unknown");
-  assert.equal(noWanted.kind === "region_unknown" && noWanted.wanted, null);
-  assert.deepEqual(noWanted.kind === "region_unknown" && noWanted.regions, ["08"]);
+test("a page point is used only when it is a real coordinate", () => {
+  assert.deepEqual(usableSourcePoint(45.894398, -114.241692), {
+    lat: 45.894398,
+    lng: -114.241692,
+  });
+  // The 23 Alaska pages are real places, and no US-bounds assumption may
+  // quietly drop them: they leave here as points and fail the distance gate.
+  assert.deepEqual(usableSourcePoint(60.99542101, -149.27770625), {
+    lat: 60.99542101,
+    lng: -149.27770625,
+  });
+  assert.equal(usableSourcePoint(null, -114.2), null, "a page with no coordinate");
+  assert.equal(usableSourcePoint(undefined, undefined), null);
+  assert.equal(usableSourcePoint("45.8", -114.2), null, "a string is not a coordinate");
+  assert.equal(usableSourcePoint(Number.NaN, -114.2), null);
+  // ST_MakePoint takes a latitude of 200 and the geography cast turns it into
+  // some point on the globe, so the range check is what keeps a wrong
+  // coordinate from coming back as a confident distance.
+  assert.equal(usableSourcePoint(200, -114.2), null);
+  assert.equal(usableSourcePoint(45.8, -400), null);
 });
 
 test("the raw index is keyed by dataset, so ids never cross datasets", () => {
   const index = buildRecSiteIndex([
-    { site_cn: "5001", site_name: "SHARED ID TRAILHEAD", region: "06", fee_charged: "Y" },
+    { site_cn: "5001", site_name: "SHARED ID TRAILHEAD", fee_charged: "Y" },
   ]);
   assert.equal(index.get(recSiteKey("usfs_rec_sites", "5001"))?.feeCharged, "Y");
   assert.equal(index.get(recSiteKey("usfs_recreation_opportunities", "5001")), undefined);
@@ -342,24 +319,6 @@ test("a no-fee claim with no raw row to check is written but counted", () => {
   assert.deepEqual(corroborated.notices, [], "a fee_charged='N' row is cross-checked, not quote-only");
 });
 
-test("a name shared by far-apart places in one region stays unlocated", () => {
-  const index = buildLocationIndex([
-    { name: "Baker Lake Trailhead", lat: 45.8, lng: -114.3, region: "06" },
-    { name: "Baker Lake Trailhead", lat: 48.7, lng: -121.6, region: "06" },
-  ]);
-  assert.equal(resolveLocation(index, "Baker Lake Trailhead", "r06").kind, "ambiguous");
-  assert.equal(resolveLocation(index, "Nowhere Trailhead", "r06").kind, "unknown_name");
-});
-
-test("regions normalize across the registry and raw spellings", () => {
-  assert.equal(normalizeRegion("r09"), "09");
-  assert.equal(normalizeRegion("09"), "09");
-  assert.equal(normalizeRegion(9), "09");
-  assert.equal(normalizeRegion("R6"), "06");
-  assert.equal(normalizeRegion(null), null);
-  assert.equal(normalizeRegion(""), null);
-});
-
 // --- raw EDW enrichment -----------------------------------------------------
 
 test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
@@ -368,7 +327,6 @@ test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
       site_cn: "5927010263",
       site_name: "MARTIN BRIDGE TRAILHEAD",
       public_site_name: "Eagle Forks Trailhead",
-      region: "06",
       fee_charged: "n",
       fee_type: null,
     },
@@ -377,7 +335,6 @@ test("the raw pull indexes by site_cn, the normalized rows' source_id", () => {
   assert.equal(index.size, 1);
   const facts = index.get(recSiteKey("usfs_rec_sites", "5927010263"));
   assert.equal(facts?.publicName, "Eagle Forks Trailhead");
-  assert.equal(facts?.region, "06");
   assert.equal(facts?.feeCharged, "N", "fee_charged is compared upper-case");
 });
 
@@ -388,7 +345,6 @@ test("both names go through the gate, deduplicated", () => {
       feeCharged: null,
       feeType: null,
       publicName: "Eagle Forks Trailhead",
-      region: "06",
     }),
     ["MARTIN BRIDGE TRAILHEAD", "Eagle Forks Trailhead"]
   );
@@ -398,7 +354,6 @@ test("both names go through the gate, deduplicated", () => {
       feeCharged: null,
       feeType: null,
       publicName: "Snow Lake TH",
-      region: "06",
     }),
     ["SNOW LAKE TRAILHEAD"],
     "names that normalize the same are one name"
@@ -586,14 +541,66 @@ test("a page section becomes parking capacity and the fills-early note", () => {
     ]
   );
   assert.equal(leaves[0].sourced.source.kind, "usfs_web");
+  assert.equal(leaves[0].sourced.source.name, "US Forest Service");
   assert.equal(leaves[0].sourced.source.url, pageRow().url);
-  assert.equal(leaves[0].sourced.retrieved_at, "2026-08-19T20:43:51+00:00");
+  assert.equal(leaves[0].sourced.source.license, "public domain (US federal government)");
+  // The page row records the instant it was fetched; every other source in this
+  // importer stamps a day, and the clients read a day.
+  assert.equal(leaves[0].sourced.retrieved_at, "2026-08-19");
+  assert.equal(leaves[0].rowKey, pageRow().url);
 });
 
 test("a page section with no structured fact is refused", () => {
   const { leaves, refusals } = pageLeafCandidates(pageRow({ restroom_text: "No restroom available" }));
   assert.deepEqual(leaves, []);
   assert.deepEqual(refusals, ["no_structured_facts"]);
+});
+
+test("the page's prose and its evidence are read and never imported", () => {
+  // Every one of these is on the row and none of them is a parking fact. The
+  // fee, restroom and road text describe what the EDW, MVUM and RoadCore
+  // datasets already publish as fields; the verbatim spans are the extraction's
+  // evidence, for a person auditing it.
+  const { leaves } = pageLeafCandidates(
+    pageRow({
+      capacity_estimate: 12,
+      fee_text: "No fees are required for this site",
+      restroom_text: "Vault toilet available",
+      road_text: "Follow FS 363 for 7.5 miles to the trailhead.",
+      elevation_ft: 6200,
+      verbatim_spans: {
+        capacity: "Parking for 12 vehicles",
+        coordinates: "Latitude: 45.894398 Longitude: -114.241692",
+        fee: "No fees are required for this site",
+      },
+    })
+  );
+  assert.deepEqual(
+    leaves.map((leaf) => leaf.leaf),
+    ["capacity_vehicles"]
+  );
+  const serialized = JSON.stringify(leaves);
+  for (const absent of ["verbatim", "Latitude", "restroom", "elevation", "FS 363", "No fees"]) {
+    assert.equal(serialized.includes(absent), false, `${absent} stayed out of the leaf`);
+  }
+});
+
+test("a page whose fetched_at is not a real day is refused, not trimmed", () => {
+  for (const fetchedAt of ["", "yesterday", "2026-13-02T00:00:00+00:00", "26-08-19"]) {
+    const { leaves, refusals } = pageLeafCandidates(
+      pageRow({ capacity_estimate: 12, fetched_at: fetchedAt })
+    );
+    assert.deepEqual(leaves, [], `${fetchedAt || "(empty)"} carries no leaf`);
+    assert.deepEqual(refusals, ["fetched_at_not_iso"]);
+  }
+});
+
+test("a page url that is not an http link never becomes a tappable source", () => {
+  const { leaves, refusals } = pageLeafCandidates(
+    pageRow({ capacity_estimate: 12, url: "javascript:alert(1)" })
+  );
+  assert.deepEqual(leaves, []);
+  assert.deepEqual(refusals, ["page_url_unusable"]);
 });
 
 // --- conflicts --------------------------------------------------------------

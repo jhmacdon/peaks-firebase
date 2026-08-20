@@ -5,10 +5,16 @@ import db from "./db";
 // takes no --apply. Exit code 1 means at least one required source needs a
 // refresh (see cloud-sql/migrate/docs/trailhead-data-refresh.md).
 
-// usfs_pages is imported and logged like the others but is not required: the
-// page sections contribute a single leaf across the whole catalog, so a
-// quarterly alarm on it would be noise. It still shows in the report as an
-// [other] source.
+// usfs_pages is required again. It spent one release as an [other] source
+// because the page sections contributed a single leaf across the whole
+// catalog, and an alarm on one leaf is noise. That was a fault in how pages
+// were located, not in the pages: the registry carried no coordinates, so a
+// page had to borrow the point of a same-named EDW trailhead and almost none
+// of them could. The extraction now reads each page's own coordinates, the
+// rows go through the same two gates as the fee rows, and the source carries
+// real coverage — the two facts no agency dataset publishes at all, how many
+// cars fit and whether the lot fills early. Both go stale the way a web page
+// does: the agency rewrites the page and nothing tells us.
 //
 // usfs_roads is required. It is a real pipeline behind a real claim — 328
 // trailheads with a vehicle, a surface and a road to name — and its facts go
@@ -27,6 +33,7 @@ import db from "./db";
 export const REQUIRED_SOURCES: readonly string[] = [
   "usfs_fees",
   "usfs_bathrooms",
+  "usfs_pages",
   "usfs_roads",
   "nps_pois",
   "nps_parking",

@@ -248,22 +248,13 @@ export function chooseMatch(candidates: MatchCandidate[], threshold: number): Ma
 }
 
 // ---------------------------------------------------------------------------
-// Locating Forest Service page rows
+// Points
 // ---------------------------------------------------------------------------
 
 export interface SourcePoint {
   lat: number;
   lng: number;
 }
-
-export interface LocationPoint extends SourcePoint {
-  /** Forest Service region, normalized to two digits. */
-  region: string | null;
-  /** The EDW public site name, when the raw pull knows one. */
-  publicName: string | null;
-}
-
-export type LocationIndex = Map<string, LocationPoint[]>;
 
 /** Metres between two points, good enough at trailhead scale. */
 export function distanceMeters(a: SourcePoint, b: SourcePoint): number {
@@ -275,79 +266,18 @@ export function distanceMeters(a: SourcePoint, b: SourcePoint): number {
 }
 
 /**
- * Index EDW points by normalized name. The Forest Service page registry
- * carries no coordinates, so a page row borrows the coordinates of the EDW
- * trailhead with the same name.
- */
-export function buildLocationIndex(
-  rows: Array<{ name: string; lat: number; lng: number; region?: string | null; publicName?: string | null }>
-): LocationIndex {
-  const index: LocationIndex = new Map();
-  for (const row of rows) {
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) continue;
-    const key = normalizeTrailheadName(row.name);
-    if (key.length === 0) continue;
-    const point: LocationPoint = {
-      lat: row.lat,
-      lng: row.lng,
-      region: normalizeRegion(row.region),
-      publicName: row.publicName ?? null,
-    };
-    const points = index.get(key);
-    if (points) points.push(point);
-    else index.set(key, [point]);
-  }
-  return index;
-}
-
-export type LocationLookup =
-  | { kind: "located"; point: LocationPoint }
-  | { kind: "unknown_name" }
-  /** The name exists, but nothing on either side carries a region to compare. */
-  | { kind: "region_unknown"; wanted: string | null; regions: string[] }
-  /** Both sides carry a region and they disagree — a different place. */
-  | { kind: "region_mismatch"; wanted: string; regions: string[] }
-  | { kind: "ambiguous"; spreadM: number };
-
-/**
- * Resolve one name to a point.
+ * A usable point, or null.
  *
- * Two guards, and both are needed. The same trailhead name appears in
- * different forests across the country, so the page's own Forest Service
- * region has to agree with the EDW point's region — without that a single
- * same-named point anywhere in the country looks like a confident answer.
- * And a name that survives the region check but still covers points further
- * apart than maxSpreadM is ambiguous, so it stays unlocated rather than
- * risking a write onto the wrong trailhead.
+ * The range check is not decoration. `ST_MakePoint` accepts a latitude of 200
+ * and a geography cast turns it into some point on the globe, so a coordinate
+ * the extraction got wrong would come back as a confident distance to a real
+ * trailhead rather than as an error.
  */
-export function resolveLocation(
-  index: LocationIndex,
-  name: string,
-  region: string | null | undefined,
-  maxSpreadM: number = TRAILHEAD_MATCH_RADIUS_M
-): LocationLookup {
-  const points = index.get(normalizeTrailheadName(name));
-  if (!points || points.length === 0) return { kind: "unknown_name" };
-
-  const wanted = normalizeRegion(region);
-  const labelled = [...new Set(points.map((point) => point.region).filter((value): value is string => value !== null))];
-  const inRegion = points.filter((point) => wanted !== null && point.region === wanted);
-  if (inRegion.length === 0) {
-    // Two different failures, and conflating them would blame cross-country
-    // borrowing for points that simply carry no region label (a
-    // recreation-opportunity point has no raw row, so no region).
-    if (wanted === null || labelled.length === 0) {
-      return { kind: "region_unknown", wanted, regions: labelled };
-    }
-    return { kind: "region_mismatch", wanted, regions: labelled };
-  }
-
-  let spread = 0;
-  for (const point of inRegion) {
-    spread = Math.max(spread, distanceMeters(inRegion[0], point));
-  }
-  if (spread > maxSpreadM) return { kind: "ambiguous", spreadM: spread };
-  return { kind: "located", point: inRegion[0] };
+export function usableSourcePoint(lat: unknown, lng: unknown): SourcePoint | null {
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
 }
 
 // ---------------------------------------------------------------------------
@@ -384,34 +314,51 @@ export interface BathroomRow {
   as_of: string;
 }
 
+/**
+ * One row of `fs-page-sections-full.jsonl`: a Forest Service site page, the
+ * coordinates the page itself publishes, and the facts extracted from its
+ * prose. Absent fields are omitted rather than written as null.
+ *
+ * **The page carries its own point.** An earlier version of this pipeline had
+ * no coordinates on a page and borrowed them from the same-named EDW
+ * trailhead; a cross-check of that mechanism found every one of its 98
+ * far-outlier borrows to be a wrong attach. So a page row now goes through the
+ * same two gates as the fee and bathroom rows — 250 m and a name — and a page
+ * with no coordinates is counted rather than located by inference.
+ *
+ * Four fields are declared and none is imported, so that their absence from
+ * `pageLeafCandidates` is visible rather than accidental. `fee_text`,
+ * `restroom_text` and `road_text` are prose about facts the EDW, MVUM and
+ * RoadCore datasets already publish as fields; corroborating one against the
+ * other is its own piece of work. `verbatim_spans` is the evidence a person
+ * auditing the extraction reads, and `elevation_ft` belongs to the
+ * destination, not to its amenities.
+ */
 export interface PageSectionRow {
   url: string;
-  capacity_estimate: number | null;
-  fills_early_note: string | null;
-  fee_text: string | null;
-  restroom_text: string | null;
-  road_text: string | null;
-  fetched_at: string;
-}
-
-export interface RegistryRow {
-  url: string;
   name: string;
-  region?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  capacity_estimate?: number | null;
+  fills_early_note?: string | null;
+  fee_text?: string | null;
+  restroom_text?: string | null;
+  road_text?: string | null;
+  elevation_ft?: number | null;
+  verbatim_spans?: unknown;
+  fetched_at: string;
 }
 
 /**
  * A row of the raw EDW recreation-site pull. The normalized fee and bathroom
- * files drop these fields, but the importer needs them: fee_charged
- * contradicts a normalized no-fee claim, public_site_name is the name the
- * public (and Peaks) uses, and region keeps a page from borrowing a point in
- * another part of the country.
+ * files drop two fields the importer needs: fee_charged contradicts a
+ * normalized no-fee claim, and public_site_name is the name the public (and
+ * Peaks) catalogs a trailhead under.
  */
 export interface RawRecSiteRow {
   site_cn?: string | number | null;
   site_name?: string | null;
   public_site_name?: string | null;
-  region?: string | null;
   fee_charged?: string | null;
   fee_type?: string | null;
 }
@@ -421,7 +368,6 @@ export interface RecSiteFacts {
   feeCharged: string | null;
   feeType: string | null;
   publicName: string | null;
-  region: string | null;
 }
 
 export type RecSiteIndex = Map<string, RecSiteFacts>;
@@ -438,16 +384,6 @@ export function recSiteKey(sourceDataset: string, sourceId: string | number): st
   return `${sourceDataset}:${sourceId}`;
 }
 
-/** Forest Service region as two digits: "r09", "9" and "09" all become "09". */
-export function normalizeRegion(value: string | number | null | undefined): string | null {
-  if (value === null || value === undefined) return null;
-  const digits = String(value).replace(/[^0-9]/g, "");
-  if (digits.length === 0) return null;
-  const parsed = Number.parseInt(digits, 10);
-  if (!Number.isFinite(parsed)) return null;
-  return String(parsed).padStart(2, "0");
-}
-
 /** Index the raw pull by site_cn, which is the source_id of the normalized rows. */
 export function buildRecSiteIndex(rows: RawRecSiteRow[]): RecSiteIndex {
   const index: RecSiteIndex = new Map();
@@ -459,7 +395,6 @@ export function buildRecSiteIndex(rows: RawRecSiteRow[]): RecSiteIndex {
       feeCharged: row.fee_charged ? String(row.fee_charged).trim().toUpperCase() : null,
       feeType: row.fee_type ? String(row.fee_type).trim() : null,
       publicName: row.public_site_name ? String(row.public_site_name).trim() : null,
-      region: normalizeRegion(row.region),
     });
   }
   return index;
@@ -521,17 +456,32 @@ function edwSourced(row: { source_dataset: string; source_id: string; as_of: str
   };
 }
 
-function webSourced(row: PageSectionRow, value: unknown): SourcedValue<unknown> {
+function webSourced(url: string, retrievedAt: string, value: unknown): SourcedValue<unknown> {
   return {
     value,
     source: {
       kind: WEB_SOURCE_KIND,
       name: USFS_SOURCE_NAME,
-      url: row.url,
+      url,
       license: USFS_LICENSE,
     },
-    retrieved_at: row.fetched_at,
+    retrieved_at: retrievedAt,
   };
+}
+
+/**
+ * The day part of a timestamp, when it is a real day.
+ *
+ * The page rows carry a full instant ("2026-08-20T14:02:11+00:00") and every
+ * other source in this importer stamps a `YYYY-MM-DD` on its leaves, which is
+ * also the only shape the clients parse. The time of day says nothing about a
+ * parking lot, so it goes; a value whose day part is not a real calendar day is
+ * refused rather than trimmed into something that looks like one.
+ */
+export function isoDatePart(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const day = value.trim().slice(0, 10);
+  return parseIsoDate(day) === null ? null : day;
 }
 
 function nonEmptyText(value: string | null | undefined): string | null {
@@ -653,12 +603,39 @@ export function bathroomLeafCandidates(row: BathroomRow): LeafExtraction {
   return { leaves, refusals, notices: [] };
 }
 
-/** Page section row → parking leaves (capacity and the fills-early note). */
+/**
+ * Page section row → parking leaves: the capacity the page states and the
+ * sentence it writes about the lot filling.
+ *
+ * Two leaves out of a row that holds far more, and the restraint is the point.
+ * The page's fee, restroom and road prose describes facts three agency
+ * datasets already publish as fields, and its verbatim spans are the
+ * extraction's evidence rather than a fact about the trailhead. Only the two
+ * things no dataset carries are imported.
+ */
 export function pageLeafCandidates(row: PageSectionRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
   const refusals: string[] = [];
+
+  const url = typeof row.url === "string" ? row.url.trim() : "";
+  if (!/^https?:\/\/\S/i.test(url)) {
+    refusals.push("page_url_unusable");
+    return { leaves, refusals, notices: [] };
+  }
+  const retrievedAt = isoDatePart(row.fetched_at);
+  if (retrievedAt === null) {
+    refusals.push("fetched_at_not_iso");
+    return { leaves, refusals, notices: [] };
+  }
+
   const push = (leaf: ParkingLeaf, value: unknown) => {
-    leaves.push({ block: "parking", leaf, source: "usfs_pages", rowKey: row.url, sourced: webSourced(row, value) });
+    leaves.push({
+      block: "parking",
+      leaf,
+      source: "usfs_pages",
+      rowKey: url,
+      sourced: webSourced(url, retrievedAt, value),
+    });
   };
 
   const capacity = positiveNumber(row.capacity_estimate);

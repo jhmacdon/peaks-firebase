@@ -626,9 +626,10 @@ rows across 28 pairs with no wrong match, and still rejects pairs that merely
 share a word (Willow Lake / Willow Creek, Ape Canyon / Lava Canyon). The
 two-token floor is what keeps "Butte" out of "Driveway Butte".
 
-Both rules try the EDW `site_name` and the `public_site_name` — 16 percent of
-raw rows (1,151 of 7,357) yield a second, genuinely different name once
-normalized, and Peaks catalogs trailheads under the public one.
+On a fee or bathroom row both rules try the EDW `site_name` and the
+`public_site_name` — 16 percent of raw rows (1,151 of 7,357) yield a second,
+genuinely different name once normalized, and Peaks catalogs trailheads under
+the public one. A page row offers the one name printed on the page.
 
 Rejected rows go to `import-unmatched-{fees,bathrooms,pages}.jsonl` in the data
 directory with the reason, the nearest candidate, and which name scored best.
@@ -638,14 +639,8 @@ prints the same split.
 
 The importer also reads the raw EDW pull
 (`<data-dir>/raw/usfs-rec-sites-trailheads.jsonl`, `--raw-rec-sites` overrides)
-and refuses to run without it. The normalized files drop three fields it needs:
-`fee_charged` (the fee guard below), `public_site_name` (the name gate), and
-`region` — a Forest Service page borrows coordinates from the same-named EDW
-trailhead, and without a region check a single same-named point anywhere in the
-country looks confident. Region equality is required; failures are dropped and
-counted under two separate reasons — `region_mismatch` when both sides carry a
-region and they disagree, `region_unknown` when one side has no region to
-compare — and the report records both regions.
+and refuses to run without it. The normalized files drop two fields it needs:
+`fee_charged` (the fee guard below) and `public_site_name` (the name gate).
 
 The raw pull covers recreation **sites** only. The 1,243 fee rows from the
 recreation-**opportunities** dataset have no raw counterpart, so their no-fee
@@ -668,6 +663,43 @@ boilerplate "No fees are required for this site", 66 of them on records the
 same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
 stricter claim wins. Both guards live in `feeLeafCandidates` in
 `migrate/src/trailhead-facts-utils.ts`.
+
+### The third gated source: Forest Service site pages
+
+`usfs_pages` reads `<data-dir>/fs-page-sections-full.jsonl` (`--sections=FILE`
+overrides) and fills two parking leaves: `capacity_vehicles` from the page's
+stated capacity, `fills_early_note` from its sentence about the lot filling.
+Envelopes are `usfs_web` / US Forest Service / the page url / public domain,
+stamped with the day part of `fetched_at`. **These are the only two facts in
+this importer that no agency dataset publishes anywhere**, which is why a
+web page is worth reading at all.
+
+**Every row carries the page's own coordinates and goes through the same two
+gates as a fee row.** It did not always. The registry has no coordinates, so a
+page used to borrow the point of the same-named EDW trailhead, guarded by
+Forest Service region equality. That mechanism located 710 pages, imported one
+fact between them, and a cross-check against the extracted coordinates found
+**all 98 of its far-outlier borrows to be wrong attaches**. It is gone, and so
+are its four skip reasons (`no_edw_name_location`, `region_unknown`,
+`region_mismatch`, `ambiguous_name_location`) and the region field that fed
+them. A page with no coordinate of its own is counted under `no_coordinates`
+and dropped — nothing infers one.
+
+The rest of the row is read and none of it is imported. `fee_text`,
+`restroom_text` and `road_text` are prose about facts the EDW, MVUM and
+RoadCore datasets already publish as fields, and corroborating one against the
+other is its own piece of work; `verbatim_spans` is the evidence a person
+auditing the extraction reads, and `elevation_ft` belongs to the destination
+rather than to its amenities. Two envelope guards are pinned by tests: a
+`fetched_at` whose day part is not a real calendar day is refused rather than
+trimmed into one, and a url that is not an `http(s)` link never becomes a
+tappable source.
+
+The registry (`fs-trailhead-page-registry.jsonl`) is still the crawl's source
+of truth for which pages exist. The importer does not read it, and does not
+read the older partial `fs-page-sections.jsonl` either. Refresh the pages by
+re-running the Codex T6 work order (`docs/trailheads/codex-handoff-2.md`) and
+then this importer.
 
 ### The fourth source: access roads
 
@@ -802,14 +834,16 @@ npm run check:data-freshness
 ```
 
 It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms`,
-`usfs_roads`, `nps_pois` or `nps_parking` — is more than 90 days past its last
-successful import or has never run. The NPS pair covers fewer trailheads than
-anything else on that list and is required anyway: a spatial join with no name
-behind it is true only while both ends stay put, and it covers the busiest
-trailheads Peaks has. `usfs_pages` is imported and logged the same way but
-cannot fail the check: it contributes a single leaf across the catalog, so the
-report lists it as `[other]` rather than alarming on it. Quarterly cadence and
-the full refresh sequence: `migrate/docs/trailhead-data-refresh.md`.
+`usfs_pages`, `usfs_roads`, `nps_pois` or `nps_parking` — is more than 90 days
+past its last successful import or has never run. The NPS pair covers fewer
+trailheads than anything else on that list and is required anyway: a spatial
+join with no name behind it is true only while both ends stay put, and it
+covers the busiest trailheads Peaks has. `usfs_pages` is required again after
+one release outside the list — the single-leaf yield that demoted it was the
+old borrowing mechanism's, not the pages'; with each page's own coordinates the
+source carries real coverage, and a rewritten agency page goes stale without
+saying so. Quarterly cadence and the full refresh sequence:
+`migrate/docs/trailhead-data-refresh.md`.
 
 ## Access-road processing store
 

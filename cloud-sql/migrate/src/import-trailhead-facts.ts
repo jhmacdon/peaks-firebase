@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import db from "./db";
 import {
-  buildLocationIndex,
   buildRecSiteIndex,
   buildTrailheadAmenities,
   candidateNames,
@@ -13,7 +12,6 @@ import {
   leafKey,
   mergeTrailheadAmenities,
   nameTokensContained,
-  normalizeRegion,
   normalizeTrailheadName,
   npsBathroomLeafCandidates,
   npsParkingLeafCandidates,
@@ -21,13 +19,13 @@ import {
   PG_TRGM_NAME_THRESHOLD,
   recSiteKey,
   resolveLeafConflicts,
-  resolveLocation,
   roadAccessLeafCandidates,
   selectSamplePayloads,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
   TRAILHEAD_FACT_SOURCES,
   TRAILHEAD_MATCH_RADIUS_M,
+  usableSourcePoint,
   type BathroomRow,
   type FeeRow,
   type LeafCandidate,
@@ -36,7 +34,6 @@ import {
   type NpsFactRow,
   type PageSectionRow,
   type RawRecSiteRow,
-  type RegistryRow,
   type RoadAccessRow,
   type SourcePoint,
   type TrailheadFactSource,
@@ -48,19 +45,20 @@ import {
 // trailhead to hang on is reported, not invented. Dry-run by default; --apply
 // writes.
 //
-// Three sources are matched to a trailhead by place and name. The other
-// three — usfs_roads and the two National Park Service layers — are not
-// matched at all: `roads:derive` and `normalize:nps-trailhead-facts` both
-// started from the production trailhead rows, so every row already carries the
-// destination id it belongs to. The only question left is whether that
-// destination is still there and still a trailhead.
+// Three sources are matched to a trailhead by place and name — the fee rows,
+// the bathroom rows and the site pages, each of which carries its own
+// coordinates. The other three — usfs_roads and the two National Park Service
+// layers — are not matched at all: `roads:derive` and
+// `normalize:nps-trailhead-facts` both started from the production trailhead
+// rows, so every row already carries the destination id it belongs to. The
+// only question left is whether that destination is still there and still a
+// trailhead.
 
 export interface Args {
   dataDir: string | null;
   feesPath: string | null;
   bathroomsPath: string | null;
   sectionsPath: string | null;
-  registryPath: string | null;
   rawRecSitesPath: string | null;
   roadAccessPath: string | null;
   npsFactsPath: string | null;
@@ -176,8 +174,7 @@ export function usage(): string {
     "  --data-dir=DIR        directory holding the normalized JSONL (required)",
     "  --fees=FILE           override <data-dir>/trailhead-fees.jsonl",
     "  --bathrooms=FILE      override <data-dir>/trailhead-bathrooms.jsonl",
-    "  --sections=FILE       override <data-dir>/fs-page-sections.jsonl",
-    "  --registry=FILE       override <data-dir>/fs-trailhead-page-registry.jsonl",
+    "  --sections=FILE       override <data-dir>/fs-page-sections-full.jsonl",
     "  --raw-rec-sites=FILE  override <data-dir>/raw/usfs-rec-sites-trailheads.jsonl",
     "  --road-access=FILE    override <data-dir>/trailhead-road-access.jsonl",
     "  --nps-facts=FILE      override <data-dir>/nps-trailhead-facts.jsonl",
@@ -235,7 +232,6 @@ export function parseArgs(argv: string[]): Args {
     feesPath: textArg(argv, "--fees"),
     bathroomsPath: textArg(argv, "--bathrooms"),
     sectionsPath: textArg(argv, "--sections"),
-    registryPath: textArg(argv, "--registry"),
     rawRecSitesPath: textArg(argv, "--raw-rec-sites"),
     roadAccessPath: textArg(argv, "--road-access"),
     npsFactsPath: textArg(argv, "--nps-facts"),
@@ -362,9 +358,6 @@ interface ReportRecord {
     matched_name: string;
   };
   refusals?: string[];
-  /** Page rows only: the region asked for and the regions the name lives in. */
-  wanted_region?: string | null;
-  point_regions?: string[];
   /** Road rows only: the id the derivation wrote the row for. */
   destination_id?: string;
   row: Record<string, unknown>;
@@ -516,27 +509,24 @@ function readSources(
   const dataDir = args.dataDir as string;
   const feesPath = args.feesPath ?? path.join(dataDir, "trailhead-fees.jsonl");
   const bathroomsPath = args.bathroomsPath ?? path.join(dataDir, "trailhead-bathrooms.jsonl");
-  const sectionsPath = args.sectionsPath ?? path.join(dataDir, "fs-page-sections.jsonl");
-  const registryPath = args.registryPath ?? path.join(dataDir, "fs-trailhead-page-registry.jsonl");
+  const sectionsPath = args.sectionsPath ?? path.join(dataDir, "fs-page-sections-full.jsonl");
   const rawRecSitesPath =
     args.rawRecSitesPath ?? path.join(dataDir, "raw", "usfs-rec-sites-trailheads.jsonl");
 
-  // Every file is read whole, even under --limit. The raw pull carries the
-  // fee_charged flag, the public site name, and the region; the fee and
-  // bathroom files carry the coordinates a page row borrows. Reading a slice
-  // of any of them would change which rows can be located or believed, so
-  // --limit is applied further down, to the rows that go on to match.
+  // The raw pull is read whole, even under --limit: it carries the fee_charged
+  // flag every no-fee claim is checked against and the public site name half
+  // the name gate runs on, so a slice of it would change which rows can be
+  // believed. --limit is applied further down, to the rows that go on to match.
   const rawRecSites = parseJsonl<RawRecSiteRow>(readFile(rawRecSitesPath));
   const recSites = buildRecSiteIndex(rawRecSites.rows);
   if (recSites.size === 0) {
     throw new Error(
-      `${rawRecSitesPath} yielded no usable rows — the fee guard and the region check need the raw EDW pull (--raw-rec-sites=FILE)`
+      `${rawRecSitesPath} yielded no usable rows — the fee guard and the name gate need the raw EDW pull (--raw-rec-sites=FILE)`
     );
   }
   const fees = parseJsonl<FeeRow>(readFile(feesPath));
   const bathrooms = parseJsonl<BathroomRow>(readFile(bathroomsPath));
   const sections = parseJsonl<PageSectionRow>(readFile(sectionsPath));
-  const registry = parseJsonl<RegistryRow>(readFile(registryPath));
   logger.log(`  Raw EDW rec-site rows indexed: ${recSites.size}`);
 
   counts.usfs_fees.malformed = fees.malformed;
@@ -609,67 +599,42 @@ function readSources(
     });
   }
 
-  // The page registry carries no coordinates, so a page row borrows the point
-  // of the EDW trailhead with the same name, in the same Forest Service
-  // region. Region is the guard that matters: without it a single same-named
-  // point anywhere in the country looks confident, and a Missouri page took a
-  // point in Tennessee. A name that clears the region check but still covers
-  // far-apart points stays unlocated.
-  const registryByUrl = new Map<string, RegistryRow>();
-  for (const entry of registry.rows) registryByUrl.set(entry.url, entry);
-  const locatable = [...fees.rows, ...bathrooms.rows]
-    .filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lng))
-    .map((row) => {
-      const facts = recSites.get(recSiteKey(row.source_dataset, row.source_id)) ?? null;
-      return {
-        name: row.name,
-        lat: row.lat,
-        lng: row.lng,
-        region: facts?.region ?? null,
-        publicName: facts?.publicName ?? null,
-      };
-    });
-  const locationIndex = buildLocationIndex(locatable);
-  logger.log(
-    `  Page registry rows: ${registry.rows.length}; EDW names available for locating: ${locationIndex.size}`
-  );
-
+  // A Forest Service site page carries its own coordinates and its own name, so
+  // it goes through the same two gates as a fee row: a trailhead within the
+  // radius, and a name that agrees. It used to borrow the point of the
+  // same-named EDW trailhead, guarded by Forest Service region — a mechanism
+  // that located 710 pages, imported one fact between them, and got every one
+  // of its 98 far-outlier attaches wrong. Nothing infers a point any more: a
+  // page without coordinates is counted, not placed.
   for (const row of limited(sections.rows)) {
     counts.usfs_pages.rowsIn += 1;
-    const entry = registryByUrl.get(row.url);
-    if (!entry) {
+    const raw = row as unknown as Record<string, unknown>;
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const point = usableSourcePoint(row.lat, row.lng);
+    if (point === null) {
       counts.usfs_pages.noLocation += 1;
-      countRefusals(counts.usfs_pages, ["no_registry_row"]);
+      countRefusals(counts.usfs_pages, ["no_coordinates"]);
       skipped.push({
-        reason: "no_registry_row",
+        reason: "no_coordinates",
         source: "usfs_pages",
-        name: row.url,
-        row: row as unknown as Record<string, unknown>,
+        name: name.length > 0 ? name : row.url,
+        row: raw,
       });
       continue;
     }
-    const located = resolveLocation(locationIndex, entry.name, entry.region);
-    if (located.kind !== "located") {
-      const reason =
-        located.kind === "ambiguous"
-          ? "ambiguous_name_location"
-          : located.kind === "region_mismatch"
-            ? "region_mismatch"
-            : located.kind === "region_unknown"
-              ? "region_unknown"
-              : "no_edw_name_location";
+    // A page with no name leaves the second gate nothing to weigh, and
+    // distance alone would attach it to whichever trailhead is nearest.
+    const names = candidateNames(name, null);
+    if (names.length === 0) {
       counts.usfs_pages.noLocation += 1;
-      countRefusals(counts.usfs_pages, [reason]);
+      countRefusals(counts.usfs_pages, ["no_page_name"]);
       skipped.push({
-        reason,
+        reason: "no_page_name",
         source: "usfs_pages",
-        name: entry.name,
-        // Say what was compared, so a reader can tell a cross-country name
-        // clash from a point that simply carries no region label.
-        ...(located.kind === "region_mismatch" || located.kind === "region_unknown"
-          ? { wanted_region: normalizeRegion(entry.region), point_regions: located.regions }
-          : {}),
-        row: row as unknown as Record<string, unknown>,
+        name: row.url,
+        lat: point.lat,
+        lng: point.lng,
+        row: raw,
       });
       continue;
     }
@@ -683,18 +648,12 @@ function readSources(
     rows.push({
       source: "usfs_pages",
       rowKey: row.url,
-      name: entry.name,
-      names: candidateNames(entry.name, {
-        sourceId: row.url,
-        feeCharged: null,
-        feeType: null,
-        publicName: located.point.publicName,
-        region: located.point.region,
-      }),
-      point: located.point,
+      name,
+      names,
+      point,
       leaves: extraction.leaves,
       refusals: extraction.refusals,
-      raw: row as unknown as Record<string, unknown>,
+      raw,
     });
   }
 
