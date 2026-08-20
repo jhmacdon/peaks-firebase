@@ -140,6 +140,22 @@ test("a bucket outside the vocabulary prints nothing", () => {
   }
 });
 
+test("a key off Object.prototype is not a bucket", () => {
+  // This reads unvalidated JSONB, so the leaf's value can be any string a data
+  // file put there. A lookup object answers for these with a function, and the
+  // badge then calls charAt on it and throws — a whole detail page lost to a
+  // string somebody typed.
+  for (const key of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+    assert.equal(capacityRangeLabel(key), null, key);
+    const fields = block({ capacity_range: leaf(key), type: leaf("lot") });
+    assert.equal(parkingRow(fields)?.value, "Parking lot", key);
+    assert.equal(parkingBadge(fields), "parking lot", key);
+    // And with nothing to fall through to, the row simply says nothing.
+    assert.equal(parkingRow(block({ capacity_range: leaf(key) })), null, key);
+    assert.equal(parkingBadge(block({ capacity_range: leaf(key) })), null, key);
+  }
+});
+
 test("an estimated range answers when nobody counted", () => {
   const row = parkingRow(block({ type: leaf("lot"), capacity_range: leaf("25_to_50") }));
   assert.equal(row?.label, "Parking capacity");

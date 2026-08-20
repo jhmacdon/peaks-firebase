@@ -481,6 +481,11 @@ test("a multi-part feature answers with the part the trailhead stands in", () =>
   assert.equal(nearest?.distanceM, 0);
   const capacity = npsLotCapacity(standing, [far, near]);
   assert.equal(capacity?.parts, 2);
+  // The parts come back largest first, so the small near one ranks second —
+  // and the ring it came from is the second in the feature's own list. The
+  // two numbers are different things and the diagnostics carry both.
+  assert.equal(capacity?.area_rank, 1);
+  assert.equal(capacity?.source_ring_index, 1);
   // 30 m by 30 m is 900 m², which is 10_to_25. The far part is 40,000 m² and
   // would have been 100_plus; their sum would have been too.
   assert.equal(capacity?.capacity_range, "10_to_25");
@@ -488,8 +493,11 @@ test("a multi-part feature answers with the part the trailhead stands in", () =>
 });
 
 test("a ring wound like a lot but drawn inside one is read as a hole", () => {
-  // 21 rings in 18 of the layer's features contradict their own winding.
-  // Believing them leaves a building counted as parking.
+  // Housekeeping, and the numbers say so: 14 rings in 11 of the layer's
+  // features contradict their own winding, the largest is 0.946 m², and not one
+  // of them moves a bucket. The rule is kept because a ring inside another ring
+  // is ground the outer ring does not cover, and because that reading errs
+  // under rather than over. The fixture is exaggerated so the arithmetic shows.
   const outer = squareRing({ lat: 45.0, lng: -121.0 }, 100, true);
   const inner = squareRing({ lat: 45.0002, lng: -120.99975 }, 40, true);
   const { parts, demotedHoles } = polygonParts([outer, inner]);
@@ -499,6 +507,21 @@ test("a ring wound like a lot but drawn inside one is read as a hole", () => {
   const areas = partAreasM2(parts[0], origin!);
   assert.ok(Math.abs(areas.grossM2 - 10_000) < 30, `gross ${areas.grossM2}`);
   assert.ok(Math.abs(areas.netM2 - 8_400) < 40, `net ${areas.netM2}`);
+});
+
+test("the area rank is a size ordering and the ring index is the layer's", () => {
+  // Rings listed small-then-large: rank 0 is the big one, and it is ring 1.
+  // Anyone quoting a part back to the layer has to quote the ring.
+  const small = squareRing({ lat: 45.0, lng: -121.0 }, 30, true);
+  const large = squareRing({ lat: 45.01, lng: -121.0 }, 90, true);
+  const { parts } = polygonParts([small, large]);
+  assert.deepEqual(
+    parts.map((part) => part.sourceRingIndex),
+    [1, 0]
+  );
+  const onTheBigOne = npsLotCapacity({ lat: 45.0104, lng: -120.9994 }, [small, large]);
+  assert.equal(onTheBigOne?.area_rank, 0);
+  assert.equal(onTheBigOne?.source_ring_index, 1);
 });
 
 test("a hole inside no lot is dropped rather than counted as one", () => {

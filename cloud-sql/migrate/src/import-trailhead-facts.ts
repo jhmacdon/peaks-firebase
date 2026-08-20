@@ -1327,7 +1327,10 @@ function logSummary(
     logger.log(`  rows read:            ${counts.rowsIn}`);
     if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed} (whole file, never limited)`);
     logger.log(`  no usable location:   ${counts.noLocation}`);
-    if (counts.noName > 0) logger.log(`  no usable name:       ${counts.noName}`);
+    // Printed at zero like every other funnel line. A counter that appears only
+    // when it fires reads as an alarm, and a reader who has never seen it
+    // cannot tell "none today" from "this run does not count that".
+    logger.log(`  no usable name:       ${counts.noName}`);
     logger.log(`  no fact to write:     ${counts.noFacts}`);
     if (isExactIdSource(source)) {
       logger.log(`  destination vanished: ${counts.destinationVanished}`);

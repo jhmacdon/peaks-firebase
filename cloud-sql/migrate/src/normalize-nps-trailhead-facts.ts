@@ -75,7 +75,9 @@ export interface Args {
    * Off by default and computed either way, so a run always says in its
    * diagnostics what it would have published. See
    * `CAPACITY_RANGE_EMISSION_DEFAULT` for what has to happen before this is
-   * turned on.
+   * turned on, and for why turning it on is a one-way door: nothing in the
+   * importer removes a leaf, so a range that has been applied cannot be
+   * withdrawn by re-running with the gate shut.
    */
   capacityRange: boolean;
   help: boolean;
@@ -105,7 +107,11 @@ export function usage(): string {
     "  --show=ID[,ID]      print these destinations' rows in full",
     "  --capacity-range    publish the lot-area capacity range " +
       `(default ${CAPACITY_RANGE_EMISSION_DEFAULT ? "on" : "off"}; the range is`,
-    "                      computed and reported either way)",
+    "                      computed and reported either way). ONE-WAY DOOR:",
+    "                      the importer never removes a leaf, so a range that",
+    "                      has been applied cannot be withdrawn by re-running",
+    "                      with the gate shut",
+    "  --no-capacity-range withhold it, whatever the default says",
     "  --help              print this and exit",
   ].join("\n");
 }
@@ -136,7 +142,11 @@ export function parseArgs(argv: string[]): Args {
     radiusM,
     limit,
     show,
-    capacityRange: argv.includes("--capacity-range") || CAPACITY_RANGE_EMISSION_DEFAULT,
+    // Withholding wins over publishing, so a script that passes both flags
+    // stays quiet rather than opening a door it cannot shut again.
+    capacityRange: argv.includes("--no-capacity-range")
+      ? false
+      : argv.includes("--capacity-range") || CAPACITY_RANGE_EMISSION_DEFAULT,
     help: argv.includes("--help") || argv.includes("-h"),
   };
 }

@@ -75,23 +75,38 @@ a number and cannot tell a good one from a bad one.
 
 **The call site is `npsLotCapacity` in `nps-facts-utils.ts`, and it keeps both
 halves.** `polygonParts` splits a feature on ring winding — Esri draws an
-exterior clockwise — gives each hole to the exterior ring that contains it, and
-reads a ring wound like an exterior but drawn inside one as a hole anyway (21
-rings in 18 features contradict their own winding, and believing them leaves a
-building counted as parking). `nearestExteriorPart` then picks the part the
-trailhead stands nearest, and `partAreasM2` subtracts that part's holes.
+exterior clockwise — and gives each hole to the exterior ring that contains it.
+`nearestExteriorPart` then picks the part the trailhead stands nearest, and
+`partAreasM2` subtracts that part's holes.
+
+It also reads a ring wound like an exterior but drawn inside one as a hole.
+**That rule is housekeeping and the numbers say so:** it fires on 14 rings
+across 11 features, the largest 0.946 m² and the median 0.004, and **it moves no
+bucket at all** — the layer's assignments are identical with it and without it.
+They are digitising slivers, not buildings. It stays because a ring inside
+another ring is ground the outer ring does not cover, and because that reading
+errs under rather than over.
 
 The areas are geodesic: a local equal-area frame built from the WGS84
 meridional and prime-vertical radii at the feature's own latitude. Checked
-against `ST_Area(geom::geography)` on twelve real lots spanning 253 to 18,836 m²,
-the two agree to four parts per million, the worst case being 18,835.94 against
-18,836.01. Three fixed squares from that comparison are pinned in
+against `ST_Area(geom::geography)` on 160 real lots — every one of the largest
+40 and the northernmost 30 among them — the median disagreement is **0.9 parts
+per million and the worst inside the gates is 17.9** (a 26,532 m² lot, off by
+0.5 m²). It grows with extent, reaching 35.5 ppm on the layer's largest polygon
+at 77,873 m², which is past the 50,000 m² cap and makes no claim anyway. Three
+fixed squares from that comparison are pinned in
 `__tests__/nps-facts-utils.test.ts`, so a rewrite that quietly goes planar fails.
 
 Measured over the layer with that code: 6,739 usable features, 1,114 carrying
 more than one ring, 987 with at least one interior ring, 164 with more than one
 exterior part, and **229 features whose bucket would move if the gross outline
-were used instead of the net area** — the study's own count was 232.
+were used instead of the net area**.
+
+Those last figures are this code's, and the study's own classifier — which was
+not kept — reported 1,006 / 147 / 232 for the same three. The number that
+decides anything, the 229 against 232, agrees. The other two differ on
+degenerate slivers, and **the 147-against-164 gap is unexplained**: without the
+study's classifier the two cannot be diffed. Nothing downstream reads the count.
 
 ## The data
 
@@ -220,13 +235,29 @@ bite. **So `capacity_range` is computed on every run and published on none:**
 `CAPACITY_RANGE_EMISSION_DEFAULT` in `nps-facts-utils.ts` is false, and
 `normalize:nps-trailhead-facts --capacity-range` is the only way to turn it on.
 
-What can clear it is imagery. `npm run spotcheck:nps-capacity` writes 60
-post-gate lots — 10 each in the three lower buckets, 15 each in the two upper
-ones — to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`, each row
-carrying its areas, its part, and a satellite link. A person (or an
-imagery-reading agent) marking those at 80% correct-or-adjacent, with a few
-exact hits among the `100_plus` rows, is the evidence this population has never
-had. Flip the default in the same change that records the result here.
+What can clear it is imagery. `npm run spotcheck:nps-capacity` writes
+`docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`: 60 post-gate lots —
+10 each in the three lower buckets, 15 each in the two upper ones — followed by
+**every lot that would actually publish today**, which is a few dozen and wants
+reading in full rather than sampling. Each row carries its areas, its part, and
+a satellite link. A person (or an imagery-reading agent) marking those at 80%
+correct-or-adjacent, with a few exact hits among the `100_plus` rows, is the
+evidence this population has never had.
+
+**Rows flagged `road?` do not count toward that fraction.** The layer draws some
+access roads, ferry approaches and parking loops as parking polygons, and area
+says nothing useful about a carriageway — 200 m of one covers the ground of a
+40-car lot and holds nobody, so the curve reads it high. The flag is a shape
+test (perimeter² / 16·area above 8, over 1,500 m²) or a road-ish name. Scoring
+them as correct would let the sample pass on rows nothing should publish a
+capacity for; if many are wrong, the fix is a shape filter in the pipeline
+rather than a better curve.
+
+Flip the default in the same change that records the result here. **Flipping it
+is a one-way door for the data**: `mergeTrailheadAmenities` only ever sets a
+leaf, so a range that has been applied cannot be withdrawn by re-running with
+the gate shut — undoing an apply means writing something that deletes the leaf,
+and nothing does that today.
 
 The other way to clear it is a fresh OSM pull, at which point the row above
 should be filled in properly rather than deleted.

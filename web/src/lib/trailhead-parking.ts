@@ -30,7 +30,7 @@
 // nothing is trusted: a leaf is used only when its value is the shape the
 // contract says it is, and an unusable leaf prints nothing at all.
 
-import type { TrailheadParking, TrailheadParkingCapacityRange } from "./amenities";
+import type { TrailheadParking } from "./amenities";
 import {
   dedupeCredits,
   leafCredit,
@@ -79,7 +79,8 @@ function capacityVehicles(parking: TrailheadParking): number | null {
 }
 
 /**
- * How much parking, when the only evidence is how much ground the lot covers.
+ * How much parking, when the only evidence is how much ground the lot covers,
+ * or null when the leaf holds something else.
  *
  * One phrasing per bucket, written out rather than assembled from the numbers,
  * because the two ends are not the same kind of thing: `under_10` has no lower
@@ -89,24 +90,29 @@ function capacityVehicles(parking: TrailheadParking): number | null {
  * "Roughly" is doing real work. The estimate comes from the lot's mapped area
  * through a curve whose residual spread is a factor of 1.6, so the word is the
  * difference between what this is and what a count would be.
- */
-const CAPACITY_RANGE_LABELS: Record<TrailheadParkingCapacityRange, string> = {
-  under_10: "Under 10 cars",
-  "10_to_25": "Roughly 10–25 cars",
-  "25_to_50": "Roughly 25–50 cars",
-  "50_to_100": "Roughly 50–100 cars",
-  "100_plus": "Roughly 100+ cars",
-};
-
-/**
- * The range in words, or null when the leaf holds something else.
  *
- * A value outside the five is data this page does not know how to read, and
- * printing it raw would be the database read aloud.
+ * **A switch, not a lookup object, and that is not a style choice.** This reads
+ * unvalidated JSONB, so the key can be any string a data file put there — and
+ * an object literal answers for `"constructor"`, `"toString"` and every other
+ * name on `Object.prototype`, handing back a function that the caller then
+ * treats as a label. `parkingTypeLabel` above has always been a switch for the
+ * same reason; this matches it.
  */
 export function capacityRangeLabel(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  return CAPACITY_RANGE_LABELS[raw as TrailheadParkingCapacityRange] ?? null;
+  switch (raw) {
+    case "under_10":
+      return "Under 10 cars";
+    case "10_to_25":
+      return "Roughly 10–25 cars";
+    case "25_to_50":
+      return "Roughly 25–50 cars";
+    case "50_to_100":
+      return "Roughly 50–100 cars";
+    case "100_plus":
+      return "Roughly 100+ cars";
+    default:
+      return null;
+  }
 }
 
 function capacityRange(parking: TrailheadParking): string | null {

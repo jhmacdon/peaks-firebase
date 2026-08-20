@@ -493,11 +493,18 @@ export function metresToPolygon(point: SourcePoint, rings: PolygonRings): number
 // enough to push most lots a whole bucket high, in the direction that tells a
 // hiker there is more parking than there is. What follows is the ground area.
 //
-// **One lot, net of its holes.** Of the layer's 6,739 usable features 1,006
-// carry at least one interior ring — a median, a planted island, a building —
-// and reading the gross outline as the area flips 232 buckets. A further 147
-// carry more than one *exterior* ring, and two lots either side of a road are
-// two lots: the contract is one call per exterior part, never a sum.
+// **One lot, net of its holes.** Measured by this code over the layer's 6,739
+// usable features: **987** carry at least one interior ring — a median, a
+// planted island, a building — and reading the gross outline as the area moves
+// **229** buckets. A further **164** carry more than one *exterior* ring, and
+// two lots either side of a road are two lots: the contract is one call per
+// exterior part, never a sum.
+//
+// The calibration doc quotes 1,006 / 232 / 147 from the study's own classifier,
+// which is not this one. The middle number, the one that decides anything,
+// agrees to three. The other two differ on degenerate slivers and **the 147
+// against 164 gap is not explained** — the study's ring classifier was not kept,
+// so the two cannot be diffed. Nothing downstream depends on the count.
 
 /** WGS84, the datum every coordinate in these layers is written in. */
 const WGS84_SEMI_MAJOR_M = 6_378_137;
@@ -508,10 +515,17 @@ const WGS84_ECCENTRICITY_SQUARED = 0.006_694_379_990_141_32;
  *
  * A feature with two exterior rings yields two of these, and each is asked
  * about separately. Nothing here ever adds two parts together.
+ *
+ * `sourceRingIndex` is where the exterior ring sat in the feature's own ring
+ * list, which is the only handle that survives back into the layer.
+ * `polygonParts` hands its parts back largest first, so a part's position in
+ * that array is an area rank and says nothing about the source geometry —
+ * anyone recording which part answered has to record this instead.
  */
 export interface PolygonPart {
   exterior: ReadonlyArray<readonly [number, number]>;
   holes: ReadonlyArray<ReadonlyArray<readonly [number, number]>>;
+  sourceRingIndex: number;
 }
 
 /**
@@ -603,10 +617,10 @@ export interface PolygonPartsResult {
   /**
    * Rings wound like an exterior and drawn inside one, so read as holes.
    *
-   * 21 rings across 18 of the layer's features. Winding is the layer's own
-   * statement about which ring is which, and where it contradicts the geometry
-   * the geometry wins: a ring inside another ring is ground the outer ring does
-   * not cover, whichever way its vertices run.
+   * 14 rings across 11 of the layer's features, none bigger than 0.946 m² and
+   * half of them under 0.004. Slivers, and they move no bucket at all — this
+   * is tidying, kept because a ring inside another ring is ground the outer
+   * ring does not cover whichever way its vertices run.
    */
   demotedHoles: number;
 }
@@ -625,21 +639,26 @@ export interface PolygonPartsResult {
  * from the lot next to it; promoted, it adds ground to the total and the answer
  * says there is more parking than there is.
  *
- * **A ring wound like an exterior but drawn inside one is a hole.** The same
- * asymmetry decides it. The layer's winding is a statement about intent, and 21
- * rings in 18 features contradict their own geometry; believing the winding
- * there leaves a building or a planted island counted as parking.
+ * **A ring wound like an exterior but drawn inside one is read as a hole.**
+ * This is housekeeping, not a correction of anything that matters, and it is
+ * worth saying so plainly. It fires on **14 rings across 11 features**, every
+ * one of them a sliver: the largest is 0.946 m² and the median 0.004 m². They
+ * are digitising artifacts — a ring that closed on itself — not buildings and
+ * not planted islands, and **not one of them moves a bucket**: the layer's
+ * bucket assignments are identical with the rule and without it. What it buys
+ * is that a lot's part list holds lots rather than lots plus specks, in the
+ * under-claim direction, which is the direction everything else here errs in.
  */
 export function polygonParts(rings: PolygonRings): PolygonPartsResult {
   const origin = ringsOrigin(rings);
   if (origin === null) return { parts: [], orphanHoles: 0, demotedHoles: 0 };
   const exteriors: PolygonPart[] = [];
   const holes: Array<ReadonlyArray<readonly [number, number]>> = [];
-  for (const ring of rings) {
-    if (ring.length < 3) continue;
-    if (signedRingAreaM2(ring, origin) <= 0) exteriors.push({ exterior: ring, holes: [] });
+  rings.forEach((ring, sourceRingIndex) => {
+    if (ring.length < 3) return;
+    if (signedRingAreaM2(ring, origin) <= 0) exteriors.push({ exterior: ring, holes: [], sourceRingIndex });
     else holes.push(ring);
-  }
+  });
 
   // Largest first, so a nested ring always meets its container before it is
   // asked to contain anything, and the demotion needs no second pass.
@@ -698,6 +717,7 @@ export function partAreasM2(part: PolygonPart, origin: SourcePoint): PartAreas {
 }
 
 export interface NearestPart {
+  /** Position in the largest-first part list, not a ring number. */
   index: number;
   distanceM: number;
   part: PolygonPart;
@@ -919,10 +939,20 @@ export interface NpsParkingFacts {
  *
  * The gate that clears it is a person's, not a script's:
  * `docs/trailheads/data/nps-capacity-spotcheck.md` is a stratified sample of
- * sixty lots with a maps link on each row, and the apply is gated on someone
- * reading it against imagery at 80% correct-or-adjacent. Pass
- * `emitCapacityRange: true` — `--capacity-range` on the normalizer — once that
- * has happened, and flip this default in the same change.
+ * sixty lots with a maps link on each row, plus every lot that would actually
+ * publish today, and the apply is gated on someone reading it against imagery
+ * at 80% correct-or-adjacent. Pass `emitCapacityRange: true` —
+ * `--capacity-range` on the normalizer — once that has happened, and flip this
+ * default in the same change.
+ *
+ * **Turning this on is a one-way door for the data.** `mergeTrailheadAmenities`
+ * only ever sets leaves; it has no rule that removes one. So a run with the
+ * gate open writes `parking.capacity_range` into `destinations.amenities`, and
+ * re-running with the gate shut does **not** take it back — the leaf simply
+ * stops being refreshed, and every range already applied stays on the row and
+ * on the detail sheet. Undoing an apply means writing something that deletes
+ * the leaf, which does not exist today. Read the spot-check before opening it,
+ * not after.
  */
 export const CAPACITY_RANGE_EMISSION_DEFAULT = false;
 
@@ -942,8 +972,18 @@ export interface NpsParkingOptions {
  * that flips 232 of the layer's buckets.
  */
 export interface NpsLotAreaDiagnostics {
-  /** Which exterior part answered, counting from zero. */
-  part_index: number;
+  /**
+   * Where the answering part sat when the parts were ordered largest first —
+   * 0 is the biggest. **Not a ring number**: `polygonParts` sorts, so this says
+   * how big the part is relative to its siblings and nothing about the layer.
+   */
+  area_rank: number;
+  /**
+   * Where the answering part's exterior ring sits in the feature's own ring
+   * list. This is the handle back into the layer, and the one to quote when
+   * asking somebody to go and look at a particular ring.
+   */
+  source_ring_index: number;
   parts: number;
   /** Metres from the trailhead to that part, zero inside it. */
   part_distance_m: number;
@@ -990,7 +1030,8 @@ export function npsLotCapacity(
         ? "below_floor"
         : "above_cap";
   return {
-    part_index: nearest.index,
+    area_rank: nearest.index,
+    source_ring_index: nearest.part.sourceRingIndex,
     parts: parts.length,
     part_distance_m: Number(nearest.distanceM.toFixed(1)),
     gross_area_m2: Number(areas.grossM2.toFixed(1)),

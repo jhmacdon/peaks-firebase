@@ -821,19 +821,32 @@ Three binding rules, all pinned by tests:
   the **nearest exterior part** of the feature (a multi-part feature is not one
   lot), **net of that part's interior rings** (gross-for-net moves 229 of the
   layer's buckets), measured **geodesically** on the WGS84 ellipsoid — checked
-  against `ST_Area(geom::geography)` to four parts per million and pinned by
-  tests. Ring winding says which ring is which, except where a ring wound like
-  an exterior is drawn inside one, which is read as a hole.
+  against `ST_Area(geom::geography)` over 160 lots at a median 0.9 parts per
+  million and a worst 17.9 inside the gates, and pinned by tests. Ring winding
+  says which ring is which, except where a ring wound like an exterior is drawn
+  inside one, which is read as a hole (14 rings in 11 features, all slivers
+  under a square metre, no bucket moved — tidying, not a correction).
+  `diagnostics.area` records `area_rank` (largest-first ordering, this code's)
+  and `source_ring_index` (the layer's own ring number); only the second means
+  anything outside this process.
 
   **The buckets are computed and not published.** The held-out re-validation
   cannot run — none of the 137 Forest Service pages with a stated capacity has
   an NPS lot within 200 m, and the OSM pull behind the calibration was deleted
   under ODbL — so `CAPACITY_RANGE_EMISSION_DEFAULT` is `false` and every run
   reports the ranges in its diagnostics instead. The gate is human:
-  `npm run spotcheck:nps-capacity` writes 60 stratified lots with satellite
-  links to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`; at 80%
+  `npm run spotcheck:nps-capacity` writes 60 stratified lots **and all 37 that
+  would actually publish** to `docs/trailheads/data/nps-capacity-spotcheck.{jsonl,md}`,
+  each with a satellite link. Rows flagged `road?` — the layer draws some access
+  roads and parking loops as parking polygons, and area says nothing useful
+  about a carriageway — are scored but **excluded from the fraction**. At 80%
   correct-or-adjacent with a few exact `100_plus` hits, flip the default and
-  pass `--capacity-range`.
+  pass `--capacity-range` (`--no-capacity-range` forces it shut).
+
+  **Opening that gate is a one-way door for the data.** `mergeTrailheadAmenities`
+  only ever sets a leaf; nothing removes one. A range that has been applied
+  cannot be withdrawn by re-running with the gate shut — it simply stops being
+  refreshed and stays on the row.
 - **A candidate the layer disowns is stepped past, never negated.** `POISTATUS`
   in {`Planned`, `Not Existing`, `Decommissioned`, `Temporarily Closed`} — the
   POI layer only, the parking layer has no such field — plus `OPENTOPUBLIC=No`
