@@ -8,7 +8,34 @@ import type { UserProfile } from "../../../lib/actions/profile";
 import { LOADING_LABEL } from "../../../lib/constants";
 import Avatar from "../../../components/avatar";
 import { Button } from "../../../components/ui/button";
+import { EmptyState } from "../../../components/ui/empty-state";
 
+const LINKS = [
+  {
+    href: "/account/profile",
+    label: "Profile",
+    description: "Your name and avatar",
+  },
+  {
+    href: "/saved",
+    label: "Saved",
+    description: "Peaks and places you want to visit",
+  },
+  {
+    href: "/account/friends",
+    label: "Friends",
+    description: "Friends and invites",
+  },
+];
+
+/** One tidy page: who you are, where to go, and the way out.
+ *
+ * Each destination used to be its own bordered card, which put a box beside
+ * a box beside a box (design-tokens.md law 1). They share one container now,
+ * separated by hairlines — the shape the detail pages already use for a list
+ * of rows. Sign out is a plain outline button, not a filled red one: it is
+ * reversible, so it doesn't earn destructive weight.
+ */
 export default function AccountPage() {
   const { user, signOut, getIdToken } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -36,176 +63,76 @@ export default function AccountPage() {
     load();
   }, [getIdToken]);
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold mb-6 text-ink">Account</h1>
-        <div className="text-muted py-12 text-center">{LOADING_LABEL}</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold mb-6 text-ink">Account</h1>
-        <p role="alert" className="text-alert py-12 text-center text-sm">
-          {error}
-        </p>
-      </div>
-    );
-  }
+  const name = profile?.name || user?.displayName || "No name set";
+  const email = profile?.email || user?.email || "";
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-6 text-ink">Account</h1>
+    <div className="mx-auto max-w-2xl px-6 py-8">
+      <h1 className="text-2xl font-medium text-ink">Account</h1>
 
-      {/* Profile Card */}
-      <div className="p-6 rounded-media border border-border bg-surface mb-6">
-        <div className="flex items-center gap-4">
-          <Avatar
-            name={profile?.name || user?.displayName || null}
-            avatarUrl={profile?.avatarUrl || null}
-            size="lg"
-          />
-          <div className="min-w-0">
-            <div className="text-lg font-semibold truncate text-ink">
-              {profile?.name || user?.displayName || "No name set"}
-            </div>
-            <div className="text-sm text-muted truncate">
-              {profile?.email || user?.email || ""}
-            </div>
-            {profile?.createdAt && (
-              <div className="text-xs text-faint mt-1">
-                Member since{" "}
-                {new Date(profile.createdAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Links */}
-      <div className="space-y-3 mb-8">
-        <Link
-          href="/account/profile"
-          className="flex items-center justify-between p-4 rounded-media border border-border bg-surface hover:bg-fill transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <div>
-              <div className="font-medium text-sm text-ink">Edit Profile</div>
-              <div className="text-xs text-muted">
-                Update your name and avatar
-              </div>
+      {loading ? (
+        <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
+      ) : error ? (
+        <p role="alert" className="mt-6 text-sm text-alert">
+          {error}
+        </p>
+      ) : (
+        <>
+          <div className="mt-8 flex items-center gap-4">
+            <Avatar
+              name={profile?.name || user?.displayName || null}
+              avatarUrl={profile?.avatarUrl || null}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-lg font-medium text-ink">{name}</p>
+              {email ? (
+                <p className="truncate text-sm text-muted">{email}</p>
+              ) : null}
+              {profile?.createdAt ? (
+                <p className="mt-0.5 text-xs text-faint">
+                  Member since{" "}
+                  {new Date(profile.createdAt).toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              ) : null}
             </div>
           </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-faint"
+
+          <nav
+            className="mt-10 divide-y divide-hairline overflow-hidden rounded-media border border-border"
+            aria-label="Account sections"
           >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </Link>
+            {LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-fill"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink">
+                    {link.label}
+                  </span>
+                  <span className="block text-xs text-muted">
+                    {link.description}
+                  </span>
+                </span>
+                <span aria-hidden="true" className="shrink-0 text-faint">
+                  ›
+                </span>
+              </Link>
+            ))}
+          </nav>
 
-        <Link
-          href="/account/friends"
-          className="flex items-center justify-between p-4 rounded-media border border-border bg-surface hover:bg-fill transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            <div>
-              <div className="font-medium text-sm text-ink">Friends</div>
-              <div className="text-xs text-muted">
-                Manage your friends and invites
-              </div>
-            </div>
+          <div className="mt-10">
+            <Button variant="secondary" onClick={() => signOut()}>
+              Sign out
+            </Button>
           </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-faint"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </Link>
-
-        <Link
-          href="/saved"
-          className="flex items-center justify-between p-4 rounded-media border border-border bg-surface hover:bg-fill transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="flex h-5 w-5 items-center justify-center text-lg leading-none text-muted"
-            >
-              ★
-            </span>
-            <div>
-              <div className="font-medium text-sm text-ink">Saved destinations</div>
-              <div className="text-xs text-muted">
-                View your saved peaks and places
-              </div>
-            </div>
-          </div>
-          <span aria-hidden="true" className="text-faint">
-            ›
-          </span>
-        </Link>
-      </div>
-
-      {/* Sign Out */}
-      <Button onClick={handleSignOut} variant="danger" className="w-full">
-        Sign Out
-      </Button>
+        </>
+      )}
     </div>
   );
 }

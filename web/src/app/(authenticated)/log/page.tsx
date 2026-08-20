@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../lib/auth-context";
 import { getUserSessions, getUserStats } from "../../../lib/actions/sessions";
@@ -11,6 +10,11 @@ import type {
 } from "../../../lib/actions/sessions";
 import StatsBanner from "../../../components/stats-banner";
 import SessionCard from "../../../components/session-card";
+import { Button } from "../../../components/ui/button";
+import { Chip } from "../../../components/ui/chip";
+import { EmptyState } from "../../../components/ui/empty-state";
+import { formatFeetValue, formatMilesValue } from "../../../lib/destination-detail";
+import { formatDate } from "../../../lib/format";
 import { LOADING_LABEL } from "../../../lib/constants";
 
 const LIMIT = 20;
@@ -108,53 +112,46 @@ export default function LogPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Session Log</h1>
-        <Link
-          href="/log/import"
-          className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-800"
-        >
-          Import GPX
-        </Link>
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      {/* Import GPX is the page's one filled action (design-tokens.md law
+          4); the filters and Load more sit on neutral fills below. */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-medium text-ink">Session log</h1>
+        <Button href="/log/import">Import GPX</Button>
       </div>
 
-      {/* Lifetime Stats Banner */}
       {stats && (
-        <div className="mb-8">
+        <div className="mt-10">
           <StatsBanner
             primary={{
               label:
                 stats.destinations_reached === 1
-                  ? "peak reached"
-                  : "peaks reached",
-              value: stats.destinations_reached.toString(),
+                  ? "Peak reached"
+                  : "Peaks reached",
+              value: stats.destinations_reached.toLocaleString("en-US"),
             }}
             context={`${stats.total_sessions.toLocaleString(
               "en-US"
             )} recorded activities${
               latestActivityDate
-                ? ` · Last activity ${new Date(
-                    latestActivityDate
-                  ).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}`
+                ? ` · Last activity ${formatDate(latestActivityDate)}`
                 : ""
             }`}
             stats={[
               {
                 label: "Distance",
-                value: `${(stats.total_distance / 1609.34).toFixed(1)} mi`,
+                value: formatMilesValue(stats.total_distance) ?? "0",
+                unit: "mi",
               },
               {
-                label: "Elevation Gain",
-                value: `${Math.round(stats.total_gain * 3.28084).toLocaleString()} ft`,
+                label: "Elevation gain",
+                value: formatFeetValue(stats.total_gain) ?? "0",
+                unit: "ft",
               },
               {
                 label: "Time",
-                value: `${(stats.total_time / 3600).toFixed(1)} hrs`,
+                value: (stats.total_time / 3600).toFixed(1),
+                unit: "hr",
               },
             ]}
           />
@@ -162,46 +159,43 @@ export default function LogPage() {
       )}
 
       <div
-        className="mb-5 flex flex-wrap gap-2"
+        className="mt-12 flex flex-wrap gap-2"
         role="group"
         aria-label="Filter activities"
       >
         {ACTIVITY_FILTERS.map((filter) => (
-          <button
+          <Chip
             key={filter.value}
-            type="button"
+            selected={activityFilter === filter.value}
             onClick={() => setActivityFilter(filter.value)}
-            aria-pressed={activityFilter === filter.value}
-            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-              activityFilter === filter.value
-                ? "border-teal-700 bg-teal-700 text-white"
-                : "border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:text-white"
-            }`}
           >
             {filter.label}
-          </button>
+          </Chip>
         ))}
       </div>
 
       {loadError && !loading && (
-        <div
-          role="alert"
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-        >
+        <p role="alert" className="mt-5 text-sm text-alert">
           {loadError}
-        </div>
+        </p>
       )}
 
-      {/* Session List */}
       {loading ? (
-        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
-      ) : loadError && sessions.length === 0 ? (
-        null
-      ) : sessions.length === 0 ? (
-        <div className="text-gray-500 py-12 text-center">No sessions found</div>
+        <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
+      ) : loadError && sessions.length === 0 ? null : sessions.length === 0 ? (
+        <EmptyState
+          className="mt-6"
+          title="No activities yet"
+          description="Record with the Peaks app, or bring a track in from another tracker."
+          action={
+            <Button href="/log/import" variant="secondary">
+              Import GPX
+            </Button>
+          }
+        />
       ) : (
         <>
-          <div className="space-y-3">
+          <div className="mt-6 space-y-3">
             {sessions.map((session) => (
               <SessionCard
                 key={session.id}
@@ -217,16 +211,15 @@ export default function LogPage() {
             ))}
           </div>
 
-          {/* Load More */}
           {total > offset && (
-            <div className="mt-6 text-center">
-              <button
+            <div className="mt-8 text-center">
+              <Button
+                variant="secondary"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-6 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-blue-300 dark:hover:border-blue-700 disabled:opacity-50 transition-colors"
               >
-                {loadingMore ? LOADING_LABEL : "Load More"}
-              </button>
+                {loadingMore ? LOADING_LABEL : "Load more"}
+              </Button>
             </div>
           )}
         </>

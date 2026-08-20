@@ -13,6 +13,9 @@ import {
 } from "../lib/actions/sessions";
 import { useAuth } from "../lib/auth-context";
 import { buildSessionGpx } from "../lib/session-track";
+import { Button } from "./ui/button";
+import { Input, Label, Select } from "./ui/field";
+import { SectionHeading } from "./ui/section-heading";
 
 function safeFilename(name: string): string {
   const cleaned = name
@@ -22,6 +25,16 @@ function safeFilename(name: string): string {
   return cleaned || "peaks-activity";
 }
 
+/** The owner's tools, in one quiet row at the foot of the activity page
+ * (audit §2b puts them beside the title; a page whose whole job is reading
+ * an activity is better served with the editing tools last).
+ *
+ * Neutral `secondary` fills rather than the `quiet` accent-text variant:
+ * three accent labels in a row would spend the whole accent budget on
+ * chrome (design-tokens.md, "Accent budget"). The page's one filled primary
+ * is Save, and it only exists while the editor is open. Delete keeps its
+ * two-step confirm.
+ */
 export default function SessionActions({
   session,
   displayName,
@@ -177,161 +190,132 @@ export default function SessionActions({
   }
 
   return (
-    <div className={`space-y-3 ${editing ? "w-full" : ""}`}>
+    <section className="space-y-4" aria-labelledby="session-tools">
+      <SectionHeading>
+        <span id="session-tools">Activity tools</span>
+      </SectionHeading>
+
       <div className="flex flex-wrap gap-2">
         {isOwner && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={() => {
               setEditing((value) => !value);
               setConfirmDelete(false);
               setError(null);
             }}
-            className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             {editing ? "Close editor" : "Edit"}
-          </button>
+          </Button>
         )}
         {user && (
-          <button
-            type="button"
-            onClick={exportGpx}
-            disabled={exporting}
-            className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-          >
+          <Button variant="secondary" onClick={exportGpx} disabled={exporting}>
             {exporting ? "Preparing GPX…" : "Export GPX"}
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          onClick={share}
-          className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-        >
+        <Button variant="secondary" onClick={share}>
           Share
-        </button>
+        </Button>
+        {isOwner && (
+          <Button
+            variant="danger"
+            onClick={() => {
+              setConfirmDelete(true);
+              setMessage(null);
+              setError(null);
+            }}
+          >
+            Delete
+          </Button>
+        )}
       </div>
 
       {message && (
-        <p
-          role="status"
-          className="text-sm font-medium text-emerald-700 dark:text-emerald-400"
-        >
+        <p role="status" className="text-sm font-medium text-success">
           {message}
         </p>
       )}
       {error && (
-        <p
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-        >
+        <p role="alert" className="text-sm text-alert">
           {error}
         </p>
       )}
 
+      {confirmDelete && isOwner && (
+        <div className="rounded-media border border-alert/40 p-4">
+          <p className="text-sm font-medium text-ink">
+            Delete this activity and all of its GPS points? This cannot be
+            undone.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="danger" onClick={remove} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete permanently"}
+            </Button>
+            <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
+              Keep activity
+            </Button>
+          </div>
+        </div>
+      )}
+
       {editing && isOwner && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="sm:col-span-2">
-              <span className="mb-1.5 block text-sm font-medium">
-                Activity name
-              </span>
-              <input
+        <div className="rounded-media border border-border p-4 sm:p-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="session-name">Activity name</Label>
+              <Input
+                id="session-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 maxLength={120}
                 placeholder="Use reached peaks when blank"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 dark:border-gray-700 dark:bg-gray-900"
               />
-            </label>
+            </div>
 
-            <label>
-              <span className="mb-1.5 block text-sm font-medium">
-                Activity type
-              </span>
-              <select
+            <div>
+              <Label htmlFor="session-activity-type">Activity type</Label>
+              <Select
+                id="session-activity-type"
                 value={activityType}
                 onChange={(event) =>
                   setActivityType(event.target.value as SessionActivityType | "")
                 }
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 dark:border-gray-700 dark:bg-gray-900"
               >
                 <option value="">Outdoor activity</option>
                 <option value="outdoor-trek">Hike</option>
                 <option value="ski">Ski</option>
                 <option value="outdoor-moto">Moto</option>
-              </select>
-            </label>
+              </Select>
+            </div>
 
-            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+            <label className="flex items-start gap-3 self-end pb-1">
               <input
                 type="checkbox"
                 checked={isPublic}
                 onChange={(event) => setIsPublic(event.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-teal-700"
+                className="mt-0.5 h-4 w-4 accent-accent"
               />
               <span>
-                <span className="block text-sm font-medium">Public activity</span>
-                <span className="mt-0.5 block text-xs leading-5 text-gray-500 dark:text-gray-400">
+                <span className="block text-sm font-medium text-ink">
+                  Public activity
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted">
                   Anyone with this link can view the activity and track.
                 </span>
               </span>
             </label>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
-              >
-                Cancel
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-            >
-              Delete activity
-            </button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button onClick={save} disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
           </div>
-
-          {confirmDelete && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
-              <p className="text-sm font-medium text-red-900 dark:text-red-200">
-                Delete this activity and all of its GPS points? This cannot be
-                undone.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={remove}
-                  disabled={deleting}
-                  className="rounded-lg bg-red-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
-                >
-                  {deleting ? "Deleting…" : "Delete permanently"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="rounded-lg px-3.5 py-2 text-sm font-medium text-red-800 dark:text-red-200"
-                >
-                  Keep activity
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

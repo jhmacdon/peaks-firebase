@@ -12,17 +12,26 @@ interface Point {
 interface SessionMapProps {
   points: Point[];
   activeIndex?: number | null;
+  /** Height (and any clipping) of the embed — the container owns the shape. */
+  className?: string;
 }
 
-const SEGMENT_COLORS = [
-  "#3b82f6", // blue
-  "#10b981", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // purple
-  "#ec4899", // pink
-  "#06b6d4", // cyan
-];
+// Same teal as route-map.tsx / destination-map.tsx / explore-map.tsx — one
+// map colour across the site (design-tokens.md, "Accent budget"). Fixed hex
+// rather than the token: Leaflet paints into its own layers, which never see
+// the page's CSS variables.
+//
+// This used to be a seven-hue rainbow, one colour per recording segment. The
+// segments are pause/resume breaks in one activity, not seven different
+// things, and the break is already visible as a gap between polylines — so
+// the rainbow was spending six colours to say nothing.
+//
+// During playback the part not yet reached is the same teal held back to
+// 40%: the track is the subject of this map, and washing it out to grey (as
+// it was) left a parked scrubber showing a nearly invisible route on top of
+// a busy topo basemap.
+const TRACK = "#46ADBC";
+const TRACK_PENDING_OPACITY = 0.4;
 
 function groupPositions(points: Point[]): Map<number, [number, number][]> {
   const segments: Map<number, [number, number][]> = new Map();
@@ -37,6 +46,7 @@ function groupPositions(points: Point[]): Map<number, [number, number][]> {
 export default function SessionMap({
   points,
   activeIndex = null,
+  className = "h-80",
 }: SessionMapProps) {
   if (points.length === 0) return null;
 
@@ -61,11 +71,14 @@ export default function SessionMap({
   ];
 
   return (
-    <div className="h-80 rounded-lg overflow-hidden">
+    // No radius here — the section container that holds the map owns it, so
+    // a rounded corner never gets drawn twice (same contract as
+    // components/route-map.tsx).
+    <div className={className}>
       <MapContainer
         bounds={bounds}
         boundsOptions={{ padding: [30, 30] }}
-        className="h-full w-full"
+        className="map-embed h-full w-full"
         scrollWheelZoom={false}
       >
         <TileLayer
@@ -78,10 +91,7 @@ export default function SessionMap({
               <Polyline
                 key={segNum}
                 positions={positions}
-                pathOptions={{
-                  color: SEGMENT_COLORS[segNum % SEGMENT_COLORS.length],
-                  weight: 3,
-                }}
+                pathOptions={{ color: TRACK, weight: 3 }}
               />
             ))
           : (
@@ -91,8 +101,8 @@ export default function SessionMap({
                     key={`remaining-${segNum}`}
                     positions={positions}
                     pathOptions={{
-                      color: "#64748b",
-                      opacity: 0.42,
+                      color: TRACK,
+                      opacity: TRACK_PENDING_OPACITY,
                       weight: 3,
                     }}
                   />
@@ -102,12 +112,7 @@ export default function SessionMap({
                     <Polyline
                       key={`complete-${segNum}`}
                       positions={positions}
-                      pathOptions={{
-                        color:
-                          SEGMENT_COLORS[segNum % SEGMENT_COLORS.length],
-                        opacity: 0.95,
-                        weight: 4,
-                      }}
+                      pathOptions={{ color: TRACK, opacity: 1, weight: 4 }}
                     />
                   )
                 )}
@@ -117,7 +122,7 @@ export default function SessionMap({
                     radius={7}
                     pathOptions={{
                       color: "#ffffff",
-                      fillColor: "#0f766e",
+                      fillColor: TRACK,
                       fillOpacity: 1,
                       opacity: 1,
                       weight: 3,
