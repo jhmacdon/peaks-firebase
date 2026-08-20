@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
+import { JsonLdScript } from "../../../../components/json-ld-script";
 import { getAreaSummary } from "../../../../lib/actions/areas";
 import { describeDesignation } from "../../../../lib/area-types";
 import { buildAreaJsonLd } from "../../../../lib/json-ld";
@@ -38,10 +39,7 @@ export default async function AreaLayout({
   return (
     <>
       {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLdScript data={jsonLd} />
       )}
       {children}
     </>

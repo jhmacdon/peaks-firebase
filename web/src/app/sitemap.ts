@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
 import db from "../lib/db";
 import { absoluteUrl } from "../lib/seo";
-
-const DESTINATION_CHUNK_SIZE = 40_000;
+import {
+  DESTINATION_CHUNK_SIZE,
+  resolveDestinationChunkCount,
+} from "../lib/sitemap-chunks";
 
 const SITEMAP_IDS = {
   areas: "areas",
@@ -44,14 +46,12 @@ function destinationChunkIndex(id: string): number | null {
 export const dynamic = "force-dynamic";
 
 export async function generateSitemaps(): Promise<Array<{ id: string }>> {
-  const result = await safeQuery(
-    db.query<CountRow>("SELECT COUNT(*)::int AS count FROM destinations")
-  );
-  const destinationCount = Number(result?.rows[0]?.count ?? 0);
-  const destinationChunkCount = Math.max(
-    1,
-    Math.ceil(destinationCount / DESTINATION_CHUNK_SIZE)
-  );
+  const destinationChunkCount = await resolveDestinationChunkCount(async () => {
+    const result = await db.query<CountRow>(
+      "SELECT COUNT(*)::int AS count FROM destinations"
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  });
 
   return [
     ...Array.from({ length: destinationChunkCount }, (_, index) => ({

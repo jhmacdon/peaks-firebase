@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import { getList, getListDestinations } from "../../../../lib/actions/lists";
+import { JsonLdScript } from "../../../../components/json-ld-script";
+import { getList } from "../../../../lib/actions/lists";
+import { getCachedListDestinations } from "../../../../lib/actions/cached-lists";
 import { buildListJsonLd } from "../../../../lib/json-ld";
 import { describeList } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
@@ -8,7 +10,6 @@ import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 export const dynamic = "force-dynamic";
 
 const getListForSeo = cache(getList);
-const getListDestinationsForSeo = cache(getListDestinations);
 
 export default async function ListLayout({
   children,
@@ -23,7 +24,7 @@ export default async function ListLayout({
   try {
     const [list, destinations] = await Promise.all([
       getListForSeo(id),
-      getListDestinationsForSeo(id),
+      getCachedListDestinations(id),
     ]);
     if (list) {
       jsonLd = buildListJsonLd({
@@ -43,10 +44,7 @@ export default async function ListLayout({
   return (
     <>
       {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLdScript data={jsonLd} />
       )}
       {children}
     </>

@@ -6,7 +6,19 @@ import {
   buildDestinationJsonLd,
   buildListJsonLd,
   buildRouteJsonLd,
+  serializeJsonLd,
 } from "./json-ld";
+
+test("serializeJsonLd escapes script-breaking markup", () => {
+  const data = { name: '</script><script data-test="x">&' };
+  const serialized = serializeJsonLd(data);
+
+  assert.equal(serialized.includes("<"), false);
+  assert.equal(serialized.includes(">"), false);
+  assert.equal(serialized.includes("&"), false);
+  assert.match(serialized, /\\u003c\/script\\u003e/);
+  assert.deepEqual(JSON.parse(serialized), data);
+});
 
 test("destination JSON-LD uses Mountain with geo and elevation for summits", () => {
   assert.deepEqual(

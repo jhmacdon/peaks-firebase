@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
+import { JsonLdScript } from "../../../../components/json-ld-script";
 import { getRoute, getRouteDestinations } from "../../../../lib/actions/routes";
 import { buildRouteJsonLd } from "../../../../lib/json-ld";
 import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
@@ -36,10 +37,7 @@ export default async function RouteLayout({
   return (
     <>
       {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLdScript data={jsonLd} />
       )}
       {children}
     </>

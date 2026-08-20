@@ -4,6 +4,7 @@ import {
   getDestination,
   getDestinationSessionCount,
 } from "../../../../lib/actions/destinations";
+import { JsonLdScript } from "../../../../components/json-ld-script";
 import { describeDestinationType } from "../../../../lib/destination-detail";
 import { buildDestinationJsonLd } from "../../../../lib/json-ld";
 import { subdivisionName, countryName } from "../../../../lib/regions";
@@ -43,10 +44,7 @@ export default async function DestinationLayout({
   return (
     <>
       {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLdScript data={jsonLd} />
       )}
       {children}
     </>

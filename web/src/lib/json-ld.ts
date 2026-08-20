@@ -3,6 +3,13 @@ const ITEM_LIST_LIMIT = 50;
 
 type JsonLd = Record<string, unknown>;
 
+export function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026");
+}
+
 function text(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed || undefined;
