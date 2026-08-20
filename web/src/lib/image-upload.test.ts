@@ -86,6 +86,19 @@ test("resolvedMimeType prefers the browser-reported type and lowercases it", () 
   );
 });
 
+test("resolvedMimeType normalizes an explicitly-reported image/heif to image/heic", () => {
+  assert.equal(resolvedMimeType({ type: "image/heif", size: 1 }), "image/heic");
+  assert.equal(resolvedMimeType({ type: "IMAGE/HEIF", size: 1 }), "image/heic");
+});
+
+test("validateImageFile accepts a .heif file reported as image/heif", () => {
+  const result = validateImageFile(
+    { type: "image/heif", size: 1024, name: "photo.heif" },
+    REPORT_PHOTO_UPLOAD_LIMITS
+  );
+  assert.deepEqual(result, { ok: true });
+});
+
 test("a HEIC file with a blank type only validates once the extension fallback applies", () => {
   const noName = validateImageFile({ type: "", size: 1024 }, REPORT_PHOTO_UPLOAD_LIMITS);
   assert.equal(noName.ok, false);

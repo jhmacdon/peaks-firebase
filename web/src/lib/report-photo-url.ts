@@ -82,11 +82,24 @@ function firebaseStorageLocation(
   return bucket && objectPath ? { bucket, objectPath } : null;
 }
 
+export interface NormalizedReportPhoto {
+  /** Canonical HTTPS download URL — safe to render and store as-is. */
+  url: string;
+  /** The bucket object path (e.g. `trip-reports/uid/sessionId/abc123`) —
+   * what `trip_report_photos.storage_path` stores, and what
+   * `trip_report_photo_deletions` needs to actually delete the object
+   * later. */
+  storagePath: string;
+}
+
 /**
- * Return a canonical HTTPS URL only when it points at the configured Peaks
- * Firebase Storage bucket. Null means the URL must not be rendered or stored.
+ * Validate + decompose a photo URL, but only when it points at the
+ * configured Peaks Firebase Storage bucket. Null means the URL must not be
+ * rendered or stored — used both to sanitize what the report detail page
+ * renders and to gate what `trip-reports.ts` persists to
+ * `trip_report_photos`.
  */
-export function normalizeReportPhotoUrl(value: unknown): string | null {
+export function normalizeReportPhoto(value: unknown): NormalizedReportPhoto | null {
   if (typeof value !== "string") return null;
   const configuredBucket = configuredStorageBucket();
   if (!configuredBucket) return null;
@@ -115,5 +128,13 @@ export function normalizeReportPhotoUrl(value: unknown): string | null {
     return null;
   }
 
-  return url.toString();
+  return { url: url.toString(), storagePath: location.objectPath };
+}
+
+/**
+ * Return a canonical HTTPS URL only when it points at the configured Peaks
+ * Firebase Storage bucket. Null means the URL must not be rendered or stored.
+ */
+export function normalizeReportPhotoUrl(value: unknown): string | null {
+  return normalizeReportPhoto(value)?.url ?? null;
 }

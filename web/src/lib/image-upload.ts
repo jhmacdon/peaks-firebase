@@ -38,9 +38,17 @@ const HEIC_EXTENSION_PATTERN = /\.(heic|heif)$/i;
  * on iOS in particular often reports an empty `file.type` for photos
  * straight off the camera roll. Fall back to the file extension so a real
  * HEIC photo isn't rejected just because the browser didn't label it.
+ *
+ * Also normalizes an explicitly-reported `image/heif` to `image/heic` —
+ * `REPORT_PHOTO_UPLOAD_LIMITS.acceptedMimeTypes` only lists the latter, but
+ * the file input's `accept` attribute invites both, and some browsers/OSes
+ * do report `image/heif` for what's functionally the same HEIF-family
+ * format as `.heic`.
  */
 export function resolvedMimeType(file: ImageFileMeta): string {
-  if (file.type) return file.type.toLowerCase();
+  const reported = file.type ? file.type.toLowerCase() : "";
+  if (reported === "image/heif") return "image/heic";
+  if (reported) return reported;
   if (file.name && HEIC_EXTENSION_PATTERN.test(file.name)) return "image/heic";
   return "";
 }

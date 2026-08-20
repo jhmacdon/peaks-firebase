@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../../../lib/auth-context";
 import { getProfile, updateProfile } from "../../../../lib/actions/profile";
-import { uploadAvatar } from "../../../../lib/storage";
+import { uploadAvatar, type ImageUploadHandle } from "../../../../lib/storage";
 import { maybeDownscaleImage } from "../../../../lib/image-downscale";
 import { AVATAR_UPLOAD_LIMITS, validateImageFile } from "../../../../lib/image-upload";
 import type { UserProfile } from "../../../../lib/actions/profile";
@@ -31,6 +31,20 @@ export default function EditProfilePage() {
     text: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Guards every setState after an `await` in handleAvatarChange — a
+  // mid-upload navigation away from this page must not call setState on an
+  // unmounted component.
+  const mountedRef = useRef(true);
+  const activeUploadRef = useRef<ImageUploadHandle | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Actually abort the transfer too, not just ignore its result.
+      activeUploadRef.current?.cancel();
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -73,9 +87,16 @@ export default function EditProfilePage() {
     setMessage(null);
     try {
       const { blob, contentType } = await maybeDownscaleImage(file);
-      const url = await uploadAvatar(user.uid, blob, contentType, (fraction) =>
-        setUploadProgress(Math.round(fraction * 100))
-      );
+      if (!mountedRef.current) return;
+
+      const upload = uploadAvatar(user.uid, blob, contentType, (fraction) => {
+        if (mountedRef.current) setUploadProgress(Math.round(fraction * 100));
+      });
+      activeUploadRef.current = upload;
+      const url = await upload.promise;
+      activeUploadRef.current = null;
+      if (!mountedRef.current) return;
+
       setAvatarUrl(url);
 
       // Also save to profile immediately
@@ -83,11 +104,12 @@ export default function EditProfilePage() {
       if (token) {
         await updateProfile(token, { avatarUrl: url });
       }
-      setMessage({ type: "success", text: "Avatar updated" });
+      if (mountedRef.current) setMessage({ type: "success", text: "Avatar updated" });
     } catch {
-      setMessage({ type: "error", text: "Failed to upload avatar" });
+      activeUploadRef.current = null;
+      if (mountedRef.current) setMessage({ type: "error", text: "Failed to upload avatar" });
     } finally {
-      setUploading(false);
+      if (mountedRef.current) setUploading(false);
     }
   };
 

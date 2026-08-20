@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TripReportBlock } from "../lib/actions/trip-reports";
 import { maybeDownscaleImage } from "../lib/image-downscale";
 import { REPORT_PHOTO_UPLOAD_LIMITS, validateImageFile } from "../lib/image-upload";
-import { uploadReportPhoto } from "../lib/storage";
+import { uploadReportPhoto, type ImageUploadHandle } from "../lib/storage";
 import { Button } from "./ui/button";
 import { Label, Input, Textarea } from "./ui/field";
 
 const REPORT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+const REPORT_PHOTO_MAX_MB = REPORT_PHOTO_UPLOAD_LIMITS.maxBytes / (1024 * 1024);
 
 interface PhotoBlockFieldsProps {
   content: string;
@@ -33,6 +34,21 @@ function PhotoBlockFields({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Guards every setState after an `await` — a mid-upload navigation away
+  // from this report (or a drag-reorder remount, since blocks are keyed by
+  // index) must not call setState on an unmounted PhotoBlockFields.
+  const mountedRef = useRef(true);
+  const activeUploadRef = useRef<ImageUploadHandle | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Actually abort the transfer too, not just ignore its result —
+      // otherwise an unmounted upload keeps consuming bandwidth/quota.
+      activeUploadRef.current?.cancel();
+    };
+  }, []);
 
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,18 +67,22 @@ function PhotoBlockFields({
       setProgress(0);
       try {
         const { blob, contentType } = await maybeDownscaleImage(file);
-        const url = await uploadReportPhoto(
-          userId,
-          sessionId,
-          blob,
-          contentType,
-          (fraction) => setProgress(Math.round(fraction * 100))
-        );
+        if (!mountedRef.current) return;
+
+        const upload = uploadReportPhoto(userId, sessionId, blob, contentType, (fraction) => {
+          if (mountedRef.current) setProgress(Math.round(fraction * 100));
+        });
+        activeUploadRef.current = upload;
+        const url = await upload.promise;
+        activeUploadRef.current = null;
+        if (!mountedRef.current) return;
+
         onChange({ content: url });
       } catch {
-        setError("Upload failed. Try again.");
+        activeUploadRef.current = null;
+        if (mountedRef.current) setError("Upload failed. Try again.");
       } finally {
-        setUploading(false);
+        if (mountedRef.current) setUploading(false);
       }
     },
     [onChange, userId, sessionId]
@@ -91,7 +111,9 @@ function PhotoBlockFields({
           onChange={handleFileChange}
           className="hidden"
         />
-        <span className="text-xs text-faint">{REPORT_PHOTO_UPLOAD_LIMITS.label}. Up to 10MB.</span>
+        <span className="text-xs text-faint">
+          {REPORT_PHOTO_UPLOAD_LIMITS.label}. Up to {REPORT_PHOTO_MAX_MB}MB.
+        </span>
       </div>
 
       {error && (
