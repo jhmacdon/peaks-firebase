@@ -59,12 +59,20 @@ export type TrailheadHighClearance = 'required' | 'recommended' | 'not_required'
 export type TrailheadBathroomStatus = 'present' | 'absent';
 export type TrailheadBathroomType = 'vault_pit' | 'flush' | 'portable' | 'composting' | 'unspecified';
 
+// What the parking is, not how much of it there is. A source can map a lot
+// without counting a single space — the National Park Service publishes 6,740
+// lot polygons and no capacity field at all — and "there is a lot here" is a
+// fact worth printing on its own. 'roadside' is a pullout or shoulder rather
+// than a marked lot; 'garage' is a structure. Never infer capacity from this.
+export type TrailheadParkingType = 'lot' | 'roadside' | 'garage' | 'other';
+
 export interface TrailheadSeasonalWindow {
   opens: string;   // e.g. "05-15" (MM-DD) or a provider's raw seasonal text
   closes: string;
 }
 
 export interface TrailheadParking {
+  type?: SourcedValue<TrailheadParkingType>;
   fee_required?: SourcedValue<boolean>;
   day_fee_usd?: SourcedValue<number>;
   annual_fee_usd?: SourcedValue<number>;
