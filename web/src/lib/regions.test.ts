@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  allUsStateCodes,
   countryName,
   formatRegion,
   formatRegionList,
   subdivisionName,
+  usStateCodeFromSlug,
+  usStateSlugFromCode,
 } from "./regions";
 
 test("countryName expands a known ISO 3166-1 code, case-insensitively", () => {
@@ -52,4 +55,38 @@ test("formatRegionList drops unresolved codes and falls back to the country", ()
   assert.equal(formatRegionList(["ZZ"], "US"), "United States");
   assert.equal(formatRegionList([], "US"), "United States");
   assert.equal(formatRegionList(null, "US"), "United States");
+});
+
+test("usStateCodeFromSlug resolves a known state slug, case-insensitively", () => {
+  assert.equal(usStateCodeFromSlug("washington"), "WA");
+  assert.equal(usStateCodeFromSlug("North-Carolina".toLowerCase()), "NC");
+  assert.equal(usStateCodeFromSlug("new-mexico"), "NM");
+});
+
+test("usStateCodeFromSlug returns null for anything unmapped", () => {
+  assert.equal(usStateCodeFromSlug("narnia"), null);
+  assert.equal(usStateCodeFromSlug(""), null);
+  assert.equal(usStateCodeFromSlug(null), null);
+  assert.equal(usStateCodeFromSlug(undefined), null);
+});
+
+test("usStateSlugFromCode is the inverse of usStateCodeFromSlug", () => {
+  for (const code of allUsStateCodes()) {
+    const slug = usStateSlugFromCode(code);
+    assert.ok(slug, `expected a slug for ${code}`);
+    assert.equal(usStateCodeFromSlug(slug), code);
+  }
+});
+
+test("usStateSlugFromCode returns null for an unmapped code", () => {
+  assert.equal(usStateSlugFromCode("ZZ"), null);
+  assert.equal(usStateSlugFromCode(null), null);
+});
+
+test("allUsStateCodes covers the 50 states plus DC and the mapped territories", () => {
+  const codes = allUsStateCodes();
+  assert.ok(codes.includes("WA"));
+  assert.ok(codes.includes("DC"));
+  assert.ok(codes.includes("PR"));
+  assert.equal(new Set(codes).size, codes.length);
 });

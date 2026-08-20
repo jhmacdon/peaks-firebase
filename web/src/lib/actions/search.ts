@@ -314,6 +314,219 @@ export async function getPopularDestinations(
   };
 }
 
+/** Extra WHERE conditions layered onto the same popular-destinations shape
+ * as getPopularDestinations — the SEO landing pages' "top 12" (Task 18).
+ * `features`/`activities` match on ANY overlap (`&&`), same semantics as the
+ * viewport query's feature filter. */
+interface FilteredPopularOptions {
+  stateCode?: string;
+  countryCode?: string;
+  features?: string[];
+  activities?: string[];
+}
+
+function filteredPopularConditions(
+  options: FilteredPopularOptions,
+  params: unknown[]
+): string {
+  const conditions: string[] = [];
+
+  if (options.stateCode) {
+    params.push(options.stateCode);
+    conditions.push(`d.state_code = $${params.length}`);
+  }
+  if (options.countryCode) {
+    params.push(options.countryCode);
+    conditions.push(`d.country_code = $${params.length}`);
+  }
+  if (options.features?.length) {
+    params.push(options.features);
+    conditions.push(`d.features && $${params.length}::destination_feature[]`);
+  }
+  if (options.activities?.length) {
+    params.push(options.activities);
+    conditions.push(`d.activities && $${params.length}::activity_type[]`);
+  }
+
+  return conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+}
+
+/**
+ * Same popularity ranking and same never-half-empty fallback as
+ * getPopularDestinations, scoped to a state and/or a feature/activity match
+ * — the query behind every /activities/[type] and /peaks/[state] "top 12"
+ * module. One query for the ranked list, a second only when the fallback
+ * threshold isn't cleared (identical shape to getPopularDestinations).
+ *
+ * `d.state_code` has no dedicated index (see search.ts's other filters,
+ * which lean on the GIN indexes over `features`/`activities` instead) — an
+ * accepted sequential scan under the same hourly-ISR cost budget the
+ * unfiltered query already spends on its own full-table join.
+ */
+async function getFilteredPopularDestinations(
+  options: FilteredPopularOptions,
+  limit: number
+): Promise<PopularDestinationsResult> {
+  const params: unknown[] = [];
+  const whereExtra = filteredPopularConditions(options, params);
+  params.push(limit);
+  const limitIdx = params.length;
+  params.push(POPULAR_DESTINATION_MIN_SESSIONS);
+  const minSessionsIdx = params.length;
+
+  const result = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
+     FROM destinations d
+     LEFT JOIN (
+       SELECT destination_id, COUNT(DISTINCT session_id) AS session_count
+       FROM session_destinations
+       GROUP BY destination_id
+     ) counts ON counts.destination_id = d.id
+     WHERE (COALESCE(counts.session_count, 0) + d.session_count_offset) >= $${minSessionsIdx}
+       ${whereExtra}
+     ORDER BY session_count DESC, d.name ASC NULLS LAST
+     LIMIT $${limitIdx}`,
+    params
+  );
+
+  const destinations = result.rows.map(mapPopularDestinationRow);
+  if (destinations.length >= POPULAR_DESTINATION_FALLBACK_THRESHOLD) {
+    return { destinations, isFallback: false };
+  }
+
+  const remaining = limit - destinations.length;
+  const fallbackParams: unknown[] = [];
+  const fallbackWhereExtra = filteredPopularConditions(options, fallbackParams);
+  fallbackParams.push(destinations.map((d) => d.id));
+  const excludeIdx = fallbackParams.length;
+  fallbackParams.push(remaining);
+  const remainingIdx = fallbackParams.length;
+
+  const fallback = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng
+     FROM destinations d
+     WHERE d.hero_image IS NOT NULL
+       AND NOT (d.id = ANY($${excludeIdx}::text[]))
+       ${fallbackWhereExtra}
+     ORDER BY d.elevation DESC NULLS LAST, d.name ASC NULLS LAST
+     LIMIT $${remainingIdx}`,
+    fallbackParams
+  );
+
+  return {
+    destinations: [...destinations, ...fallback.rows.map(mapPopularDestinationRow)],
+    isFallback: fallback.rows.length > 0,
+  };
+}
+
+/** /activities/peak-bagging's top 12: destinations tagged the `summit`
+ * feature (volcanoes are a strict subset — checked live 2026-08-20, every
+ * `volcano`-featured destination is also `summit`), ranked the same as the
+ * catalog-wide popular list. */
+export async function getTopSummitDestinations(
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ features: ["summit"] }, limit);
+}
+
+/** /activities/hiking's top 12: destinations tagged the `outdoor-trek`
+ * activity. That's nearly the whole catalog (82,931 of 82,977 destinations
+ * checked live 2026-08-20) since almost everything in Peaks is reachable on
+ * foot — the filter is a correctness statement, not a meaningfully
+ * narrowing one, and the session-count ranking is what actually surfaces
+ * real hiking destinations. */
+export async function getTopHikingDestinations(
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ activities: ["outdoor-trek"] }, limit);
+}
+
+/** /peaks/[state]'s top 12, restricted to US to avoid a same-code collision
+ * with a foreign province (PAD-US/geocoding put a handful of Italian
+ * provinces at `state_code` values like `TN`/`BL` that would otherwise leak
+ * into a US state's count — checked live 2026-08-20). */
+export async function getTopDestinationsForState(
+  stateCode: string,
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ stateCode, countryCode: "US" }, limit);
+}
+
+export interface StateCatalogFacts {
+  /** Total destinations in the state — 0 means the state has no catalog
+   * presence at all, the caller's signal to 404 rather than render an
+   * all-empty page. */
+  destinationCount: number;
+  highestPeak: { id: string; name: string | null; elevation: number } | null;
+}
+
+/**
+ * The two facts /peaks/[state]'s editorial paragraph needs. Two small
+ * queries, not one: "highest peak" is scoped to `summit`-featured
+ * destinations specifically, so a data-entry error on an unrelated feature
+ * can't surface as the state's high point. Checked live 2026-08-20 —
+ * Washington's plain MAX(elevation) picks a lake (`region`/`lake`, no
+ * `summit` feature) carrying an elevation value that belongs to a
+ * different, much higher "Junction Lake" outside the state; the state's
+ * real high point, Mount Rainier, is a `summit`-featured destination.
+ */
+export async function getStateCatalogFacts(stateCode: string): Promise<StateCatalogFacts> {
+  const [countResult, peakResult] = await Promise.all([
+    db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+       FROM destinations
+       WHERE state_code = $1 AND country_code = 'US'`,
+      [stateCode]
+    ),
+    db.query(
+      `SELECT id, name, elevation
+       FROM destinations
+       WHERE state_code = $1 AND country_code = 'US' AND 'summit' = ANY(features)
+       ORDER BY elevation DESC NULLS LAST
+       LIMIT 1`,
+      [stateCode]
+    ),
+  ]);
+
+  const destinationCount = Number(countResult.rows[0]?.count ?? 0);
+  const peakRow = peakResult.rows[0];
+
+  return {
+    destinationCount,
+    highestPeak:
+      peakRow?.elevation != null
+        ? { id: peakRow.id, name: peakRow.name, elevation: Number(peakRow.elevation) }
+        : null,
+  };
+}
+
+/** The live count each activity landing paragraph cites — recorded hikes
+ * for hiking, named summits for peak-bagging. Skiing and trail-running have
+ * no such count (see landing-copy.ts) so the page never calls this for
+ * them. */
+export async function getActivityLandingCount(
+  type: "hiking" | "peak-bagging"
+): Promise<number> {
+  if (type === "peak-bagging") {
+    const result = await db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM destinations WHERE 'summit' = ANY(features)`
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  const result = await db.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM tracking_sessions WHERE activity_type = 'outdoor-trek'`
+  );
+  return Number(result.rows[0]?.count ?? 0);
+}
+
 export async function searchRoutes(
   query: string,
   limit: number = 8

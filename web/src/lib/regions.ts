@@ -363,3 +363,51 @@ export function formatRegionList(
   if (states.length > 0) return states.join(", ");
   return countryName(countryCode);
 }
+
+// ── /peaks/[state] slug mapping ─────────────────────────────────────────
+// The URL uses the full lowercase state name ("/peaks/north-carolina"), not
+// the two-letter code the database stores — a reader can't type "NC" into a
+// browser bar with any confidence, and a reader can always spell out where
+// they're going. Both directions derive from the same SUBDIVISIONS.US table
+// above, so a new territory only needs adding there once.
+
+/** "North Carolina" -> "north-carolina". Plain ASCII in, plain ASCII out —
+ * every value in SUBDIVISIONS.US is already unaccented English. */
+function slugifyStateName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+let usStateSlugToCode: Map<string, string> | null = null;
+
+function usStateSlugMap(): Map<string, string> {
+  if (!usStateSlugToCode) {
+    usStateSlugToCode = new Map(
+      Object.entries(SUBDIVISIONS.US).map(([code, name]) => [slugifyStateName(name), code])
+    );
+  }
+  return usStateSlugToCode;
+}
+
+/** "washington" -> "WA", or null when the slug isn't a mapped US state or
+ * territory — the caller's signal to 404 rather than render an empty page. */
+export function usStateCodeFromSlug(slug: string | null | undefined): string | null {
+  if (!slug) return null;
+  return usStateSlugMap().get(slug.toLowerCase()) ?? null;
+}
+
+/** "WA" -> "washington", or null when the code isn't mapped. Inverse of
+ * usStateCodeFromSlug, built from the same table so the two can't drift. */
+export function usStateSlugFromCode(code: string | null | undefined): string | null {
+  const name = subdivisionName("US", code);
+  return name ? slugifyStateName(name) : null;
+}
+
+/** Every mapped US state/territory code — the full domain a build-time
+ * catalog query can be checked against, and the source for a fallback list
+ * when that query can't run at all. */
+export function allUsStateCodes(): string[] {
+  return Object.keys(SUBDIVISIONS.US);
+}

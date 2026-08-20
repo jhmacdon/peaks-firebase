@@ -647,6 +647,42 @@ export async function getAreasIndex(
   return { areas, states, totalMatching, totalAreas };
 }
 
+/**
+ * /peaks/[state]'s protected-areas row: the areas with the most linked
+ * destinations in one state, US-only for the same reason
+ * getTopDestinationsForState is (search.ts) — a raw `state_code` match can
+ * otherwise pick up a same-coded foreign province.
+ */
+export async function getTopAreasForState(
+  stateCode: string,
+  limit: number = 6
+): Promise<AreaIndexRow[]> {
+  const result = await db.query<{
+    id: unknown;
+    name: unknown;
+    kind: unknown;
+    designation: unknown;
+    destination_count: unknown;
+  }>(
+    `SELECT a.id, a.name, a.kind, a.designation,
+            ${DESTINATION_COUNT_SUBQUERY} AS destination_count
+     FROM areas a
+     WHERE $1 = ANY(a.state_codes) AND a.country_code = 'US'
+     ORDER BY destination_count DESC, a.name ASC
+     LIMIT $2`,
+    [stateCode, limit]
+  );
+
+  return result.rows.map((row) => ({
+    id: textValue(row.id) ?? "",
+    name: textValue(row.name) ?? "Protected area",
+    kind: normalizeAreaKind(row.kind),
+    designation: textValue(row.designation),
+    stateCode,
+    destinationCount: integerValue(row.destination_count),
+  }));
+}
+
 function textValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
