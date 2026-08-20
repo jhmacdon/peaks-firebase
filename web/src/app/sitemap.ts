@@ -137,6 +137,10 @@ export default async function sitemap({
     const lastModified = new Date();
     return [
       {
+        url: absoluteUrl("/"),
+        lastModified,
+      },
+      {
         url: absoluteUrl("/discover"),
         lastModified,
       },

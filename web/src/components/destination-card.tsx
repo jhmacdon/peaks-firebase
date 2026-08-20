@@ -33,10 +33,13 @@ export default function DestinationCard({
 
   return (
     <Card href={`/destinations/${id}`} className="h-full">
-      <div className="text-base font-semibold leading-tight text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
+      {/* Tokens only, and 500 is the heaviest weight the text face gets
+          (design-tokens.md, "Text — Geist"). The card's own hover fill is the
+          affordance, so the title doesn't restate it with a color change. */}
+      <div className="text-base font-medium leading-tight text-ink">
         {name || "Unnamed"}
       </div>
-      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{meta}</div>
+      <div className="mt-1 text-sm text-muted">{meta}</div>
       {primaryFeature && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge tone="emerald">{primaryFeature}</Badge>

@@ -33,12 +33,12 @@ Requires Cloud SQL Auth Proxy running locally for database access (`DB_HOST=127.
 src/
   app/
     layout.tsx                        # Root layout (fonts, metadata)
-    page.tsx                          # Redirects to /discover
     login/page.tsx                    # Sign in (email, Google, Apple)
     register/page.tsx                 # Create account
     not-found.tsx                     # 404 page
     (public)/                         # Route group: public pages (AppNav, no auth)
       layout.tsx
+      page.tsx                        # `/` — landing page (hero, catalog stats, entry points)
       discover/page.tsx               # Search + nearby + popular + lists
       destinations/[id]/page.tsx      # Destination detail (read-only)
       destinations/[id]/reports/      # Trip reports for destination

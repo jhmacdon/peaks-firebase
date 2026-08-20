@@ -37,6 +37,60 @@ function geoCoordinates(input: {
   };
 }
 
+export function buildOrganizationJsonLd(input: {
+  name: string;
+  url: string;
+  logo?: string | null;
+  description?: string | null;
+  sameAs?: string[];
+}): JsonLd {
+  const logo = text(input.logo);
+  const description = text(input.description);
+  const sameAs = (input.sameAs ?? []).filter((entry) => Boolean(entry?.trim()));
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Organization",
+    name: input.name,
+    url: input.url,
+    ...(logo ? { logo } : {}),
+    ...(description ? { description } : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+  };
+}
+
+export function buildWebSiteJsonLd(input: {
+  name: string;
+  url: string;
+  description?: string | null;
+  /** Search URL with `{search_term_string}` where the query goes. Omit it and
+   * no SearchAction is published. */
+  searchUrlTemplate?: string | null;
+}): JsonLd {
+  const description = text(input.description);
+  const searchUrlTemplate = text(input.searchUrlTemplate);
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "WebSite",
+    name: input.name,
+    url: input.url,
+    ...(description ? { description } : {}),
+    ...(searchUrlTemplate
+      ? {
+          potentialAction: {
+            "@type": "SearchAction",
+            target: {
+              "@type": "EntryPoint",
+              urlTemplate: searchUrlTemplate,
+            },
+            "query-input": "required name=search_term_string",
+          },
+        }
+      : {}),
+  };
+}
+
 export function buildDestinationJsonLd(input: {
   name?: string | null;
   url: string;

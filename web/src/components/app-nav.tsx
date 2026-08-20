@@ -49,11 +49,10 @@ const ACCOUNT_MENU_LINKS: NavLink[] = [
   { href: "/account/friends", label: "Friends" },
 ];
 
-// `/` redirects to `/discover`, so the two share an active state. Everything
-// else matches on whole path segments — a bare `startsWith` would light up
-// "Log" on `/login`.
+// `/` is the landing page, not a nav destination, so nothing lights up there
+// — the wordmark is already the way home. Matching is on whole path segments;
+// a bare `startsWith` would light up "Log" on `/login`.
 function isActivePath(pathname: string, href: string): boolean {
-  if (href === "/discover" && pathname === "/") return true;
   // Sign-in and create-account are one destination as far as the tab bar is
   // concerned.
   if (href === "/login" && pathname === "/register") return true;

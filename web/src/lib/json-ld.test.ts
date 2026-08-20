@@ -5,7 +5,9 @@ import {
   buildAreaJsonLd,
   buildDestinationJsonLd,
   buildListJsonLd,
+  buildOrganizationJsonLd,
   buildRouteJsonLd,
+  buildWebSiteJsonLd,
   serializeJsonLd,
 } from "./json-ld";
 
@@ -131,8 +133,57 @@ test("list JSON-LD caps itemListElement at 50 and omits missing names", () => {
   assert.equal(JSON.stringify(jsonLd).includes("null"), false);
 });
 
+test("organization JSON-LD drops the optional fields it wasn't given", () => {
+  assert.deepEqual(
+    buildOrganizationJsonLd({
+      name: "Peaks",
+      url: "https://getpeaks.app/",
+      logo: "   ",
+      sameAs: [],
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Peaks",
+      url: "https://getpeaks.app/",
+    }
+  );
+});
+
+test("website JSON-LD publishes a SearchAction only when given a template", () => {
+  const withSearch = buildWebSiteJsonLd({
+    name: "Peaks",
+    url: "https://getpeaks.app/",
+    description: "Track peaks.",
+    searchUrlTemplate: "https://getpeaks.app/discover?q={search_term_string}",
+  });
+
+  assert.deepEqual(withSearch.potentialAction, {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: "https://getpeaks.app/discover?q={search_term_string}",
+    },
+    "query-input": "required name=search_term_string",
+  });
+
+  const withoutSearch = buildWebSiteJsonLd({
+    name: "Peaks",
+    url: "https://getpeaks.app/",
+  });
+
+  assert.equal("potentialAction" in withoutSearch, false);
+  assert.equal("description" in withoutSearch, false);
+});
+
 test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
   const values = [
+    buildOrganizationJsonLd({ name: "Peaks", url: "https://getpeaks.app/" }),
+    buildWebSiteJsonLd({
+      name: "Peaks",
+      url: "https://getpeaks.app/",
+      searchUrlTemplate: "https://getpeaks.app/discover?q={search_term_string}",
+    }),
     buildDestinationJsonLd({
       name: "Mount Si",
       url: "https://getpeaks.app/destinations/mount-si",

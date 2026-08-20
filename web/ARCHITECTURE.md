@@ -10,7 +10,7 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 ## URL Structure
 
 ```
-/                         → redirects to /discover
+/                         → landing page (public)
 /discover                 → search + nearby + popular + lists (public)
 /destinations/[id]        → destination detail (public)
 /destinations/[id]/reports → trip reports for destination (public)

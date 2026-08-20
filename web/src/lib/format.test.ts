@@ -5,6 +5,7 @@ import {
   formatCoordinates,
   formatDate,
   formatDurationRangeFriendly,
+  formatFlooredCount,
   formatHoursFriendly,
   formatSessionCount,
   roundToQuarterHour,
@@ -56,4 +57,19 @@ test("formatDate renders the one short calendar-date phrase", () => {
   // assertion doesn't depend on the test runner's time zone.
   assert.equal(formatDate(new Date(2022, 7, 27)), "Aug 27, 2022");
   assert.equal(formatDate(new Date(2026, 0, 5)), "Jan 5, 2026");
+});
+
+test("formatFlooredCount never claims more than the catalog holds", () => {
+  assert.equal(formatFlooredCount(70334), "70,000+");
+  assert.equal(formatFlooredCount(70000), "70,000+");
+  assert.equal(formatFlooredCount(69999), "69,000+");
+  assert.equal(formatFlooredCount(3869, 1000), "3,000+");
+  assert.equal(formatFlooredCount(257, 100), "200+");
+});
+
+test("formatFlooredCount drops the plus below one step", () => {
+  assert.equal(formatFlooredCount(940), "940");
+  assert.equal(formatFlooredCount(0), "0");
+  assert.equal(formatFlooredCount(-5), "0");
+  assert.equal(formatFlooredCount(Number.NaN), "0");
 });

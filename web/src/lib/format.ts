@@ -53,6 +53,17 @@ export function formatSessionCount(count: number): string {
   return `${count.toLocaleString("en-US")} session${count === 1 ? "" : "s"}`;
 }
 
+/** "70,000+" — a live count floored to the nearest `step`, for marketing copy
+ * that must never claim more than the catalog holds and must never need
+ * hand-editing as the catalog grows. Counts below one step print plainly,
+ * with no "+": "900+" would be a bigger claim than "900". */
+export function formatFlooredCount(count: number, step: number = 1000): string {
+  if (!Number.isFinite(count) || count < 0) return "0";
+  const floored = Math.floor(count / step) * step;
+  if (floored < step) return Math.floor(count).toLocaleString("en-US");
+  return `${floored.toLocaleString("en-US")}+`;
+}
+
 /** "Aug 27, 2022" — the one calendar-date phrase for discover cards and
  * report pages, instead of each page picking its own date options. */
 export function formatDate(date: string | number | Date): string {

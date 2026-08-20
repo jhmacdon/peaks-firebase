@@ -205,6 +205,35 @@ a {
   text-decoration-skip-ink: none;
 }
 
+/* Landing hero contour art (components/contour-art.tsx). One slow draw-in of
+   the single accent ring; nothing else on that page moves. Both the dash
+   setup and the animation sit inside the no-preference query on purpose — a
+   reduced-motion visitor gets no dash pattern at all, so the ring is simply
+   there, rather than stuck invisible at full offset. --contour-length is set
+   inline by the component from the real path length. */
+@media (prefers-reduced-motion: no-preference) {
+  .contour-draw {
+    stroke-dasharray: var(--contour-length);
+    stroke-dashoffset: var(--contour-length);
+    animation: contour-draw 10s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes contour-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The art is taller than the hero that holds it, so the section's own
+   overflow clip would cut every outer ring off along one hard horizontal
+   line. Fading the outside of the field instead lets the contours dissolve
+   into the page, which is also what keeps them from competing with the
+   headline they sit beside. */
+.contour-fade {
+  mask-image: radial-gradient(ellipse at center, #000 48%, transparent 82%);
+}
+
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
 .peak-label {
   background: transparent;
