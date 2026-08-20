@@ -428,6 +428,45 @@ Peakbagger ascent counts are a targeted manual popularity fallback. Do not
 bulk-crawl Peakbagger; its browser capture workflow and low-rate guardrails are
 documented in the `peaks-ascent-backfill` skill.
 
+## Lake catalog coverage
+
+The lake expansion runner imports named OpenStreetMap objects that carry the
+explicit `natural=water` and `water=lake` tags. It does not treat every named
+water body as a lake, so ponds, reservoirs, rivers, basins, and wastewater
+features stay out of this pass. The runner is dry-run by default, keeps cached
+Overpass snapshots and review reports, and never deletes a destination.
+
+```bash
+cd migrate
+
+# Review Washington with a repeatable source snapshot and report.
+npm run expand:lake-coverage -- --state=WA \
+  --cache-dir=/tmp/peaks-lake-coverage/osm \
+  --report-dir=/tmp/peaks-lake-coverage/reports
+
+# Apply only the exact reviewed report and source snapshot.
+npm run expand:lake-coverage -- --state=WA --apply \
+  --cache-dir=/tmp/peaks-lake-coverage/osm \
+  --report-dir=/tmp/peaks-lake-coverage/reports \
+  --review-report=/tmp/peaks-lake-coverage/reports/US-WA.dry-run.json \
+  --expected-report-sha256=<sha256>
+
+# Expand after the Washington proof. Multi-state passes support 1-4 workers.
+npm run expand:lake-coverage -- --states=OR,ID --concurrency=2 \
+  --cache-dir=/tmp/peaks-lake-coverage/osm \
+  --report-dir=/tmp/peaks-lake-coverage/reports
+```
+
+OSM IDs are namespaced as `osm_node`, `osm_way`, or `osm_relation`. A safe
+same-name nearby match may add the missing ID and state to a legacy lake, but it
+does not replace its name, location, elevation, boundary, copy, or images.
+Ambiguous matches stay in the report. New closed ways and reconstructable
+multipolygon relations use `ST_PointOnSurface` plus their largest valid polygon;
+unusable geometry falls back to a reported point destination. Apply uses one
+transaction and a shared advisory lock, and checks that the reviewed decision
+fingerprint still matches before it writes. This adds no service and no monthly
+cost.
+
 ### Named route candidate discovery
 
 Use the route discovery report after the peak catalog has settled. It finds
