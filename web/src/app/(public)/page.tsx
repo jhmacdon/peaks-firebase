@@ -39,12 +39,21 @@ const FEATURES = [
   },
 ];
 
-// The counts, the six peaks, and the three lists are all read per request —
-// the page must arrive complete, with no client fetch and no "Loading…"
-// shell. force-dynamic because none of those reads touch cookies or headers,
-// so without it Next would freeze the catalog at build time (same reason
-// /about sets it).
-export const dynamic = "force-dynamic";
+// The counts, the six peaks, and the three lists are all read on the server,
+// so the page arrives complete — no client fetch, no "Loading…" shell.
+//
+// Rendered once an hour rather than once a request: this is the busiest URL
+// on the site and its reads are the expensive kind (a COUNT over 70k
+// destinations, six detail fetches that each carry boundary GeoJSON) against
+// a five-connection pool. A catalog count an hour behind costs nothing; a
+// homepage that opens a dozen connections per visitor costs plenty.
+//
+// The build prerenders the first copy, so the database has to be reachable
+// for the page to have real numbers at deploy time — but not for the build to
+// pass. Every read goes through settled(), so an unreachable database yields
+// a page that simply leaves out what it couldn't load, and the next
+// revalidation fills it in.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   // Absolute: the homepage is the site, so it shouldn't render as
@@ -123,14 +132,29 @@ export default async function LandingPage() {
       {/* Hero. The contour art is clipped by this section, sits right of the
           copy, and carries no meaning — the page reads the same without it. */}
       <section className="relative overflow-hidden">
-        {/* Sized and pushed right per breakpoint so the one loud part — the
-            accent ring at the field's center — always clears the copy. The
-            outer hairline rings may pass behind text; that's the texture. */}
-        <div className="contour-fade pointer-events-none absolute top-1/2 right-[-36%] w-[280px] -translate-y-1/2 sm:right-[-20%] sm:w-[420px] lg:right-[-8%] lg:w-[620px] xl:right-0 xl:w-[720px]">
+        {/* Two compositions, not one. From md up there's a real right-hand
+            column: the field is large, vertically centered, and hangs off the
+            right edge, with the copy narrow enough that the accent ring — the
+            one loud part — clears it. Only outer hairline rings pass behind
+            text, which is the point of them.
+
+            Narrower than md there is no such column. The headline and subline
+            run the full width, so a field beside them either crosses the copy
+            or gets shoved off-screen, which is where a signature goes to die.
+            It becomes a small emblem in the hero's own bottom-right corner
+            instead — inset from the edge, whole, in the space the taller
+            bottom padding opens under the buttons.
+
+            The switch waits for lg, not md: at 768 the 52px headline still
+            runs past 600px, which leaves no room for a field beside it. And
+            the offsets are fixed pixels, not percentages — a percentage
+            offset grows with the viewport, so a field tuned at a breakpoint
+            walks off the right edge by the top of its own range. */}
+        <div className="contour-fade pointer-events-none absolute right-2 bottom-4 w-[190px] sm:w-[240px] md:w-[300px] lg:top-1/2 lg:right-[-96px] lg:bottom-auto lg:w-[420px] lg:-translate-y-1/2 xl:right-[-64px] xl:w-[620px]">
           <ContourArt className="h-auto w-full" />
         </div>
 
-        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-16 md:pt-28 md:pb-20">
+        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-40 md:pt-28 lg:pb-20">
           <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
             Built for serious mountain progress.
           </h1>
@@ -201,7 +225,9 @@ export default async function LandingPage() {
 
       {destinations.length > 0 ? (
         <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
-          <SectionHeading eyebrow="The catalog">Start exploring</SectionHeading>
+          <SectionHeading eyebrow="The catalog" size="lg">
+            Start exploring
+          </SectionHeading>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {destinations.map((destination) => (
               <DestinationCard
@@ -218,7 +244,9 @@ export default async function LandingPage() {
 
       {lists.length > 0 ? (
         <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
-          <SectionHeading eyebrow="Peak-bagging">The classic lists</SectionHeading>
+          <SectionHeading eyebrow="Peak-bagging" size="lg">
+            The classic lists
+          </SectionHeading>
           <div className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-3">
             {lists.map((list) => (
               <Link key={list.id} href={`/lists/${list.id}`} className="group block">
