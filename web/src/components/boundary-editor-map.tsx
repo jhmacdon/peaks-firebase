@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
+import { textPopup } from "./map-popups";
 
 interface BoundaryEditorMapProps {
   lat: number;
@@ -66,7 +67,7 @@ export default function BoundaryEditorMap({
       iconAnchor: [7, 7],
     });
     const marker = L.marker([lat, lng], { icon }).addTo(map);
-    if (name) marker.bindPopup(name);
+    if (name) marker.bindPopup(textPopup(name));
 
     // Feature group for drawn shapes
     const items = drawnItems.current;
