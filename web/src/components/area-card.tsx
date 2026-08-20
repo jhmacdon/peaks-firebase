@@ -26,23 +26,24 @@ export function AreaCard({ area }: { area: AreaCardData }) {
   return (
     <Card href={`/areas/${encodeURIComponent(area.id)}`} className="h-full">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300">
-          <AreaKindIcon area={area} className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-base font-semibold leading-tight text-gray-900 group-hover:text-teal-700 dark:text-white dark:group-hover:text-teal-300">
+        {/* Neutral, not teal. The kind icon repeats on every card in the
+            grid, and the accent budget (design-tokens.md law 4) does not
+            stretch to a coloured tile per row. */}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fill text-ink-2">
+          <AreaKindIcon area={area} className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-base font-medium leading-tight text-ink">
             {area.name}
-          </div>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          </span>
+          <span className="mt-1 block text-sm text-muted">
             {[areaKindLabel(area.kind), location].filter(Boolean).join(" · ")}
-          </p>
-        </div>
+          </span>
+        </span>
       </div>
 
       {facts.length > 0 && (
-        <p className="mt-4 border-t border-gray-100 pt-3 text-xs font-medium text-gray-600 dark:border-gray-800 dark:text-gray-400">
-          {facts.join(" · ")}
-        </p>
+        <p className="mt-3 text-sm text-muted">{facts.join(" · ")}</p>
       )}
     </Card>
   );

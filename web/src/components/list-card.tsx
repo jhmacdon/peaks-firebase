@@ -13,27 +13,25 @@ export default function ListCard({ list }: ListCardProps) {
 
   return (
     <Card href={`/lists/${list.id}`} className="h-full">
-      <Badge tone="amber">{ownerLabel}</Badge>
-      <div className="mt-2 text-base font-semibold leading-tight text-gray-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-300">
-        {list.name}
+      <div className="text-base font-medium leading-tight text-ink">{list.name}</div>
+      <div className="mt-1 text-sm text-muted">
+        <span className="font-mono-num tabular-nums">
+          {list.destination_count.toLocaleString("en-US")}
+        </span>{" "}
+        destination{list.destination_count === 1 ? "" : "s"}
       </div>
       {paragraphs.length > 0 && (
-        <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-2">
           {paragraphs.join(" ")}
         </p>
       )}
       {sourceUrl && sourceLabel && (
         // Plain text, not a nested link — the whole card is already one
         // link to the list detail page, where the real source link lives.
-        <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-          Source: {sourceLabel}
-        </div>
+        <div className="mt-1 text-xs text-faint">Source: {sourceLabel}</div>
       )}
-      <div className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-        <span className="font-semibold text-gray-900 dark:text-white">
-          {list.destination_count}
-        </span>{" "}
-        destination{list.destination_count === 1 ? "" : "s"}
+      <div className="mt-3">
+        <Badge>{ownerLabel}</Badge>
       </div>
     </Card>
   );

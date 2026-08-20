@@ -3,25 +3,12 @@ import Link from "next/link";
 // Shared building blocks for the editorial detail pages (destination and
 // route guides). See web/docs/destination-page-spec.md for the visual rules.
 
-export const DIFFICULTY_CLASSES: Record<string, string> = {
-  Easy: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
-  Moderate: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
-  Hard: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
-  Strenuous: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300",
-};
-
-export function DifficultyPill({ label }: { label: string | null }) {
-  if (!label) return null;
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-        DIFFICULTY_CLASSES[label] || DIFFICULTY_CLASSES.Moderate
-      }`}
-    >
-      {label}
-    </span>
-  );
-}
+// DifficultyPill / DIFFICULTY_CLASSES used to live here: a four-hue
+// emerald/sky/amber/red scale on raw Tailwind palette colours (law 5), and
+// the last such palette left in this file. Its one caller, route-card.tsx,
+// now prints the difficulty word in a neutral `Badge` — the word carries the
+// meaning, and the token system defines no caution/severity ramp to spend a
+// hue on. The route page has always shown difficulty as plain text.
 
 // Unified on the "›" separator (design-tokens.md-era convention) — several
 // other pages still hand-roll a "/"-separated breadcrumb inline; those are

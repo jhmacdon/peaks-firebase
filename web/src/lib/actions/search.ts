@@ -50,6 +50,11 @@ export interface SearchRouteResult {
   name: string | null;
   distance: number | null;
   gain: number | null;
+  /** Selected so a route card can run the same round-trip traversal maths
+   * (`getRouteTraversalMetrics`) the route page runs. Without it an
+   * out-and-back route advertised one-way distance on the card and
+   * round-trip distance on its own page. */
+  gain_loss: number | null;
   completion: string;
   shape: string | null;
   destination_count: number;
@@ -313,7 +318,7 @@ export async function searchRoutes(
   if (!q) return [];
 
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id)::int AS session_count
      FROM routes r
@@ -335,6 +340,7 @@ export async function searchRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
     provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
@@ -404,14 +410,14 @@ export async function getPopularRoutes(
   limit: number = 8
 ): Promise<SearchRouteResult[]> {
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             COUNT(sr.route_id)::int AS session_count
      FROM routes r
      LEFT JOIN session_routes sr ON sr.route_id = r.id
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
-     GROUP BY r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape
+     GROUP BY r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape
      ORDER BY session_count DESC, destination_count DESC, r.distance ASC NULLS LAST, r.name ASC NULLS LAST
      LIMIT $1`,
     [limit]
@@ -422,6 +428,7 @@ export async function getPopularRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
     provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
