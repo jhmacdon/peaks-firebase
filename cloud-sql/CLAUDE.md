@@ -696,6 +696,7 @@ raw downloads in the `peaks` checkout).
 cd migrate
 npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
 npm run roads:import -- --data-dir=... --only=topology --snap-tolerance=20
+npm run roads:derive -- --data-dir=/path/to/peaks/docs/trailheads/data --sample=20
 ```
 
 A full run deletes the store and rebuilds it from the three source files in
@@ -770,6 +771,36 @@ road, covering 32% of nodes. A walk inside an unanchored component runs to the
 end and returns nothing however well-stitched that component is. Adding TIGER
 S1500 so a state highway also counts as an anchor is the change most likely to
 move it.
+
+`roads:derive` walks that graph once per trailhead and writes one JSONL row per
+trailhead to `<data-dir>/trailhead-road-access.jsonl`, each leaf shaped like
+`TrailheadRoadAccess` in `lib/amenities.ts` and carrying its own source. It
+reads the production database once, read-only, for trailhead ids, names and
+coordinates. Today 568 of 918 trailheads snap and **328 reach an anchor and get
+a full answer** (36% of the catalog); 105 of those carry a gate window. Four
+rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
+
+- **A gate date is stored as `YYYY-MM-DD`.** The source has no year and the
+  window recurs, but the iOS client parses ISO first and treats `MM/DD` as a
+  provider fallback. A window through New Year closes in the next year; one
+  touching February 29 moves to the next leap year rather than to the 28th.
+- **Windows are intersected, never picked from** — across every MVUM segment
+  the link returns and across every segment on the path. A segment with no
+  window is left out rather than treated as open; an intersection covering the
+  whole year is stored as no window at all.
+- **Levels 3, 4 and 5 store `high_clearance: not_required`**, per §A3, with the
+  surface leaf carrying the roughness. An ATV-only or unmaintained path stores
+  no vehicle leaf at all.
+- **`limiting_segment_key` in the audit block is the agency id**; the human
+  `limiting_segment_ref` is derived from it ("FR 8040-500"), and `snap_edge_id`
+  is positional and for debugging only.
+
+A second noding pass — projecting dangling endpoints onto the centrelines they
+nearly touch — was measured against the 240 trailheads that snap without
+reaching an anchor and **not implemented**: it would lift 12 of them at the
+graph's own 10 m tolerance, and 20 only at 30 m, where parallel switchbacks
+start welding together. For 194 of those 240 the nearest level 4/5 road is over
+3 km away in a straight line, so the gap is coverage, not stitching.
 
 ## Session comparisons ("Your Efforts")
 

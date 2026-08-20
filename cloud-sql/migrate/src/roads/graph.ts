@@ -38,7 +38,7 @@
 //
 // **An unknown edge poisons the whole path.** 55% of BLM edges have no
 // `vehicleRank` at all, because BLM's observed class is literally "Unknown" on
-// nearly half its network, and 3,072 edges have no length. Taking a plain
+// nearly half its network, and 3,071 edges have no length. Taking a plain
 // maximum over that silently reports the second-worst *known* edge as if it
 // were the answer — §A3's failure mode wearing a different hat. A path holding
 // even one unranked edge has an unknown vehicle answer, and a path holding one

@@ -2,9 +2,10 @@
 
 Phase 2 of the trailhead work derives three facts for each trailhead — what
 vehicle the drive needs, how rough the surface is, and when the gate is open.
-This document covers the first half: loading the federal road data, cleaning
-it, and building the graph. Deriving the per-trailhead facts is a separate
-task, and the handover to it is the last section here.
+This document covers both halves: loading the federal road data, cleaning it
+and building the graph (`roads:import`), then walking that graph once per
+trailhead to derive the facts (`roads:derive`, from "Deriving the per-trailhead
+facts" onward). Importing the derived rows into `peaks` is a separate task.
 
 The binding source is `docs/trailheads/research-roads.md`, Part A and Part D
 Tier 1, in the `peaks` checkout. Read §A3 before touching any mapping code.
@@ -276,10 +277,11 @@ worth trying first, if the traversal task needs better coverage, is projecting
 each remaining dangling endpoint onto the nearby road and inserting a vertex
 there.
 
-## Handing over to the approach-path traversal
+## The traversal interface
 
-`roads/graph.ts` is the interface. It gives the next task a way onto the graph
-and a way to step across it; the walk and its rules belong to that task.
+`roads/graph.ts` is the interface between the load and the derivation. It gives
+a way onto the graph and a way to step across it; the walk itself is in
+`roads/approach.ts`, described in the next section.
 
 ```ts
 import { openRoadStore } from "./roads/store";
@@ -360,30 +362,166 @@ Ranks are ordinals, so "worst on the path" is a maximum:
 - `surfaceRank`: 1 asphalt, 2 bituminous, 3 aggregate, 4 improved native,
   5 native. `other` has no rank and cannot be compared.
 
+## Deriving the per-trailhead facts
+
+```bash
+cd cloud-sql/migrate
+npm run roads:derive -- --data-dir=/path/to/peaks/docs/trailheads/data --sample=20
+```
+
+One JSONL row per trailhead, written by default to
+`<data-dir>/trailhead-road-access.jsonl`. The database is read once, read-only,
+for the trailheads themselves — id, name and coordinates. Nothing is written to
+it; the import of these rows is a separate task.
+
+Flags: `--out=` for a different file, `--store=` for a different processing
+store, `--snap-radius=` (default 250 m), `--max-straight-line-km=` (40) and
+`--max-path-miles=` (60) to bound the walk, `--prefer=` (below), `--season-year=`
+for the year the gate dates are anchored to, `--sample=N --sample-seed=N` to
+print narratives for a repeatable random sample, `--limit=N` for a quick run,
+and `--trailheads=` to read the trailhead list from a file instead of the
+database so a run can be repeated without it.
+
+Each leaf carries its own source and is shaped exactly like
+`TrailheadRoadAccess` in `lib/amenities.ts`, so the import that follows is a
+copy rather than a translation:
+
+```json
+{"destination_id":"jXA6aSVbxBSw2YfdwI4Q","destination_name":"South Climb Trailhead",
+ "snapped":true,"snap_distance_m":18,"anchor_reached":true,"path_miles":39.17,
+ "high_clearance":{"value":"required","source":{"kind":"usfs_roadcore","name":"...","url":"..."},
+   "retrieved_at":"2026-08-19"},
+ "surface":{"value":"dirt","source":{...},"retrieved_at":"2026-08-19"},
+ "seasonal_window":{"value":{"opens":"2026-04-02","closes":"2026-11-30"},...},
+ "limiting_segment_ref":{"value":"FR 8040-550",...},
+ "derivation":{"limiting_segment_key":"usfs_roadcore:{CCD3DB30-...}", ...}}
+```
+
+The `derivation` block is the audit trail: the snapped and anchor segments, the
+path's segment keys, the segment that set each answer, the unknown counts, and
+how many path segments carried a gate window. **`limiting_segment_key` is the
+agency's own id and is the thing to store; `snap_edge_id` is this build's, and
+is for debugging only.**
+
+### The walk
+
+Snap, then walk outward to the nearest anchor — an edge with
+`approachTerminus`, meaning maintenance level 4 or 5. The search is a Dijkstra
+over road miles rather than a breadth-first hop count, because the edges are
+artefacts of the noding: four long segments are a shorter drive than twelve
+short ones. It starts at both ends of the snapped edge, each charged its share
+of that edge, so the first anchor it settles is the nearest one. A missing
+length searches as the straight line between its nodes — an ordering, never a
+reported distance.
+
+The path carries **both** the whole snapped edge and the whole anchor edge:
+both are roads that get driven, and both can carry a gate. `path_miles` is the
+narrower thing — the drive from the trailhead to the near end of the anchor,
+counting only the part of the snapped edge actually driven and none of the
+anchor. A trailhead that snaps straight onto a level 4/5 road therefore has a
+zero-mile approach, which is the truth about it. `derivation.path_edge_miles`
+holds the full-edge sum for anyone comparing against an earlier measurement.
+
+`--prefer=nearest` (the default) is §A4 read literally. `--prefer=easiest`
+takes the way out that demands least of a vehicle and settles ties on distance,
+which is what a driver does — nobody takes the rough short cut when a graded
+road leaves the same trailhead. Measured over the catalog the two agree on 320
+of 328 answers; on the other 8 `easiest` finds a passenger-car way out where
+`nearest` reports high clearance, at a cost of **3.1 extra miles across all 328
+trailheads**. On that evidence `easiest` is the better default and the flag is
+there to make the change a one-word one.
+
+### Vehicle, surface and gate
+
+| worst on the path | stored |
+|---|---|
+| `passenger_car` (levels 3, 4, 5) | `high_clearance: not_required`, `four_wheel_drive: false` |
+| `high_clearance` (level 2, BLM high clearance) | `high_clearance: required`, no four-wheel-drive claim |
+| `four_wheel_drive`, `four_wheel_drive_high_clearance` | `high_clearance: required`, `four_wheel_drive: true` |
+| `atv_only`, `not_maintained` | no vehicle leaf at all; `skip_reason: not_car_passable` |
+
+Levels 3, 4 and 5 store `not_required`, not `recommended`. §A3 is explicit that
+the difference between those levels is comfort rather than capability, the
+roughness is said by the surface leaf beside it ("Gravel", "Dirt"), and
+softening every level 3 road to "high clearance recommended" would both tell a
+hiker with a hatchback to stay home from a road the Forest Service maintains
+for passenger cars and leave nothing to say about the level 2 road that
+genuinely needs the clearance.
+
+Surfaces are stored as words a driver uses — paved, chip seal, gravel, improved
+dirt, dirt — because the client prints anything it does not recognise verbatim,
+and `improved_native` on a detail sheet reads as a database column.
+
+**Gate windows.** Two MVUM classes are read: `passenger_vehicle`, falling back
+to `high_clearance_vehicle` where a segment has no passenger window. The two
+agree on 31,641 of the 31,713 segments carrying both, and the fallback covers
+1,270 segments where only the high-clearance class has dates — exactly the
+rough approaches this pipeline exists to describe. Windows are then intersected
+across every MVUM segment the link returns and across every segment on the
+path, on a leap-shaped 366-day calendar so that February 29 survives.
+
+- A segment with no window is **not** a constraint, and is not an open gate
+  either — it is simply left out of the intersection, and
+  `derivation.season_segments_with_window` records how thin the evidence is.
+- An intersection that covers the whole year is reported as **no window**: a
+  gate open every day is the §A3 filler value in another costume.
+- Where the intersection leaves several windows the longest is stored and
+  `derivation.season_windows_found` says how many there were. Storing the
+  longest understates access, which is the safe direction.
+- Dates are stored as `YYYY-MM-DD`. The source carries no year — the window
+  recurs every season and the client prints only the month and day — but the
+  client parses ISO first and treats `MM/DD` as a provider fallback, so a bare
+  month-day is a downgrade there is no reason to ship. A window through New
+  Year closes in the following year; a window touching February 29 is anchored
+  to the next leap year rather than moved to the 28th.
+
+Filtering the MVUM link on `overlap_miles` was measured and makes no
+difference: dropping every link under 0.05 mi changes **0** of the 328 windows,
+so the contract's "intersect everything the link returns" stands unqualified.
+
 ### What this measures today
 
-Against the 918 trailhead destinations in production, at a 250 m snap radius:
+Against the 918 trailhead destinations in production, at a 250 m snap radius
+and the default preference:
 
 - 568 (62%) snap to a road.
-- Of those, 314 (55%) reach a maintenance level 4 or 5 road.
-- 254 snap but their component holds no such road. Most of those components are
-  small — median 5 edges, 81 of them only one or two — so this is mostly the
-  remaining fragmentation described above, not a genuine absence.
-- 350 have no road within 250 m at all. These sources cover Forest Service and
-  BLM land only: a trailhead on a county road, a state highway or a National
-  Park road has nothing here to snap to. TIGER S1500 is the documented next
-  source for that gap.
-- Of the 314 that reach a terminus, **none has an unranked or unmeasured edge
-  on its path**, so all 314 produce a full vehicle, surface and distance
-  answer. That is 34% of the catalog, and it is the honest ceiling today.
+- **328 (58% of those) reach a maintenance level 4 or 5 road** and produce a
+  full vehicle, surface and distance answer — 36% of the catalog, and the
+  honest ceiling today. 172 are passenger car, 156 high clearance; the surfaces
+  are 137 gravel, 102 dirt, 48 paved, 21 improved dirt, 20 chip seal.
+- 105 of those carry a gate window.
+- **None has an unranked or unmeasured edge on its path**, so the unknown rule
+  changes no answer today. No reaching path touches BLM ground at all, which is
+  why the rule is pinned by unit test rather than by data.
+- 240 snap but their component holds no level 4/5 road.
+- 350 have no road within 250 m at all — 56 of them are outside the United
+  States, and the rest are National Park, state park or county trailheads.
+  These sources cover Forest Service and BLM land only.
 
-Both figures are floors, not ceilings, and both are worth re-measuring after
-any change to the noding.
+**The 240 are mostly not a stitching problem.** For 194 of them the nearest
+level 4/5 road of any component is more than 3 km away in a straight line, and
+for 115 it is more than 10 km. Projecting each dangling endpoint onto the
+centreline it nearly touches — the second noding pass left undone by the load
+task — was measured at four tolerances and would newly reach an anchor for 12
+trailheads at 10 m, 17 at 20 m, 20 at 30 m and 21 at 50 m. That is not worth a
+second full pass over 25 million vertices, and the tolerances that reach 20
+would start welding parallel switchbacks together. **Not implemented**; TIGER
+S1500 is the change that moves this number.
+
+Trying snap candidates beyond the nearest, within the same 250 m, would add 12
+more reaching trailheads. It is not done either: the research found a naive
+wide box picked the wrong road twice in eight, and a trailhead 3 m from a spur
+should be described by that spur.
+
+Both coverage figures are floors, not ceilings, and both are worth re-measuring
+after any change to the noding or the sources.
 
 ## Re-running
 
 The load is fully repeatable: a full run deletes the store and rebuilds it from
-the three source files in about 30 seconds. Nothing about it touches the
-`peaks` database. To refresh the sources themselves, re-download per
-`raw-datasets-manifest.jsonl` and re-run; watch the printed row counts and the
-unmapped-BLM-class warning for anything the agencies changed.
+the three source files in about 30 seconds, and the derivation over all 918
+trailheads takes about eight. Neither writes to the `peaks` database. To
+refresh the sources themselves, re-download per `raw-datasets-manifest.jsonl`,
+re-run `roads:import` and then `roads:derive`; watch the printed row counts and
+the unmapped-BLM-class warning for anything the agencies changed, and the
+derivation's own funnel for coverage that moved.
