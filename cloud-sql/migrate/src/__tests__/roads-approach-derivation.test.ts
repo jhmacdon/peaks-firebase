@@ -539,9 +539,10 @@ test("the drive is a diagnostic in the audit block, never a row field", () => {
   assert.equal(row.derivation!.path_edge_miles, 2);
 });
 
-test("a segment MVUM never described is counted apart from one with no gate", () => {
+test("a window resting on a segment MVUM never described is not published", () => {
   // A described segment with no window is evidence of no gate. An undescribed
-  // one is no evidence at all, and the importer withholds the window for it.
+  // one is no evidence at all, so the window it would have joined never leaves
+  // this file — but every count behind that decision stays in the audit block.
   const path = [
     edge({ edgeId: "s#1", segmentKey: "usfs_roadcore:{A}" }),
     edge({ edgeId: "m#1", segmentKey: "usfs_roadcore:{B}" }),
@@ -562,7 +563,34 @@ test("a segment MVUM never described is counted apart from one with no gate", ()
   assert.equal(audit.season_segments_with_window, 1);
   assert.equal(audit.season_segments_without_evidence, 1);
   assert.equal(audit.season_restricted_without_dates, true);
+  assert.equal(audit.season_windows_found, 1);
+  assert.equal(row.seasonal_window, undefined);
+  // The rest of the answer is untouched: the gap is in the gate evidence, not
+  // in what the road is or what it asks of a car.
+  assert.equal(row.surface!.value, "gravel");
+  assert.equal(row.high_clearance!.value, "not_required");
+});
+
+test("the same window is published once every path segment is described", () => {
+  const path = [
+    edge({ edgeId: "s#1", segmentKey: "usfs_roadcore:{A}" }),
+    edge({ edgeId: "m#1", segmentKey: "usfs_roadcore:{B}" }),
+    ANCHOR,
+  ];
+  const row = rowFor({
+    outcome: outcomeFor(path),
+    season: evidence({
+      linkedSegments: new Set([
+        "usfs_roadcore:{A}",
+        "usfs_roadcore:{B}",
+        "usfs_roadcore:{Z}",
+      ]),
+      windowsBySegment: new Map([["usfs_roadcore:{A}", [[window("06-01", "10-15")]]]]),
+    }),
+  });
+  assert.equal(row.derivation!.season_segments_without_evidence, 0);
   assert.deepEqual(row.seasonal_window!.value, { opens: "2026-06-01", closes: "2026-10-15" });
+  assert.equal(row.seasonal_window!.source.kind, "usfs_mvum");
 });
 
 test("the audit block carries the durable reference and the preference used", () => {

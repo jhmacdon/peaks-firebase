@@ -132,8 +132,9 @@ export interface ApproachAudit {
    *
    * A segment MVUM describes and leaves unflagged is evidence of no gate. A
    * segment MVUM never described is no evidence either way, and a window
-   * intersected without it is a claim about a road nobody checked — so **the
-   * importer withholds `seasonal_window` when this is above zero.**
+   * intersected without it is a claim about a road nobody checked — so **no
+   * `seasonal_window` is emitted at all when this is above zero.** The count
+   * stays here so the withheld window can still be audited.
    */
   season_segments_without_evidence: number;
   /** More than one surviving window means the printed one is the longest of them. */
@@ -483,6 +484,14 @@ export function buildApproachRow(input: RowInput): ApproachRow {
 
   if (derived.skipReason !== null) row.skip_reason = derived.skipReason;
   const publishable = derived.skipReason !== "not_car_passable";
+  // A window is only as good as the segments behind it. Where MVUM never
+  // described one of them, the intersection is a claim about a road nobody
+  // checked, so the leaf does not go out — the counters below keep the whole
+  // evidence trail. The gate lives here, beside the `not_car_passable`
+  // suppression, rather than in the importer that reads these rows: a rule
+  // enforced only downstream is a rule the next reader of this file copies
+  // without.
+  const windowEvidenced = segmentsWithoutEvidence === 0;
 
   if (publishable && derived.vehicle !== null && derived.vehicle.carPassable) {
     const source = sourceFor(derived.limiting?.source);
@@ -502,7 +511,7 @@ export function buildApproachRow(input: RowInput): ApproachRow {
       ),
     );
   }
-  if (publishable && isoWindow !== null) {
+  if (publishable && windowEvidenced && isoWindow !== null) {
     row.seasonal_window = leaf(isoWindow, sourceFor("usfs_mvum"));
   }
   if (publishable && derived.limiting !== null) {
@@ -696,9 +705,10 @@ export async function deriveTrailheadApproaches(args: Args): Promise<void> {
     const withVehicle = count((row) => row.high_clearance !== undefined);
     const withWindow = count((row) => row.seasonal_window !== undefined);
     const multiWindow = count((row) => (row.derivation?.season_windows_found ?? 0) > 1);
-    const thinEvidence = count(
+    const withheldWindow = count(
       (row) =>
-        row.seasonal_window !== undefined &&
+        row.seasonal_window === undefined &&
+        (row.derivation?.season_windows_found ?? 0) > 0 &&
         (row.derivation?.season_segments_without_evidence ?? 0) > 0,
     );
     const changed = count((row) => row.derivation?.differs_from_nearest === true);
@@ -716,9 +726,8 @@ export async function deriveTrailheadApproaches(args: Args): Promise<void> {
     console.log(
       `  gate window: ${withWindow}` +
         (multiWindow > 0 ? ` (${multiWindow} kept the longest of several)` : "") +
-        (thinEvidence > 0
-          ? ` — ${thinEvidence} rest on a path with a segment MVUM never described, ` +
-            `which the importer must withhold`
+        (withheldWindow > 0
+          ? ` — ${withheldWindow} withheld: a path segment MVUM never described`
           : ""),
     );
     console.log(

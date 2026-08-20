@@ -777,7 +777,7 @@ trailhead to `<data-dir>/trailhead-road-access.jsonl`, each leaf shaped like
 `TrailheadRoadAccess` in `lib/amenities.ts` and carrying its own source. It
 reads the production database once, read-only, for trailhead ids, names and
 coordinates. Today 568 of 918 trailheads snap and **328 reach an anchor and get
-a full answer** (36% of the catalog); 105 of those carry a gate window. Six
+a full answer** (36% of the catalog); 104 of those carry a gate window. Six
 rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
 
 - **A gate date is stored as `YYYY-MM-DD`.** The source has no year and the
@@ -803,10 +803,12 @@ rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
 - **`derivation` is diagnostic; never publish `path_miles`.** With no state
   highways in these sources the walk runs on to the next level 4/5 forest road,
   so South Climb derives 39.17 miles against about 13 real ones. It becomes a
-  publishable number when TIGER lands. Likewise the importer **withholds
-  `seasonal_window` when `season_segments_without_evidence` is above zero** — a
-  segment MVUM never described is not the same as one it describes without a
-  gate (1 of the 105 windows today).
+  publishable number when TIGER lands. Likewise **no `seasonal_window` is
+  emitted when `season_segments_without_evidence` is above zero** — a segment
+  MVUM never described is not the same as one it describes without a gate. The
+  gate is in `buildApproachRow`, so a copy-shaped importer cannot publish
+  around it; the importer checks again and treats a window arriving with a gap
+  as a validation failure (1 window withheld today).
 
 The default path preference is `--prefer=easiest` — the gentlest way out, not
 the shortest. It matches `nearest` on 320 of 328 answers and finds a

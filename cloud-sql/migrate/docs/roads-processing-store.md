@@ -494,14 +494,20 @@ path, on a leap-shaped 366-day calendar so that February 29 survives.
 - A segment with no window is **not** a constraint, and is not an open gate
   either — it is simply left out of the intersection, and
   `derivation.season_segments_with_window` records how thin the evidence is.
-- **A segment MVUM never described is a different thing again, and the importer
-  must withhold the window for it.** A segment MVUM describes and leaves
-  unflagged is evidence of no gate; a segment with no `roadcore_mvum_link` row
-  at all is no evidence either way, so a window intersected without it is a
-  claim about a road nobody checked. `derivation.season_segments_without_evidence`
-  counts them, and the run prints how many published windows rest on such a
-  path — **1 of the 105 today, "Trailhead: Jordan Creek"**, whose path has two
-  undescribed segments out of seven.
+- **A segment MVUM never described is a different thing again, and no window
+  is emitted at all for a path holding one.** A segment MVUM describes and
+  leaves unflagged is evidence of no gate; a segment with no
+  `roadcore_mvum_link` row at all is no evidence either way, so a window
+  intersected without it is a claim about a road nobody checked.
+  `buildApproachRow` withholds the leaf — beside the `not_car_passable`
+  suppression, and for the same reason: a rule enforced only in the importer is
+  a rule the next reader of these rows copies without.
+  `derivation.season_segments_without_evidence` and `season_windows_found` stay
+  in the audit block so a withheld window can still be traced, and the run
+  prints the count — **1 withheld today, "Trailhead: Jordan Creek"**, whose
+  path has two undescribed segments out of seven. The importer checks the same
+  condition again and treats a window arriving with a gap as a loud validation
+  failure, since it could only mean this gate regressed.
 - An intersection that covers the whole year is reported as **no window**: a
   gate open every day is the §A3 filler value in another costume.
 - Where the intersection leaves several windows the longest is stored and
@@ -528,8 +534,8 @@ and the default preference:
   full vehicle, surface and distance answer — 36% of the catalog, and the
   honest ceiling today. 172 are passenger car, 156 high clearance; the surfaces
   are 137 gravel, 102 dirt, 48 paved, 21 improved dirt, 20 chip seal.
-- 105 of those carry a gate window; 1 of the 105 has a path segment MVUM never
-  described, and the importer withholds that one.
+- 104 of those carry a gate window. A 105th intersects to a window but rests on
+  a path segment MVUM never described, so it is withheld at emission.
 - **None has an unranked or unmeasured edge on its path**, so the unknown rule
   changes no answer today. No reaching path touches BLM ground at all, which is
   why the rule is pinned by unit test rather than by data.
