@@ -5,7 +5,14 @@ const DESCRIPTION =
   "Browse curated mountain and destination lists, then track your progress across the Peaks guide.";
 
 export const metadata: Metadata = {
-  title: "Lists",
+  // A bare string here would replace the root's title template for every
+  // page beneath this segment (the same shallow-replace behavior that
+  // dropped og:image) — /lists/[id] would render with no " | Peaks"
+  // suffix. Re-declaring the template keeps it in effect for children.
+  title: {
+    default: "Lists",
+    template: `%s | ${siteConfig.name}`,
+  },
   description: DESCRIPTION,
   alternates: {
     canonical: absoluteUrl("/lists"),
