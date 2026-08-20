@@ -37,8 +37,8 @@ by hand (with plain `npm test`) switches only its suites on.
 
 The DB-backed files run serially by default: several suites run global
 job-seed commands against shared tables, so concurrent test files collide.
-`TEST_CONCURRENCY` raises it — do that only when passing an explicit file
-list known not to collide.
+`TEST_CONCURRENCY` overrides that — raise it only when passing an explicit
+file list known to be safe.
 
 Setting a per-suite variable by hand skips the runner's `_test` name gate.
 Each suite still checks the name itself before connecting.

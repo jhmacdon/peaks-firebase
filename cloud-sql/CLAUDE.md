@@ -128,7 +128,7 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   Reconcile the two. Don't extend the skip list in `provision.sh`.
 - **Pool max drops to 2 under `NODE_ENV=test`.** Each test file is its own
   process with its own pool; the instance allows 25 connections total. This is
-  what lets the suite run in parallel instead of `--test-concurrency=1`.
+  what lets the api suite run in parallel instead of `--test-concurrency=1`.
 
 ## Postgres → wire type policy (do not regress)
 

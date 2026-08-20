@@ -35,8 +35,8 @@ export AREAS_LINKING_TEST_DATABASE_URL="${AREAS_LINKING_TEST_DATABASE_URL:-$TEST
 # commands (e.g. "seed" CLI invocations that scan/claim across a shared job
 # queue table) rather than scoping to rows they created. Node runs test files
 # concurrently by default, so two such suites racing against the same tables
-# collide. Test files must not run concurrently here. TEST_CONCURRENCY
-# overrides this for a subset of files known not to collide.
+# collide. Test files must not run concurrently here. Raise TEST_CONCURRENCY
+# only when passing an explicit file list known not to collide.
 if [[ $# -gt 0 ]]; then
   exec env NODE_ENV=test node --test --test-concurrency="${TEST_CONCURRENCY:-1}" --import tsx "$@"
 fi

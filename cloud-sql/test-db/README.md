@@ -76,8 +76,8 @@ drops the `public` schema.
 
 ## Running in parallel
 
-`--test-concurrency=1` is no longer needed. `npm run test:db` defaults to 6 and
-takes `TEST_CONCURRENCY` to override.
+`--test-concurrency=1` is no longer needed. api's `npm run test:db` defaults to
+6 and takes `TEST_CONCURRENCY` to override.
 
 What made parallel runs fail was never the test code — it was connections. Each
 test file is its own child process with its own pool. At the old default of 8

@@ -27,7 +27,7 @@ export TEST_URL="postgres://peaks_test:$(gcloud secrets versions access latest -
 - If `git push` fails with `failed to get: -25293` / "could not read Username", unlock the build keychain first:
 
 ```bash
-security unlock-keychain -p koth-build-keychain /Users/josiahm/Library/Keychains/build/signing/koth-build.keychain-db
+security unlock-keychain -p <build-keychain password — see ~/.claude/CLAUDE.md "Git auth"> /Users/josiahm/Library/Keychains/build/signing/koth-build.keychain-db
 ```
 
 - Prose in docs follows Orwell's rules (short words, active voice, cut every needless word).
