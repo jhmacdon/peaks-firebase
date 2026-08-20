@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
-import { getUserRouteHistory } from "../../lib/actions/routes";
+import { getUserRouteHistoryBatch } from "../../lib/actions/routes";
 import type { SessionRoute } from "../../lib/actions/sessions";
 import {
+  ordinalLabel,
   pickFeaturedRoute,
   shapeRouteHistory,
   type RouteHistorySummary,
@@ -61,14 +62,20 @@ export function SessionRouteHistory({
           return;
         }
 
-        const candidates = await Promise.all(
-          routes.map(async (route) => ({
-            routeId: route.id,
-            routeName: route.name,
-            attempts: await getUserRouteHistory(token, route.id),
-          }))
+        // One round trip for every matched route, not one per route — a
+        // session can match up to 10 in production (Important 1, review
+        // fix wave).
+        const historyByRoute = await getUserRouteHistoryBatch(
+          token,
+          routes.map((route) => route.id)
         );
         if (cancelled) return;
+
+        const candidates = routes.map((route) => ({
+          routeId: route.id,
+          routeName: route.name,
+          attempts: historyByRoute[route.id] ?? [],
+        }));
 
         const chosen = pickFeaturedRoute(candidates);
         const history = chosen ? shapeRouteHistory(chosen.attempts, sessionId) : null;
@@ -105,9 +112,22 @@ export function SessionRouteHistory({
         >
           {featured.routeName || "This route"}
         </Link>
-        {featured.history.participationLabel
-          ? ` · ${featured.history.participationLabel}`
-          : null}
+        {/* Strava-style participation, never a bare rank — each numeral
+            (the ordinal, the total) gets its own mono span; "of your" and
+            "attempts" stay plain words around them. */}
+        {featured.history.currentRank != null ? (
+          <>
+            {" · "}
+            <span className="font-mono-num tabular-nums">
+              {ordinalLabel(featured.history.currentRank)}
+            </span>
+            {" of your "}
+            <span className="font-mono-num tabular-nums">
+              {featured.history.totalAttempts}
+            </span>
+            {" attempts"}
+          </>
+        ) : null}
       </p>
 
       <div className="mt-4 divide-y divide-hairline">

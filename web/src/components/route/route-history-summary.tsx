@@ -6,7 +6,7 @@ import { useAuth } from "../../lib/auth-context";
 import { getUserRouteHistory } from "../../lib/actions/routes";
 import {
   bestSecondsFromAttempts,
-  formatRouteHistoryHeadline,
+  buildRouteHistoryHeadlineParts,
   latestAttempt,
   type RouteAttempt,
 } from "../../lib/route-history";
@@ -54,22 +54,37 @@ export function RouteHistorySummary({
 
   if (!attempts || attempts.length === 0) return null;
 
-  const headline = formatRouteHistoryHeadline(
+  const parts = buildRouteHistoryHeadlineParts(
     attempts.length,
     bestSecondsFromAttempts(attempts)
   );
   const latest = latestAttempt(attempts);
-  if (!headline || !latest) return null;
+  if (!parts || !latest) return null;
 
   return (
     <p className={`text-sm text-ink-2 ${className}`.trim()}>
-      {headline}
+      {/* Words stay plain text; only the numerals (count, best time) get
+          their own font-mono-num span — design-tokens.md's "every stat
+          value is Geist Mono" law, applied mid-sentence rather than to a
+          pre-baked string. */}
+      {"You've done this route "}
+      <span className="font-mono-num tabular-nums">
+        {parts.count.toLocaleString("en-US")}
+      </span>
+      {` ${parts.timesWord}`}
+      {parts.bestLabel ? (
+        <>
+          {" · Best: "}
+          <span className="font-mono-num tabular-nums">{parts.bestLabel}</span>
+        </>
+      ) : null}
       {" — "}
       <Link
         href={`/log/${latest.sessionId}`}
         className="text-muted underline decoration-border underline-offset-2 hover:text-ink-2"
       >
-        latest {formatShortDate(latest.startTime)}
+        {"latest "}
+        {formatShortDate(latest.startTime)}
       </Link>
     </p>
   );

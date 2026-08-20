@@ -34,9 +34,6 @@ export interface RouteHistorySummary {
   /** 1-based chronological position of the current session among all
    * attempts, or null when the current session isn't one of them. */
   currentRank: number | null;
-  /** "3rd of your 5 attempts" — null when there's no current session to
-   * place. */
-  participationLabel: string | null;
   /** Newest attempt first, for the compact list. */
   entries: RouteHistoryEntry[];
 }
@@ -81,12 +78,16 @@ export function latestAttempt(attempts: RouteAttempt[]): RouteAttempt | null {
   );
 }
 
-/** The session detail section's data: count, best, participation phrasing,
- * and the compact list — newest first, current session and fastest time
- * marked. Null when there's nothing worth showing: a route the current
- * session is the *only* attempt on has no history to compare against
- * (requirement: "section absent when no matched route or only one
- * attempt"). */
+/** The session detail section's data: count, best, and the compact list —
+ * newest first, current session and fastest time marked. `currentRank` +
+ * `totalAttempts` are the participation phrase's raw numerals ("3rd of your
+ * 5 attempts"); composed by the caller rather than pre-baked into a string
+ * here so each numeral can get its own `font-mono-num` span (design-tokens.md:
+ * every stat value is Geist Mono) while the words around them stay plain
+ * text — see `ordinalLabel` below. Null when there's nothing worth showing:
+ * a route the current session is the *only* attempt on has no history to
+ * compare against (requirement: "section absent when no matched route or
+ * only one attempt"). */
 export function shapeRouteHistory(
   attempts: RouteAttempt[],
   currentSessionId: string
@@ -120,10 +121,6 @@ export function shapeRouteHistory(
     totalAttempts: chronological.length,
     bestSeconds,
     currentRank,
-    participationLabel:
-      currentRank != null
-        ? `${ordinalLabel(currentRank)} of your ${chronological.length} attempts`
-        : null,
     entries,
   };
 }
@@ -158,16 +155,28 @@ export function pickFeaturedRoute(
   });
 }
 
-/** "You've done this route 4 times · Best: 4h 12m" — the route page's
- * one-liner. Null when the user has never done it (requirement: "Absent
- * when zero"), never dashed. */
-export function formatRouteHistoryHeadline(
+/** The route page's one-liner — "You've done this route 4 times · Best:
+ * 4h 12m" — as parts rather than one pre-baked string, so the component can
+ * wrap just the numerals (`count`, `bestLabel`) in their own `font-mono-num`
+ * span and leave the surrounding words as plain text (design-tokens.md:
+ * every stat value is Geist Mono). Null when the user has never done the
+ * route (requirement: "Absent when zero"). */
+export interface RouteHistoryHeadlineParts {
+  count: number;
+  timesWord: "time" | "times";
+  /** "4h 12m", or null when nothing recorded a time — the "· Best: …" clause
+   * is dropped entirely rather than printed with a dash. */
+  bestLabel: string | null;
+}
+
+export function buildRouteHistoryHeadlineParts(
   totalAttempts: number,
   bestSeconds: number | null
-): string | null {
+): RouteHistoryHeadlineParts | null {
   if (totalAttempts <= 0) return null;
-  const times = totalAttempts === 1 ? "time" : "times";
-  const headline = `You've done this route ${totalAttempts.toLocaleString("en-US")} ${times}`;
-  const best = formatDurationValue(bestSeconds);
-  return best ? `${headline} · Best: ${best}` : headline;
+  return {
+    count: totalAttempts,
+    timesWord: totalAttempts === 1 ? "time" : "times",
+    bestLabel: formatDurationValue(bestSeconds),
+  };
 }

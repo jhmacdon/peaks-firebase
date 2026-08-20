@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import {
   bestSecondsFromAttempts,
-  formatRouteHistoryHeadline,
+  buildRouteHistoryHeadlineParts,
   latestAttempt,
   ordinalLabel,
   pickFeaturedRoute,
@@ -74,7 +74,10 @@ test("shapeRouteHistory orders entries newest first and ranks chronologically", 
   assert.equal(history!.totalAttempts, 3);
   assert.equal(history!.bestSeconds, 4000);
   assert.equal(history!.currentRank, 2);
-  assert.equal(history!.participationLabel, "2nd of your 3 attempts");
+  // The participation sentence is composed by the caller from currentRank +
+  // totalAttempts (each numeral gets its own font-mono-num span), not
+  // pre-baked into a string here — this is the pair a caller would combine.
+  assert.equal(ordinalLabel(history!.currentRank!), "2nd");
 
   // newest first
   assert.deepEqual(
@@ -95,7 +98,9 @@ test("shapeRouteHistory: this session is the Strava-style '3rd of your 5 attempt
     attempt({ sessionId: `s${n}`, startTime: `2024-0${n}-01T00:00:00.000Z`, totalTime: 3000 + n })
   );
   const history = shapeRouteHistory(attempts, "s3");
-  assert.equal(history?.participationLabel, "3rd of your 5 attempts");
+  assert.equal(history?.currentRank, 3);
+  assert.equal(history?.totalAttempts, 5);
+  assert.equal(ordinalLabel(history!.currentRank!), "3rd");
 });
 
 test("shapeRouteHistory tolerates a current session absent from the attempts", () => {
@@ -106,7 +111,6 @@ test("shapeRouteHistory tolerates a current session absent from the attempts", (
   const history = shapeRouteHistory(attempts, "not-in-list");
   assert.ok(history);
   assert.equal(history!.currentRank, null);
-  assert.equal(history!.participationLabel, null);
   assert.ok(history!.entries.every((e) => !e.isCurrent));
 });
 
@@ -151,14 +155,19 @@ test("pickFeaturedRoute prefers the richest history, then alphabetical", () => {
   assert.equal(pickFeaturedRoute([tieA, tieB])?.routeId, "tie-b");
 });
 
-test("formatRouteHistoryHeadline pluralizes and appends best time", () => {
-  assert.equal(formatRouteHistoryHeadline(1, null), "You've done this route 1 time");
-  assert.equal(
-    formatRouteHistoryHeadline(4, 15120),
-    "You've done this route 4 times · Best: 4h 12m"
-  );
+test("buildRouteHistoryHeadlineParts pluralizes and carries the best time separately", () => {
+  assert.deepEqual(buildRouteHistoryHeadlineParts(1, null), {
+    count: 1,
+    timesWord: "time",
+    bestLabel: null,
+  });
+  assert.deepEqual(buildRouteHistoryHeadlineParts(4, 15120), {
+    count: 4,
+    timesWord: "times",
+    bestLabel: "4h 12m",
+  });
 });
 
-test("formatRouteHistoryHeadline is absent at zero", () => {
-  assert.equal(formatRouteHistoryHeadline(0, null), null);
+test("buildRouteHistoryHeadlineParts is absent at zero", () => {
+  assert.equal(buildRouteHistoryHeadlineParts(0, null), null);
 });

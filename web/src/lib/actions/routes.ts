@@ -1014,3 +1014,45 @@ export async function getUserRouteHistory(
     totalTime: r.total_time != null ? Number(r.total_time) : null,
   }));
 }
+
+/**
+ * The batched form of {@link getUserRouteHistory}: one verified token, one
+ * query, every requested route's attempt history keyed by route id. A
+ * session can match several catalog routes at once (up to 10 in production),
+ * and `SessionRouteHistory` needs each match's attempt count to pick which
+ * one to feature — calling `getUserRouteHistory` once per match would fire
+ * that many separate round trips (and separate `verifyToken` calls) for one
+ * section on one page. This does the same read as `ANY($1::text[])` instead,
+ * grouped client-side by `route_id`. `getUserRouteHistory` stays as the
+ * single-route form for the route page's one-liner, where there is only ever
+ * one route in play and a one-element batch call would just be this with
+ * extra steps.
+ */
+export async function getUserRouteHistoryBatch(
+  token: string,
+  routeIds: string[]
+): Promise<Record<string, RouteAttempt[]>> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+  if (routeIds.length === 0) return {};
+
+  const result = await db.query(
+    `SELECT sr.route_id, ts.id AS session_id, ts.start_time, ts.total_time
+     FROM session_routes sr
+     JOIN tracking_sessions ts ON ts.id = sr.session_id
+     WHERE sr.route_id = ANY($1::text[]) AND ts.user_id = $2
+     ORDER BY ts.start_time ASC`,
+    [routeIds, user.uid]
+  );
+
+  const byRoute: Record<string, RouteAttempt[]> = {};
+  for (const r of result.rows) {
+    const attempt: RouteAttempt = {
+      sessionId: r.session_id,
+      startTime: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
+      totalTime: r.total_time != null ? Number(r.total_time) : null,
+    };
+    (byRoute[r.route_id] ??= []).push(attempt);
+  }
+  return byRoute;
+}
