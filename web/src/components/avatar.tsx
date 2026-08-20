@@ -27,11 +27,9 @@ export default function Avatar({ name, avatarUrl, size = "md" }: AvatarProps) {
 
   return (
     <div
-      className={`${classes} rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0`}
+      className={`${classes} flex shrink-0 items-center justify-center rounded-full bg-fill`}
     >
-      <span className="font-semibold text-blue-700 dark:text-blue-300">
-        {initial}
-      </span>
+      <span className="font-medium text-ink-2">{initial}</span>
     </div>
   );
 }

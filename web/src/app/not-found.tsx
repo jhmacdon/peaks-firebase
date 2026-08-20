@@ -1,18 +1,27 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { AuthProvider } from "../lib/auth-context";
+import AppNav from "../components/app-nav";
+import { SiteFooter } from "../components/site-footer";
+import { NotFoundContent } from "../components/not-found-content";
+
+// The root 404 answers every unmatched URL. It renders inside the root
+// layout only — no route group applies — so it assembles its own chrome,
+// mirroring `(public)/layout.tsx`.
+export const metadata: Metadata = {
+  title: "Not found",
+  description: "That page isn't on the map.",
+};
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6">
-      <h2 className="text-lg font-semibold mb-2">Page not found</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        The page you&apos;re looking for doesn&apos;t exist.
-      </p>
-      <Link
-        href="/discover"
-        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        Go to Discover
-      </Link>
-    </div>
+    <AuthProvider>
+      <div className="flex min-h-screen flex-col pb-[var(--chrome-bottom-h)] md:pb-0">
+        <AppNav />
+        <main className="flex-1">
+          <NotFoundContent />
+        </main>
+        <SiteFooter />
+      </div>
+    </AuthProvider>
   );
 }

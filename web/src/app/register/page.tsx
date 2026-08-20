@@ -12,9 +12,12 @@ export default function RegisterPage() {
   return (
     <AuthProvider>
       <AppNav />
-      <Suspense fallback={<AuthPageFallback />}>
-        <RegisterContent />
-      </Suspense>
+      {/* Clears the fixed mobile tab bar; see --chrome-bottom-h. */}
+      <div className="pb-[var(--chrome-bottom-h)] md:pb-0">
+        <Suspense fallback={<AuthPageFallback />}>
+          <RegisterContent />
+        </Suspense>
+      </div>
     </AuthProvider>
   );
 }

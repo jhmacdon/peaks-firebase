@@ -168,6 +168,43 @@ a {
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
 
+/* ── App chrome (components/app-nav.tsx) ──────────────────────────────────
+   Heights are pinned here, not only in the nav's own height utilities, so a
+   full-bleed page can size itself against the chrome without re-deriving
+   it — the map explorer subtracts these from 100dvh. Keep them in step with
+   the nav:
+     --chrome-h         desktop bar   h-14 (56px) + 1px hairline
+     --chrome-top-h     mobile bar    h-12 (48px) + 1px hairline
+     --chrome-bottom-h  mobile tabs   h-13 (52px) + 1px hairline + safe area
+   The safe-area term is 0 unless the viewport opts into `viewport-fit:
+   cover` (an installed standalone PWA); in a normal browser the UA already
+   insets the viewport above the home indicator, so 0 is the right answer. */
+:root {
+  --chrome-h: 57px;
+  --chrome-top-h: 49px;
+  --chrome-bottom-h: calc(53px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Keeps the last row of the fixed mobile tab bar clear of the home
+   indicator. */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Active top-nav marker: a 2px accent rule 6px under the label. Spelled out
+   here rather than with Tailwind's `decoration-*`/`underline-offset-*`
+   utilities because the bare `a` rule above is UNLAYERED, and unlayered
+   declarations outrank everything in `@layer utilities` — so
+   `a { text-underline-offset: 0.2em }` would beat the utility no matter the
+   specificity. Same reason the button hover fills above live here. */
+.nav-underline {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  text-decoration-skip-ink: none;
+}
+
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
 .peak-label {
   background: transparent;

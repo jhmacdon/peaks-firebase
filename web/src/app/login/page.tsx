@@ -12,9 +12,12 @@ export default function LoginPage() {
   return (
     <AuthProvider>
       <AppNav />
-      <Suspense fallback={<AuthPageFallback />}>
-        <LoginContent />
-      </Suspense>
+      {/* Clears the fixed mobile tab bar; see --chrome-bottom-h. */}
+      <div className="pb-[var(--chrome-bottom-h)] md:pb-0">
+        <Suspense fallback={<AuthPageFallback />}>
+          <LoginContent />
+        </Suspense>
+      </div>
     </AuthProvider>
   );
 }

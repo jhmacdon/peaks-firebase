@@ -378,7 +378,12 @@ export default function MapPage() {
   );
 
   return (
-    <div className="relative h-[calc(100dvh-5rem)] overflow-hidden bg-gray-100 md:h-[calc(100dvh-57px)] dark:bg-gray-900">
+    // Full-bleed: the map fills whatever the nav leaves. Heights come from
+    // the --chrome-* variables in globals.css rather than hardcoded pixels,
+    // so the two stay in step — mobile now has a top bar as well as the tab
+    // bar. `(public)/layout.tsx` withholds the footer and the tab-bar gutter
+    // from this segment for the same reason.
+    <div className="relative h-[calc(100dvh-var(--chrome-top-h)-var(--chrome-bottom-h))] overflow-hidden bg-gray-100 md:h-[calc(100dvh-var(--chrome-h))] dark:bg-gray-900">
       <div className="absolute inset-0 z-0">
         <ExploreMap
           destinations={sortedDestinations}
