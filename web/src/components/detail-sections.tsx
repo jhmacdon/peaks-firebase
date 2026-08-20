@@ -26,11 +26,24 @@ export function DifficultyPill({ label }: { label: string | null }) {
 // Unified on the "›" separator (design-tokens.md-era convention) — several
 // other pages still hand-roll a "/"-separated breadcrumb inline; those are
 // out of scope here and get folded onto this component in a later nav task.
-export function Breadcrumb({ current }: { current: string }) {
+//
+// Defaults to Discover — the parent for a destination or route page, since
+// neither has its own index yet. A page that DOES have a real index
+// (/areas, /lists) overrides `parentHref`/`parentLabel` to point there
+// instead, since that's the page a reader actually came from.
+export function Breadcrumb({
+  current,
+  parentHref = "/discover",
+  parentLabel = "Discover",
+}: {
+  current: string;
+  parentHref?: string;
+  parentLabel?: string;
+}) {
   return (
     <nav className="flex items-center gap-1.5 text-sm text-muted">
-      <Link href="/discover" className="hover:text-ink hover:underline">
-        Discover
+      <Link href={parentHref} className="hover:text-ink hover:underline">
+        {parentLabel}
       </Link>
       <span aria-hidden>›</span>
       <span className="text-ink-2">{current}</span>
@@ -38,64 +51,13 @@ export function Breadcrumb({ current }: { current: string }) {
   );
 }
 
-// StatCell / StatRow — retinted to tokens. Every numeral is Geist Mono
-// (design-tokens.md "Type"). StatCell's caller lays it out with a `gap-px`
-// + background grid — a 1px-divider trick that depends on each cell
-// painting its own opaque background, so a true "never box a stat" (law 2)
-// flatten here would turn that grid into a solid block. `bg-page` keeps the
-// divider illusion working with a real token in the meantime.
-//
-// One caller left: the route detail page. The destination page dropped both
-// of these in Task 13 for flat StatClusters and unboxed rows; Task 14 does
-// the same to the route page, and this file goes with it.
-export function StatCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-page px-4 py-3">
-      <div className="font-mono-num tabular-nums text-lg text-ink">{value}</div>
-      <div className="text-xs text-muted">{label}</div>
-    </div>
-  );
-}
-
-export function StatRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <dt className="text-muted">{label}</dt>
-      <dd
-        className={`text-right font-medium text-ink ${
-          mono ? "font-mono-num tabular-nums text-[13px]" : ""
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-export function SidePanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-      <h2 className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-        {title}
-      </h2>
-      <div className="px-4 py-3">{children}</div>
-    </section>
-  );
-}
+// StatCell / StatRow / SidePanel used to live here for the route and area
+// detail pages' boxed stat grids and bordered sidebars. The destination
+// page dropped them in Task 13 for flat StatClusters and unboxed rows;
+// Task 14 did the same to the route and area pages (their last two
+// callers), so the boxed-stat/bordered-sidebar shapes are retired from
+// this file too — see components/ui/stat.tsx (StatCluster) and each
+// section's own quiet-row component instead.
 
 // Lives in lib/destination-detail.ts now (the destination page's pure
 // helpers moved there in Task 13 so they could be unit-tested); re-exported

@@ -54,6 +54,16 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+  images: {
+    // Trip report photos are Firebase Storage download URLs (see
+    // reports/[id]/layout.tsx) — the only remote images this app renders
+    // through next/image. Destination hero photos stay on a plain <img>
+    // (components/destination/destination-hero.tsx) since their source
+    // hosts vary per catalog entry.
+    remotePatterns: [
+      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+    ],
+  },
 };
 
 export default nextConfig;

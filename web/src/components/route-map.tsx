@@ -6,7 +6,17 @@ import "leaflet/dist/leaflet.css";
 
 interface RouteMapProps {
   polyline6: string;
+  /** Height/shape of the embed. The container owns the radius (mirrors
+   * components/destination-map.tsx's contract) so a hero tile can round
+   * itself without the map re-rounding its own corners underneath. */
+  className?: string;
 }
+
+// Same teal as components/destination-map.tsx's ACCENT — one map-selection
+// color across the site (design-tokens.md, "Accent budget"). Fixed hex
+// rather than the token: painted into a Leaflet canvas layer, which never
+// sees the page's CSS variables.
+const ACCENT = "#46ADBC";
 
 /** Decode a Google Polyline Algorithm string (precision 1e6) to [lat, lng][] */
 function decodePolyline6(encoded: string): [number, number][] {
@@ -42,7 +52,7 @@ function decodePolyline6(encoded: string): [number, number][] {
   return coords;
 }
 
-export default function RouteMap({ polyline6 }: RouteMapProps) {
+export default function RouteMap({ polyline6, className = "h-80" }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
 
@@ -68,22 +78,23 @@ export default function RouteMap({ polyline6 }: RouteMapProps) {
     }).addTo(map);
 
     const polyline = L.polyline(coords, {
-      color: "#2563eb",
+      color: ACCENT,
       weight: 3,
       opacity: 0.9,
     }).addTo(map);
 
-    // Start/end markers
+    // Start/end markers — same accent, filled vs. outlined so the two ends
+    // read apart without spending a second hue.
     const startIcon = L.divIcon({
       className: "",
-      html: `<div style="width:12px;height:12px;border-radius:50%;background:#16a34a;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:${ACCENT};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6],
     });
 
     const endIcon = L.divIcon({
       className: "",
-      html: `<div style="width:12px;height:12px;border-radius:50%;background:#dc2626;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:white;border:2px solid ${ACCENT};box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6],
     });
@@ -101,11 +112,11 @@ export default function RouteMap({ polyline6 }: RouteMapProps) {
 
   if (coords.length === 0) {
     return (
-      <div className="h-80 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 text-sm">
+      <div className={`flex items-center justify-center bg-fill text-sm text-muted ${className}`.trim()}>
         No route geometry available
       </div>
     );
   }
 
-  return <div ref={mapRef} className="h-80 rounded-xl z-0" />;
+  return <div ref={mapRef} className={`map-embed bg-fill ${className}`.trim()} />;
 }

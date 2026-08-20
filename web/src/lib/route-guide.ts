@@ -1,4 +1,5 @@
 import type { RouteDetail, RouteSegment } from "./actions/routes";
+import { formatDurationRangeFriendly, formatSessionCount } from "./format";
 
 const METERS_TO_MILES = 1 / 1609.34;
 const METERS_TO_FEET = 3.28084;
@@ -199,6 +200,56 @@ export function summarizeRouteGuide(
     completionLabel,
     routeNarrative,
   };
+}
+
+/** The route's About paragraphs — what it is, how hard/long it runs, who's
+ * followed it, and (folded in rather than given its own sidebar box) which
+ * direction it's best done. One template for every route page, same as
+ * buildDestinationGuide serves every destination page. */
+export function buildRouteAbout(
+  name: string,
+  route: Pick<RouteDetail, "shape" | "completion">,
+  guide: RouteGuideSummary,
+  sessionCount: number
+): string[] {
+  const paragraphs: string[] = [];
+
+  const shapeLabel = describeRouteShape(route.shape);
+  const routeNoun = shapeLabel
+    ? `${/^[aeiou]/i.test(shapeLabel) ? "an" : "a"} ${shapeLabel} route`
+    : "a route";
+  paragraphs.push(
+    [
+      `${name} is ${routeNoun}`,
+      guide.distanceMiles != null ? ` covering ${guide.distanceMiles.toFixed(1)} miles` : "",
+      guide.gainFeet != null
+        ? ` with ${Math.round(guide.gainFeet).toLocaleString()} feet of elevation gain`
+        : "",
+      ".",
+    ].join("")
+  );
+
+  const difficultyText = guide.difficultyLabel
+    ? `It rates as ${guide.difficultyLabel.toLowerCase()} given its ${guide.difficultyReason}.`
+    : null;
+  const timeText =
+    guide.estimatedHoursLow != null
+      ? `Plan on ${formatDurationRangeFriendly(guide.estimatedHoursLow, guide.estimatedHoursHigh)} of moving time.`
+      : null;
+  const planSentence = [difficultyText, timeText].filter(Boolean).join(" ");
+  if (planSentence) paragraphs.push(planSentence);
+
+  if (route.completion && route.completion !== "none") {
+    paragraphs.push(`${describeCompletionMode(route.completion)}.`);
+  }
+
+  if (sessionCount > 0) {
+    paragraphs.push(
+      `${formatSessionCount(sessionCount)} ${sessionCount === 1 ? "has" : "have"} followed this route.`
+    );
+  }
+
+  return paragraphs;
 }
 
 export interface ParsedExternalRouteLink {

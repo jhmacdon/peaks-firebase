@@ -77,7 +77,7 @@ export default function SearchBar({
 
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint">
         <svg
           width="17"
           height="17"
@@ -98,7 +98,7 @@ export default function SearchBar({
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-[15px] text-gray-900 transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
+        className="h-11 w-full rounded-ctl border border-border bg-page py-2.5 pl-10 pr-10 text-[15px] text-ink transition-colors placeholder:text-faint hover:border-ink-2 focus:border-accent"
       />
       {value && (
         <button
@@ -107,7 +107,7 @@ export default function SearchBar({
             setValue("");
             updateSearch("");
           }}
-          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-ctl text-faint transition-colors hover:bg-fill hover:text-ink-2"
           aria-label="Clear search"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
