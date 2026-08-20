@@ -327,7 +327,13 @@ function DestinationDetailContent() {
                 onBoundaryChange={setPendingBoundary}
               />
             ) : (
-              <DestinationMap lat={dest.lat} lng={dest.lng} name={dest.name} boundary={dest.boundary} />
+              <DestinationMap
+                lat={dest.lat}
+                lng={dest.lng}
+                name={dest.name}
+                boundary={dest.boundary}
+                className="h-80 rounded-xl z-0"
+              />
             )}
           </div>
         )}

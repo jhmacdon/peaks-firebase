@@ -1,3 +1,5 @@
+import type { Amenities } from "./amenities";
+
 type CountMap = Record<string, number>;
 
 export interface DestinationAverages {
@@ -132,6 +134,169 @@ export function formatFeet(meters: number | null | undefined): string {
 export function formatMiles(meters: number | null | undefined): string {
   if (meters == null) return "—";
   return `${(meters / 1609.34).toFixed(1)} mi`;
+}
+
+/** The bare numeral a StatCluster wants — "14,411", with the unit supplied
+ * separately as its own smaller span. Returns null (not "—") when there is
+ * nothing to show, so the caller drops the whole cluster rather than
+ * printing a placeholder numeral (plan constraint 6). */
+export function formatFeetValue(meters: number | null | undefined): string | null {
+  if (meters == null || !Number.isFinite(meters)) return null;
+  return Math.round(meters * 3.28084).toLocaleString("en-US");
+}
+
+/** "5.6" — the mile numeral without its unit. Same null contract as
+ * formatFeetValue. */
+export function formatMilesValue(meters: number | null | undefined): string | null {
+  if (meters == null || !Number.isFinite(meters)) return null;
+  return (meters / 1609.34).toFixed(1);
+}
+
+/** "3h 12m" / "48m" — elapsed time as one compact numeral string. */
+export function formatElapsed(seconds: number | null | undefined): string {
+  if (seconds == null || !Number.isFinite(seconds)) return "0m";
+  const roundedMinutes = Math.max(0, Math.round(seconds / 60));
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+/** "820 m away" / "3.4 mi away" — how far a nearby destination sits. */
+export function formatDistanceAway(meters: number): string {
+  if (meters < 1609.34) {
+    return `${Math.round(meters).toLocaleString("en-US")} m away`;
+  }
+  return `${(meters / 1609.34).toFixed(1)} mi away`;
+}
+
+/** "fire-lookout" → "Fire lookout" */
+export function titleize(value: string): string {
+  const spaced = value.replace(/[-_]+/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/** What a recorded session at this destination is called. On a summit it is
+ * an ascent; on a lake, viewpoint, or trailhead it plainly is not — and one
+ * template serves all 70,000 catalog pages, so the word follows the
+ * feature rather than assuming every destination is climbed. */
+export function describeSessionNoun(features: string[]): "Ascents" | "Sessions" {
+  const climbed = new Set(["summit", "volcano"]);
+  return features.some((feature) => climbed.has(feature)) ? "Ascents" : "Sessions";
+}
+
+export const MONTH_ABBREVIATIONS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+// Every spelling of a month key seen in the averages JSONB across sources
+// (Peakbagger imports, the iOS app, the ascent backfill) folded onto one
+// slot each.
+const MONTH_KEYS: string[][] = [
+  ["jan", "january", "1", "01"],
+  ["feb", "february", "2", "02"],
+  ["mar", "march", "3", "03"],
+  ["apr", "april", "4", "04"],
+  ["may", "5", "05"],
+  ["jun", "june", "6", "06"],
+  ["jul", "july", "7", "07"],
+  ["aug", "august", "8", "08"],
+  ["sep", "sept", "september", "9", "09"],
+  ["oct", "october", "10"],
+  ["nov", "november", "11"],
+  ["dec", "december", "12"],
+];
+
+/** Twelve visit counts, Jan-first, or null when the record carries no
+ * seasonal data at all — the section is dropped rather than drawn empty. */
+export function monthlyVisitCounts(
+  averages: DestinationAverages | null | undefined
+): number[] | null {
+  const source = averages?.months;
+  if (!source || typeof source !== "object") return null;
+
+  const byKey: CountMap = {};
+  for (const [key, raw] of Object.entries(source)) {
+    const count = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isFinite(count)) {
+      const normalized = key.toLowerCase();
+      byKey[normalized] = (byKey[normalized] || 0) + count;
+    }
+  }
+
+  const counts = MONTH_KEYS.map((keys) =>
+    keys.reduce((sum, key) => sum + (byKey[key] || 0), 0)
+  );
+  return counts.some((count) => count > 0) ? counts : null;
+}
+
+/** Indexes of the busiest month(s) — the one bar that earns the accent. */
+export function peakMonthIndexes(counts: number[]): number[] {
+  const max = Math.max(...counts, 0);
+  if (max <= 0) return [];
+  return counts.reduce<number[]>((peaks, count, index) => {
+    if (count === max) peaks.push(index);
+    return peaks;
+  }, []);
+}
+
+/** Campsite/hut facts, in a fixed reading order, with every raw enum turned
+ * into a word. Absent facts are left out, never printed as "Unknown". */
+export function amenityRows(
+  amenities: Amenities | null | undefined
+): Array<{ label: string; value: string }> {
+  if (!amenities) return [];
+  const rows: Array<{ label: string; value: string }> = [];
+  if (amenities.toilet) {
+    rows.push({
+      label: "Toilet",
+      value: amenities.toilet === "none" ? "None" : titleize(amenities.toilet),
+    });
+  }
+  if (amenities.drinking_water) {
+    rows.push({ label: "Drinking water", value: titleize(amenities.drinking_water) });
+  }
+  if (amenities.shower != null) {
+    rows.push({ label: "Showers", value: amenities.shower ? "Yes" : "No" });
+  }
+  if (amenities.fee) {
+    rows.push({
+      label: "Fee",
+      value: amenities.fee.required ? amenities.fee.amount || "Required" : "None",
+    });
+  }
+  if (amenities.reservation) {
+    rows.push({
+      label: "Reservation",
+      value:
+        amenities.reservation === "no" ? "Not needed" : titleize(amenities.reservation),
+    });
+  }
+  if (amenities.capacity != null) {
+    rows.push({ label: "Capacity", value: String(amenities.capacity) });
+  }
+  if (amenities.fire_pit != null) {
+    rows.push({ label: "Fire pit", value: amenities.fire_pit ? "Yes" : "No" });
+  }
+  if (amenities.backcountry != null) {
+    rows.push({
+      label: "Setting",
+      value: amenities.backcountry ? "Backcountry" : "Frontcountry",
+    });
+  }
+  return rows;
+}
+
+/** The first paragraph of a trip report, clipped for a list row. Structural
+ * block shape rather than the TripReport type, so this stays a plain module
+ * and doesn't pull a "use server" file into the client bundle. */
+export function reportPreview(
+  blocks: Array<{ type: string; content?: string | null }> | null | undefined
+): string | null {
+  const textBlock = blocks?.find((block) => block.type === "text");
+  const raw = textBlock?.content?.trim();
+  if (!raw) return null;
+  return raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
 }
 
 export function formatShortDate(dateString: string): string {

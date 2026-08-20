@@ -234,6 +234,44 @@ a {
   mask-image: radial-gradient(ellipse at center, #000 48%, transparent 82%);
 }
 
+/* Photo credit overlaid on a hero-mosaic tile
+   (components/destination/destination-hero.tsx). The one place on the page
+   that doesn't take its colours from the tokens: it sits on a photograph,
+   which has no theme, so a token that inverts with the OS would be
+   unreadable half the time. Fixed light type on a short gradient instead —
+   spelled out here rather than as raw `white`/`black` utilities in the
+   component, where it would read as a palette violation with no reasoning
+   attached. */
+.photo-credit {
+  background-image: linear-gradient(to top, rgb(0 0 0 / 0.5), transparent);
+  color: rgb(255 255 255 / 0.85);
+}
+
+/* Leaflet attribution inside a `.map-embed` container
+   (components/destination-map.tsx). The credit has to stay readable and
+   clickable — it's the tile licence — but Leaflet's default 12px white bar
+   reads as page furniture on a 16px-radius media tile. Scoped to the class
+   rather than styling `.leaflet-control-attribution` globally so the map
+   explorer and the admin maps keep Leaflet's own chrome until Task 16
+   settles them. */
+/* `.leaflet-container` is the same element as `.map-embed` — both classes
+   land on the div handed to L.map(). It's in the selector only to outweigh
+   Leaflet's own `.leaflet-container .leaflet-control-attribution`, which is
+   the same specificity as a bare `.map-embed …` rule and loads after this
+   file. */
+.map-embed.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-page) 82%, transparent);
+  padding: 1px 5px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.map-embed .leaflet-control-attribution a {
+  color: var(--color-muted);
+  text-decoration: underline;
+}
+
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
 .peak-label {
   background: transparent;

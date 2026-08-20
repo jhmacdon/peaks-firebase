@@ -1,177 +1,98 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import dynamic from "next/dynamic";
+import { notFound } from "next/navigation";
 import {
   getDestination,
   getDestinationRoutes,
   getDestinationLists,
   getDestinationSessionCount,
-  getUserDestinationActivity,
-  type DestinationDetail,
-  type DestinationRoute,
-  type DestinationList,
-  type DestinationUserActivity,
 } from "../../../../lib/actions/destinations";
-import {
-  getNearbyDestinations,
-  type SearchDestination,
-} from "../../../../lib/actions/search";
+import { getNearbyDestinations } from "../../../../lib/actions/search";
 import {
   getTripReportsForDestination,
   getTripReportCountForDestination,
-  type TripReport,
 } from "../../../../lib/actions/trip-reports";
 import {
   buildDestinationGuide,
   describeDestinationType,
-  formatFeet,
-  formatMiles,
-  formatShortDate,
-  getDestinationMapLinks,
+  describeSessionNoun,
+  formatFeetValue,
+  monthlyVisitCounts,
+  amenityRows,
 } from "../../../../lib/destination-detail";
-import { summarizeRouteGuide } from "../../../../lib/route-guide";
-import { formatCoordinates, formatDurationRangeFriendly } from "../../../../lib/format";
 import { formatRegion } from "../../../../lib/regions";
-import {
-  Breadcrumb,
-  DifficultyPill,
-  SidePanel,
-  StatCell,
-  StatRow,
-  titleize,
-} from "../../../../components/detail-sections";
-import type { Amenities } from "../../../../lib/amenities";
+import { Breadcrumb } from "../../../../components/detail-sections";
 import { AreaChips } from "../../../../components/area-chip";
-import SaveDestinationButton from "../../../../components/save-destination-button";
-import { useAuth } from "../../../../lib/auth-context";
-import { LOADING_LABEL } from "../../../../lib/constants";
+import { PageHeader } from "../../../../components/ui/page-header";
+import { DestinationAbout } from "../../../../components/destination/destination-about";
+import { DestinationActions } from "../../../../components/destination/destination-actions";
+import { DestinationActivity } from "../../../../components/destination/destination-activity";
+import { DestinationHero } from "../../../../components/destination/destination-hero";
+import { DestinationLists } from "../../../../components/destination/destination-lists";
+import { DestinationMapLinks } from "../../../../components/destination/destination-map-links";
+import { DestinationMapSection } from "../../../../components/destination/destination-map-section";
+import { DestinationMetaRow } from "../../../../components/destination/destination-meta-row";
+import { DestinationNearby } from "../../../../components/destination/destination-nearby";
+import { DestinationPlanning } from "../../../../components/destination/destination-planning";
+import { DestinationReports } from "../../../../components/destination/destination-reports";
+import { DestinationRoutes } from "../../../../components/destination/destination-routes";
+import { DestinationSeasonality } from "../../../../components/destination/destination-seasonality";
+import {
+  DestinationTopline,
+  type ToplineStat,
+} from "../../../../components/destination/destination-topline";
 
-const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
-  ssr: false,
-});
+// The catalog page is a server component: this one template renders ~70,000
+// pages, and every one of them used to arrive as a "Loading…" shell that
+// only filled in after the browser round-tripped six server actions. The
+// page body now ships in the HTML. Three things still depend on the browser
+// and stay client islands — saving a place, personal activity, and the
+// Leaflet map.
 
-export default function DestinationDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const { user, loading: authLoading, getIdToken } = useAuth();
-  const userId = user?.uid ?? null;
-
-  const [dest, setDest] = useState<DestinationDetail | null>(null);
-  const [routes, setRoutes] = useState<DestinationRoute[]>([]);
-  const [lists, setLists] = useState<DestinationList[]>([]);
-  const [tripReports, setTripReports] = useState<TripReport[]>([]);
-  const [tripReportCount, setTripReportCount] = useState(0);
-  const [sessionCount, setSessionCount] = useState(0);
-  const [nearby, setNearby] = useState<SearchDestination[]>([]);
-  const [activity, setActivity] = useState<DestinationUserActivity | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const [d, r, l, s, reportCount, tr] = await Promise.all([
-          getDestination(id),
-          getDestinationRoutes(id, { publicOnly: true }),
-          getDestinationLists(id),
-          getDestinationSessionCount(id),
-          getTripReportCountForDestination(id),
-          getTripReportsForDestination(id, 5),
-        ]);
-
-        if (cancelled) return;
-
-        setDest(d);
-        setRoutes(r);
-        setLists(l);
-        setSessionCount(s);
-        setTripReportCount(reportCount);
-        setTripReports(tr);
-
-        if (d?.lat != null && d?.lng != null) {
-          const near = await getNearbyDestinations(d.lat, d.lng, 15000, 7);
-          if (!cancelled) {
-            setNearby(near.filter((n) => n.id !== id).slice(0, 6));
-          }
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (authLoading) {
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (!userId) {
-      setActivity(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    getIdToken()
-      .then((token) =>
-        token ? getUserDestinationActivity(token, id) : null
-      )
-      .then((result) => {
-        if (!cancelled) setActivity(result);
-      })
-      .catch(() => {
-        if (!cancelled) setActivity(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authLoading, getIdToken, id, userId]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-gray-950">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <div className="text-gray-500 py-16 text-center text-sm">{LOADING_LABEL}</div>
-        </div>
-      </div>
-    );
+/** A missing route list or a slow Firestore read shouldn't take a catalog
+ * page down with it; the section it feeds simply doesn't render. The
+ * destination lookup itself is deliberately NOT wrapped — without it there
+ * is no page. */
+async function settled<T>(task: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await task;
+  } catch {
+    return fallback;
   }
+}
 
-  if (!dest) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-gray-950">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <div className="text-gray-500 py-16 text-center text-sm">
-            Destination not found
-          </div>
-        </div>
-      </div>
-    );
-  }
+export default async function DestinationDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const dest = await getDestination(id);
+  if (!dest) notFound();
 
-  const regionLabel = formatRegion(dest.state_code, dest.country_code);
-  const guide = buildDestinationGuide(dest, regionLabel, sessionCount);
-  const name = dest.name || "Unnamed";
-  const typeLabel = describeDestinationType(dest.type, dest.features);
   const hasCoords = dest.lat != null && dest.lng != null;
-  const mapLinks = hasCoords
-    ? getDestinationMapLinks(dest.lat!, dest.lng!)
-    : null;
+
+  const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw] =
+    await Promise.all([
+      settled(getDestinationRoutes(id, { publicOnly: true }), []),
+      settled(getDestinationLists(id), []),
+      settled(getDestinationSessionCount(id), 0),
+      settled(getTripReportCountForDestination(id), 0),
+      settled(getTripReportsForDestination(id, 5), []),
+      hasCoords
+        ? settled(getNearbyDestinations(dest.lat!, dest.lng!, 15000, 7), [])
+        : Promise.resolve([]),
+    ]);
+
+  const nearby = nearbyRaw.filter((n) => n.id !== id).slice(0, 6);
+
+  const name = dest.name || "Unnamed";
+  const regionLabel = formatRegion(dest.state_code, dest.country_code);
+  const typeLabel = describeDestinationType(dest.type, dest.features);
+  const guide = buildDestinationGuide(dest, regionLabel, sessionCount);
+  const elevationValue = formatFeetValue(dest.elevation);
+  const prominenceValue = formatFeetValue(dest.prominence);
+  const months = monthlyVisitCounts(dest.averages);
+  const facilities = amenityRows(dest.amenities);
+
   const directionsUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`
     : null;
@@ -179,623 +100,139 @@ export default function DestinationDetailPage() {
     hasCoords && dest.country_code === "US"
       ? `https://forecast.weather.gov/MapClick.php?lat=${dest.lat}&lon=${dest.lng}`
       : null;
-  const coordText = hasCoords ? formatCoordinates(dest.lat, dest.lng) : null;
 
-  const metaParts = [
-    regionLabel,
-    dest.type === "region" ? "Region" : null,
-    ...dest.features.map(titleize),
-  ].filter(Boolean);
+  const photos = dest.hero_image
+    ? [
+        {
+          url: dest.hero_image,
+          credit: dest.hero_image_attribution,
+          creditUrl: dest.hero_image_attribution_url,
+        },
+      ]
+    : [];
 
-  const months = monthlyCounts(dest.averages);
-  const facilities = dest.amenities ? amenityRows(dest.amenities) : [];
+  // With no photo the hero is the map, and it carries the elevation on its
+  // scrim — so elevation drops out of the topline row rather than being
+  // printed twice (Task 1's rule: every stat once per page).
+  const mapIsHero = photos.length === 0 && hasCoords;
+  const elevationInHero = mapIsHero && elevationValue != null;
 
-  function copyCoords() {
-    if (!coordText) return;
-    navigator.clipboard.writeText(coordText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <Breadcrumb current={name} />
-
-        <header className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          <div className="min-w-0">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-              {name}
-            </h1>
-            {metaParts.length > 0 && (
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {metaParts.join(" · ")}
-              </p>
-            )}
-            <AreaChips areas={dest.areas} className="mt-2" />
-          </div>
-          <div className="flex shrink-0 items-start gap-2">
-            <SaveDestinationButton destinationId={id} name={dest.name} />
-            {directionsUrl && (
-              <a
-                href={directionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-              >
-                Directions
-              </a>
-            )}
-            <Link
-              href={`/reports/new?dest=${id}`}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-            >
-              Write a report
-            </Link>
-          </div>
-        </header>
-
-        {activity && <DestinationActivityCard activity={activity} />}
-
-        <section className="mt-8 max-w-3xl" aria-labelledby="destination-about">
-          <h2
-            id="destination-about"
-            className="text-xl font-semibold text-gray-900 dark:text-white"
-          >
-            About {name}
-          </h2>
-          <p className="mt-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
-            {dest.description || guide.headline}
-          </p>
-          {dest.description && dest.description_source_name && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Source:{" "}
-              {dest.description_source_url ? (
-                <a
-                  href={dest.description_source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  {dest.description_source_name}
-                </a>
-              ) : (
-                dest.description_source_name
-              )}
-              {dest.description_source_license
-                ? ` · ${dest.description_source_license}`
-                : ""}
-            </p>
-          )}
-        </section>
-
-        <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:grid-cols-5 dark:border-gray-800 dark:bg-gray-800">
-          <StatCell label="Elevation" value={formatFeet(dest.elevation)} />
-          <StatCell label="Prominence" value={formatFeet(dest.prominence)} />
-          <StatCell label="Routes" value={routes.length.toLocaleString("en-US")} />
-          <StatCell
-            label="Trip reports"
-            value={tripReportCount.toLocaleString("en-US")}
-          />
-          <StatCell label="Sessions" value={sessionCount.toLocaleString("en-US")} />
-        </div>
-
-        {dest.hero_image && (
-          <figure className="mt-6">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={dest.hero_image}
-              alt={name}
-              className="aspect-[21/9] w-full rounded-lg border border-gray-200 object-cover dark:border-gray-800"
-            />
-            {dest.hero_image_attribution && (
-              <figcaption className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                Photo:{" "}
-                {dest.hero_image_attribution_url ? (
-                  <a
-                    href={dest.hero_image_attribution_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    {dest.hero_image_attribution}
-                  </a>
-                ) : (
-                  dest.hero_image_attribution
-                )}
-              </figcaption>
-            )}
-          </figure>
-        )}
-
-        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <main className="min-w-0">
-            {guide.paragraphs.length > 0 && (
-              <section>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Planning notes
-                </h2>
-                <div className="mt-3 space-y-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
-                  {guide.paragraphs.map((paragraph, index) => (
-                    <p key={`${index}-${paragraph}`}>{paragraph}</p>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <section className="mt-10">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Map
-              </h2>
-              {hasCoords ? (
-                <>
-                  <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-                    <DestinationMap
-                      lat={dest.lat!}
-                      lng={dest.lng!}
-                      name={dest.name}
-                      boundary={dest.boundary}
-                    />
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <span className="font-mono text-[13px]">{coordText}</span>
-                      <button
-                        type="button"
-                        onClick={copyCoords}
-                        className="rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-                      >
-                        {copied ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <div className="flex gap-4">
-                      <a
-                        href={mapLinks!.openStreetMap}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        OpenStreetMap
-                      </a>
-                      <a
-                        href={mapLinks!.googleMaps}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        Google Maps
-                      </a>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  No coordinates are saved for this destination yet.
-                </p>
-              )}
-            </section>
-
-            <section className="mt-10">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Routes{routes.length > 0 ? ` (${routes.length})` : ""}
-              </h2>
-              {routes.length === 0 ? (
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  No routes are linked to this destination yet.
-                </p>
-              ) : (
-                <ul className="mt-3 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-                  {routes.map((route) => (
-                    <RouteRow key={route.id} route={route} />
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="mt-10">
-              <div className="flex items-baseline justify-between gap-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Trip reports{tripReportCount > 0 ? ` (${tripReportCount})` : ""}
-                </h2>
-                <Link
-                  href={`/reports/new?dest=${id}`}
-                  className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  Write a report
-                </Link>
-              </div>
-              {tripReports.length === 0 ? (
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  No trip reports yet. Been here? Write the first one.
-                </p>
-              ) : (
-                <>
-                  <ul className="mt-3 divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-                    {tripReports.map((report) => (
-                      <li key={report.id} className="py-4">
-                        <Link
-                          href={`/reports/${report.id}`}
-                          className="font-medium text-gray-900 hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-300"
-                        >
-                          {report.title}
-                        </Link>
-                        <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          {report.userName} · {formatShortDate(report.date)}
-                        </div>
-                        {getReportPreview(report) && (
-                          <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
-                            {getReportPreview(report)}
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  {tripReportCount > tripReports.length && (
-                    <Link
-                      href={`/destinations/${id}/reports`}
-                      className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-                    >
-                      View all {tripReportCount} trip reports
-                    </Link>
-                  )}
-                </>
-              )}
-            </section>
-          </main>
-
-          <aside className="space-y-6">
-            {(typeLabel || regionLabel) && (
-              <SidePanel title="Stats">
-                <dl className="space-y-2">
-                  {typeLabel && <StatRow label="Type" value={typeLabel} />}
-                  {regionLabel && <StatRow label="Region" value={regionLabel} />}
-                </dl>
-              </SidePanel>
-            )}
-
-            {(forecastUrl || directionsUrl || facilities.length > 0) && (
-              <SidePanel title="Before you go">
-                <ul className="space-y-1.5 text-sm">
-                  {forecastUrl && (
-                    <li>
-                      <a
-                        href={forecastUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        NOAA weather forecast
-                      </a>
-                    </li>
-                  )}
-                  {directionsUrl && (
-                    <li>
-                      <a
-                        href={directionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        Driving directions
-                      </a>
-                    </li>
-                  )}
-                </ul>
-                {facilities.length > 0 && (
-                  <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-800">
-                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      Facilities
-                    </div>
-                    <dl className="mt-2 space-y-2">
-                      {facilities.map((row) => (
-                        <StatRow key={row.label} label={row.label} value={row.value} />
-                      ))}
-                    </dl>
-                  </div>
-                )}
-              </SidePanel>
-            )}
-
-            {months && (
-              <SidePanel title="Seasonality">
-                <div className="flex h-16 items-end gap-1">
-                  {months.map((count, i) => {
-                    const max = Math.max(...months);
-                    const pct = max > 0 ? (count / max) * 100 : 0;
-                    return (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-sm bg-blue-500/70 dark:bg-blue-400/60"
-                        style={{ height: `${Math.max(pct, count > 0 ? 6 : 2)}%` }}
-                        title={`${MONTH_NAMES[i]}: ${count}`}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="mt-1 flex gap-1 text-center text-[10px] text-gray-400">
-                  {MONTH_NAMES.map((m) => (
-                    <div key={m} className="flex-1">
-                      {m[0]}
-                    </div>
-                  ))}
-                </div>
-                {topMonths(months).length > 0 && (
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Most visits in {topMonths(months).join(" and ")}.
-                  </p>
-                )}
-              </SidePanel>
-            )}
-
-            {lists.length > 0 && (
-              <SidePanel title="On lists">
-                <ul className="space-y-2 text-sm">
-                  {lists.map((list) => (
-                    <li key={list.id} className="flex items-baseline justify-between gap-3">
-                      <Link
-                        href={`/lists/${list.id}`}
-                        className="min-w-0 truncate text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        {list.name || "Unnamed List"}
-                      </Link>
-                      <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                        {list.destination_count} destinations
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </SidePanel>
-            )}
-
-            {nearby.length > 0 && (
-              <SidePanel title="Nearby">
-                <ul className="space-y-2.5 text-sm">
-                  {nearby.map((n) => (
-                    <li key={n.id}>
-                      <Link
-                        href={`/destinations/${n.id}`}
-                        className="font-medium text-gray-900 hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-300"
-                      >
-                        {n.name || "Unnamed"}
-                      </Link>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {[
-                          n.elevation != null ? formatFeet(n.elevation) : null,
-                          n.distance_m != null ? formatDistanceAway(n.distance_m) : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </SidePanel>
-            )}
-          </aside>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DestinationActivityCard({
-  activity,
-}: {
-  activity: DestinationUserActivity;
-}) {
-  const latestVisit = activity.latest_visit
-    ? formatShortDate(activity.latest_visit)
-    : null;
-
-  return (
-    <section
-      className="mt-8 overflow-hidden rounded-xl border border-teal-100 bg-teal-50/50 dark:border-teal-900/60 dark:bg-teal-950/20"
-      aria-labelledby="destination-personal-activity"
-    >
-      <div className="px-5 py-5">
-        <p
-          id="destination-personal-activity"
-          className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300"
-        >
-          Your activity
-        </p>
-        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-          <p>
-            <span className="text-4xl font-bold tabular-nums text-gray-900 dark:text-white">
-              {activity.visit_count.toLocaleString("en-US")}
-            </span>{" "}
-            <span className="text-lg font-semibold text-gray-600 dark:text-gray-300">
-              {activity.visit_count === 1 ? "visit" : "visits"}
-            </span>
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {latestVisit ? `Last visit ${latestVisit}` : "No recorded visits yet"}
-          </p>
-        </div>
-      </div>
-      <dl className="grid grid-cols-3 divide-x divide-teal-100 border-t border-teal-100 bg-white/60 dark:divide-teal-900/60 dark:border-teal-900/60 dark:bg-gray-950/30">
-        <DestinationActivityMetric
-          label="Distance"
-          value={formatMiles(activity.total_distance)}
-        />
-        <DestinationActivityMetric
-          label="Elevation"
-          value={formatFeet(activity.total_gain)}
-        />
-        <DestinationActivityMetric
-          label="Time"
-          value={formatElapsed(activity.total_time)}
-        />
-      </dl>
-    </section>
-  );
-}
-
-function DestinationActivityMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="min-w-0 px-4 py-3 text-center">
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {label}
-      </dt>
-      <dd className="mt-1 truncate text-sm font-semibold tabular-nums text-gray-900 dark:text-white">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function formatElapsed(seconds: number): string {
-  const roundedMinutes = Math.max(0, Math.round(seconds / 60));
-  const hours = Math.floor(roundedMinutes / 60);
-  const minutes = roundedMinutes % 60;
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-}
-
-const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-const MONTH_KEYS: string[][] = [
-  ["jan", "january", "1", "01"],
-  ["feb", "february", "2", "02"],
-  ["mar", "march", "3", "03"],
-  ["apr", "april", "4", "04"],
-  ["may", "5", "05"],
-  ["jun", "june", "6", "06"],
-  ["jul", "july", "7", "07"],
-  ["aug", "august", "8", "08"],
-  ["sep", "sept", "september", "9", "09"],
-  ["oct", "october", "10"],
-  ["nov", "november", "11"],
-  ["dec", "december", "12"],
-];
-
-function monthlyCounts(averages: DestinationDetail["averages"]): number[] | null {
-  const source = averages?.months;
-  if (!source || typeof source !== "object") return null;
-
-  const byKey: Record<string, number> = {};
-  for (const [key, raw] of Object.entries(source)) {
-    const count = typeof raw === "number" ? raw : Number(raw);
-    if (Number.isFinite(count)) {
-      byKey[key.toLowerCase()] = (byKey[key.toLowerCase()] || 0) + count;
-    }
-  }
-
-  const counts = MONTH_KEYS.map((keys) =>
-    keys.reduce((sum, key) => sum + (byKey[key] || 0), 0)
-  );
-  return counts.some((count) => count > 0) ? counts : null;
-}
-
-function topMonths(counts: number[]): string[] {
-  const max = Math.max(...counts);
-  if (max <= 0) return [];
-  return counts
-    .map((count, i) => ({ count, name: MONTH_NAMES[i] }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 2)
-    .filter((m) => m.count > 0)
-    .map((m) => m.name);
-}
-
-function formatDistanceAway(meters: number): string {
-  if (meters < 1609.34) return `${Math.round(meters)} m away`;
-  return `${(meters / 1609.34).toFixed(1)} mi away`;
-}
-
-function amenityRows(amenities: Amenities): Array<{ label: string; value: string }> {
-  const rows: Array<{ label: string; value: string }> = [];
-  if (amenities.toilet) {
-    rows.push({
-      label: "Toilet",
-      value: amenities.toilet === "none" ? "None" : titleize(amenities.toilet),
-    });
-  }
-  if (amenities.drinking_water) {
-    rows.push({ label: "Drinking water", value: titleize(amenities.drinking_water) });
-  }
-  if (amenities.shower != null) {
-    rows.push({ label: "Showers", value: amenities.shower ? "Yes" : "No" });
-  }
-  if (amenities.fee) {
-    rows.push({
-      label: "Fee",
-      value: amenities.fee.required ? amenities.fee.amount || "Required" : "None",
-    });
-  }
-  if (amenities.reservation) {
-    rows.push({
-      label: "Reservation",
-      value:
-        amenities.reservation === "no" ? "Not needed" : titleize(amenities.reservation),
-    });
-  }
-  if (amenities.capacity != null) {
-    rows.push({ label: "Capacity", value: String(amenities.capacity) });
-  }
-  if (amenities.fire_pit != null) {
-    rows.push({ label: "Fire pit", value: amenities.fire_pit ? "Yes" : "No" });
-  }
-  if (amenities.backcountry != null) {
-    rows.push({
-      label: "Setting",
-      value: amenities.backcountry ? "Backcountry" : "Frontcountry",
-    });
-  }
-  return rows;
-}
-
-function getReportPreview(report: TripReport): string | null {
-  const textBlock = report.blocks.find((block) => block.type === "text");
-  const raw = textBlock?.content?.trim();
-  if (!raw) return null;
-  return raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
-}
-
-function RouteRow({ route }: { route: DestinationRoute }) {
-  const hasStats = route.distance != null || route.gain != null;
-  const summary = hasStats
-    ? summarizeRouteGuide({
-        distance: route.distance,
-        gain: route.gain,
-        gain_loss: null,
-        shape: null,
-        completion: "none",
-        destination_count: 0,
-      })
-    : null;
-
-  const metaParts = [
-    route.distance != null ? formatMiles(route.distance) : null,
-    route.gain != null ? `${formatFeet(route.gain)} gain` : null,
-    summary?.estimatedHoursLow != null
-      ? `Est. ${formatDurationRangeFriendly(summary.estimatedHoursLow, summary.estimatedHoursHigh)}`
+  const toplineStats: ToplineStat[] = [
+    !elevationInHero && elevationValue
+      ? { key: "elevation", value: elevationValue, unit: "ft", label: "Elevation" }
       : null,
-  ].filter(Boolean);
+    prominenceValue
+      ? { key: "prominence", value: prominenceValue, unit: "ft", label: "Prominence" }
+      : null,
+    sessionCount > 0
+      ? {
+          key: "sessions",
+          value: sessionCount.toLocaleString("en-US"),
+          label: describeSessionNoun(dest.features),
+        }
+      : null,
+    routes.length > 0
+      ? {
+          key: "routes",
+          value: routes.length.toLocaleString("en-US"),
+          label: routes.length === 1 ? "Route" : "Routes",
+        }
+      : null,
+    tripReportCount > 0
+      ? {
+          key: "reports",
+          value: tripReportCount.toLocaleString("en-US"),
+          label: tripReportCount === 1 ? "Trip report" : "Trip reports",
+        }
+      : null,
+  ].filter((stat): stat is ToplineStat => stat !== null);
 
   return (
-    <li className="flex items-center justify-between gap-4 py-3">
-      <div className="min-w-0">
-        <Link
-          href={`/routes/${route.id}`}
-          className="font-medium text-gray-900 hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-300"
-        >
-          {route.name || "Unnamed Route"}
-        </Link>
-        <div className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-          {metaParts.length > 0 ? metaParts.join(" · ") : "No stats recorded"}
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      <PageHeader
+        breadcrumb={<Breadcrumb current={name} />}
+        title={name}
+        meta={
+          <DestinationMetaRow
+            // Closures and seasonal alerts belong in this slot when Peaks
+            // has that data. It has none today, so nothing renders.
+            alert={null}
+            parts={[typeLabel, regionLabel]}
+          />
+        }
+      />
+
+      <AreaChips areas={dest.areas} className="mt-4" />
+
+      <DestinationHero
+        name={name}
+        photos={photos}
+        lat={dest.lat}
+        lng={dest.lng}
+        boundary={dest.boundary}
+        elevationValue={elevationInHero ? elevationValue : null}
+        className="mt-8"
+      />
+
+      {mapIsHero ? (
+        <DestinationMapLinks lat={dest.lat!} lng={dest.lng!} className="mt-3" />
+      ) : null}
+
+      <DestinationActions
+        destinationId={id}
+        name={dest.name}
+        directionsUrl={directionsUrl}
+        className="mt-8"
+      />
+
+      <DestinationTopline stats={toplineStats} className="mt-10" />
+
+      <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-12">
+          <DestinationActivity destinationId={id} />
+
+          <DestinationAbout
+            name={name}
+            body={dest.description || guide.headline}
+            sourceName={dest.description ? dest.description_source_name : null}
+            sourceUrl={dest.description ? dest.description_source_url : null}
+            sourceLicense={dest.description ? dest.description_source_license : null}
+          />
+
+          <DestinationPlanning
+            notes={guide.paragraphs}
+            facilities={facilities}
+            forecastUrl={forecastUrl}
+          />
+
+          {months ? <DestinationSeasonality counts={months} /> : null}
+
+          {/* Skipped only when the hero already IS the live map — see
+              DestinationHero. Without coordinates the section still renders
+              and says so, rather than the page quietly losing a heading. */}
+          {mapIsHero ? null : (
+            <DestinationMapSection
+              name={dest.name}
+              lat={dest.lat}
+              lng={dest.lng}
+              boundary={dest.boundary}
+            />
+          )}
+
+          <DestinationRoutes routes={routes} />
+
+          <DestinationReports
+            destinationId={id}
+            reports={tripReports}
+            totalCount={tripReportCount}
+          />
         </div>
+
+        <aside className="space-y-12">
+          <DestinationNearby destinations={nearby} />
+          <DestinationLists lists={lists} />
+        </aside>
       </div>
-      {summary && <DifficultyPill label={summary.difficultyLabel} />}
-    </li>
+    </div>
   );
 }

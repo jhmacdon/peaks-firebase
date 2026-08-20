@@ -8,6 +8,7 @@ import {
   unsaveDestination,
 } from "../lib/actions/saved-destinations";
 import { useAuth } from "../lib/auth-context";
+import { Button } from "./ui/button";
 
 export default function SaveDestinationButton({
   destinationId,
@@ -96,22 +97,23 @@ export default function SaveDestinationButton({
       : "Save";
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
+    <div className="flex flex-col items-start gap-1">
+      {/* Saving a place is the destination page's one filled primary action
+          (design-tokens.md, "Accent budget"). Once it's saved the work is
+          done, so the control steps back to a neutral fill rather than
+          holding the accent for a state the reader can't act on again
+          without undoing it. */}
+      <Button
+        variant={saved ? "secondary" : "primary"}
         onClick={toggleSaved}
         disabled={isBusy}
         aria-pressed={saved}
-        className={
-          saved
-            ? "inline-flex min-w-20 items-center justify-center rounded-md border border-blue-300 bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-950"
-            : "inline-flex min-w-20 items-center justify-center rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-        }
+        className="min-w-20 disabled:cursor-wait"
       >
         {label}
-      </button>
+      </Button>
       {error && (
-        <span role="status" className="max-w-48 text-right text-xs text-red-600 dark:text-red-400">
+        <span role="status" className="max-w-48 text-xs text-alert">
           {error}
         </span>
       )}

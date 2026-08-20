@@ -30,6 +30,10 @@ export interface SearchDestination {
   lng: number | null;
   score?: number;
   distance_m?: number;
+  /** Only selected by getNearbyDestinations, which feeds the destination
+   * page's nearby rail and its 48px round thumbs. The other queries here
+   * leave it undefined rather than paying for a column nothing renders. */
+  hero_image?: string | null;
 }
 
 export interface ViewportRoute {
@@ -199,7 +203,7 @@ export async function getNearbyDestinations(
 ): Promise<SearchDestination[]> {
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
-            activities, features,
+            activities, features, hero_image,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng,
             ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
@@ -220,6 +224,7 @@ export async function getNearbyDestinations(
     features: parseArray(r.features),
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
+    hero_image: r.hero_image ?? null,
     distance_m: r.distance_m ? Number(r.distance_m) : undefined,
   }));
 }

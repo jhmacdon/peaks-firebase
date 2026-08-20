@@ -39,14 +39,15 @@ export function Breadcrumb({ current }: { current: string }) {
 }
 
 // StatCell / StatRow — retinted to tokens. Every numeral is Geist Mono
-// (design-tokens.md "Type"). StatCell's callers (destination/route detail
-// pages) lay it out with a `gap-px` + gray background grid — a 1px-divider
-// trick that depends on each cell painting its own opaque background, so a
-// true "never box a stat" (law 2) flatten here would turn that grid into a
-// solid block on two pages Task 8 is scoped not to touch (their flagship
-// re-skin is Task 13/14, where this reverts to StatCluster `topline` and
-// the grid wrapper goes away). `bg-page` keeps the divider illusion working
-// with a real token in the meantime instead of raw `bg-white`/`gray-950`.
+// (design-tokens.md "Type"). StatCell's caller lays it out with a `gap-px`
+// + background grid — a 1px-divider trick that depends on each cell
+// painting its own opaque background, so a true "never box a stat" (law 2)
+// flatten here would turn that grid into a solid block. `bg-page` keeps the
+// divider illusion working with a real token in the meantime.
+//
+// One caller left: the route detail page. The destination page dropped both
+// of these in Task 13 for flat StatClusters and unboxed rows; Task 14 does
+// the same to the route page, and this file goes with it.
 export function StatCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-page px-4 py-3">
@@ -96,8 +97,7 @@ export function SidePanel({
   );
 }
 
-/** "fire-lookout" → "Fire lookout" */
-export function titleize(value: string): string {
-  const spaced = value.replace(/[-_]+/g, " ").trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
+// Lives in lib/destination-detail.ts now (the destination page's pure
+// helpers moved there in Task 13 so they could be unit-tested); re-exported
+// here so the route page's existing import keeps resolving.
+export { titleize } from "../lib/destination-detail";
