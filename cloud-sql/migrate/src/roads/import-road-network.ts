@@ -50,7 +50,15 @@ import {
 import { clusterEndpoints, metresBetweenSql, type Endpoint } from "./topology";
 import { openRoadStore, sqlLiteral, toCount, type RoadStore } from "./store";
 
-/** Row counts the sources are expected to carry, from the download manifest. */
+/**
+ * Row counts the sources carried when they were last downloaded.
+ *
+ * Pinned here rather than read from the manifest, so a short or truncated load
+ * shows up against a number that cannot move with the file. That makes them a
+ * snapshot rather than a contract — the manifest's own RoadCore `row_count`
+ * already reads 367,971 against the 368,055 below — so drift on a refresh is
+ * expected, and re-pinning is part of the refresh once the drift is understood.
+ */
 export const EXPECTED_ROW_COUNTS = {
   roadcore_total: 368055,
   roadcore_open: 174051,

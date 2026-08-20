@@ -49,9 +49,21 @@ npm run roads:import -- --data-dir=/path/to/peaks/docs/trailheads/data
 npm run roads:derive -- --data-dir=/path/to/peaks/docs/trailheads/data --sample=20
 ```
 
-Watch three things in that output. Row counts print against the manifest, so a
-short download is obvious. Any BLM route-use-class value the reviewed map
-cannot answer for is printed as a **WARNING**, with the row count and the
+**Update `raw-datasets-manifest.jsonl` as part of the download, before the
+load.** Each dataset's `as_of` is the provenance date the derivation stamps on
+every leaf it produces — `readSourceBook` reads it straight through to
+`retrieved_at` — so a manifest left at last quarter's date puts last quarter's
+date on this quarter's facts, and **nothing downstream can catch that**: the
+date is well-formed, in range, and wrong. Set `as_of` to the day the files were
+fetched and `row_count` to what the download actually holds.
+
+Watch three things in that output. Row counts print against
+`EXPECTED_ROW_COUNTS` in `import-road-network.ts`, pinned in code so a short or
+truncated load shows up against a number that cannot move with the file — which
+also means **drift on a refresh is expected**, not a failure. Read it, satisfy
+yourself the difference is the agency's and not the download's, then re-pin the
+constants to what the run printed. Any BLM route-use-class value the reviewed
+map cannot answer for is printed as a **WARNING**, with the row count and the
 reason. And `roads:derive` prints its own funnel — how many trailheads snapped,
 how many reached a maintained road, how many carry a gate window, and how many
 windows were withheld because a segment on the path is one MVUM never

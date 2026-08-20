@@ -186,6 +186,18 @@ test("a leap day is never published, and the day it moves to gives access back",
   });
 });
 
+test("a window that opens and closes on the leap day publishes nothing", () => {
+  // Moving both ends turns a one-day window inside out — March 1 to February
+  // 28 of the same year — and a client reading a backwards pair as a wrap
+  // through New Year would print a shut gate as open all but two days.
+  assert.equal(seasonWindowToIsoDates({ opens: "02-29", closes: "02-29", wrapsYear: false }, 2026), null);
+  // A genuine year-long wrap off the leap day is still a wrap, and survives.
+  assert.deepEqual(seasonWindowToIsoDates({ opens: "02-29", closes: "02-29", wrapsYear: true }, 2026), {
+    opens: "2026-03-01",
+    closes: "2027-02-28",
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The answers
 // ---------------------------------------------------------------------------

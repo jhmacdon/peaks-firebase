@@ -89,7 +89,10 @@ export type PathPreference = "nearest" | "easiest";
  * a confident answer down a longer known road where `nearest` would have
  * crossed the unranked edge and honestly returned nothing. That is the better
  * answer only while the detour is a road somebody would really drive. Revisit
- * at the first desert-peak data.
+ * at the first desert-peak data — with `season_restricted_without_dates`,
+ * which trips on the same day: a mixed path can publish an MVUM window off its
+ * Forest Service segments while a BLM stretch of the same drive is restricted
+ * on dates nobody has recorded.
  */
 export const DEFAULT_PATH_PREFERENCE: PathPreference = "easiest";
 
@@ -506,6 +509,12 @@ export function seasonWindowToIsoDates(
   if (dayOfYear(window.opens) === null || dayOfYear(window.closes) === null) return null;
   const opens = window.opens === LEAP_DAY ? "03-01" : window.opens;
   const closes = window.closes === LEAP_DAY ? "02-28" : window.closes;
+  // Moving both ends of a one-day leap window turns it inside out: opening
+  // March 1 and closing February 28 of the same year is a shut gate written as
+  // an open one, and a client that reads any backwards pair as a wrap through
+  // New Year would print it as open all but two days of the year. A window
+  // this small says nothing worth that risk, so it says nothing.
+  if (!window.wrapsYear && dayOfYear(closes)! < dayOfYear(opens)!) return null;
   return {
     opens: `${anchorYear}-${opens}`,
     closes: `${window.wrapsYear ? anchorYear + 1 : anchorYear}-${closes}`,

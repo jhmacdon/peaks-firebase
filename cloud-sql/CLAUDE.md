@@ -861,7 +861,11 @@ passenger-car way out on the other 8 for 3.11 extra miles across the catalog;
 those rows carry `derivation.differs_from_nearest`. Watch item: an unranked
 edge searches as worse than the worst real rank, so `easiest` routes around
 unranked ground — once BLM trailheads appear it could answer confidently where
-`nearest` would honestly answer nothing. Revisit at the first desert-peak data.
+`nearest` would honestly answer nothing. Revisit at the first desert-peak data,
+together with `season_restricted_without_dates`: a mixed path can publish an
+MVUM window off its Forest Service segments while a BLM stretch of the same
+drive is restricted on dates nobody has. Both ask what a mixed path may claim,
+and both trip on the first BLM-served trailhead.
 
 A second noding pass — projecting dangling endpoints onto the centrelines they
 nearly touch — was measured against the 240 trailheads that snap without

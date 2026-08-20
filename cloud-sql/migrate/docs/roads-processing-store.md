@@ -74,8 +74,9 @@ with every stage deletes the store first and rebuilds it, because DuckDB never
 returns space after a `DROP` and the staging tables are large. A run with
 `--only=` keeps the file and rebuilds just those tables.
 
-Row counts are printed against the counts in `raw-datasets-manifest.jsonl` so a
-short load is obvious:
+Row counts are printed against `EXPECTED_ROW_COUNTS` in
+`import-road-network.ts`, which is pinned in code rather than read from
+`raw-datasets-manifest.jsonl`, so a short load is obvious:
 
 ```
 usfs_roadcore rows: 368,055 (matches 368,055)
@@ -83,6 +84,11 @@ usfs_mvum rows: 150,722 (matches 150,722)
 blm_gtlf rows: 111,149 (matches 111,149)
 roadcore open to public: 174,058 (+7 vs expected 174,051)
 ```
+
+Those constants are a snapshot of one download, not a contract: the manifest's
+own `row_count` for RoadCore already reads 367,971 against the pinned 368,055.
+**Drift on a refresh is expected**, and the number to re-pin once the drift is
+understood is the one the run prints.
 
 Rather than walk 630,000 rows in JavaScript, each **distinct** raw value is
 mapped once by the pure functions in `roads/road-enums.ts`,
@@ -462,7 +468,13 @@ path touches BLM today, but once BLM-served trailheads enter the catalog
 `easiest` can return a confident answer down a longer known road where
 `nearest` would have crossed the unranked edge and honestly returned nothing.
 That trade is right only while the detour is a road somebody would really
-drive. Revisit it at the first desert-peak data.
+drive. Revisit it at the first desert-peak data — **together with
+`season_restricted_without_dates`**, which trips on the same day: a path that
+crosses BLM ground can publish an MVUM window off its Forest Service segments
+while a BLM stretch of the same drive is closed on dates nobody has recorded,
+and the row would read as a gate schedule for a road half of which has none.
+Both are the same question — what a mixed path may claim — and neither can be
+answered from today's data.
 
 **A tie names the first road, not the last.** `summarizeApproach` replaces its
 limiting segment only on a strictly worse rank, and the path runs from the
