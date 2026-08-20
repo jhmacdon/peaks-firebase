@@ -65,6 +65,7 @@ export interface LeafSource {
   kind: string;
   name: string;
   url?: string;
+  license?: string;
 }
 
 export interface SourcedLeaf<T> {
@@ -200,19 +201,30 @@ export function defaultOutPath(dataDir: string): string {
  *
  * The URLs and dates come from the download manifest rather than this file, so
  * a refresh moves the `retrieved_at` on every leaf it produces.
+ *
+ * The licence is on every leaf because the clients print the terms beside the
+ * name — "From USFS RoadCore · Public domain" — and a credit that names a
+ * source without its terms tells a reader who said it and not whether they may
+ * repeat it. All three are federal works, so all three carry the same string
+ * the fee and bathroom leaves already carry.
  */
-const SOURCE_NAMES: Record<string, { manifest: string; name: string }> = {
+const FEDERAL_PUBLIC_DOMAIN = "public domain (US federal government)";
+
+const SOURCE_NAMES: Record<string, { manifest: string; name: string; license: string }> = {
   usfs_roadcore: {
     manifest: "usfs_roadcore",
     name: "USFS National Forest System Roads (RoadCore)",
+    license: FEDERAL_PUBLIC_DOMAIN,
   },
   usfs_mvum: {
     manifest: "usfs_mvum_roads",
     name: "USFS Motor Vehicle Use Map roads",
+    license: FEDERAL_PUBLIC_DOMAIN,
   },
   blm_gtlf: {
     manifest: "blm_gtlf_public_display",
     name: "BLM Ground Transportation Linear Features",
+    license: FEDERAL_PUBLIC_DOMAIN,
   },
 };
 
@@ -238,6 +250,7 @@ export async function readSourceBook(dataDir: string): Promise<SourceBook> {
       kind,
       name: entry.name,
       ...(row.source_url ? { url: row.source_url } : {}),
+      license: entry.license,
       retrieved_at: row.as_of,
     };
   }

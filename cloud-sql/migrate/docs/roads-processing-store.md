@@ -526,8 +526,13 @@ path, on a leap-shaped 366-day calendar so that February 29 survives.
   recurs every season and the client prints only the month and day — but the
   client parses ISO first and treats `MM/DD` as a provider fallback, so a bare
   month-day is a downgrade there is no reason to ship. A window through New
-  Year closes in the following year; a window touching February 29 is anchored
-  to the next leap year rather than moved to the 28th.
+  Year closes in the following year. **February 29 is never emitted**: it
+  survives the 366-day intersection, but publishing it would put a gate date on
+  the row that exists one year in four, and anchoring the window to the next
+  leap year instead — which is what this used to do — put dates two years from
+  the run on a row nobody reads literally. A leap day moves one day in the
+  direction that cannot overstate access: an opening leap day opens March 1, a
+  closing one closes February 28.
 
 Filtering the MVUM link on `overlap_miles` was measured and makes no
 difference: dropping every link under 0.05 mi changes **0** of the 328 windows,

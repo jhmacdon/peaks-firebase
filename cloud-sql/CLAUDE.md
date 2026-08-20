@@ -697,9 +697,9 @@ Five binding rules, all pinned by tests in `import-trailhead-facts.test.ts`:
   a warning naming the destination. `buildApproachRow` already withholds these,
   so one arriving here means that gate regressed.
 - **A gate date must be a real `YYYY-MM-DD` day**, never reformatted or guessed
-  at, and **the window must sit within a year of the run**. A window touching
-  February 29 is anchored to the next leap year, which can land two years out;
-  one row does that today ("Stewart Creek Trailhead") and is refused.
+  at, and **the window must sit within a year of the run**. Nothing in
+  production trips the range guard today; it stands against a derived file kept
+  across a year boundary, or an anchoring bug upstream.
 - **A leaf whose source kind is not one of `usfs_roadcore`, `usfs_mvum`,
   `blm_gtlf` is refused**, and each leaf's envelope is rebuilt field by field
   rather than copied — the file is a file, and `amenities` is unvalidated JSONB.
@@ -825,8 +825,10 @@ rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
 
 - **A gate date is stored as `YYYY-MM-DD`.** The source has no year and the
   window recurs, but the iOS client parses ISO first and treats `MM/DD` as a
-  provider fallback. A window through New Year closes in the next year; one
-  touching February 29 moves to the next leap year rather than to the 28th.
+  provider fallback. A window through New Year closes in the next year.
+  **February 29 is never published** — it exists one year in four, so a leap day
+  moves one day the way that cannot overstate access (opens March 1, closes
+  February 28).
 - **Windows are intersected, never picked from** — across every MVUM segment
   the link returns and across every segment on the path. A segment with no
   window is left out rather than treated as open; an intersection covering the

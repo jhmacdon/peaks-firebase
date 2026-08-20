@@ -714,21 +714,32 @@ export function parseIsoDate(value: unknown): { year: number; month: number; day
 /**
  * Rebuild one leaf's envelope from the file, field by field.
  *
- * Nothing is spread: the value, the source kind, name and url and the
- * retrieval date are copied by name and everything else in the file's object
- * is left there. A JSONL row is not a schema, and `destinations.amenities` is
- * unvalidated JSONB — whatever this function returns is what lands in it.
+ * Nothing is spread: the value, the source kind, name, url and licence, and
+ * the retrieval date are copied by name and everything else in the file's
+ * object is left there. A JSONL row is not a schema, and
+ * `destinations.amenities` is unvalidated JSONB — whatever this function
+ * returns is what lands in it.
+ *
+ * The url is kept only when it is an http(s) link. The clients render a source
+ * url as something tappable, and a `javascript:` string arriving from a data
+ * file has no business becoming one.
  */
 function roadSourcedValue(raw: unknown, value: unknown): SourcedValue<unknown> | null {
   if (!isPlainObject(raw) || !isPlainObject(raw.source)) return null;
-  const { kind, name, url } = raw.source;
+  const { kind, name, url, license } = raw.source;
   if (typeof kind !== "string" || !ROAD_SOURCE_KINDS.includes(kind)) return null;
   if (typeof name !== "string" || name.trim().length === 0) return null;
   if (parseIsoDate(raw.retrieved_at) === null) return null;
-  const link = typeof url === "string" && url.trim().length > 0 ? url.trim() : null;
+  const link = typeof url === "string" && /^https?:\/\/\S/i.test(url.trim()) ? url.trim() : null;
+  const terms = typeof license === "string" && license.trim().length > 0 ? license.trim() : null;
   return {
     value,
-    source: { kind, name: name.trim(), ...(link ? { url: link } : {}) },
+    source: {
+      kind,
+      name: name.trim(),
+      ...(link ? { url: link } : {}),
+      ...(terms ? { license: terms } : {}),
+    },
     retrieved_at: raw.retrieved_at as string,
   };
 }

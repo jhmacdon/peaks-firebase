@@ -817,6 +817,7 @@ async function logRuns(
     const notes = (
       source === "usfs_roads"
         ? [
+            `no_location=${counts.noLocation}`,
             `no_facts=${counts.noFacts}`,
             `vanished=${counts.destinationVanished}`,
             ...Object.entries(counts.refusals).map(([reason, count]) => `${reason}=${count}`),

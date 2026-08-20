@@ -1,4 +1,7 @@
 import { strict as assert } from "node:assert";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
@@ -14,6 +17,7 @@ import {
 } from "../roads/approach";
 import {
   buildApproachRow,
+  readSourceBook,
   type ApproachRow,
   type RowInput,
   type SeasonEvidence,
@@ -158,11 +162,27 @@ test("a window through New Year closes in the following year", () => {
   });
 });
 
-test("a leap day is kept by moving the year, not the day", () => {
-  // 2026 is not a leap year, and 02-28 would be a different fact.
+test("a leap day is never published, and the day it moves to gives access back", () => {
+  // Anchoring to the next leap year instead put dates two years from the run
+  // on the row, and published a gate date that exists one year in four.
   assert.deepEqual(seasonWindowToIsoDates(window("02-29", "06-01"), 2026), {
-    opens: "2028-02-29",
-    closes: "2028-06-01",
+    opens: "2026-03-01",
+    closes: "2026-06-01",
+  });
+  assert.deepEqual(seasonWindowToIsoDates(window("06-01", "02-29"), 2026), {
+    opens: "2026-06-01",
+    closes: "2027-02-28",
+  });
+  // The real one: Stewart Creek Trailhead, which used to come out
+  // 2027-05-28 → 2028-02-29 and be refused by the importer as out of range.
+  assert.deepEqual(seasonWindowToIsoDates(window("05-28", "02-29"), 2026), {
+    opens: "2026-05-28",
+    closes: "2027-02-28",
+  });
+  // Nothing else moves.
+  assert.deepEqual(seasonWindowToIsoDates(window("02-28", "03-01"), 2026), {
+    opens: "2026-02-28",
+    closes: "2026-03-01",
   });
 });
 
@@ -436,21 +456,26 @@ test("a tie names the first road at the worst rank, the one you meet first", () 
 // The row builder — the last gate between a path and something a hiker reads
 // ---------------------------------------------------------------------------
 
+const PUBLIC_DOMAIN = "public domain (US federal government)";
+
 const SOURCES: SourceBook = {
   usfs_roadcore: {
     kind: "usfs_roadcore",
     name: "USFS National Forest System Roads (RoadCore)",
     url: "https://example.invalid/roadcore",
+    license: PUBLIC_DOMAIN,
     retrieved_at: "2026-08-19",
   },
   usfs_mvum: {
     kind: "usfs_mvum",
     name: "USFS Motor Vehicle Use Map roads",
+    license: PUBLIC_DOMAIN,
     retrieved_at: "2026-08-19",
   },
   blm_gtlf: {
     kind: "blm_gtlf",
     name: "BLM Ground Transportation Linear Features",
+    license: PUBLIC_DOMAIN,
     retrieved_at: "2026-08-19",
   },
 };
@@ -591,6 +616,43 @@ test("the same window is published once every path segment is described", () => 
   assert.equal(row.derivation!.season_segments_without_evidence, 0);
   assert.deepEqual(row.seasonal_window!.value, { opens: "2026-06-01", closes: "2026-10-15" });
   assert.equal(row.seasonal_window!.source.kind, "usfs_mvum");
+});
+
+test("every source carries its terms, from the manifest through to the leaf", async () => {
+  // A credit that names a source without saying whether a reader may repeat it
+  // is half a credit, and the clients print the terms beside the name.
+  const dir = mkdtempSync(path.join(tmpdir(), "roads-sources-"));
+  try {
+    writeFileSync(
+      path.join(dir, "raw-datasets-manifest.jsonl"),
+      [
+        { dataset: "usfs_roadcore", source_url: "https://example.invalid/rc", as_of: "2026-08-19" },
+        { dataset: "usfs_mvum_roads", as_of: "2026-08-19" },
+        { dataset: "blm_gtlf_public_display", as_of: "2026-08-19" },
+      ]
+        .map((row) => JSON.stringify(row))
+        .join("\n") + "\n",
+      "utf8",
+    );
+    const book = await readSourceBook(dir);
+    for (const kind of ["usfs_roadcore", "usfs_mvum", "blm_gtlf"]) {
+      assert.equal(book[kind]!.license, PUBLIC_DOMAIN, kind);
+    }
+
+    // And through the row builder onto a published leaf.
+    const row = buildApproachRow({
+      outcome: outcomeFor([edge({ edgeId: "s#1" }), ANCHOR]),
+      season: evidence(),
+      sources: book,
+      seasonYear: 2026,
+      preference: "easiest",
+    });
+    assert.equal(row.surface!.source.license, PUBLIC_DOMAIN);
+    assert.equal(row.high_clearance!.source.license, PUBLIC_DOMAIN);
+    assert.equal(row.limiting_segment_ref!.source.license, PUBLIC_DOMAIN);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("the audit block carries the durable reference and the preference used", () => {

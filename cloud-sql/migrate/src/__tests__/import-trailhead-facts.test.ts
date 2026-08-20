@@ -141,12 +141,18 @@ const SNOW_LAKE = { lat: 47.4459, lng: -121.4231 };
 // pinned rather than read off the wall clock.
 const RUN_DATE = new Date(Date.UTC(2026, 7, 20));
 
+const FEDERAL_PUBLIC_DOMAIN = "public domain (US federal government)";
 const ROADCORE_SOURCE = {
   kind: "usfs_roadcore",
   name: "USFS National Forest System Roads (RoadCore)",
   url: "https://example.invalid/roadcore",
+  license: FEDERAL_PUBLIC_DOMAIN,
 };
-const MVUM_SOURCE = { kind: "usfs_mvum", name: "USFS Motor Vehicle Use Map roads" };
+const MVUM_SOURCE = {
+  kind: "usfs_mvum",
+  name: "USFS Motor Vehicle Use Map roads",
+  license: FEDERAL_PUBLIC_DOMAIN,
+};
 
 /** A row shaped exactly as `roads:derive` writes one. */
 function roadRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -1332,6 +1338,58 @@ test("a road row lands on its own destination id, with no name gate at all", asy
   assert.equal(merged.road_access.high_clearance.source.kind, "usfs_roadcore");
   assert.equal(merged.road_access.high_clearance.source.url, "https://example.invalid/roadcore");
   assert.equal(merged.road_access.high_clearance.retrieved_at, "2026-08-19");
+  // The terms travel with the name: a credit that says who told us and not
+  // whether a reader may repeat it is half a credit.
+  for (const leaf of Object.values(merged.road_access) as Array<Record<string, never>>) {
+    assert.equal(
+      (leaf as unknown as { source: { license?: string } }).source.license,
+      FEDERAL_PUBLIC_DOMAIN
+    );
+  }
+});
+
+test("a source url that is not an http link never reaches the row", async () => {
+  // The clients render a source url as something tappable.
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        surface: {
+          value: "gravel",
+          source: { ...ROADCORE_SOURCE, url: "javascript:alert(1)" },
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "gravel", "the fact still lands");
+  assert.equal(merged.road_access.surface.source.url, undefined);
+  assert.equal(merged.road_access.surface.source.license, FEDERAL_PUBLIC_DOMAIN);
+});
+
+test("a leaf with no licence still lands, crediting the name alone", async () => {
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const io = createIo(
+    roadOnlyFiles([
+      roadRow({
+        surface: {
+          value: "gravel",
+          source: { kind: "usfs_roadcore", name: "RoadCore" },
+          retrieved_at: "2026-08-19",
+        },
+      }),
+    ])
+  );
+  await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), { db, console: silent, ...io });
+  const merged = JSON.parse(
+    calls.find((call) => call.sql.includes("UPDATE destinations"))?.params?.[1] as string
+  );
+  assert.equal(merged.road_access.surface.value, "gravel");
+  assert.equal("license" in merged.road_access.surface.source, false);
 });
 
 test("the audit block never reaches the database, and neither does the drive", async () => {

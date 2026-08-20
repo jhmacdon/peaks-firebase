@@ -37,7 +37,7 @@ fix the extraction first, not the import.
 The road sources refresh on their own download schedule and **never touch the
 `peaks` database**: they are loaded into a local DuckDB store, walked once per
 trailhead, and only the derived per-trailhead answers are imported. Full detail
-in `roads-processing-store.md`. Three commands, in this order:
+in `roads-processing-store.md`. Two commands, in this order:
 
 ```bash
 cd cloud-sql/migrate
@@ -144,9 +144,8 @@ are worth knowing by name:
 - `seasonal_window_not_iso` — a gate date that is not a real `YYYY-MM-DD` day.
   Never reformatted or guessed at.
 - `seasonal_window_out_of_range` — the window is anchored more than a year from
-  the run. A window touching February 29 is anchored to the next leap year,
-  which can land two years out; one row does this today ("Stewart Creek
-  Trailhead").
+  the run. Nothing in production trips this today; it is the guard against a
+  derived file kept across a year boundary, or an anchoring bug upstream.
 
 A refusal drops one leaf, not the row: a trailhead whose gate dates are refused
 still gets its vehicle, surface and road reference.
@@ -176,6 +175,10 @@ It reads the `data_source_freshness` view and exits non-zero when `usfs_fees`,
 `usfs_bathrooms` or `usfs_roads` has gone more than 90 days without a
 successful import, or has never run. A non-zero exit means step 1 is due.
 `--json` prints the same assessment for a script to read.
+
+**Between merging the roads pipeline and its first successful apply, this check
+exits non-zero**, because `usfs_roads` has never run. That is the check working:
+the alarm is on data the catalog is missing, not on a deployment step.
 
 `usfs_pages` is imported and logged the same way but does not fail the check:
 the page sections contribute a single leaf across the whole catalog, so an

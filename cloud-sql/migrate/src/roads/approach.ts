@@ -478,9 +478,7 @@ export function longestWindow(windows: readonly SeasonWindow[]): SeasonWindow | 
   return best;
 }
 
-function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-}
+const LEAP_DAY = "02-29";
 
 /**
  * The window as two ISO dates.
@@ -489,30 +487,28 @@ function isLeapYear(year: number): boolean {
  * `yyyy-MM-dd` first and falls back to `MM/dd` only for providers that give
  * nothing better — so a bare `MM-DD` is a downgrade we choose not to ship. The
  * year is a carrier, not a claim: the same gate recurs every season, and the
- * client prints the month and day alone.
+ * client prints the month and day alone. A window through New Year closes in
+ * the following year, which is what makes it read as one span.
  *
- * February 29 is a real value here, so a window that touches it is anchored to
- * the next leap year rather than moved to the 28th. A window through New Year
- * closes in the following year, which is what makes it read as one span.
+ * **February 29 is never emitted.** It survives the intersection because the
+ * calendar this works on is 366 days long, and for a while it was carried out
+ * here by anchoring the window to the next leap year — which put dates two
+ * years from the run on a row nobody would read literally, and published a
+ * gate date that exists one year in four. A leap day is moved off instead, one
+ * day in the direction that cannot overstate access: a window opening on
+ * February 29 opens on March 1, and one closing on it closes on February 28.
+ * Both give a day back rather than claim one, and both are true every year.
  */
 export function seasonWindowToIsoDates(
   window: SeasonWindow,
   anchorYear: number,
 ): { opens: string; closes: string } | null {
   if (dayOfYear(window.opens) === null || dayOfYear(window.closes) === null) return null;
-  const needsLeap =
-    window.opens === "02-29" || (window.closes === "02-29" && !window.wrapsYear);
-  const closeNeedsLeap = window.closes === "02-29" && window.wrapsYear;
-  let year = anchorYear;
-  for (let tries = 0; tries < 8; tries += 1) {
-    const openYearOk = !needsLeap || isLeapYear(year);
-    const closeYearOk = !closeNeedsLeap || isLeapYear(year + 1);
-    if (openYearOk && closeYearOk) break;
-    year += 1;
-  }
+  const opens = window.opens === LEAP_DAY ? "03-01" : window.opens;
+  const closes = window.closes === LEAP_DAY ? "02-28" : window.closes;
   return {
-    opens: `${year}-${window.opens}`,
-    closes: `${window.wrapsYear ? year + 1 : year}-${window.closes}`,
+    opens: `${anchorYear}-${opens}`,
+    closes: `${window.wrapsYear ? anchorYear + 1 : anchorYear}-${closes}`,
   };
 }
 
