@@ -388,20 +388,34 @@ copy rather than a translation:
 
 ```json
 {"destination_id":"jXA6aSVbxBSw2YfdwI4Q","destination_name":"South Climb Trailhead",
- "snapped":true,"snap_distance_m":18,"anchor_reached":true,"path_miles":39.17,
+ "snapped":true,"snap_distance_m":18,"anchor_reached":true,
  "high_clearance":{"value":"required","source":{"kind":"usfs_roadcore","name":"...","url":"..."},
    "retrieved_at":"2026-08-19"},
  "surface":{"value":"dirt","source":{...},"retrieved_at":"2026-08-19"},
  "seasonal_window":{"value":{"opens":"2026-04-02","closes":"2026-11-30"},...},
  "limiting_segment_ref":{"value":"FR 8040-550",...},
- "derivation":{"limiting_segment_key":"usfs_roadcore:{CCD3DB30-...}", ...}}
+ "derivation":{"limiting_segment_key":"usfs_roadcore:{CCD3DB30-...}","path_miles":39.17, ...}}
 ```
 
 The `derivation` block is the audit trail: the snapped and anchor segments, the
-path's segment keys, the segment that set each answer, the unknown counts, and
-how many path segments carried a gate window. **`limiting_segment_key` is the
-agency's own id and is the thing to store; `snap_edge_id` is this build's, and
-is for debugging only.**
+path's segment keys, the segment that set each answer, the unknown counts, how
+many path segments carried a gate window, and which preference chose the path.
+**`limiting_segment_key` is the agency's own id and is the thing to store;
+`snap_edge_id` is this build's, and is for debugging only.**
+
+**Everything in `derivation` is diagnostic, and `path_miles` most of all —
+never publish it.** Wherever the way out of the forest is a state highway,
+which these sources do not contain, the walk runs on to the next level 4/5
+forest road and the figure is far longer than the drive: 39.17 miles for the
+Mount Adams South Climb trailhead against about 13 real ones from pavement.
+It says how far the walk went, not how far anybody drives. It becomes a
+publishable number when TIGER S1500 gives the walk a highway to stop at.
+
+**Three leaves and no leaves.** Where the worst edge on the path is ATV-only or
+unmaintained the row publishes **nothing** — not the surface, not the gate
+window, not the limiting road — and says `skip_reason: not_car_passable`.
+"Dirt road, gate opens in April" is a true sentence about a route no highway
+vehicle belongs on, and it reads as an invitation.
 
 ### The walk
 
@@ -422,14 +436,31 @@ anchor. A trailhead that snaps straight onto a level 4/5 road therefore has a
 zero-mile approach, which is the truth about it. `derivation.path_edge_miles`
 holds the full-edge sum for anyone comparing against an earlier measurement.
 
-`--prefer=nearest` (the default) is §A4 read literally. `--prefer=easiest`
-takes the way out that demands least of a vehicle and settles ties on distance,
-which is what a driver does — nobody takes the rough short cut when a graded
-road leaves the same trailhead. Measured over the catalog the two agree on 320
-of 328 answers; on the other 8 `easiest` finds a passenger-car way out where
-`nearest` reports high clearance, at a cost of **3.1 extra miles across all 328
-trailheads**. On that evidence `easiest` is the better default and the flag is
-there to make the change a one-word one.
+`--prefer=easiest` is the default: it takes the way out that demands least of a
+vehicle and settles ties on distance, which is what a driver does — nobody
+takes the rough short cut when a graded road leaves the same trailhead.
+`--prefer=nearest` is §A4 read literally and remains a flag. Measured over the
+catalog the two agree on 320 of 328 answers; on the other 8 `easiest` finds a
+passenger-car way out where `nearest` reports high clearance, for **3.11 extra
+miles across all 328 trailheads**, a longest single detour of 1.37 mi, and no
+seasonal window changing at all. Those eight rows carry
+`derivation.differs_from_nearest`, so the difference stays auditable row by
+row, and the run prints how many there are.
+
+**Watch item.** An unranked edge searches as rank 7 under `easiest`, one worse
+than the worst real value, so the search routes *around* unranked ground. No
+path touches BLM today, but once BLM-served trailheads enter the catalog
+`easiest` can return a confident answer down a longer known road where
+`nearest` would have crossed the unranked edge and honestly returned nothing.
+That trade is right only while the detour is a road somebody would really
+drive. Revisit it at the first desert-peak data.
+
+**A tie names the first road, not the last.** `summarizeApproach` replaces its
+limiting segment only on a strictly worse rank, and the path runs from the
+trailhead outward, so where several segments share the worst rank — 204 of the
+328 answers today — the one named is the one nearest the trailhead. That is the
+right end to name: it is the first rough road a driver meets and the last place
+they can still turn round.
 
 ### Vehicle, surface and gate
 
@@ -463,6 +494,14 @@ path, on a leap-shaped 366-day calendar so that February 29 survives.
 - A segment with no window is **not** a constraint, and is not an open gate
   either — it is simply left out of the intersection, and
   `derivation.season_segments_with_window` records how thin the evidence is.
+- **A segment MVUM never described is a different thing again, and the importer
+  must withhold the window for it.** A segment MVUM describes and leaves
+  unflagged is evidence of no gate; a segment with no `roadcore_mvum_link` row
+  at all is no evidence either way, so a window intersected without it is a
+  claim about a road nobody checked. `derivation.season_segments_without_evidence`
+  counts them, and the run prints how many published windows rest on such a
+  path — **1 of the 105 today, "Trailhead: Jordan Creek"**, whose path has two
+  undescribed segments out of seven.
 - An intersection that covers the whole year is reported as **no window**: a
   gate open every day is the §A3 filler value in another costume.
 - Where the intersection leaves several windows the longest is stored and
@@ -489,7 +528,8 @@ and the default preference:
   full vehicle, surface and distance answer — 36% of the catalog, and the
   honest ceiling today. 172 are passenger car, 156 high clearance; the surfaces
   are 137 gravel, 102 dirt, 48 paved, 21 improved dirt, 20 chip seal.
-- 105 of those carry a gate window.
+- 105 of those carry a gate window; 1 of the 105 has a path segment MVUM never
+  described, and the importer withholds that one.
 - **None has an unranked or unmeasured edge on its path**, so the unknown rule
   changes no answer today. No reaching path touches BLM ground at all, which is
   why the rule is pinned by unit test rather than by data.

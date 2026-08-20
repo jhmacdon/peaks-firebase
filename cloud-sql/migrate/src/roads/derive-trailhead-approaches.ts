@@ -46,6 +46,7 @@ import {
   seasonWindowToIsoDates,
   DEFAULT_MAX_PATH_MILES,
   DEFAULT_MAX_STRAIGHT_LINE_M,
+  DEFAULT_PATH_PREFERENCE,
   type PathPreference,
   type SkipReason,
   type WalkGraph,
@@ -79,7 +80,6 @@ export interface ApproachRow {
   snapped: boolean;
   snap_distance_m: number | null;
   anchor_reached: boolean;
-  path_miles: number | null;
   surface?: SourcedLeaf<string>;
   high_clearance?: SourcedLeaf<string>;
   four_wheel_drive?: SourcedLeaf<boolean>;
@@ -98,8 +98,23 @@ export interface ApproachAudit {
   anchor_name: string | null;
   anchor_maint_level: string | null;
   path_edges: number;
-  /** Every edge on the path in full, anchor included. `path_miles` is the drive. */
+  /**
+   * The drive from the trailhead to the near end of the anchor.
+   *
+   * **Diagnostic only — never publish it.** Wherever the way out of the forest
+   * is a state highway, which these sources do not contain, the walk runs on to
+   * the next level 4/5 forest road and this number is far longer than the
+   * drive: 39.17 miles derived for the Mount Adams South Climb trailhead
+   * against about 13 real ones from pavement. It says how far the walk went,
+   * not how far a driver goes.
+   */
+  path_miles: number | null;
+  /** Every edge on the path in full, anchor included, where `path_miles` is the drive. */
   path_edge_miles: number | null;
+  /** `nearest` or `easiest` — which way out of the trailhead this path is. */
+  path_preference: PathPreference;
+  /** True where `easiest` chose a different path from the one `nearest` takes. */
+  differs_from_nearest: boolean;
   path_segment_keys: string[];
   /** The agency's own id for the worst segment. This is the durable reference. */
   limiting_segment_key: string | null;
@@ -112,6 +127,15 @@ export interface ApproachAudit {
   /** How many path segments carry an MVUM gate window, of how many looked at. */
   season_segments_with_window: number;
   season_segments: number;
+  /**
+   * Path RoadCore segments with no `roadcore_mvum_link` row at all.
+   *
+   * A segment MVUM describes and leaves unflagged is evidence of no gate. A
+   * segment MVUM never described is no evidence either way, and a window
+   * intersected without it is a claim about a road nobody checked — so **the
+   * importer withholds `seasonal_window` when this is above zero.**
+   */
+  season_segments_without_evidence: number;
   /** More than one surviving window means the printed one is the longest of them. */
   season_windows_found: number;
   /** A BLM segment on the path is season-restricted but carries no dates. */
@@ -145,7 +169,7 @@ export function parseArgs(argv: string[]): Args {
     if (!Number.isFinite(parsed)) throw new Error(`--${flag} must be a number`);
     return parsed;
   };
-  const prefer = value("prefer") ?? "nearest";
+  const prefer = value("prefer") ?? DEFAULT_PATH_PREFERENCE;
   if (prefer !== "nearest" && prefer !== "easiest") {
     throw new Error("--prefer must be nearest or easiest");
   }
@@ -282,8 +306,9 @@ interface MvumWindows {
 async function loadSeasonWindows(
   store: RoadStore,
   segmentKeys: readonly string[],
-): Promise<Map<string, { windows: SeasonWindow[][]; links: number }>> {
-  const result = new Map<string, { windows: SeasonWindow[][]; links: number }>();
+): Promise<{ windowsBySegment: Map<string, SeasonWindow[][]>; linkedSegments: Set<string> }> {
+  const windowsBySegment = new Map<string, SeasonWindow[][]>();
+  const linkedSegments = new Set<string>();
   const roadcoreKeys = segmentKeys.filter((key) => key.startsWith("usfs_roadcore:"));
   const chunkSize = 800;
   const perSegment = new Map<string, Map<string, MvumWindows>>();
@@ -321,15 +346,25 @@ async function loadSeasonWindows(
       else windows.highClearance.push(window);
     }
   }
+  // Which segments MVUM describes at all, gate or no gate. A segment it never
+  // described is the difference between "no gate recorded" and "no evidence".
+  for (let start = 0; start < roadcoreKeys.length; start += chunkSize) {
+    const chunk = roadcoreKeys.slice(start, start + chunkSize);
+    const rows = await store.all<{ roadcore_key: string }>(
+      `SELECT DISTINCT roadcore_key FROM roadcore_mvum_link
+       WHERE roadcore_key IN (${chunk.map((key) => sqlLiteral(key)).join(", ")})`,
+    );
+    for (const row of rows) linkedSegments.add(row.roadcore_key);
+  }
   for (const [segmentKey, mvumSegments] of perSegment) {
     const sets: SeasonWindow[][] = [];
     for (const windows of mvumSegments.values()) {
       const chosen = windows.passenger.length > 0 ? windows.passenger : windows.highClearance;
       if (chosen.length > 0) sets.push(chosen);
     }
-    result.set(segmentKey, { windows: sets, links: mvumSegments.size });
+    windowsBySegment.set(segmentKey, sets);
   }
-  return result;
+  return { windowsBySegment, linkedSegments };
 }
 
 /** Which BLM segments on the paths carry a season restriction with no dates. */
@@ -352,20 +387,169 @@ async function loadBlmSeasonFlags(
 }
 
 /** One trailhead's walk, before the seasonal windows are attached. */
-interface WalkOutcome {
+export interface WalkOutcome {
   trailhead: Trailhead;
   snap: SnapCandidate | null;
   path: TraversalEdge[] | null;
   anchor: TraversalEdge | null;
   /** The drive from the trailhead to the anchor, null when an edge has no length. */
   driveMiles: number | null;
+  /** True where this path is not the one `nearest` would have taken. */
+  differsFromNearest: boolean;
+}
+
+/** What the store knows about gates on the segments these paths cross. */
+export interface SeasonEvidence {
+  /** Window sets per RoadCore segment, one set per MVUM segment it links to. */
+  windowsBySegment: Map<string, SeasonWindow[][]>;
+  /** RoadCore segments MVUM describes at all, with or without a gate. */
+  linkedSegments: Set<string>;
+  /** BLM segments flagged season-restricted, which carry no dates. */
+  blmRestricted: Set<string>;
+}
+
+export interface RowInput {
+  outcome: WalkOutcome;
+  season: SeasonEvidence;
+  sources: SourceBook;
+  seasonYear: number;
+  preference: PathPreference;
+}
+
+/**
+ * Turn one walk into one row.
+ *
+ * Kept apart from the run so it can be tested without a database or a graph:
+ * this is the last gate between a derived path and something a hiker reads.
+ *
+ * The rule that needs saying out loud is the suppression. Where the worst edge
+ * on the path is ATV-only or unmaintained, **no leaf is published at all** —
+ * not the surface, not the gate window, not the limiting road. "Dirt road,
+ * gate opens in April" is a true sentence about a route no highway vehicle
+ * belongs on, and it reads as an invitation. The reason survives in
+ * `skip_reason` and in the run's skip accounting.
+ */
+export function buildApproachRow(input: RowInput): ApproachRow {
+  const { outcome, season, sources, seasonYear, preference } = input;
+  const { trailhead, snap, path, anchor } = outcome;
+  const row: ApproachRow = {
+    destination_id: trailhead.id,
+    destination_name: trailhead.name,
+    snapped: snap !== null,
+    snap_distance_m: snap === null ? null : Number(snap.distanceMetres.toFixed(1)),
+    anchor_reached: path !== null && anchor !== null,
+  };
+  if (snap === null) {
+    row.skip_reason = "no_snap";
+    return row;
+  }
+  if (path === null || anchor === null) {
+    row.skip_reason = "no_anchor";
+    return row;
+  }
+
+  const sourceFor = (kind: string | undefined): SourceBook[string] => {
+    const found = kind === undefined ? undefined : sources[kind];
+    if (found === undefined) throw new Error(`no source metadata for ${kind}`);
+    return found;
+  };
+  const derived = deriveApproach(path);
+
+  // Windows are intersected across the whole path. A segment with no window is
+  // not a constraint — and is not an open gate either, which is why both the
+  // count that had one and the count MVUM never described are recorded beside
+  // the answer.
+  const windowSets: SeasonWindow[][] = [];
+  let segmentsWithWindow = 0;
+  let seasonSegments = 0;
+  let segmentsWithoutEvidence = 0;
+  let restrictedWithoutDates = false;
+  for (const segmentKey of derived.summary.segmentKeys) {
+    if (segmentKey.startsWith("usfs_roadcore:")) {
+      seasonSegments += 1;
+      if (!season.linkedSegments.has(segmentKey)) segmentsWithoutEvidence += 1;
+      const found = season.windowsBySegment.get(segmentKey);
+      if (found !== undefined && found.length > 0) {
+        segmentsWithWindow += 1;
+        for (const set of found) windowSets.push(set);
+      }
+    } else if (season.blmRestricted.has(segmentKey)) {
+      restrictedWithoutDates = true;
+    }
+  }
+  const intersected = intersectSeasonWindows(windowSets);
+  const window = longestWindow(intersected);
+  const isoWindow = window === null ? null : seasonWindowToIsoDates(window, seasonYear);
+
+  if (derived.skipReason !== null) row.skip_reason = derived.skipReason;
+  const publishable = derived.skipReason !== "not_car_passable";
+
+  if (publishable && derived.vehicle !== null && derived.vehicle.carPassable) {
+    const source = sourceFor(derived.limiting?.source);
+    if (derived.vehicle.highClearance !== null) {
+      row.high_clearance = leaf(derived.vehicle.highClearance, source);
+    }
+    if (derived.vehicle.fourWheelDrive !== null) {
+      row.four_wheel_drive = leaf(derived.vehicle.fourWheelDrive, source);
+    }
+  }
+  if (publishable && derived.surface !== null) {
+    row.surface = leaf(
+      derived.surface,
+      sourceFor(
+        path.find((edge) => edge.segmentKey === derived.summary.surface?.limitingSegmentKey)
+          ?.source,
+      ),
+    );
+  }
+  if (publishable && isoWindow !== null) {
+    row.seasonal_window = leaf(isoWindow, sourceFor("usfs_mvum"));
+  }
+  if (publishable && derived.limiting !== null) {
+    row.limiting_segment_ref = leaf(
+      humanSegmentRef(derived.limiting),
+      sourceFor(derived.limiting.source),
+    );
+  }
+
+  row.derivation = {
+    snap_segment_key: snap.segmentKey,
+    snap_edge_id: snap.edgeId,
+    anchor_segment_key: anchor.segmentKey,
+    anchor_name: anchor.name,
+    anchor_maint_level: anchor.maintLevel,
+    path_edges: path.length,
+    path_miles:
+      outcome.driveMiles === null ? null : Number(outcome.driveMiles.toFixed(2)),
+    path_edge_miles:
+      derived.summary.lengthMiles === null
+        ? null
+        : Number(derived.summary.lengthMiles.toFixed(2)),
+    path_preference: preference,
+    differs_from_nearest: outcome.differsFromNearest,
+    path_segment_keys: derived.summary.segmentKeys,
+    limiting_segment_key: derived.summary.vehicle?.limitingSegmentKey ?? null,
+    limiting_vehicle_requirement: derived.summary.vehicle?.value ?? null,
+    surface_segment_key: derived.summary.surface?.limitingSegmentKey ?? null,
+    surface_class: derived.summary.surface?.value ?? null,
+    unranked_edges: derived.summary.unrankedEdges,
+    unsurfaced_edges: derived.summary.unsurfacedEdges,
+    unmeasured_edges: derived.summary.unmeasuredEdges,
+    season_segments_with_window: segmentsWithWindow,
+    season_segments: seasonSegments,
+    season_segments_without_evidence: segmentsWithoutEvidence,
+    season_windows_found: intersected.length,
+    season_restricted_without_dates: restrictedWithoutDates,
+  };
+  return row;
 }
 
 function narrative(outcome: WalkOutcome, row: ApproachRow): string {
   if (outcome.path === null || outcome.anchor === null) {
     return `${outcome.trailhead.name}: ${row.skip_reason}`;
   }
-  const miles = row.path_miles === null ? "unknown" : `${row.path_miles.toFixed(1)} mi`;
+  const derivedMiles = row.derivation?.path_miles ?? null;
+  const miles = derivedMiles === null ? "unknown" : `${derivedMiles.toFixed(1)} mi`;
   const anchorName = outcome.anchor.name ?? humanSegmentRef({
     source: outcome.anchor.source,
     routeId: outcome.anchor.routeId,
@@ -439,25 +623,45 @@ export async function deriveTrailheadApproaches(args: Args): Promise<void> {
       });
       const snap = candidates[0] ?? null;
       if (snap === null) {
-        outcomes.push({ trailhead, snap: null, path: null, anchor: null, driveMiles: null });
+        outcomes.push({
+          trailhead,
+          snap: null,
+          path: null,
+          anchor: null,
+          driveMiles: null,
+          differsFromNearest: false,
+        });
         continue;
       }
-      const walk = findApproachPath(
-        walkGraph,
-        snap,
-        { lon: trailhead.lng, lat: trailhead.lat },
-        {
-          maxStraightLineMetres: args.maxStraightLineMetres,
-          maxPathMiles: args.maxPathMiles,
-          prefer: args.prefer,
-        },
-      );
+      const origin = { lon: trailhead.lng, lat: trailhead.lat };
+      const bounds = {
+        maxStraightLineMetres: args.maxStraightLineMetres,
+        maxPathMiles: args.maxPathMiles,
+      };
+      const walk = findApproachPath(walkGraph, snap, origin, {
+        ...bounds,
+        prefer: args.prefer,
+      });
+      // The eight rows where the gentlest way out is not the shortest are the
+      // whole of the difference between the two preferences, so each one says
+      // in its own audit block that it is one of them.
+      let differsFromNearest = false;
+      if (args.prefer !== "nearest" && walk !== null) {
+        const nearest = findApproachPath(walkGraph, snap, origin, {
+          ...bounds,
+          prefer: "nearest",
+        });
+        const trace = (edges: readonly TraversalEdge[] | undefined): string =>
+          (edges ?? []).map((edge) => edge.edgeId).join(">");
+        differsFromNearest = trace(walk.edges) !== trace(nearest?.edges);
+      }
       outcomes.push({
         trailhead,
         snap,
         path: walk?.edges ?? null,
         anchor: walk?.anchor ?? null,
         driveMiles: walk?.driveMiles ?? null,
+        differsFromNearest,
       });
     }
 
@@ -465,147 +669,64 @@ export async function deriveTrailheadApproaches(args: Args): Promise<void> {
     for (const outcome of outcomes) {
       for (const edge of outcome.path ?? []) pathKeys.add(edge.segmentKey);
     }
-    const seasons = await loadSeasonWindows(store, [...pathKeys]);
-    const blmSeasonFlags = await loadBlmSeasonFlags(store, [...pathKeys]);
-
-    const sourceFor = (kind: string | undefined): SourceBook[string] => {
-      const found = kind === undefined ? undefined : sources[kind];
-      if (found === undefined) throw new Error(`no source metadata for ${kind}`);
-      return found;
+    const { windowsBySegment, linkedSegments } = await loadSeasonWindows(store, [...pathKeys]);
+    const season: SeasonEvidence = {
+      windowsBySegment,
+      linkedSegments,
+      blmRestricted: await loadBlmSeasonFlags(store, [...pathKeys]),
     };
 
-    const rows: ApproachRow[] = [];
-    const skips: Record<string, number> = {};
-    let withVehicle = 0;
-    let withSurface = 0;
-    let withWindow = 0;
-    let multiWindow = 0;
-
-    for (const outcome of outcomes) {
-      const { trailhead, snap, path, anchor } = outcome;
-      const row: ApproachRow = {
-        destination_id: trailhead.id,
-        destination_name: trailhead.name,
-        snapped: snap !== null,
-        snap_distance_m: snap === null ? null : Number(snap.distanceMetres.toFixed(1)),
-        anchor_reached: path !== null,
-        path_miles: null,
-      };
-      if (snap === null) {
-        row.skip_reason = "no_snap";
-        skips.no_snap = (skips.no_snap ?? 0) + 1;
-        rows.push(row);
-        continue;
-      }
-      if (path === null || anchor === null) {
-        row.skip_reason = "no_anchor";
-        skips.no_anchor = (skips.no_anchor ?? 0) + 1;
-        rows.push(row);
-        continue;
-      }
-
-      const derived = deriveApproach(path);
-      row.path_miles =
-        outcome.driveMiles === null ? null : Number(outcome.driveMiles.toFixed(2));
-
-      // Windows are intersected across the whole path. A segment with no window
-      // is not a constraint — and is not an open gate either, which is why the
-      // count of segments that had one is recorded beside the answer.
-      const windowSets: SeasonWindow[][] = [];
-      let segmentsWithWindow = 0;
-      let seasonSegments = 0;
-      let restrictedWithoutDates = false;
-      for (const segmentKey of derived.summary.segmentKeys) {
-        if (segmentKey.startsWith("usfs_roadcore:")) {
-          seasonSegments += 1;
-          const found = seasons.get(segmentKey);
-          if (found !== undefined && found.windows.length > 0) {
-            segmentsWithWindow += 1;
-            for (const set of found.windows) windowSets.push(set);
-          }
-        } else if (blmSeasonFlags.has(segmentKey)) {
-          restrictedWithoutDates = true;
-        }
-      }
-      const intersected = intersectSeasonWindows(windowSets);
-      const window = longestWindow(intersected);
-      const isoWindow = window === null ? null : seasonWindowToIsoDates(window, args.seasonYear);
-
-      if (derived.vehicle !== null && derived.vehicle.carPassable) {
-        const source = sourceFor(derived.limiting?.source);
-        if (derived.vehicle.highClearance !== null) {
-          row.high_clearance = leaf(derived.vehicle.highClearance, source);
-        }
-        if (derived.vehicle.fourWheelDrive !== null) {
-          row.four_wheel_drive = leaf(derived.vehicle.fourWheelDrive, source);
-        }
-        withVehicle += 1;
-      }
-      if (derived.surface !== null) {
-        row.surface = leaf(
-          derived.surface,
-          sourceFor(
-            path.find((edge) => edge.segmentKey === derived.summary.surface?.limitingSegmentKey)
-              ?.source,
-          ),
-        );
-        withSurface += 1;
-      }
-      if (isoWindow !== null) {
-        row.seasonal_window = leaf(isoWindow, sourceFor("usfs_mvum"));
-        withWindow += 1;
-        if (intersected.length > 1) multiWindow += 1;
-      }
-      if (derived.limiting !== null) {
-        row.limiting_segment_ref = leaf(
-          humanSegmentRef(derived.limiting),
-          sourceFor(derived.limiting.source),
-        );
-      }
-      if (derived.skipReason !== null) {
-        row.skip_reason = derived.skipReason;
-        skips[derived.skipReason] = (skips[derived.skipReason] ?? 0) + 1;
-      }
-
-      row.derivation = {
-        snap_segment_key: snap.segmentKey,
-        snap_edge_id: snap.edgeId,
-        anchor_segment_key: anchor.segmentKey,
-        anchor_name: anchor.name,
-        anchor_maint_level: anchor.maintLevel,
-        path_edges: path.length,
-        path_edge_miles:
-          derived.summary.lengthMiles === null
-            ? null
-            : Number(derived.summary.lengthMiles.toFixed(2)),
-        path_segment_keys: derived.summary.segmentKeys,
-        limiting_segment_key: derived.summary.vehicle?.limitingSegmentKey ?? null,
-        limiting_vehicle_requirement: derived.summary.vehicle?.value ?? null,
-        surface_segment_key: derived.summary.surface?.limitingSegmentKey ?? null,
-        surface_class: derived.summary.surface?.value ?? null,
-        unranked_edges: derived.summary.unrankedEdges,
-        unsurfaced_edges: derived.summary.unsurfacedEdges,
-        unmeasured_edges: derived.summary.unmeasuredEdges,
-        season_segments_with_window: segmentsWithWindow,
-        season_segments: seasonSegments,
-        season_windows_found: intersected.length,
-        season_restricted_without_dates: restrictedWithoutDates,
-      };
-      rows.push(row);
-    }
+    const rows = outcomes.map((outcome) =>
+      buildApproachRow({
+        outcome,
+        season,
+        sources,
+        seasonYear: args.seasonYear,
+        preference: args.prefer,
+      }),
+    );
 
     mkdirSync(path.dirname(outPath), { recursive: true });
     await writeFile(outPath, rows.map((row) => JSON.stringify(row)).join("\n") + "\n", "utf8");
 
-    const snapped = rows.filter((row) => row.snapped).length;
-    const reached = rows.filter((row) => row.anchor_reached).length;
+    const count = (predicate: (row: ApproachRow) => boolean): number =>
+      rows.filter(predicate).length;
+    const snapped = count((row) => row.snapped);
+    const reached = count((row) => row.anchor_reached);
+    const withVehicle = count((row) => row.high_clearance !== undefined);
+    const withWindow = count((row) => row.seasonal_window !== undefined);
+    const multiWindow = count((row) => (row.derivation?.season_windows_found ?? 0) > 1);
+    const thinEvidence = count(
+      (row) =>
+        row.seasonal_window !== undefined &&
+        (row.derivation?.season_segments_without_evidence ?? 0) > 0,
+    );
+    const changed = count((row) => row.derivation?.differs_from_nearest === true);
+    const skips: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.skip_reason === undefined) continue;
+      skips[row.skip_reason] = (skips[row.skip_reason] ?? 0) + 1;
+    }
     const share = (part: number, whole: number): string =>
       whole === 0 ? "0%" : `${Math.round((100 * part) / whole)}%`;
     console.log(`  snapped within ${args.snapRadiusMetres} m: ${snapped} (${share(snapped, rows.length)})`);
     console.log(`  reached an anchor: ${reached} (${share(reached, snapped)} of snapped)`);
     console.log(`  vehicle answer: ${withVehicle} (${share(withVehicle, rows.length)} of the catalog)`);
-    console.log(`  surface answer: ${withSurface}`);
-    console.log(`  gate window: ${withWindow}` + (multiWindow > 0 ? ` (${multiWindow} kept the longest of several)` : ""));
+    console.log(`  surface answer: ${count((row) => row.surface !== undefined)}`);
+    console.log(
+      `  gate window: ${withWindow}` +
+        (multiWindow > 0 ? ` (${multiWindow} kept the longest of several)` : "") +
+        (thinEvidence > 0
+          ? ` — ${thinEvidence} rest on a path with a segment MVUM never described, ` +
+            `which the importer must withhold`
+          : ""),
+    );
+    console.log(
+      `  path preference: ${args.prefer}` +
+        (args.prefer === "nearest"
+          ? ""
+          : ` (${changed} paths differ from nearest)`),
+    );
     console.log("  skipped:");
     for (const [reason, count] of Object.entries(skips).sort((a, b) => b[1] - a[1])) {
       console.log(`    ${reason}: ${count}`);

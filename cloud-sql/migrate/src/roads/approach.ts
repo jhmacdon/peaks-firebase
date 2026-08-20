@@ -66,13 +66,32 @@ export interface WalkGraph {
 /**
  * Which path to call the approach when a trailhead has more than one.
  *
- * `nearest` is §A4 read literally — walk outward to the first level 4/5 road —
- * and it is the default. `easiest` prefers the way out that demands least of a
- * vehicle and breaks ties on distance, which is what a driver actually does:
- * nobody takes the rough short cut when a graded road leaves the same
- * trailhead. The measured difference between the two is in the R2 report.
+ * `nearest` is §A4 read literally — walk outward to the first level 4/5 road.
+ * `easiest` prefers the way out that demands least of a vehicle and breaks
+ * ties on distance, which is what a driver actually does: nobody takes the
+ * rough short cut when a graded road leaves the same trailhead. `easiest` is
+ * the default — see `DEFAULT_PATH_PREFERENCE` for the measurement behind that.
  */
 export type PathPreference = "nearest" | "easiest";
+
+/**
+ * The preference the pipeline ships with.
+ *
+ * Measured over the catalog: `easiest` agrees with `nearest` on 320 of 328
+ * answers, and on the other 8 it finds a passenger-car way out where `nearest`
+ * reports high clearance — for 3.11 extra miles across every trailhead
+ * derived, the longest single detour being 1.37 mi, and no seasonal window
+ * changing at all. Eight wrong "high clearance required" answers is eight
+ * trips that do not happen.
+ *
+ * **Watch item.** `UNRANKED_SEARCH_RANK` makes `easiest` route *around* an
+ * unranked edge, so once BLM-served trailheads enter the catalog it can return
+ * a confident answer down a longer known road where `nearest` would have
+ * crossed the unranked edge and honestly returned nothing. That is the better
+ * answer only while the detour is a road somebody would really drive. Revisit
+ * at the first desert-peak data.
+ */
+export const DEFAULT_PATH_PREFERENCE: PathPreference = "easiest";
 
 export interface WalkLimits {
   maxStraightLineMetres?: number;
@@ -221,7 +240,7 @@ export function findApproachPath(
 ): ApproachPath | null {
   const maxStraightLine = limits.maxStraightLineMetres ?? DEFAULT_MAX_STRAIGHT_LINE_M;
   const maxMiles = limits.maxPathMiles ?? DEFAULT_MAX_PATH_MILES;
-  const prefer = limits.prefer ?? "nearest";
+  const prefer = limits.prefer ?? DEFAULT_PATH_PREFERENCE;
   const snapEdge = graph.byId.get(snap.edgeId);
   if (snapEdge === undefined) return null;
 
@@ -632,6 +651,13 @@ export interface ApproachDerivation {
  * `summarizeApproach`, which is where the worst-on-the-path rule and the
  * unknown rule live together. A path with an unrated edge on it has no vehicle
  * answer at all — not the second-worst known one.
+ *
+ * **Ties go to the first segment on the path.** `summarizeApproach` keeps a
+ * limiting segment only for a strictly worse rank, and the path runs from the
+ * trailhead outward, so where several segments share the worst rank — 204 of
+ * the 328 derived answers today — the one named is the one nearest the
+ * trailhead. That is the right end to name: it is the first rough road a
+ * driver meets, and the one they can still turn round on.
  */
 export function deriveApproach(path: readonly TraversalEdge[]): ApproachDerivation {
   const summary = summarizeApproach(path);

@@ -186,7 +186,8 @@ export async function loadTraversalEdges(store: RoadStore): Promise<TraversalEdg
     `SELECT edge_id, segment_key, from_node, to_node, length_miles, source,
             route_id, name, vehicle_requirement, vehicle_rank, surface,
             surface_rank, maint_level, maint_level_num, approach_terminus
-     FROM road_edge`,
+     FROM road_edge
+     ORDER BY edge_id`,
   );
   return rows.map((row) => ({
     edgeId: row.edge_id,
@@ -265,6 +266,10 @@ export interface ApproachSummary {
  *
  * The counts come back too, so a caller can say *why* it is unknown, and
  * `segmentKeys` gives the durable references for the whole path.
+ *
+ * A tie keeps the earlier edge: the comparison is strictly greater-than, so on
+ * a path ordered from the trailhead outward the segment named is the first one
+ * at the worst rank, not the last.
  */
 export function summarizeApproach(path: readonly TraversalEdge[]): ApproachSummary {
   let vehicle: LimitingValue<string> | null = null;

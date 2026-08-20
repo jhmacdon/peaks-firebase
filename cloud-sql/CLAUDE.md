@@ -777,7 +777,7 @@ trailhead to `<data-dir>/trailhead-road-access.jsonl`, each leaf shaped like
 `TrailheadRoadAccess` in `lib/amenities.ts` and carrying its own source. It
 reads the production database once, read-only, for trailhead ids, names and
 coordinates. Today 568 of 918 trailheads snap and **328 reach an anchor and get
-a full answer** (36% of the catalog); 105 of those carry a gate window. Four
+a full answer** (36% of the catalog); 105 of those carry a gate window. Six
 rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
 
 - **A gate date is stored as `YYYY-MM-DD`.** The source has no year and the
@@ -793,7 +793,28 @@ rules it obeys, all pinned by `roads-approach-derivation.test.ts`:
   no vehicle leaf at all.
 - **`limiting_segment_key` in the audit block is the agency id**; the human
   `limiting_segment_ref` is derived from it ("FR 8040-500"), and `snap_edge_id`
-  is positional and for debugging only.
+  is positional and for debugging only. Where several segments tie at the worst
+  rank the one named is the first on the path — the first rough road a driver
+  meets, not the last.
+- **An ATV-only or unmaintained path publishes no leaf at all** — not the
+  surface, not the gate window, not the limiting road. "Dirt road, gate opens
+  in April" is true of a route no highway vehicle belongs on and reads as an
+  invitation. `skip_reason: not_car_passable` carries the reason instead.
+- **`derivation` is diagnostic; never publish `path_miles`.** With no state
+  highways in these sources the walk runs on to the next level 4/5 forest road,
+  so South Climb derives 39.17 miles against about 13 real ones. It becomes a
+  publishable number when TIGER lands. Likewise the importer **withholds
+  `seasonal_window` when `season_segments_without_evidence` is above zero** — a
+  segment MVUM never described is not the same as one it describes without a
+  gate (1 of the 105 windows today).
+
+The default path preference is `--prefer=easiest` — the gentlest way out, not
+the shortest. It matches `nearest` on 320 of 328 answers and finds a
+passenger-car way out on the other 8 for 3.11 extra miles across the catalog;
+those rows carry `derivation.differs_from_nearest`. Watch item: an unranked
+edge searches as worse than the worst real rank, so `easiest` routes around
+unranked ground — once BLM trailheads appear it could answer confidently where
+`nearest` would honestly answer nothing. Revisit at the first desert-peak data.
 
 A second noding pass — projecting dangling endpoints onto the centrelines they
 nearly touch — was measured against the 240 trailheads that snap without

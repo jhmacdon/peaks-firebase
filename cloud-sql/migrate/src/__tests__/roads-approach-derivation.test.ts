@@ -12,6 +12,14 @@ import {
   vehicleAnswerFor,
   type WalkGraph,
 } from "../roads/approach";
+import {
+  buildApproachRow,
+  type ApproachRow,
+  type RowInput,
+  type SeasonEvidence,
+  type SourceBook,
+  type WalkOutcome,
+} from "../roads/derive-trailhead-approaches";
 import { buildAdjacency, type SnapCandidate, type TraversalEdge } from "../roads/graph";
 import type { SeasonWindow } from "../roads/mvum-seasons";
 
@@ -392,4 +400,236 @@ test("an ATV-only stretch is reported as no drive, not as four-wheel drive", () 
   ]);
   assert.equal(derived.vehicle!.carPassable, false);
   assert.equal(derived.skipReason, "not_car_passable");
+});
+
+test("a tie names the first road at the worst rank, the one you meet first", () => {
+  // 204 of the 328 derived answers have several segments at the worst rank.
+  // The path runs from the trailhead outward, so the segment named is the one
+  // nearest the trailhead — the first rough road, and the one still worth
+  // turning round on.
+  const derived = deriveApproach([
+    edge({ segmentKey: "usfs_roadcore:{A}", routeId: "3512000" }),
+    edge({
+      segmentKey: "usfs_roadcore:{B}",
+      routeId: "8040500",
+      vehicleRequirement: "high_clearance",
+      vehicleRank: 2,
+      surface: "native",
+      surfaceRank: 5,
+    }),
+    edge({
+      segmentKey: "usfs_roadcore:{C}",
+      routeId: "9999000",
+      vehicleRequirement: "high_clearance",
+      vehicleRank: 2,
+      surface: "native",
+      surfaceRank: 5,
+    }),
+    edge({ maintLevelNum: 4, approachTerminus: true }),
+  ]);
+  assert.equal(derived.limiting!.segmentKey, "usfs_roadcore:{B}");
+  assert.equal(humanSegmentRef(derived.limiting!), "FR 8040-500");
+  assert.equal(derived.summary.surface!.limitingSegmentKey, "usfs_roadcore:{B}");
+});
+
+// ---------------------------------------------------------------------------
+// The row builder — the last gate between a path and something a hiker reads
+// ---------------------------------------------------------------------------
+
+const SOURCES: SourceBook = {
+  usfs_roadcore: {
+    kind: "usfs_roadcore",
+    name: "USFS National Forest System Roads (RoadCore)",
+    url: "https://example.invalid/roadcore",
+    retrieved_at: "2026-08-19",
+  },
+  usfs_mvum: {
+    kind: "usfs_mvum",
+    name: "USFS Motor Vehicle Use Map roads",
+    retrieved_at: "2026-08-19",
+  },
+  blm_gtlf: {
+    kind: "blm_gtlf",
+    name: "BLM Ground Transportation Linear Features",
+    retrieved_at: "2026-08-19",
+  },
+};
+
+function evidence(overrides: Partial<SeasonEvidence> = {}): SeasonEvidence {
+  return {
+    windowsBySegment: new Map(),
+    linkedSegments: new Set(),
+    blmRestricted: new Set(),
+    ...overrides,
+  };
+}
+
+function outcomeFor(
+  path: TraversalEdge[] | null,
+  overrides: Partial<WalkOutcome> = {},
+): WalkOutcome {
+  return {
+    trailhead: { id: "abc", name: "Test Trailhead", lat: 46, lng: -121 },
+    snap: snapTo(path?.[0]?.edgeId ?? "s#1"),
+    path,
+    anchor: path === null ? null : path[path.length - 1]!,
+    driveMiles: 4.256,
+    differsFromNearest: false,
+    ...overrides,
+  };
+}
+
+function rowFor(input: Partial<RowInput> & { outcome: WalkOutcome }): ApproachRow {
+  return buildApproachRow({
+    season: evidence(),
+    sources: SOURCES,
+    seasonYear: 2026,
+    preference: "easiest",
+    ...input,
+  });
+}
+
+const ANCHOR = edge({
+  edgeId: "a#1",
+  segmentKey: "usfs_roadcore:{Z}",
+  routeId: "2300000",
+  name: "TIETON",
+  maintLevel: "ml4",
+  maintLevelNum: 4,
+  approachTerminus: true,
+});
+
+test("an ATV-only approach publishes nothing at all, not even the surface", () => {
+  // "Dirt road, gate opens in April" is true of a route no highway vehicle
+  // belongs on, and it reads as an invitation.
+  const path = [
+    edge({
+      edgeId: "s#1",
+      segmentKey: "usfs_roadcore:{A}",
+      routeId: "4100500",
+      vehicleRequirement: "atv_only",
+      vehicleRank: 5,
+      surface: "native",
+      surfaceRank: 5,
+    }),
+    ANCHOR,
+  ];
+  const row = rowFor({
+    outcome: outcomeFor(path),
+    season: evidence({
+      linkedSegments: new Set(["usfs_roadcore:{A}", "usfs_roadcore:{Z}"]),
+      windowsBySegment: new Map([["usfs_roadcore:{A}", [[window("04-01", "11-30")]]]]),
+    }),
+  });
+  assert.equal(row.skip_reason, "not_car_passable");
+  assert.equal(row.surface, undefined);
+  assert.equal(row.high_clearance, undefined);
+  assert.equal(row.four_wheel_drive, undefined);
+  assert.equal(row.seasonal_window, undefined);
+  assert.equal(row.limiting_segment_ref, undefined);
+  // The evidence survives even though nothing is published from it.
+  assert.equal(row.derivation!.limiting_vehicle_requirement, "atv_only");
+  assert.equal(row.derivation!.season_windows_found, 1);
+});
+
+test("the drive is a diagnostic in the audit block, never a row field", () => {
+  const row = rowFor({ outcome: outcomeFor([edge({ edgeId: "s#1" }), ANCHOR]) });
+  assert.equal("path_miles" in row, false);
+  assert.equal(row.derivation!.path_miles, 4.26);
+  assert.equal(row.derivation!.path_edge_miles, 2);
+});
+
+test("a segment MVUM never described is counted apart from one with no gate", () => {
+  // A described segment with no window is evidence of no gate. An undescribed
+  // one is no evidence at all, and the importer withholds the window for it.
+  const path = [
+    edge({ edgeId: "s#1", segmentKey: "usfs_roadcore:{A}" }),
+    edge({ edgeId: "m#1", segmentKey: "usfs_roadcore:{B}" }),
+    edge({ edgeId: "n#1", segmentKey: "blm_gtlf:5", source: "blm_gtlf" }),
+    ANCHOR,
+  ];
+  const row = rowFor({
+    outcome: outcomeFor(path),
+    season: evidence({
+      // {A} carries a gate, {B} is described with none, {Z} was never described.
+      linkedSegments: new Set(["usfs_roadcore:{A}", "usfs_roadcore:{B}"]),
+      windowsBySegment: new Map([["usfs_roadcore:{A}", [[window("06-01", "10-15")]]]]),
+      blmRestricted: new Set(["blm_gtlf:5"]),
+    }),
+  });
+  const audit = row.derivation!;
+  assert.equal(audit.season_segments, 3);
+  assert.equal(audit.season_segments_with_window, 1);
+  assert.equal(audit.season_segments_without_evidence, 1);
+  assert.equal(audit.season_restricted_without_dates, true);
+  assert.deepEqual(row.seasonal_window!.value, { opens: "2026-06-01", closes: "2026-10-15" });
+});
+
+test("the audit block carries the durable reference and the preference used", () => {
+  const path = [
+    edge({
+      edgeId: "usfs_roadcore:{A}#1@3",
+      segmentKey: "usfs_roadcore:{A}",
+      routeId: "8040500",
+      vehicleRequirement: "high_clearance",
+      vehicleRank: 2,
+      surface: "native",
+      surfaceRank: 5,
+    }),
+    ANCHOR,
+  ];
+  const row = rowFor({ outcome: outcomeFor(path, { differsFromNearest: true }) });
+  const audit = row.derivation!;
+  assert.equal(audit.limiting_segment_key, "usfs_roadcore:{A}");
+  assert.notEqual(audit.limiting_segment_key, audit.snap_edge_id);
+  assert.equal(audit.path_preference, "easiest");
+  assert.equal(audit.differs_from_nearest, true);
+  assert.equal(audit.anchor_segment_key, "usfs_roadcore:{Z}");
+  assert.equal(audit.anchor_maint_level, "ml4");
+  assert.equal(audit.path_edges, 2);
+  assert.deepEqual(audit.path_segment_keys, ["usfs_roadcore:{A}", "usfs_roadcore:{Z}"]);
+  assert.equal(audit.unranked_edges, 0);
+  assert.equal(row.high_clearance!.value, "required");
+  assert.equal(row.high_clearance!.retrieved_at, "2026-08-19");
+  assert.equal(row.high_clearance!.source.kind, "usfs_roadcore");
+  assert.equal(row.limiting_segment_ref!.value, "FR 8040-500");
+  assert.equal(row.surface!.value, "dirt");
+});
+
+test("a trailhead with no road and one with no anchor say so and claim nothing", () => {
+  const noSnap = rowFor({ outcome: outcomeFor(null, { snap: null }) });
+  assert.equal(noSnap.skip_reason, "no_snap");
+  assert.equal(noSnap.snapped, false);
+  assert.equal(noSnap.snap_distance_m, null);
+  assert.equal(noSnap.derivation, undefined);
+
+  const noAnchor = rowFor({ outcome: outcomeFor(null, { anchor: null }) });
+  assert.equal(noAnchor.skip_reason, "no_anchor");
+  assert.equal(noAnchor.snapped, true);
+  assert.equal(noAnchor.anchor_reached, false);
+  assert.equal(noAnchor.derivation, undefined);
+});
+
+test("an unrated path still publishes what it does know, but no vehicle", () => {
+  const path = [
+    edge({ edgeId: "s#1", segmentKey: "usfs_roadcore:{A}", routeId: "4100000" }),
+    edge({
+      edgeId: "blm_gtlf:28883#1@4",
+      segmentKey: "blm_gtlf:28883",
+      source: "blm_gtlf",
+      name: "Huasna Rd.",
+      routeId: "1887",
+      vehicleRequirement: null,
+      vehicleRank: null,
+    }),
+    ANCHOR,
+  ];
+  const row = rowFor({ outcome: outcomeFor(path) });
+  assert.equal(row.skip_reason, "unranked_path");
+  assert.equal(row.high_clearance, undefined);
+  assert.equal(row.four_wheel_drive, undefined);
+  // The surface is known on every edge here, so it is still worth saying.
+  assert.equal(row.surface!.value, "gravel");
+  assert.equal(row.limiting_segment_ref!.value, "FR 4100");
+  assert.equal(row.derivation!.unranked_edges, 1);
 });
