@@ -14,8 +14,6 @@ export interface DestinationGuideSource {
   prominence: number | null;
   activities: string[];
   features: string[];
-  country_code: string | null;
-  state_code: string | null;
   explicitly_saved?: boolean;
   averages?: DestinationAverages | null;
 }
@@ -126,10 +124,6 @@ function joinNames(values: string[]): string {
   return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
 }
 
-function formatNumber(value: number): string {
-  return value.toLocaleString("en-US");
-}
-
 export function formatFeet(meters: number | null | undefined): string {
   if (meters == null) return "—";
   return `${Math.round(meters * 3.28084).toLocaleString("en-US")} ft`;
@@ -146,6 +140,24 @@ export function formatShortDate(dateString: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+/** Sidebar "Type" row text: the destination's most specific feature
+ * ("summit" → "Summit"), or "Region" for an area-shaped destination. A
+ * generic "point" with no features carries no information over the rest of
+ * the page, so it returns null — the row is omitted rather than show
+ * "Point". */
+export function describeDestinationType(
+  type: string,
+  features: string[]
+): string | null {
+  const primaryFeature = features.find(Boolean);
+  if (primaryFeature) {
+    const spaced = primaryFeature.replace(/[-_]+/g, " ").trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+  if (type === "region") return "Region";
+  return null;
 }
 
 export function getDestinationMapLinks(lat: number, lng: number) {
@@ -185,10 +197,8 @@ export function mergeDestinationAverages(
 
 export function buildDestinationGuide(
   source: DestinationGuideSource,
-  routeCount: number,
-  listCount: number,
-  sessionCount: number,
-  tripReportCount: number
+  regionLabel: string | null,
+  sessionCount: number
 ): {
   headline: string;
   paragraphs: string[];
@@ -196,7 +206,6 @@ export function buildDestinationGuide(
   seasonalDays: Array<{ label: string; count: number }>;
   badges: string[];
 } {
-  const locationParts = [source.state_code, source.country_code].filter(Boolean);
   const primaryFeature = source.features.find(Boolean);
   const featureWord =
     source.type === "region"
@@ -204,12 +213,12 @@ export function buildDestinationGuide(
       : primaryFeature
         ? primaryFeature.replace(/[-_]+/g, " ")
         : "destination";
-  const elevationText =
-    source.elevation != null ? `${formatFeet(source.elevation)} ` : "";
-  const article = /^[aeiou]/i.test(`${elevationText}${featureWord}`) ? "an" : "a";
+  const article = /^[aeiou]/i.test(featureWord) ? "an" : "a";
 
   const paragraphs: string[] = [];
-  const headline = `${source.name || "This destination"} is ${article} ${elevationText}${featureWord}${locationParts.length ? ` in ${locationParts.join(", ")}` : ""}${source.prominence != null && source.prominence > 0 ? `, with ${formatFeet(source.prominence)} of prominence` : ""}.`;
+  // Elevation and prominence are intentionally left out here — they're
+  // already the first two cells in the stat row above this copy.
+  const headline = `${source.name || "This destination"} is ${article} ${featureWord}${regionLabel ? ` in ${regionLabel}` : ""}.`;
 
   const secondaryFeatures = source.features
     .filter(Boolean)
@@ -218,29 +227,15 @@ export function buildDestinationGuide(
   const activityText = joinNames(
     source.activities.filter(Boolean).map((a) => ACTIVITY_LABELS[a] || a)
   );
-  if (secondaryFeatures.length > 0 && activityText) {
+  // Only claim an activity happens here when there's recorded activity to
+  // back it up — otherwise this is a configured-but-unused activity type,
+  // not something that's actually true of the destination yet.
+  if (sessionCount > 0 && secondaryFeatures.length > 0 && activityText) {
     paragraphs.push(
       `It doubles as a ${joinNames(secondaryFeatures)}, and most of the activity recorded here is ${activityText}.`
     );
-  } else if (activityText) {
+  } else if (sessionCount > 0 && activityText) {
     paragraphs.push(`Most of the activity recorded here is ${activityText}.`);
-  }
-
-  const contextBits: string[] = [];
-  if (routeCount > 0) {
-    contextBits.push(`${formatNumber(routeCount)} route${routeCount === 1 ? "" : "s"}`);
-  }
-  if (sessionCount > 0) {
-    contextBits.push(`${formatNumber(sessionCount)} recorded session${sessionCount === 1 ? "" : "s"}`);
-  }
-  if (tripReportCount > 0) {
-    contextBits.push(`${formatNumber(tripReportCount)} trip report${tripReportCount === 1 ? "" : "s"}`);
-  }
-  if (listCount > 0) {
-    contextBits.push(`${formatNumber(listCount)} curated list${listCount === 1 ? "" : "s"}`);
-  }
-  if (contextBits.length > 0) {
-    paragraphs.push(`On Peaks it has ${joinNames(contextBits)}.`);
   }
 
   const seasonalMonths = normalizeSeasonalMap(source.averages?.months, MONTH_LABELS);

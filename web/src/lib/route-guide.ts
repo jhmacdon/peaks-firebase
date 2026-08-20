@@ -20,31 +20,25 @@ export function formatElevationMeters(
   return `${Math.round(meters * METERS_TO_FEET).toLocaleString()} ft`;
 }
 
-export function formatDurationHours(
-  hours: number | null | undefined
-): string {
-  if (hours == null || Number.isNaN(hours)) return "—";
-
-  const roundedMinutes = Math.max(0, Math.round(hours * 60));
-  const wholeHours = Math.floor(roundedMinutes / 60);
-  const mins = roundedMinutes % 60;
-
-  if (wholeHours === 0) return `${mins}m`;
-  if (mins === 0) return `${wholeHours}h`;
-  return `${wholeHours}h ${mins}m`;
-}
-
-export function formatDurationRange(
-  lowHours: number | null | undefined,
-  highHours: number | null | undefined
-): string {
-  if (lowHours == null || highHours == null) return "—";
-  return `${formatDurationHours(lowHours)} - ${formatDurationHours(highHours)}`;
-}
-
-export function describeRouteShape(shape: string | null | undefined): string {
-  if (!shape) return "Unknown shape";
+/** Human-readable route shape, or null when the shape isn't known — callers
+ * omit the shape word/clause entirely rather than print "Unknown shape". */
+export function describeRouteShape(shape: string | null | undefined): string | null {
+  if (!shape) return null;
   return shape.replace(/_/g, " ");
+}
+
+/** Whether to show the "Elevation loss" stat. Non-loop routes (out-and-back
+ * uses the round-trip vertical, point-to-point/lollipop store loss
+ * separately) often have no real loss data, and "0 ft" reads as a measured
+ * fact rather than a missing value — hide the stat instead. Loop routes
+ * always show it: loss is core to what a loop is, so even a genuine 0 is
+ * worth stating. */
+export function shouldShowElevationLoss(
+  lossMeters: number | null | undefined,
+  shape: string | null | undefined
+): boolean {
+  if (shape === "loop") return true;
+  return lossMeters != null && lossMeters !== 0;
 }
 
 export function describeCompletionMode(
@@ -64,9 +58,9 @@ export interface RouteGuideSummary {
   estimatedHoursLow: number | null;
   estimatedHoursHigh: number | null;
   estimatedHoursMid: number | null;
-  difficultyLabel: string;
+  difficultyLabel: string | null;
   difficultyReason: string;
-  routeShapeLabel: string;
+  routeShapeLabel: string | null;
   completionLabel: string;
   routeNarrative: string;
 }
@@ -145,7 +139,15 @@ export function summarizeRouteGuide(
   const difficultyScore =
     distanceScore + climbScore + densityScore + shapeScore + completionScore;
 
-  const difficultyLabel = difficultyFromScore(difficultyScore);
+  const rawDifficultyLabel = difficultyFromScore(difficultyScore);
+  // Plausibility gate: the score under-weights routes that gain a lot of
+  // elevation gradually (low density, long distance), so it can call a
+  // >3000 ft climb "Moderate" — a grade no one would trust. Hide the label
+  // rather than show a difficulty a reader would rightly distrust.
+  const difficultyLabel: string | null =
+    rawDifficultyLabel === "Moderate" && gainFeet != null && gainFeet > 3000
+      ? null
+      : rawDifficultyLabel;
 
   const difficultyReason =
     climbingDensityFeetPerMile != null && climbingDensityFeetPerMile > 1200

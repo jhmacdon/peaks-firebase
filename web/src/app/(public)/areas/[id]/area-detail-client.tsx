@@ -9,7 +9,8 @@ import {
   type AreaPersonalActivity,
 } from "../../../../lib/actions/areas";
 import { useAuth } from "../../../../lib/auth-context";
-import { areaKindLabel } from "../../../../lib/area-types";
+import { areaKindLabel, describeDesignation, describeManager } from "../../../../lib/area-types";
+import { formatRegionList } from "../../../../lib/regions";
 import { AreaKindIcon } from "../../../../components/area-kind-icon";
 import DestinationCard from "../../../../components/destination-card";
 import { Breadcrumb, StatRow } from "../../../../components/detail-sections";
@@ -69,10 +70,11 @@ export default function AreaDetailClient({ area }: { area: AreaDetail }) {
     };
   }, [areaId, authLoading, getIdToken, userId]);
 
-  const subtitle = [
-    areaKindLabel(area.kind),
-    area.manager,
-  ].filter((value): value is string => Boolean(value));
+  const managerLabel = describeManager(area.manager);
+  const regionLabel = formatRegionList(area.state_codes, area.country_code);
+  const subtitle = [areaKindLabel(area.kind), managerLabel].filter(
+    (value): value is string => Boolean(value)
+  );
   const catalogSource = sourceLabel(area.source, area.source_version);
 
   return (
@@ -139,18 +141,10 @@ export default function AreaDetailClient({ area }: { area: AreaDetail }) {
             <dl className="grid gap-x-8 gap-y-2 px-4 py-4 sm:grid-cols-2">
               <StatRow
                 label="Designation"
-                value={area.designation || areaKindLabel(area.kind)}
+                value={describeDesignation(area.designation, area.kind)}
               />
-              <StatRow label="Manager" value={area.manager || "Not listed"} />
-              <StatRow
-                label="Region"
-                value={
-                  area.state_codes.length > 0
-                    ? area.state_codes.join(", ")
-                    : area.country_code
-                }
-              />
-              <StatRow label="Source" value={catalogSource} />
+              {managerLabel && <StatRow label="Manager" value={managerLabel} />}
+              {regionLabel && <StatRow label="Region" value={regionLabel} />}
             </dl>
           </div>
 
@@ -362,7 +356,7 @@ function DescriptionCredit({
 
   return (
     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-      Boundary and catalog data: {catalogSource}
+      Boundary data: {catalogSource}
     </p>
   );
 }

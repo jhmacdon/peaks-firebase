@@ -107,6 +107,75 @@ export function areaKindLabel(kind: AreaKind): string {
   return KIND_LABELS[kind];
 }
 
+// PAD-US 4.1 `Des_Tp` designation-type codes actually present in
+// `areas.designation` (checked against production 2026-08-19: ACEC, WA,
+// WSA, NWR, NF, CONE, WSR, NM, MPA, NCA, NRA, NP, NG, IRA, RNA, NSBV, RECE,
+// PUB, REC, SDA, FOTH, UNKE, SP). Only codes with a confirmed meaning are
+// mapped; the rest fall back to the area's kind label rather than guess at
+// what an abbreviation stands for.
+const DESIGNATION_CODES: Record<string, string> = {
+  NP: "National Park",
+  NM: "National Monument",
+  NF: "National Forest",
+  NG: "National Grassland",
+  NRA: "National Recreation Area",
+  NCA: "National Conservation Area",
+  NWR: "National Wildlife Refuge",
+  NLS: "National Lakeshore",
+  WA: "Wilderness Area",
+  WSA: "Wilderness Study Area",
+  WSR: "Wild and Scenic River",
+  ACEC: "Area of Critical Environmental Concern",
+  MPA: "Marine Protected Area",
+  RNA: "Research Natural Area",
+  IRA: "Inventoried Roadless Area",
+  NSBV: "National Scenic Area",
+  CONE: "Conservation Easement",
+  REC: "Recreation Area",
+};
+
+/** Designation display text: expands a known PAD-US code, passes through
+ * already-spelled-out text, and otherwise falls back to the kind label —
+ * never a raw code, never nothing. */
+export function describeDesignation(
+  designation: string | null | undefined,
+  kind: AreaKind
+): string {
+  if (!designation) return areaKindLabel(kind);
+  const mapped = DESIGNATION_CODES[designation.toUpperCase()];
+  if (mapped) return mapped;
+  // PAD-US sometimes stores the designation already spelled out (e.g.
+  // "Wilderness Area" instead of "WA") — a code has no space or lowercase.
+  if (/[a-z]/.test(designation) || /\s/.test(designation)) return designation;
+  return areaKindLabel(kind);
+}
+
+// PAD-US `Mang_Name` manager codes actually present in `areas.manager`
+// (checked against production 2026-08-19: BLM, USFS, FWS, NPS, OTHF, JNT,
+// USBR, DOD).
+const MANAGER_CODES: Record<string, string> = {
+  NPS: "National Park Service",
+  USFS: "U.S. Forest Service",
+  BLM: "Bureau of Land Management",
+  FWS: "U.S. Fish and Wildlife Service",
+  USBR: "Bureau of Reclamation",
+  DOD: "Department of Defense",
+  JNT: "Joint management",
+  OTHF: "Other federal agency",
+  FED: "Federal government",
+};
+
+/** Manager display text: expands a known code, passes through already-
+ * spelled-out text, and otherwise omits the row (null) rather than show a
+ * raw code. */
+export function describeManager(manager: string | null | undefined): string | null {
+  if (!manager) return null;
+  const mapped = MANAGER_CODES[manager.toUpperCase()];
+  if (mapped) return mapped;
+  if (/[a-z]/.test(manager) || /\s/.test(manager)) return manager;
+  return null;
+}
+
 /** Shared contract — must match the iOS `ProtectedArea.isNationalParkService`. */
 export function isNationalParkService(area: ProtectedArea): boolean {
   const m = (area.manager ?? "").toLowerCase();

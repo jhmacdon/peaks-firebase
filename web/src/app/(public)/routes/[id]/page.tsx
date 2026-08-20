@@ -19,12 +19,13 @@ import {
   describeCompletionMode,
   describeRouteShape,
   formatDistanceMeters,
-  formatDurationRange,
   formatElevationMeters,
   getRouteTraversalMetrics,
   parseExternalRouteLinks,
+  shouldShowElevationLoss,
   summarizeRouteGuide,
 } from "../../../../lib/route-guide";
+import { formatDurationRangeFriendly, formatSessionCount } from "../../../../lib/format";
 import {
   Breadcrumb,
   DifficultyPill,
@@ -103,6 +104,7 @@ export default function RouteDetailPage() {
   const traversal = getRouteTraversalMetrics(route);
   const profilePoints = buildProfilePoints(elevationPoints);
   const externalLinks = parseExternalRouteLinks(route.external_links);
+  const shapeLabel = describeRouteShape(route.shape);
 
   const start = destinations[0];
   const directionsUrl =
@@ -111,13 +113,11 @@ export default function RouteDetailPage() {
       : null;
 
   const metaParts = [
-    describeRouteShape(route.shape),
+    shapeLabel,
     destinations.length > 0
       ? `${destinations.length} waypoint${destinations.length === 1 ? "" : "s"}`
       : null,
-    sessionCount > 0
-      ? `${sessionCount.toLocaleString("en-US")} recorded session${sessionCount === 1 ? "" : "s"}`
-      : null,
+    sessionCount > 0 ? formatSessionCount(sessionCount) : null,
   ].filter((part): part is string => part != null);
 
   const aboutParagraphs = buildAbout(name, route, guide, sessionCount);
@@ -163,18 +163,22 @@ export default function RouteDetailPage() {
             label="Elevation gain"
             value={formatElevationMeters(traversal.gainMeters)}
           />
-          <StatCell
-            label="Elevation loss"
-            value={formatElevationMeters(traversal.lossMeters)}
-          />
+          {shouldShowElevationLoss(traversal.lossMeters, route.shape) && (
+            <StatCell
+              label="Elevation loss"
+              value={formatElevationMeters(traversal.lossMeters)}
+            />
+          )}
           <StatCell
             label="Est. time"
-            value={formatDurationRange(
+            value={formatDurationRangeFriendly(
               guide.estimatedHoursLow,
               guide.estimatedHoursHigh
             )}
           />
-          <StatCell label="Difficulty" value={guide.difficultyLabel} />
+          {guide.difficultyLabel && (
+            <StatCell label="Difficulty" value={guide.difficultyLabel} />
+          )}
         </div>
 
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -241,7 +245,7 @@ export default function RouteDetailPage() {
                           href={`/destinations/${dest.id}`}
                           className="font-medium text-gray-900 hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-300"
                         >
-                          {dest.name || "Unknown"}
+                          {dest.name || "Waypoint"}
                         </Link>
                         <div className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
                           {[
@@ -261,7 +265,7 @@ export default function RouteDetailPage() {
                           ? "Start"
                           : index === destinations.length - 1
                             ? "Finish"
-                            : `Waypoint ${index + 1}`}
+                            : `Waypoint ${index}`}
                       </span>
                     </li>
                   ))}
@@ -311,7 +315,7 @@ export default function RouteDetailPage() {
           <aside className="space-y-6">
             <SidePanel title="Stats">
               <dl className="space-y-2">
-                <StatRow label="Shape" value={titleizeFirst(describeRouteShape(route.shape))} />
+                {shapeLabel && <StatRow label="Shape" value={titleizeFirst(shapeLabel)} />}
                 <StatRow
                   label="Distance"
                   value={formatDistanceMeters(traversal.distanceMeters)}
@@ -320,20 +324,18 @@ export default function RouteDetailPage() {
                   label="Elevation gain"
                   value={formatElevationMeters(traversal.gainMeters)}
                 />
-                <StatRow
-                  label="Elevation loss"
-                  value={formatElevationMeters(traversal.lossMeters)}
-                />
-                {guide.climbingDensityFeetPerMile != null && (
+                {shouldShowElevationLoss(traversal.lossMeters, route.shape) && (
                   <StatRow
-                    label="Climbing density"
-                    value={`${Math.round(guide.climbingDensityFeetPerMile).toLocaleString()} ft/mi`}
+                    label="Elevation loss"
+                    value={formatElevationMeters(traversal.lossMeters)}
                   />
                 )}
-                <StatRow label="Difficulty" value={guide.difficultyLabel} />
+                {guide.difficultyLabel && (
+                  <StatRow label="Difficulty" value={guide.difficultyLabel} />
+                )}
                 <StatRow
                   label="Est. time"
-                  value={formatDurationRange(
+                  value={formatDurationRangeFriendly(
                     guide.estimatedHoursLow,
                     guide.estimatedHoursHigh
                   )}
@@ -345,29 +347,11 @@ export default function RouteDetailPage() {
               </dl>
             </SidePanel>
 
-            {(directionsUrl || route.completion !== "none") && (
+            {route.completion !== "none" && (
               <SidePanel title="Before you go">
-                {route.completion !== "none" && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    {describeCompletionMode(route.completion)}.
-                  </p>
-                )}
-                {directionsUrl && (
-                  <ul
-                    className={`space-y-1.5 text-sm ${route.completion !== "none" ? "mt-2" : ""}`}
-                  >
-                    <li>
-                      <a
-                        href={directionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        Driving directions to {start?.name || "the trailhead"}
-                      </a>
-                    </li>
-                  </ul>
-                )}
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  {describeCompletionMode(route.completion)}.
+                </p>
               </SidePanel>
             )}
 
@@ -408,8 +392,11 @@ function buildAbout(
   const paragraphs: string[] = [];
 
   const shapeLabel = describeRouteShape(route.shape);
+  const routeNoun = shapeLabel
+    ? `${/^[aeiou]/i.test(shapeLabel) ? "an" : "a"} ${shapeLabel} route`
+    : "a route";
   const first = [
-    `${name} is ${/^[aeiou]/i.test(shapeLabel) ? "an" : "a"} ${shapeLabel} route`,
+    `${name} is ${routeNoun}`,
     guide.distanceMiles != null
       ? ` covering ${guide.distanceMiles.toFixed(1)} miles`
       : "",
@@ -420,15 +407,19 @@ function buildAbout(
   ].join("");
   paragraphs.push(first);
 
-  if (guide.estimatedHoursLow != null) {
-    paragraphs.push(
-      `It rates as ${guide.difficultyLabel.toLowerCase()} given its ${guide.difficultyReason}. Plan on ${formatDurationRange(guide.estimatedHoursLow, guide.estimatedHoursHigh)} of moving time.`
-    );
-  }
+  const difficultyText = guide.difficultyLabel
+    ? `It rates as ${guide.difficultyLabel.toLowerCase()} given its ${guide.difficultyReason}.`
+    : null;
+  const timeText =
+    guide.estimatedHoursLow != null
+      ? `Plan on ${formatDurationRangeFriendly(guide.estimatedHoursLow, guide.estimatedHoursHigh)} of moving time.`
+      : null;
+  const planSentence = [difficultyText, timeText].filter(Boolean).join(" ");
+  if (planSentence) paragraphs.push(planSentence);
 
   if (sessionCount > 0) {
     paragraphs.push(
-      `${sessionCount.toLocaleString("en-US")} recorded session${sessionCount === 1 ? " has" : "s have"} followed this route.`
+      `${formatSessionCount(sessionCount)} ${sessionCount === 1 ? "has" : "have"} followed this route.`
     );
   }
 

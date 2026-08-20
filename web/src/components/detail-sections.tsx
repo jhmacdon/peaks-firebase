@@ -10,7 +10,8 @@ export const DIFFICULTY_CLASSES: Record<string, string> = {
   Strenuous: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300",
 };
 
-export function DifficultyPill({ label }: { label: string }) {
+export function DifficultyPill({ label }: { label: string | null }) {
+  if (!label) return null;
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${

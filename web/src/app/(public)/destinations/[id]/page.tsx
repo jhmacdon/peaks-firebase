@@ -26,12 +26,15 @@ import {
 } from "../../../../lib/actions/trip-reports";
 import {
   buildDestinationGuide,
+  describeDestinationType,
   formatFeet,
   formatMiles,
   formatShortDate,
   getDestinationMapLinks,
 } from "../../../../lib/destination-detail";
-import { summarizeRouteGuide, formatDurationRange } from "../../../../lib/route-guide";
+import { summarizeRouteGuide } from "../../../../lib/route-guide";
+import { formatCoordinates, formatDurationRangeFriendly } from "../../../../lib/format";
+import { formatRegion } from "../../../../lib/regions";
 import {
   Breadcrumb,
   DifficultyPill,
@@ -160,15 +163,10 @@ export default function DestinationDetailPage() {
     );
   }
 
-  const guide = buildDestinationGuide(
-    dest,
-    routes.length,
-    lists.length,
-    sessionCount,
-    tripReportCount
-  );
+  const regionLabel = formatRegion(dest.state_code, dest.country_code);
+  const guide = buildDestinationGuide(dest, regionLabel, sessionCount);
   const name = dest.name || "Unnamed";
-  const locationParts = [dest.state_code, dest.country_code].filter(Boolean);
+  const typeLabel = describeDestinationType(dest.type, dest.features);
   const hasCoords = dest.lat != null && dest.lng != null;
   const mapLinks = hasCoords
     ? getDestinationMapLinks(dest.lat!, dest.lng!)
@@ -180,12 +178,10 @@ export default function DestinationDetailPage() {
     hasCoords && dest.country_code === "US"
       ? `https://forecast.weather.gov/MapClick.php?lat=${dest.lat}&lon=${dest.lng}`
       : null;
-  const coordText = hasCoords
-    ? `${dest.lat!.toFixed(5)}, ${dest.lng!.toFixed(5)}`
-    : null;
+  const coordText = hasCoords ? formatCoordinates(dest.lat, dest.lng) : null;
 
   const metaParts = [
-    locationParts.length > 0 ? locationParts.join(", ") : null,
+    regionLabel,
     dest.type === "region" ? "Region" : null,
     ...dest.features.map(titleize),
   ].filter(Boolean);
@@ -314,16 +310,18 @@ export default function DestinationDetailPage() {
 
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
           <main className="min-w-0">
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Planning notes
-              </h2>
-              <div className="mt-3 space-y-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
-                {guide.paragraphs.map((paragraph, index) => (
-                  <p key={`${index}-${paragraph}`}>{paragraph}</p>
-                ))}
-              </div>
-            </section>
+            {guide.paragraphs.length > 0 && (
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Planning notes
+                </h2>
+                <div className="mt-3 space-y-3 text-[15px] leading-7 text-gray-700 dark:text-gray-300">
+                  {guide.paragraphs.map((paragraph, index) => (
+                    <p key={`${index}-${paragraph}`}>{paragraph}</p>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="mt-10">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -446,18 +444,14 @@ export default function DestinationDetailPage() {
           </main>
 
           <aside className="space-y-6">
-            <SidePanel title="Stats">
-              <dl className="space-y-2">
-                <StatRow label="Type" value={titleize(dest.type)} />
-                <StatRow label="Elevation" value={formatFeet(dest.elevation)} />
-                <StatRow label="Prominence" value={formatFeet(dest.prominence)} />
-                <StatRow
-                  label="Region"
-                  value={locationParts.length > 0 ? locationParts.join(", ") : "—"}
-                />
-                <StatRow label="Coordinates" value={coordText || "—"} mono />
-              </dl>
-            </SidePanel>
+            {(typeLabel || regionLabel) && (
+              <SidePanel title="Stats">
+                <dl className="space-y-2">
+                  {typeLabel && <StatRow label="Type" value={typeLabel} />}
+                  {regionLabel && <StatRow label="Region" value={regionLabel} />}
+                </dl>
+              </SidePanel>
+            )}
 
             {(forecastUrl || directionsUrl || facilities.length > 0) && (
               <SidePanel title="Before you go">
@@ -783,7 +777,7 @@ function RouteRow({ route }: { route: DestinationRoute }) {
     route.distance != null ? formatMiles(route.distance) : null,
     route.gain != null ? `${formatFeet(route.gain)} gain` : null,
     summary?.estimatedHoursLow != null
-      ? `Est. ${formatDurationRange(summary.estimatedHoursLow, summary.estimatedHoursHigh)}`
+      ? `Est. ${formatDurationRangeFriendly(summary.estimatedHoursLow, summary.estimatedHoursHigh)}`
       : null,
   ].filter(Boolean);
 

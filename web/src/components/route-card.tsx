@@ -8,6 +8,7 @@ import {
   formatElevationMeters,
   summarizeRouteGuide,
 } from "../lib/route-guide";
+import { formatSessionCount } from "../lib/format";
 
 interface RouteCardProps {
   route: SearchRouteResult;
@@ -15,6 +16,7 @@ interface RouteCardProps {
 
 export default function RouteCard({ route }: RouteCardProps) {
   const summary = summarizeRouteGuide({ ...route, gain_loss: null });
+  const shapeLabel = describeRouteShape(route.shape);
 
   return (
     <Card href={`/routes/${route.id}`} className="h-full">
@@ -23,7 +25,7 @@ export default function RouteCard({ route }: RouteCardProps) {
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <DifficultyPill label={summary.difficultyLabel} />
-        <Badge tone="sky">{describeRouteShape(route.shape)}</Badge>
+        {shapeLabel && <Badge tone="sky">{shapeLabel}</Badge>}
         <Badge tone="gray">
           {route.destination_count} stop{route.destination_count === 1 ? "" : "s"}
         </Badge>
@@ -34,9 +36,7 @@ export default function RouteCard({ route }: RouteCardProps) {
         <RouteMetric
           label="Beta"
           value={
-            route.session_count === 0
-              ? "New"
-              : `${route.session_count} log${route.session_count === 1 ? "" : "s"}`
+            route.session_count === 0 ? "New" : formatSessionCount(route.session_count)
           }
         />
       </div>
