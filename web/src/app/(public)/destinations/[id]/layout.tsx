@@ -1,21 +1,56 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import {
   getDestination,
   getDestinationSessionCount,
 } from "../../../../lib/actions/destinations";
 import { describeDestinationType } from "../../../../lib/destination-detail";
+import { buildDestinationJsonLd } from "../../../../lib/json-ld";
 import { subdivisionName, countryName } from "../../../../lib/regions";
 import { describeDestination } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export default function DestinationLayout({
+const getDestinationForSeo = cache(getDestination);
+
+export default async function DestinationLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildDestinationJsonLd> | null = null;
+
+  try {
+    const destination = await getDestinationForSeo(id);
+    if (destination) {
+      jsonLd = buildDestinationJsonLd({
+        name: destination.name,
+        url: absoluteUrl(`/destinations/${id}`),
+        features: destination.features,
+        latitude: destination.lat,
+        longitude: destination.lng,
+        elevationMeters: destination.elevation,
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -25,7 +60,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const destination = await getDestination(id);
+    const destination = await getDestinationForSeo(id);
     if (!destination) {
       return {
         title: "Destination not found",

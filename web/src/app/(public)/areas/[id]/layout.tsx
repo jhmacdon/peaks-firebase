@@ -1,18 +1,51 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { getAreaSummary } from "../../../../lib/actions/areas";
 import { describeDesignation } from "../../../../lib/area-types";
+import { buildAreaJsonLd } from "../../../../lib/json-ld";
 import { formatRegionList } from "../../../../lib/regions";
 import { describeArea } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export default function AreaLayout({
+const getAreaForSeo = cache(getAreaSummary);
+
+export default async function AreaLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildAreaJsonLd> | null = null;
+
+  try {
+    const area = await getAreaForSeo(id);
+    if (area) {
+      jsonLd = buildAreaJsonLd({
+        name: area.name,
+        url: absoluteUrl(`/areas/${encodeURIComponent(id)}`),
+        latitude: area.lat,
+        longitude: area.lng,
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -23,7 +56,7 @@ export async function generateMetadata({
   const { id } = await params;
 
   try {
-    const area = await getAreaSummary(id);
+    const area = await getAreaForSeo(id);
     if (!area) {
       return {
         title: "Protected area not found",

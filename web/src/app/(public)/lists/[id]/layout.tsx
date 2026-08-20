@@ -1,16 +1,56 @@
 import type { Metadata } from "next";
-import { getList } from "../../../../lib/actions/lists";
+import { cache } from "react";
+import { getList, getListDestinations } from "../../../../lib/actions/lists";
+import { buildListJsonLd } from "../../../../lib/json-ld";
 import { describeList } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export default function ListLayout({
+const getListForSeo = cache(getList);
+const getListDestinationsForSeo = cache(getListDestinations);
+
+export default async function ListLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildListJsonLd> | null = null;
+
+  try {
+    const [list, destinations] = await Promise.all([
+      getListForSeo(id),
+      getListDestinationsForSeo(id),
+    ]);
+    if (list) {
+      jsonLd = buildListJsonLd({
+        name: list.name,
+        url: absoluteUrl(`/lists/${id}`),
+        numberOfItems: list.destination_count,
+        items: destinations.map((destination) => ({
+          name: destination.name,
+          url: absoluteUrl(`/destinations/${destination.id}`),
+        })),
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -20,7 +60,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const list = await getList(id);
+    const list = await getListForSeo(id);
     if (!list) {
       return {
         title: "List not found",

@@ -1,16 +1,49 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { getRoute, getRouteDestinations } from "../../../../lib/actions/routes";
+import { buildRouteJsonLd } from "../../../../lib/json-ld";
 import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export default function RouteLayout({
+const getRouteForSeo = cache((id: string) => getRoute(id, { publicOnly: true }));
+
+export default async function RouteLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildRouteJsonLd> | null = null;
+
+  try {
+    const route = await getRouteForSeo(id);
+    if (route) {
+      jsonLd = buildRouteJsonLd({
+        name: route.name,
+        url: absoluteUrl(`/routes/${id}`),
+        distanceMeters: route.distance,
+        gainMeters: route.gain,
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -20,7 +53,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const route = await getRoute(id, { publicOnly: true });
+    const route = await getRouteForSeo(id);
     if (!route) {
       return {
         title: "Route not found",

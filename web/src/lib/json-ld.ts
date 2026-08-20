@@ -1,0 +1,141 @@
+const SCHEMA_CONTEXT = "https://schema.org";
+const ITEM_LIST_LIMIT = 50;
+
+type JsonLd = Record<string, unknown>;
+
+function text(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed || undefined;
+}
+
+function number(value: number | null | undefined): number | undefined {
+  return value != null && Number.isFinite(value) ? value : undefined;
+}
+
+function geoCoordinates(input: {
+  latitude?: number | null;
+  longitude?: number | null;
+  elevationMeters?: number | null;
+}): JsonLd | undefined {
+  const latitude = number(input.latitude);
+  const longitude = number(input.longitude);
+  if (latitude == null || longitude == null) return undefined;
+
+  const elevation = number(input.elevationMeters);
+  return {
+    "@type": "GeoCoordinates",
+    latitude,
+    longitude,
+    ...(elevation != null ? { elevation } : {}),
+  };
+}
+
+export function buildDestinationJsonLd(input: {
+  name?: string | null;
+  url: string;
+  features?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
+  elevationMeters?: number | null;
+}): JsonLd {
+  const name = text(input.name);
+  const geo = geoCoordinates(input);
+  const isMountain = (input.features ?? []).some(
+    (feature) => feature === "summit" || feature === "volcano"
+  );
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": isMountain ? "Mountain" : "Place",
+    ...(name ? { name } : {}),
+    url: input.url,
+    ...(geo ? { geo } : {}),
+  };
+}
+
+export function buildAreaJsonLd(input: {
+  name?: string | null;
+  url: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}): JsonLd {
+  const name = text(input.name);
+  const geo = geoCoordinates(input);
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Park",
+    ...(name ? { name } : {}),
+    url: input.url,
+    ...(geo ? { geo } : {}),
+  };
+}
+
+export function buildRouteJsonLd(input: {
+  name?: string | null;
+  url: string;
+  distanceMeters?: number | null;
+  gainMeters?: number | null;
+}): JsonLd {
+  const name = text(input.name);
+  const distance = number(input.distanceMeters);
+  const gain = number(input.gainMeters);
+  const additionalProperty = [
+    ...(distance != null
+      ? [
+          {
+            "@type": "PropertyValue",
+            name: "Distance",
+            value: distance,
+            unitText: "meters",
+          },
+        ]
+      : []),
+    ...(gain != null
+      ? [
+          {
+            "@type": "PropertyValue",
+            name: "Elevation gain",
+            value: gain,
+            unitText: "meters",
+          },
+        ]
+      : []),
+  ];
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Place",
+    ...(name ? { name } : {}),
+    url: input.url,
+    ...(additionalProperty.length > 0 ? { additionalProperty } : {}),
+  };
+}
+
+export function buildListJsonLd(input: {
+  name?: string | null;
+  url: string;
+  numberOfItems?: number | null;
+  items: Array<{ name?: string | null; url: string }>;
+}): JsonLd {
+  const name = text(input.name);
+  const numberOfItems = number(input.numberOfItems);
+  const itemListElement = input.items.slice(0, ITEM_LIST_LIMIT).map((item, index) => {
+    const itemName = text(item.name);
+    return {
+      "@type": "ListItem",
+      position: index + 1,
+      ...(itemName ? { name: itemName } : {}),
+      url: item.url,
+    };
+  });
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "ItemList",
+    ...(name ? { name } : {}),
+    url: input.url,
+    ...(numberOfItems != null ? { numberOfItems } : {}),
+    itemListElement,
+  };
+}
