@@ -12,6 +12,7 @@ import {
   summarizeSessionHealthData,
 } from "../lib/session-health";
 import { formatClock, smoothMetricSeries } from "../lib/session-detail";
+import { describeElevationProfile } from "../lib/format";
 import ElevationProfile, {
   type ElevationProfileMetric,
 } from "./elevation-profile";
@@ -46,9 +47,19 @@ function formatSpeed(milesPerHour: number | null | undefined): string | null {
 export default function SessionPlayback({
   points,
   healthData,
+  distanceMeters = null,
+  gainMeters = null,
+  highPointMeters = null,
 }: {
   points: SessionPoint[];
   healthData?: unknown;
+  /** The activity's own recorded figures, used only to write the chart's
+   * text alternative. They beat anything summed off the plotted series —
+   * the recorder measured the climb, the series merely draws it — and they
+   * keep the spoken summary agreeing with the topline above it. */
+  distanceMeters?: number | null;
+  gainMeters?: number | null;
+  highPointMeters?: number | null;
 }) {
   const pointCount = points.length;
   const firstTime = points[0]?.time ?? 0;
@@ -241,6 +252,38 @@ export default function SessionPlayback({
     ...(hasHeartRate ? [{ id: "heartRate" as const, label: "Heart rate" }] : []),
   ];
 
+  // What the chart is showing, said in words. The elevation summary is
+  // always true of the plot; a selected metric adds a clause rather than
+  // replacing it, because the grey area is still there underneath.
+  const profileSummary = describeElevationProfile({
+    distanceMeters,
+    gainMeters,
+    highPointMeters,
+  });
+  const chartLabel =
+    activeMetric === "speed"
+      ? `${profileSummary}, with speed in miles per hour plotted against distance`
+      : activeMetric === "heartRate"
+        ? `${profileSummary}, with heart rate in beats per minute plotted against distance`
+        : profileSummary;
+
+  // The spoken form of the cursor readout below. Labelled, units spelled
+  // out — this string is only ever heard.
+  const cursorReadout = [
+    `Time ${new Date(activePoint.time * 1000).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    })}`,
+    `distance ${formatDistance(activeDistance)} miles`,
+    activeElevation ? `elevation ${activeElevation} feet` : null,
+    activeSpeed ? `speed ${activeSpeed} miles per hour` : null,
+    activeHeartRate != null
+      ? `heart rate ${activeHeartRate} beats per minute`
+      : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(", ");
+
   return (
     <section aria-label="Map and playback">
       {/* One rounded container for the whole section: media at the top, the
@@ -306,8 +349,12 @@ export default function SessionPlayback({
             </div>
           </div>
 
-          {/* The cursor's readings — flat clusters, no cells (law 2). */}
-          <div className="flex flex-wrap gap-x-10 gap-y-5">
+          {/* The cursor's readings — flat clusters, no cells (law 2).
+              Hidden from assistive tech in favour of the throttled live
+              region below, which carries the same values in one labelled
+              sentence; without that, a scrub would fire five separate
+              announcements per frame. */}
+          <div className="flex flex-wrap gap-x-10 gap-y-5" aria-hidden="true">
             <StatCluster
               value={new Date(activePoint.time * 1000).toLocaleTimeString([], {
                 hour: "numeric",
@@ -335,12 +382,15 @@ export default function SessionPlayback({
             ) : null}
           </div>
 
+          <PlaybackAnnouncer text={cursorReadout} silent={isPlaying} />
+
           {elevationPoints.length >= 2 ? (
             <div>
               <ElevationProfile
                 points={elevationPoints}
                 colors={colors}
                 metric={chartMetricSeries}
+                label={chartLabel}
                 highlightIndex={
                   elevationHighlightIndex >= 0 ? elevationHighlightIndex : null
                 }
@@ -376,5 +426,58 @@ export default function SessionPlayback({
         </div>
       </div>
     </section>
+  );
+}
+
+/** How often the scrubber may speak. The slider has 1,000 discrete steps and
+ * playback advances every animation frame, so an unthrottled live region
+ * would queue hundreds of polite announcements and leave a screen reader
+ * minutes behind the cursor. Two seconds is slow enough to stay in step with
+ * a dragging thumb and fast enough that letting go feels answered. */
+const ANNOUNCE_INTERVAL_MS = 2000;
+
+/** The scrubber's spoken readout: one polite live region, throttled, with a
+ * trailing announcement so the value the reader actually stopped on is the
+ * one they hear.
+ *
+ * Silent during playback. A 45-second run at 1x would otherwise fire twenty
+ * or so announcements that queue behind each other; the reader would still
+ * be hearing the second mile as the track finished. When playback stops the
+ * effect runs again with the final position and announces it.
+ */
+function PlaybackAnnouncer({
+  text,
+  silent,
+}: {
+  text: string;
+  silent: boolean;
+}) {
+  const [announced, setAnnounced] = useState("");
+  const lastAnnouncedAt = useRef(0);
+
+  useEffect(() => {
+    if (silent) return;
+
+    const elapsed = Date.now() - lastAnnouncedAt.current;
+    if (elapsed >= ANNOUNCE_INTERVAL_MS) {
+      lastAnnouncedAt.current = Date.now();
+      setAnnounced(text);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      lastAnnouncedAt.current = Date.now();
+      setAnnounced(text);
+    }, ANNOUNCE_INTERVAL_MS - elapsed);
+    return () => window.clearTimeout(timer);
+  }, [text, silent]);
+
+  // The first value lands before the region is live, so it is read in
+  // ordinary browse mode rather than announced — which is what a reader
+  // arriving at the section should get.
+  return (
+    <p className="sr-only" aria-live="polite" aria-atomic="true">
+      {announced}
+    </p>
   );
 }

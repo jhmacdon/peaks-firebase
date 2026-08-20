@@ -31,7 +31,10 @@ import type {
   SessionDestination,
   SessionRoute,
 } from "../../../../lib/actions/sessions";
-import type { ProtectedArea } from "../../../../lib/area-types";
+import {
+  sortAreasByProminence,
+  type ProtectedArea,
+} from "../../../../lib/area-types";
 import SessionPlayback from "../../../../components/session-playback";
 import SessionActions from "../../../../components/session-actions";
 import { ActivityGlyph } from "../../../../components/session/activity-glyph";
@@ -166,6 +169,12 @@ export default function SessionDetailPage() {
   const toplineStats = buildSessionTopline(session);
   const secondaryStats = buildSessionSecondaryStats(session, healthSummary);
   const startDate = new Date(session.start_time);
+  // The anatomy's "place" (audit §2b: timestamp · place). The activity has
+  // no address of its own, so the most prominent protected area it crossed
+  // stands in — a national park outranks a national forest, which outranks
+  // a state park, which is the same order the chip row uses. Omitted
+  // entirely when the track crossed nothing named.
+  const placeName = sortAreasByProminence(areas)[0]?.name ?? null;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
@@ -197,6 +206,7 @@ export default function SessionDetailPage() {
                 day: "numeric",
                 year: "numeric",
               })}
+              {placeName ? ` · ${placeName}` : ""}
               {userId === session.user_id && session.user_id
                 ? ` · ${session.is_public ? "Public" : "Private"}`
                 : ""}
@@ -213,7 +223,13 @@ export default function SessionDetailPage() {
 
       {points.length > 0 ? (
         <div className="mt-12">
-          <SessionPlayback points={points} healthData={session.health_data} />
+          <SessionPlayback
+            points={points}
+            healthData={session.health_data}
+            distanceMeters={session.distance}
+            gainMeters={session.gain}
+            highPointMeters={session.highest_point}
+          />
         </div>
       ) : null}
 

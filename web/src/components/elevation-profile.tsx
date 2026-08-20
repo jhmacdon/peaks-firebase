@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { describeElevationProfile } from "../lib/format";
 
 /** Resolved token values the canvas paints with. Canvas 2D never sees CSS
  * custom properties, so a caller resolves the design tokens (`--color-ink`,
@@ -50,6 +51,12 @@ interface ElevationProfileProps {
    * components/use-elevation-profile-colors.ts. */
   colors?: ElevationProfileColors;
   metric?: ElevationProfileMetric | null;
+  /** The chart's text alternative. A `<canvas>` has no readable content, so
+   * without one a screen reader meets a hole in the page. Callers that hold
+   * better numbers than the plotted series — a session's own recorded gain,
+   * say — should pass their own; the fallback is built from the points and
+   * states only what they can prove. */
+  label?: string;
   highlightIndex?: number | null;
   onHover?: (index: number | null) => void;
 }
@@ -94,6 +101,7 @@ export default function ElevationProfile({
   points,
   colors = DEFAULT_COLORS,
   metric = null,
+  label,
   highlightIndex,
   onHover,
 }: ElevationProfileProps) {
@@ -356,9 +364,29 @@ export default function ElevationProfile({
     onHover(closest);
   };
 
+  // The fallback states only what the plotted points themselves prove:
+  // how far the profile runs and how high it reaches. It deliberately does
+  // not sum a gain — adding up every positive step of a raw GPS series
+  // overstates the climb badly, and a chart's text alternative is the last
+  // place to put a number the page contradicts elsewhere.
+  const chartLabel =
+    label ??
+    describeElevationProfile({
+      distanceMeters: points.length > 0 ? points[points.length - 1].dist : null,
+      highPointMeters:
+        points.length > 0
+          ? points.reduce((highest, point) => Math.max(highest, point.ele), -Infinity)
+          : null,
+    });
+
   return (
     <div ref={containerRef} className="w-full" onMouseMove={handleMouseMove} onMouseLeave={() => onHover?.(null)}>
-      <canvas ref={canvasRef} className="w-full cursor-crosshair" />
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label={chartLabel}
+        className="w-full cursor-crosshair"
+      />
     </div>
   );
 }

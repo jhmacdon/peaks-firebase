@@ -2,6 +2,8 @@
 // area). Centralizes copy-precision rules so pages don't each invent their
 // own rounding or placeholder text.
 
+import { formatFeetValue, formatMilesValue } from "./destination-detail";
+
 /** Round hours to the nearest quarter hour. Avoids false-precision copy like
  * "3h 27m" for numbers that are themselves estimates. */
 export function roundToQuarterHour(hours: number): number {
@@ -62,6 +64,35 @@ export function formatFlooredCount(count: number, step: number = 1000): string {
   const floored = Math.floor(count / step) * step;
   if (floored < step) return Math.floor(count).toLocaleString("en-US");
   return `${floored.toLocaleString("en-US")}+`;
+}
+
+/** The text alternative for an elevation-profile chart — "Elevation profile:
+ * 9.6 miles, 3,570 feet of gain, high point 12,618 feet".
+ *
+ * A `<canvas>` has no readable content of its own, so this is the whole of
+ * what a screen reader gets in place of the chart. Units are spelled out
+ * rather than abbreviated: this string is only ever spoken, and "ft" is read
+ * aloud inconsistently across screen readers. Measurements the recording
+ * doesn't hold are left out rather than dashed (the never-null rule), down to
+ * the bare "Elevation profile" when nothing is known. */
+export function describeElevationProfile(input: {
+  distanceMeters?: number | null;
+  gainMeters?: number | null;
+  highPointMeters?: number | null;
+}): string {
+  const distance = formatMilesValue(input.distanceMeters);
+  const gain = formatFeetValue(input.gainMeters);
+  const highPoint = formatFeetValue(input.highPointMeters);
+
+  const parts = [
+    distance ? `${distance} miles` : null,
+    gain ? `${gain} feet of gain` : null,
+    highPoint ? `high point ${highPoint} feet` : null,
+  ].filter((part): part is string => part !== null);
+
+  return parts.length > 0
+    ? `Elevation profile: ${parts.join(", ")}`
+    : "Elevation profile";
 }
 
 /** "Aug 27, 2022" — the one calendar-date phrase for discover cards and

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  describeElevationProfile,
   formatCoordinates,
   formatDate,
   formatDurationRangeFriendly,
@@ -72,4 +73,38 @@ test("formatFlooredCount drops the plus below one step", () => {
   assert.equal(formatFlooredCount(0), "0");
   assert.equal(formatFlooredCount(-5), "0");
   assert.equal(formatFlooredCount(Number.NaN), "0");
+});
+
+test("describeElevationProfile speaks the whole chart when every field is known", () => {
+  assert.equal(
+    describeElevationProfile({
+      distanceMeters: 15427.4,
+      gainMeters: 1088.2,
+      highPointMeters: 3845.9,
+    }),
+    "Elevation profile: 9.6 miles, 3,570 feet of gain, high point 12,618 feet"
+  );
+});
+
+test("describeElevationProfile omits a measurement rather than dashing it", () => {
+  assert.equal(
+    describeElevationProfile({ distanceMeters: 8046.7, gainMeters: null }),
+    "Elevation profile: 5.0 miles"
+  );
+  assert.equal(
+    describeElevationProfile({ highPointMeters: 3105 }),
+    "Elevation profile: high point 10,187 feet"
+  );
+});
+
+test("describeElevationProfile falls back to a bare label", () => {
+  assert.equal(describeElevationProfile({}), "Elevation profile");
+  assert.equal(
+    describeElevationProfile({
+      distanceMeters: null,
+      gainMeters: undefined,
+      highPointMeters: Number.NaN,
+    }),
+    "Elevation profile"
+  );
 });
