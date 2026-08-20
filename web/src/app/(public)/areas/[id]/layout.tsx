@@ -8,7 +8,19 @@ import { formatRegionList } from "../../../../lib/regions";
 import { describeArea } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template serving every protected area, and PAD-US boundaries/catalog
+// links change on the order of months, not requests — same ISR contract as
+// destinations/[id]/layout.tsx (Task 13) and routes/[id]/layout.tsx (Task
+// 14). The empty `generateStaticParams` is what makes it real: with no
+// paths pre-generated, Next still registers the route as ISR (first
+// request renders and fills the cache) instead of answering every request
+// with `Cache-Control: private, no-cache, no-store`.
+export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  return [];
+}
 
 const getAreaForSeo = cache(getAreaSummary);
 

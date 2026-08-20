@@ -132,6 +132,7 @@ const DESIGNATION_CODES: Record<string, string> = {
   NSBV: "National Scenic Area",
   CONE: "Conservation Easement",
   REC: "Recreation Area",
+  SP: "State Park",
 };
 
 /** Designation display text: expands a known PAD-US code and otherwise
@@ -200,4 +201,29 @@ export function sortAreasByProminence(areas: ProtectedArea[]): ProtectedArea[] {
   return [...areas].sort(
     (a, b) => PROMINENCE[a.kind] - PROMINENCE[b.kind] || a.name.localeCompare(b.name)
   );
+}
+
+// The /areas index's designation filter chips — the codes with a real,
+// human-recognizable identity among what production actually stores (see
+// the DESIGNATION_CODES comment above). "All" (no filter) isn't listed
+// here; the page renders that option itself. Lives in this plain module
+// rather than lib/actions/areas.ts because that file has "use server" at
+// the top: Next.js treats every export of a "use server" module as a
+// server-action reference, which only works for async functions — a plain
+// const array (or a synchronous type guard) can't be exported from it.
+export const AREA_INDEX_DESIGNATIONS = ["NP", "WA", "NF", "SP"] as const;
+export type AreaIndexDesignation = (typeof AREA_INDEX_DESIGNATIONS)[number];
+
+export const AREA_INDEX_DESIGNATION_LABELS: Record<AreaIndexDesignation, string> = {
+  NP: "National Park",
+  WA: "Wilderness Area",
+  NF: "National Forest",
+  SP: "State Park",
+};
+
+export function isAreaIndexDesignation(
+  value: string | null | undefined
+): value is AreaIndexDesignation {
+  if (!value) return false;
+  return (AREA_INDEX_DESIGNATIONS as readonly string[]).includes(value.toUpperCase());
 }

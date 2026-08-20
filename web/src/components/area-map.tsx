@@ -30,6 +30,11 @@ interface AreaMapProps {
   boundary: AreaBoundary | null;
   destinations?: AreaMapDestination[];
   routes?: AreaMapRoute[];
+  /** Height/shape of the embed. The container owns the radius (mirrors
+   * components/destination-map.tsx's contract), so a hero tile can round
+   * itself without the map re-rounding its own corners underneath. */
+  className?: string;
+  interactive?: boolean;
 }
 
 interface SerializedDestination {
@@ -53,8 +58,13 @@ const SATELLITE_TILE =
 const SATELLITE_ATTRIBUTION =
   '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics';
 
-const AREA_TEAL = "#0d9488";
-const AREA_PALE_EDGE = "#ccfbf1";
+// Same teal as components/destination-map.tsx's ACCENT (design-tokens.md,
+// "Accent budget" — a map selection is one of the places the accent is
+// spent) on a narrow pale edge with a low-opacity fill, so the topo
+// underneath stays readable. Fixed hex rather than the token: painted into
+// a Leaflet canvas/SVG layer, which never sees the page's CSS variables.
+const AREA_TEAL = "#46ADBC";
+const AREA_PALE_EDGE = "#CFEEF2";
 
 export default function AreaMap({
   areaId,
@@ -65,6 +75,8 @@ export default function AreaMap({
   boundary,
   destinations = [],
   routes = [],
+  className = "h-80 w-full sm:h-96",
+  interactive = true,
 }: AreaMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -86,24 +98,34 @@ export default function AreaMap({
       center: [lat, lng],
       zoom: 9,
       scrollWheelZoom: false,
+      dragging: interactive,
+      touchZoom: interactive,
+      doubleClickZoom: interactive,
+      boxZoom: interactive,
+      keyboard: interactive,
+      zoomControl: interactive,
     });
     mapInstance.current = map;
 
     const topo = L.tileLayer(TOPO_TILE, {
       attribution: TOPO_ATTRIBUTION,
       maxZoom: 17,
+      detectRetina: true,
     }).addTo(map);
-    const satellite = L.tileLayer(SATELLITE_TILE, {
-      attribution: SATELLITE_ATTRIBUTION,
-      maxZoom: 18,
-    });
-    L.control
-      .layers(
-        { Topo: topo, Satellite: satellite },
-        {},
-        { position: "topright" }
-      )
-      .addTo(map);
+
+    if (interactive) {
+      const satellite = L.tileLayer(SATELLITE_TILE, {
+        attribution: SATELLITE_ATTRIBUTION,
+        maxZoom: 18,
+      });
+      L.control
+        .layers(
+          { Topo: topo, Satellite: satellite },
+          {},
+          { position: "topright" }
+        )
+        .addTo(map);
+    }
 
     const parsedBoundary = boundaryJson
       ? (JSON.parse(boundaryJson) as AreaBoundary)
@@ -113,6 +135,7 @@ export default function AreaMap({
     ) as SerializedDestination[];
     const parsedRoutes = JSON.parse(routesJson) as SerializedRoute[];
 
+    let boundaryBounds: L.LatLngBounds | null = null;
     if (parsedBoundary) {
       const feature = {
         type: "Feature",
@@ -139,20 +162,34 @@ export default function AreaMap({
           fillOpacity: 0.12,
         },
       }).addTo(map);
-      areaLayer.bindTooltip(textNode(name), { sticky: true });
-      const boundaryBounds = areaLayer.getBounds();
-      if (boundaryBounds.isValid()) {
+      if (interactive) areaLayer.bindTooltip(textNode(name), { sticky: true });
+      boundaryBounds = areaLayer.getBounds();
+    }
+
+    // Same shape as components/destination-map.tsx's fitView: computed once
+    // and re-run on the next frame. A container sized with a percentage
+    // height (this embed, inside a hero tile) can measure 0×0 the first
+    // time Leaflet reads it, and fitBounds on a zero-size map lands on
+    // whole-world zoom — which is exactly what a freshly-mounted area hero
+    // used to show before this re-measure existed.
+    const fitView = () => {
+      if (boundaryBounds && boundaryBounds.isValid()) {
         map.fitBounds(boundaryBounds.pad(0.08), { maxZoom: 13 });
+        return;
       }
-    } else {
-      const fallbackBounds = L.latLngBounds(
-        [minLat, minLng],
-        [maxLat, maxLng]
-      );
+      const fallbackBounds = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
       if (fallbackBounds.isValid()) {
         map.fitBounds(fallbackBounds.pad(0.08), { maxZoom: 13 });
+      } else {
+        map.setView([lat, lng], 9);
       }
-    }
+    };
+
+    fitView();
+    const frame = requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false });
+      fitView();
+    });
 
     for (const route of parsedRoutes) {
       if (!route.polyline6) continue;
@@ -164,7 +201,7 @@ export default function AreaMap({
         weight: 2,
         opacity: 0.62,
       }).addTo(map);
-      line.bindTooltip(textNode(route.name ?? "Route"), { sticky: true });
+      if (interactive) line.bindTooltip(textNode(route.name ?? "Route"), { sticky: true });
     }
 
     for (const destination of parsedDestinations) {
@@ -176,15 +213,18 @@ export default function AreaMap({
         fillColor: "#1d4ed8",
         fillOpacity: 0.95,
       }).addTo(map);
-      marker.bindPopup(
-        detailLink(
-          destination.name ?? "Unnamed destination",
-          `/destinations/${encodeURIComponent(destination.id)}`
-        )
-      );
+      if (interactive) {
+        marker.bindPopup(
+          detailLink(
+            destination.name ?? "Unnamed destination",
+            `/destinations/${encodeURIComponent(destination.id)}`
+          )
+        );
+      }
     }
 
     return () => {
+      cancelAnimationFrame(frame);
       map.remove();
       mapInstance.current = null;
     };
@@ -200,12 +240,13 @@ export default function AreaMap({
     boundaryJson,
     destinationsJson,
     routesJson,
+    interactive,
   ]);
 
   return (
     <div
       ref={mapRef}
-      className="h-80 w-full rounded-xl bg-gray-100 dark:bg-gray-900 sm:h-96"
+      className={`map-embed bg-fill ${className}`.trim()}
       role="region"
       aria-label={`Map of ${name}`}
     />
