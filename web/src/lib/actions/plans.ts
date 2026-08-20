@@ -6,6 +6,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import db from "../db";
 import {
   orderByIds,
+  withFallback,
   type PlanDestinationRow,
   type PlanProcessing,
   type PlanReachedDestinationRow,
@@ -242,6 +243,13 @@ export interface PlanBundle {
  * plan (reliable — every save writes it synchronously); their catalog
  * details come from Cloud SQL's `destinations`/`routes` tables, which are
  * the live catalog itself, not the fire-and-forget plan-processing mirror.
+ *
+ * The four Cloud SQL queries below are independent: `getPlan` (Firestore
+ * auth + identity) is the only fatal step — each SQL query falls back to
+ * an empty result via `withFallback` on its own failure, logged
+ * server-side, rather than letting one bad query (most likely the rarer
+ * processing/reached-destinations ones) take down the reliable
+ * Firestore-backed core along with it.
  */
 export async function getPlanBundle(
   token: string,
@@ -250,50 +258,78 @@ export async function getPlanBundle(
   const plan = await getPlan(token, planId);
   if (!plan) return null;
 
-  const [destResult, routeResult, reachedResult, processingResult] = await Promise.all([
-    plan.destinations.length > 0
-      ? db.query<DestinationQueryRow>(
-          `SELECT id, name, elevation, features,
-                  ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
-           FROM destinations
-           WHERE id = ANY($1::text[])`,
-          [plan.destinations]
-        )
-      : Promise.resolve({ rows: [] as DestinationQueryRow[] }),
-    plan.routes.length > 0
-      ? db.query<RouteQueryRow>(
-          `SELECT id, name, polyline6, distance, gain, status
-           FROM routes
-           WHERE id = ANY($1::text[]) AND status IN ('active', 'superseded')`,
-          [plan.routes]
-        )
-      : Promise.resolve({ rows: [] as RouteQueryRow[] }),
-    db.query<ReachedDestinationQueryRow>(
-      `SELECT d.id, d.name, d.elevation, d.features,
-              ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng,
-              prd.ordinal
-       FROM destinations d
-       JOIN plan_reached_destinations prd ON prd.destination_id = d.id
-       WHERE prd.plan_id = $1
-       ORDER BY prd.ordinal`,
-      [planId]
+  // Every query is normalized to Promise<Row[]> (via .then((r) => r.rows))
+  // BEFORE withFallback, so its fallback value is a plain, uniform T[] (`[]`)
+  // rather than a pg QueryResult<T> — QueryResult carries required
+  // metadata (command/rowCount/oid/fields) that a literal fallback can't
+  // supply, and only some of these four queries had a pre-existing ternary
+  // branch that happened to produce a compatible shape.
+  const [destinationRows, routeRows, reachedRows, processingRows] = await Promise.all([
+    withFallback(
+      (plan.destinations.length > 0
+        ? db.query<DestinationQueryRow>(
+            `SELECT id, name, elevation, features,
+                    ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+             FROM destinations
+             WHERE id = ANY($1::text[])`,
+            [plan.destinations]
+          )
+        : Promise.resolve({ rows: [] as DestinationQueryRow[] })
+      ).then((result) => result.rows),
+      [] as DestinationQueryRow[],
+      (error) => console.error(`getPlanBundle(${planId}): destinations query failed`, error)
     ),
-    db.query<ProcessingQueryRow>(
-      `SELECT distance, gain, processing_state,
-              CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
-       FROM plans
-       WHERE id = $1`,
-      [planId]
+    withFallback(
+      (plan.routes.length > 0
+        ? db.query<RouteQueryRow>(
+            `SELECT id, name, polyline6, distance, gain, status
+             FROM routes
+             WHERE id = ANY($1::text[]) AND status IN ('active', 'superseded')`,
+            [plan.routes]
+          )
+        : Promise.resolve({ rows: [] as RouteQueryRow[] })
+      ).then((result) => result.rows),
+      [] as RouteQueryRow[],
+      (error) => console.error(`getPlanBundle(${planId}): routes query failed`, error)
+    ),
+    withFallback(
+      db
+        .query<ReachedDestinationQueryRow>(
+          `SELECT d.id, d.name, d.elevation, d.features,
+                  ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng,
+                  prd.ordinal
+           FROM destinations d
+           JOIN plan_reached_destinations prd ON prd.destination_id = d.id
+           WHERE prd.plan_id = $1
+           ORDER BY prd.ordinal`,
+          [planId]
+        )
+        .then((result) => result.rows),
+      [] as ReachedDestinationQueryRow[],
+      (error) => console.error(`getPlanBundle(${planId}): reached-destinations query failed`, error)
+    ),
+    withFallback(
+      db
+        .query<ProcessingQueryRow>(
+          `SELECT distance, gain, processing_state,
+                  CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
+           FROM plans
+           WHERE id = $1`,
+          [planId]
+        )
+        .then((result) => result.rows),
+      [] as ProcessingQueryRow[],
+      (error) => console.error(`getPlanBundle(${planId}): processing query failed`, error)
     ),
   ]);
 
-  const processingRow = processingResult.rows[0];
+  const processingRow = processingRows[0];
 
   return {
     plan,
-    destinations: orderByIds(destResult.rows.map(shapeDestinationRow), plan.destinations),
-    routes: orderByIds(routeResult.rows.map(shapeRouteRow), plan.routes),
-    reachedDestinations: reachedResult.rows.map((row) => ({
+    destinations: orderByIds(destinationRows.map(shapeDestinationRow), plan.destinations),
+    routes: orderByIds(routeRows.map(shapeRouteRow), plan.routes),
+    reachedDestinations: reachedRows.map((row) => ({
       ...shapeDestinationRow(row),
       ordinal: Number(row.ordinal),
     })),

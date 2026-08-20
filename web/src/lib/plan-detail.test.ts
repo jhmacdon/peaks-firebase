@@ -7,6 +7,7 @@ import {
   buildPlanTopline,
   orderByIds,
   pickerNames,
+  withFallback,
   type PlanDestinationRow,
   type PlanRouteRow,
 } from "./plan-detail";
@@ -96,4 +97,45 @@ test("pickerNames falls back to Unnamed, matching the rest of the site's convent
     { id: "a", name: "Unnamed" },
     { id: "b", name: "Camp Muir" },
   ]);
+});
+
+test("withFallback resolves to the value when the promise succeeds", async () => {
+  const result = await withFallback(Promise.resolve("ok"), "fallback");
+  assert.equal(result, "ok");
+});
+
+test("withFallback returns the fallback and reports the error when the promise rejects", async () => {
+  const errors: unknown[] = [];
+  const result = await withFallback(Promise.reject(new Error("boom")), "fallback", (error) =>
+    errors.push(error)
+  );
+  assert.equal(result, "fallback");
+  assert.equal(errors.length, 1);
+  assert.equal((errors[0] as Error).message, "boom");
+});
+
+test("withFallback is safe to call without an onError handler", async () => {
+  const result = await withFallback(Promise.reject(new Error("boom")), "fallback");
+  assert.equal(result, "fallback");
+});
+
+test("a Promise.all of withFallback-wrapped queries survives one query rejecting (getPlanBundle's shape)", async () => {
+  // Mirrors getPlanBundle's four independent Cloud SQL queries: one
+  // (reached destinations) rejects, and the reliable ones (destinations,
+  // routes) must still come back with their real rows, not get swept into
+  // the same failure by a shared Promise.all.
+  const [destResult, routeResult, reachedResult, processingResult] = await Promise.all([
+    withFallback(Promise.resolve({ rows: [{ id: "a" }] }), { rows: [] as { id: string }[] }),
+    withFallback(Promise.resolve({ rows: [{ id: "b" }] }), { rows: [] as { id: string }[] }),
+    withFallback(Promise.reject(new Error("reached-destinations query failed")), {
+      rows: [] as { id: string }[],
+    }),
+    withFallback(Promise.resolve({ rows: [{ distance: 100 }] }), {
+      rows: [] as { distance: number }[],
+    }),
+  ]);
+  assert.deepEqual(destResult, { rows: [{ id: "a" }] });
+  assert.deepEqual(routeResult, { rows: [{ id: "b" }] });
+  assert.deepEqual(reachedResult, { rows: [] });
+  assert.deepEqual(processingResult, { rows: [{ distance: 100 }] });
 });

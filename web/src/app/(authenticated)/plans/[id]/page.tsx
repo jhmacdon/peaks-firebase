@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -69,6 +69,21 @@ export default function PlanDetailPage() {
 
   const plan = bundle?.plan ?? null;
   const isOwner = plan?.userId === user?.uid;
+
+  // Memoized (not called inline in JSX) so DestinationPicker/RoutePicker's
+  // own name-merge effects — which depend on this array by reference — only
+  // re-run when the bundle's destinations/routes actually change, not on
+  // every keystroke in a sibling field. Hooks must run unconditionally, so
+  // this sits above the loading/error/not-found early returns below and
+  // falls back to [] before the bundle has loaded.
+  const editSelectedDestinations = useMemo(
+    () => pickerNames(bundle?.destinations ?? []),
+    [bundle?.destinations]
+  );
+  const editSelectedRoutes = useMemo(
+    () => pickerNames(bundle?.routes ?? []),
+    [bundle?.routes]
+  );
 
   const loadBundle = useCallback(async () => {
     setLoading(true);
@@ -285,6 +300,11 @@ export default function PlanDetailPage() {
         </p>
       )}
 
+      {/* Directly under the actions row, matching the destination/route
+          pages' established order (hero/actions, then Topline, then the
+          rest of the content) — before the description, not after it. */}
+      {!editing && toplineStats.length > 0 && <Topline stats={toplineStats} className="mt-8" />}
+
       {editing ? (
         <Textarea
           value={editDescription}
@@ -297,8 +317,6 @@ export default function PlanDetailPage() {
       ) : plan.description ? (
         <p className="mt-6 max-w-[68ch] text-ink-2">{plan.description}</p>
       ) : null}
-
-      {!editing && toplineStats.length > 0 && <Topline stats={toplineStats} className="mt-8" />}
 
       {!editing && hasMapContent && (
         <section className="mt-8" aria-labelledby="plan-map-heading">
@@ -357,7 +375,7 @@ export default function PlanDetailPage() {
             {editing ? (
               <DestinationPicker
                 selectedIds={editDestinations}
-                selectedDestinations={pickerNames(bundle.destinations)}
+                selectedDestinations={editSelectedDestinations}
                 onChange={setEditDestinations}
               />
             ) : bundle.destinations.length === 0 ? (
@@ -393,7 +411,7 @@ export default function PlanDetailPage() {
             {editing ? (
               <RoutePicker
                 selectedIds={editRoutes}
-                selectedRoutes={pickerNames(bundle.routes)}
+                selectedRoutes={editSelectedRoutes}
                 onChange={setEditRoutes}
               />
             ) : bundle.routes.length === 0 ? (

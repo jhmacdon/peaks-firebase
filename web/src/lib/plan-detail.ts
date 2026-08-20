@@ -52,6 +52,29 @@ export interface PlanProcessing {
   path: GeoJSON.LineString | GeoJSON.MultiLineString | null;
 }
 
+/** Resolve `promise`, falling back to `fallback` (and reporting to
+ * `onError`) if it rejects, rather than letting the rejection propagate.
+ * `getPlanBundle` uses this on each of its four independent Cloud SQL
+ * queries so a failure in one of the rarer ones (the processing row, the
+ * reached-destinations join) degrades that one section to empty instead of
+ * taking down the whole bundle — including the reliable Firestore-backed
+ * core (identity, ownership, the destination/route lists) that has nothing
+ * to do with the query that failed. The `getPlan` Firestore fetch itself
+ * deliberately does NOT go through this: an auth/identity failure should
+ * still fail the whole load. */
+export async function withFallback<T>(
+  promise: Promise<T>,
+  fallback: T,
+  onError?: (error: unknown) => void
+): Promise<T> {
+  try {
+    return await promise;
+  } catch (error) {
+    onError?.(error);
+    return fallback;
+  }
+}
+
 /** Re-order SQL rows (an `id = ANY($1)` query does not preserve input order)
  * back into the order the plan itself saved, and silently drop any id that
  * didn't resolve to a live catalog row (a deleted destination/route) rather
