@@ -95,9 +95,12 @@ partly-maintained baseline. Building a database from it and diffing against live
 `peaks` shows it missing the `link_sessions_on_destination_update` trigger,
 `areas_refresh_boundary_display`, the destination place-copy and hero-credit
 columns, `areas.parent_area_id`, and the destination search vector. Applying
-`schema.sql` **and** `migrations/` reproduces live `peaks` exactly: 29 tables,
-1 view, 292 columns, 17 triggers, all matching. (`data_source_runs` and the
-`data_source_freshness` view arrived with `20260819_data_source_runs.sql`.)
+`schema.sql` **and** `migrations/` reproduces live `peaks`: 41 tables, 1 view,
+392 columns, 22 triggers, all matching — measured 2026-08-19 via a provision
+run, counting neither `spatial_ref_sys` nor the nine legacy June-2026 dedupe
+backup and worklist tables that prod still carries and the provisioner rightly
+omits. (`data_source_runs` and the `data_source_freshness` view arrived with
+`20260819_data_source_runs.sql`.)
 
 `schema.sql` also carries no `GRANT` statements — production privileges were
 applied by hand when the instance was built — so `grants.sql` restates them.

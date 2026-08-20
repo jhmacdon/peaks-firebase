@@ -120,7 +120,10 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   destination place-copy and hero-credit columns, `areas.parent_area_id`, the
   destination search vector — and it carries no `GRANT`s. Provisioning applies
   `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
-  `peaks` exactly (29 tables, 1 view, 292 columns, 17 triggers).
+  `peaks`: 41 tables, 1 view, 392 columns, 22 triggers (measured 2026-08-19 via
+  a provision run, `spatial_ref_sys` excluded). Prod additionally carries nine
+  legacy June-2026 dedupe backup and worklist tables that the provisioner
+  rightly omits.
 - **A migration that fails provisioning is a real conflict** with `schema.sql`.
   Reconcile the two. Don't extend the skip list in `provision.sh`.
 - **Pool max drops to 2 under `NODE_ENV=test`.** Each test file is its own
