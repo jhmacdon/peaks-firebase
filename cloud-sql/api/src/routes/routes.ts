@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import db from "../db";
 
 const router = Router();
@@ -76,7 +77,7 @@ export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
 }
 
 // GET /api/routes/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildRouteDetailQuery(id);
   const destinationsQuery = buildRouteDestinationsQuery(id);
@@ -89,18 +90,18 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(mapRouteDetailRow(result.rows[0], destinations.rows));
-});
+}));
 
 // GET /api/routes/:id/destinations
-router.get("/:id/destinations", async (req, res: Response) => {
+router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildRouteDestinationsQuery(id);
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 // GET /api/routes/:id/elevation — elevation profile from LineStringZ vertices
-router.get("/:id/elevation", async (req, res: Response) => {
+router.get("/:id/elevation", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT (dp).path[1] AS vertex_index,
@@ -117,10 +118,10 @@ router.get("/:id/elevation", async (req, res: Response) => {
     return;
   }
   res.json(result.rows);
-});
+}));
 
 // GET /api/routes/near?lat=46.85&lng=-121.7&radius=5000&limit=20
-router.get("/near", async (req, res: Response) => {
+router.get("/near", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
   const radius = parseFloat(req.query.radius as string) || 5000;
@@ -143,6 +144,6 @@ router.get("/near", async (req, res: Response) => {
     [lat, lng, radius, limit]
   );
   res.json(result.rows);
-});
+}));
 
 export default router;

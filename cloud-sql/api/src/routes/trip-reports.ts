@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextFunction, Router, Request, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import admin from "firebase-admin";
 import { Pool, PoolClient } from "pg";
 import { getUid } from "../auth";
@@ -637,14 +638,6 @@ async function handleFlag(req: Request, res: Response): Promise<void> {
     return;
   }
   res.status(204).end();
-}
-
-type AsyncHandler = (req: Request, res: Response) => Promise<void>;
-
-function asyncRoute(handler: AsyncHandler) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    void handler(req, res).catch(next);
-  };
 }
 
 const router = Router();

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
 import { requireAuth } from "./auth";
 import destinations from "./routes/destinations";
@@ -85,6 +85,21 @@ app.use("/api/lists", lists);
 app.use("/api/plans", plans);
 app.use("/api/search", search);
 app.use("/api/trip-reports", tripReports);
+
+// A rejected handler promise lands here via asyncRoute (lib/async-route.ts).
+// Express 4 ignores the promise an async handler returns, so without that
+// wrapper and this middleware a single rejected query would crash the
+// instance (Node's default --unhandled-rejections=throw). A response that
+// already sent headers (streaming endpoints) falls through to Express's
+// default handler, which closes the connection.
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  console.error("[api] request failed:", error);
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+  res.status(500).json({ error: "Request failed" });
+});
 
 // Don't bind a port when imported by tests.
 if (process.env.NODE_ENV !== "test") {

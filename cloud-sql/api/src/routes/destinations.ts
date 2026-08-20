@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { asyncRoute } from "../lib/async-route";
 import db from "../db";
 
 const router = Router();
@@ -52,7 +53,7 @@ export function mergeAverages(
 // tracking_sessions, merged with averages_offset for pre-migration historical
 // data). Replaces the legacy Firestore "averages" collection lookup on iOS.
 // Must precede /:id so the literal "averages" segment isn't captured as an id.
-router.get("/averages", async (req, res: Response) => {
+router.get("/averages", asyncRoute(async (req, res: Response) => {
   const idsParam = (req.query.ids as string) || "";
   const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) {
@@ -134,7 +135,7 @@ router.get("/averages", async (req, res: Response) => {
   }
 
   res.json(out);
-});
+}));
 
 type NearbyDestinationsQueryOptions = {
   lat: number;
@@ -193,7 +194,7 @@ export function buildNearbyDestinationsQuery(
 // before the bare `/:id` handler. Express matches in declaration order, and
 // a wildcard `/:id` declared first will swallow these as if "nearby" and
 // "viewport" were destination IDs and 404 with "Destination not found".
-router.get("/nearby", async (req, res: Response) => {
+router.get("/nearby", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
   const radius = parseFloat(req.query.radius as string) || 10000; // meters
@@ -235,10 +236,10 @@ router.get("/nearby", async (req, res: Response) => {
   });
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
-});
+}));
 
 // GET /api/destinations/viewport?minLat=46.5&maxLat=47.0&minLng=-122.0&maxLng=-121.0&limit=200
-router.get("/viewport", async (req, res: Response) => {
+router.get("/viewport", asyncRoute(async (req, res: Response) => {
   const minLat = parseFloat(req.query.minLat as string);
   const maxLat = parseFloat(req.query.maxLat as string);
   const minLng = parseFloat(req.query.minLng as string);
@@ -262,7 +263,7 @@ router.get("/viewport", async (req, res: Response) => {
     [minLng, minLat, maxLng, maxLat, limit]
   );
   res.json(result.rows);
-});
+}));
 
 export function buildDestinationDetailQuery(id: string): { text: string; values: unknown[] } {
   return {
@@ -388,7 +389,7 @@ export function mapDestinationDetailRow(row: any): any {
 }
 
 // GET /api/destinations/:id
-router.get("/:id", async (req, res: Response) => {
+router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildDestinationDetailQuery(id);
   const result = await db.query(query.text, query.values);
@@ -397,10 +398,10 @@ router.get("/:id", async (req, res: Response) => {
     return;
   }
   res.json(mapDestinationDetailRow(result.rows[0]));
-});
+}));
 
 // GET /api/destinations/:id/routes — routes for this destination
-router.get("/:id/routes", async (req, res: Response) => {
+router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6, r.owner,
@@ -446,10 +447,10 @@ router.get("/:id/routes", async (req, res: Response) => {
       return row;
     })
   );
-});
+}));
 
 // GET /api/destinations/:id/lists — lists containing this destination
-router.get("/:id/lists", async (req, res: Response) => {
+router.get("/:id/lists", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
@@ -461,6 +462,6 @@ router.get("/:id/lists", async (req, res: Response) => {
     [id]
   );
   res.json(result.rows);
-});
+}));
 
 export default router;
