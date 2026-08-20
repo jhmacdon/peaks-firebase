@@ -3,10 +3,25 @@ import test from "node:test";
 
 import {
   describeRouteShape,
+  formatDistanceMeters,
   getRouteTraversalMetrics,
   shouldShowElevationLoss,
   summarizeRouteGuide,
 } from "./route-guide";
+
+test("formatDistanceMeters uses feet below 0.19 mi, then miles at one decimal", () => {
+  assert.equal(formatDistanceMeters(150), "492 ft");
+  assert.equal(formatDistanceMeters(305), "1,001 ft");
+  assert.equal(formatDistanceMeters(516), "0.3 mi");
+  assert.equal(formatDistanceMeters(1441), "0.9 mi");
+  assert.equal(formatDistanceMeters(5471), "3.4 mi");
+});
+
+test("formatDistanceMeters falls back to an em dash for missing input", () => {
+  assert.equal(formatDistanceMeters(null), "—");
+  assert.equal(formatDistanceMeters(undefined), "—");
+  assert.equal(formatDistanceMeters(NaN), "—");
+});
 
 test("out-and-back metrics describe the full return trip", () => {
   const route = {

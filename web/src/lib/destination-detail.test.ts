@@ -75,9 +75,11 @@ test("formatElapsed drops the hour part below an hour", () => {
   assert.equal(formatElapsed(0), "0m");
 });
 
-test("formatDistanceAway switches from metres to miles at a mile", () => {
-  assert.equal(formatDistanceAway(820), "820 m away");
-  assert.equal(formatDistanceAway(1411), "1,411 m away");
+test("formatDistanceAway uses feet below 0.19 mi, then miles at one decimal", () => {
+  assert.equal(formatDistanceAway(150), "492 ft away");
+  assert.equal(formatDistanceAway(305), "1,001 ft away");
+  assert.equal(formatDistanceAway(516), "0.3 mi away");
+  assert.equal(formatDistanceAway(1441), "0.9 mi away");
   assert.equal(formatDistanceAway(5471), "3.4 mi away");
 });
 

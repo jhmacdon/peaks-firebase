@@ -24,10 +24,11 @@ export function RouteHero({
     <div className={`rounded-media relative isolate overflow-hidden ${className}`.trim()}>
       <RouteMap polyline6={polyline6} className="h-[260px] sm:h-[320px] lg:h-[380px]" />
       {distanceValue || gainValue ? (
-        // z-[700] clears every Leaflet pane the scrim has to cover (tiles
-        // 200, overlay 400, marker 600) and stays under the control layer
-        // at 1000 — same reasoning as the destination hero's scrim.
-        <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[700] flex gap-8 bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
+        // z-[750] clears every Leaflet pane the scrim has to cover (tiles
+        // 200, overlay 400, marker 600, popup 700) and stays under the
+        // control layer at 1000 — same reasoning as the destination hero's
+        // scrim.
+        <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[750] flex gap-8 bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
           {distanceValue ? (
             <StatCluster scale="page" value={distanceValue} unit="mi" label="Distance" />
           ) : null}

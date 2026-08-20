@@ -65,12 +65,12 @@ export function DestinationHero({
           className="h-[260px] sm:h-[320px] lg:h-[380px]"
         />
         {elevationValue ? (
-          // z-700 clears every Leaflet pane the scrim has to cover — tiles
-          // 200, overlay 400, shadow 500, marker 600, tooltip 650 — and
-          // stays under the control layer at 1000, so the tile attribution
-          // keeps sitting on top of the scrim rather than being painted
-          // over.
-          <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[700] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
+          // z-750 clears every Leaflet pane the scrim has to cover — tiles
+          // 200, overlay 400, shadow 500, marker 600, tooltip 650, popup
+          // 700 — and stays under the control layer at 1000, so the tile
+          // attribution keeps sitting on top of the scrim rather than being
+          // painted over.
+          <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[750] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
             <StatCluster
               scale="page"
               value={elevationValue}

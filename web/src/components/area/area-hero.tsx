@@ -30,10 +30,11 @@ export function AreaHero({
         routes={area.routes}
         className="h-[260px] sm:h-[320px] lg:h-[380px]"
       />
-      {/* z-[700] clears every Leaflet pane the scrim has to cover (tiles
-          200, overlay 400, marker 600) and stays under the control layer at
-          1000, so the layer switcher and tile attribution stay clickable. */}
-      <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[700] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
+      {/* z-[750] clears every Leaflet pane the scrim has to cover (tiles
+          200, overlay 400, marker 600, popup 700) and stays under the
+          control layer at 1000, so the layer switcher and tile attribution
+          stay clickable. */}
+      <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[750] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
         <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted">
           {designationLabel}
         </p>

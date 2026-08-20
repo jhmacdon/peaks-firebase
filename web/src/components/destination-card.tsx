@@ -1,5 +1,6 @@
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { formatDistanceAway, formatFeetValue } from "../lib/destination-detail";
 
 interface DestinationCardProps {
   id: string;
@@ -19,17 +20,16 @@ export default function DestinationCard({
   // One primary chip plus an overflow count — never two rows of chips.
   const primaryFeature = features[0] ?? null;
   const overflowFeatureCount = primaryFeature ? features.length - 1 : 0;
-  const elevationFeet =
-    elevation != null
-      ? `${Math.round(elevation * 3.28084).toLocaleString()} ft`
-      : "Unknown";
-  const distanceLabel =
-    distance_m == null
-      ? null
-      : distance_m < 1609.34
-        ? `${Math.round(distance_m)} m away`
-        : `${(distance_m / 1609.34).toFixed(1)} mi away`;
-  const meta = [elevationFeet, distanceLabel].filter(Boolean).join(" · ");
+  // formatFeetValue pins its own "en-US" locale (a bare .toLocaleString()
+  // seeds from the runtime locale, which can differ between the server
+  // render and the browser and trip a hydration mismatch) and returns null
+  // rather than a placeholder — nothing to filter out below when the
+  // catalog has no elevation for this record (never-null law).
+  const elevationLabel = formatFeetValue(elevation);
+  const distanceLabel = distance_m == null ? null : formatDistanceAway(distance_m);
+  const meta = [elevationLabel ? `${elevationLabel} ft` : null, distanceLabel]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Card href={`/destinations/${id}`} className="h-full">
@@ -39,7 +39,7 @@ export default function DestinationCard({
       <div className="text-base font-medium leading-tight text-ink">
         {name || "Unnamed"}
       </div>
-      <div className="mt-1 text-sm text-muted">{meta}</div>
+      {meta ? <div className="mt-1 text-sm text-muted">{meta}</div> : null}
       {primaryFeature && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge tone="emerald">{primaryFeature}</Badge>

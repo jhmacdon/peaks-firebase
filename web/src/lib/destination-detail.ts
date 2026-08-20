@@ -161,12 +161,25 @@ export function formatElapsed(seconds: number | null | undefined): string {
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
-/** "820 m away" / "3.4 mi away" — how far a nearby destination sits. */
-export function formatDistanceAway(meters: number): string {
-  if (meters < 1609.34) {
-    return `${Math.round(meters).toLocaleString("en-US")} m away`;
+/** Feet below 0.19 mi (where a one-decimal mile reading would still round
+ * to "0.1" or "0.2" regardless of the real distance), miles at one decimal
+ * beyond it — the near-unit rule every "how far" formatter on this
+ * imperial site shares (nearby destinations, map-explorer result rows,
+ * route/segment lengths). Returns the bare value and its unit separately
+ * so each caller can build its own suffix ("away", a trailing space,
+ * nothing) on top. */
+export function formatDistanceImperial(meters: number): { value: string; unit: "ft" | "mi" } {
+  const miles = meters / 1609.34;
+  if (miles < 0.19) {
+    return { value: Math.round(meters * 3.28084).toLocaleString("en-US"), unit: "ft" };
   }
-  return `${(meters / 1609.34).toFixed(1)} mi away`;
+  return { value: miles.toFixed(1), unit: "mi" };
+}
+
+/** "980 ft away" / "1.4 mi away" — how far a nearby destination sits. */
+export function formatDistanceAway(meters: number): string {
+  const { value, unit } = formatDistanceImperial(meters);
+  return `${value} ${unit} away`;
 }
 
 /** "fire-lookout" → "Fire lookout" */

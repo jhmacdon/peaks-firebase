@@ -18,21 +18,33 @@ import Link from "next/link";
 // neither has its own index yet. A page that DOES have a real index
 // (/areas, /lists) overrides `parentHref`/`parentLabel` to point there
 // instead, since that's the page a reader actually came from.
+//
+// `crumbs` is the escape hatch for a page nested two levels deep (a
+// destination's reports index: Discover › {destination} › Reports) — pass
+// every link ahead of `current` in order. Omitting it keeps the plain
+// one-parent shape every existing caller already uses.
 export function Breadcrumb({
   current,
   parentHref = "/discover",
   parentLabel = "Discover",
+  crumbs,
 }: {
   current: string;
   parentHref?: string;
   parentLabel?: string;
+  crumbs?: Array<{ href: string; label: string }>;
 }) {
+  const trail = crumbs ?? [{ href: parentHref, label: parentLabel }];
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-muted">
-      <Link href={parentHref} className="hover:text-ink hover:underline">
-        {parentLabel}
-      </Link>
-      <span aria-hidden>›</span>
+    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+      {trail.map((crumb) => (
+        <span key={crumb.href} className="flex items-center gap-1.5">
+          <Link href={crumb.href} className="hover:text-ink hover:underline">
+            {crumb.label}
+          </Link>
+          <span aria-hidden>›</span>
+        </span>
+      ))}
       <span className="text-ink-2">{current}</span>
     </nav>
   );

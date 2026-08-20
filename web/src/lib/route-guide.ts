@@ -1,17 +1,20 @@
 import type { RouteDetail, RouteSegment } from "./actions/routes";
+import { formatDistanceImperial } from "./destination-detail";
 import { formatDurationRangeFriendly, formatSessionCount } from "./format";
 
 const METERS_TO_MILES = 1 / 1609.34;
 const METERS_TO_FEET = 3.28084;
 
+/** "980 ft" / "1.4 mi" — same near-unit rule as formatDistanceAway
+ * (destination-detail.ts), just without its "away" suffix: this formats a
+ * length (a route, a segment, a map-explorer result's distance from
+ * center), not a "how far is that thing" phrase. */
 export function formatDistanceMeters(
   meters: number | null | undefined
 ): string {
   if (meters == null || Number.isNaN(meters)) return "—";
-  if (meters < 1609.34) {
-    return `${Math.round(meters)} m`;
-  }
-  return `${(meters * METERS_TO_MILES).toFixed(1)} mi`;
+  const { value, unit } = formatDistanceImperial(meters);
+  return `${value} ${unit}`;
 }
 
 export function formatElevationMeters(

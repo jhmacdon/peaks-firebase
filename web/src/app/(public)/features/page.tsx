@@ -187,20 +187,23 @@ export default async function FeaturesPage() {
           <div className="mt-10">
             <p className={EYEBROW_CLASSES}>Start here</p>
             <div className="grid gap-x-10 gap-y-6 sm:grid-cols-3">
-              {destinations.map((destination) => (
-                <Link
-                  key={destination.id}
-                  href={`/destinations/${destination.id}`}
-                  className="group block"
-                >
-                  <span className={LINK_TITLE_CLASSES}>
-                    {destination.name || "Unnamed"}
-                  </span>
-                  <span className={LINK_META_CLASSES}>
-                    {formatFeet(destination.elevation) ?? "Unknown elevation"}
-                  </span>
-                </Link>
-              ))}
+              {destinations.map((destination) => {
+                const elevationLabel = formatFeet(destination.elevation);
+                return (
+                  <Link
+                    key={destination.id}
+                    href={`/destinations/${destination.id}`}
+                    className="group block"
+                  >
+                    <span className={LINK_TITLE_CLASSES}>
+                      {destination.name || "Unnamed"}
+                    </span>
+                    {elevationLabel ? (
+                      <span className={LINK_META_CLASSES}>{elevationLabel}</span>
+                    ) : null}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ) : null}
