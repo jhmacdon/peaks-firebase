@@ -961,6 +961,13 @@ function npsRowKey(row: NpsFactRow): string {
  * - A leaf outside `NPS_BATHROOM_LEAVES` is refused and counted by name.
  * - `diagnostics` is not read. The distance a match rested on is evidence for
  *   a person, not a fact about a trailhead.
+ *
+ * **The status leaf is settled first, envelope and all, before any other leaf
+ * is looked at.** It is the leaf the whole block rests on, so a status whose
+ * provenance does not check out has to take the block with it: a `type:
+ * vault_pit` surviving on its own would tell a reader a restroom is there
+ * without the leaf that says so, which is the presence claim made by
+ * implication instead of by evidence.
  */
 export function npsBathroomLeafCandidates(row: NpsFactRow): LeafExtraction {
   const leaves: LeafCandidate[] = [];
@@ -973,9 +980,17 @@ export function npsBathroomLeafCandidates(row: NpsFactRow): LeafExtraction {
     refusals.push("bathrooms_block_unusable");
     return { leaves, refusals, notices: [] };
   }
-  const status = isPlainObject(block.status) ? block.status.value : undefined;
-  if (status !== "present") {
-    refusals.push(status === undefined ? "bathroom_status_missing" : "bathroom_status_not_present");
+  if (!isPlainObject(block.status)) {
+    refusals.push("bathroom_status_missing");
+    return { leaves, refusals, notices: [] };
+  }
+  if (block.status.value !== "present") {
+    refusals.push("bathroom_status_not_present");
+    return { leaves, refusals, notices: [] };
+  }
+  const statusSourced = fileSourcedValue(block.status, "present", ["nps_pois"]);
+  if (statusSourced === null) {
+    refusals.push("bathroom_status_source_unusable");
     return { leaves, refusals, notices: [] };
   }
 
@@ -1001,7 +1016,12 @@ export function npsBathroomLeafCandidates(row: NpsFactRow): LeafExtraction {
     }
   }
   for (const candidate of usable) {
-    const sourced = fileSourcedValue(block[candidate.leaf], candidate.value, ["nps_pois"]);
+    // Status is already settled above; re-deriving it here would be a second
+    // implementation of the rule the block rests on.
+    const sourced =
+      candidate.leaf === "status"
+        ? statusSourced
+        : fileSourcedValue(block[candidate.leaf], candidate.value, ["nps_pois"]);
     if (sourced === null) {
       refusals.push(`bathroom_${candidate.leaf}_source_unusable`);
       continue;

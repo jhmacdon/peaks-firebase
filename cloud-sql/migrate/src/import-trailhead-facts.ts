@@ -257,6 +257,22 @@ interface ParsedFile<T> {
   malformed: number;
 }
 
+/**
+ * A file that is present and says nothing is a failure, not an empty result.
+ *
+ * The two derived files — the road facts and the NPS facts — are written whole
+ * by a command that starts from the catalog, so zero rows means that command
+ * did not run, or ran against an empty store, or was truncated. Every one of
+ * those is a refresh that did not happen, and letting the import continue would
+ * report it as a source with nothing to say rather than a source that is
+ * missing. The raw EDW pull has been guarded this way since the fee importer
+ * shipped; these two had the same weakness and now have the same guard.
+ */
+function assertNotEmpty(rows: number, filePath: string, needs: string): void {
+  if (rows > 0) return;
+  throw new Error(`${filePath} yielded no usable rows — the import needs ${needs}`);
+}
+
 function parseJsonl<T>(contents: string): ParsedFile<T> {
   const rows: T[] = [];
   let malformed = 0;
@@ -719,6 +735,7 @@ function readRoadAccess(
   const filePath =
     args.roadAccessPath ?? path.join(args.dataDir as string, "trailhead-road-access.jsonl");
   const parsed = parseJsonl<RoadAccessRow>(readFile(filePath));
+  assertNotEmpty(parsed.rows.length, filePath, "the derived access-road facts (--road-access=FILE)");
   counts.malformed = parsed.malformed;
   logger.log(`  Road access rows read: ${parsed.rows.length} (window year ${runYear} ± 1)`);
 
@@ -806,6 +823,11 @@ function readNpsFacts(
 ): ExactIdRow[] {
   const filePath = args.npsFactsPath ?? path.join(args.dataDir as string, "nps-trailhead-facts.jsonl");
   const parsed = parseJsonl<NpsFactRow>(readFile(filePath));
+  assertNotEmpty(
+    parsed.rows.length,
+    filePath,
+    "the NPS restroom and parking facts (--nps-facts=FILE)"
+  );
   // The same file backs both sources, so its malformed lines are the same
   // number twice rather than two different failures.
   for (const source of NPS_SOURCES) counts[source].malformed = parsed.malformed;

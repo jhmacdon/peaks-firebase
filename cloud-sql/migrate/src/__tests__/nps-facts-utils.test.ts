@@ -13,6 +13,8 @@ import {
   npsParkingFacts,
   npsSeasonNote,
   padBounds,
+  titleCaseName,
+  toiletTypeFromName,
   ringsBounds,
   toiletTypeForPoi,
   NPS_JOIN_RADIUS_M,
@@ -142,10 +144,16 @@ test("a staff lot is recognized by its name, since nothing else says so", () => 
 test("a lot name becomes a note only when it says something new", () => {
   assert.deepEqual(npsLotLocationNote(lot()), {
     kind: "note",
-    text: "PARADISE PARKING (UPPER LOT)",
+    text: "Paradise Parking (Upper Lot)",
+    verbatim: "PARADISE PARKING (UPPER LOT)",
     field: "MAPLABEL",
   });
   assert.deepEqual(npsLotLocationNote({ MAPLABEL: "Parking Lot" }), {
+    kind: "refused",
+    reason: "generic_name",
+  });
+  // A bare lettered half of one lot is the row's own label read back.
+  assert.deepEqual(npsLotLocationNote({ MAPLABEL: "Parking B" }), {
     kind: "refused",
     reason: "generic_name",
   });
@@ -286,7 +294,9 @@ test("a matched lot publishes its type and its name, and no number", () => {
   const result = npsParkingFacts([candidate(0, lot())], PARKING_SOURCE);
   assert.ok(result.outcome);
   assert.equal(result.outcome.facts.type.value, "lot");
-  assert.equal(result.outcome.facts.location_note?.value, "PARADISE PARKING (UPPER LOT)");
+  assert.equal(result.outcome.facts.location_note?.value, "Paradise Parking (Upper Lot)");
+  // The shouting original stays where an auditor can read it.
+  assert.equal(result.outcome.diagnostics.lot_name, "PARADISE PARKING (UPPER LOT)");
   assert.equal(result.outcome.diagnostics.inside_lot, true);
   // Area is a capacity proxy nobody calibrated. Nothing numeric goes out.
   assert.deepEqual(Object.keys(result.outcome.facts).sort(), ["location_note", "type"]);
@@ -306,7 +316,7 @@ test("the maintenance yard is stepped past for the visitor lot behind it", () =>
     ],
     PARKING_SOURCE
   );
-  assert.equal(result.outcome?.facts.location_note?.value, "LONGMIRE NATIONAL PARK INN PARKING LOOP");
+  assert.equal(result.outcome?.facts.location_note?.value, "Longmire National Park Inn Parking Loop");
   assert.deepEqual(result.skipped, [
     { reason: "non_public_lot", distance_m: 44.9, lot_name: "LONGMIRE MAINTENANCE AREA PARKING" },
   ]);
@@ -371,4 +381,99 @@ test("one block answering is enough for a row", () => {
   assert.ok(row);
   assert.equal(row.bathrooms, undefined);
   assert.equal(row.diagnostics.bathroom, undefined);
+});
+
+// --- fixes from review ------------------------------------------------------
+
+test("a present field this code cannot read fails closed", () => {
+  // A boolean false in OPENTOPUBLIC says the lot is shut as plainly as "No"
+  // does. Coercing it to "" and falling through would publish a closed lot.
+  assert.equal(npsFeatureAnomaly(poi({ OPENTOPUBLIC: false })), "open_to_public_unreadable");
+  assert.equal(npsFeatureAnomaly(poi({ POISTATUS: 0 })), "status_unreadable");
+  assert.equal(npsFeatureAnomaly(poi({ ISEXTANT: [] })), "extant_unreadable");
+  // Null and undefined stay ordinary: POISTATUS is null on 30,235 of 35,567.
+  assert.equal(npsFeatureAnomaly(poi({ POISTATUS: null, ISEXTANT: undefined })), null);
+});
+
+test("a POI whose name names its fixture is typed by the name", () => {
+  assert.equal(toiletTypeFromName("Kautz Creek Vault Toilet"), "vault_pit");
+  assert.equal(toiletTypeFromName("Canyon Overlook Parking Area Pit Toilet"), "vault_pit");
+  assert.equal(toiletTypeFromName("Roaring Springs Composting Toilet"), "composting");
+  assert.equal(toiletTypeFromName("Portable Toilet"), "portable");
+  assert.equal(toiletTypeFromName("Lodge Flush Toilets"), "flush");
+});
+
+test("a name that says nothing, or says two things, does not type anything", () => {
+  assert.equal(toiletTypeFromName("Sunrise Restroom"), null);
+  assert.equal(toiletTypeFromName(""), null);
+  assert.equal(toiletTypeFromName(null), null);
+  // No name in the layer holds two fixture words today; the day one does, the
+  // honest answer is the one the type already gave.
+  assert.equal(toiletTypeFromName("Vault and Flush Toilets"), null);
+  // Whole words only: no upgrading a "Pitcher Pump Restroom" to a pit toilet.
+  assert.equal(toiletTypeFromName("Pitcher Pump Restroom"), null);
+});
+
+test("the name only speaks where the type said nothing specific", () => {
+  const upgraded = npsBathroomFacts(
+    [candidate(40, poi({ POITYPE: "Restroom", POINAME: "Kautz Creek Vault Toilet" }))],
+    POI_SOURCE
+  );
+  assert.equal(upgraded.outcome?.facts.type.value, "vault_pit");
+  assert.equal(upgraded.outcome?.diagnostics.type_from_poi_name, "vault_pit");
+
+  // A specific type is never overruled by a name.
+  const specific = npsBathroomFacts(
+    [candidate(40, poi({ POITYPE: "Flush Toilet", POINAME: "Vault Toilet" }))],
+    POI_SOURCE
+  );
+  assert.equal(specific.outcome?.facts.type.value, "flush");
+  assert.equal(specific.outcome?.diagnostics.type_from_poi_name, null);
+});
+
+test("a seasonal flag with no description is worth one honest word", () => {
+  const flagged = npsBathroomFacts([candidate(30, poi({ SEASONAL: "Yes" }))], POI_SOURCE);
+  assert.equal(flagged.outcome?.facts.season_note?.value, "Seasonal");
+
+  // A described season always beats the flag.
+  const described = npsBathroomFacts(
+    [candidate(30, poi({ SEASONAL: "Yes", SEASDESC: "Winter Only" }))],
+    POI_SOURCE
+  );
+  assert.equal(described.outcome?.facts.season_note?.value, "Winter Only");
+
+  // And an unflagged, undescribed restroom says nothing about seasons at all.
+  const silent = npsBathroomFacts([candidate(30, poi())], POI_SOURCE);
+  assert.equal(silent.outcome?.facts.season_note, undefined);
+});
+
+test("a shouted name is said at a normal volume, and a chosen one is left alone", () => {
+  assert.equal(titleCaseName("PARADISE PARKING (UPPER LOT)"), "Paradise Parking (Upper Lot)");
+  assert.equal(titleCaseName("GROVE OF THE PATRIARCHS PARKING"), "Grove of the Patriarchs Parking");
+  assert.equal(titleCaseName("HEART O' THE HILLS CAMPGROUND"), "Heart O' the Hills Campground");
+  assert.equal(titleCaseName("SHADOW LAKE-SUNRISE CAMP"), "Shadow Lake-Sunrise Camp");
+  assert.equal(titleCaseName("TIPSOO LAKE PARKING B"), "Tipsoo Lake Parking B");
+  // A small word that opens or closes the name is still capitalized.
+  assert.equal(titleCaseName("OF"), "Of");
+  // One lowercase letter anywhere means the agency chose this casing.
+  assert.equal(titleCaseName("SD (U) Wonsqueak Bike Path Parking"), "SD (U) Wonsqueak Bike Path Parking");
+  assert.equal(titleCaseName("Lassen Peak Trailhead Parking"), "Lassen Peak Trailhead Parking");
+});
+
+test("the staff-lot list covers the layer's own spellings, typo included", () => {
+  assert.equal(isNonPublicLotName("LONGMIRE MAINTENANCE AREA PARKING"), true);
+  assert.equal(isNonPublicLotName("Maitenance Yard"), true, "the layer's one dropped n");
+  assert.equal(isNonPublicLotName("Maintenence Shop"), true);
+  assert.equal(isNonPublicLotName("Dorm Parking"), true);
+  assert.equal(isNonPublicLotName("Dormitory Lot"), true);
+  assert.equal(isNonPublicLotName("Employee Housing Parking"), true);
+  assert.equal(isNonPublicLotName("Officers Quarters"), true);
+  assert.equal(isNonPublicLotName("Horse Corral Parking"), true);
+  assert.equal(isNonPublicLotName("Barn Lot"), true);
+  assert.equal(isNonPublicLotName("Concessionaire Parking"), true);
+  assert.equal(isNonPublicLotName("Concessions Parking"), true);
+  // The names this must not touch are the ordinary visitor ones.
+  assert.equal(isNonPublicLotName("PARADISE PARKING (UPPER LOT)"), false);
+  assert.equal(isNonPublicLotName("Hurricane Hill Trailhead Parking"), false);
+  assert.equal(isNonPublicLotName("Main Street Parking"), false, "main is not maint");
 });

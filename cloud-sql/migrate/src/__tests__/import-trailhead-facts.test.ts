@@ -1269,8 +1269,11 @@ test("rows keep their own candidates across candidate and similarity chunks", as
     [path.join(DATA_DIR, "raw", "usfs-rec-sites-trailheads.jsonl")]: jsonl([
       { site_cn: "chunk-0", site_name: "Trailhead 0", region: "06", fee_charged: "Y" },
     ]),
-    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "",
-    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "",
+    // Neither derived file is under test here, and neither may be empty.
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl([UNANSWERED_ROAD_ROW]),
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([
+      npsRow({ destination_id: "dest-elsewhere", destination_name: "Elsewhere" }),
+    ]),
   };
 
   let candidateQueries = 0;
@@ -1352,9 +1355,24 @@ function roadOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, str
     [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
     [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
     [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl(rows),
-    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "",
+    // Both derived files must hold at least one row or the import refuses to
+    // start, so the source under test is isolated with a row that lands
+    // nowhere rather than with an empty file.
+    [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl([
+      npsRow({ destination_id: "dest-elsewhere", destination_name: "Elsewhere" }),
+    ]),
   });
 }
+
+/** A road row the derivation could not answer: parsed, but carrying no fact. */
+const UNANSWERED_ROAD_ROW = {
+  destination_id: "dest-elsewhere",
+  destination_name: "Elsewhere",
+  snapped: false,
+  snap_distance_m: null,
+  anchor_reached: false,
+  skip_reason: "no_snap",
+};
 
 /** A data directory holding one NPS row and nothing else worth matching. */
 function npsOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, string> {
@@ -1363,7 +1381,7 @@ function npsOnlyFiles(rows: Array<Record<string, unknown>>): Record<string, stri
     [path.join(DATA_DIR, "trailhead-bathrooms.jsonl")]: "",
     [path.join(DATA_DIR, "fs-page-sections.jsonl")]: "",
     [path.join(DATA_DIR, "fs-trailhead-page-registry.jsonl")]: "",
-    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "",
+    [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: jsonl([UNANSWERED_ROAD_ROW]),
     [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: jsonl(rows),
   });
 }
@@ -2116,4 +2134,64 @@ test("--nps-facts points the import at another file", async () => {
     { db, console: silent, ...createIo(files) }
   );
   assert.equal(summary.counts.nps_parking.matched, 1);
+});
+
+test("a bathroom status whose envelope fails takes the whole block with it", async () => {
+  // The orphan this guards against: a type surviving on its own tells a reader
+  // a restroom is there without the leaf that says so.
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  const summary = await importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+    db,
+    console: silent,
+    ...createIo(
+      npsOnlyFiles([
+        npsRow({
+          parking: undefined,
+          bathrooms: {
+            status: { value: "present", source: NPS_POIS_SOURCE, retrieved_at: "August 2026" },
+            type: npsLeaf("vault_pit", NPS_POIS_SOURCE),
+            season_note: npsLeaf("Seasonal", NPS_POIS_SOURCE),
+          },
+        }),
+      ])
+    ),
+  });
+  assert.equal(summary.counts.nps_pois.refusals.bathroom_status_source_unusable, 1);
+  assert.equal(summary.counts.nps_pois.matched, 0);
+  assert.equal(summary.counts.nps_pois.noFacts, 1);
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+});
+
+test("a present but empty NPS file fails loudly rather than importing as silence", async () => {
+  // Zero rows means the normalizer did not run, or ran against nothing, or was
+  // truncated. Every one of those is a refresh that did not happen.
+  const files = defaultFiles({ [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "" });
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  await assert.rejects(
+    () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
+    /nps-trailhead-facts\.jsonl yielded no usable rows/
+  );
+});
+
+test("a present but empty road-access file fails loudly too", async () => {
+  const files = defaultFiles({ [path.join(DATA_DIR, "trailhead-road-access.jsonl")]: "\n  \n" });
+  const { db } = createFakeDb({ destinations: [SNOW_DEST] });
+  await assert.rejects(
+    () => importTrailheadFacts(testArgs(), { db, console: silent, ...createIo(files) }),
+    /trailhead-road-access\.jsonl yielded no usable rows/
+  );
+});
+
+test("an empty derived file stops the run before the database is touched", async () => {
+  const files = defaultFiles({ [path.join(DATA_DIR, "nps-trailhead-facts.jsonl")]: "" });
+  const { db, calls } = createFakeDb({ destinations: [SNOW_DEST] });
+  await assert.rejects(() =>
+    importTrailheadFacts(testArgs({ apply: true, dryRun: false }), {
+      db,
+      console: silent,
+      ...createIo(files),
+    })
+  );
+  assert.equal(calls.some((call) => call.sql.includes("UPDATE destinations")), false);
+  assert.equal(calls.some((call) => call.sql === "BEGIN"), false);
 });

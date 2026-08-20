@@ -73,9 +73,10 @@ described. Read the `--sample` narratives against a map before importing: they
 are the cheapest check that the walk still finds sensible roads.
 
 The importer in step 4 reads `trailhead-road-access.jsonl` and refuses to run
-without it, so this step is not optional. A refresh that rewrote the fee and
-bathroom files but left the road facts from the previous quarter would import
-three quarters of itself and say nothing about the missing quarter.
+without it — or with it present and empty — so this step is not optional. A
+refresh that rewrote the fee and bathroom files but left the road facts from the
+previous quarter would import three quarters of itself and say nothing about the
+missing quarter.
 
 ### The reviewed BLM map lives in this repo
 
@@ -154,13 +155,26 @@ Three rules this pipeline obeys, all pinned by tests:
   regression could run. The parking block gets `type: lot` and, where the lot
   has a real name, a `location_note`. Nothing numeric. The importer refuses a
   `capacity_vehicles` arriving on an NPS leaf, by name, for the same reason.
-- **A candidate the layer disowns is stepped past, never negated.** A POI or a
-  lot marked `Planned`, `Not Existing`, `Decommissioned`, `Temporarily Closed`,
-  `OPENTOPUBLIC=No` or `ISEXTANT=False` is skipped and the next nearest is
-  tried. So is a lot whose name says it belongs to the staff — `LOTTYPE` is
-  null on 5,448 of 6,740 rows and `OPENTOPUBLIC` is Unknown on 6,091, so the
-  name is the only thing between a visitor lot and the park's maintenance yard,
-  and Longmire's yard sits 88 m from the Eagle Peak trailhead.
+- **A candidate the layer disowns is stepped past, never negated.** The POI
+  layer carries `POISTATUS`, and `Planned`, `Not Existing`, `Decommissioned`
+  and `Temporarily Closed` all mean skip this point and try the next. The
+  parking layer has no such field; both layers carry `OPENTOPUBLIC` and
+  `ISEXTANT`, so `OPENTOPUBLIC=No` and `ISEXTANT=False` are the two checks that
+  apply to a lot. A value that is present but not text — a boolean `false` in
+  `OPENTOPUBLIC` — is treated as an anomaly too rather than read through a
+  coercion that would turn it into silence.
+- **A lot whose name says it belongs to the staff is stepped past** —
+  maintenance, employee, residence, dorm, housing, quarters, corral, barn,
+  concessionaire and their misspellings. `LOTTYPE` is null on 5,448 of 6,740
+  rows and `OPENTOPUBLIC` is Unknown on 6,091, so the name is the only thing
+  between a visitor lot and the park's maintenance yard, and Longmire's yard
+  sits 88 m from the Eagle Peak trailhead. **The two ways this list is wrong
+  are not the same size.** Refusing a visitor lot whose name happens to hold
+  one of these words costs coverage — that trailhead publishes no parking, and
+  a reader sees nothing. Missing a staff lot publishes the park's maintenance
+  yard as somewhere to leave the car, which is a wrong answer rather than a
+  missing one. So the list errs wide, and the words that over-refuse a little
+  stay.
 
 Read the run's funnel. It prints how many trailheads got each block, how many
 got neither, and — the number that matters most — **how many had an NPS feature
@@ -169,7 +183,11 @@ the difference between "the Park Service has nothing here" and "the Park
 Service has something here this pipeline declined to publish".
 
 The importer in step 4 reads `nps-trailhead-facts.jsonl` and refuses to run
-without it, exactly as it refuses to run without the road file.
+without it, exactly as it refuses to run without the road file — and **a file
+that is present and holds no rows fails the same way as a missing one**. Zero
+rows means the normalizer did not run, ran against nothing, or was truncated,
+and every one of those is a refresh that did not happen. Importing it as a
+source with nothing to say would report the failure as an empty result.
 
 ### What the lot's name is, and is not
 
@@ -185,9 +203,29 @@ truncated — "ANCIENT GROVES (NIGHT SHADOWS) NATURE TRAIL PARKI\*" — is refus
 rather than trimmed: cutting the marker off leaves "PARKI", and guessing the
 rest invents a name. The lot still publishes; only its note goes.
 
-Names are stored exactly as the agency wrote them, capitals and all. Case is a
-rendering decision, and the web client makes those at render time where a wrong
-guess costs an edit rather than a re-import.
+The published note is title-cased: the layer writes most labels in capitals, and
+a detail sheet reading "PARADISE PARKING (UPPER LOT)" is shouting at the reader.
+Words are never added, removed or reordered, `diagnostics.lot_name` keeps the
+untouched original, and **a name that already carries one lowercase letter is
+left exactly as it is** — the agency chose that casing, so codes like "SD (U)"
+and "ASIS MD" survive. The known cost is an all-capitals name holding an
+initialism, which comes back title-cased like an ordinary word; no lot this join
+matches today is one, and the verbatim original is one field away.
+
+### Two facts the type field alone would lose
+
+Where `POITYPE` is generic and the point's own `POINAME` names the fixture —
+"Kautz Creek Vault Toilet", typed `Restroom`; "Roaring Springs Composting
+Toilet"; "Canyon Overlook Parking Area Pit Toilet" — the name sets the bathroom
+type, and `diagnostics.type_from_poi_name` records that it did. 356 points in
+the layer are like that. A specific `POITYPE` is never overruled by a name, and
+a name holding two different fixture words is refused rather than guessed at.
+
+A restroom flagged `SEASONAL=Yes` with no `SEASDESC` gets one honest word:
+`season_note: "Seasonal"`. It is thin, and it is the whole of what the layer
+said — no dates are invented, a real description always wins over it, and it is
+still the difference between planning around a possible closure and never
+hearing of one.
 
 ## 4. Import
 

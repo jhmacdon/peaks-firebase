@@ -746,12 +746,21 @@ Three binding rules, all pinned by tests:
   NPS allow-list: a row carrying one is **refused by name**, because the only
   way a number reaches that leaf is a regression that started dividing area by
   the uncalibrated constant.
-- **A candidate the layer disowns is stepped past, never negated** — `Planned`,
-  `Not Existing`, `Decommissioned`, `Temporarily Closed`, `OPENTOPUBLIC=No`,
-  `ISEXTANT=False` — and so is a lot whose name says it belongs to the staff.
-  `LOTTYPE` is null on 5,448 of 6,740 rows and `OPENTOPUBLIC` is Unknown on
-  6,091, so the name is the only thing between a visitor lot and the park's
-  maintenance yard: Longmire's yard sits 88 m from the Eagle Peak trailhead.
+- **A candidate the layer disowns is stepped past, never negated.** `POISTATUS`
+  in {`Planned`, `Not Existing`, `Decommissioned`, `Temporarily Closed`} — the
+  POI layer only, the parking layer has no such field — plus `OPENTOPUBLIC=No`
+  and `ISEXTANT=False`, which both layers carry. `npsFeatureAnomaly` also fails
+  closed on a present-but-non-string value: a boolean `false` in `OPENTOPUBLIC`
+  says the lot is shut as plainly as `"No"` does, and string-coercing it to `""`
+  would publish it as visitor parking.
+- **A lot whose name says it belongs to the staff is stepped past**, from a
+  token list built off the layer's own spellings (121 names hold `maintenance`,
+  101 `concession`, 80 `quarters`, 63 `residence`, and `main?t\w*` covers the
+  four misspellings including `maitenance`). `LOTTYPE` is null on 5,448 of
+  6,740 rows and `OPENTOPUBLIC` is Unknown on 6,091, so the name is the only
+  signal: Longmire's yard sits 88 m from the Eagle Peak trailhead. The list
+  errs wide on purpose — a false positive costs one trailhead its parking row,
+  a false negative publishes a maintenance yard as somewhere to park.
 
 **Conflict rule: an explicit agency claim beats an NPS spatial join on the same
 leaf.** A Forest Service row saying `Vault toilet(s)` is the agency describing a
@@ -766,7 +775,19 @@ join matches today has a MAPLABEL and no LOTNAME — Paradise's upper lot
 included — so the label is load-bearing, not a nicety. A name becomes a note
 only when it says more than "Parking Lot" (375 rows) does, and a label the
 source truncated with a trailing `*` is refused rather than trimmed into
-"PARKI".
+"PARKI". The published note is title-cased — the layer shouts, and a detail
+sheet should not — while `diagnostics.lot_name` keeps the original. A name that
+already carries one lowercase letter is left exactly as the agency wrote it, so
+codes like "SD (U)" survive.
+
+Two more facts the normalizer reads that the type field alone would lose. Where
+`POITYPE` is generic and the point's own `POINAME` names the fixture — "Kautz
+Creek Vault Toilet", typed `Restroom` — the name sets the type, and
+`diagnostics.type_from_poi_name` records that it did; a specific type is never
+overruled by a name, and a name holding two fixture words is refused rather
+than guessed at. And a restroom flagged `SEASONAL=Yes` with no `SEASDESC` gets
+the one word the layer actually said, `season_note: "Seasonal"` — thin, and
+still the difference between planning around a closure and never hearing of it.
 
 Rejected rows go to `import-rejected-nps-pois.jsonl` and
 `import-rejected-nps-parking.jsonl`: one file in, two sources out, because a

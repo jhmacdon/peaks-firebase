@@ -67,6 +67,37 @@ export function toiletTypeForPoi(poiType: unknown): TrailheadBathroomType | null
   return NPS_TOILET_POI_TYPES[key] ?? null;
 }
 
+/**
+ * The fixture a POI's own name gives away, when its type does not.
+ *
+ * 356 of the points typed `Restroom`, `Toilet` or `Floating Restroom` are
+ * named for the fixture they are — "Kautz Creek Vault Toilet", "Roaring
+ * Springs Composting Toilet", "Canyon Overlook Parking Area Pit Toilet" —
+ * which is a more specific fact than `unspecified`, written down by the same
+ * agency in the next field along.
+ *
+ * Conservative on purpose. Only whole words, only the five the Peaks
+ * vocabulary can hold, and **a name carrying two different fixture words is
+ * refused rather than guessed at**: no name in the layer does that today, and
+ * the day one does, the honest answer is the one the type already gave.
+ */
+export const POI_NAME_FIXTURES: ReadonlyArray<[RegExp, TrailheadBathroomType]> = [
+  [/\bvault\b/i, "vault_pit"],
+  [/\bpit\b/i, "vault_pit"],
+  [/\bflush\b/i, "flush"],
+  [/\bcompost(?:ing)?\b/i, "composting"],
+  [/\bportable\b|\bporta[- ]?potty\b/i, "portable"],
+];
+
+export function toiletTypeFromName(poiName: unknown): TrailheadBathroomType | null {
+  if (typeof poiName !== "string" || poiName.trim().length === 0) return null;
+  const found = new Set<TrailheadBathroomType>();
+  for (const [pattern, type] of POI_NAME_FIXTURES) {
+    if (pattern.test(poiName)) found.add(type);
+  }
+  return found.size === 1 ? [...found][0] : null;
+}
+
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -76,16 +107,32 @@ function lower(value: unknown): string {
 }
 
 /**
+ * A field the layer filled with something this code cannot read.
+ *
+ * Null and undefined are ordinary — `POISTATUS` is null on 30,235 of 35,567
+ * points — so they are not anomalies. A **present** value that is not a string
+ * is: a boolean `false` in `OPENTOPUBLIC` says the lot is closed to the public
+ * as plainly as the string `"No"` does, and reading it through a
+ * string-coercion that yields `""` would publish it as a visitor lot. So the
+ * rule is fail closed: a value of an unexpected type refuses the candidate
+ * rather than falling through the checks below.
+ */
+function unreadable(value: unknown): boolean {
+  return value !== null && value !== undefined && typeof value !== "string";
+}
+
+/**
  * A feature the catalog should not speak for.
  *
- * Three fields say a mapped feature is not a usable fact, and all three are
- * read the same way for a toilet POI and for a parking polygon:
+ * Three fields say a mapped feature is not a usable fact:
  *
  * - `POISTATUS` — `Planned` and `Not Existing` are features that are not there,
  *   `Decommissioned` is one that stopped being there, `Temporarily Closed` is
- *   one a hiker cannot use today.
- * - `OPENTOPUBLIC` = `No` — mapped, real, and not for visitors.
- * - `ISEXTANT` = `False` / `No` — the layer's own "this does not exist".
+ *   one a hiker cannot use today. **The POI layer only.** The parking layer has
+ *   no such field, which is why this reads all three rather than requiring any.
+ * - `OPENTOPUBLIC` = `No` — mapped, real, and not for visitors. Both layers.
+ * - `ISEXTANT` = `False` / `No` — the layer's own "this does not exist". Both
+ *   layers.
  *
  * Every one of them means **drop this candidate and look at the next**, never
  * "there is no restroom here": an anomaly is the source declining to answer,
@@ -93,6 +140,9 @@ function lower(value: unknown): string {
  * cannot support.
  */
 export function npsFeatureAnomaly(row: Record<string, unknown>): string | null {
+  if (unreadable(row.POISTATUS)) return "status_unreadable";
+  if (unreadable(row.OPENTOPUBLIC)) return "open_to_public_unreadable";
+  if (unreadable(row.ISEXTANT)) return "extant_unreadable";
   const status = lower(row.POISTATUS);
   if (status === "planned") return "status_planned";
   if (status === "not existing") return "status_not_existing";
@@ -120,6 +170,21 @@ export function npsSeasonNote(value: unknown): string | null {
   const note = text(value);
   if (note.length === 0) return null;
   return PLACEHOLDER_TEXT.has(note.toLowerCase()) ? null : note;
+}
+
+/**
+ * The one word left when `SEASONAL` says yes and `SEASDESC` says nothing.
+ *
+ * 36 toilet points are flagged seasonal with no description. "Seasonal" is
+ * thin, and it is still the difference between a hiker planning around a
+ * restroom that may be shut and one who never heard of the possibility. It is
+ * also the whole of what the layer said — no dates are invented, and a real
+ * description always wins over it.
+ */
+export const SEASONAL_WITHOUT_DATES_NOTE = "Seasonal";
+
+export function npsSeasonalFlagged(value: unknown): boolean {
+  return lower(value) === "yes";
 }
 
 /**
@@ -160,9 +225,23 @@ export function npsLotName(row: Record<string, unknown>): NpsLotName | null {
  *
  * Like an anomaly this drops one candidate rather than the trailhead: the next
  * lot within the gate may be the visitor one.
+ *
+ * **The two ways this is wrong are not the same size.** A false positive — a
+ * visitor lot whose name happens to hold one of these words — costs coverage:
+ * that trailhead publishes no parking, and a reader sees nothing. A false
+ * negative publishes the park's maintenance yard as somewhere to leave the
+ * car, which is a wrong answer rather than a missing one. So the list errs
+ * wide, and the words that over-refuse a little (`government`, `shop`) stay.
+ *
+ * The tokens come from the layer itself: 121 lot names hold `maintenance`, 101
+ * `concession`, 80 `quarters`, 63 `residence`, 40 `employee`, 29 `housing`, 28
+ * `dorm`, 15 `barn`, 9 `corral`. `main?t\w*` is deliberate — it covers
+ * `maintenance`, `maint`, and the four misspellings the layer carries
+ * (`maintenence`, `maintanence`, `maintanance`, and `maitenance`, which drops
+ * the first `n` and is why the `n` is optional).
  */
 export const NON_PUBLIC_LOT_PATTERN =
-  /\b(maintenance|employee|employees|staff|residence|residences|residential|administrative|administration|government|utility|shop|warehouse)\b/i;
+  /\b(main?t\w*|employee|employees|staff|residence|residences|residential|administrative|administration|government|utility|shop|warehouse|dorm|dormitor\w*|dormitories|housing|quarters|corral|barn|concession\w*)\b/i;
 
 export function isNonPublicLotName(name: string | null | undefined): boolean {
   return typeof name === "string" && NON_PUBLIC_LOT_PATTERN.test(name);
@@ -195,14 +274,66 @@ const GENERIC_LOT_TOKENS = new Set([
   "and",
   "of",
   "at",
+  // The lettered suffixes the layer uses to tell two halves of one lot apart.
+  // "Tipsoo Lake Parking B" is a name; a bare "Parking B" is still the row's
+  // own label read back to the reader.
   "a",
+  "b",
 ]);
 
 /** The source's own truncation marker, left on a label it cut short. */
 export const TRUNCATED_LOT_NAME = /\*\s*$/;
 
+/** Words a title leaves lowercase unless they open or close it. */
+const SMALL_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "by",
+  "for",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with",
+]);
+
+/**
+ * A shouted name, said at a normal volume.
+ *
+ * The layer writes most labels in capitals — "PARADISE PARKING (UPPER LOT)" —
+ * and a detail sheet that prints them that way is shouting at the reader.
+ * Title case is applied here, once, at the boundary where the fact is made,
+ * and the untouched original stays in the row's diagnostics.
+ *
+ * **A name that already carries a lowercase letter is left exactly as it is.**
+ * The agency chose that casing, and re-casing it can only lose — "SD (U)
+ * Wonsqueak Bike Path Parking" and "ASIS MD North Beach Parking" keep their
+ * codes. The known cost is an all-capitals name whose words include an
+ * initialism, which comes back title-cased like an ordinary word; no matched
+ * lot is one today, and the verbatim original is one field away.
+ */
+export function titleCaseName(raw: string): string {
+  if (/[a-z]/.test(raw)) return raw;
+  const tokens = raw.toLowerCase().split(/(\s+)/);
+  const words = tokens.filter((token) => token.trim().length > 0).length;
+  let index = 0;
+  return tokens
+    .map((token) => {
+      if (token.trim().length === 0) return token;
+      index += 1;
+      const bare = token.replace(/[^a-z0-9]/g, "");
+      if (index > 1 && index < words && SMALL_WORDS.has(bare)) return token;
+      return token.replace(/[a-z]+(?:'[a-z]+)*/g, (run) => run.charAt(0).toUpperCase() + run.slice(1));
+    })
+    .join("");
+}
+
 export type LotNoteOutcome =
-  | { kind: "note"; text: string; field: NpsLotNameField }
+  | { kind: "note"; text: string; verbatim: string; field: NpsLotNameField }
   | { kind: "refused"; reason: "no_name" | "generic_name" | "truncated_name" };
 
 /**
@@ -213,10 +344,9 @@ export type LotNoteOutcome =
  * characters; cutting the marker off leaves "PARKI", and guessing the rest
  * invents a name. The lot itself still publishes — only its note goes.
  *
- * The text is kept exactly as the agency wrote it, capitals and all. Case is a
- * rendering decision, and the one place in this codebase that makes it —
- * `roadSurface` in the web client — makes it at render time, where a wrong
- * guess can be fixed without a re-import.
+ * The published `text` is title-cased; `verbatim` is what the layer holds, and
+ * it is what goes into the row's diagnostics. Words are never added, removed
+ * or reordered — the only thing that changes is the shouting.
  */
 export function npsLotLocationNote(row: Record<string, unknown>): LotNoteOutcome {
   const name = npsLotName(row);
@@ -230,7 +360,7 @@ export function npsLotLocationNote(row: Record<string, unknown>): LotNoteOutcome
   if (tokens.length === 0 || tokens.every((token) => GENERIC_LOT_TOKENS.has(token))) {
     return { kind: "refused", reason: "generic_name" };
   }
-  return { kind: "note", text: name.text, field: name.field };
+  return { kind: "note", text: titleCaseName(name.text), verbatim: name.text, field: name.field };
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +524,14 @@ export interface NpsBathroomFacts {
 export interface NpsBathroomDiagnostics {
   distance_m: number;
   poi_type: string;
+  /**
+   * The fixture the POI's own name gave away, when `POITYPE` did not.
+   *
+   * Null on every row whose type was already specific, and on every row whose
+   * name says nothing. Where it is set, the published `type` came from the
+   * name rather than the type field, and this is the evidence for it.
+   */
+  type_from_poi_name: TrailheadBathroomType | null;
   poi_name: string | null;
   poi_id: string | null;
   unit_code: string | null;
@@ -464,11 +602,18 @@ export function npsBathroomFacts(
       skipped.push({ reason: anomaly, distance_m: distance, poi_type: poiType || null });
       continue;
     }
+    // A specific type is never overruled by a name. The name only speaks where
+    // the type said `unspecified` and the same agency wrote the fixture into
+    // the next field along: "Kautz Creek Vault Toilet", typed `Restroom`.
+    const fromName = type === "unspecified" ? toiletTypeFromName(candidate.row.POINAME) : null;
     const facts: NpsBathroomFacts = {
       status: npsSourcedValue("present" as const, source),
-      type: npsSourcedValue(type, source),
+      type: npsSourcedValue(fromName ?? type, source),
     };
-    const seasonNote = npsSeasonNote(candidate.row.SEASDESC);
+    // A described season beats a flagged one; a flagged one beats silence.
+    const seasonNote =
+      npsSeasonNote(candidate.row.SEASDESC) ??
+      (npsSeasonalFlagged(candidate.row.SEASONAL) ? SEASONAL_WITHOUT_DATES_NOTE : null);
     if (seasonNote !== null) facts.season_note = npsSourcedValue(seasonNote, source);
     return {
       outcome: {
@@ -476,6 +621,7 @@ export function npsBathroomFacts(
         diagnostics: {
           distance_m: distance,
           poi_type: poiType,
+          type_from_poi_name: fromName,
           poi_name: orNull(candidate.row.POINAME),
           poi_id: identity(candidate.row),
           unit_code: orNull(candidate.row.UNITCODE),
@@ -504,6 +650,7 @@ export interface NpsParkingDiagnostics {
   /** True where the trailhead stands inside the lot polygon. */
   inside_lot: boolean;
   lot_id: string | null;
+  /** The name exactly as the layer holds it, before the published note is cased. */
   lot_name: string | null;
   lot_name_field: NpsLotNameField | null;
   /** Why the lot's name is not a note, when it is not one. */
