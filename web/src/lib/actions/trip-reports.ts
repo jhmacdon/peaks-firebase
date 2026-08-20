@@ -157,12 +157,17 @@ export async function getTripReportsForDestination(
   return result.rows.map((row) => mapReport(row as ReportRow));
 }
 
+/** Reports older than this aren't "recent" — the discover page drops the
+ * section entirely rather than call a years-old report recent. */
+const RECENT_TRIP_REPORT_WINDOW = "18 months";
+
 export async function getRecentTripReports(requestedLimit = 6): Promise<TripReport[]> {
   const result = await db.query(
     `${REPORT_SELECT}
      WHERE tr.moderation_state = 'published'
+       AND tr.activity_date >= now() - $2::interval
      ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $1`,
-    [limit(requestedLimit, 6, 6)]
+    [limit(requestedLimit, 6, 6), RECENT_TRIP_REPORT_WINDOW]
   );
   return result.rows.map((row) => mapReport(row as ReportRow));
 }

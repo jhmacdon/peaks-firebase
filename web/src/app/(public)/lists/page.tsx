@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchBar from "../../../components/search-bar";
 import ListCard from "../../../components/list-card";
+import { LOADING_LABEL } from "../../../lib/constants";
 import { getLists, type ListRow } from "../../../lib/actions/lists";
 
 function ListsContent() {
@@ -58,7 +59,7 @@ function ListsContent() {
       </div>
 
       {loading ? (
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       ) : lists.length === 0 ? (
         <div className="text-gray-500 py-12 text-center">
           {query
@@ -83,7 +84,7 @@ function ListsContent() {
                 disabled={loadingMore}
                 className="px-6 py-2.5 text-sm font-medium border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
               >
-                {loadingMore ? "Loading..." : "Load More"}
+                {loadingMore ? LOADING_LABEL : "Load More"}
               </button>
             </div>
           )}
@@ -98,7 +99,7 @@ export default function ListsPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </div>
       }
     >

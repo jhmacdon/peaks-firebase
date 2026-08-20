@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../../../lib/auth-context";
+import { LOADING_LABEL } from "../../../../lib/constants";
+import { formatDate } from "../../../../lib/format";
 import {
   canEditTripReport,
   getTripReport,
@@ -96,7 +98,7 @@ export default function TripReportDetailPage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }
@@ -110,8 +112,6 @@ export default function TripReportDetailPage() {
       </div>
     );
   }
-
-  const date = new Date(report.date);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
@@ -134,14 +134,7 @@ export default function TripReportDetailPage() {
           <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
             <span>{report.userName}</span>
             <span>&middot;</span>
-            <span>
-              {date.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
+            <span>{formatDate(report.date)}</span>
           </div>
         </div>
         {canEdit && (

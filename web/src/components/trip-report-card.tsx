@@ -1,17 +1,14 @@
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import type { TripReport } from "../lib/actions/trip-reports";
+import { formatDate } from "../lib/format";
 
 interface TripReportCardProps {
   report: TripReport;
 }
 
 export default function TripReportCard({ report }: TripReportCardProps) {
-  const date = new Date(report.date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const date = formatDate(report.date);
   const photoCount = report.blocks.filter((block) => block.type === "photo").length;
   const destinationCount = report.destinations.length;
   const firstTextBlock = report.blocks.find((b) => b.type === "text");

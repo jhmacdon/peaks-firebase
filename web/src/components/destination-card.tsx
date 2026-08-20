@@ -16,8 +16,9 @@ export default function DestinationCard({
   features,
   distance_m,
 }: DestinationCardProps) {
-  const visibleFeatures = features.slice(0, 3);
-  const hiddenFeatureCount = Math.max(0, features.length - visibleFeatures.length);
+  // One primary chip plus an overflow count — never two rows of chips.
+  const primaryFeature = features[0] ?? null;
+  const overflowFeatureCount = primaryFeature ? features.length - 1 : 0;
   const elevationFeet =
     elevation != null
       ? `${Math.round(elevation * 3.28084).toLocaleString()} ft`
@@ -36,14 +37,10 @@ export default function DestinationCard({
         {name || "Unnamed"}
       </div>
       <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{meta}</div>
-      {visibleFeatures.length > 0 && (
+      {primaryFeature && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {visibleFeatures.map((feature, i) => (
-            <Badge key={feature} tone={i === 0 ? "emerald" : "gray"}>
-              {feature}
-            </Badge>
-          ))}
-          {hiddenFeatureCount > 0 && <Badge tone="gray">+{hiddenFeatureCount} more</Badge>}
+          <Badge tone="emerald">{primaryFeature}</Badge>
+          {overflowFeatureCount > 0 && <Badge tone="gray">+{overflowFeatureCount}</Badge>}
         </div>
       )}
     </Card>

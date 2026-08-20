@@ -52,3 +52,13 @@ export function formatCoordinates(
 export function formatSessionCount(count: number): string {
   return `${count.toLocaleString("en-US")} session${count === 1 ? "" : "s"}`;
 }
+
+/** "Aug 27, 2022" — the one calendar-date phrase for discover cards and
+ * report pages, instead of each page picking its own date options. */
+export function formatDate(date: string | number | Date): string {
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

@@ -72,6 +72,23 @@ export interface DiscoverStats {
   areaCount: number;
 }
 
+export interface PopularDestinationsResult {
+  destinations: SearchDestination[];
+  /** True when there weren't enough genuinely popular destinations and the
+   * list was filled out with photographed destinations instead — callers
+   * should retitle the section (e.g. "Worth a look") rather than call a
+   * fallback list "Popular". */
+  isFallback: boolean;
+}
+
+/** A destination needs at least this many recorded sessions (including the
+ * pre-migration offset) to count as "popular" — not just the top of an
+ * otherwise-empty sort. */
+const POPULAR_DESTINATION_MIN_SESSIONS = 3;
+/** Below this many real popular destinations, the section falls back to
+ * photographed destinations instead of a half-empty "Popular" list. */
+const POPULAR_DESTINATION_FALLBACK_THRESHOLD = 6;
+
 const MAX_AREA_SEARCH_QUERY_LENGTH = 120;
 const MAX_AREA_SEARCH_RESULTS = 20;
 
@@ -208,23 +225,38 @@ export async function getNearbyDestinations(
 }
 
 /**
- * Most-visited destinations ordered by total session count from averages JSONB.
+ * Genuinely popular destinations: at least POPULAR_DESTINATION_MIN_SESSIONS
+ * recorded sessions (session_destinations, deduped by session, plus the
+ * pre-migration session_count_offset), ordered by that count descending.
+ *
+ * Most of the catalog has never been recorded, so this can come up short —
+ * when it returns fewer than POPULAR_DESTINATION_FALLBACK_THRESHOLD rows,
+ * it fills the rest with photographed destinations instead (isFallback:
+ * true) so the page can retitle the section rather than call an
+ * almost-empty list "popular".
  */
 export async function getPopularDestinations(
   limit: number = 20
-): Promise<SearchDestination[]> {
+): Promise<PopularDestinationsResult> {
   const result = await db.query(
-    `SELECT id, name, elevation, prominence, type,
-            activities, features,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng
-     FROM destinations
-     ORDER BY (averages->>'totalSessions')::int DESC NULLS LAST
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
+     FROM destinations d
+     LEFT JOIN (
+       SELECT destination_id, COUNT(DISTINCT session_id) AS session_count
+       FROM session_destinations
+       GROUP BY destination_id
+     ) counts ON counts.destination_id = d.id
+     WHERE (COALESCE(counts.session_count, 0) + d.session_count_offset) >= $2
+     ORDER BY session_count DESC, d.name ASC NULLS LAST
      LIMIT $1`,
-    [limit]
+    [limit, POPULAR_DESTINATION_MIN_SESSIONS]
   );
 
-  return result.rows.map((r: any) => ({
+  const destinations: SearchDestination[] = result.rows.map((r: any) => ({
     id: r.id,
     name: r.name,
     elevation: r.elevation != null ? Number(r.elevation) : null,
@@ -235,6 +267,37 @@ export async function getPopularDestinations(
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
   }));
+
+  if (destinations.length >= POPULAR_DESTINATION_FALLBACK_THRESHOLD) {
+    return { destinations, isFallback: false };
+  }
+
+  const fallback = await db.query(
+    `SELECT id, name, elevation, prominence, type,
+            activities, features,
+            ST_Y(location::geometry) AS lat,
+            ST_X(location::geometry) AS lng
+     FROM destinations
+     WHERE hero_image IS NOT NULL
+     ORDER BY elevation DESC NULLS LAST, name ASC NULLS LAST
+     LIMIT $1`,
+    [limit]
+  );
+
+  return {
+    destinations: fallback.rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      elevation: r.elevation != null ? Number(r.elevation) : null,
+      prominence: r.prominence != null ? Number(r.prominence) : null,
+      type: r.type,
+      activities: parseArray(r.activities),
+      features: parseArray(r.features),
+      lat: r.lat != null ? Number(r.lat) : null,
+      lng: r.lng != null ? Number(r.lng) : null,
+    })),
+    isFallback: true,
+  };
 }
 
 export async function searchRoutes(

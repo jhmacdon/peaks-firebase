@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   formatCoordinates,
+  formatDate,
   formatDurationRangeFriendly,
   formatHoursFriendly,
   formatSessionCount,
@@ -48,4 +49,11 @@ test("formatSessionCount is the single session-count phrase", () => {
   assert.equal(formatSessionCount(0), "0 sessions");
   assert.equal(formatSessionCount(1), "1 session");
   assert.equal(formatSessionCount(42), "42 sessions");
+});
+
+test("formatDate renders the one short calendar-date phrase", () => {
+  // Built from local-time components (not a UTC ISO string) so the
+  // assertion doesn't depend on the test runner's time zone.
+  assert.equal(formatDate(new Date(2022, 7, 27)), "Aug 27, 2022");
+  assert.equal(formatDate(new Date(2026, 0, 5)), "Jan 5, 2026");
 });

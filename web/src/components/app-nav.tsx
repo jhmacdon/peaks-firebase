@@ -23,6 +23,11 @@ export default function AppNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const navItems = user ? authenticatedNavItems : guestNavItems;
+  // The desktop header has a dedicated "Sign In" link in the right-side auth
+  // cluster below, so drop it from the pill nav there to avoid showing it
+  // twice. The mobile bottom nav has no separate auth cluster, so it keeps
+  // the full list — it's the only sign-in affordance on mobile.
+  const desktopNavItems = navItems.filter((item) => item.href !== "/login");
 
   return (
     <>
@@ -34,7 +39,7 @@ export default function AppNav() {
               Peaks
             </Link>
             <nav className="flex gap-1">
-              {navItems.map((item) => {
+              {desktopNavItems.map((item) => {
                 const isActive =
                   item.href === "/discover"
                     ? pathname === "/discover" || pathname === "/"

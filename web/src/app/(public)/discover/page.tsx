@@ -29,6 +29,7 @@ import {
   type TripReport,
 } from "../../../lib/actions/trip-reports";
 import { useAuth } from "../../../lib/auth-context";
+import { CURATED_POPULAR_DESTINATIONS, LOADING_LABEL } from "../../../lib/constants";
 import {
   describeRouteShape,
   formatDistanceMeters,
@@ -77,6 +78,7 @@ function DiscoverContent() {
 
   const [nearby, setNearby] = useState<SearchDestination[]>([]);
   const [popularDestinations, setPopularDestinations] = useState<SearchDestination[]>([]);
+  const [popularDestinationsFallback, setPopularDestinationsFallback] = useState(false);
   const [popularRoutes, setPopularRoutes] = useState<SearchRouteResult[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
   const [recentReports, setRecentReports] = useState<TripReport[]>([]);
@@ -86,11 +88,9 @@ function DiscoverContent() {
     listCount: 0,
     areaCount: 0,
   });
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
-  const [locationStatus, setLocationStatus] = useState<
-    "pending" | "granted" | "denied"
-  >(typeof window !== "undefined" && navigator.geolocation ? "pending" : "denied");
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const hasLocation = userLat !== null && userLng !== null;
 
@@ -102,17 +102,19 @@ function DiscoverContent() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Request geolocation once on mount
+  // Request geolocation once on mount. No status is tracked for denial or
+  // timeout — the nearby section and its teaser card simply stay absent
+  // when there's no location, rather than showing a permanent "location is
+  // off" failure card.
   useEffect(() => {
     if (typeof window === "undefined" || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLat(pos.coords.latitude);
         setUserLng(pos.coords.longitude);
-        setLocationStatus("granted");
       },
       () => {
-        setLocationStatus("denied");
+        // Denied or unavailable — hasLocation stays false, nothing to do.
       },
       { timeout: 10000, maximumAge: 600000 }
     );
@@ -185,11 +187,16 @@ function DiscoverContent() {
           getDiscoverStats(),
         ]);
         if (!cancelled) {
-          setPopularDestinations(popularDestinationResult);
+          setPopularDestinations(popularDestinationResult.destinations);
+          setPopularDestinationsFallback(popularDestinationResult.isFallback);
           setStats(statsResult);
+          setStatsLoaded(true);
         }
       } catch {
         // Keep the hero usable even if supporting data fails to load.
+        if (!cancelled) {
+          setStatsLoaded(true);
+        }
       }
     }
     loadHeroData();
@@ -254,7 +261,7 @@ function DiscoverContent() {
     };
   }, [query, hasLocation, userLat, userLng]);
 
-  const loading = !query && !sectionsLoaded;
+  const loading = !query && (!sectionsLoaded || !statsLoaded);
   const totalSearchResults =
     destinationResults.length +
     areaResults.length +
@@ -275,10 +282,9 @@ function DiscoverContent() {
     visibleAreaResults.length +
     visibleRouteResults.length +
     visibleListResults.length;
-  const popularSearches = popularDestinations
-    .map((destination) => destination.name)
-    .filter((name): name is string => Boolean(name))
-    .slice(0, 6);
+  // A hand-picked, always-available list, not a slice of whatever destination
+  // happens to have the most sessions this load — see constants.ts.
+  const popularSearches = CURATED_POPULAR_DESTINATIONS.map((d) => d.name);
 
   const topResults = [
     ...destinationResults.slice(0, 3).map((destination) => ({
@@ -469,10 +475,10 @@ function DiscoverContent() {
                 Browse the catalog
               </div>
               <div className="mt-4 space-y-4">
-                <CatalogStat label="Destination guides" value={stats.destinationCount.toLocaleString("en-US")} detail="Peaks, trailheads, shelters, and mapped objectives" />
-                <CatalogStat label="Protected areas" value={stats.areaCount.toLocaleString("en-US")} detail="Parks, forests, wilderness areas, and public lands" />
-                <CatalogStat label="Published routes" value={stats.routeCount.toLocaleString("en-US")} detail="Distance, gain, shape, and map-ready route pages" />
-                <CatalogStat label="Curated lists" value={stats.listCount.toLocaleString("en-US")} detail="Peak-bagging collections and planning checklists" />
+                <CatalogStat loading={!statsLoaded} label="Destination guides" value={stats.destinationCount.toLocaleString("en-US")} detail="Peaks, trailheads, shelters, and mapped objectives" />
+                <CatalogStat loading={!statsLoaded} label="Protected areas" value={stats.areaCount.toLocaleString("en-US")} detail="Parks, forests, wilderness areas, and public lands" />
+                <CatalogStat loading={!statsLoaded} label="Published routes" value={stats.routeCount.toLocaleString("en-US")} detail="Distance, gain, shape, and map-ready route pages" />
+                <CatalogStat loading={!statsLoaded} label="Curated lists" value={stats.listCount.toLocaleString("en-US")} detail="Peak-bagging collections and planning checklists" />
               </div>
             </aside>
 
@@ -653,24 +659,22 @@ function DiscoverContent() {
           )}
         </div>
       ) : loading ? (
-        <div className="py-12 text-center text-gray-500">Loading...</div>
+        <div className="py-12 text-center text-gray-500">{LOADING_LABEL}</div>
       ) : (
         <div className="mt-10 space-y-12">
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <QuickBrowseCard
-              href={locationStatus === "denied" ? "/map" : "#nearby"}
-              eyebrow="Closest start"
-              title="Nearby objectives"
-              detail={
-                hasLocation
-                  ? nearby.length > 0
+            {hasLocation && (
+              <QuickBrowseCard
+                href="#nearby"
+                eyebrow="Closest start"
+                title="Nearby objectives"
+                detail={
+                  nearby.length > 0
                     ? `${nearby.length} nearby options loaded from your current location`
                     : "We have your location, but nothing close is loaded yet"
-                  : locationStatus === "denied"
-                    ? "Location is off, so the map is the best way to browse nearby terrain"
-                    : "Use your location for quick-hit peaks, trailheads, and shelters"
-              }
-            />
+                }
+              />
+            )}
             <QuickBrowseCard
               href="/map"
               eyebrow="Map-first"
@@ -681,18 +685,21 @@ function DiscoverContent() {
               href="#featured-routes"
               eyebrow="Guides"
               title="Published routes"
-              detail={`${popularRoutes.length} public route guides with shape, distance, and gain.`}
+              detail={`${stats.routeCount.toLocaleString("en-US")} public route guides with shape, distance, and gain.`}
             />
-            <QuickBrowseCard
-              href="#recent-reports"
-              eyebrow="Conditions"
-              title="Recent field notes"
-              detail={`${recentReports.length} recent trip reports from the community.`}
-            />
+            {recentReports.length > 0 && (
+              <QuickBrowseCard
+                href="#recent-reports"
+                eyebrow="Conditions"
+                title="Recent field notes"
+                detail={`${recentReports.length} recent trip reports from the community.`}
+              />
+            )}
           </section>
 
-          {/* Nearby Section */}
-          {locationStatus !== "denied" && (
+          {/* Nearby Section — only once geolocation actually succeeded, not
+              while pending or after denial. No permanent failure card. */}
+          {hasLocation && (
             <section id="nearby">
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
@@ -708,9 +715,7 @@ function DiscoverContent() {
                   View on map
                 </Link>
               </div>
-              {!hasLocation ? (
-                <EmptyState>Requesting your location...</EmptyState>
-              ) : nearby.length === 0 ? (
+              {nearby.length === 0 ? (
                 <EmptyState>No destinations found nearby</EmptyState>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -729,15 +734,19 @@ function DiscoverContent() {
             </section>
           )}
 
-          {/* Popular Section */}
+          {/* Popular Section — falls back to photographed destinations (and
+              a different title) when too few destinations clear the
+              popularity threshold. */}
           <section id="popular-destinations">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">
-                  Popular destinations
+                  {popularDestinationsFallback ? "Worth a look" : "Popular destinations"}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  The most recorded mountain and destination guides in Peaks.
+                  {popularDestinationsFallback
+                    ? "Destination guides with photos, while more recorded activity comes in."
+                    : "The most recorded mountain and destination guides in Peaks."}
                 </p>
               </div>
             </div>
@@ -809,33 +818,34 @@ function DiscoverContent() {
             )}
           </section>
 
-          <section id="recent-reports">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Recent trip reports
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Community beta and field notes from recent outings.
-                </p>
+          {/* Recent trip reports — the section only exists when there's
+              something recent to show; a stale report from years ago isn't
+              "recent" just because it's the newest one on file. */}
+          {recentReports.length > 0 && (
+            <section id="recent-reports">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Recent trip reports
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Community beta and field notes from recent outings.
+                  </p>
+                </div>
+                <Link
+                  href={user ? "/reports/new" : "/register"}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                >
+                  {user ? "Write a report" : "Join to contribute"}
+                </Link>
               </div>
-              <Link
-                href={user ? "/reports/new" : "/register"}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-              >
-                {user ? "Write a report" : "Join to contribute"}
-              </Link>
-            </div>
-            {recentReports.length === 0 ? (
-              <EmptyState>No public trip reports yet</EmptyState>
-            ) : (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {recentReports.map((report) => (
                   <TripReportCard key={report.id} report={report} />
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
         </div>
       )}
     </div>
@@ -846,19 +856,25 @@ function CatalogStat({
   label,
   value,
   detail,
+  loading = false,
 }: {
   label: string;
   value: string;
   detail: string;
+  loading?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
       <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-        {value}
-      </div>
+      {loading ? (
+        <div className="mt-1.5 h-7 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+      ) : (
+        <div className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+          {value}
+        </div>
+      )}
       <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">{detail}</p>
     </div>
   );
@@ -920,7 +936,7 @@ export default function DiscoverPage() {
     <Suspense
       fallback={
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </div>
       }
     >

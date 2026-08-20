@@ -6,6 +6,8 @@ import Link from "next/link";
 import DestinationCard from "../../../../components/destination-card";
 import ProgressBar from "../../../../components/progress-bar";
 import { useAuth } from "../../../../lib/auth-context";
+import { LOADING_LABEL } from "../../../../lib/constants";
+import { parseListDescription } from "../../../../lib/list-content";
 import {
   getList,
   getListDestinations,
@@ -58,7 +60,7 @@ export default function ListDetailPage() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+        <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
       </div>
     );
   }
@@ -70,6 +72,8 @@ export default function ListDetailPage() {
       </div>
     );
   }
+
+  const listDescription = parseListDescription(list.description);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
@@ -88,8 +92,20 @@ export default function ListDetailPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold">{list.name}</h1>
-        {list.description && (
-          <p className="text-gray-500 mt-2">{list.description}</p>
+        {listDescription.paragraphs.map((paragraph, index) => (
+          <p key={index} className="text-gray-500 mt-2">
+            {paragraph}
+          </p>
+        ))}
+        {listDescription.sourceUrl && listDescription.sourceLabel && (
+          <a
+            href={listDescription.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-xs text-gray-400 hover:text-gray-600 hover:underline dark:text-gray-500 dark:hover:text-gray-300"
+          >
+            Source: {listDescription.sourceLabel}
+          </a>
         )}
         <p className="text-sm text-gray-400 mt-2">
           {list.destination_count} destination
