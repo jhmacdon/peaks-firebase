@@ -15,3 +15,5 @@ env:
     secret: peaks-db-password
   - variable: PEAKS_API_URL
     value: https://peaks-api-qownl77soa-uc.a.run.app
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: https://getpeaks.app
