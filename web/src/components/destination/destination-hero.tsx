@@ -65,10 +65,12 @@ export function DestinationHero({
           className="h-[260px] sm:h-[320px] lg:h-[380px]"
         />
         {elevationValue ? (
-          // z-500 clears Leaflet's tile/marker panes (400/600) and stays
-          // under its control layer (1000), so the tile attribution keeps
-          // sitting on top of the scrim instead of being painted over.
-          <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[500] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
+          // z-700 clears every Leaflet pane the scrim has to cover — tiles
+          // 200, overlay 400, shadow 500, marker 600, tooltip 650 — and
+          // stays under the control layer at 1000, so the tile attribution
+          // keeps sitting on top of the scrim rather than being painted
+          // over.
+          <div className="from-page via-page/85 pointer-events-none absolute inset-x-0 bottom-0 z-[700] bg-gradient-to-t to-transparent px-5 pt-16 pb-4">
             <StatCluster
               scale="page"
               value={elevationValue}
@@ -82,7 +84,10 @@ export function DestinationHero({
   }
 
   const sideTiles = [
-    second ? <PhotoTile key="photo-2" photo={second} alt={name} /> : null,
+    // Decorative: a second view of the same place, already named by the
+    // lead tile's alt text — repeating the name would just make a screen
+    // reader say it twice.
+    second ? <PhotoTile key="photo-2" photo={second} alt="" /> : null,
     hasMap ? (
       <MapPreviewTile key="map" name={name} lat={lat} lng={lng} boundary={boundary} />
     ) : null,

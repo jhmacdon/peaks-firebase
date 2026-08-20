@@ -1,10 +1,15 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import {
-  getDestination,
   getDestinationRoutes,
   getDestinationLists,
-  getDestinationSessionCount,
 } from "../../../../lib/actions/destinations";
+// The same wrapped references `layout.tsx` uses — importing the raw actions
+// here instead would read both rows a second time per request.
+import {
+  getDestinationCached,
+  getDestinationSessionCountCached,
+} from "../../../../lib/actions/cached-destinations";
 import { getNearbyDestinations } from "../../../../lib/actions/search";
 import {
   getTripReportsForDestination,
@@ -50,11 +55,19 @@ import {
 /** A missing route list or a slow Firestore read shouldn't take a catalog
  * page down with it; the section it feeds simply doesn't render. The
  * destination lookup itself is deliberately NOT wrapped — without it there
- * is no page. */
+ * is no page.
+ *
+ * `noStore()` on the failure path is what keeps that graceful degradation
+ * from turning into an hour of lying. The segment is cached for an hour
+ * (see layout.tsx), so without this a single transient database blip would
+ * pin "No routes are linked to this destination yet." onto a peak that has
+ * five, for the next 3,600 seconds. Marking the render dynamic keeps the
+ * thin version out of the cache, and the next request tries again. */
 async function settled<T>(task: Promise<T>, fallback: T): Promise<T> {
   try {
     return await task;
   } catch {
+    noStore();
     return fallback;
   }
 }
@@ -65,7 +78,7 @@ export default async function DestinationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const dest = await getDestination(id);
+  const dest = await getDestinationCached(id);
   if (!dest) notFound();
 
   const hasCoords = dest.lat != null && dest.lng != null;
@@ -74,7 +87,7 @@ export default async function DestinationDetailPage({
     await Promise.all([
       settled(getDestinationRoutes(id, { publicOnly: true }), []),
       settled(getDestinationLists(id), []),
-      settled(getDestinationSessionCount(id), 0),
+      settled(getDestinationSessionCountCached(id), 0),
       settled(getTripReportCountForDestination(id), 0),
       settled(getTripReportsForDestination(id, 5), []),
       hasCoords

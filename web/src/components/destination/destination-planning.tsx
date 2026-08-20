@@ -41,9 +41,12 @@ export function DestinationPlanning({
       {facilities.length > 0 ? (
         <dl className="mt-6 grid grid-cols-2 gap-x-10 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
           {facilities.map((row) => (
-            <div key={row.label}>
-              <dd className="text-[15px] text-ink">{row.value}</dd>
+            // Term before description in the DOM, as `dl` requires; the
+            // value-over-label reading order is a visual flip, so a screen
+            // reader still gets "Toilet: Vault" rather than "Vault: Toilet".
+            <div key={row.label} className="flex flex-col-reverse">
               <dt className="mt-0.5 text-[12px] text-muted">{row.label}</dt>
+              <dd className="text-[15px] text-ink">{row.value}</dd>
             </div>
           ))}
         </dl>

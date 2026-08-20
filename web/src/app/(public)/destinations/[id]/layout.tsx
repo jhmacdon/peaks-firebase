@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import {
-  getDestination,
-  getDestinationSessionCount,
-} from "../../../../lib/actions/destinations";
+  getDestinationCached,
+  getDestinationSessionCountCached,
+} from "../../../../lib/actions/cached-destinations";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { describeDestinationType } from "../../../../lib/destination-detail";
 import { buildDestinationJsonLd } from "../../../../lib/json-ld";
@@ -11,9 +10,31 @@ import { subdivisionName, countryName } from "../../../../lib/regions";
 import { describeDestination } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template, ~70,000 catalog pages, and the record behind any one of
+// them changes on the order of months. Rendering every visit against a
+// five-connection pool buys nothing, so the segment is cached for an hour —
+// declared here rather than on the page so metadata, JSON-LD, and the body
+// share one window and can't drift apart. Nothing on this route reads
+// cookies or headers; the sign-in-dependent parts (Save, personal activity)
+// are client islands that fetch after hydration, so one cached response is
+// correct for every reader.
+//
+// The empty `generateStaticParams` is what makes the hour real, and it
+// prebuilds NOTHING. `revalidate` on its own is inert for a dynamic segment
+// with no params generated: Next leaves the route out of the prerender
+// manifest entirely and answers every request with
+// `Cache-Control: private, no-cache, no-store` (measured — the render
+// timestamp changed on every curl). Returning `[]` puts the route in the
+// static-generation pass with zero paths, which registers it as an ISR
+// route: first request renders and fills the cache, the rest are served
+// from it (`x-nextjs-cache: MISS` then `HIT`, `s-maxage=3600`). Build time
+// is unchanged — no page is generated ahead of a request.
+export const revalidate = 3600;
+export const dynamicParams = true;
 
-const getDestinationForSeo = cache(getDestination);
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function DestinationLayout({
   children,
@@ -26,7 +47,7 @@ export default async function DestinationLayout({
   let jsonLd: ReturnType<typeof buildDestinationJsonLd> | null = null;
 
   try {
-    const destination = await getDestinationForSeo(id);
+    const destination = await getDestinationCached(id);
     if (destination) {
       jsonLd = buildDestinationJsonLd({
         name: destination.name,
@@ -58,7 +79,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const destination = await getDestinationForSeo(id);
+    const destination = await getDestinationCached(id);
     if (!destination) {
       return {
         title: "Destination not found",
@@ -69,7 +90,7 @@ export async function generateMetadata({
       };
     }
 
-    const sessionCount = await getDestinationSessionCount(id);
+    const sessionCount = await getDestinationSessionCountCached(id);
 
     const title = destination.name || "Unnamed destination";
     const featureWord =
