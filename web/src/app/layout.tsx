@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { absoluteUrl, siteConfig } from "../lib/seo";
 
@@ -11,6 +11,14 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Display face — page H1s and marketing headings only, set at the wide end
+// of its width axis (see --font-display / .font-display in globals.css).
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  axes: ["wdth"],
 });
 
 export const metadata: Metadata = {
@@ -61,7 +69,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} bg-page text-ink antialiased`}
       >
         {children}
       </body>

@@ -1,33 +1,119 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens — Peaks web overhaul, Task 7 (design foundation).
+ * Canonical source: docs/plans/web-overhaul.md, "Global Constraints" and
+ * "Design Tokens" sections. Full usage rules, the type ladder, and the
+ * StatCluster spec live in web/docs/design-tokens.md — read that before
+ * consuming any token below.
+ *
+ * Every color is a single custom property with one light value (below, in
+ * the theme layer) and one dark override (in the media query at the bottom
+ * of this block, unlayered so it always wins). Components never need a
+ * `dark:` variant for these tokens — the variable itself repaints.
+ *
+ * To add an explicit light/dark toggle later: duplicate the dark block's
+ * declarations under a `:root.dark { … }` rule and have the toggle add/remove
+ * that class. No other restructuring needed — this is the only place dark
+ * values are defined.
+ */
+@theme {
+  /* Ink (text) */
+  --color-ink: #21211f;
+  --color-ink-2: #43423f;
+  --color-muted: #64635e;
+  --color-faint: #8b8880;
+
+  /* Structure (borders, fills, backgrounds) */
+  --color-border: #e0e0de;
+  --color-hairline: #edece8;
+  --color-fill: #f2f2f0;
+  --color-surface: #f9f8f5;
+  --color-page: #ffffff;
+
+  /* Accent + semantic */
+  --color-accent: #46adbc;
+  --color-accent-text: #1d7a8a;
+  --color-alert: #ba4c21;
+  --color-success: #2c6e49;
+
+  /* Radius — 6px controls/inputs, 16px media/containers. Chips use the
+     stock `rounded-full` utility (9999px); no separate token needed. */
+  --radius-ctl: 6px;
+  --radius-media: 16px;
+
+  /* Shadow — floating chrome only (sticky bars, dropdowns, map controls).
+     Never on cards, sections, or resting content. */
+  --shadow-float:
+    0 6px 16px rgb(0 0 0 / 0.07),
+    0 0 1px rgb(0 0 0 / 0.2);
 }
 
+/* Font families. `inline` avoids a second indirection so the next/font
+   variables (scoped to <body> via their `.variable` className) resolve
+   correctly rather than being redeclared at :root. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-archivo);
+  /* Alias, not a distinct family: every stat/table numeral is Geist Mono.
+     Named separately from --font-mono so call sites read as intent
+     ("this is a numeral") rather than "this is generic code/mono text". */
+  --font-mono-num: var(--font-geist-mono);
+}
+
+/* Display type sits at the wide end of Archivo's width axis (brief: `wdth`
+   125). Paired with the `font-display` utility above so one className gets
+   both the family and the axis setting. */
+.font-display {
+  font-variation-settings: "wdth" 125;
+}
+
+/* Progressive enhancement: wider-gamut accent on P3-capable displays.
+   Applies to both themes — the accent hue doesn't change between them. */
+@supports (color: color(display-p3 0 0 0)) {
+  :root {
+    --color-accent: color(display-p3 0.332 0.674 0.729);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Warm dark, not slate — same R>G>B warm cast as the light ramp. */
+    --color-ink: #eceae6;
+    --color-ink-2: #c6c3bc;
+    --color-muted: #96938a;
+    /* Not specified in the plan's dark list; interpolated at the same
+       proportional position between --muted and --border as light-mode
+       --faint sits between --muted and --border (~4:1 contrast on
+       --page/--surface). */
+    --color-faint: #797770;
+
+    --color-border: #3a3936;
+    --color-hairline: #2e2d29;
+    --color-fill: #282722;
+    --color-surface: #201f1d;
+    --color-page: #181816;
+
+    /* --color-accent is unchanged in dark (see @supports block above). */
+    --color-accent-text: #7cc7d4;
+    --color-alert: #e06a48;
+    /* Not specified in the plan's dark list; brightened to a comparable
+       lightness as the given --alert dark bump, kept in the same hue
+       family as light --success (~4.8:1+ contrast on --page/--surface). */
+    --color-success: #4e9a6b;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
   min-height: 100vh;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 a {
@@ -35,7 +121,7 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
