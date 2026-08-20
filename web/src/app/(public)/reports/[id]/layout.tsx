@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getTripReport } from "../../../../lib/actions/trip-reports";
-import { absoluteUrl, siteConfig, summarizeText } from "../../../../lib/seo";
+import { adminDb } from "../../../../lib/firebase-admin";
+import { formatDate } from "../../../../lib/format";
+import { describeTripReport } from "../../../../lib/seo-descriptions";
+import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +13,21 @@ export default function ReportLayout({
   children: React.ReactNode;
 }) {
   return children;
+}
+
+/** Live Firestore profile lookup for the byline, rather than trusting the
+ * author-name snapshot stored on the report row at creation time — a
+ * display name change afterward should show up here. Falls back to the
+ * generic "A Peaks member" when the profile is gone or unreadable. */
+async function resolveAuthorDisplayName(userId: string): Promise<string> {
+  try {
+    const profile = await adminDb.collection("users").doc(userId).get();
+    const name = profile.exists ? profile.data()?.name : null;
+    if (typeof name === "string" && name.trim()) return name.trim();
+  } catch {
+    // A missing or unreadable profile must not block metadata generation.
+  }
+  return "A Peaks member";
 }
 
 export async function generateMetadata({
@@ -30,51 +48,45 @@ export async function generateMetadata({
       };
     }
 
-    const firstTextBlock = report.blocks.find((block) => block.type === "text");
-    const firstPhotoBlock = report.blocks.find((block) => block.type === "photo");
+    const authorName = await resolveAuthorDisplayName(report.userId);
+    const photoCount = report.blocks.filter((block) => block.type === "photo").length;
+
     const title = report.title;
-    const description =
-      summarizeText(
-        [
-          firstTextBlock?.content,
-          report.userName ? `By ${report.userName}` : null,
-          report.date ? new Date(report.date).toLocaleDateString("en-US") : null,
-        ],
-        160
-      ) ?? siteConfig.description;
+    const description = describeTripReport({
+      title,
+      authorName,
+      formattedDate: formatDate(report.date),
+      destinationCount: report.destinations.length,
+      photoCount,
+    });
+
+    const canonicalPath = `/reports/${id}`;
+    // Never the report's own photos here — those are Firebase Storage
+    // download URLs carrying a bucket name + access token (donner-a8608 +
+    // token leak). The generic branded image is the only safe default.
+    const imageUrl = absoluteUrl("/opengraph-image");
 
     return {
       title,
       description,
       alternates: {
-        canonical: absoluteUrl(`/reports/${id}`),
+        canonical: absoluteUrl(canonicalPath),
       },
       openGraph: {
         title,
         description,
-        url: absoluteUrl(`/reports/${id}`),
+        url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "article",
         publishedTime: report.date,
-        authors: [report.userName],
-        images: firstPhotoBlock
-          ? [
-              {
-                url: absoluteUrl(firstPhotoBlock.content),
-                width: 1200,
-                height: 630,
-                alt: title,
-              },
-            ]
-          : undefined,
+        authors: [authorName],
+        images: [{ url: imageUrl, width: 1200, height: 630, alt: siteConfig.name }],
       },
       twitter: {
-        card: firstPhotoBlock ? "summary_large_image" : "summary",
+        card: "summary_large_image",
         title,
         description,
-        images: firstPhotoBlock
-          ? [absoluteUrl(firstPhotoBlock.content)]
-          : undefined,
+        images: [imageUrl],
       },
     };
   } catch {

@@ -50,9 +50,13 @@ export function summarizeText(
   return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-export function locationLabel(
-  stateCode: string | null | undefined,
-  countryCode: string | null | undefined
+/** " · "-joined stat line for an OG image or card subtitle. Drops empty
+ * parts instead of printing a blank slot between separators. */
+export function joinStats(
+  parts: Array<string | null | undefined>,
+  separator: string = "  ·  "
 ): string | null {
-  return summarizeText([stateCode, countryCode], 32);
+  const filtered = parts.filter((part): part is string => Boolean(part && part.trim()));
+  if (filtered.length === 0) return null;
+  return filtered.join(separator);
 }

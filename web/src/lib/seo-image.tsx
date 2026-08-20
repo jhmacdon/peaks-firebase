@@ -1,3 +1,80 @@
+/** Per-entity dynamic OG image: name + one stat line + wordmark on a flat
+ * dark warm panel. Deliberately plainer than `SeoImage` — legible at
+ * thumbnail size across 60k+ generated pages instead of a bespoke look
+ * per page, and no external image fetches. */
+export function EntityOgImage({
+  name,
+  stats,
+}: {
+  name: string;
+  stats: string | null;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        background: "#181816",
+        color: "#f5f1ea",
+        padding: "76px",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          fontSize: 68,
+          fontWeight: 700,
+          lineHeight: 1.08,
+          letterSpacing: -1.6,
+          maxWidth: 1040,
+        }}
+      >
+        {name}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        {stats && (
+          <div
+            style={{
+              display: "flex",
+              fontSize: 32,
+              fontWeight: 500,
+              color: "rgba(245, 241, 234, 0.7)",
+            }}
+          >
+            {stats}
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontSize: 24,
+            fontWeight: 700,
+            letterSpacing: 0.4,
+          }}
+        >
+          <div
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 4,
+              background: "#2dd4bf",
+            }}
+          />
+          Peaks
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SeoImage({
   title,
   subtitle,

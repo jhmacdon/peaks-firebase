@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
 import {
   getDestination,
-  getDestinationRoutes,
   getDestinationSessionCount,
 } from "../../../../lib/actions/destinations";
-import {
-  absoluteUrl,
-  formatFeet,
-  locationLabel,
-  siteConfig,
-  summarizeText,
-} from "../../../../lib/seo";
+import { describeDestinationType } from "../../../../lib/destination-detail";
+import { subdivisionName, countryName } from "../../../../lib/regions";
+import { describeDestination } from "../../../../lib/seo-descriptions";
+import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -40,58 +36,46 @@ export async function generateMetadata({
       };
     }
 
-    const [routes, sessionCount] = await Promise.all([
-      getDestinationRoutes(id, { publicOnly: true }),
-      getDestinationSessionCount(id),
-    ]);
+    const sessionCount = await getDestinationSessionCount(id);
 
     const title = destination.name || "Unnamed destination";
-    const description =
-      summarizeText(
-        [
-          destination.type,
-          locationLabel(destination.state_code, destination.country_code),
-          formatFeet(destination.elevation),
-          routes.length > 0
-            ? `${routes.length} route${routes.length === 1 ? "" : "s"}`
-            : null,
-          sessionCount > 0
-            ? `${sessionCount} session${sessionCount === 1 ? "" : "s"}`
-            : null,
-        ],
-        160
-      ) ?? siteConfig.description;
+    const featureWord =
+      describeDestinationType(destination.type, destination.features)?.toLowerCase() ?? null;
+    const region =
+      subdivisionName(destination.country_code, destination.state_code) ??
+      countryName(destination.country_code);
+
+    const description = describeDestination({
+      name: title,
+      elevationMeters: destination.elevation,
+      featureWord,
+      region,
+      sessionCount,
+    });
+
+    const canonicalPath = `/destinations/${id}`;
 
     return {
       title,
       description,
       alternates: {
-        canonical: absoluteUrl(`/destinations/${id}`),
+        canonical: absoluteUrl(canonicalPath),
       },
+      // No `images` here: the co-located `opengraph-image.tsx` in this same
+      // segment is picked up automatically, with the correct build-hashed,
+      // cache-busted URL Next.js generates for it — a hand-built URL can't
+      // reproduce that hash.
       openGraph: {
         title,
         description,
-        url: absoluteUrl(`/destinations/${id}`),
+        url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
-        images: destination.hero_image
-          ? [
-              {
-                url: absoluteUrl(destination.hero_image),
-                width: 1200,
-                height: 630,
-                alt: title,
-              },
-            ]
-          : undefined,
       },
       twitter: {
-        card: destination.hero_image ? "summary_large_image" : "summary",
+        card: "summary_large_image",
         title,
         description,
-        images: destination.hero_image
-          ? [absoluteUrl(destination.hero_image)]
-          : undefined,
       },
     };
   } catch {

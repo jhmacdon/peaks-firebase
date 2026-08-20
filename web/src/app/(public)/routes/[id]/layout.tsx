@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import {
-  getRoute,
-  getRouteDestinations,
-  getRouteSessionCount,
-} from "../../../../lib/actions/routes";
-import { absoluteUrl, formatFeet, formatMiles, siteConfig, summarizeText } from "../../../../lib/seo";
+import { getRoute, getRouteDestinations } from "../../../../lib/actions/routes";
+import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
+import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -34,43 +31,38 @@ export async function generateMetadata({
       };
     }
 
-    const [destinations, sessionCount] = await Promise.all([
-      getRouteDestinations(id, { publicOnly: true }),
-      getRouteSessionCount(id, { publicOnly: true }),
-    ]);
+    const destinations = await getRouteDestinations(id, { publicOnly: true });
 
     const title = route.name || "Unnamed route";
-    const description =
-      summarizeText(
-        [
-          formatMiles(route.distance),
-          formatFeet(route.gain),
-          destinations.length > 0
-            ? `${destinations.length} destination${destinations.length === 1 ? "" : "s"}`
-            : null,
-          route.shape ? route.shape.replace(/_/g, " ") : null,
-          sessionCount > 0
-            ? `${sessionCount} session${sessionCount === 1 ? "" : "s"}`
-            : null,
-        ],
-        160
-      ) ?? siteConfig.description;
+    const primaryDestinationName = pickPrimaryRouteDestinationName(destinations);
+    const description = describeRoute({
+      name: title,
+      distanceMeters: route.distance,
+      gainMeters: route.gain,
+      primaryDestinationName,
+    });
+
+    const canonicalPath = `/routes/${id}`;
 
     return {
       title,
       description,
       alternates: {
-        canonical: absoluteUrl(`/routes/${id}`),
+        canonical: absoluteUrl(canonicalPath),
       },
+      // No `images` here: the co-located `opengraph-image.tsx` in this same
+      // segment is picked up automatically, with the correct build-hashed,
+      // cache-busted URL Next.js generates for it — a hand-built URL can't
+      // reproduce that hash.
       openGraph: {
         title,
         description,
-        url: absoluteUrl(`/routes/${id}`),
+        url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title,
         description,
       },

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { getList } from "../../../../lib/actions/lists";
-import { describeList } from "../../../../lib/seo-descriptions";
+import { getPublicSessionBundle } from "../../../../lib/actions/public-sessions";
+import { deriveActivityDisplayName, describeSessionActivity } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export default function ListLayout({
+export default function LogSessionLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -20,30 +20,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const list = await getList(id);
-    if (!list) {
+    const bundle = await getPublicSessionBundle(id);
+    if (!bundle) {
       return {
-        title: "List not found",
-        robots: {
-          index: false,
-          follow: false,
-        },
+        title: "Activity not found",
+        robots: { index: false, follow: false },
       };
     }
 
-    const title = list.name;
-    const description = describeList({
+    const { session, destinations } = bundle;
+    const title = deriveActivityDisplayName(session.name, destinations);
+    const description = describeSessionActivity({
       name: title,
-      description: list.description,
-      destinationCount: list.destination_count,
+      distanceMeters: session.distance,
+      gainMeters: session.gain,
+      totalTimeSeconds: session.total_time,
     });
 
-    const canonicalPath = `/lists/${id}`;
+    const canonicalPath = `/log/${id}`;
     const imageUrl = absoluteUrl("/opengraph-image");
 
     return {
       title,
       description,
+      // Personal activity pages stay out of search results even though the
+      // route itself is now crawlable (see robots.ts) so link unfurlers can
+      // still read this metadata.
+      robots: { index: false, follow: false },
       alternates: {
         canonical: absoluteUrl(canonicalPath),
       },
@@ -64,12 +67,9 @@ export async function generateMetadata({
     };
   } catch {
     return {
-      title: "List",
+      title: "Activity",
       description: siteConfig.description,
-      robots: {
-        index: false,
-        follow: false,
-      },
+      robots: { index: false, follow: false },
     };
   }
 }
