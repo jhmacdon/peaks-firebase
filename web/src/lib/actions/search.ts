@@ -224,16 +224,32 @@ export async function getNearbyDestinations(
   }));
 }
 
+/** Shared row shape between the two getPopularDestinations queries below. */
+function mapPopularDestinationRow(r: any): SearchDestination {
+  return {
+    id: r.id,
+    name: r.name,
+    elevation: r.elevation != null ? Number(r.elevation) : null,
+    prominence: r.prominence != null ? Number(r.prominence) : null,
+    type: r.type,
+    activities: parseArray(r.activities),
+    features: parseArray(r.features),
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
+  };
+}
+
 /**
  * Genuinely popular destinations: at least POPULAR_DESTINATION_MIN_SESSIONS
  * recorded sessions (session_destinations, deduped by session, plus the
  * pre-migration session_count_offset), ordered by that count descending.
  *
  * Most of the catalog has never been recorded, so this can come up short —
- * when it returns fewer than POPULAR_DESTINATION_FALLBACK_THRESHOLD rows,
- * it fills the rest with photographed destinations instead (isFallback:
- * true) so the page can retitle the section rather than call an
- * almost-empty list "popular".
+ * when it returns fewer than POPULAR_DESTINATION_FALLBACK_THRESHOLD rows, the
+ * genuinely popular rows are kept and topped up (not replaced) with
+ * photographed destinations, up to `limit`. isFallback is only true when a
+ * top-up row actually ended up in the result, so the page only retitles the
+ * section to "Worth a look" when it had to reach for one.
  */
 export async function getPopularDestinations(
   limit: number = 20
@@ -256,22 +272,15 @@ export async function getPopularDestinations(
     [limit, POPULAR_DESTINATION_MIN_SESSIONS]
   );
 
-  const destinations: SearchDestination[] = result.rows.map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    elevation: r.elevation != null ? Number(r.elevation) : null,
-    prominence: r.prominence != null ? Number(r.prominence) : null,
-    type: r.type,
-    activities: parseArray(r.activities),
-    features: parseArray(r.features),
-    lat: r.lat != null ? Number(r.lat) : null,
-    lng: r.lng != null ? Number(r.lng) : null,
-  }));
+  const destinations = result.rows.map(mapPopularDestinationRow);
 
   if (destinations.length >= POPULAR_DESTINATION_FALLBACK_THRESHOLD) {
     return { destinations, isFallback: false };
   }
 
+  // Top up (never replace) with photographed destinations, excluding any
+  // already found above so a destination doesn't appear twice.
+  const remaining = limit - destinations.length;
   const fallback = await db.query(
     `SELECT id, name, elevation, prominence, type,
             activities, features,
@@ -279,24 +288,15 @@ export async function getPopularDestinations(
             ST_X(location::geometry) AS lng
      FROM destinations
      WHERE hero_image IS NOT NULL
+       AND NOT (id = ANY($2::text[]))
      ORDER BY elevation DESC NULLS LAST, name ASC NULLS LAST
      LIMIT $1`,
-    [limit]
+    [remaining, destinations.map((d) => d.id)]
   );
 
   return {
-    destinations: fallback.rows.map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      elevation: r.elevation != null ? Number(r.elevation) : null,
-      prominence: r.prominence != null ? Number(r.prominence) : null,
-      type: r.type,
-      activities: parseArray(r.activities),
-      features: parseArray(r.features),
-      lat: r.lat != null ? Number(r.lat) : null,
-      lng: r.lng != null ? Number(r.lng) : null,
-    })),
-    isFallback: true,
+    destinations: [...destinations, ...fallback.rows.map(mapPopularDestinationRow)],
+    isFallback: fallback.rows.length > 0,
   };
 }
 
