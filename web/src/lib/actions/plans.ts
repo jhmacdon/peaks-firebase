@@ -4,6 +4,13 @@ import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
 import { FieldValue } from "firebase-admin/firestore";
 import db from "../db";
+import {
+  orderByIds,
+  type PlanDestinationRow,
+  type PlanProcessing,
+  type PlanReachedDestinationRow,
+  type PlanRouteRow,
+} from "../plan-detail";
 
 export interface Plan {
   id: string;
@@ -144,6 +151,161 @@ export async function getPlan(
   }
 
   return docToPlan(doc.id, data);
+}
+
+/** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays —
+ * same fallback used in lib/actions/destinations.ts and public-sessions.ts. */
+function parseFeatures(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.startsWith("{")) {
+    return value.slice(1, -1).split(",").filter(Boolean);
+  }
+  return [];
+}
+
+interface DestinationQueryRow {
+  id: string;
+  name: string | null;
+  elevation: number | null;
+  features: unknown;
+  lat: number | null;
+  lng: number | null;
+}
+
+interface ReachedDestinationQueryRow extends DestinationQueryRow {
+  ordinal: number;
+}
+
+interface RouteQueryRow {
+  id: string;
+  name: string | null;
+  polyline6: string | null;
+  distance: number | null;
+  gain: number | null;
+  status: string;
+}
+
+interface ProcessingQueryRow {
+  distance: number | null;
+  gain: number | null;
+  processing_state: string;
+  path: GeoJSON.LineString | GeoJSON.MultiLineString | null;
+}
+
+function shapeDestinationRow(row: DestinationQueryRow): PlanDestinationRow {
+  return {
+    id: String(row.id),
+    name: row.name ?? null,
+    elevation: row.elevation != null ? Number(row.elevation) : null,
+    features: parseFeatures(row.features),
+    lat: row.lat != null ? Number(row.lat) : null,
+    lng: row.lng != null ? Number(row.lng) : null,
+  };
+}
+
+function shapeRouteRow(row: RouteQueryRow): PlanRouteRow {
+  return {
+    id: String(row.id),
+    name: row.name ?? null,
+    polyline6: row.polyline6 ?? null,
+    distance: row.distance != null ? Number(row.distance) : null,
+    gain: row.gain != null ? Number(row.gain) : null,
+    status: row.status,
+  };
+}
+
+export interface PlanBundle {
+  plan: Plan;
+  destinations: PlanDestinationRow[];
+  routes: PlanRouteRow[];
+  reachedDestinations: PlanReachedDestinationRow[];
+  processing: PlanProcessing | null;
+}
+
+/**
+ * Everything the plan detail page needs, in one call: the Firestore plan
+ * (source of truth for identity, ownership, and the chosen destination/route
+ * id lists) plus one batched Cloud SQL query per data type for their catalog
+ * details — replacing the page's previous N getDestination()/getRoute()
+ * server-action round trips (one per destination, one per route).
+ *
+ * The processed fields (`processing`, `reachedDestinations`) come from the
+ * Cloud SQL plan-processing pipeline (`processPlan`), which only runs
+ * against client-supplied path geometry — today that's iOS's GPX-import
+ * flow (see schema.sql's comment on `plans.path`). A plan built or edited
+ * purely on the web never supplies a path, so these come back null/empty
+ * for the large majority of plans in production (measured: 8 of 1,214,
+ * 2026-08-20) — callers must treat them as "not processed," never as "still
+ * loading."
+ *
+ * Destination/route identity and ordering always come from the Firestore
+ * plan (reliable — every save writes it synchronously); their catalog
+ * details come from Cloud SQL's `destinations`/`routes` tables, which are
+ * the live catalog itself, not the fire-and-forget plan-processing mirror.
+ */
+export async function getPlanBundle(
+  token: string,
+  planId: string
+): Promise<PlanBundle | null> {
+  const plan = await getPlan(token, planId);
+  if (!plan) return null;
+
+  const [destResult, routeResult, reachedResult, processingResult] = await Promise.all([
+    plan.destinations.length > 0
+      ? db.query<DestinationQueryRow>(
+          `SELECT id, name, elevation, features,
+                  ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+           FROM destinations
+           WHERE id = ANY($1::text[])`,
+          [plan.destinations]
+        )
+      : Promise.resolve({ rows: [] as DestinationQueryRow[] }),
+    plan.routes.length > 0
+      ? db.query<RouteQueryRow>(
+          `SELECT id, name, polyline6, distance, gain, status
+           FROM routes
+           WHERE id = ANY($1::text[]) AND status IN ('active', 'superseded')`,
+          [plan.routes]
+        )
+      : Promise.resolve({ rows: [] as RouteQueryRow[] }),
+    db.query<ReachedDestinationQueryRow>(
+      `SELECT d.id, d.name, d.elevation, d.features,
+              ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng,
+              prd.ordinal
+       FROM destinations d
+       JOIN plan_reached_destinations prd ON prd.destination_id = d.id
+       WHERE prd.plan_id = $1
+       ORDER BY prd.ordinal`,
+      [planId]
+    ),
+    db.query<ProcessingQueryRow>(
+      `SELECT distance, gain, processing_state,
+              CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
+       FROM plans
+       WHERE id = $1`,
+      [planId]
+    ),
+  ]);
+
+  const processingRow = processingResult.rows[0];
+
+  return {
+    plan,
+    destinations: orderByIds(destResult.rows.map(shapeDestinationRow), plan.destinations),
+    routes: orderByIds(routeResult.rows.map(shapeRouteRow), plan.routes),
+    reachedDestinations: reachedResult.rows.map((row) => ({
+      ...shapeDestinationRow(row),
+      ordinal: Number(row.ordinal),
+    })),
+    processing: processingRow
+      ? {
+          distance: processingRow.distance != null ? Number(processingRow.distance) : null,
+          gain: processingRow.gain != null ? Number(processingRow.gain) : null,
+          processingState: processingRow.processing_state,
+          path: processingRow.path ?? null,
+        }
+      : null,
+  };
 }
 
 /**

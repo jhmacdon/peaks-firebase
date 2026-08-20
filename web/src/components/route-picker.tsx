@@ -8,11 +8,16 @@ import { Input } from "./ui/field";
 interface RoutePickerProps {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  selectedRoutes?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export default function RoutePicker({
   selectedIds,
   onChange,
+  selectedRoutes,
 }: RoutePickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<RouteRow[]>([]);
@@ -22,13 +27,34 @@ export default function RoutePicker({
   );
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    setSelectedNames((previous) => {
+      const next = new Map(previous);
+
+      for (const route of selectedRoutes ?? []) {
+        next.set(route.id, route.name);
+      }
+
+      for (const id of next.keys()) {
+        if (!selectedIds.includes(id)) {
+          next.delete(id);
+        }
+      }
+
+      return next;
+    });
+  }, [selectedRoutes, selectedIds]);
+
+  // Non-admin picker (plans, trip reports) — never surface a route still
+  // awaiting review or one an admin superseded. RoutePicker has no admin
+  // caller today, so this filters unconditionally rather than taking a prop.
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
       setResults([]);
       return;
     }
     setSearching(true);
-    const res = await getRoutes(q.trim(), 20, 0);
+    const res = await getRoutes(q.trim(), 20, 0, "active");
     setResults(res.routes);
     setSearching(false);
   }, []);
