@@ -594,10 +594,11 @@ Migrations: `20260613_area_link_on_destination.sql`, `20260613_area_link_on_sess
 
 ## Trailhead facts import
 
-Parking, fee, and bathroom facts for existing trailheads, imported from the
-normalized US Forest Service JSONL in `docs/trailheads/data/` (that directory
-lives in the `peaks` checkout, not this repo). The importer never creates a
-destination: a fact with no trailhead to hang on is reported, not invented.
+Parking, fee, bathroom and access-road facts for existing trailheads, imported
+from the normalized US Forest Service JSONL in `docs/trailheads/data/` (that
+directory lives in the `peaks` checkout, not this repo). The importer never
+creates a destination: a fact with no trailhead to hang on is reported, not
+invented.
 
 ```bash
 cd migrate
@@ -668,6 +669,45 @@ same dataset marks as charging (22 with an explicit STANDARD AMENITY FEE). The
 stricter claim wins. Both guards live in `feeLeafCandidates` in
 `migrate/src/trailhead-facts-utils.ts`.
 
+### The fourth source: access roads
+
+`usfs_roads` reads `<data-dir>/trailhead-road-access.jsonl`, written by
+`roads:derive` (see "Access-road processing store" below), and fills the
+`road_access` block. It is the one source that goes through **no gate at all**:
+the derivation walked the road network starting from the production trailhead
+rows, so every row carries the destination id it belongs to and the write is by
+exact id. The only question left is whether that destination is still there and
+still carries the `trailhead` feature — an id that has gone, or has stopped
+being a trailhead, is counted and reported, never written.
+
+The file is required like the raw EDW pull: a refresh that rewrote the fee and
+bathroom files but not this one is an incomplete refresh, and importing three
+quarters of it quietly would hide that. `--road-access=FILE` overrides the
+path.
+
+Five binding rules, all pinned by tests in `import-trailhead-facts.test.ts`:
+
+- **A row with any `skip_reason` is skipped whole**, including the facts it does
+  carry. An `unranked_path` row still publishes a surface and a road reference;
+  importing those under a skip reason would read as a complete answer.
+- **`derivation` is never imported, and `path_miles` least of all.** The audit
+  block is read for exactly one thing — the gate-window evidence count — and
+  written nowhere.
+- **A window whose path holds a segment MVUM never described is refused**, with
+  a warning naming the destination. `buildApproachRow` already withholds these,
+  so one arriving here means that gate regressed.
+- **A gate date must be a real `YYYY-MM-DD` day**, never reformatted or guessed
+  at, and **the window must sit within a year of the run**. A window touching
+  February 29 is anchored to the next leap year, which can land two years out;
+  one row does that today ("Stewart Creek Trailhead") and is refused.
+- **A leaf whose source kind is not one of `usfs_roadcore`, `usfs_mvum`,
+  `blm_gtlf` is refused**, and each leaf's envelope is rebuilt field by field
+  rather than copied — the file is a file, and `amenities` is unvalidated JSONB.
+
+Refusals drop one leaf, not the row: a trailhead whose dates are refused still
+gets its vehicle, surface and road reference. Rejected rows go to
+`import-rejected-roads.jsonl` with the reason.
+
 Each run records a `data_source_runs` row per source (`--no-log` skips it;
 a dry run is logged as `dry_run`, so it never counts as a refresh). Check
 staleness with:
@@ -676,11 +716,11 @@ staleness with:
 npm run check:data-freshness
 ```
 
-It exits non-zero when a required source — `usfs_fees` or `usfs_bathrooms` —
-is more than 90 days past its last successful import or has never run.
-`usfs_pages` is imported and logged the same way but cannot fail the check: it
-contributes a single leaf across the catalog, so the report lists it as
-`[other]` rather than alarming on it. Quarterly cadence and the full refresh
+It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms` or
+`usfs_roads` — is more than 90 days past its last successful import or has
+never run. `usfs_pages` is imported and logged the same way but cannot fail the
+check: it contributes a single leaf across the catalog, so the report lists it
+as `[other]` rather than alarming on it. Quarterly cadence and the full refresh
 sequence: `migrate/docs/trailhead-data-refresh.md`.
 
 ## Access-road processing store
@@ -744,7 +784,10 @@ pinned by `roads-approach-summary.test.ts`:
   holds an unrated edge, with counts saying why. Render unknown as unknown.
 
 BLM's `OBSRVE_ROUTE_USE_CLASS` is applied from the reviewed map at
-`<data-dir>/blm-route-use-class-map.jsonl` — don't rebuild it. Each of its 26
+`migrate/data/blm-route-use-class-map.jsonl` — version-controlled here because
+it is a reviewed judgement rather than downloaded data, and the default the
+loader reads (`--map=FILE` overrides; a data-directory copy is derived). Don't
+rebuild it. Each of its 26
 rows carries **two** reviewed decisions: `canonical_class` (what vehicle) and
 `drivable` (whether it is a road at all). Both are needed — the class folds a
 motorcycle single-track into `unknown`, which is right for "what vehicle" and

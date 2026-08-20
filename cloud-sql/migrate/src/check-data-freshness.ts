@@ -9,7 +9,17 @@ import db from "./db";
 // page sections contribute a single leaf across the whole catalog, so a
 // quarterly alarm on it would be noise. It still shows in the report as an
 // [other] source.
-export const REQUIRED_SOURCES: readonly string[] = ["usfs_fees", "usfs_bathrooms"];
+//
+// usfs_roads is required. It is a real pipeline behind a real claim — 328
+// trailheads with a vehicle, a surface and a road to name — and its facts go
+// stale in a way the others do not: a gate window is a published schedule that
+// the agency reissues, and a road can be regraded or washed out between
+// refreshes.
+export const REQUIRED_SOURCES: readonly string[] = [
+  "usfs_fees",
+  "usfs_bathrooms",
+  "usfs_roads",
+];
 export const STALE_AFTER_DAYS = 90;
 
 export const FRESHNESS_VIEW_PROBE_SQL =

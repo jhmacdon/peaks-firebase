@@ -20,6 +20,7 @@ import {
   recSiteKey,
   resolveLeafConflicts,
   resolveLocation,
+  roadAccessLeafCandidates,
   selectSamplePayloads,
   TOKEN_OVERLAP_NAME_THRESHOLD,
   tokenOverlapSimilarity,
@@ -33,14 +34,22 @@ import {
   type PageSectionRow,
   type RawRecSiteRow,
   type RegistryRow,
+  type RoadAccessRow,
   type SourcePoint,
   type TrailheadFactSource,
 } from "./trailhead-facts-utils";
 
-// Imports parking, fee, and bathroom facts for existing Peaks trailheads from
-// the normalized US Forest Service JSONL in docs/trailheads/data. It never
-// creates a destination: a fact with no trailhead to hang on is reported, not
-// invented. Dry-run by default; --apply writes.
+// Imports parking, fee, bathroom and access-road facts for existing Peaks
+// trailheads from the normalized US Forest Service JSONL in
+// docs/trailheads/data. It never creates a destination: a fact with no
+// trailhead to hang on is reported, not invented. Dry-run by default; --apply
+// writes.
+//
+// Three sources are matched to a trailhead by place and name. The fourth,
+// usfs_roads, is not matched at all: `roads:derive` walked the road network
+// starting from the production trailhead rows, so every row already carries
+// the destination id it belongs to. The only question left is whether that
+// destination is still there and still a trailhead.
 
 export interface Args {
   dataDir: string | null;
@@ -49,6 +58,7 @@ export interface Args {
   sectionsPath: string | null;
   registryPath: string | null;
   rawRecSitesPath: string | null;
+  roadAccessPath: string | null;
   reportDir: string | null;
   apply: boolean;
   dryRun: boolean;
@@ -136,6 +146,14 @@ FROM unnest($1::int[], $2::text[], $3::text[]) AS t(idx, source_name, destinatio
 export const EXISTING_AMENITIES_SQL =
   `SELECT id, amenities FROM destinations WHERE id = ANY($1::text[])`;
 
+// The road rows carry production destination ids. Two things can have happened
+// to one since the derivation read them: the row is gone (a dedupe merged it),
+// or it is still there but no longer a trailhead. Both are reported rather
+// than written, so a road fact never lands on a summit.
+export const ROAD_DESTINATION_SQL = `SELECT id, name,
+  ('trailhead'::destination_feature = ANY(features)) AS is_trailhead
+  FROM destinations WHERE id = ANY($1::text[])`;
+
 export const UPDATE_AMENITIES_SQL =
   `UPDATE destinations SET amenities = $2::jsonb WHERE id = $1`;
 
@@ -156,6 +174,7 @@ export function usage(): string {
     "  --sections=FILE       override <data-dir>/fs-page-sections.jsonl",
     "  --registry=FILE       override <data-dir>/fs-trailhead-page-registry.jsonl",
     "  --raw-rec-sites=FILE  override <data-dir>/raw/usfs-rec-sites-trailheads.jsonl",
+    "  --road-access=FILE    override <data-dir>/trailhead-road-access.jsonl",
     "  --report-dir=DIR      where the unmatched/rejected reports go (default: data dir)",
     "  --apply               write; without it the run is a dry run",
     "  --dry-run             the default, stated explicitly",
@@ -212,6 +231,7 @@ export function parseArgs(argv: string[]): Args {
     sectionsPath: textArg(argv, "--sections"),
     registryPath: textArg(argv, "--registry"),
     rawRecSitesPath: textArg(argv, "--raw-rec-sites"),
+    roadAccessPath: textArg(argv, "--road-access"),
     reportDir: textArg(argv, "--report-dir"),
     apply,
     dryRun: dryRunFlag || !apply,
@@ -265,6 +285,8 @@ interface SourceCounts {
   noFacts: number;
   noNearbyTrailhead: number;
   nameRejected: number;
+  /** Road rows only: the destination id is gone, or is no longer a trailhead. */
+  destinationVanished: number;
   matched: number;
   /** Matches by which half of the name gate carried them. */
   matchedByRule: Record<NameRule, number>;
@@ -281,8 +303,9 @@ function emptyCounts(): SourceCounts {
     noFacts: 0,
     noNearbyTrailhead: 0,
     nameRejected: 0,
+    destinationVanished: 0,
     matched: 0,
-    matchedByRule: { threshold: 0, containment: 0 },
+    matchedByRule: { threshold: 0, containment: 0, exact_id: 0 },
     rowsWritten: 0,
     refusals: {},
     notices: {},
@@ -319,6 +342,8 @@ interface ReportRecord {
   /** Page rows only: the region asked for and the regions the name lives in. */
   wanted_region?: string | null;
   point_regions?: string[];
+  /** Road rows only: the id the derivation wrote the row for. */
+  destination_id?: string;
   row: Record<string, unknown>;
 }
 
@@ -331,8 +356,9 @@ interface MatchRecord {
   matched_name: string;
   destination_id: string;
   destination_name: string;
-  distance_m: number;
-  similarity: number;
+  /** Absent on road rows: an exact id is not a distance or a resemblance. */
+  distance_m?: number;
+  similarity?: number;
 }
 
 export interface TrailheadFactsSummary {
@@ -650,6 +676,107 @@ function readSources(
   return rows;
 }
 
+/** One road row lifted to the shape the merge needs: an id and its leaves. */
+interface RoadFactRow {
+  destinationId: string;
+  name: string;
+  leaves: LeafCandidate[];
+  raw: Record<string, unknown>;
+}
+
+/**
+ * Read the derived access-road facts.
+ *
+ * No location index, no name gate, no radius: `roads:derive` started from the
+ * production trailhead rows, so each row names the destination it belongs to.
+ * The file is required like every other input — a refresh that rebuilt the fee
+ * and bathroom files but not this one is an incomplete refresh, and importing
+ * three quarters of it quietly would hide that.
+ */
+function readRoadAccess(
+  args: Args,
+  readFile: (filePath: string) => string,
+  counts: SourceCounts,
+  skipped: ReportRecord[],
+  logger: Pick<Console, "log" | "warn">,
+  runYear: number
+): RoadFactRow[] {
+  const filePath =
+    args.roadAccessPath ?? path.join(args.dataDir as string, "trailhead-road-access.jsonl");
+  const parsed = parseJsonl<RoadAccessRow>(readFile(filePath));
+  counts.malformed = parsed.malformed;
+  logger.log(`  Road access rows read: ${parsed.rows.length} (window year ${runYear} ± 1)`);
+
+  const limited = args.limit === null ? parsed.rows : parsed.rows.slice(0, args.limit);
+  const rows: RoadFactRow[] = [];
+  for (const row of limited) {
+    counts.rowsIn += 1;
+    const raw = row as unknown as Record<string, unknown>;
+    const destinationId = typeof row.destination_id === "string" ? row.destination_id.trim() : "";
+    if (destinationId.length === 0) {
+      counts.noLocation += 1;
+      countRefusals(counts, ["no_destination_id"]);
+      skipped.push({ reason: "no_destination_id", source: "usfs_roads", name: "", row: raw });
+      continue;
+    }
+    const extraction = roadAccessLeafCandidates(row, runYear);
+    countRefusals(counts, extraction.refusals);
+    // A `skipped_*` refusal is the derivation's own honest non-answer — 590 of
+    // the 918 rows today — and the counts say so already. Anything else is a
+    // fact this importer threw away, and a thrown-away fact needs somewhere a
+    // person can go and read it.
+    const refused = extraction.refusals.filter((reason) => !reason.startsWith("skipped_"));
+    if (refused.length > 0) {
+      skipped.push({
+        reason: refused[0],
+        source: "usfs_roads",
+        name: typeof row.destination_name === "string" ? row.destination_name : "",
+        destination_id: destinationId,
+        refusals: refused,
+        row: raw,
+      });
+    }
+    if (extraction.refusals.includes("seasonal_window_evidence_gap")) {
+      // The derivation withholds this leaf at emission, so a window arriving
+      // with an evidence gap means that gate regressed. Say so by name.
+      logger.warn(
+        `  Refused a gate window on ${destinationId} — the path holds a segment MVUM never ` +
+          `described, which buildApproachRow should already have withheld`
+      );
+    }
+    if (extraction.leaves.length === 0) {
+      counts.noFacts += 1;
+      continue;
+    }
+    rows.push({
+      destinationId,
+      name: typeof row.destination_name === "string" ? row.destination_name : "",
+      leaves: extraction.leaves,
+      raw,
+    });
+  }
+  return rows;
+}
+
+/** Which of the road rows' destinations are still there and still trailheads. */
+async function liveTrailheads(
+  database: QueryExecutor,
+  ids: readonly string[]
+): Promise<Map<string, { name: string; isTrailhead: boolean }>> {
+  const found = new Map<string, { name: string; isTrailhead: boolean }>();
+  for (let start = 0; start < ids.length; start += CANDIDATE_CHUNK_SIZE) {
+    const chunk = ids.slice(start, start + CANDIDATE_CHUNK_SIZE);
+    const result = await database.query<{ id: string; name: string; is_trailhead: boolean }>(
+      ROAD_DESTINATION_SQL,
+      [chunk]
+    );
+    for (const row of result.rows) {
+      found.set(row.id, { name: row.name ?? "", isTrailhead: row.is_trailhead === true });
+    }
+  }
+  return found;
+}
+
 async function assertApplySchema(client: QueryExecutor): Promise<void> {
   const result = await client.query<{
     destinations_ready: boolean;
@@ -685,13 +812,23 @@ async function logRuns(
   }
   for (const source of TRAILHEAD_FACT_SOURCES) {
     const counts = summary.counts[source];
-    const notes = [
-      `no_location=${counts.noLocation}`,
-      `no_facts=${counts.noFacts}`,
-      `no_nearby_trailhead=${counts.noNearbyTrailhead}`,
-      `name_rejected=${counts.nameRejected}`,
-      `threshold=${summary.nameThreshold} (${summary.nameMeasure})`,
-    ].join(" ");
+    // The road rows never went through the name gate, so its threshold would
+    // be noise on their run row; what they refused is the story instead.
+    const notes = (
+      source === "usfs_roads"
+        ? [
+            `no_facts=${counts.noFacts}`,
+            `vanished=${counts.destinationVanished}`,
+            ...Object.entries(counts.refusals).map(([reason, count]) => `${reason}=${count}`),
+          ]
+        : [
+            `no_location=${counts.noLocation}`,
+            `no_facts=${counts.noFacts}`,
+            `no_nearby_trailhead=${counts.noNearbyTrailhead}`,
+            `name_rejected=${counts.nameRejected}`,
+            `threshold=${summary.nameThreshold} (${summary.nameMeasure})`,
+          ]
+    ).join(" ");
     await database.query(INSERT_RUN_SQL, [
       source,
       "import",
@@ -732,12 +869,24 @@ export async function importTrailheadFacts(
     usfs_fees: emptyCounts(),
     usfs_bathrooms: emptyCounts(),
     usfs_pages: emptyCounts(),
+    usfs_roads: emptyCounts(),
   };
 
   logger.log(args.dryRun ? "Trailhead facts import (dry run)" : "Trailhead facts import (apply)");
   const skipped: ReportRecord[] = [];
   const rows = readSources(args, readFile, counts, skipped, logger);
   logger.log(`  Rows carrying at least one fact: ${rows.length}`);
+  // A gate window is anchored to a year, so how far that year may sit from
+  // today is a question about the run, not about the file.
+  const roadRows = readRoadAccess(
+    args,
+    readFile,
+    counts.usfs_roads,
+    skipped,
+    logger,
+    startedAt.getUTCFullYear()
+  );
+  logger.log(`  Road rows carrying at least one fact: ${roadRows.length}`);
 
   const trgmProbe = await database.query<{ pg_trgm_ready: boolean }>(PG_TRGM_PROBE_SQL);
   const usePgTrgm = trgmProbe.rows[0]?.pg_trgm_ready === true;
@@ -753,6 +902,7 @@ export async function importTrailheadFacts(
     usfs_fees: [],
     usfs_bathrooms: [],
     usfs_pages: [],
+    usfs_roads: [],
   };
   // Rows dropped before matching (no coordinates, no way to locate a page)
   // belong in the same report as the ones the gates rejected.
@@ -818,6 +968,49 @@ export async function importTrailheadFacts(
     const rowKeys = rowsByDestination.get(id) ?? new Set<string>();
     rowKeys.add(`${row.source} ${row.rowKey}`);
     rowsByDestination.set(id, rowKeys);
+  }
+
+  // The road rows join the same per-leaf merge, by exact id rather than by
+  // gate. An id the catalog no longer holds — or holds as something other than
+  // a trailhead — is reported and dropped, never written.
+  const roadCounts = counts.usfs_roads;
+  const live = await liveTrailheads(
+    database,
+    roadRows.map((row) => row.destinationId)
+  );
+  for (const row of roadRows) {
+    const destination = live.get(row.destinationId);
+    if (destination === undefined || !destination.isTrailhead) {
+      const reason = destination === undefined ? "destination_missing" : "destination_not_trailhead";
+      roadCounts.destinationVanished += 1;
+      countRefusals(roadCounts, [reason]);
+      reports.usfs_roads.push({
+        reason,
+        source: "usfs_roads",
+        name: row.name,
+        destination_id: row.destinationId,
+        row: row.raw,
+      });
+      continue;
+    }
+    roadCounts.matched += 1;
+    roadCounts.matchedByRule.exact_id += 1;
+    destinationNames.set(row.destinationId, destination.name);
+    matches.push({
+      source: "usfs_roads",
+      rule: "exact_id",
+      row_key: row.destinationId,
+      source_name: row.name,
+      matched_name: destination.name,
+      destination_id: row.destinationId,
+      destination_name: destination.name,
+    });
+    const existing = byDestination.get(row.destinationId) ?? [];
+    existing.push(...row.leaves);
+    byDestination.set(row.destinationId, existing);
+    const rowKeys = rowsByDestination.get(row.destinationId) ?? new Set<string>();
+    rowKeys.add(`usfs_roads ${row.destinationId}`);
+    rowsByDestination.set(row.destinationId, rowKeys);
   }
 
   const destinationIds = [...byDestination.keys()];
@@ -930,6 +1123,8 @@ export async function importTrailheadFacts(
     usfs_fees: "import-unmatched-fees.jsonl",
     usfs_bathrooms: "import-unmatched-bathrooms.jsonl",
     usfs_pages: "import-unmatched-pages.jsonl",
+    // Nothing here failed to match — a road row is refused on its own facts.
+    usfs_roads: "import-rejected-roads.jsonl",
   };
   for (const source of TRAILHEAD_FACT_SOURCES) {
     const filePath = path.join(reportDir, reportNames[source]);
@@ -982,11 +1177,16 @@ function logSummary(
     if (counts.malformed > 0) logger.log(`  malformed lines:      ${counts.malformed} (whole file, never limited)`);
     logger.log(`  no usable location:   ${counts.noLocation}`);
     logger.log(`  no fact to write:     ${counts.noFacts}`);
-    logger.log(`  no trailhead in ${summary.radiusM}m: ${counts.noNearbyTrailhead}`);
-    logger.log(`  name gate rejected:   ${counts.nameRejected}`);
-    logger.log(`  matched:              ${counts.matched}`);
-    logger.log(`    by name similarity: ${counts.matchedByRule.threshold}`);
-    logger.log(`    by token containment: ${counts.matchedByRule.containment}`);
+    if (source === "usfs_roads") {
+      logger.log(`  destination vanished: ${counts.destinationVanished}`);
+      logger.log(`  matched by exact id:  ${counts.matched}`);
+    } else {
+      logger.log(`  no trailhead in ${summary.radiusM}m: ${counts.noNearbyTrailhead}`);
+      logger.log(`  name gate rejected:   ${counts.nameRejected}`);
+      logger.log(`  matched:              ${counts.matched}`);
+      logger.log(`    by name similarity: ${counts.matchedByRule.threshold}`);
+      logger.log(`    by token containment: ${counts.matchedByRule.containment}`);
+    }
     logger.log(`  rows written:         ${counts.rowsWritten}`);
     const refusals = Object.entries(counts.refusals).sort((a, b) => b[1] - a[1]);
     for (const [reason, count] of refusals) logger.log(`    - not written, ${reason}: ${count}`);
