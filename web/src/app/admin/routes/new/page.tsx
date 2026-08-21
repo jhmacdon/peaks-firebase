@@ -4,9 +4,20 @@ import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminGuard from "../../../../components/admin-guard";
-import AdminNav from "../../../../components/admin-nav";
+import {
+  AdminPage,
+  AdminPageHeader,
+} from "../../../../components/admin/admin-page";
+import { Breadcrumb } from "../../../../components/detail-sections";
 import dynamic from "next/dynamic";
 import ElevationProfile from "../../../../components/elevation-profile";
+import { Badge } from "../../../../components/ui/badge";
+import { Button } from "../../../../components/ui/button";
+import { EmptyState } from "../../../../components/ui/empty-state";
+import { Input, Label, Select } from "../../../../components/ui/field";
+import { SectionHeading } from "../../../../components/ui/section-heading";
+import { StatCluster } from "../../../../components/ui/stat";
+import { useElevationProfileColors } from "../../../../components/use-elevation-profile-colors";
 import { useAuth } from "../../../../lib/auth-context";
 import {
   processGPX,
@@ -47,6 +58,7 @@ type Step = "upload" | "review" | "segments" | "save";
 function NewRouteContent() {
   const router = useRouter();
   const { getIdToken } = useAuth();
+  const elevationProfileColors = useElevationProfileColors();
   const [step, setStep] = useState<Step>("upload");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -306,561 +318,621 @@ function NewRouteContent() {
     }));
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link
-            href="/admin/routes"
-            className="hover:text-gray-900 dark:hover:text-gray-100"
-          >
-            Routes
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-gray-100">New Route</span>
-        </div>
-
-        <h2 className="text-2xl font-semibold mb-6">Create Route</h2>
-
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6 text-sm">
-          <StepBadge label="1. Upload" active={step === "upload"} done={step !== "upload"} />
-          <span className="text-gray-300">&rarr;</span>
-          <StepBadge label="2. Review" active={step === "review"} done={step === "segments" || step === "save"} />
-          <span className="text-gray-300">&rarr;</span>
-          <StepBadge label="3. Segments" active={step === "segments"} done={step === "save"} />
-          <span className="text-gray-300">&rarr;</span>
-          <StepBadge label="4. Save" active={step === "save"} done={false} />
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Step 1: Upload */}
-        {step === "upload" && (
-          <UploadStep
-            processing={processing}
-            onDrop={handleDrop}
-            onFileInput={handleFileInput}
+    <AdminPage className="space-y-10">
+      <AdminPageHeader
+        title="Create route"
+        description="Import a GPX track, review its shape and destinations, then reuse or create trail segments."
+        breadcrumb={
+          <Breadcrumb
+            current="Create route"
+            parentHref="/admin/routes"
+            parentLabel="Routes"
           />
-        )}
+        }
+      />
 
-        {/* Step 2: Review */}
-        {step === "review" && stats && (
-          <div className="space-y-6">
-            {/* Route Name */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <input
+      <div
+        className="flex items-center gap-2 overflow-x-auto pb-1 text-sm"
+        aria-label="Route creation progress"
+      >
+        <StepBadge label="1. Upload" active={step === "upload"} done={step !== "upload"} />
+        <span className="text-faint" aria-hidden>›</span>
+        <StepBadge
+          label="2. Review"
+          active={step === "review"}
+          done={step === "segments" || step === "save"}
+        />
+        <span className="text-faint" aria-hidden>›</span>
+        <StepBadge label="3. Segments" active={step === "segments"} done={step === "save"} />
+        <span className="text-faint" aria-hidden>›</span>
+        <StepBadge label="4. Save" active={step === "save"} done={false} />
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-media border border-alert/30 bg-alert/10 p-4 text-sm text-alert"
+        >
+          {error}
+        </div>
+      )}
+
+      {step === "upload" && (
+        <UploadStep
+          processing={processing}
+          onDrop={handleDrop}
+          onFileInput={handleFileInput}
+        />
+      )}
+
+      {step === "review" && stats && (
+        <div className="space-y-12">
+          <section className="space-y-6" aria-labelledby="route-details-heading">
+            <SectionHeading>
+              <span id="route-details-heading">Route details</span>
+            </SectionHeading>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="route-name">Route name</Label>
+                <Input
+                  id="route-name"
                   type="text"
                   value={routeName}
                   onChange={(e) => setRouteName(e.target.value)}
-                  placeholder="Route name..."
-                  className="text-2xl font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none pb-1 flex-1"
+                  placeholder="Route name…"
+                  className="text-base"
                 />
-                <button
-                  onClick={() => {
-                    setStep("upload");
-                    setAnalysis(null);
-                    setPoints([]);
-                  }}
-                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setStep("upload");
+                  setAnalysis(null);
+                  setPoints([]);
+                }}
+              >
+                Upload another file
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-x-10 gap-y-6">
+              <StatCluster
+                scale="topline"
+                value={(stats.distance / 1609.34).toFixed(1)}
+                unit="mi"
+                label="One-way distance"
+              />
+              <StatCluster
+                scale="topline"
+                value={Math.round(stats.gain * 3.28084).toLocaleString()}
+                unit="ft"
+                label="Gain"
+              />
+              <StatCluster
+                scale="topline"
+                value={Math.round(stats.loss * 3.28084).toLocaleString()}
+                unit="ft"
+                label="Loss"
+              />
+              <StatCluster
+                scale="topline"
+                value={Math.round(stats.minEle * 3.28084).toLocaleString()}
+                unit="ft"
+                label="Minimum elevation"
+              />
+              <StatCluster
+                scale="topline"
+                value={Math.round(stats.maxEle * 3.28084).toLocaleString()}
+                unit="ft"
+                label="Maximum elevation"
+              />
+            </div>
+          </section>
+
+          <section className="space-y-5" aria-labelledby="route-shape-heading">
+            <SectionHeading>
+              <span id="route-shape-heading">Shape and tools</span>
+            </SectionHeading>
+            <div className="grid gap-4 sm:max-w-xl sm:grid-cols-2">
+              <div>
+                <Label htmlFor="route-shape">Shape</Label>
+                <Select
+                  id="route-shape"
+                  value={shape}
+                  onChange={(e) => setShape(e.target.value)}
                 >
-                  Upload Different
-                </button>
+                  <option value="out_and_back">Out and back</option>
+                  <option value="loop">Loop</option>
+                  <option value="point_to_point">Point to point</option>
+                  <option value="lollipop">Lollipop</option>
+                </Select>
               </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <MiniStat
-                  label="Distance (one-way)"
-                  value={`${(stats.distance / 1609.34).toFixed(1)} mi`}
-                />
-                <MiniStat
-                  label="Gain"
-                  value={`${Math.round(stats.gain * 3.28084).toLocaleString()} ft`}
-                />
-                <MiniStat
-                  label="Loss"
-                  value={`${Math.round(stats.loss * 3.28084).toLocaleString()} ft`}
-                />
-                <MiniStat
-                  label="Min Elevation"
-                  value={`${Math.round(stats.minEle * 3.28084).toLocaleString()} ft`}
-                />
-                <MiniStat
-                  label="Max Elevation"
-                  value={`${Math.round(stats.maxEle * 3.28084).toLocaleString()} ft`}
-                />
+              <div>
+                <Label htmlFor="route-completion">Completion</Label>
+                <Select
+                  id="route-completion"
+                  value={completion}
+                  onChange={(e) => setCompletion(e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="straight">Straight</option>
+                  <option value="reverse">Reverse</option>
+                </Select>
               </div>
             </div>
 
-            {/* Shape & Tools */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-4">Route Shape & Tools</h3>
-              <div className="flex flex-wrap items-center gap-4">
-                <div>
-                  <label className="text-sm text-gray-500 block mb-1">Shape</label>
-                  <select
-                    value={shape}
-                    onChange={(e) => setShape(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent text-sm"
-                  >
-                    <option value="out_and_back">Out & Back</option>
-                    <option value="loop">Loop</option>
-                    <option value="point_to_point">Point to Point</option>
-                    <option value="lollipop">Lollipop</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500 block mb-1">Completion</label>
-                  <select
-                    value={completion}
-                    onChange={(e) => setCompletion(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent text-sm"
-                  >
-                    <option value="none">None</option>
-                    <option value="straight">Straight</option>
-                    <option value="reverse">Reverse</option>
-                  </select>
-                </div>
-
-                {shape === "out_and_back" && turnaroundIndex && !chopped && (
-                  <div className="ml-auto">
-                    <button
-                      onClick={handleChop}
-                      disabled={processing}
-                      className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
-                    >
-                      {processing ? "Chopping..." : "Chop at Turnaround"}
-                    </button>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Removes the return portion, keeping one-way only
-                    </p>
-                  </div>
-                )}
-
-                {chopped && (
-                  <span className="text-sm text-green-600 dark:text-green-400 ml-auto">
-                    Chopped to one-way
-                  </span>
-                )}
+            {shape === "out_and_back" && turnaroundIndex && !chopped && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button variant="secondary" onClick={handleChop} disabled={processing}>
+                  {processing ? "Chopping…" : "Chop at turnaround"}
+                </Button>
+                <p className="text-xs text-muted">
+                  Removes the return portion and keeps the one-way track.
+                </p>
               </div>
-            </div>
+            )}
 
-            {/* Map */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="font-semibold mb-3">Route Map</h3>
+            {chopped && (
+              <p className="text-sm font-medium text-success">Chopped to one-way.</p>
+            )}
+          </section>
+
+          <section className="space-y-3" aria-labelledby="route-map-heading">
+            <SectionHeading>
+              <span id="route-map-heading">Route map</span>
+            </SectionHeading>
+            <div className="overflow-hidden rounded-media bg-fill">
               <RouteBuilderMap
                 points={points}
-                destinations={nearbyDests.map((d) => ({
-                  id: d.id,
-                  name: d.name,
-                  lat: d.lat,
-                  lng: d.lng,
-                  selected: selectedDestIds.has(d.id),
+                destinations={nearbyDests.map((destination) => ({
+                  id: destination.id,
+                  name: destination.name,
+                  lat: destination.lat,
+                  lng: destination.lng,
+                  selected: selectedDestIds.has(destination.id),
                 }))}
                 highlightIndex={highlightIndex}
                 turnaroundIndex={!chopped ? turnaroundIndex : undefined}
                 onDestinationToggle={toggleDest}
               />
             </div>
+          </section>
 
-            {/* Elevation Profile */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="font-semibold mb-3">Elevation Profile</h3>
+          <section className="space-y-3" aria-labelledby="route-elevation-heading">
+            <SectionHeading>
+              <span id="route-elevation-heading">Elevation profile</span>
+            </SectionHeading>
+            <div className="rounded-media bg-surface p-4">
               <ElevationProfile
                 points={points}
+                colors={elevationProfileColors}
+                label={`Elevation profile for ${routeName || "this route"}`}
                 highlightIndex={highlightIndex}
                 onHover={setHighlightIndex}
               />
             </div>
+          </section>
 
-            {/* Trailhead Prompt */}
-            {showTrailheadPrompt && !trailheadDismissed && !trailheadCreated && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-amber-900 dark:text-amber-200">
-                      No starting destination found
-                    </h3>
-                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                      There&apos;s no destination near the start of this route. Would you like to create one?
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setTrailheadDismissed(true)}
-                    className="text-amber-400 hover:text-amber-600 dark:text-amber-600 dark:hover:text-amber-400 text-lg leading-none"
-                    title="Dismiss"
-                  >
-                    &times;
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="text-xs text-amber-700 dark:text-amber-400 block mb-1">Name</label>
-                    <input
-                      type="text"
-                      value={trailheadName}
-                      onChange={(e) => setTrailheadName(e.target.value)}
-                      placeholder={trailheadName ? undefined : "Loading suggestion..."}
-                      className="w-full px-3 py-2 text-sm border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-amber-700 dark:text-amber-400 block mb-1">Type</label>
-                    <select
-                      value={trailheadFeature}
-                      onChange={(e) => setTrailheadFeature(e.target.value)}
-                      className="px-3 py-2 text-sm border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-900"
-                    >
-                      <option value="trailhead">Trailhead</option>
-                      <option value="summit">Summit</option>
-                      <option value="hut">Hut</option>
-                      <option value="lookout">Lookout</option>
-                      <option value="lake">Lake</option>
-                      <option value="landform">Landform</option>
-                      <option value="viewpoint">Viewpoint</option>
-                      <option value="waterfall">Waterfall</option>
-                      <option value="campsite">Campsite</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={handleCreateTrailhead}
-                    disabled={trailheadLoading || !trailheadName.trim()}
-                    className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
-                  >
-                    {trailheadLoading ? "Creating..." : "Create Destination"}
-                  </button>
-                </div>
-                <div className="mt-3">
-                  <p className="text-xs text-amber-600 dark:text-amber-500 mb-2">
-                    Drag the marker to adjust the location.
-                    Current: {trailheadLat.toFixed(5)}, {trailheadLng.toFixed(5)}
-                    {points[0]?.ele != null ? ` (${Math.round(points[0].ele * 3.28084).toLocaleString()} ft)` : ""}
+          {showTrailheadPrompt && !trailheadDismissed && !trailheadCreated && (
+            <section className="space-y-5" aria-labelledby="trailhead-prompt-heading">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <SectionHeading>
+                    <span id="trailhead-prompt-heading">No starting destination found</span>
+                  </SectionHeading>
+                  <p className="mt-1 max-w-[68ch] text-sm text-muted">
+                    There is no destination near the start of this route. Add one now if the track begins at a trailhead or landmark.
                   </p>
-                  <LocationPickerMap
-                    lat={trailheadLat}
-                    lng={trailheadLng}
-                    routePoints={points.slice(0, Math.min(50, points.length))}
-                    onChange={(lat, lng) => {
-                      setTrailheadLat(lat);
-                      setTrailheadLng(lng);
-                    }}
+                </div>
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={() => setTrailheadDismissed(true)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+                <div>
+                  <Label htmlFor="trailhead-name">Name</Label>
+                  <Input
+                    id="trailhead-name"
+                    type="text"
+                    value={trailheadName}
+                    onChange={(e) => setTrailheadName(e.target.value)}
+                    placeholder={trailheadName ? undefined : "Loading suggestion…"}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="trailhead-feature">Type</Label>
+                  <Select
+                    id="trailhead-feature"
+                    value={trailheadFeature}
+                    onChange={(e) => setTrailheadFeature(e.target.value)}
+                  >
+                    <option value="trailhead">Trailhead</option>
+                    <option value="summit">Summit</option>
+                    <option value="hut">Hut</option>
+                    <option value="lookout">Lookout</option>
+                    <option value="lake">Lake</option>
+                    <option value="landform">Landform</option>
+                    <option value="viewpoint">Viewpoint</option>
+                    <option value="waterfall">Waterfall</option>
+                    <option value="campsite">Campsite</option>
+                  </Select>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={handleCreateTrailhead}
+                  disabled={trailheadLoading || !trailheadName.trim()}
+                >
+                  {trailheadLoading ? "Creating…" : "Create destination"}
+                </Button>
               </div>
-            )}
 
-            {trailheadCreated && (
-              <div className="bg-green-50 dark:bg-green-950/30 rounded-xl border border-green-200 dark:border-green-800 p-4 text-sm text-green-700 dark:text-green-300">
-                Created &ldquo;{trailheadName}&rdquo; and added it to this route.
+              <p className="font-mono-num text-xs tabular-nums text-muted">
+                Drag the marker to adjust the location. Current: {trailheadLat.toFixed(5)}, {trailheadLng.toFixed(5)}
+                {points[0]?.ele != null
+                  ? ` (${Math.round(points[0].ele * 3.28084).toLocaleString()} ft)`
+                  : ""}
+              </p>
+              <div className="overflow-hidden rounded-media bg-fill">
+                <LocationPickerMap
+                  lat={trailheadLat}
+                  lng={trailheadLng}
+                  routePoints={points.slice(0, Math.min(50, points.length))}
+                  onChange={(lat, lng) => {
+                    setTrailheadLat(lat);
+                    setTrailheadLng(lng);
+                  }}
+                />
               </div>
-            )}
+            </section>
+          )}
 
-            {/* Destinations */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-4">
-                Destinations Along Route ({nearbyDests.length} found)
-              </h3>
-              {nearbyDests.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  No destinations found within 1.5km of route
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {nearbyDests.map((dest) => (
-                    <label
-                      key={dest.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                        selectedDestIds.has(dest.id)
-                          ? "border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30"
-                          : "border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedDestIds.has(dest.id)}
-                        onChange={() => toggleDest(dest.id)}
-                        className="rounded"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">
-                          {dest.name || "Unnamed"}
-                        </div>
-                        <div className="text-xs text-gray-500 flex gap-2">
-                          {dest.elevation && (
-                            <span>
-                              {Math.round(dest.elevation * 3.28084).toLocaleString()} ft
-                            </span>
-                          )}
-                          <span>{dest.distanceFromRoute}m from route</span>
-                          {dest.features.length > 0 && (
-                            <span>{dest.features.join(", ")}</span>
-                          )}
-                        </div>
+          {trailheadCreated && (
+            <p className="text-sm font-medium text-success">
+              Created &ldquo;{trailheadName}&rdquo; and added it to this route.
+            </p>
+          )}
+
+          <section className="space-y-5" aria-labelledby="route-destinations-heading">
+            <div>
+              <SectionHeading>
+                <span id="route-destinations-heading">Destinations along route</span>
+              </SectionHeading>
+              <p className="mt-1 text-sm text-muted">
+                {nearbyDests.length} found within 1.5 km of the track.
+              </p>
+            </div>
+            {nearbyDests.length === 0 ? (
+              <EmptyState
+                title="No nearby destinations"
+                description="No destinations were found within 1.5 km of this route."
+              />
+            ) : (
+              <div className="overflow-hidden rounded-media border border-border bg-page">
+                {nearbyDests.map((destination, index) => (
+                  <label
+                    key={destination.id}
+                    className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors ${
+                      index > 0 ? "border-t border-hairline" : ""
+                    } ${selectedDestIds.has(destination.id) ? "bg-fill" : "hover:bg-surface"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedDestIds.has(destination.id)}
+                      onChange={() => toggleDest(destination.id)}
+                      className="rounded-ctl accent-accent"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-ink">
+                        {destination.name || "Unnamed"}
                       </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                        {destination.elevation && (
+                          <span className="font-mono-num tabular-nums">
+                            {Math.round(destination.elevation * 3.28084).toLocaleString()} ft
+                          </span>
+                        )}
+                        <span className="font-mono-num tabular-nums">
+                          {destination.distanceFromRoute} m from route
+                        </span>
+                        {destination.features.length > 0 && (
+                          <span>{destination.features.join(", ")}</span>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </section>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setStep("upload");
-                  setAnalysis(null);
-                  setPoints([]);
-                }}
-                className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAnalyzeSegments}
-                disabled={analyzing || !routeName.trim()}
-                className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {analyzing ? "Analyzing Segments..." : "Analyze Segments"}
-              </button>
-            </div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setStep("upload");
+                setAnalysis(null);
+                setPoints([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAnalyzeSegments}
+              disabled={analyzing || !routeName.trim()}
+            >
+              {analyzing ? "Analyzing segments…" : "Analyze segments"}
+            </Button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Step 3: Segment Analysis */}
-        {step === "segments" && decomposition && stats && (
-          <div className="space-y-6">
-            {/* Summary */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-2">Segment Analysis for &ldquo;{routeName}&rdquo;</h3>
-              <div className="flex gap-4 text-sm text-gray-500">
-                <span>{decomposition.segments.length} segment{decomposition.segments.length !== 1 ? "s" : ""}</span>
-                <span>{decomposition.segments.filter((s) => s.type === "existing").length} existing reused</span>
-                <span>{decomposition.segments.filter((s) => s.type === "split").length} partial matches</span>
-                <span>{decomposition.segments.filter((s) => s.type === "new").length} new</span>
+      {step === "segments" && decomposition && stats && (
+        <div className="space-y-12">
+          <section className="space-y-6" aria-labelledby="segment-analysis-heading">
+            <SectionHeading>
+              <span id="segment-analysis-heading">
+                Segment analysis for &ldquo;{routeName}&rdquo;
+              </span>
+            </SectionHeading>
+            <div className="flex flex-wrap gap-x-10 gap-y-6">
+              <StatCluster
+                value={decomposition.segments.length.toLocaleString()}
+                label="Segments"
+                scale="card"
+              />
+              <StatCluster
+                value={decomposition.segments.filter((segment) => segment.type === "existing").length.toLocaleString()}
+                label="Existing reused"
+                scale="card"
+              />
+              <StatCluster
+                value={decomposition.segments.filter((segment) => segment.type === "split").length.toLocaleString()}
+                label="Partial matches"
+                scale="card"
+              />
+              <StatCluster
+                value={decomposition.segments.filter((segment) => segment.type === "new").length.toLocaleString()}
+                label="New segments"
+                scale="card"
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3" aria-labelledby="segment-map-heading">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <SectionHeading>
+                <span id="segment-map-heading">Segment map</span>
+              </SectionHeading>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-ink-2" aria-label="Segment types">
+                <SegmentLegendItem type="new" label="New" />
+                <SegmentLegendItem type="existing" label="Existing" />
+                <SegmentLegendItem type="split" label="Partial match" />
               </div>
             </div>
-
-            {/* Map with color-coded segments */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">Segment Map</h3>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-1 rounded bg-blue-600 inline-block" /> New
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-1 rounded bg-purple-600 inline-block" /> Existing
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-1 rounded bg-amber-500 inline-block" /> Partial Match
-                  </span>
-                </div>
-              </div>
+            <div className="overflow-hidden rounded-media bg-fill">
               <RouteBuilderMap
                 points={points}
-                destinations={nearbyDests.map((d) => ({
-                  id: d.id,
-                  name: d.name,
-                  lat: d.lat,
-                  lng: d.lng,
-                  selected: selectedDestIds.has(d.id),
+                destinations={nearbyDests.map((destination) => ({
+                  id: destination.id,
+                  name: destination.name,
+                  lat: destination.lat,
+                  lng: destination.lng,
+                  selected: selectedDestIds.has(destination.id),
                 }))}
                 segments={segmentOverlays}
                 onDestinationToggle={toggleDest}
               />
             </div>
+          </section>
 
-            {/* Segment List */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-4">Proposed Segments</h3>
-              <div className="space-y-3">
-                {decomposition.segments.map((seg, i) => (
-                  <div
-                    key={i}
-                    className={`p-4 rounded-lg border ${
-                      seg.type === "existing"
-                        ? "border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20"
-                        : seg.type === "split"
-                        ? "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
-                        : "border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <SegmentTypeBadge type={seg.type} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <input
-                          type="text"
-                          value={segmentNames.get(i) || ""}
-                          onChange={(e) => updateSegmentName(i, e.target.value)}
-                          placeholder={
-                            seg.type === "existing"
-                              ? seg.existingSegmentName || "Segment name..."
-                              : "Name this segment..."
-                          }
-                          className="w-full font-medium text-sm bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none pb-0.5"
-                        />
-                        <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-                          <span>{(seg.distance / 1609.34).toFixed(1)} mi</span>
-                          <span>{Math.round(seg.gain * 3.28084).toLocaleString()} ft gain</span>
-                          <span>{Math.round(seg.loss * 3.28084).toLocaleString()} ft loss</span>
-                          <span>{seg.points.length} points</span>
-                          {seg.type === "existing" && seg.direction === "reverse" && (
-                            <span className="text-amber-600">Reversed</span>
-                          )}
-                          {seg.type === "split" && (
-                            <span className="text-amber-600">
-                              {Math.round((seg.startFraction || 0) * 100)}%&ndash;{Math.round((seg.endFraction || 1) * 100)}% of parent
-                            </span>
-                          )}
-                        </div>
-                        {seg.type === "existing" && (
-                          <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                            Reuses existing segment: {seg.existingSegmentName || seg.existingSegmentId}
-                          </p>
+          <section className="space-y-5" aria-labelledby="proposed-segments-heading">
+            <SectionHeading>
+              <span id="proposed-segments-heading">Proposed segments</span>
+            </SectionHeading>
+            <div className="overflow-hidden rounded-media border border-border bg-page">
+              {decomposition.segments.map((segment, index) => (
+                <div
+                  key={index}
+                  className={`p-4 sm:p-5 ${index > 0 ? "border-t border-hairline" : ""}`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                    <div className="shrink-0 sm:pt-2">
+                      <SegmentTypeBadge type={segment.type} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        type="text"
+                        aria-label={`Name for segment ${index + 1}`}
+                        value={segmentNames.get(index) || ""}
+                        onChange={(e) => updateSegmentName(index, e.target.value)}
+                        placeholder={
+                          segment.type === "existing"
+                            ? segment.existingSegmentName || "Segment name…"
+                            : "Name this segment…"
+                        }
+                      />
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono-num text-xs tabular-nums text-muted">
+                        <span>{(segment.distance / 1609.34).toFixed(1)} mi</span>
+                        <span>{Math.round(segment.gain * 3.28084).toLocaleString()} ft gain</span>
+                        <span>{Math.round(segment.loss * 3.28084).toLocaleString()} ft loss</span>
+                        <span>{segment.points.length.toLocaleString()} points</span>
+                        {segment.type === "existing" && segment.direction === "reverse" && (
+                          <span className="text-alert">Reversed</span>
                         )}
-                        {seg.type === "split" && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                            Partial match with: {seg.existingSegmentName || seg.parentSegmentId}
-                          </p>
+                        {segment.type === "split" && (
+                          <span className="text-alert">
+                            {Math.round((segment.startFraction || 0) * 100)}%–
+                            {Math.round((segment.endFraction || 1) * 100)}% of parent
+                          </span>
                         )}
                       </div>
+                      {segment.type === "existing" && (
+                        <p className="mt-1 text-xs text-muted">
+                          Reuses existing segment: {segment.existingSegmentName || segment.existingSegmentId}
+                        </p>
+                      )}
+                      {segment.type === "split" && (
+                        <p className="mt-1 text-xs text-alert">
+                          Partial match with: {segment.existingSegmentName || segment.parentSegmentId}
+                        </p>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
+          </section>
 
-            {/* Splits & Affected Routes */}
-            {(decomposition.splits.length > 0 || decomposition.affectedRoutes.length > 0) && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-                <h3 className="font-semibold mb-4">Impact Analysis</h3>
+          {(decomposition.splits.length > 0 || decomposition.affectedRoutes.length > 0) && (
+            <section className="space-y-6" aria-labelledby="impact-analysis-heading">
+              <SectionHeading>
+                <span id="impact-analysis-heading">Impact analysis</span>
+              </SectionHeading>
 
-                {decomposition.splits.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Segments to Split ({decomposition.splits.length})
-                    </h4>
-                    <div className="space-y-2">
-                      {decomposition.splits.map((split, i) => (
-                        <div key={i} className="text-sm p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-                          <span className="font-medium">{split.originalSegmentName || split.originalSegmentId}</span>
-                          <span className="text-gray-500 ml-2">
-                            will be split at {split.fractions.map((f) => `${Math.round(f * 100)}%`).join(", ")}
+              {decomposition.splits.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-ink-2">
+                    Segments to split ({decomposition.splits.length})
+                  </h3>
+                  <div className="overflow-hidden rounded-media border border-border bg-page">
+                    {decomposition.splits.map((split, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-3 text-sm ${index > 0 ? "border-t border-hairline" : ""}`}
+                      >
+                        <span className="font-medium text-ink">
+                          {split.originalSegmentName || split.originalSegmentId}
+                        </span>
+                        <span className="ml-2 text-muted">
+                          will be split at{" "}
+                          <span className="font-mono-num tabular-nums">
+                            {split.fractions
+                              .map((fraction) => `${Math.round(fraction * 100)}%`)
+                              .join(", ")}
                           </span>
-                        </div>
-                      ))}
-                    </div>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {decomposition.affectedRoutes.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Affected Routes ({new Set(decomposition.affectedRoutes.map((r) => r.routeId)).size})
-                    </h4>
-                    <div className="space-y-2">
-                      {Array.from(
-                        new Map(
-                          decomposition.affectedRoutes.map((r) => [r.routeId, r])
-                        ).values()
-                      ).map((route) => (
-                        <div key={route.routeId} className="text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <Link
-                            href={`/admin/routes/${route.routeId}`}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                            target="_blank"
-                          >
-                            {route.routeName || route.routeId}
-                          </Link>
-                          <span className="text-gray-500 ml-2">
-                            &mdash; segment references will be updated automatically
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              {decomposition.affectedRoutes.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-ink-2">
+                    Affected routes ({new Set(decomposition.affectedRoutes.map((route) => route.routeId)).size})
+                  </h3>
+                  <div className="overflow-hidden rounded-media border border-border bg-page">
+                    {Array.from(
+                      new Map(
+                        decomposition.affectedRoutes.map((route) => [route.routeId, route])
+                      ).values()
+                    ).map((route, index) => (
+                      <div
+                        key={route.routeId}
+                        className={`px-4 py-3 text-sm ${index > 0 ? "border-t border-hairline" : ""}`}
+                      >
+                        <Link
+                          href={`/admin/routes/${route.routeId}`}
+                          className="font-medium text-accent-text hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {route.routeName || route.routeId}
+                        </Link>
+                        <span className="ml-2 text-muted">
+                          — segment references will update automatically
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </section>
+          )}
 
-            {/* Elevation Profile */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="font-semibold mb-3">Elevation Profile</h3>
+          <section className="space-y-3" aria-labelledby="segment-elevation-heading">
+            <SectionHeading>
+              <span id="segment-elevation-heading">Elevation profile</span>
+            </SectionHeading>
+            <div className="rounded-media bg-surface p-4">
               <ElevationProfile
                 points={points}
+                colors={elevationProfileColors}
+                label={`Elevation profile for ${routeName || "this route"}`}
                 highlightIndex={highlightIndex}
                 onHover={setHighlightIndex}
               />
             </div>
+          </section>
 
-            {/* Actions */}
-            <div className="flex justify-between">
-              <button
-                onClick={() => setStep("review")}
-                className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="secondary" onClick={() => setStep("review")}>
+              Back to review
+            </Button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={handleAnalyzeSegments}
+                disabled={analyzing}
               >
-                Back to Review
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAnalyzeSegments}
-                  disabled={analyzing}
-                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                >
-                  {analyzing ? "Re-analyzing..." : "Re-analyze"}
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !routeName.trim()}
-                  className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? "Creating Route..." : "Create Route"}
-                </button>
-              </div>
+                {analyzing ? "Re-analyzing…" : "Re-analyze"}
+              </Button>
+              <Button onClick={handleSave} disabled={saving || !routeName.trim()}>
+                {saving ? "Creating route…" : "Create route"}
+              </Button>
             </div>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </AdminPage>
   );
 }
 
 function StepBadge({ label, active, done }: { label: string; active: boolean; done: boolean }) {
-  return (
-    <span
-      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-        active
-          ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-          : done
-          ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
-          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500"
-      }`}
-    >
-      {label}
-    </span>
-  );
+  const stateClass = active
+    ? "border-accent bg-fill text-accent-text"
+    : done
+      ? "border-success/30 text-success"
+      : "";
+  return <Badge className={`shrink-0 ${stateClass}`}>{label}</Badge>;
 }
 
 function SegmentTypeBadge({ type }: { type: "existing" | "new" | "split" }) {
-  const config = {
-    existing: { label: "Existing", bg: "bg-purple-100 dark:bg-purple-900", text: "text-purple-700 dark:text-purple-300" },
-    split: { label: "Partial", bg: "bg-amber-100 dark:bg-amber-900", text: "text-amber-700 dark:text-amber-300" },
-    new: { label: "New", bg: "bg-blue-100 dark:bg-blue-900", text: "text-blue-700 dark:text-blue-300" },
-  };
-  const c = config[type];
+  const labels = {
+    existing: "Existing",
+    split: "Partial",
+    new: "New",
+  } as const;
+  const stateClass =
+    type === "new"
+      ? "border-accent/40 text-accent-text"
+      : type === "split"
+        ? "border-alert/30 text-alert"
+        : "";
+  return <Badge className={stateClass}>{labels[type]}</Badge>;
+}
+
+function SegmentLegendItem({
+  type,
+  label,
+}: {
+  type: "existing" | "new" | "split";
+  label: string;
+}) {
+  const lineClass = {
+    new: "h-1 rounded-full bg-accent",
+    existing: "h-1 rounded-full bg-ink-2",
+    split: "h-0 border-t-2 border-dashed border-alert",
+  }[type];
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${c.bg} ${c.text}`}>
-      {c.label}
+    <span className="flex items-center gap-1.5">
+      <span className={`inline-block w-4 ${lineClass}`} aria-hidden />
+      {label}
     </span>
   );
 }
@@ -877,8 +949,13 @@ function UploadStep({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
+  const openFilePicker = () => fileInputRef.current?.click();
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Choose a GPX file"
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -888,11 +965,17 @@ function UploadStep({
         setDragging(false);
         onDrop(e);
       }}
-      onClick={() => fileInputRef.current?.click()}
-      className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-colors ${
+      onClick={openFilePicker}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openFilePicker();
+        }
+      }}
+      className={`cursor-pointer rounded-media border border-dashed px-6 py-8 transition-colors sm:px-12 sm:py-12 ${
         dragging
-          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-          : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
+          ? "border-accent bg-fill"
+          : "border-border bg-surface hover:border-ink-2"
       }`}
     >
       <input
@@ -902,35 +985,15 @@ function UploadStep({
         onChange={onFileInput}
         className="hidden"
       />
-
-      {processing ? (
-        <div>
-          <div className="text-lg font-medium mb-2">Processing GPX...</div>
-          <p className="text-sm text-gray-500">
-            Parsing track, fetching elevation data, matching destinations...
-          </p>
-        </div>
-      ) : (
-        <div>
-          <div className="text-4xl mb-4 text-gray-400">+</div>
-          <div className="text-lg font-medium mb-2">
-            Drop a GPX file here
-          </div>
-          <p className="text-sm text-gray-500">
-            or click to browse. Elevation data will be fetched from Mapbox
-            Terrain-RGB.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-      <div className="text-lg font-bold">{value}</div>
-      <div className="text-xs text-gray-500">{label}</div>
+      <EmptyState
+        className="py-4"
+        title={processing ? "Processing GPX…" : "Drop a GPX file here"}
+        description={
+          processing
+            ? "Parsing the track, fetching elevation, and matching destinations."
+            : "Or choose a file. Peaks will fetch elevation from Mapbox Terrain-RGB."
+        }
+      />
     </div>
   );
 }

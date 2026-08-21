@@ -4,9 +4,18 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminGuard from "../../../../components/admin-guard";
-import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
 import dynamic from "next/dynamic";
+import {
+  AdminPage,
+  AdminPageHeader,
+} from "../../../../components/admin/admin-page";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { Badge } from "../../../../components/ui/badge";
+import { Button } from "../../../../components/ui/button";
+import { Select } from "../../../../components/ui/field";
+import { SectionHeading } from "../../../../components/ui/section-heading";
+import { StatCluster } from "../../../../components/ui/stat";
 import { useAuth } from "../../../../lib/auth-context";
 import {
   getDestination,
@@ -145,193 +154,167 @@ function DestinationDetailContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">{LOADING_LABEL}</div>
+      </AdminPage>
     );
   }
 
   if (!dest) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">
-            Destination not found
-          </div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">Destination not found</div>
+      </AdminPage>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link
-            href="/admin/destinations"
-            className="hover:text-gray-900 dark:hover:text-gray-100"
-          >
-            Destinations
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-gray-100">
-            {dest.name || "Unnamed"}
-          </span>
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            {editing ? (
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="text-2xl font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none pb-1"
-                autoFocus
-              />
-            ) : (
-              <h2 className="text-2xl font-semibold">
-                {dest.name || "Unnamed"}
-              </h2>
-            )}
-            <p className="text-sm text-gray-500 mt-1 font-mono">{dest.id}</p>
-          </div>
-          <div className="flex gap-2">
-            {editing ? (
-              <>
-                <button
-                  onClick={() => setEditing(false)}
-                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Elevation"
-            value={
-              dest.elevation
-                ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
+    <AdminPage className="space-y-12">
+      <AdminPageHeader
+        breadcrumb={
+          <Breadcrumb
+            current={dest.name || "Unnamed"}
+            parentHref="/admin/destinations"
+            parentLabel="Destinations"
           />
-          <StatCard
-            label="Prominence"
-            value={
-              dest.prominence
-                ? `${Math.round(dest.prominence * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
-          />
-          <StatCard label="Routes" value={routes.length.toString()} />
-          <StatCard
-            label="Sessions"
-            value={sessionCount.toString()}
-            href={sessionCount > 0 ? `/admin/sessions?destination=${id}` : undefined}
-          />
-        </div>
-
-        {/* Hero Image */}
-        {dest.hero_image && (
-          <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={dest.hero_image}
-              alt={dest.name || "Destination"}
-              className="w-full h-64 object-cover"
+        }
+        title={
+          editing ? (
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              aria-label="Destination name"
+              className="w-full max-w-xl border-b-2 border-accent bg-transparent pb-1 font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]"
+              autoFocus
             />
-            {dest.hero_image_attribution && (
-              <div className="px-4 py-2 text-xs text-gray-500">
-                Photo: {dest.hero_image_attribution_url ? (
-                  <a
-                    href={dest.hero_image_attribution_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                  >
-                    {dest.hero_image_attribution}
-                  </a>
-                ) : (
-                  dest.hero_image_attribution
-                )}
-              </div>
-            )}
-          </div>
-        )}
+          ) : (
+            dest.name || "Unnamed"
+          )
+        }
+        description={<span className="font-mono-num text-xs text-faint">{dest.id}</span>}
+        actions={
+          editing ? (
+            <>
+              <Button variant="secondary" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          )
+        }
+      />
 
-        {/* Map + Boundary */}
-        {dest.lat != null && dest.lng != null && (
-          <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Location</h3>
-              <div className="flex items-center gap-2">
-                {dest.boundary && !editingBoundary && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                    Boundary set
-                  </span>
-                )}
-                {editingBoundary ? (
-                  <>
-                    <button
-                      onClick={() => { setEditingBoundary(false); setPendingBoundary(null); }}
-                      className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    {(dest.boundary || pendingBoundary) && (
-                      <button
-                        onClick={handleDeleteBoundary}
-                        disabled={savingBoundary}
-                        className="text-xs px-3 py-1.5 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
-                      >
-                        Clear Boundary
-                      </button>
-                    )}
-                    <button
-                      onClick={handleSaveBoundary}
-                      disabled={!pendingBoundary || savingBoundary}
-                      className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                    >
-                      {savingBoundary ? "Saving..." : "Save Boundary"}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => { setEditingBoundary(true); setPendingBoundary(null); }}
-                    className="text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      <div className="flex flex-wrap gap-x-12 gap-y-6">
+        <StatCluster
+          scale="topline"
+          label="Elevation"
+          value={dest.elevation ? Math.round(dest.elevation * 3.28084).toLocaleString() : "—"}
+          unit={dest.elevation ? "ft" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Prominence"
+          value={dest.prominence ? Math.round(dest.prominence * 3.28084).toLocaleString() : "—"}
+          unit={dest.prominence ? "ft" : undefined}
+        />
+        <StatCluster scale="topline" label="Routes" value={routes.length.toLocaleString()} />
+        {sessionCount > 0 ? (
+          <Link href={`/admin/sessions?destination=${id}`} className="hover:underline">
+            <StatCluster scale="topline" label="Sessions" value={sessionCount.toLocaleString()} />
+          </Link>
+        ) : (
+          <StatCluster scale="topline" label="Sessions" value="0" />
+        )}
+      </div>
+
+      {dest.hero_image && (
+        <figure className="overflow-hidden rounded-media bg-surface">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={dest.hero_image}
+            alt={dest.name || "Destination"}
+            className="h-72 w-full object-cover lg:h-96"
+          />
+          {dest.hero_image_attribution && (
+            <figcaption className="px-4 py-2 text-xs text-muted">
+              Photo:{" "}
+              {dest.hero_image_attribution_url ? (
+                <a
+                  href={dest.hero_image_attribution_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent-text hover:underline"
+                >
+                  {dest.hero_image_attribution}
+                </a>
+              ) : (
+                dest.hero_image_attribution
+              )}
+            </figcaption>
+          )}
+        </figure>
+      )}
+
+      {dest.lat != null && dest.lng != null && (
+        <section aria-labelledby="destination-location">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <SectionHeading>
+              <span id="destination-location">Location</span>
+            </SectionHeading>
+            <div className="flex flex-wrap items-center gap-2">
+              {dest.boundary && !editingBoundary ? <Badge>Boundary set</Badge> : null}
+              {editingBoundary ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setEditingBoundary(false);
+                      setPendingBoundary(null);
+                    }}
                   >
-                    {dest.boundary ? "Edit Boundary" : "Draw Boundary"}
-                  </button>
-                )}
-              </div>
+                    Cancel
+                  </Button>
+                  {dest.boundary || pendingBoundary ? (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={handleDeleteBoundary}
+                      disabled={savingBoundary}
+                    >
+                      Clear boundary
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    onClick={handleSaveBoundary}
+                    disabled={!pendingBoundary || savingBoundary}
+                  >
+                    {savingBoundary ? "Saving..." : "Save boundary"}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setEditingBoundary(true);
+                    setPendingBoundary(null);
+                  }}
+                >
+                  {dest.boundary ? "Edit boundary" : "Draw boundary"}
+                </Button>
+              )}
             </div>
+          </div>
+          <div className="mt-4 overflow-hidden rounded-media">
             {editingBoundary ? (
               <BoundaryEditorMap
                 lat={dest.lat}
@@ -346,36 +329,36 @@ function DestinationDetailContent() {
                 lng={dest.lng}
                 name={dest.name}
                 boundary={dest.boundary}
-                className="h-80 rounded-xl z-0"
+                className="z-0 h-80"
               />
             )}
           </div>
-        )}
+        </section>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Details */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-            <h3 className="font-semibold mb-4">Details</h3>
-            <dl className="space-y-3 text-sm">
+      <div className="grid gap-x-16 gap-y-12 lg:grid-cols-2">
+        <section aria-labelledby="destination-details">
+          <SectionHeading>
+            <span id="destination-details">Details</span>
+          </SectionHeading>
+          <dl className="mt-4 divide-y divide-hairline border-y border-hairline text-sm">
               <DetailRow label="Type">
                 {editing ? (
-                  <select
+                  <Select
                     value={editType}
                     onChange={(e) => setEditType(e.target.value)}
-                    className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded bg-transparent text-sm"
+                    className="h-8 max-w-40 py-0 text-xs"
                   >
                     <option value="point">Point</option>
                     <option value="region">Region</option>
-                  </select>
+                  </Select>
                 ) : (
                   <span className="capitalize">{dest.type}</span>
                 )}
               </DetailRow>
               <DetailRow label="Owner">
                 {dest.owner === "peaks" ? (
-                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                    Peaks (system)
-                  </span>
+                  <Badge>Peaks (system)</Badge>
                 ) : (
                   <UserPopover uid={dest.owner} />
                 )}
@@ -384,27 +367,25 @@ function DestinationDetailContent() {
                 {editing ? (
                   <div className="flex flex-wrap gap-1.5 justify-end items-center">
                     {editFeatures.map((f) => (
-                      <span
-                        key={f}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                      >
+                      <Badge key={f}>
                         {f}
                         <button
                           onClick={() => setEditFeatures((fs) => fs.filter((x) => x !== f))}
-                          className="text-green-500 hover:text-red-500 ml-0.5"
+                          aria-label={`Remove ${f}`}
+                          className="ml-1 text-faint transition-colors hover:text-alert"
                         >
                           &times;
                         </button>
-                      </span>
+                      </Badge>
                     ))}
-                    <select
+                    <Select
                       value=""
                       onChange={(e) => {
                         if (e.target.value && !editFeatures.includes(e.target.value)) {
                           setEditFeatures((fs) => [...fs, e.target.value]);
                         }
                       }}
-                      className="px-1.5 py-0.5 text-xs border border-gray-300 dark:border-gray-700 rounded bg-transparent"
+                      className="h-8 max-w-32 py-0 text-xs"
                     >
                       <option value="">+ Add</option>
                       {["summit", "trailhead", "volcano", "fire-lookout", "hut", "lookout", "lake", "landform", "viewpoint", "waterfall", "campsite"]
@@ -412,21 +393,16 @@ function DestinationDetailContent() {
                         .map((f) => (
                           <option key={f} value={f}>{f}</option>
                         ))}
-                    </select>
+                    </Select>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-1 justify-end">
                     {Array.isArray(dest.features) && dest.features.length > 0 ? (
                       dest.features.map((f) => (
-                        <span
-                          key={f}
-                          className="inline-block px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                        >
-                          {f}
-                        </span>
+                        <Badge key={f}>{f}</Badge>
                       ))
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-faint">—</span>
                     )}
                   </div>
                 )}
@@ -435,12 +411,7 @@ function DestinationDetailContent() {
                 <DetailRow label="Activities">
                   <div className="flex flex-wrap gap-1 justify-end">
                     {dest.activities.map((a) => (
-                      <span
-                        key={a}
-                        className="inline-block px-1.5 py-0.5 rounded text-xs bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                      >
-                        {a}
-                      </span>
+                      <Badge key={a}>{a}</Badge>
                     ))}
                   </div>
                 </DetailRow>
@@ -449,43 +420,39 @@ function DestinationDetailContent() {
                 <DetailRow label="Amenities">
                   <div className="flex flex-wrap gap-1 justify-end">
                     {formatAmenityBadges(dest.amenities).map((b) => (
-                      <span
-                        key={b}
-                        className="inline-block px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-                      >
-                        {b}
-                      </span>
+                      <Badge key={b}>{b}</Badge>
                     ))}
                   </div>
                 </DetailRow>
               )}
               <DetailRow label="Country">
-                {dest.country_code || <span className="text-gray-400">—</span>}
+                {dest.country_code || <span className="text-faint">—</span>}
               </DetailRow>
               <DetailRow label="State">
-                {dest.state_code || <span className="text-gray-400">—</span>}
+                {dest.state_code || <span className="text-faint">—</span>}
               </DetailRow>
               {(!dest.country_code || !dest.state_code) && dest.lat != null && dest.lng != null && (
-                <div className="pt-1">
-                  <button
+                <DetailRow label="Location data">
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={handleGeocode}
                     disabled={geocoding}
-                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                   >
                     {geocoding ? "Looking up..." : "Populate Location Data"}
-                  </button>
-                </div>
+                  </Button>
+                </DetailRow>
               )}
               {dest.lat != null && dest.lng != null && (
                 <DetailRow label="Coordinates">
-                  <span className="font-mono text-xs">
+                  <span className="font-mono-num text-xs text-ink-2">
                     {dest.lat.toFixed(5)}, {dest.lng.toFixed(5)}
                   </span>
                 </DetailRow>
               )}
               {dest.geohash && (
                 <DetailRow label="Geohash">
-                  <span className="font-mono text-xs">{dest.geohash}</span>
+                  <span className="font-mono-num text-xs text-ink-2">{dest.geohash}</span>
                 </DetailRow>
               )}
               <DetailRow label="Created">
@@ -495,116 +462,93 @@ function DestinationDetailContent() {
                 {new Date(dest.updated_at).toLocaleDateString()}
               </DetailRow>
             </dl>
-          </div>
+        </section>
 
-          {/* Routes & Lists */}
-          <div className="space-y-6">
-            {/* Routes */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-4">
-                Routes ({routes.length})
-              </h3>
+        <div className="space-y-12">
+          <section aria-labelledby="destination-routes">
+            <SectionHeading>
+              <span id="destination-routes">Routes ({routes.length})</span>
+            </SectionHeading>
               {routes.length === 0 ? (
-                <p className="text-sm text-gray-500">No routes linked</p>
+                <p className="mt-4 text-sm text-muted">No routes linked</p>
               ) : (
-                <div className="space-y-2">
+                <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
                   {routes.map((route) => (
-                    <Link
-                      key={route.id}
-                      href={`/admin/routes/${route.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                    >
-                      <div>
-                        <div className="font-medium text-sm">
-                          {route.name || "Unnamed Route"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {route.distance
-                            ? `${(route.distance / 1609.34).toFixed(1)} mi`
-                            : ""}
-                          {route.gain
-                            ? ` · ${Math.round(route.gain * 3.28084).toLocaleString()} ft gain`
-                            : ""}
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-400">
-                        #{route.ordinal}
-                      </span>
-                    </Link>
+                    <li key={route.id}>
+                      <Link
+                        href={`/admin/routes/${route.id}`}
+                        className="group flex items-center justify-between gap-4 py-3"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-ink group-hover:underline">
+                            {route.name || "Unnamed Route"}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted">
+                            {route.distance ? (
+                              <span className="font-mono-num tabular-nums">
+                                {(route.distance / 1609.34).toFixed(1)} mi
+                              </span>
+                            ) : null}
+                            {route.gain ? (
+                              <>
+                                {route.distance ? " · " : null}
+                                <span className="font-mono-num tabular-nums">
+                                  {Math.round(route.gain * 3.28084).toLocaleString()} ft
+                                </span>{" "}
+                                gain
+                              </>
+                            ) : null}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-mono-num text-xs text-faint">
+                          #{route.ordinal}
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
-            </div>
+          </section>
 
-            {/* Lists */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="font-semibold mb-4">
-                Lists ({lists.length})
-              </h3>
+          <section aria-labelledby="destination-lists">
+            <SectionHeading>
+              <span id="destination-lists">Lists ({lists.length})</span>
+            </SectionHeading>
               {lists.length === 0 ? (
-                <p className="text-sm text-gray-500">Not in any lists</p>
+                <p className="mt-4 text-sm text-muted">Not in any lists</p>
               ) : (
-                <div className="space-y-2">
+                <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
                   {lists.map((list) => (
-                    <Link
-                      key={list.id}
-                      href={`/admin/lists/${list.id}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                    >
-                      <div>
-                        <div className="font-medium text-sm">
-                          {list.name || "Unnamed List"}
-                        </div>
-                        {list.description && (
-                          <div className="text-xs text-gray-500 truncate max-w-xs">
-                            {list.description}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-400">
-                        {list.destination_count} dest.
-                      </span>
-                    </Link>
+                    <li key={list.id}>
+                      <Link
+                        href={`/lists/${list.id}`}
+                        className="group flex items-center justify-between gap-4 py-3"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-ink group-hover:underline">
+                            {list.name || "Unnamed List"}
+                          </span>
+                          {list.description ? (
+                            <span className="mt-0.5 block max-w-xs truncate text-xs text-muted">
+                              {list.description}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted">
+                          <span className="font-mono-num tabular-nums">
+                            {list.destination_count.toLocaleString()}
+                          </span>{" "}
+                          dest.
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
-            </div>
-          </div>
+          </section>
         </div>
-      </main>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: string;
-  href?: string;
-}) {
-  const content = (
-    <>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
-    </>
-  );
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className="block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-      >
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-      {content}
-    </div>
+      </div>
+    </AdminPage>
   );
 }
 
@@ -616,9 +560,9 @@ function DetailRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between items-start">
-      <dt className="text-gray-500 shrink-0">{label}</dt>
-      <dd className="text-right">{children}</dd>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start gap-4 py-3">
+      <dt className="text-muted">{label}</dt>
+      <dd className="min-w-0 text-right text-ink-2">{children}</dd>
     </div>
   );
 }

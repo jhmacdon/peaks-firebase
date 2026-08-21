@@ -36,7 +36,10 @@ export function Breadcrumb({
 }) {
   const trail = crumbs ?? [{ href: parentHref, label: parentLabel }];
   return (
-    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex flex-wrap items-center gap-1.5 text-sm text-muted"
+    >
       {trail.map((crumb) => (
         <span key={crumb.href} className="flex items-center gap-1.5">
           <Link href={crumb.href} className="hover:text-ink hover:underline">

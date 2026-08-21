@@ -4,8 +4,17 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import AdminGuard from "../../../../components/admin-guard";
-import AdminNav from "../../../../components/admin-nav";
 import dynamic from "next/dynamic";
+import {
+  AdminPage,
+  AdminPageHeader,
+} from "../../../../components/admin/admin-page";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { Badge } from "../../../../components/ui/badge";
+import { Button } from "../../../../components/ui/button";
+import { Select } from "../../../../components/ui/field";
+import { SectionHeading } from "../../../../components/ui/section-heading";
+import { StatCluster } from "../../../../components/ui/stat";
 import { useAuth } from "../../../../lib/auth-context";
 import {
   getRoute,
@@ -130,160 +139,123 @@ function RouteDetailContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">{LOADING_LABEL}</div>
+      </AdminPage>
     );
   }
 
   if (!route) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Route not found</div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">Route not found</div>
+      </AdminPage>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
+    <AdminPage className="space-y-12">
+      <AdminPageHeader
+        breadcrumb={
+          <Breadcrumb
+            current={route.name || "Unnamed Route"}
+            parentHref="/admin/routes"
+            parentLabel="Routes"
+          />
+        }
+        title={
+          editing ? (
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              aria-label="Route name"
+              className="w-full max-w-xl border-b-2 border-accent bg-transparent pb-1 font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]"
+              autoFocus
+            />
+          ) : (
+            route.name || "Unnamed Route"
+          )
+        }
+        description={<span className="font-mono-num text-xs text-faint">{route.id}</span>}
+        actions={
+          editing ? (
+            <>
+              <Button variant="secondary" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          )
+        }
+      />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link href="/admin/routes" className="hover:text-gray-900 dark:hover:text-gray-100">
-            Routes
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-gray-100">
-            {route.name || "Unnamed Route"}
-          </span>
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            {editing ? (
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="text-2xl font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none pb-1"
-                autoFocus
-              />
-            ) : (
-              <h2 className="text-2xl font-semibold">
-                {route.name || "Unnamed Route"}
+      {route.status === "pending" && (
+        <section className="rounded-media border border-border bg-surface p-5" aria-labelledby="pending-review">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <Badge>Pending review</Badge>
+              <h2 id="pending-review" className="mt-3 text-lg font-medium text-ink">
+                Route review
               </h2>
-            )}
-            <p className="text-sm text-gray-500 mt-1 font-mono">{route.id}</p>
-          </div>
-          <div className="flex gap-2">
-            {editing ? (
-              <>
-                <button
-                  onClick={() => setEditing(false)}
-                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Pending Review Banner */}
-        {route.status === "pending" && (
-          <div className="mb-6 space-y-4">
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-amber-800 dark:text-amber-200">
-                    Pending Review
-                  </div>
-                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-0.5">
-                    {reviewAction === "analyzing"
-                      ? "Analyzing segments..."
-                      : decomposition
-                        ? "Review the segment analysis below, then accept or reject."
-                        : "Review the route details below."}
-                  </p>
-                </div>
-                <div className="flex gap-2 shrink-0 ml-4">
-                  <button
-                    onClick={handleReject}
-                    disabled={reviewAction !== null}
-                    className="px-4 py-2 text-sm border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50 transition-colors"
-                  >
-                    {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
-                  </button>
-                  <button
-                    onClick={handleAccept}
-                    disabled={reviewAction !== null || !decomposition}
-                    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    {reviewAction === "accepting"
-                      ? "Accepting..."
-                      : reviewAction === "analyzing"
-                        ? "Analyzing..."
-                        : "Accept Route"}
-                  </button>
-                </div>
-              </div>
+              <p className="mt-1 text-sm text-ink-2">
+                {reviewAction === "analyzing"
+                  ? "Analyzing segments..."
+                  : decomposition
+                    ? "Review the segment analysis below, then accept or reject."
+                    : "Review the route details below."}
+              </p>
             </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                variant="danger"
+                onClick={handleReject}
+                disabled={reviewAction !== null}
+              >
+                {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}
+              </Button>
+              <Button
+                onClick={handleAccept}
+                disabled={reviewAction !== null || !decomposition}
+              >
+                {reviewAction === "accepting"
+                  ? "Accepting..."
+                  : reviewAction === "analyzing"
+                    ? "Analyzing..."
+                    : "Accept Route"}
+              </Button>
+            </div>
+          </div>
 
-            {/* Segment Analysis Results */}
-            {decomposition && (
-              <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl">
-                <h3 className="font-semibold mb-3">Segment Analysis</h3>
-                <div className="space-y-2 text-sm">
+          {decomposition ? (
+            <div className="mt-6">
+              <SectionHeading level={3}>Segment analysis</SectionHeading>
+              <ol className="mt-3 divide-y divide-hairline border-y border-hairline text-sm">
                   {decomposition.segments.map((seg, i) => (
-                    <div
+                    <li
                       key={i}
-                      className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 dark:border-gray-800"
+                      className="flex items-center gap-3 py-3"
                     >
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                          seg.type === "existing"
-                            ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                            : seg.type === "split"
-                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                              : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                        }`}
-                      >
+                      <Badge>
                         {seg.type === "existing" ? "Reuse" : seg.type === "split" ? "Split" : "New"}
-                      </span>
-                      <span className="flex-1">
+                      </Badge>
+                      <span className="min-w-0 flex-1 text-ink-2">
                         {seg.existingSegmentName || seg.name || "Unnamed"}
                       </span>
-                      <span className="text-gray-500">
+                      <span className="shrink-0 font-mono-num tabular-nums text-muted">
                         {(seg.distance / 1609.34).toFixed(1)} mi
                       </span>
-                    </div>
+                    </li>
                   ))}
-                </div>
+              </ol>
                 {decomposition.splits.length > 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
+                  <p className="mt-3 text-xs text-alert">
                     {decomposition.splits.length} existing segment{decomposition.splits.length !== 1 ? "s" : ""} will be split.
                     {decomposition.affectedRoutes.length > 0 && (
                       <> {decomposition.affectedRoutes.length} other route{decomposition.affectedRoutes.length !== 1 ? "s" : ""} will be updated.</>
@@ -291,62 +263,57 @@ function RouteDetailContent() {
                   </p>
                 )}
                 {decomposition.splits.length === 0 && decomposition.segments.some(s => s.type === "existing") && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-3">
+                  <p className="mt-3 text-xs text-success">
                     No splits needed — reuses existing segments cleanly.
                   </p>
                 )}
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          ) : null}
+        </section>
+      )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Distance"
-            value={
-              route.distance
-                ? `${(route.distance / 1609.34).toFixed(1)} mi`
-                : "—"
-            }
-          />
-          <StatCard
-            label="Elevation Gain"
-            value={
-              route.gain
-                ? `${Math.round(route.gain * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
-          />
-          <StatCard
-            label="Elevation Loss"
-            value={
-              route.gain_loss
-                ? `${Math.round(route.gain_loss * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
-          />
-          <StatCard label="Sessions" value={sessionCount.toString()} />
-        </div>
+      <div className="flex flex-wrap gap-x-12 gap-y-6">
+        <StatCluster
+          scale="topline"
+          label="Distance"
+          value={route.distance ? (route.distance / 1609.34).toFixed(1) : "—"}
+          unit={route.distance ? "mi" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Elevation gain"
+          value={route.gain ? Math.round(route.gain * 3.28084).toLocaleString() : "—"}
+          unit={route.gain ? "ft" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Elevation loss"
+          value={route.gain_loss ? Math.round(route.gain_loss * 3.28084).toLocaleString() : "—"}
+          unit={route.gain_loss ? "ft" : undefined}
+        />
+        <StatCluster scale="topline" label="Sessions" value={sessionCount.toLocaleString()} />
+      </div>
 
-        {/* Map */}
-        {route.polyline6 && (
-          <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-            <h3 className="font-semibold mb-3">Route Map</h3>
+      {route.polyline6 && (
+        <section aria-labelledby="route-map">
+          <SectionHeading>
+            <span id="route-map">Route map</span>
+          </SectionHeading>
+          <div className="mt-4 overflow-hidden rounded-media">
             <RouteMap polyline6={route.polyline6} />
           </div>
-        )}
+        </section>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Details */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-            <h3 className="font-semibold mb-4">Details</h3>
-            <dl className="space-y-3 text-sm">
+      <div className="grid gap-x-16 gap-y-12 lg:grid-cols-2">
+        <section aria-labelledby="route-details">
+          <SectionHeading>
+            <span id="route-details">Details</span>
+          </SectionHeading>
+          <dl className="mt-4 divide-y divide-hairline border-y border-hairline text-sm">
               <DetailRow label="Owner">
                 {route.owner === "peaks" ? (
-                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                    Peaks (system)
-                  </span>
+                  <Badge>Peaks (system)</Badge>
                 ) : (
                   <UserPopover uid={route.owner} />
                 )}
@@ -356,15 +323,15 @@ function RouteDetailContent() {
               </DetailRow>
               <DetailRow label="Completion">
                 {editing ? (
-                  <select
+                  <Select
                     value={editCompletion}
                     onChange={(e) => setEditCompletion(e.target.value)}
-                    className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded bg-transparent text-sm"
+                    className="h-8 max-w-40 py-0 text-xs"
                   >
                     <option value="none">None</option>
                     <option value="straight">Straight</option>
                     <option value="reverse">Reverse</option>
-                  </select>
+                  </Select>
                 ) : (
                   <span className="capitalize">{route.completion}</span>
                 )}
@@ -376,12 +343,9 @@ function RouteDetailContent() {
                 <DetailRow label="External Links">
                   <div className="flex gap-2">
                     {route.external_links.map((link: { type: string; id: string }, i: number) => (
-                      <span
-                        key={i}
-                        className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800"
-                      >
+                      <Badge key={i}>
                         {link.type.toUpperCase()}: {link.id}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </DetailRow>
@@ -394,69 +358,73 @@ function RouteDetailContent() {
               </DetailRow>
               {route.polyline6 && (
                 <DetailRow label="Polyline">
-                  <span className="text-xs text-gray-400 font-mono truncate block max-w-xs">
+                  <span className="block max-w-xs truncate font-mono-num text-xs text-faint">
                     {route.polyline6.slice(0, 60)}...
                   </span>
                 </DetailRow>
               )}
             </dl>
-          </div>
+        </section>
 
-          {/* Destinations */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-            <h3 className="font-semibold mb-4">
-              Destinations ({destinations.length})
-            </h3>
+        <section aria-labelledby="route-destinations">
+          <SectionHeading>
+            <span id="route-destinations">Destinations ({destinations.length})</span>
+          </SectionHeading>
             {destinations.length === 0 ? (
-              <p className="text-sm text-gray-500">No destinations linked</p>
+              <p className="mt-4 text-sm text-muted">No destinations linked</p>
             ) : (
-              <div className="space-y-2">
+              <ol className="mt-4 divide-y divide-hairline border-y border-hairline">
                 {destinations.map((dest) => (
-                  <Link
-                    key={dest.id}
-                    href={`/admin/destinations/${dest.id}`}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                  >
-                    <div>
-                      <div className="font-medium text-sm">
-                        {dest.name || "Unknown"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {dest.elevation
-                          ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-                          : ""}
-                        {Array.isArray(dest.features) && dest.features.length > 0 &&
-                          ` · ${dest.features.join(", ")}`}
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-400">#{dest.ordinal}</span>
-                  </Link>
+                  <li key={dest.id}>
+                    <Link
+                      href={`/admin/destinations/${dest.id}`}
+                      className="group flex items-center justify-between gap-4 py-3"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-ink group-hover:underline">
+                          {dest.name || "Unknown"}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted">
+                          {dest.elevation ? (
+                            <span className="font-mono-num tabular-nums">
+                              {Math.round(dest.elevation * 3.28084).toLocaleString()} ft
+                            </span>
+                          ) : null}
+                          {Array.isArray(dest.features) && dest.features.length > 0
+                            ? `${dest.elevation ? " · " : ""}${dest.features.join(", ")}`
+                            : null}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-mono-num text-xs text-faint">
+                        #{dest.ordinal}
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
-          </div>
-        </div>
+        </section>
+      </div>
 
-        {/* Segments */}
-        {segments.length > 0 && (
-          <div className="mt-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-            <h3 className="font-semibold mb-4">
-              Segments ({segments.length})
-            </h3>
-            <div className="space-y-2">
+      {segments.length > 0 && (
+        <section aria-labelledby="route-segments">
+          <SectionHeading>
+            <span id="route-segments">Segments ({segments.length})</span>
+          </SectionHeading>
+          <ol className="mt-4 divide-y divide-hairline border-y border-hairline">
               {segments.map((seg) => (
-                <div
+                <li
                   key={`${seg.id}-${seg.ordinal}`}
-                  className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 dark:border-gray-800"
+                  className="flex flex-wrap items-center gap-4 py-3 sm:flex-nowrap"
                 >
-                  <span className="text-xs text-gray-400 font-mono w-6 text-center shrink-0">
+                  <span className="w-6 shrink-0 text-center font-mono-num text-xs text-faint">
                     {seg.ordinal}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-ink">
                       {seg.name || "Unnamed Segment"}
                     </div>
-                    <div className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono-num text-xs tabular-nums text-muted">
                       {seg.distance != null && (
                         <span>{(seg.distance / 1609.34).toFixed(1)} mi</span>
                       )}
@@ -468,37 +436,23 @@ function RouteDetailContent() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2">
                     {seg.direction === "reverse" && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-medium">
-                        Reversed
-                      </span>
+                      <Badge>Reversed</Badge>
                     )}
                     {seg.route_count > 1 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-medium">
-                        {seg.route_count} routes
-                      </span>
+                      <Badge>{seg.route_count} routes</Badge>
                     )}
                   </div>
-                  <span className="text-xs text-gray-400 font-mono shrink-0" title={seg.id}>
+                  <span className="shrink-0 font-mono-num text-xs text-faint" title={seg.id}>
                     {seg.id.slice(0, 8)}
                   </span>
-                </div>
+                </li>
               ))}
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
-    </div>
+          </ol>
+        </section>
+      )}
+    </AdminPage>
   );
 }
 
@@ -510,9 +464,9 @@ function DetailRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between items-start">
-      <dt className="text-gray-500 shrink-0">{label}</dt>
-      <dd className="text-right">{children}</dd>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start gap-4 py-3">
+      <dt className="text-muted">{label}</dt>
+      <dd className="min-w-0 text-right text-ink-2">{children}</dd>
     </div>
   );
 }

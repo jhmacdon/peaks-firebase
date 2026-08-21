@@ -41,6 +41,7 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /admin/destinations/      → destination management
 /admin/photos/            → licensed destination cover review queue
 /admin/routes/            → route management + builder
+/admin/sessions/          → recorded activity review
 ```
 
 ## Route Groups
@@ -49,7 +50,7 @@ Next.js route groups (parenthesized directory names) organize layouts without af
 
 - **`(public)/`** — wraps public pages with `AppNav`. No auth required. Layout provides `AuthProvider` so components can optionally check sign-in state (e.g., list progress bars).
 - **`(authenticated)/`** — wraps auth-required pages with `AppNav` + `UserAuthGuard`. Redirects to `/login` if not signed in. Does NOT require admin claim — any Firebase user can access.
-- **`admin/`** — separate layout with `AdminNav` + `AdminGuard`. Requires `claims.admin === true`.
+- **`admin/`** — separate layout with `AuthProvider` + `AdminShell`. The shell owns the responsive desktop rail and mobile section strip; each tool remains wrapped in `AdminGuard` and requires `claims.admin === true`. The sign-in route omits the shell.
 
 ## Data Layer
 
@@ -185,7 +186,8 @@ GPX import parses and previews the file in the browser, then repeats validation 
 
 ### Navigation
 - **`AppNav`** — responsive: top bar on desktop (`hidden md:block`), fixed bottom tabs on mobile (`md:hidden`). Shared across public and auth pages.
-- **`AdminNav`** — desktop-only top bar for admin pages.
+- **`AdminShell` + `AdminNav`** — fixed left rail on desktop and a compact, horizontally scrollable section strip on mobile. The admin layout owns this chrome so tool pages only render their content.
+- **`AdminPage` / `AdminPageHeader` / `AdminTableFrame`** — shared admin content width, page hierarchy, and responsive overflow for dense data tables.
 
 ### Map components
 All map components use `react-leaflet` with `next/dynamic` + `ssr: false` (Leaflet requires `window`).

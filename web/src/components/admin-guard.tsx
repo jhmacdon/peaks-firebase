@@ -3,7 +3,7 @@
 import { useAuth } from "../lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { LOADING_LABEL } from "../lib/constants";
+import { Spinner } from "./explore/explore-icons";
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, loading } = useAuth();
@@ -17,8 +17,11 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">{LOADING_LABEL}</div>
+      <div className="flex min-h-[60dvh] items-center justify-center" role="status">
+        <div className="flex items-center gap-3 text-sm text-muted">
+          <Spinner />
+          <span>Opening admin workspace…</span>
+        </div>
       </div>
     );
   }
