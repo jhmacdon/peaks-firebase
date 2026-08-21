@@ -84,6 +84,7 @@ export function ListRoster({
                   {completion ? (
                     <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-muted">
                       <TrophyGlyph className="h-4 w-4 text-muted" />
+                      <span className="sr-only">Reached </span>
                       {completion.reached_at ? formatShortDate(completion.reached_at) : null}
                     </span>
                   ) : null}
