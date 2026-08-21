@@ -7,8 +7,12 @@
 -- docs/data-audits/list-metadata-2026-08-21.md.
 --
 -- Conventions:
---   organization      the club, author, or registry the list came from; the two
---                     Peaks-curated volcano lists carry 'Peaks'.
+--   organization      the club or author that keeps the list. NULL for the five
+--                     plain elevation/prominence cuts that no one keeps --
+--                     Peakbagger.com hosts them but is not their keeper, and by
+--                     controller ruling on 2026-08-21 the plan's original
+--                     "no NULL organization" check is relaxed for that case.
+--                     The two Peaks-curated volcano lists carry 'Peaks'.
 --   source_url        the page the membership came from (Peakbagger for 15 of
 --                     the 17), verified row-for-row against the saved export.
 --   year_established  the year the list first appeared; NULL where no credible
@@ -59,11 +63,11 @@ WHERE id = 'ULCGhLnsWcYYRqXQ3aOo';
 -- Colorado 14ers
 UPDATE lists SET
   year_established = NULL,
-  organization = 'Peakbagger.com',
+  organization = NULL,
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=21360',
   region = 'Colorado',
-  description = 'Colorado holds fifty-three peaks above 14,000 feet that also rise 300 feet above the saddle linking them to a higher neighbor. Twenty-eight other Colorado summits clear 14,000 feet but count as shoulders of those peaks rather than mountains in their own right. Mount Elbert is the highest of them, and the highest summit in the Rocky Mountains.'
+  description = 'Colorado holds fifty-three peaks above 14,000 feet that also rise 300 feet above the saddle linking them to a higher neighbor. Other Colorado summits clear 14,000 feet but fall short of that rise, so lists count them as shoulders rather than mountains of their own. Mount Elbert is the highest of them, and the highest summit in the Rocky Mountains.'
 WHERE id = 'LAZcIKjluO0oT3o9g6MC';
 
 -- Mazama Guardian Peaks
@@ -73,7 +77,7 @@ UPDATE lists SET
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=5061',
   region = 'Cascades',
-  description = 'The Mazamas award the Guardian Peaks certificate to members who summit Mount Hood, Mount Adams, and Mount St. Helens on official club climbs. All three volcanoes rise within sight of Portland. The club, founded on the summit of Mount Hood in 1894, has given the award to about two thousand members.'
+  description = 'The Mazamas award the Guardian Peaks certificate to members who summit Mount Hood, Mount Adams, and Mount St. Helens on official club climbs. The Portland club, founded on the summit of Mount Hood in 1894, has given the award to about two thousand members.'
 WHERE id = 'dd7K4267UF9mBlg6yUgh';
 
 -- Nevada Peaks Club
@@ -83,7 +87,7 @@ UPDATE lists SET
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=5006',
   region = 'Nevada',
-  description = 'Pete Yamagata started the Nevada Peaks Club in 1997 to draw climbers into Nevada''s many small, empty ranges. Its list holds 73 peaks spread across the state, most of them reached by long dirt roads and off-trail walking. The club takes no dues and holds no meetings; the climbing is the whole of it.'
+  description = 'Pete Yamagata started the Nevada Peaks Club in 1997 to promote climbing and exploration in Nevada''s wild country. Its list holds 73 peaks spread across the state. The club charges no dues and holds no meetings.'
 WHERE id = 'z9Esvqgng0SvnQVP16iI';
 
 -- Oregon Volcanoes
@@ -119,7 +123,7 @@ WHERE id = 'XHG0eHY8ePaltNO3dWs0';
 -- Tennessee 4500ft Peaks
 UPDATE lists SET
   year_established = NULL,
-  organization = 'Peakbagger.com',
+  organization = NULL,
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=21457',
   region = 'Tennessee',
@@ -140,7 +144,7 @@ WHERE id = 'hPNDxe5mvtLjtlTnWlnf';
 UPDATE lists SET
   name = 'Ultras of Iran',
   year_established = NULL,
-  organization = 'Peakbagger.com',
+  organization = NULL,
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=49301',
   region = 'Iran',
@@ -150,11 +154,11 @@ WHERE id = 'cJb67d0QVHo9F7qSLUGi';
 -- Ultras of the Contiguous United States
 UPDATE lists SET
   year_established = NULL,
-  organization = 'Peakbagger.com',
+  organization = NULL,
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=4904',
   region = 'United States',
-  description = 'An ultra is a peak that rises at least 1,500 meters, about 4,900 feet, above the lowest saddle linking it to any higher ground. Fifty-seven stand in the lower forty-eight, from Mount Rainier and Mount Whitney to desert ranges in Nevada and Arizona that few climbers ever visit. The earth scientist Steve Fry named the class in the 1980s while measuring peaks in Washington.'
+  description = 'An ultra is a peak that rises at least 1,500 meters, about 4,900 feet, above the lowest saddle linking it to any higher ground. Fifty-seven stand in the lower forty-eight, most of them in California, Utah, Nevada, and Washington, with single peaks as far east as New Hampshire and North Carolina. The earth scientist Steve Fry named the class in the 1980s while measuring peaks in Washington.'
 WHERE id = '9zsS3gPZhQCiPMl0DRMf';
 
 -- US State High Points
@@ -170,7 +174,7 @@ WHERE id = 'dR9aHGKw3VwBhfsHSwlB';
 -- Utah 13ers
 UPDATE lists SET
   year_established = NULL,
-  organization = 'Peakbagger.com',
+  organization = NULL,
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=21349',
   region = 'Utah',

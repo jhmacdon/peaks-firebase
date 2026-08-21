@@ -6,11 +6,18 @@ Applied by `cloud-sql/migrations/20260821_list_metadata_backfill.sql`.
 
 ## What the columns hold
 
-- **`organization`** — the body or author the list came from: a club where a club
-  keeps it (Mazamas, Highpointers Club), the author where a book or article
-  defined it (Jeff Smoot, Jeff Howbert), and `Peakbagger.com` for plain
-  elevation and prominence lists that no club owns. Two volcano lists are
-  Peaks' own cut of a region, so they carry `Peaks`.
+- **`organization`** — the club or author that keeps the list: a club where a
+  club keeps it (Mazamas, Highpointers Club), the author where a book or
+  article defined it (Jeff Smoot, Jeff Howbert). **NULL** for the five plain
+  elevation and prominence cuts that nobody keeps — Colorado 14ers, Tennessee
+  4500ft Peaks, Ultras of Iran, Ultras of the Contiguous United States, and
+  Utah 13ers. Peakbagger.com hosts those lists and stays in `source_name` and
+  `source_url`, but hosting an elevation cut does not make a website the list's
+  keeper, so naming it as the organization would overstate it. By controller
+  ruling on 2026-08-21 the plan's original "no NULL organization" check is
+  relaxed for exactly that case; the web UI renders organization conditionally,
+  so NULL is safe. Two volcano lists are Peaks' own cut of a region, so they
+  carry `Peaks`.
 - **`source_url`** — the page the membership came from, not a general reference.
   Fifteen lists trace to a Peakbagger `list.aspx` page; the check below confirms
   each one row-for-row against the saved export
@@ -130,22 +137,32 @@ one.
 
 ### Colorado 14ers — `LAZcIKjluO0oT3o9g6MC`
 
-- Year: **NULL**; organization **Peakbagger.com**; region **Colorado**.
+- Year: **NULL**; organization **NULL**; region **Colorado**.
 - Source: Peakbagger, https://www.peakbagger.com/list.aspx?lid=21360
 - Claims and sources:
-  - 53 Colorado peaks above 14,000 feet with at least 300 feet of prominence;
-    28 more clear 14,000 feet but fall short of that cutoff —
+  - "This is a complete list of the 53 fourteeners in the U.S. State of
+    Colorado with at least 300 feet (91.44 meters) of topographic prominence" —
     https://en.wikipedia.org/wiki/List_of_Colorado_fourteeners
+  - The 300-foot rule, and the fact that further Colorado summits top 14,000
+    feet with less prominence than that (Mount Cameron, El Diente Peak, North
+    Conundrum Peak, North Eolus, North Maroon Peak, Sunlight Spire) —
+    https://en.wikipedia.org/wiki/Fourteener
+  - **Correction, fix round 1:** an earlier draft said "twenty-eight" such
+    summits. Neither cited page states that number; it came from a bad reading
+    of the source. The count is gone rather than replaced, because the two
+    Wikipedia pages name six Colorado sub-300-foot summits while the common
+    "58 fourteeners" convention implies five, and no cited page settles it.
   - "Mount Elbert is the highest summit of the Rocky Mountains of North
     America" — https://en.wikipedia.org/wiki/Mount_Elbert
 - Year left NULL: the 300-foot-prominence count of 53 is a convention that
   settled over decades of survey revisions, not a list published in a
   particular year. No source dates it.
 - Description: "Colorado holds fifty-three peaks above 14,000 feet that also
-  rise 300 feet above the saddle linking them to a higher neighbor. Twenty-eight
-  other Colorado summits clear 14,000 feet but count as shoulders of those peaks
-  rather than mountains in their own right. Mount Elbert is the highest of them,
-  and the highest summit in the Rocky Mountains."
+  rise 300 feet above the saddle linking them to a higher neighbor.
+  Other Colorado summits clear 14,000 feet but fall short of that rise, so
+  lists count them as shoulders rather than mountains of their own. Mount
+  Elbert is the highest of them, and the highest summit in the Rocky
+  Mountains."
 
 ### Mazama Guardian Peaks — `dd7K4267UF9mBlg6yUgh`
 
@@ -157,6 +174,12 @@ one.
     it — https://mazamas.org/awards/
   - The Mazamas were founded 19 July 1894 on the summit of Mount Hood —
     https://mazamas.org/history/
+  - "The Mazamas () is a mountaineering organization based in Portland, Oregon,
+    United States, founded in 1894" — https://en.wikipedia.org/wiki/Mazamas
+  - **Correction, fix round 1:** an earlier draft said all three volcanoes
+    "rise within sight of Portland". True as far as it goes, but no source at
+    hand states it, so the clause is gone. The club's Portland base, which is
+    sourced, carries the same geography.
 - Year left NULL: no source gives the year the Guardian Peaks award began. A
   1957 recipient shows it existed by then, but that is a floor, not a date, and
   stamping the club's 1894 founding on the award would read as the award's own
@@ -164,9 +187,8 @@ one.
   club.
 - Description: "The Mazamas award the Guardian Peaks certificate to members who
   summit Mount Hood, Mount Adams, and Mount St. Helens on official club climbs.
-  All three volcanoes rise within sight of Portland. The club, founded on the
-  summit of Mount Hood in 1894, has given the award to about two thousand
-  members."
+  The Portland club, founded on the summit of Mount Hood in 1894, has given the
+  award to about two thousand members."
 
 ### Nevada Peaks Club — `z9Esvqgng0SvnQVP16iI`
 
@@ -178,11 +200,13 @@ one.
     http://www.peakbagging.com/NPCart1.htm and
     https://www.petesthousandpeaks.com/MainPages/npc/npchome.html
   - 73 peaks on the list — Peakbagger lid 5006 and the prod membership count.
-- Description: "Pete Yamagata started the Nevada Peaks Club in 1997 to draw
-  climbers into Nevada's many small, empty ranges. Its list holds 73 peaks
-  spread across the state, most of them reached by long dirt roads and
-  off-trail walking. The club takes no dues and holds no meetings; the climbing
-  is the whole of it."
+  - **Correction, fix round 1:** an earlier draft said the peaks are "most of
+    them reached by long dirt roads and off-trail walking". No source supports
+    that, so the clause is gone; the sourced wording about promoting climbing
+    and exploration of wild country replaces it.
+- Description: "Pete Yamagata started the Nevada Peaks Club in 1997 to promote
+  climbing and exploration in Nevada's wild country. Its list holds 73 peaks
+  spread across the state. The club charges no dues and holds no meetings."
 
 ### Oregon Volcanoes — `4HxxAe4pgIKHU9gbOxtV`
 
@@ -263,7 +287,7 @@ one.
 
 ### Tennessee 4500ft Peaks — `3S29a3viZKKnSMz4wzPQ`
 
-- Year: **NULL**; organization **Peakbagger.com**; region **Tennessee**.
+- Year: **NULL**; organization **NULL**; region **Tennessee**.
 - Source: Peakbagger, https://www.peakbagger.com/list.aspx?lid=21457
 - Claims and sources:
   - 55 rows on the Peakbagger list — lid 21457 and the prod membership count.
@@ -309,7 +333,7 @@ one.
 
 ### Ultras of Iran — `cJb67d0QVHo9F7qSLUGi`
 
-- Year: **NULL**; organization **Peakbagger.com**; region **Iran**.
+- Year: **NULL**; organization **NULL**; region **Iran**.
 - Source: Peakbagger, https://www.peakbagger.com/list.aspx?lid=49301
 - Claims and sources:
   - An ultra is a summit with at least 1,500 metres (4,900 feet) of topographic
@@ -331,23 +355,29 @@ one.
 
 ### Ultras of the Contiguous United States — `9zsS3gPZhQCiPMl0DRMf`
 
-- Year: **NULL**; organization **Peakbagger.com**; region **United States**.
+- Year: **NULL**; organization **NULL**; region **United States**.
 - Source: Peakbagger, https://www.peakbagger.com/list.aspx?lid=4904
 - Claims and sources:
   - Ultra definition, and "the term 'ultra' derives from 'ultra major
     mountain,' a term proposed by earth scientist Steve Fry, who studied peaks
     in Washington in the 1980s" — https://en.wikipedia.org/wiki/Ultra-prominent_peak
   - 57 in the lower forty-eight — Peakbagger lid 4904 and the prod membership
-    count. The catalog spread confirms the range: 8 California, 8 Utah, 7
-    Nevada, 5 Washington, 4 Arizona, 4 Montana, and singles as far east as
-    New Hampshire and North Carolina.
+    count. The catalog spread, from a `GROUP BY country_code, state_code` over
+    the list's members: 8 California, 8 Utah, 7 Nevada, 5 Washington, 4
+    Arizona, 4 Montana, 3 each Wyoming/Colorado/Idaho, 2 Oregon, 1 each New
+    Mexico, New Hampshire, and North Carolina, plus 7 rows with no state code.
+  - **Correction, fix round 1:** an earlier draft said the list reached "desert
+    ranges in Nevada and Arizona that few climbers ever visit". Peaks ascent
+    data cannot carry that claim — only 5 of the 57 members hold a non-zero
+    `success_count_offset` — and no other source states it, so the clause is
+    replaced by the state spread above, which the query does support.
 - Year left NULL: same reason as the Iran list.
 - Description: "An ultra is a peak that rises at least 1,500 meters, about
   4,900 feet, above the lowest saddle linking it to any higher ground.
-  Fifty-seven stand in the lower forty-eight, from Mount Rainier and Mount
-  Whitney to desert ranges in Nevada and Arizona that few climbers ever visit.
-  The earth scientist Steve Fry named the class in the 1980s while measuring
-  peaks in Washington."
+  Fifty-seven stand in the lower forty-eight, most of them in California, Utah,
+  Nevada, and Washington, with single peaks as far east as New Hampshire and
+  North Carolina. The earth scientist Steve Fry named the class in the 1980s
+  while measuring peaks in Washington."
 
 ### US State High Points — `dR9aHGKw3VwBhfsHSwlB`
 
@@ -372,7 +402,7 @@ one.
 
 ### Utah 13ers — `JCKrJp4PR2Ygtz6hLJLv`
 
-- Year: **NULL**; organization **Peakbagger.com**; region **Utah**.
+- Year: **NULL**; organization **NULL**; region **Utah**.
 - Source: Peakbagger, https://www.peakbagger.com/list.aspx?lid=21349
 - Claims and sources:
   - 19 Utah summits above 13,000 feet — Peakbagger lid 21349 and the prod
