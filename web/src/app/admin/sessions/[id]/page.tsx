@@ -5,8 +5,15 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import AdminGuard from "../../../../components/admin-guard";
-import AdminNav from "../../../../components/admin-nav";
 import UserPopover from "../../../../components/user-popover";
+import {
+  AdminPage,
+  AdminPageHeader,
+} from "../../../../components/admin/admin-page";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { Badge } from "../../../../components/ui/badge";
+import { SectionHeading } from "../../../../components/ui/section-heading";
+import { StatCluster } from "../../../../components/ui/stat";
 import { useAuth } from "../../../../lib/auth-context";
 import { LOADING_LABEL } from "../../../../lib/constants";
 import {
@@ -93,25 +100,17 @@ function SessionDetailContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">{LOADING_LABEL}</div>
+      </AdminPage>
     );
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <AdminNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">
-            Session not found
-          </div>
-        </main>
-      </div>
+      <AdminPage>
+        <div className="py-16 text-center text-sm text-muted">Session not found</div>
+      </AdminPage>
     );
   }
 
@@ -132,222 +131,184 @@ function SessionDetailContent() {
       : [{ dist: distances[i], ele: p.elevation }]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link
-            href="/admin/sessions"
-            className="hover:text-gray-900 dark:hover:text-gray-100"
-          >
-            Sessions
-          </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-gray-100">
-            {displayName}
+    <AdminPage className="space-y-12">
+      <AdminPageHeader
+        breadcrumb={
+          <Breadcrumb
+            current={displayName}
+            parentHref="/admin/sessions"
+            parentLabel="Sessions"
+          />
+        }
+        title={displayName}
+        description={
+          <span>
+            {date.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+            {" · "}
+            <span className="font-mono-num text-xs text-faint">{session.id}</span>
           </span>
-        </div>
-
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold">{displayName}</h2>
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-sm text-gray-500">
-              {date.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
+        }
+        actions={
+          <>
             <UserPopover uid={session.user_id} />
-            {session.source && (
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                {session.source}
-              </span>
-            )}
-            {session.processing_state && (
-              <span
-                className={`text-xs px-2 py-0.5 rounded ${
-                  session.processing_state === "completed"
-                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                    : session.processing_state === "failed"
-                      ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
-                      : "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
-                }`}
-              >
+            {session.source ? <Badge>{session.source}</Badge> : null}
+            {session.processing_state ? (
+              <Badge tone={session.processing_state === "failed" ? "red" : "gray"}>
                 {session.processing_state}
-              </span>
-            )}
+              </Badge>
+            ) : null}
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap gap-x-12 gap-y-6">
+        <StatCluster
+          scale="topline"
+          label="Distance"
+          value={session.distance != null ? (session.distance / 1609.34).toFixed(1) : "—"}
+          unit={session.distance != null ? "mi" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Elevation gain"
+          value={session.gain != null ? Math.round(session.gain * 3.28084).toLocaleString() : "—"}
+          unit={session.gain != null ? "ft" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Time"
+          value={session.total_time != null ? formatDuration(session.total_time) : "—"}
+        />
+        <StatCluster
+          scale="topline"
+          label="Highest point"
+          value={
+            session.highest_point != null
+              ? Math.round(session.highest_point * 3.28084).toLocaleString()
+              : "—"
+          }
+          unit={session.highest_point != null ? "ft" : undefined}
+        />
+        <StatCluster
+          scale="topline"
+          label="Pace"
+          value={session.pace != null && session.pace > 0 ? formatPace(session.pace) : "—"}
+        />
+      </div>
+
+      {points.length > 0 && (
+        <section aria-labelledby="session-track">
+          <div className="flex items-baseline justify-between gap-4">
+            <SectionHeading>
+              <span id="session-track">GPS track</span>
+            </SectionHeading>
+            <span className="font-mono-num text-xs tabular-nums text-faint">
+              {points.length.toLocaleString()} points
+            </span>
           </div>
-          <p className="text-xs text-gray-400 font-mono mt-1">{session.id}</p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
-          <StatCard
-            label="Distance"
-            value={
-              session.distance != null
-                ? `${(session.distance / 1609.34).toFixed(1)} mi`
-                : "—"
-            }
-          />
-          <StatCard
-            label="Elevation Gain"
-            value={
-              session.gain != null
-                ? `${Math.round(session.gain * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
-          />
-          <StatCard
-            label="Time"
-            value={
-              session.total_time != null
-                ? formatDuration(session.total_time)
-                : "—"
-            }
-          />
-          <StatCard
-            label="Highest Point"
-            value={
-              session.highest_point != null
-                ? `${Math.round(session.highest_point * 3.28084).toLocaleString()} ft`
-                : "—"
-            }
-          />
-          <StatCard
-            label="Pace"
-            value={
-              session.pace != null && session.pace > 0
-                ? formatPace(session.pace)
-                : "—"
-            }
-          />
-        </div>
-
-        {/* GPS Track Map */}
-        {points.length > 0 && (
-          <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">GPS Track</h3>
-              <span className="text-xs text-gray-400">
-                {points.length.toLocaleString()} points
-              </span>
-            </div>
+          <div className="mt-4 overflow-hidden rounded-media">
             <SessionMap points={points} />
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Elevation Profile */}
-        {elevationPoints.length >= 2 && (
-          <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-            <h3 className="font-semibold mb-3">Elevation Profile</h3>
+      {elevationPoints.length >= 2 && (
+        <section aria-labelledby="session-elevation">
+          <SectionHeading>
+            <span id="session-elevation">Elevation profile</span>
+          </SectionHeading>
+          <div className="mt-4 overflow-hidden rounded-media">
             <ElevationProfile points={elevationPoints} />
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Destinations */}
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Destinations ({destinations.length})
-          </h3>
+      <section aria-labelledby="session-destinations">
+        <SectionHeading>
+          <span id="session-destinations">Destinations ({destinations.length})</span>
+        </SectionHeading>
           {destinations.length === 0 ? (
-            <p className="text-sm text-gray-500">No destinations matched</p>
+            <p className="mt-4 text-sm text-muted">No destinations matched</p>
           ) : (
-            <div className="space-y-2">
+            <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
               {destinations.map((dest) => (
-                <Link
-                  key={dest.id}
-                  href={`/admin/destinations/${dest.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-sm">
-                      {dest.name || "Unnamed"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {dest.elevation != null
-                        ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-                        : ""}
-                      {dest.features.length > 0
-                        ? ` · ${dest.features.join(", ")}`
-                        : ""}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        dest.source === "auto"
-                          ? "bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                          : "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300"
-                      }`}
-                    >
-                      {dest.source}
+                <li key={dest.id}>
+                  <Link
+                    href={`/admin/destinations/${dest.id}`}
+                    className="group flex flex-wrap items-center justify-between gap-3 py-3 sm:flex-nowrap"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-ink group-hover:underline">
+                        {dest.name || "Unnamed"}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {dest.elevation != null ? (
+                          <span className="font-mono-num tabular-nums">
+                            {Math.round(dest.elevation * 3.28084).toLocaleString()} ft
+                          </span>
+                        ) : null}
+                        {dest.features.length > 0
+                          ? `${dest.elevation != null ? " · " : ""}${dest.features.join(", ")}`
+                          : null}
+                      </span>
                     </span>
-                    <span className="text-xs text-gray-400 capitalize">
-                      {dest.relation}
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Badge>{dest.source}</Badge>
+                      <span className="text-xs capitalize text-faint">{dest.relation}</span>
                     </span>
-                  </div>
-                </Link>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+      </section>
 
-        {/* Metadata */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">Metadata</h3>
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+      <section aria-labelledby="session-metadata">
+        <SectionHeading>
+          <span id="session-metadata">Metadata</span>
+        </SectionHeading>
+          <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-5 text-sm sm:grid-cols-3">
             {session.ascent_time != null && (
               <div>
-                <dt className="text-gray-500">Ascent Time</dt>
-                <dd>{formatDuration(session.ascent_time)}</dd>
+                <dt className="text-xs text-muted">Ascent time</dt>
+                <dd className="mt-1 font-mono-num text-ink-2">{formatDuration(session.ascent_time)}</dd>
               </div>
             )}
             {session.descent_time != null && (
               <div>
-                <dt className="text-gray-500">Descent Time</dt>
-                <dd>{formatDuration(session.descent_time)}</dd>
+                <dt className="text-xs text-muted">Descent time</dt>
+                <dd className="mt-1 font-mono-num text-ink-2">{formatDuration(session.descent_time)}</dd>
               </div>
             )}
             {session.still_time != null && (
               <div>
-                <dt className="text-gray-500">Still Time</dt>
-                <dd>{formatDuration(session.still_time)}</dd>
+                <dt className="text-xs text-muted">Still time</dt>
+                <dd className="mt-1 font-mono-num text-ink-2">{formatDuration(session.still_time)}</dd>
               </div>
             )}
             <div>
-              <dt className="text-gray-500">Public</dt>
-              <dd>{session.is_public ? "Yes" : "No"}</dd>
+              <dt className="text-xs text-muted">Public</dt>
+              <dd className="mt-1 text-ink-2">{session.is_public ? "Yes" : "No"}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Ended</dt>
-              <dd>{session.ended ? "Yes" : "No"}</dd>
+              <dt className="text-xs text-muted">Ended</dt>
+              <dd className="mt-1 text-ink-2">{session.ended ? "Yes" : "No"}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Created</dt>
-              <dd>{new Date(session.created_at).toLocaleDateString()}</dd>
+              <dt className="text-xs text-muted">Created</dt>
+              <dd className="mt-1 text-ink-2">{new Date(session.created_at).toLocaleDateString()}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Updated</dt>
-              <dd>{new Date(session.updated_at).toLocaleDateString()}</dd>
+              <dt className="text-xs text-muted">Updated</dt>
+              <dd className="mt-1 text-ink-2">{new Date(session.updated_at).toLocaleDateString()}</dd>
             </div>
           </dl>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
-    </div>
+      </section>
+    </AdminPage>
   );
 }

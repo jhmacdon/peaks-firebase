@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AdminGuard from "../../../components/admin-guard";
-import AdminNav from "../../../components/admin-nav";
+import { AdminPage, AdminPageHeader } from "../../../components/admin/admin-page";
+import { Badge, type BadgeTone } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { EmptyState } from "../../../components/ui/empty-state";
+import { Input, Label, Select, Textarea } from "../../../components/ui/field";
+import { Tabs } from "../../../components/ui/tabs";
 import { useAuth } from "../../../lib/auth-context";
 import {
   addDestinationPhotoCandidate,
@@ -67,69 +72,57 @@ function PhotoReviewContent() {
   }, [getIdToken, status]);
 
   useEffect(() => {
-    loadCandidates();
+    void loadCandidates();
   }, [loadCandidates]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-semibold">Destination photos</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Review licensed cover photos before they reach the site and app.
-            </p>
-          </div>
-          <button
+    <AdminPage>
+      <AdminPageHeader
+        title="Destination photos"
+        description="Review licensed cover photos before they reach the site and app."
+        actions={
+          <Button
             type="button"
+            variant={showAddForm ? "secondary" : "primary"}
             onClick={() => setShowAddForm((shown) => !shown)}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             {showAddForm ? "Close form" : "Add candidate"}
-          </button>
-        </div>
+          </Button>
+        }
+      />
 
-        {showAddForm && (
-          <AddCandidateForm
-            onAdded={() => {
-              setShowAddForm(false);
-              if (status === "pending") {
-                void loadCandidates();
-              } else {
-                setStatus("pending");
-              }
-            }}
-          />
-        )}
+      {showAddForm ? (
+        <AddCandidateForm
+          onAdded={() => {
+            setShowAddForm(false);
+            if (status === "pending") {
+              void loadCandidates();
+            } else {
+              setStatus("pending");
+            }
+          }}
+        />
+      ) : null}
 
-        <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-800">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setStatus(tab.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                status === tab.id
-                  ? "border-blue-600 text-blue-700 dark:text-blue-300"
-                  : "border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <section className="mt-10" aria-label="Photo review queue">
+        <Tabs
+          items={STATUS_TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
+          value={status}
+          onChange={(value) => setStatus(value as DestinationPhotoStatus)}
+        />
 
         {loadError ? (
-          <Notice tone="error">{loadError}</Notice>
+          <Notice className="mt-6">{loadError}</Notice>
         ) : loading ? (
-          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
+          <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
         ) : candidates.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-6 py-12 text-center text-gray-500">
-            No {status} photo candidates.
-          </div>
+          <EmptyState
+            className="mt-6"
+            title={`No ${status} photo candidates`}
+            description="Candidates will appear here when they enter this review state."
+          />
         ) : (
-          <div className="space-y-6">
+          <div className="mt-8 space-y-8">
             {candidates.map((candidate) => (
               <PhotoCandidateCard
                 key={candidate.id}
@@ -142,8 +135,8 @@ function PhotoReviewContent() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </section>
+    </AdminPage>
   );
 }
 
@@ -164,9 +157,10 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedDestinationId = destination?.id ?? null;
 
   useEffect(() => {
-    if (destination || destinationQuery.trim().length < 2) {
+    if (selectedDestinationId || destinationQuery.trim().length < 2) {
       setMatches([]);
       setSearching(false);
       return;
@@ -191,7 +185,7 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [destination, destinationQuery, getIdToken]);
+  }, [destinationQuery, getIdToken, selectedDestinationId]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -227,100 +221,133 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
   return (
     <form
       onSubmit={submit}
-      className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6"
+      aria-labelledby="new-photo-candidate-heading"
+      className="mt-10 rounded-media border border-border bg-surface p-5 sm:p-6"
     >
-      <h3 className="font-semibold mb-4">New photo candidate</h3>
-      {error && <Notice tone="error">{error}</Notice>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 id="new-photo-candidate-heading" className="text-lg font-medium text-ink">
+        New photo candidate
+      </h2>
+      <p className="mt-1 text-sm text-muted">
+        Add the image, its source, and the license details needed for review.
+      </p>
+      {error ? <Notice className="mt-4">{error}</Notice> : null}
+
+      <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="relative md:col-span-2">
-          <FieldLabel>Destination</FieldLabel>
+          <Label htmlFor="photo-destination-search">Destination</Label>
           {destination ? (
-            <div className="flex items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2">
-              <span>
-                {destination.name}
-                <span className="ml-2 text-xs text-gray-500 font-mono">{destination.id}</span>
+            <div className="flex min-h-10 items-center justify-between gap-4 rounded-ctl border border-border bg-page px-3 py-1.5">
+              <span className="min-w-0 text-sm text-ink">
+                <span className="font-medium">{destination.name}</span>
+                <span className="ml-2 font-mono-num text-xs text-muted">{destination.id}</span>
               </span>
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="quiet"
                 onClick={() => {
                   setDestination(null);
                   setDestinationQuery("");
                 }}
-                className="text-sm text-gray-500 hover:text-red-600"
               >
                 Change
-              </button>
+              </Button>
             </div>
           ) : (
             <>
-              <input
+              <Input
+                id="photo-destination-search"
                 value={destinationQuery}
                 onChange={(event) => setDestinationQuery(event.target.value)}
                 placeholder="Search for a mountain"
-                className={inputClassName}
+                autoComplete="off"
               />
-              {(searching || matches.length > 0) && (
-                <div className="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-lg">
+              {searching || matches.length > 0 ? (
+                <div className="absolute left-0 right-0 z-10 mt-1 overflow-hidden rounded-ctl border border-border bg-page shadow-float">
                   {searching ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>
+                    <p className="px-3 py-2 text-sm text-muted">Searching…</p>
                   ) : (
-                    matches.map((match) => (
-                      <button
-                        key={match.id}
-                        type="button"
-                        onClick={() => {
-                          setDestination(match);
-                          setMatches([]);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between gap-4"
-                      >
-                        <span>{match.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {[match.state_code, match.country_code].filter(Boolean).join(", ")}
-                        </span>
-                      </button>
-                    ))
+                    <div className="divide-y divide-hairline">
+                      {matches.map((match) => (
+                        <button
+                          key={match.id}
+                          type="button"
+                          onClick={() => {
+                            setDestination(match);
+                            setMatches([]);
+                          }}
+                          className="flex w-full justify-between gap-4 px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-fill"
+                        >
+                          <span>{match.name}</span>
+                          <span className="shrink-0 text-xs text-muted">
+                            {[match.state_code, match.country_code].filter(Boolean).join(", ")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
 
-        <TextField label="Direct image URL" value={imageUrl} onChange={setImageUrl} type="url" />
-        <TextField label="Source page URL" value={sourcePageUrl} onChange={setSourcePageUrl} type="url" />
-        <label className="block">
-          <FieldLabel>Source</FieldLabel>
-          <select value={sourceKind} onChange={(event) => setSourceKind(event.target.value)} className={inputClassName}>
+        <TextField id="photo-image-url" label="Direct image URL" value={imageUrl} onChange={setImageUrl} type="url" />
+        <TextField
+          id="photo-source-page-url"
+          label="Source page URL"
+          value={sourcePageUrl}
+          onChange={setSourcePageUrl}
+          type="url"
+        />
+        <div>
+          <Label htmlFor="photo-source-kind">Source</Label>
+          <Select id="photo-source-kind" value={sourceKind} onChange={(event) => setSourceKind(event.target.value)}>
             {SOURCE_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
-          </select>
-        </label>
-        <TextField label="Photographer or agency" value={photographer} onChange={setPhotographer} />
-        <TextField label="License name" value={licenseName} onChange={setLicenseName} placeholder="CC BY-SA 4.0" />
-        <TextField label="License URL" value={licenseUrl} onChange={setLicenseUrl} type="url" />
-        <TextField label="Image width" value={imageWidth} onChange={setImageWidth} type="number" />
-        <TextField label="Image height" value={imageHeight} onChange={setImageHeight} type="number" />
-        <label className="block md:col-span-2">
-          <FieldLabel>Review notes</FieldLabel>
-          <textarea
+          </Select>
+        </div>
+        <TextField
+          id="photo-photographer"
+          label="Photographer or agency"
+          value={photographer}
+          onChange={setPhotographer}
+        />
+        <TextField
+          id="photo-license-name"
+          label="License name"
+          value={licenseName}
+          onChange={setLicenseName}
+          placeholder="CC BY-SA 4.0"
+        />
+        <TextField
+          id="photo-license-url"
+          label="License URL"
+          value={licenseUrl}
+          onChange={setLicenseUrl}
+          type="url"
+        />
+        <TextField id="photo-image-width" label="Image width" value={imageWidth} onChange={setImageWidth} type="number" />
+        <TextField id="photo-image-height" label="Image height" value={imageHeight} onChange={setImageHeight} type="number" />
+        <div className="md:col-span-2">
+          <Label htmlFor="photo-review-notes">Review notes</Label>
+          <Textarea
+            id="photo-review-notes"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             rows={3}
             placeholder="Why this view works, what face is shown, or anything to verify."
-            className={inputClassName}
           />
-        </label>
+        </div>
       </div>
-      <div className="mt-5 flex justify-end">
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
+
+      <div className="mt-6 flex justify-end">
+        <Button type="submit" disabled={saving}>
           {saving ? "Adding…" : "Add to review queue"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -386,8 +413,9 @@ function PhotoCandidateCard({
   };
 
   const hasCurrentCover = Boolean(candidate.current_image_url);
+
   return (
-    <article className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+    <article className="overflow-hidden rounded-media border border-border bg-page">
       <div className={`grid grid-cols-1 ${hasCurrentCover ? "lg:grid-cols-2" : ""}`}>
         <PhotoPreview
           label="Candidate · wide preview"
@@ -396,7 +424,7 @@ function PhotoCandidateCard({
           focalX={focalX}
           focalY={focalY}
         />
-        {hasCurrentCover && (
+        {hasCurrentCover ? (
           <PhotoPreview
             label="Current cover · wide"
             src={candidate.current_image_url!}
@@ -404,94 +432,82 @@ function PhotoCandidateCard({
             focalX={candidate.current_image_focal_x}
             focalY={candidate.current_image_focal_y}
           />
-        )}
+        ) : null}
       </div>
-      <div className="p-5">
+
+      <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Link href={`/admin/destinations/${candidate.destination_id}`} className="text-lg font-semibold hover:underline">
+          <div className="min-w-0">
+            <Link
+              href={`/admin/destinations/${candidate.destination_id}`}
+              className="text-lg font-medium text-accent-text hover:underline"
+            >
               {candidate.destination_name}
             </Link>
-            <div className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-muted">
               {candidate.photographer} ·{" "}
-              <a href={candidate.license_url} target="_blank" rel="noopener noreferrer" className="underline">
+              <a
+                href={candidate.license_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent-text hover:underline"
+              >
                 {candidate.license_name}
               </a>
-              {candidate.image_width && candidate.image_height
-                ? ` · ${candidate.image_width.toLocaleString()}×${candidate.image_height.toLocaleString()}`
-                : ""}
-            </div>
+              {candidate.image_width && candidate.image_height ? (
+                <span className="font-mono-num">
+                  {` · ${candidate.image_width.toLocaleString()}×${candidate.image_height.toLocaleString()}`}
+                </span>
+              ) : null}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={candidate.status} />
-            <a
-              href={candidate.source_page_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
+            <Button href={candidate.source_page_url} external variant="secondary" size="sm">
               Open source
-            </a>
+            </Button>
           </div>
         </div>
 
-        {candidate.notes && <p className="mt-3 text-sm text-gray-700 dark:text-gray-300">{candidate.notes}</p>}
-        {reviewEnabled && (
-          <div className="mt-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 p-4">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="min-w-48 flex-1">
-                <div className="flex justify-between gap-3 text-xs text-gray-500 mb-1">
-                  <span>Horizontal frame</span>
-                  <span>{focalX}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={focalX}
-                  onChange={(event) => setFocalX(Number(event.target.value))}
-                  disabled={reviewing !== null || savingFraming}
-                  className="w-full accent-blue-600"
-                  aria-label="Horizontal cover framing"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>Left</span><span>Right</span>
-                </div>
-              </div>
-              <div className="min-w-48 flex-1">
-                <div className="flex justify-between gap-3 text-xs text-gray-500 mb-1">
-                  <span>Vertical frame</span>
-                  <span>{focalY}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={focalY}
-                  onChange={(event) => setFocalY(Number(event.target.value))}
-                  disabled={reviewing !== null || savingFraming}
-                  className="w-full accent-blue-600"
-                  aria-label="Vertical cover framing"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>Top</span><span>Bottom</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={saveFraming}
-                disabled={!framingChanged || reviewing !== null || savingFraming}
-                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-white dark:hover:bg-gray-900 disabled:opacity-50"
-              >
-                {savingFraming ? "Saving…" : framingChanged ? "Save framing" : "Framing saved"}
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
+        {candidate.notes ? <p className="mt-4 max-w-[68ch] text-sm text-ink-2">{candidate.notes}</p> : null}
+
+        {reviewEnabled ? (
+          <section className="mt-8" aria-labelledby={`framing-${candidate.id}`}>
+            <h3 id={`framing-${candidate.id}`} className="font-medium text-ink">
+              Cover framing
+            </h3>
+            <p className="mt-1 max-w-[68ch] text-sm text-muted">
               Reposition the full image once. Every crop below uses the same saved point, and approval also saves unsaved changes.
             </p>
-            <div className="mt-4 flex flex-wrap items-end gap-3">
+
+            <div className="mt-5 flex flex-wrap items-end gap-5">
+              <RangeField
+                label="Horizontal frame"
+                startLabel="Left"
+                endLabel="Right"
+                value={focalX}
+                onChange={setFocalX}
+                disabled={reviewing !== null || savingFraming}
+              />
+              <RangeField
+                label="Vertical frame"
+                startLabel="Top"
+                endLabel="Bottom"
+                value={focalY}
+                onChange={setFocalY}
+                disabled={reviewing !== null || savingFraming}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={saveFraming}
+                disabled={!framingChanged || reviewing !== null || savingFraming}
+              >
+                {savingFraming ? "Saving…" : framingChanged ? "Save framing" : "Framing saved"}
+              </Button>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-end gap-4">
               <PhotoPreview
                 label="App header · 16:9"
                 src={candidate.image_url}
@@ -499,7 +515,7 @@ function PhotoCandidateCard({
                 focalX={focalX}
                 focalY={focalY}
                 aspectClassName="aspect-video"
-                className="w-64 max-w-full rounded-md"
+                className="w-64 max-w-full rounded-media"
               />
               <PhotoPreview
                 label="Mobile · 3:2"
@@ -508,7 +524,7 @@ function PhotoCandidateCard({
                 focalX={focalX}
                 focalY={focalY}
                 aspectClassName="aspect-[3/2]"
-                className="w-56 max-w-full rounded-md"
+                className="w-56 max-w-full rounded-media"
               />
               <PhotoPreview
                 label="Card · square"
@@ -517,46 +533,99 @@ function PhotoCandidateCard({
                 focalX={focalX}
                 focalY={focalY}
                 aspectClassName="aspect-square"
-                className="w-36 max-w-full rounded-md"
+                className="w-36 max-w-full rounded-media"
               />
             </div>
-          </div>
-        )}
-        {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
+          </section>
+        ) : null}
+
+        {error ? <Notice className="mt-5">{error}</Notice> : null}
 
         {reviewEnabled ? (
-          <div className="mt-5 flex justify-end gap-2">
-            <button
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
               type="button"
+              variant="danger"
               onClick={() => review("deny")}
               disabled={reviewing !== null || savingFraming}
-              className="px-4 py-2 text-sm border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
             >
               {reviewing === "deny" ? "Denying…" : "Deny"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => review("approve")}
               disabled={reviewing !== null || savingFraming}
-              className="px-4 py-2 text-sm bg-green-700 text-white rounded-lg hover:bg-green-800 disabled:opacity-50"
             >
               {reviewing === "approve"
                 ? "Storing & approving…"
                 : framingChanged
                   ? "Save framing & approve"
                   : "Approve cover"}
-            </button>
+            </Button>
           </div>
         ) : (
-          <div className="mt-4 text-xs text-gray-500">
-            Reviewed {candidate.reviewed_at ? new Date(candidate.reviewed_at).toLocaleString() : "—"}
-            {candidate.final_image_url && (
-              <> · <a href={candidate.final_image_url} target="_blank" rel="noopener noreferrer" className="underline">Stored image</a></>
-            )}
-          </div>
+          <p className="mt-5 text-xs text-muted">
+            Reviewed{" "}
+            <span className="font-mono-num">
+              {candidate.reviewed_at ? new Date(candidate.reviewed_at).toLocaleString() : "—"}
+            </span>
+            {candidate.final_image_url ? (
+              <>
+                {" · "}
+                <a
+                  href={candidate.final_image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-text hover:underline"
+                >
+                  Stored image
+                </a>
+              </>
+            ) : null}
+          </p>
         )}
       </div>
     </article>
+  );
+}
+
+function RangeField({
+  label,
+  startLabel,
+  endLabel,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  startLabel: string;
+  endLabel: string;
+  value: number;
+  onChange: (value: number) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="min-w-48 flex-1">
+      <div className="mb-1 flex justify-between gap-3 text-xs text-muted">
+        <span>{label}</span>
+        <span className="font-mono-num tabular-nums">{value}%</span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="5"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        disabled={disabled}
+        className="w-full accent-accent"
+        aria-label={label}
+      />
+      <div className="flex justify-between text-xs text-faint">
+        <span>{startLabel}</span>
+        <span>{endLabel}</span>
+      </div>
+    </div>
   );
 }
 
@@ -578,45 +647,45 @@ function PhotoPreview({
   className?: string;
 }) {
   return (
-    <div className={`relative bg-gray-100 dark:bg-gray-950 overflow-hidden ${aspectClassName} ${className}`.trim()}>
+    <div className={`relative overflow-hidden bg-fill ${aspectClassName} ${className}`.trim()}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="h-full w-full object-cover"
         style={{ objectPosition: `${focalX}% ${focalY}%` }}
         referrerPolicy="no-referrer"
         loading="lazy"
         decoding="async"
       />
-      <span className="absolute top-3 left-3 rounded bg-black/70 text-white text-xs px-2 py-1">{label}</span>
+      <Badge className="absolute left-3 top-3">{label}</Badge>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: DestinationPhotoStatus }) {
-  const classes = {
-    pending: "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-    approved: "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300",
-    denied: "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300",
-  }[status];
-  return <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${classes}`}>{status}</span>;
-}
+  const tone: Record<DestinationPhotoStatus, BadgeTone> = {
+    pending: "amber",
+    approved: "emerald",
+    denied: "red",
+  };
 
-const inputClassName =
-  "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-blue-500";
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <span className="block text-sm font-medium mb-1">{children}</span>;
+  return (
+    <Badge tone={tone[status]} className="capitalize">
+      {status}
+    </Badge>
+  );
 }
 
 function TextField({
+  id,
   label,
   value,
   onChange,
   type = "text",
   placeholder,
 }: {
+  id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -624,23 +693,23 @@ function TextField({
   placeholder?: string;
 }) {
   return (
-    <label className="block">
-      <FieldLabel>{label}</FieldLabel>
-      <input
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className={inputClassName}
       />
-    </label>
+    </div>
   );
 }
 
-function Notice({ children, tone }: { children: React.ReactNode; tone: "error" }) {
+function Notice({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${tone === "error" ? "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200" : ""}`}>
+    <p role="alert" className={`text-sm text-alert ${className}`.trim()}>
       {children}
-    </div>
+    </p>
   );
 }

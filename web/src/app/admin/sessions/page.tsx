@@ -4,7 +4,15 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import AdminGuard from "../../../components/admin-guard";
-import AdminNav from "../../../components/admin-nav";
+import {
+  AdminPage,
+  AdminPageHeader,
+  AdminTableFrame,
+} from "../../../components/admin/admin-page";
+import { Button } from "../../../components/ui/button";
+import { EmptyState } from "../../../components/ui/empty-state";
+import { Input } from "../../../components/ui/field";
+import { StatCluster } from "../../../components/ui/stat";
 import UserPopover from "../../../components/user-popover";
 import { useAuth } from "../../../lib/auth-context";
 import {
@@ -116,68 +124,63 @@ function SessionsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <AdminNav />
+    <AdminPage className="space-y-10">
+      <AdminPageHeader
+        title="Sessions"
+        description="Review tracked activities, their owners, and the stored data for each recording."
+      />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-semibold">Sessions</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {total.toLocaleString()} total sessions
-            </p>
-          </div>
-        </div>
+      <StatCluster value={total.toLocaleString()} label="Sessions" scale="topline" />
 
+      <section className="space-y-5" aria-label="Session filters and results">
         {destinationId && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-              <span className="text-xs text-blue-500 dark:text-blue-400">Destination:</span>
-              <Link
-                href={`/admin/destinations/${destinationId}`}
-                className="font-medium hover:underline"
-              >
-                {destinationName || LOADING_LABEL}
-              </Link>
-              <button
-                onClick={clearDestinationFilter}
-                className="text-blue-500 hover:text-red-500 ml-1"
-                aria-label="Clear filter"
-              >
-                &times;
-              </button>
-            </span>
+          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-fill px-3 py-1.5 text-sm text-ink-2">
+            <span className="text-xs text-muted">Destination</span>
+            <Link
+              href={`/admin/destinations/${destinationId}`}
+              className="truncate font-medium text-accent-text hover:underline"
+            >
+              {destinationName || LOADING_LABEL}
+            </Link>
+            <button
+              type="button"
+              onClick={clearDestinationFilter}
+              className="ml-1 text-faint transition-colors hover:text-alert"
+              aria-label="Clear destination filter"
+            >
+              &times;
+            </button>
           </div>
         )}
 
-        <div className="flex flex-wrap gap-3 mb-6">
-          <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
-            <input
-              type="text"
-              placeholder="Search by name or session ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </form>
-        </div>
+        <form onSubmit={handleSearch} className="min-w-0">
+          <Input
+            type="search"
+            aria-label="Search sessions"
+            placeholder="Search by name or session ID…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </form>
 
         {loading ? (
-          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
+          <div className="py-14 text-center text-sm text-muted">{LOADING_LABEL}</div>
         ) : sessions.length === 0 ? (
-          <div className="text-gray-500 py-12 text-center">
-            No sessions found
-          </div>
+          <EmptyState
+            title="No sessions found"
+            description="Try a broader search or clear the destination filter."
+          />
         ) : (
           <>
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
-                    <th className="px-4 py-3 font-medium text-gray-500">
+            <AdminTableFrame>
+              <table className="min-w-[1040px] w-full text-sm">
+                <thead className="bg-surface">
+                  <tr className="border-b border-hairline text-left">
+                    <th scope="col" className="px-4 py-3 font-medium text-muted">
                       Session
                     </th>
-                    <th className="px-4 py-3 font-medium text-gray-500">
+                    <th scope="col" className="px-4 py-3 font-medium text-muted">
                       User
                     </th>
                     <SortHeader
@@ -210,110 +213,111 @@ function SessionsContent() {
                     />
                     <SortHeader
                       field="highest_point"
-                      label="High Point"
+                      label="High point"
                       sortField={sortField}
                       sortDir={sortDir}
                       onSort={toggleSort}
                     />
-                    <th className="px-4 py-3 font-medium text-gray-500">
+                    <th scope="col" className="px-4 py-3 font-medium text-muted">
                       Points
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sessions.map((s) => {
-                    const date = new Date(s.start_time);
+                  {sessions.map((session) => {
+                    const date = new Date(session.start_time);
                     const displayName = deriveSessionName(
-                      s.name,
-                      s.destinationNames
+                      session.name,
+                      session.destinationNames
                     );
                     return (
                       <tr
-                        key={s.id}
-                        className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        key={session.id}
+                        className="border-b border-hairline transition-colors last:border-b-0 hover:bg-surface"
                       >
                         <td className="px-4 py-3">
                           <Link
-                            href={`/admin/sessions/${s.id}`}
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                            href={`/admin/sessions/${session.id}`}
+                            className="font-medium text-accent-text hover:underline"
                           >
                             {displayName}
                           </Link>
-                          {s.source && (
-                            <div className="text-xs text-gray-400 mt-0.5">
-                              {s.source}
+                          {session.source && (
+                            <div className="mt-0.5 text-xs text-faint">
+                              {session.source}
                             </div>
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <UserPopover uid={s.user_id} />
+                          <UserPopover uid={session.user_id} />
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                        <td className="whitespace-nowrap px-4 py-3 text-ink-2">
                           {date.toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                          {s.distance != null
-                            ? `${(s.distance / 1609.34).toFixed(1)} mi`
+                        <td className="whitespace-nowrap px-4 py-3 font-mono-num tabular-nums text-ink-2">
+                          {session.distance != null
+                            ? `${(session.distance / 1609.34).toFixed(1)} mi`
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                          {s.gain != null
-                            ? `${Math.round(s.gain * 3.28084).toLocaleString()} ft`
+                        <td className="whitespace-nowrap px-4 py-3 font-mono-num tabular-nums text-ink-2">
+                          {session.gain != null
+                            ? `${Math.round(session.gain * 3.28084).toLocaleString()} ft`
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                          {s.total_time != null
-                            ? formatDuration(s.total_time)
+                        <td className="whitespace-nowrap px-4 py-3 font-mono-num tabular-nums text-ink-2">
+                          {session.total_time != null
+                            ? formatDuration(session.total_time)
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                          {s.highest_point != null
-                            ? `${Math.round(s.highest_point * 3.28084).toLocaleString()} ft`
+                        <td className="whitespace-nowrap px-4 py-3 font-mono-num tabular-nums text-ink-2">
+                          {session.highest_point != null
+                            ? `${Math.round(session.highest_point * 3.28084).toLocaleString()} ft`
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                          {s.point_count.toLocaleString()}
+                        <td className="px-4 py-3 font-mono-num tabular-nums text-ink-2">
+                          {session.point_count.toLocaleString()}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
+            </AdminTableFrame>
 
             {total > pageSize && (
-              <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-gray-500">
-                  Showing {page * pageSize + 1}–
-                  {Math.min((page + 1) * pageSize, total)} of{" "}
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted">
+                  Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of{" "}
                   {total.toLocaleString()}
                 </p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
                     disabled={page === 0}
-                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     Previous
-                  </button>
-                  <button
-                    onClick={() => setPage((p) => p + 1)}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setPage((currentPage) => currentPage + 1)}
                     disabled={(page + 1) * pageSize >= total}
-                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
           </>
         )}
-      </main>
-    </div>
+      </section>
+    </AdminPage>
   );
 }
 
@@ -332,15 +336,14 @@ function SortHeader({
 }) {
   const active = sortField === field;
   return (
-    <th className="px-4 py-3 font-medium text-gray-500">
+    <th scope="col" className="px-4 py-3 font-medium text-muted">
       <button
+        type="button"
         onClick={() => onSort(field)}
-        className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+        className="flex items-center gap-1 transition-colors hover:text-ink"
       >
         {label}
-        <span
-          className={`text-xs ${active ? "text-blue-600 dark:text-blue-400" : "text-gray-300 dark:text-gray-600"}`}
-        >
+        <span className={`text-xs ${active ? "text-accent-text" : "text-faint"}`}>
           {active ? (sortDir === "asc" ? "\u2191" : "\u2193") : "\u2195"}
         </span>
       </button>
