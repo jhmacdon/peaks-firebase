@@ -179,6 +179,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 |--------|------|-------------|
 | GET | `/health` | Health check (no auth) |
 | POST | `/internal/sweep` | Stuck-session sweep; Cloud Scheduler job `peaks-api-sweep` every 2 min (OIDC-verified `peaks-sweeper@` SA, not Firebase auth) |
+| POST | `/internal/weather-refresh` | Refreshes the Firestore `weather` collection from Open-Meteo; Cloud Scheduler job `peaks-api-weather` 3x daily (same OIDC-verified `peaks-sweeper@` SA as sweep) |
 | GET | `/api/destinations/:id` | Destination detail |
 | GET | `/api/destinations/nearby?lat=&lng=&radius=&limit=` | Nearby destinations |
 | GET | `/api/destinations/viewport?minLat=&maxLat=&minLng=&maxLng=` | Map viewport query |

@@ -13,7 +13,8 @@
     "test:db": "NODE_ENV=test node --test --test-concurrency=${TEST_CONCURRENCY:-6} --import tsx src/__tests__/*.test.ts",
     "test:db:provision": "../test-db/provision.sh",
     "backfill:area-descriptions": "tsx scripts/backfill-area-descriptions.ts",
-    "backfill:session-areas": "tsx scripts/backfill-session-areas.ts"
+    "backfill:session-areas": "tsx scripts/backfill-session-areas.ts",
+    "weather:refresh": "tsx scripts/run-weather-refresh.ts"
   },
   "engines": {
     "node": "20"

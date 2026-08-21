@@ -1,5 +1,6 @@
 import express, { NextFunction, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
+import admin from "firebase-admin";
 import { asyncRoute } from "./lib/async-route";
 import { requireAuth } from "./auth";
 import destinations from "./routes/destinations";
@@ -10,8 +11,9 @@ import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
 import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
-import { processingPool } from "./db";
+import pool, { processingPool } from "./db";
 import { sweepStuckSessions } from "./processing";
+import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
 // 5mb covers the iOS chunked points uploader (3000 pts/chunk ≈ 150KB) with
@@ -24,39 +26,51 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// Stuck-session sweep, invoked by Cloud Scheduler every 2 minutes with an
-// OIDC token. This replaced the in-process setInterval sweep: the service now
-// runs with CPU throttling (request-based billing), so background timers get
-// no CPU between requests — the scheduler request itself is the CPU window
-// the sweep runs in. Advisory-lock-guarded inside sweepStuckSessions, so
-// overlapping calls across instances are safe.
-const sweepAuth = new OAuth2Client();
+// Shared by every /internal/* endpoint below: Cloud Scheduler calls them with
+// an OIDC token whose audience is this service and whose subject is the
+// scheduler's invoker SA. Verifies that token, writing the 401/403 response
+// itself on failure; callers just check the return value. `label` picks the
+// log prefix ("sweep", "weather") so each endpoint's rejections stay
+// distinguishable in logs — behavior and status codes are identical either
+// way. Not Firebase auth: this is a service-to-service call, not a user one.
+const schedulerAuth = new OAuth2Client();
 const SWEEP_AUDIENCE =
   process.env.SWEEP_AUDIENCE || "https://peaks-api-qownl77soa-uc.a.run.app";
 const SWEEP_INVOKER =
   process.env.SWEEP_INVOKER || "peaks-sweeper@donner-a8608.iam.gserviceaccount.com";
-let isSweeping = false;
-app.post("/internal/sweep", asyncRoute(async (req, res) => {
+async function verifySchedulerToken(req: Request, res: Response, label: string): Promise<boolean> {
   const header = req.headers.authorization || "";
   const idToken = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
   if (!idToken) {
-    console.warn("[sweep] rejected: no bearer token (auth header present:", header.length > 0, ")");
+    console.warn(`[${label}] rejected: no bearer token (auth header present:`, header.length > 0, ")");
     res.status(401).json({ error: "missing token" });
-    return;
+    return false;
   }
   try {
-    const ticket = await sweepAuth.verifyIdToken({ idToken, audience: SWEEP_AUDIENCE });
+    const ticket = await schedulerAuth.verifyIdToken({ idToken, audience: SWEEP_AUDIENCE });
     const payload = ticket.getPayload();
     if (payload?.email !== SWEEP_INVOKER || !payload?.email_verified) {
-      console.warn("[sweep] rejected: wrong invoker", payload?.email);
+      console.warn(`[${label}] rejected: wrong invoker`, payload?.email);
       res.status(403).json({ error: "forbidden" });
-      return;
+      return false;
     }
   } catch (err) {
-    console.warn("[sweep] rejected: token verification failed:", (err as Error).message);
+    console.warn(`[${label}] rejected: token verification failed:`, (err as Error).message);
     res.status(401).json({ error: "invalid token" });
-    return;
+    return false;
   }
+  return true;
+}
+
+// Stuck-session sweep, invoked by Cloud Scheduler every 2 minutes. This
+// replaced the in-process setInterval sweep: the service now runs with CPU
+// throttling (request-based billing), so background timers get no CPU
+// between requests — the scheduler request itself is the CPU window the
+// sweep runs in. Advisory-lock-guarded inside sweepStuckSessions, so
+// overlapping calls across instances are safe.
+let isSweeping = false;
+app.post("/internal/sweep", asyncRoute(async (req, res) => {
+  if (!(await verifySchedulerToken(req, res, "sweep"))) return;
 
   if (isSweeping) {
     res.json({ status: "already_running" });
@@ -72,6 +86,33 @@ app.post("/internal/sweep", asyncRoute(async (req, res) => {
     res.status(500).json({ error: "sweep failed" });
   } finally {
     isSweeping = false;
+  }
+}));
+
+// Destination weather refresh, invoked by Cloud Scheduler 3x daily (job
+// `peaks-api-weather`, same OIDC invoker SA as sweep). Same
+// request-is-the-CPU-window reasoning as the sweep above; see
+// weather-refresh.ts for the actual fetch/write work. selectWeatherTargets's
+// read is a single bounded, indexed SELECT — not the long-running per-session
+// work processingPool exists for — so this uses the default web pool instead
+// of competing with the sweep for the small isolated processing pool.
+let isRefreshingWeather = false;
+app.post("/internal/weather-refresh", asyncRoute(async (req, res) => {
+  if (!(await verifySchedulerToken(req, res, "weather"))) return;
+
+  if (isRefreshingWeather) {
+    res.json({ status: "already_running" });
+    return;
+  }
+  isRefreshingWeather = true;
+  try {
+    const counts = await refreshDestinationWeather(pool, admin.firestore());
+    res.json({ status: "ok", ...counts });
+  } catch (err) {
+    console.error("[weather] failed:", err);
+    res.status(500).json({ error: "weather refresh failed" });
+  } finally {
+    isRefreshingWeather = false;
   }
 }));
 
