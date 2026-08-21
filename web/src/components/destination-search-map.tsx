@@ -52,14 +52,21 @@ export default function DestinationSearchMap({
     resultLayerRef.current = L.layerGroup().addTo(map);
 
     // Try geolocation, fallback to US center
-    map.locate({ setView: true, maxZoom: 10, timeout: 5000 });
-    map.on("locationerror", () => {
+    const handleLocationError = () => {
       map.setView([39, -98], 5);
-    });
+    };
+    map.on("locationerror", handleLocationError);
+    map.locate({ setView: true, maxZoom: 10, timeout: 5000 });
 
     map.on("click", handleClick);
 
     return () => {
+      // React Strict Mode remounts effects in development. Stop the pending
+      // geolocation update and remove its fallback before Leaflet tears down
+      // the map pane, or a late permission error can target the old map.
+      map.stopLocate();
+      map.off("locationerror", handleLocationError);
+      map.off("click", handleClick);
       map.remove();
       mapInstance.current = null;
     };
@@ -78,7 +85,7 @@ export default function DestinationSearchMap({
     if (clickedPoint) {
       const icon = L.divIcon({
         className: "",
-        html: `<div style="width:20px;height:20px;border-radius:50%;background:#f59e0b;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+        html: '<div style="width:20px;height:20px;border-radius:50%;background:var(--color-accent);border:3px solid var(--color-page);box-shadow:var(--shadow-float)"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       });
@@ -100,15 +107,17 @@ export default function DestinationSearchMap({
     for (const m of markers) {
       const icon = L.divIcon({
         className: "",
-        html: `<div style="width:14px;height:14px;border-radius:50%;background:${m.color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${m.color};border:2px solid var(--color-page);box-shadow:var(--shadow-float)"></div>`,
         iconSize: [14, 14],
         iconAnchor: [7, 7],
       });
+      const tooltip = document.createElement("span");
+      tooltip.textContent = m.name;
       L.marker([m.lat, m.lng], { icon })
-        .bindTooltip(m.name, { direction: "top", offset: [0, -10] })
+        .bindTooltip(tooltip, { direction: "top", offset: [0, -10] })
         .addTo(layer);
     }
   }, [markers]);
 
-  return <div ref={mapRef} className="w-full h-full" />;
+  return <div ref={mapRef} className="h-full w-full" />;
 }
