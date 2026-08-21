@@ -335,19 +335,29 @@ BEGIN
     RAISE EXCEPTION 'western OSM summits: % Wikidata id(s) written here also reach another destination', shared_wikidata;
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM destinations
-    WHERE id = 'dQvlhlqanHJh4h4JSkP7'
-      AND abs(elevation - 3310.9) < 0.001
-      AND abs(ST_Z(location::geometry) - 3310.9) < 0.001
-  ) THEN
+  -- Both Middle Sister rows are pre-existing Firestore-era destinations, not
+  -- rows this migration inserts, so a bare schema (test-db/provision.sh; no
+  -- Firestore migration ever ran there) never holds them. Gate each check on
+  -- the row's existence first: a fresh test database skips the assertion
+  -- (nothing to check), while prod -- where both rows are real -- still gets
+  -- the strict value check.
+  IF EXISTS (SELECT 1 FROM destinations WHERE id = 'dQvlhlqanHJh4h4JSkP7')
+     AND NOT EXISTS (
+       SELECT 1 FROM destinations
+       WHERE id = 'dQvlhlqanHJh4h4JSkP7'
+         AND abs(elevation - 3310.9) < 0.001
+         AND abs(ST_Z(location::geometry) - 3310.9) < 0.001
+     )
+  THEN
     RAISE EXCEPTION 'Middle Sister still does not read 3310.9 m in both places';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM destinations
-    WHERE id = 'U0r2Ys42V3pk8j8Hqtje' AND abs(elevation - 3062) < 0.001
-  ) THEN
+  IF EXISTS (SELECT 1 FROM destinations WHERE id = 'U0r2Ys42V3pk8j8Hqtje')
+     AND NOT EXISTS (
+       SELECT 1 FROM destinations
+       WHERE id = 'U0r2Ys42V3pk8j8Hqtje' AND abs(elevation - 3062) < 0.001
+     )
+  THEN
     RAISE EXCEPTION 'the Oregon Middle Sister row moved; it should not have';
   END IF;
 END $$;
