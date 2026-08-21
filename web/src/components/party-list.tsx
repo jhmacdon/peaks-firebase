@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getUser, type UserInfo } from "../lib/actions/users";
+import { getUsers, type UserInfo } from "../lib/actions/users";
 import { useAuth } from "../lib/auth-context";
+import Avatar from "./avatar";
 
 interface PartyListProps {
   partyIds: string[];
@@ -13,19 +14,25 @@ export default function PartyList({ partyIds }: PartyListProps) {
   const [loaded, setLoaded] = useState(false);
   const { getIdToken } = useAuth();
 
-  const loadMembers = useCallback(async (ids: string[]) => {
-    const token = await getIdToken();
-    if (!token) return [];
-    const results = await Promise.all(ids.map((uid) => getUser(token, uid)));
-    return results.filter((u): u is UserInfo => u !== null);
-  }, [getIdToken]);
+  const loadMembers = useCallback(
+    async (ids: string[]) => {
+      const token = await getIdToken();
+      if (!token) return [];
+      return getUsers(token, ids);
+    },
+    [getIdToken]
+  );
+
+  // Firebase uids never contain commas, so the joined string is a stable
+  // primitive effect dependency (arrays re-trigger on every new reference).
+  const partyKey = partyIds.join(",");
 
   useEffect(() => {
-    if (partyIds.length === 0) return;
+    if (partyKey === "") return;
 
     let cancelled = false;
 
-    loadMembers(partyIds)
+    loadMembers(partyKey.split(","))
       .then((result) => {
         if (!cancelled) {
           setMembers(result);
@@ -42,51 +49,39 @@ export default function PartyList({ partyIds }: PartyListProps) {
     return () => {
       cancelled = true;
     };
-  }, [partyIds, loadMembers]);
+  }, [partyKey, loadMembers]);
 
   if (partyIds.length === 0) {
-    return <div className="text-sm text-gray-500">No party members yet</div>;
+    return <div className="text-sm text-muted">No party members yet</div>;
   }
 
   if (!loaded) {
-    return <div className="text-sm text-gray-500">Loading members...</div>;
+    return <div className="text-sm text-muted">Loading members...</div>;
   }
 
   if (members.length === 0) {
-    return <div className="text-sm text-gray-500">No party members found</div>;
+    return <div className="text-sm text-muted">No party members found</div>;
   }
 
   return (
-    <div className="space-y-2">
+    <ul className="divide-y divide-hairline">
       {members.map((member) => (
-        <div
-          key={member.uid}
-          className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 dark:border-gray-800"
-        >
-          {member.photoURL ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={member.photoURL}
-              alt=""
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-medium">
-              {(member.displayName || member.email || "?")[0].toUpperCase()}
-            </div>
-          )}
+        <li key={member.uid} className="flex items-center gap-3 py-2">
+          <Avatar
+            name={member.displayName || member.email}
+            avatarUrl={member.photoURL}
+            size="sm"
+          />
           <div className="min-w-0">
-            <div className="text-sm font-medium truncate">
+            <div className="truncate text-sm font-medium text-ink">
               {member.displayName || "Unknown"}
             </div>
             {member.email && (
-              <div className="text-xs text-gray-500 truncate">
-                {member.email}
-              </div>
+              <div className="truncate text-xs text-muted">{member.email}</div>
             )}
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

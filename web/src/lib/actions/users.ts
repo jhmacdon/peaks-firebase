@@ -2,16 +2,10 @@
 
 import { adminAuth } from "../firebase-admin";
 import { adminDb } from "../firebase-admin";
-import { resolveAvatarUrl, resolveProfileName } from "../user-profile-shape";
+import { chunk, orderByUids, shapeUserInfo, type UserInfo } from "../user-info";
+import type { RawUserProfileDoc } from "../user-profile-shape";
 
-export interface UserInfo {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
-  firstName: string | null;
-  lastName: string | null;
-}
+export type { UserInfo };
 
 export async function getUser(token: string, uid: string): Promise<UserInfo | null> {
   let caller;
@@ -24,46 +18,78 @@ export async function getUser(token: string, uid: string): Promise<UserInfo | nu
   const includeEmail = caller.admin === true || caller.uid === uid;
 
   try {
-    // Get Firebase Auth record
     const authUser = await adminAuth.getUser(uid);
 
-    // Get Firestore profile for name/avatar (may have more detail than
-    // Auth). The profile doc has two possible shapes — iOS writes `avatar`
-    // + `name.first`/`name.last`, web writes `avatarUrl` + a string `name`
-    // — resolveAvatarUrl/resolveProfileName read both.
-    let firstName: string | null = null;
-    let lastName: string | null = null;
-    let profileDisplayName: string | null = null;
-    let photoURL = authUser.photoURL || null;
-
+    // The Firestore profile may have more detail than Auth. Its doc has two
+    // possible shapes — iOS writes `avatar` + `name.first`/`name.last`, web
+    // writes `avatarUrl` + a string `name` — shapeUserInfo reads both.
+    let profile: RawUserProfileDoc | null = null;
     try {
       const userDoc = await adminDb.collection("users").doc(uid).get();
-      if (userDoc.exists) {
-        const data = userDoc.data() ?? {};
-        const resolvedName = resolveProfileName(data);
-        firstName = resolvedName.firstName;
-        lastName = resolvedName.lastName;
-        profileDisplayName = resolvedName.displayName;
-        const resolvedAvatar = resolveAvatarUrl(data);
-        if (resolvedAvatar) photoURL = resolvedAvatar;
-      }
+      if (userDoc.exists) profile = userDoc.data() ?? {};
     } catch {
       // Firestore profile may not exist
     }
 
-    return {
-      uid: authUser.uid,
-      email: includeEmail ? authUser.email || null : null,
-      displayName:
-        authUser.displayName ||
-        profileDisplayName ||
-        [firstName, lastName].filter(Boolean).join(" ") ||
-        null,
-      photoURL,
-      firstName,
-      lastName,
-    };
+    return shapeUserInfo(authUser, profile, includeEmail);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Batched getUser: one server-action round trip for a whole uid list (e.g.
+ * a plan's party) instead of one per member. Returns users in the requested
+ * order; uids that resolve to no account are dropped. Each user's email
+ * stays under the same privacy rule as getUser.
+ */
+export async function getUsers(token: string, uids: string[]): Promise<UserInfo[]> {
+  let caller;
+  try {
+    caller = await adminAuth.verifyIdToken(token);
+  } catch {
+    throw new Error("Unauthorized");
+  }
+
+  const uniqueUids = [...new Set(uids)];
+  if (uniqueUids.length === 0) return [];
+
+  try {
+    // adminAuth.getUsers() caps at 100 identifiers per call.
+    const authBatches = await Promise.all(
+      chunk(uniqueUids, 100).map((batch) =>
+        adminAuth.getUsers(batch.map((uid) => ({ uid })))
+      )
+    );
+    const authUsers = authBatches.flatMap((result) => result.users);
+    if (authUsers.length === 0) return [];
+
+    // One Firestore getAll for every profile doc. Profiles are enrichment —
+    // on failure the Auth records still render (same as getUser's inner
+    // swallow).
+    const profileByUid = new Map<string, RawUserProfileDoc>();
+    try {
+      const docs = await adminDb.getAll(
+        ...authUsers.map((user) => adminDb.collection("users").doc(user.uid))
+      );
+      for (const doc of docs) {
+        if (doc.exists) profileByUid.set(doc.id, doc.data() ?? {});
+      }
+    } catch {
+      // Firestore profiles may not exist
+    }
+
+    return orderByUids(
+      authUsers.map((authUser) =>
+        shapeUserInfo(
+          authUser,
+          profileByUid.get(authUser.uid) ?? null,
+          caller.admin === true || caller.uid === authUser.uid
+        )
+      ),
+      uniqueUids
+    );
+  } catch {
+    return [];
   }
 }
