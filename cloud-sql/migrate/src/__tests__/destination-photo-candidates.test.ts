@@ -127,3 +127,27 @@ test("reviewed Cascade manifest has one usable candidate for all 20 destinations
     assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
   }
 });
+
+test("reviewed state high point manifest covers the 47 destinations not already reviewed", () => {
+  const manifest = parseDestinationPhotoManifest(JSON.parse(readFileSync(
+    path.resolve(__dirname, "../../data/us-state-high-point-photo-candidates.json"),
+    "utf8"
+  )));
+  assert.equal(manifest.collection, "US State High Points");
+  assert.equal(manifest.candidates.length, 47);
+  assert.equal(new Set(manifest.candidates.map((candidate) => candidate.destinationId)).size, 47);
+
+  const previouslyReviewed = new Set([
+    "xJywSSofd1SVJkJaGwBe", // Mount Elbert
+    "Tg5URBHkVwPA1gGKKB4Q", // Mount Rainier
+    "ERm0v7h6iCoEW5lLUUqF", // Mount Hood
+  ]);
+  for (const candidate of manifest.candidates) {
+    assert.equal(candidate.sourceKind, "wikimedia_commons");
+    assert.ok(!previouslyReviewed.has(candidate.destinationId));
+    assert.ok(candidate.imageWidth >= 1400, `${candidate.destinationName} is too narrow`);
+    assert.ok(candidate.imageHeight >= 900, `${candidate.destinationName} is too short`);
+    assert.ok(candidate.focalX >= 0 && candidate.focalX <= 100);
+    assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
+  }
+});
