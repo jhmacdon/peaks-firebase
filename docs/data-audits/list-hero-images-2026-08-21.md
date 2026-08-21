@@ -253,3 +253,48 @@ documentation/validation gaps, not data-integrity problems in the rows
 already committed.
 
 Monthly cost impact: $0.
+
+## Deferred Step 5 run (2026-08-21, Task 12)
+
+Ran the catalog-wide `--all-lists --commit` pass this section warned about,
+after Tasks 10 and 11 added twelve more lists (629 → 1,114 distinct list
+members). Remaining candidates:
+
+```sql
+SELECT count(DISTINCT ld.destination_id) FROM list_destinations ld
+JOIN destinations d ON d.id = ld.destination_id
+WHERE d.hero_image IS NULL;
+-- 476
+```
+
+Ran with the required explicit limit: `npm run backfill:descriptions --
+--all-lists --commit --limit 526` (476 + 50 headroom, per the warning above).
+
+**Result: written=1, images=1, imagesRefused=1, skipped=0, unmatched=475.**
+Only Mount Forgotten (`EIkdq9LHLzn81uC2VsZe`) matched — image + full
+attribution, verified directly in prod. The other 475 stayed candidates:
+379 "no confident article match" (many are common names — Rocky Mountain,
+Snow Mountain, Eagle Mountain — or non-English names on the Ultras of Iran
+list, where `namesMatch` correctly refuses a guess), 70 "image-only recovery
+found nothing to store" (a real Wikipedia article with no lead image), and 26
+one-off refusals (`summary rejected`, two `wikidata article too far`, one
+non-free licence). This pool is the dregs left after the per-list runs in
+Tasks 9–11 already collected the confident matches — a low hit rate here is
+expected, not a regression.
+
+Coverage:
+
+```sql
+SELECT count(*) FILTER (WHERE d.hero_image IS NOT NULL), count(*)
+FROM (SELECT DISTINCT ld.destination_id FROM list_destinations ld) x
+JOIN destinations d ON d.id = x.destination_id;
+-- 639 | 1114
+```
+
+**639/1,114 (57%) of list members now carry a hero image**, up from 638/1,114
+before this run (net +1). This is the last scheduled run of this script for
+the lists-overhaul plan; the remaining 475 misses are a real-content gap
+(no free-licensed lead image exists on Wikipedia for these peaks), not a
+tooling gap, and stay open as ordinary catalog debt.
+
+Monthly cost impact: $0.
