@@ -5,6 +5,8 @@ export type HeroPhoto = {
   url: string;
   credit: string | null;
   creditUrl: string | null;
+  focalX: number;
+  focalY: number;
 };
 
 export const MAP_ANCHOR_ID = "destination-map";
@@ -125,7 +127,12 @@ function PhotoTile({
   return (
     <figure className={`bg-fill relative h-full overflow-hidden ${className}`.trim()}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photo.url} alt={alt} className="h-full w-full object-cover" />
+      <img
+        src={photo.url}
+        alt={alt}
+        className="h-full w-full object-cover"
+        style={{ objectPosition: `${photo.focalX}% ${photo.focalY}%` }}
+      />
       {photo.credit ? (
         <figcaption className="photo-credit absolute inset-x-0 bottom-0 px-3 pt-8 pb-1.5 text-right text-[11px]">
           Photo:{" "}

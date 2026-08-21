@@ -65,6 +65,9 @@ export function ListRoster({
                       src={destination.hero_image}
                       alt=""
                       className="h-12 w-12 shrink-0 rounded-full bg-fill object-cover"
+                      style={{
+                        objectPosition: `${destination.hero_image_focal_x}% ${destination.hero_image_focal_y}%`,
+                      }}
                     />
                   ) : null}
                   <span className="min-w-0 flex-1">

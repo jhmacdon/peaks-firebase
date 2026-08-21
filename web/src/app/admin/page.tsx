@@ -6,6 +6,12 @@ import AdminNav from "../../components/admin-nav";
 
 const sections = [
   {
+    title: "Photos",
+    description: "Approve or deny licensed destination cover candidates",
+    href: "/admin/photos",
+    count: "Review",
+  },
+  {
     title: "Destinations",
     description: "Browse and manage peaks, trailheads, and points of interest",
     href: "/admin/destinations",
@@ -40,7 +46,7 @@ export default function AdminDashboard() {
         <main className="max-w-7xl mx-auto px-6 py-10">
           <h2 className="text-2xl font-semibold mb-6">Dashboard</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {sections.map((section) => (
               <Link
                 key={section.href}

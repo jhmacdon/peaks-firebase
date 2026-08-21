@@ -273,6 +273,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             COALESCE(d.metadata->'names', '{}'::jsonb) AS names,
             d.external_ids, d.amenities,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
+            d.hero_image_focal_x, d.hero_image_focal_y,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
@@ -372,6 +373,8 @@ export function mapDestinationDetailRow(row: any): any {
   row.hero_image = textOrNull(row.hero_image);
   row.hero_image_attribution = textOrNull(row.hero_image_attribution);
   row.hero_image_attribution_url = textOrNull(row.hero_image_attribution_url);
+  row.hero_image_focal_x = Number(row.hero_image_focal_x ?? 50);
+  row.hero_image_focal_y = Number(row.hero_image_focal_y ?? 50);
 
   // The same licensing guard for the photo. Legacy rows (the CAI hut import,
   // the OSM imports) stored a hero image and never wrote a credit, so an
@@ -382,6 +385,8 @@ export function mapDestinationDetailRow(row: any): any {
     row.hero_image = null;
     row.hero_image_attribution = null;
     row.hero_image_attribution_url = null;
+    row.hero_image_focal_x = 50;
+    row.hero_image_focal_y = 50;
   }
 
   row.massif_boundary = row.massif_boundary ?? null;

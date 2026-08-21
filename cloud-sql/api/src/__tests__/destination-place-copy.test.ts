@@ -121,6 +121,8 @@ test("destination detail query selects the hero image and its credit columns", (
   assert.match(query.text, /d\.hero_image\b/);
   assert.match(query.text, /d\.hero_image_attribution\b/);
   assert.match(query.text, /d\.hero_image_attribution_url\b/);
+  assert.match(query.text, /d\.hero_image_focal_x\b/);
+  assert.match(query.text, /d\.hero_image_focal_y\b/);
 });
 
 test("an uncredited hero image is dropped whole, and the copy is left alone", () => {
@@ -136,6 +138,8 @@ test("an uncredited hero image is dropped whole, and the copy is left alone", ()
     hero_image: "https://upload.wikimedia.org/rifugio.jpg",
     hero_image_attribution: null,
     hero_image_attribution_url: null,
+    hero_image_focal_x: 20,
+    hero_image_focal_y: 30,
     areas: [],
   };
 
@@ -148,6 +152,8 @@ test("an uncredited hero image is dropped whole, and the copy is left alone", ()
   );
   assert.equal(mapped.hero_image_attribution, null);
   assert.equal(mapped.hero_image_attribution_url, null);
+  assert.equal(mapped.hero_image_focal_x, 50);
+  assert.equal(mapped.hero_image_focal_y, 50);
   assert.equal(
     mapped.description,
     "A hut on the ridge.",
@@ -166,6 +172,8 @@ test("a fully credited hero image passes through", () => {
     hero_image: "https://upload.wikimedia.org/rainier.jpg",
     hero_image_attribution: "A Photographer, CC BY-SA 4.0",
     hero_image_attribution_url: "https://commons.wikimedia.org/wiki/File:Rainier.jpg",
+    hero_image_focal_x: 35,
+    hero_image_focal_y: 15,
     areas: [],
   };
 
@@ -173,6 +181,8 @@ test("a fully credited hero image passes through", () => {
 
   assert.equal(mapped.hero_image, "https://upload.wikimedia.org/rainier.jpg");
   assert.equal(mapped.hero_image_attribution, "A Photographer, CC BY-SA 4.0");
+  assert.equal(mapped.hero_image_focal_x, 35);
+  assert.equal(mapped.hero_image_focal_y, 15);
   assert.equal(
     mapped.hero_image_attribution_url,
     "https://commons.wikimedia.org/wiki/File:Rainier.jpg"
