@@ -158,7 +158,7 @@ UPDATE lists SET
   source_name = 'Peakbagger',
   source_url = 'https://www.peakbagger.com/list.aspx?lid=4904',
   region = 'United States',
-  description = 'An ultra is a peak that rises at least 1,500 meters, about 4,900 feet, above the lowest saddle linking it to any higher ground. Fifty-seven stand in the lower forty-eight, most of them in California, Utah, Nevada, and Washington, with single peaks as far east as New Hampshire and North Carolina. The earth scientist Steve Fry named the class in the 1980s while measuring peaks in Washington.'
+  description = 'An ultra is a peak that rises at least 1,500 meters, about 4,900 feet, above the lowest saddle linking it to any higher ground. Fifty-seven stand in the lower forty-eight, nearly half of them in California, Utah, Nevada, and Washington, with single peaks as far east as New Hampshire and North Carolina. The earth scientist Steve Fry named the class in the 1980s while measuring peaks in Washington.'
 WHERE id = '9zsS3gPZhQCiPMl0DRMf';
 
 -- US State High Points

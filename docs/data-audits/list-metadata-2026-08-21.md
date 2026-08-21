@@ -374,10 +374,10 @@ one.
 - Year left NULL: same reason as the Iran list.
 - Description: "An ultra is a peak that rises at least 1,500 meters, about
   4,900 feet, above the lowest saddle linking it to any higher ground.
-  Fifty-seven stand in the lower forty-eight, most of them in California, Utah,
-  Nevada, and Washington, with single peaks as far east as New Hampshire and
-  North Carolina. The earth scientist Steve Fry named the class in the 1980s
-  while measuring peaks in Washington."
+  Fifty-seven stand in the lower forty-eight, nearly half of them in
+  California, Utah, Nevada, and Washington, with single peaks as far east as
+  New Hampshire and North Carolina. The earth scientist Steve Fry named the
+  class in the 1980s while measuring peaks in Washington."
 
 ### US State High Points — `dR9aHGKw3VwBhfsHSwlB`
 
