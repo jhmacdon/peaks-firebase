@@ -40,11 +40,18 @@ export interface ListDestination {
   lat: number | null;
   lng: number | null;
   ordinal: number;
+  hero_image: string | null;
+  state_code: string | null;
 }
 
 export interface ListProgress {
   total: number;
   completed: number;
+}
+
+export interface ListCompletionEntry {
+  reached_at: string | null;
+  visit_count: number;
 }
 
 /**
@@ -149,7 +156,8 @@ export async function getListDestinations(
     `SELECT d.id, d.name, d.elevation, d.prominence, d.features,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
-            ld.ordinal
+            ld.ordinal,
+            d.hero_image, d.state_code
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      WHERE ld.list_id = $1
@@ -166,6 +174,8 @@ export async function getListDestinations(
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
     ordinal: Number(r.ordinal),
+    hero_image: r.hero_image,
+    state_code: r.state_code,
   }));
 }
 
@@ -200,4 +210,41 @@ export async function getListProgress(
     total: Number(totalResult.rows[0].count),
     completed: Number(completedResult.rows[0].completed),
   };
+}
+
+/**
+ * Per-destination completion detail for this list, keyed by destination id:
+ * how many sessions reached it and when it was last reached. `reached_at` is
+ * the session start date — session_destinations stores no summit time, same
+ * convention as getUserDestinationActivity's latest_visit.
+ */
+export async function getListCompletion(
+  token: string,
+  listId: string
+): Promise<Record<string, ListCompletionEntry>> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
+  const result = await db.query(
+    `SELECT ld.destination_id,
+            COUNT(DISTINCT sd.session_id) AS visit_count,
+            MAX(ts.start_time)            AS reached_at
+     FROM list_destinations ld
+     JOIN session_destinations sd
+       ON sd.destination_id = ld.destination_id AND sd.relation = 'reached'
+     JOIN tracking_sessions ts
+       ON ts.id = sd.session_id AND ts.user_id = $2
+     WHERE ld.list_id = $1
+     GROUP BY ld.destination_id`,
+    [listId, user.uid]
+  );
+
+  const completion: Record<string, ListCompletionEntry> = {};
+  for (const r of result.rows) {
+    completion[r.destination_id] = {
+      visit_count: Number(r.visit_count),
+      reached_at: r.reached_at instanceof Date ? r.reached_at.toISOString() : r.reached_at ?? null,
+    };
+  }
+  return completion;
 }
