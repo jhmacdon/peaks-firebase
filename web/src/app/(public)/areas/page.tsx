@@ -70,6 +70,9 @@ export default async function AreasIndexPage({
   }
 
   const shownCount = isFiltered ? totalMatching : totalAreas;
+  // Multi-state national parks appear in each state's section, but they are
+  // still one park in the summary count.
+  const visibleAreaCount = new Set(areas.map((area) => area.id)).size;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
@@ -91,7 +94,7 @@ export default async function AreasIndexPage({
       </Suspense>
 
       <p className="mt-6 text-[13px] text-muted">
-        Showing {areas.length.toLocaleString("en-US")} of{" "}
+        Showing {visibleAreaCount.toLocaleString("en-US")} of{" "}
         <span className="font-mono-num tabular-nums">
           {shownCount.toLocaleString("en-US")}
         </span>{" "}

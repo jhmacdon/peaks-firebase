@@ -203,10 +203,11 @@ export function sortAreasByProminence(areas: ProtectedArea[]): ProtectedArea[] {
   );
 }
 
-// The /areas index's designation filter chips — the codes with a real,
-// human-recognizable identity among what production actually stores (see
-// the DESIGNATION_CODES comment above). "All" (no filter) isn't listed
-// here; the page renders that option itself. Lives in this plain module
+// The /areas index's filter chips. NP means the official National Park
+// Service roster, not the PAD-US parcel code: many of the 63 parks have a
+// different PAD-US designation. The other values remain designation filters.
+// "All" (no filter) isn't listed here; the page renders that option itself.
+// Lives in this plain module
 // rather than lib/actions/areas.ts because that file has "use server" at
 // the top: Next.js treats every export of a "use server" module as a
 // server-action reference, which only works for async functions — a plain

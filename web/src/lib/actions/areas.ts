@@ -17,6 +17,11 @@ import {
   type RouteProvenance,
 } from "../route-provenance";
 import type { SessionActivityType } from "./sessions";
+import {
+  buildNationalParkIndex,
+  officialNationalParkSearchNames,
+  type NationalParkAreaCandidate,
+} from "../national-park-index";
 
 export interface AreaSummary extends ProtectedArea {
   owner: string | null;
@@ -571,11 +576,46 @@ export async function getAreasIndex(
   const statesLimit = Math.min(Math.max(Math.trunc(options.statesLimit ?? 12), 1), 30);
   const perStateLimit = Math.min(Math.max(Math.trunc(options.perStateLimit ?? 25), 1), 100);
 
-  const [totalAreasResult, { clause, params }] = [
-    await db.query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM areas`),
-    areaIndexFilter(search, designation),
-  ];
+  const totalAreasResult = await db.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM areas`
+  );
   const totalAreas = Number(totalAreasResult.rows[0]?.count ?? 0);
+
+  // `NP` is a UI choice for the legal National Park roster, not a PAD-US
+  // parcel code. PAD-US labels many real parks MPA, CONE, or NCA; it also
+  // contains small easements and other NPS units that are not among the 63
+  // national parks. Match the roster by normalized name, then use the largest
+  // matching PAD-US boundary as the park's detail-page row.
+  if (designation === "NP") {
+    const candidateResult = await db.query<{
+      id: unknown;
+      search_name: unknown;
+      boundary_area_square_meters: unknown;
+      destination_count: unknown;
+    }>(
+      `SELECT a.id, a.search_name,
+              ST_Area(a.boundary::geography)::double precision
+                AS boundary_area_square_meters,
+              ${DESTINATION_COUNT_SUBQUERY} AS destination_count
+       FROM areas a
+       WHERE a.search_name = ANY($1::text[])`,
+      [officialNationalParkSearchNames()]
+    );
+    const candidates: NationalParkAreaCandidate[] = candidateResult.rows.map((row) => ({
+      id: textValue(row.id) ?? "",
+      searchName: textValue(row.search_name) ?? "",
+      boundaryAreaSquareMeters: numberValue(row.boundary_area_square_meters) ?? 0,
+      destinationCount: integerValue(row.destination_count),
+    }));
+    const nationalParks = buildNationalParkIndex(candidates, {
+      search,
+      statesLimit,
+      perStateLimit,
+    });
+    return { ...nationalParks, totalAreas };
+  }
+
+  const { clause, params } = areaIndexFilter(search, designation);
 
   const totalMatchingResult = await db.query<{ count: number }>(
     `SELECT COUNT(*)::int AS count FROM areas a WHERE ${clause}`,
