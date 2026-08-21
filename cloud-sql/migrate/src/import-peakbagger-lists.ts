@@ -4,9 +4,13 @@
  * Dry-run is the default. The input is the browser audit export keyed by
  * Peakbagger list ID, with each value containing a `rows` array.
  *
+ * The saved rows live in the repo, not in /tmp.
+ *
  * Examples:
- *   npm run import:peakbagger-lists -- --input=/tmp/peakbagger-list-candidates.json
- *   npm run import:peakbagger-lists -- --input=/tmp/peakbagger-list-candidates.json --apply
+ *   npm run import:peakbagger-lists -- \
+ *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json
+ *   npm run import:peakbagger-lists -- \
+ *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json --apply
  */
 
 import crypto from "node:crypto";
@@ -139,6 +143,13 @@ export function deterministicOsmDestinationId(osmId: string): string {
 const HIGH_ROCK_OSM_ID = "356773747";
 const HIGH_ROCK_ID = deterministicOsmDestinationId(HIGH_ROCK_OSM_ID);
 
+// Added by cloud-sql/migrations/20260821_held_list_summits.sql, which is a
+// data-only migration rather than a CURATED_DESTINATIONS entry. Named here so
+// the overrides below read as peaks instead of hashes.
+const NORTH_TWIN_MOUNTAIN_ID = deterministicOsmDestinationId("357730481");
+const BONDCLIFF_ID = deterministicOsmDestinationId("357730899");
+const EAST_OSCEOLA_ID = deterministicOsmDestinationId("357729942");
+
 export const CURATED_DESTINATIONS: CuratedDestination[] = [
   {
     id: HIGH_ROCK_ID,
@@ -245,6 +256,50 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceName: "Peakbagger",
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=50511",
     region: "Sierra Nevada",
+  },
+  {
+    listId: deterministicListId(5120),
+    sourceListId: 5120,
+    name: "Adirondack 46ers",
+    description:
+      "Bob and George Marshall and their guide Herbert Clark climbed all forty-six Adirondack " +
+      "High Peaks between 1918 and 1925. Later surveys put four of the forty-six under 4,000 " +
+      "feet and found one 4,000-foot summit the Marshalls had skipped, but the Adirondack " +
+      "Forty-Sixers kept the original list. Mount Marcy, the highest point in New York, tops it.",
+    expectedCount: 46,
+    destinationOverrides: {
+      6090: "8D80C88D491FB5DE4232", // Grace Mountain -> the existing Grace Peak row
+    },
+    yearEstablished: 1948,
+    organization: "Adirondack Forty-Sixers",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5120",
+    region: "Adirondacks",
+  },
+  {
+    listId: deterministicListId(5163),
+    sourceListId: 5163,
+    name: "New England 4000-Footers",
+    description:
+      "The Appalachian Mountain Club's Four Thousand Footer Club drew up its New England list " +
+      "in 1964, carrying the New Hampshire forty-eight across into Maine and Vermont. A summit " +
+      "qualifies when it reaches 4,000 feet and stands 200 feet above the saddle linking it to " +
+      "a higher neighbor. The list runs to sixty-seven peaks today, and Mount Washington tops it.",
+    expectedCount: 67,
+    destinationOverrides: {
+      6919: NORTH_TWIN_MOUNTAIN_ID, // North Twin -> the OSM name, North Twin Mountain
+      6926: BONDCLIFF_ID, // Bondcliffs -> the OSM name, Bondcliff
+      6991: EAST_OSCEOLA_ID, // Mount Osceola - East Peak -> East Osceola
+      6922: "C20C3828C69C89C5976A", // Zealand Mountain -> the existing Mount Zealand row
+      6885: "CC78CA6F6F21ADF51013", // Old Speck -> the existing Old Speck Mountain row
+      6850: "39176EE36B46BCC0E000", // Bigelow Mountain -> the existing Mount Bigelow row
+      6847: "404A204B24580871F4B5", // Saddleback Mountain - The Horn -> the existing The Horn row
+    },
+    yearEstablished: 1964,
+    organization: "AMC Four Thousand Footer Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5163",
+    region: "New England",
   },
 ];
 
