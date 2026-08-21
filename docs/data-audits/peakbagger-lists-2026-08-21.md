@@ -87,7 +87,8 @@ what backs it. "Source rows" means the fixture this import reads.
 | the list runs down to a shade under 8,000 feet | source row 100, Mount Harriman, 7,988.8 ft; Peaks stores 7,979.0 ft |
 | the Cascade volcanoes take the top places | source rows 1–5: Hood, Jefferson, South Sister, North Sister, Middle Sister |
 | the Wallowas hold the largest share | 44 of the 100 source rows fall in the Wallowa bounding box; the next largest block is 15 |
-| a quarter take their name from a lake or creek, or carry only an elevation | 25 of the 100 source rows: 5 named "Peak ⟨elevation⟩", 20 named for a nearby lake, creek, basin, pass, or ridge |
+| twenty borrow their name from a nearby landmark, most often a lake | 20 of the 100 source rows are named for an adjacent feature: lake 11, creek 3, ridge 2, and one each for a basin, a pass, a pond, and a flat/saddle. "Landmark" is deliberately open — an earlier draft enumerated "lake, creek, basin, pass, or ridge", which silently dropped the pond and the flat/saddle |
+| five carry nothing but an elevation | 5 source rows named `Peak ⟨elevation⟩`: Peak 9192, 8963, 8710, 8441, 8098 |
 
 Mount Hood's height is **deliberately not quoted**. The National Geodetic Survey
 endorsed 3,429 m (11,249 ft) in 1991 from a 1986 measurement, but 11,239 ft and

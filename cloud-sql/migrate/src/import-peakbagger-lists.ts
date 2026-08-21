@@ -316,8 +316,9 @@ export const CURATED_LISTS: CuratedList[] = [
     description:
       "This list runs from Mount Hood, the highest point in Oregon, down to a shade under " +
       "8,000 feet. The Cascade volcanoes take the top places, but the Wallowa Mountains in " +
-      "the northeast corner hold the largest share of the hundred. A quarter of them take " +
-      "their name from a nearby lake or creek, or carry nothing but an elevation.",
+      "the northeast corner hold the largest share of the list. Twenty of the hundred borrow " +
+      "their name from a nearby landmark, most often a lake, and five carry nothing but an " +
+      "elevation.",
     expectedCount: 100,
     destinationOverrides: {
       3337: KIGER_MANN_PEAK_ID, // Steens Mountain - North Peak
