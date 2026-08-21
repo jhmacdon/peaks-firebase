@@ -8,9 +8,9 @@
  *
  * Examples:
  *   npm run import:peakbagger-lists -- \
- *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json
+ *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json
  *   npm run import:peakbagger-lists -- \
- *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json --apply
+ *     --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json --apply
  */
 
 import crypto from "node:crypto";
@@ -157,6 +157,11 @@ const WEST_ANEROID_PEAK_ID = deterministicOsmDestinationId("9104370897");
 const SNOWFIELD_PEAK_ID = deterministicOsmDestinationId("10074433560");
 const MOCCASIN_LAKE_MOUNTAIN_ID = deterministicOsmDestinationId("9104420504");
 const MARK_MOUNTAIN_ID = deterministicOsmDestinationId("13926474089");
+
+// Added by cloud-sql/migrations/20260821_northeast_list_summits.sql. Only the
+// two the source lists label differently need naming here.
+const SOUTH_WEEKS_MOUNTAIN_ID = deterministicOsmDestinationId("3300692064");
+const SOUTH_HORN_ID = deterministicOsmDestinationId("358225015");
 
 export const CURATED_DESTINATIONS: CuratedDestination[] = [
   {
@@ -357,6 +362,106 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceName: "Peakbagger",
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=50083",
     region: "Colorado",
+  },
+  {
+    listId: deterministicListId(5167),
+    sourceListId: 5167,
+    name: "New Hampshire 4000-Footers",
+    description:
+      "The Appalachian Mountain Club founded its Four Thousand Footer Club in 1957 around this " +
+      "list. A summit qualifies when it reaches 4,000 feet and rises 200 feet above the saddle " +
+      "linking it to a higher neighbor. All forty-eight stand in the White Mountains, and Mount " +
+      "Washington, the highest point in the Northeast, tops them.",
+    expectedCount: 48,
+    destinationOverrides: {
+      6919: NORTH_TWIN_MOUNTAIN_ID, // North Twin -> the OSM name, North Twin Mountain
+      6926: BONDCLIFF_ID, // Bondcliffs -> the OSM name, Bondcliff
+      6991: EAST_OSCEOLA_ID, // Mount Osceola - East Peak -> East Osceola
+      6922: "C20C3828C69C89C5976A", // Zealand Mountain -> the existing Mount Zealand row
+    },
+    yearEstablished: 1957,
+    organization: "AMC Four Thousand Footer Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5167",
+    region: "White Mountains",
+  },
+  {
+    listId: deterministicListId(5130),
+    sourceListId: 5130,
+    name: "Catskill 3500",
+    description:
+      "The Catskill 3500 Club has taken members since 1962 for climbing the highest peaks on " +
+      "public land in the Catskills. Its list held thirty-five summits until 2021, when " +
+      "Doubletop and Graham closed to the public and left thirty-three. Members also climb " +
+      "Slide, Blackhead, Balsam and Panther a second time in winter.",
+    expectedCount: 33,
+    destinationOverrides: {
+      // Hunter Mountain - Southwest Peak -> the existing Southwest Hunter Mountain row
+      7321: "67817E17AC761CD791CA",
+      18321: "38F4020BB2AA21456FD3", // Indian Head -> the existing Indian Head Mountain row
+    },
+    yearEstablished: 1962,
+    organization: "Catskill 3500 Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5130",
+    region: "Catskills",
+  },
+  {
+    listId: deterministicListId(5165),
+    sourceListId: 5165,
+    name: "New England Hundred Highest",
+    description:
+      "The AMC Four Thousand Footer Club added this list in 1967: the hundred highest summits " +
+      "in New England, each standing 200 feet above the saddle linking it to a higher neighbor. " +
+      "New England's sixty-seven 4,000-footers fill the top; the other thirty-three fall just " +
+      "short. The club calls it the only one of its lists with true bushwhacks, and eleven of " +
+      "those thirty-three have no trail at all.",
+    expectedCount: 100,
+    destinationOverrides: {
+      6919: NORTH_TWIN_MOUNTAIN_ID, // North Twin -> the OSM name, North Twin Mountain
+      6926: BONDCLIFF_ID, // Bondcliffs -> the OSM name, Bondcliff
+      6991: EAST_OSCEOLA_ID, // Mount Osceola - East Peak -> East Osceola
+      6922: "C20C3828C69C89C5976A", // Zealand Mountain -> the existing Mount Zealand row
+      6885: "CC78CA6F6F21ADF51013", // Old Speck -> the existing Old Speck Mountain row
+      6850: "39176EE36B46BCC0E000", // Bigelow Mountain -> the existing Mount Bigelow row
+      6847: "404A204B24580871F4B5", // Saddleback Mountain - The Horn -> the existing The Horn row
+      6880: SOUTH_WEEKS_MOUNTAIN_ID, // Mount Weeks - South Peak -> the OSM name, South Weeks Mountain
+      6852: SOUTH_HORN_ID, // The Horns -> South Horn, the AMC's name for the higher of the pair
+      6917: "ED29187EC4534680CEF4", // Nubble Peak -> the existing Peak Above the Nubble row
+      6860: "8106CBEB89FCD5BEF1B4", // Elephant Mountain - Southwest Peak -> the existing Elephant Mountain row
+    },
+    yearEstablished: 1967,
+    organization: "AMC Four Thousand Footer Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5165",
+    region: "New England",
+  },
+  {
+    listId: deterministicListId(511),
+    sourceListId: 511,
+    name: "Northeast 111",
+    description:
+      "This list gathers the Northeast's 4,000-footers into one: New England's sixty-seven, " +
+      "the forty-six Adirondack High Peaks, and Slide and Hunter in the Catskills. It took its " +
+      "name when the count was 111; later surveys promoted two more peaks in New Hampshire and " +
+      "two in Maine, and the name stuck at 115. The AMC Four Thousand Footer Club recognizes " +
+      "finishers, who must first join the New England and Adirondack clubs.",
+    expectedCount: 115,
+    destinationOverrides: {
+      6919: NORTH_TWIN_MOUNTAIN_ID, // North Twin -> the OSM name, North Twin Mountain
+      6926: BONDCLIFF_ID, // Bondcliffs -> the OSM name, Bondcliff
+      6991: EAST_OSCEOLA_ID, // Mount Osceola - East Peak -> East Osceola
+      6922: "C20C3828C69C89C5976A", // Zealand Mountain -> the existing Mount Zealand row
+      6885: "CC78CA6F6F21ADF51013", // Old Speck -> the existing Old Speck Mountain row
+      6850: "39176EE36B46BCC0E000", // Bigelow Mountain -> the existing Mount Bigelow row
+      6847: "404A204B24580871F4B5", // Saddleback Mountain - The Horn -> the existing The Horn row
+      6090: "8D80C88D491FB5DE4232", // Grace Mountain -> the existing Grace Peak row
+    },
+    yearEstablished: 1971,
+    organization: "AMC Four Thousand Footer Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=511",
+    region: "Northeast",
   },
 ];
 

@@ -231,9 +231,9 @@ unclear rows and never drops an unresolved source peak.
 ```bash
 cd migrate
 npm run import:peakbagger-lists -- \
-  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json
+  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json
 npm run import:peakbagger-lists -- \
-  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-18.json --apply
+  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json --apply
 ```
 
 Source rows live in the repo fixture, not `/tmp`. Every list in `CURATED_LISTS`
@@ -241,11 +241,12 @@ must appear in the input at its exact expected count, so the input file has to
 carry all of them; the run fails rather than importing part of a list.
 
 The reviewed 2026-08-18 scope and held lists are in
-`docs/data-audits/peakbagger-lists-2026-08-18.md`. The 2026-08-21 follow-up
-imported two of the four held lists and is in
-`docs/data-audits/peakbagger-lists-2026-08-21.md`; it also explains why the
-Oregon Top 100 and the Traditional Colorado Centennials still wait on summits
-OpenStreetMap has not mapped.
+`docs/data-audits/peakbagger-lists-2026-08-18.md`. Everything since is in
+`docs/data-audits/peakbagger-lists-2026-08-21.md`: a first pass that released all
+four held lists — including the eight Oregon and Colorado summits OpenStreetMap
+has never mapped — and a second that added the four Northeast classics and
+cleared four list-data debts. Munros and other non-US classics stay deferred; the
+second pass says why.
 
 ## Named viewpoint audit/import
 
