@@ -10,9 +10,14 @@ import {
   storeDestinationPhoto,
   type StoredDestinationPhoto,
 } from "../destination-photo-storage";
+import {
+  approvedDestinationPhotoFraming,
+  type DestinationPhotoDecision,
+  type DestinationPhotoFraming,
+} from "../destination-photo-review";
 
 export type DestinationPhotoStatus = "pending" | "approved" | "denied";
-export type DestinationPhotoDecision = "approve" | "deny";
+export type { DestinationPhotoDecision, DestinationPhotoFraming } from "../destination-photo-review";
 
 export interface DestinationPhotoCandidate {
   id: string;
@@ -55,11 +60,6 @@ export interface NewDestinationPhotoCandidate {
   focalX?: number;
   focalY?: number;
   notes?: string | null;
-}
-
-export interface DestinationPhotoFraming {
-  focalX: number;
-  focalY: number;
 }
 
 export interface PhotoDestinationSearchResult {
@@ -317,11 +317,16 @@ export async function reviewDestinationPhotoCandidate(
     };
   }
 
-  const approvedFraming = decision === "approve"
-    ? framing(requestedFraming || {
-        focalX: Number(initial.focal_x),
-        focalY: Number(initial.focal_y),
-      })
+  const requestedOrSavedFraming = approvedDestinationPhotoFraming(
+    decision,
+    requestedFraming,
+    {
+      focalX: Number(initial.focal_x),
+      focalY: Number(initial.focal_y),
+    }
+  );
+  const approvedFraming = requestedOrSavedFraming
+    ? framing(requestedOrSavedFraming)
     : null;
   let storedPhoto: StoredDestinationPhoto | null = null;
   if (decision === "approve") {

@@ -22,6 +22,7 @@ import {
   type PhotoDestinationSearchResult,
 } from "../../../lib/actions/destination-photos";
 import { LOADING_LABEL } from "../../../lib/constants";
+import { requestedDestinationPhotoFraming } from "../../../lib/destination-photo-review";
 
 const STATUS_TABS: { id: DestinationPhotoStatus; label: string }[] = [
   { id: "pending", label: "Pending" },
@@ -402,7 +403,7 @@ function PhotoCandidateCard({
         candidate.id,
         decision,
         null,
-        decision === "approve" ? { focalX, focalY } : undefined
+        requestedDestinationPhotoFraming(decision, focalX, focalY)
       );
       onFinalized(candidate.id);
     } catch (caught) {
@@ -555,7 +556,11 @@ function PhotoCandidateCard({
               onClick={() => review("approve")}
               disabled={reviewing !== null || savingFraming}
             >
-              {reviewing === "approve" ? "Storing & approving…" : "Approve cover"}
+              {reviewing === "approve"
+                ? "Storing & approving…"
+                : framingChanged
+                  ? "Save framing & approve"
+                  : "Approve cover"}
             </Button>
           </div>
         ) : (
