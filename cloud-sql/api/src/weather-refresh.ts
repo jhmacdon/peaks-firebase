@@ -11,12 +11,13 @@
 // treats an old forecast as absent), and the endpoint always returns counts.
 //
 // Firestore types are imported from "firebase-admin/firestore" rather than
-// "firebase-admin" itself, and only `FieldValue` (a plain class, no app
-// needed) is used at runtime — the Firestore instance is a parameter, so
-// this module never calls `admin.initializeApp()` and stays test-importable
-// without the SDK initialized.
+// "firebase-admin" itself, and only `FieldValue`/`GrpcStatus` (plain
+// classes/enums, no app needed) are used at runtime — the Firestore
+// instance is a parameter, so this module never calls
+// `admin.initializeApp()` and stays test-importable without the SDK
+// initialized.
 import { Pool } from "pg";
-import { FieldValue, type DocumentReference, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, GrpcStatus, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 
 export const MIN_SESSIONS = 3;
 export const FORECAST_DAYS = 7;
@@ -268,17 +269,23 @@ export async function refreshDestinationWeather(
   const forecasts = await fetchDailyForecasts(targets, fetchImpl);
 
   const writer = db.bulkWriter();
-  // BulkWriter's own default error handler already retries a bounded set of
-  // transient codes (UNAVAILABLE/ABORTED) before giving up; overriding it
-  // here adds no retry policy of our own — returning false always means
-  // "don't retry beyond whatever BulkWriter's own attempt already did".
-  // What this buys is visibility: without a handler, a write BulkWriter
-  // ultimately gives up on (bad IAM, a rules rejection, an oversized doc)
-  // is silently dropped, `refreshed` still counts it (it was enqueued, not
-  // written), and the endpoint logs "refreshed 776/776" while some
-  // destinations got nothing. A destination whose write fails here just
-  // keeps its stale doc and gets picked up again on the next scheduled run.
+  // Setting an onWriteError handler REPLACES BulkWriter's SDK default (which
+  // retries UNAVAILABLE/ABORTED up to 10 attempts) — it does not layer on
+  // top of it. This handler is now the whole retry policy for this writer:
+  // it retries the same two transient codes (ABORTED, UNAVAILABLE — a blip,
+  // not a real failure) up to 5 attempts each, so a first-attempt hiccup
+  // isn't immediately terminal. Anything else — wrong IAM, a rejected doc,
+  // an oversized write, or a transient code still failing after 5 attempts
+  // — is logged and NOT retried further: that write is dropped, excluded
+  // from `refreshed` below (see the settling logic), and the destination
+  // just keeps its stale doc until the next scheduled run tries again.
   writer.onWriteError((error) => {
+    if (
+      (error.code === GrpcStatus.ABORTED || error.code === GrpcStatus.UNAVAILABLE) &&
+      error.failedAttempts < 5
+    ) {
+      return true;
+    }
     console.warn(
       `[weather] write failed for ${error.documentRef.path} (${error.operationType}):`,
       error.message

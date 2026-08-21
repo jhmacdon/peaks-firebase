@@ -1,14 +1,17 @@
-// weather-refresh: pure mapper + batching tests, no network and no Firestore
-// init (fetch is injected; refreshDestinationWeather/selectWeatherTargets are
-// exercised through their own integration paths, not here). The endpoint auth
-// test hits the exported `app` directly with supertest, mirroring sweep's
-// contract test in route-error-handling.test.ts.
+// weather-refresh: mapper tests (buildForecastEntries), batching tests
+// (fetchDailyForecasts) with an injectable fetch and no network, and
+// refreshDestinationWeather tests against a fake Firestore db + fake pg pool
+// (fakePool/makeFakeDb below) — no real DB or Firestore SDK init anywhere in
+// this file. selectWeatherTargets' actual SQL is exercised by the manual
+// scripts/run-weather-refresh.ts one-off runner against prod, not here. The
+// endpoint auth test hits the exported `app` directly with supertest,
+// mirroring sweep's contract test in route-error-handling.test.ts.
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import request from "supertest";
 import type { Pool } from "pg";
-import { FieldValue, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, GrpcStatus, type Firestore } from "firebase-admin/firestore";
 import { app } from "../index";
 import {
   buildForecastEntries,
@@ -304,20 +307,32 @@ test("fetchDailyForecasts: bare-object single-location response is wrapped", asy
 // for a fresh doc ref, and `bulkWriter()` with `onWriteError`/`set`/`delete`/
 // `close` — `set`/`delete` return real Promises so the module's own
 // `.then()/.catch()` settling logic runs exactly as it does against the real
-// SDK, and `set()` can be told to fail for chosen destinationIds to exercise
-// the onWriteError path without a real BulkWriterError.
+// SDK. `set()` can be scripted to fail for chosen destinationIds and, like
+// the real BulkWriter, calls the captured `onWriteError` handler on every
+// failed attempt and honors its return value: `true` retries (with the
+// failed-attempt count incremented, same as `BulkWriterError.failedAttempts`),
+// `false` rejects the write's promise for good. `succeedOnAttempt` scripts a
+// transient failure that eventually recovers; omitting it fails every
+// attempt, so the real `onWriteError` handler is what decides when retries
+// stop.
 
 function fakePool(rows: WeatherTarget[]): Pool {
   return { query: async () => ({ rows }) } as unknown as Pool;
 }
 
+interface ScriptedFailure {
+  code: number;
+  /** 1-indexed attempt number that finally succeeds. Omitted = never. */
+  succeedOnAttempt?: number;
+}
+
 function makeFakeDb(
   legacyDocs: Array<{ id: string; destinationId: string }>,
-  opts: { failDestinationIds?: Set<string> } = {}
+  opts: { failWrites?: Record<string, ScriptedFailure> } = {}
 ) {
   const setCalls: Array<{ refPath: string; data: Record<string, unknown> }> = [];
   const deletedPaths: string[] = [];
-  const writeErrors: unknown[] = [];
+  const writeErrors: Array<{ code: number; failedAttempts: number }> = [];
   let errorFn: ((error: unknown) => boolean) | null = null;
 
   const makeRef = (path: string) => ({ path });
@@ -338,6 +353,38 @@ function makeFakeDb(
     doc: (id: string) => makeRef(`weather/new-${id}`),
   };
 
+  // Runaway safety cap unrelated to business logic — the real cap is
+  // whatever the production onWriteError handler decides (5 attempts for
+  // transient codes today); this just stops a fake-harness bug (or an
+  // onWriteError that always returns true) from hanging the test suite
+  // instead of failing an assertion.
+  const MAX_ATTEMPTS = 20;
+
+  async function attemptSet(
+    ref: { path: string },
+    destinationId: string,
+    failure: ScriptedFailure,
+    attempt: number
+  ): Promise<unknown> {
+    if (failure.succeedOnAttempt !== undefined && attempt >= failure.succeedOnAttempt) {
+      return {};
+    }
+    if (attempt > MAX_ATTEMPTS) {
+      throw new Error(`fake BulkWriter: ${destinationId} exceeded the test's runaway cap`);
+    }
+    const error = {
+      code: failure.code,
+      message: `simulated failure for ${destinationId} (attempt ${attempt})`,
+      documentRef: ref,
+      operationType: "set" as const,
+      failedAttempts: attempt,
+    };
+    writeErrors.push({ code: failure.code, failedAttempts: attempt });
+    const shouldRetry = errorFn ? errorFn(error) : false;
+    if (shouldRetry) return attemptSet(ref, destinationId, failure, attempt + 1);
+    throw new Error(`simulated write failure for ${destinationId}`);
+  }
+
   const db = {
     collection: (name: string) => {
       assert.equal(name, "weather");
@@ -349,19 +396,10 @@ function makeFakeDb(
       },
       set: (ref: { path: string }, data: Record<string, unknown>) => {
         setCalls.push({ refPath: ref.path, data });
-        if (opts.failDestinationIds?.has(data.destinationId as string)) {
-          const error = {
-            code: 14,
-            message: "simulated permanent failure",
-            documentRef: ref,
-            operationType: "set" as const,
-            failedAttempts: 1,
-          };
-          writeErrors.push(error);
-          errorFn?.(error);
-          return Promise.reject(new Error("simulated write failure"));
-        }
-        return Promise.resolve({});
+        const destinationId = data.destinationId as string;
+        const failure = opts.failWrites?.[destinationId];
+        if (!failure) return Promise.resolve({});
+        return attemptSet(ref, destinationId, failure, 1);
       },
       delete: (ref: { path: string }) => {
         deletedPaths.push(ref.path);
@@ -406,19 +444,66 @@ test("refreshDestinationWeather: dedupes legacy docs by destinationId, reuses th
   assert.equal(destAWrite.data.lastUpdated, FieldValue.serverTimestamp());
 });
 
-test("refreshDestinationWeather: a write BulkWriter ultimately fails is logged via onWriteError and excluded from refreshed", async (t) => {
+test("refreshDestinationWeather: a transient failure (UNAVAILABLE) that recovers is retried into a successful write", async (t) => {
   const warnMock = t.mock.method(console, "warn", () => undefined);
   const targets: WeatherTarget[] = [
     { id: "dest-a", lat: 1, lng: 1 },
     { id: "dest-b", lat: 2, lng: 2 },
   ];
-  const { db, writeErrors } = makeFakeDb([], { failDestinationIds: new Set(["dest-a"]) });
+  const { db, writeErrors } = makeFakeDb([], {
+    failWrites: { "dest-a": { code: GrpcStatus.UNAVAILABLE, succeedOnAttempt: 2 } },
+  });
+  const { fn } = fakeFetch([{ status: 200, body: [dailyResultFor(10), dailyResultFor(20)] }]);
+
+  const counts = await refreshDestinationWeather(fakePool(targets), db, fn);
+
+  assert.deepEqual(counts, { total: 2, refreshed: 2, skipped: 0 }, "the retried write lands in refreshed");
+  assert.equal(writeErrors.length, 1, "one failed attempt before the retry succeeds");
+  assert.equal(
+    warnMock.mock.calls.length,
+    0,
+    "a write that eventually succeeds must not be logged as a failure"
+  );
+});
+
+test("refreshDestinationWeather: a transient failure that never recovers is retried up to the cap, then logged and excluded from refreshed", async (t) => {
+  const warnMock = t.mock.method(console, "warn", () => undefined);
+  const targets: WeatherTarget[] = [
+    { id: "dest-a", lat: 1, lng: 1 },
+    { id: "dest-b", lat: 2, lng: 2 },
+  ];
+  const { db, writeErrors } = makeFakeDb([], {
+    failWrites: { "dest-a": { code: GrpcStatus.UNAVAILABLE } }, // never succeeds
+  });
   const { fn } = fakeFetch([{ status: 200, body: [dailyResultFor(10), dailyResultFor(20)] }]);
 
   const counts = await refreshDestinationWeather(fakePool(targets), db, fn);
 
   assert.deepEqual(counts, { total: 2, refreshed: 1, skipped: 1 });
-  assert.equal(writeErrors.length, 1, "onWriteError must have been invoked for the failing write");
+  // Production's onWriteError retries a transient code while failedAttempts < 5,
+  // so it fails on attempts 1-5 (5 calls) before giving up on the 5th.
+  assert.equal(writeErrors.length, 5, "retries up to the 5-attempt cap before giving up");
+  assert.ok(
+    warnMock.mock.calls.some((call) => String(call.arguments[0]).includes("write failed")),
+    "the failure must be logged, not silently dropped"
+  );
+});
+
+test("refreshDestinationWeather: a non-transient failure is not retried and lands in skipped with a warn", async (t) => {
+  const warnMock = t.mock.method(console, "warn", () => undefined);
+  const targets: WeatherTarget[] = [
+    { id: "dest-a", lat: 1, lng: 1 },
+    { id: "dest-b", lat: 2, lng: 2 },
+  ];
+  const { db, writeErrors } = makeFakeDb([], {
+    failWrites: { "dest-a": { code: GrpcStatus.PERMISSION_DENIED } },
+  });
+  const { fn } = fakeFetch([{ status: 200, body: [dailyResultFor(10), dailyResultFor(20)] }]);
+
+  const counts = await refreshDestinationWeather(fakePool(targets), db, fn);
+
+  assert.deepEqual(counts, { total: 2, refreshed: 1, skipped: 1 });
+  assert.equal(writeErrors.length, 1, "a non-transient code is never retried — one attempt, then final");
   assert.ok(
     warnMock.mock.calls.some((call) => String(call.arguments[0]).includes("write failed")),
     "the failure must be logged, not silently dropped"
