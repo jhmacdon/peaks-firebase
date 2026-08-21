@@ -19,9 +19,11 @@
 --    4000-footer; OpenStreetMap node 357730793, "South Twin Mountain", sits at
 --    44.187565 -71.5548027, 22 m from the stored point. Read 2026-08-21.
 --
--- 4. Thirty-nine destinations added by the 2026-08-21 list import have no
---    state_code and no country_code: 32 on the Oregon Top 100, 6 on the
---    Traditional Colorado Centennials, and South Twin above. All are in the
+-- 4. Thirty-nine destinations have no state_code and no country_code: 32 on the
+--    Oregon Top 100, 6 on the Traditional Colorado Centennials, and South Twin
+--    above. The 2026-08-21 list import did not create these rows -- they are
+--    Firestore-era rows that came across without the fields, and the import only
+--    put them on a list, which is what made the gap visible. All are in the
 --    United States. Each state is assigned from the row's own coordinates, and
 --    the update only fires when the point falls inside that state's bounding
 --    box, so a wrong pairing writes nothing. Mount Washington in Oregon rides
@@ -139,6 +141,8 @@ DO $$
 DECLARE
   volcano_count int;
   north_sister_ordinal int;
+  bad_ordinals int;
+  out_of_order int;
   missing_state int;
 BEGIN
   SELECT count(*) INTO volcano_count
@@ -152,6 +156,33 @@ BEGIN
   WHERE list_id = '4HxxAe4pgIKHU9gbOxtV' AND destination_id = 'zgZKKqtDJJ31aLqtaY2B';
   IF north_sister_ordinal <> 3 THEN
     RAISE EXCEPTION 'North Sister sits at ordinal %, expected 3', north_sister_ordinal;
+  END IF;
+
+  -- The re-derive above rewrites every ordinal on the list, so a count and one
+  -- row's position prove nothing about the other ten. These two check the whole
+  -- ordering: contiguous 0..n-1, and elevation never rising as ordinal rises.
+  -- Together they pin each pre-existing member to the place it already held,
+  -- because the list has no two members of equal elevation.
+  SELECT count(*) INTO bad_ordinals FROM (
+    SELECT ordinal FROM list_destinations
+    WHERE list_id = '4HxxAe4pgIKHU9gbOxtV'
+  ) t WHERE ordinal < 0 OR ordinal > volcano_count - 1;
+  IF bad_ordinals <> 0 OR (
+    SELECT count(DISTINCT ordinal) FROM list_destinations
+    WHERE list_id = '4HxxAe4pgIKHU9gbOxtV'
+  ) <> volcano_count THEN
+    RAISE EXCEPTION 'Oregon Volcanoes ordinals are not a contiguous 0..% run', volcano_count - 1;
+  END IF;
+
+  SELECT count(*) INTO out_of_order FROM (
+    SELECT d.elevation,
+           lag(d.elevation) OVER (ORDER BY ld.ordinal) AS prev_elevation
+    FROM list_destinations ld
+    JOIN destinations d ON d.id = ld.destination_id
+    WHERE ld.list_id = '4HxxAe4pgIKHU9gbOxtV'
+  ) t WHERE prev_elevation IS NOT NULL AND elevation > prev_elevation;
+  IF out_of_order <> 0 THEN
+    RAISE EXCEPTION 'Oregon Volcanoes has % member(s) out of descending elevation order', out_of_order;
   END IF;
 
   SELECT count(*) INTO missing_state

@@ -16,6 +16,15 @@
 -- the five take that reading because their tag is 4.9 to 9.4 m from it. Each row
 -- names its own source in elevation_source.
 --
+-- CORRECTION: that test was not sufficient, and The Bulge below is wrong here.
+-- A node sitting off the high point reads low in 3DEP and so agrees with its
+-- own low tag; nothing in the rule catches that. The Bulge passed on a 0.27 m
+-- agreement at the node and went in at 1197.0, about 5.5 m under both
+-- Peakbagger and the AMC. 20260821_the_bulge_elevation.sql runs the summit
+-- search that was skipped and corrects the row to 1202.4 m, usgs_3dep. The
+-- other sixteen were re-checked against the published figure -- the test that
+-- catches this -- and none is more than 2.87 m out.
+--
 -- Two names differ from the source list on purpose.
 --
 -- South Weeks Mountain carries the OSM name; the AMC list calls it South Weeks

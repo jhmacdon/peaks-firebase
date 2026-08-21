@@ -495,12 +495,26 @@ OpenStreetMap `natural=peak` node read on 2026-08-21; no coordinate comes from
 GNIS, and no peak here needed the Peakbagger-provenance scheme.
 
 Elevations keep the OSM `ele` tag only where it lands within 3 m of the USGS 3DEP
-reading at the summit. Twelve agree to better than 2.2 m and are kept. The other
-five nodes sit 25 to 66 m off the high point, so a sample at the node itself
-reads low; a 3DEP summit search around each — an 80 m grid at 20 m spacing,
-refined to 2.5 m — found the top. Two of those five keep their tag anyway
-(Wittenberg agrees to 0.01 m, Mount Wilson to 1.2 m); three take the 3DEP
-reading.
+reading at the summit, and where the two disagreed a 3DEP summit search — an
+80 m grid at 20 m spacing, refined to 2.5 m — found the true high point first.
+
+**That rule missed one, and the miss is worth reading.** It compares the tag
+against 3DEP *at the node*. A node sitting off the high point reads low in 3DEP
+and therefore agrees with its own low tag, so no search runs and the low value
+goes in unchallenged. The Bulge did exactly that: tag 1197 m, 3DEP at the node
+1197.272 m, agreement to 0.27 m — and 5.5 m below both published figures
+(Peakbagger 3,945.2 ft = 1202.50 m, the AMC 3,950 ft = 1203.96 m).
+
+The test that catches this is the published figure, not the node sample. Running
+it across all seventeen found The Bulge alone over 3 m out; the next largest is
+South Horn at 2.87 m. Its 3DEP summit search puts the high point 18 m from the
+node at **1202.391 m**, 0.11 m from Peakbagger's figure, so the tag is an old
+contour value and `20260821_the_bulge_elevation.sql` corrects the row to 1202.4,
+`usgs_3dep`. Coordinates stay on the OSM node, as they do for the other 3DEP
+rows.
+
+After that correction: thirteen rows keep their tag, four take a 3DEP reading,
+and six of the seventeen needed a summit search.
 
 | Summit | State | Elevation (m) | Source | OSM node | OSM `ele` |
 |---|---|---|---|---|---|
@@ -514,7 +528,7 @@ reading.
 | Bearpen Mountain | NY | 1093.3 | osm | [2948777248](https://www.openstreetmap.org/node/2948777248) | 1093.32, kept |
 | Rocky Mountain | NY | 1062.8 | osm | [357582635](https://www.openstreetmap.org/node/357582635) | 1062.84, kept |
 | South Brother | ME | 1208.0 | osm | [358224250](https://www.openstreetmap.org/node/358224250) | 1208, kept |
-| The Bulge | NH | 1197.0 | osm | [357728179](https://www.openstreetmap.org/node/357728179) | 1197, kept |
+| The Bulge | NH | 1202.4 | usgs_3dep | [357728179](https://www.openstreetmap.org/node/357728179) | 1197, 5.4 m low |
 | South Weeks Mountain | NH | 1183.0 | osm | [3300692064](https://www.openstreetmap.org/node/3300692064) | 1183, kept |
 | East Sleeper | NH | 1177.8 | usgs_3dep | [5512465463](https://www.openstreetmap.org/node/5512465463) | 1170, 7.8 m low |
 | Vose Spur | NH | 1172.1 | usgs_3dep | [5257503351](https://www.openstreetmap.org/node/5257503351) | 1177, 4.9 m high |
@@ -522,10 +536,12 @@ reading.
 | South Horn | ME | 1159.0 | osm | [358225015](https://www.openstreetmap.org/node/358225015) | 1159, kept |
 | Mount Wilson | VT | 1147.0 | osm | [356555348](https://www.openstreetmap.org/node/356555348) | 1147, kept |
 
-The five 3DEP summit searches, node to high point: Mount Wilson 25 m, East
-Sleeper 29 m, Wittenberg 38 m, Vose Spur 45 m, East Kennebago 66 m. Every one of
-the seventeen stored elevations lands within 3 m of the source list's published
-figure.
+The six 3DEP summit searches, node to high point: The Bulge 18 m, Mount Wilson
+25 m, East Sleeper 29 m, Wittenberg 38 m, Vose Spur 45 m, East Kennebago 66 m.
+With The Bulge corrected, every one of the seventeen stored elevations lands
+within 3 m of the source list's published figure — the largest gaps now South
+Horn 2.87 m, South Weeks Mountain 1.88 m, Mount Wilson 1.30 m, South Brother
+1.11 m, and everything else under 0.6 m.
 
 Two names differ from the source list on purpose.
 
@@ -586,6 +602,34 @@ every ordinal from elevation rather than guessing an insertion point: North
 Sister lands at 3, between South Sister (3,157 m) and Middle Sister (3,062 m),
 and the list now holds eleven.
 
+Re-deriving rewrites all eleven ordinals, so the ten rows that were already
+there had to be shown to keep their places. They do — the full list, read back
+from production:
+
+| Ordinal | Peak | Elevation (m) | Row |
+|---|---|---|---|
+| 0 | Mount Hood | 3426 | pre-existing |
+| 1 | Mount Jefferson | 3199 | pre-existing |
+| 2 | South Sister | 3157 | pre-existing |
+| 3 | **North Sister** | **3074** | **new** |
+| 4 | Middle Sister | 3062 | pre-existing |
+| 5 | Mount McLoughlin | 2894 | pre-existing |
+| 6 | Mount Thielsen | 2799 | pre-existing |
+| 7 | Broken Top | 2797 | pre-existing |
+| 8 | Mount Bachelor | 2763 | pre-existing |
+| 9 | Three Fingered Jack | 2390 | pre-existing |
+| 10 | Mount Washington | 2376 | pre-existing |
+
+Strike North Sister and the ten read in exactly the order they held before, with
+the same members and nothing else added. The migration's assertions now cover
+this rather than leaving it to a one-off read: alongside the count and North
+Sister's position, they require the ordinals to be a contiguous 0..n−1 run and
+elevation never to rise as ordinal rises. Because no two members share an
+elevation, those two together pin every row to one place. Both were checked by
+injecting the corruption they exist to catch — swapping Mount Thielsen and
+Broken Top, and moving one row's ordinal out of range — and both raised and
+rolled back.
+
 **Elbrus had no `country_code`**, so the Seven Summits page counted six countries
 instead of seven. The summit stands in Kabardino-Balkaria, Russia; the row's own
 coordinates, 43.35381 42.43610, fall well north of the Georgian border. Set to
@@ -599,9 +643,11 @@ sits at 44.187565 -71.5548027, 22 m from the stored point. All three fields are
 now filled, with the OSM write guarded on that 22 m distance and on no other
 destination already holding the node.
 
-**Thirty-nine rows had no `state_code`** — the ones the 2026-08-21 import named:
-32 on the Oregon Top 100, 6 on the Traditional Colorado Centennials, and South
-Twin. All 39 also had no `country_code`, so both are set. Each state comes from
+**Thirty-nine rows had no `state_code`** — 32 on the Oregon Top 100, 6 on the
+Traditional Colorado Centennials, and South Twin. The import did not create
+these rows: every one carries `created_at` of 2026-03-13, the Firestore
+migration, and came across without the fields. Putting them on a list is what
+made the gap visible. All 39 also had no `country_code`, so both are set. Each state comes from
 the row's own coordinates and the update only fires when the point falls inside
 that state's bounding box, so a wrong pairing writes nothing. Mount Washington in
 Oregon `NAAS8YxpeGd9hbnfKk6z` rides along as a fortieth: it carries the same
@@ -644,7 +690,9 @@ None of these came from this import, and none is fixed here.
   Hampshire) `EA5A6DB4A6673F44218B` 1168 vs 1188.8; Gothics
   `A1868E9D39B91E032D9E` 1425 vs 1445.4. All are old OSM `ele` tags carrying a
   contour value rather than a summit reading. Identity is not in doubt in any
-  case — every one matched within 170 m.
+  case — every one matched within 170 m. **The Bulge was a ninth**, and the one
+  case where this pass created the defect rather than inheriting it; it is fixed
+  above, and the rule that let it through is written up with it.
 - **Elephant Mountain `8106CBEB89FCD5BEF1B4` is a hybrid row.** Its coordinates
   are the southwest peak's, 17 m from Peakbagger's point for it, but its stored
   1150 m is the whole mountain's height: Peakbagger's LiDAR reading, added in
@@ -682,8 +730,13 @@ not a list import, and it stays out of scope here as it did on 08-18.
 - All 17 new destinations carry a PointZ whose Z equals the stored elevation, and
   across the whole catalog no OSM node ID is shared by two destinations.
 - The data-debt migration's own assertions pass: Oregon Volcanoes holds 11 rows
-  with North Sister at ordinal 3, no targeted row is left without a
-  `state_code`, Elbrus reads `RU`, and South Twin holds OSM node 357730793.
+  with North Sister at ordinal 3, its ordinals are a contiguous 0..10 run in
+  descending elevation, no targeted row is left without a `state_code`, Elbrus
+  reads `RU`, and South Twin holds OSM node 357730793. Both migrations are
+  idempotent — a second run of each wrote nothing.
+- The Bulge reads 1202.4 m with `ST_Z` equal to it and
+  `elevation_source: usgs_3dep`, and all seventeen new summits now sit within
+  3 m of their source list's published elevation.
 - `cd cloud-sql/migrate && npm test`: 680 pass, 0 fail, 8 skipped. `tsc` clean.
 
 No source page needed a login and none served a CAPTCHA.
