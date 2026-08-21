@@ -14,9 +14,10 @@
 -- Armstrong Mountain is here for a second reason. Peaks held only the Armstrong
 -- Mountain in Okanogan County, Washington, and its elevation sits 45 m from the
 -- Adirondack summit's -- inside the importer's window -- so the list row matched
--- a peak 3,383 km away. The importer only reaches for its 5 km distance rule
--- when a name matches more than one summit, so a single wrong candidate passes
--- unchallenged. Adding the real peak is what makes that row resolve correctly.
+-- a peak 3,460 km away. At the time the importer only reached for its 5 km
+-- distance rule when a name matched more than one summit, so a single wrong
+-- candidate passed unchallenged. The importer now applies that rule to a lone
+-- candidate too; adding the real peak is what makes this row resolve to it.
 --
 -- East Osceola carries the name the AMC list and every White Mountain guide
 -- use. Its OSM node (357729942) is tagged with the bare GNIS label "East Peak",
@@ -24,9 +25,10 @@
 -- calls it "East Peak Mount Osceola". The list import maps the source row to it
 -- by reviewed destination override.
 --
--- Two lists stay out of this migration. The Oregon Top 100 needs six summits
--- OpenStreetMap has never mapped, and the Traditional Colorado Centennials need
--- UN 13,820, which has no node either. Both are written up in
+-- The summits the Oregon Top 100 and the Traditional Colorado Centennials need
+-- are in two sibling migrations: 20260821_or_co_list_summits.sql for the ones
+-- OpenStreetMap has a node for, and 20260821_peakbagger_only_summits.sql for
+-- the eight it has never mapped. All three are written up in
 -- docs/data-audits/peakbagger-lists-2026-08-21.md.
 --
 -- Sawteeth's neighboring OSM node "Sawteeth-Southeast Peak" (4299228063) is

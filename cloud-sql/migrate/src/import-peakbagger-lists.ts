@@ -150,6 +150,14 @@ const NORTH_TWIN_MOUNTAIN_ID = deterministicOsmDestinationId("357730481");
 const BONDCLIFF_ID = deterministicOsmDestinationId("357730899");
 const EAST_OSCEOLA_ID = deterministicOsmDestinationId("357729942");
 
+// Added by cloud-sql/migrations/20260821_or_co_list_summits.sql. Each is a peak
+// the source list labels differently, so the override is what reaches it.
+const KIGER_MANN_PEAK_ID = deterministicOsmDestinationId("6601323053");
+const WEST_ANEROID_PEAK_ID = deterministicOsmDestinationId("9104370897");
+const SNOWFIELD_PEAK_ID = deterministicOsmDestinationId("10074433560");
+const MOCCASIN_LAKE_MOUNTAIN_ID = deterministicOsmDestinationId("9104420504");
+const MARK_MOUNTAIN_ID = deterministicOsmDestinationId("13926474089");
+
 export const CURATED_DESTINATIONS: CuratedDestination[] = [
   {
     id: HIGH_ROCK_ID,
@@ -301,6 +309,54 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5163",
     region: "New England",
   },
+  {
+    listId: deterministicListId(21316),
+    sourceListId: 21316,
+    name: "Oregon Top 100 Peaks",
+    description:
+      "Oregon's hundred highest summits, from Mount Hood down to a shade under 8,000 feet. " +
+      "The Cascade volcanoes take the top places, but the Wallowa Mountains in the northeast " +
+      "corner hold the largest share of the list. Mount Hood, at 11,244 feet, is the highest " +
+      "point in the state.",
+    expectedCount: 100,
+    destinationOverrides: {
+      3337: KIGER_MANN_PEAK_ID, // Steens Mountain - North Peak
+      36387: WEST_ANEROID_PEAK_ID, // Peak 9192
+      107008: SNOWFIELD_PEAK_ID, // Peak 8963
+      204076: "kkqii3pdy5RhZ8tyGcII", // Twin Mountain - East Peak -> the existing Twin Mountain row
+      3165: MOCCASIN_LAKE_MOUNTAIN_ID, // Lostline River-Moccasin Lake
+    },
+    // Nullable by design: a plain elevation cut has no keeper (see Colorado 14ers above).
+    yearEstablished: null,
+    organization: null,
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21316",
+    region: "Oregon",
+  },
+  {
+    listId: deterministicListId(50083),
+    sourceListId: 50083,
+    name: "Traditional Colorado Centennials",
+    description:
+      "Colorado has a hundred summits above 13,810 feet that also rise 300 feet above the " +
+      "saddle joining them to a higher neighbor. This is the older count, taken from the USGS " +
+      "quadrangle surveys; it stood from 1977, when Spencer Swanger became the first to climb " +
+      "them all, until airborne LiDAR reshuffled the ranks in 2021. Mount Elbert is the highest " +
+      "and Dallas Peak the lowest.",
+    expectedCount: 100,
+    destinationOverrides: {
+      5676: "PaeawK81bgByWN53rffv", // Mount Blue Sky -> the existing Mount Evans row
+      5798: "CDtc6zwdcpVsT3kx1tgO", // Mount Buckskin - Southeast Peak -> the existing Mount Buckskin row
+      5846: MARK_MOUNTAIN_ID, // Redcloud Peak - Northeast Peak -> Mark Mountain, UN 13,838
+    },
+    // Nullable by design: an elevation and prominence cut has no keeper. The
+    // Colorado Mountain Club records finishers but does not draw the list.
+    yearEstablished: 1977,
+    organization: null,
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=50083",
+    region: "Colorado",
+  },
 ];
 
 export function parseArgs(argv = process.argv.slice(2)): ImportArgs {
@@ -377,12 +433,25 @@ function resolveExactNameCandidate(
     Math.abs(peak.elevationM - sourceElevationM) <= MAX_ELEVATION_DELTA_M
   );
 
-  if (candidates.length > 1 && Number.isFinite(source.lat) && Number.isFinite(source.lng)) {
-    candidates = candidates
+  // The distance bound applies to every candidate, not just to a tie. A lone
+  // match that sits far away is a wrong match, not a winner: Peaks once held
+  // only the Armstrong Mountain in Washington, and the Adirondack row took it
+  // from 3,460 km away because a single candidate never reached this rule.
+  if (Number.isFinite(source.lat) && Number.isFinite(source.lng)) {
+    const measured = candidates
       .map((peak) => ({ peak, distanceM: haversineMeters(source as Required<PeakbaggerSourcePeak>, peak) }))
-      .filter(({ distanceM }) => distanceM <= MAX_SPATIAL_TIEBREAK_M)
-      .sort((left, right) => left.distanceM - right.distanceM)
-      .map(({ peak }) => peak);
+      .sort((left, right) => left.distanceM - right.distanceM);
+    const near = measured.filter(({ distanceM }) => distanceM <= MAX_SPATIAL_TIEBREAK_M);
+    if (near.length === 0 && measured.length > 0) {
+      const details = measured
+        .map(({ peak, distanceM }) => `${peak.id}:${peak.name} ${(distanceM / 1_000).toFixed(1)} km away`)
+        .join(", ");
+      throw new Error(
+        `List peak ${source.peakbaggerPeakId} ${source.name} matched no destination ` +
+        `within ${MAX_SPATIAL_TIEBREAK_M / 1_000} km (${details})`
+      );
+    }
+    candidates = near.map(({ peak }) => peak);
   }
 
   if (candidates.length !== 1) {

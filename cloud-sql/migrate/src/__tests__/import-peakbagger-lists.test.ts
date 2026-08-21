@@ -120,6 +120,81 @@ test("fails closed on missing and ambiguous matches", () => {
   );
 });
 
+// Regression: the Adirondack "Armstrong Mountain" row resolved to a summit in
+// Okanogan County, Washington, because the distance rule only ran when a name
+// matched more than one destination. A lone candidate went through unchecked.
+const armstrongRow = {
+  ordinal: 18,
+  peakbaggerPeakId: 6069,
+  name: "Armstrong Mountain",
+  elevationFt: 4_453,
+  lat: 44.134913,
+  lng: -73.850098,
+};
+
+const washingtonArmstrong: CatalogPeak = {
+  id: "washington-armstrong",
+  name: "Armstrong Mountain",
+  elevationM: 1_402,
+  lat: 48.26692,
+  lng: -119.08587,
+  osmId: "356544110",
+};
+
+const adirondackArmstrong: CatalogPeak = {
+  id: "adirondack-armstrong",
+  name: "Armstrong Mountain",
+  elevationM: 1_355.3,
+  lat: 44.1345216,
+  lng: -73.8497765,
+  osmId: "357545178",
+};
+
+const oneRowList: CuratedList = { ...list, expectedCount: 1, destinationOverrides: {} };
+
+test("a lone name match beyond the distance bound fails instead of matching", () => {
+  assert.throws(
+    () => resolveListMembers(oneRowList, { rows: [armstrongRow] }, [washingtonArmstrong]),
+    /matched no destination within 5 km/
+  );
+  assert.throws(
+    () => resolveListMembers(oneRowList, { rows: [armstrongRow] }, [washingtonArmstrong]),
+    /washington-armstrong:Armstrong Mountain 3460\.5 km away/
+  );
+});
+
+test("the distance bound still admits a lone match inside it", () => {
+  assert.deepEqual(
+    resolveListMembers(oneRowList, { rows: [armstrongRow] }, [adirondackArmstrong]),
+    [{
+      destinationId: "adirondack-armstrong",
+      ordinal: 0,
+      sourcePeakId: 6069,
+      sourceName: "Armstrong Mountain",
+    }]
+  );
+});
+
+test("the distance bound picks the near summit over the far same-named one", () => {
+  assert.deepEqual(
+    resolveListMembers(
+      oneRowList,
+      { rows: [armstrongRow] },
+      [washingtonArmstrong, adirondackArmstrong]
+    ).map((member) => member.destinationId),
+    ["adirondack-armstrong"]
+  );
+});
+
+test("a source row without coordinates keeps matching on name and elevation alone", () => {
+  const { lat, lng, ...noCoordinates } = armstrongRow;
+  assert.deepEqual(
+    resolveListMembers(oneRowList, { rows: [noCoordinates] }, [washingtonArmstrong])
+      .map((member) => member.destinationId),
+    ["washington-armstrong"]
+  );
+});
+
 test("reports adds, removals, and order changes", () => {
   const members = resolveListMembers(list, source, catalog);
   const plan = buildListPlan(list, members, [
