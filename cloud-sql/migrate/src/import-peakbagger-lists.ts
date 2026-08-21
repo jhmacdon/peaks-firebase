@@ -314,10 +314,10 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceListId: 21316,
     name: "Oregon Top 100 Peaks",
     description:
-      "Oregon's hundred highest summits, from Mount Hood down to a shade under 8,000 feet. " +
-      "The Cascade volcanoes take the top places, but the Wallowa Mountains in the northeast " +
-      "corner hold the largest share of the list. Mount Hood, at 11,244 feet, is the highest " +
-      "point in the state.",
+      "This list runs from Mount Hood, the highest point in Oregon, down to a shade under " +
+      "8,000 feet. The Cascade volcanoes take the top places, but the Wallowa Mountains in " +
+      "the northeast corner hold the largest share of the hundred. A quarter of them take " +
+      "their name from a nearby lake or creek, or carry nothing but an elevation.",
     expectedCount: 100,
     destinationOverrides: {
       3337: KIGER_MANN_PEAK_ID, // Steens Mountain - North Peak
@@ -338,11 +338,11 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceListId: 50083,
     name: "Traditional Colorado Centennials",
     description:
-      "Colorado has a hundred summits above 13,810 feet that also rise 300 feet above the " +
-      "saddle joining them to a higher neighbor. This is the older count, taken from the USGS " +
-      "quadrangle surveys; it stood from 1977, when Spencer Swanger became the first to climb " +
-      "them all, until airborne LiDAR reshuffled the ranks in 2021. Mount Elbert is the highest " +
-      "and Dallas Peak the lowest.",
+      "This list takes Colorado's hundred highest summits, counting only those that rise 300 " +
+      "feet above the saddle linking them to a higher neighbor. It follows the older reckoning " +
+      "from the USGS quadrangle surveys, which stood from 1977, when Spencer Swanger became " +
+      "the first to climb them all, until airborne LiDAR reshuffled the ranks in 2021. Mount " +
+      "Elbert leads it and Dallas Peak, at 13,809 feet, comes last.",
     expectedCount: 100,
     destinationOverrides: {
       5676: "PaeawK81bgByWN53rffv", // Mount Blue Sky -> the existing Mount Evans row

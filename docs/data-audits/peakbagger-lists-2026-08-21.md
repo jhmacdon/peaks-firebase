@@ -53,6 +53,66 @@ Sources: [adk46er.org history](https://adk46er.org/a-bit-of-history/),
 [amc4000footer.org history](https://www.amc4000footer.org/history.html),
 [countryhighpoints.com on the quad-based and LiDAR Centennials](https://www.countryhighpoints.com/gnss-based-colorado-centennials-list/).
 
+### Sources for every claim in the four descriptions
+
+The descriptions ship to users, so each factual claim in them is listed here with
+what backs it. "Source rows" means the fixture this import reads.
+
+**Adirondack 46ers**
+
+| Claim | Source |
+|---|---|
+| Bob and George Marshall and Herbert Clark climbed all forty-six | [adk46er.org history](https://adk46er.org/a-bit-of-history/); [Wikipedia](https://en.wikipedia.org/wiki/Adirondack_Forty-Sixers) |
+| between 1918 and 1925 | Whiteface on 1 August 1918, Emmons on 10 June 1925 — [adk46er.org history](https://adk46er.org/a-bit-of-history/) |
+| four of the forty-six fall under 4,000 feet | Blake, Cliff, Nye, Couchsachraga — [Wikipedia](https://en.wikipedia.org/wiki/Adirondack_Forty-Sixers) |
+| one 4,000-foot summit was skipped | MacNaughton Mountain — [Wikipedia](https://en.wikipedia.org/wiki/Adirondack_Forty-Sixers) |
+| the club kept the original list | kept "out of tradition" — [Wikipedia](https://en.wikipedia.org/wiki/Adirondack_Forty-Sixers) |
+| Mount Marcy is the highest point in New York and tops the list | source row 1, 5,343.6 ft |
+
+**New England 4000-Footers**
+
+| Claim | Source |
+|---|---|
+| the AMC Four Thousand Footer Club drew up the New England list in 1964 | [amc4000footer.org history](https://www.amc4000footer.org/history.html) |
+| it carried the New Hampshire forty-eight into Maine and Vermont | same page; the club was founded in 1957 for the NH 48 |
+| 4,000 feet plus 200 feet above the saddle | same page — the 200-foot rule set at the 1957 map party |
+| sixty-seven peaks today | source rows: 67, splitting 48 NH / 14 ME / 5 VT by the export's own region field |
+| Mount Washington tops it | source row 1, 6,286.5 ft |
+
+**Oregon Top 100 Peaks**
+
+| Claim | Source |
+|---|---|
+| Mount Hood is the highest point in Oregon | source row 1; [Wikipedia](https://en.wikipedia.org/wiki/Mount_Hood) |
+| the list runs down to a shade under 8,000 feet | source row 100, Mount Harriman, 7,988.8 ft; Peaks stores 7,979.0 ft |
+| the Cascade volcanoes take the top places | source rows 1–5: Hood, Jefferson, South Sister, North Sister, Middle Sister |
+| the Wallowas hold the largest share | 44 of the 100 source rows fall in the Wallowa bounding box; the next largest block is 15 |
+| a quarter take their name from a lake or creek, or carry only an elevation | 25 of the 100 source rows: 5 named "Peak ⟨elevation⟩", 20 named for a nearby lake, creek, basin, pass, or ridge |
+
+Mount Hood's height is **deliberately not quoted**. The National Geodetic Survey
+endorsed 3,429 m (11,249 ft) in 1991 from a 1986 measurement, but 11,239 ft and
+11,240 ft are both still in circulation, and Peaks itself stores 3,426 m
+(11,240 ft) — so any figure in the copy would have argued with the number shown
+beside it on the page. An earlier draft said 11,244 ft, which matches no
+published figure at all; it came from rounding the export's 11,243.7 ft.
+
+**Traditional Colorado Centennials**
+
+| Claim | Source |
+|---|---|
+| Colorado's hundred highest, counting only those rising 300 feet above the saddle | [countryhighpoints.com](https://www.countryhighpoints.com/gnss-based-colorado-centennials-list/) — "the 100 highest peaks in Colorado with at least 300 feet of prominence" |
+| the older reckoning came from the USGS quadrangle surveys | same page — theodolite and photogrammetry measurements off the quads |
+| it stood from 1977 until LiDAR replaced it in 2021 | same page — quad-based list accepted 1977–2021; LiDAR flown 2018–19, released 2021 |
+| Spencer Swanger was the first to climb them all, in 1977 | same page |
+| Mount Elbert leads it | source row 1, 14,439.5 ft |
+| Dallas Peak, at 13,809 feet, comes last | source row 100; [countryhighpoints.com](https://www.countryhighpoints.com/colorado-hundred-highest-centennials/) gives the list's floor as 13,809 ft at Dallas Peak, and Peaks stores 4209 m = 13,809.1 ft |
+
+The rule is stated the way the source states it — the hundred highest with 300
+feet of rise — rather than as an elevation floor. An earlier draft said "a
+hundred summits above 13,810 feet", which contradicted its own next sentence:
+the export puts Dallas Peak at 13,810.9 ft but every other source, and the Peaks
+catalog, puts it at 13,809 ft.
+
 ## The matcher was wrong, and is fixed
 
 The first dry run resolved the Adirondack row "Armstrong Mountain" to a summit
@@ -70,7 +130,8 @@ fails resolution and names the distance in the error, which forces either an
 override or a new destination rather than a quiet mistake. Rows without
 coordinates — the Colorado 14ers list has none — keep matching on name and
 elevation alone. Four tests cover it, and the bound changes no already-imported
-row: all nine curated lists still resolve with a zero diff.
+row: the five lists already in Peaks resolve with a zero diff under it, and the
+four new ones resolved clean on their first run with it in place.
 
 ## New summits — 32 destinations
 
@@ -161,19 +222,27 @@ So each coordinate below is the summit itself, located in 3DEP terrain: sample a
 25×25 grid across the quantisation box, take every local maximum, refine each to
 about 1.5 m, and keep the one whose elevation matches the published figure. That
 match is the evidence the right summit was found — within 0.6 m on all eight
-rows, within 0.1 m on five. 3DEP is public-domain USGS elevation data and the
+rows, within 0.1 m on six. 3DEP is public-domain USGS elevation data and the
 source of the elevations in the two migrations above.
 
-| Summit | State | Stored (3DEP) | Peakbagger | Δ | Moved from the export's point |
-|---|---|---|---|---|---|
-| Redcloud Peak - Far Northeast Peak | CO | 4212.3 | 4212.2 | +0.07 | 268 m |
-| Peak 8710 | OR | 2654.9 | 2654.8 | +0.01 | 67 m |
-| Jackson Peak - South | OR | 2590.3 | 2590.3 | −0.04 | 134 m |
-| Graham Mountain - West Peak | OR | 2586.1 | 2586.1 | −0.01 | 505 m |
-| Peak 8441 | OR | 2572.6 | 2572.8 | −0.22 | 382 m |
-| North Minam Creek-Bear Creek | OR | 2548.4 | 2548.4 | −0.01 | 371 m |
-| Peak 8098 | OR | 2467.6 | 2468.1 | −0.52 | 129 m |
-| Berry-Norton Peak | OR | 2447.4 | 2447.5 | −0.07 | 299 m |
+Both coordinates are on the record: the export's tile-quantised point sits in a
+per-row `-- export:` comment in the migration beside the 3DEP point that was
+stored, and in the table below. Elevations are metres — the 3DEP reading at the
+stored point, then Peakbagger's published figure.
+
+| Summit | State | 3DEP | Peakbagger | Δ | Export lat, lng | Stored lat, lng | Moved |
+|---|---|---|---|---|---|---|---|
+| Redcloud Peak - Far Northeast Peak | CO | 4212.25 | 4212.18 | +0.07 | 37.9528609182, -107.3803710938 | 37.9545950, -107.3782599 | 268 m |
+| Peak 8710 | OR | 2654.85 | 2654.84 | +0.01 | 45.1045463098, -117.3339843750 | 45.1051506, -117.3339462 | 67 m |
+| Jackson Peak - South | OR | 2590.28 | 2590.31 | −0.03 | 45.1200528415, -117.2790527344 | 45.1188826, -117.2794728 | 134 m |
+| Graham Mountain - West Peak | OR | 2586.07 | 2586.08 | −0.01 | 44.2924010853, -118.6523437500 | 44.2960174, -118.6485237 | 505 m |
+| Peak 8441 | OR | 2572.63 | 2572.85 | −0.22 | 44.9181392996, -118.2019042969 | 44.9173329, -118.2066090 | 382 m |
+| North Minam Creek-Bear Creek | OR | 2548.36 | 2548.37 | −0.01 | 45.2903466247, -117.4877929688 | 45.2925771, -117.4842738 | 371 m |
+| Peak 8098 | OR | 2467.63 | 2468.15 | −0.52 | 45.3135290069, -117.4328613281 | 45.3132212, -117.4312731 | 129 m |
+| Berry-Norton Peak | OR | 2447.41 | 2447.48 | −0.07 | 44.3238480725, -118.8720703125 | 44.3265232, -118.8723340 | 299 m |
+
+The stored `elevation` column rounds the 3DEP reading to one decimal, matching
+the other two migrations.
 
 The Colorado row is UN 13,820, the single summit that held that list back.
 Peak 8441 has an untagged OSM node 40 m away
@@ -237,10 +306,13 @@ lists index like the seventeen before them.
 | Oregon Top 100 Peaks | 24 | 21 | 0 | 67 |
 | Traditional Colorado Centennials | 41 | 38 | 0 | 10 |
 
-Hero coverage now runs 41 of 46, 49 of 67, 87 of 100 and 30 of 100. Oregon
-trails because two thirds of its list are informally named Wallowa summits with
-no Wikipedia article — the same reason they have no OSM node. Nothing was
-refused on licensing.
+Hero coverage now runs 41 of 46 on the Adirondack list, 49 of 67 on New England,
+**87 of 100 on Colorado**, and **30 of 100 on Oregon**. Colorado does well
+because most Centennials are named peaks with Wikipedia articles, and its
+fourteeners were already covered. Oregon trails because two thirds of its list
+are informally named Wallowa summits with no article at all — the same reason
+they have no OSM node, and the reason 67 of its rows came back unmatched.
+Nothing was refused on licensing.
 
 ## Catalog problems found on the way
 

@@ -26,7 +26,7 @@
 -- sample a 25x25 grid over the ~1 km quantisation box, take every local
 -- maximum, refine each to about 1.5 m, and keep the one whose elevation matches
 -- the published figure. That match is the evidence the right summit was found —
--- it lands within 0.6 m on all eight rows, and within 0.1 m on five of them —
+-- it lands within 0.6 m on all eight rows, and within 0.1 m on six of them —
 -- and both readings are recorded per row below. 3DEP is public-domain USGS
 -- elevation data, and the source of the elevations in the sibling migration.
 --
@@ -38,27 +38,37 @@ WITH incoming (
   id, name, elevation, lat, lng, peakbagger_id, state_code
 ) AS (
   VALUES
-    -- Oregon Top 100. Peakbagger's published elevation follows each row; the
-    -- stored value is the 3DEP reading at the coordinate on that row.
+    -- Oregon Top 100. Each row records Peakbagger's published elevation and the
+    -- tile-quantised coordinate its export carried, alongside the 3DEP summit
+    -- point and reading actually stored.
+    --
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('D991BD28B0984496C778', 'Peak 8710',                          2654.9, 45.1051506, -117.3339462, '59650',  'OR'),  -- Peakbagger 2654.8 m
+    -- export: 45.1045463098, -117.3339843750
+    ('D991BD28B0984496C778', 'Peak 8710',                          2654.9, 45.1051506, -117.3339462, '59650',  'OR'),  -- Peakbagger 2654.84 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('F667DB0DA84440E25AD9', 'Jackson Peak - South',               2590.3, 45.1188826, -117.2794728, '34058',  'OR'),  -- Peakbagger 2590.3 m
+    -- export: 45.1200528415, -117.2790527344
+    ('F667DB0DA84440E25AD9', 'Jackson Peak - South',               2590.3, 45.1188826, -117.2794728, '34058',  'OR'),  -- Peakbagger 2590.31 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('0EF3D99D4FFBAB2A99BA', 'Graham Mountain - West Peak',        2586.1, 44.2960174, -118.6485237, '3230',   'OR'),  -- Peakbagger 2586.1 m
+    -- export: 44.2924010853, -118.6523437500
+    ('0EF3D99D4FFBAB2A99BA', 'Graham Mountain - West Peak',        2586.1, 44.2960174, -118.6485237, '3230',   'OR'),  -- Peakbagger 2586.08 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution.
     -- An untagged OSM node sits 40 m away (7711935638) with no name and no ele.
-    ('BC40E8BF1702AA33E084', 'Peak 8441',                          2572.6, 44.9173329, -118.2066090, '28144',  'OR'),  -- Peakbagger 2572.8 m
+    -- export: 44.9181392996, -118.2019042969
+    ('BC40E8BF1702AA33E084', 'Peak 8441',                          2572.6, 44.9173329, -118.2066090, '28144',  'OR'),  -- Peakbagger 2572.85 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('B80EBAE0043CC5763179', 'North Minam Creek-Bear Creek',       2548.4, 45.2925771, -117.4842738, '3154',   'OR'),  -- Peakbagger 2548.4 m
+    -- export: 45.2903466247, -117.4877929688
+    ('B80EBAE0043CC5763179', 'North Minam Creek-Bear Creek',       2548.4, 45.2925771, -117.4842738, '3154',   'OR'),  -- Peakbagger 2548.37 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('EC81E29D4AC1C301A4A9', 'Peak 8098',                          2467.6, 45.3132212, -117.4312731, '59646',  'OR'),  -- Peakbagger 2468.1 m
+    -- export: 45.3135290069, -117.4328613281
+    ('EC81E29D4AC1C301A4A9', 'Peak 8098',                          2467.6, 45.3132212, -117.4312731, '59646',  'OR'),  -- Peakbagger 2468.15 m
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('14D24689E01D266EB668', 'Berry-Norton Peak',                  2447.4, 44.3265232, -118.8723340, '21492',  'OR'),  -- Peakbagger 2447.5 m
+    -- export: 44.3238480725, -118.8720703125
+    ('14D24689E01D266EB668', 'Berry-Norton Peak',                  2447.4, 44.3265232, -118.8723340, '21492',  'OR'),  -- Peakbagger 2447.48 m
     -- Traditional Colorado Centennials. This is UN 13,820, the last summit
     -- holding that list back.
     -- absent from OSM as of 2026-08-21; candidate for future OSM contribution
-    ('3E76D238021E3F9C0E31', 'Redcloud Peak - Far Northeast Peak', 4212.3, 37.9545950, -107.3782599, '5845',   'CO')   -- Peakbagger 4212.2 m
+    -- export: 37.9528609182, -107.3803710938
+    ('3E76D238021E3F9C0E31', 'Redcloud Peak - Far Northeast Peak', 4212.3, 37.9545950, -107.3782599, '5845',   'CO')   -- Peakbagger 4212.18 m
 ),
 prepared AS (
   SELECT
