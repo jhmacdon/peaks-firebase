@@ -99,12 +99,21 @@ psql_admin -f "$CLOUD_SQL_DIR/schema.sql" > /dev/null
 # ---------------------------------------------------------------------------
 # Migrations, oldest first.
 #
-# These five predate or duplicate what schema.sql already contains, so they
-# cannot apply on top of it. Each was checked against the live database: the
-# object it creates is already present and identical, so skipping it changes
-# nothing. A NEW migration that fails here is a real conflict — it means
-# schema.sql and the migration have diverged — and provisioning should fail
-# loudly rather than gain another entry in this list.
+# Two different reasons land a migration here, and they get different scrutiny:
+#
+# 1. It predates or duplicates what schema.sql already contains, so it cannot
+#    apply on top of it. Each was checked against the live database: the
+#    object it creates is already present and identical, so skipping it
+#    changes nothing. A NEW migration that fails for THIS reason is a real
+#    conflict — it means schema.sql and the migration have diverged — and
+#    provisioning should fail loudly rather than gain another entry here.
+# 2. It is a production-data fixup that asserts an exact count or value on
+#    rows a bare schema can never hold — pre-existing Firestore-era catalog
+#    or list-membership rows created outside migrations/ entirely (by the
+#    one-time Firestore migration or the peakbagger importer script, neither
+#    of which this script runs). Skipping changes nothing a fresh database
+#    could have checked anyway; the assertion still guards prod, where the
+#    migration is actually applied.
 # ---------------------------------------------------------------------------
 skip_reason() {
   case "$1" in
@@ -118,6 +127,8 @@ skip_reason() {
       echo "session_comparisons already in schema.sql" ;;
     20260725_rainier_massif_boundary.sql)
       echo "production data fixup; needs the real Rainier row" ;;
+    20260821_list_data_debts.sql)
+      echo "production data fixup; asserts Oregon Volcanoes' real (importer-created) list membership holds exactly 11 rows" ;;
     *) echo "" ;;
   esac
 }
