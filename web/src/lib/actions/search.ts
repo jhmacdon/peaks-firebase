@@ -5,6 +5,12 @@ import db from "../db";
 import { verifyToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
 import {
+  popularHeroFallbackSql,
+  filteredPopularHeroFallbackSql,
+  stateHighestSummitSql,
+  unclimbedHighestSql,
+} from "../search-sql";
+import {
   parseRouteProvenance,
   type RouteProvenance,
 } from "../route-provenance";
@@ -262,7 +268,8 @@ function mapPopularDestinationRow(r: any): SearchDestination {
  * Most of the catalog has never been recorded, so this can come up short —
  * when it returns fewer than POPULAR_DESTINATION_FALLBACK_THRESHOLD rows, the
  * genuinely popular rows are kept and topped up (not replaced) with
- * photographed destinations, up to `limit`. isFallback is only true when a
+ * photographed summits, up to `limit` (summits only because the top-up ranks
+ * by raw elevation — see search-sql.ts). isFallback is only true when a
  * top-up row actually ended up in the result, so the page only retitles the
  * section to "Worth a look" when it had to reach for one.
  */
@@ -293,21 +300,13 @@ export async function getPopularDestinations(
     return { destinations, isFallback: false };
   }
 
-  // Top up (never replace) with photographed destinations, excluding any
+  // Top up (never replace) with photographed summits, excluding any
   // already found above so a destination doesn't appear twice.
   const remaining = limit - destinations.length;
-  const fallback = await db.query(
-    `SELECT id, name, elevation, prominence, type,
-            activities, features,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng
-     FROM destinations
-     WHERE hero_image IS NOT NULL
-       AND NOT (id = ANY($2::text[]))
-     ORDER BY elevation DESC NULLS LAST, name ASC NULLS LAST
-     LIMIT $1`,
-    [remaining, destinations.map((d) => d.id)]
-  );
+  const fallback = await db.query(popularHeroFallbackSql(), [
+    remaining,
+    destinations.map((d) => d.id),
+  ]);
 
   return {
     destinations: [...destinations, ...fallback.rows.map(mapPopularDestinationRow)],
@@ -359,10 +358,10 @@ function filteredPopularConditions(
  * module. One query for the ranked list, a second only when the fallback
  * threshold isn't cleared (identical shape to getPopularDestinations).
  *
- * `d.state_code` has no dedicated index (see search.ts's other filters,
- * which lean on the GIN indexes over `features`/`activities` instead) — an
- * accepted sequential scan under the same hourly-ISR cost budget the
- * unfiltered query already spends on its own full-table join.
+ * `d.state_code` is indexed (idx_destinations_state_code, partial over
+ * NOT NULL — migration 20260820) so the state-scoped queries no longer pay
+ * the ~1.4 s sequential scan they shipped with; feature/activity filters
+ * still lean on the GIN indexes over `features`/`activities`.
  */
 async function getFilteredPopularDestinations(
   options: FilteredPopularOptions,
@@ -408,16 +407,7 @@ async function getFilteredPopularDestinations(
   const remainingIdx = fallbackParams.length;
 
   const fallback = await db.query(
-    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-            d.activities, d.features,
-            ST_Y(d.location::geometry) AS lat,
-            ST_X(d.location::geometry) AS lng
-     FROM destinations d
-     WHERE d.hero_image IS NOT NULL
-       AND NOT (d.id = ANY($${excludeIdx}::text[]))
-       ${fallbackWhereExtra}
-     ORDER BY d.elevation DESC NULLS LAST, d.name ASC NULLS LAST
-     LIMIT $${remainingIdx}`,
+    filteredPopularHeroFallbackSql(fallbackWhereExtra, excludeIdx, remainingIdx),
     fallbackParams
   );
 
@@ -486,14 +476,7 @@ export async function getStateCatalogFacts(stateCode: string): Promise<StateCata
        WHERE state_code = $1 AND country_code = 'US'`,
       [stateCode]
     ),
-    db.query(
-      `SELECT id, name, elevation
-       FROM destinations
-       WHERE state_code = $1 AND country_code = 'US' AND 'summit' = ANY(features)
-       ORDER BY elevation DESC NULLS LAST
-       LIMIT 1`,
-      [stateCode]
-    ),
+    db.query(stateHighestSummitSql(), [stateCode]),
   ]);
 
   const destinationCount = Number(countResult.rows[0]?.count ?? 0);
@@ -677,7 +660,9 @@ export async function getDiscoverStats(): Promise<DiscoverStats> {
 
 /**
  * Destinations the given user has never reached (not in session_destinations).
- * If lat/lng provided, ordered by proximity; otherwise by elevation descending.
+ * If lat/lng provided, ordered by proximity; otherwise the highest unreached
+ * summits (summits only because that branch ranks by raw elevation — see
+ * search-sql.ts).
  */
 export async function getUnclimbedDestinations(
   token: string,
@@ -721,21 +706,7 @@ export async function getUnclimbedDestinations(
       distance_m: r.distance_m ? Number(r.distance_m) : undefined,
     }));
   } else {
-    const result = await db.query(
-      `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-              d.activities, d.features,
-              ST_Y(d.location::geometry) AS lat,
-              ST_X(d.location::geometry) AS lng
-       FROM destinations d
-       WHERE d.id NOT IN (
-         SELECT sd.destination_id FROM session_destinations sd
-         JOIN tracking_sessions ts ON ts.id = sd.session_id
-         WHERE ts.user_id = $1 AND sd.relation = 'reached'
-       )
-       ORDER BY d.elevation DESC NULLS LAST
-       LIMIT $2`,
-      [user.uid, limit]
-    );
+    const result = await db.query(unclimbedHighestSql(), [user.uid, limit]);
 
     return result.rows.map((r: any) => ({
       id: r.id,
