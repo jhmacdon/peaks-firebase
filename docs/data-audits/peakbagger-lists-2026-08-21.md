@@ -186,6 +186,21 @@ that predates it.
   right summit — 0.27 km from the source point, 0.7 m in elevation — but it came
   through the Firestore migration without either field.
 
+## Owed
+
+The Wikipedia description and hero-image backfill has not run for these two
+lists. Adirondack 46ers has one member with an image out of 46, New England
+4000-Footers three out of 67, against 18 of 20 on Cascade Volcanoes — so both
+render thin on the lists index. A dry run over the Adirondack list reported
+written=45, images=40, refused=0, unmatched=0, so the fix is one command per
+list:
+
+```bash
+cd cloud-sql/migrate
+npx tsx src/backfill-destination-descriptions.ts --commit --list-id 2945F52A0B9B7AC3E190 --limit 60
+npx tsx src/backfill-destination-descriptions.ts --commit --list-id 16E88FE9AFBC532C05CE --limit 90
+```
+
 ## Verification
 
 - Dry run resolved all seven curated lists with no unresolved row.
