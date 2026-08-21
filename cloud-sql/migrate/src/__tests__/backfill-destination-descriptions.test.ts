@@ -5,6 +5,7 @@ import {
   UPDATE_SQL,
   buildCandidateQuery,
   intFlagFrom,
+  parseArgs,
   planRow,
   stringFlagFrom,
   writeRow,
@@ -200,11 +201,90 @@ test("every branch selects the stored copy the recovery path writes back", () =>
   for (const query of [
     buildCandidateQuery({ ids: null, force: false, minProminence: 300, limit: 25 }),
     buildCandidateQuery({ ids: ["dest-rainier"], force: false, minProminence: 300, limit: 25 }),
+    buildCandidateQuery({
+      ids: null,
+      force: false,
+      minProminence: 300,
+      limit: 25,
+      listId: "list-bulger",
+    }),
+    buildCandidateQuery({ ids: null, force: false, minProminence: 300, limit: 25, allLists: true }),
   ]) {
     assert.match(query.text, /d\.description_source_name/);
     assert.match(query.text, /d\.description_source_url/);
     assert.match(query.text, /d\.description_source_license/);
   }
+});
+
+// --- --list-id / --all-lists -------------------------------------------
+
+test("--list-id scopes candidates through list_destinations with no prominence floor or summit-feature filter", () => {
+  const query = buildCandidateQuery({
+    ids: null,
+    force: false,
+    minProminence: 300,
+    limit: 150,
+    listId: "DOlya3YYfIg60trgTm0n",
+  });
+
+  assert.match(query.text, /list_destinations/);
+  assert.match(query.text, /ld\.list_id = \$1/);
+  assert.match(query.text, /d\.hero_image IS NULL/);
+  assert.ok(
+    !/'summit' = ANY/.test(query.text),
+    "list membership is the curation — the summit-feature filter would exclude most list members"
+  );
+  assert.ok(
+    !/prominence/i.test(query.text),
+    "list membership is the curation — the prominence floor would exclude most list members"
+  );
+  assert.match(query.text, /ORDER BY d\.elevation DESC/);
+  assert.deepEqual(query.values, ["DOlya3YYfIg60trgTm0n", 150]);
+});
+
+test("--list-id with --force also reconsiders rows that already have a hero image", () => {
+  const query = buildCandidateQuery({
+    ids: null,
+    force: true,
+    minProminence: 300,
+    limit: 150,
+    listId: "DOlya3YYfIg60trgTm0n",
+  });
+
+  assert.ok(
+    !/hero_image IS NULL/.test(query.text),
+    "--force exists to rewrite rows that already carry an image"
+  );
+});
+
+test("--all-lists selects across every list, deduplicated by destination, with the same relaxed filters", () => {
+  const query = buildCandidateQuery({
+    ids: null,
+    force: false,
+    minProminence: 300,
+    limit: 500,
+    allLists: true,
+  });
+
+  assert.match(query.text, /list_destinations/);
+  assert.ok(!/ld\.list_id = \$/.test(query.text), "no single list to filter by");
+  assert.match(query.text, /d\.hero_image IS NULL/);
+  assert.ok(!/'summit' = ANY/.test(query.text));
+  assert.ok(!/prominence/i.test(query.text));
+  assert.match(query.text, /ORDER BY d\.elevation DESC/);
+  assert.deepEqual(query.values, [500]);
+});
+
+test("--all-lists with --force also reconsiders rows that already have a hero image", () => {
+  const query = buildCandidateQuery({
+    ids: null,
+    force: true,
+    minProminence: 300,
+    limit: 500,
+    allLists: true,
+  });
+
+  assert.ok(!/hero_image IS NULL/.test(query.text));
 });
 
 // --- Match resolution order ------------------------------------------------
@@ -626,4 +706,61 @@ test("intFlagFrom stops the run on a value it cannot read as a number", () => {
       `"${bad}" must stop the run rather than fall back to 100`
     );
   }
+});
+
+// --- parseArgs ---------------------------------------------------------
+
+test("parseArgs reads --list-id and leaves --all-lists off", () => {
+  const args = parseArgs(["node", "script", "--list-id", "DOlya3YYfIg60trgTm0n", "--dry-run"]);
+
+  assert.equal(args.listId, "DOlya3YYfIg60trgTm0n");
+  assert.equal(args.allLists, false);
+  assert.equal(args.dryRun, true);
+  assert.equal(args.commit, false);
+});
+
+test("parseArgs reads --all-lists and leaves --list-id null", () => {
+  const args = parseArgs(["node", "script", "--all-lists", "--commit"]);
+
+  assert.equal(args.allLists, true);
+  assert.equal(args.listId, null);
+  assert.equal(args.commit, true);
+});
+
+test("parseArgs rejects --list-id and --all-lists together", () => {
+  assert.throws(
+    () => parseArgs(["node", "script", "--list-id", "abc", "--all-lists"]),
+    FlagUsageError
+  );
+});
+
+test("parseArgs rejects --list-id combined with --ids", () => {
+  assert.throws(
+    () => parseArgs(["node", "script", "--list-id", "abc", "--ids", "a,b"]),
+    FlagUsageError
+  );
+});
+
+test("parseArgs rejects --all-lists combined with --ids", () => {
+  assert.throws(
+    () => parseArgs(["node", "script", "--all-lists", "--ids", "a,b"]),
+    FlagUsageError
+  );
+});
+
+test("parseArgs rejects --dry-run and --commit together", () => {
+  assert.throws(() => parseArgs(["node", "script", "--dry-run", "--commit"]), FlagUsageError);
+});
+
+test("parseArgs defaults: no list scope, not a dry run without the flag, commit off by default", () => {
+  const args = parseArgs(["node", "script"]);
+
+  assert.equal(args.listId, null);
+  assert.equal(args.allLists, false);
+  assert.equal(args.dryRun, false);
+  assert.equal(args.commit, false);
+  assert.equal(args.force, false);
+  assert.equal(args.limit, 100);
+  assert.equal(args.minProminence, 300);
+  assert.equal(args.ids, null);
 });
