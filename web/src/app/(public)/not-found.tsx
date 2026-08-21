@@ -1,18 +1,14 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { NotFoundContent } from "../../components/not-found-content";
+
+// Answers `notFound()` thrown inside the (public) group — a destination,
+// route, list, or area id that doesn't resolve. Nav and footer come from
+// `(public)/layout.tsx`, so only the body belongs here.
+export const metadata: Metadata = {
+  title: "Not found",
+  description: "That page isn't on the map.",
+};
 
 export default function NotFound() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 px-6">
-      <h2 className="text-lg font-semibold mb-2">Page not found</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        The page you&apos;re looking for doesn&apos;t exist.
-      </p>
-      <Link
-        href="/discover"
-        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        Go to Discover
-      </Link>
-    </div>
-  );
+  return <NotFoundContent />;
 }

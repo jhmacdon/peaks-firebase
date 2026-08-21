@@ -1,19 +1,61 @@
 import type { Metadata } from "next";
+import { cache } from "react";
+import { JsonLdScript } from "../../../../components/json-ld-script";
 import { getAreaSummary } from "../../../../lib/actions/areas";
-import {
-  absoluteUrl,
-  siteConfig,
-  summarizeText,
-} from "../../../../lib/seo";
+import { describeDesignation } from "../../../../lib/area-types";
+import { buildAreaJsonLd } from "../../../../lib/json-ld";
+import { formatRegionList } from "../../../../lib/regions";
+import { describeArea } from "../../../../lib/seo-descriptions";
+import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template serving every protected area, and PAD-US boundaries/catalog
+// links change on the order of months, not requests — same ISR contract as
+// destinations/[id]/layout.tsx (Task 13) and routes/[id]/layout.tsx (Task
+// 14). The empty `generateStaticParams` is what makes it real: with no
+// paths pre-generated, Next still registers the route as ISR (first
+// request renders and fills the cache) instead of answering every request
+// with `Cache-Control: private, no-cache, no-store`.
+export const revalidate = 3600;
+export const dynamicParams = true;
 
-export default function AreaLayout({
+export async function generateStaticParams() {
+  return [];
+}
+
+const getAreaForSeo = cache(getAreaSummary);
+
+export default async function AreaLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildAreaJsonLd> | null = null;
+
+  try {
+    const area = await getAreaForSeo(id);
+    if (area) {
+      jsonLd = buildAreaJsonLd({
+        name: area.name,
+        url: absoluteUrl(`/areas/${encodeURIComponent(id)}`),
+        latitude: area.lat,
+        longitude: area.lng,
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <JsonLdScript data={jsonLd} />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -24,7 +66,7 @@ export async function generateMetadata({
   const { id } = await params;
 
   try {
-    const area = await getAreaSummary(id);
+    const area = await getAreaForSeo(id);
     if (!area) {
       return {
         title: "Protected area not found",
@@ -32,17 +74,14 @@ export async function generateMetadata({
       };
     }
 
-    const description =
-      summarizeText(
-        [
-          area.description,
-          `${area.destination_count} ${
-            area.destination_count === 1 ? "destination" : "destinations"
-          }.`,
-          `${area.route_count} ${area.route_count === 1 ? "route" : "routes"}.`,
-        ],
-        160
-      ) ?? siteConfig.description;
+    const description = describeArea({
+      name: area.name,
+      designationLabel: describeDesignation(area.designation, area.kind),
+      region: formatRegionList(area.state_codes, area.country_code),
+      destinationCount: area.destination_count,
+      routeCount: area.route_count,
+    });
+
     const canonicalPath = `/areas/${encodeURIComponent(id)}`;
 
     return {
@@ -51,6 +90,10 @@ export async function generateMetadata({
       alternates: {
         canonical: absoluteUrl(canonicalPath),
       },
+      // No `images` here: the co-located `opengraph-image.tsx` in this same
+      // segment is picked up automatically, with the correct build-hashed,
+      // cache-busted URL Next.js generates for it — a hand-built URL can't
+      // reproduce that hash.
       openGraph: {
         title: area.name,
         description,
@@ -59,7 +102,7 @@ export async function generateMetadata({
         type: "website",
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title: area.name,
         description,
       },

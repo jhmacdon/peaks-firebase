@@ -9,6 +9,8 @@ import {
   getTripReportEligibleSessions,
   type TripReportEligibleSession,
 } from "../../../../lib/actions/trip-reports";
+import { Button } from "../../../../components/ui/button";
+import { Label, Select, Input, Textarea } from "../../../../components/ui/field";
 
 export default function NewReportPage() {
   const router = useRouter();
@@ -87,43 +89,32 @@ export default function NewReportPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/discover"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
+      <div className="flex items-center gap-2 text-sm text-muted mb-4">
+        <Link href="/discover" className="hover:text-ink hover:underline">
           Discover
         </Link>
         <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">
-          New Trip Report
-        </span>
+        <span className="text-ink-2">New Trip Report</span>
       </div>
 
-      <h1 className="text-2xl font-semibold mb-2">New Trip Report</h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <h1 className="text-2xl font-semibold mb-2 text-ink">New Trip Report</h1>
+      <p className="text-sm text-muted mb-8">
         Trip Reports are public. Peaks links the destinations and route from your
         activity but does not share its GPS track.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label
-            htmlFor="activity"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Completed activity
-          </label>
-          <select
+          <Label htmlFor="activity">Completed activity</Label>
+          <Select
             id="activity"
             value={sessionId}
             onChange={(event) => setSessionId(event.target.value)}
             disabled={sessionsLoading || sessions.length === 0}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           >
             {sessions.length === 0 && (
               <option value="">
-                {sessionsLoading ? "Loading activities..." : "No ready activities"}
+                {sessionsLoading ? "Loading activities…" : "No ready activities"}
               </option>
             )}
             {sessions.map((session) => (
@@ -131,65 +122,46 @@ export default function NewReportPage() {
                 {session.name} · {new Date(session.date).toLocaleDateString()}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
-          <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Title
-          </label>
-          <input
+          <Label htmlFor="title">Title</Label>
+          <Input
             id="title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             maxLength={180}
             placeholder="Snow above the lake"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="report"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Conditions
-          </label>
-          <textarea
+          <Label htmlFor="report">Conditions</Label>
+          <Textarea
             id="report"
             value={body}
             onChange={(event) => setBody(event.target.value)}
             maxLength={20_000}
             rows={8}
             placeholder="What should the next person know?"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted">
             Add photos and structured hazards from the Peaks app.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-300">
+          <div role="alert" className="p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert">
             {error}
           </div>
         )}
 
         <div className="flex items-center gap-4 pt-4">
-          <button
-            type="submit"
-            disabled={submitting || sessionsLoading || sessions.length === 0}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? "Publishing..." : "Publish Report"}
-          </button>
-          <Link
-            href="/discover"
-            className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          >
+          <Button type="submit" disabled={submitting || sessionsLoading || sessions.length === 0}>
+            {submitting ? "Publishing…" : "Publish Report"}
+          </Button>
+          <Link href="/discover" className="text-sm text-muted hover:text-ink-2 hover:underline">
             Cancel
           </Link>
         </div>

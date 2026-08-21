@@ -3,7 +3,15 @@
 import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { ROUTE_MIN_ZOOM } from "../lib/map-view";
+import { decodePolyline6 } from "../lib/polyline";
+import { formatDistanceMeters, formatElevationMeters } from "../lib/route-guide";
+import {
+  DEFAULT_MAP_VIEW,
+  GEOLOCATED_ZOOM,
+  ROUTE_MIN_ZOOM,
+  destinationTypeWord,
+  type MapViewState,
+} from "../lib/map-view";
 
 export interface MapDestination {
   id: string;
@@ -34,7 +42,11 @@ export interface MapViewport {
 
 /** Imperative API handed to the page via onReady (next/dynamic doesn't forward refs). */
 export interface ExploreMapHandle {
-  focusDestination: (lat: number, lng: number) => void;
+  /** Fly to a destination and open its popup — what a panel row click does.
+   * Returns false when no marker is loaded for that id yet (a search hit
+   * from outside the current viewport): the map still flies there, and the
+   * caller can open the popup once the marker arrives. */
+  openDestination: (id: string, lat: number, lng: number) => boolean;
   focusRoute: (id: string) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -51,54 +63,15 @@ interface ExploreMapProps {
   hoveredDestinationId: string | null;
   hoveredRouteId: string | null;
   showRouteAttribution: boolean;
-  initialView: { lat: number; lng: number; zoom: number } | null;
+  initialView: MapViewState | null;
+  /** Ask the browser where the reader is once the map is up. False when the
+   * URL already said where to look — see shouldAutoLocate in map-view.ts. */
+  autoLocate: boolean;
   onReady: (handle: ExploreMapHandle) => void;
   onViewportChange: (viewport: MapViewport) => void;
   onSelectDestination: (destination: MapDestination) => void;
   onSelectRoute: (route: MapRoute) => void;
   onClearSelection: () => void;
-}
-
-/** Decode a Google Polyline Algorithm string (precision 1e6) to [lat, lng][] */
-function decodePolyline6(encoded: string): [number, number][] {
-  const coords: [number, number][] = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-
-  while (index < encoded.length) {
-    let shift = 0;
-    let result = 0;
-    let byte: number;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lat += result & 1 ? ~(result >> 1) : result >> 1;
-
-    shift = 0;
-    result = 0;
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lng += result & 1 ? ~(result >> 1) : result >> 1;
-
-    coords.push([lat / 1e6, lng / 1e6]);
-  }
-
-  return coords;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 const TOPO_TILE = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
@@ -113,10 +86,16 @@ const SAT_ATTR =
 const ROUTE_DATA_ATTR =
   'Route data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors (<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a>)';
 
-const MARKER_FILL = "#2563eb";
-const MARKER_SELECTED_FILL = "#f43f5e";
-const ROUTE_COLOR = "#f97316";
-const ROUTE_SELECTED_COLOR = "#ea580c";
+// One map colour, the Peaks teal — same constant as destination-map.tsx and
+// area-map.tsx (design-tokens.md, "Accent budget": a map selection is one of
+// the places the accent is spent). Fixed hex rather than the token: these
+// are painted into a Leaflet canvas layer, which never sees the page's CSS
+// variables. Selection is carried by the pale edge and the extra weight
+// rather than by a second hue, so the map never holds two competing
+// accents.
+const ACCENT = "#46ADBC";
+const PALE_EDGE = "#CFEEF2";
+const MARKER_EDGE = "#FFFFFF";
 
 // Peak-name labels stay on for the highest peaks once zoomed in far enough.
 const PEAK_LABEL_ZOOM = 12;
@@ -132,13 +111,74 @@ function markerRadius(elevation: number | null): number {
   return 4.5;
 }
 
-function hoverLabel(dest: MapDestination): string {
-  const name = escapeHtml(dest.name || "Unnamed");
-  const elevFt =
-    dest.elevation != null
-      ? ` &middot; ${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-      : "";
-  return `${name}${elevFt}`;
+// Every string that reaches the map goes through a text node. Names,
+// features and route titles are imported and admin-edited content, and the
+// popups used to be HTML built by interpolation — one destination named
+// with a tag would have been script on the page. `textContent` can't be
+// markup, so the whole class of bug is gone rather than escaped-away.
+function textNode(text: string): HTMLElement {
+  const node = document.createElement("span");
+  node.textContent = text;
+  return node;
+}
+
+function popupLine(text: string, muted: boolean): HTMLElement {
+  const line = document.createElement("div");
+  line.textContent = text;
+  line.style.marginTop = "2px";
+  line.style.fontSize = "12px";
+  if (muted) line.style.opacity = "0.72";
+  return line;
+}
+
+function popupNode(title: string, detail: string, href: string, cta: string) {
+  const wrapper = document.createElement("div");
+  const heading = document.createElement("div");
+  heading.textContent = title;
+  heading.style.fontWeight = "500";
+  heading.style.fontSize = "14px";
+  wrapper.append(heading);
+  if (detail) wrapper.append(popupLine(detail, true));
+
+  const link = document.createElement("a");
+  link.href = href;
+  link.textContent = cta;
+  link.className = "map-popup-link";
+  wrapper.append(link);
+  return wrapper;
+}
+
+function destinationPopup(dest: MapDestination): HTMLElement {
+  const detail = [
+    destinationTypeWord(dest.features),
+    dest.elevation != null ? formatElevationMeters(dest.elevation) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return popupNode(
+    dest.name || "Unnamed destination",
+    detail,
+    `/destinations/${encodeURIComponent(dest.id)}`,
+    "View guide"
+  );
+}
+
+function routePopup(route: MapRoute): HTMLElement {
+  const detail = `${formatDistanceMeters(route.distance)} · ${formatElevationMeters(
+    route.gain
+  )} gain`;
+  return popupNode(
+    route.name || "Unnamed route",
+    detail,
+    `/routes/${encodeURIComponent(route.id)}`,
+    "View route"
+  );
+}
+
+function hoverLabel(dest: MapDestination): HTMLElement {
+  const elevation =
+    dest.elevation != null ? ` · ${formatElevationMeters(dest.elevation)}` : "";
+  return textNode(`${dest.name || "Unnamed"}${elevation}`);
 }
 
 interface DestMarkerEntry {
@@ -158,6 +198,7 @@ export default function ExploreMap({
   hoveredRouteId,
   showRouteAttribution,
   initialView,
+  autoLocate,
   onReady,
   onViewportChange,
   onSelectDestination,
@@ -183,6 +224,11 @@ export default function ExploreMap({
   const hoveredRouteIdRef = useRef<string | null>(hoveredRouteId);
   const suppressMapClickRef = useRef(false);
   const initialViewRef = useRef(initialView);
+  const autoLocateRef = useRef(autoLocate);
+  /** Set as soon as anything has told the map where to be — a panel pick,
+   * a route fly-to, a zoom button, or the reader's own hand on the map.
+   * Geolocation is the one thing that must never overrule it. */
+  const mapDirectedRef = useRef(false);
 
   const onReadyRef = useRef(onReady);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -203,9 +249,9 @@ export default function ExploreMap({
       const selected = id === selectedDestIdRef.current;
       const hovered = id === hoveredDestIdRef.current;
       entry.marker.setStyle({
-        fillColor: selected ? MARKER_SELECTED_FILL : MARKER_FILL,
-        color: "#ffffff",
-        weight: selected ? 2 : 1.5,
+        fillColor: ACCENT,
+        color: selected ? PALE_EDGE : MARKER_EDGE,
+        weight: selected ? 3 : 1.5,
         fillOpacity: 0.95,
       });
       entry.marker.setRadius(
@@ -220,9 +266,9 @@ export default function ExploreMap({
       const selected = id === selectedRouteIdRef.current;
       const hovered = id === hoveredRouteIdRef.current;
       line.setStyle({
-        color: selected ? ROUTE_SELECTED_COLOR : ROUTE_COLOR,
+        color: ACCENT,
         weight: selected ? 5 : hovered ? 4 : 2.5,
-        opacity: selected || hovered ? 1 : 0.75,
+        opacity: selected || hovered ? 1 : 0.72,
       });
       if (selected || hovered) line.bringToFront();
     }
@@ -246,7 +292,7 @@ export default function ExploreMap({
       if (wantLabel === entry.permanentLabel) continue;
       entry.marker.unbindTooltip();
       if (wantLabel) {
-        entry.marker.bindTooltip(escapeHtml(entry.dest.name || ""), {
+        entry.marker.bindTooltip(textNode(entry.dest.name || ""), {
           permanent: true,
           direction: "top",
           offset: [0, -8],
@@ -273,9 +319,9 @@ export default function ExploreMap({
       const baseRadius = markerRadius(dest.elevation);
       const marker = L.circleMarker([dest.lat, dest.lng], {
         radius: baseRadius,
-        fillColor: MARKER_FILL,
+        fillColor: ACCENT,
         fillOpacity: 0.95,
-        color: "#ffffff",
+        color: MARKER_EDGE,
         weight: 1.5,
       });
 
@@ -283,8 +329,12 @@ export default function ExploreMap({
         direction: "top",
         offset: [0, -6],
       });
+      marker.bindPopup(() => destinationPopup(dest), { closeButton: true });
 
       marker.on("click", () => {
+        // Reading a popup counts as direction: a late geolocation answer
+        // must not yank the reader off the place they just opened.
+        mapDirectedRef.current = true;
         suppressMapClickRef.current = true;
         setTimeout(() => {
           suppressMapClickRef.current = false;
@@ -311,6 +361,9 @@ export default function ExploreMap({
     applyDestinationEmphasis();
   }, [applyDestinationEmphasis, updatePeakLabels]);
 
+  // One place draws routes. It used to be two — a routes-change effect and a
+  // near-copy inside the zoomend handler — which is how the two paths drifted
+  // apart in the first place.
   const rebuildRouteLines = useCallback(() => {
     const layer = routesLayerRef.current;
     const map = mapInstance.current;
@@ -327,14 +380,16 @@ export default function ExploreMap({
       if (coords.length < 2) continue;
 
       const line = L.polyline(coords, {
-        color: ROUTE_COLOR,
+        color: ACCENT,
         weight: 2.5,
-        opacity: 0.75,
+        opacity: 0.72,
       });
 
-      line.bindTooltip(escapeHtml(route.name || "Route"), { sticky: true });
+      line.bindTooltip(textNode(route.name || "Route"), { sticky: true });
+      line.bindPopup(() => routePopup(route), { closeButton: true });
 
       line.on("click", () => {
+        mapDirectedRef.current = true;
         suppressMapClickRef.current = true;
         setTimeout(() => {
           suppressMapClickRef.current = false;
@@ -356,12 +411,17 @@ export default function ExploreMap({
   }, [applyRouteEmphasis]);
 
   const initMap = useCallback(() => {
-    if (!mapRef.current || mapInstance.current) return;
+    const container = mapRef.current;
+    if (!container || mapInstance.current) return;
 
     const view = initialViewRef.current;
-    const map = L.map(mapRef.current, {
-      center: view ? [view.lat, view.lng] : [39, -98],
-      zoom: view ? view.zoom : 5,
+    const map = L.map(container, {
+      center: [
+        view ? view.lat : DEFAULT_MAP_VIEW.lat,
+        view ? view.lng : DEFAULT_MAP_VIEW.lng,
+      ],
+      zoom: view ? view.zoom : DEFAULT_MAP_VIEW.zoom,
+      // The page draws its own control cluster (44px circles, top right).
       zoomControl: false,
       preferCanvas: true,
     });
@@ -370,10 +430,15 @@ export default function ExploreMap({
     topoLayerRef.current = L.tileLayer(TOPO_TILE, {
       attribution: TOPO_ATTR,
       maxZoom: 17,
+      // OpenTopoMap serves no @2x tiles, so Leaflet's retina path fetches
+      // the next zoom level at half tile size instead — contour lines and
+      // place names stop looking soft on a high-density display.
+      detectRetina: true,
     });
     satLayerRef.current = L.tileLayer(SAT_TILE, {
       attribution: SAT_ATTR,
       maxZoom: 18,
+      detectRetina: true,
     });
     topoLayerRef.current.addTo(map);
 
@@ -381,6 +446,13 @@ export default function ExploreMap({
     routesLayerRef.current = L.layerGroup().addTo(map);
 
     const emitViewport = () => {
+      // A container that hasn't been laid out yet measures 0×0, and the
+      // bounds of a zero-size map are a single point — a viewport that
+      // matches nothing in the database. Say nothing until there's a real
+      // box to report; the observer below re-emits the moment there is.
+      const size = map.getSize();
+      if (size.x < 2 || size.y < 2) return;
+
       const b = map.getBounds();
       const c = map.getCenter();
       onViewportChangeRef.current({
@@ -394,6 +466,10 @@ export default function ExploreMap({
       });
     };
 
+    const markDirected = () => {
+      mapDirectedRef.current = true;
+    };
+
     emitViewport();
     map.on("moveend", emitViewport);
     map.on("zoomend", () => {
@@ -404,25 +480,64 @@ export default function ExploreMap({
       if (suppressMapClickRef.current) return;
       onClearSelectionRef.current();
     });
+    // The reader's own hand counts as direction too — a drag or a wheel
+    // zoom while the permission prompt sits open must not be undone by the
+    // answer to it.
+    map.on("dragstart", markDirected);
+    map.on("zoomstart", markDirected);
 
-    // Only geolocate when the URL didn't pin a view (shared links stay put).
-    if (!view && navigator.geolocation) {
+    // A full-bleed container inside a freshly-mounted layout can measure
+    // 0×0 the first time Leaflet reads it, and this map is never told to
+    // move again on its own — so a one-off re-measure on the next frame
+    // (what the detail embeds do) isn't enough here: it can still land
+    // before the browser has laid the container out, leaving the map
+    // convinced it is a point and the panel empty for as long as the
+    // reader leaves it alone. Watching the box instead catches the real
+    // size whenever it arrives, and every later resize with it.
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+      emitViewport();
+    });
+    observer.observe(container);
+
+    // Geolocation only runs when the URL asked for nothing at all — no view
+    // and no query (shouldAutoLocate). A refusal, a timeout, or a browser
+    // without the API all leave the map on DEFAULT_MAP_VIEW, which is
+    // already on screen.
+    //
+    // The answer can arrive long after the prompt: a reader who grants the
+    // permission a minute in would otherwise be dragged away from whatever
+    // they had opened by then. So the success handler only moves a map
+    // nothing else has moved.
+    // `!view` is belt and braces — shouldAutoLocate already covers it, but a
+    // pinned view is a promise this component keeps on its own.
+    if (autoLocateRef.current && !view && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+          if (!mapInstance.current || mapDirectedRef.current) return;
+          map.setView(
+            [pos.coords.latitude, pos.coords.longitude],
+            GEOLOCATED_ZOOM
+          );
         },
         () => {
-          // Stay at default US center
+          // Stay on the fallback view.
         },
         { timeout: 5000, maximumAge: 600000 }
       );
     }
 
     const handle: ExploreMapHandle = {
-      focusDestination: (lat, lng) => {
+      openDestination: (id, lat, lng) => {
+        markDirected();
+        const entry = destMarkersRef.current.get(id);
         map.flyTo([lat, lng], Math.max(map.getZoom(), 12), { duration: 0.8 });
+        if (!entry) return false;
+        entry.marker.openPopup();
+        return true;
       },
       focusRoute: (id) => {
+        markDirected();
         const route = routesRef.current.find((r) => r.id === id);
         if (!route?.polyline6) return;
         const coords = decodePolyline6(route.polyline6);
@@ -432,15 +547,33 @@ export default function ExploreMap({
           maxZoom: 14,
           duration: 0.8,
         });
+        // The line only exists above ROUTE_MIN_ZOOM; once the fly-to lands
+        // there, zoomend has rebuilt it and the popup has something to hang
+        // off. `once` so a later manual zoom doesn't reopen it.
+        map.once("moveend", () => {
+          routeLinesRef.current.get(id)?.openPopup();
+        });
       },
-      zoomIn: () => map.zoomIn(),
-      zoomOut: () => map.zoomOut(),
-      zoomTo: (zoom) => map.flyTo(map.getCenter(), zoom, { duration: 0.5 }),
+      zoomIn: () => {
+        markDirected();
+        map.zoomIn();
+      },
+      zoomOut: () => {
+        markDirected();
+        map.zoomOut();
+      },
+      zoomTo: (zoom) => {
+        markDirected();
+        map.flyTo(map.getCenter(), zoom, { duration: 0.5 });
+      },
       showUserLocation: (lat, lng) => {
+        markDirected();
         userMarkerRef.current?.remove();
+        const dot = document.createElement("div");
+        dot.className = "map-user-dot";
         const icon = L.divIcon({
           className: "",
-          html: '<div style="width:14px;height:14px;border-radius:9999px;background:#2563eb;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,0.25),0 1px 4px rgba(0,0,0,0.4)"></div>',
+          html: dot,
           iconSize: [14, 14],
           iconAnchor: [7, 7],
         });
@@ -453,14 +586,17 @@ export default function ExploreMap({
       },
     };
     onReadyRef.current(handle);
+
+    return () => observer.disconnect();
   }, [rebuildRouteLines, updatePeakLabels]);
 
   useEffect(() => {
-    initMap();
+    const stopObserving = initMap();
     const destMarkers = destMarkersRef.current;
     const routeLines = routeLinesRef.current;
 
     return () => {
+      stopObserving?.();
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -523,5 +659,8 @@ export default function ExploreMap({
     }
   }, [showRouteAttribution]);
 
-  return <div ref={mapRef} className="h-full w-full" />;
+  // `map-embed` styles the attribution down to a small muted line and puts
+  // the popups on the page's tokens (globals.css); `bg-fill` is what shows
+  // while tiles are in flight, in place of Leaflet's own grey.
+  return <div ref={mapRef} className="map-embed h-full w-full bg-fill" />;
 }

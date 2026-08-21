@@ -1,19 +1,64 @@
 import type { Metadata } from "next";
+import { JsonLdScript } from "../../../../components/json-ld-script";
 import {
-  getRoute,
-  getRouteDestinations,
-  getRouteSessionCount,
-} from "../../../../lib/actions/routes";
-import { absoluteUrl, formatFeet, formatMiles, siteConfig, summarizeText } from "../../../../lib/seo";
+  getRouteCached,
+  getRouteDestinationsCached,
+} from "../../../../lib/actions/cached-routes";
+import { buildRouteJsonLd } from "../../../../lib/json-ld";
+import { describeRoute, pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
+import { absoluteUrl, siteConfig } from "../../../../lib/seo";
 
-export const dynamic = "force-dynamic";
+// One template serving every published route, and a route's geometry and
+// stats change on the order of months, not requests — same reasoning as
+// destinations/[id]/layout.tsx (Task 13), copied here rather than shared
+// since Next.js resolves `revalidate`/`generateStaticParams` per segment
+// file, not per import.
+//
+// The empty `generateStaticParams` is what makes ISR real rather than
+// inert: with no params generated, Next still registers the route as ISR
+// (first request renders and fills the cache, `x-nextjs-cache: MISS` then
+// `HIT`) instead of answering every request with
+// `Cache-Control: private, no-cache, no-store`. Build time is unchanged —
+// no route page is generated ahead of a request.
+export const revalidate = 3600;
+export const dynamicParams = true;
 
-export default function RouteLayout({
+export async function generateStaticParams() {
+  return [];
+}
+
+export default async function RouteLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
-  return children;
+  const { id } = await params;
+  let jsonLd: ReturnType<typeof buildRouteJsonLd> | null = null;
+
+  try {
+    const route = await getRouteCached(id);
+    if (route) {
+      jsonLd = buildRouteJsonLd({
+        name: route.name,
+        url: absoluteUrl(`/routes/${id}`),
+        distanceMeters: route.distance,
+        gainMeters: route.gain,
+      });
+    }
+  } catch {
+    jsonLd = null;
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <JsonLdScript data={jsonLd} />
+      )}
+      {children}
+    </>
+  );
 }
 
 export async function generateMetadata({
@@ -23,7 +68,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   try {
-    const route = await getRoute(id, { publicOnly: true });
+    const route = await getRouteCached(id);
     if (!route) {
       return {
         title: "Route not found",
@@ -34,43 +79,38 @@ export async function generateMetadata({
       };
     }
 
-    const [destinations, sessionCount] = await Promise.all([
-      getRouteDestinations(id, { publicOnly: true }),
-      getRouteSessionCount(id, { publicOnly: true }),
-    ]);
+    const destinations = await getRouteDestinationsCached(id);
 
     const title = route.name || "Unnamed route";
-    const description =
-      summarizeText(
-        [
-          formatMiles(route.distance),
-          formatFeet(route.gain),
-          destinations.length > 0
-            ? `${destinations.length} destination${destinations.length === 1 ? "" : "s"}`
-            : null,
-          route.shape ? route.shape.replace(/_/g, " ") : null,
-          sessionCount > 0
-            ? `${sessionCount} session${sessionCount === 1 ? "" : "s"}`
-            : null,
-        ],
-        160
-      ) ?? siteConfig.description;
+    const primaryDestinationName = pickPrimaryRouteDestinationName(destinations);
+    const description = describeRoute({
+      name: title,
+      distanceMeters: route.distance,
+      gainMeters: route.gain,
+      primaryDestinationName,
+    });
+
+    const canonicalPath = `/routes/${id}`;
 
     return {
       title,
       description,
       alternates: {
-        canonical: absoluteUrl(`/routes/${id}`),
+        canonical: absoluteUrl(canonicalPath),
       },
+      // No `images` here: the co-located `opengraph-image.tsx` in this same
+      // segment is picked up automatically, with the correct build-hashed,
+      // cache-busted URL Next.js generates for it — a hand-built URL can't
+      // reproduce that hash.
       openGraph: {
         title,
         description,
-        url: absoluteUrl(`/routes/${id}`),
+        url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title,
         description,
       },

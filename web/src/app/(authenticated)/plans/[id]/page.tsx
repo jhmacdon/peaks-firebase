@@ -1,26 +1,38 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useAuth } from "../../../../lib/auth-context";
 import {
-  getPlan,
+  getPlanBundle,
   updatePlan,
   deletePlan,
   inviteToPlan,
-  type Plan,
+  type PlanBundle,
 } from "../../../../lib/actions/plans";
-import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
-import { getRoute, type RouteDetail } from "../../../../lib/actions/routes";
 import { getPlanAirQuality, type PlanAirQuality } from "../../../../lib/actions/air-quality";
+import {
+  buildPlanMapMarkers,
+  buildPlanMapRoutes,
+  buildPlanTopline,
+  pickerNames,
+} from "../../../../lib/plan-detail";
+import { formatFeet, formatMiles } from "../../../../lib/destination-detail";
 import PartyList from "../../../../components/party-list";
 import DestinationPicker from "../../../../components/destination-picker";
 import RoutePicker from "../../../../components/route-picker";
 import PlanAirQualityCard from "../../../../components/plan-air-quality-card";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { SectionHeading } from "../../../../components/ui/section-heading";
+import { Topline } from "../../../../components/ui/topline";
+import { Button } from "../../../../components/ui/button";
+import { Input, Textarea } from "../../../../components/ui/field";
+import { EmptyState } from "../../../../components/ui/empty-state";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
-const RouteMap = dynamic(() => import("../../../../components/route-map"), {
+const PlanMap = dynamic(() => import("../../../../components/plan-map"), {
   ssr: false,
 });
 
@@ -30,14 +42,9 @@ export default function PlanDetailPage() {
   const router = useRouter();
   const { user, getIdToken } = useAuth();
 
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [bundle, setBundle] = useState<PlanBundle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [destDetails, setDestDetails] = useState<
-    Map<string, DestinationDetail>
-  >(new Map());
-  const [routeDetails, setRouteDetails] = useState<
-    Map<string, RouteDetail>
-  >(new Map());
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [airQuality, setAirQuality] = useState<PlanAirQuality | null>(null);
 
   // Edit state
@@ -48,57 +55,64 @@ export default function PlanDetailPage() {
   const [editDestinations, setEditDestinations] = useState<string[]>([]);
   const [editRoutes, setEditRoutes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Invite state
   const [inviteUid, setInviteUid] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Delete state
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const plan = bundle?.plan ?? null;
   const isOwner = plan?.userId === user?.uid;
 
-  const loadPlan = useCallback(async () => {
-    const token = await getIdToken();
-    if (!token) return;
+  // Memoized (not called inline in JSX) so DestinationPicker/RoutePicker's
+  // own name-merge effects — which depend on this array by reference — only
+  // re-run when the bundle's destinations/routes actually change, not on
+  // every keystroke in a sibling field. Hooks must run unconditionally, so
+  // this sits above the loading/error/not-found early returns below and
+  // falls back to [] before the bundle has loaded.
+  const editSelectedDestinations = useMemo(
+    () => pickerNames(bundle?.destinations ?? []),
+    [bundle?.destinations]
+  );
+  const editSelectedRoutes = useMemo(
+    () => pickerNames(bundle?.routes ?? []),
+    [bundle?.routes]
+  );
 
-    const data = await getPlan(token, planId);
-    setPlan(data);
-    setLoading(false);
-
-    if (data) {
-      getPlanAirQuality(token, planId).then(setAirQuality).catch(() => {});
-    }
-
-    if (data) {
-      // Load destination details
-      const destMap = new Map<string, DestinationDetail>();
-      const destResults = await Promise.all(
-        data.destinations.map((id) => getDestination(id))
-      );
-      for (let i = 0; i < data.destinations.length; i++) {
-        const detail = destResults[i];
-        if (detail) destMap.set(data.destinations[i], detail);
+  const loadBundle = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) {
+        setLoadError("Sign in again to view this plan.");
+        return;
       }
-      setDestDetails(destMap);
 
-      // Load route details
-      const routeMap = new Map<string, RouteDetail>();
-      const routeResults = await Promise.all(
-        data.routes.map((id) => getRoute(id))
-      );
-      for (let i = 0; i < data.routes.length; i++) {
-        const detail = routeResults[i];
-        if (detail) routeMap.set(data.routes[i], detail);
+      const data = await getPlanBundle(token, planId);
+      setBundle(data);
+
+      if (data) {
+        // Best-effort: the plan page must never break because the smoke feed
+        // hiccuped (docs/superpowers/specs/2026-08-06-plan-air-quality-design.md).
+        getPlanAirQuality(token, planId).then(setAirQuality).catch(() => {});
       }
-      setRouteDetails(routeMap);
+    } catch {
+      setLoadError("Couldn’t load this plan. Try again.");
+    } finally {
+      setLoading(false);
     }
   }, [getIdToken, planId]);
 
   useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
+    loadBundle();
+  }, [loadBundle]);
 
   const startEditing = () => {
     if (!plan) return;
@@ -107,20 +121,25 @@ export default function PlanDetailPage() {
     setEditDate(plan.date || "");
     setEditDestinations([...plan.destinations]);
     setEditRoutes([...plan.routes]);
+    setSaveError(null);
     setEditing(true);
   };
 
   const cancelEditing = () => {
     setEditing(false);
+    setSaveError(null);
   };
 
   const saveChanges = async () => {
     if (!plan) return;
     setSaving(true);
-
+    setSaveError(null);
     try {
       const token = await getIdToken();
-      if (!token) return;
+      if (!token) {
+        setSaveError("Sign in again to save changes.");
+        return;
+      }
 
       await updatePlan(token, planId, {
         name: editName.trim(),
@@ -131,9 +150,9 @@ export default function PlanDetailPage() {
       });
 
       setEditing(false);
-      await loadPlan();
+      await loadBundle();
     } catch (err) {
-      console.error("Failed to save plan:", err);
+      setSaveError(err instanceof Error ? err.message : "Couldn’t save changes. Try again.");
     } finally {
       setSaving(false);
     }
@@ -142,14 +161,18 @@ export default function PlanDetailPage() {
   const handleInvite = async () => {
     if (!inviteUid.trim()) return;
     setInviting(true);
+    setInviteError(null);
     try {
       const token = await getIdToken();
-      if (!token) return;
+      if (!token) {
+        setInviteError("Sign in again to invite someone.");
+        return;
+      }
       await inviteToPlan(token, planId, inviteUid.trim());
       setInviteUid("");
-      await loadPlan();
+      await loadBundle();
     } catch (err) {
-      console.error("Failed to invite:", err);
+      setInviteError(err instanceof Error ? err.message : "Couldn’t send that invite. Try again.");
     } finally {
       setInviting(false);
     }
@@ -157,295 +180,350 @@ export default function PlanDetailPage() {
 
   const handleDelete = async () => {
     setDeleting(true);
+    setDeleteError(null);
     try {
       const token = await getIdToken();
-      if (!token) return;
+      if (!token) {
+        setDeleteError("Sign in again to delete this plan.");
+        return;
+      }
       await deletePlan(token, planId);
       router.push("/plans");
     } catch (err) {
-      console.error("Failed to delete:", err);
+      setDeleteError(err instanceof Error ? err.message : "Couldn’t delete this plan. Try again.");
+    } finally {
       setDeleting(false);
     }
   };
 
-  // Find a route polyline to display on the map
-  const firstPolyline = Array.from(routeDetails.values()).find(
-    (r) => r.polyline6
-  );
-
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <div className="py-12 text-center text-muted">{LOADING_LABEL}</div>
       </div>
     );
   }
 
-  if (!plan) {
+  if (loadError) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Plan not found</div>
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <p role="alert" className="py-8 text-center text-sm text-alert">
+          {loadError}
+        </p>
+        <div className="flex justify-center">
+          <Button variant="secondary" onClick={loadBundle}>
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }
+
+  if (!bundle || !plan) {
+    return (
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <EmptyState
+          title="Plan not found"
+          description="This plan may have been removed, or you may not have access to it."
+        />
+      </div>
+    );
+  }
+
+  const toplineStats = buildPlanTopline(bundle.processing);
+  const mapRoutes = buildPlanMapRoutes(bundle.routes);
+  const mapMarkers = buildPlanMapMarkers(bundle.destinations, bundle.reachedDestinations);
+  const planPath = bundle.processing?.path ?? null;
+  const hasMapContent = mapRoutes.length > 0 || mapMarkers.length > 0 || Boolean(planPath);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/plans"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          Plans
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">
-          {plan.name || "Untitled Plan"}
-        </span>
-      </div>
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      <Breadcrumb current={plan.name || "Untitled Plan"} parentHref="/plans" parentLabel="Plans" />
 
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
           {editing ? (
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="text-2xl font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
+              aria-label="Plan name"
+              className="w-full border-b-2 border-accent bg-transparent font-display text-[28px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink focus:outline-none sm:text-[32px]"
             />
           ) : (
-            <h1 className="text-2xl font-semibold">{plan.name}</h1>
+            <h1 className="font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]">
+              {plan.name || "Untitled Plan"}
+            </h1>
           )}
-          {plan.date && !editing && (
-            <div className="text-sm text-gray-500 mt-1">
+          {!editing && plan.date && (
+            <p className="mt-2 text-sm text-ink-2">
               {new Date(plan.date).toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
                 year: "numeric",
               })}
-            </div>
+            </p>
           )}
           {editing && (
-            <input
+            <Input
               type="date"
               value={editDate}
               onChange={(e) => setEditDate(e.target.value)}
-              className="mt-2 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              aria-label="Plan date"
+              className="mt-3 max-w-[220px]"
             />
           )}
         </div>
-        {isOwner && !editing && (
-          <button
-            onClick={startEditing}
-            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-          >
-            Edit
-          </button>
-        )}
-        {editing && (
-          <div className="flex gap-2">
-            <button
-              onClick={saveChanges}
-              disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-            <button
-              onClick={cancelEditing}
-              className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-gray-400 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+        <div className="flex shrink-0 gap-2">
+          {isOwner && !editing && (
+            <Button variant="secondary" onClick={startEditing}>
+              Edit
+            </Button>
+          )}
+          {editing && (
+            <>
+              <Button onClick={saveChanges} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
+              <Button variant="secondary" onClick={cancelEditing} disabled={saving}>
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Description */}
+      {editing && saveError && (
+        <p role="alert" className="mt-3 text-sm text-alert">
+          {saveError}
+        </p>
+      )}
+
+      {/* Directly under the actions row, matching the destination/route
+          pages' established order (hero/actions, then Topline, then the
+          rest of the content) — before the description, not after it. */}
+      {!editing && toplineStats.length > 0 && <Topline stats={toplineStats} className="mt-8" />}
+
       {editing ? (
-        <textarea
+        <Textarea
           value={editDescription}
           onChange={(e) => setEditDescription(e.target.value)}
           rows={3}
-          placeholder="Trip notes..."
-          className="w-full mb-6 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+          placeholder="Trip notes…"
+          aria-label="Plan description"
+          className="mt-6"
         />
       ) : plan.description ? (
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          {plan.description}
-        </p>
+        <p className="mt-6 max-w-[68ch] text-ink-2">{plan.description}</p>
       ) : null}
 
-      {/* Map */}
-      {firstPolyline?.polyline6 && !editing && (
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-          <h3 className="font-semibold mb-3">Route Map</h3>
-          <RouteMap polyline6={firstPolyline.polyline6} />
-        </div>
+      {!editing && hasMapContent && (
+        <section className="mt-8" aria-labelledby="plan-map-heading">
+          <SectionHeading>
+            <span id="plan-map-heading">Map</span>
+          </SectionHeading>
+          <div className="isolate mt-4 overflow-hidden rounded-media">
+            <PlanMap
+              routes={mapRoutes}
+              destinations={mapMarkers}
+              path={planPath}
+              className="h-[320px] sm:h-[420px]"
+            />
+          </div>
+        </section>
       )}
 
-      {/* Air quality */}
-      {airQuality && (
-        <div className="mb-8">
+      {!editing && airQuality && (
+        <div className="mt-8">
           <PlanAirQualityCard aq={airQuality} />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {!editing && bundle.reachedDestinations.length > 0 && (
+        <section
+          className="mt-8 rounded-media border border-border bg-surface p-6"
+          aria-labelledby="plan-reached-heading"
+        >
+          <SectionHeading>
+            <span id="plan-reached-heading">
+              Reached along the way ({bundle.reachedDestinations.length})
+            </span>
+          </SectionHeading>
+          <ol className="mt-4 divide-y divide-hairline">
+            {bundle.reachedDestinations.map((dest) => (
+              <li key={dest.id} className="flex items-center justify-between gap-4 py-3">
+                <Link href={`/destinations/${dest.id}`} className="font-medium text-ink hover:underline">
+                  {dest.name || "Unnamed"}
+                </Link>
+                {dest.elevation != null && (
+                  <span className="shrink-0 text-xs text-muted">{formatFeet(dest.elevation)}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Destinations */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Destinations ({plan.destinations.length})
-          </h3>
-          {editing ? (
-            <DestinationPicker
-              selectedIds={editDestinations}
-              onChange={setEditDestinations}
-            />
-          ) : plan.destinations.length === 0 ? (
-            <p className="text-sm text-gray-500">No destinations added</p>
-          ) : (
-            <div className="space-y-2">
-              {plan.destinations.map((destId) => {
-                const detail = destDetails.get(destId);
-                return (
-                  <Link
-                    key={destId}
-                    href={`/destinations/${destId}`}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                  >
-                    <div>
-                      <div className="font-medium text-sm">
-                        {detail?.name || "Loading..."}
-                      </div>
-                      {detail?.elevation != null && (
-                        <div className="text-xs text-gray-500">
-                          {Math.round(
-                            detail.elevation * 3.28084
-                          ).toLocaleString()}{" "}
-                          ft
-                        </div>
+        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-destinations-heading">
+          <SectionHeading>
+            <span id="plan-destinations-heading">Destinations ({bundle.destinations.length})</span>
+          </SectionHeading>
+          <div className="mt-4">
+            {editing ? (
+              <DestinationPicker
+                selectedIds={editDestinations}
+                selectedDestinations={editSelectedDestinations}
+                onChange={setEditDestinations}
+              />
+            ) : bundle.destinations.length === 0 ? (
+              <p className="text-sm text-muted">No destinations added</p>
+            ) : (
+              <ul className="divide-y divide-hairline">
+                {bundle.destinations.map((dest) => (
+                  <li key={dest.id}>
+                    <Link
+                      href={`/destinations/${dest.id}`}
+                      className="group flex items-center justify-between gap-4 py-3"
+                    >
+                      <span className="font-medium text-ink group-hover:underline">
+                        {dest.name || "Unnamed"}
+                      </span>
+                      {dest.elevation != null && (
+                        <span className="shrink-0 text-xs text-muted">{formatFeet(dest.elevation)}</span>
                       )}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Routes */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Routes ({plan.routes.length})
-          </h3>
-          {editing ? (
-            <RoutePicker selectedIds={editRoutes} onChange={setEditRoutes} />
-          ) : plan.routes.length === 0 ? (
-            <p className="text-sm text-gray-500">No routes added</p>
-          ) : (
-            <div className="space-y-2">
-              {plan.routes.map((routeId) => {
-                const detail = routeDetails.get(routeId);
-                return (
-                  <Link
-                    key={routeId}
-                    href={`/routes/${routeId}`}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                  >
-                    <div>
-                      <div className="font-medium text-sm">
-                        {detail?.name || "Loading..."}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {detail?.distance != null &&
-                          `${(detail.distance / 1609.34).toFixed(1)} mi`}
-                        {detail?.gain != null &&
-                          ` · ${Math.round(detail.gain * 3.28084).toLocaleString()} ft gain`}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-routes-heading">
+          <SectionHeading>
+            <span id="plan-routes-heading">Routes ({bundle.routes.length})</span>
+          </SectionHeading>
+          <div className="mt-4">
+            {editing ? (
+              <RoutePicker
+                selectedIds={editRoutes}
+                selectedRoutes={editSelectedRoutes}
+                onChange={setEditRoutes}
+              />
+            ) : bundle.routes.length === 0 ? (
+              <p className="text-sm text-muted">No routes added</p>
+            ) : (
+              <ul className="divide-y divide-hairline">
+                {bundle.routes.map((route) => {
+                  const metaParts = [
+                    route.distance != null ? formatMiles(route.distance) : null,
+                    route.gain != null ? `${formatFeet(route.gain)} gain` : null,
+                  ].filter((part): part is string => Boolean(part));
+                  return (
+                    <li key={route.id}>
+                      <Link
+                        href={`/routes/${route.id}`}
+                        className="group flex items-center justify-between gap-4 py-3"
+                      >
+                        <span className="font-medium text-ink group-hover:underline">
+                          {route.name || "Unnamed"}
+                        </span>
+                        {metaParts.length > 0 && (
+                          <span className="shrink-0 text-xs text-muted">{metaParts.join(" · ")}</span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Party */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Party ({plan.party.length + 1})
-          </h3>
+        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-party-heading">
+          <SectionHeading>
+            <span id="plan-party-heading">Party ({plan.party.length + 1})</span>
+          </SectionHeading>
 
-          {/* Owner */}
-          <div className="mb-3 p-2 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-            <div className="text-sm font-medium">
-              {user?.displayName || user?.email || "You"}{" "}
-              <span className="text-xs text-gray-500">(owner)</span>
+          <div className="mt-4">
+            {/* Owner */}
+            <div className="mb-3 rounded-ctl bg-fill p-3">
+              <p className="text-sm font-medium text-ink">
+                {user?.displayName || user?.email || "You"}{" "}
+                <span className="text-xs text-muted">(owner)</span>
+              </p>
             </div>
+
+            <PartyList partyIds={plan.party} />
+
+            {/* Invite */}
+            {isOwner && (
+              <div className="mt-4 flex gap-2">
+                <Input
+                  type="text"
+                  value={inviteUid}
+                  onChange={(e) => setInviteUid(e.target.value)}
+                  placeholder="User ID to invite"
+                  className="flex-1"
+                />
+                <Button onClick={handleInvite} disabled={inviting || !inviteUid.trim()}>
+                  {inviting ? "…" : "Invite"}
+                </Button>
+              </div>
+            )}
+            {inviteError && (
+              <p role="alert" className="mt-2 text-sm text-alert">
+                {inviteError}
+              </p>
+            )}
           </div>
-
-          <PartyList partyIds={plan.party} />
-
-          {/* Invite */}
-          {isOwner && (
-            <div className="mt-4 flex gap-2">
-              <input
-                type="text"
-                value={inviteUid}
-                onChange={(e) => setInviteUid(e.target.value)}
-                placeholder="User ID to invite"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-              <button
-                onClick={handleInvite}
-                disabled={inviting || !inviteUid.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {inviting ? "..." : "Invite"}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Danger Zone */}
         {isOwner && !editing && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-red-200 dark:border-red-900 p-6">
-            <h3 className="font-semibold mb-4 text-red-600 dark:text-red-400">
+          <div
+            className="rounded-media border border-alert/30 bg-surface p-6"
+            aria-labelledby="plan-danger-heading"
+          >
+            <h2 id="plan-danger-heading" className="text-lg font-medium text-alert">
               Danger Zone
-            </h3>
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="px-4 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-              >
-                Delete Plan
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Are you sure? This cannot be undone.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
-                  >
-                    {deleting ? "Deleting..." : "Yes, Delete"}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-sm font-medium hover:border-gray-400 transition-colors"
-                  >
-                    Cancel
-                  </button>
+            </h2>
+            <div className="mt-4">
+              {!confirmDelete ? (
+                <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+                  Delete Plan
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-ink-2">Are you sure? This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+                      {deleting ? "Deleting…" : "Yes, Delete"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setConfirmDelete(false);
+                        setDeleteError(null);
+                      }}
+                      disabled={deleting}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+              {deleteError && (
+                <p role="alert" className="mt-4 text-sm text-alert">
+                  {deleteError}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

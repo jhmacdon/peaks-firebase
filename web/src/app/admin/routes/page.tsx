@@ -5,6 +5,7 @@ import Link from "next/link";
 import AdminGuard from "../../../components/admin-guard";
 import AdminNav from "../../../components/admin-nav";
 import { getRoutes, getPendingRouteCount, type RouteRow } from "../../../lib/actions/routes";
+import { LOADING_LABEL } from "../../../lib/constants";
 
 export default function RoutesPage() {
   return (
@@ -132,7 +133,7 @@ function RoutesContent() {
         </form>
 
         {loading ? (
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         ) : routes.length === 0 ? (
           <div className="text-gray-500 py-12 text-center">
             {tab === "pending" ? "No routes pending review" : "No routes found"}

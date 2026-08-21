@@ -107,6 +107,70 @@ export function areaKindLabel(kind: AreaKind): string {
   return KIND_LABELS[kind];
 }
 
+// PAD-US 4.1 `Des_Tp` designation-type codes actually present in
+// `areas.designation` (checked against production 2026-08-19: ACEC, WA,
+// WSA, NWR, NF, CONE, WSR, NM, MPA, NCA, NRA, NP, NG, IRA, RNA, NSBV, RECE,
+// PUB, REC, SDA, FOTH, UNKE, SP). Only codes with a confirmed meaning are
+// mapped; the rest fall back to the area's kind label rather than guess at
+// what an abbreviation stands for.
+const DESIGNATION_CODES: Record<string, string> = {
+  NP: "National Park",
+  NM: "National Monument",
+  NF: "National Forest",
+  NG: "National Grassland",
+  NRA: "National Recreation Area",
+  NCA: "National Conservation Area",
+  NWR: "National Wildlife Refuge",
+  NLS: "National Lakeshore",
+  WA: "Wilderness Area",
+  WSA: "Wilderness Study Area",
+  WSR: "Wild and Scenic River",
+  ACEC: "Area of Critical Environmental Concern",
+  MPA: "Marine Protected Area",
+  RNA: "Research Natural Area",
+  IRA: "Inventoried Roadless Area",
+  NSBV: "National Scenic Area",
+  CONE: "Conservation Easement",
+  REC: "Recreation Area",
+  SP: "State Park",
+};
+
+/** Designation display text: expands a known PAD-US code and otherwise
+ * falls back to the kind label — never a raw code, never nothing. Fails
+ * closed: an unlisted value is never passed through as-is, even if it looks
+ * "already spelled out", since that heuristic can't be verified against
+ * every code PAD-US might use. */
+export function describeDesignation(
+  designation: string | null | undefined,
+  kind: AreaKind
+): string {
+  if (!designation) return areaKindLabel(kind);
+  const mapped = DESIGNATION_CODES[designation.toUpperCase()];
+  return mapped ?? areaKindLabel(kind);
+}
+
+// PAD-US `Mang_Name` manager codes actually present in `areas.manager`
+// (checked against production 2026-08-19: BLM, USFS, FWS, NPS, OTHF, JNT,
+// USBR, DOD).
+const MANAGER_CODES: Record<string, string> = {
+  NPS: "National Park Service",
+  USFS: "U.S. Forest Service",
+  BLM: "Bureau of Land Management",
+  FWS: "U.S. Fish and Wildlife Service",
+  USBR: "Bureau of Reclamation",
+  DOD: "Department of Defense",
+  JNT: "Joint management",
+  OTHF: "Other federal agency",
+  FED: "Federal government",
+};
+
+/** Manager display text: expands a known code and otherwise omits the row
+ * (null) rather than show a raw code. Fails closed — see describeDesignation. */
+export function describeManager(manager: string | null | undefined): string | null {
+  if (!manager) return null;
+  return MANAGER_CODES[manager.toUpperCase()] ?? null;
+}
+
 /** Shared contract — must match the iOS `ProtectedArea.isNationalParkService`. */
 export function isNationalParkService(area: ProtectedArea): boolean {
   const m = (area.manager ?? "").toLowerCase();
@@ -137,4 +201,29 @@ export function sortAreasByProminence(areas: ProtectedArea[]): ProtectedArea[] {
   return [...areas].sort(
     (a, b) => PROMINENCE[a.kind] - PROMINENCE[b.kind] || a.name.localeCompare(b.name)
   );
+}
+
+// The /areas index's designation filter chips — the codes with a real,
+// human-recognizable identity among what production actually stores (see
+// the DESIGNATION_CODES comment above). "All" (no filter) isn't listed
+// here; the page renders that option itself. Lives in this plain module
+// rather than lib/actions/areas.ts because that file has "use server" at
+// the top: Next.js treats every export of a "use server" module as a
+// server-action reference, which only works for async functions — a plain
+// const array (or a synchronous type guard) can't be exported from it.
+export const AREA_INDEX_DESIGNATIONS = ["NP", "WA", "NF", "SP"] as const;
+export type AreaIndexDesignation = (typeof AREA_INDEX_DESIGNATIONS)[number];
+
+export const AREA_INDEX_DESIGNATION_LABELS: Record<AreaIndexDesignation, string> = {
+  NP: "National Park",
+  WA: "Wilderness Area",
+  NF: "National Forest",
+  SP: "State Park",
+};
+
+export function isAreaIndexDesignation(
+  value: string | null | undefined
+): value is AreaIndexDesignation {
+  if (!value) return false;
+  return (AREA_INDEX_DESIGNATIONS as readonly string[]).includes(value.toUpperCase());
 }

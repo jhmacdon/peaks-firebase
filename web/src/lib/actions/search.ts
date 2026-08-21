@@ -9,6 +9,10 @@ import {
   type RouteProvenance,
 } from "../route-provenance";
 import { normalizeAreaKind, type AreaKind } from "../area-types";
+import {
+  VIEWPORT_DESTINATION_LIMIT,
+  VIEWPORT_ROUTE_LIMIT,
+} from "../map-view";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -31,6 +35,10 @@ export interface SearchDestination {
   lng: number | null;
   score?: number;
   distance_m?: number;
+  /** Only selected by getNearbyDestinations, which feeds the destination
+   * page's nearby rail and its 48px round thumbs. The other queries here
+   * leave it undefined rather than paying for a column nothing renders. */
+  hero_image?: string | null;
 }
 
 export interface ViewportRoute {
@@ -47,6 +55,11 @@ export interface SearchRouteResult {
   name: string | null;
   distance: number | null;
   gain: number | null;
+  /** Selected so a route card can run the same round-trip traversal maths
+   * (`getRouteTraversalMetrics`) the route page runs. Without it an
+   * out-and-back route advertised one-way distance on the card and
+   * round-trip distance on its own page. */
+  gain_loss: number | null;
   completion: string;
   shape: string | null;
   destination_count: number;
@@ -72,6 +85,23 @@ export interface DiscoverStats {
   listCount: number;
   areaCount: number;
 }
+
+export interface PopularDestinationsResult {
+  destinations: SearchDestination[];
+  /** True when there weren't enough genuinely popular destinations and the
+   * list was filled out with photographed destinations instead — callers
+   * should retitle the section (e.g. "Worth a look") rather than call a
+   * fallback list "Popular". */
+  isFallback: boolean;
+}
+
+/** A destination needs at least this many recorded sessions (including the
+ * pre-migration offset) to count as "popular" — not just the top of an
+ * otherwise-empty sort. */
+const POPULAR_DESTINATION_MIN_SESSIONS = 3;
+/** Below this many real popular destinations, the section falls back to
+ * photographed destinations instead of a half-empty "Popular" list. */
+const POPULAR_DESTINATION_FALLBACK_THRESHOLD = 6;
 
 const MAX_AREA_SEARCH_QUERY_LENGTH = 120;
 const MAX_AREA_SEARCH_RESULTS = 20;
@@ -183,7 +213,7 @@ export async function getNearbyDestinations(
 ): Promise<SearchDestination[]> {
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
-            activities, features,
+            activities, features, hero_image,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng,
             ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
@@ -204,28 +234,14 @@ export async function getNearbyDestinations(
     features: parseArray(r.features),
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
+    hero_image: r.hero_image ?? null,
     distance_m: r.distance_m ? Number(r.distance_m) : undefined,
   }));
 }
 
-/**
- * Most-visited destinations ordered by total session count from averages JSONB.
- */
-export async function getPopularDestinations(
-  limit: number = 20
-): Promise<SearchDestination[]> {
-  const result = await db.query(
-    `SELECT id, name, elevation, prominence, type,
-            activities, features,
-            ST_Y(location::geometry) AS lat,
-            ST_X(location::geometry) AS lng
-     FROM destinations
-     ORDER BY (averages->>'totalSessions')::int DESC NULLS LAST
-     LIMIT $1`,
-    [limit]
-  );
-
-  return result.rows.map((r: any) => ({
+/** Shared row shape between the two getPopularDestinations queries below. */
+function mapPopularDestinationRow(r: any): SearchDestination {
+  return {
     id: r.id,
     name: r.name,
     elevation: r.elevation != null ? Number(r.elevation) : null,
@@ -235,7 +251,281 @@ export async function getPopularDestinations(
     features: parseArray(r.features),
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
-  }));
+  };
+}
+
+/**
+ * Genuinely popular destinations: at least POPULAR_DESTINATION_MIN_SESSIONS
+ * recorded sessions (session_destinations, deduped by session, plus the
+ * pre-migration session_count_offset), ordered by that count descending.
+ *
+ * Most of the catalog has never been recorded, so this can come up short —
+ * when it returns fewer than POPULAR_DESTINATION_FALLBACK_THRESHOLD rows, the
+ * genuinely popular rows are kept and topped up (not replaced) with
+ * photographed destinations, up to `limit`. isFallback is only true when a
+ * top-up row actually ended up in the result, so the page only retitles the
+ * section to "Worth a look" when it had to reach for one.
+ */
+export async function getPopularDestinations(
+  limit: number = 20
+): Promise<PopularDestinationsResult> {
+  const result = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
+     FROM destinations d
+     LEFT JOIN (
+       SELECT destination_id, COUNT(DISTINCT session_id) AS session_count
+       FROM session_destinations
+       GROUP BY destination_id
+     ) counts ON counts.destination_id = d.id
+     WHERE (COALESCE(counts.session_count, 0) + d.session_count_offset) >= $2
+     ORDER BY session_count DESC, d.name ASC NULLS LAST
+     LIMIT $1`,
+    [limit, POPULAR_DESTINATION_MIN_SESSIONS]
+  );
+
+  const destinations = result.rows.map(mapPopularDestinationRow);
+
+  if (destinations.length >= POPULAR_DESTINATION_FALLBACK_THRESHOLD) {
+    return { destinations, isFallback: false };
+  }
+
+  // Top up (never replace) with photographed destinations, excluding any
+  // already found above so a destination doesn't appear twice.
+  const remaining = limit - destinations.length;
+  const fallback = await db.query(
+    `SELECT id, name, elevation, prominence, type,
+            activities, features,
+            ST_Y(location::geometry) AS lat,
+            ST_X(location::geometry) AS lng
+     FROM destinations
+     WHERE hero_image IS NOT NULL
+       AND NOT (id = ANY($2::text[]))
+     ORDER BY elevation DESC NULLS LAST, name ASC NULLS LAST
+     LIMIT $1`,
+    [remaining, destinations.map((d) => d.id)]
+  );
+
+  return {
+    destinations: [...destinations, ...fallback.rows.map(mapPopularDestinationRow)],
+    isFallback: fallback.rows.length > 0,
+  };
+}
+
+/** Extra WHERE conditions layered onto the same popular-destinations shape
+ * as getPopularDestinations — the SEO landing pages' "top 12" (Task 18).
+ * `features`/`activities` match on ANY overlap (`&&`), same semantics as the
+ * viewport query's feature filter. */
+interface FilteredPopularOptions {
+  stateCode?: string;
+  countryCode?: string;
+  features?: string[];
+  activities?: string[];
+}
+
+function filteredPopularConditions(
+  options: FilteredPopularOptions,
+  params: unknown[]
+): string {
+  const conditions: string[] = [];
+
+  if (options.stateCode) {
+    params.push(options.stateCode);
+    conditions.push(`d.state_code = $${params.length}`);
+  }
+  if (options.countryCode) {
+    params.push(options.countryCode);
+    conditions.push(`d.country_code = $${params.length}`);
+  }
+  if (options.features?.length) {
+    params.push(options.features);
+    conditions.push(`d.features && $${params.length}::destination_feature[]`);
+  }
+  if (options.activities?.length) {
+    params.push(options.activities);
+    conditions.push(`d.activities && $${params.length}::activity_type[]`);
+  }
+
+  return conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+}
+
+/**
+ * Same popularity ranking and same never-half-empty fallback as
+ * getPopularDestinations, scoped to a state and/or a feature/activity match
+ * — the query behind every /activities/[type] and /peaks/[state] "top 12"
+ * module. One query for the ranked list, a second only when the fallback
+ * threshold isn't cleared (identical shape to getPopularDestinations).
+ *
+ * `d.state_code` has no dedicated index (see search.ts's other filters,
+ * which lean on the GIN indexes over `features`/`activities` instead) — an
+ * accepted sequential scan under the same hourly-ISR cost budget the
+ * unfiltered query already spends on its own full-table join.
+ */
+async function getFilteredPopularDestinations(
+  options: FilteredPopularOptions,
+  limit: number
+): Promise<PopularDestinationsResult> {
+  const params: unknown[] = [];
+  const whereExtra = filteredPopularConditions(options, params);
+  params.push(limit);
+  const limitIdx = params.length;
+  params.push(POPULAR_DESTINATION_MIN_SESSIONS);
+  const minSessionsIdx = params.length;
+
+  const result = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng,
+            (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
+     FROM destinations d
+     LEFT JOIN (
+       SELECT destination_id, COUNT(DISTINCT session_id) AS session_count
+       FROM session_destinations
+       GROUP BY destination_id
+     ) counts ON counts.destination_id = d.id
+     WHERE (COALESCE(counts.session_count, 0) + d.session_count_offset) >= $${minSessionsIdx}
+       ${whereExtra}
+     ORDER BY session_count DESC, d.name ASC NULLS LAST
+     LIMIT $${limitIdx}`,
+    params
+  );
+
+  const destinations = result.rows.map(mapPopularDestinationRow);
+  if (destinations.length >= POPULAR_DESTINATION_FALLBACK_THRESHOLD) {
+    return { destinations, isFallback: false };
+  }
+
+  const remaining = limit - destinations.length;
+  const fallbackParams: unknown[] = [];
+  const fallbackWhereExtra = filteredPopularConditions(options, fallbackParams);
+  fallbackParams.push(destinations.map((d) => d.id));
+  const excludeIdx = fallbackParams.length;
+  fallbackParams.push(remaining);
+  const remainingIdx = fallbackParams.length;
+
+  const fallback = await db.query(
+    `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
+            d.activities, d.features,
+            ST_Y(d.location::geometry) AS lat,
+            ST_X(d.location::geometry) AS lng
+     FROM destinations d
+     WHERE d.hero_image IS NOT NULL
+       AND NOT (d.id = ANY($${excludeIdx}::text[]))
+       ${fallbackWhereExtra}
+     ORDER BY d.elevation DESC NULLS LAST, d.name ASC NULLS LAST
+     LIMIT $${remainingIdx}`,
+    fallbackParams
+  );
+
+  return {
+    destinations: [...destinations, ...fallback.rows.map(mapPopularDestinationRow)],
+    isFallback: fallback.rows.length > 0,
+  };
+}
+
+/** /activities/peak-bagging's top 12: destinations tagged the `summit`
+ * feature (volcanoes are a strict subset — checked live 2026-08-20, every
+ * `volcano`-featured destination is also `summit`), ranked the same as the
+ * catalog-wide popular list. */
+export async function getTopSummitDestinations(
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ features: ["summit"] }, limit);
+}
+
+/** /activities/hiking's top 12: destinations tagged the `outdoor-trek`
+ * activity. That's nearly the whole catalog (82,931 of 82,977 destinations
+ * checked live 2026-08-20) since almost everything in Peaks is reachable on
+ * foot — the filter is a correctness statement, not a meaningfully
+ * narrowing one, and the session-count ranking is what actually surfaces
+ * real hiking destinations. */
+export async function getTopHikingDestinations(
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ activities: ["outdoor-trek"] }, limit);
+}
+
+/** /peaks/[state]'s top 12, restricted to US to avoid a same-code collision
+ * with a foreign province (PAD-US/geocoding put a handful of Italian
+ * provinces at `state_code` values like `TN`/`BL` that would otherwise leak
+ * into a US state's count — checked live 2026-08-20). */
+export async function getTopDestinationsForState(
+  stateCode: string,
+  limit: number = 12
+): Promise<PopularDestinationsResult> {
+  return getFilteredPopularDestinations({ stateCode, countryCode: "US" }, limit);
+}
+
+export interface StateCatalogFacts {
+  /** Total destinations in the state — 0 means the state has no catalog
+   * presence at all, the caller's signal to 404 rather than render an
+   * all-empty page. */
+  destinationCount: number;
+  highestPeak: { id: string; name: string | null; elevation: number } | null;
+}
+
+/**
+ * The two facts /peaks/[state]'s editorial paragraph needs. Two small
+ * queries, not one: "highest peak" is scoped to `summit`-featured
+ * destinations specifically, so a data-entry error on an unrelated feature
+ * can't surface as the state's high point. Checked live 2026-08-20 —
+ * Washington's plain MAX(elevation) picks a lake (`region`/`lake`, no
+ * `summit` feature) carrying an elevation value that belongs to a
+ * different, much higher "Junction Lake" outside the state; the state's
+ * real high point, Mount Rainier, is a `summit`-featured destination.
+ */
+export async function getStateCatalogFacts(stateCode: string): Promise<StateCatalogFacts> {
+  const [countResult, peakResult] = await Promise.all([
+    db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+       FROM destinations
+       WHERE state_code = $1 AND country_code = 'US'`,
+      [stateCode]
+    ),
+    db.query(
+      `SELECT id, name, elevation
+       FROM destinations
+       WHERE state_code = $1 AND country_code = 'US' AND 'summit' = ANY(features)
+       ORDER BY elevation DESC NULLS LAST
+       LIMIT 1`,
+      [stateCode]
+    ),
+  ]);
+
+  const destinationCount = Number(countResult.rows[0]?.count ?? 0);
+  const peakRow = peakResult.rows[0];
+
+  return {
+    destinationCount,
+    highestPeak:
+      peakRow?.elevation != null
+        ? { id: peakRow.id, name: peakRow.name, elevation: Number(peakRow.elevation) }
+        : null,
+  };
+}
+
+/** The live count each activity landing paragraph cites — recorded hikes
+ * for hiking, named summits for peak-bagging. Skiing and trail-running have
+ * no such count (see landing-copy.ts) so the page never calls this for
+ * them. */
+export async function getActivityLandingCount(
+  type: "hiking" | "peak-bagging"
+): Promise<number> {
+  if (type === "peak-bagging") {
+    const result = await db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM destinations WHERE 'summit' = ANY(features)`
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  const result = await db.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM tracking_sessions WHERE activity_type = 'outdoor-trek'`
+  );
+  return Number(result.rows[0]?.count ?? 0);
 }
 
 export async function searchRoutes(
@@ -246,7 +536,7 @@ export async function searchRoutes(
   if (!q) return [];
 
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id)::int AS session_count
      FROM routes r
@@ -268,6 +558,7 @@ export async function searchRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
     provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
@@ -337,14 +628,14 @@ export async function getPopularRoutes(
   limit: number = 8
 ): Promise<SearchRouteResult[]> {
   const result = await db.query(
-    `SELECT r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape,
+    `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             COUNT(sr.route_id)::int AS session_count
      FROM routes r
      LEFT JOIN session_routes sr ON sr.route_id = r.id
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
-     GROUP BY r.id, r.name, r.distance, r.gain, r.provenance, r.completion, r.shape
+     GROUP BY r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape
      ORDER BY session_count DESC, destination_count DESC, r.distance ASC NULLS LAST, r.name ASC NULLS LAST
      LIMIT $1`,
     [limit]
@@ -355,6 +646,7 @@ export async function getPopularRoutes(
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
     provenance: parseRouteProvenance(r.provenance),
     completion: r.completion,
     shape: r.shape,
@@ -460,28 +752,63 @@ export async function getUnclimbedDestinations(
 }
 
 /**
- * All destinations whose location falls within the given bounding box.
- * Uses ST_Intersects with ST_MakeEnvelope for spatial index efficiency.
+ * What the map explorer asks for: the box it is showing, the point it is
+ * centred on, and (for destinations) which features to keep.
+ */
+export interface ViewportQuery {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  /** Ordering anchor. Rows come back nearest-first, so the row cap keeps
+   * the results closest to the middle of the screen — which is what lets
+   * the panel say "the nearest 200" and mean it. */
+  centerLat: number;
+  centerLng: number;
+  limit?: number;
+}
+
+export interface DestinationViewportQuery extends ViewportQuery {
+  /** `destination_feature` values to keep. Null or omitted keeps every
+   * destination in the box. */
+  features?: string[] | null;
+}
+
+/**
+ * Destinations inside the viewport, nearest to the centre first.
+ *
+ * `&&` (bounding-box overlap on the GiST index) rather than
+ * `ST_Intersects`: for a point column the two answer identically, and the
+ * bbox operator lets the index do all the work — measured on prod, a
+ * continent-wide box went from 2.4s to 250ms. Ordering is the geography KNN
+ * operator, which walks the same index in distance order instead of sorting
+ * every match.
  */
 export async function getDestinationsInViewport(
-  minLat: number,
-  maxLat: number,
-  minLng: number,
-  maxLng: number,
-  limit: number = 200
+  query: DestinationViewportQuery
 ): Promise<SearchDestination[]> {
+  const features = query.features?.length ? query.features : null;
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
             activities, features,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
-     WHERE ST_Intersects(
-       location,
-       ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
-     )
-     LIMIT $5`,
-    [minLng, minLat, maxLng, maxLat, limit]
+     WHERE location && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
+       AND ($7::destination_feature[] IS NULL
+            OR features && $7::destination_feature[])
+     ORDER BY location <-> ST_MakePoint($6, $5)::geography
+     LIMIT $8`,
+    [
+      query.minLng,
+      query.minLat,
+      query.maxLng,
+      query.maxLat,
+      query.centerLat,
+      query.centerLng,
+      features,
+      query.limit ?? VIEWPORT_DESTINATION_LIMIT,
+    ]
   );
 
   return result.rows.map((r: any) => ({
@@ -498,15 +825,18 @@ export async function getDestinationsInViewport(
 }
 
 /**
- * All routes whose path intersects the given bounding box.
- * Returns lightweight data suitable for map overlays.
+ * Routes crossing the viewport, nearest to the centre first.
+ *
+ * Same bbox-first shape as the destination query. Here `&&` is genuinely
+ * looser than `ST_Intersects` — a route whose bounding box clips the corner
+ * of the screen can come back without a metre of it being visible — but the
+ * exact test walks every vertex of every candidate path, which measured 21s
+ * on a continent-wide box against 2s for this. The explorer only calls this
+ * at ROUTE_MIN_ZOOM and above, where a route's bounding box is a fair proxy
+ * for the route.
  */
 export async function getRoutesInViewport(
-  minLat: number,
-  maxLat: number,
-  minLng: number,
-  maxLng: number,
-  limit: number = 100
+  query: ViewportQuery
 ): Promise<ViewportRoute[]> {
   const result = await db.query(
     `SELECT id, name, polyline6, distance, gain, provenance
@@ -514,12 +844,18 @@ export async function getRoutesInViewport(
      WHERE path IS NOT NULL
        AND owner = 'peaks'
        AND status = 'active'
-       AND ST_Intersects(
-         path,
-         ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
-       )
-     LIMIT $5`,
-    [minLng, minLat, maxLng, maxLat, limit]
+       AND path && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
+     ORDER BY path <-> ST_MakePoint($6, $5)::geography
+     LIMIT $7`,
+    [
+      query.minLng,
+      query.minLat,
+      query.maxLng,
+      query.maxLat,
+      query.centerLat,
+      query.centerLng,
+      query.limit ?? VIEWPORT_ROUTE_LIMIT,
+    ]
   );
 
   return result.rows.map((r: any) => ({

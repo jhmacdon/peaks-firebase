@@ -1,108 +1,84 @@
-"use client";
-
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Suspense } from "react";
+import { getLists } from "../../../lib/actions/lists";
+import { parseListDescription } from "../../../lib/list-content";
+import { PageHeader } from "../../../components/ui/page-header";
 import SearchBar from "../../../components/search-bar";
-import ListCard from "../../../components/list-card";
-import { getLists, type ListRow } from "../../../lib/actions/lists";
 
-function ListsContent() {
-  const searchParams = useSearchParams();
-  const query = searchParams.get("q") || "";
+// Reads `searchParams` (the search box is a real navigation, not a client
+// fetch), which makes Next render this dynamically per request regardless
+// of this setting — see the identical note on areas/page.tsx. Declared
+// anyway: the plain `/lists` link the nav points at is the same request
+// shape every time and cheap to re-render.
+export const revalidate = 3600;
 
-  const [lists, setLists] = useState<ListRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+const PAGE_SIZE = 60;
 
-  const PAGE_SIZE = 20;
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      const result = await getLists(query || undefined, PAGE_SIZE, 0);
-      if (!cancelled) {
-        setLists(result.lists);
-        setTotal(result.total);
-        setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [query]);
-
-  const loadMore = async () => {
-    setLoadingMore(true);
-    const result = await getLists(
-      query || undefined,
-      PAGE_SIZE,
-      lists.length
-    );
-    setLists((prev) => [...prev, ...result.lists]);
-    setTotal(result.total);
-    setLoadingMore(false);
-  };
+export default async function ListsIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const params = await searchParams;
+  const query = params.q?.trim() ?? "";
+  const { lists, total } = await getLists(query || undefined, PAGE_SIZE, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-3xl font-semibold tracking-tight mb-2">Browse Lists</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        Explore curated destination collections and public peak lists.
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      <PageHeader
+        title="Lists"
+        meta={<p>Curated destination collections and public peak lists.</p>}
+      />
+
+      <Suspense fallback={<div className="mt-6 h-11" />}>
+        <div className="mt-6 max-w-lg">
+          <SearchBar placeholder="Search lists" />
+        </div>
+      </Suspense>
+
+      <p className="mt-6 text-[13px] text-muted">
+        Showing {lists.length.toLocaleString("en-US")} of{" "}
+        <span className="font-mono-num tabular-nums">{total.toLocaleString("en-US")}</span>{" "}
+        {total === 1 ? "list" : "lists"}.
       </p>
 
-      <div className="mb-6">
-        <SearchBar placeholder="Search lists..." />
-      </div>
-
-      {loading ? (
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
-      ) : lists.length === 0 ? (
-        <div className="text-gray-500 py-12 text-center">
-          {query
-            ? `No lists found for "${query}"`
-            : "No lists available"}
-        </div>
+      {lists.length === 0 ? (
+        <p className="mt-10 text-sm text-muted">
+          {query ? `No lists found for "${query}".` : "No lists available."}
+        </p>
       ) : (
-        <>
-          <div className="text-sm text-gray-500 mb-4">
-            Showing {lists.length} of {total} list{total !== 1 ? "s" : ""}
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {lists.map((list) => (
-              <ListCard key={list.id} list={list} />
-            ))}
-          </div>
+        <ul className="mt-6 divide-y divide-hairline border-y border-hairline">
+          {lists.map((list) => {
+            const { paragraphs } = parseListDescription(list.description);
+            const ownerLabel = list.owner === "peaks" ? "Peaks curated" : "Community list";
 
-          {lists.length < total && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="px-6 py-2.5 text-sm font-medium border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
-              >
-                {loadingMore ? "Loading..." : "Load More"}
-              </button>
-            </div>
-          )}
-        </>
+            return (
+              <li key={list.id}>
+                <Link
+                  href={`/lists/${list.id}`}
+                  className="group flex items-center justify-between gap-4 py-4"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-medium text-ink group-hover:underline">
+                      {list.name}
+                    </span>
+                    <span className="mt-0.5 block max-w-[60ch] truncate text-[12px] text-muted">
+                      {ownerLabel}
+                      {paragraphs.length > 0 ? ` · ${paragraphs.join(" ")}` : ""}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-muted">
+                    <span className="font-mono-num tabular-nums">
+                      {list.destination_count.toLocaleString("en-US")}
+                    </span>{" "}
+                    {list.destination_count === 1 ? "destination" : "destinations"}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
-  );
-}
-
-export default function ListsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
-        </div>
-      }
-    >
-      <ListsContent />
-    </Suspense>
   );
 }

@@ -1,16 +1,20 @@
 import type { RouteDetail, RouteSegment } from "./actions/routes";
+import { formatDistanceImperial } from "./destination-detail";
+import { formatDurationRangeFriendly, formatSessionCount } from "./format";
 
 const METERS_TO_MILES = 1 / 1609.34;
 const METERS_TO_FEET = 3.28084;
 
+/** "980 ft" / "1.4 mi" — same near-unit rule as formatDistanceAway
+ * (destination-detail.ts), just without its "away" suffix: this formats a
+ * length (a route, a segment, a map-explorer result's distance from
+ * center), not a "how far is that thing" phrase. */
 export function formatDistanceMeters(
   meters: number | null | undefined
 ): string {
   if (meters == null || Number.isNaN(meters)) return "—";
-  if (meters < 1609.34) {
-    return `${Math.round(meters)} m`;
-  }
-  return `${(meters * METERS_TO_MILES).toFixed(1)} mi`;
+  const { value, unit } = formatDistanceImperial(meters);
+  return `${value} ${unit}`;
 }
 
 export function formatElevationMeters(
@@ -20,31 +24,25 @@ export function formatElevationMeters(
   return `${Math.round(meters * METERS_TO_FEET).toLocaleString()} ft`;
 }
 
-export function formatDurationHours(
-  hours: number | null | undefined
-): string {
-  if (hours == null || Number.isNaN(hours)) return "—";
-
-  const roundedMinutes = Math.max(0, Math.round(hours * 60));
-  const wholeHours = Math.floor(roundedMinutes / 60);
-  const mins = roundedMinutes % 60;
-
-  if (wholeHours === 0) return `${mins}m`;
-  if (mins === 0) return `${wholeHours}h`;
-  return `${wholeHours}h ${mins}m`;
-}
-
-export function formatDurationRange(
-  lowHours: number | null | undefined,
-  highHours: number | null | undefined
-): string {
-  if (lowHours == null || highHours == null) return "—";
-  return `${formatDurationHours(lowHours)} - ${formatDurationHours(highHours)}`;
-}
-
-export function describeRouteShape(shape: string | null | undefined): string {
-  if (!shape) return "Unknown shape";
+/** Human-readable route shape, or null when the shape isn't known — callers
+ * omit the shape word/clause entirely rather than print "Unknown shape". */
+export function describeRouteShape(shape: string | null | undefined): string | null {
+  if (!shape) return null;
   return shape.replace(/_/g, " ");
+}
+
+/** Whether to show the "Elevation loss" stat. Non-loop routes (out-and-back
+ * uses the round-trip vertical, point-to-point/lollipop store loss
+ * separately) often have no real loss data, and "0 ft" reads as a measured
+ * fact rather than a missing value — hide the stat instead. Loop routes
+ * always show it: loss is core to what a loop is, so even a genuine 0 is
+ * worth stating. */
+export function shouldShowElevationLoss(
+  lossMeters: number | null | undefined,
+  shape: string | null | undefined
+): boolean {
+  if (shape === "loop") return true;
+  return lossMeters != null && lossMeters !== 0;
 }
 
 export function describeCompletionMode(
@@ -64,9 +62,9 @@ export interface RouteGuideSummary {
   estimatedHoursLow: number | null;
   estimatedHoursHigh: number | null;
   estimatedHoursMid: number | null;
-  difficultyLabel: string;
+  difficultyLabel: string | null;
   difficultyReason: string;
-  routeShapeLabel: string;
+  routeShapeLabel: string | null;
   completionLabel: string;
   routeNarrative: string;
 }
@@ -145,7 +143,15 @@ export function summarizeRouteGuide(
   const difficultyScore =
     distanceScore + climbScore + densityScore + shapeScore + completionScore;
 
-  const difficultyLabel = difficultyFromScore(difficultyScore);
+  const rawDifficultyLabel = difficultyFromScore(difficultyScore);
+  // Plausibility gate: the score under-weights routes that gain a lot of
+  // elevation gradually (low density, long distance), so it can call a
+  // >3000 ft climb "Moderate" — a grade no one would trust. Hide the label
+  // rather than show a difficulty a reader would rightly distrust.
+  const difficultyLabel: string | null =
+    rawDifficultyLabel === "Moderate" && gainFeet != null && gainFeet > 3000
+      ? null
+      : rawDifficultyLabel;
 
   const difficultyReason =
     climbingDensityFeetPerMile != null && climbingDensityFeetPerMile > 1200
@@ -197,6 +203,56 @@ export function summarizeRouteGuide(
     completionLabel,
     routeNarrative,
   };
+}
+
+/** The route's About paragraphs — what it is, how hard/long it runs, who's
+ * followed it, and (folded in rather than given its own sidebar box) which
+ * direction it's best done. One template for every route page, same as
+ * buildDestinationGuide serves every destination page. */
+export function buildRouteAbout(
+  name: string,
+  route: Pick<RouteDetail, "shape" | "completion">,
+  guide: RouteGuideSummary,
+  sessionCount: number
+): string[] {
+  const paragraphs: string[] = [];
+
+  const shapeLabel = describeRouteShape(route.shape);
+  const routeNoun = shapeLabel
+    ? `${/^[aeiou]/i.test(shapeLabel) ? "an" : "a"} ${shapeLabel} route`
+    : "a route";
+  paragraphs.push(
+    [
+      `${name} is ${routeNoun}`,
+      guide.distanceMiles != null ? ` covering ${guide.distanceMiles.toFixed(1)} miles` : "",
+      guide.gainFeet != null
+        ? ` with ${Math.round(guide.gainFeet).toLocaleString()} feet of elevation gain`
+        : "",
+      ".",
+    ].join("")
+  );
+
+  const difficultyText = guide.difficultyLabel
+    ? `It rates as ${guide.difficultyLabel.toLowerCase()} given its ${guide.difficultyReason}.`
+    : null;
+  const timeText =
+    guide.estimatedHoursLow != null
+      ? `Plan on ${formatDurationRangeFriendly(guide.estimatedHoursLow, guide.estimatedHoursHigh)} of moving time.`
+      : null;
+  const planSentence = [difficultyText, timeText].filter(Boolean).join(" ");
+  if (planSentence) paragraphs.push(planSentence);
+
+  if (route.completion && route.completion !== "none") {
+    paragraphs.push(`${describeCompletionMode(route.completion)}.`);
+  }
+
+  if (sessionCount > 0) {
+    paragraphs.push(
+      `${formatSessionCount(sessionCount)} ${sessionCount === 1 ? "has" : "have"} followed this route.`
+    );
+  }
+
+  return paragraphs;
 }
 
 export interface ParsedExternalRouteLink {

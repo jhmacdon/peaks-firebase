@@ -1,13 +1,23 @@
+// Badge — outlined pill, tokens only (law 5). The old per-category hue
+// system (emerald/sky/amber/gray/red, one raw Tailwind color per type) is
+// retired: design-tokens.md defines one neutral pair and one semantic
+// (alert) pair, not a five-hue category palette, and the accent teal is
+// rationed too tightly (law 4's "accent budget") to spend on a badge that
+// can appear a dozen times on one page. The `tone` prop keeps its five
+// values so every existing call site keeps compiling unchanged; four of
+// them now render the same neutral pill, and `red` (used for destructive/
+// severity signals) maps to the alert token.
 type BadgeTone = "emerald" | "sky" | "amber" | "gray" | "red";
 
+const NEUTRAL = "border-border bg-fill text-ink-2";
+const ALERT = "border-alert/30 bg-alert/10 text-alert";
+
 const TONE_CLASSES: Record<BadgeTone, string> = {
-  emerald:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
-  sky: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
-  amber:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
-  gray: "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300",
-  red: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300",
+  emerald: NEUTRAL,
+  sky: NEUTRAL,
+  amber: NEUTRAL,
+  gray: NEUTRAL,
+  red: ALERT,
 };
 
 export function Badge({

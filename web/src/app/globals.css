@@ -1,48 +1,340 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens — Peaks web overhaul, Task 7 (design foundation).
+ * Canonical source: docs/plans/web-overhaul.md, "Global Constraints" and
+ * "Design Tokens" sections. Full usage rules, the type ladder, and the
+ * StatCluster spec live in web/docs/design-tokens.md — read that before
+ * consuming any token below.
+ *
+ * Every color is a single custom property with one light value (below, in
+ * the theme layer) and one dark override (in the media query at the bottom
+ * of this block, unlayered so it always wins). Components never need a
+ * `dark:` variant for these tokens — the variable itself repaints.
+ *
+ * To add an explicit light/dark toggle later: the dark media block below is
+ * already guarded with `:not(.light)`, so an explicit "light" choice will
+ * correctly beat a dark OS preference once that class exists. Adding the
+ * toggle is then a pure addition — duplicate the dark block's declarations
+ * under a `:root.dark { … }` rule and have the toggle add/remove `.dark`/
+ * `.light`. No other restructuring needed — this is the only place dark
+ * values are defined.
+ */
+@theme {
+  /* Ink (text) */
+  --color-ink: #21211f;
+  --color-ink-2: #43423f;
+  --color-muted: #64635e;
+  --color-faint: #8b8880;
+
+  /* Structure (borders, fills, backgrounds) */
+  --color-border: #e0e0de;
+  --color-hairline: #edece8;
+  --color-fill: #f2f2f0;
+  --color-surface: #f9f8f5;
+  --color-page: #ffffff;
+
+  /* Accent + semantic */
+  --color-accent: #46adbc;
+  --color-accent-text: #1d7a8a;
+  --color-alert: #ba4c21;
+  --color-success: #2c6e49;
+
+  /* Radius — 6px controls/inputs, 16px media/containers. Chips use the
+     stock `rounded-full` utility (9999px); no separate token needed. */
+  --radius-ctl: 6px;
+  --radius-media: 16px;
+
+  /* Shadow — floating chrome only (sticky bars, dropdowns, map controls).
+     Never on cards, sections, or resting content. */
+  --shadow-float:
+    0 6px 16px rgb(0 0 0 / 0.07),
+    0 0 1px rgb(0 0 0 / 0.2);
 }
 
+/* Font families. `inline` makes Tailwind compile each utility rule with the
+   next/font variable's OWN name baked in directly (e.g.
+   `.font-sans { font-family: var(--font-geist-sans) }`) rather than routing
+   through --font-sans at the point of use. That matters: next/font's own
+   variables (--font-geist-sans etc.) are only ever declared where their
+   `.variable` className is applied (currently <body>), never globally.
+   Tailwind still registers --font-sans itself at :root (it's in the
+   compiled theme block), but its computed value is guaranteed-invalid
+   there, since --font-geist-sans doesn't exist at :root — and that invalid
+   status inherits down unchanged rather than being "fixed" by a
+   descendant's own local --font-geist-sans. Verified live:
+   `getComputedStyle(el).getPropertyValue('--font-sans')` returns `""` on
+   both :root and <body>.
+   Consequence: --font-sans/--font-mono/--font-display/--font-mono-num are
+   NOT usable as raw CSS variables anywhere — var(--font-sans) in
+   hand-written CSS never resolves. Consume them only via their utility
+   class — `font-sans`, `font-mono`, `font-display`, `font-mono-num` — on
+   an element that also carries the matching next/font `.variable`
+   className (an ancestor is enough; currently that's always <body>). */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-archivo);
+  /* Alias, not a distinct family: every stat/table numeral is Geist Mono.
+     Named separately from --font-mono so call sites read as intent
+     ("this is a numeral") rather than "this is generic code/mono text". */
+  --font-mono-num: var(--font-geist-mono);
+}
+
+/* Display type sits at the wide end of Archivo's width axis (brief: `wdth`
+   125). Paired with the `font-display` utility above so one className gets
+   both the family and the axis setting. */
+.font-display {
+  font-variation-settings: "wdth" 125;
+}
+
+/* Progressive enhancement: wider-gamut accent on P3-capable displays.
+   Applies to both themes — the accent hue doesn't change between them. */
+@supports (color: color(display-p3 0 0 0)) {
+  :root {
+    --color-accent: color(display-p3 0.332 0.674 0.729);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* :not(.light) is a no-op today (nothing sets that class yet) but means
+     an explicit light-mode toggle, once one exists, can beat a dark OS
+     preference without touching this block. */
+  :root:not(.light) {
+    /* Warm dark, not slate — same R>G>B warm cast as the light ramp. */
+    --color-ink: #eceae6;
+    --color-ink-2: #c6c3bc;
+    --color-muted: #96938a;
+    /* Not specified in the plan's dark list; interpolated at the same
+       proportional position between --muted and --border as light-mode
+       --faint sits between --muted and --border. Sub-AA by design (3.97:1
+       page / 3.67:1 surface) — lowest-emphasis decorative text only, never
+       information a user must read. */
+    --color-faint: #797770;
+
+    --color-border: #3a3936;
+    --color-hairline: #2e2d29;
+    --color-fill: #282722;
+    --color-surface: #201f1d;
+    --color-page: #181816;
+
+    /* --color-accent is unchanged in dark (see @supports block above). */
+    --color-accent-text: #7cc7d4;
+    --color-alert: #e06a48;
+    /* Not specified in the plan's dark list; brightened to a comparable
+       lightness as the given --alert dark bump, kept in the same hue
+       family as light --success (~4.8:1+ contrast on --page/--surface). */
+    --color-success: #4e9a6b;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
   min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.55;
+  /* Family comes from the `font-sans` utility class on <body> in
+     layout.tsx, not from a rule here — see the @theme inline comment
+     above for why var(--font-sans) can't be used directly in this file. */
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 a {
   text-underline-offset: 0.2em;
 }
 
-/* Map explorer peak labels (Leaflet tooltips promoted to permanent) */
-.peak-label {
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Button/Chip hover fills — ui/button.tsx, ui/chip.tsx. Law 6: hover may
+   darken a fill slightly (≤8%), never lift/scale/grow a shadow. Uses
+   color-mix on the tokens themselves (same technique as ::selection above)
+   rather than a second raw color, so these track light/dark automatically. */
+.btn-primary:hover {
+  background: color-mix(in srgb, var(--color-accent) 92%, black);
+}
+.btn-secondary:hover,
+.btn-quiet:hover {
+  background: var(--color-fill);
+}
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--color-alert) 8%, transparent);
+}
+/* Mixed into the page colour rather than into transparency: on a page the
+   two are identical, but a chip floating over map tiles has to be opaque or
+   the terrain reads straight through the selected state. */
+.chip-selected {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-page));
+}
+
+/* ── App chrome (components/app-nav.tsx) ──────────────────────────────────
+   Heights are pinned here, not only in the nav's own height utilities, so a
+   full-bleed page can size itself against the chrome without re-deriving
+   it — the map explorer subtracts these from 100dvh. Keep them in step with
+   the nav:
+     --chrome-h         desktop bar   h-14 (56px) + 1px hairline
+     --chrome-top-h     mobile bar    h-12 (48px) + 1px hairline
+     --chrome-bottom-h  mobile tabs   h-13 (52px) + 1px hairline + safe area
+   The safe-area term is 0 unless the viewport opts into `viewport-fit:
+   cover` (an installed standalone PWA); in a normal browser the UA already
+   insets the viewport above the home indicator, so 0 is the right answer. */
+:root {
+  --chrome-h: 57px;
+  --chrome-top-h: 49px;
+  --chrome-bottom-h: calc(53px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Keeps the last row of the fixed mobile tab bar clear of the home
+   indicator. */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Active top-nav marker: a 2px accent rule 6px under the label. Spelled out
+   here rather than with Tailwind's `decoration-*`/`underline-offset-*`
+   utilities because the bare `a` rule above is UNLAYERED, and unlayered
+   declarations outrank everything in `@layer utilities` — so
+   `a { text-underline-offset: 0.2em }` would beat the utility no matter the
+   specificity. Same reason the button hover fills above live here. */
+.nav-underline {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  text-decoration-skip-ink: none;
+}
+
+/* Landing hero contour art (components/contour-art.tsx). One slow draw-in of
+   the single accent ring; nothing else on that page moves. Both the dash
+   setup and the animation sit inside the no-preference query on purpose — a
+   reduced-motion visitor gets no dash pattern at all, so the ring is simply
+   there, rather than stuck invisible at full offset. --contour-length is set
+   inline by the component from the real path length. */
+@media (prefers-reduced-motion: no-preference) {
+  .contour-draw {
+    stroke-dasharray: var(--contour-length);
+    stroke-dashoffset: var(--contour-length);
+    animation: contour-draw 10s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes contour-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The art is taller than the hero that holds it, so the section's own
+   overflow clip would cut every outer ring off along one hard horizontal
+   line. Fading the outside of the field instead lets the contours dissolve
+   into the page, which is also what keeps them from competing with the
+   headline they sit beside. */
+.contour-fade {
+  mask-image: radial-gradient(ellipse at center, #000 48%, transparent 82%);
+}
+
+/* Photo credit overlaid on a hero-mosaic tile
+   (components/destination/destination-hero.tsx). The one place on the page
+   that doesn't take its colours from the tokens: it sits on a photograph,
+   which has no theme, so a token that inverts with the OS would be
+   unreadable half the time. Fixed light type on a short gradient instead —
+   spelled out here rather than as raw `white`/`black` utilities in the
+   component, where it would read as a palette violation with no reasoning
+   attached. */
+.photo-credit {
+  background-image: linear-gradient(to top, rgb(0 0 0 / 0.5), transparent);
+  color: rgb(255 255 255 / 0.85);
+}
+
+/* Leaflet attribution inside a `.map-embed` container
+   (components/destination-map.tsx). The credit has to stay readable and
+   clickable — it's the tile licence — but Leaflet's default 12px white bar
+   reads as page furniture on a 16px-radius media tile. Scoped to the class
+   rather than styling `.leaflet-control-attribution` globally so the admin
+   maps keep Leaflet's own chrome; the reader-facing maps — the two detail
+   embeds, the area map, and (since Task 16) the explorer — all carry
+   `.map-embed`. */
+/* `.leaflet-container` is the same element as `.map-embed` — both classes
+   land on the div handed to L.map(). It's in the selector only to outweigh
+   Leaflet's own `.leaflet-container .leaflet-control-attribution`, which is
+   the same specificity as a bare `.map-embed …` rule and loads after this
+   file. */
+.map-embed.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-page) 82%, transparent);
+  padding: 1px 5px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.map-embed .leaflet-control-attribution a {
+  color: var(--color-muted);
+  text-decoration: underline;
+}
+
+/* Popups and tooltips inside a `.map-embed`. Leaflet's defaults are a white
+   card with a 12px radius and a blue link; these put both on the page's
+   tokens so a popup over the map reads as part of the site. Content is
+   built as DOM nodes in the map components (never HTML strings), so the
+   only styling hooks are these classes. */
+.map-embed .leaflet-popup-content-wrapper,
+.map-embed .leaflet-popup-tip {
+  background: var(--color-page);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+}
+
+.map-embed .leaflet-popup-content-wrapper {
+  border-radius: var(--radius-ctl);
+}
+
+.map-embed .leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.45;
+}
+
+.map-embed .map-popup-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent-text);
+}
+
+.map-embed .leaflet-popup-close-button {
+  color: var(--color-faint);
+}
+
+.map-embed .leaflet-tooltip {
+  background: var(--color-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-ctl);
+  box-shadow: none;
+  color: var(--color-ink-2);
+  font-size: 12px;
+}
+
+.map-embed .leaflet-tooltip-top::before {
+  border-top-color: var(--color-border);
+}
+
+/* Map explorer peak labels (Leaflet tooltips promoted to permanent). Not
+   theme tokens: these sit directly on topo tiles, which are the same pale
+   paper in either theme, so a token that inverts with the OS would put
+   near-white type on near-white contours half the time. Same reasoning as
+   `.photo-credit` above. */
+.map-embed .peak-label {
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
   font-weight: 600;
   font-size: 11px;
-  color: #111827;
+  color: #21211f;
   text-shadow:
     -1px -1px 0 rgba(255, 255, 255, 0.9),
     1px -1px 0 rgba(255, 255, 255, 0.9),
@@ -50,6 +342,19 @@ a {
     1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.peak-label::before {
+.map-embed .peak-label::before {
   display: none;
+}
+
+/* "You are here" dot, dropped by the explorer's locate control. Fixed
+   colours for the same reason as the peak labels — it sits on tiles. */
+.map-user-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #46adbc;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 6px rgb(70 173 188 / 0.25),
+    0 1px 4px rgb(0 0 0 / 0.4);
 }

@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// A client page under a server `layout.tsx` that owns `generateMetadata`.
+//
+// Every other detail page in the overhaul is a server shell with client
+// islands, and this one deliberately isn't: the whole page depends on *who
+// is asking*. A signed-in owner reads five authenticated actions with their
+// ID token; a signed-out reader gets the privacy-stripped public bundle;
+// which of those two runs isn't known until Firebase Auth has settled in the
+// browser. Splitting that into a server shell would mean either rendering
+// the shell twice or moving auth to a cookie session, neither of which this
+// task is the place for. The layout still renders the title, description and
+// Open Graph tags server-side, so link unfurlers and the `noindex` directive
+// never depend on hydration. Nothing here is cached: activities are
+// per-user, and a private one must never survive in a shared cache.
+
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../../../lib/auth-context";
-import Link from "next/link";
 import {
   getSession,
   getSessionPoints,
@@ -18,27 +31,33 @@ import type {
   SessionDestination,
   SessionRoute,
 } from "../../../../lib/actions/sessions";
-import { AreaChips } from "../../../../components/area-chip";
-import type { ProtectedArea } from "../../../../lib/area-types";
+import {
+  sortAreasByProminence,
+  type ProtectedArea,
+} from "../../../../lib/area-types";
 import SessionPlayback from "../../../../components/session-playback";
 import SessionActions from "../../../../components/session-actions";
-import SessionHealthSummary from "../../../../components/session-health-summary";
+import { ActivityGlyph } from "../../../../components/session/activity-glyph";
+import { SessionAchievements } from "../../../../components/session/session-achievements";
+import { SessionRelated } from "../../../../components/session/session-related";
+import { SessionRouteHistory } from "../../../../components/session/session-route-history";
+import { SessionSecondaryStats } from "../../../../components/session/session-secondary-stats";
+import { SessionSplits } from "../../../../components/session/session-splits";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { PageHeader } from "../../../../components/ui/page-header";
+import { Topline } from "../../../../components/ui/topline";
+import { EmptyState } from "../../../../components/ui/empty-state";
 import { sessionActivityLabel } from "../../../../lib/session-track";
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-function formatPace(metersPerSecond: number): string {
-  // Convert m/s to min/mi
-  const totalSeconds = Math.round(1609.34 / metersPerSecond);
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")} /mi`;
-}
+import { summarizeSessionHealthData } from "../../../../lib/session-health";
+import { deriveActivityDisplayName } from "../../../../lib/seo-descriptions";
+import {
+  buildSessionAchievements,
+  buildSessionSecondaryStats,
+  buildSessionSplits,
+  buildSessionTopline,
+} from "../../../../lib/session-detail";
+import { buildSessionDistances } from "../../../../lib/session-track";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 export default function SessionDetailPage() {
   const params = useParams();
@@ -112,76 +131,135 @@ export default function SessionDetailPage() {
     };
   }, [authLoading, getIdToken, id, userId]);
 
+  const achievements = useMemo(
+    () => buildSessionAchievements(destinations, points),
+    [destinations, points]
+  );
+  const healthSummary = useMemo(
+    () => (session ? summarizeSessionHealthData(session.health_data) : null),
+    [session]
+  );
+  const splits = useMemo(
+    () => buildSessionSplits(points, buildSessionDistances(points)),
+    [points]
+  );
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <EmptyState>{LOADING_LABEL}</EmptyState>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">
-          Session not found
-        </div>
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <EmptyState
+          title="Activity not found"
+          description="It may have been deleted, or its owner may keep it private."
+        />
       </div>
     );
   }
 
-  const date = new Date(session.start_time);
-  const reachedDestinations = destinations.filter(
-    (destination) => destination.relation === "reached"
-  );
+  const displayName = deriveActivityDisplayName(session.name, destinations);
   const goalDestinations = destinations.filter(
     (destination) => destination.relation === "goal"
   );
-  const namingDestinations =
-    reachedDestinations.length > 0 ? reachedDestinations : goalDestinations;
-
-  // Derive display name: explicit name > destination names > fallback
-  const displayName = session.name
-    || (namingDestinations.length > 0
-      ? namingDestinations
-          .filter((d) => d.name)
-          .sort((a, b) => (b.elevation ?? 0) - (a.elevation ?? 0))
-          .map((d) => d.name)
-          .join(", ") || "Untitled Session"
-      : "Untitled Session");
+  const toplineStats = buildSessionTopline(session);
+  const secondaryStats = buildSessionSecondaryStats(session, healthSummary);
+  const startDate = new Date(session.start_time);
+  // The anatomy's "place" (audit §2b: timestamp · place). The activity has
+  // no address of its own, so the most prominent protected area it crossed
+  // stands in — a national park outranks a national forest, which outranks
+  // a state park, which is the same order the chip row uses. Omitted
+  // entirely when the track crossed nothing named.
+  const placeName = sortAreasByProminence(areas)[0]?.name ?? null;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href={userId ? "/log" : "/discover"}
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          {userId ? "Session Log" : "Discover"}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">
-          {displayName}
-        </span>
-      </div>
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      <PageHeader
+        breadcrumb={
+          userId ? (
+            <Breadcrumb
+              current={displayName}
+              parentHref="/log"
+              parentLabel="Session log"
+            />
+          ) : (
+            <Breadcrumb current={displayName} />
+          )
+        }
+        title={displayName}
+        meta={
+          <span className="flex items-center gap-2">
+            <ActivityGlyph
+              activityType={session.activity_type}
+              className="h-5 w-5 shrink-0 text-muted"
+            />
+            <span>
+              {sessionActivityLabel(session.activity_type)}
+              {" · "}
+              {startDate.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+              {placeName ? ` · ${placeName}` : ""}
+              {userId === session.user_id && session.user_id
+                ? ` · ${session.is_public ? "Public" : "Private"}`
+                : ""}
+            </span>
+          </span>
+        }
+      />
 
-      {/* Header */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{displayName}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {sessionActivityLabel(session.activity_type)} ·{" "}
-            {date.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}{" "}
-            · {session.is_public ? "Public" : "Private"}
-          </p>
-          <AreaChips areas={areas} className="mt-3" />
+      <Topline stats={toplineStats} className="mt-10" />
+
+      <SessionSecondaryStats stats={secondaryStats} className="mt-10" />
+
+      <SessionAchievements achievements={achievements} className="mt-10" />
+
+      {points.length > 0 ? (
+        <div className="mt-12">
+          <SessionPlayback
+            points={points}
+            healthData={session.health_data}
+            distanceMeters={session.distance}
+            gainMeters={session.gain}
+            highPointMeters={session.highest_point}
+          />
         </div>
+      ) : null}
+
+      <SessionSplits splits={splits} className="mt-12" />
+
+      <SessionRelated
+        areas={areas}
+        goalDestinations={goalDestinations}
+        routes={routes}
+        className="mt-12"
+      />
+
+      {/* Personal data — a public reader must never see another user's
+          attempt history, so this only ever renders for the session's own
+          owner (the same ownership check the Public/Private label above
+          uses; `session.user_id` itself is blanked to "" by getSession's
+          query for anyone who isn't the owner). */}
+      {userId === session.user_id && session.user_id ? (
+        <SessionRouteHistory
+          sessionId={session.id}
+          routes={routes}
+          className="mt-12"
+        />
+      ) : null}
+
+      {/* Rendered for signed-out readers too — a public activity's Share
+          button is theirs to use; the component gates edit, export and
+          delete on who is asking. */}
+      <div className="mt-12">
         <SessionActions
           session={session}
           displayName={displayName}
@@ -192,189 +270,6 @@ export default function SessionDetailPage() {
           }
         />
       </div>
-
-      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700 dark:text-teal-400">
-              Activity summary
-            </div>
-            <div className="mt-1 text-3xl font-bold tabular-nums">
-              {session.distance != null
-                ? `${(session.distance / 1609.34).toFixed(1)} mi`
-                : "—"}
-            </div>
-            <div className="mt-1 text-sm text-gray-500">
-              {reachedDestinations.length > 0
-                ? `${reachedDestinations.length} reached destination${
-                    reachedDestinations.length === 1 ? "" : "s"
-                  }`
-                : "Recorded GPS activity"}
-            </div>
-          </div>
-          <div className="grid min-w-full grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 sm:min-w-[560px] sm:grid-cols-4 dark:border-gray-800 dark:bg-gray-800">
-            <SummaryMetric
-              label="Elevation"
-              value={
-                session.gain != null
-                  ? `${Math.round(
-                      session.gain * 3.28084
-                    ).toLocaleString()} ft`
-                  : "—"
-              }
-            />
-            <SummaryMetric
-              label="Time"
-              value={
-                session.total_time != null
-                  ? formatDuration(session.total_time)
-                  : "—"
-              }
-            />
-            <SummaryMetric
-              label="High point"
-              value={
-                session.highest_point != null
-                  ? `${Math.round(
-                      session.highest_point * 3.28084
-                    ).toLocaleString()} ft`
-                  : "—"
-              }
-            />
-            <SummaryMetric
-              label="Pace"
-              value={
-                session.pace != null && session.pace > 0
-                  ? formatPace(session.pace)
-                  : "—"
-              }
-            />
-          </div>
-        </div>
-      </div>
-
-      {points.length > 0 && (
-        <div className="mb-8">
-          <SessionPlayback points={points} healthData={session.health_data} />
-        </div>
-      )}
-
-      <SessionHealthSummary healthData={session.health_data} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Destinations Reached */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Destinations Reached ({reachedDestinations.length})
-          </h3>
-          {reachedDestinations.length === 0 ? (
-            <p className="text-sm text-gray-500">No destinations reached</p>
-          ) : (
-            <div className="space-y-2">
-              {reachedDestinations.map((dest) => (
-                <Link
-                  key={dest.id}
-                  href={`/destinations/${dest.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-sm">
-                      {dest.name || "Unnamed Destination"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {dest.elevation != null
-                        ? `${Math.round(dest.elevation * 3.28084).toLocaleString()} ft`
-                        : ""}
-                      {dest.features.length > 0
-                        ? ` · ${dest.features.join(", ")}`
-                        : ""}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {goalDestinations.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-            <h3 className="font-semibold mb-4">
-              Planned Destinations ({goalDestinations.length})
-            </h3>
-            <div className="space-y-2">
-              {goalDestinations.map((destination) => (
-                <Link
-                  key={destination.id}
-                  href={`/destinations/${destination.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-sm">
-                      {destination.name || "Unnamed Destination"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {destination.elevation != null
-                        ? `${Math.round(
-                            destination.elevation * 3.28084
-                          ).toLocaleString()} ft`
-                        : ""}
-                      {destination.features.length > 0
-                        ? ` · ${destination.features.join(", ")}`
-                        : ""}
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium text-teal-700 dark:text-teal-300">
-                    Goal
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Routes Followed */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-4">
-            Routes ({routes.length})
-          </h3>
-          {routes.length === 0 ? (
-            <p className="text-sm text-gray-500">No routes matched</p>
-          ) : (
-            <div className="space-y-2">
-              {routes.map((route) => (
-                <Link
-                  key={route.id}
-                  href={`/routes/${route.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-                >
-                  <div>
-                    <div className="font-medium text-sm">
-                      {route.name || "Unnamed Route"}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {route.distance != null
-                        ? `${(route.distance / 1609.34).toFixed(1)} mi`
-                        : ""}
-                      {route.gain != null
-                        ? ` · ${Math.round(route.gain * 3.28084).toLocaleString()} ft gain`
-                        : ""}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white px-3 py-2.5 dark:bg-gray-900">
-      <div className="text-sm font-semibold tabular-nums">{value}</div>
-      <div className="mt-0.5 text-xs text-gray-500">{label}</div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   type BulkImportResult,
 } from "../../../lib/actions/destinations";
 import { parseGPX, type GPXWaypoint } from "../../../lib/gpx";
+import { LOADING_LABEL } from "../../../lib/constants";
 
 export default function DestinationsPage() {
   return (
@@ -364,7 +365,7 @@ function DestinationsContent() {
         </div>
 
         {loading ? (
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         ) : destinations.length === 0 ? (
           <div className="text-gray-500 py-12 text-center">
             No destinations found

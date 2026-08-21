@@ -29,6 +29,7 @@ import {
 } from "../../../../lib/amenities";
 import { roadAccessBadge } from "../../../../lib/trailhead-road-access";
 import { parkingBadge } from "../../../../lib/trailhead-parking";
+import { LOADING_LABEL } from "../../../../lib/constants";
 
 const DestinationMap = dynamic(() => import("../../../../components/destination-map"), {
   ssr: false,
@@ -147,7 +148,7 @@ function DestinationDetailContent() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <AdminNav />
         <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-gray-500 py-12 text-center">Loading...</div>
+          <div className="text-gray-500 py-12 text-center">{LOADING_LABEL}</div>
         </main>
       </div>
     );
@@ -340,7 +341,13 @@ function DestinationDetailContent() {
                 onBoundaryChange={setPendingBoundary}
               />
             ) : (
-              <DestinationMap lat={dest.lat} lng={dest.lng} name={dest.name} boundary={dest.boundary} />
+              <DestinationMap
+                lat={dest.lat}
+                lng={dest.lng}
+                name={dest.name}
+                boundary={dest.boundary}
+                className="h-80 rounded-xl z-0"
+              />
             )}
           </div>
         )}

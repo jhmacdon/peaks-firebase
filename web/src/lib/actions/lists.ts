@@ -119,7 +119,11 @@ export async function getList(id: string): Promise<ListDetail | null> {
 
 /**
  * Destinations belonging to a list, joined with destination data.
- * Ordered by the ordinal position within the list.
+ * Default sort is elevation descending — the highest, most notable entries
+ * first. Import ordinal isn't a meaningful order (it reflects source-list
+ * position, which looks almost-but-not-quite sorted for many lists), so it's
+ * kept as data but no longer drives the sort. Ties break on name then id so
+ * the order is stable across requests.
  */
 export async function getListDestinations(
   listId: string
@@ -132,7 +136,7 @@ export async function getListDestinations(
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      WHERE ld.list_id = $1
-     ORDER BY ld.ordinal`,
+     ORDER BY d.elevation DESC NULLS LAST, d.name ASC NULLS LAST, d.id ASC`,
     [listId]
   );
 

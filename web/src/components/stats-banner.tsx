@@ -1,6 +1,9 @@
+import { StatCluster } from "./ui/stat";
+
 interface StatItem {
   label: string;
   value: string;
+  unit?: string;
 }
 
 interface StatsBannerProps {
@@ -10,6 +13,14 @@ interface StatsBannerProps {
   stats: StatItem[];
 }
 
+/** The lifetime block at the top of the session log: an eyebrow, then one
+ * flat row of page-scale StatClusters, then a sentence of context.
+ *
+ * Used to be a bordered card wrapped around a bordered grid of bordered
+ * cells — a box inside a box inside a box, and every numeral in one
+ * (design-tokens.md laws 1 and 2). Now the numbers stand on open ground and
+ * the row separates from what follows by whitespace, not a rule.
+ */
 export default function StatsBanner({
   eyebrow = "Lifetime activity",
   primary,
@@ -17,43 +28,28 @@ export default function StatsBanner({
   stats,
 }: StatsBannerProps) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-[0.12em] text-teal-700 dark:text-teal-400">
-            {eyebrow}
-          </div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tabular-nums">
-              {primary.value}
-            </span>
-            <span className="font-semibold text-gray-600 dark:text-gray-300">
-              {primary.label}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {context}
-          </p>
-        </div>
-
-        <div
-          className={`grid min-w-full gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 sm:min-w-[520px] ${
-            stats.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"
-          }`}
-        >
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white px-3 py-2.5 dark:bg-gray-900"
-            >
-              <div className="text-sm font-semibold tabular-nums">
-                {stat.value}
-              </div>
-              <div className="mt-0.5 text-xs text-gray-500">{stat.label}</div>
-            </div>
-          ))}
-        </div>
+    <section aria-label={eyebrow}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted">
+        {eyebrow}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-x-12 gap-y-6">
+        <StatCluster
+          scale="page"
+          value={primary.value}
+          unit={primary.unit}
+          label={primary.label}
+        />
+        {stats.map((stat) => (
+          <StatCluster
+            key={stat.label}
+            scale="page"
+            value={stat.value}
+            unit={stat.unit}
+            label={stat.label}
+          />
+        ))}
       </div>
+      <p className="mt-5 text-sm text-muted">{context}</p>
     </section>
   );
 }

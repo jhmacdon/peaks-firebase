@@ -33,12 +33,12 @@ Requires Cloud SQL Auth Proxy running locally for database access (`DB_HOST=127.
 src/
   app/
     layout.tsx                        # Root layout (fonts, metadata)
-    page.tsx                          # Redirects to /discover
     login/page.tsx                    # Sign in (email, Google, Apple)
     register/page.tsx                 # Create account
     not-found.tsx                     # 404 page
     (public)/                         # Route group: public pages (AppNav, no auth)
       layout.tsx
+      page.tsx                        # `/` — landing page (hero, catalog stats, entry points)
       discover/page.tsx               # Search + nearby + popular + lists
       destinations/[id]/page.tsx      # Destination detail (read-only)
       destinations/[id]/reports/      # Trip reports for destination
@@ -113,7 +113,7 @@ src/
       lists.ts                        # List browse, detail, progress (PostgreSQL)
       sessions.ts                     # User sessions, GPS points, stats (PostgreSQL)
       plans.ts                        # Trip plan CRUD, party (Firestore)
-      trip-reports.ts                 # Trip report CRUD (Firestore)
+      trip-reports.ts                 # Trip report CRUD (PostgreSQL)
       profile.ts                      # User profile, friends, invites (Firestore)
       users.ts                        # Firebase Auth user lookup
       route-builder.ts                # GPX → route analysis pipeline (admin)
@@ -175,7 +175,7 @@ All files in `src/lib/actions/` use `"use server"` directive.
 - **IDs**: `generateId()` produces 20-char alphanumeric strings (matches Firebase style)
 - **Units**: database stores meters; UI converts to feet (`* 3.28084`) and miles (`/ 1609.34`)
 - **Elevation**: keep every finite source value as a `number`; round only in UI text or at a named external boundary
-- **Features row**: always shows Features in detail pages (displays "—" when empty, not hidden)
+- **Features row**: omitted entirely on detail pages when there are no features — never a placeholder like "—" (never-null law)
 - **Geocoding**: Mapbox v6 API for reverse geocoding (country/state codes, place names)
 - **Session names**: derived from destinations reached (sorted by elevation), not explicit `name` field. See `ARCHITECTURE.md` for details.
 - **Route groups**: `(public)` and `(authenticated)` are filesystem-only — they don't create URL segments. Never use `/app/` prefix in links.

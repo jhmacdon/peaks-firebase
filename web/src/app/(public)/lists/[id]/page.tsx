@@ -1,130 +1,80 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import DestinationCard from "../../../../components/destination-card";
-import ProgressBar from "../../../../components/progress-bar";
-import { useAuth } from "../../../../lib/auth-context";
+import { notFound } from "next/navigation";
+import { getCachedList, getCachedListDestinations } from "../../../../lib/actions/cached-lists";
+import { parseListDescription } from "../../../../lib/list-content";
+import { settled } from "../../../../lib/settled";
+import { Breadcrumb } from "../../../../components/detail-sections";
+import { PageHeader } from "../../../../components/ui/page-header";
 import {
-  getList,
-  getListDestinations,
-  getListProgress,
-  type ListDetail,
-  type ListDestination,
-  type ListProgress,
-} from "../../../../lib/actions/lists";
+  Topline,
+  type ToplineStat,
+} from "../../../../components/ui/topline";
+import { ListProgress } from "../../../../components/list/list-progress";
+import { ListDestinations } from "../../../../components/list/list-destinations";
 
-export default function ListDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const { user, getIdToken } = useAuth();
+// The catalog's lists change rarely; this template is now a server shell
+// (Task 14) rather than a client component that re-fetched `getList` on
+// top of the layout's own SEO fetch — see cached-lists.ts's getCachedList,
+// which de-dupes that read within one request the same way
+// getCachedListDestinations already did.
+export default async function ListDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const list = await getCachedList(id);
+  if (!list) notFound();
 
-  const [list, setList] = useState<ListDetail | null>(null);
-  const [destinations, setDestinations] = useState<ListDestination[]>([]);
-  const [progress, setProgress] = useState<ListProgress | null>(null);
-  const [loading, setLoading] = useState(true);
+  const destinations = await settled(getCachedListDestinations(id), []);
+  const { paragraphs, sourceUrl, sourceLabel } = parseListDescription(list.description);
+  const ownerLabel = list.owner === "peaks" ? "Peaks curated" : "Community list";
 
-  useEffect(() => {
-    async function load() {
-      const [l, dests] = await Promise.all([
-        getList(id),
-        getListDestinations(id),
-      ]);
-      setList(l);
-      setDestinations(dests);
-      setLoading(false);
-    }
-    load();
-  }, [id]);
-
-  // Load progress when user is signed in
-  const userId = user?.uid ?? null;
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    async function loadProgress() {
-      const token = await getIdToken();
-      if (!token) return;
-      const p = await getListProgress(token, id);
-      if (!cancelled) {
-        setProgress(p);
-      }
-    }
-    loadProgress();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, userId, getIdToken]);
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!list) {
-    return (
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="text-gray-500 py-12 text-center">List not found</div>
-      </div>
-    );
-  }
+  const toplineStats: ToplineStat[] = [
+    {
+      key: "destinations",
+      value: list.destination_count.toLocaleString("en-US"),
+      label: list.destination_count === 1 ? "Destination" : "Destinations",
+    },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link
-          href="/lists"
-          className="hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          Lists
-        </Link>
-        <span>/</span>
-        <span className="text-gray-900 dark:text-gray-100">{list.name}</span>
+    <div className="mx-auto max-w-[1200px] px-6 py-8">
+      <PageHeader
+        breadcrumb={<Breadcrumb current={list.name} parentHref="/lists" parentLabel="Lists" />}
+        title={list.name}
+        meta={<p>{ownerLabel}</p>}
+      />
+
+      <Topline stats={toplineStats} className="mt-10" />
+
+      <div className="mt-12 space-y-12">
+        {paragraphs.length > 0 || sourceUrl ? (
+          <section aria-labelledby="list-about">
+            <div className="max-w-[68ch] space-y-3 text-base leading-[1.7] text-ink-2">
+              {paragraphs.map((paragraph, index) => (
+                <p key={`${index}-${paragraph}`}>{paragraph}</p>
+              ))}
+            </div>
+            {sourceUrl && sourceLabel ? (
+              <p className="mt-3 text-[13px] text-muted">
+                Source:{" "}
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-ink-2"
+                >
+                  {sourceLabel}
+                </a>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        <ListProgress listId={list.id} />
+
+        <ListDestinations destinations={destinations} />
       </div>
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold">{list.name}</h1>
-        {list.description && (
-          <p className="text-gray-500 mt-2">{list.description}</p>
-        )}
-        <p className="text-sm text-gray-400 mt-2">
-          {list.destination_count} destination
-          {list.destination_count !== 1 ? "s" : ""}
-        </p>
-      </div>
-
-      {/* Progress (signed-in users only) */}
-      {progress && (
-        <div className="mb-8 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 className="font-semibold mb-3">Your Progress</h3>
-          <ProgressBar completed={progress.completed} total={progress.total} />
-        </div>
-      )}
-
-      {/* Destinations */}
-      {destinations.length === 0 ? (
-        <div className="text-gray-500 py-12 text-center">
-          This list has no destinations yet
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {destinations.map((dest) => (
-            <DestinationCard
-              key={dest.id}
-              id={dest.id}
-              name={dest.name}
-              elevation={dest.elevation}
-              features={dest.features}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

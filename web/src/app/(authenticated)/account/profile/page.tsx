@@ -3,17 +3,27 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../../../lib/auth-context";
 import { getProfile, updateProfile } from "../../../../lib/actions/profile";
-import { uploadAvatar } from "../../../../lib/storage";
+import { uploadAvatar, type ImageUploadHandle } from "../../../../lib/storage";
+import { maybeDownscaleImage } from "../../../../lib/image-downscale";
+import { AVATAR_UPLOAD_LIMITS, validateImageFile } from "../../../../lib/image-upload";
 import type { UserProfile } from "../../../../lib/actions/profile";
+import { LOADING_LABEL } from "../../../../lib/constants";
 import Avatar from "../../../../components/avatar";
 import Link from "next/link";
+import { Button } from "../../../../components/ui/button";
+import { Input, Label } from "../../../../components/ui/field";
+import { EmptyState } from "../../../../components/ui/empty-state";
+
+const AVATAR_MAX_MB = AVATAR_UPLOAD_LIMITS.maxBytes / (1024 * 1024);
 
 export default function EditProfilePage() {
   const { user, getIdToken } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -21,30 +31,72 @@ export default function EditProfilePage() {
     text: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Guards every setState after an `await` in handleAvatarChange — a
+  // mid-upload navigation away from this page must not call setState on an
+  // unmounted component.
+  const mountedRef = useRef(true);
+  const activeUploadRef = useRef<ImageUploadHandle | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Actually abort the transfer too, not just ignore its result.
+      activeUploadRef.current?.cancel();
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
-      const token = await getIdToken();
-      if (!token) return;
-      const data = await getProfile(token);
-      if (data) {
-        setProfile(data);
-        setName(data.name);
-        setAvatarUrl(data.avatarUrl);
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const token = await getIdToken();
+        if (!token) {
+          setLoadError("Sign in to edit your profile.");
+          return;
+        }
+        const data = await getProfile(token);
+        if (data) {
+          setProfile(data);
+          setName(data.name);
+          setAvatarUrl(data.avatarUrl);
+        }
+      } catch {
+        setLoadError("Couldn’t load your profile. Try again.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [getIdToken]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file after an error
     if (!file || !user) return;
 
+    const validation = validateImageFile(file, AVATAR_UPLOAD_LIMITS);
+    if (!validation.ok) {
+      setMessage({ type: "error", text: validation.error });
+      return;
+    }
+
     setUploading(true);
+    setUploadProgress(0);
     setMessage(null);
     try {
-      const url = await uploadAvatar(user.uid, file);
+      const { blob, contentType } = await maybeDownscaleImage(file);
+      if (!mountedRef.current) return;
+
+      const upload = uploadAvatar(user.uid, blob, contentType, (fraction) => {
+        if (mountedRef.current) setUploadProgress(Math.round(fraction * 100));
+      });
+      activeUploadRef.current = upload;
+      const url = await upload.promise;
+      activeUploadRef.current = null;
+      if (!mountedRef.current) return;
+
       setAvatarUrl(url);
 
       // Also save to profile immediately
@@ -52,11 +104,12 @@ export default function EditProfilePage() {
       if (token) {
         await updateProfile(token, { avatarUrl: url });
       }
-      setMessage({ type: "success", text: "Avatar updated" });
+      if (mountedRef.current) setMessage({ type: "success", text: "Avatar updated" });
     } catch {
-      setMessage({ type: "error", text: "Failed to upload avatar" });
+      activeUploadRef.current = null;
+      if (mountedRef.current) setMessage({ type: "error", text: "Failed to upload avatar" });
     } finally {
-      setUploading(false);
+      if (mountedRef.current) setUploading(false);
     }
   };
 
@@ -83,111 +136,96 @@ export default function EditProfilePage() {
     setSaving(false);
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold mb-6">Edit Profile</h1>
-        <div className="text-gray-500 py-12 text-center">Loading...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Link
-          href="/account"
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+    <div className="mx-auto max-w-2xl px-6 py-8">
+      <nav className="flex items-center gap-1.5 text-sm text-muted">
+        <Link href="/account" className="hover:text-ink hover:underline">
+          Account
         </Link>
-        <h1 className="text-2xl font-semibold">Edit Profile</h1>
-      </div>
+        <span aria-hidden>›</span>
+        <span className="text-ink-2">Profile</span>
+      </nav>
+      <h1 className="mt-3 text-2xl font-medium text-ink">Profile</h1>
 
-      {/* Avatar Section */}
-      <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-6">
-        <div className="flex items-center gap-4">
-          <Avatar name={name || null} avatarUrl={avatarUrl} size="lg" />
-          <div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="px-4 py-2 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
-            >
-              {uploading ? "Uploading..." : "Change Avatar"}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarChange}
-              className="hidden"
-            />
-            <p className="text-xs text-gray-400 mt-1.5">JPG, PNG. Max 5MB.</p>
-          </div>
-        </div>
-      </div>
+      {loading ? (
+        <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
+      ) : loadError ? (
+        <p role="alert" className="mt-6 text-sm text-alert">
+          {loadError}
+        </p>
+      ) : (
+        <>
+          {/* Avatar and the form are one section, not two stacked cards —
+              they are the same act of editing (design-tokens.md law 1). */}
+          <form onSubmit={handleSave} className="mt-8">
+            <div className="flex items-center gap-4">
+              <Avatar name={name || null} avatarUrl={avatarUrl} size="lg" />
+              <div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? `Uploading… ${uploadProgress}%` : "Change avatar"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <p className="mt-1.5 text-xs text-faint">
+                  {AVATAR_UPLOAD_LIMITS.label}, up to {AVATAR_MAX_MB}MB.
+                </p>
+              </div>
+            </div>
 
-      {/* Name Form */}
-      <form
-        onSubmit={handleSave}
-        className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800"
-      >
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Your name"
-          />
-        </div>
+            <div className="mt-8">
+              <Label htmlFor="profile-name">Name</Label>
+              <Input
+                id="profile-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+              />
+            </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Email</label>
-          <input
-            type="email"
-            value={profile?.email || user?.email || ""}
-            disabled
-            className="w-full px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            Email cannot be changed here.
-          </p>
-        </div>
+            <div className="mt-5">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={profile?.email || user?.email || ""}
+                disabled
+              />
+              <p className="mt-1.5 text-xs text-faint">
+                Email can’t be changed here.
+              </p>
+            </div>
 
-        {message && (
-          <div
-            className={`text-sm mb-4 ${
-              message.type === "success"
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
+            {message && (
+              <p
+                role="status"
+                className={`mt-5 text-sm ${
+                  message.type === "success" ? "text-success" : "text-alert"
+                }`}
+              >
+                {message.text}
+              </p>
+            )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      </form>
+            <div className="mt-8">
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </>
+      )}
     </div>
   );
 }

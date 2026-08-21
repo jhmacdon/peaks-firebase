@@ -3,11 +3,13 @@
 import type { QueryResultRow } from "pg";
 import db from "../db";
 import { verifyToken } from "../auth-actions";
+import { normalizeSearchName } from "../search-utils";
 import {
   normalizeAreaKind,
   parseAreaBoundary,
   type AreaBoundingBox,
   type AreaBoundary,
+  type AreaKind,
   type ProtectedArea,
 } from "../area-types";
 import {
@@ -470,6 +472,215 @@ function buildGenericDescription(
     case "unknown":
       return `${name} protects land set aside for nature, history, or public use.`;
   }
+}
+
+// ── /areas index ──────────────────────────────────────────────────────────
+// AREA_INDEX_DESIGNATIONS/isAreaIndexDesignation live in ../area-types
+// instead of here: this file has "use server" at the top, which requires
+// every export to be an async function — a plain const array or a
+// synchronous type guard can't live in it (Next.js build-time constraint on
+// server-action modules). Re-imported below for getAreasIndex's own use.
+
+export interface AreaIndexRow {
+  id: string;
+  name: string;
+  kind: AreaKind;
+  designation: string | null;
+  stateCode: string;
+  destinationCount: number;
+}
+
+export interface AreaIndexState {
+  code: string;
+  count: number;
+}
+
+export interface AreasIndexResult {
+  /** Areas within the states chosen below, ranked by destination count
+   * inside each state and capped per state — the "sensible cap" the index
+   * page renders. */
+  areas: AreaIndexRow[];
+  /** The states shown, in the same order the areas above are grouped by —
+   * most areas (matching the current search/filter) first. */
+  states: AreaIndexState[];
+  /** How many areas match the current search/designation filter, across
+   * every state — not capped, so the page can say "showing N of M". */
+  totalMatching: number;
+  /** The whole catalog's area count, unfiltered — the "of 3,869" side of
+   * that same honest line. */
+  totalAreas: number;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+/** Builds the shared WHERE clause + params for the index's search and
+ * designation filters, so the matching-count, per-state-count, and ranked
+ * queries below all filter identically. Every area query here excludes
+ * areas with no recorded state (a handful of non-US/placeholder rows) —
+ * the index groups by state, so a state-less area has nowhere to render. */
+function areaIndexFilter(
+  search: string,
+  designation: string
+): { clause: string; params: unknown[] } {
+  const clauses = ["cardinality(a.state_codes) > 0"];
+  const params: unknown[] = [];
+
+  if (designation) {
+    params.push(designation);
+    clauses.push(`UPPER(a.designation) = $${params.length}`);
+  }
+
+  if (search) {
+    params.push(normalizeSearchName(search));
+    const similarityIndex = params.length;
+    params.push(`${escapeLikePattern(search)}%`);
+    const prefixIndex = params.length;
+    clauses.push(
+      `(a.search_name % $${similarityIndex} OR a.search_name ILIKE $${prefixIndex} ESCAPE E'\\\\')`
+    );
+  }
+
+  return { clause: clauses.join(" AND "), params };
+}
+
+const DESTINATION_COUNT_SUBQUERY = `(
+  SELECT COUNT(DISTINCT da.destination_id)::int
+  FROM destination_areas da
+  JOIN destinations d ON d.id = da.destination_id
+  WHERE da.area_id = a.id AND d.owner = 'peaks'
+)`;
+
+/**
+ * Powers the /areas index: areas grouped by state, capped to the top
+ * `statesLimit` states (by matching area count) and `perStateLimit` areas
+ * per state — the "top states" + "sensible cap" the page promises, rather
+ * than rendering all ~3,869 rows on one request.
+ */
+export async function getAreasIndex(
+  options: {
+    search?: string;
+    designation?: string;
+    statesLimit?: number;
+    perStateLimit?: number;
+  } = {}
+): Promise<AreasIndexResult> {
+  const search = (options.search ?? "").trim().slice(0, 120);
+  const designation = (options.designation ?? "").trim().toUpperCase();
+  const statesLimit = Math.min(Math.max(Math.trunc(options.statesLimit ?? 12), 1), 30);
+  const perStateLimit = Math.min(Math.max(Math.trunc(options.perStateLimit ?? 25), 1), 100);
+
+  const [totalAreasResult, { clause, params }] = [
+    await db.query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM areas`),
+    areaIndexFilter(search, designation),
+  ];
+  const totalAreas = Number(totalAreasResult.rows[0]?.count ?? 0);
+
+  const totalMatchingResult = await db.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM areas a WHERE ${clause}`,
+    params
+  );
+  const totalMatching = Number(totalMatchingResult.rows[0]?.count ?? 0);
+
+  const statesResult = await db.query<{ code: string; count: number }>(
+    `SELECT a.state_codes[1] AS code, COUNT(*)::int AS count
+     FROM areas a
+     WHERE ${clause}
+     GROUP BY 1
+     ORDER BY count DESC, code ASC
+     LIMIT $${params.length + 1}`,
+    [...params, statesLimit]
+  );
+  const states = statesResult.rows.map((row) => ({
+    code: String(row.code),
+    count: Number(row.count),
+  }));
+
+  if (states.length === 0) {
+    return { areas: [], states: [], totalMatching, totalAreas };
+  }
+
+  const stateCodes = states.map((state) => state.code);
+  const rankedResult = await db.query<{
+    id: unknown;
+    name: unknown;
+    kind: unknown;
+    designation: unknown;
+    state_code: unknown;
+    destination_count: unknown;
+    rn: unknown;
+  }>(
+    `SELECT * FROM (
+       SELECT a.id, a.name, a.kind, a.designation, a.state_codes[1] AS state_code,
+              ${DESTINATION_COUNT_SUBQUERY} AS destination_count,
+              ROW_NUMBER() OVER (
+                PARTITION BY a.state_codes[1]
+                ORDER BY ${DESTINATION_COUNT_SUBQUERY} DESC, a.name ASC
+              ) AS rn
+       FROM areas a
+       WHERE ${clause} AND a.state_codes[1] = ANY($${params.length + 1}::text[])
+     ) ranked
+     WHERE rn <= $${params.length + 2}
+     ORDER BY state_code ASC, rn ASC`,
+    [...params, stateCodes, perStateLimit]
+  );
+
+  // Re-sort into the same most-areas-first state order as `states` — the
+  // SQL above orders alphabetically by state for a stable ROW_NUMBER scan,
+  // not by which state has the most matches.
+  const stateOrder = new Map(stateCodes.map((code, index) => [code, index]));
+  const areas = rankedResult.rows
+    .map((row) => ({
+      id: textValue(row.id) ?? "",
+      name: textValue(row.name) ?? "Protected area",
+      kind: normalizeAreaKind(row.kind),
+      designation: textValue(row.designation),
+      stateCode: textValue(row.state_code) ?? "",
+      destinationCount: integerValue(row.destination_count),
+    }))
+    .sort(
+      (left, right) =>
+        (stateOrder.get(left.stateCode) ?? 0) - (stateOrder.get(right.stateCode) ?? 0)
+    );
+
+  return { areas, states, totalMatching, totalAreas };
+}
+
+/**
+ * /peaks/[state]'s protected-areas row: the areas with the most linked
+ * destinations in one state, US-only for the same reason
+ * getTopDestinationsForState is (search.ts) — a raw `state_code` match can
+ * otherwise pick up a same-coded foreign province.
+ */
+export async function getTopAreasForState(
+  stateCode: string,
+  limit: number = 6
+): Promise<AreaIndexRow[]> {
+  const result = await db.query<{
+    id: unknown;
+    name: unknown;
+    kind: unknown;
+    designation: unknown;
+    destination_count: unknown;
+  }>(
+    `SELECT a.id, a.name, a.kind, a.designation,
+            ${DESTINATION_COUNT_SUBQUERY} AS destination_count
+     FROM areas a
+     WHERE $1 = ANY(a.state_codes) AND a.country_code = 'US'
+     ORDER BY destination_count DESC, a.name ASC
+     LIMIT $2`,
+    [stateCode, limit]
+  );
+
+  return result.rows.map((row) => ({
+    id: textValue(row.id) ?? "",
+    name: textValue(row.name) ?? "Protected area",
+    kind: normalizeAreaKind(row.kind),
+    designation: textValue(row.designation),
+    stateCode,
+    destinationCount: integerValue(row.destination_count),
+  }));
 }
 
 function textValue(value: unknown): string | null {

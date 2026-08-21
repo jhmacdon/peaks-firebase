@@ -3,93 +3,62 @@ import Link from "next/link";
 // Shared building blocks for the editorial detail pages (destination and
 // route guides). See web/docs/destination-page-spec.md for the visual rules.
 
-export const DIFFICULTY_CLASSES: Record<string, string> = {
-  Easy: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
-  Moderate: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
-  Hard: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
-  Strenuous: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300",
-};
+// DifficultyPill / DIFFICULTY_CLASSES used to live here: a four-hue
+// emerald/sky/amber/red scale on raw Tailwind palette colours (law 5), and
+// the last such palette left in this file. Its one caller, route-card.tsx,
+// now prints the difficulty word in a neutral `Badge` — the word carries the
+// meaning, and the token system defines no caution/severity ramp to spend a
+// hue on. The route page has always shown difficulty as plain text.
 
-export function DifficultyPill({ label }: { label: string }) {
+// Unified on the "›" separator (design-tokens.md-era convention) — several
+// other pages still hand-roll a "/"-separated breadcrumb inline; those are
+// out of scope here and get folded onto this component in a later nav task.
+//
+// Defaults to Discover — the parent for a destination or route page, since
+// neither has its own index yet. A page that DOES have a real index
+// (/areas, /lists) overrides `parentHref`/`parentLabel` to point there
+// instead, since that's the page a reader actually came from.
+//
+// `crumbs` is the escape hatch for a page nested two levels deep (a
+// destination's reports index: Discover › {destination} › Reports) — pass
+// every link ahead of `current` in order. Omitting it keeps the plain
+// one-parent shape every existing caller already uses.
+export function Breadcrumb({
+  current,
+  parentHref = "/discover",
+  parentLabel = "Discover",
+  crumbs,
+}: {
+  current: string;
+  parentHref?: string;
+  parentLabel?: string;
+  crumbs?: Array<{ href: string; label: string }>;
+}) {
+  const trail = crumbs ?? [{ href: parentHref, label: parentLabel }];
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-        DIFFICULTY_CLASSES[label] || DIFFICULTY_CLASSES.Moderate
-      }`}
-    >
-      {label}
-    </span>
-  );
-}
-
-export function Breadcrumb({ current }: { current: string }) {
-  return (
-    <nav className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-      <Link
-        href="/discover"
-        className="hover:text-gray-900 hover:underline dark:hover:text-gray-100"
-      >
-        Discover
-      </Link>
-      <span aria-hidden>›</span>
-      <span className="text-gray-700 dark:text-gray-300">{current}</span>
+    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+      {trail.map((crumb) => (
+        <span key={crumb.href} className="flex items-center gap-1.5">
+          <Link href={crumb.href} className="hover:text-ink hover:underline">
+            {crumb.label}
+          </Link>
+          <span aria-hidden>›</span>
+        </span>
+      ))}
+      <span className="text-ink-2">{current}</span>
     </nav>
   );
 }
 
-export function StatCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white px-4 py-3 dark:bg-gray-950">
-      <div className="text-lg font-semibold text-gray-900 dark:text-white">
-        {value}
-      </div>
-      <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
-    </div>
-  );
-}
+// StatCell / StatRow / SidePanel used to live here for the route and area
+// detail pages' boxed stat grids and bordered sidebars. The destination
+// page dropped them in Task 13 for flat StatClusters and unboxed rows;
+// Task 14 did the same to the route and area pages (their last two
+// callers), so the boxed-stat/bordered-sidebar shapes are retired from
+// this file too — see components/ui/stat.tsx (StatCluster) and each
+// section's own quiet-row component instead.
 
-export function StatRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd
-        className={`text-right font-medium text-gray-900 dark:text-white ${
-          mono ? "font-mono text-[13px]" : ""
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-export function SidePanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-      <h2 className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-        {title}
-      </h2>
-      <div className="px-4 py-3">{children}</div>
-    </section>
-  );
-}
-
-/** "fire-lookout" → "Fire lookout" */
-export function titleize(value: string): string {
-  const spaced = value.replace(/[-_]+/g, " ").trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
+// Lives in lib/destination-detail.ts now (the destination page's pure
+// helpers moved there in Task 13 so they could be unit-tested); re-exported
+// here so the route page's existing import keeps resolving.
+export { titleize } from "../lib/destination-detail";

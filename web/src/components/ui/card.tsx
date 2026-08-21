@@ -1,7 +1,12 @@
 import Link from "next/link";
 
+// Card — flat shell for list-item cards (destination/route/list/report
+// grids). rounded-media is the only radius option available to a
+// non-control container (design-tokens.md Radius table has no other step).
+// Hover darkens the fill token rather than lifting/scaling/growing a shadow
+// (law 6).
 const BASE =
-  "block rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700";
+  "block rounded-media border border-border bg-surface p-4 transition-colors hover:bg-fill";
 
 export function Card({
   href,

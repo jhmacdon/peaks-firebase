@@ -1,9 +1,11 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
 import db from "../db";
+import { buildPhotoSyncPlan, photoRowToBlock } from "../trip-report-photo-sync";
 
 export interface TripReportCondition {
   code: string;
@@ -98,13 +100,14 @@ function mapReport(row: ReportRow): TripReport {
   const blocks: TripReportBlock[] = [];
   if (row.body) blocks.push({ type: "text", content: row.body });
   for (const photo of row.photos ?? []) {
-    blocks.push({
-      type: "photo",
-      content: photo.download_url,
-      caption: photo.caption ?? undefined,
-      sourceId: photo.id,
-      createdAt: photo.taken_at ? iso(photo.taken_at) : undefined,
-    });
+    blocks.push(
+      photoRowToBlock({
+        id: photo.id,
+        downloadUrl: photo.download_url,
+        caption: photo.caption,
+        createdAt: photo.taken_at ? iso(photo.taken_at) : undefined,
+      })
+    );
   }
   return {
     id: row.id,
@@ -143,6 +146,68 @@ function bodyFromBlocks(blocks: TripReportBlock[]): string {
   return body;
 }
 
+/**
+ * Persist `photo` blocks into `trip_report_photos` — the table
+ * `REPORT_SELECT`/`mapReport` (and so the report-detail page) actually
+ * reads photos from. Without this, photo blocks only ever lived in the
+ * in-memory block array and silently vanished on save. Shared by
+ * `createTripReport` (a fresh report has no existing rows, so this is a
+ * pure insert) and `updateTripReport` (rows can be updated in place,
+ * added, or removed). Must run inside the caller's transaction.
+ */
+async function syncTripReportPhotos(
+  client: PoolClient,
+  reportId: string,
+  blocks: TripReportBlock[]
+): Promise<void> {
+  const photoBlocks = blocks.filter((block) => block.type === "photo");
+  const existing = await client.query(
+    "SELECT id, storage_path FROM trip_report_photos WHERE report_id = $1",
+    [reportId]
+  );
+  const existingRows = existing.rows.map((row) => ({
+    id: row.id as string,
+    storagePath: (row.storage_path as string | null) ?? null,
+  }));
+
+  const plan = buildPhotoSyncPlan(existingRows, photoBlocks, () => randomUUID());
+
+  for (const upsert of plan.upserts) {
+    if (upsert.isNew) {
+      await client.query(
+        `INSERT INTO trip_report_photos (id, report_id, storage_path, download_url, caption, ordinal)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (storage_path) DO NOTHING`,
+        [upsert.id, reportId, upsert.storagePath, upsert.downloadUrl, upsert.caption, upsert.ordinal]
+      );
+    } else {
+      await client.query(
+        `UPDATE trip_report_photos
+         SET download_url = $1, storage_path = $2, caption = $3, ordinal = $4
+         WHERE id = $5 AND report_id = $6`,
+        [upsert.downloadUrl, upsert.storagePath, upsert.caption, upsert.ordinal, upsert.id, reportId]
+      );
+    }
+  }
+
+  if (plan.removedIds.length > 0) {
+    // Same queue-then-delete pattern as deleteTripReport: the actual
+    // Storage object is removed by whatever drains
+    // trip_report_photo_deletions, not synchronously here.
+    await client.query(
+      `INSERT INTO trip_report_photo_deletions (storage_path)
+       SELECT storage_path FROM trip_report_photos
+       WHERE report_id = $1 AND id = ANY($2::text[]) AND storage_path IS NOT NULL
+       ON CONFLICT DO NOTHING`,
+      [reportId, plan.removedIds]
+    );
+    await client.query(
+      `DELETE FROM trip_report_photos WHERE report_id = $1 AND id = ANY($2::text[])`,
+      [reportId, plan.removedIds]
+    );
+  }
+}
+
 export async function getTripReportsForDestination(
   destinationId: string,
   requestedLimit = 10
@@ -157,12 +222,17 @@ export async function getTripReportsForDestination(
   return result.rows.map((row) => mapReport(row as ReportRow));
 }
 
+/** Reports older than this aren't "recent" — the discover page drops the
+ * section entirely rather than call a years-old report recent. */
+const RECENT_TRIP_REPORT_WINDOW = "18 months";
+
 export async function getRecentTripReports(requestedLimit = 6): Promise<TripReport[]> {
   const result = await db.query(
     `${REPORT_SELECT}
      WHERE tr.moderation_state = 'published'
+       AND tr.activity_date >= now() - $2::interval
      ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $1`,
-    [limit(requestedLimit, 6, 6)]
+    [limit(requestedLimit, 6, 6), RECENT_TRIP_REPORT_WINDOW]
   );
   return result.rows.map((row) => mapReport(row as ReportRow));
 }
@@ -304,6 +374,7 @@ export async function createTripReport(
        WHERE sr.session_id = $2 AND r.status = 'active'`,
       [id, data.sessionId]
     );
+    await syncTripReportPhotos(client, id, data.blocks);
     await client.query("COMMIT");
     return { id };
   } catch (error) {
@@ -326,6 +397,7 @@ export async function updateTripReport(
 ): Promise<void> {
   const user = await verifyToken(token);
   if (!user) throw new Error("Unauthorized");
+
   const updates: string[] = ["updated_at = now()"];
   const values: unknown[] = [reportId, user.uid];
   if (data.title !== undefined) {
@@ -336,12 +408,28 @@ export async function updateTripReport(
     values.push(bodyFromBlocks(data.blocks));
     updates.push(`body = $${values.length}`);
   }
-  const result = await db.query(
-    `UPDATE trip_reports SET ${updates.join(", ")}
-     WHERE id = $1 AND user_id = $2 RETURNING id`,
-    values
-  );
-  if (!result.rows[0]) throw new Error("You can only edit your own reports");
+
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE trip_reports SET ${updates.join(", ")}
+       WHERE id = $1 AND user_id = $2 RETURNING id`,
+      values
+    );
+    if (!result.rows[0]) throw new Error("You can only edit your own reports");
+
+    if (data.blocks !== undefined) {
+      await syncTripReportPhotos(client, reportId, data.blocks);
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function deleteTripReport(token: string, reportId: string): Promise<void> {

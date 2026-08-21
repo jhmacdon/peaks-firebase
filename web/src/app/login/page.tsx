@@ -5,14 +5,20 @@ import { useAuth } from "../../lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider } from "../../lib/auth-context";
+import AppNav from "../../components/app-nav";
 import { safeNextPath } from "../../lib/safe-next-path";
+import { LOADING_LABEL } from "../../lib/constants";
 
 export default function LoginPage() {
   return (
     <AuthProvider>
-      <Suspense fallback={<AuthPageFallback />}>
-        <LoginContent />
-      </Suspense>
+      <AppNav />
+      {/* Clears the fixed mobile tab bar; see --chrome-bottom-h. */}
+      <div className="pb-[var(--chrome-bottom-h)] md:pb-0">
+        <Suspense fallback={<AuthPageFallback />}>
+          <LoginContent />
+        </Suspense>
+      </div>
     </AuthProvider>
   );
 }
@@ -147,6 +153,7 @@ function LoginContent() {
 
           <div className="mt-6 space-y-3">
             <button
+              type="button"
               onClick={handleGoogle}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -171,6 +178,7 @@ function LoginContent() {
               Continue with Google
             </button>
             <button
+              type="button"
               onClick={handleApple}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
             >
@@ -194,9 +202,14 @@ function LoginContent() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium mb-1">
+                Email
+              </label>
               <input
+                id="email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
@@ -205,7 +218,9 @@ function LoginContent() {
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="block text-sm font-medium">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium">
+                  Password
+                </label>
                 <button
                   type="button"
                   onClick={handlePasswordReset}
@@ -215,7 +230,10 @@ function LoginContent() {
                 </button>
               </div>
               <input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
@@ -267,7 +285,7 @@ function LoginContent() {
 function AuthPageFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-      <div className="text-gray-500">Loading...</div>
+      <div className="text-gray-500">{LOADING_LABEL}</div>
     </div>
   );
 }

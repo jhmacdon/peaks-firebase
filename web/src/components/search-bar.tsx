@@ -8,6 +8,54 @@ interface SearchBarProps {
   paramName?: string;
 }
 
+// The one search field on the site: 48px tall, pill, seated on the fill
+// token with no border (the AllTrails audit's search-field spec, carried
+// into the overhaul brief). Focus is the global 2px accent
+// `:focus-visible` outline from globals.css — the field adds no second
+// focus treatment of its own.
+const FIELD_CLASSES =
+  "h-12 w-full rounded-full bg-fill py-2.5 pl-11 pr-11 text-[15px] text-ink placeholder:text-faint";
+
+function SearchGlyph() {
+  return (
+    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-faint">
+      <svg
+        width="17"
+        height="17"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    </span>
+  );
+}
+
+/**
+ * The empty field, drawn but not wired — the Suspense fallback for pages
+ * that prerender statically.
+ *
+ * `SearchBar` reads the URL, so on a static route Next renders it in the
+ * browser and puts this in the HTML instead. A bare spacer would leave the
+ * page's main control as a hole until hydration; this holds the exact shape,
+ * so the field is simply there and then becomes live. It is deliberately not
+ * an `<input>`: an inert box that accepts keystrokes and then throws them
+ * away on hydration would be worse than one that visibly waits.
+ */
+export function SearchFieldSkeleton({ placeholder = "Search…" }: { placeholder?: string }) {
+  return (
+    <div className="relative" aria-hidden>
+      <SearchGlyph />
+      <div className={`${FIELD_CLASSES} flex items-center text-faint`}>{placeholder}</div>
+    </div>
+  );
+}
+
 export default function SearchBar({
   placeholder = "Search...",
   paramName = "q",
@@ -77,28 +125,14 @@ export default function SearchBar({
 
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
-        <svg
-          width="17"
-          height="17"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </span>
+      <SearchGlyph />
       <input
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="w-full rounded-md border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-[15px] text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
+        className={FIELD_CLASSES}
       />
       {value && (
         <button
@@ -107,7 +141,7 @@ export default function SearchBar({
             setValue("");
             updateSearch("");
           }}
-          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-faint transition-colors hover:text-ink-2"
           aria-label="Clear search"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
