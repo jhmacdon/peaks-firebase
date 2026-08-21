@@ -37,6 +37,7 @@ test("manifest parser keeps complete source and license records", () => {
   assert.equal(parsed.candidates[0].licenseName, "CC BY-SA 4.0");
   assert.equal(parsed.candidates[0].imageWidth, 4000);
   assert.equal(parsed.candidates[0].focalY, 25);
+  assert.deepEqual(parsed.held, []);
 });
 
 test("manifest parser allows alternatives but rejects a repeated source", () => {
@@ -123,7 +124,66 @@ test("reviewed Cascade manifest has one usable candidate for all 20 destinations
   for (const candidate of manifest.candidates) {
     assert.ok(candidate.imageWidth >= 1600, `${candidate.destinationName} is too narrow`);
     assert.ok(candidate.imageHeight >= 900, `${candidate.destinationName} is too short`);
+    assert.ok(
+      candidate.imageWidth * candidate.imageHeight <= 80_000_000,
+      `${candidate.destinationName} is too large to process`
+    );
     assert.ok(candidate.focalX >= 0 && candidate.focalX <= 100);
     assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
   }
+});
+
+test("reviewed Colorado Fourteeners manifest accounts for all 53 destinations", () => {
+  const manifest = parseDestinationPhotoManifest(JSON.parse(readFileSync(
+    path.resolve(__dirname, "../../data/colorado-fourteener-photo-candidates.json"),
+    "utf8"
+  )));
+  assert.equal(manifest.candidates.length, 52);
+  assert.equal(new Set(manifest.candidates.map((candidate) => candidate.destinationId)).size, 52);
+  assert.deepEqual(manifest.held, [{
+    destinationId: "X6uF7xDeu7tJoKzmNIVE",
+    destinationName: "Missouri Mountain",
+    reason: "The only exact free-use Commons photo is 1024×768; higher-resolution search results were mislabeled, route graphics, or all-rights-reserved.",
+  }]);
+  assert.equal(manifest.candidates.length + manifest.held.length, 53);
+  for (const candidate of manifest.candidates) {
+    assert.ok(candidate.imageWidth >= 1600, `${candidate.destinationName} is too narrow`);
+    assert.ok(candidate.imageHeight >= 900, `${candidate.destinationName} is too short`);
+    assert.ok(
+      candidate.imageWidth * candidate.imageHeight <= 80_000_000,
+      `${candidate.destinationName} is too large to process`
+    );
+    assert.ok(candidate.focalX >= 0 && candidate.focalX <= 100);
+    assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
+  }
+});
+
+test("manifest parser keeps holds separate from candidates", () => {
+  const candidate = {
+    destinationId: "rainier",
+    destinationName: "Mount Rainier",
+    imageUrl: "https://upload.wikimedia.org/rainier.jpg",
+    sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Rainier.jpg",
+    sourceKind: "wikimedia_commons",
+    photographer: "A Photographer",
+    licenseName: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    imageWidth: 4000,
+    imageHeight: 2600,
+    focalX: 50,
+    focalY: 25,
+  };
+  assert.throws(
+    () => parseDestinationPhotoManifest({
+      collection: "Cascade Volcanoes",
+      researchedAt: "2026-08-21",
+      candidates: [candidate],
+      held: [{
+        destinationId: "rainier",
+        destinationName: "Mount Rainier",
+        reason: "No usable source.",
+      }],
+    }),
+    /also has a candidate/
+  );
 });
