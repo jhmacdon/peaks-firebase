@@ -16,10 +16,17 @@ export interface DestinationPhotoManifestCandidate {
   notes?: string;
 }
 
+export interface DestinationPhotoManifestHold {
+  destinationId: string;
+  destinationName: string;
+  reason: string;
+}
+
 export interface DestinationPhotoManifest {
   collection: string;
   researchedAt: string;
   candidates: DestinationPhotoManifestCandidate[];
+  held: DestinationPhotoManifestHold[];
 }
 
 function requiredString(value: unknown, path: string): string {
@@ -118,5 +125,33 @@ export function parseDestinationPhotoManifest(value: unknown): DestinationPhotoM
     };
   });
 
-  return { collection, researchedAt, candidates };
+  const rawHeld = record.held == null ? [] : record.held;
+  if (!Array.isArray(rawHeld)) {
+    throw new Error("held must be an array");
+  }
+  const candidateDestinationIds = new Set(candidates.map((candidate) => candidate.destinationId));
+  const heldDestinationIds = new Set<string>();
+  const held = rawHeld.map((raw, index) => {
+    const path = `held[${index}]`;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error(`${path} must be an object`);
+    }
+    const item = raw as Record<string, unknown>;
+    const destinationId = requiredString(item.destinationId, `${path}.destinationId`);
+    const destinationName = requiredString(item.destinationName, `${path}.destinationName`);
+    if (candidateDestinationIds.has(destinationId)) {
+      throw new Error(`${path}.destinationId also has a candidate: ${destinationName}`);
+    }
+    if (heldDestinationIds.has(destinationId)) {
+      throw new Error(`${path}.destinationId repeats: ${destinationName}`);
+    }
+    heldDestinationIds.add(destinationId);
+    return {
+      destinationId,
+      destinationName,
+      reason: requiredString(item.reason, `${path}.reason`),
+    };
+  });
+
+  return { collection, researchedAt, candidates, held };
 }

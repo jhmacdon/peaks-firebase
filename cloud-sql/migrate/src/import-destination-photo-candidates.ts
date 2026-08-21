@@ -15,6 +15,7 @@ import {
   parseDestinationPhotoManifest,
   type DestinationPhotoManifest,
   type DestinationPhotoManifestCandidate,
+  type DestinationPhotoManifestHold,
 } from "./destination-photo-candidates";
 
 interface ImportArgs {
@@ -32,22 +33,22 @@ function parseArgs(argv: string[]): ImportArgs {
 
 async function verifyDestinations(
   client: PoolClient,
-  candidates: DestinationPhotoManifestCandidate[]
+  destinations: Array<DestinationPhotoManifestCandidate | DestinationPhotoManifestHold>
 ): Promise<void> {
-  const ids = candidates.map((candidate) => candidate.destinationId);
+  const ids = destinations.map((destination) => destination.destinationId);
   const result = await client.query<{ id: string; name: string | null }>(
     `SELECT id, name FROM destinations WHERE id = ANY($1::text[])`,
     [ids]
   );
   const actual = new Map(result.rows.map((row) => [row.id, row.name]));
-  for (const candidate of candidates) {
-    const name = actual.get(candidate.destinationId);
+  for (const destination of destinations) {
+    const name = actual.get(destination.destinationId);
     if (name == null) {
-      throw new Error(`Destination not found: ${candidate.destinationName} (${candidate.destinationId})`);
+      throw new Error(`Destination not found: ${destination.destinationName} (${destination.destinationId})`);
     }
-    if (name !== candidate.destinationName) {
+    if (name !== destination.destinationName) {
       throw new Error(
-        `Destination name mismatch for ${candidate.destinationId}: manifest=${candidate.destinationName}, database=${name}`
+        `Destination name mismatch for ${destination.destinationId}: manifest=${destination.destinationName}, database=${name}`
       );
     }
   }
@@ -101,7 +102,7 @@ async function run(args: ImportArgs): Promise<void> {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    await verifyDestinations(client, manifest.candidates);
+    await verifyDestinations(client, [...manifest.candidates, ...manifest.held]);
     const changed = await upsertCandidates(client, manifest);
     if (args.apply) {
       await client.query("COMMIT");
@@ -110,7 +111,8 @@ async function run(args: ImportArgs): Promise<void> {
     }
     console.log(
       `${args.apply ? "Applied" : "Dry run"}: ${changed} added or reframed of ` +
-      `${manifest.candidates.length} ${manifest.collection} candidate(s)`
+      `${manifest.candidates.length} ${manifest.collection} candidate(s); ` +
+      `${manifest.held.length} held`
     );
   } catch (error) {
     await client.query("ROLLBACK");
