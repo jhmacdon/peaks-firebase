@@ -51,7 +51,7 @@ export interface OpenMeteoDailyResult {
   utc_offset_seconds?: number;
   timezone?: string;
   daily?: {
-    time?: string[];
+    time?: (string | null | undefined)[];
     temperature_2m_max?: (number | null | undefined)[];
     temperature_2m_min?: (number | null | undefined)[];
     rain_sum?: (number | null | undefined)[];
@@ -90,6 +90,18 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/** `daily.time[i]` must be a real `YYYY-MM-DD` calendar day: it's spliced
+ * unvalidated into the doc's `date` field (`${time[i]}T12:00:00${offset}`),
+ * and a null/undefined/malformed element would otherwise pass the web
+ * reader's typeof-string filter (`RawForecastEntry.date`) only to throw a
+ * RangeError inside `new Date()`/Intl during SSR of a public destination
+ * page. Format-checked *and* parsed (belt-and-braces) rather than trusting
+ * the regex alone. */
+function isValidDateString(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -117,6 +129,9 @@ export function buildForecastEntries(result: OpenMeteoDailyResult): ForecastEntr
 
   const entries: ForecastEntry[] = [];
   for (let i = 0; i < times.length; i++) {
+    const time = times[i];
+    if (!isValidDateString(time)) continue;
+
     const temperatureMax = daily?.temperature_2m_max?.[i];
     const temperatureMin = daily?.temperature_2m_min?.[i];
     if (!isFiniteNumber(temperatureMax) || !isFiniteNumber(temperatureMin)) continue;
@@ -128,7 +143,7 @@ export function buildForecastEntries(result: OpenMeteoDailyResult): ForecastEntr
     if (isFiniteNumber(direction)) wind.direction = direction;
 
     entries.push({
-      date: `${times[i]}T12:00:00${offset}`,
+      date: `${time}T12:00:00${offset}`,
       timezone,
       temperatureMax: round2(temperatureMax + 273.15),
       temperatureMin: round2(temperatureMin + 273.15),
@@ -253,23 +268,57 @@ export async function refreshDestinationWeather(
   const forecasts = await fetchDailyForecasts(targets, fetchImpl);
 
   const writer = db.bulkWriter();
-  for (const ref of extraRefs) writer.delete(ref);
+  // BulkWriter's own default error handler already retries a bounded set of
+  // transient codes (UNAVAILABLE/ABORTED) before giving up; overriding it
+  // here adds no retry policy of our own — returning false always means
+  // "don't retry beyond whatever BulkWriter's own attempt already did".
+  // What this buys is visibility: without a handler, a write BulkWriter
+  // ultimately gives up on (bad IAM, a rules rejection, an oversized doc)
+  // is silently dropped, `refreshed` still counts it (it was enqueued, not
+  // written), and the endpoint logs "refreshed 776/776" while some
+  // destinations got nothing. A destination whose write fails here just
+  // keeps its stale doc and gets picked up again on the next scheduled run.
+  writer.onWriteError((error) => {
+    console.warn(
+      `[weather] write failed for ${error.documentRef.path} (${error.operationType}):`,
+      error.message
+    );
+    return false;
+  });
 
-  let refreshed = 0;
+  // Every set()/delete() promise settles independently of writer.close() —
+  // catch each one so a permanent failure (onWriteError returning false)
+  // can never surface as an unhandled rejection (fatal under this service's
+  // default --unhandled-rejections=throw, see lib/async-route.ts).
+  for (const ref of extraRefs) {
+    writer.delete(ref).catch(() => {});
+  }
+
+  const total = targets.length;
+  const pendingWrites: Promise<boolean>[] = [];
   for (const target of targets) {
     const forecast = forecasts.get(target.id);
     if (!forecast || forecast.length === 0) continue;
     const ref = refByDestinationId.get(target.id) ?? db.collection("weather").doc(target.id);
-    writer.set(ref, {
-      destinationId: target.id,
-      forecast,
-      lastUpdated: FieldValue.serverTimestamp(),
-    });
-    refreshed += 1;
+    pendingWrites.push(
+      writer
+        .set(ref, {
+          destinationId: target.id,
+          forecast,
+          lastUpdated: FieldValue.serverTimestamp(),
+        })
+        .then(() => true)
+        .catch(() => false)
+    );
   }
   await writer.close();
 
-  const total = targets.length;
+  // `refreshed` counts settled successful writes, not enqueues — a write
+  // BulkWriter ultimately failed (logged above) is excluded here even
+  // though it was queued, so the returned count matches what's actually in
+  // Firestore.
+  const settled = await Promise.all(pendingWrites);
+  const refreshed = settled.filter(Boolean).length;
   const skipped = total - refreshed;
   console.log(`[weather] refreshed ${refreshed}/${total} destinations, ${skipped} skipped`);
   return { total, refreshed, skipped };

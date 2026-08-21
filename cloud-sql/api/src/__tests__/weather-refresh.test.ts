@@ -7,10 +7,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import request from "supertest";
+import type { Pool } from "pg";
+import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { app } from "../index";
 import {
   buildForecastEntries,
   fetchDailyForecasts,
+  refreshDestinationWeather,
   FORECAST_DAYS,
   LOCATION_BATCH_SIZE,
   type OpenMeteoDailyResult,
@@ -167,6 +170,42 @@ test("buildForecastEntries skips an entry with a null/undefined temperatureMin t
   assert.equal(entries.length, 0);
 });
 
+test("buildForecastEntries skips an entry whose time is null/undefined; other entries survive", () => {
+  const entries = buildForecastEntries({
+    timezone: "UTC",
+    daily: {
+      time: [null as unknown as string, "2026-08-21", undefined as unknown as string],
+      temperature_2m_max: [10, 12, 14],
+      temperature_2m_min: [0, 2, 4],
+      rain_sum: [0, 0, 0],
+      showers_sum: [0, 0, 0],
+      snowfall_sum: [0, 0, 0],
+      wind_speed_10m_max: [1, 1, 1],
+      wind_direction_10m_dominant: [1, 1, 1],
+    },
+  });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].date, "2026-08-21T12:00:00+00:00");
+});
+
+test("buildForecastEntries skips an entry whose time is not a real YYYY-MM-DD day", () => {
+  const entries = buildForecastEntries({
+    timezone: "UTC",
+    daily: {
+      time: ["not-a-date", "2026-13-40", "2026-08-21"],
+      temperature_2m_max: [10, 12, 14],
+      temperature_2m_min: [0, 2, 4],
+      rain_sum: [0, 0, 0],
+      showers_sum: [0, 0, 0],
+      snowfall_sum: [0, 0, 0],
+      wind_speed_10m_max: [1, 1, 1],
+      wind_direction_10m_dominant: [1, 1, 1],
+    },
+  });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].date, "2026-08-21T12:00:00+00:00");
+});
+
 test("buildForecastEntries: missing wind values -> wind object present without the non-finite fields", () => {
   const [entry] = buildForecastEntries({
     timezone: "UTC",
@@ -254,6 +293,136 @@ test("fetchDailyForecasts: bare-object single-location response is wrapped", asy
   const forecasts = await fetchDailyForecasts(targets, fn);
 
   assert.equal(forecasts.get("solo")?.[0].temperatureMax, 278.15); // 5 + 273.15
+});
+
+// --- refreshDestinationWeather: fake pool + fake Firestore db -------------
+//
+// No real DB or Firestore SDK involved. `pool` is a fake exposing only
+// `.query()` (same pattern as sweep-stuck-sessions.test.ts's fakePool). The
+// fake `db` implements just the surface refreshDestinationWeather touches:
+// `collection().select().get()` for the legacy doc-id scan, `collection().doc()`
+// for a fresh doc ref, and `bulkWriter()` with `onWriteError`/`set`/`delete`/
+// `close` — `set`/`delete` return real Promises so the module's own
+// `.then()/.catch()` settling logic runs exactly as it does against the real
+// SDK, and `set()` can be told to fail for chosen destinationIds to exercise
+// the onWriteError path without a real BulkWriterError.
+
+function fakePool(rows: WeatherTarget[]): Pool {
+  return { query: async () => ({ rows }) } as unknown as Pool;
+}
+
+function makeFakeDb(
+  legacyDocs: Array<{ id: string; destinationId: string }>,
+  opts: { failDestinationIds?: Set<string> } = {}
+) {
+  const setCalls: Array<{ refPath: string; data: Record<string, unknown> }> = [];
+  const deletedPaths: string[] = [];
+  const writeErrors: unknown[] = [];
+  let errorFn: ((error: unknown) => boolean) | null = null;
+
+  const makeRef = (path: string) => ({ path });
+  const legacyRefs = legacyDocs.map((doc) => ({
+    ref: makeRef(`weather/${doc.id}`),
+    destinationId: doc.destinationId,
+  }));
+
+  const weatherCollection = {
+    select: (_field: string) => ({
+      get: async () => ({
+        docs: legacyRefs.map(({ ref, destinationId }) => ({
+          ref,
+          get: (field: string) => (field === "destinationId" ? destinationId : undefined),
+        })),
+      }),
+    }),
+    doc: (id: string) => makeRef(`weather/new-${id}`),
+  };
+
+  const db = {
+    collection: (name: string) => {
+      assert.equal(name, "weather");
+      return weatherCollection;
+    },
+    bulkWriter: () => ({
+      onWriteError: (fn: (error: unknown) => boolean) => {
+        errorFn = fn;
+      },
+      set: (ref: { path: string }, data: Record<string, unknown>) => {
+        setCalls.push({ refPath: ref.path, data });
+        if (opts.failDestinationIds?.has(data.destinationId as string)) {
+          const error = {
+            code: 14,
+            message: "simulated permanent failure",
+            documentRef: ref,
+            operationType: "set" as const,
+            failedAttempts: 1,
+          };
+          writeErrors.push(error);
+          errorFn?.(error);
+          return Promise.reject(new Error("simulated write failure"));
+        }
+        return Promise.resolve({});
+      },
+      delete: (ref: { path: string }) => {
+        deletedPaths.push(ref.path);
+        return Promise.resolve({});
+      },
+      close: async () => {},
+    }),
+  };
+
+  return { db: db as unknown as Firestore, setCalls, deletedPaths, writeErrors };
+}
+
+test("refreshDestinationWeather: dedupes legacy docs by destinationId, reuses the first ref, deletes extras, writes the full doc shape", async () => {
+  const targets: WeatherTarget[] = [
+    { id: "dest-a", lat: 1, lng: 1 },
+    { id: "dest-b", lat: 2, lng: 2 },
+    { id: "dest-c", lat: 3, lng: 3 }, // no legacy doc at all
+  ];
+  const { db, setCalls, deletedPaths } = makeFakeDb([
+    { id: "legacy-1", destinationId: "dest-a" },
+    { id: "legacy-2", destinationId: "dest-a" }, // duplicate -> must be deleted
+    { id: "legacy-3", destinationId: "dest-b" },
+  ]);
+  const { fn } = fakeFetch([
+    { status: 200, body: [dailyResultFor(10), dailyResultFor(20), dailyResultFor(30)] },
+  ]);
+
+  const counts = await refreshDestinationWeather(fakePool(targets), db, fn);
+
+  assert.deepEqual(counts, { total: 3, refreshed: 3, skipped: 0 });
+  assert.deepEqual(deletedPaths, ["weather/legacy-2"]);
+
+  const byDestination = new Map(setCalls.map((c) => [c.data.destinationId, c]));
+  assert.equal(byDestination.get("dest-a")?.refPath, "weather/legacy-1"); // first-doc-wins, reused
+  assert.equal(byDestination.get("dest-b")?.refPath, "weather/legacy-3"); // sole legacy doc, reused
+  assert.equal(byDestination.get("dest-c")?.refPath, "weather/new-dest-c"); // no legacy doc -> fresh ref
+
+  const destAWrite = byDestination.get("dest-a")!;
+  assert.equal(destAWrite.data.destinationId, "dest-a");
+  assert.ok(Array.isArray(destAWrite.data.forecast));
+  assert.ok((destAWrite.data.forecast as unknown[]).length > 0);
+  assert.equal(destAWrite.data.lastUpdated, FieldValue.serverTimestamp());
+});
+
+test("refreshDestinationWeather: a write BulkWriter ultimately fails is logged via onWriteError and excluded from refreshed", async (t) => {
+  const warnMock = t.mock.method(console, "warn", () => undefined);
+  const targets: WeatherTarget[] = [
+    { id: "dest-a", lat: 1, lng: 1 },
+    { id: "dest-b", lat: 2, lng: 2 },
+  ];
+  const { db, writeErrors } = makeFakeDb([], { failDestinationIds: new Set(["dest-a"]) });
+  const { fn } = fakeFetch([{ status: 200, body: [dailyResultFor(10), dailyResultFor(20)] }]);
+
+  const counts = await refreshDestinationWeather(fakePool(targets), db, fn);
+
+  assert.deepEqual(counts, { total: 2, refreshed: 1, skipped: 1 });
+  assert.equal(writeErrors.length, 1, "onWriteError must have been invoked for the failing write");
+  assert.ok(
+    warnMock.mock.calls.some((call) => String(call.arguments[0]).includes("write failed")),
+    "the failure must be logged, not silently dropped"
+  );
 });
 
 test("POST /internal/weather-refresh without a bearer token is rejected (mirrors sweep)", async (t) => {
