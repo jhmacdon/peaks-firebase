@@ -347,3 +347,345 @@ None of these came from this import, and none is fixed here.
 - `cd cloud-sql/migrate && npm test`: 680 pass, 0 fail, 8 skipped. `tsc` clean.
 
 This work adds no service, job, or steady compute cost. Monthly cost impact: $0.
+
+---
+
+# Northeast classics — 2026-08-21, second pass
+
+Four more lists, all in the Northeast: the AMC's New Hampshire 48, the Catskill
+3500 Club list, the AMC New England Hundred Highest, and the Northeast 111.
+Peaks now holds 25 lists. This pass also clears four small data debts the first
+pass wrote down and left.
+
+The new source rows are in a second repo fixture,
+`docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json`. It carries
+all 26 Peakbagger lists the importer reads. The 22 from the 08-18 file are copied
+across unchanged, rows and coordinates alike; the four new ones were read on
+2026-08-21.
+
+## Better coordinates
+
+The 08-18 export took each row's position from the list page's map at a fixed
+zoom, which quantised every longitude to a multiple of 0.010986° — about 860 m on
+the ground. That is what forced the 3DEP summit search behind
+`20260821_peakbagger_only_summits.sql`.
+
+The four lists here read coordinates from the feed that map draws from,
+`peakbagger.com/Async/LLL.aspx?lid=<id>`, which returns the peak's own latitude
+and longitude to five decimals — about a metre. Names, ranks and elevations still
+come from the list page table, joined to the feed by peak ID, and each row's
+elevation is cross-checked against the feed's own metre value before it is
+written. Nothing about the earlier lists was re-read or changed.
+
+Row order in the fixture is the order the page prints. Where the page shows a
+tied rank the fixture keeps the position in `ordinal` and records the printed
+rank in `sourceRank`; the New England Hundred Highest has one such tie, at 98.
+
+## Imported
+
+| List | lid | Members | New summits | Overrides |
+|---|---|---|---|---|
+| [AMC New Hampshire 4000-footers](https://www.peakbagger.com/list.aspx?lid=5167) | 5167 | 48 | 0 | 4 |
+| [Catskill 3500 Club List](https://www.peakbagger.com/list.aspx?lid=5130) | 5130 | 33 | 9 | 2 |
+| [AMC New England Hundred Highest](https://www.peakbagger.com/list.aspx?lid=5165) | 5165 | 100 | 8 | 11 |
+| [Northeast "115" 4000-footers](https://www.peakbagger.com/list.aspx?lid=511) | 511 | 115 | 0 | 8 |
+
+Peaks catalogues them as **New Hampshire 4000-Footers**, **Catskill 3500**,
+**New England Hundred Highest** and **Northeast 111**.
+
+The four lists overlap heavily, which is why only seventeen destinations were
+missing. The membership arithmetic was checked rather than assumed, by peak ID:
+
+- the New Hampshire 48 is a subset of the New England 67 already in Peaks;
+- the New England 67 is exactly the top 67 of the Hundred Highest;
+- the Northeast 115 is exactly the New England 67 plus the Adirondack 46 plus
+  Slide Mountain (7335) and Hunter Mountain (7318), with nothing left over.
+
+So the New Hampshire and Northeast lists needed no new destination at all. The
+Catskill list brought nine and the Hundred Highest eight.
+
+### List metadata
+
+| | New Hampshire 4000-Footers | Catskill 3500 | New England Hundred Highest | Northeast 111 |
+|---|---|---|---|---|
+| Year established | 1957 | 1962 | 1967 | 1971 |
+| Organization | AMC Four Thousand Footer Club | Catskill 3500 Club | AMC Four Thousand Footer Club | AMC Four Thousand Footer Club |
+| Region | White Mountains | Catskills | New England | Northeast |
+
+Three of the four belong to the AMC Four Thousand Footer Club, which lists all
+four of its own challenges — the White Mountain 48, the New England 67, the New
+England Hundred Highest and the Northeast 111 Club — on one page and takes an
+application for each. The Northeast 111 is the one that needed research: it has
+no club of its own, and the AMC page settles it, requiring a finisher to hold
+New England Four Thousand Footer and Adirondack 46er membership and to have
+climbed Slide and Hunter.
+
+1957 and 1967 come from the club's history page. 1962 is the Catskill 3500
+Club's own founding year. **1971 rests on Wikipedia alone** — no AMC page or
+club history found gives a date for the Northeast 111 — and is recorded here as
+the weakest of the four.
+
+Sources: [amc4000footer.org history](https://www.amc4000footer.org/history.html),
+[amc4000footer.org lists we recognize](https://www.amc4000footer.org/the-lists-we-recognize.html),
+[amc4000footer.org New England Hundred Highest](https://www.amc4000footer.org/newenglandhundredhighest.html),
+[catskill3500club.org](https://www.catskill3500club.org/),
+[catskill3500club.org membership](https://www.catskill3500club.org/membership),
+[Northeast 111 on Wikipedia](https://en.wikipedia.org/wiki/Northeast_111),
+[List of New England Hundred Highest on Wikipedia](https://en.wikipedia.org/wiki/List_of_New_England_Hundred_Highest).
+All read 2026-08-21.
+
+### Sources for every claim in the four descriptions
+
+**New Hampshire 4000-Footers**
+
+| Claim | Source |
+|---|---|
+| the AMC founded its Four Thousand Footer Club in 1957 around this list | [amc4000footer.org history](https://www.amc4000footer.org/history.html) — the sub-committee's March 1957 letter to the AMC Council |
+| 4,000 feet plus 200 feet above the saddle | same page — "They decided to use a 200-ft. rule, and the list was accepted by the AMC Council" |
+| all forty-eight stand in the White Mountains | the club's own name for the list is the White Mountain Four Thousand Footers ([lists we recognize](https://www.amc4000footer.org/the-lists-we-recognize.html)); Peakbagger's New England export gives Range (Level 4) "White Mountains" for every New Hampshire row |
+| Mount Washington is the highest point in the Northeast and tops the list | source row 1, 6,286.5 ft, and rank 1 of all 115 rows across NH, VT, ME and NY |
+
+**Catskill 3500**
+
+| Claim | Source |
+|---|---|
+| the club has taken members since 1962 | [catskill3500club.org](https://www.catskill3500club.org/) — "The Catskill 3500 Club, founded in 1962" |
+| for climbing the highest peaks on public land in the Catskills | same page — "the 33 highest peaks on public lands in the Catskill Mountains" |
+| the list held thirty-five until 2021, when Doubletop and Graham closed | [membership page](https://www.catskill3500club.org/membership) — "our tally list has changed from the original list of 35 to the current 33"; the Peakbagger list page dates the change to March 21, 2021 |
+| Slide, Blackhead, Balsam and Panther a second time in winter | membership page — "climb Slide, Blackhead, Balsam and Panther mountains again in winter" |
+
+No elevation figure appears in this copy on purpose. The club's list is a
+public-land cut rather than a clean 3,500-foot one, and its lowest member, Rocky
+Mountain, stores 3,487 ft in Peaks — so "above 3,500 feet" would have argued with
+the roster printed beneath it.
+
+**New England Hundred Highest**
+
+| Claim | Source |
+|---|---|
+| the AMC Four Thousand Footer Club added the list in 1967 | [amc4000footer.org history](https://www.amc4000footer.org/history.html) |
+| 200 feet above the saddle | [Wikipedia](https://en.wikipedia.org/wiki/List_of_New_England_Hundred_Highest) — "200 feet (61 m) of topographic prominence" |
+| New England's sixty-seven 4,000-footers fill the top | checked by peak ID: the New England 67 is exactly ranks 1–67 of this list |
+| the other thirty-three fall just short | source rows 68–100, 3,992.3 ft down to 3,759.4 ft |
+| the only one of the club's lists with true bushwhacks | [lists we recognize](https://www.amc4000footer.org/the-lists-we-recognize.html) — "the only list recognized by the Four Thousand Footer Club that contains true bushwhacks" |
+| eleven of the thirty-three have no trail | [the club's own 68–100 table](https://www.amc4000footer.org/newenglandhundredhighest.html) marks eleven "no": Vose Spur, Fort, White Cap, Boundary Peak, Mendon Peak, Nubble Peak, East Kennebago, Snow (Cupsuptic), Kennebago Divide, Scar Ridge, Elephant. Two more carry a herd path |
+
+The lowest peak is **deliberately not named**. The AMC's own list ends at the
+Cannon Balls NE Peak, 3,769 ft; Peakbagger's elevations reorder the bottom of the
+list and end it at Snow Mountain in Maine, 3,759.4 ft. Peaks stores the
+Peakbagger order, so naming either one would have contradicted something on the
+page.
+
+**Northeast 111**
+
+| Claim | Source |
+|---|---|
+| New England's sixty-seven, the forty-six Adirondack High Peaks, and Slide and Hunter | the Peakbagger list description says so, and the peak IDs confirm it exactly: 115 = 67 + 46 + 2, with no row outside those three sets |
+| it took its name when the count was 111 | [Wikipedia](https://en.wikipedia.org/wiki/Northeast_111) — "This list includes 115 peaks but is still referred to as the 'Northeast 111' because that name predates the additions" |
+| two more peaks in New Hampshire and two in Maine | same page — Galehead Mountain and Bondcliff in New Hampshire, Mount Redington and Spaulding Mountain in Maine |
+| the AMC Four Thousand Footer Club recognizes finishers, who must first join the New England and Adirondack clubs | [lists we recognize](https://www.amc4000footer.org/the-lists-we-recognize.html) — "To be eligible for the Northeast 111 Club you must be a member of the New England Four Thousand Footer Club, the Adirondack 46ers club and have climbed Slide Mountain and Hunter Mountain" |
+
+State split checked against the stored rows: 48 New Hampshire, 48 New York, 14
+Maine, 5 Vermont.
+
+## New summits — 17 destinations
+
+One migration, `20260821_northeast_list_summits.sql`. Every row comes from an
+OpenStreetMap `natural=peak` node read on 2026-08-21; no coordinate comes from
+GNIS, and no peak here needed the Peakbagger-provenance scheme.
+
+Elevations keep the OSM `ele` tag only where it lands within 3 m of the USGS 3DEP
+reading at the summit. Twelve agree to better than 2.2 m and are kept. The other
+five nodes sit 25 to 66 m off the high point, so a sample at the node itself
+reads low; a 3DEP summit search around each — an 80 m grid at 20 m spacing,
+refined to 2.5 m — found the top. Two of those five keep their tag anyway
+(Wittenberg agrees to 0.01 m, Mount Wilson to 1.2 m); three take the 3DEP
+reading.
+
+| Summit | State | Elevation (m) | Source | OSM node | OSM `ele` |
+|---|---|---|---|---|---|
+| West Kill Mountain | NY | 1188.1 | osm | [357598566](https://www.openstreetmap.org/node/357598566) | 1188.11, kept |
+| Table Mountain | NY | 1165.9 | osm | [357598560](https://www.openstreetmap.org/node/357598560) | 1165.86, kept |
+| Sugarloaf Mountain | NY | 1153.1 | osm | [357591726](https://www.openstreetmap.org/node/357591726) | 1153.06, kept |
+| Wittenberg Mountain | NY | 1152.8 | osm | [357597623](https://www.openstreetmap.org/node/357597623) | 1152.75, kept |
+| Rusk Mountain | NY | 1123.5 | osm | [357583239](https://www.openstreetmap.org/node/357583239) | 1123.49, kept |
+| Twin Mountain | NY | 1112.5 | osm | [357593720](https://www.openstreetmap.org/node/357593720) | 1112.52, kept |
+| North Dome | NY | 1098.8 | osm | [357574030](https://www.openstreetmap.org/node/357574030) | 1098.80, kept |
+| Bearpen Mountain | NY | 1093.3 | osm | [2948777248](https://www.openstreetmap.org/node/2948777248) | 1093.32, kept |
+| Rocky Mountain | NY | 1062.8 | osm | [357582635](https://www.openstreetmap.org/node/357582635) | 1062.84, kept |
+| South Brother | ME | 1208.0 | osm | [358224250](https://www.openstreetmap.org/node/358224250) | 1208, kept |
+| The Bulge | NH | 1197.0 | osm | [357728179](https://www.openstreetmap.org/node/357728179) | 1197, kept |
+| South Weeks Mountain | NH | 1183.0 | osm | [3300692064](https://www.openstreetmap.org/node/3300692064) | 1183, kept |
+| East Sleeper | NH | 1177.8 | usgs_3dep | [5512465463](https://www.openstreetmap.org/node/5512465463) | 1170, 7.8 m low |
+| Vose Spur | NH | 1172.1 | usgs_3dep | [5257503351](https://www.openstreetmap.org/node/5257503351) | 1177, 4.9 m high |
+| East Kennebago Mountain | ME | 1162.4 | usgs_3dep | [358219329](https://www.openstreetmap.org/node/358219329) | 1153, 9.4 m low |
+| South Horn | ME | 1159.0 | osm | [358225015](https://www.openstreetmap.org/node/358225015) | 1159, kept |
+| Mount Wilson | VT | 1147.0 | osm | [356555348](https://www.openstreetmap.org/node/356555348) | 1147, kept |
+
+The five 3DEP summit searches, node to high point: Mount Wilson 25 m, East
+Sleeper 29 m, Wittenberg 38 m, Vose Spur 45 m, East Kennebago 66 m. Every one of
+the seventeen stored elevations lands within 3 m of the source list's published
+figure.
+
+Two names differ from the source list on purpose.
+
+**South Weeks Mountain** carries the OSM name. The AMC calls it South Weeks and
+Peakbagger calls it "Mount Weeks - South Peak", which its own page files as a
+sub-peak of Mount Weeks.
+
+**South Horn** is the name the AMC Hundred Highest uses ("Bigelow, South Horn")
+for the higher of the two Horns on the Bigelow Range. Its OSM node carries the
+bare label "South Peak", which says nothing outside its own ridge; Peakbagger
+files the summit under "The Horns" and names South Peak as that peak's highest
+summit. Its neighbours [4962752666](https://www.openstreetmap.org/node/4962752666)
+("The Horns", no `ele`, 198 m away) and
+[4962752665](https://www.openstreetmap.org/node/4962752665) ("North Peak", 318 m)
+are deliberately left out: the first is the pair, the second is the lower Horn,
+and no reviewed list counts either.
+
+## Reviewed overrides
+
+**New Hampshire 4000-Footers** takes four of the seven the New England list
+already uses — North Twin, Bondcliffs, Mount Osceola - East Peak and Zealand
+Mountain — reaching the same destinations. The other three are Maine peaks and
+do not appear on it.
+
+**Northeast 111** takes all seven of the New England list's overrides plus Grace
+Mountain (6090) → Grace Peak `8D80C88D491FB5DE4232`, the one the Adirondack 46ers
+already uses.
+
+**Catskill 3500**
+
+| Source row | Destination | Why |
+|---|---|---|
+| Hunter Mountain - Southwest Peak (7321) | Southwest Hunter Mountain `67817E17AC761CD791CA` | The same summit. 40 m apart, 0.5 m in elevation. |
+| Indian Head (18321) | Indian Head Mountain `38F4020BB2AA21456FD3` | 48 m apart, 0.3 m in elevation. |
+
+**New England Hundred Highest** — the seven the New England list uses, plus four:
+
+| Source row | Destination | Why |
+|---|---|---|
+| Mount Weeks - South Peak (6880) | South Weeks Mountain `AE765CE84B3DEB31202D` | New row above; the catalog keeps the OSM name. |
+| The Horns (6852) | South Horn `14FB5A19E9EED147F063` | New row above. Peakbagger's own page for The Horns names South Peak as its highest summit; the OSM node sits 12 m from the source point. |
+| Nubble Peak (6917) | Peak Above the Nubble `ED29187EC4534680CEF4` | The same summit. Peakbagger lists "Peak above the Nubble" as an alternate name; 7 m apart. |
+| Elephant Mountain - Southwest Peak (6860) | Elephant Mountain `8106CBEB89FCD5BEF1B4` | 17 m apart. The catalog row sits on the southwest peak, which is the summit the AMC list counts, and stores 1150 m against the AMC's 3,772 ft. See the catalog note below. |
+
+## Data debts cleared
+
+`20260821_list_data_debts.sql`. The migration is idempotent and re-running it
+writes nothing; it ends in a `DO` block that raises rather than commit a partial
+repair.
+
+**Oregon Volcanoes was missing North Sister** while carrying Middle and South.
+The destination `zgZKKqtDJJ31aLqtaY2B` has been in Peaks all along — 3,074 m at
+44.16655, -121.77234, already on the Cascade Volcanoes and the Oregon Top 100 —
+so only the membership row was missing. The USGS Cascades Volcano Observatory,
+the list's own cited source, counts North Sister among the Oregon volcanoes. The
+list orders by descending elevation from ordinal 0, so the migration re-derives
+every ordinal from elevation rather than guessing an insertion point: North
+Sister lands at 3, between South Sister (3,157 m) and Middle Sister (3,062 m),
+and the list now holds eleven.
+
+**Elbrus had no `country_code`**, so the Seven Summits page counted six countries
+instead of seven. The summit stands in Kabardino-Balkaria, Russia; the row's own
+coordinates, 43.35381 42.43610, fall well north of the Georgian border. Set to
+`RU`.
+
+**South Twin `QkAXELOaEsMBnuArw2ZL`** came through the Firestore migration with
+no `state_code`, no `country_code` and no OSM ID. It is a New Hampshire
+4000-footer; OpenStreetMap node
+[357730793](https://www.openstreetmap.org/node/357730793), "South Twin Mountain",
+sits at 44.187565 -71.5548027, 22 m from the stored point. All three fields are
+now filled, with the OSM write guarded on that 22 m distance and on no other
+destination already holding the node.
+
+**Thirty-nine rows had no `state_code`** — the ones the 2026-08-21 import named:
+32 on the Oregon Top 100, 6 on the Traditional Colorado Centennials, and South
+Twin. All 39 also had no `country_code`, so both are set. Each state comes from
+the row's own coordinates and the update only fires when the point falls inside
+that state's bounding box, so a wrong pairing writes nothing. Mount Washington in
+Oregon `NAAS8YxpeGd9hbnfKk6z` rides along as a fortieth: it carries the same
+defect and was the last blank left on the Oregon Volcanoes list the same
+migration edits.
+
+## Wikipedia backfill
+
+Run per list after the import.
+
+| List | Written | Images | Refused | Unmatched |
+|---|---|---|---|---|
+| New Hampshire 4000-Footers | 0 | 0 | 0 | 14 |
+| Catskill 3500 | 33 | 24 | 0 | 0 |
+| New England Hundred Highest | 28 | 17 | 0 | 23 |
+| Northeast 111 | 0 | 0 | 0 | 23 |
+
+Hero coverage now runs 34 of 48 on the New Hampshire list, **24 of 33 on the
+Catskills**, 66 of 100 on the Hundred Highest and 92 of 115 on the Northeast 111.
+Nothing was refused on licensing.
+
+The two zeroes are not failures. Every New Hampshire 48 peak and every Northeast
+111 peak had already been through this backfill on the New England 4000-Footers
+or the Adirondack 46ers; the candidates left are the ones Wikipedia has nothing
+usable for — no confident article, or an article with no lead image. The
+Catskills did best because every one of its thirty-three has an article. Of the
+seventeen new summits, thirteen took copy and six took an image.
+
+## Catalog problems found on the way
+
+None of these came from this import, and none is fixed here.
+
+- **Eight more elevations are well off the source list**, in the same class as
+  the Nye Mountain and Mount Bigelow entries the first pass recorded. Stored
+  against source, in metres: Baldpate Mountain `2A61BD8ECE813387F444` 1090 vs
+  1162.9; Goose Eye Mountain `8649C6194440663B730C` 1132 vs 1184.5; Big Jay
+  `B9CD1B1A42949CBBD65C` 1115 vs 1151.9; The Cannon Balls `AD8BF1B0F166FCE0CE77`
+  1115 vs 1148.2; The Horn (Maine) `404A204B24580871F4B5` 1203 vs 1226.6;
+  Donaldson Mountain `A83715D3A92F3172975C` 1238 vs 1259.4; The Horn (New
+  Hampshire) `EA5A6DB4A6673F44218B` 1168 vs 1188.8; Gothics
+  `A1868E9D39B91E032D9E` 1425 vs 1445.4. All are old OSM `ele` tags carrying a
+  contour value rather than a summit reading. Identity is not in doubt in any
+  case — every one matched within 170 m.
+- **Elephant Mountain `8106CBEB89FCD5BEF1B4` is a hybrid row.** Its coordinates
+  are the southwest peak's, 17 m from Peakbagger's point for it, but its stored
+  1150 m is the whole mountain's height: Peakbagger's LiDAR reading, added in
+  June 2022, puts the northeast peak 750 m away at 1150.9 m and the southwest
+  peak at 1147.1 m. Peaks holds one Elephant Mountain, the AMC counts one, and
+  the override reaches it — but the row's elevation and its position describe two
+  different summits.
+- **The wider `state_code` gap is larger than the forty rows fixed here.** About
+  a hundred more list members still have none, most of them outside the United
+  States (Ultras of Iran, the Seven Summits) where the field may not apply, and
+  the rest spread across the Washington, Nevada, Utah and Tennessee lists.
+
+## Still deferred
+
+**Munros and other non-US classics.** The Peaks catalog has no UK coverage at
+all, so importing the Munros would mean adding 282 destinations before the list
+could resolve a single row. That is a product call about opening a new country,
+not a list import, and it stays out of scope here as it did on 08-18.
+
+## Verification
+
+- Dry run resolved all thirteen curated lists with no unresolved row, and
+  reported 0 added, 0 removed, 0 reordered for each of the nine already in Peaks.
+- Apply reported 48, 33, 100 and 115 members added on the four new lists, and the
+  same nine zeroes.
+- Every stored member on the four lists was checked against its source row: 296
+  rows, no destination used twice within a list, every row in the state its
+  source names, and 293 of the 296 within 200 m of their source point. The three
+  that are not are all on the Hundred Highest, and all multi-summit features
+  whose catalog row sits on a neighboring bump: Baldpate Mountain 203 m, Scar
+  Ridge 338 m, The Cannon Balls 626 m. Baldpate and The Cannon Balls appear in
+  the elevation list below too, from the same cause.
+- Production holds 25 lists, and every one of them — not just the four new ones —
+  numbers 0 through n−1 with no gap and no repeat.
+- All 17 new destinations carry a PointZ whose Z equals the stored elevation, and
+  across the whole catalog no OSM node ID is shared by two destinations.
+- The data-debt migration's own assertions pass: Oregon Volcanoes holds 11 rows
+  with North Sister at ordinal 3, no targeted row is left without a
+  `state_code`, Elbrus reads `RU`, and South Twin holds OSM node 357730793.
+- `cd cloud-sql/migrate && npm test`: 680 pass, 0 fail, 8 skipped. `tsc` clean.
+
+No source page needed a login and none served a CAPTCHA.
+
+This work adds no service, job, or steady compute cost. Monthly cost impact: $0.
