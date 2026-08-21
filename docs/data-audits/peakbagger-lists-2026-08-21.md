@@ -742,3 +742,449 @@ not a list import, and it stays out of scope here as it did on 08-18.
 No source page needed a login and none served a CAPTCHA.
 
 This work adds no service, job, or steady compute cost. Monthly cost impact: $0.
+
+# Western classics — 2026-08-21, third pass
+
+Six lists were researched: the Sierra Club Angeles Chapter's three climbing
+sections (Sierra Peaks, Desert Peaks, Hundred Peaks), the Tahoe Ogul Peaks, the
+South Beyond 6000, and the Idaho 12ers. **Four were imported and two are held.**
+Peaks now holds 29 lists.
+
+The new source rows are in a third repo fixture,
+`docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21b.json`. It
+carries all 32 Peakbagger lists the importer reads or has read. The 26 from the
+08-21 file are copied across unchanged, rows and coordinates alike, and the six
+new ones were read on 2026-08-21 — including the two that are held, so their
+research survives the hold.
+
+## Every list ID was verified, not remembered
+
+Peakbagger's list index (`ListIndx.aspx`, 890 lists) was read first and each list
+found by name:
+
+| List | lid | Rows on the page |
+|---|---|---|
+| Sierra Club Sierra Peaks Section | 5051 | 247 |
+| Sierra Club Hundred Peaks Section | 5052 | 280 |
+| Sierra Club Desert Peaks Section | 5053 | 95 |
+| Tahoe-Ogul Peaks List | 5055 | 63 |
+| South Beyond 6000 | 5180 | 40 |
+| Idaho 11,000-foot Peaks | 21330 | 138 |
+
+**Peakbagger has no Idaho 12,000-foot list.** The index carries eight Idaho
+lists and none of them is one; the nearest is the 11,000-foot list above. So the
+Idaho 12ers are taken as a named selection from that page rather than as a whole
+list — see "A list that takes part of a page" below.
+
+Every row of the five whole lists carries a point in the page's own map marker
+feed (`Async/LLL.aspx?lid=`), and every printed elevation agrees with that
+feed's metre value to within a metre. No page needed a login and none served a
+CAPTCHA.
+
+## Imported
+
+| List | lid | Members | New summits | Overrides |
+|---|---|---|---|---|
+| [Sierra Club Desert Peaks Section](https://www.peakbagger.com/list.aspx?lid=5053) | 5053 | 95 | 50 | 6 |
+| [Tahoe-Ogul Peaks List](https://www.peakbagger.com/list.aspx?lid=5055) | 5055 | 63 | 37 | 5 |
+| [South Beyond 6000](https://www.peakbagger.com/list.aspx?lid=5180) | 5180 | 40 | 25 | 3 |
+| [Idaho 12ers](https://www.peakbagger.com/list.aspx?lid=21330) (9 of 138 rows) | 21330 | 9 | 0 | 0 |
+
+Peaks catalogues them as **Desert Peaks Section**, **Tahoe Ogul Peaks**,
+**South Beyond 6000** and **Idaho 12ers**.
+
+## Held: the Sierra Peaks Section and the Hundred Peaks Section
+
+Both exceed the sixty-destination bound for hand-curated residue, and the
+statewide OpenStreetMap expander could not shrink either (see below).
+
+| List | lid | Rows | Already in Peaks | Missing destinations |
+|---|---|---|---|---|
+| Sierra Peaks Section | 5051 | 247 | 164 | **83** |
+| Hundred Peaks Section | 5052 | 280 | 43 | **237** |
+
+The "missing" column counts source rows with no summit destination the importer
+could reach: 81 with no candidate at all plus 2 whose only same-named
+destination lies beyond the 5 km bound for the Sierra list, and 217 plus 20 for
+the Hundred Peaks list. The importer fails closed on every one of them, so
+neither list can be half-imported by accident.
+
+The Hundred Peaks Section was the expected hold: 280 Southern California summits,
+most of them small chaparral peaks OpenStreetMap has mapped but Peaks has never
+had a reason to carry. The Sierra Peaks Section at 83 is the nearer miss, and
+worth a dedicated pass — its gap is almost entirely High Sierra summits that
+OpenStreetMap does map, so a curated migration of about that size would release
+it.
+
+## The statewide expander added nothing, and the reason is in the data
+
+Per the sizing rule the expander ran first for every state the two large lists
+touch, and for the states of the smaller ones as well. Dry runs only; nothing
+was applied, because there was nothing to apply.
+
+| Scope | Named OSM peaks | Matched before | Unmatched | Coverage | Eligible additions | Deferred for no prominence or popularity signal |
+|---|---|---|---|---|---|---|
+| US-CA | 6515 | 743 | 5772 | 11.4% | **0** | 5762 |
+| US-NV | 1901 | 165 | 1736 | 8.7% | **0** | 1736 |
+| US-AZ | 3411 | 135 | 3276 | 4.0% | **0** | 3272 |
+| US-NC | 2723 | 81 | 2642 | 3.0% | **0** | 2633 |
+| US-TN | 1800 | 45 | 1755 | 2.5% | **0** | 1755 |
+
+The expander adds a peak only when it has an elevation plus either topographic
+prominence over 300 ft or a conservative popularity signal. Both come from
+Wikidata or from OSM's own tags, and in these states neither is there: of the
+2,757 Wikidata entities behind California's 6,515 named peaks, **24 carry a
+prominence** and almost none reaches five Wikipedia sitelinks; 130 of the 6,515
+OSM nodes carry a `wikipedia` tag at all. So 5,762 of the 5,772 unmatched
+California peaks fall at the same gate, and the other four states behave the
+same way.
+
+**The prominence floor was not lowered.** Doing so globally would admit
+thousands of unreviewed bumps in every state to release two lists, which is the
+trade the rule forbids. The finding is that this expander is the wrong
+instrument for the desert and the Southern Appalachians: its gate is built for
+peaks the wider world has written about, and these are not those peaks.
+
+## A list that takes part of a page
+
+`CuratedList` gained two optional fields, `sourcePeakIds` and `sourceRowCount`,
+which only count together. The first names the peaks the list takes; the second
+is the row count the whole source page must still have. The Idaho 12ers use
+both: nine named rows out of a page of 138.
+
+This keeps the fixture honest — it holds Peakbagger list 21330 exactly as the
+page prints it, all 138 rows — while the list definition records which rows Peaks
+takes and re-checks that the page has not changed underneath. A page that gains
+or loses a row fails the import rather than quietly publishing a stale nine.
+
+## List metadata
+
+| | Desert Peaks Section | Tahoe Ogul Peaks | South Beyond 6000 | Idaho 12ers |
+|---|---|---|---|---|
+| Year established | 1941 | *(none recorded)* | 1968 | *(none recorded)* |
+| Organization | Sierra Club Angeles Chapter | Western States Climbers | Carolina Mountain Club and Tennessee Eastman Hiking and Canoeing Club | *(none)* |
+| Region | Desert Southwest | Lake Tahoe | Southern Appalachians | Idaho |
+
+Two years are deliberately absent. The **Tahoe Ogul** list dates from "the early
+1980s" and no source found gives a year, so the field stays null rather than
+carrying a guess. The **Idaho 12ers** are a plain elevation cut with no keeper,
+like the Colorado 14ers already in Peaks, so both the year and the organization
+are null.
+
+**South Beyond 6000 carries two organizations in one field** because it has two.
+The Carolina Mountain Club hosts the rules and the register, but the club's own
+page says the formal sponsors have always been the CMC and the Tennessee Eastman
+Hiking and Canoeing Club, and naming only one would be wrong.
+
+The **Tahoe Ogul** organization is the Western States Climbers, not the Sierra
+Club. The list was drawn up inside the Sierra Club's Mother Lode Chapter, but
+that section disbanded in 1998 and Peakbagger's own list page carries a standing
+note that the list is no longer affiliated with the Sierra Club in any way.
+
+### Sources for every claim in the four descriptions
+
+**Desert Peaks Section**
+
+| Claim | Source |
+|---|---|
+| the Angeles Chapter founded it in 1941 | [desertpeaks.org/about](https://desertpeaks.org/about/) — "The Desert Peaks Section was founded in 1941 by Chester Versteeg and formally organized in October 1945" |
+| the oldest peak-climbing section in the chapter | same page — "The oldest peak-climbing section in the largest Chapter of the Sierra Club" |
+| ninety-five desert mountains across California, Nevada, Arizona, Utah and Mexico | same page — "Currently 95 desert mountains throughout California, Nevada, Arizona, Utah and Mexico are on our Desert Peaks List"; the source page's 95 rows agree, and its own section headings split them 66 California, 15 Nevada, 9 Arizona, 3 Mexico, 2 Utah |
+| six peaks and a Sierra Club membership make a member | same page — "may do so after climbing 6 peaks on the list and joining the Sierra Club" |
+| White Mountain Peak, east of the Owens Valley, is the highest | source row 1, 14,244.8 ft; Peaks already carries it on the California Fourteeners, where the stored copy places it east of the Owens Valley |
+
+**Tahoe Ogul Peaks**
+
+| Claim | Source |
+|---|---|
+| members of the Sierra Club's Peak and Gorge Section drew it up in the early 1980s | [tahoeogul.org history](https://www.tahoeogul.org/history-of-the-oguls/) — "The Ogul list was created in the early 1980s by a group of hikers and climbers in Northern California, who were members of the Peak and Gorge Section within the Mother Lode Chapter of the Sierra Club" |
+| sixty-three peaks around Lake Tahoe | the source page's 63 rows, and tahoeogul.org's own subtitle |
+| Ogul is the Washoe word for the mountain bighorn sheep | same page — "Ogul is the Washoe Native American word for mountain bighorn sheep" |
+| the section disbanded in 1998 | same page — the Peak and Gorge Section was marked inactive by the Mother Lode Chapter in 1998 after voting to disband |
+| the Western States Climbers have kept the list since 2000 | same page — the WSC was formed in 2000 by John Bees and John Sarna and maintains the list |
+| no Sierra Club tie today | the Peakbagger list page's own standing note, and the history page above |
+| fifty-six in California and seven in Nevada | tahoeogul.org's split, **checked independently**: reverse-geocoding all 63 source points against OpenStreetMap boundaries returns exactly 56 California and 7 Nevada |
+
+**South Beyond 6000**
+
+| Claim | Source |
+|---|---|
+| the CMC and the Tennessee Eastman club have run it since 1968 | [carolinamountainclub.org SB6K](https://www.carolinamountainclub.org/index.cfm/do/pages.view/id/23/page/South-Beyond-6000) — Hugh Thompson of the Tennessee Eastman club began the program in 1968, and "the formal sponsors of the program have always been the Tennessee Eastman Hiking and Canoeing Club and the Carolina Mountain Club" |
+| more than sixty summits pass 6,000 feet; forty qualify | same page — "There are over 60 summits in the area above 6000 feet, but only 40 were selected by the criteria" |
+| 200 feet to a saddle, or three quarters of a mile | same page — the summit must be above 6000 feet and there must be "a drop of 200 or more feet to a saddle between one peak and another qualifying peak or, there is a distance between the peaks of .75 miles" |
+| six ranges: Smokies, Plotts, Balsams, Craggies, Blacks, Roans | same page |
+| all but Mount Le Conte in North Carolina or on its Tennessee line | same page — "All 40 are in North Carolina or on the North Carolina-Tennessee border except Mt. Le Conte, which is within Tennessee"; Mount Le Conte is source row 5 |
+
+**Idaho 12ers**
+
+| Claim | Source |
+|---|---|
+| Idaho holds nine ranked summits above 12,000 feet | [idahoaclimbingguide.com/the-12ers](https://www.idahoaclimbingguide.com/the-12ers/) — "Idaho has only nine ranked summits that lie above 12,000 feet", and it names the same nine the selection takes |
+| seven Lost River, one Lemhi, one Pioneer | the source page's own Range column: Borah, Leatherman, Church, Breitenbach, Idaho, Lost River Mountain and Donaldson in the Lost River Range; Diamond Peak in the Lemhi Range; Hyndman Peak in the Pioneer Mountains |
+| Borah Peak leads them and is the highest point in the state | source row 1, 12,665.4 ft, and the guide calls it "Idaho's highest peak" |
+| two more clear 12,000 feet but rise less than 300 feet above their saddle | the source page carries them as unranked rows: Borah Peak - North Peak at 12,241.2 ft with 163.5 ft of prominence, and Lost River Mountain - North Peak at 12,037.7 ft with 234.9 ft. The lowest peak the selection does take, Donaldson Peak, has 324.7 ft |
+
+All pages read 2026-08-21.
+
+## New summits — 112 destinations
+
+Two migrations, split by provenance the way the Oregon and Colorado pass split
+its own: `20260821_western_list_summits.sql` holds the 91 rows OpenStreetMap
+maps, and `20260821_western_peakbagger_only_summits.sql` the 21 it does not.
+
+| List | New rows | From OpenStreetMap | Peakbagger provenance |
+|---|---|---|---|
+| Desert Peaks Section | 50 | 29 | 21 |
+| Tahoe Ogul Peaks | 37 | 37 | 0 |
+| South Beyond 6000 | 25 | 25 | 0 |
+
+By state: 77 California, 25 North Carolina, 3 Nevada, 3 Arizona, 2 Utah, 2
+Mexico. Every state came from reverse-geocoding the stored point against
+OpenStreetMap boundaries, not from a bounding box.
+
+### Coordinates: two candidates, and 3DEP picked between them
+
+Each OpenStreetMap row had two candidate points — the OSM node, and the peak's
+own point in Peakbagger's list map feed. The 08-18 export could not offer this
+choice, because its coordinates were tile-quantised at zoom 7 (about 860 m);
+these are not, and across the 371 exact-name matches in this pass the two
+sources sit a median of 16 m apart.
+
+USGS 3DEP was sampled at both points, at 1 m resolution, and each row keeps
+whichever reads higher, the OSM node winning ties inside 2 m. **The Peakbagger
+point wins on 62 of the 91 rows** — by 99 m on Picacho Peak, whose OSM node
+sits 148 m off the summit, and by 83 m on Da-ek Dow Go-et Mountain. The OSM node
+wins on one row, Raymond Peak, and the two agree within 2 m on the other 28.
+
+Measured at the point each row actually stores, 3DEP lands **within 1 m of the
+published elevation on 80 of the 112 rows, within 3 m on 101, and within 10 m on
+108**. Two rows are outside that and one pair is unmeasurable; all three are
+named under "Catalog problems" below.
+
+### Elevations
+
+An OpenStreetMap `ele` tag is kept only where it lands within 3 m of the figure
+the source list publishes. **62 of the 91 tags do not**, and those rows take the
+published figure; each row records its own `elevation_source`.
+
+That is the test the Northeast pass's correction identified, and it is used here
+instead of the one that failed. Agreement between an OSM tag and a 3DEP sample
+*at the OSM node* proves nothing, because a node sitting off the high point
+reads low in 3DEP and so agrees with its own low tag — which is how The Bulge
+went in 5.5 m under. The published figure is the independent check.
+
+### The 21 rows OpenStreetMap has never mapped
+
+All 21 are on the Desert Peaks list, and 16 of them carry no name of their own
+on the ground: they are the high points of named desert ranges (Turtle
+Mountains, Whipple Mountains, Sheep Hole Mountains, Palen Mountains, Big Maria
+Mountains, Nelson Range, Orocopia — the last of which OSM *does* map, as
+Orocopia Mountain) or named points on a rim. They take Peakbagger provenance on
+the scheme the Oregon and Colorado pass established: a `peakbagger:peak:<id>`
+hash for the destination id, `{"peakbagger": "<id>"}` in `external_ids`, and
+`source: 'peakbagger'` in the metadata. GNIS is used for nothing.
+
+**No 3DEP summit search was needed this time.** The Oregon and Colorado pass had
+to run one because its coordinates were quantised; these land on the summit
+already. Of the 19 rows inside 3DEP's coverage, 18 read within 3.3 m of the
+published elevation and 15 within 1 m.
+
+## Reviewed overrides
+
+Fourteen source rows reach their destination by reviewed override rather than by
+name. Six point at rows the catalog already held, and eight at rows these
+migrations add under the name OpenStreetMap uses.
+
+**Existing rows.**
+
+| List | Source row | Destination | Why |
+|---|---|---|---|
+| Desert Peaks | Weavers Needle (13418) | `8264B4AD714F0EA6E19E` Weaver's Needle | Same OSM node, 3 m apart. The matcher normalizes an apostrophe to a space, so "Weavers Needle" and "Weaver's Needle" do not compare equal |
+| Desert Peaks | Glass Mountain (3614) | `WSfpljsS69KFXbCnDDcM` Glass Mountain | The catalog holds two rows of that name 1,049 m apart. The list point reads 3396.07 m in 3DEP against a published 3396.2 m; this row is 15 m from it, the other 1,049 m and 4 m lower |
+| Tahoe Ogul | Middle Sister (3607) | `dQvlhlqanHJh4h4JSkP7` Middle Sister | Same OSM node, 1 m apart. The row's stored elevation was wrong, which is what kept the matcher off it; this pass corrects it |
+| Tahoe Ogul | Sierra Buttes (13567) | `89lGAhqgSm18Jih8vRUk` Sierra Buttes Lookout | Same OSM node and the same summit, 7 m apart; the catalog names the row for the fire lookout standing on it |
+| Tahoe Ogul | Adams Peak - West Peak (69023) | `D80BD9D570012B82ED80` Adams Peak | The catalog row sits 19 m from the point Peakbagger calls the West Peak, and carries the OSM node named Adams Peak. Adding a second row 19 m away would be a duplicate |
+| South Beyond 6000 | Kuwohi (7764) | `fC9zpl4WpEUZvU4HTsSI` Clingmans Dome | The same override the Tennessee 4500ft list already carries |
+
+**Rows these migrations add, under the OpenStreetMap name.**
+
+| List | Source row | Destination name | Apart |
+|---|---|---|---|
+| Desert Peaks | Granite Mountain (3804) | Granite Peak | 16 m |
+| Desert Peaks | Superstition Benchmark (4173) | Superstition Peak | 9 m |
+| Desert Peaks | Indianhead (13412) | Indian Head Peak | 16 m |
+| Desert Peaks | Orocopia Mountains High Point (16806) | Orocopia Mountain | 2 m |
+| Tahoe Ogul | Silver Peak - Southwest Summit (53297) | Silver Peak | 17 m |
+| Tahoe Ogul | Wade Benchmark (26373) | Wade Peak | 4 m |
+| South Beyond 6000 | Mount Hallback (7823) | Hallback | 85 m |
+| South Beyond 6000 | Plott Balsam Mountain (7830) | Plott Balsam | 3 m |
+
+The Tahoe Ogul list carries a second, unrelated Silver Peak at 8,931.4 ft, 45 km
+away and 559 m lower. It resolves by name on its own; the two cannot be confused
+by the matcher, which bounds every match by elevation and distance.
+
+## Catalog problems found on the way
+
+One is fixed here. The rest are recorded and left.
+
+- **Middle Sister in California stored Oregon's height, and that is corrected.**
+  `dQvlhlqanHJh4h4JSkP7` sits in the Sweetwater Mountains at 38.50794 −119.29533
+  and read 3062 m — exactly the figure the catalog's Oregon Middle Sister
+  (`U0r2Ys42V3pk8j8Hqtje`) carries, and about 249 m low. The Tahoe Ogul list
+  publishes 10,862.4 ft (3310.9 m) and the row's own OSM node 358798800 tags
+  3306 m. It now reads 3310.9 m, PointZ included. Only the elevation was wrong:
+  the two rows' prominences differ (260 m and 343 m) and the coordinates are
+  each in the right state. The Oregon row is untouched, and an assertion checks
+  that it did not move.
+- **Two Glass Mountain rows describe one mountain.** `WSfpljsS69KFXbCnDDcM`
+  (3402 m, OSM 12129062101) and `094BAF44DD547E83FF26` (3395 m, OSM 358797930,
+  Wikidata Q3108557) stand 1,049 m apart on the same Mono County massif. 3DEP
+  reads 3395.1 m at the first and 3390.8 m at the second. The Desert Peaks
+  override takes the first; **the duplicate is not merged here**, because
+  merging two catalog rows touches sessions, lists and routes and is its own
+  piece of work.
+- **Big Maria Mountains High Point's published elevation is 13 m above the
+  ground.** Peakbagger gives 3,385 ft (1031.7 m); 3DEP reads 1018.3 m at the
+  point, and a 9×9 grid at 50 m spacing around it finds nothing higher. The
+  position is not in doubt — the grid maximum is the point itself. The published
+  figure is stored, consistent with the other twenty rows in that migration, and
+  the disagreement is recorded here rather than silently swapped for a reading
+  that itself varied 1.7 m between two calls to the same service.
+- **Reynolds Peak reads 19.7 m below its published elevation** at the stored
+  point, the only OpenStreetMap row over 10 m out. Both candidate points read
+  low there (2944.6 m at the OSM node, 2955.9 m at the Peakbagger point against
+  a published 2975.6 m), so this is a peak whose true high point neither source
+  quite reaches, not a wrong match: the two points are 25 m apart and the name
+  is exact.
+- **Two Mexican rows cannot be checked against 3DEP at all.** Cerro del Pinacate
+  and Pico Risco lie outside its coverage; the elevation service answers there
+  from a coarse global grid (its reported resolution switches from 1 m to a
+  fraction of a degree), so neither row is counted as verified.
+- **Martinez Mountain's OSM node sits 344 m from Peakbagger's point** — the
+  widest disagreement in this pass. The identity is not in doubt: the names match
+  exactly and the two elevations agree to 1.6 m. The row stores the Peakbagger
+  point, which 3DEP puts 2.4 m higher.
+- **The matcher cannot see through an apostrophe.** `normalizeListPeakName`
+  turns every non-alphanumeric run into a space, so "Weaver's Needle" normalizes
+  to `weaver s needle` and "Weavers Needle" to `weavers needle`. They do not
+  compare equal, and an override was needed for a row that is otherwise a
+  perfect match. Collapsing an apostrophe instead of spacing it would fix this
+  class, and it is a change to the matcher rather than to this import.
+- **62 of 91 OpenStreetMap `ele` tags on these peaks are contour values**, low
+  by 4 to 153 m against the figure the source list publishes. This is the same
+  finding the Northeast pass recorded on eight rows, at a much larger scale.
+
+- **305 Wikidata items are shared by two or more destinations**, catalog-wide and
+  almost all of it European: twelve German and Dutch hills carry Q1749655
+  between them, five Polish crags carry Q7849064, and four rows named Schrode
+  Lake share Q49310112. This came to light because the first draft of the new
+  migrations asserted Wikidata uniqueness catalog-wide and the assertion fired
+  on the existing data. The assertion was narrowed to what these migrations
+  answer for — that no Wikidata ID **they write** reaches a second destination —
+  and the 305 are written down here instead. **OSM node IDs are clean**: no node
+  reaches two destinations, so that assertion stayed catalog-wide.
+- **Twenty-one list members store an elevation more than 3 m from the figure
+  their source list publishes, and none of them is a row this pass added.** The
+  worst are Smith Mountain (`89B7405BBE33641A563A`, 1744 m stored against
+  1807.0) and Old Dad Mountain (`44E0D7BDEDBF2536C88B`, 1256 m against 1296.7),
+  both from the 2026-07-21 global coverage pass.
+  Three members also sit over 200 m from their source point: Red Lake Peak
+  295 m, Smith Mountain 210 m, Mount Sequoyah 202 m. All are exact name matches;
+  the identities are not in doubt.
+- **The eight list members with no `state_code` and no `country_code` are
+  fixed**, in `20260821_western_list_state_codes.sql`. Seven are Desert Peaks
+  members and one is on South Beyond 6000, all Firestore-era rows with empty
+  `external_ids` that the import merely put on a list. Each state comes from the
+  row's own coordinates, cross-checked against Peakbagger's own section column
+  where the source list prints one, and the update only fires when the point
+  falls inside that state's bounding box.
+
+## The area-linking trigger degenerates on a batch spread across the map
+
+Found while applying, and worth writing down because it will bite the next
+multi-region import.
+
+`link_areas_on_destination_insert` is a **statement** trigger. It takes the
+envelope of every row in the statement, expands it by two degrees, and treats
+every protected area touching that box as a candidate — then runs `ST_Covers`
+and a 50 m geography `ST_DWithin` against each. These 91 rows run from a North
+Carolina bald at −82° to the Sierra at −120°, so a single `INSERT` made the
+candidate set **2,605 of the 3,869 areas** and the geometry work 91 × 2,605.
+That statement ran **27 minutes without finishing**.
+
+The migrations therefore insert **one two-degree tile at a time**. The worst tile
+draws 434 areas against 16 rows and the batch's geometry work falls about
+ninefold; the whole migration then applied in **242 seconds**. The rows, the
+guards and the result are identical either way — only the statement boundaries
+move.
+
+The Northeast pass did not hit this because its seventeen rows were all in one
+corner of the map. Nothing is changed in the trigger here; the fix belongs with
+whoever next touches it, and the shape of it is clear enough — the candidate box
+should be per row, or the batch should be tiled inside the trigger rather than
+by every caller.
+
+## Wikipedia backfill
+
+Run per list after the import.
+
+| List | Written | Images | Refused | Unmatched | Hero coverage after |
+|---|---|---|---|---|---|
+| Desert Peaks Section | 26 | 20 | 0 | 58 | 31 of 95 |
+| Tahoe Ogul Peaks | 35 | 32 | 0 | 26 | 34 of 63 |
+| South Beyond 6000 | 11 | 11 | 0 | 22 | 18 of 40 |
+| Idaho 12ers | 6 | 2 | 0 | 1 | 4 of 9 |
+
+Nothing was refused on licensing. The Desert Peaks list has the thinnest
+coverage and the reason is plain in its unmatched list: Wikipedia has no
+confident article for a range high point ("Turtle Mountains High Point",
+"Palen Mountains High Point") or for the many desert summits that share a name
+with a dozen others ("Granite Mountain", "Eagle Mountain", "Pinto Mountain").
+The Idaho 12ers did best in proportion — eight of nine took copy — because every
+one of them has an article.
+
+## Verification
+
+- **Dry run** resolved all seventeen curated lists with no unresolved row, and
+  reported 0 added, 0 removed and 0 reordered for each of the thirteen already
+  in Peaks.
+- **Apply** reported 95, 63, 40 and 9 members added on the four new lists, and
+  the same thirteen zeroes.
+- Production holds **29 lists**, and every one of them — not just the four new
+  ones — numbers 0 through n−1 with no gap and no repeat.
+- **112 new destinations** are present, 91 with OpenStreetMap provenance and 21
+  with Peakbagger provenance. All 112 carry a prominence from the source list.
+  Every one carries a PointZ equal to its elevation, the `summit` feature, owner
+  `peaks` and a country. 95 of them picked up protected-area links from the
+  insert trigger, 151 links in all.
+- **All 207 stored members were checked against their source row in source
+  order** — 95 + 63 + 40 + 9, name by name. The three that sit over 200 m from
+  their source point and the twenty-one over 3 m from its elevation are all
+  pre-existing rows, listed above.
+- The Tahoe Ogul split came out **56 California and 7 Nevada** from the stored
+  rows, matching tahoeogul.org exactly. The Desert Peaks list stores **64
+  California, 17 Nevada, 9 Arizona, 3 Mexico and 2 Utah**, against the source
+  page's own section headings of 66 / 15 / 9 / 3 / 2 — the two differ on two
+  border peaks that Peakbagger files under a California county and
+  OpenStreetMap's boundaries put in Nevada. South Beyond 6000 stores **34 North
+  Carolina and 6 Tennessee**; the club says all forty are in North Carolina or
+  on its Tennessee line except Mount Le Conte, and the six are Le Conte plus
+  five Smokies and Roan crest peaks sitting on that line.
+- **Middle Sister in California reads 3310.9 m with a matching PointZ**, and the
+  Oregon row still reads 3062 m.
+- **All three migrations are idempotent.** A second run of each wrote nothing —
+  `UPDATE 0`, no insert — and every assertion still passed.
+- **The assertions were tested by injecting corruption** inside a transaction
+  and rolling back. A deleted row, stripped provenance, a row that stops being a
+  summit, a row that loses its country, an OSM node ID handed to a second
+  destination, a Wikidata ID handed to a second destination, Middle Sister put
+  back to 3062, and a missing Peakbagger-only row each raised the exception
+  meant for it. Two more — an elevation moved away from its PointZ, and a
+  cleared location — never reach the assertion at all: the schema's own
+  `destinations_elevation_matches_location_z` CHECK refuses them first, which is
+  the stronger guarantee.
+- `cd cloud-sql/migrate && npm test`: 688 pass, 0 fail, 8 skipped. `tsc` clean.
+
+No source page needed a login and none served a CAPTCHA.
+
+This work adds no service, job, or steady compute cost. Monthly cost impact: $0.

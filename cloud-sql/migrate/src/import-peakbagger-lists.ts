@@ -64,6 +64,16 @@ export interface CuratedList {
   name: string;
   description: string;
   expectedCount: number;
+  /**
+   * A list that takes only part of one Peakbagger page names the peaks it
+   * takes. Set it with `sourceRowCount`, never alone: the selection says which
+   * rows belong to the list, and the row count says the page they came from is
+   * still the page that was reviewed. The Idaho 12ers are the case — Peakbagger
+   * has no 12,000-foot list, only an 11,000-foot one.
+   */
+  sourcePeakIds?: number[];
+  /** The row count the whole source page must still have. See `sourcePeakIds`. */
+  sourceRowCount?: number;
   destinationOverrides: Record<number, string>;
   yearEstablished: number | null;
   /** Nullable by design: plain elevation/prominence cuts have no keeper. */
@@ -162,6 +172,17 @@ const MARK_MOUNTAIN_ID = deterministicOsmDestinationId("13926474089");
 // two the source lists label differently need naming here.
 const SOUTH_WEEKS_MOUNTAIN_ID = deterministicOsmDestinationId("3300692064");
 const SOUTH_HORN_ID = deterministicOsmDestinationId("358225015");
+
+// Added by cloud-sql/migrations/20260821_western_list_summits.sql. Only the
+// eight that OpenStreetMap labels differently from the source list need naming.
+const GRANITE_PEAK_ID = deterministicOsmDestinationId("358795039");
+const SUPERSTITION_PEAK_ID = deterministicOsmDestinationId("359285748");
+const INDIAN_HEAD_PEAK_ID = deterministicOsmDestinationId("358808164");
+const OROCOPIA_MOUNTAIN_ID = deterministicOsmDestinationId("7556631806");
+const SILVER_PEAK_SIERRA_ID = deterministicOsmDestinationId("358799671");
+const WADE_PEAK_ID = deterministicOsmDestinationId("7515963927");
+const HALLBACK_ID = deterministicOsmDestinationId("357805389");
+const PLOTT_BALSAM_ID = deterministicOsmDestinationId("357803267");
 
 export const CURATED_DESTINATIONS: CuratedDestination[] = [
   {
@@ -463,6 +484,103 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=511",
     region: "Northeast",
   },
+  {
+    listId: deterministicListId(5053),
+    sourceListId: 5053,
+    name: "Desert Peaks Section",
+    description:
+      "The Sierra Club's Angeles Chapter founded the Desert Peaks Section in 1941, the " +
+      "oldest peak-climbing section in the chapter. Ninety-five desert mountains stand on " +
+      "its list, spread across California, Nevada, Arizona, Utah and Mexico. Six of them " +
+      "and a Sierra Club membership make a member of the section. White Mountain Peak, " +
+      "east of the Owens Valley, is the highest.",
+    expectedCount: 95,
+    destinationOverrides: {
+      13418: "8264B4AD714F0EA6E19E", // Weavers Needle -> the existing Weaver's Needle row
+      3614: "WSfpljsS69KFXbCnDDcM", // Glass Mountain -> the nearer of two catalog rows so named
+      3804: GRANITE_PEAK_ID, // Granite Mountain -> the OSM name, Granite Peak
+      4173: SUPERSTITION_PEAK_ID, // Superstition Benchmark -> the OSM name, Superstition Peak
+      13412: INDIAN_HEAD_PEAK_ID, // Indianhead -> the OSM name, Indian Head Peak
+      16806: OROCOPIA_MOUNTAIN_ID, // Orocopia Mountains High Point -> the OSM name
+    },
+    yearEstablished: 1941,
+    organization: "Sierra Club Angeles Chapter",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5053",
+    region: "Desert Southwest",
+  },
+  {
+    listId: deterministicListId(5055),
+    sourceListId: 5055,
+    name: "Tahoe Ogul Peaks",
+    description:
+      "Members of the Sierra Club's Peak and Gorge Section drew up this list of sixty-three " +
+      "peaks around Lake Tahoe in the early 1980s. Ogul is the Washoe word for the mountain " +
+      "bighorn sheep that once ranged there. The section disbanded in 1998, and the Western " +
+      "States Climbers have kept the list since 2000; it carries no Sierra Club tie today. " +
+      "Fifty-six of the peaks stand in California and seven in Nevada.",
+    expectedCount: 63,
+    destinationOverrides: {
+      3607: "dQvlhlqanHJh4h4JSkP7", // Middle Sister -> the existing row, whose elevation this pass corrects
+      13567: "89lGAhqgSm18Jih8vRUk", // Sierra Buttes -> the existing Sierra Buttes Lookout row
+      69023: "D80BD9D570012B82ED80", // Adams Peak - West Peak -> the existing Adams Peak row
+      53297: SILVER_PEAK_SIERRA_ID, // Silver Peak - Southwest Summit -> the OSM name, Silver Peak
+      26373: WADE_PEAK_ID, // Wade Benchmark -> the OSM name, Wade Peak
+    },
+    // Nullable by design: the list dates from the early 1980s and no source gives a year.
+    yearEstablished: null,
+    organization: "Western States Climbers",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5055",
+    region: "Lake Tahoe",
+  },
+  {
+    listId: deterministicListId(5180),
+    sourceListId: 5180,
+    name: "South Beyond 6000",
+    description:
+      "The Carolina Mountain Club and the Tennessee Eastman Hiking and Canoeing Club have " +
+      "run this challenge since 1968. More than sixty Southern Appalachian summits pass " +
+      "6,000 feet; forty qualify, each dropping 200 feet to the saddle joining it to " +
+      "another qualifier or standing three quarters of a mile from one. They fall in six " +
+      "ranges: the Smokies, Plotts, Balsams, Craggies, Blacks and Roans. All but Mount Le " +
+      "Conte lie in North Carolina or on its line with Tennessee.",
+    expectedCount: 40,
+    destinationOverrides: {
+      7764: "fC9zpl4WpEUZvU4HTsSI", // Kuwohi -> the existing Clingmans Dome row
+      7823: HALLBACK_ID, // Mount Hallback -> the OSM name, Hallback
+      7830: PLOTT_BALSAM_ID, // Plott Balsam Mountain -> the OSM name, Plott Balsam
+    },
+    yearEstablished: 1968,
+    organization: "Carolina Mountain Club and Tennessee Eastman Hiking and Canoeing Club",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5180",
+    region: "Southern Appalachians",
+  },
+  {
+    listId: deterministicListId(21330),
+    sourceListId: 21330,
+    name: "Idaho 12ers",
+    description:
+      "Idaho holds nine ranked summits above 12,000 feet. Seven stand in the Lost River " +
+      "Range, one in the Lemhi Range and one in the Pioneer Mountains. Borah Peak leads " +
+      "them and is the highest point in the state. Two more Idaho summits clear 12,000 " +
+      "feet but rise less than 300 feet above the saddle joining them to a higher " +
+      "neighbor, so they count as shoulders rather than peaks of their own.",
+    expectedCount: 9,
+    // Peakbagger has no Idaho 12,000-foot list. These nine are the ranked rows at or
+    // above 12,000 feet on its Idaho 11,000-foot page, in the order that page prints
+    // them; sourceRowCount re-checks that the page itself has not changed.
+    sourcePeakIds: [5142, 5147, 5164, 5150, 5151, 5145, 5154, 5152, 5118],
+    sourceRowCount: 138,
+    destinationOverrides: {},
+    // Nullable by design: a plain elevation cut has no keeper (see Colorado 14ers above).
+    yearEstablished: null,
+    organization: null,
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21330",
+    region: "Idaho",
+  },
 ];
 
 export function parseArgs(argv = process.argv.slice(2)): ImportArgs {
@@ -503,10 +621,17 @@ export function validateSourceList(list: CuratedList, source: PeakbaggerSourceLi
   if (!source || !Array.isArray(source.rows)) {
     throw new Error(`Peakbagger list ${list.sourceListId} is missing from the input`);
   }
-  if (source.rows.length !== list.expectedCount) {
+  const selection = list.sourcePeakIds;
+  if ((selection == null) !== (list.sourceRowCount == null)) {
+    throw new Error(
+      `Peakbagger list ${list.sourceListId} needs sourcePeakIds and sourceRowCount together`
+    );
+  }
+  const expectedRows = selection == null ? list.expectedCount : list.sourceRowCount as number;
+  if (source.rows.length !== expectedRows) {
     throw new Error(
       `Peakbagger list ${list.sourceListId} has ${source.rows.length} rows; ` +
-      `expected ${list.expectedCount}`
+      `expected ${expectedRows}`
     );
   }
   const peakIds = new Set<number>();
@@ -524,6 +649,20 @@ export function validateSourceList(list: CuratedList, source: PeakbaggerSourceLi
       throw new Error(`List ${list.sourceListId} repeats peak ${row.peakbaggerPeakId}`);
     }
     peakIds.add(row.peakbaggerPeakId);
+  }
+  if (selection == null) return;
+  if (new Set(selection).size !== selection.length) {
+    throw new Error(`Peakbagger list ${list.sourceListId} repeats selected peaks`);
+  }
+  if (selection.length !== list.expectedCount) {
+    throw new Error(
+      `Peakbagger list ${list.sourceListId} selects ${selection.length} peaks; ` +
+      `expected ${list.expectedCount}`
+    );
+  }
+  const absent = selection.find((peakId) => !peakIds.has(peakId));
+  if (absent != null) {
+    throw new Error(`Peakbagger list ${list.sourceListId} is missing selected peak ${absent}`);
   }
 }
 
@@ -577,7 +716,11 @@ export function resolveListMembers(
 ): ResolvedListMember[] {
   validateSourceList(list, source);
   const catalogById = new Map(catalog.map((peak) => [peak.id, peak]));
-  const members = source.rows.map((row, index) => {
+  const selection = list.sourcePeakIds == null ? null : new Set(list.sourcePeakIds);
+  const rows = selection == null
+    ? source.rows
+    : source.rows.filter((row) => selection.has(row.peakbaggerPeakId));
+  const members = rows.map((row, index) => {
     const overrideId = list.destinationOverrides[row.peakbaggerPeakId];
     const destination = overrideId
       ? catalogById.get(overrideId)

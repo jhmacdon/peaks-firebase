@@ -328,3 +328,141 @@ test("the five audited curated lists carry researched metadata verbatim from the
       "The Sierra Club's Angeles Chapter founded the Sierra Peaks Section in 1955 and marked fifteen summits on its peaks list as Emblem Peaks, the ones that dominate their part of the range. A member earns the section emblem by climbing ten of the fifteen plus fifteen more peaks from the full list. Mount Whitney, Mount Williamson, North Palisade, and Mount Ritter are among them.",
   });
 });
+
+// The Idaho 12ers take part of one Peakbagger page rather than a whole list:
+// lid 21330 is "Idaho 11,000-foot Peaks", and the 12ers are its ranked rows at
+// or above 12,000 feet. A partial list names the rows it takes AND the row
+// count the whole page must still have, so a page that gains or loses a row
+// fails instead of quietly importing a stale selection.
+const partialSource = {
+  rows: [
+    { ordinal: 1, peakbaggerPeakId: 101, name: "Mount Alpha", elevationFt: 9_842.52 },
+    { ordinal: 2, peakbaggerPeakId: 102, name: "Mount Beta", elevationFt: 6_000 },
+    { ordinal: 3, peakbaggerPeakId: 103, name: "New Name", elevationFt: 9_514.44 },
+  ],
+};
+
+const partialList: CuratedList = {
+  ...list,
+  expectedCount: 2,
+  sourcePeakIds: [103, 101],
+  sourceRowCount: 3,
+  destinationOverrides: { 103: "destination-2" },
+};
+
+test("a partial list takes only its named peaks, in page order", () => {
+  assert.deepEqual(resolveListMembers(partialList, partialSource, catalog), [
+    { destinationId: "destination-1", ordinal: 0, sourcePeakId: 101, sourceName: "Mount Alpha" },
+    { destinationId: "destination-2", ordinal: 1, sourcePeakId: 103, sourceName: "New Name" },
+  ]);
+});
+
+test("a partial list still checks the whole page's row count", () => {
+  assert.throws(
+    () => resolveListMembers(partialList, { rows: partialSource.rows.slice(0, 2) }, catalog),
+    /has 2 rows; expected 3/
+  );
+});
+
+test("a partial list refuses a selection the page does not carry", () => {
+  assert.throws(
+    () => validateSourceList({ ...partialList, sourcePeakIds: [101, 999] }, partialSource),
+    /missing selected peak 999/
+  );
+});
+
+test("a partial list refuses a selection that disagrees with expectedCount", () => {
+  assert.throws(
+    () => validateSourceList({ ...partialList, sourcePeakIds: [101, 102, 103] }, partialSource),
+    /selects 3 peaks; expected 2/
+  );
+});
+
+test("a partial list refuses a repeated selection", () => {
+  assert.throws(
+    () => validateSourceList({ ...partialList, sourcePeakIds: [101, 101] }, partialSource),
+    /repeats selected peak/
+  );
+});
+
+test("sourcePeakIds and sourceRowCount only count together", () => {
+  const { sourceRowCount, ...noRowCount } = partialList;
+  assert.throws(
+    () => validateSourceList(noRowCount as CuratedList, partialSource),
+    /sourcePeakIds and sourceRowCount together/
+  );
+  const { sourcePeakIds, ...noSelection } = partialList;
+  assert.throws(
+    () => validateSourceList(noSelection as CuratedList, partialSource),
+    /sourcePeakIds and sourceRowCount together/
+  );
+});
+
+test("the four Western lists carry the metadata their audit-doc sources support", () => {
+  const byId = new Map(CURATED_LISTS.map((entry) => [entry.listId, entry]));
+  const shape = (curated: CuratedList | undefined) => ({
+    name: curated?.name,
+    expectedCount: curated?.expectedCount,
+    yearEstablished: curated?.yearEstablished,
+    organization: curated?.organization,
+    region: curated?.region,
+    sourceUrl: curated?.sourceUrl,
+  });
+
+  assert.deepEqual(shape(byId.get(deterministicListId(5053))), {
+    name: "Desert Peaks Section",
+    expectedCount: 95,
+    yearEstablished: 1941,
+    organization: "Sierra Club Angeles Chapter",
+    region: "Desert Southwest",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5053",
+  });
+
+  // The Ogul list dates from "the early 1980s" and no source gives a year, so
+  // the field stays null rather than carrying a guess. Its keeper is the
+  // Western States Climbers; the Sierra Club tie ended in 1998.
+  assert.deepEqual(shape(byId.get(deterministicListId(5055))), {
+    name: "Tahoe Ogul Peaks",
+    expectedCount: 63,
+    yearEstablished: null,
+    organization: "Western States Climbers",
+    region: "Lake Tahoe",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5055",
+  });
+
+  // Two sponsors, both named: the club's own page says it has always been both.
+  assert.deepEqual(shape(byId.get(deterministicListId(5180))), {
+    name: "South Beyond 6000",
+    expectedCount: 40,
+    yearEstablished: 1968,
+    organization: "Carolina Mountain Club and Tennessee Eastman Hiking and Canoeing Club",
+    region: "Southern Appalachians",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5180",
+  });
+
+  assert.deepEqual(shape(byId.get(deterministicListId(21330))), {
+    name: "Idaho 12ers",
+    expectedCount: 9,
+    yearEstablished: null,
+    organization: null,
+    region: "Idaho",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21330",
+  });
+});
+
+test("the Idaho 12ers are the only partial list, and their selection is pinned", () => {
+  const partial = CURATED_LISTS.filter((entry) => entry.sourcePeakIds != null);
+  assert.equal(partial.length, 1);
+  const idaho = partial[0];
+  assert.equal(idaho.sourceListId, 21330);
+  assert.equal(idaho.sourceRowCount, 138);
+  assert.deepEqual(idaho.sourcePeakIds, [5142, 5147, 5164, 5150, 5151, 5145, 5154, 5152, 5118]);
+  assert.equal(idaho.sourcePeakIds?.length, idaho.expectedCount);
+  for (const curated of CURATED_LISTS) {
+    assert.equal(
+      curated.sourcePeakIds == null,
+      curated.sourceRowCount == null,
+      `${curated.name} sets one of sourcePeakIds/sourceRowCount without the other`
+    );
+  }
+});

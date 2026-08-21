@@ -231,22 +231,32 @@ unclear rows and never drops an unresolved source peak.
 ```bash
 cd migrate
 npm run import:peakbagger-lists -- \
-  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json
+  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21b.json
 npm run import:peakbagger-lists -- \
-  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21.json --apply
+  --input=../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-21b.json --apply
 ```
 
 Source rows live in the repo fixture, not `/tmp`. Every list in `CURATED_LISTS`
 must appear in the input at its exact expected count, so the input file has to
 carry all of them; the run fails rather than importing part of a list.
 
+A list may take part of one source page instead of a whole one. Set
+`sourcePeakIds` to the peaks it takes and `sourceRowCount` to the row count the
+whole page must still have — neither counts without the other. The Idaho 12ers
+are the case: Peakbagger has no Idaho 12,000-foot list, so those nine are named
+out of its 138-row 11,000-foot list, and a page that gains or loses a row fails
+the import rather than publishing a stale selection.
+
 The reviewed 2026-08-18 scope and held lists are in
 `docs/data-audits/peakbagger-lists-2026-08-18.md`. Everything since is in
 `docs/data-audits/peakbagger-lists-2026-08-21.md`: a first pass that released all
 four held lists — including the eight Oregon and Colorado summits OpenStreetMap
-has never mapped — and a second that added the four Northeast classics and
-cleared four list-data debts. Munros and other non-US classics stay deferred; the
-second pass says why.
+has never mapped — a second that added the four Northeast classics and cleared
+four list-data debts, and a third that added the Desert Peaks Section, the Tahoe
+Ogul Peaks, South Beyond 6000 and the Idaho 12ers. The third pass **holds** the
+Sierra Peaks Section (83 missing destinations) and the Hundred Peaks Section
+(237), and records why the statewide OSM expander cannot release either. Munros
+and other non-US classics stay deferred; the second pass says why.
 
 ## Named viewpoint audit/import
 
