@@ -66,9 +66,15 @@ export default async function ListDetailPage({
           label: "Highest peak",
         }
       : null,
-    facts.states > 0
-      ? { key: "states", value: facts.states.toLocaleString("en-US"), label: "States" }
-      : null,
+    // A state_code only means something within its own country — Nepal's
+    // "P1" and Washington's "WA" are both non-null but describe unrelated
+    // things — so an international roster (more than one country) reports
+    // Countries instead of States, never both.
+    facts.countries > 1
+      ? { key: "countries", value: facts.countries.toLocaleString("en-US"), label: "Countries" }
+      : facts.states > 0
+        ? { key: "states", value: facts.states.toLocaleString("en-US"), label: "States" }
+        : null,
   ].filter((stat): stat is ToplineStat => stat !== null);
 
   return (
@@ -90,7 +96,7 @@ export default async function ListDetailPage({
 
           <Topline stats={toplineStats} />
 
-          {paragraphs.length > 0 || sourceHref ? (
+          {paragraphs.length > 0 || (sourceHref && sourceLabel) ? (
             <section aria-labelledby="list-about">
               <div className="max-w-[68ch] space-y-3 text-base leading-[1.7] text-ink-2">
                 {paragraphs.map((paragraph, index) => (

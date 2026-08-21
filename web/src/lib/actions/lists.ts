@@ -42,6 +42,7 @@ export interface ListDestination {
   ordinal: number;
   hero_image: string | null;
   state_code: string | null;
+  country_code: string | null;
 }
 
 export interface ListProgress {
@@ -157,7 +158,7 @@ export async function getListDestinations(
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             ld.ordinal,
-            d.hero_image, d.state_code
+            d.hero_image, d.state_code, d.country_code
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      WHERE ld.list_id = $1
@@ -176,6 +177,7 @@ export async function getListDestinations(
     ordinal: Number(r.ordinal),
     hero_image: r.hero_image,
     state_code: r.state_code,
+    country_code: r.country_code,
   }));
 }
 
