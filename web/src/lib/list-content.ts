@@ -21,6 +21,13 @@ export function isBoilerplateListDescription(
   return trimmed === BOILERPLATE_LIST_DESCRIPTION;
 }
 
+/** Coarse owner label shown when a list has no researched year/organization
+ * to display instead. `owner` is `"peaks"` for the curated catalog and a
+ * user id for everything else — this is a two-way split, not a lookup. */
+export function listOwnerLabel(owner: string): string {
+  return owner === "peaks" ? "Peaks curated" : "Community list";
+}
+
 export interface ParsedListDescription {
   /** Real body paragraphs, already split on blank-line breaks. Empty when
    * the description is missing, boilerplate, or nothing but a source line. */

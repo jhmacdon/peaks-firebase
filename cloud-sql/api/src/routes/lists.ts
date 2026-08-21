@@ -11,6 +11,7 @@ router.get("/popular", asyncRoute(async (req, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 10;
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id)
               AS destination_count,
             l.created_at, l.updated_at
@@ -35,6 +36,7 @@ router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
   }
   const result = await db.query(
     `SELECT DISTINCT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id)
               AS destination_count,
             l.created_at, l.updated_at
@@ -51,7 +53,9 @@ router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
-    `SELECT id, name, description, owner, created_at, updated_at
+    `SELECT id, name, description, owner,
+            year_established, organization, source_name, source_url, region,
+            created_at, updated_at
      FROM lists WHERE id = $1`,
     [id]
   );
@@ -149,6 +153,7 @@ router.get("/", asyncRoute(async (req, res: Response) => {
 
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id) AS destination_count,
             l.created_at, l.updated_at
      FROM lists l

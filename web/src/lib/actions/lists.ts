@@ -18,7 +18,13 @@ export interface ListRow {
   name: string;
   description: string | null;
   owner: string;
+  year_established: number | null;
+  organization: string | null;
+  source_name: string | null;
+  source_url: string | null;
+  region: string | null;
   destination_count: number;
+  thumbnails: string[];
 }
 
 export interface ListDetail extends ListRow {
@@ -35,11 +41,19 @@ export interface ListDestination {
   lat: number | null;
   lng: number | null;
   ordinal: number;
+  hero_image: string | null;
+  state_code: string | null;
+  country_code: string | null;
 }
 
 export interface ListProgress {
   total: number;
   completed: number;
+}
+
+export interface ListCompletionEntry {
+  reached_at: string | null;
+  visit_count: number;
 }
 
 /**
@@ -70,7 +84,14 @@ export async function getLists(
 
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
-            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
+            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            ARRAY(
+              SELECT d.hero_image FROM list_destinations ld2
+              JOIN destinations d ON d.id = ld2.destination_id
+              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+            ) AS thumbnails
      FROM lists l
      ${where}
      ORDER BY l.name ASC
@@ -84,7 +105,13 @@ export async function getLists(
       name: r.name,
       description: r.description,
       owner: r.owner,
+      year_established: r.year_established,
+      organization: r.organization,
+      source_name: r.source_name,
+      source_url: r.source_url,
+      region: r.region,
       destination_count: Number(r.destination_count),
+      thumbnails: parseArray(r.thumbnails),
     })),
     total: Number(countResult.rows[0].count),
   };
@@ -96,7 +123,14 @@ export async function getLists(
 export async function getList(id: string): Promise<ListDetail | null> {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            ARRAY(
+              SELECT d.hero_image FROM list_destinations ld2
+              JOIN destinations d ON d.id = ld2.destination_id
+              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+            ) AS thumbnails,
             l.created_at, l.updated_at
      FROM lists l
      WHERE l.id = $1`,
@@ -111,7 +145,13 @@ export async function getList(id: string): Promise<ListDetail | null> {
     name: r.name,
     description: r.description,
     owner: r.owner,
+    year_established: r.year_established,
+    organization: r.organization,
+    source_name: r.source_name,
+    source_url: r.source_url,
+    region: r.region,
     destination_count: Number(r.destination_count),
+    thumbnails: parseArray(r.thumbnails),
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
   };
@@ -132,7 +172,8 @@ export async function getListDestinations(
     `SELECT d.id, d.name, d.elevation, d.prominence, d.features,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
-            ld.ordinal
+            ld.ordinal,
+            d.hero_image, d.state_code, d.country_code
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      WHERE ld.list_id = $1
@@ -149,6 +190,9 @@ export async function getListDestinations(
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
     ordinal: Number(r.ordinal),
+    hero_image: r.hero_image,
+    state_code: r.state_code,
+    country_code: r.country_code,
   }));
 }
 
@@ -183,4 +227,41 @@ export async function getListProgress(
     total: Number(totalResult.rows[0].count),
     completed: Number(completedResult.rows[0].completed),
   };
+}
+
+/**
+ * Per-destination completion detail for this list, keyed by destination id:
+ * how many sessions reached it and when it was last reached. `reached_at` is
+ * the session start date — session_destinations stores no summit time, same
+ * convention as getUserDestinationActivity's latest_visit.
+ */
+export async function getListCompletion(
+  token: string,
+  listId: string
+): Promise<Record<string, ListCompletionEntry>> {
+  const user = await verifyToken(token);
+  if (!user) throw new Error("Unauthorized");
+
+  const result = await db.query(
+    `SELECT ld.destination_id,
+            COUNT(DISTINCT sd.session_id) AS visit_count,
+            MAX(ts.start_time)            AS reached_at
+     FROM list_destinations ld
+     JOIN session_destinations sd
+       ON sd.destination_id = ld.destination_id AND sd.relation = 'reached'
+     JOIN tracking_sessions ts
+       ON ts.id = sd.session_id AND ts.user_id = $2
+     WHERE ld.list_id = $1
+     GROUP BY ld.destination_id`,
+    [listId, user.uid]
+  );
+
+  const completion: Record<string, ListCompletionEntry> = {};
+  for (const r of result.rows) {
+    completion[r.destination_id] = {
+      visit_count: Number(r.visit_count),
+      reached_at: r.reached_at instanceof Date ? r.reached_at.toISOString() : r.reached_at ?? null,
+    };
+  }
+  return completion;
 }

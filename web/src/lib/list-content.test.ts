@@ -3,8 +3,17 @@ import test from "node:test";
 
 import {
   isBoilerplateListDescription,
+  listOwnerLabel,
   parseListDescription,
 } from "./list-content";
+
+test("listOwnerLabel labels the peaks owner as curated", () => {
+  assert.equal(listOwnerLabel("peaks"), "Peaks curated");
+});
+
+test("listOwnerLabel labels any other owner as a community list", () => {
+  assert.equal(listOwnerLabel("some-user-id"), "Community list");
+});
 
 test("isBoilerplateListDescription flags missing and placeholder text", () => {
   assert.equal(isBoilerplateListDescription(null), true);

@@ -42,6 +42,15 @@
  *   --ids a,b,c        Only these destination ids (bypasses the ordering).
  *   --force            Re-fetch rows that already have a description.
  *   --min-prominence N Only summits with prominence >= N metres (default 300).
+ *   --list-id ID       Only destinations on this list (any feature, any
+ *                      prominence — list membership is the curation). ID
+ *                      must be non-empty.
+ *   --all-lists        Only destinations on any list, deduplicated. Mutually
+ *                      exclusive with --list-id and with --ids. WARNING:
+ *                      inherits the same default --limit 100 as every other
+ *                      invocation — a catalog-wide run needs an explicit
+ *                      --limit sized to the remaining candidate count, or it
+ *                      silently caps at 100 and stops.
  */
 
 import db from "./db";
@@ -150,10 +159,6 @@ export type Queryable = {
   query(text: string, values?: any[]): Promise<any>;
 };
 
-function hasFlag(name: string): boolean {
-  return process.argv.includes(`--${name}`);
-}
-
 /** A flag was passed with a missing or unreadable value. Raised, not swallowed:
  *  a run that quietly falls back to the default writes the wrong rows. */
 export class FlagUsageError extends Error {}
@@ -188,12 +193,89 @@ export function intFlagFrom(argv: readonly string[], name: string, fallback: num
   return Number.parseInt(trimmed, 10);
 }
 
-function stringFlag(name: string): string | null {
-  return stringFlagFrom(process.argv, name);
-}
+export type ParsedArgs = {
+  dryRun: boolean;
+  /** Never true alongside dryRun — parseArgs refuses that combination outright. */
+  commit: boolean;
+  force: boolean;
+  limit: number;
+  minProminence: number;
+  ids: string[] | null;
+  listId: string | null;
+  allLists: boolean;
+};
 
-function intFlag(name: string, fallback: number): number {
-  return intFlagFrom(process.argv, name, fallback);
+/**
+ * Every flag this script understands. A token starting with "--" that is not
+ * in this set is refused rather than silently ignored: a typo'd flag name
+ * (`--all-list`) must not read as "that flag wasn't set" when the operator
+ * meant to set it, especially for a scope flag whose absence falls back to
+ * the whole-catalog default branch.
+ */
+const KNOWN_FLAGS = new Set([
+  "dry-run",
+  "commit",
+  "force",
+  "limit",
+  "min-prominence",
+  "ids",
+  "list-id",
+  "all-lists",
+]);
+
+/**
+ * Read and validate every flag in one place, before any Wikipedia request or
+ * database query runs. A combination that would silently do something other
+ * than what the operator meant — dry-run and commit together, two different
+ * candidate scopes at once, a scope flag with nothing in it — throws instead
+ * of picking one and pressing on.
+ */
+export function parseArgs(argv: readonly string[]): ParsedArgs {
+  for (const token of argv) {
+    if (token.startsWith("--") && !KNOWN_FLAGS.has(token.slice(2))) {
+      throw new FlagUsageError(`Unrecognized flag ${token}.`);
+    }
+  }
+
+  const dryRun = argv.includes("--dry-run");
+  const commitRequested = argv.includes("--commit");
+  if (dryRun && commitRequested) {
+    throw new FlagUsageError("--dry-run and --commit contradict each other; pass one or neither.");
+  }
+
+  const idsRaw = stringFlagFrom(argv, "ids");
+  const ids = idsRaw ? idsRaw.split(",").map((value) => value.trim()).filter(Boolean) : null;
+
+  const listIdRaw = stringFlagFrom(argv, "list-id");
+  const listId = listIdRaw !== null ? listIdRaw.trim() : null;
+  if (listId !== null && listId.length === 0) {
+    // A blank value is only reachable via a quoted empty string or an unset
+    // shell variable passed quoted — `--list-id "$UNSET"` — but it must not
+    // read as "no scope given": that silently falls through to the
+    // whole-catalog default branch, prominence floor and all.
+    throw new FlagUsageError("--list-id needs a non-empty value, but was given a blank one.");
+  }
+  const allLists = argv.includes("--all-lists");
+
+  if (listId && allLists) {
+    throw new FlagUsageError("--list-id and --all-lists contradict each other; pass one or neither.");
+  }
+  if ((listId || allLists) && ids) {
+    throw new FlagUsageError(
+      "--ids already selects an exact set of destinations; --list-id/--all-lists is redundant with it."
+    );
+  }
+
+  return {
+    dryRun,
+    commit: commitRequested && !dryRun,
+    force: argv.includes("--force"),
+    limit: intFlagFrom(argv, "limit", 100),
+    minProminence: intFlagFrom(argv, "min-prominence", 300),
+    ids,
+    listId,
+    allLists,
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -485,12 +567,21 @@ const CANDIDATE_COLUMNS = `d.id, d.name,
  * takes only rows still owed something — otherwise every rerun re-reads the same
  * filled summits and --limit N never walks down the list. --ids and --force are
  * deliberate instructions, so neither is filtered.
+ *
+ * --list-id / --all-lists are a separate branch, not a filter bolted onto the
+ * default one: list membership is itself the curation, so it drops both the
+ * prominence floor and the summit-feature requirement that the default branch
+ * needs to avoid trawling the whole catalog. It only tracks hero_image — this
+ * is a hero-image backfill, and a list member missing only a description still
+ * gets one for free the moment planRow resolves its article.
  */
 export function buildCandidateQuery(options: {
   ids?: string[] | null;
   force: boolean;
   minProminence: number;
   limit: number;
+  listId?: string | null;
+  allLists?: boolean;
 }): { text: string; values: any[] } {
   if (options.ids && options.ids.length > 0) {
     return {
@@ -498,6 +589,26 @@ export function buildCandidateQuery(options: {
          FROM destinations d
         WHERE d.id = ANY($1::text[])`,
       values: [options.ids],
+    };
+  }
+
+  if (options.listId || options.allLists) {
+    const unfinished = options.force ? "" : "\n        AND d.hero_image IS NULL";
+    const membership = options.listId
+      ? "d.id IN (SELECT ld.destination_id FROM list_destinations ld WHERE ld.list_id = $1)"
+      : "d.id IN (SELECT ld.destination_id FROM list_destinations ld)";
+    const limitParam = options.listId ? "$2" : "$1";
+    const values = options.listId ? [options.listId, options.limit] : [options.limit];
+
+    return {
+      text: `SELECT ${CANDIDATE_COLUMNS}
+         FROM destinations d
+        WHERE ${membership}
+          AND d.name IS NOT NULL
+          AND d.location IS NOT NULL${unfinished}
+        ORDER BY d.elevation DESC NULLS LAST
+        LIMIT ${limitParam}`,
+      values,
     };
   }
 
@@ -518,32 +629,18 @@ export function buildCandidateQuery(options: {
   };
 }
 
-async function loadCandidates(force: boolean): Promise<CandidateRow[]> {
-  const ids = stringFlag("ids");
-  const { text, values } = buildCandidateQuery({
-    ids: ids ? ids.split(",").map((value) => value.trim()).filter(Boolean) : null,
-    force,
-    minProminence: intFlag("min-prominence", 300),
-    limit: intFlag("limit", 100),
-  });
-  const result = await db.query<CandidateRow>(text, values);
-  return result.rows;
-}
-
 async function main() {
-  const dryRun = hasFlag("dry-run");
-  const force = hasFlag("force");
-  if (dryRun && hasFlag("commit")) {
-    console.error("--dry-run and --commit contradict each other; pass one or neither.");
-    process.exit(1);
-  }
-  const commit = hasFlag("commit") && !dryRun;
-  if (dryRun) console.log("dry-run: writes disabled");
+  const args = parseArgs(process.argv);
+  if (args.dryRun) console.log("dry-run: writes disabled");
+  const scope = args.listId ? ` list=${args.listId}` : args.allLists ? " list=ALL" : "";
   console.log(
-    `Wikipedia place-copy backfill — mode=${commit ? "COMMIT" : "DRY RUN"} force=${force}`
+    `Wikipedia place-copy backfill — mode=${args.commit ? "COMMIT" : "DRY RUN"} ` +
+      `force=${args.force}${scope}`
   );
 
-  const rows = await loadCandidates(force);
+  const { text, values } = buildCandidateQuery(args);
+  const result = await db.query<CandidateRow>(text, values);
+  const rows = result.rows;
   console.log(`${rows.length} candidate destination(s)`);
 
   let written = 0;
@@ -553,7 +650,7 @@ async function main() {
   const skips = new Map<string, number>();
 
   for (const row of rows) {
-    const outcome = await planRow(row, wikimediaClient, { force });
+    const outcome = await planRow(row, wikimediaClient, { force: args.force });
     const name = row.name ?? "";
 
     if (outcome.kind === "skip") {
@@ -583,7 +680,7 @@ async function main() {
     );
     console.log(`        "${write.description}"`);
 
-    if (commit) {
+    if (args.commit) {
       await writeRow(db, row.id, write);
     }
     written += 1;
@@ -593,7 +690,7 @@ async function main() {
   console.log(
     `\nDone. written=${written} images=${images} imagesRefused=${imagesRefused} ` +
       `skipped=${skipped} unmatched=${unmatched}` +
-      (commit ? "" : "  (DRY RUN — pass --commit to write)")
+      (args.commit ? "" : "  (DRY RUN — pass --commit to write)")
   );
   for (const [reason, count] of skips) {
     console.log(`  skipped ${count} — ${reason}`);
