@@ -8,9 +8,8 @@ import ProgressBar from "../progress-bar";
 import { SectionHeading } from "../ui/section-heading";
 import { useListCompletion } from "./list-completion-context";
 
-/** The destinations on this list — same row shape as ListDestinations
- * (list-destinations.tsx), upgraded with a signed-in reader's own
- * completion: a progress bar above the rows, a 48px thumbnail per row
+/** The destinations on this list, with a signed-in reader's own
+ * completion layered on: a progress bar above the rows, a 48px thumbnail per row
  * (destination-nearby.tsx's pattern), and a trailing trophy + date on any
  * row they've reached. Reads useListCompletion() (list-completion-context.tsx)
  * rather than fetching its own copy, so it shares one request with the map

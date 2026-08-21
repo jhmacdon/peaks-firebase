@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getListCompletion, type ListCompletionEntry } from "../../lib/actions/lists";
 import { useAuth } from "../../lib/auth-context";
 
@@ -16,11 +16,11 @@ const ListCompletionContext = createContext<ListCompletionState>({
 
 /** One fetch of a signed-in reader's per-destination completion on this
  * list, shared by every client that needs it — the roster below (
- * list-roster.tsx) and the map hero (Task 5) — rather than each consumer
- * re-fetching the same sparse map. Same client-island contract as
- * ListProgress (list-progress.tsx): renders `children` unconditionally, so
- * the server-rendered page underneath passes straight through the static
- * HTML; this only ever layers a signed-in reader's own completion on top.
+ * list-roster.tsx) and the map hero (list-hero.tsx) — rather than each
+ * consumer re-fetching the same sparse map. Renders `children`
+ * unconditionally, so the server-rendered page underneath passes straight
+ * through the static HTML; this only ever layers a signed-in reader's own
+ * completion on top.
  *
  * `entries` is sparse by construction — getListCompletion's two SQL joins
  * are both inner, so a destination with no reached session has no key at
@@ -66,8 +66,10 @@ export function ListCompletionProvider({
     };
   }, [authLoading, listId, userId, getIdToken]);
 
+  const value = useMemo(() => ({ entries, signedIn: !!user }), [entries, user]);
+
   return (
-    <ListCompletionContext.Provider value={{ entries, signedIn: !!user }}>
+    <ListCompletionContext.Provider value={value}>
       {children}
     </ListCompletionContext.Provider>
   );
