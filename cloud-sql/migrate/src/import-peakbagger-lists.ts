@@ -61,6 +61,36 @@ export interface CuratedList {
   description: string;
   expectedCount: number;
   destinationOverrides: Record<number, string>;
+  yearEstablished: number | null;
+  /** Nullable by design: plain elevation/prominence cuts have no keeper. */
+  organization: string | null;
+  sourceName: string;
+  sourceUrl: string;
+  region: string;
+}
+
+export interface ListUpsertParams {
+  listId: string;
+  name: string;
+  description: string;
+  yearEstablished: number | null;
+  organization: string | null;
+  sourceName: string;
+  sourceUrl: string;
+  region: string;
+}
+
+export function buildListUpsertParams(list: CuratedList): ListUpsertParams {
+  return {
+    listId: list.listId,
+    name: list.name,
+    description: list.description,
+    yearEstablished: list.yearEstablished,
+    organization: list.organization,
+    sourceName: list.sourceName,
+    sourceUrl: list.sourceUrl,
+    region: list.region,
+  };
 }
 
 export interface ResolvedListMember {
@@ -128,56 +158,93 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceListId: 5044,
     name: "Cascade Volcanoes",
     description:
-      "The 20 peaks in the Mountaineers Cascade Volcanoes Peak Pin list. " +
-      "Source: https://www.peakbagger.com/list.aspx?lid=5044",
+      "The Mountaineers' Tacoma branch created this peak pin in 2010 for climbers who reach all " +
+      "twenty major Cascade volcanoes. The line runs from Mount Garibaldi in British Columbia " +
+      "south to Lassen Peak in California. Every peak counts toward the pin; there is no partial credit.",
     expectedCount: 20,
     destinationOverrides: {},
+    yearEstablished: 2010,
+    organization: "The Mountaineers",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5044",
+    region: "Cascades",
   },
   {
     listId: "LAZcIKjluO0oT3o9g6MC",
     sourceListId: 21360,
     name: "Colorado 14ers",
     description:
-      "Colorado peaks at or above 14,000 feet in Peakbagger's clean-prominence list. " +
-      "Source: https://www.peakbagger.com/list.aspx?lid=21360",
+      "Colorado holds fifty-three peaks above 14,000 feet that also rise 300 feet above the " +
+      "saddle linking them to a higher neighbor. Other Colorado summits clear 14,000 feet but " +
+      "fall short of that rise, so lists count them as shoulders rather than mountains of their " +
+      "own. Mount Elbert is the highest of them, and the highest summit in the Rocky Mountains.",
     expectedCount: 53,
     destinationOverrides: {
       5907: "eBNZkjZzZV96xo5f36bx", // Crestone Peak East -> Crestone Peak
       5676: "PaeawK81bgByWN53rffv", // Mount Blue Sky -> Mount Evans
     },
+    // Nullable by design: a plain elevation/prominence cut has no keeper. Peakbagger hosts
+    // the list but is not its keeper; that fact lives in sourceName/sourceUrl instead.
+    yearEstablished: null,
+    organization: null,
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21360",
+    region: "Colorado",
   },
   {
     listId: "3S29a3viZKKnSMz4wzPQ",
     sourceListId: 21457,
     name: "Tennessee 4500ft Peaks",
     description:
-      "The 55 Tennessee peaks on Peakbagger's 4,500-foot list. " +
-      "Source: https://www.peakbagger.com/list.aspx?lid=21457",
+      "Fifty-five summits in and around Tennessee reach 4,500 feet. Many sit on the crest of " +
+      "the Great Smoky Mountains, where the state line follows the ridge shared with North " +
+      "Carolina. Kuwohi, at 6,643 feet, is the highest of them and the highest point in Tennessee.",
     expectedCount: 55,
     destinationOverrides: {
       7764: "fC9zpl4WpEUZvU4HTsSI", // Kuwohi -> the existing Clingmans Dome row
       18611: HIGH_ROCK_ID,
     },
+    // Nullable by design: another plain elevation cut with no keeper (see Colorado 14ers above).
+    yearEstablished: null,
+    organization: null,
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21457",
+    region: "Tennessee",
   },
   {
     listId: deterministicListId(50081),
     sourceListId: 50081,
     name: "California Fourteeners",
     description:
-      "The 15 California fourteeners in the Porcella/Burns list. " +
-      "Source: https://www.peakbagger.com/list.aspx?lid=50081",
+      "Steve Porcella and Cameron Burns counted fifteen California summits above 14,000 feet " +
+      "in their guidebook, first published in 1991. Fourteen rise in the Sierra Nevada; White " +
+      "Mountain Peak stands alone east of the Owens Valley. Mount Whitney is the highest of the " +
+      "fifteen, and of the contiguous United States.",
     expectedCount: 15,
     destinationOverrides: {},
+    yearEstablished: 1991,
+    organization: "Porcella and Burns",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=50081",
+    region: "California",
   },
   {
     listId: deterministicListId(50511),
     sourceListId: 50511,
     name: "Sierra Peaks Section Emblem Peaks",
     description:
-      "The 15 emblem peaks of the Sierra Club's Sierra Peaks Section. " +
-      "Source: https://www.peakbagger.com/list.aspx?lid=50511",
+      "The Sierra Club's Angeles Chapter founded the Sierra Peaks Section in 1955 and marked " +
+      "fifteen summits on its peaks list as Emblem Peaks, the ones that dominate their part of " +
+      "the range. A member earns the section emblem by climbing ten of the fifteen plus fifteen " +
+      "more peaks from the full list. Mount Whitney, Mount Williamson, North Palisade, and Mount " +
+      "Ritter are among them.",
     expectedCount: 15,
     destinationOverrides: {},
+    yearEstablished: 1955,
+    organization: "Sierra Club Angeles Chapter",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=50511",
+    region: "Sierra Nevada",
   },
 ];
 
@@ -481,15 +548,33 @@ async function applyPlans(
     await client.query("SELECT pg_advisory_xact_lock(hashtext('peakbagger-list-import'))");
     await insertDestinations(client, destinationsToAdd);
     for (const plan of plans) {
+      const params = buildListUpsertParams(plan.list);
       await client.query(
-        `INSERT INTO lists (id, name, description, owner)
-         VALUES ($1, $2, $3, 'peaks')
+        `INSERT INTO lists (
+           id, name, description, owner,
+           year_established, organization, source_name, source_url, region
+         )
+         VALUES ($1, $2, $3, 'peaks', $4, $5, $6, $7, $8)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name,
            description = EXCLUDED.description,
            owner = EXCLUDED.owner,
+           year_established = EXCLUDED.year_established,
+           organization = EXCLUDED.organization,
+           source_name = EXCLUDED.source_name,
+           source_url = EXCLUDED.source_url,
+           region = EXCLUDED.region,
            updated_at = now()`,
-        [plan.list.listId, plan.list.name, plan.list.description]
+        [
+          params.listId,
+          params.name,
+          params.description,
+          params.yearEstablished,
+          params.organization,
+          params.sourceName,
+          params.sourceUrl,
+          params.region,
+        ]
       );
       const desiredIds = plan.members.map((member) => member.destinationId);
       await client.query(
@@ -551,6 +636,11 @@ async function main(): Promise<void> {
         id: plan.list.listId,
         sourceListId: plan.list.sourceListId,
         name: plan.list.name,
+        yearEstablished: plan.list.yearEstablished,
+        organization: plan.list.organization,
+        sourceName: plan.list.sourceName,
+        sourceUrl: plan.list.sourceUrl,
+        region: plan.list.region,
         destinationCount: plan.members.length,
         added: plan.addedDestinationIds.map((id) => ({ id, name: nameById.get(id) })),
         removed: plan.removedDestinationIds.map((id) => ({ id, name: nameById.get(id) })),
