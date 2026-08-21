@@ -37,6 +37,94 @@ test("mergeSourceContributions preserves existing entries and unions duplicate c
   assert.equal(merged[1].external_id, "456");
 });
 
+test("mergeSourceContributions collapses drifted windows of the same activity to the widest", () => {
+  const existing = [{
+    source: "strava",
+    external_id: "10829912049",
+    fragment_start_date: "2024-02-24T17:25:45Z",
+    fragment_end_date: "2024-02-24T19:55:23Z",
+    contribution_types: ["gps_gap"],
+  }];
+  const incoming = [{
+    source: "strava",
+    external_id: "10829912049",
+    fragment_start_date: "2024-02-24T17:25:03Z",
+    fragment_end_date: "2024-02-24T19:56:05Z",
+    contribution_types: ["health", "stats"],
+  }];
+
+  const merged = mergeSourceContributions(existing, incoming);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].fragment_start_date, "2024-02-24T17:25:03Z");
+  assert.equal(merged[0].fragment_end_date, "2024-02-24T19:56:05Z");
+  assert.deepEqual(merged[0].contribution_types, ["gps_gap", "health", "stats"]);
+});
+
+test("mergeSourceContributions keeps the earlier imported_at, not whichever side spread last", () => {
+  const existing = [{
+    source: "strava",
+    external_id: "10829912049",
+    fragment_start_date: "2024-02-24T17:25:45Z",
+    imported_at: "2024-02-25T09:00:00Z",
+    contribution_types: ["gps_gap"],
+  }];
+  const incoming = [{
+    source: "strava",
+    external_id: "10829912049",
+    fragment_start_date: "2024-02-24T17:25:03Z",
+    imported_at: "2024-03-01T12:00:00Z",
+    contribution_types: ["health"],
+  }];
+
+  const merged = mergeSourceContributions(existing, incoming);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].imported_at, "2024-02-25T09:00:00Z");
+});
+
+test("mergeSourceContributions omits undefined optional fields as own keys, not just as values", () => {
+  const existing = [{ source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:00Z", contribution_types: ["gps_gap"] }];
+  const incoming = [{ source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:00Z", contribution_types: ["health"] }];
+
+  const merged = mergeSourceContributions(existing, incoming);
+
+  assert.equal(merged.length, 1);
+  assert.equal("imported_at" in merged[0], false);
+  assert.equal("summary" in merged[0], false);
+  assert.equal("original_start_date" in merged[0], false);
+});
+
+test("mergeSourceContributions collapses legacy duplicates already in the stored list", () => {
+  const existing = [
+    { source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:40Z", fragment_end_date: "2024-01-01T15:27:10Z", contribution_types: ["gps_gap"] },
+    { source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:05Z", fragment_end_date: "2024-01-01T15:27:47Z", contribution_types: ["health"] },
+  ];
+
+  const merged = mergeSourceContributions(existing, []);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].fragment_start_date, "2024-01-01T10:00:05Z");
+  assert.equal(merged[0].fragment_end_date, "2024-01-01T15:27:47Z");
+});
+
+test("mergeSourceContributions keeps different activities separate", () => {
+  const existing = [{ source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:00Z", contribution_types: ["gps_gap"] }];
+  const incoming = [{ source: "strava", external_id: "222", fragment_start_date: "2024-01-01T10:00:00Z", contribution_types: ["gps_gap"] }];
+
+  assert.equal(mergeSourceContributions(existing, incoming).length, 2);
+});
+
+test("mergeSourceContributions treats a missing fragment end as open-ended", () => {
+  const existing = [{ source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:00Z", fragment_end_date: "2024-01-01T15:00:00Z", contribution_types: ["gps_gap"] }];
+  const incoming = [{ source: "strava", external_id: "111", fragment_start_date: "2024-01-01T10:00:00Z", contribution_types: ["gps_gap"] }];
+
+  const merged = mergeSourceContributions(existing, incoming);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].fragment_end_date, undefined);
+});
+
 test("mergeHealthData keeps existing samples and adds incoming missing timestamps", () => {
   const existing = {
     calories: [
