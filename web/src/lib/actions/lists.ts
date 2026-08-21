@@ -24,7 +24,13 @@ export interface ListRow {
   source_url: string | null;
   region: string | null;
   destination_count: number;
-  thumbnails: string[];
+  thumbnails: ListThumbnail[];
+}
+
+export interface ListThumbnail {
+  url: string;
+  focalX: number;
+  focalY: number;
 }
 
 export interface ListDetail extends ListRow {
@@ -42,6 +48,8 @@ export interface ListDestination {
   lng: number | null;
   ordinal: number;
   hero_image: string | null;
+  hero_image_focal_x: number;
+  hero_image_focal_y: number;
   state_code: string | null;
   country_code: string | null;
 }
@@ -54,6 +62,20 @@ export interface ListProgress {
 export interface ListCompletionEntry {
   reached_at: string | null;
   visit_count: number;
+}
+
+function parseThumbnails(value: unknown): ListThumbnail[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    if (typeof row.url !== "string" || !row.url) return [];
+    return [{
+      url: row.url,
+      focalX: Number(row.focalX ?? 50),
+      focalY: Number(row.focalY ?? 50),
+    }];
+  });
 }
 
 /**
@@ -86,12 +108,20 @@ export async function getLists(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
-            ARRAY(
-              SELECT d.hero_image FROM list_destinations ld2
-              JOIN destinations d ON d.id = ld2.destination_id
-              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
-              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
-            ) AS thumbnails
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                'url', photo.hero_image,
+                'focalX', photo.hero_image_focal_x,
+                'focalY', photo.hero_image_focal_y
+              ) ORDER BY photo.elevation DESC NULLS LAST)
+              FROM (
+                SELECT d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
+                FROM list_destinations ld2
+                JOIN destinations d ON d.id = ld2.destination_id
+                WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+                ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+              ) photo
+            ), '[]'::json) AS thumbnails
      FROM lists l
      ${where}
      ORDER BY l.name ASC
@@ -111,7 +141,7 @@ export async function getLists(
       source_url: r.source_url,
       region: r.region,
       destination_count: Number(r.destination_count),
-      thumbnails: parseArray(r.thumbnails),
+      thumbnails: parseThumbnails(r.thumbnails),
     })),
     total: Number(countResult.rows[0].count),
   };
@@ -125,12 +155,20 @@ export async function getList(id: string): Promise<ListDetail | null> {
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
-            ARRAY(
-              SELECT d.hero_image FROM list_destinations ld2
-              JOIN destinations d ON d.id = ld2.destination_id
-              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
-              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
-            ) AS thumbnails,
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                'url', photo.hero_image,
+                'focalX', photo.hero_image_focal_x,
+                'focalY', photo.hero_image_focal_y
+              ) ORDER BY photo.elevation DESC NULLS LAST)
+              FROM (
+                SELECT d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
+                FROM list_destinations ld2
+                JOIN destinations d ON d.id = ld2.destination_id
+                WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+                ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+              ) photo
+            ), '[]'::json) AS thumbnails,
             l.created_at, l.updated_at
      FROM lists l
      WHERE l.id = $1`,
@@ -151,7 +189,7 @@ export async function getList(id: string): Promise<ListDetail | null> {
     source_url: r.source_url,
     region: r.region,
     destination_count: Number(r.destination_count),
-    thumbnails: parseArray(r.thumbnails),
+    thumbnails: parseThumbnails(r.thumbnails),
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
   };
@@ -173,7 +211,8 @@ export async function getListDestinations(
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             ld.ordinal,
-            d.hero_image, d.state_code, d.country_code
+            d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y,
+            d.state_code, d.country_code
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      WHERE ld.list_id = $1
@@ -191,6 +230,8 @@ export async function getListDestinations(
     lng: r.lng != null ? Number(r.lng) : null,
     ordinal: Number(r.ordinal),
     hero_image: r.hero_image,
+    hero_image_focal_x: Number(r.hero_image_focal_x ?? 50),
+    hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
     state_code: r.state_code,
     country_code: r.country_code,
   }));

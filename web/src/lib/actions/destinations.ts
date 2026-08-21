@@ -59,6 +59,8 @@ export interface DestinationDetail {
   hero_image: string | null;
   hero_image_attribution: string | null;
   hero_image_attribution_url: string | null;
+  hero_image_focal_x: number;
+  hero_image_focal_y: number;
   description: string | null;
   description_source_name: string | null;
   description_source_url: string | null;
@@ -198,6 +200,7 @@ export async function getDestination(
                  THEN ST_AsGeoJSON(COALESCE(d.massif_boundary, d.boundary))::json
                  END AS boundary,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
+            d.hero_image_focal_x, d.hero_image_focal_y,
             d.description, d.description_source_name,
             d.description_source_url, d.description_source_license,
             d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
@@ -232,6 +235,8 @@ export async function getDestination(
     prominence: r.prominence != null ? Number(r.prominence) : null,
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
+    hero_image_focal_x: Number(r.hero_image_focal_x ?? 50),
+    hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
     boundary: r.boundary || null,
     amenities: r.amenities ?? null,
     averages: mergeDestinationAverages(r.averages, r.averages_offset),

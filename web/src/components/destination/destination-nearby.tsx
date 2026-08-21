@@ -53,6 +53,9 @@ export function DestinationNearby({
                     src={destination.hero_image}
                     alt=""
                     className="h-12 w-12 shrink-0 rounded-full bg-fill object-cover"
+                    style={{
+                      objectPosition: `${destination.hero_image_focal_x ?? 50}% ${destination.hero_image_focal_y ?? 50}%`,
+                    }}
                   />
                 ) : null}
                 <span className="min-w-0">

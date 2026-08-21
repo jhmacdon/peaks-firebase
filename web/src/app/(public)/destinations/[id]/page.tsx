@@ -130,6 +130,8 @@ export default async function DestinationDetailPage({
           url: dest.hero_image,
           credit: dest.hero_image_attribution,
           creditUrl: dest.hero_image_attribution_url,
+          focalX: dest.hero_image_focal_x,
+          focalY: dest.hero_image_focal_y,
         },
       ]
     : [];

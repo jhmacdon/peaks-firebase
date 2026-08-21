@@ -39,6 +39,7 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /admin/                   → admin dashboard (admin claim required)
 /admin/login              → admin sign in
 /admin/destinations/      → destination management
+/admin/photos/            → licensed destination cover review queue
 /admin/routes/            → route management + builder
 ```
 
@@ -83,6 +84,7 @@ All data access goes through Next.js server actions in `src/lib/actions/`. Every
 | `route-builder.ts` | PostgreSQL | GPX → route analysis pipeline (admin) |
 | `route-import.ts` | PostgreSQL | Validated pending-route imports with source provenance |
 | `segment-matcher.ts` | PostgreSQL | Route decomposition (admin) |
+| `destination-photos.ts` | PostgreSQL + Firebase Storage | Licensed cover review, framing, approval, and denial |
 
 ### Auth for server actions
 
@@ -99,6 +101,21 @@ server-side with `verifyAdminToken(token)` (`src/lib/auth-actions.ts`), which
 requires the `admin` custom claim. `AdminGuard` remains the client-side gate.
 Some admin write paths (destination create, bulk import, boundary edits, route
 import) still have no server-side check and rely on `AdminGuard` alone.
+
+### Destination cover review
+
+`/admin/photos` compares each licensed candidate with the current cover. Admins
+move one focal point and preview the result in wide, app-header, mobile, and
+square frames before making a final choice. The focal values live with the
+source and license record, then move to the destination on approval.
+
+Approval downloads the source on the server, checks its type, size, and pixel
+count, rotates it from EXIF data, limits the longest edge to 2,400 pixels, and
+stores the full-aspect JPEG master in Firebase Storage. One database transaction
+then updates the destination cover, focal point, credit, source link, and review
+row. Web and app views apply that focal point to their own crop. Denial keeps the
+source record for audit history and cannot change the destination. A finished
+review cannot be changed.
 
 ## Auth Architecture
 

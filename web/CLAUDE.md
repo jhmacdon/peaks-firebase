@@ -63,6 +63,7 @@ src/
       page.tsx                        # Dashboard
       login/page.tsx                  # Admin sign in
       destinations/                   # Destination management
+      photos/                         # Licensed destination cover review queue
       routes/                         # Route management + builder
   components/
     # Navigation
@@ -133,6 +134,7 @@ PostgreSQL with PostGIS. Schema at `../cloud-sql/schema.sql`.
 
 ### Key tables
 - `destinations` — peaks, trailheads, POIs (PointZ geography, features array, activities array, external_ids JSONB for cross-source linking)
+- `destination_photo_candidates` — source/license records, saved focal framing, and final approve/deny review state
 - `routes` — composed from segments, materialized path/stats
 - `segments` — atomic trail sections, one-way geometry
 - `route_segments` — ordered join with direction (forward/reverse)

@@ -72,13 +72,14 @@ export default async function ListsIndexPage({
                   <span className="flex min-w-0 items-center gap-3">
                     {list.thumbnails.length > 0 ? (
                       <span className="flex shrink-0 -space-x-2">
-                        {list.thumbnails.map((src, index) => (
+                        {list.thumbnails.map((thumbnail, index) => (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             key={`${list.id}-${index}`}
-                            src={src}
+                            src={thumbnail.url}
                             alt=""
                             className="h-9 w-9 rounded-full bg-fill object-cover ring-2 ring-page"
+                            style={{ objectPosition: `${thumbnail.focalX}% ${thumbnail.focalY}%` }}
                           />
                         ))}
                       </span>

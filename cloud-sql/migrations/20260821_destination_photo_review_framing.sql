@@ -1,0 +1,15 @@
+BEGIN;
+
+ALTER TABLE destination_photo_candidates
+    ADD COLUMN IF NOT EXISTS focal_x SMALLINT NOT NULL DEFAULT 50
+        CHECK (focal_x BETWEEN 0 AND 100),
+    ADD COLUMN IF NOT EXISTS focal_y SMALLINT NOT NULL DEFAULT 50
+        CHECK (focal_y BETWEEN 0 AND 100);
+
+ALTER TABLE destinations
+    ADD COLUMN IF NOT EXISTS hero_image_focal_x SMALLINT NOT NULL DEFAULT 50
+        CHECK (hero_image_focal_x BETWEEN 0 AND 100),
+    ADD COLUMN IF NOT EXISTS hero_image_focal_y SMALLINT NOT NULL DEFAULT 50
+        CHECK (hero_image_focal_y BETWEEN 0 AND 100);
+
+COMMIT;
