@@ -454,6 +454,7 @@ router.get("/:id/lists", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id) AS destination_count
      FROM lists l
      JOIN list_destinations ld ON ld.list_id = l.id

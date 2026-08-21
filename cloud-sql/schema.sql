@@ -222,6 +222,13 @@ CREATE TABLE lists (
     description     TEXT,
     owner           TEXT NOT NULL DEFAULT 'peaks',
 
+    -- Curated-list display metadata (see migrations/20260821_list_metadata.sql).
+    year_established INT,
+    organization    TEXT,
+    source_name     TEXT,
+    source_url      TEXT,
+    region          TEXT,
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

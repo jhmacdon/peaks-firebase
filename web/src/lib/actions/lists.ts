@@ -18,6 +18,11 @@ export interface ListRow {
   name: string;
   description: string | null;
   owner: string;
+  year_established: number | null;
+  organization: string | null;
+  source_name: string | null;
+  source_url: string | null;
+  region: string | null;
   destination_count: number;
 }
 
@@ -70,6 +75,7 @@ export async function getLists(
 
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count
      FROM lists l
      ${where}
@@ -84,6 +90,11 @@ export async function getLists(
       name: r.name,
       description: r.description,
       owner: r.owner,
+      year_established: r.year_established,
+      organization: r.organization,
+      source_name: r.source_name,
+      source_url: r.source_url,
+      region: r.region,
       destination_count: Number(r.destination_count),
     })),
     total: Number(countResult.rows[0].count),
@@ -96,6 +107,7 @@ export async function getLists(
 export async function getList(id: string): Promise<ListDetail | null> {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
             l.created_at, l.updated_at
      FROM lists l
@@ -111,6 +123,11 @@ export async function getList(id: string): Promise<ListDetail | null> {
     name: r.name,
     description: r.description,
     owner: r.owner,
+    year_established: r.year_established,
+    organization: r.organization,
+    source_name: r.source_name,
+    source_url: r.source_url,
+    region: r.region,
     destination_count: Number(r.destination_count),
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
