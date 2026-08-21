@@ -27,9 +27,14 @@ for free, the moment `planRow` resolves its article.
 - Everything else — the licensing gate (`isFreeLicense`), the attribution
   format, `namesMatch`, the wikidata coordinate anchor, the 350 ms politeness
   delay, dry-run-by-default — is untouched.
-- TDD: 11 new tests (buildCandidateQuery's new branch, both flags' outputs and
-  defaults, all four rejected combinations) landed red, then green. Full suite:
-  673 pass, 0 fail (was 662 before this task).
+- TDD: 14 new tests (buildCandidateQuery's new branch, both flags' outputs and
+  defaults, all four rejected combinations, plus a fix-round-1 pass adding a
+  blank `--list-id` rejection and an unrecognized-flag rejection) landed red,
+  then green. Full suite: 676 pass, 0 fail (was 662 before this task).
+  `parseArgs` also refuses any unrecognized `--flag` outright (a typo like
+  `--all-list` used to be silently ignored) and refuses a blank/whitespace-only
+  `--list-id` value, which previously fell through to the whole-catalog
+  default branch — see "Fix round 1" below.
 
 ## Bulger List dry-run (sanity check before any commit)
 
@@ -97,6 +102,64 @@ Notes:
   attribution without an image — `writeRow`'s guards held for every write
   (`349` images, `349` complete attributions, `0` gaps).
 
+### Reconciling 595 against the 626-member catalog
+
+The **595** in the total row is a sum of **per-list** candidate counts, not a
+count of distinct destinations — a destination on more than one curated list
+is a candidate once per list it belongs to (until an earlier list's run gives
+it an image, after which later runs correctly skip it). The distinct baseline
+is **588**: `626` list members minus the `38` that already had a `hero_image`
+before this task ran.
+
+```text
+595 (sum of "candidate destination(s)" across all 17 log files)
+- 588 (distinct destination ids among those same candidate-appearance rows)
+= 7 extra appearances, from 6 destinations that are members of 2+ lists
+```
+
+Verified by parsing every list's `WRITE`/`MISS` row ids out of the run logs
+(candidates always resolve to one or the other; no list showed a `skipped`
+count above 0) and counting duplicates:
+
+```bash
+# one row per (destination id, list) candidate appearance, from the run logs
+grep -E "^  (WRITE|MISS)" *.log | awk '{print $2}' > candidate-ids.txt
+wc -l candidate-ids.txt                    # 595
+sort -u candidate-ids.txt | wc -l          # 588
+sort candidate-ids.txt | uniq -c | awk '$1>1'   # the 6 overlapping ids, 7 extra appearances
+```
+
+The six overlapping destinations: `3Lk48tEzKFWOGtKDqEGd` (Little Tahoma —
+Bulger List, Cascade Volcanoes, Smoot's 100: 3 appearances, 2 extra),
+`7El4sAemtdwIHZzt1YxJ` (Mount Buckner), `APWWTYFkwvuUFc3TP1m9` (Sahale Peak)
+— both Bulger List + Smoot's 100 — `fC9zpl4WpEUZvU4HTsSI` (Clingmans Dome —
+Tennessee 4500ft Peaks + US State High Points), and
+`KLeNLAdXik6q0Nc8AW54` (Hayford Peak), `nTJtNPdIX5emLtQtsOGQ` (Charleston
+Peak) — both Nevada Peaks Club + Ultras of the Contiguous United States. Every
+one of the five title-mismatch/no-match peaks stayed a `MISS` in both lists —
+consistent, not a second independent failure. Hayford Peak is the interesting
+case: Nevada Peaks Club wrote its description (the article has no lead image,
+so `hero_image` stayed `NULL`), which correctly left it eligible again under
+Ultras of the Contiguous United States — that second pass tried an image-only
+recovery and, correctly, found nothing new to store. No destination was
+written twice.
+
+**Are the 373 written rows 373 distinct destinations? Yes**, confirmed two
+ways:
+
+1. Raw `WRITE` line count across all 17 logs equals the count after
+   deduplicating by id — both **373** — so no id was ever the subject of a
+   `WRITE` twice.
+   ```bash
+   grep -c "^  WRITE" *.log | awk -F: '{s+=$2} END{print s}'   # 373
+   sort -u written-ids.txt | wc -l                              # 373
+   ```
+2. Cross-checked directly against prod, independent of the log parsing:
+   ```sql
+   SELECT count(*), count(DISTINCT id) FROM destinations WHERE id = ANY($1::text[]);
+   -- $1 = the 373 ids from written-ids.txt → 373 | 373
+   ```
+
 ## Spot-checks
 
 10 random rows from the 373 this run wrote (not from the wider list-member
@@ -152,5 +215,41 @@ Brief Step 5 (`--all-lists --commit` re-run after new list imports) belongs to
 a later task in the lists-overhaul sequence — the flag is implemented and
 tested now, but not exercised as `--all-lists` in this run; every list was run
 individually instead so per-list counts could be recorded.
+
+**Warning for that future run:** `--all-lists` inherits `parseArgs`'s default
+`limit: 100` exactly like every other invocation — pass an explicit `--limit`
+sized to the remaining candidate count (distinct list members still missing a
+`hero_image` at that time), or the run will silently cap at 100 candidates
+and stop, the same way `--list-id` does today. The script docblock now says
+the same thing next to the `--all-lists` flag description.
+
+## Fix round 1 (post-review)
+
+Two Important findings and one controller ruling from the first review pass:
+
+1. **Blank `--list-id` silently ran the whole-catalog default branch.**
+   `parseArgs` only truthy-tested `listId`, so `--list-id "$UNSET_VAR"` (a
+   quoted, unset shell variable resolves to an empty string, not a missing
+   argument) parsed as `listId = ""`, which is falsy — the `options.listId ||
+   options.allLists` branch check in `buildCandidateQuery` never fired, and
+   the run silently fell through to the prominence-ordered, catalog-wide
+   default, writing up to `--limit` rows with no indication the list scope
+   was never applied. Fixed: `parseArgs` now trims the value and throws
+   `FlagUsageError` when it is empty. Same class of bug, same fix: an
+   unrecognized `--flag` (a typo like `--all-list`) used to be silently
+   ignored; `parseArgs` now refuses any `--token` not in its known-flags set.
+   Two new tests (`parseArgs rejects a blank --list-id value...`, `parseArgs
+   rejects a whitespace-only --list-id value`, `parseArgs rejects an
+   unrecognized flag`) — three tests, all `FlagUsageError`. Full suite: 676
+   pass, 0 fail.
+2. **Candidate-count reconciliation** — the "Reconciling 595 against the
+   626-member catalog" section above, and the "Are the 373 written rows 373
+   distinct destinations?" check, both added in this round.
+3. **Default-limit warning** — added to the Deferred section immediately
+   above and to the script's docblock next to `--all-lists`.
+
+No prod re-runs were needed for this round — all three findings were
+documentation/validation gaps, not data-integrity problems in the rows
+already committed.
 
 Monthly cost impact: $0.

@@ -752,6 +752,33 @@ test("parseArgs rejects --dry-run and --commit together", () => {
   assert.throws(() => parseArgs(["node", "script", "--dry-run", "--commit"]), FlagUsageError);
 });
 
+test("parseArgs rejects a blank --list-id value rather than falling back to the whole catalog", () => {
+  // A quoted empty string or an unset shell variable passed quoted —
+  // `--list-id "$UNSET"` — must not silently read as "no scope given" and
+  // fall through to the default, prominence-ordered, catalog-wide branch.
+  assert.throws(
+    () => parseArgs(["node", "script", "--list-id", "", "--commit"]),
+    FlagUsageError
+  );
+});
+
+test("parseArgs rejects a whitespace-only --list-id value", () => {
+  assert.throws(
+    () => parseArgs(["node", "script", "--list-id", "   "]),
+    FlagUsageError
+  );
+});
+
+test("parseArgs rejects an unrecognized flag", () => {
+  // A typo like --all-list (missing the final s) used to be silently
+  // ignored, which is exactly as dangerous as a blank --list-id: the run
+  // falls through to the default branch without saying so.
+  assert.throws(
+    () => parseArgs(["node", "script", "--all-list", "--commit"]),
+    FlagUsageError
+  );
+});
+
 test("parseArgs defaults: no list scope, not a dry run without the flag, commit off by default", () => {
   const args = parseArgs(["node", "script"]);
 

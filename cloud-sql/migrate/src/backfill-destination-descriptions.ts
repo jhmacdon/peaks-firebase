@@ -43,9 +43,14 @@
  *   --force            Re-fetch rows that already have a description.
  *   --min-prominence N Only summits with prominence >= N metres (default 300).
  *   --list-id ID       Only destinations on this list (any feature, any
- *                      prominence — list membership is the curation).
+ *                      prominence — list membership is the curation). ID
+ *                      must be non-empty.
  *   --all-lists        Only destinations on any list, deduplicated. Mutually
- *                      exclusive with --list-id and with --ids.
+ *                      exclusive with --list-id and with --ids. WARNING:
+ *                      inherits the same default --limit 100 as every other
+ *                      invocation — a catalog-wide run needs an explicit
+ *                      --limit sized to the remaining candidate count, or it
+ *                      silently caps at 100 and stops.
  */
 
 import db from "./db";
@@ -201,12 +206,37 @@ export type ParsedArgs = {
 };
 
 /**
+ * Every flag this script understands. A token starting with "--" that is not
+ * in this set is refused rather than silently ignored: a typo'd flag name
+ * (`--all-list`) must not read as "that flag wasn't set" when the operator
+ * meant to set it, especially for a scope flag whose absence falls back to
+ * the whole-catalog default branch.
+ */
+const KNOWN_FLAGS = new Set([
+  "dry-run",
+  "commit",
+  "force",
+  "limit",
+  "min-prominence",
+  "ids",
+  "list-id",
+  "all-lists",
+]);
+
+/**
  * Read and validate every flag in one place, before any Wikipedia request or
  * database query runs. A combination that would silently do something other
  * than what the operator meant — dry-run and commit together, two different
- * candidate scopes at once — throws instead of picking one and pressing on.
+ * candidate scopes at once, a scope flag with nothing in it — throws instead
+ * of picking one and pressing on.
  */
 export function parseArgs(argv: readonly string[]): ParsedArgs {
+  for (const token of argv) {
+    if (token.startsWith("--") && !KNOWN_FLAGS.has(token.slice(2))) {
+      throw new FlagUsageError(`Unrecognized flag ${token}.`);
+    }
+  }
+
   const dryRun = argv.includes("--dry-run");
   const commitRequested = argv.includes("--commit");
   if (dryRun && commitRequested) {
@@ -215,7 +245,16 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
 
   const idsRaw = stringFlagFrom(argv, "ids");
   const ids = idsRaw ? idsRaw.split(",").map((value) => value.trim()).filter(Boolean) : null;
-  const listId = stringFlagFrom(argv, "list-id");
+
+  const listIdRaw = stringFlagFrom(argv, "list-id");
+  const listId = listIdRaw !== null ? listIdRaw.trim() : null;
+  if (listId !== null && listId.length === 0) {
+    // A blank value is only reachable via a quoted empty string or an unset
+    // shell variable passed quoted — `--list-id "$UNSET"` — but it must not
+    // read as "no scope given": that silently falls through to the
+    // whole-catalog default branch, prominence floor and all.
+    throw new FlagUsageError("--list-id needs a non-empty value, but was given a blank one.");
+  }
   const allLists = argv.includes("--all-lists");
 
   if (listId && allLists) {
