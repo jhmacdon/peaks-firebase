@@ -24,6 +24,7 @@ export interface ListRow {
   source_url: string | null;
   region: string | null;
   destination_count: number;
+  thumbnails: string[];
 }
 
 export interface ListDetail extends ListRow {
@@ -84,7 +85,13 @@ export async function getLists(
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count
+            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            ARRAY(
+              SELECT d.hero_image FROM list_destinations ld2
+              JOIN destinations d ON d.id = ld2.destination_id
+              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+            ) AS thumbnails
      FROM lists l
      ${where}
      ORDER BY l.name ASC
@@ -104,6 +111,7 @@ export async function getLists(
       source_url: r.source_url,
       region: r.region,
       destination_count: Number(r.destination_count),
+      thumbnails: parseArray(r.thumbnails),
     })),
     total: Number(countResult.rows[0].count),
   };
@@ -117,6 +125,12 @@ export async function getList(id: string): Promise<ListDetail | null> {
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
             (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            ARRAY(
+              SELECT d.hero_image FROM list_destinations ld2
+              JOIN destinations d ON d.id = ld2.destination_id
+              WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
+              ORDER BY d.elevation DESC NULLS LAST LIMIT 3
+            ) AS thumbnails,
             l.created_at, l.updated_at
      FROM lists l
      WHERE l.id = $1`,
@@ -137,6 +151,7 @@ export async function getList(id: string): Promise<ListDetail | null> {
     source_url: r.source_url,
     region: r.region,
     destination_count: Number(r.destination_count),
+    thumbnails: parseArray(r.thumbnails),
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
   };

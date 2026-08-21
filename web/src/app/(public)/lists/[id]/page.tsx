@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCachedList, getCachedListDestinations } from "../../../../lib/actions/cached-lists";
-import { parseListDescription } from "../../../../lib/list-content";
+import { listOwnerLabel, parseListDescription } from "../../../../lib/list-content";
 import { buildListToplineFacts } from "../../../../lib/list-stats";
 import { settled } from "../../../../lib/settled";
 import { Breadcrumb } from "../../../../components/detail-sections";
@@ -33,7 +33,7 @@ export default async function ListDetailPage({
     sourceUrl: parsedSourceUrl,
     sourceLabel: parsedSourceLabel,
   } = parseListDescription(list.description);
-  const ownerLabel = list.owner === "peaks" ? "Peaks curated" : "Community list";
+  const ownerLabel = listOwnerLabel(list.owner);
 
   // year_established/organization are the researched replacement for the
   // legacy "Source: <url>" clause parsed below — see
