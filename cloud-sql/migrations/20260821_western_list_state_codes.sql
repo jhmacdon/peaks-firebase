@@ -8,8 +8,24 @@
 -- one on South Beyond 6000. All eight are in the United States.
 --
 -- Each state is assigned from the row's own coordinates and cross-checked
--- against a second source, and the update only fires when the point falls
--- inside that state's bounding box, so a wrong pairing writes nothing.
+-- against a second source before it is written here.
+--
+-- WHAT THE BOUNDING BOX DOES AND DOES NOT CATCH. The update only fires when the
+-- point falls inside the box named on its own row, which rules out a state the
+-- coordinates cannot support: Mount Sequoyah at -83.28 could never be written
+-- CA, and Humphreys Peak at -111.68 could not either. It does NOT separate
+-- California from Nevada. The Nevada box lies almost wholly inside the
+-- California one, and four of these eight points -- Avawatz Peak, Bridge
+-- Mountain, Mount Jefferson and Nopah Range High Point -- fall inside both. A
+-- CA/NV swap would pass the box in either direction.
+--
+-- Two other things carry that weight. First, every state below agrees between
+-- two independent sources: OpenStreetMap's reverse geocoder, and Peakbagger's
+-- own section heading for the row where the source list prints one. Second, the
+-- wrong_state assertion re-reads each row against a second, separately written
+-- id-to-state list, so a swapped pair raises rather than passing a count. That
+-- assertion was tested by injecting the Avawatz/Bridge Mountain swap and
+-- watching it raise.
 --
 --   destination            reverse geocode        Peakbagger's own section
 --   Avawatz Peak           CA, San Bernardino     3. San Bernardino County

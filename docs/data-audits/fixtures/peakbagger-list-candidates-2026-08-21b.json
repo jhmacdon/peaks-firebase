@@ -1,7 +1,7 @@
 {
  "__fixture": {
   "file": "peakbagger-list-candidates-2026-08-21b.json",
-  "note": "Peakbagger list rows for every curated Peaks list. The 26 lists in peakbagger-list-candidates-2026-08-21.json are carried across unchanged, rows and coordinates alike. Six Western and Southern lists (5051, 5052, 5053, 5055, 5180, 21330) were read on 2026-08-21: names, ranks and elevations from the list page table, coordinates from the same page's map marker feed, joined by peak ID. Every row of those six carries a marker, and every printed elevation agrees with the feed's own metre value to within a metre. Lists 5051 and 5052 are held rather than imported; their rows are kept here so the research survives.",
+  "note": "Peakbagger list rows for every curated Peaks list. The 26 lists in peakbagger-list-candidates-2026-08-21.json are carried across unchanged, rows and coordinates alike. Six Western and Southern lists (5051, 5052, 5053, 5055, 5180, 21330) were read on 2026-08-21: names, ranks and elevations from the list page table, coordinates from the same page's map marker feed, joined by peak ID. Every row of the five whole lists carries a marker, and every printed elevation agrees with the feed's own metre value to within a metre. List 21330 is the exception: 14 of its 138 rows are unranked subpeaks the marker feed carries no point for, and those rows have no lat/lng here. None of them is a peak the Idaho 12ers take -- all nine of those carry a marker. Lists 5051 and 5052 are held rather than imported; their rows are kept here so the research survives.",
   "fetchedAt": {
    "2026-08-18": "all lists except 511, 5130, 5165, 5167, 5051, 5052, 5053, 5055, 5180, 21330",
    "2026-08-21": "511, 5130, 5165, 5167, 5051, 5052, 5053, 5055, 5180, 21330"

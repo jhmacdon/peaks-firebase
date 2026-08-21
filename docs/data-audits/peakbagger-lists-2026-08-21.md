@@ -793,21 +793,59 @@ CAPTCHA.
 Peaks catalogues them as **Desert Peaks Section**, **Tahoe Ogul Peaks**,
 **South Beyond 6000** and **Idaho 12ers**.
 
+## The gap enumeration every sizing decision rests on
+
+Before anything was written, each source row was run through the importer's own
+matcher — same name normalization, same ±100 m elevation band, same 5 km distance
+bound — against a full dump of the 41,596-row summit catalog. That is what
+decided which lists were imported and which were held.
+
+| List | Rows | Already in Peaks | Missing | Same name, beyond 5 km | Ambiguous | **Destination gap** | Decision |
+|---|---|---|---|---|---|---|---|
+| Sierra Peaks Section | 247 | 164 | 81 | 2 | 0 | **83** | held, over 60 |
+| Hundred Peaks Section | 280 | 43 | 217 | 20 | 0 | **237** | held, over 60 |
+| Desert Peaks Section | 95 | 43 | 48 | 3 | 1 | **51** | curated residue |
+| Tahoe Ogul Peaks | 63 | 23 | 40 | 0 | 0 | **40** | curated residue |
+| South Beyond 6000 | 40 | 14 | 26 | 0 | 0 | **26** | curated residue |
+| Idaho 12ers | 9 | 9 | 0 | 0 | 0 | **0** | import as-is |
+
+"Missing" is a row with no candidate at all. "Same name, beyond 5 km" is a row
+whose only same-named destination lies outside the matcher's distance bound —
+a different peak that happens to share a name, so it needs a destination of its
+own and counts in the gap. "Ambiguous" is a row that matched more than one
+catalog destination, so it needs a reviewed override rather than a new row, and
+does **not** count in the gap.
+
+### The arithmetic, closed
+
+The three imported lists' gaps are 51 + 40 + 26 = **117**. The migrations add
+**112** destinations. The five that are missing from that count are gap rows that
+turned out to be catalog rows already, reached by override once the collision
+guard found them:
+
+| Gap row | Reached instead | List |
+|---|---|---|
+| Weavers Needle | the existing Weaver's Needle row | Desert Peaks |
+| Middle Sister | the existing Middle Sister row | Tahoe Ogul |
+| Sierra Buttes | the existing Sierra Buttes Lookout row | Tahoe Ogul |
+| Adams Peak - West Peak | the existing Adams Peak row | Tahoe Ogul |
+| Kuwohi | the existing Clingmans Dome row | South Beyond 6000 |
+
+**117 = 112 new destinations + 5 overrides to rows already in Peaks.** Per list:
+Desert Peaks 51 − 1 = 50, Tahoe Ogul 40 − 3 = 37, South Beyond 6000 26 − 1 = 25.
+
+The sixth override, **Glass Mountain**, is the reason the Desert Peaks row of the
+table reads 43 + 51 = 94 rather than 95. It is the one ambiguous row: two catalog
+destinations are named Glass Mountain, so the matcher would not pick between them
+and the row counts as neither "already in Peaks" nor "missing". The override
+picks the nearer of the two, and 43 + 51 + 1 = 95.
+
 ## Held: the Sierra Peaks Section and the Hundred Peaks Section
 
-Both exceed the sixty-destination bound for hand-curated residue, and the
-statewide OpenStreetMap expander could not shrink either (see below).
-
-| List | lid | Rows | Already in Peaks | Missing destinations |
-|---|---|---|---|---|
-| Sierra Peaks Section | 5051 | 247 | 164 | **83** |
-| Hundred Peaks Section | 5052 | 280 | 43 | **237** |
-
-The "missing" column counts source rows with no summit destination the importer
-could reach: 81 with no candidate at all plus 2 whose only same-named
-destination lies beyond the 5 km bound for the Sierra list, and 217 plus 20 for
-the Hundred Peaks list. The importer fails closed on every one of them, so
-neither list can be half-imported by accident.
+Both exceed the sixty-destination bound for hand-curated residue — 83 and 237
+against it, from the table above — and the statewide OpenStreetMap expander could
+not shrink either (see below). The importer fails closed on every unresolved row,
+so neither list can be half-imported by accident.
 
 The Hundred Peaks Section was the expected hold: 280 Southern California summits,
 most of them small chaparral peaks OpenStreetMap has mapped but Peaks has never
@@ -900,6 +938,8 @@ note that the list is no longer affiliated with the Sierra Club in any way.
 | members of the Sierra Club's Peak and Gorge Section drew it up in the early 1980s | [tahoeogul.org history](https://www.tahoeogul.org/history-of-the-oguls/) — "The Ogul list was created in the early 1980s by a group of hikers and climbers in Northern California, who were members of the Peak and Gorge Section within the Mother Lode Chapter of the Sierra Club" |
 | sixty-three peaks around Lake Tahoe | the source page's 63 rows, and tahoeogul.org's own subtitle |
 | Ogul is the Washoe word for the mountain bighorn sheep | same page — "Ogul is the Washoe Native American word for mountain bighorn sheep" |
+| the sheep ranged there | same page — the Washoe Tribe hunted it "in both the Sierra Tahoe Region and the Basin and Range to the east" |
+| **once** ranged there — it does not now | same page, the next sentence — "Though now extinct in the area, this once great mountain sheep is a fitting symbol for our Tahoe Ogul List." The page's own word is *extinct*; the description says *once ranged there*, which is what that supports. The animal is not extinct as a species, and the copy does not say it is |
 | the section disbanded in 1998 | same page — the Peak and Gorge Section was marked inactive by the Mother Lode Chapter in 1998 after voting to disband |
 | the Western States Climbers have kept the list since 2000 | same page — the WSC was formed in 2000 by John Bees and John Sarna and maintains the list |
 | no Sierra Club tie today | the Peakbagger list page's own standing note, and the history page above |

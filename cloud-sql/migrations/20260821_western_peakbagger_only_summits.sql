@@ -127,10 +127,11 @@ BEGIN
       p.country_code, p.state_code,
       p.external_ids, p.metadata, now(), now()
     FROM prepared p
-    -- Three guards, each the negation of one way an existing row could already
-    -- be this peak: its own identifier, its Wikidata identity, or a same-named
-    -- summit within 500 m. Separate NOT EXISTS clauses rather than one OR, so
-    -- each can use its own index; the test is the same either way.
+    -- Two guards, each the negation of one way an existing row could already be
+    -- this peak: its Peakbagger id, or a same-named summit within 500 m. There
+    -- is no Wikidata guard here because no row in this file carries a Wikidata
+    -- id -- OpenStreetMap has never mapped these peaks, and the Wikidata id came
+    -- from the OSM node. The sibling migration has that third guard.
     WHERE
       NOT EXISTS (SELECT 1 FROM existing_peakbagger e WHERE e.ident = p.peakbagger_id)
       AND NOT EXISTS (
