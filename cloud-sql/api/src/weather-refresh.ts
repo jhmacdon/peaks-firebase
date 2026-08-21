@@ -23,6 +23,15 @@ export const MIN_SESSIONS = 3;
 export const FORECAST_DAYS = 7;
 export const LOCATION_BATCH_SIZE = 50;
 export const FETCH_TIMEOUT_MS = 10000;
+// Open-Meteo's free tier rate-limits at 600 calls/minute, and each location
+// in a multi-location request counts as its own call — a run with no pacing
+// (16 back-to-back 50-location batches for today's ~776 targets) burns
+// through that in ~15 seconds and 429s the tail: confirmed in prod, exactly
+// 600 calls succeeded before the 429s began. 50 locations every 6s is
+// 50 / (6/60) = 500 calls/min, safely under the cap. A full 776-destination
+// run is ~16 batches * 6s of pure pacing (~96s) plus fetch time — comfortably
+// inside Cloud Run's 300s request timeout at ~2 minutes total.
+export const INTER_BATCH_DELAY_MS = 6000;
 
 export interface WeatherTarget {
   id: string;
@@ -220,17 +229,31 @@ async function fetchBatch(
   return map;
 }
 
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Chunks `targets` into LOCATION_BATCH_SIZE-sized multi-location requests
- * and merges every batch's results into one map keyed by destination id. */
+ * and merges every batch's results into one map keyed by destination id.
+ * Paces batches INTER_BATCH_DELAY_MS apart (not after the last one) to stay
+ * under Open-Meteo's free-tier rate limit — see the constant's comment for
+ * the arithmetic. No retry on a 429: pacing is what prevents it, and a batch
+ * throttled anyway just self-heals on the next scheduled run (fetchBatch
+ * already logs+skips it like any other failed batch). `sleepImpl` is
+ * injectable so tests can pass a no-op instead of waiting on real timers. */
 export async function fetchDailyForecasts(
   targets: WeatherTarget[],
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  sleepImpl: (ms: number) => Promise<void> = defaultSleep
 ): Promise<Map<string, ForecastEntry[]>> {
   const combined = new Map<string, ForecastEntry[]>();
   for (let i = 0; i < targets.length; i += LOCATION_BATCH_SIZE) {
     const chunk = targets.slice(i, i + LOCATION_BATCH_SIZE);
     const batchResults = await fetchBatch(chunk, fetchImpl);
     for (const [id, entries] of batchResults) combined.set(id, entries);
+
+    const isLastBatch = i + LOCATION_BATCH_SIZE >= targets.length;
+    if (!isLastBatch) await sleepImpl(INTER_BATCH_DELAY_MS);
   }
   return combined;
 }
@@ -243,7 +266,8 @@ export async function fetchDailyForecasts(
 export async function refreshDestinationWeather(
   pool: Pool,
   db: Firestore,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  sleepImpl: (ms: number) => Promise<void> = defaultSleep
 ): Promise<{ total: number; refreshed: number; skipped: number }> {
   const targets = await selectWeatherTargets(pool);
 
@@ -266,7 +290,7 @@ export async function refreshDestinationWeather(
     }
   }
 
-  const forecasts = await fetchDailyForecasts(targets, fetchImpl);
+  const forecasts = await fetchDailyForecasts(targets, fetchImpl, sleepImpl);
 
   const writer = db.bulkWriter();
   // Setting an onWriteError handler REPLACES BulkWriter's SDK default (which

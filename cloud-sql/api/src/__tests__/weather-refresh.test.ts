@@ -18,10 +18,18 @@ import {
   fetchDailyForecasts,
   refreshDestinationWeather,
   FORECAST_DAYS,
+  INTER_BATCH_DELAY_MS,
   LOCATION_BATCH_SIZE,
   type OpenMeteoDailyResult,
   type WeatherTarget,
 } from "../weather-refresh";
+
+// fetchDailyForecasts's default sleepImpl is a real setTimeout wrapper —
+// every multi-batch test below passes this no-op instead, so the suite never
+// waits on a real timer (INTER_BATCH_DELAY_MS is 6s).
+function noopSleep(): Promise<void> {
+  return Promise.resolve();
+}
 
 // Real Open-Meteo daily response for one location, from the task brief.
 const SAMPLE_RESULT: OpenMeteoDailyResult = {
@@ -243,7 +251,7 @@ test("fetchDailyForecasts: 51 targets -> 2 requests, correct URL params, index a
     { status: 200, body: chunk2 },
   ]);
 
-  const forecasts = await fetchDailyForecasts(targets, fn);
+  const forecasts = await fetchDailyForecasts(targets, fn, noopSleep);
 
   assert.equal(calls.length, 2);
   for (const call of calls) {
@@ -283,7 +291,7 @@ test("fetchDailyForecasts: one failing batch (500) leaves the other batch's resu
     { status: 200, body: [dailyResultFor(15)] },
   ]);
 
-  const forecasts = await fetchDailyForecasts(targets, fn);
+  const forecasts = await fetchDailyForecasts(targets, fn, noopSleep);
 
   assert.equal(forecasts.has("fail-0"), false);
   assert.equal(forecasts.get("ok-0")?.[0].temperatureMax, 288.15); // 15 + 273.15
@@ -293,9 +301,33 @@ test("fetchDailyForecasts: bare-object single-location response is wrapped", asy
   const targets: WeatherTarget[] = [{ id: "solo", lat: 10, lng: 20 }];
   const { fn } = fakeFetch([{ status: 200, body: dailyResultFor(5) }]);
 
-  const forecasts = await fetchDailyForecasts(targets, fn);
+  const forecasts = await fetchDailyForecasts(targets, fn, noopSleep);
 
   assert.equal(forecasts.get("solo")?.[0].temperatureMax, 278.15); // 5 + 273.15
+});
+
+test("fetchDailyForecasts: paces batches INTER_BATCH_DELAY_MS apart, not after the last one", async () => {
+  // 101 targets -> 3 batches (50, 50, 1) -> 2 inter-batch sleeps.
+  const targets: WeatherTarget[] = Array.from({ length: 101 }, (_, i) => ({
+    id: `dest-${i}`,
+    lat: i,
+    lng: i,
+  }));
+  const { fn } = fakeFetch([
+    { status: 200, body: Array.from({ length: 50 }, () => dailyResultFor(1)) },
+    { status: 200, body: Array.from({ length: 50 }, () => dailyResultFor(2)) },
+    { status: 200, body: [dailyResultFor(3)] },
+  ]);
+  const sleepCalls: number[] = [];
+  const sleepSpy = (ms: number) => {
+    sleepCalls.push(ms);
+    return Promise.resolve();
+  };
+
+  await fetchDailyForecasts(targets, fn, sleepSpy);
+
+  assert.equal(sleepCalls.length, 2, "n-1 sleeps for 3 batches — none after the last");
+  assert.deepEqual(sleepCalls, [INTER_BATCH_DELAY_MS, INTER_BATCH_DELAY_MS]);
 });
 
 // --- refreshDestinationWeather: fake pool + fake Firestore db -------------
