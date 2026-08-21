@@ -75,18 +75,30 @@ export function DestinationWeather({
         ))}
       </div>
 
-      {forecastUrl ? (
-        <p className="mt-3 text-sm">
-          <a
-            href={forecastUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent-text hover:underline"
-          >
-            Full forecast →
-          </a>
-        </p>
-      ) : null}
+      <p className="mt-3 text-[13px] text-muted">
+        {forecastUrl ? (
+          <>
+            <a
+              href={forecastUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-accent-text hover:underline"
+            >
+              Full forecast →
+            </a>
+            {" · "}
+          </>
+        ) : null}
+        Forecast by{" "}
+        <a
+          href="https://open-meteo.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-ink-2"
+        >
+          Open-Meteo
+        </a>
+      </p>
     </section>
   );
 }
