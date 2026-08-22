@@ -3,10 +3,30 @@
 import Link from "next/link";
 import type { ListDestination } from "../../lib/actions/lists";
 import { formatFeetValue, formatShortDate, titleize } from "../../lib/destination-detail";
+import { satelliteThumbnailUrl } from "../../lib/satellite-thumbnail";
 import { TrophyGlyph } from "../session/activity-glyph";
 import ProgressBar from "../progress-bar";
 import { SectionHeading } from "../ui/section-heading";
 import { useListCompletion } from "./list-completion-context";
+
+function MountainPlaceholder() {
+  return (
+    <svg
+      viewBox="0 0 48 48"
+      className="h-6 w-6 text-muted"
+      aria-hidden="true"
+    >
+      <path
+        d="M7 36 19 16l6.5 10L30 20l11 16Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /** The destinations on this list, with a signed-in reader's own
  * completion layered on: a progress bar above the rows, a 48px thumbnail per row
@@ -27,6 +47,11 @@ export function ListRoster({
   className?: string;
 }) {
   const { entries } = useListCompletion();
+  const usesSatelliteImagery = destinations.some(
+    (destination) =>
+      !destination.hero_image &&
+      satelliteThumbnailUrl(destination.lat, destination.lng) != null
+  );
 
   return (
     <section className={className} aria-labelledby="list-destinations">
@@ -52,6 +77,10 @@ export function ListRoster({
             const elevation = formatFeetValue(destination.elevation);
             const featureWord = destination.features[0] ? titleize(destination.features[0]) : null;
             const completion = entries?.[destination.id] ?? null;
+            const satelliteUrl = destination.hero_image
+              ? null
+              : satelliteThumbnailUrl(destination.lat, destination.lng);
+            const thumbnailUrl = destination.hero_image ?? satelliteUrl;
 
             return (
               <li key={destination.id}>
@@ -59,17 +88,27 @@ export function ListRoster({
                   href={`/destinations/${destination.id}`}
                   className="group flex items-center gap-3"
                 >
-                  {destination.hero_image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={destination.hero_image}
-                      alt=""
-                      className="h-12 w-12 shrink-0 rounded-full bg-fill object-cover"
-                      style={{
-                        objectPosition: `${destination.hero_image_focal_x}% ${destination.hero_image_focal_y}%`,
-                      }}
-                    />
-                  ) : null}
+                  <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fill">
+                    <MountainPlaceholder />
+                    {thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumbnailUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="absolute inset-0 h-full w-full object-cover"
+                        style={{
+                          objectPosition: destination.hero_image
+                            ? `${destination.hero_image_focal_x}% ${destination.hero_image_focal_y}%`
+                            : "50% 50%",
+                        }}
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
+                      />
+                    ) : null}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-medium text-ink group-hover:underline">
                       {destination.name || "Unnamed"}
@@ -97,6 +136,21 @@ export function ListRoster({
           })}
         </ul>
       )}
+
+      {usesSatelliteImagery ? (
+        <p className="mt-5 text-[10px] text-muted">
+          Satellite imagery ©{" "}
+          <a
+            href="https://www.esri.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-ink-2"
+          >
+            Esri
+          </a>
+          , Maxar, Earthstar Geographics.
+        </p>
+      ) : null}
     </section>
   );
 }
