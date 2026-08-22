@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildDestinationPeakbaggerIds,
   buildListPlan,
   buildListUpsertParams,
   CatalogPeak,
@@ -109,6 +110,24 @@ test("resolves exact names and reviewed overrides", () => {
       sourceName: "New Name",
     },
   ]);
+});
+
+test("keeps one Peakbagger ID per destination across reviewed lists", () => {
+  const members = resolveListMembers(list, source, catalog);
+  assert.deepEqual(
+    buildDestinationPeakbaggerIds([...members, members[0]]),
+    [
+      { destinationId: "destination-1", peakbaggerId: "101" },
+      { destinationId: "destination-2", peakbaggerId: "102" },
+    ]
+  );
+  assert.throws(
+    () => buildDestinationPeakbaggerIds([
+      members[0],
+      { ...members[0], sourcePeakId: 999 },
+    ]),
+    /maps to Peakbagger peaks 101 and 999/
+  );
 });
 
 test("fails closed on missing and ambiguous matches", () => {

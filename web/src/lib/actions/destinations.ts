@@ -14,6 +14,7 @@ import {
   type RouteProvenance,
 } from "../route-provenance";
 import { verifyToken, verifyAdminToken } from "../auth-actions";
+import { normalizeExternalLinks, type CatalogExternalLink } from "../external-links";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -70,6 +71,8 @@ export interface DestinationDetail {
   explicitly_saved: boolean;
   geohash: string | null;
   amenities: Amenities | null;
+  external_ids: Record<string, unknown>;
+  external_links: CatalogExternalLink[];
   areas: ProtectedArea[];
   created_at: string;
   updated_at: string;
@@ -204,7 +207,7 @@ export async function getDestination(
             d.description, d.description_source_name,
             d.description_source_url, d.description_source_license,
             d.averages, d.averages_offset, d.explicitly_saved, d.geohash,
-            d.amenities,
+            d.amenities, d.external_ids, d.external_links,
             d.created_at, d.updated_at,
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM destinations d
@@ -228,6 +231,9 @@ export async function getDestination(
   if (result.rows.length === 0) return null;
 
   const r = result.rows[0];
+  const externalIds = r.external_ids && typeof r.external_ids === "object"
+    ? r.external_ids as Record<string, unknown>
+    : {};
   return {
     ...r,
     areas: parseAreas(r.areas),
@@ -239,6 +245,8 @@ export async function getDestination(
     hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
     boundary: r.boundary || null,
     amenities: r.amenities ?? null,
+    external_ids: externalIds,
+    external_links: normalizeExternalLinks(r.external_links, externalIds),
     averages: mergeDestinationAverages(r.averages, r.averages_offset),
     averages_offset: r.averages_offset || null,
     features: parseArray(r.features),

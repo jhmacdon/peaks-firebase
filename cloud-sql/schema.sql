@@ -203,6 +203,11 @@ CREATE TABLE destinations (
     -- Used by bulk imports for dedup and by admin tooling to link rows to sources.
     external_ids    JSONB NOT NULL DEFAULT '{}',
 
+    -- Reviewed public pages for this exact place. The API also derives links
+    -- from stable IDs above (Peakbagger, SummitPost, ListsOfJohn, etc.).
+    external_links  JSONB NOT NULL DEFAULT '[]'
+                    CHECK (jsonb_typeof(external_links) = 'array'),
+
     -- Feature-specific facts about the place (toilet type, drinking water,
     -- fee, capacity, etc.). Schema is feature-dependent and validated in
     -- TypeScript via the CampsiteAmenities discriminated union; the DB

@@ -255,83 +255,10 @@ export function buildRouteAbout(
   return paragraphs;
 }
 
-export interface ParsedExternalRouteLink {
-  type: string;
-  id: string;
-  href: string;
-  label: string;
-  display: string;
-}
-
-function titleize(input: string): string {
-  return input
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
-}
-
-function isHttpUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value);
-}
-
-function buildKnownExternalUrl(type: string, id: string): string {
-  const lower = type.toLowerCase();
-
-  if (isHttpUrl(id)) return id;
-
-  if (lower.includes("alltrails")) {
-    return `https://www.alltrails.com/search?q=${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("strava")) {
-    return `https://www.strava.com/routes/${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("gaia")) {
-    return `https://www.gaiagps.com/public/${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("caltopo")) {
-    return `https://caltopo.com/m/${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("wikiloc")) {
-    return `https://www.wikiloc.com/wikiloc/view.do?id=${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("trailforks")) {
-    return `https://www.trailforks.com/search/?q=${encodeURIComponent(id)}`;
-  }
-  if (lower.includes("openstreetmap") || lower === "osm") {
-    return `https://www.openstreetmap.org/search?query=${encodeURIComponent(id)}`;
-  }
-
-  return `https://www.google.com/search?q=${encodeURIComponent(`${type} ${id}`.trim())}`;
-}
-
-export function parseExternalRouteLinks(
-  links: unknown[] | null | undefined
-): ParsedExternalRouteLink[] {
-  if (!Array.isArray(links)) return [];
-
-  return links
-    .map((link): ParsedExternalRouteLink | null => {
-      if (!link || typeof link !== "object") return null;
-      const raw = link as Record<string, unknown>;
-      const type = String(raw.type ?? raw.source ?? raw.provider ?? "external");
-      const id = String(raw.id ?? raw.url ?? raw.href ?? "").trim();
-      if (!id) return null;
-
-      const href = buildKnownExternalUrl(type, id);
-      const label = titleize(type || "external");
-      const display = isHttpUrl(id) ? new URL(id).host.replace(/^www\./, "") : id;
-
-      return {
-        type,
-        id,
-        href,
-        label,
-        display,
-      };
-    })
-    .filter((link): link is ParsedExternalRouteLink => link !== null);
-}
+export {
+  parseExternalRouteLinks,
+  type ParsedExternalRouteLink,
+} from "./external-links";
 
 export interface SegmentSummary {
   count: number;

@@ -45,6 +45,8 @@ import { DestinationRoutes } from "../../../../components/destination/destinatio
 import { DestinationSeasonality } from "../../../../components/destination/destination-seasonality";
 import { DestinationTrailheads } from "../../../../components/destination/destination-trailheads";
 import { DestinationWeather } from "../../../../components/destination/destination-weather";
+import { DestinationExternalLinks } from "../../../../components/destination/destination-external-links";
+import { parseDestinationExternalLinks } from "../../../../lib/external-links";
 import {
   Topline,
   type ToplineStat,
@@ -115,6 +117,7 @@ export default async function DestinationDetailPage({
   // both, so exactly one of these two lists ever has rows.
   const trailheadFacts = trailheadAmenityRows(dest.amenities);
   const trailheadCredits = amenityCredits(trailheadFacts);
+  const externalLinks = parseDestinationExternalLinks(dest.external_links, dest.external_ids);
 
   const directionsUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`
@@ -223,6 +226,8 @@ export default async function DestinationDetailPage({
             sourceUrl={dest.description ? dest.description_source_url : null}
             sourceLicense={dest.description ? dest.description_source_license : null}
           />
+
+          <DestinationExternalLinks links={externalLinks} />
 
           <DestinationPlanning
             notes={guide.paragraphs}

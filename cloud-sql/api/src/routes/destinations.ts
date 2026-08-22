@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import db from "../db";
+import { normalizeExternalLinks } from "../lib/external-links";
 
 const router = Router();
 
@@ -271,7 +272,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             d.activities, d.features, d.owner,
             d.country_code, d.state_code,
             COALESCE(d.metadata->'names', '{}'::jsonb) AS names,
-            d.external_ids, d.amenities,
+            d.external_ids, d.external_links, d.amenities,
             d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url,
             d.hero_image_focal_x, d.hero_image_focal_y,
             d.averages, d.averages_offset, d.explicitly_saved, d.recency,
@@ -348,6 +349,7 @@ export function mapDestinationDetailRow(row: any): any {
     row.external_ids && typeof row.external_ids === "object" && !Array.isArray(row.external_ids)
       ? row.external_ids
       : {};
+  row.external_links = normalizeExternalLinks(row.external_links, row.external_ids);
 
   // Amenities pass through exactly as stored. The credit guard below withholds
   // place copy when the row-wide credit is short, but every amenity leaf ships

@@ -49,17 +49,19 @@ const TRAILHEAD_AMENITIES = {
   },
 };
 
-test("destination detail query selects amenities and external ids", () => {
+test("destination detail query selects amenities, external ids, and external links", () => {
   const query = buildDestinationDetailQuery("dest-1");
 
   // Both are JSONB, so they arrive as objects and serialize as objects — no
   // ::json cast, and no JSON string for the client to parse a second time.
   assert.match(query.text, /d\.amenities\b/);
   assert.match(query.text, /d\.external_ids\b/);
+  assert.match(query.text, /d\.external_links\b/);
   // Pin the second half of that claim: `d.amenities::text` would still match
   // the pattern above while handing the client a string to parse again.
   assert.doesNotMatch(query.text, /amenities::(text|json)\b/);
   assert.doesNotMatch(query.text, /external_ids::(text|json)\b/);
+  assert.doesNotMatch(query.text, /external_links::(text|json)\b/);
   assert.deepEqual(query.values, ["dest-1"]);
 });
 
@@ -69,6 +71,7 @@ test("mapDestinationDetailRow passes stored amenities through untouched", () => 
     name: "Snow Lake Trailhead",
     amenities: TRAILHEAD_AMENITIES,
     external_ids: { osm: "123456789" },
+    external_links: [{ type: "peakbagger", id: "https://www.peakbagger.com/peak.aspx?pid=1" }],
     areas: [],
   };
 
@@ -84,6 +87,9 @@ test("mapDestinationDetailRow passes stored amenities through untouched", () => 
     "public domain (US federal government)"
   );
   assert.deepEqual(mapped.external_ids, { osm: "123456789" });
+  assert.deepEqual(mapped.external_links, [
+    { type: "peakbagger", id: "https://www.peakbagger.com/peak.aspx?pid=1" },
+  ]);
 });
 
 test("a destination with no facts still answers with the keys", () => {
@@ -92,6 +98,7 @@ test("a destination with no facts still answers with the keys", () => {
     name: "Mount Rainier",
     amenities: null,
     external_ids: {},
+    external_links: [],
     areas: [],
   };
 
@@ -99,6 +106,7 @@ test("a destination with no facts still answers with the keys", () => {
 
   assert.equal(mapped.amenities, null);
   assert.deepEqual(mapped.external_ids, {});
+  assert.deepEqual(mapped.external_links, []);
 });
 
 test("missing amenities and external ids collapse to one absent shape", () => {
@@ -106,6 +114,7 @@ test("missing amenities and external ids collapse to one absent shape", () => {
 
   assert.equal(mapped.amenities, null);
   assert.deepEqual(mapped.external_ids, {});
+  assert.deepEqual(mapped.external_links, []);
 });
 
 test("amenity facts are not withheld by the place-copy credit guard", () => {

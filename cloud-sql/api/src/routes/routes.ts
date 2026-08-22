@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import db from "../db";
+import { normalizeExternalLinks } from "../lib/external-links";
 
 const router = Router();
 
@@ -70,6 +71,7 @@ export function buildRouteDestinationsQuery(id: string): { text: string; values:
 
 export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
   row.areas = Array.isArray(row.areas) ? row.areas : [];
+  row.external_links = normalizeExternalLinks(row.external_links);
   // Embedded in ordinal order, straight from the query — route detail costs
   // the client one request instead of two.
   row.destinations = Array.isArray(destinations) ? destinations : [];
