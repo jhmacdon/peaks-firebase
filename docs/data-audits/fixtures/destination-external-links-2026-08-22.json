@@ -1,0 +1,56 @@
+[
+  {
+    "destinationId": "xJywSSofd1SVJkJaGwBe",
+    "name": "Mount Elbert",
+    "peakbaggerId": "5736",
+    "externalIds": { "listsofjohn": "1" }
+  },
+  {
+    "destinationId": "4a8eYUyZT4EeA3ZWG7ZE",
+    "name": "Mount Massive",
+    "peakbaggerId": "5729",
+    "externalIds": { "listsofjohn": "2" }
+  },
+  {
+    "destinationId": "hkLgY0UDdEq26w2abBjO",
+    "name": "Mount Harvard",
+    "peakbaggerId": "5754",
+    "externalIds": { "listsofjohn": "3" }
+  },
+  {
+    "destinationId": "eBNZkjZzZV96xo5f36bx",
+    "name": "Crestone Peak",
+    "peakbaggerId": "5908",
+    "externalIds": { "listsofjohn": "9", "summitpost": "150435" }
+  },
+  {
+    "destinationId": "Ln1hCCowUcCWHwzEx5ug",
+    "name": "Pikes Peak",
+    "peakbaggerId": "5689",
+    "externalIds": { "listsofjohn": "39" }
+  },
+  {
+    "destinationId": "Tg5URBHkVwPA1gGKKB4Q",
+    "name": "Mount Rainier",
+    "peakbaggerId": "2296",
+    "externalIds": { "listsofjohn": "16668" }
+  },
+  {
+    "destinationId": "Ta8deqYutGWWgheXfg4q",
+    "name": "Mount Whitney",
+    "peakbaggerId": "2829",
+    "externalIds": { "listsofjohn": "16669" }
+  },
+  {
+    "destinationId": "sgQlxlmEIcSsnKb9jyWM",
+    "name": "Mount Baker",
+    "peakbaggerId": "1633",
+    "externalIds": { "listsofjohn": "16671" }
+  },
+  {
+    "destinationId": "ERm0v7h6iCoEW5lLUUqF",
+    "name": "Mount Hood",
+    "peakbaggerId": "2382",
+    "externalIds": { "listsofjohn": "16677" }
+  }
+]

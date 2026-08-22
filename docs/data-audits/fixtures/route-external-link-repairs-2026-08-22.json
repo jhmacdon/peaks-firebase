@@ -1,0 +1,86 @@
+[
+  {
+    "routeId": "5HeC6oXic3y1k0XaPbXq",
+    "name": "Pico Duarte via La Ciénaga",
+    "expectedLinks": [
+      { "id": "https://www.alltrails.com/trail/dominican-republic/la-vega/pico-duarte-via-la-cienaga-ruta-completa", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/pico-duarte/150346", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=2786834", "type": "peakbagger" },
+      { "id": "https://www.summitpost.org/pico-duarte/150346", "type": "guide_required" },
+      { "id": "https://www.summitpost.org/pico-duarte/150346", "type": "permit_required" }
+    ],
+    "links": [
+      { "id": "https://www.alltrails.com/trail/dominican-republic/la-vega/pico-duarte-via-la-cienaga-ruta-completa", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/pico-duarte/150346", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=2786834", "type": "peakbagger" }
+    ]
+  },
+  {
+    "routeId": "78PrHiPheauIk0Phmcg5",
+    "name": "Mt. Pugh Trail",
+    "expectedLinks": [
+      { "id": "mount-pugh", "type": "wta" },
+      { "id": "17780", "type": "usfs" }
+    ],
+    "links": [{ "id": "mount-pugh", "type": "wta" }]
+  },
+  {
+    "routeId": "eWPuOSoE2uk6KM1vziGf",
+    "name": "Damavand via South Route",
+    "expectedLinks": [
+      { "id": "https://www.alltrails.com/trail/iran/mazandaran/mount-damavand", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/damavand/150400", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=2016690", "type": "peakbagger" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=2016690", "type": "permit_required" },
+      { "id": "https://www.summitpost.org/damavand/150400", "type": "safety_notice" }
+    ],
+    "links": [
+      { "id": "https://www.alltrails.com/trail/iran/mazandaran/mount-damavand", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/damavand/150400", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=2016690", "type": "peakbagger" }
+    ]
+  },
+  {
+    "routeId": "HOusfQaJKREXQiAoJukY",
+    "name": "Mt. Dickerman Trail",
+    "expectedLinks": [
+      { "id": "mount-dickerman", "type": "wta" },
+      { "id": "17772", "type": "usfs" }
+    ],
+    "links": [{ "id": "mount-dickerman", "type": "wta" }]
+  },
+  {
+    "routeId": "KzdPpPKF472koaNoLlRx",
+    "name": "Ojos del Salado via Chilean Route",
+    "expectedLinks": [
+      { "id": "https://www.alltrails.com/trail/chile/atacama/volcan-ojos-del-salado", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/ojos-del-salado/150299", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=162067", "type": "peakbagger" },
+      { "id": "https://www.summitpost.org/ojos-del-salado/150299", "type": "permit_required" },
+      { "id": "https://www.alltrails.com/trail/chile/atacama/volcan-ojos-del-salado", "type": "safety_notice" }
+    ],
+    "links": [
+      { "id": "https://www.alltrails.com/trail/chile/atacama/volcan-ojos-del-salado", "type": "alltrails" },
+      { "id": "https://www.summitpost.org/ojos-del-salado/150299", "type": "summitpost" },
+      { "id": "https://www.peakbagger.com/climber/ascent.aspx?aid=162067", "type": "peakbagger" }
+    ]
+  },
+  {
+    "routeId": "nktpfoy5dV052KmdJTkX",
+    "name": "McClellan Butte Trail",
+    "expectedLinks": [
+      { "id": "mcclellan-butte", "type": "wta" },
+      { "id": "18002", "type": "usfs" }
+    ],
+    "links": [{ "id": "mcclellan-butte", "type": "wta" }]
+  },
+  {
+    "routeId": "t7GxkDEDF0HYXsyYwm99",
+    "name": "Mount Pilchuck Trail",
+    "expectedLinks": [
+      { "id": "mount-pilchuck", "type": "wta" },
+      { "id": "1777", "type": "usfs" }
+    ],
+    "links": [{ "id": "mount-pilchuck", "type": "wta" }]
+  }
+]

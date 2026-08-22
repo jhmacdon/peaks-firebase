@@ -128,6 +128,13 @@ test("keeps one Peakbagger ID per destination across reviewed lists", () => {
     ]),
     /maps to Peakbagger peaks 101 and 999/
   );
+  assert.deepEqual(
+    buildDestinationPeakbaggerIds(
+      [members[0], { ...members[0], sourcePeakId: 999 }],
+      { "destination-1": "777" }
+    ),
+    [{ destinationId: "destination-1", peakbaggerId: "777" }]
+  );
 });
 
 test("fails closed on missing and ambiguous matches", () => {

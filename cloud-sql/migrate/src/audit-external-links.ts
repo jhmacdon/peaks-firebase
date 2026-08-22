@@ -261,6 +261,8 @@ async function loadRows(): Promise<CatalogRow[]> {
             '{}'::jsonb AS external_ids,
             COALESCE(r.external_links, '[]'::jsonb) AS external_links
        FROM routes r
+      WHERE r.owner = 'peaks'
+        AND r.status = 'active'
       ORDER BY kind, id`
   );
   return result.rows;

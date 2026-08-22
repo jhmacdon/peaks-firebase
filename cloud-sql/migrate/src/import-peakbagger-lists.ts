@@ -157,6 +157,14 @@ export function deterministicOsmDestinationId(osmId: string): string {
 
 const HIGH_ROCK_OSM_ID = "356773747";
 const HIGH_ROCK_ID = deterministicOsmDestinationId(HIGH_ROCK_OSM_ID);
+const CRESTONE_PEAK_ID = "eBNZkjZzZV96xo5f36bx";
+
+// A list row can stand in for a catalog destination without being the same
+// physical summit. Keep the list membership, but link the destination to its
+// own exact Peakbagger page.
+export const DESTINATION_PEAKBAGGER_ID_OVERRIDES: Record<string, string> = {
+  [CRESTONE_PEAK_ID]: "5908",
+};
 
 // Added by cloud-sql/migrations/20260821_held_list_summits.sql, which is a
 // data-only migration rather than a CURATED_DESTINATIONS entry. Named here so
@@ -230,7 +238,7 @@ export const CURATED_LISTS: CuratedList[] = [
       "own. Mount Elbert is the highest of them, and the highest summit in the Rocky Mountains.",
     expectedCount: 53,
     destinationOverrides: {
-      5907: "eBNZkjZzZV96xo5f36bx", // Crestone Peak East -> Crestone Peak
+      5907: CRESTONE_PEAK_ID, // Crestone Peak East stands in for the catalog's west summit
       5676: "PaeawK81bgByWN53rffv", // Mount Blue Sky -> Mount Evans
     },
     // Nullable by design: a plain elevation/prominence cut has no keeper. Peakbagger hosts
@@ -778,11 +786,12 @@ export function buildListPlan(
 /** One peak can appear on several lists. Keep one checked source ID per
  * destination, and fail if two reviewed list rows disagree. */
 export function buildDestinationPeakbaggerIds(
-  members: ResolvedListMember[]
+  members: ResolvedListMember[],
+  overrides: Record<string, string> = {}
 ): DestinationPeakbaggerId[] {
   const byDestination = new Map<string, string>();
   for (const member of members) {
-    const peakbaggerId = String(member.sourcePeakId);
+    const peakbaggerId = overrides[member.destinationId] ?? String(member.sourcePeakId);
     const existing = byDestination.get(member.destinationId);
     if (existing && existing !== peakbaggerId) {
       throw new Error(
@@ -940,15 +949,13 @@ async function insertDestinations(
 async function applyPlans(
   client: PoolClient,
   plans: ListImportPlan[],
-  destinationsToAdd: CuratedDestination[]
+  destinationsToAdd: CuratedDestination[],
+  peakbaggerIds: DestinationPeakbaggerId[]
 ): Promise<void> {
   await client.query("BEGIN");
   try {
     await client.query("SELECT pg_advisory_xact_lock(hashtext('peakbagger-list-import'))");
     await insertDestinations(client, destinationsToAdd);
-    const peakbaggerIds = buildDestinationPeakbaggerIds(
-      plans.flatMap((plan) => plan.members)
-    );
     const conflicts = await client.query<{
       id: string;
       existing_id: string;
@@ -1069,13 +1076,18 @@ async function main(): Promise<void> {
       const members = resolveListMembers(list, source, catalog);
       return buildListPlan(list, members, current);
     });
+    const peakbaggerIds = buildDestinationPeakbaggerIds(
+      plans.flatMap((plan) => plan.members),
+      DESTINATION_PEAKBAGGER_ID_OVERRIDES
+    );
 
-    if (args.apply) await applyPlans(client, plans, destinationsToAdd);
+    if (args.apply) await applyPlans(client, plans, destinationsToAdd, peakbaggerIds);
 
     const nameById = new Map(catalog.map((peak) => [peak.id, peak.name]));
     console.log(JSON.stringify({
       apply: args.apply,
       source: "Peakbagger",
+      destinationPeakbaggerIdCount: peakbaggerIds.length,
       destinationsToAdd: destinationsToAdd.map((destination) => ({
         id: destination.id,
         name: destination.name,
