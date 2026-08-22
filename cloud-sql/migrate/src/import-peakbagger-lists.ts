@@ -292,6 +292,26 @@ export const CURATED_LISTS: CuratedList[] = [
     region: "Sierra Nevada",
   },
   {
+    listId: deterministicListId(5051),
+    sourceListId: 5051,
+    name: "Sierra Peaks Section",
+    description:
+      "The Sierra Club's Angeles Chapter formed the Sierra Peaks Section in 1955 to explore " +
+      "and climb the Sierra Nevada. Its list holds 247 active peaks, from Owens Peak in the " +
+      "south to Adams Peak in the north, and spans routes from walk-ups to class 5 climbs. " +
+      "Fifteen are Emblem Peaks; ten of those plus fifteen more list peaks earn the section emblem.",
+    expectedCount: 247,
+    destinationOverrides: {
+      13567: "89lGAhqgSm18Jih8vRUk", // Sierra Buttes -> the existing Sierra Buttes Lookout row
+      69023: "D80BD9D570012B82ED80", // Adams Peak - West Peak -> the existing Adams Peak row
+    },
+    yearEstablished: 1955,
+    organization: "Sierra Club Angeles Chapter",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5051",
+    region: "Sierra Nevada",
+  },
+  {
     listId: deterministicListId(5120),
     sourceListId: 5120,
     name: "Adirondack 46ers",
@@ -508,6 +528,25 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceName: "Peakbagger",
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5053",
     region: "Desert Southwest",
+  },
+  {
+    listId: deterministicListId(5052),
+    sourceListId: 5052,
+    name: "Hundred Peaks Section",
+    description:
+      "Weldon Heald, Luella Todd and Jack Bascom published the first Hundred Peaks Game list " +
+      "in 1946. The Sierra Club's Angeles Chapter made the group an official section in 1954. " +
+      "Its current list holds 280 Southern California summits, each above 5,000 feet, and " +
+      "recognizes climbers at 100 peaks, 200 peaks and completion of the full list.",
+    expectedCount: 280,
+    destinationOverrides: {
+      1452: "B5EC8D01243FC4D046E8", // Palomar Mountain -> the existing OSM High Point row
+    },
+    yearEstablished: 1946,
+    organization: "Sierra Club Angeles Chapter",
+    sourceName: "Peakbagger",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5052",
+    region: "Southern California",
   },
   {
     listId: deterministicListId(5055),
