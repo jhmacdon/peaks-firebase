@@ -12,6 +12,8 @@ import {
 } from "../destination-photo-storage";
 import {
   approvedDestinationPhotoFraming,
+  destinationPhotoPageBounds,
+  DESTINATION_PHOTO_PAGE_SIZE,
   type DestinationPhotoDecision,
   type DestinationPhotoFraming,
 } from "../destination-photo-review";
@@ -45,6 +47,14 @@ export interface DestinationPhotoCandidate {
   current_image_attribution_url: string | null;
   current_image_focal_x: number;
   current_image_focal_y: number;
+}
+
+export interface DestinationPhotoCandidatePage {
+  candidates: DestinationPhotoCandidate[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
 }
 
 export interface NewDestinationPhotoCandidate {
@@ -143,12 +153,23 @@ async function requireAdmin(token: string): Promise<{ uid: string }> {
 
 export async function getDestinationPhotoCandidates(
   token: string,
-  status: DestinationPhotoStatus = "pending"
-): Promise<DestinationPhotoCandidate[]> {
+  status: DestinationPhotoStatus = "pending",
+  page = 0,
+  pageSize = DESTINATION_PHOTO_PAGE_SIZE
+): Promise<DestinationPhotoCandidatePage> {
   await requireAdmin(token);
   if (!(["pending", "approved", "denied"] as string[]).includes(status)) {
     throw new Error("Invalid photo status");
   }
+
+  const countResult = await db.query(
+    `SELECT count(*)::int AS total
+       FROM destination_photo_candidates
+      WHERE status = $1`,
+    [status]
+  );
+  const total = Number(countResult.rows[0]?.total ?? 0);
+  const bounds = destinationPhotoPageBounds(total, page, pageSize);
 
   const result = await db.query(
     `SELECT c.id, c.destination_id, d.name AS destination_name,
@@ -167,10 +188,16 @@ export async function getDestinationPhotoCandidates(
        JOIN destinations d ON d.id = c.destination_id
       WHERE c.status = $1
       ORDER BY c.created_at ASC, d.name ASC, c.id ASC
-      LIMIT 200`,
-    [status]
+      LIMIT $2 OFFSET $3`,
+    [status, bounds.pageSize, bounds.offset]
   );
-  return result.rows.map(serializeCandidate);
+  return {
+    candidates: result.rows.map(serializeCandidate),
+    total,
+    page: bounds.page,
+    pageSize: bounds.pageSize,
+    pageCount: bounds.pageCount,
+  };
 }
 
 export async function searchDestinationsForPhotoCandidate(
