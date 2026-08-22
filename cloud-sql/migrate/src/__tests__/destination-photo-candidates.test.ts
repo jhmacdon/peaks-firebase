@@ -151,3 +151,42 @@ test("reviewed state high point manifest covers the 47 destinations not already 
     assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
   }
 });
+
+test("listed peak gap batch has 16 crop-reviewed candidates", () => {
+  const manifest = parseDestinationPhotoManifest(JSON.parse(readFileSync(
+    path.resolve(__dirname, "../../data/list-cover-gap-batch-one-photo-candidates.json"),
+    "utf8"
+  )));
+  assert.equal(manifest.collection, "Listed Peaks: Small-List Gaps");
+  assert.equal(manifest.candidates.length, 16);
+  assert.equal(new Set(manifest.candidates.map((candidate) => candidate.destinationId)).size, 16);
+  assert.deepEqual(
+    manifest.candidates.map((candidate) => candidate.destinationName).sort(),
+    [
+      "Abercrombie Mountain",
+      "Charleston Peak",
+      "Echo Rock",
+      "Elbrus",
+      "Flat Top Mountain",
+      "Kilimanjaro",
+      "Lost River Mountain",
+      "Mixup Peak",
+      "Mount Buckner",
+      "North Twin",
+      "Observation Rock",
+      "Polemonium Peak",
+      "Sahale Peak",
+      "Sierra Blanca Peak",
+      "Sluiskin Mountain-The Chief",
+      "Starlight Peak",
+    ]
+  );
+
+  for (const candidate of manifest.candidates) {
+    assert.equal(candidate.sourceKind, "wikimedia_commons");
+    assert.ok(candidate.imageWidth >= 1900, `${candidate.destinationName} is too narrow`);
+    assert.ok(candidate.imageHeight >= 1100, `${candidate.destinationName} is too short`);
+    assert.ok(candidate.focalX >= 0 && candidate.focalX <= 100);
+    assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
+  }
+});
