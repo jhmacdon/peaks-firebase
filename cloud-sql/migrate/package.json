@@ -37,6 +37,7 @@
     "expand:viewpoint-coverage": "tsx src/expand-viewpoint-coverage.ts",
     "expand:lake-coverage": "tsx src/expand-lake-coverage.ts",
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
+    "audit:external-links": "tsx src/audit-external-links.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
     "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",

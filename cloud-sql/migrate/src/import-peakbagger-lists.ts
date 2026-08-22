@@ -128,6 +128,11 @@ interface ListImportPlan {
   reorderedDestinationIds: string[];
 }
 
+export interface DestinationPeakbaggerId {
+  destinationId: string;
+  peakbaggerId: string;
+}
+
 const METERS_PER_FOOT = 0.3048;
 const MAX_ELEVATION_DELTA_M = 100;
 const MAX_SPATIAL_TIEBREAK_M = 5_000;
@@ -770,6 +775,27 @@ export function buildListPlan(
   };
 }
 
+/** One peak can appear on several lists. Keep one checked source ID per
+ * destination, and fail if two reviewed list rows disagree. */
+export function buildDestinationPeakbaggerIds(
+  members: ResolvedListMember[]
+): DestinationPeakbaggerId[] {
+  const byDestination = new Map<string, string>();
+  for (const member of members) {
+    const peakbaggerId = String(member.sourcePeakId);
+    const existing = byDestination.get(member.destinationId);
+    if (existing && existing !== peakbaggerId) {
+      throw new Error(
+        `Destination ${member.destinationId} maps to Peakbagger peaks ${existing} and ${peakbaggerId}`
+      );
+    }
+    byDestination.set(member.destinationId, peakbaggerId);
+  }
+  return [...byDestination.entries()]
+    .map(([destinationId, peakbaggerId]) => ({ destinationId, peakbaggerId }))
+    .sort((left, right) => left.destinationId.localeCompare(right.destinationId));
+}
+
 async function loadCatalog(client: PoolClient): Promise<CatalogPeak[]> {
   const result = await client.query<{
     id: string;
@@ -920,6 +946,56 @@ async function applyPlans(
   try {
     await client.query("SELECT pg_advisory_xact_lock(hashtext('peakbagger-list-import'))");
     await insertDestinations(client, destinationsToAdd);
+    const peakbaggerIds = buildDestinationPeakbaggerIds(
+      plans.flatMap((plan) => plan.members)
+    );
+    const conflicts = await client.query<{
+      id: string;
+      existing_id: string;
+      incoming_id: string;
+    }>(
+      `WITH incoming AS (
+         SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
+           destination_id text, peakbagger_id text
+         )
+       )
+       SELECT d.id,
+              d.external_ids->>'peakbagger' AS existing_id,
+              incoming.peakbagger_id AS incoming_id
+       FROM incoming
+       JOIN destinations d ON d.id = incoming.destination_id
+       WHERE d.external_ids ? 'peakbagger'
+         AND d.external_ids->>'peakbagger' <> incoming.peakbagger_id`,
+      [JSON.stringify(peakbaggerIds.map((value) => ({
+        destination_id: value.destinationId,
+        peakbagger_id: value.peakbaggerId,
+      })))]
+    );
+    if (conflicts.rows.length > 0) {
+      const conflict = conflicts.rows[0];
+      throw new Error(
+        `Destination ${conflict.id} already has Peakbagger ID ${conflict.existing_id}; ` +
+        `reviewed lists resolve it to ${conflict.incoming_id}`
+      );
+    }
+    await client.query(
+      `WITH incoming AS (
+         SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
+           destination_id text, peakbagger_id text
+         )
+       )
+       UPDATE destinations d
+          SET external_ids = COALESCE(d.external_ids, '{}'::jsonb) ||
+                             jsonb_build_object('peakbagger', incoming.peakbagger_id),
+              updated_at = now()
+         FROM incoming
+        WHERE d.id = incoming.destination_id
+          AND d.external_ids->>'peakbagger' IS DISTINCT FROM incoming.peakbagger_id`,
+      [JSON.stringify(peakbaggerIds.map((value) => ({
+        destination_id: value.destinationId,
+        peakbagger_id: value.peakbaggerId,
+      })))]
+    );
     for (const plan of plans) {
       const params = buildListUpsertParams(plan.list);
       await client.query(
