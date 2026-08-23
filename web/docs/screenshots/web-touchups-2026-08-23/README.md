@@ -6,9 +6,11 @@ Captured from this branch's production build with the live catalog.
 
 ![Discover with photographed destination cards](discover-desktop.png)
 
-## Protected areas — shorter state sections and browse paths
+## Protected areas — state filters and clear area cards
 
-![Protected areas grouped into shorter state sections](areas-desktop.png)
+![Protected areas grouped into clear state card sections](areas-desktop.png)
+
+![Protected area filters and cards on mobile](areas-mobile.png)
 
 ## Route detail — one clear stat row
 

@@ -8,8 +8,15 @@ export interface AreaCardData extends ProtectedArea {
   route_count?: number;
 }
 
-export function AreaCard({ area }: { area: AreaCardData }) {
+export function AreaCard({
+  area,
+  typeLabel,
+}: {
+  area: AreaCardData;
+  typeLabel?: string;
+}) {
   const location = area.state_codes?.join(", ");
+  const displayType = typeLabel ?? areaKindLabel(area.kind);
   const facts = [
     area.destination_count == null
       ? null
@@ -37,7 +44,7 @@ export function AreaCard({ area }: { area: AreaCardData }) {
             {area.name}
           </span>
           <span className="mt-1 block text-sm text-muted">
-            {[areaKindLabel(area.kind), location].filter(Boolean).join(" · ")}
+            {[displayType, location].filter(Boolean).join(" · ")}
           </span>
         </span>
       </div>
