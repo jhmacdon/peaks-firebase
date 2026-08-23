@@ -23,7 +23,8 @@ interface Args {
 export interface ReviewedDestinationFixture {
   destinationId: string;
   name: string;
-  peakbaggerId: string;
+  peakbaggerId?: string;
+  expectedExternalIds?: Record<string, string>;
   externalIds: Record<string, string>;
 }
 
@@ -202,8 +203,16 @@ export function buildDestinationUpdates(
     if (destination.name !== fixture.name) {
       throw new Error(`Fixture destination ${fixture.destinationId} is ${destination.name}, not ${fixture.name}`);
     }
-    if (String(destination.externalIds.peakbagger ?? "") !== fixture.peakbaggerId) {
+    if (
+      fixture.peakbaggerId != null &&
+      String(destination.externalIds.peakbagger ?? "") !== fixture.peakbaggerId
+    ) {
       throw new Error(`Fixture destination ${fixture.destinationId} has the wrong Peakbagger ID`);
+    }
+    for (const [provider, id] of Object.entries(fixture.expectedExternalIds ?? {})) {
+      if (String(destination.externalIds[provider] ?? "") !== id) {
+        throw new Error(`Fixture destination ${fixture.destinationId} has the wrong ${provider} ID`);
+      }
     }
     for (const [provider, id] of Object.entries(fixture.externalIds)) add(fixture.destinationId, provider, id);
   }

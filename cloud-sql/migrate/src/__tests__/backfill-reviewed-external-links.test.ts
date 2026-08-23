@@ -84,6 +84,28 @@ test("builds missing destination IDs and fails on conflicts", () => {
   );
 });
 
+test("guards a missing Peakbagger backfill with another exact catalog ID", () => {
+  const fixture = [{
+    destinationId: "destination-1",
+    name: "Mount Shuksan",
+    expectedExternalIds: { osm: "349028214" },
+    externalIds: { peakbagger: "1630", listsofjohn: "16753" },
+  }];
+  const current = [{
+    id: "destination-1",
+    name: "Mount Shuksan",
+    externalIds: { osm: "349028214" },
+  }];
+  assert.deepEqual(buildDestinationUpdates(fixture, [], current), [{
+    destinationId: "destination-1",
+    externalIds: { peakbagger: "1630", listsofjohn: "16753" },
+  }]);
+  assert.throws(
+    () => buildDestinationUpdates(fixture, [], [{ ...current[0], externalIds: { osm: "1" } }]),
+    /wrong osm ID/
+  );
+});
+
 test("deduplicates reviewed route links", () => {
   assert.deepEqual(buildRouteUpdates([exactRoute, exactRoute]), [{
     routeId: "route-1",
