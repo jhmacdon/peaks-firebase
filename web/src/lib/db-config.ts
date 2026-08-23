@@ -1,5 +1,7 @@
 import type { PoolConfig } from "pg";
 
+type EnvironmentVariables = Readonly<Record<string, string | undefined>>;
+
 function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -10,7 +12,7 @@ function positiveInt(value: string | undefined, fallback: number): number {
  * statement limits; the web app should not let one stalled query occupy a
  * connection for the full 300-second request timeout. */
 export function buildWebPoolSafetyConfig(
-  env: NodeJS.ProcessEnv = process.env
+  env: EnvironmentVariables = process.env
 ): Pick<
   PoolConfig,
   | "application_name"
