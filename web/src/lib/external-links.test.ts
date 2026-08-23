@@ -4,6 +4,7 @@ import {
   externalIdUrl,
   parseDestinationExternalLinks,
   parseExternalRouteLinks,
+  partitionDestinationExternalLinks,
 } from "./external-links";
 
 test("destination provider IDs become exact public pages in useful order", () => {
@@ -23,6 +24,27 @@ test("destination provider IDs become exact public pages in useful order", () =>
       { label: "Wikidata", href: "https://www.wikidata.org/wiki/Q194057" },
     ]
   );
+});
+
+test("RIDB facility IDs become one exact Recreation.gov action", () => {
+  const links = parseDestinationExternalLinks([], {
+    ridb_facility: "232459",
+    peakbagger: "2296",
+  });
+  const partitioned = partitionDestinationExternalLinks(links);
+
+  assert.deepEqual(
+    partitioned.recreationGov && {
+      label: partitioned.recreationGov.label,
+      href: partitioned.recreationGov.href,
+    },
+    {
+      label: "Recreation.gov",
+      href: "https://www.recreation.gov/camping/campgrounds/232459",
+    }
+  );
+  assert.deepEqual(partitioned.other.map((link) => link.label), ["Peakbagger"]);
+  assert.equal(externalIdUrl("ridb_facility", "not-a-number"), null);
 });
 
 test("route links accept current type/id rows and legacy slugs", () => {

@@ -12,6 +12,10 @@ const PROVIDER_ALIASES: Record<string, string> = {
   "lists-of-john": "listsofjohn",
   loj: "listsofjohn",
   openstreetmap: "osm",
+  recreation_gov: "recreation_gov",
+  "recreation-gov": "recreation_gov",
+  ridb: "recreation_gov",
+  ridb_facility: "recreation_gov",
   summit_post: "summitpost",
   "summit-post": "summitpost",
 };
@@ -97,6 +101,10 @@ export function externalIdUrl(provider: string, rawId: unknown): string | null {
   case "hiking_project":
     return /^[1-9]\d*$/.test(id)
       ? `https://www.hikingproject.com/trail/${id}`
+      : null;
+  case "recreation_gov":
+    return /^[1-9]\d*$/.test(id)
+      ? `https://www.recreation.gov/camping/campgrounds/${id}`
       : null;
   default:
     return null;

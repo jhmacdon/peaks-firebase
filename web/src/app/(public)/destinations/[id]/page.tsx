@@ -46,7 +46,11 @@ import { DestinationSeasonality } from "../../../../components/destination/desti
 import { DestinationTrailheads } from "../../../../components/destination/destination-trailheads";
 import { DestinationWeather } from "../../../../components/destination/destination-weather";
 import { DestinationExternalLinks } from "../../../../components/destination/destination-external-links";
-import { parseDestinationExternalLinks } from "../../../../lib/external-links";
+import { DestinationRecreationGov } from "../../../../components/destination/destination-recreation-gov";
+import {
+  parseDestinationExternalLinks,
+  partitionDestinationExternalLinks,
+} from "../../../../lib/external-links";
 import {
   Topline,
   type ToplineStat,
@@ -118,6 +122,7 @@ export default async function DestinationDetailPage({
   const trailheadFacts = trailheadAmenityRows(dest.amenities);
   const trailheadCredits = amenityCredits(trailheadFacts);
   const externalLinks = parseDestinationExternalLinks(dest.external_links, dest.external_ids);
+  const destinationLinks = partitionDestinationExternalLinks(externalLinks);
 
   const directionsUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${dest.lat},${dest.lng}`
@@ -227,7 +232,9 @@ export default async function DestinationDetailPage({
             sourceLicense={dest.description ? dest.description_source_license : null}
           />
 
-          <DestinationExternalLinks links={externalLinks} />
+          <DestinationRecreationGov link={destinationLinks.recreationGov} />
+
+          <DestinationExternalLinks links={destinationLinks.other} />
 
           <DestinationPlanning
             notes={guide.paragraphs}
