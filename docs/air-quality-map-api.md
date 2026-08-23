@@ -30,6 +30,11 @@ reporting-area AQI is the highest AQI that the reporting agency supplied for
 that area and hour. It is not an estimate at the centroid or at the user's
 location.
 
+This key-free official file avoids a paid provider and any scraped consumer
+tiles. Key-free does not mean permission-free: AirNow grants no permissive
+reuse license in the reviewed material, so the Data Exchange Guidelines,
+owner form, and source-agency guidance still block live use.
+
 Peaks accepts only AirNow sequence `0`, data type `O`, primary pollutant `Y`
 rows with the file's exact 17-field shape, decimal number syntax, and valid
 source dates and clock times. It passes through the source AQI, category text,
