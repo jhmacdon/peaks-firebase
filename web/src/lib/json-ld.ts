@@ -200,3 +200,30 @@ export function buildListJsonLd(input: {
     itemListElement,
   };
 }
+
+export function buildFaqJsonLd(input: {
+  items: Array<{ question?: string | null; answer?: string | null }>;
+}): JsonLd {
+  const mainEntity = input.items.flatMap((item) => {
+    const question = text(item.question);
+    const answer = text(item.answer);
+    if (!question || !answer) return [];
+
+    return [
+      {
+        "@type": "Question",
+        name: question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: answer,
+        },
+      },
+    ];
+  });
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "FAQPage",
+    mainEntity,
+  };
+}

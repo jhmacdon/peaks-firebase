@@ -17,6 +17,19 @@ export const ACTIVITY_LANDING_TYPES = [
 
 export type ActivityLandingType = (typeof ACTIVITY_LANDING_TYPES)[number];
 
+/** Only these pages have live, distinct Peaks data. The other activity URLs
+ * stay available as honest product notes, but they must not be presented to
+ * crawlers as full catalog guides until the product can support them. */
+export const INDEXABLE_ACTIVITY_LANDING_TYPES = [
+  "hiking",
+  "peak-bagging",
+] as const satisfies readonly ActivityLandingType[];
+
+export interface LandingFaq {
+  question: string;
+  answer: string;
+}
+
 export function isActivityLandingType(value: string): value is ActivityLandingType {
   return (ACTIVITY_LANDING_TYPES as readonly string[]).includes(value);
 }
@@ -43,11 +56,12 @@ interface ActivityLandingConfig {
    * page renders fewer modules instead of relabeling someone else's data. */
   hasLiveContent: boolean;
   paragraph: (facts: ActivityLandingFacts) => string;
+  faqs: (facts: ActivityLandingFacts) => LandingFaq[];
 }
 
 const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig> = {
   hiking: {
-    title: "Hiking",
+    title: "Hiking tracker and route planner",
     h1: "Hiking with Peaks",
     label: "Hiking",
     hasLiveContent: true,
@@ -55,9 +69,29 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
       count && count > 0
         ? `Peaks logs every hike as a trek: distance, gain, and the summits or trailheads reached along the way. ${formatFlooredCount(count, 100)} hikes are recorded so far — browse where people are going.`
         : "Peaks logs every hike as a trek: distance, gain, and the summits or trailheads reached along the way.",
+    faqs: ({ count }) => [
+      {
+        question: "What does Peaks track on a hike?",
+        answer:
+          "Peaks records distance, elevation gain, time, and the summits or trailheads reached on each hike.",
+      },
+      ...(count && count > 0
+        ? [
+            {
+              question: "How many hikes are recorded in Peaks?",
+              answer: `Peaks has ${count.toLocaleString("en-US")} recorded hikes. This catalog count is read from Peaks activity data and updates as people log new trips.`,
+            },
+          ]
+        : []),
+      {
+        question: "Can I use Peaks to plan a hike?",
+        answer:
+          "Yes. Peaks links mountains, trailheads, protected areas, and published routes so you can check a place before you go.",
+      },
+    ],
   },
   "peak-bagging": {
-    title: "Peak-bagging",
+    title: "Peak-bagging tracker and peak lists",
     h1: "Peak-bagging with Peaks",
     label: "Peak-bagging",
     hasLiveContent: true,
@@ -65,6 +99,26 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
       count && count > 0
         ? `The catalog holds ${formatFlooredCount(count, 1000)} named summits, from roadside high points to technical climbs. Track the ones you've reached, plan the ones you haven't, and see what other climbers are logging.`
         : "Track the summits you've reached, plan the ones you haven't, and see what other climbers are logging.",
+    faqs: ({ count }) => [
+      ...(count && count > 0
+        ? [
+            {
+              question: "How many summits are in Peaks?",
+              answer: `Peaks has ${count.toLocaleString("en-US")} destinations tagged as summits. The count comes from the live Peaks catalog.`,
+            },
+          ]
+        : []),
+      {
+        question: "Can I track a peak-bagging list in Peaks?",
+        answer:
+          "Yes. Peaks shows curated mountain lists and records which summits you have reached on each one.",
+      },
+      {
+        question: "What is on a Peaks mountain page?",
+        answer:
+          "A mountain page can include elevation, a map, current weather, standard routes, nearby trailheads, protected areas, and trip reports.",
+      },
+    ],
   },
   skiing: {
     title: "Skiing",
@@ -73,6 +127,7 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
     hasLiveContent: false,
     paragraph: () =>
       "Peaks doesn't track ski touring as its own activity yet — a trip on skis logs the same way a trip on foot does. There's no separate ski catalog to browse yet, but the trailheads and summits below are the same ones skiers use.",
+    faqs: () => [],
   },
   "trail-running": {
     title: "Trail running",
@@ -81,6 +136,7 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
     hasLiveContent: false,
     paragraph: () =>
       "Peaks logs a run the same way it logs a hike: one trek, with distance and gain, no separate tag for pace. Until that split exists, the hiking catalog is the fastest way to find good trail.",
+    faqs: () => [],
   },
 };
 
@@ -95,6 +151,9 @@ export interface StateLandingFacts {
   /** Total catalog destinations in the state — always > 0 by the time this
    * runs; the page 404s first (see landing.ts) when a state has none. */
   destinationCount: number;
+  /** Destinations tagged as summits, kept separate from the wider catalog
+   * count so a trailhead or lake is never described as a peak. */
+  summitCount: number;
   highestPeak: { name: string; elevationFeet: number } | null;
   /** The protected area with the most linked destinations in the state, and
    * how many of the state's destinations sit in it — a specific, checkable
@@ -107,19 +166,60 @@ export interface StateLandingFacts {
  * unresolved highest peak or no linked areas just gets a shorter, still
  * true, sentence rather than a dash or a placeholder. */
 export function buildStateEditorialParagraph(facts: StateLandingFacts): string {
-  const { stateName, destinationCount, highestPeak, leadingArea } = facts;
+  const {
+    stateName,
+    destinationCount,
+    summitCount,
+    highestPeak,
+    leadingArea,
+  } = facts;
 
   const countPhrase = `${destinationCount.toLocaleString("en-US")} destination${destinationCount === 1 ? "" : "s"}`;
-  let sentence = `Peaks tracks ${countPhrase} in ${stateName}`;
+  const summitPhrase = `${summitCount.toLocaleString("en-US")} named summit${summitCount === 1 ? "" : "s"}`;
+  let copy = `Peaks tracks ${countPhrase} in ${stateName}${
+    summitCount > 0 ? `, including ${summitPhrase}` : ""
+  }.`;
 
   if (highestPeak) {
-    sentence += `, topping out at ${highestPeak.name} (${highestPeak.elevationFeet.toLocaleString("en-US")} ft)`;
+    copy += ` The highest cataloged summit is ${highestPeak.name} at ${highestPeak.elevationFeet.toLocaleString("en-US")} ft.`;
   }
-  sentence += ".";
 
   if (leadingArea) {
-    sentence += ` ${leadingArea.destinationCount.toLocaleString("en-US")} of those are in ${leadingArea.name}, the state's best-represented protected area.`;
+    copy += ` ${leadingArea.destinationCount.toLocaleString("en-US")} of the state's destinations are in ${leadingArea.name}, more than in any other protected area in the catalog.`;
   }
 
-  return sentence;
+  return copy;
+}
+
+export function buildStateLandingFaqs(facts: StateLandingFacts): LandingFaq[] {
+  const {
+    stateName,
+    destinationCount,
+    summitCount,
+    highestPeak,
+    leadingArea,
+  } = facts;
+
+  return [
+    {
+      question: `How many peaks are in the Peaks catalog for ${stateName}?`,
+      answer: `Peaks lists ${summitCount.toLocaleString("en-US")} destination${summitCount === 1 ? "" : "s"} tagged as ${summitCount === 1 ? "a summit" : "summits"} in ${stateName}. The full state catalog has ${destinationCount.toLocaleString("en-US")} mountain destinations, including trailheads, lakes, and viewpoints.`,
+    },
+    ...(highestPeak
+      ? [
+          {
+            question: `What is the highest peak in ${stateName}?`,
+            answer: `${highestPeak.name} is the highest summit in the Peaks catalog for ${stateName} at ${highestPeak.elevationFeet.toLocaleString("en-US")} ft.`,
+          },
+        ]
+      : []),
+    ...(leadingArea
+      ? [
+          {
+            question: `Which protected area in ${stateName} has the most cataloged destinations?`,
+            answer: `${leadingArea.name} has ${leadingArea.destinationCount.toLocaleString("en-US")} linked destinations, the most of any protected area in the Peaks catalog for ${stateName}.`,
+          },
+        ]
+      : []),
+  ];
 }

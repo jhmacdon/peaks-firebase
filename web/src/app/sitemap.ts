@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import db from "../lib/db";
-import { ACTIVITY_LANDING_TYPES } from "../lib/landing-copy";
+import { INDEXABLE_ACTIVITY_LANDING_TYPES } from "../lib/landing-copy";
 import { usStateSlugFromCode } from "../lib/regions";
 import { absoluteUrl } from "../lib/seo";
 import {
@@ -140,10 +140,12 @@ export default async function sitemap({
   if (id === SITEMAP_IDS.landing) {
     // Same threshold as peaks/[state]'s own generateStaticParams — a state
     // sitemap entry only worth publishing once the page has real content to
-    // rank on. Degrades to just the four activity URLs (never zero) if the
+    // rank on. Degrades to just the two supported activity URLs if the
     // catalog query fails; the next crawl picks the states back up once the
     // database is reachable again.
-    const activityUrls = ACTIVITY_LANDING_TYPES.map((type) => ({
+    // Skiing and trail running remain honest product notes, not search
+    // landing pages: Peaks has no distinct catalog data for either yet.
+    const activityUrls = INDEXABLE_ACTIVITY_LANDING_TYPES.map((type) => ({
       url: absoluteUrl(`/activities/${type}`),
     }));
 

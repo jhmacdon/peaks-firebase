@@ -36,6 +36,9 @@ export interface ActivityLandingClassicList {
 
 export interface ActivityLandingData {
   type: ActivityLandingType;
+  /** Exact live count used by FAQ answers. Null for unsupported activity
+   * types and when the page is rendered without its database read. */
+  count: number | null;
   paragraph: string;
   /** Empty for skiing/trail-running — see landing-copy.ts's hasLiveContent. */
   top: PopularDestinationsResult;
@@ -57,6 +60,7 @@ export async function getActivityLandingData(
   if (!config.hasLiveContent) {
     return {
       type,
+      count: null,
       paragraph: config.paragraph({ count: null }),
       top: { destinations: [], isFallback: false },
       lists: [],
@@ -85,6 +89,7 @@ export async function getActivityLandingData(
 
   return {
     type,
+    count,
     paragraph: config.paragraph({ count }),
     top,
     lists,
@@ -95,7 +100,9 @@ export interface StateLandingData {
   stateCode: string;
   stateName: string;
   destinationCount: number;
+  summitCount: number;
   highestPeak: { id: string; name: string; elevationFeet: number } | null;
+  leadingArea: { name: string; destinationCount: number } | null;
   paragraph: string;
   top: PopularDestinationsResult;
   areas: AreaIndexRow[];
@@ -133,6 +140,7 @@ export async function getStateLandingData(stateCode: string): Promise<StateLandi
   const paragraph = buildStateEditorialParagraph({
     stateName,
     destinationCount: facts.destinationCount,
+    summitCount: facts.summitCount,
     highestPeak,
     leadingArea,
   });
@@ -141,7 +149,9 @@ export async function getStateLandingData(stateCode: string): Promise<StateLandi
     stateCode,
     stateName,
     destinationCount: facts.destinationCount,
+    summitCount: facts.summitCount,
     highestPeak,
+    leadingArea,
     paragraph,
     top,
     areas,

@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import AreaCard from "../../../../components/area-card";
 import DestinationCard from "../../../../components/destination-card";
 import { ContourArt } from "../../../../components/contour-art";
+import { FaqSection } from "../../../../components/faq-section";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { Button } from "../../../../components/ui/button";
 import { SectionHeading } from "../../../../components/ui/section-heading";
 import db from "../../../../lib/db";
 import { getStateLandingDataCached } from "../../../../lib/actions/cached-landing";
-import { buildListJsonLd } from "../../../../lib/json-ld";
+import { buildFaqJsonLd, buildListJsonLd } from "../../../../lib/json-ld";
+import { buildStateLandingFaqs } from "../../../../lib/landing-copy";
 import { hashSeed } from "../../../../lib/seed-hash";
 import {
   usStateCodeFromSlug,
@@ -89,7 +91,7 @@ export async function generateMetadata({
   }
 
   const canonicalPath = `/peaks/${state}`;
-  const imageUrl = absoluteUrl("/opengraph-image");
+  const imageUrl = absoluteUrl(`${canonicalPath}/opengraph-image`);
 
   try {
     const data = await getStateLandingDataCached(stateCode);
@@ -110,7 +112,7 @@ export async function generateMetadata({
         url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
-        images: [{ url: imageUrl, width: 1200, height: 630, alt: siteConfig.name }],
+        images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
       },
       twitter: {
         card: "summary_large_image",
@@ -145,23 +147,36 @@ export default async function StateLandingPage({
   const seed = hashSeed(`state:${stateCode}`);
   const canonicalPath = `/peaks/${state}`;
   const h1 = `The peaks of ${data.stateName}`;
+  const faqs = buildStateLandingFaqs({
+    stateName: data.stateName,
+    destinationCount: data.destinationCount,
+    summitCount: data.summitCount,
+    highestPeak: data.highestPeak,
+    leadingArea: data.leadingArea,
+  });
 
-  const jsonLd =
-    data.top.destinations.length > 0
-      ? buildListJsonLd({
-          name: h1,
-          url: absoluteUrl(canonicalPath),
-          numberOfItems: data.top.destinations.length,
-          items: data.top.destinations.map((destination) => ({
-            name: destination.name,
-            url: absoluteUrl(`/destinations/${destination.id}`),
-          })),
-        })
-      : null;
+  const jsonLd = [
+    ...(data.top.destinations.length > 0
+      ? [
+          buildListJsonLd({
+            name: h1,
+            url: absoluteUrl(canonicalPath),
+            numberOfItems: data.top.destinations.length,
+            items: data.top.destinations.map((destination) => ({
+              name: destination.name,
+              url: absoluteUrl(`/destinations/${destination.id}`),
+            })),
+          }),
+        ]
+      : []),
+    buildFaqJsonLd({ items: faqs }),
+  ];
 
   return (
     <>
-      {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
+      {jsonLd.map((data, index) => (
+        <JsonLdScript key={index} data={data} />
+      ))}
 
       {/* Hero — same composition as /activities/[type] and the landing page;
           seed is drawn from the state code so every state draws a distinct
@@ -224,6 +239,42 @@ export default async function StateLandingPage({
           </div>
         </section>
       ) : null}
+
+      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <FaqSection items={faqs} />
+      </section>
+
+      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <SectionHeading eyebrow="Keep browsing" size="lg">
+          Plan a trip in {data.stateName}
+        </SectionHeading>
+        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          <Link
+            href="/activities/hiking"
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            Hiking guides →
+          </Link>
+          <Link
+            href="/activities/peak-bagging"
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            Peak-bagging lists →
+          </Link>
+          <Link
+            href={`/areas?state=${encodeURIComponent(stateCode)}`}
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            Protected areas →
+          </Link>
+          <Link
+            href={`/discover?q=${encodeURIComponent(data.stateName)}`}
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            Search {data.stateName} →
+          </Link>
+        </div>
+      </section>
 
       <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
         <div className="rounded-media bg-surface px-6 py-16 text-center md:px-12">

@@ -14,7 +14,10 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /discover                 → search + nearby + popular + lists (public)
 /destinations/[id]        → destination detail (public)
 /destinations/[id]/reports → trip reports for destination (public)
+/areas                    → protected-area search, state browse, and filters (public)
 /areas/[id]               → protected-area detail, boundary, destinations, routes (public)
+/activities/[type]        → hiking and peak-bagging guides (public)
+/peaks/[state]            → catalog-backed US state mountain guides (public)
 /routes/[id]              → route detail (public)
 /lists                    → browse all lists (public)
 /lists/[id]               → list detail + progress (public)
@@ -224,6 +227,21 @@ All map components use `react-leaflet` with `next/dynamic` + `ssr: false` (Leafl
 | `avatar` | Account, friends, party list |
 | `friend-card` | Friends page |
 | `party-list` | Plan detail |
+| `faq-section` | Activity, state, and protected-area guides |
+
+## Search and Answer Pages
+
+Activity and state guides render on the server. Each page starts with a short
+answer backed by Peaks data, then links to catalog records and related guides.
+The visible common-question section and its `FAQPage` JSON-LD use the same copy.
+State facts keep summit counts separate from the wider destination count, so a
+lake or trailhead is never counted as a peak.
+
+Only hiking and peak-bagging have distinct live data. Skiing and trail-running
+remain available as product notes, but they use `noindex` and do not appear in
+the sitemap. Activity and state guides have their own generated Open Graph
+images. The landing sitemap lists the two supported activity pages and states
+with more than 50 catalog destinations.
 
 ## Key Design Decisions
 

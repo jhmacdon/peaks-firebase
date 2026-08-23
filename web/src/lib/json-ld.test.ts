@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildAreaJsonLd,
   buildDestinationJsonLd,
+  buildFaqJsonLd,
   buildListJsonLd,
   buildOrganizationJsonLd,
   buildRouteJsonLd,
@@ -133,6 +134,32 @@ test("list JSON-LD caps itemListElement at 50 and omits missing names", () => {
   assert.equal(JSON.stringify(jsonLd).includes("null"), false);
 });
 
+test("FAQ JSON-LD keeps only complete question and answer pairs", () => {
+  assert.deepEqual(
+    buildFaqJsonLd({
+      items: [
+        { question: "What does Peaks track?", answer: "Distance and gain." },
+        { question: " ", answer: "Missing question." },
+        { question: "Missing answer?", answer: null },
+      ],
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "What does Peaks track?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Distance and gain.",
+          },
+        },
+      ],
+    }
+  );
+});
+
 test("organization JSON-LD drops the optional fields it wasn't given", () => {
   assert.deepEqual(
     buildOrganizationJsonLd({
@@ -205,6 +232,9 @@ test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
       name: "Peak List",
       url: "https://getpeaks.app/lists/peak-list",
       items: [],
+    }),
+    buildFaqJsonLd({
+      items: [{ question: "What is Peaks?", answer: "A mountain tracker." }],
     }),
   ];
 
