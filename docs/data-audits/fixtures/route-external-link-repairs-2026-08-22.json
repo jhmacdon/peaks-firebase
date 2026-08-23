@@ -82,5 +82,114 @@
       { "id": "1777", "type": "usfs" }
     ],
     "links": [{ "id": "mount-pilchuck", "type": "wta" }]
+  },
+  {
+    "routeId": "LNG6r2mbOqpr9PVGvJQp",
+    "name": "Bean Peak Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/bean-peak", "type": "wta" }]
+  },
+  {
+    "routeId": "xrcPH1bzGIhsel7sxhKa",
+    "name": "South Sister Climber Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.alltrails.com/trail/us/oregon/south-sister-trail", "type": "alltrails" }]
+  },
+  {
+    "routeId": "5Jocjpur9FKaXqTbA1ys",
+    "name": "Dirty Harry's Peak Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/dirty-harrys-peak", "type": "wta" }]
+  },
+  {
+    "routeId": "YLrzveSmJdxuE8ooJfpT",
+    "name": "Kings Peak via Henry's Fork",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.alltrails.com/trail/us/utah/kings-peak-utah-highpoint-trail", "type": "alltrails" }]
+  },
+  {
+    "routeId": "zpMvIjzNzPjQCcBbz1ht",
+    "name": "Liberty Ridge Route",
+    "expectedLinks": [],
+    "links": [
+      { "id": "https://www.nps.gov/mora/planyourvisit/upload/Liberty-Ridge-Routebrief.pdf", "type": "nps" },
+      { "id": "https://www.mountaineers.org/activities/routes-places/new-routes-places-for-beta-brews/mount-rainier-liberty-ridge", "type": "mountaineers" }
+    ]
+  },
+  {
+    "routeId": "qojql4CaD3IF6GZfW0TE",
+    "name": "Worm Flows Route",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/mount-st.-helens-worm-flows-route", "type": "wta" }]
+  },
+  {
+    "routeId": "XAuGRMujBSdcuAmQzYPB",
+    "name": "Camp Muir Route",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/camp-muir", "type": "wta" }]
+  },
+  {
+    "routeId": "5Ne2w5fr0m6q4C3CUtie",
+    "name": "Rattlesnake Ledge Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/rattlesnake-ledge", "type": "wta" }]
+  },
+  {
+    "routeId": "GvvlRD5GY4QoPyDzunNd",
+    "name": "Navaho Peak Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/navaho-peak", "type": "wta" }]
+  },
+  {
+    "routeId": "GhtrDufnJaapbafZI0zQ",
+    "name": "Sunrise Mine Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/headlee-pass-and-vesper-lake", "type": "wta" }]
+  },
+  {
+    "routeId": "Q4tbKTNo2sNe6Dz3SDr9",
+    "name": "Mount Teneriffe Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/mount-teneriffe", "type": "wta" }]
+  },
+  {
+    "routeId": "INRBmN9IOw444hd4A4OD",
+    "name": "Mount Washington Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.wta.org/go-hiking/hikes/mount-washington", "type": "wta" }]
+  },
+  {
+    "routeId": "HY5RuRNroyNoHvVhaenc",
+    "name": "Southwest Couloir",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.summitpost.org/middle-teton-sw-couloir-route/832764", "type": "summitpost" }]
+  },
+  {
+    "routeId": "jRmVvhLaNdjkU5cSG8NE",
+    "name": "Culebra Peak Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.14ers.com/route.php?route=cule1", "type": "14ers" }]
+  },
+  {
+    "routeId": "pfc6sQxGlVLjgtuLIRME",
+    "name": "East Ridge",
+    "expectedLinks": [],
+    "links": [
+      { "id": "https://www.14ers.com/route.php?route=quan1", "type": "14ers" },
+      { "id": "https://www.cmc.org/education-adventure/trips/routes-places/quandary-peak", "type": "colorado_mountain_club" },
+      { "id": "https://trails.colorado.gov/routes/164730", "type": "colorado_trail_explorer" }
+    ]
+  },
+  {
+    "routeId": "4Ua0xETd4qb2mknzP9KO",
+    "name": "Quandary Peak Trail",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.14ers.com/route.php?route=quan1", "type": "14ers" }]
+  },
+  {
+    "routeId": "yRwq5XUUWNMicEr7KKsM",
+    "name": "Tabeguache Peak - Via Mount Shavano",
+    "expectedLinks": [],
+    "links": [{ "id": "https://www.14ers.com/route.php?route=tabe2", "type": "14ers" }]
   }
 ]

@@ -52,5 +52,122 @@
     "name": "Mount Hood",
     "peakbaggerId": "2382",
     "externalIds": { "listsofjohn": "16677" }
+  },
+  {
+    "destinationId": "WE1VnyDBS7ZCvRNN9IIk",
+    "name": "Capitol Peak",
+    "peakbaggerId": "5695",
+    "externalIds": { "listsofjohn": "38" }
+  },
+  {
+    "destinationId": "xj2uKeFee6rtlrs5Gicf",
+    "name": "Glacier Peak",
+    "peakbaggerId": "1972",
+    "externalIds": { "listsofjohn": "16679" }
+  },
+  {
+    "destinationId": "bRE1ayiwpfQlXiLJkLLI",
+    "name": "Grays Peak",
+    "peakbaggerId": "5664",
+    "externalIds": { "listsofjohn": "12" }
+  },
+  {
+    "destinationId": "vUXv7h8FNFFx7fWO32St",
+    "name": "La Plata Peak",
+    "peakbaggerId": "5744",
+    "externalIds": { "listsofjohn": "6" }
+  },
+  {
+    "destinationId": "Metyj9Oty2TnImkGhPsE",
+    "name": "Mount Adams",
+    "peakbaggerId": "2365",
+    "externalIds": { "listsofjohn": "16675" }
+  },
+  {
+    "destinationId": "wpCvAQphggswkLWJQiKQ",
+    "name": "Mount Lafayette",
+    "peakbaggerId": "6909",
+    "externalIds": { "listsofjohn": "16909" }
+  },
+  {
+    "destinationId": "sfu8DFVHbliSzInIpa8S",
+    "name": "Mount Moosilauke",
+    "peakbaggerId": "6903",
+    "externalIds": { "listsofjohn": "17035" }
+  },
+  {
+    "destinationId": "21Qvbk4eOYlIluGZ8SVi",
+    "name": "Mount Olympus",
+    "peakbaggerId": "950",
+    "externalIds": { "listsofjohn": "16676" }
+  },
+  {
+    "destinationId": "6PxfQ1g48SrbplzGd6UH",
+    "name": "Mount Saint Helens",
+    "peakbaggerId": "2353",
+    "externalIds": { "listsofjohn": "16737" }
+  },
+  {
+    "destinationId": "nQlKFQkfcvzFYCcCen7o",
+    "name": "Mount Shasta",
+    "peakbaggerId": "2477",
+    "externalIds": { "listsofjohn": "16670" }
+  },
+  {
+    "destinationId": "KpDdcpUXOYQPLZMXUQv1",
+    "name": "Mount Washington",
+    "peakbaggerId": "6960",
+    "externalIds": { "listsofjohn": "16687" }
+  },
+  {
+    "destinationId": "ACZ7LK1ylzviRjAnqGXI",
+    "name": "Quandary Peak",
+    "peakbaggerId": "5788",
+    "externalIds": { "listsofjohn": "16" }
+  },
+  {
+    "destinationId": "QkAXELOaEsMBnuArw2ZL",
+    "name": "South Twin",
+    "peakbaggerId": "6920",
+    "externalIds": { "listsofjohn": "100560" }
+  },
+  {
+    "destinationId": "29XhN18XdxRgJrDN3ORu",
+    "name": "Torreys Peak",
+    "peakbaggerId": "5662",
+    "externalIds": { "listsofjohn": "14" }
+  },
+  {
+    "destinationId": "RVX3GRpiJyHwtgNDj5tt",
+    "name": "White Mountain Peak",
+    "peakbaggerId": "3628",
+    "externalIds": { "listsofjohn": "16680" }
+  },
+  {
+    "destinationId": "dg1agFR89EivHNOiFvbp",
+    "name": "Mount Shuksan",
+    "expectedExternalIds": { "osm": "349028214" },
+    "externalIds": {
+      "peakbagger": "1630",
+      "listsofjohn": "16753"
+    }
+  },
+  {
+    "destinationId": "r9HjMIl6XlEO1N1ygPAZ",
+    "name": "Mount Washington",
+    "expectedExternalIds": { "osm": "356546903" },
+    "externalIds": {
+      "peakbagger": "1048",
+      "listsofjohn": "17167"
+    }
+  },
+  {
+    "destinationId": "uqOvTNvOs0Wa70ydHSI3",
+    "name": "The Brothers",
+    "expectedExternalIds": { "osm": "348996573" },
+    "externalIds": {
+      "peakbagger": "1036",
+      "listsofjohn": "17137"
+    }
   }
 ]
