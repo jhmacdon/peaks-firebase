@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { buildWebPoolSafetyConfig } from "./db-config";
 
 // Server-side only — PostGIS connection.
 // Locally: connects via TCP at DB_HOST (Cloud SQL Auth Proxy).
@@ -16,6 +17,7 @@ if (process.env.DB_HOST) {
     password: process.env.DB_PASS,
     port: parseInt(process.env.DB_PORT || "5432"),
     max: 5,
+    ...buildWebPoolSafetyConfig(),
   });
 } else {
   // Production — Cloud SQL Connector (no Unix socket needed)
@@ -31,7 +33,12 @@ if (process.env.DB_HOST) {
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASS,
     max: 5,
+    ...buildWebPoolSafetyConfig(),
   });
 }
+
+pool.on("error", (error) => {
+  console.error("[db] idle pool client error", error);
+});
 
 export default pool;
