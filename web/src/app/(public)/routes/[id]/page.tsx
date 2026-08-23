@@ -79,7 +79,7 @@ export default async function RouteDetailPage({
       ? `https://www.google.com/maps/dir/?api=1&destination=${start.lat},${start.lng}`
       : null;
 
-  const aboutParagraphs = buildRouteAbout(name, route, guide, sessionCount);
+  const aboutParagraphs = buildRouteAbout(route);
 
   const toplineStats: ToplineStat[] = [
     traversal.distanceMeters != null
@@ -138,8 +138,6 @@ export default async function RouteDetailPage({
 
       <RouteHero
         polyline6={route.polyline6}
-        distanceValue={formatMilesValue(traversal.distanceMeters)}
-        gainValue={formatFeetValue(traversal.gainMeters)}
         className="mt-8"
       />
 

@@ -527,7 +527,8 @@ function escapeLikePattern(value: string): string {
  * the index groups by state, so a state-less area has nowhere to render. */
 function areaIndexFilter(
   search: string,
-  designation: string
+  designation: string,
+  stateCode: string
 ): { clause: string; params: unknown[] } {
   const clauses = ["cardinality(a.state_codes) > 0"];
   const params: unknown[] = [];
@@ -545,6 +546,11 @@ function areaIndexFilter(
     clauses.push(
       `(a.search_name % $${similarityIndex} OR a.search_name ILIKE $${prefixIndex} ESCAPE E'\\\\')`
     );
+  }
+
+  if (stateCode) {
+    params.push(stateCode);
+    clauses.push(`a.state_codes[1] = $${params.length}`);
   }
 
   return { clause: clauses.join(" AND "), params };
@@ -567,12 +573,16 @@ export async function getAreasIndex(
   options: {
     search?: string;
     designation?: string;
+    stateCode?: string;
     statesLimit?: number;
     perStateLimit?: number;
   } = {}
 ): Promise<AreasIndexResult> {
   const search = (options.search ?? "").trim().slice(0, 120);
   const designation = (options.designation ?? "").trim().toUpperCase();
+  const stateCode = /^[A-Z]{2}$/.test((options.stateCode ?? "").trim().toUpperCase())
+    ? (options.stateCode ?? "").trim().toUpperCase()
+    : "";
   const statesLimit = Math.min(Math.max(Math.trunc(options.statesLimit ?? 12), 1), 30);
   const perStateLimit = Math.min(Math.max(Math.trunc(options.perStateLimit ?? 25), 1), 100);
 
@@ -609,13 +619,14 @@ export async function getAreasIndex(
     }));
     const nationalParks = buildNationalParkIndex(candidates, {
       search,
+      stateCode,
       statesLimit,
       perStateLimit,
     });
     return { ...nationalParks, totalAreas };
   }
 
-  const { clause, params } = areaIndexFilter(search, designation);
+  const { clause, params } = areaIndexFilter(search, designation, stateCode);
 
   const totalMatchingResult = await db.query<{ count: number }>(
     `SELECT COUNT(*)::int AS count FROM areas a WHERE ${clause}`,

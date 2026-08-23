@@ -16,6 +16,7 @@ import {
 test("popular fallback ranks only summit-featured destinations by elevation", () => {
   const text = popularHeroFallbackSql();
   assert.match(text, /hero_image IS NOT NULL/);
+  assert.match(text, /hero_image_focal_x, hero_image_focal_y/);
   assert.match(text, /'summit' = ANY\(features\)/);
   assert.match(text, /ORDER BY elevation DESC NULLS LAST/);
 });
@@ -23,6 +24,7 @@ test("popular fallback ranks only summit-featured destinations by elevation", ()
 test("filtered popular fallback keeps the summit guard alongside caller conditions", () => {
   const text = filteredPopularHeroFallbackSql("AND d.state_code = $3", 1, 2);
   assert.match(text, /hero_image IS NOT NULL/);
+  assert.match(text, /d\.hero_image_focal_x, d\.hero_image_focal_y/);
   assert.match(text, /'summit' = ANY\(d\.features\)/);
   assert.match(text, /ORDER BY d\.elevation DESC NULLS LAST/);
   // caller conditions and parameter positions are interpolated where expected

@@ -2,7 +2,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getAreasIndex } from "../../../lib/actions/areas";
-import { describeDesignation, isAreaIndexDesignation } from "../../../lib/area-types";
+import {
+  describeAreaIndexDesignation,
+  isAreaIndexDesignation,
+} from "../../../lib/area-types";
 import { subdivisionName } from "../../../lib/regions";
 import { absoluteUrl, siteConfig } from "../../../lib/seo";
 import { PageHeader } from "../../../components/ui/page-header";
@@ -47,16 +50,22 @@ export const metadata: Metadata = {
 export default async function AreasIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; state?: string }>;
 }) {
   const params = await searchParams;
   const search = params.q?.trim() ?? "";
   const designation = isAreaIndexDesignation(params.type) ? params.type.toUpperCase() : "";
-  const isFiltered = Boolean(search || designation);
+  const requestedState = (params.state ?? "").trim().toUpperCase();
+  const stateName = subdivisionName("US", requestedState);
+  const stateCode = stateName ? requestedState : "";
+  const isFiltered = Boolean(search || designation || stateCode);
 
   const { areas, states, totalMatching, totalAreas } = await getAreasIndex({
     search,
     designation,
+    stateCode,
+    statesLimit: stateCode ? 1 : 12,
+    perStateLimit: stateCode ? 100 : isFiltered ? 25 : 6,
   });
 
   const areasByState = new Map<string, typeof areas>();
@@ -98,8 +107,22 @@ export default async function AreasIndexPage({
         <span className="font-mono-num tabular-nums">
           {shownCount.toLocaleString("en-US")}
         </span>{" "}
-        {isFiltered ? "matching areas" : "protected areas"}.
+        {stateName
+          ? `matching areas in ${stateName}`
+          : isFiltered
+            ? "matching areas"
+            : "protected areas"}
+        .
       </p>
+
+      {stateName ? (
+        <Link
+          href={designation ? `/areas?type=${encodeURIComponent(designation)}` : "/areas"}
+          className="mt-3 inline-block text-sm font-medium text-accent-text hover:underline"
+        >
+          Browse every state →
+        </Link>
+      ) : null}
 
       {states.length === 0 ? (
         <p className="mt-10 text-sm text-muted">
@@ -135,7 +158,13 @@ export default async function AreasIndexPage({
                           {area.name}
                         </span>
                         <span className="flex shrink-0 items-center gap-4 text-[13px] text-muted">
-                          <span>{describeDesignation(area.designation, area.kind)}</span>
+                          <span>
+                            {describeAreaIndexDesignation(
+                              area.name,
+                              area.designation,
+                              area.kind
+                            )}
+                          </span>
                           <span className="font-mono-num tabular-nums">
                             {area.destinationCount.toLocaleString("en-US")}
                           </span>
@@ -144,6 +173,16 @@ export default async function AreasIndexPage({
                     </li>
                   ))}
                 </ul>
+                {!stateCode && stateAreas.length < state.count ? (
+                  <Link
+                    href={`/areas?state=${encodeURIComponent(state.code)}${
+                      designation ? `&type=${encodeURIComponent(designation)}` : ""
+                    }`}
+                    className="mt-4 inline-block text-sm font-medium text-accent-text hover:underline"
+                  >
+                    Browse {stateLabel} areas →
+                  </Link>
+                ) : null}
               </section>
             );
           })}

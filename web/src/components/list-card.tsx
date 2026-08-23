@@ -4,9 +4,10 @@ import { listOwnerLabel, parseListDescription } from "../lib/list-content";
 
 interface ListCardProps {
   list: ListRow;
+  compact?: boolean;
 }
 
-export default function ListCard({ list }: ListCardProps) {
+export default function ListCard({ list, compact = false }: ListCardProps) {
   const ownerLabel = listOwnerLabel(list.owner);
   const { paragraphs, sourceUrl, sourceLabel } = parseListDescription(list.description);
 
@@ -50,12 +51,12 @@ export default function ListCard({ list }: ListCardProps) {
         </span>{" "}
         destination{list.destination_count === 1 ? "" : "s"}
       </div>
-      {paragraphs.length > 0 && (
+      {!compact && paragraphs.length > 0 && (
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-2">
           {paragraphs.join(" ")}
         </p>
       )}
-      {sourceUrl && sourceLabel && (
+      {!compact && sourceUrl && sourceLabel && (
         // Plain text, not a nested link — the whole card is already one
         // link to the list detail page, where the real source link lives.
         <div className="mt-1 text-xs text-faint">Source: {sourceLabel}</div>

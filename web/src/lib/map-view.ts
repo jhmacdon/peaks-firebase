@@ -132,11 +132,11 @@ export function destinationFeatureFilter(types: MapTypeId[]): string[] | null {
   );
 }
 
-/** Row caps for one viewport read. The panel needs these to tell the truth
- * about a capped result set ("the nearest 200"), and the queries in
- * lib/actions/search.ts default to them — one definition, both places. */
-export const VIEWPORT_DESTINATION_LIMIT = 200;
-export const VIEWPORT_ROUTE_LIMIT = 100;
+/** Row caps for one viewport read. A map is a choice surface, not a catalog
+ * dump: enough nearby places to explore, without painting hundreds of
+ * overlapping dots or an endless result rail. */
+export const VIEWPORT_DESTINATION_LIMIT = 40;
+export const VIEWPORT_ROUTE_LIMIT = 24;
 
 export interface MapExploreUrlState {
   /** null when the URL pinned no view — the map geolocates, then falls back

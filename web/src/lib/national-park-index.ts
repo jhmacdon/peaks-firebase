@@ -144,7 +144,12 @@ function compareCandidates(
  */
 export function buildNationalParkIndex(
   candidates: readonly NationalParkAreaCandidate[],
-  options: { search?: string; statesLimit: number; perStateLimit: number }
+  options: {
+    search?: string;
+    stateCode?: string;
+    statesLimit: number;
+    perStateLimit: number;
+  }
 ): NationalParkIndexResult {
   const candidatesByName = new Map<string, NationalParkAreaCandidate[]>();
   for (const candidate of candidates) {
@@ -169,9 +174,12 @@ export function buildNationalParkIndex(
   }
 
   const normalizedSearch = normalizePadusSearchName(options.search ?? "");
-  const matching = normalizedSearch
+  const searched = normalizedSearch
     ? selected.filter(({ park }) => normalizePadusSearchName(park.name).includes(normalizedSearch))
     : selected;
+  const matching = options.stateCode
+    ? searched.filter(({ park }) => park.stateCodes.includes(options.stateCode!))
+    : searched;
 
   const stateCounts = new Map<string, number>();
   for (const { park } of matching) {
@@ -182,6 +190,7 @@ export function buildNationalParkIndex(
   const states = [...stateCounts]
     .map(([code, count]) => ({ code, count }))
     .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code))
+    .filter((state) => !options.stateCode || state.code === options.stateCode)
     .slice(0, options.statesLimit);
   const areas = states.flatMap((state) =>
     matching

@@ -33,6 +33,9 @@ export function DiscoverPopular({ destinations, isFallback }: PopularDestination
               name={dest.name}
               elevation={dest.elevation}
               features={dest.features}
+              imageUrl={dest.hero_image}
+              imageFocalX={dest.hero_image_focal_x}
+              imageFocalY={dest.hero_image_focal_y}
             />
           ))}
         </div>

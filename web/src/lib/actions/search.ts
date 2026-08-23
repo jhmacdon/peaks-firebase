@@ -41,9 +41,7 @@ export interface SearchDestination {
   lng: number | null;
   score?: number;
   distance_m?: number;
-  /** Only selected by getNearbyDestinations, which feeds the destination
-   * page's nearby rail and its 48px round thumbs. The other queries here
-   * leave it undefined rather than paying for a column nothing renders. */
+  /** Selected by the image-led browse surfaces and nearby rails. */
   hero_image?: string | null;
   hero_image_focal_x?: number;
   hero_image_focal_y?: number;
@@ -262,6 +260,9 @@ function mapPopularDestinationRow(r: any): SearchDestination {
     features: parseArray(r.features),
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
+    hero_image: r.hero_image ?? null,
+    hero_image_focal_x: Number(r.hero_image_focal_x ?? 50),
+    hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
   };
 }
 
@@ -283,7 +284,8 @@ export async function getPopularDestinations(
 ): Promise<PopularDestinationsResult> {
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-            d.activities, d.features,
+            d.activities, d.features, d.hero_image,
+            d.hero_image_focal_x, d.hero_image_focal_y,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
@@ -381,7 +383,8 @@ async function getFilteredPopularDestinations(
 
   const result = await db.query(
     `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-            d.activities, d.features,
+            d.activities, d.features, d.hero_image,
+            d.hero_image_focal_x, d.hero_image_focal_y,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             (COALESCE(counts.session_count, 0) + d.session_count_offset) AS session_count
@@ -738,7 +741,7 @@ export interface ViewportQuery {
   maxLng: number;
   /** Ordering anchor. Rows come back nearest-first, so the row cap keeps
    * the results closest to the middle of the screen — which is what lets
-   * the panel say "the nearest 200" and mean it. */
+   * the panel rank the closest places and keep the map readable. */
   centerLat: number;
   centerLng: number;
   limit?: number;

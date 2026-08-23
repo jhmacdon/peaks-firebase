@@ -149,6 +149,20 @@ export function describeDesignation(
   return mapped ?? areaKindLabel(kind);
 }
 
+/** The index can surface a PAD-US parcel whose legal designation is less
+ * useful than the place name. A row named for a National Park should not
+ * tell readers it is a conservation easement. */
+export function describeAreaIndexDesignation(
+  name: string,
+  designation: string | null | undefined,
+  kind: AreaKind
+): string {
+  if (/\bNational Park(?: and Preserve)?$/i.test(name.trim())) {
+    return "National Park";
+  }
+  return describeDesignation(designation, kind);
+}
+
 // PAD-US `Mang_Name` manager codes actually present in `areas.manager`
 // (checked against production 2026-08-19: BLM, USFS, FWS, NPS, OTHF, JNT,
 // USBR, DOD).

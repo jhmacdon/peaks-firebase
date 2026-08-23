@@ -20,6 +20,7 @@ import {
 import { ExploreChips } from "../../../components/explore/explore-chips";
 import { ExploreControls } from "../../../components/explore/explore-controls";
 import { ExplorePanel } from "../../../components/explore/explore-panel";
+import { SearchIcon } from "../../../components/explore/explore-icons";
 import {
   buildExploreResults,
   describeDestination,
@@ -365,10 +366,9 @@ function MapExplorer() {
     [routes]
   );
 
-  // A cap is a fact about the query, not a label to hang on a filter. The
-  // tabs used to read "Peaks · 200" whether the viewport held 200 peaks or
-  // 20,000; now the count says what it is, and only claims "nearest" when
-  // the read was actually cut short.
+  // A capped query should not turn its implementation limit into page copy.
+  // The rows remain distance-ranked; the reader only needs to know that the
+  // panel holds the closest useful choices in this view.
   const capped =
     destinations.length >= VIEWPORT_DESTINATION_LIMIT ||
     routes.length >= VIEWPORT_ROUTE_LIMIT;
@@ -381,7 +381,7 @@ function MapExplorer() {
         // viewport — is not the same fact as an empty viewport.
         "Loading results…"
       : capped
-      ? `Showing the nearest ${results.length.toLocaleString()} results`
+      ? "Closest places in view"
       : `${results.length.toLocaleString()} ${
           results.length === 1 ? "result" : "results"
         } in view`;
@@ -573,10 +573,24 @@ function MapExplorer() {
               type="button"
               onClick={() => setSheetOpen(true)}
               aria-expanded="false"
-              className="pointer-events-auto flex w-full flex-col items-center gap-1.5 rounded-media border border-border bg-page py-2.5 shadow-float"
+              className="pointer-events-auto flex w-full flex-col items-center gap-2 rounded-media border border-border bg-page px-4 py-2.5 shadow-float"
             >
               <span className="h-1 w-9 rounded-full bg-border" />
-              <span className="text-[13px] text-muted">{countLine}</span>
+              <span className="flex w-full items-center gap-2 text-left">
+                <span className="text-faint">
+                  <SearchIcon />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-ink-2">
+                  {query || "Search peaks and places"}
+                </span>
+                <span className="shrink-0 text-[12px] text-muted">
+                  {searchActive
+                    ? results.length.toLocaleString()
+                    : capped
+                      ? "Nearby"
+                      : results.length.toLocaleString()}
+                </span>
+              </span>
             </button>
           </div>
         )}
