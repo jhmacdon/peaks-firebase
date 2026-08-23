@@ -91,6 +91,10 @@ jobs:
         run: npx eslint src/
         working-directory: cloud-sql/api
 
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: cloud-sql/api
+
       - name: Provision test database
         run: ./cloud-sql/test-db/provision.sh
         env:
@@ -161,6 +165,7 @@ jobs:
             DB_POOL_MAX=4
             DB_POOL_CONNECTION_TIMEOUT_MS=5000
             FIREBASE_STORAGE_BUCKET=donner-a8608.appspot.com
+            AIR_QUALITY_LIVE_ENABLED=false
           secrets: |
             DB_PASS=peaks-db-password:latest
             SLACK_WEBHOOK_URL=SLACK_WEBHOOK_URL:latest
