@@ -218,6 +218,7 @@ export default async function StateLandingPage({
                   kind: area.kind,
                   designation: area.designation,
                   destination_count: area.destinationCount,
+                  cover_photo: area.coverPhoto,
                 }}
               />
             ))}
