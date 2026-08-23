@@ -6,10 +6,13 @@ The endpoint and client contract are ready, but live data is not. Production
 pins `AIR_QUALITY_LIVE_ENABLED=false`. The production factory has no fixture
 path and makes no network call, even if someone sets the flag to `true`.
 
-One owner decision blocks live use: accept the [AirNow Data Exchange
+One owner decision blocks live use: whether Peaks should adopt AirNow under
+its data-use terms. If yes, accept the [AirNow Data Exchange
 Guidelines](https://docs.airnowapi.org/docs/DataUseGuidelines.pdf), complete
-their contact/agreement form, and email it with a short Peaks product notice to
-`dmc@airnowtech.org`, copying `white.johne@epa.gov`. Keep the sent form and any
+their contact/agreement form, and return it with a short Peaks product notice
+to `dmc@airnowtech.org`. Ask the Data Management Center and EPA AirNow contact
+`white.johne@epa.gov` to confirm how Peaks should notify the relevant source
+agencies for a nationwide reporting-area map. Keep the sent form and written
 reply. Until that step is complete, the endpoint returns a typed `disabled`
 response. Do not enable it just because the public file needs no API key.
 
