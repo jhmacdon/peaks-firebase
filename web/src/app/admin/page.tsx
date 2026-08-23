@@ -61,9 +61,9 @@ const tools: Array<{
   },
 ];
 
-function countLabel(value: number | null, capped = false): string {
+function countLabel(value: number | null): string {
   if (value === null) return "—";
-  return `${value.toLocaleString()}${capped && value >= 200 ? "+" : ""}`;
+  return value.toLocaleString();
 }
 
 export default function AdminDashboard() {
@@ -93,11 +93,11 @@ function DashboardContent() {
           getDestinations("", 1, 0),
           getRoutes("", 1, 0),
           getAdminSessions(token, "", 1, 0),
-          getDestinationPhotoCandidates(token, "pending"),
+          getDestinationPhotoCandidates(token, "pending", 0, 1),
         ]);
         if (!cancelled) {
           setCounts({
-            photos: photos.status === "fulfilled" ? photos.value.length : null,
+            photos: photos.status === "fulfilled" ? photos.value.total : null,
             destinations: destinations.status === "fulfilled" ? destinations.value.total : null,
             routes: routes.status === "fulfilled" ? routes.value.total : null,
             sessions: sessions.status === "fulfilled" ? sessions.value.total : null,
@@ -121,8 +121,8 @@ function DashboardContent() {
     };
   }, [getIdToken, user?.uid]);
 
-  const countValue = (value: number | null, capped = false) =>
-    loadingCounts ? "···" : countLabel(value, capped);
+  const countValue = (value: number | null) =>
+    loadingCounts ? "···" : countLabel(value);
 
   return (
     <AdminPage>
@@ -142,7 +142,7 @@ function DashboardContent() {
           <span id="admin-overview-heading">Catalog totals</span>
         </SectionHeading>
         <div className="flex flex-wrap gap-x-12 gap-y-7">
-          <StatCluster value={countValue(counts.photos, true)} label="Photos awaiting review" scale="topline" />
+          <StatCluster value={countValue(counts.photos)} label="Photos awaiting review" scale="topline" />
           <StatCluster value={countValue(counts.destinations)} label="Destinations" scale="topline" />
           <StatCluster value={countValue(counts.routes)} label="Routes" scale="topline" />
           <StatCluster value={countValue(counts.sessions)} label="Sessions" scale="topline" />

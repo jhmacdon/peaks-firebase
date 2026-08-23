@@ -22,7 +22,10 @@ import {
   type PhotoDestinationSearchResult,
 } from "../../../lib/actions/destination-photos";
 import { LOADING_LABEL } from "../../../lib/constants";
-import { requestedDestinationPhotoFraming } from "../../../lib/destination-photo-review";
+import {
+  DESTINATION_PHOTO_PAGE_SIZE,
+  requestedDestinationPhotoFraming,
+} from "../../../lib/destination-photo-review";
 
 const STATUS_TABS: { id: DestinationPhotoStatus; label: string }[] = [
   { id: "pending", label: "Pending" },
@@ -53,6 +56,8 @@ function PhotoReviewContent() {
   const { getIdToken } = useAuth();
   const [status, setStatus] = useState<DestinationPhotoStatus>("pending");
   const [candidates, setCandidates] = useState<DestinationPhotoCandidate[]>([]);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -63,13 +68,21 @@ function PhotoReviewContent() {
     try {
       const token = await getIdToken();
       if (!token) throw new Error("Sign in again to review photos");
-      setCandidates(await getDestinationPhotoCandidates(token, status));
+      const result = await getDestinationPhotoCandidates(
+        token,
+        status,
+        page,
+        DESTINATION_PHOTO_PAGE_SIZE
+      );
+      setCandidates(result.candidates);
+      setTotal(result.total);
+      if (result.page !== page) setPage(result.page);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load photos");
     } finally {
       setLoading(false);
     }
-  }, [getIdToken, status]);
+  }, [getIdToken, page, status]);
 
   useEffect(() => {
     void loadCandidates();
@@ -96,8 +109,13 @@ function PhotoReviewContent() {
           onAdded={() => {
             setShowAddForm(false);
             if (status === "pending") {
-              void loadCandidates();
+              if (page === 0) {
+                void loadCandidates();
+              } else {
+                setPage(0);
+              }
             } else {
+              setPage(0);
               setStatus("pending");
             }
           }}
@@ -108,7 +126,10 @@ function PhotoReviewContent() {
         <Tabs
           items={STATUS_TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
           value={status}
-          onChange={(value) => setStatus(value as DestinationPhotoStatus)}
+          onChange={(value) => {
+            setPage(0);
+            setStatus(value as DestinationPhotoStatus);
+          }}
         />
 
         {loadError ? (
@@ -122,21 +143,85 @@ function PhotoReviewContent() {
             description="Candidates will appear here when they enter this review state."
           />
         ) : (
-          <div className="mt-8 space-y-8">
-            {candidates.map((candidate) => (
-              <PhotoCandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                reviewEnabled={status === "pending"}
-                onFinalized={(id) =>
-                  setCandidates((current) => current.filter((item) => item.id !== id))
-                }
-              />
-            ))}
-          </div>
+          <>
+            <PhotoReviewPagination
+              className="mt-6"
+              page={page}
+              pageSize={DESTINATION_PHOTO_PAGE_SIZE}
+              total={total}
+              onPage={setPage}
+            />
+            <div className="mt-8 space-y-8">
+              {candidates.map((candidate) => (
+                <PhotoCandidateCard
+                  key={candidate.id}
+                  candidate={candidate}
+                  reviewEnabled={status === "pending"}
+                  onFinalized={() => void loadCandidates()}
+                />
+              ))}
+            </div>
+            <PhotoReviewPagination
+              className="mt-6"
+              page={page}
+              pageSize={DESTINATION_PHOTO_PAGE_SIZE}
+              total={total}
+              onPage={setPage}
+            />
+          </>
         )}
       </section>
     </AdminPage>
+  );
+}
+
+function PhotoReviewPagination({
+  page,
+  pageSize,
+  total,
+  onPage,
+  className = "",
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPage: (page: number) => void;
+  className?: string;
+}) {
+  if (total <= pageSize) return null;
+
+  return (
+    <div
+      className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${className}`.trim()}
+    >
+      <p className="text-sm text-muted">
+        Showing <span className="font-mono-num tabular-nums">{page * pageSize + 1}</span>–
+        <span className="font-mono-num tabular-nums">
+          {Math.min((page + 1) * pageSize, total)}
+        </span>{" "}
+        of <span className="font-mono-num tabular-nums">{total.toLocaleString()}</span>
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onPage(Math.max(0, page - 1))}
+          disabled={page === 0}
+        >
+          Previous
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onPage(page + 1)}
+          disabled={(page + 1) * pageSize >= total}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
   );
 }
 

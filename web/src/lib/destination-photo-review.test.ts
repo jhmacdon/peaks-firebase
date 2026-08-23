@@ -2,8 +2,36 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   approvedDestinationPhotoFraming,
+  destinationPhotoPageBounds,
   requestedDestinationPhotoFraming,
 } from "./destination-photo-review";
+
+test("photo review pages stay small and clamp after the queue shrinks", () => {
+  assert.deepEqual(destinationPhotoPageBounds(936, 0), {
+    page: 0,
+    pageSize: 12,
+    pageCount: 78,
+    offset: 0,
+  });
+  assert.deepEqual(destinationPhotoPageBounds(13, 8), {
+    page: 1,
+    pageSize: 12,
+    pageCount: 2,
+    offset: 12,
+  });
+  assert.deepEqual(destinationPhotoPageBounds(0, 4), {
+    page: 0,
+    pageSize: 12,
+    pageCount: 0,
+    offset: 0,
+  });
+});
+
+test("photo review pagination rejects unbounded inputs", () => {
+  assert.throws(() => destinationPhotoPageBounds(-1, 0), /Photo total/);
+  assert.throws(() => destinationPhotoPageBounds(10, -1), /Photo page/);
+  assert.throws(() => destinationPhotoPageBounds(10, 0, 51), /Photo page size/);
+});
 
 test("approval sends the current slider framing without a separate save", () => {
   const requested = requestedDestinationPhotoFraming("approve", 75, 20);
