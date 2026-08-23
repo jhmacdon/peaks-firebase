@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ContourArt } from "../../../components/contour-art";
 import { FaqSection } from "../../../components/faq-section";
 import { JsonLdScript } from "../../../components/json-ld-script";
+import { LandingPhotoHero } from "../../../components/landing-photo-hero";
 import { Button } from "../../../components/ui/button";
 import { SectionHeading } from "../../../components/ui/section-heading";
 import { buildFaqJsonLd, buildListJsonLd } from "../../../lib/json-ld";
@@ -86,39 +86,74 @@ export default function StateGuideIndexPage() {
         <JsonLdScript key={index} data={data} />
       ))}
 
-      <section className="relative overflow-hidden">
-        <div className="contour-fade pointer-events-none absolute right-2 bottom-4 w-[190px] sm:w-[240px] md:w-[300px] lg:top-1/2 lg:right-[-96px] lg:bottom-auto lg:w-[420px] lg:-translate-y-1/2 xl:right-[-64px] xl:w-[620px]">
-          <ContourArt className="h-auto w-full" seed={48} />
-        </div>
-
-        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-40 md:pt-28 lg:pb-20">
-          <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
-            Peak-bagging guides by state
-          </h1>
-          <p className="mt-6 max-w-[52ch] text-[18px] leading-[1.6] text-ink-2">
+      <LandingPhotoHero
+        eyebrow={`${STATE_GUIDES.length} live state guides`}
+        title="Peak-bagging guides by state"
+        description={
+          <>
             Peaks is an iPhone peak-bagging app and public mountain guide. Browse{" "}
             {STATE_GUIDES.length} state guides built from live catalog data, including
             summit counts, high points, protected areas, and popular destinations. Pick
             a state to plan the next climb, then record it in Peaks.
-          </p>
-        </div>
-      </section>
+          </>
+        }
+        actions={
+          <>
+            <Button href="#state-guides" variant="primary">
+              Choose a state
+            </Button>
+            <Button href={APP_STORE_URL} variant="secondary" external>
+              Get the app
+            </Button>
+          </>
+        }
+        afterActions={
+          <div className="grid max-w-[520px] grid-cols-3 gap-5 border-t border-hairline pt-5">
+            <div>
+              <p className="font-mono-num text-[18px] text-ink">48</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted">State guides</p>
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-ink">Live catalog</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted">Counts and high points</p>
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-ink">iPhone sync</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted">Ascents and list progress</p>
+            </div>
+          </div>
+        }
+      />
 
-      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+      <section id="state-guides" className="mx-auto max-w-[1200px] scroll-mt-20 px-6 py-24 md:py-28">
         <SectionHeading eyebrow="United States" size="lg">
           Find peaks near you
         </SectionHeading>
-        <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-          {STATE_GUIDES.map((state) => (
-            <Link
-              key={state.code}
-              href={`/peaks/${state.slug}`}
-              prefetch={false}
-              className="text-[15px] font-medium text-accent-text hover:underline"
-            >
-              {state.name} →
-            </Link>
-          ))}
+        <p className="mt-3 max-w-[58ch] text-[15px] leading-6 text-muted">
+          Each guide opens with the highest peak in the Peaks catalog, then shows live
+          totals, popular places, protected areas, and nearby state guides.
+        </p>
+        <div className="mt-7 rounded-media border border-hairline bg-surface px-5 py-2 sm:px-7 lg:px-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 lg:gap-x-8">
+            {STATE_GUIDES.map((state) => (
+              <Link
+                key={state.code}
+                href={`/peaks/${state.slug}`}
+                prefetch={false}
+                className="group flex min-h-12 items-center justify-between gap-4 border-b border-hairline py-3 text-[15px] font-medium text-ink last:border-b-0 hover:text-accent-text sm:[&:nth-last-child(-n+2)]:border-b-0 lg:[&:nth-last-child(-n+4)]:border-b-0"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="font-mono-num w-6 shrink-0 text-[11px] text-muted">
+                    {state.code}
+                  </span>
+                  <span className="truncate">{state.name}</span>
+                </span>
+                <span aria-hidden="true" className="text-muted group-hover:text-accent-text">
+                  →
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
