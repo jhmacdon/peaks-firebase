@@ -19,6 +19,11 @@ import {
   VIEWPORT_DESTINATION_LIMIT,
   VIEWPORT_ROUTE_LIMIT,
 } from "../map-view";
+import {
+  areaCoverPhotoFor,
+  areaCoverPhotoSql,
+  type AreaCoverPhoto,
+} from "../area-cover-photo";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -83,6 +88,7 @@ export interface SearchAreaResult {
   destination_count: number;
   route_count: number;
   score: number;
+  cover_photo: AreaCoverPhoto | null;
 }
 
 export interface DiscoverStats {
@@ -574,7 +580,8 @@ export async function searchAreas(
   const prefixPattern = `${escapeLikePattern(q)}%`;
 
   const result = await db.query(
-    `SELECT a.id, a.name, a.kind, a.designation, a.manager, a.state_codes,
+    `WITH ranked AS (
+       SELECT a.id, a.name, a.kind, a.designation, a.manager, a.state_codes,
             (
               SELECT COUNT(DISTINCT da.destination_id)::int
               FROM destination_areas da
@@ -593,11 +600,18 @@ export async function searchAreas(
               similarity(a.search_name, $1)
               + CASE WHEN a.search_name ILIKE $2 ESCAPE E'\\\\' THEN 0.2 ELSE 0 END
             ) AS score
-     FROM areas a
-     WHERE a.search_name % $1
-        OR a.search_name ILIKE $2 ESCAPE E'\\\\'
-     ORDER BY score DESC, destination_count DESC, route_count DESC, a.name ASC
-     LIMIT $3`,
+       FROM areas a
+       WHERE a.search_name % $1
+          OR a.search_name ILIKE $2 ESCAPE E'\\\\'
+       ORDER BY score DESC, destination_count DESC, route_count DESC, a.name ASC
+       LIMIT $3
+     )
+     SELECT ranked.id, ranked.name, ranked.kind, ranked.designation,
+            ranked.manager, ranked.state_codes, ranked.destination_count,
+            ranked.route_count, ranked.score,
+            ${areaCoverPhotoSql()}
+     ORDER BY ranked.score DESC, ranked.destination_count DESC,
+              ranked.route_count DESC, ranked.name ASC`,
     [q, prefixPattern, safeLimit]
   );
 
@@ -612,6 +626,7 @@ export async function searchAreas(
     destination_count: Number(row.destination_count),
     route_count: Number(row.route_count),
     score: Number(row.score),
+    cover_photo: areaCoverPhotoFor(String(row.id), row),
   }));
 }
 

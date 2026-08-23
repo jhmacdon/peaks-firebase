@@ -172,6 +172,7 @@ export default async function AreasIndexPage({
                         kind: area.kind,
                         designation: area.designation,
                         destination_count: area.destinationCount,
+                        cover_photo: area.coverPhoto,
                       }}
                       typeLabel={describeAreaIndexDesignation(
                         area.name,

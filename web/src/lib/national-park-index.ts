@@ -1,3 +1,5 @@
+import type { AreaCoverPhoto } from "./area-cover-photo";
+
 export interface OfficialNationalPark {
   name: string;
   stateCodes: readonly string[];
@@ -82,6 +84,7 @@ export interface NationalParkAreaCandidate {
   searchName: string;
   boundaryAreaSquareMeters: number;
   destinationCount: number;
+  coverPhoto?: AreaCoverPhoto | null;
 }
 
 export interface NationalParkIndexRow {
@@ -91,6 +94,7 @@ export interface NationalParkIndexRow {
   designation: "NP";
   stateCode: string;
   destinationCount: number;
+  coverPhoto?: AreaCoverPhoto | null;
 }
 
 export interface NationalParkIndexState {
@@ -208,6 +212,7 @@ export function buildNationalParkIndex(
         designation: "NP" as const,
         stateCode: state.code,
         destinationCount: candidate.destinationCount,
+        ...(candidate.coverPhoto ? { coverPhoto: candidate.coverPhoto } : {}),
       }))
   );
 
