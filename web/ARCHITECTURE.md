@@ -17,6 +17,7 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /areas                    → protected-area search, state browse, and filters (public)
 /areas/[id]               → protected-area detail, boundary, destinations, routes (public)
 /activities/[type]        → hiking and peak-bagging guides (public)
+/peaks                    → database-free index of state peak-bagging guides (public)
 /peaks/[state]            → catalog-backed US state mountain guides (public)
 /routes/[id]              → route detail (public)
 /lists                    → browse all lists (public)
@@ -231,8 +232,10 @@ All map components use `react-leaflet` with `next/dynamic` + `ssr: false` (Leafl
 
 ## Search and Answer Pages
 
-Activity and state guides render on the server. Each page starts with a short
-answer backed by Peaks data, then links to catalog records and related guides.
+Activity and state guides render on the server. The database-free `/peaks`
+hub links every reviewed state guide from one crawlable page. Each guide starts
+with a short answer backed by Peaks data, then links to catalog records and
+related guides.
 The visible common-question section and its `FAQPage` JSON-LD use the same copy.
 State facts keep summit counts separate from the wider destination count, so a
 lake or trailhead is never counted as a peak.
@@ -250,6 +253,11 @@ cache for one day. A failed catalog read returns `503` with `Retry-After`
 instead of a valid-looking empty sitemap, so crawlers retry rather than infer
 that pages were removed. Catalog card grids disable automatic Next.js
 prefetch; one browse page therefore does not start dozens of detail renders.
+The public repository README and its iPhone peak-bagging guide form a useful
+GitHub entry point to the same public pages without adding a publishing service.
+The homepage also publishes `MobileApplication` JSON-LD with the App Store URL,
+iOS platform, and free download price. This uses the current App Store listing;
+update the offer if the base download price changes.
 
 The web Postgres pool keeps its five-connection cap and adds a five-second
 connection wait plus a 30-second statement limit, matching the API's safety

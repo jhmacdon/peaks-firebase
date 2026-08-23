@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Peaks",
     short_name: "Peaks",
-    description: "Track peaks, routes, lists, and trip reports.",
+    description:
+      "An iPhone peak-bagging tracker and public guide for peaks, routes, lists, and trip reports.",
     start_url: "/discover",
     scope: "/",
     display: "standalone",

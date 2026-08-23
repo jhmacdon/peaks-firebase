@@ -1,6 +1,7 @@
 export const siteConfig = {
   name: "Peaks",
-  description: "Track peaks, routes, lists, and trip reports.",
+  description:
+    "An iPhone peak-bagging tracker and public guide for peaks, routes, lists, and trip reports.",
   locale: "en_US",
 };
 

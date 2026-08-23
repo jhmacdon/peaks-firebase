@@ -6,6 +6,7 @@ import {
   buildDestinationJsonLd,
   buildFaqJsonLd,
   buildListJsonLd,
+  buildMobileApplicationJsonLd,
   buildOrganizationJsonLd,
   buildRouteJsonLd,
   buildWebSiteJsonLd,
@@ -203,6 +204,38 @@ test("website JSON-LD publishes a SearchAction only when given a template", () =
   assert.equal("description" in withoutSearch, false);
 });
 
+test("mobile application JSON-LD identifies the free iPhone app", () => {
+  assert.deepEqual(
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: "Track peaks.",
+      price: 0,
+      priceCurrency: "USD",
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "MobileApplication",
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: "Track peaks.",
+      offers: {
+        "@type": "Offer",
+        price: 0,
+        priceCurrency: "USD",
+      },
+    }
+  );
+});
+
 test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
   const values = [
     buildOrganizationJsonLd({ name: "Peaks", url: "https://getpeaks.app/" }),
@@ -210,6 +243,14 @@ test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
       name: "Peaks",
       url: "https://getpeaks.app/",
       searchUrlTemplate: "https://getpeaks.app/discover?q={search_term_string}",
+    }),
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
     }),
     buildDestinationJsonLd({
       name: "Mount Si",

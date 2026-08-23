@@ -61,15 +61,20 @@ interface ActivityLandingConfig {
 
 const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig> = {
   hiking: {
-    title: "Hiking tracker and route planner",
-    h1: "Hiking with Peaks",
+    title: "Hiking tracker and route planner for iPhone",
+    h1: "An iPhone hiking tracker and route planner",
     label: "Hiking",
     hasLiveContent: true,
     paragraph: ({ count }) =>
       count && count > 0
-        ? `Peaks logs every hike as a trek: distance, gain, and the summits or trailheads reached along the way. ${formatFlooredCount(count, 100)} hikes are recorded so far — browse where people are going.`
-        : "Peaks logs every hike as a trek: distance, gain, and the summits or trailheads reached along the way.",
+        ? `Peaks is an iPhone hiking tracker and route planner. It records distance, gain, time, and the summits or trailheads reached along the way. ${formatFlooredCount(count, 100)} hikes are recorded so far — browse where people are going.`
+        : "Peaks is an iPhone hiking tracker and route planner. It records distance, gain, time, and the summits or trailheads reached along the way.",
     faqs: ({ count }) => [
+      {
+        question: "Is Peaks a hiking tracker for iPhone?",
+        answer:
+          "Yes. Peaks records distance, elevation gain, time, GPS tracks, photos, and reached destinations on iPhone.",
+      },
       {
         question: "What does Peaks track on a hike?",
         answer:
@@ -91,15 +96,20 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
     ],
   },
   "peak-bagging": {
-    title: "Peak-bagging tracker and peak lists",
-    h1: "Peak-bagging with Peaks",
+    title: "Peak-bagging app for iPhone",
+    h1: "A peak-bagging app for iPhone",
     label: "Peak-bagging",
     hasLiveContent: true,
     paragraph: ({ count }) =>
       count && count > 0
-        ? `The catalog holds ${formatFlooredCount(count, 1000)} named summits, from roadside high points to technical climbs. Track the ones you've reached, plan the ones you haven't, and see what other climbers are logging.`
-        : "Track the summits you've reached, plan the ones you haven't, and see what other climbers are logging.",
+        ? `Peaks is an iPhone peak-bagging app and public mountain guide. The catalog holds ${formatFlooredCount(count, 1000)} named summits, from roadside high points to technical climbs. Track the ones you've reached, plan the ones you haven't, and see what other climbers are logging.`
+        : "Peaks is an iPhone peak-bagging app and public mountain guide. Track the summits you've reached, plan the ones you haven't, and see what other climbers are logging.",
     faqs: ({ count }) => [
+      {
+        question: "What should I look for in a peak-bagging app?",
+        answer:
+          "A useful peak-bagging app should combine a summit catalog, route planning, GPS recording, list progress, and trip notes. Peaks brings those tools together on iPhone.",
+      },
       ...(count && count > 0
         ? [
             {
@@ -214,6 +224,10 @@ export function buildStateLandingFaqs(facts: StateLandingFacts): LandingFaq[] {
   } = facts;
 
   return [
+    {
+      question: `Can I track peak-bagging progress in ${stateName} with Peaks?`,
+      answer: `Yes. The Peaks iPhone app records reached summits, distance, elevation gain, time, photos, and trip notes. The ${stateName} guide helps you choose what to climb next.`,
+    },
     {
       question: `How many peaks are in the Peaks catalog for ${stateName}?`,
       answer: `Peaks lists ${summitCount.toLocaleString("en-US")} destination${summitCount === 1 ? "" : "s"} tagged as ${summitCount === 1 ? "a summit" : "summits"} in ${stateName}. The full state catalog has ${destinationCount.toLocaleString("en-US")} mountain destinations, including trailheads, lakes, and viewpoints.`,

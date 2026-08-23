@@ -15,14 +15,18 @@ import { formatFlooredCount } from "../../lib/format";
 import { getDestination } from "../../lib/actions/destinations";
 import { getList } from "../../lib/actions/lists";
 import { getDiscoverStats } from "../../lib/actions/search";
-import { buildOrganizationJsonLd, buildWebSiteJsonLd } from "../../lib/json-ld";
+import {
+  buildMobileApplicationJsonLd,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "../../lib/json-ld";
 import { absoluteUrl, siteConfig } from "../../lib/seo";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
 
 const DESCRIPTION =
-  "A peak-bagging tracker and guidebook. Log your ascents, plan routes on the map, and browse the catalog of peaks, routes, protected areas, and curated lists.";
+  "An iPhone peak-bagging tracker and public mountain guide. Log ascents, plan routes, and browse peaks, protected areas, and curated lists.";
 
 const FEATURES = [
   {
@@ -58,11 +62,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   // Absolute: the homepage is the site, so it shouldn't render as
   // "Peaks | Peaks" through the root layout's title template.
-  title: { absolute: "Peaks — track your climb" },
+  title: { absolute: "Peaks — peak-bagging app for iPhone" },
   description: DESCRIPTION,
   alternates: { canonical: absoluteUrl("/") },
   openGraph: {
-    title: "Peaks — track your climb",
+    title: "Peaks — peak-bagging app for iPhone",
     description: DESCRIPTION,
     url: absoluteUrl("/"),
     siteName: siteConfig.name,
@@ -72,13 +76,13 @@ export const metadata: Metadata = {
         url: absoluteUrl("/opengraph-image"),
         width: 1200,
         height: 630,
-        alt: siteConfig.name,
+        alt: "Peaks iPhone peak-bagging app",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Peaks — track your climb",
+    title: "Peaks — peak-bagging app for iPhone",
     description: DESCRIPTION,
     images: [absoluteUrl("/twitter-image")],
   },
@@ -121,6 +125,16 @@ export default async function LandingPage() {
       description: DESCRIPTION,
       searchUrlTemplate: `${absoluteUrl("/discover")}?q={search_term_string}`,
     }),
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: absoluteUrl("/"),
+      downloadUrl: APP_STORE_URL,
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: DESCRIPTION,
+      price: 0,
+      priceCurrency: "USD",
+    }),
   ];
 
   return (
@@ -159,7 +173,8 @@ export default async function LandingPage() {
             Built for serious mountain progress.
           </h1>
           <p className="mt-6 max-w-[32ch] text-[18px] leading-[1.6] text-ink-2 sm:max-w-[46ch]">
-            Track your ascents, plan the route up, and browse{" "}
+            Peaks is an iPhone peak-bagging tracker and public mountain guide. Track
+            your ascents, plan the route up, and browse{" "}
             {catalogSize ? `${catalogSize} ` : ""}peaks, lakes, and trailheads.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">

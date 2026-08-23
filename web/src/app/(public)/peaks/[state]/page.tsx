@@ -57,7 +57,7 @@ export async function generateMetadata({
       return { title: "Not found", robots: { index: false, follow: false } };
     }
 
-    const title = `The peaks of ${data.stateName}`;
+    const title = `Peak-bagging in ${data.stateName}`;
     const description = summarizeText([data.paragraph]) ?? siteConfig.description;
 
     return {
@@ -82,7 +82,7 @@ export async function generateMetadata({
   } catch {
     const stateName = subdivisionName("US", stateCode) ?? state;
     return {
-      title: `The peaks of ${stateName}`,
+      title: `Peak-bagging in ${stateName}`,
       description: siteConfig.description,
       alternates: { canonical: absoluteUrl(canonicalPath) },
       robots: { index: false, follow: false },
@@ -106,7 +106,7 @@ export default async function StateLandingPage({
 
   const seed = hashSeed(`state:${stateCode}`);
   const canonicalPath = `/peaks/${state}`;
-  const h1 = `The peaks of ${data.stateName}`;
+  const h1 = `Peak-bagging in ${data.stateName}`;
   const faqs = buildStateLandingFaqs({
     stateName: data.stateName,
     destinationCount: data.destinationCount,
@@ -209,6 +209,12 @@ export default async function StateLandingPage({
           Plan a trip in {data.stateName}
         </SectionHeading>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          <Link
+            href="/peaks"
+            className="text-sm font-medium text-accent-text hover:underline"
+          >
+            All state guides →
+          </Link>
           <Link
             href="/activities/hiking"
             className="text-sm font-medium text-accent-text hover:underline"

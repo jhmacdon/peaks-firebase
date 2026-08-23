@@ -239,6 +239,12 @@ export default async function ActivityLandingPage({
                 {state.name} →
               </Link>
             ))}
+            <Link
+              href="/peaks"
+              className="text-sm font-medium text-accent-text hover:underline"
+            >
+              All state guides →
+            </Link>
           </div>
         </section>
       ) : null}

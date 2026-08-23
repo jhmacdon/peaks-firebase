@@ -31,6 +31,19 @@ test("only activity pages with live catalog data are indexable", () => {
   assert.deepEqual(INDEXABLE_ACTIVITY_LANDING_TYPES, ["hiking", "peak-bagging"]);
 });
 
+test("indexable activity guides answer the iPhone product query first", () => {
+  const hiking = activityLandingConfig("hiking");
+  const peakBagging = activityLandingConfig("peak-bagging");
+
+  assert.match(hiking.title, /for iPhone/);
+  assert.match(hiking.paragraph({ count: 1284 }), /^Peaks is an iPhone hiking tracker/);
+  assert.match(peakBagging.title, /app for iPhone/);
+  assert.match(
+    peakBagging.paragraph({ count: 41547 }),
+    /^Peaks is an iPhone peak-bagging app/
+  );
+});
+
 test("the reviewed state landing roster has 48 unique states", () => {
   const codes = INDEXABLE_US_STATE_CODES as readonly string[];
   assert.equal(INDEXABLE_US_STATE_CODES.length, 48);
@@ -128,4 +141,5 @@ test("state FAQs separate summit counts from the wider destination catalog", () 
   assert.match(answers, /full state catalog has 5,361 mountain destinations/);
   assert.match(answers, /Mount Rainier.*14,411 ft/);
   assert.match(answers, /42 linked destinations/);
+  assert.match(answers, /Peaks iPhone app records reached summits/);
 });
