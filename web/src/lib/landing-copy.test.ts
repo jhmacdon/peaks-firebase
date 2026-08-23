@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ACTIVITY_LANDING_TYPES,
   INDEXABLE_ACTIVITY_LANDING_TYPES,
+  INDEXABLE_US_STATE_CODES,
   activityLandingConfig,
   buildStateEditorialParagraph,
   buildStateLandingFaqs,
@@ -28,6 +29,14 @@ test("hiking and peak-bagging carry live content; skiing and trail-running don't
 
 test("only activity pages with live catalog data are indexable", () => {
   assert.deepEqual(INDEXABLE_ACTIVITY_LANDING_TYPES, ["hiking", "peak-bagging"]);
+});
+
+test("the reviewed state landing roster has 48 unique states", () => {
+  const codes = INDEXABLE_US_STATE_CODES as readonly string[];
+  assert.equal(INDEXABLE_US_STATE_CODES.length, 48);
+  assert.equal(new Set(INDEXABLE_US_STATE_CODES).size, 48);
+  assert.equal(codes.includes("DE"), false);
+  assert.equal(codes.includes("RI"), false);
 });
 
 test("every activity paragraph renders without a live count (settled-null case)", () => {

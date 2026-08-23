@@ -64,6 +64,7 @@ export default function DestinationCard({
   return (
     <Link
       href={`/destinations/${id}`}
+      prefetch={false}
       className="group block h-full overflow-hidden rounded-media border border-border bg-surface transition-colors hover:bg-fill"
     >
       <span className="block aspect-[16/9] overflow-hidden bg-fill">

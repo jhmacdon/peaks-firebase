@@ -8,75 +8,33 @@ import { FaqSection } from "../../../../components/faq-section";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { Button } from "../../../../components/ui/button";
 import { SectionHeading } from "../../../../components/ui/section-heading";
-import db from "../../../../lib/db";
 import { getStateLandingDataCached } from "../../../../lib/actions/cached-landing";
 import { buildFaqJsonLd, buildListJsonLd } from "../../../../lib/json-ld";
 import { buildStateLandingFaqs } from "../../../../lib/landing-copy";
 import { hashSeed } from "../../../../lib/seed-hash";
 import {
   usStateCodeFromSlug,
-  usStateSlugFromCode,
   subdivisionName,
 } from "../../../../lib/regions";
 import { absoluteUrl, siteConfig, summarizeText } from "../../../../lib/seo";
-import { settled } from "../../../../lib/settled";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
-
-// Obvious, well-known catalog-heavy states — the fallback generateStaticParams
-// falls back to when the database can't be reached at build time (see below).
-// Not derived from a live query (that's the point); picked by inspection as
-// states any hiker would expect Peaks to have a lot of. Real production
-// coverage is much wider — checked live 2026-08-20, 48 of 50 states clear
-// the 50-destination bar (only DE and RI don't) — this list only has to
-// avoid an empty prebuilt set, not match that exactly.
-const FALLBACK_STATE_CODES = [
-  "CA", "CO", "WA", "OR", "UT", "MT", "WY", "AK", "ID", "NM",
-  "AZ", "TX", "NC", "NY", "NH", "VT", "ME", "GA", "VA", "PA",
-];
 
 // Same recipe as /activities/[type] (see that page's header comment): the
 // landing page's contour hero at a per-page seed, a display H1, one
 // editorial paragraph computed from catalog facts, then live content.
 //
-// Unlike /activities, the state space isn't a fixed four — dynamicParams
-// stays true so a state that didn't clear the build-time query (or, on a
-// degraded build, wasn't in the fallback list) still renders on first
-// request and gets ISR-cached from then on. A slug that isn't a real US
-// state, or a real one with zero catalog presence, 404s in the page body.
+// Unlike /activities, the state space isn't a fixed four. No state page is
+// rendered during a deploy: a database outage must not block the build or
+// bake a false 404 into the output. The first request
+// renders a valid state and fills the ISR cache. A bad slug or a real state
+// with no catalog presence still 404s in the page body.
 export const revalidate = 3600;
 export const dynamicParams = true;
 
-interface StateCountRow {
-  state_code: string;
-}
-
 export async function generateStaticParams() {
-  try {
-    const result = await db.query<StateCountRow>(
-      `SELECT state_code
-       FROM destinations
-       WHERE country_code = 'US' AND state_code IS NOT NULL
-       GROUP BY state_code
-       HAVING COUNT(*) > 50`
-    );
-    const codes = result.rows.map((row) => row.state_code);
-    if (codes.length === 0) throw new Error("query returned no states");
-
-    return codes
-      .map((code) => usStateSlugFromCode(code))
-      .filter((slug): slug is string => slug !== null)
-      .map((state) => ({ state }));
-  } catch (error) {
-    console.error(
-      "[peaks/[state]] generateStaticParams: catalog query failed, using the fallback state list",
-      error
-    );
-    return FALLBACK_STATE_CODES.map((code) => usStateSlugFromCode(code))
-      .filter((slug): slug is string => slug !== null)
-      .map((state) => ({ state }));
-  }
+  return [];
 }
 
 export async function generateMetadata({
@@ -141,7 +99,9 @@ export default async function StateLandingPage({
   const stateCode = usStateCodeFromSlug(state);
   if (!stateCode) notFound();
 
-  const data = await settled(getStateLandingDataCached(stateCode), null);
+  // Do not translate a database fault into notFound(). A 5xx asks crawlers
+  // to retry; a false 404 tells them the state guide was removed.
+  const data = await getStateLandingDataCached(stateCode);
   if (!data) notFound();
 
   const seed = hashSeed(`state:${stateCode}`);

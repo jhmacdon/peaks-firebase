@@ -241,7 +241,19 @@ Only hiking and peak-bagging have distinct live data. Skiing and trail-running
 remain available as product notes, but they use `noindex` and do not appear in
 the sitemap. Activity and state guides have their own generated Open Graph
 images. The landing sitemap lists the two supported activity pages and states
-with more than 50 catalog destinations.
+that cleared the 50-destination review on 2026-08-20.
+
+The root sitemap index and landing/static child sitemaps do not query the
+database. Three destination chunks cover the current 82,977-row catalog and
+must be raised before the catalog reaches 120,001 rows. Catalog child sitemaps
+cache for one day. A failed catalog read returns `503` with `Retry-After`
+instead of a valid-looking empty sitemap, so crawlers retry rather than infer
+that pages were removed. Catalog card grids disable automatic Next.js
+prefetch; one browse page therefore does not start dozens of detail renders.
+
+The web Postgres pool keeps its five-connection cap and adds a five-second
+connection wait plus a 30-second statement limit, matching the API's safety
+bounds. This changes no Cloud Run or Cloud SQL capacity and adds $0/month.
 
 ## Key Design Decisions
 

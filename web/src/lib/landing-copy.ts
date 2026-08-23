@@ -146,6 +146,19 @@ export function activityLandingConfig(type: ActivityLandingType): ActivityLandin
 
 // ── /peaks/[state] ──────────────────────────────────────────────────────
 
+/** US state landing pages with enough catalog depth to publish in search.
+ * A live catalog check on 2026-08-20 found that every state except Delaware
+ * and Rhode Island cleared the 50-destination bar. Keeping this reviewed
+ * roster in code keeps the landing sitemap independent from a database count
+ * during an outage. Recheck it when either omitted state
+ * gains enough catalog data. */
+export const INDEXABLE_US_STATE_CODES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "FL", "GA", "HI", "ID", "IL",
+  "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO",
+  "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR",
+  "PA", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+] as const;
+
 export interface StateLandingFacts {
   stateName: string;
   /** Total catalog destinations in the state — always > 0 by the time this

@@ -20,7 +20,11 @@ export function Card({
   const cls = `${BASE} ${className}`.trim();
   if (href) {
     return (
-      <Link href={href} className={`group ${cls}`}>
+      // Catalog grids can hold dozens of database-backed detail links. A
+      // production Next.js prefetch for each visible card turns one browse
+      // request into a burst of detail renders and can exhaust the small
+      // Cloud SQL pool before a reader clicks anything.
+      <Link href={href} prefetch={false} className={`group ${cls}`}>
         {children}
       </Link>
     );

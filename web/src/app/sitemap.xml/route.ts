@@ -1,38 +1,17 @@
 import { absoluteUrl } from "../../lib/seo";
-import { generateSitemaps } from "../sitemap";
+import { buildSitemapIndexXml, sitemapIds } from "../../lib/sitemap-xml";
 
-export const dynamic = "force-dynamic";
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
+export const dynamic = "force-static";
 
 export async function GET(): Promise<Response> {
-  const sitemaps = await generateSitemaps();
-  const entries = sitemaps
-    .map(({ id }) => {
-      const url = absoluteUrl(`/sitemap/${encodeURIComponent(id)}.xml`);
-      return `  <sitemap>\n    <loc>${escapeXml(url)}</loc>\n  </sitemap>`;
-    })
-    .join("\n");
-
-  const body = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    entries,
-    "</sitemapindex>",
-    "",
-  ].join("\n");
+  const body = buildSitemapIndexXml(
+    sitemapIds().map((id) => absoluteUrl(`/sitemap/${encodeURIComponent(id)}.xml`))
+  );
 
   return new Response(body, {
     headers: {
-      "Cache-Control": "public, max-age=0, must-revalidate",
-      "Content-Type": "application/xml",
+      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+      "Content-Type": "application/xml; charset=utf-8",
     },
   });
 }
