@@ -234,6 +234,7 @@ export default async function ActivityLandingPage({
               <Link
                 key={state.slug}
                 href={`/peaks/${state.slug}`}
+                prefetch={false}
                 className="text-sm font-medium text-accent-text hover:underline"
               >
                 {state.name} →

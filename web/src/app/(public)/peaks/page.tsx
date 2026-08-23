@@ -113,6 +113,7 @@ export default function StateGuideIndexPage() {
             <Link
               key={state.code}
               href={`/peaks/${state.slug}`}
+              prefetch={false}
               className="text-[15px] font-medium text-accent-text hover:underline"
             >
               {state.name} →

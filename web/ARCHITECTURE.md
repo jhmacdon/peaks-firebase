@@ -253,6 +253,8 @@ cache for one day. A failed catalog read returns `503` with `Retry-After`
 instead of a valid-looking empty sitemap, so crawlers retry rather than infer
 that pages were removed. Catalog card grids disable automatic Next.js
 prefetch; one browse page therefore does not start dozens of detail renders.
+Links from activity pages and the state hub to database-backed state guides
+also disable automatic prefetch for the same reason.
 The public repository README and its iPhone peak-bagging guide form a useful
 GitHub entry point to the same public pages without adding a publishing service.
 The homepage also publishes `MobileApplication` JSON-LD with the App Store URL,
