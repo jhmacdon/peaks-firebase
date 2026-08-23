@@ -26,6 +26,18 @@ test("stable route IDs resolve without a name search", () => {
   assert.equal(externalIdUrl("wikiloc", "123456789"), "https://www.wikiloc.com/wikiloc/view.do?id=123456789");
 });
 
+test("RIDB facility IDs resolve to exact Recreation.gov campground pages", () => {
+  assert.equal(
+    externalIdUrl("ridb_facility", "232459"),
+    "https://www.recreation.gov/camping/campgrounds/232459"
+  );
+  assert.equal(externalIdUrl("ridb_facility", "campground-name"), null);
+  assert.deepEqual(normalizeExternalLinks([], { ridb_facility: "232459" }), [{
+    type: "recreation_gov",
+    id: "https://www.recreation.gov/camping/campgrounds/232459",
+  }]);
+});
+
 test("stored direct links lead derived provider links and duplicate URLs collapse", () => {
   assert.deepEqual(
     normalizeExternalLinks(

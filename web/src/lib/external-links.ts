@@ -16,6 +16,10 @@ const PROVIDER_ALIASES: Record<string, string> = {
   "lists-of-john": "listsofjohn",
   loj: "listsofjohn",
   openstreetmap: "osm",
+  recreation_gov: "recreation_gov",
+  "recreation-gov": "recreation_gov",
+  ridb: "recreation_gov",
+  ridb_facility: "recreation_gov",
   summit_post: "summitpost",
   "summit-post": "summitpost",
 };
@@ -34,6 +38,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   osm_relation: "OpenStreetMap",
   osm_way: "OpenStreetMap",
   peakbagger: "Peakbagger",
+  recreation_gov: "Recreation.gov",
   summitpost: "SummitPost",
   strava: "Strava",
   trailforks: "Trailforks",
@@ -132,6 +137,10 @@ export function externalIdUrl(provider: string, rawId: unknown): string | null {
     return /^[1-9]\d*$/.test(id)
       ? `https://www.hikingproject.com/trail/${id}`
       : null;
+  case "recreation_gov":
+    return /^[1-9]\d*$/.test(id)
+      ? `https://www.recreation.gov/camping/campgrounds/${id}`
+      : null;
   default:
     return null;
   }
@@ -202,6 +211,17 @@ export function parseDestinationExternalLinks(
   externalIds: Record<string, unknown>
 ): ParsedExternalLink[] {
   return parseExternalLinks(stored, externalIds);
+}
+
+export function partitionDestinationExternalLinks(links: ParsedExternalLink[]): {
+  recreationGov: ParsedExternalLink | null;
+  other: ParsedExternalLink[];
+} {
+  const recreationGov = links.find((link) => link.type === "recreation_gov") ?? null;
+  return {
+    recreationGov,
+    other: links.filter((link) => link.type !== "recreation_gov"),
+  };
 }
 
 export type ParsedExternalRouteLink = ParsedExternalLink;
