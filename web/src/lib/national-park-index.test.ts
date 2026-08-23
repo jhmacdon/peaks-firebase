@@ -60,6 +60,18 @@ test("multi-state parks appear in every official state", () => {
   );
 });
 
+test("state filter keeps only the requested state's parks", () => {
+  const result = buildNationalParkIndex(allCandidates(), {
+    stateCode: "WA",
+    statesLimit: 60,
+    perStateLimit: 100,
+  });
+
+  assert.deepEqual(result.states.map((state) => state.code), ["WA"]);
+  assert.ok(result.areas.length > 0);
+  assert.ok(result.areas.every((area) => area.stateCode === "WA"));
+});
+
 test("largest boundary wins when PAD-US contains duplicate fragments", () => {
   const candidates = allCandidates();
   const olympicSearchName = officialNationalParkSearchNames().find((name) =>

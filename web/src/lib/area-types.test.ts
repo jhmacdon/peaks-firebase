@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { describeDesignation, describeManager } from "./area-types";
+import {
+  describeAreaIndexDesignation,
+  describeDesignation,
+  describeManager,
+} from "./area-types";
 
 test("describeDesignation expands a known PAD-US code", () => {
   assert.equal(describeDesignation("WA", "wilderness"), "Wilderness Area");
@@ -11,6 +15,21 @@ test("describeDesignation expands a known PAD-US code", () => {
 
 test("describeDesignation is case-insensitive", () => {
   assert.equal(describeDesignation("wa", "wilderness"), "Wilderness Area");
+});
+
+test("area index calls a named national park a National Park", () => {
+  assert.equal(
+    describeAreaIndexDesignation(
+      "Yosemite National Park",
+      "CONE",
+      "other_federal_area"
+    ),
+    "National Park"
+  );
+  assert.equal(
+    describeAreaIndexDesignation("John Muir Wilderness", "WA", "wilderness"),
+    "Wilderness Area"
+  );
 });
 
 test("describeDesignation falls back to the kind label for null or an unmapped code", () => {

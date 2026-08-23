@@ -2,12 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildRouteAbout,
   describeRouteShape,
   formatDistanceMeters,
   getRouteTraversalMetrics,
   shouldShowElevationLoss,
   summarizeRouteGuide,
 } from "./route-guide";
+
+test("route About copy omits facts already shown in the stat row", () => {
+  assert.deepEqual(buildRouteAbout({ shape: "out_and_back", completion: "none" }), []);
+  assert.deepEqual(
+    buildRouteAbout({ shape: "point_to_point", completion: "straight" }),
+    ["Recommended in the forward direction."]
+  );
+});
 
 test("formatDistanceMeters uses feet below 0.19 mi, then miles at one decimal", () => {
   assert.equal(formatDistanceMeters(150), "492 ft");

@@ -2,12 +2,17 @@ import Link from "next/link";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getAreasIndex } from "../../../lib/actions/areas";
-import { describeDesignation, isAreaIndexDesignation } from "../../../lib/area-types";
+import {
+  describeAreaIndexDesignation,
+  isAreaIndexDesignation,
+} from "../../../lib/area-types";
 import { subdivisionName } from "../../../lib/regions";
 import { absoluteUrl, siteConfig } from "../../../lib/seo";
 import { PageHeader } from "../../../components/ui/page-header";
 import { SectionHeading } from "../../../components/ui/section-heading";
 import { AreaDesignationChips } from "../../../components/area/area-designation-chips";
+import { AreaStateSelect } from "../../../components/area/area-state-select";
+import { AreaCard } from "../../../components/area-card";
 import SearchBar from "../../../components/search-bar";
 
 // This page reads `searchParams` (the search box and designation chips are
@@ -47,16 +52,22 @@ export const metadata: Metadata = {
 export default async function AreasIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; state?: string }>;
 }) {
   const params = await searchParams;
   const search = params.q?.trim() ?? "";
   const designation = isAreaIndexDesignation(params.type) ? params.type.toUpperCase() : "";
-  const isFiltered = Boolean(search || designation);
+  const requestedState = (params.state ?? "").trim().toUpperCase();
+  const stateName = subdivisionName("US", requestedState);
+  const stateCode = stateName ? requestedState : "";
+  const isFiltered = Boolean(search || designation || stateCode);
 
   const { areas, states, totalMatching, totalAreas } = await getAreasIndex({
     search,
     designation,
+    stateCode,
+    statesLimit: stateCode ? 1 : isFiltered ? 12 : 8,
+    perStateLimit: stateCode ? 24 : isFiltered ? 6 : 3,
   });
 
   const areasByState = new Map<string, typeof areas>();
@@ -86,11 +97,14 @@ export default async function AreasIndexPage({
         }
       />
 
-      <Suspense fallback={<div className="mt-6 h-[84px]" />}>
+      <Suspense fallback={<div className="mt-6 h-[104px]" />}>
         <div className="mt-6 max-w-lg">
           <SearchBar placeholder="Search protected areas" />
         </div>
-        <AreaDesignationChips />
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <AreaDesignationChips />
+          <AreaStateSelect />
+        </div>
       </Suspense>
 
       <p className="mt-6 text-[13px] text-muted">
@@ -98,15 +112,29 @@ export default async function AreasIndexPage({
         <span className="font-mono-num tabular-nums">
           {shownCount.toLocaleString("en-US")}
         </span>{" "}
-        {isFiltered ? "matching areas" : "protected areas"}.
+        {stateName
+          ? `matching areas in ${stateName}`
+          : isFiltered
+            ? "matching areas"
+            : "protected areas"}
+        .
       </p>
+
+      {stateName ? (
+        <Link
+          href={designation ? `/areas?type=${encodeURIComponent(designation)}` : "/areas"}
+          className="mt-3 inline-block text-sm font-medium text-accent-text hover:underline"
+        >
+          Browse every state →
+        </Link>
+      ) : null}
 
       {states.length === 0 ? (
         <p className="mt-10 text-sm text-muted">
           No protected areas match {search ? `"${search}"` : "this filter"}.
         </p>
       ) : (
-        <div className="mt-10 space-y-12">
+        <div className="mt-10 space-y-10">
           {states.map((state) => {
             const stateAreas = areasByState.get(state.code) ?? [];
             if (stateAreas.length === 0) return null;
@@ -114,36 +142,45 @@ export default async function AreasIndexPage({
 
             return (
               <section key={state.code} aria-labelledby={`area-state-${state.code}`}>
-                <div className="flex items-baseline justify-between gap-4">
-                  <SectionHeading>
-                    <span id={`area-state-${state.code}`}>{stateLabel}</span>
-                  </SectionHeading>
-                  <span className="text-[13px] text-muted">
-                    {stateAreas.length < state.count
-                      ? `Showing ${stateAreas.length.toLocaleString("en-US")} of ${state.count.toLocaleString("en-US")}`
-                      : `${state.count.toLocaleString("en-US")} ${state.count === 1 ? "area" : "areas"}`}
-                  </span>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <SectionHeading>
+                      <span id={`area-state-${state.code}`}>{stateLabel}</span>
+                    </SectionHeading>
+                    <p className="mt-1 text-[13px] text-muted">
+                      {state.count.toLocaleString("en-US")} {state.count === 1 ? "area" : "areas"} in the catalog
+                    </p>
+                  </div>
+                  {!stateCode && stateAreas.length < state.count ? (
+                    <Link
+                      href={`/areas?state=${encodeURIComponent(state.code)}${
+                        designation ? `&type=${encodeURIComponent(designation)}` : ""
+                      }`}
+                      className="shrink-0 text-sm font-medium text-accent-text hover:underline"
+                    >
+                      View {stateLabel} →
+                    </Link>
+                  ) : null}
                 </div>
-                <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {stateAreas.map((area) => (
-                    <li key={area.id}>
-                      <Link
-                        href={`/areas/${encodeURIComponent(area.id)}`}
-                        className="group flex items-center justify-between gap-4 py-3"
-                      >
-                        <span className="min-w-0 truncate text-[15px] font-medium text-ink group-hover:underline">
-                          {area.name}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-4 text-[13px] text-muted">
-                          <span>{describeDesignation(area.designation, area.kind)}</span>
-                          <span className="font-mono-num tabular-nums">
-                            {area.destinationCount.toLocaleString("en-US")}
-                          </span>
-                        </span>
-                      </Link>
-                    </li>
+                    <AreaCard
+                      key={area.id}
+                      area={{
+                        id: area.id,
+                        name: area.name,
+                        kind: area.kind,
+                        designation: area.designation,
+                        destination_count: area.destinationCount,
+                      }}
+                      typeLabel={describeAreaIndexDesignation(
+                        area.name,
+                        area.designation,
+                        area.kind
+                      )}
+                    />
                   ))}
-                </ul>
+                </div>
               </section>
             );
           })}

@@ -194,6 +194,9 @@ export default async function StateLandingPage({
                 name={destination.name}
                 elevation={destination.elevation}
                 features={destination.features}
+                imageUrl={destination.hero_image}
+                imageFocalX={destination.hero_image_focal_x}
+                imageFocalY={destination.hero_image_focal_y}
               />
             ))}
           </div>

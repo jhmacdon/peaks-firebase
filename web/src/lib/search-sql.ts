@@ -19,7 +19,8 @@
  * $1 = limit, $2 = ids already in the result. */
 export function popularHeroFallbackSql(): string {
   return `SELECT id, name, elevation, prominence, type,
-            activities, features,
+            activities, features, hero_image,
+            hero_image_focal_x, hero_image_focal_y,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
@@ -40,7 +41,8 @@ export function filteredPopularHeroFallbackSql(
   remainingIdx: number
 ): string {
   return `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
-            d.activities, d.features,
+            d.activities, d.features, d.hero_image,
+            d.hero_image_focal_x, d.hero_image_focal_y,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng
      FROM destinations d

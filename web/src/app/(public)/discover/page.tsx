@@ -40,7 +40,7 @@ export const revalidate = 3600;
 
 const SEARCH_PLACEHOLDER = "Search peaks, areas, routes, and lists";
 
-const POPULAR_DESTINATION_COUNT = 12;
+const POPULAR_DESTINATION_COUNT = 6;
 const FEATURED_ROUTE_COUNT = 6;
 const BROWSE_LIST_COUNT = 6;
 const RECENT_REPORT_COUNT = 6;

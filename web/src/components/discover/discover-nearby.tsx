@@ -60,6 +60,9 @@ export function DiscoverNearby() {
             elevation={dest.elevation}
             features={dest.features}
             distance_m={dest.distance_m}
+            imageUrl={dest.hero_image}
+            imageFocalX={dest.hero_image_focal_x}
+            imageFocalY={dest.hero_image_focal_y}
           />
         ))}
       </div>

@@ -205,6 +205,31 @@ export default async function LandingPage() {
         </section>
       ) : null}
 
+      {destinations.length > 0 ? (
+        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+          <SectionHeading eyebrow="Real guide pages" size="lg">
+            Start with a mountain you know
+          </SectionHeading>
+          <p className="mt-3 max-w-[58ch] text-[15px] leading-6 text-muted">
+            Open a photographed guide for routes, weather, maps, and the lists it belongs to.
+          </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {destinations.map((destination) => (
+              <DestinationCard
+                key={destination.id}
+                id={destination.id}
+                name={destination.name}
+                elevation={destination.elevation}
+                features={destination.features}
+                imageUrl={destination.hero_image}
+                imageFocalX={destination.hero_image_focal_x}
+                imageFocalY={destination.hero_image_focal_y}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* Renders nothing until screenshots land in web/public/app. */}
       <AppScreenshots className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28" />
 
@@ -222,25 +247,6 @@ export default async function LandingPage() {
           ))}
         </div>
       </section>
-
-      {destinations.length > 0 ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
-          <SectionHeading eyebrow="The catalog" size="lg">
-            Start exploring
-          </SectionHeading>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {destinations.map((destination) => (
-              <DestinationCard
-                key={destination.id}
-                id={destination.id}
-                name={destination.name}
-                elevation={destination.elevation}
-                features={destination.features}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       {lists.length > 0 ? (
         <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">

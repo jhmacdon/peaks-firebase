@@ -16,7 +16,7 @@ export function DiscoverLists({ lists }: { lists: ListRow[] }) {
       ) : (
         <div className={DISCOVER_GRID}>
           {lists.map((list) => (
-            <ListCard key={list.id} list={list} />
+            <ListCard key={list.id} list={list} compact />
           ))}
         </div>
       )}
