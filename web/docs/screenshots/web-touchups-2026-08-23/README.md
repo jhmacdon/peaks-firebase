@@ -1,6 +1,7 @@
 # Web touch-up screenshots
 
-Captured from this branch's production build with the live catalog.
+Captured from this branch's production build with the live catalog. The cover-photo
+shots use the four curated records that fill the main protected-area index gaps.
 
 ## Discover — image-led destinations
 
@@ -11,6 +12,14 @@ Captured from this branch's production build with the live catalog.
 ![Protected areas grouped into clear state card sections](areas-desktop.png)
 
 ![Protected area filters and cards on mobile](areas-mobile.png)
+
+## Protected areas — credited cover photos
+
+![Protected area cover-photo layout](areas-covers-desktop.png)
+
+![All four curated protected-area covers](areas-covers-new-mexico.png)
+
+![Protected area cover photo on mobile](areas-covers-mobile.png)
 
 ## Route detail — one clear stat row
 
