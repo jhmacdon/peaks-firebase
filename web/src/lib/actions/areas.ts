@@ -183,11 +183,11 @@ interface RawPersonalSessionRow extends QueryResultRow {
 const AREA_BASE_SELECT = `
   SELECT a.id, a.name, a.kind, a.designation, a.manager, a.owner,
          a.country_code, a.state_codes, a.source, a.source_version,
-         NULLIF(to_jsonb(a)->>'description', '') AS description,
-         NULLIF(to_jsonb(a)->>'description_source_name', '') AS description_source_name,
-         NULLIF(to_jsonb(a)->>'description_source_url', '') AS description_source_url,
-         NULLIF(to_jsonb(a)->>'description_source_license', '') AS description_source_license,
-         NULLIF(to_jsonb(a)->>'parent_area_id', '') AS parent_id,
+         NULLIF(a.description, '') AS description,
+         NULLIF(a.description_source_name, '') AS description_source_name,
+         NULLIF(a.description_source_url, '') AS description_source_url,
+         NULLIF(a.description_source_license, '') AS description_source_license,
+         a.parent_area_id AS parent_id,
          parent.name AS parent_name,
          parent.kind AS parent_kind,
          ST_Y(a.centroid) AS lat,
@@ -213,25 +213,7 @@ async function loadAreaBase(
   includeBoundary: boolean
 ): Promise<(AreaSummary & { boundary: AreaBoundary | null }) | null> {
   const boundarySelect = includeBoundary
-    ? `ST_AsGeoJSON(
-         COALESCE(
-           a.boundary_display,
-           ST_SimplifyPreserveTopology(
-             a.boundary,
-             GREATEST(
-               0.00005,
-               LEAST(
-                 0.02,
-                 GREATEST(
-                   a.bbox_max_lat - a.bbox_min_lat,
-                   a.bbox_max_lng - a.bbox_min_lng
-                 ) / 1500.0
-               )
-             )
-           )
-         ),
-         6
-       )::json AS boundary`
+    ? `ST_AsGeoJSON(a.boundary_display, 6)::json AS boundary`
     : "NULL::json AS boundary";
 
   const result = await db.query<RawAreaRow>(
@@ -239,7 +221,7 @@ async function loadAreaBase(
             ${boundarySelect}
      FROM areas a
      LEFT JOIN areas parent
-       ON parent.id = NULLIF(to_jsonb(a)->>'parent_area_id', '')
+       ON parent.id = a.parent_area_id
      WHERE a.id = $1`,
     [id]
   );

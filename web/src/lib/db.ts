@@ -16,7 +16,6 @@ if (process.env.DB_HOST) {
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASS,
     port: parseInt(process.env.DB_PORT || "5432"),
-    max: 5,
     ...buildWebPoolSafetyConfig(),
   });
 } else {
@@ -32,7 +31,6 @@ if (process.env.DB_HOST) {
     database: process.env.DB_NAME || "peaks",
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASS,
-    max: 5,
     ...buildWebPoolSafetyConfig(),
   });
 }
