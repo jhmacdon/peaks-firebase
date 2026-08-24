@@ -22,6 +22,11 @@ import {
   officialNationalParkSearchNames,
   type NationalParkAreaCandidate,
 } from "../national-park-index";
+import {
+  areaCoverPhotoFor,
+  areaCoverPhotoSql,
+  type AreaCoverPhoto,
+} from "../area-cover-photo";
 
 export interface AreaSummary extends ProtectedArea {
   owner: string | null;
@@ -493,6 +498,7 @@ export interface AreaIndexRow {
   designation: string | null;
   stateCode: string;
   destinationCount: number;
+  coverPhoto?: AreaCoverPhoto | null;
 }
 
 export interface AreaIndexState {
@@ -556,16 +562,12 @@ function areaIndexFilter(
   return { clause: clauses.join(" AND "), params };
 }
 
-const DESTINATION_COUNT_SUBQUERY = `(
-  SELECT COUNT(DISTINCT da.destination_id)::int
-  FROM destination_areas da
-  JOIN destinations d ON d.id = da.destination_id
-  WHERE da.area_id = a.id AND d.owner = 'peaks'
-)`;
-
 // The ranked index needs each count twice: once to return it and once to sort
 // by it. Pre-aggregate the small link table once so PostgreSQL does not run a
 // correlated count twice for every area considered by the window function.
+const DESTINATION_COUNT_COLUMN =
+  "COALESCE(destination_counts.destination_count, 0)::int";
+
 const DESTINATION_COUNTS_JOIN = `
   LEFT JOIN (
     SELECT da.area_id, COUNT(DISTINCT da.destination_id)::int AS destination_count
@@ -615,12 +617,19 @@ export async function getAreasIndex(
       boundary_area_square_meters: unknown;
       destination_count: unknown;
     }>(
-      `SELECT a.id, a.search_name,
-              ST_Area(a.boundary::geography)::double precision
-                AS boundary_area_square_meters,
-              ${DESTINATION_COUNT_SUBQUERY} AS destination_count
-       FROM areas a
-       WHERE a.search_name = ANY($1::text[])`,
+      `WITH ranked AS (
+         SELECT a.id, a.search_name,
+                ST_Area(a.boundary::geography)::double precision
+                  AS boundary_area_square_meters,
+                ${DESTINATION_COUNT_COLUMN} AS destination_count
+         FROM areas a
+         ${DESTINATION_COUNTS_JOIN}
+         WHERE a.search_name = ANY($1::text[])
+       )
+       SELECT ranked.id, ranked.search_name,
+              ranked.boundary_area_square_meters,
+              ranked.destination_count,
+              ${areaCoverPhotoSql()}`,
       [officialNationalParkSearchNames()]
     );
     const candidates: NationalParkAreaCandidate[] = candidateResult.rows.map((row) => ({
@@ -628,6 +637,7 @@ export async function getAreasIndex(
       searchName: textValue(row.search_name) ?? "",
       boundaryAreaSquareMeters: numberValue(row.boundary_area_square_meters) ?? 0,
       destinationCount: integerValue(row.destination_count),
+      coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
     }));
     const nationalParks = buildNationalParkIndex(candidates, {
       search,
@@ -674,20 +684,22 @@ export async function getAreasIndex(
     destination_count: unknown;
     rn: unknown;
   }>(
-    `SELECT * FROM (
+    `WITH ranked AS (
        SELECT a.id, a.name, a.kind, a.designation, a.state_codes[1] AS state_code,
-              COALESCE(destination_counts.destination_count, 0) AS destination_count,
+              ${DESTINATION_COUNT_COLUMN} AS destination_count,
               ROW_NUMBER() OVER (
                 PARTITION BY a.state_codes[1]
-                ORDER BY COALESCE(destination_counts.destination_count, 0) DESC,
-                         a.name ASC
+                ORDER BY ${DESTINATION_COUNT_COLUMN} DESC, a.name ASC
               ) AS rn
        FROM areas a
        ${DESTINATION_COUNTS_JOIN}
        WHERE ${clause} AND a.state_codes[1] = ANY($${params.length + 1}::text[])
-     ) ranked
-     WHERE rn <= $${params.length + 2}
-     ORDER BY state_code ASC, rn ASC`,
+     )
+     SELECT ranked.id, ranked.name, ranked.kind, ranked.designation,
+            ranked.state_code, ranked.destination_count, ranked.rn,
+            ${areaCoverPhotoSql()}
+     WHERE ranked.rn <= $${params.length + 2}
+     ORDER BY ranked.state_code ASC, ranked.rn ASC`,
     [...params, stateCodes, perStateLimit]
   );
 
@@ -703,6 +715,7 @@ export async function getAreasIndex(
       designation: textValue(row.designation),
       stateCode: textValue(row.state_code) ?? "",
       destinationCount: integerValue(row.destination_count),
+      coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
     }))
     .sort(
       (left, right) =>
@@ -729,12 +742,19 @@ export async function getTopAreasForState(
     designation: unknown;
     destination_count: unknown;
   }>(
-    `SELECT a.id, a.name, a.kind, a.designation,
-            ${DESTINATION_COUNT_SUBQUERY} AS destination_count
-     FROM areas a
-     WHERE $1 = ANY(a.state_codes) AND a.country_code = 'US'
-     ORDER BY destination_count DESC, a.name ASC
-     LIMIT $2`,
+    `WITH ranked AS (
+       SELECT a.id, a.name, a.kind, a.designation,
+              ${DESTINATION_COUNT_COLUMN} AS destination_count
+       FROM areas a
+       ${DESTINATION_COUNTS_JOIN}
+       WHERE $1 = ANY(a.state_codes) AND a.country_code = 'US'
+       ORDER BY destination_count DESC, a.name ASC
+       LIMIT $2
+     )
+     SELECT ranked.id, ranked.name, ranked.kind, ranked.designation,
+            ranked.destination_count,
+            ${areaCoverPhotoSql()}
+     ORDER BY ranked.destination_count DESC, ranked.name ASC`,
     [stateCode, limit]
   );
 
@@ -745,6 +765,7 @@ export async function getTopAreasForState(
     designation: textValue(row.designation),
     stateCode,
     destinationCount: integerValue(row.destination_count),
+    coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
   }));
 }
 
