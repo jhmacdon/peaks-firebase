@@ -103,7 +103,7 @@ function parseSourceDate(value: string): string | null {
 }
 
 function parseSourceTime(value: string): string | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
   if (!match) return null;
   const hour = Number(match[1]);
   const minute = Number(match[2]);
