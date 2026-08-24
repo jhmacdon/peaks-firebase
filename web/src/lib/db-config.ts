@@ -7,10 +7,10 @@ function positiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-/** Bounds interactive web database work without changing pool size or Cloud
- * Run capacity. The API uses the same 5-second acquire and 30-second
- * statement limits; the web app should not let one stalled query occupy a
- * connection for the full 300-second request timeout. */
+/** Bounds interactive web database work. App Hosting may create several
+ * instances, each with its own pool, while the db-f1-micro allows about 25
+ * total connections. Two connections per web instance are enough for page
+ * rendering and leave room for the iOS API and Cloud SQL administration. */
 export function buildWebPoolSafetyConfig(
   env: EnvironmentVariables = process.env
 ): Pick<
@@ -18,15 +18,17 @@ export function buildWebPoolSafetyConfig(
   | "application_name"
   | "connectionTimeoutMillis"
   | "idle_in_transaction_session_timeout"
+  | "max"
   | "statement_timeout"
 > {
   return {
     application_name: "peaks-web",
+    max: positiveInt(env.DB_POOL_MAX, 2),
     connectionTimeoutMillis: positiveInt(
       env.DB_POOL_CONNECTION_TIMEOUT_MS,
       5_000
     ),
-    statement_timeout: positiveInt(env.DB_STATEMENT_TIMEOUT_MS, 30_000),
+    statement_timeout: positiveInt(env.DB_STATEMENT_TIMEOUT_MS, 15_000),
     idle_in_transaction_session_timeout: positiveInt(
       env.DB_IDLE_TXN_TIMEOUT_MS,
       30_000

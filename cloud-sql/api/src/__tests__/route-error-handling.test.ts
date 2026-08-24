@@ -3,7 +3,7 @@
 // default --unhandled-rejections=throw that kills the whole instance. These
 // tests pin the systemic guard: every router wraps its handlers in asyncRoute
 // (src/lib/async-route.ts), and the app-level error middleware in index.ts
-// turns the forwarded error into a JSON 500. One representative DB-backed GET
+// turns the forwarded error into a JSON response. One representative DB-backed GET
 // per router proves the wiring end to end. Search is the one router absent
 // from the table: its handlers catch their own errors inside runSearchQuery
 // (pinned in search-route.test.ts).
@@ -34,7 +34,7 @@ const REPRESENTATIVE_ROUTES = [
 ];
 
 for (const path of REPRESENTATIVE_ROUTES) {
-  test(`GET ${path} returns 500 when the handler's query rejects`, async (t) => {
+  test(`GET ${path} returns retryable 503 when the database connection drops`, async (t) => {
     t.mock.method(console, "error", () => undefined);
     t.mock.method(db, "query", async () => {
       throw new Error("connection terminated unexpectedly");
@@ -45,10 +45,26 @@ for (const path of REPRESENTATIVE_ROUTES) {
 
     const res = await request(app).get(path).set("X-Test-User", "test-user");
 
-    assert.equal(res.status, 500);
-    assert.deepEqual(res.body, { error: "Request failed" });
+    assert.equal(res.status, 503);
+    assert.equal(res.headers["retry-after"], "2");
+    assert.deepEqual(res.body, { error: "Database temporarily unavailable" });
   });
 }
+
+test("broken SQL remains a non-retryable 500", async (t) => {
+  t.mock.method(console, "error", () => undefined);
+  t.mock.method(db, "query", async () => {
+    throw Object.assign(new Error("syntax error at or near SELECT"), { code: "42601" });
+  });
+
+  const res = await request(app)
+    .get("/api/areas/area123")
+    .set("X-Test-User", "test-user");
+
+  assert.equal(res.status, 500);
+  assert.equal(res.headers["retry-after"], undefined);
+  assert.deepEqual(res.body, { error: "Request failed" });
+});
 
 // express.json() rejections carry their own status (400 for malformed JSON,
 // 413 for an oversized body). The error middleware must pass a 4xx through

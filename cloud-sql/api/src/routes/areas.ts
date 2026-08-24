@@ -14,12 +14,29 @@ export function buildAreaDetailQuery(
 ): { text: string; values: unknown[] } {
   return {
     text: `WITH requested_area AS MATERIALIZED (
-             SELECT a.*
+             -- Never materialize a.* here. The authoritative PAD-US boundary
+             -- can be hundreds of megabytes once expanded by PostGIS; copying
+             -- it into a CTE for an interactive request has forced the f1-micro
+             -- database to kill the backend and restart Postgres.
+             SELECT a.id, a.name, a.kind, a.description,
+                    a.description_source_name, a.description_source_url,
+                    a.description_source_license, a.designation, a.manager,
+                    a.owner, a.parent_area_id, a.country_code, a.state_codes,
+                    a.centroid, a.bbox_min_lat, a.bbox_max_lat,
+                    a.bbox_min_lng, a.bbox_max_lng, a.boundary_display
              FROM areas a
              WHERE a.id = $1
            ),
            area_sessions AS MATERIALIZED (
-             SELECT s.*
+             -- The full session row contains the high-resolution track. Area
+             -- detail needs only scalar summaries and the small display path.
+             SELECT s.id, s.user_id, s.name, s.start_time, s.end_time,
+                    s.distance, s.total_time, s.pace, s.gain, s.highest_point,
+                    s.ascent_time, s.descent_time, s.still_time,
+                    s.activity_type, s.source, s.external_id,
+                    s.processing_state, s.processing_error, s.processed_at,
+                    s.group_id, s.ended, s.is_public, s.updated_at,
+                    s.server_updated_at, s.path_preview
              FROM session_areas sa
              JOIN tracking_sessions s ON s.id = sa.session_id
              WHERE sa.area_id = $1
@@ -42,28 +59,10 @@ export function buildAreaDetailQuery(
             ST_Y(a.centroid) AS lat,
             ST_X(a.centroid) AS lng,
             a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
-            ST_AsGeoJSON(
-              -- Prefer the materialized display boundary (see migration
-              -- 20260721_area_boundary_display.sql); fall back to a live
-              -- simplify for rows imported before their backfill ran.
-              COALESCE(
-                a.boundary_display,
-                ST_SimplifyPreserveTopology(
-                  a.boundary,
-                  GREATEST(
-                    0.00005,
-                    LEAST(
-                      0.02,
-                      GREATEST(
-                        a.bbox_max_lat - a.bbox_min_lat,
-                        a.bbox_max_lng - a.bbox_min_lng
-                      ) / 1500.0
-                    )
-                  )
-                )
-              ),
-              6
-            )::json AS boundary,
+            -- boundary_display is maintained by the area import trigger. A
+            -- missing derived boundary stays visible as null and is repaired
+            -- in data; an interactive request must never simplify PAD-US live.
+            ST_AsGeoJSON(a.boundary_display, 6)::json AS boundary,
             COALESCE(destination_counts.destination_count, 0)::int AS destination_count,
             COALESCE(route_counts.route_count, 0)::int AS route_count,
             (SELECT count(*)::int FROM area_sessions) AS session_count,

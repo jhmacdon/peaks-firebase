@@ -16,9 +16,12 @@ test("area detail query returns a boundary and indexed, paged user sessions", ()
   assert.match(query.text, /LEFT JOIN areas parent ON parent\.id = a\.parent_area_id/);
   assert.match(query.text, /json_agg\(destination_obj/);
   assert.match(query.text, /json_agg\(route_obj/);
-  // Boundary comes from the materialized display copy, with a live simplify
-  // fallback for rows whose backfill hasn't run.
-  assert.match(query.text, /COALESCE\(\s*a\.boundary_display,\s*ST_SimplifyPreserveTopology/);
+  // The query must use only the materialized display copy. Expanding or
+  // simplifying an authoritative PAD-US boundary in a request can restart the
+  // f1-micro database.
+  assert.match(query.text, /ST_AsGeoJSON\(a\.boundary_display, 6\)/);
+  assert.doesNotMatch(query.text, /ST_SimplifyPreserveTopology/);
+  assert.doesNotMatch(query.text, /SELECT a\.\*/);
   assert.match(query.text, /FROM session_areas sa/);
   assert.match(query.text, /JOIN tracking_sessions s ON s\.id = sa\.session_id/);
   assert.match(query.text, /sa\.area_id = \$1/);
@@ -27,6 +30,7 @@ test("area detail query returns a boundary and indexed, paged user sessions", ()
   assert.match(query.text, /OFFSET \$4/);
   assert.match(query.text, /'path_preview'/);
   assert.match(query.text, /ST_AsGeoJSON\(s\.path_preview, 6\)/);
+  assert.doesNotMatch(query.text, /SELECT s\.\*/);
   assert.doesNotMatch(query.text, /ST_Simplify\(s\.path/);
   assert.doesNotMatch(query.text, /ST_Intersects/);
   assert.deepEqual(query.values, ["mora", "user-1", 20, 40]);

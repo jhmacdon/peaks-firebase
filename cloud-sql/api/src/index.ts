@@ -2,6 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
 import admin from "firebase-admin";
 import { asyncRoute } from "./lib/async-route";
+import { isTransientDatabaseError } from "./lib/database-error";
 import { requireAuth } from "./auth";
 import destinations from "./routes/destinations";
 import routes from "./routes/routes";
@@ -156,6 +157,12 @@ app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (typeof status === "number" && status >= 400 && status < 500) {
     console.warn("[api] request rejected:", status, error instanceof Error ? error.message : error);
     res.status(status).json({ error: "Bad request" });
+    return;
+  }
+  if (isTransientDatabaseError(error)) {
+    console.error("[api] database temporarily unavailable:", error);
+    res.set("Retry-After", "2");
+    res.status(503).json({ error: "Database temporarily unavailable" });
     return;
   }
   console.error("[api] request failed:", error);
