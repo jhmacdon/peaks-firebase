@@ -26,6 +26,16 @@ test("parser preserves AirNow's primary observed reporting-area values", () => {
   });
 });
 
+test("parser accepts AirNow's one-digit observed hours", () => {
+  const parsed = parseAirNowReportingAreaLine(
+    OBSERVATION.replace("|16:00|PDT|", "|7:00|PDT|")
+  );
+  assert.equal(parsed.kind, "observation");
+  if (parsed.kind !== "observation") return;
+
+  assert.equal(parsed.reportingArea.observedAt?.time, "7:00");
+});
+
 test("parser ignores forecasts, prior-day summaries, and secondary pollutants", () => {
   const forecast = OBSERVATION.replace("|0|O|Y|", "|1|F|Y|");
   const priorDay = OBSERVATION.replace("|0|O|Y|", "|-1|Y|Y|");
