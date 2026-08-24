@@ -91,6 +91,10 @@ jobs:
         run: npx eslint src/
         working-directory: cloud-sql/api
 
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: cloud-sql/api
+
       - name: Provision test database
         run: ./cloud-sql/test-db/provision.sh
         env:

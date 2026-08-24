@@ -21,6 +21,7 @@ import listsRouter from "../routes/lists";
 import plansRouter from "../routes/plans";
 import searchRouter from "../routes/search";
 import tripReportsRouter from "../routes/trip-reports";
+import publicAirQualityRouter from "../routes/public-air-quality";
 
 const REPRESENTATIVE_ROUTES = [
   "/api/destinations/dest123",
@@ -94,6 +95,7 @@ const ROUTERS: Array<[string, unknown]> = [
   ["plans", plansRouter],
   ["search", searchRouter],
   ["trip-reports", tripReportsRouter],
+  ["public-air-quality", publicAirQualityRouter],
 ];
 
 test("every registered route handler takes (req, res, next)", () => {

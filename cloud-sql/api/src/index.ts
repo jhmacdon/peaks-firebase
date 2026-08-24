@@ -11,6 +11,7 @@ import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
 import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
+import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
 import { sweepStuckSessions } from "./processing";
 import { refreshDestinationWeather } from "./weather-refresh";
@@ -25,6 +26,11 @@ app.use(express.json({ limit: "5mb" }));
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+// Public because the main map works before sign-in and the response contains
+// no user data. Keeping this before /api auth avoids linking public AirNow
+// viewport requests to a signed-in user.
+app.use("/public/air-quality", publicAirQuality);
 
 // Shared by every /internal/* endpoint below: Cloud Scheduler calls them with
 // an OIDC token whose audience is this service and whose subject is the

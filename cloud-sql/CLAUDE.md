@@ -178,6 +178,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check (no auth) |
+| GET | `/public/air-quality/viewport?west=&south=&east=&north=&zoom=` | Public live AirNow reporting-area AQI contract; complete the AirNow stakeholder form and product notice before the first production deploy |
 | POST | `/internal/sweep` | Stuck-session sweep; Cloud Scheduler job `peaks-api-sweep` every 2 min (OIDC-verified `peaks-sweeper@` SA, not Firebase auth) |
 | POST | `/internal/weather-refresh` | Refreshes the Firestore `weather` collection from Open-Meteo; Cloud Scheduler job `peaks-api-weather` 3x daily (same OIDC-verified `peaks-sweeper@` SA as sweep) |
 | GET | `/api/destinations/:id` | Destination detail |
