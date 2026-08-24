@@ -1,8 +1,14 @@
 import { AirQualityReportingArea } from "./air-quality-reporting-area";
+import {
+  AirNowFileAirQualityProvider,
+  AirNowFileProviderOptions,
+} from "./airnow-file-provider";
+import { AirQualityRequestAbortedError } from "./air-quality-errors";
+
+export { AirQualityRequestAbortedError } from "./air-quality-errors";
 
 export type AirQualityUnavailableReason =
   | "owner_notice_required"
-  | "live_provider_not_ready"
   | "upstream_unavailable"
   | "upstream_invalid";
 
@@ -21,7 +27,7 @@ export type AirQualityProviderResult =
     }
   | {
       kind: "disabled";
-      reason: "owner_notice_required" | "live_provider_not_ready";
+      reason: "owner_notice_required";
     }
   | {
       kind: "rate_limited";
@@ -38,13 +44,8 @@ export interface AirQualityProvider {
 }
 
 export class DisabledAirQualityProvider implements AirQualityProvider {
-  constructor(
-    private readonly reason: "owner_notice_required" | "live_provider_not_ready" =
-      "owner_notice_required"
-  ) {}
-
   async load(): Promise<AirQualityProviderResult> {
-    return { kind: "disabled", reason: this.reason };
+    return { kind: "disabled", reason: "owner_notice_required" };
   }
 }
 
@@ -81,13 +82,6 @@ export function classifyAirQualitySourceAge(
   return "within_retention";
 }
 
-export class AirQualityRequestAbortedError extends Error {
-  constructor() {
-    super("Air quality request aborted");
-    this.name = "AbortError";
-  }
-}
-
 function waitForCaller<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return Promise.reject(new AirQualityRequestAbortedError());
@@ -109,13 +103,14 @@ function waitForCaller<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T>
 }
 
 /**
- * Small process-local cache for a future live provider. Requests share one
+ * Small process-local cache for the live provider. Requests share one
  * upstream load. Aborting one waiter releases only that caller, so another
  * coalesced request can still receive and cache the same result.
  */
 export class CachedAirQualityProvider {
   private cached?: CacheEntry;
   private inFlight?: Promise<AirQualityProviderResult>;
+  private rateLimitUntilMs?: number;
   private readonly nowMs: () => number;
 
   constructor(
@@ -127,6 +122,14 @@ export class CachedAirQualityProvider {
 
   private normalizeLoadedResult(result: AirQualityProviderResult): AirQualityProviderResult {
     const now = this.nowMs();
+    if (result.kind === "rate_limited") {
+      const retryAfterSeconds = Math.max(1, Math.ceil(result.retryAfterSeconds));
+      this.rateLimitUntilMs = Math.max(
+        this.rateLimitUntilMs ?? 0,
+        now + retryAfterSeconds * 1_000
+      );
+      return { kind: "rate_limited", retryAfterSeconds };
+    }
     if (result.kind === "data" || result.kind === "no_data") {
       const sourceAge = classifyAirQualitySourceAge(
         result.updatedAt,
@@ -141,6 +144,17 @@ export class CachedAirQualityProvider {
           ? { ...result, forceStale: true }
           : { kind: "error", reason: "upstream_invalid", retryable: true };
       }
+      const loadedUpdatedAtMs = Date.parse(result.updatedAt!);
+      const cachedUpdatedAtMs = this.cached?.result.updatedAt
+        ? Date.parse(this.cached.result.updatedAt)
+        : Number.NaN;
+      if (
+        Number.isFinite(cachedUpdatedAtMs) &&
+        loadedUpdatedAtMs < cachedUpdatedAtMs
+      ) {
+        return { kind: "error", reason: "upstream_invalid", retryable: true };
+      }
+      this.rateLimitUntilMs = undefined;
       this.cached = { result, storedAtMs: now };
     }
     return result;
@@ -173,6 +187,19 @@ export class CachedAirQualityProvider {
       }
       this.cached = undefined;
     }
+
+    if (this.rateLimitUntilMs && now < this.rateLimitUntilMs) {
+      const retained = this.retainedData(now);
+      if (retained) return retained;
+      return {
+        kind: "rate_limited",
+        retryAfterSeconds: Math.max(
+          1,
+          Math.ceil((this.rateLimitUntilMs - now) / 1_000)
+        ),
+      };
+    }
+    if (this.rateLimitUntilMs) this.rateLimitUntilMs = undefined;
 
     if (!this.inFlight) {
       const pending = this.upstream
@@ -216,16 +243,19 @@ export function classifyAirQualityFreshness(
   };
 }
 
-/**
- * Production deliberately has no fixture selector. Until the AirNow owner
- * notice is logged and a live provider lands, even an accidental true flag
- * fails closed instead of fetching data or serving test records.
- */
+/** Production has no fixture selector. Only exact `true` selects AirNow. */
 export function createProductionAirQualityProvider(
-  environment: NodeJS.ProcessEnv = process.env
+  environment: NodeJS.ProcessEnv = process.env,
+  options: AirNowFileProviderOptions = {}
 ): AirQualityProvider {
   if (environment.AIR_QUALITY_LIVE_ENABLED === "true") {
-    return new DisabledAirQualityProvider("live_provider_not_ready");
+    return new CachedAirQualityProvider(
+      new AirNowFileAirQualityProvider(options),
+      {
+        ...AIR_QUALITY_CACHE_POLICY,
+        nowMs: options.nowMs,
+      }
+    );
   }
-  return new DisabledAirQualityProvider("owner_notice_required");
+  return new DisabledAirQualityProvider();
 }

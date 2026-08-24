@@ -23,7 +23,7 @@ function dataResult(updatedAt: string | null = UPDATED_AT) {
   };
 }
 
-test("production factory stays disabled and can never select fixtures", async () => {
+test("production factory stays disabled unless the live flag is exactly true", async () => {
   assert.deepEqual(await createProductionAirQualityProvider({}).load(), {
     kind: "disabled",
     reason: "owner_notice_required",
@@ -32,10 +32,27 @@ test("production factory stays disabled and can never select fixtures", async ()
     await createProductionAirQualityProvider({ AIR_QUALITY_LIVE_ENABLED: "fixture" }).load(),
     { kind: "disabled", reason: "owner_notice_required" }
   );
-  assert.deepEqual(
-    await createProductionAirQualityProvider({ AIR_QUALITY_LIVE_ENABLED: "true" }).load(),
-    { kind: "disabled", reason: "live_provider_not_ready" }
+});
+
+test("production factory selects and caches the real AirNow provider when enabled", async () => {
+  let fetchCount = 0;
+  const now = Date.parse("2026-08-23T23:39:43.000Z");
+  const observation =
+    "08/23/26|08/23/26|16:00|PDT|0|O|Y|Seattle-Bellevue-Kent|WA|47.6062|-122.3321|PM2.5|58|Moderate|No||Puget Sound Clean Air Agency";
+  const fetchImpl: typeof fetch = async () => {
+    fetchCount += 1;
+    return new Response(observation, {
+      headers: { "Last-Modified": "Sun, 23 Aug 2026 23:27:13 GMT" },
+    });
+  };
+  const provider = createProductionAirQualityProvider(
+    { AIR_QUALITY_LIVE_ENABLED: "true" },
+    { fetchImpl, nowMs: () => now, minReportingAreaCount: 1 }
   );
+
+  assert.equal((await provider.load()).kind, "data");
+  assert.equal((await provider.load()).kind, "data");
+  assert.equal(fetchCount, 1);
 });
 
 test("freshness turns stale at the exact source-age boundary", () => {
@@ -153,6 +170,61 @@ test("cache serves retained data as stale when refresh throws", async () => {
   const fallback = await cache.load();
   assert.equal(fallback.kind, "data");
   if (fallback.kind === "data") assert.equal(fallback.forceStale, true);
+});
+
+test("cache holds Retry-After without refetching upstream", async () => {
+  let now = Date.parse(FETCHED_AT);
+  const fixture = new FixtureAirQualityProvider(() => ({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  }));
+  const cache = new CachedAirQualityProvider(fixture, {
+    freshTtlMs: 100,
+    staleRetentionMs: 10_000,
+    nowMs: () => now,
+  });
+
+  assert.deepEqual(await cache.load(), {
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  now += 30_001;
+  assert.deepEqual(await cache.load(), {
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
+  assert.equal(fixture.callCount, 1);
+
+  now += 90_000;
+  assert.deepEqual(await cache.load(), {
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  assert.equal(fixture.callCount, 2);
+});
+
+test("cache rejects an older source snapshot and retains the newer data", async () => {
+  let now = Date.parse(FETCHED_AT);
+  const newerUpdatedAt = new Date(now - 1_000).toISOString();
+  const olderUpdatedAt = new Date(now - 60_000).toISOString();
+  const fixture = new FixtureAirQualityProvider((call) =>
+    dataResult(call === 1 ? newerUpdatedAt : olderUpdatedAt)
+  );
+  const cache = new CachedAirQualityProvider(fixture, {
+    freshTtlMs: 100,
+    staleRetentionMs: 120_000,
+    nowMs: () => now,
+  });
+
+  assert.equal((await cache.load()).kind, "data");
+  now += 101;
+  const fallback = await cache.load();
+  assert.equal(fallback.kind, "data");
+  if (fallback.kind === "data") {
+    assert.equal(fallback.updatedAt, newerUpdatedAt);
+    assert.equal(fallback.forceStale, true);
+  }
+  assert.equal(fixture.callCount, 2);
 });
 
 test("fresh TTL expires data at the exact hard source-age limit", async () => {

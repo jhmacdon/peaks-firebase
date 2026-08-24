@@ -11,7 +11,7 @@ export const AIRNOW_SOURCE = {
     "Regional reporting-area value shown at its source centroid; not conditions at this exact point.",
   coverageRegion: "US",
   standard: "us_epa_aqi",
-  fileRefreshMinutesPastHour: [10, 25, 40],
+  fileRefreshMinutesPastHour: [25, 55],
   observationCadence: "hourly",
 } as const;
 

@@ -73,7 +73,7 @@ test("fresh public response needs no auth and filters to the quantized viewport"
   assert.equal(res.body.source.precision, "reporting_area_centroid");
   assert.equal(res.body.source.coverageRegion, "US");
   assert.equal(res.body.source.standard, "us_epa_aqi");
-  assert.deepEqual(res.body.source.fileRefreshMinutesPastHour, [10, 25, 40]);
+  assert.deepEqual(res.body.source.fileRefreshMinutesPastHour, [25, 55]);
   assert.equal(res.body.source.observationCadence, "hourly");
   assert.equal(res.body.updatedAt, "2026-08-23T20:00:00.000Z");
   assert.equal(res.body.staleAfter, "2026-08-23T22:00:00.000Z");

@@ -28,8 +28,8 @@ app.get("/health", (_req, res) => {
 });
 
 // Public because the main map works before sign-in and the response contains
-// no user data. The provider is disabled until AirNow's owner-notice step is
-// complete; keeping this before /api auth makes that state visible to clients.
+// no user data. The live provider stays disabled until AirNow's owner-notice
+// step is complete; keeping this before /api auth exposes that state to clients.
 app.use("/public/air-quality", publicAirQuality);
 
 // Shared by every /internal/* endpoint below: Cloud Scheduler calls them with
