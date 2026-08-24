@@ -7,11 +7,6 @@ import { AirQualityRequestAbortedError } from "./air-quality-errors";
 
 export { AirQualityRequestAbortedError } from "./air-quality-errors";
 
-export type AirQualityUnavailableReason =
-  | "owner_notice_required"
-  | "upstream_unavailable"
-  | "upstream_invalid";
-
 export type AirQualityProviderResult =
   | {
       kind: "data";
@@ -26,10 +21,6 @@ export type AirQualityProviderResult =
       fetchedAt: string;
     }
   | {
-      kind: "disabled";
-      reason: "owner_notice_required";
-    }
-  | {
       kind: "rate_limited";
       retryAfterSeconds: number;
     }
@@ -41,12 +32,6 @@ export type AirQualityProviderResult =
 
 export interface AirQualityProvider {
   load(signal?: AbortSignal): Promise<AirQualityProviderResult>;
-}
-
-export class DisabledAirQualityProvider implements AirQualityProvider {
-  async load(): Promise<AirQualityProviderResult> {
-    return { kind: "disabled", reason: "owner_notice_required" };
-  }
 }
 
 export interface AirQualityCacheOptions {
@@ -243,19 +228,14 @@ export function classifyAirQualityFreshness(
   };
 }
 
-/** Production has no fixture selector. Only exact `true` selects AirNow. */
 export function createProductionAirQualityProvider(
-  environment: NodeJS.ProcessEnv = process.env,
   options: AirNowFileProviderOptions = {}
 ): AirQualityProvider {
-  if (environment.AIR_QUALITY_LIVE_ENABLED === "true") {
-    return new CachedAirQualityProvider(
-      new AirNowFileAirQualityProvider(options),
-      {
-        ...AIR_QUALITY_CACHE_POLICY,
-        nowMs: options.nowMs,
-      }
-    );
-  }
-  return new DisabledAirQualityProvider();
+  return new CachedAirQualityProvider(
+    new AirNowFileAirQualityProvider(options),
+    {
+      ...AIR_QUALITY_CACHE_POLICY,
+      nowMs: options.nowMs,
+    }
+  );
 }

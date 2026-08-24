@@ -3,19 +3,17 @@
 ## Readiness
 
 The endpoint, client contract, and live file provider are ready. Production
-pins `AIR_QUALITY_LIVE_ENABLED=false`, so it makes no AirNow request and returns
-the typed `disabled` response. The production factory has no fixture path. An
-exact `true` selects the real AirNow provider.
+always uses the real AirNow provider and has no runtime provider flag or fixture
+path.
 
-One owner decision blocks live use: whether Peaks should adopt AirNow under
-its data-use terms. If yes, accept the [AirNow Data Exchange
+Before the first production deploy, follow the [AirNow Data Exchange
 Guidelines](https://docs.airnowapi.org/docs/DataUseGuidelines.pdf), complete
-their contact/agreement form, and return it with a short Peaks product notice
-to `dmc@airnowtech.org`. Ask the Data Management Center and EPA AirNow contact
-`white.johne@epa.gov` to confirm how Peaks should notify the relevant source
-agencies for a nationwide reporting-area map. Keep the sent form and written
-reply. Until that step is complete, keep the flag false. Do not enable it just
-because the public file needs no API key.
+their stakeholder/contact form, and return it with a short Peaks product notice
+to `dmc@airnowtech.org`. Include the Data Management Center and EPA AirNow
+contact `white.johne@epa.gov` when asking how Peaks should notify the relevant
+source agencies for a nationwide reporting-area map. Keep the sent form and
+any written reply. Peaks treats this as a pre-deploy check, not an approval or
+a runtime gate.
 
 ## Source and limits
 
@@ -35,8 +33,9 @@ location.
 
 This key-free official file avoids a paid provider and any scraped consumer
 tiles. Key-free does not mean permission-free: AirNow grants no permissive
-reuse license in the reviewed material, so the Data Exchange Guidelines,
-owner form, and source-agency guidance still block live use.
+reuse license in the reviewed material, so Peaks must follow the Data Exchange
+Guidelines, send the stakeholder form, and ask for source-agency guidance before its
+first production deploy.
 
 [EPA directs real-time public reporting to AirNow](https://www.epa.gov/outdoor-air-quality-data/what-best-way-access-outdoor-air-monitoring-data);
 AQS can lag and serves regulatory and trend work. Apple WeatherKit's published
@@ -45,7 +44,7 @@ and [REST data sets](https://developer.apple.com/documentation/weatherkitrestapi
 do not include AQI. Peaks already uses Open-Meteo for weather, but its
 [free endpoint is non-commercial](https://open-meteo.com/en/terms), and this
 project has no approved commercial AQI contract or key. AirNow is the sound
-live source after the owner notice.
+live source for this map.
 
 Peaks accepts only AirNow sequence `0`, data type `O`, primary pollutant `Y`
 rows with the file's exact 17-field shape, decimal number syntax, and valid
@@ -96,14 +95,14 @@ links, the preliminary and precision labels, nullable update and stale times,
 and these fields:
 
 ```text
-status: fresh | stale | no_data | disabled | rate_limited | error
+status: fresh | stale | no_data | rate_limited | error
 reportingAreas: []
-reason: owner_notice_required | upstream_unavailable | upstream_invalid | null
+reason: upstream_unavailable | upstream_invalid | null
 retryAfterSeconds: number | null
 ```
 
-Data and no-data responses use HTTP 200. Disabled and upstream-error responses
-use 503. Rate limits use 429 and `Retry-After`. Bad viewports use 400 with an
+Data and no-data responses use HTTP 200. Upstream-error responses use 503.
+Rate limits use 429 and `Retry-After`. Bad viewports use 400 with an
 `invalid_viewport` error. The full camel-case record shape is defined in
 `cloud-sql/api/src/air-quality-reporting-area.ts`.
 
@@ -116,7 +115,7 @@ source-age stale threshold, and a hard six-hour retained-data window. Data at
 the six-hour boundary are expired. A refresh error or rate limit may return
 retained data only as `stale`. One canceled HTTP waiter does not cancel the
 shared source load; it stops waiting while another request can finish and fill
-the cache. No-data, disabled, rate-limit, and error states remain distinct.
+the cache. No-data, rate-limit, and error states remain distinct.
 The cache holds a provider `Retry-After` deadline, so later map requests do not
 hammer AirNow during the cooldown. It also rejects a source-time rollback and
 keeps the newer retained snapshot as stale.
@@ -149,11 +148,9 @@ provider work. This route adds no application log of query values and stores
 no request or AQI data. Cloud Run's normal request logs may still include the
 grid-aligned request URL under the service's existing log policy.
 
-The disabled contract and ready provider add **$0/month fixed cost** and no
-upstream cost. With the toggle and server flag off by default, expected variable
-cost is also about $0/month. Live use adds a small amount of request CPU and one
-inbound file download per warm instance and 20-minute cache window, but no fixed
-monthly service. At current
+The live provider adds **$0/month fixed cost** and no upstream cost. Requests
+add a small amount of CPU and one inbound file download per warm instance and
+20-minute cache window, but no fixed monthly service. At current
 [us-central1 Cloud Run list prices](https://cloud.google.com/run/pricing), one
 one-second refresh in each window costs about $0.06/month for one continuously
 active instance, or about $0.33/month at the six-instance cap, before the shared
@@ -161,18 +158,15 @@ free tier. Normal Peaks traffic should keep the full added run-rate below
 **$1/month**. Existing `min-instances=0`, CPU
 throttling, and the six-instance cap stay unchanged. If traffic shows that the
 public route can raise the backend above the $10–15/month target, add a bounded
-public request
-guard before enabling live data; do not buy an always-on cache.
+public request guard; do not buy an always-on cache.
 
 ## Deploy order
 
-1. Merge and deploy the backend contract and live provider with
-   `AIR_QUALITY_LIVE_ENABLED=false`.
-2. Merge the iOS client with its toggle off and disabled/no-data/error handling.
-3. Complete and record the AirNow owner notice.
-4. Change the workflow pin to true in a reviewed change and deploy it.
-5. Check the live public endpoint, source time, attribution, and one no-data
-   viewport before turning on the client remote flag.
+1. Complete and record the AirNow stakeholder form and product notice.
+2. Merge and deploy the backend contract and live provider.
+3. Check the live public endpoint, source time, attribution, and one no-data
+   viewport.
+4. Merge and release the iOS client after the backend check passes.
 
 Do not deploy the client against live data before the backend returns the
 required attribution, preliminary label, source age, and regional-precision

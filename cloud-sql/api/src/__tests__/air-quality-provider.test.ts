@@ -23,18 +23,7 @@ function dataResult(updatedAt: string | null = UPDATED_AT) {
   };
 }
 
-test("production factory stays disabled unless the live flag is exactly true", async () => {
-  assert.deepEqual(await createProductionAirQualityProvider({}).load(), {
-    kind: "disabled",
-    reason: "owner_notice_required",
-  });
-  assert.deepEqual(
-    await createProductionAirQualityProvider({ AIR_QUALITY_LIVE_ENABLED: "fixture" }).load(),
-    { kind: "disabled", reason: "owner_notice_required" }
-  );
-});
-
-test("production factory selects and caches the real AirNow provider when enabled", async () => {
+test("production factory always selects and caches the real AirNow provider", async () => {
   let fetchCount = 0;
   const now = Date.parse("2026-08-23T23:39:43.000Z");
   const observation =
@@ -45,10 +34,11 @@ test("production factory selects and caches the real AirNow provider when enable
       headers: { "Last-Modified": "Sun, 23 Aug 2026 23:27:13 GMT" },
     });
   };
-  const provider = createProductionAirQualityProvider(
-    { AIR_QUALITY_LIVE_ENABLED: "true" },
-    { fetchImpl, nowMs: () => now, minReportingAreaCount: 1 }
-  );
+  const provider = createProductionAirQualityProvider({
+    fetchImpl,
+    nowMs: () => now,
+    minReportingAreaCount: 1,
+  });
 
   assert.equal((await provider.load()).kind, "data");
   assert.equal((await provider.load()).kind, "data");

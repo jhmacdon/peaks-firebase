@@ -158,8 +158,6 @@ jobs:
           # instance warm most of the time anyway.
           flags: '--memory=512Mi --cpu=1 --concurrency=20 --min-instances=0 --max-instances=6 --cpu-throttling'
           # Pin all required env vars and secrets so deploys can never drop them
-          # AIR_QUALITY_LIVE_ENABLED is a compliance gate. Keep it false until
-          # the AirNow owner notice and nationwide agency guidance are recorded.
           env_vars: |
             INSTANCE_CONNECTION_NAME=donner-a8608:us-central1:peaks-db
             DB_NAME=peaks
@@ -167,7 +165,6 @@ jobs:
             DB_POOL_MAX=4
             DB_POOL_CONNECTION_TIMEOUT_MS=5000
             FIREBASE_STORAGE_BUCKET=donner-a8608.appspot.com
-            AIR_QUALITY_LIVE_ENABLED=false
           secrets: |
             DB_PASS=peaks-db-password:latest
             SLACK_WEBHOOK_URL=SLACK_WEBHOOK_URL:latest

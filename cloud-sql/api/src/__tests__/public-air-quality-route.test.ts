@@ -161,19 +161,6 @@ test("stale no-data responses require cache revalidation", async () => {
   assert.equal(res.headers["cache-control"], "no-cache");
 });
 
-test("disabled provider is a typed 503 and never asks for auth", async () => {
-  const provider = new FixtureAirQualityProvider(() => ({
-    kind: "disabled",
-    reason: "owner_notice_required",
-  }));
-  const res = await request(appWith(provider)).get(PATH);
-  assert.equal(res.status, 503);
-  assert.equal(res.body.status, "disabled");
-  assert.equal(res.body.reason, "owner_notice_required");
-  assert.deepEqual(res.body.reportingAreas, []);
-  assert.equal(res.headers["cache-control"], "no-store");
-});
-
 test("rate limit and upstream errors have distinct typed envelopes", async () => {
   const limited = new FixtureAirQualityProvider(() => ({
     kind: "rate_limited",

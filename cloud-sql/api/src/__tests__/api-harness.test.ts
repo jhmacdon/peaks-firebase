@@ -19,14 +19,13 @@ test("/health returns 200 without auth", async () => {
   assert.deepEqual(res.body, { status: "ok" });
 });
 
-test("public air-quality route exposes its disabled state without auth", async () => {
+test("public air-quality route validates requests without auth or a live fetch", async () => {
   const res = await request(app).get(
-    "/public/air-quality/viewport?west=-122.4&south=47.5&east=-122.2&north=47.7&zoom=10"
+    "/public/air-quality/viewport?west=-122.4&south=47.5&east=-122.2&north=47.7&zoom=3"
   );
-  assert.equal(res.status, 503);
-  assert.equal(res.body.status, "disabled");
-  assert.deepEqual(res.body.reportingAreas, []);
-  assert.equal(res.body.source.id, "airnow");
+  assert.equal(res.status, 400);
+  assert.equal(res.body.status, "error");
+  assert.equal(res.body.error.code, "invalid_viewport");
 });
 
 test("authenticated routes reject when X-Test-User missing", async () => {

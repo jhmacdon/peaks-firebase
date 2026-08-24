@@ -201,18 +201,6 @@ export function createPublicAirQualityRouter(
           }
         }
 
-        if (result.kind === "disabled") {
-          res.status(503).set("Cache-Control", "no-store").json({
-            status: "disabled",
-            ...base,
-            reportingAreas: [],
-            updatedAt: null,
-            staleAfter: null,
-            reason: result.reason,
-            retryAfterSeconds: null,
-          });
-          return;
-        }
         if (result.kind === "rate_limited") {
           res
             .status(429)
