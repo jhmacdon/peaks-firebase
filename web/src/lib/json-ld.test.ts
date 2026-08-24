@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   buildAreaJsonLd,
   buildDestinationJsonLd,
+  buildFaqJsonLd,
   buildListJsonLd,
+  buildMobileApplicationJsonLd,
   buildOrganizationJsonLd,
   buildRouteJsonLd,
   buildWebSiteJsonLd,
@@ -133,6 +135,32 @@ test("list JSON-LD caps itemListElement at 50 and omits missing names", () => {
   assert.equal(JSON.stringify(jsonLd).includes("null"), false);
 });
 
+test("FAQ JSON-LD keeps only complete question and answer pairs", () => {
+  assert.deepEqual(
+    buildFaqJsonLd({
+      items: [
+        { question: "What does Peaks track?", answer: "Distance and gain." },
+        { question: " ", answer: "Missing question." },
+        { question: "Missing answer?", answer: null },
+      ],
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "What does Peaks track?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Distance and gain.",
+          },
+        },
+      ],
+    }
+  );
+});
+
 test("organization JSON-LD drops the optional fields it wasn't given", () => {
   assert.deepEqual(
     buildOrganizationJsonLd({
@@ -176,6 +204,38 @@ test("website JSON-LD publishes a SearchAction only when given a template", () =
   assert.equal("description" in withoutSearch, false);
 });
 
+test("mobile application JSON-LD identifies the free iPhone app", () => {
+  assert.deepEqual(
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: "Track peaks.",
+      price: 0,
+      priceCurrency: "USD",
+    }),
+    {
+      "@context": "https://schema.org",
+      "@type": "MobileApplication",
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: "Track peaks.",
+      offers: {
+        "@type": "Offer",
+        price: 0,
+        priceCurrency: "USD",
+      },
+    }
+  );
+});
+
 test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
   const values = [
     buildOrganizationJsonLd({ name: "Peaks", url: "https://getpeaks.app/" }),
@@ -183,6 +243,14 @@ test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
       name: "Peaks",
       url: "https://getpeaks.app/",
       searchUrlTemplate: "https://getpeaks.app/discover?q={search_term_string}",
+    }),
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: "https://getpeaks.app/",
+      downloadUrl:
+        "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
     }),
     buildDestinationJsonLd({
       name: "Mount Si",
@@ -205,6 +273,9 @@ test("every JSON-LD shape survives JSON.stringify and JSON.parse", () => {
       name: "Peak List",
       url: "https://getpeaks.app/lists/peak-list",
       items: [],
+    }),
+    buildFaqJsonLd({
+      items: [{ question: "What is Peaks?", answer: "A mountain tracker." }],
     }),
   ];
 

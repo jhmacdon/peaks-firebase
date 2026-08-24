@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DestinationCard from "../../../../components/destination-card";
 import { ContourArt } from "../../../../components/contour-art";
+import { FaqSection } from "../../../../components/faq-section";
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { Button } from "../../../../components/ui/button";
 import { SectionHeading } from "../../../../components/ui/section-heading";
@@ -14,13 +15,24 @@ import {
   isActivityLandingType,
   type ActivityLandingType,
 } from "../../../../lib/landing-copy";
-import { buildListJsonLd } from "../../../../lib/json-ld";
+import { buildFaqJsonLd, buildListJsonLd } from "../../../../lib/json-ld";
 import { hashSeed } from "../../../../lib/seed-hash";
 import { absoluteUrl, siteConfig, summarizeText } from "../../../../lib/seo";
 import { settled } from "../../../../lib/settled";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
+
+const STATE_GUIDES = [
+  { slug: "washington", name: "Washington" },
+  { slug: "california", name: "California" },
+  { slug: "colorado", name: "Colorado" },
+  { slug: "oregon", name: "Oregon" },
+  { slug: "utah", name: "Utah" },
+  { slug: "montana", name: "Montana" },
+  { slug: "alaska", name: "Alaska" },
+  { slug: "new-hampshire", name: "New Hampshire" },
+] as const;
 
 // Strava's /sports/* recipe (docs/audits/2026-08-19-strava-public.md §7.10),
 // built on this site's own hero and design system rather than Strava's dark
@@ -40,6 +52,7 @@ export async function generateStaticParams() {
 function emptyLandingData(type: ActivityLandingType): ActivityLandingData {
   return {
     type,
+    count: null,
     paragraph: activityLandingConfig(type).paragraph({ count: null }),
     top: { destinations: [], isFallback: false },
     lists: [],
@@ -58,7 +71,7 @@ export async function generateMetadata({
 
   const config = activityLandingConfig(type);
   const canonicalPath = `/activities/${type}`;
-  const imageUrl = absoluteUrl("/opengraph-image");
+  const imageUrl = absoluteUrl(`${canonicalPath}/opengraph-image`);
 
   try {
     const data = await getActivityLandingDataCached(type);
@@ -68,13 +81,16 @@ export async function generateMetadata({
       title: config.title,
       description,
       alternates: { canonical: absoluteUrl(canonicalPath) },
+      ...(!config.hasLiveContent
+        ? { robots: { index: false, follow: true } }
+        : {}),
       openGraph: {
         title: config.h1,
         description,
         url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
         type: "website",
-        images: [{ url: imageUrl, width: 1200, height: 630, alt: siteConfig.name }],
+        images: [{ url: imageUrl, width: 1200, height: 630, alt: config.h1 }],
       },
       twitter: {
         card: "summary_large_image",
@@ -105,23 +121,30 @@ export default async function ActivityLandingPage({
   const data = await settled(getActivityLandingDataCached(type), emptyLandingData(type));
   const seed = hashSeed(`activity:${type}`);
   const canonicalPath = `/activities/${type}`;
+  const faqs = config.faqs({ count: data.count });
 
-  const jsonLd =
-    data.top.destinations.length > 0
-      ? buildListJsonLd({
-          name: config.h1,
-          url: absoluteUrl(canonicalPath),
-          numberOfItems: data.top.destinations.length,
-          items: data.top.destinations.map((destination) => ({
-            name: destination.name,
-            url: absoluteUrl(`/destinations/${destination.id}`),
-          })),
-        })
-      : null;
+  const jsonLd = [
+    ...(data.top.destinations.length > 0
+      ? [
+          buildListJsonLd({
+            name: config.h1,
+            url: absoluteUrl(canonicalPath),
+            numberOfItems: data.top.destinations.length,
+            items: data.top.destinations.map((destination) => ({
+              name: destination.name,
+              url: absoluteUrl(`/destinations/${destination.id}`),
+            })),
+          }),
+        ]
+      : []),
+    ...(faqs.length > 0 ? [buildFaqJsonLd({ items: faqs })] : []),
+  ];
 
   return (
     <>
-      {jsonLd ? <JsonLdScript data={jsonLd} /> : null}
+      {jsonLd.map((data, index) => (
+        <JsonLdScript key={index} data={data} />
+      ))}
 
       {/* Hero — same composition as the landing page (Task 11/18 share
           ContourArt), just a seed drawn from the type instead of the fixed
@@ -191,6 +214,38 @@ export default async function ActivityLandingPage({
                 </span>
               </Link>
             ))}
+          </div>
+        </section>
+      ) : null}
+
+      {config.hasLiveContent ? (
+        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+          <FaqSection items={faqs} />
+        </section>
+      ) : null}
+
+      {config.hasLiveContent ? (
+        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+          <SectionHeading eyebrow="State guides" size="lg">
+            Browse mountain destinations by state
+          </SectionHeading>
+          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+            {STATE_GUIDES.map((state) => (
+              <Link
+                key={state.slug}
+                href={`/peaks/${state.slug}`}
+                prefetch={false}
+                className="text-sm font-medium text-accent-text hover:underline"
+              >
+                {state.name} →
+              </Link>
+            ))}
+            <Link
+              href="/peaks"
+              className="text-sm font-medium text-accent-text hover:underline"
+            >
+              All state guides →
+            </Link>
           </div>
         </section>
       ) : null}

@@ -463,6 +463,9 @@ export interface StateCatalogFacts {
    * presence at all, the caller's signal to 404 rather than render an
    * all-empty page. */
   destinationCount: number;
+  /** Count only rows marked as summits; the broader destination count also
+   * includes trailheads, lakes, viewpoints, and other useful places. */
+  summitCount: number;
   highestPeak: { id: string; name: string | null; elevation: number } | null;
 }
 
@@ -478,8 +481,9 @@ export interface StateCatalogFacts {
  */
 export async function getStateCatalogFacts(stateCode: string): Promise<StateCatalogFacts> {
   const [countResult, peakResult] = await Promise.all([
-    db.query<{ count: number }>(
-      `SELECT COUNT(*)::int AS count
+    db.query<{ count: number; summit_count: number }>(
+      `SELECT COUNT(*)::int AS count,
+              COUNT(*) FILTER (WHERE 'summit' = ANY(features))::int AS summit_count
        FROM destinations
        WHERE state_code = $1 AND country_code = 'US'`,
       [stateCode]
@@ -492,6 +496,7 @@ export async function getStateCatalogFacts(stateCode: string): Promise<StateCata
 
   return {
     destinationCount,
+    summitCount: Number(countResult.rows[0]?.summit_count ?? 0),
     highestPeak:
       peakRow?.elevation != null
         ? { id: peakRow.id, name: peakRow.name, elevation: Number(peakRow.elevation) }

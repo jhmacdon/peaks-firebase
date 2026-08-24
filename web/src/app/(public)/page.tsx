@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import DestinationCard from "../../components/destination-card";
 import { AppScreenshots } from "../../components/app-screenshots";
-import { ContourArt } from "../../components/contour-art";
 import { JsonLdScript } from "../../components/json-ld-script";
+import { LandingPhotoHero } from "../../components/landing-photo-hero";
 import { Button } from "../../components/ui/button";
 import { SectionHeading } from "../../components/ui/section-heading";
 import { StatCluster } from "../../components/ui/stat";
@@ -15,14 +15,18 @@ import { formatFlooredCount } from "../../lib/format";
 import { getDestination } from "../../lib/actions/destinations";
 import { getList } from "../../lib/actions/lists";
 import { getDiscoverStats } from "../../lib/actions/search";
-import { buildOrganizationJsonLd, buildWebSiteJsonLd } from "../../lib/json-ld";
+import {
+  buildMobileApplicationJsonLd,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "../../lib/json-ld";
 import { absoluteUrl, siteConfig } from "../../lib/seo";
 
 const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
 
 const DESCRIPTION =
-  "A peak-bagging tracker and guidebook. Log your ascents, plan routes on the map, and browse the catalog of peaks, routes, protected areas, and curated lists.";
+  "An iPhone peak-bagging tracker and public mountain guide. Log ascents, plan routes, and browse peaks, protected areas, and curated lists.";
 
 const FEATURES = [
   {
@@ -58,11 +62,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   // Absolute: the homepage is the site, so it shouldn't render as
   // "Peaks | Peaks" through the root layout's title template.
-  title: { absolute: "Peaks — track your climb" },
+  title: { absolute: "Peaks — peak-bagging app for iPhone" },
   description: DESCRIPTION,
   alternates: { canonical: absoluteUrl("/") },
   openGraph: {
-    title: "Peaks — track your climb",
+    title: "Peaks — peak-bagging app for iPhone",
     description: DESCRIPTION,
     url: absoluteUrl("/"),
     siteName: siteConfig.name,
@@ -72,13 +76,13 @@ export const metadata: Metadata = {
         url: absoluteUrl("/opengraph-image"),
         width: 1200,
         height: 630,
-        alt: siteConfig.name,
+        alt: "Peaks iPhone peak-bagging app",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Peaks — track your climb",
+    title: "Peaks — peak-bagging app for iPhone",
     description: DESCRIPTION,
     images: [absoluteUrl("/twitter-image")],
   },
@@ -121,6 +125,16 @@ export default async function LandingPage() {
       description: DESCRIPTION,
       searchUrlTemplate: `${absoluteUrl("/discover")}?q={search_term_string}`,
     }),
+    buildMobileApplicationJsonLd({
+      name: "Peaks: Track Your Climb",
+      url: absoluteUrl("/"),
+      downloadUrl: APP_STORE_URL,
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      description: DESCRIPTION,
+      price: 0,
+      priceCurrency: "USD",
+    }),
   ];
 
   return (
@@ -129,40 +143,18 @@ export default async function LandingPage() {
         <JsonLdScript key={index} data={data} />
       ))}
 
-      {/* Hero. The contour art is clipped by this section, sits right of the
-          copy, and carries no meaning — the page reads the same without it. */}
-      <section className="relative overflow-hidden">
-        {/* Two compositions, not one. From md up there's a real right-hand
-            column: the field is large, vertically centered, and hangs off the
-            right edge, with the copy narrow enough that the accent ring — the
-            one loud part — clears it. Only outer hairline rings pass behind
-            text, which is the point of them.
-
-            Narrower than md there is no such column. The headline and subline
-            run the full width, so a field beside them either crosses the copy
-            or gets shoved off-screen, which is where a signature goes to die.
-            It becomes a small emblem in the hero's own bottom-right corner
-            instead — inset from the edge, whole, in the space the taller
-            bottom padding opens under the buttons.
-
-            The switch waits for lg, not md: at 768 the 52px headline still
-            runs past 600px, which leaves no room for a field beside it. And
-            the offsets are fixed pixels, not percentages — a percentage
-            offset grows with the viewport, so a field tuned at a breakpoint
-            walks off the right edge by the top of its own range. */}
-        <div className="contour-fade pointer-events-none absolute right-2 bottom-4 w-[190px] sm:w-[240px] md:w-[300px] lg:top-1/2 lg:right-[-96px] lg:bottom-auto lg:w-[420px] lg:-translate-y-1/2 xl:right-[-64px] xl:w-[620px]">
-          <ContourArt className="h-auto w-full" />
-        </div>
-
-        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-40 md:pt-28 lg:pb-20">
-          <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
-            Built for serious mountain progress.
-          </h1>
-          <p className="mt-6 max-w-[32ch] text-[18px] leading-[1.6] text-ink-2 sm:max-w-[46ch]">
-            Track your ascents, plan the route up, and browse{" "}
+      <LandingPhotoHero
+        eyebrow="Peaks for iPhone"
+        title="Built for serious mountain progress."
+        description={
+          <>
+            Peaks is an iPhone peak-bagging tracker and public mountain guide. Track
+            your ascents, plan the route up, and browse{" "}
             {catalogSize ? `${catalogSize} ` : ""}peaks, lakes, and trailheads.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+          </>
+        }
+        actions={
+          <>
             <Button href={APP_STORE_URL} variant="primary" external>
               Get the app
             </Button>
@@ -172,9 +164,9 @@ export default async function LandingPage() {
             >
               Browse peaks →
             </Link>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {/* Dropped entirely if the counts don't load — a row of zeroes would
           claim an empty catalog. */}

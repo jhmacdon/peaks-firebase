@@ -18,6 +18,7 @@ const COLUMNS: Array<{
       { label: "Map", href: "/map" },
       { label: "Lists", href: "/lists" },
       { label: "Areas", href: "/areas" },
+      { label: "Peaks by state", href: "/peaks" },
     ],
   },
   {

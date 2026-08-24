@@ -14,7 +14,11 @@ The Peaks web app serves two audiences from a single Next.js 16 deployment:
 /discover                 → search + nearby + popular + lists (public)
 /destinations/[id]        → destination detail (public)
 /destinations/[id]/reports → trip reports for destination (public)
+/areas                    → protected-area search, state browse, and filters (public)
 /areas/[id]               → protected-area detail, boundary, destinations, routes (public)
+/activities/[type]        → hiking and peak-bagging guides (public)
+/peaks                    → database-free index of state peak-bagging guides (public)
+/peaks/[state]            → catalog-backed US state mountain guides (public)
 /routes/[id]              → route detail (public)
 /lists                    → browse all lists (public)
 /lists/[id]               → list detail + progress (public)
@@ -224,6 +228,42 @@ All map components use `react-leaflet` with `next/dynamic` + `ssr: false` (Leafl
 | `avatar` | Account, friends, party list |
 | `friend-card` | Friends page |
 | `party-list` | Plan detail |
+| `faq-section` | Activity, state, and protected-area guides |
+
+## Search and Answer Pages
+
+Activity and state guides render on the server. The database-free `/peaks`
+hub links every reviewed state guide from one crawlable page. Each guide starts
+with a short answer backed by Peaks data, then links to catalog records and
+related guides.
+The visible common-question section and its `FAQPage` JSON-LD use the same copy.
+State facts keep summit counts separate from the wider destination count, so a
+lake or trailhead is never counted as a peak.
+
+Only hiking and peak-bagging have distinct live data. Skiing and trail-running
+remain available as product notes, but they use `noindex` and do not appear in
+the sitemap. Activity and state guides have their own generated Open Graph
+images. The landing sitemap lists the two supported activity pages and states
+that cleared the 50-destination review on 2026-08-20.
+
+The root sitemap index and landing/static child sitemaps do not query the
+database. Three destination chunks cover the current 82,977-row catalog and
+must be raised before the catalog reaches 120,001 rows. Catalog child sitemaps
+cache for one day. A failed catalog read returns `503` with `Retry-After`
+instead of a valid-looking empty sitemap, so crawlers retry rather than infer
+that pages were removed. Catalog card grids disable automatic Next.js
+prefetch; one browse page therefore does not start dozens of detail renders.
+Links from activity pages and the state hub to database-backed state guides
+also disable automatic prefetch for the same reason.
+The public repository README and its iPhone peak-bagging guide form a useful
+GitHub entry point to the same public pages without adding a publishing service.
+The homepage also publishes `MobileApplication` JSON-LD with the App Store URL,
+iOS platform, and free download price. This uses the current App Store listing;
+update the offer if the base download price changes.
+
+The web Postgres pool keeps its five-connection cap and adds a five-second
+connection wait plus a 30-second statement limit, matching the API's safety
+bounds. This changes no Cloud Run or Cloud SQL capacity and adds $0/month.
 
 ## Key Design Decisions
 

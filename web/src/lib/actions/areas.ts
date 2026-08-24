@@ -563,6 +563,18 @@ const DESTINATION_COUNT_SUBQUERY = `(
   WHERE da.area_id = a.id AND d.owner = 'peaks'
 )`;
 
+// The ranked index needs each count twice: once to return it and once to sort
+// by it. Pre-aggregate the small link table once so PostgreSQL does not run a
+// correlated count twice for every area considered by the window function.
+const DESTINATION_COUNTS_JOIN = `
+  LEFT JOIN (
+    SELECT da.area_id, COUNT(DISTINCT da.destination_id)::int AS destination_count
+    FROM destination_areas da
+    JOIN destinations d ON d.id = da.destination_id
+    WHERE d.owner = 'peaks'
+    GROUP BY da.area_id
+  ) destination_counts ON destination_counts.area_id = a.id`;
+
 /**
  * Powers the /areas index: areas grouped by state, capped to the top
  * `statesLimit` states (by matching area count) and `perStateLimit` areas
@@ -664,12 +676,14 @@ export async function getAreasIndex(
   }>(
     `SELECT * FROM (
        SELECT a.id, a.name, a.kind, a.designation, a.state_codes[1] AS state_code,
-              ${DESTINATION_COUNT_SUBQUERY} AS destination_count,
+              COALESCE(destination_counts.destination_count, 0) AS destination_count,
               ROW_NUMBER() OVER (
                 PARTITION BY a.state_codes[1]
-                ORDER BY ${DESTINATION_COUNT_SUBQUERY} DESC, a.name ASC
+                ORDER BY COALESCE(destination_counts.destination_count, 0) DESC,
+                         a.name ASC
               ) AS rn
        FROM areas a
+       ${DESTINATION_COUNTS_JOIN}
        WHERE ${clause} AND a.state_codes[1] = ANY($${params.length + 1}::text[])
      ) ranked
      WHERE rn <= $${params.length + 2}

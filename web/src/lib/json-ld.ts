@@ -91,6 +91,41 @@ export function buildWebSiteJsonLd(input: {
   };
 }
 
+export function buildMobileApplicationJsonLd(input: {
+  name: string;
+  url: string;
+  downloadUrl: string;
+  operatingSystem: string;
+  applicationCategory: string;
+  description?: string | null;
+  price?: number | null;
+  priceCurrency?: string | null;
+}): JsonLd {
+  const description = text(input.description);
+  const price = number(input.price);
+  const priceCurrency = text(input.priceCurrency);
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "MobileApplication",
+    name: input.name,
+    url: input.url,
+    downloadUrl: input.downloadUrl,
+    operatingSystem: input.operatingSystem,
+    applicationCategory: input.applicationCategory,
+    ...(description ? { description } : {}),
+    ...(price != null && priceCurrency
+      ? {
+          offers: {
+            "@type": "Offer",
+            price,
+            priceCurrency,
+          },
+        }
+      : {}),
+  };
+}
+
 export function buildDestinationJsonLd(input: {
   name?: string | null;
   url: string;
@@ -198,5 +233,32 @@ export function buildListJsonLd(input: {
     url: input.url,
     ...(numberOfItems != null ? { numberOfItems } : {}),
     itemListElement,
+  };
+}
+
+export function buildFaqJsonLd(input: {
+  items: Array<{ question?: string | null; answer?: string | null }>;
+}): JsonLd {
+  const mainEntity = input.items.flatMap((item) => {
+    const question = text(item.question);
+    const answer = text(item.answer);
+    if (!question || !answer) return [];
+
+    return [
+      {
+        "@type": "Question",
+        name: question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: answer,
+        },
+      },
+    ];
+  });
+
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "FAQPage",
+    mainEntity,
   };
 }
