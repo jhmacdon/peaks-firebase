@@ -188,6 +188,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/search?q=&lat=&lng=&limit=` | Fuzzy text search (pg_trgm + geo ranking) |
 | GET | `/api/search/features?features=&activities=&lat=&lng=&radius=` | Filter by features/activities |
 | GET | `/api/routes/...` | Route queries |
+| GET | `/api/routes/:id/sessions/mine` | The caller's own recordings on one route, newest first, with the stretch each covered (owner-only; the one reader of partial `session_routes` rows) |
 | GET | `/api/sessions/...` | Session queries |
 | GET | `/api/sessions/:id/areas` | Protected areas crossed by saved session track segments |
 | GET | `/api/sessions/changes?updated_since=&after_id=&limit=` | Incremental session sync feed with tombstones |
@@ -1087,6 +1088,43 @@ reaching an anchor and **not implemented**: it would lift 12 of them at the
 graph's own 10 m tolerance, and 20 only at 30 m, where parallel switchbacks
 start welding together. For 194 of those 240 the nearest level 4/5 road is over
 3 km away in a straight line, so the gap is coverage, not stitching.
+
+## Route coverage and partial history
+
+A `session_routes` row used to mean "did this route": nothing was written
+below 0.70 vertex coverage. Since 2026-08 a row is also written when the
+recording covered at least **500 m** of the route, so an approach hike of a
+long trail gets an honest answer instead of nothing, and `covered_intervals`
+records which stretch — `[[start, end]]` fractions of the route linestring,
+merged with a gap tolerance of max(100 m, 2% of route length) so a GPS dropout
+does not shred one hike into fragments.
+
+Two rules, both pinned by tests and by `scripts/check-cross-refs.sh`:
+
+- **Every reader filters, except the two that must not.** A partial row is not
+  a climb of the route, so popularity counts, session detail, trip-report links
+  and the web's own-history reads all apply `routeDoneCoverageSql`. The
+  predicate keeps `coverage IS NULL`: a manually attached route and every row
+  the Firestore migration wrote carry NULL and have always meant "did this
+  route". The two exceptions are allowlisted with their reasons —
+  `GET /api/routes/:id/sessions/mine`, which exists to serve partial rows, and
+  the route-geometry rematch hook, which must see every `auto` row. The
+  cross-ref check looks for a CALL, not a mention, because both exceptions
+  name the helper in prose while explaining why they skip it.
+- **The merge and the gate live in `api/src/route-coverage.ts`, and only
+  there.** PostGIS measures (`buildRouteCoverageSql`); that module decides.
+  The backfill script and `processSession` share it verbatim. Two definitions
+  are duplicated into `web/src/lib/route-coverage.ts` because the packages
+  cannot share code, and the cross-ref check fails the build if they drift.
+
+A route whose materialized geometry is recomputed leaves stale intervals
+behind, so `rematerializeRoute` (web admin route builder) queues that route's
+`auto`-matched recordings back to `pending` and the existing Cloud Scheduler
+sweep rematches them. No timer, no new service.
+
+Historical rows are filled by `npm run backfill:route-coverage` in
+`cloud-sql/api` — dry-run by default, batched, resumable, never run as part of
+a code change.
 
 ## Session comparisons ("Your Efforts")
 
