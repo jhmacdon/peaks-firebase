@@ -151,6 +151,9 @@ route_reader_allowlist=(
   # The one reader of partial rows. GET /:id/sessions/mine exists to serve the
   # route page's "Your History", where a 15% approach hike is the answer.
   "cloud-sql/api/src/routes/routes.ts"
+  # Queues recordings for rematch after a geometry recompute. A partial row is
+  # exactly as stale as a complete one, so this must see every 'auto' row.
+  "web/src/lib/actions/segment-matcher.ts"
 )
 
 for reader in $route_readers; do
