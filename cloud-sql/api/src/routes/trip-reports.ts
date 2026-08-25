@@ -5,6 +5,7 @@ import admin from "firebase-admin";
 import { Pool, PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
+import { routeDoneCoverageSql } from "../route-coverage";
 
 export const TRIP_REPORT_CONDITION_CODES = [
   "snow",
@@ -290,7 +291,9 @@ async function deriveLinks(client: PoolClient, reportId: string, sessionId: stri
      SELECT $1, sr.route_id
      FROM session_routes sr
      JOIN routes r ON r.id = sr.route_id
-     WHERE sr.session_id = $2 AND r.status = 'active'
+     WHERE sr.session_id = $2
+       AND ${routeDoneCoverageSql("sr")}
+       AND r.status = 'active'
      ON CONFLICT DO NOTHING`,
     [reportId, sessionId]
   );

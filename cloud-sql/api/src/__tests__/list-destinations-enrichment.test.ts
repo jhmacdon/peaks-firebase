@@ -9,6 +9,8 @@ test("list destinations query joins best route and popular months", () => {
   assert.match(query.text, /LEFT JOIN LATERAL/);
   assert.match(query.text, /route_destinations/);
   assert.match(query.text, /session_routes/);
+  // A partial-coverage row is not a climb of the route — see route-coverage.ts.
+  assert.match(query.text, /sr\.coverage IS NULL OR sr\.coverage >= 0\.7/);
   assert.match(query.text, /r\.status = 'active'/);
   // Only Peaks-owned system routes qualify — a user's recorded route must
   // never become a peak's "standard route".
