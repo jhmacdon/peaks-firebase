@@ -123,7 +123,7 @@ npm run test:db
 - Consumes: nothing.
 - Produces: `session_routes.covered_intervals JSONB NULL` — every later task reads or writes it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `cloud-sql/api/src/__tests__/session-route-covered-intervals-migration.test.ts`:
 
@@ -174,7 +174,7 @@ describe("session_routes.covered_intervals", { skip: skipReason ?? undefined }, 
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -184,7 +184,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: FAIL — `ENOENT: no such file or directory, open '.../20260825_session_route_covered_intervals.sql'`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `cloud-sql/migrations/20260825_session_route_covered_intervals.sql`:
 
@@ -216,7 +216,7 @@ ALTER TABLE session_routes
 COMMIT;
 ```
 
-- [ ] **Step 4: Add the column to the baseline schema**
+- [x] **Step 4: Add the column to the baseline schema**
 
 In `cloud-sql/schema.sql`, replace the `session_routes` table definition:
 
@@ -247,7 +247,7 @@ CREATE TABLE session_routes (
 );
 ```
 
-- [ ] **Step 5: Re-provision the test database and run the test**
+- [x] **Step 5: Re-provision the test database and run the test**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -262,7 +262,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: PASS, 3 tests. The provision run must apply the new migration, not skip it — the skip list in `provision.sh` must not gain an entry, because a migration that fails on top of `schema.sql` is a real conflict between the two.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -299,7 +299,7 @@ change on Postgres 11+, no table rewrite, no new index. \$0/month."
   - `selectRouteMatches(rows: RouteCoverageRow[]): RouteMatch[]`
   - `routeDoneCoverageSql(alias: string): string`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `cloud-sql/api/src/__tests__/route-coverage.test.ts`:
 
@@ -450,7 +450,7 @@ test("the did-this-route predicate keeps NULL coverage rows", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -459,7 +459,7 @@ NODE_ENV=test node --test --import tsx src/__tests__/route-coverage.test.ts
 
 Expected: FAIL — `Cannot find module '../route-coverage'`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `cloud-sql/api/src/route-coverage.ts`:
 
@@ -627,7 +627,7 @@ export function routeDoneCoverageSql(alias: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -636,7 +636,7 @@ NODE_ENV=test node --test --import tsx src/__tests__/route-coverage.test.ts
 
 Expected: PASS, 15 tests.
 
-- [ ] **Step 5: Typecheck and lint**
+- [x] **Step 5: Typecheck and lint**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -645,7 +645,7 @@ npm run typecheck && npm run lint
 
 Expected: both clean.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -671,7 +671,7 @@ Nothing writes a partial row yet, so every change here is a no-op against today'
 - Consumes: `routeDoneCoverageSql` from Task 2.
 - Produces: nothing new; three query strings that carry the predicate.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `cloud-sql/api/src/__tests__/route-consumer-filters.test.ts`:
 
@@ -731,7 +731,7 @@ test("a trip report links only routes the activity actually did", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -740,7 +740,7 @@ NODE_ENV=test node --test --import tsx src/__tests__/route-consumer-filters.test
 
 Expected: FAIL — four tests, each reporting a missing predicate.
 
-- [ ] **Step 3: Filter the list popularity count**
+- [x] **Step 3: Filter the list popularity count**
 
 In `cloud-sql/api/src/routes/lists.ts`, add the import under `import db from "../db";`:
 
@@ -763,7 +763,7 @@ with:
                   AND ${routeDoneCoverageSql("sr")}) AS session_count
 ```
 
-- [ ] **Step 4: Filter the two session readers**
+- [x] **Step 4: Filter the two session readers**
 
 In `cloud-sql/api/src/routes/sessions.ts`, add to the import from `../processing`'s neighbourhood — put this line directly after `import db from "../db";`:
 
@@ -815,7 +815,7 @@ with:
        AND r.status IN ('active', 'superseded')`,
 ```
 
-- [ ] **Step 5: Filter the trip-report link derivation**
+- [x] **Step 5: Filter the trip-report link derivation**
 
 In `cloud-sql/api/src/routes/trip-reports.ts`, add after `import db from "../db";`:
 
@@ -847,7 +847,7 @@ with:
      ON CONFLICT DO NOTHING`,
 ```
 
-- [ ] **Step 6: Extend the existing list-enrichment test**
+- [x] **Step 6: Extend the existing list-enrichment test**
 
 In `cloud-sql/api/src/__tests__/list-destinations-enrichment.test.ts`, replace:
 
@@ -863,7 +863,7 @@ with:
   assert.match(query.text, /sr\.coverage IS NULL OR sr\.coverage >= 0\.7/);
 ```
 
-- [ ] **Step 7: Run the tests and watch them pass**
+- [x] **Step 7: Run the tests and watch them pass**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -873,7 +873,7 @@ npm run test:db
 
 Expected: the whole suite passes. `trip-reports-endpoints.test.ts` in particular still passes — its fixture route is stored at `coverage = 0.92`, so the new filter keeps it.
 
-- [ ] **Step 8: Typecheck, lint and commit**
+- [x] **Step 8: Typecheck, lint and commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -907,7 +907,7 @@ git commit -m "feat(api): keep partial route rows out of did-this-route reads"
 - Consumes: the same predicate text as Task 2's `routeDoneCoverageSql`.
 - Produces: `web/src/lib/route-coverage.ts` exporting `ROUTE_DONE_COVERAGE` and `routeDoneCoverageSql(alias: string): string`, byte-identical to the API's definitions.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `web/src/lib/route-coverage.test.ts`:
 
@@ -974,7 +974,7 @@ test("each web read carries its own predicate call", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/web
@@ -983,7 +983,7 @@ node --test --import tsx src/lib/route-coverage.test.ts src/lib/route-consumer-f
 
 Expected: FAIL — `Cannot find module './route-coverage'`.
 
-- [ ] **Step 3: Write the web predicate module**
+- [x] **Step 3: Write the web predicate module**
 
 Create `web/src/lib/route-coverage.ts`:
 
@@ -1003,7 +1003,7 @@ export function routeDoneCoverageSql(alias: string): string {
 }
 ```
 
-- [ ] **Step 4: Filter the three reads in `web/src/lib/actions/routes.ts`**
+- [x] **Step 4: Filter the three reads in `web/src/lib/actions/routes.ts`**
 
 Add to the imports, directly after `import { extractSubPoints } from "../segment-geometry";`:
 
@@ -1091,7 +1091,7 @@ with:
  * approach hike is real ground covered but it is not an attempt at the route.
 ```
 
-- [ ] **Step 5: Filter the session readers**
+- [x] **Step 5: Filter the session readers**
 
 In `web/src/lib/actions/sessions.ts`, add after `import db from "../db";`:
 
@@ -1157,7 +1157,7 @@ with:
          ORDER BY r.name ASC NULLS LAST`,
 ```
 
-- [ ] **Step 6: Filter the search and area popularity counts**
+- [x] **Step 6: Filter the search and area popularity counts**
 
 In `web/src/lib/actions/search.ts`, add after `import db from "../db";`:
 
@@ -1235,7 +1235,7 @@ with:
               ) AS session_count
 ```
 
-- [ ] **Step 7: Filter the web trip-report link derivation**
+- [x] **Step 7: Filter the web trip-report link derivation**
 
 In `web/src/lib/actions/trip-reports.ts`, add after `import db from "../db";`:
 
@@ -1263,7 +1263,7 @@ with:
          AND r.status = 'active'`,
 ```
 
-- [ ] **Step 8: Run the web tests, build and lint**
+- [x] **Step 8: Run the web tests, build and lint**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/web
@@ -1273,7 +1273,7 @@ npm run build && npm run lint
 
 Expected: tests pass (including the two new files), build and lint clean.
 
-- [ ] **Step 9: Add the two cross-reference invariants**
+- [x] **Step 9: Add the two cross-reference invariants**
 
 In `scripts/check-cross-refs.sh`, insert immediately before the final `if [ "$errors" -gt 0 ]; then` block:
 
@@ -1340,7 +1340,7 @@ for reader in $route_readers; do
 done
 ```
 
-- [ ] **Step 10: Run the cross-reference checks**
+- [x] **Step 10: Run the cross-reference checks**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -1349,7 +1349,7 @@ cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
 
 Expected: `Cross-refs OK`.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -1386,7 +1386,7 @@ than naming them, so the next one cannot be missed."
   - `upsertSessionRouteCoverage(q: RowQueryable, sessionId: string, matches: RouteMatch[]): Promise<number>`
   - `interface RowQueryable { query: (text: string, values?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number | null }> }`
 
-- [ ] **Step 1: Write the failing SQL-shape test**
+- [x] **Step 1: Write the failing SQL-shape test**
 
 Create `cloud-sql/api/src/__tests__/route-coverage-sql.test.ts`:
 
@@ -1428,7 +1428,7 @@ test("coverage SQL applies no gate of its own", () => {
 });
 ```
 
-- [ ] **Step 2: Write the failing gate test**
+- [x] **Step 2: Write the failing gate test**
 
 Create `cloud-sql/api/src/__tests__/route-coverage-gate.test.ts`:
 
@@ -1563,7 +1563,7 @@ describe("route write gate", { skip: skipReason ?? undefined }, () => {
 });
 ```
 
-- [ ] **Step 3: Run both tests and watch them fail**
+- [x] **Step 3: Run both tests and watch them fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -1575,7 +1575,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: FAIL — `buildRouteCoverageSql is not a function`, and the gate tests report `null` rows for the partial cases.
 
-- [ ] **Step 4: Add the coverage builder and helpers to `processing.ts`**
+- [x] **Step 4: Add the coverage builder and helpers to `processing.ts`**
 
 In `cloud-sql/api/src/processing.ts`, add to the imports after `import { matchComparisons } from "./comparisons";`:
 
@@ -1756,7 +1756,7 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -1768,7 +1768,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: PASS, 7 tests (3 SQL-shape, 4 gate).
 
-- [ ] **Step 6: Run the whole suite for regressions**
+- [x] **Step 6: Run the whole suite for regressions**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -1777,7 +1777,7 @@ npm run test:db && npm run typecheck && npm run lint
 
 Expected: green. `route-candidate-sql.test.ts` still passes untouched — Phase 1 did not change.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -1804,7 +1804,7 @@ session_routes row, with covered_intervals saying which stretch. The old
 - Consumes: `session_routes.covered_intervals` (Task 1), the rows Task 5 writes.
 - Produces: `buildRouteMySessionsQuery(routeId: string, uid: string): { text: string; values: unknown[] }` and `mapRouteSessionRow(row: any): { sessionId: string; coverage: number | null; coveredIntervals: Array<[number, number]> | null; startDate: number | null }`, both exported from `routes/routes.ts`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `cloud-sql/api/src/__tests__/route-my-sessions-endpoint.test.ts`:
 
@@ -1911,7 +1911,7 @@ describe("GET /api/routes/:id/sessions/mine", { skip: skipReason ?? undefined },
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -1921,7 +1921,7 @@ NODE_ENV=test node --test --import tsx src/__tests__/route-my-sessions-endpoint.
 
 Expected: FAIL — the authenticated requests 404 (no such route registered).
 
-- [ ] **Step 3: Add the endpoint**
+- [x] **Step 3: Add the endpoint**
 
 In `cloud-sql/api/src/routes/routes.ts`, replace the imports:
 
@@ -2007,7 +2007,7 @@ router.get("/:id/sessions/mine", asyncRoute(async (req: Request, res: Response) 
 }));
 ```
 
-- [ ] **Step 4: Allowlist the endpoint in the cross-reference check**
+- [x] **Step 4: Allowlist the endpoint in the cross-reference check**
 
 `routes/routes.ts` now reads `session_routes` without the predicate, on purpose. In `scripts/check-cross-refs.sh`, replace:
 
@@ -2025,7 +2025,7 @@ route_reader_allowlist=(
 )
 ```
 
-- [ ] **Step 5: Run the tests and the cross-reference check**
+- [x] **Step 5: Run the tests and the cross-reference check**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -2038,7 +2038,7 @@ cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
 
 Expected: 5 endpoint tests pass; typecheck, lint and `Cross-refs OK`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -2066,7 +2066,7 @@ A route whose line moved leaves every `covered_intervals` on it measured against
 - Consumes: nothing new.
 - Produces: no exported symbol — one extra statement inside the existing private `rematerializeRoute`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `web/src/lib/route-rematch-hook.test.ts`:
 
@@ -2111,7 +2111,7 @@ test("the hook adds no timer and no direct coverage maths", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/web
@@ -2120,7 +2120,7 @@ node --test --import tsx src/lib/route-rematch-hook.test.ts
 
 Expected: FAIL — no `UPDATE tracking_sessions` inside `rematerializeRoute`.
 
-- [ ] **Step 3: Add the hook**
+- [x] **Step 3: Add the hook**
 
 In `web/src/lib/actions/segment-matcher.ts`, replace the closing statement of `rematerializeRoute`:
 
@@ -2171,7 +2171,7 @@ with:
 }
 ```
 
-- [ ] **Step 4: Allowlist the hook in the cross-reference check**
+- [x] **Step 4: Allowlist the hook in the cross-reference check**
 
 The hook reads `session_routes` without the predicate — it must rematch partial rows too. In `scripts/check-cross-refs.sh`, replace:
 
@@ -2196,7 +2196,7 @@ route_reader_allowlist=(
 )
 ```
 
-- [ ] **Step 5: Run the tests, build, lint and cross-refs**
+- [x] **Step 5: Run the tests, build, lint and cross-refs**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/web
@@ -2208,7 +2208,7 @@ cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
 
 Expected: web tests pass, build and lint clean, `Cross-refs OK`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -2236,7 +2236,7 @@ timer or a second copy of the coverage maths. \$0/month."
 - Consumes: `measureSessionRouteCoverage`, `upsertSessionRouteCoverage` from Task 5.
 - Produces: `npm run backfill:route-coverage`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `cloud-sql/api/src/__tests__/backfill-route-coverage-script.test.ts`:
 
@@ -2289,7 +2289,7 @@ test("package.json exposes the backfill the way the other backfills are exposed"
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -2299,7 +2299,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: FAIL — `ENOENT: ... scripts/backfill-route-coverage.ts`.
 
-- [ ] **Step 3: Write the script**
+- [x] **Step 3: Write the script**
 
 Create `cloud-sql/api/scripts/backfill-route-coverage.ts`:
 
@@ -2434,7 +2434,7 @@ main().catch((err) => {
 });
 ```
 
-- [ ] **Step 4: Register the script**
+- [x] **Step 4: Register the script**
 
 In `cloud-sql/api/package.json`, replace:
 
@@ -2449,7 +2449,7 @@ with:
     "backfill:route-coverage": "tsx scripts/backfill-route-coverage.ts",
 ```
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -2459,7 +2459,7 @@ NODE_ENV=test node --test --import tsx \
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Prove the script runs, against the TEST database only**
+- [x] **Step 6: Prove the script runs, against the TEST database only**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -2469,7 +2469,7 @@ TEST_DATABASE_URL="postgres://peaks_test:$(gcloud secrets versions access latest
 
 Expected: it prints the two count lines and `done: ... 0 rows written`. `db.ts` refuses any `TEST_DATABASE_URL` whose database name does not end in `_test`, so this cannot reach production. **Do not run this command with `DB_*` variables pointed at `peaks`.**
 
-- [ ] **Step 7: Typecheck, lint and commit**
+- [x] **Step 7: Typecheck, lint and commit**
 
 `tsconfig.json` has `"include": ["src"]` and `npm run lint` runs `eslint src/`,
 so neither covers `scripts/` — the same as every other backfill script here.
@@ -2500,7 +2500,7 @@ service and \$0/month recurring."
 - Consumes: everything above.
 - Produces: nothing executable.
 
-- [ ] **Step 1: Add the endpoint to the API table**
+- [x] **Step 1: Add the endpoint to the API table**
 
 In `cloud-sql/CLAUDE.md`, replace:
 
@@ -2515,7 +2515,7 @@ with:
 | GET | `/api/routes/:id/sessions/mine` | The caller's own recordings on one route, newest first, with the stretch each covered (owner-only; the one reader of partial `session_routes` rows) |
 ```
 
-- [ ] **Step 2: Document what a `session_routes` row means**
+- [x] **Step 2: Document what a `session_routes` row means**
 
 In `cloud-sql/CLAUDE.md`, insert a new section directly before `## Session comparisons ("Your Efforts")`:
 
@@ -2556,7 +2556,7 @@ Historical rows are filled by `npm run backfill:route-coverage` in
 a code change.
 ```
 
-- [ ] **Step 3: Verify the docs describe the code that exists**
+- [x] **Step 3: Verify the docs describe the code that exists**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
@@ -2567,7 +2567,7 @@ grep -n "backfill:route-coverage" cloud-sql/CLAUDE.md cloud-sql/api/package.json
 
 Expected: each grep hits both files; `Cross-refs OK`.
 
-- [ ] **Step 4: Run everything one last time**
+- [x] **Step 4: Run everything one last time**
 
 ```bash
 cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history/cloud-sql/api
@@ -2581,7 +2581,7 @@ cd /Users/josiahm/projects/peaks/.worktrees/route-partial-history
 
 Expected: all green.
 
-- [ ] **Step 5: Commit, with the cost statement**
+- [x] **Step 5: Commit, with the cost statement**
 
 The repo's **Infrastructure cost discipline** rule requires an explicit $/month
 figure in the commit message and in the PR body. Use this text in both:
@@ -2600,7 +2600,7 @@ a single batched pass over existing sessions on the current db-f1-micro,
 run by hand, delayed 300 ms per session so it cannot crowd production."
 ```
 
-- [ ] **Step 6: State the cost in the PR body**
+- [x] **Step 6: State the cost in the PR body**
 
 When the PR is opened, its body must carry the same paragraph, under a
 **Cost** heading, per `CLAUDE.md`'s "Any design or config change that raises
