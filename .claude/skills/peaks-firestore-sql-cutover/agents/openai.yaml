@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peaks Firestore SQL Cutover"
+  short_description: "Audit and repair legacy Peaks data gaps"
+  default_prompt: "Use $peaks-firestore-sql-cutover to audit and repair unmigrated Peaks routes and recordings."

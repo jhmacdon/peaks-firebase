@@ -13,6 +13,7 @@
     "migrate:routes": "tsx src/index.ts --only routes",
     "migrate:sessions": "tsx src/index.ts --only sessions",
     "migrate:points": "tsx src/index.ts --only points",
+    "audit:routes-recordings": "tsx src/reconcile-routes-recordings.ts",
     "import:cai-huts": "tsx src/import-cai-huts.ts",
     "import:padus-areas": "tsx src/import-padus-areas.ts",
     "import:wa-waterfalls": "tsx src/import-osm-waterfalls-wa.ts",
