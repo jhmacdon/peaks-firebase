@@ -3,6 +3,7 @@
 
 import db from "../db";
 import { parseAreas, type ProtectedArea } from "../area-types";
+import { routeDoneCoverageSql } from "../route-coverage";
 import {
   parseRouteProvenance,
 } from "../route-provenance";
@@ -140,6 +141,7 @@ export async function getPublicSessionBundle(
          JOIN routes r ON r.id = sr.route_id
          JOIN tracking_sessions ts ON ts.id = sr.session_id
          WHERE sr.session_id = $1 AND ts.is_public = true
+           AND ${routeDoneCoverageSql("sr")}
            AND r.status IN ('active', 'superseded')
          ORDER BY r.name ASC NULLS LAST`,
         [sessionId]

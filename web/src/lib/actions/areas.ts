@@ -4,6 +4,7 @@ import type { QueryResultRow } from "pg";
 import db from "../db";
 import { verifyToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
+import { routeDoneCoverageSql } from "../route-coverage";
 import {
   normalizeAreaKind,
   parseAreaBoundary,
@@ -307,6 +308,7 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
                 SELECT count(*)::int
                 FROM session_routes sr
                 WHERE sr.route_id = r.id
+                  AND ${routeDoneCoverageSql("sr")}
               ) AS session_count
        FROM route_areas ra
        JOIN routes r ON r.id = ra.route_id

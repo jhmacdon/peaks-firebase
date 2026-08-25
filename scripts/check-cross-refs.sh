@@ -108,6 +108,67 @@ for writer in $rejection_writers; do
   fi
 done
 
+# The "did this route" predicate: the API and the web app are separate npm
+# packages and cannot share a module, so each has its own copy. Both bodies
+# must be byte-identical or a partial route row means one thing on iOS and
+# another on the web.
+api_predicate="cloud-sql/api/src/route-coverage.ts"
+web_predicate="web/src/lib/route-coverage.ts"
+if [ -f "$api_predicate" ] && [ -f "$web_predicate" ]; then
+  api_body="$(sed -n '/^export function routeDoneCoverageSql/,/^}/p' "$api_predicate")"
+  web_body="$(sed -n '/^export function routeDoneCoverageSql/,/^}/p' "$web_predicate")"
+  api_const="$(grep '^export const ROUTE_DONE_COVERAGE' "$api_predicate" || true)"
+  web_const="$(grep '^export const ROUTE_DONE_COVERAGE' "$web_predicate" || true)"
+  if [ -z "$api_body" ] || [ -z "$api_const" ] \
+     || [ "$api_body" != "$web_body" ] || [ "$api_const" != "$web_const" ]; then
+    echo "ERROR: routeDoneCoverageSql or ROUTE_DONE_COVERAGE differs between" >&2
+    echo "       $api_predicate and $web_predicate. Keep them identical." >&2
+    errors=$((errors + 1))
+  fi
+fi
+
+# session_routes readers: a row used to mean "did this route" and now can mean
+# "covered a stretch of it". Naming the known readers is not enough — the
+# design doc's own audit named two of the nine — so DISCOVER them: every
+# non-test file that SELECTs from or JOINs session_routes must apply
+# routeDoneCoverageSql, or be allowlisted with a reason. DELETE statements are
+# not reads and are excluded.
+route_readers=$(
+  grep -rn --include="*.ts" -E "(FROM|JOIN) session_routes" \
+    cloud-sql/api/src web/src 2>/dev/null \
+    | grep -v "__tests__" \
+    | grep -v "\.test\.ts:" \
+    | grep -v "DELETE FROM session_routes" \
+    | cut -d: -f1 | sort -u
+)
+
+# Readers that legitimately do NOT filter. Every entry needs a reason.
+route_reader_allowlist=()
+
+for reader in $route_readers; do
+  allowed=0
+  for entry in ${route_reader_allowlist[@]+"${route_reader_allowlist[@]}"}; do
+    if [ "$reader" = "$entry" ]; then allowed=1; fi
+  done
+
+  if [ "$allowed" -eq 1 ]; then
+    if grep -q "routeDoneCoverageSql" "$reader" 2>/dev/null; then
+      echo "ERROR: $reader is in route_reader_allowlist but already applies" >&2
+      echo "       routeDoneCoverageSql — stale allowlist entry, remove it." >&2
+      errors=$((errors + 1))
+    fi
+    continue
+  fi
+
+  if ! grep -q "routeDoneCoverageSql" "$reader" 2>/dev/null; then
+    echo "ERROR: $reader reads session_routes but never applies" >&2
+    echo "       routeDoneCoverageSql. A partial-coverage row is not a climb" >&2
+    echo "       of the route. Add the predicate, or add $reader to" >&2
+    echo "       route_reader_allowlist in $0 with the reason it reads raw." >&2
+    errors=$((errors + 1))
+  fi
+done
+
 if [ "$errors" -gt 0 ]; then
   echo "" >&2
   echo "$errors cross-reference check(s) failed." >&2

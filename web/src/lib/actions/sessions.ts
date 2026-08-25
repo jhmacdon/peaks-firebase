@@ -5,6 +5,7 @@ import db from "../db";
 import { verifyToken } from "../auth-actions";
 import { parseAreas, type ProtectedArea } from "../area-types";
 import { peaksAPI } from "../peaks-api";
+import { routeDoneCoverageSql } from "../route-coverage";
 import {
   parseRouteProvenance,
   type RouteProvenance,
@@ -381,6 +382,7 @@ export async function getSessionRoutes(
      JOIN routes r ON r.id = sr.route_id
      JOIN tracking_sessions ts ON ts.id = sr.session_id
      WHERE sr.session_id = $1
+       AND ${routeDoneCoverageSql("sr")}
        AND (ts.user_id = $2 OR ts.is_public = true)
        AND r.status IN ('active', 'superseded')
      ORDER BY r.name ASC NULLS LAST`,

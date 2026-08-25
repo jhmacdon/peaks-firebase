@@ -13,6 +13,7 @@ import {
   type RouteProvenanceInput,
 } from "../route-provenance";
 import { extractSubPoints } from "../segment-geometry";
+import { routeDoneCoverageSql } from "../route-coverage";
 import {
   chooseActivationSegmentReference,
   insertRouteSpecificActivationSegment,
@@ -247,7 +248,8 @@ export async function getRouteSessionCount(
     `SELECT COUNT(*)::int AS count
      FROM session_routes sr
      ${publicJoin}
-     WHERE sr.route_id = $1${publicFilter}`,
+     WHERE sr.route_id = $1
+       AND ${routeDoneCoverageSql("sr")}${publicFilter}`,
     [routeId]
   );
   return result.rows[0].count;
@@ -1002,9 +1004,10 @@ export async function getPendingRouteCount(): Promise<number> {
  * can't honestly answer read-only.
  *
  * A route can be matched to a session either 'manual' (no coverage
- * recorded) or 'auto' (coverage ~0.7-1 in production); both count as a real
- * attempt; there's no principled coverage cutoff that wouldn't also drop
- * legitimate manual matches, which never set coverage at all.
+ * recorded) or 'auto'. Both count as a real attempt, which is why the cutoff
+ * keeps NULL coverage — see routeDoneCoverageSql. What it does drop is the
+ * partial rows added in 2026-08 for the route page's "Your History": a 15%
+ * approach hike is real ground covered but it is not an attempt at the route.
  */
 export async function getUserRouteHistory(
   token: string,
@@ -1018,6 +1021,7 @@ export async function getUserRouteHistory(
      FROM session_routes sr
      JOIN tracking_sessions ts ON ts.id = sr.session_id
      WHERE sr.route_id = $1 AND ts.user_id = $2
+       AND ${routeDoneCoverageSql("sr")}
      ORDER BY ts.start_time ASC`,
     [routeId, user.uid]
   );
@@ -1055,6 +1059,7 @@ export async function getUserRouteHistoryBatch(
      FROM session_routes sr
      JOIN tracking_sessions ts ON ts.id = sr.session_id
      WHERE sr.route_id = ANY($1::text[]) AND ts.user_id = $2
+       AND ${routeDoneCoverageSql("sr")}
      ORDER BY ts.start_time ASC`,
     [routeIds, user.uid]
   );
