@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
+import { getUid } from "../auth";
 import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 
@@ -100,6 +101,68 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const query = buildRouteDestinationsQuery(id);
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
+}));
+
+/**
+ * The requesting user's own recordings matched to one route, newest first.
+ *
+ * The one reader of partial-coverage rows. Every other reader of
+ * session_routes filters them out (routeDoneCoverageSql), because a row there
+ * means "did this route"; here a row means "covered some of this route", which
+ * is the whole point of the route page's "Your History" section.
+ *
+ * Strictly own-data: scoped by the verified caller's uid, never a parameter,
+ * so it cannot return another user's recordings. No cross-user comparison, no
+ * leaderboard.
+ *
+ * `coverage` and `coveredIntervals` are both null on a route the user attached
+ * by hand — nothing measured it, and the user's own claim is the answer, so a
+ * client treats null as done. `coveredIntervals` is also null on a row written
+ * before 2026-08; on a row at or above 0.70 a client reads that as the whole
+ * route.
+ *
+ * `startDate` is epoch seconds. The `::bigint` cast comes back as a JS number
+ * through the global BIGINT parser in db.ts — see the wire-type policy in
+ * cloud-sql/CLAUDE.md before changing it.
+ */
+export function buildRouteMySessionsQuery(
+  routeId: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT s.id AS session_id,
+            sr.coverage,
+            sr.covered_intervals,
+            EXTRACT(EPOCH FROM s.start_time)::bigint AS start_date
+     FROM session_routes sr
+     JOIN tracking_sessions s ON s.id = sr.session_id
+     WHERE sr.route_id = $1 AND s.user_id = $2
+     ORDER BY s.start_time DESC, s.id DESC`,
+    values: [routeId, uid],
+  };
+}
+
+export function mapRouteSessionRow(row: any): {
+  sessionId: string;
+  coverage: number | null;
+  coveredIntervals: Array<[number, number]> | null;
+  startDate: number | null;
+} {
+  return {
+    sessionId: row.session_id,
+    coverage: row.coverage ?? null,
+    coveredIntervals: Array.isArray(row.covered_intervals) ? row.covered_intervals : null,
+    startDate: typeof row.start_date === "number" ? row.start_date : null,
+  };
+}
+
+// GET /api/routes/:id/sessions/mine
+router.get("/:id/sessions/mine", asyncRoute(async (req, res: Response) => {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const query = buildRouteMySessionsQuery(id, uid);
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows.map(mapRouteSessionRow));
 }));
 
 // GET /api/routes/:id/elevation — elevation profile from LineStringZ vertices

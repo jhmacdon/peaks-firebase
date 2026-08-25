@@ -133,6 +133,10 @@ fi
 # non-test file that SELECTs from or JOINs session_routes must apply
 # routeDoneCoverageSql, or be allowlisted with a reason. DELETE statements are
 # not reads and are excluded.
+#
+# The check looks for a CALL — "routeDoneCoverageSql(" — not a bare mention,
+# because a doc comment naming the helper would otherwise satisfy it. That is
+# not hypothetical: routes.ts explains in prose why it does not filter.
 route_readers=$(
   grep -rn --include="*.ts" -E "(FROM|JOIN) session_routes" \
     cloud-sql/api/src web/src 2>/dev/null \
@@ -143,7 +147,11 @@ route_readers=$(
 )
 
 # Readers that legitimately do NOT filter. Every entry needs a reason.
-route_reader_allowlist=()
+route_reader_allowlist=(
+  # The one reader of partial rows. GET /:id/sessions/mine exists to serve the
+  # route page's "Your History", where a 15% approach hike is the answer.
+  "cloud-sql/api/src/routes/routes.ts"
+)
 
 for reader in $route_readers; do
   allowed=0
@@ -152,7 +160,7 @@ for reader in $route_readers; do
   done
 
   if [ "$allowed" -eq 1 ]; then
-    if grep -q "routeDoneCoverageSql" "$reader" 2>/dev/null; then
+    if grep -q "routeDoneCoverageSql(" "$reader" 2>/dev/null; then
       echo "ERROR: $reader is in route_reader_allowlist but already applies" >&2
       echo "       routeDoneCoverageSql — stale allowlist entry, remove it." >&2
       errors=$((errors + 1))
@@ -160,7 +168,7 @@ for reader in $route_readers; do
     continue
   fi
 
-  if ! grep -q "routeDoneCoverageSql" "$reader" 2>/dev/null; then
+  if ! grep -q "routeDoneCoverageSql(" "$reader" 2>/dev/null; then
     echo "ERROR: $reader reads session_routes but never applies" >&2
     echo "       routeDoneCoverageSql. A partial-coverage row is not a climb" >&2
     echo "       of the route. Add the predicate, or add $reader to" >&2
