@@ -103,30 +103,30 @@ export default async function ListDetailPage({
 
           <Topline stats={toplineStats} />
 
-          {paragraphs.length > 0 || (sourceHref && sourceLabel) ? (
+          {paragraphs.length > 0 ? (
             <section aria-labelledby="list-about">
               <div className="max-w-[68ch] space-y-3 text-base leading-[1.7] text-ink-2">
                 {paragraphs.map((paragraph, index) => (
                   <p key={`${index}-${paragraph}`}>{paragraph}</p>
                 ))}
               </div>
-              {sourceHref && sourceLabel ? (
-                <p className="mt-3 text-[13px] text-muted">
-                  Source:{" "}
-                  <a
-                    href={sourceHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-ink-2"
-                  >
-                    {sourceLabel}
-                  </a>
-                </p>
-              ) : null}
             </section>
           ) : null}
 
           <ListRoster destinations={destinations} />
+
+          {sourceHref && sourceLabel ? (
+            <p className="text-[13px] text-muted">
+              <a
+                href={sourceHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-ink-2"
+              >
+                View on {sourceLabel}
+              </a>
+            </p>
+          ) : null}
         </div>
       </ListCompletionProvider>
     </div>
