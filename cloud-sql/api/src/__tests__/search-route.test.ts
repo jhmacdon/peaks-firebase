@@ -188,7 +188,7 @@ test("mixed search builds destination, route, and area queries", () => {
 
   assert.match(queries.destinations.text, /FROM destinations/);
   assert.match(queries.destinations.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
-  assert.match(queries.routes.text, /FROM routes r/);
+  assert.match(queries.routes.text, /JOIN routes r/);
   assert.match(queries.routes.text, /route_destinations/);
   assert.match(queries.routes.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
   assert.match(queries.areas.text, /FROM areas a/);
@@ -196,7 +196,7 @@ test("mixed search builds destination, route, and area queries", () => {
   assert.match(queries.areas.text, /route_count/);
 });
 
-test("route search parenthesizes concatenated search text before pg_trgm %", () => {
+test("route search narrows candidate IDs before loading route geometry", () => {
   const queries = buildMixedSearchQueries({
     normalizedQuery: "silver peak",
     rawQuery: "silver peak",
@@ -205,13 +205,44 @@ test("route search parenthesizes concatenated search text before pg_trgm %", () 
     limit: 20,
   });
 
-  // The % token binds tighter than || in Postgres, so an unparenthesized
-  // `a || ' ' || b % $1` concatenates a boolean into text and the WHERE
-  // clause dies with 42804 "argument of OR must be type boolean".
-  assert.match(
-    queries.routes.text,
-    /\(COALESCE\(NULLIF\(lower\(r\.name\), ''\), ''\) \|\| ' ' \|\| COALESCE\(route_dest_names\.names, ''\)\) % \$1/
-  );
+  const sql = queries.routes.text;
+  const candidateIndex = sql.indexOf("candidate_route_ids AS MATERIALIZED");
+  const routeJoinIndex = sql.indexOf("JOIN routes r ON r.id = candidate.id");
+  const destinationTextIndex = sql.indexOf("string_agg(");
+
+  assert.ok(candidateIndex >= 0, "expected a materialized candidate route set");
+  assert.ok(routeJoinIndex > candidateIndex, "expected route rows after the candidate set");
+  assert.ok(destinationTextIndex > routeJoinIndex, "expected destination text only for candidate routes");
+  assert.match(sql, /candidate_d\.search_name % \$1/);
+  assert.match(sql, /candidate_rd\.destination_id = candidate_d\.id/);
+  assert.match(sql, /COALESCE\(missing_d\.search_name, ''\) = ''/);
+  assert.doesNotMatch(whereClause(sql), /route_dest_names\.names.*% \$1/s);
+});
+
+test("2-character route search uses prefix candidates instead of trigram scans", () => {
+  const queries = buildMixedSearchQueries({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    limit: 20,
+  });
+
+  assert.match(queries.routes.text, /candidate_d\.search_name ILIKE \$2/);
+  assert.doesNotMatch(queries.routes.text, /candidate_d\.search_name % \$1/);
+  assert.match(queries.routes.text, /lower\(candidate_r\.name\) ILIKE \$2/);
+});
+
+test("2-character area search uses contiguous prefix parameters", () => {
+  const query = buildAreaSearchQuery({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    limit: 20,
+  });
+
+  assert.match(query.text, /a\.search_name ILIKE \$1/);
+  assert.match(query.text, /lower\(a\.name\) ILIKE \$2/);
+  assert.match(query.text, /LIMIT \$3/);
+  assert.doesNotMatch(query.text, /% \$1/);
+  assert.deepEqual(query.values, ["ra%", "ra%", 10]);
 });
 
 test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", () => {
@@ -222,6 +253,7 @@ test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", (
   });
 
   assert.match(query.text, /a\.search_name = ANY\(\$5::text\[\]\)/);
+  assert.doesNotMatch(whereClause(query.text), /lower\(a\.name\)/);
   assert.match(query.text, /0\.45/);
   assert.deepEqual(query.values, [
     "baker snoqualmie",
@@ -276,11 +308,11 @@ test("mixed search route returns typed result buckets", async (t) => {
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
+      if (/JOIN routes r/.test(text)) {
+        return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
+      }
       if (/FROM destinations/.test(text)) {
         return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
-      }
-      if (/FROM routes r/.test(text)) {
-        return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
       }
       if (/FROM areas a/.test(text)) {
         return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
@@ -318,11 +350,11 @@ test("mixed search degrades secondary buckets to empty on failure instead of 500
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
+      if (/JOIN routes r/.test(text)) {
+        throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
+      }
       if (/FROM destinations/.test(text)) {
         return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
-      }
-      if (/FROM routes r/.test(text)) {
-        throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
       }
       if (/FROM areas a/.test(text)) {
         return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
