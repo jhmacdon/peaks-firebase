@@ -71,4 +71,5 @@ When writing or modifying `useEffect` hooks in the web app:
 - Peaks catalog lists are common lists, not Peakbagger lists. Never label
   Peakbagger as a list's source or credit it for the list. A relevant
   Peakbagger page may remain as an external reference with wording such as
-  "View on Peakbagger."
+  "View on Peakbagger." Put that reference near the bottom of the list detail
+  page, after the roster.
