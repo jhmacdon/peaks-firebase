@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildListDestinationsQuery, mapListDestinationRow } from "../routes/lists";
+import {
+  buildListDestinationsQuery,
+  commonClimbingMonths,
+  mapListDestinationRow,
+} from "../routes/lists";
 
 test("list destinations query joins best route and popular months", () => {
   const query = buildListDestinationsQuery("cascade-volcanoes");
@@ -22,7 +26,7 @@ test("list destinations query joins best route and popular months", () => {
   assert.deepEqual(query.values, ["cascade-volcanoes"]);
 });
 
-test("mapListDestinationRow passes through route summary and computes top-2 months", () => {
+test("mapListDestinationRow passes through route summary and computes a common season", () => {
   const mapped = mapListDestinationRow({
     id: "rainier",
     name: "Mount Rainier",
@@ -46,8 +50,8 @@ test("mapListDestinationRow passes through route summary and computes top-2 mont
   assert.equal(mapped.route_distance, 14300);
   assert.equal(mapped.route_gain, 2750);
   assert.equal(mapped.route_shape, "out_and_back");
-  // jul: 55+5=60, jun: 40 → top-2 = [7, 6]
-  assert.deepEqual(mapped.popular_months, [7, 6]);
+  // Jun + Jul form the shortest majority; Aug is a balanced shoulder month.
+  assert.deepEqual(mapped.popular_months, [6, 7, 8]);
   // averages blobs are internal — not in the response
   assert.equal("averages" in mapped, false);
   assert.equal("averages_offset" in mapped, false);
@@ -74,4 +78,58 @@ test("mapListDestinationRow handles missing route and averages", () => {
 
   assert.equal(mapped.route_id, null);
   assert.deepEqual(mapped.popular_months, []);
+});
+
+test("commonClimbingMonths keeps a sharp spike to one month", () => {
+  assert.deepEqual(
+    commonClimbingMonths(
+      { months: { may: 2, jun: 3, jul: 90, aug: 3, sep: 2 } },
+      null
+    ),
+    [7]
+  );
+});
+
+test("commonClimbingMonths keeps an even five-month majority", () => {
+  assert.deepEqual(
+    commonClimbingMonths(
+      {
+        months: {
+          jan: 5, feb: 5, mar: 5, apr: 5, may: 12, jun: 12,
+          jul: 12, aug: 12, sep: 12, oct: 5, nov: 4, dec: 4,
+        },
+      },
+      null
+    ),
+    [5, 6, 7, 8, 9]
+  );
+});
+
+test("commonClimbingMonths treats December and January as adjacent", () => {
+  assert.deepEqual(
+    commonClimbingMonths(
+      { months: { oct: 3, nov: 20, dec: 30, jan: 30, feb: 20, mar: 3 } },
+      null
+    ),
+    [11, 12, 1, 2]
+  );
+});
+
+test("commonClimbingMonths rejects small and year-round samples", () => {
+  assert.deepEqual(
+    commonClimbingMonths({ months: { jun: 2, jul: 5, aug: 2 } }, null),
+    []
+  );
+  assert.deepEqual(
+    commonClimbingMonths(
+      {
+        months: {
+          jan: 10, feb: 10, mar: 10, apr: 10, may: 10, jun: 10,
+          jul: 10, aug: 10, sep: 10, oct: 10, nov: 10, dec: 10,
+        },
+      },
+      null
+    ),
+    []
+  );
 });
