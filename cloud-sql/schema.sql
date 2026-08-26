@@ -1366,6 +1366,11 @@ CREATE TABLE session_routes (
     route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
     source          TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'auto')),
     coverage        DOUBLE PRECISION,
+    -- Which stretch of the route the recording covered: [[start, end], ...]
+    -- fractions of the route linestring in [0, 1], sorted and non-overlapping.
+    -- NULL = written before the column existed (see
+    -- migrations/20260825_session_route_covered_intervals.sql).
+    covered_intervals JSONB,
     PRIMARY KEY (session_id, route_id)
 );
 

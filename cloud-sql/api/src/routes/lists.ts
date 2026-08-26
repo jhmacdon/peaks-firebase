@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import db from "../db";
+import { routeDoneCoverageSql } from "../route-coverage";
 
 const router = Router();
 
@@ -94,7 +95,8 @@ export function buildListDestinationsQuery(listId: string) {
               r.shape AS route_shape,
               r.provenance AS route_provenance,
               (SELECT COUNT(*) FROM session_routes sr
-                WHERE sr.route_id = r.id) AS session_count
+                WHERE sr.route_id = r.id
+                  AND ${routeDoneCoverageSql("sr")}) AS session_count
        FROM route_destinations rd
        JOIN routes r ON r.id = rd.route_id
        WHERE rd.destination_id = d.id AND r.status = 'active'

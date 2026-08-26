@@ -4,6 +4,7 @@
 import db from "../db";
 import { verifyToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
+import { routeDoneCoverageSql } from "../route-coverage";
 import {
   popularHeroFallbackSql,
   filteredPopularHeroFallbackSql,
@@ -540,14 +541,18 @@ export async function searchRoutes(
   const result = await db.query(
     `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
-            (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id)::int AS session_count
+            (SELECT COUNT(*) FROM session_routes sr
+              WHERE sr.route_id = r.id
+                AND ${routeDoneCoverageSql("sr")})::int AS session_count
      FROM routes r
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
        AND r.name ILIKE $1
      ORDER BY
        CASE WHEN r.name ILIKE $2 THEN 0 ELSE 1 END,
-       (SELECT COUNT(*) FROM session_routes sr WHERE sr.route_id = r.id) DESC,
+       (SELECT COUNT(*) FROM session_routes sr
+         WHERE sr.route_id = r.id
+           AND ${routeDoneCoverageSql("sr")}) DESC,
        (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id) DESC,
        r.distance ASC NULLS LAST,
        r.name ASC NULLS LAST
@@ -648,6 +653,7 @@ export async function getPopularRoutes(
             COUNT(sr.route_id)::int AS session_count
      FROM routes r
      LEFT JOIN session_routes sr ON sr.route_id = r.id
+       AND ${routeDoneCoverageSql("sr")}
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
      GROUP BY r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape

@@ -2,6 +2,12 @@ import { Pool, PoolClient } from "pg";
 import crypto from "crypto";
 import db from "./db";
 import { matchComparisons } from "./comparisons";
+import {
+  ROUTE_VERTEX_TOLERANCE_M,
+  selectRouteMatches,
+  type RouteCoverageRow,
+  type RouteMatch,
+} from "./route-coverage";
 
 export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
@@ -42,6 +48,17 @@ export interface ProcessingResult {
  */
 interface Queryable {
   query: (text: string, values?: unknown[]) => Promise<{ rowCount: number | null }>;
+}
+
+/**
+ * Row-returning query interface, so the coverage helpers accept the pool
+ * (`db`), a transaction client (`PoolClient`), or a stub in tests.
+ */
+interface RowQueryable {
+  query: (
+    text: string,
+    values?: unknown[]
+  ) => Promise<{ rows: unknown[]; rowCount: number | null }>;
 }
 
 /**
@@ -279,47 +296,150 @@ export function buildRouteCandidateSql(sessionId: string): { text: string; value
 }
 
 /**
- * Match routes the session followed using two-phase approach:
- * 1. Find candidate routes near the session's stored linestring (planar
- *    superset — see buildRouteCandidateSql).
- * 2. Compute vertex coverage — insert routes with >= 70% coverage.
+ * Build the Phase-2 coverage measurement for a session against candidate routes.
  *
- * Reads tracking_sessions.path (set by processSession Step 0) so both
- * phases run as indexed lookups instead of rebuilding the line per query.
+ * Returns one row per candidate route with:
+ *  - `length_m`    the route's own length, summed vertex to vertex
+ *  - `total_points` / `matched_points` — the coverage fraction's numerator and
+ *    denominator, unchanged in meaning from the pre-2026-08 query
+ *  - `covered_along_m` — how far along the route each covered vertex sits
+ *
+ * Distance along the route is summed here rather than taken from
+ * ST_LineLocatePoint, which is O(n) per vertex and so O(n²) per route, and
+ * rather than from planar degrees, which over-weights east-west stretches by
+ * 1/cos(latitude) — 47% at 47°N — and would tint the wrong part of the profile.
+ * `ST_Distance(..., false)` measures on the sphere instead of the spheroid:
+ * about 0.1% off, immaterial against a 500 m floor, and much cheaper. Using the
+ * summed length (rather than ST_Length or routes.distance) keeps fractions and
+ * metres exactly consistent with each other.
+ *
+ * No gate here. The merge and the gate live in route-coverage.ts so they are
+ * unit-testable without a database.
+ *
+ * Pure builder so its shape is unit-testable without a live DB.
  */
-async function matchRoutes(client: PoolClient, sessionId: string): Promise<number> {
-  // Phase 1: find candidate routes near the session track
-  const candidateSql = buildRouteCandidateSql(sessionId);
-  const candidates = await client.query(candidateSql.text, candidateSql.values);
-
-  if (candidates.rows.length === 0) {
-    return 0;
-  }
-
-  const candidateIds = candidates.rows.map((r: { id: string }) => r.id);
-
-  // Phase 2: compute coverage and insert matches
-  const result = await client.query(
-    `WITH session_track AS (
+export function buildRouteCoverageSql(
+  sessionId: string,
+  routeIds: string[]
+): { text: string; values: unknown[] } {
+  return {
+    text: `WITH session_track AS (
         SELECT s.path AS track FROM tracking_sessions s WHERE s.id = $1
     ),
     route_points AS (
-        SELECT r.id AS route_id, (ST_DumpPoints(r.path::geometry)).geom AS pt
-        FROM routes r WHERE r.id = ANY($2)
+        SELECT sub.route_id,
+               (sub.dp).path[1] AS idx,
+               (sub.dp).geom AS pt
+        FROM (
+          SELECT r.id AS route_id, ST_DumpPoints(r.path::geometry) AS dp
+          FROM routes r
+          WHERE r.id = ANY($2::text[])
+        ) sub
     ),
-    coverage AS (
-        SELECT rp.route_id,
-               COUNT(*) AS total_points,
-               COUNT(*) FILTER (WHERE ST_DWithin(rp.pt::geography, st.track, 30)) AS matched_points
+    stepped AS (
+        SELECT rp.route_id, rp.idx, rp.pt,
+               lag(rp.pt) OVER (PARTITION BY rp.route_id ORDER BY rp.idx) AS prev_pt,
+               ST_DWithin(rp.pt::geography, st.track, ${ROUTE_VERTEX_TOLERANCE_M}) AS covered
         FROM route_points rp, session_track st
-        GROUP BY rp.route_id
+    ),
+    measured AS (
+        SELECT route_id, idx, covered,
+               SUM(
+                 CASE WHEN prev_pt IS NULL THEN 0
+                      ELSE ST_Distance(pt::geography, prev_pt::geography, false)
+                 END
+               ) OVER (PARTITION BY route_id ORDER BY idx
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS along_m
+        FROM stepped
     )
-    INSERT INTO session_routes (session_id, route_id, source, coverage)
-    SELECT $1, route_id, 'auto', matched_points::float / total_points
-    FROM coverage
-    WHERE matched_points::float / NULLIF(total_points, 0) >= 0.70
-    ON CONFLICT (session_id, route_id) DO NOTHING`,
-    [sessionId, candidateIds]
+    SELECT route_id,
+           MAX(along_m) AS length_m,
+           COUNT(*) AS total_points,
+           COUNT(*) FILTER (WHERE covered) AS matched_points,
+           COALESCE(
+             array_agg(along_m ORDER BY idx) FILTER (WHERE covered),
+             ARRAY[]::double precision[]
+           ) AS covered_along_m
+    FROM measured
+    GROUP BY route_id`,
+    values: [sessionId, routeIds],
+  };
+}
+
+/**
+ * Measure one session against every active route near its track and return the
+ * rows that clear the write gate. Read-only — the caller decides how to write,
+ * because processSession and the backfill script differ on conflicts.
+ */
+export async function measureSessionRouteCoverage(
+  q: RowQueryable,
+  sessionId: string
+): Promise<RouteMatch[]> {
+  const candidateSql = buildRouteCandidateSql(sessionId);
+  const candidates = await q.query(candidateSql.text, candidateSql.values);
+  if (candidates.rows.length === 0) return [];
+
+  const candidateIds = (candidates.rows as Array<{ id: string }>).map((r) => r.id);
+  const coverageSql = buildRouteCoverageSql(sessionId, candidateIds);
+  const measured = await q.query(coverageSql.text, coverageSql.values);
+  return selectRouteMatches(measured.rows as RouteCoverageRow[]);
+}
+
+/**
+ * Refresh coverage and covered_intervals on rows that already exist, adding any
+ * that do not. Only 'auto' rows are updated: a 'manual' row is the user saying
+ * they did this route, and overwriting its NULL coverage with a measured 0.15
+ * would delete their own claim from session detail.
+ *
+ * Used by scripts/backfill-route-coverage.ts. processSession does NOT use it —
+ * it clears its 'auto' rows first, so DO NOTHING is the right conflict there.
+ */
+export async function upsertSessionRouteCoverage(
+  q: RowQueryable,
+  sessionId: string,
+  matches: RouteMatch[]
+): Promise<number> {
+  if (matches.length === 0) return 0;
+  const result = await q.query(
+    `INSERT INTO session_routes (session_id, route_id, source, coverage, covered_intervals)
+     SELECT $1::text, m.route_id, 'auto', m.coverage, m.covered_intervals
+     FROM jsonb_to_recordset($2::jsonb)
+       AS m(route_id text, coverage double precision, covered_intervals jsonb)
+     ON CONFLICT (session_id, route_id) DO UPDATE
+       SET coverage = EXCLUDED.coverage,
+           covered_intervals = EXCLUDED.covered_intervals
+       WHERE session_routes.source = 'auto'`,
+    [sessionId, JSON.stringify(matches)]
+  );
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Match routes the session followed using two phases:
+ * 1. Find candidate routes near the session's stored linestring (planar
+ *    superset — see buildRouteCandidateSql).
+ * 2. Measure each candidate (buildRouteCoverageSql), merge the covered vertices
+ *    into intervals and apply the write gate (route-coverage.ts): a row is
+ *    written when at least 500 m of the route was covered OR coverage reached
+ *    0.70. Before 2026-08 the gate was 0.70 alone, so an approach hike of a
+ *    long trail produced nothing at all.
+ *
+ * Reads tracking_sessions.path (set by processSession Step 0) so both phases
+ * run as indexed lookups instead of rebuilding the line per query. Step 1 of
+ * processSession has already deleted this session's 'auto' rows, so the
+ * conflict clause only guards rows the user attached by hand.
+ */
+async function matchRoutes(client: PoolClient, sessionId: string): Promise<number> {
+  const matches = await measureSessionRouteCoverage(client, sessionId);
+  if (matches.length === 0) return 0;
+
+  const result = await client.query(
+    `INSERT INTO session_routes (session_id, route_id, source, coverage, covered_intervals)
+     SELECT $1::text, m.route_id, 'auto', m.coverage, m.covered_intervals
+     FROM jsonb_to_recordset($2::jsonb)
+       AS m(route_id text, coverage double precision, covered_intervals jsonb)
+     ON CONFLICT (session_id, route_id) DO NOTHING`,
+    [sessionId, JSON.stringify(matches)]
   );
   return result.rowCount ?? 0;
 }

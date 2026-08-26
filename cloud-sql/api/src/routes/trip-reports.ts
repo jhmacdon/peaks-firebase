@@ -5,6 +5,7 @@ import admin from "firebase-admin";
 import { Pool, PoolClient } from "pg";
 import { getUid } from "../auth";
 import db from "../db";
+import { routeDoneCoverageSql } from "../route-coverage";
 
 export const TRIP_REPORT_CONDITION_CODES = [
   "snow",
@@ -283,6 +284,7 @@ export const TRIP_REPORT_ROUTE_COPY_SQL = `INSERT INTO trip_report_routes (repor
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
   WHERE sr.session_id = $2
+    AND ${routeDoneCoverageSql("sr")}
     AND r.owner = 'peaks'
     AND r.status = 'active'
   ON CONFLICT DO NOTHING`;

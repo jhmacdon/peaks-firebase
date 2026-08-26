@@ -6,6 +6,7 @@ import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
 import db from "../db";
 import { buildPhotoSyncPlan, photoRowToBlock } from "../trip-report-photo-sync";
+import { routeDoneCoverageSql } from "../route-coverage";
 
 export interface TripReportCondition {
   code: string;
@@ -376,6 +377,7 @@ export async function createTripReport(
        SELECT $1, sr.route_id FROM session_routes sr
        JOIN routes r ON r.id = sr.route_id
        WHERE sr.session_id = $2
+         AND ${routeDoneCoverageSql("sr")}
          AND r.owner = 'peaks'
          AND r.status = 'active'`,
       [id, data.sessionId]

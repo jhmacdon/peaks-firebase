@@ -880,4 +880,27 @@ async function rematerializeRoute(client: any, routeId: string): Promise<void> {
      WHERE id = $6`,
     [wkt, poly, Math.round(dist), elev.gain, elev.loss, routeId]
   );
+
+  // The line moved, so every auto-matched recording on this route now carries
+  // coverage and covered_intervals measured against the OLD geometry — stale
+  // intervals would tint the wrong stretch of the elevation profile. Hand
+  // those recordings to the API's existing stuck-session sweep (Cloud
+  // Scheduler → POST /internal/sweep, every 2 minutes, 50 per run) instead of
+  // recomputing here: processSession is idempotent and owns the one
+  // implementation of the coverage maths, and the sweep runs inside a request
+  // that already exists. No new service, no timer, $0/month.
+  //
+  // 'manual' rows are the user's own claim and are left alone, as they are
+  // everywhere else. A session mid-run keeps its claim; the next sweep gets it.
+  await client.query(
+    `UPDATE tracking_sessions
+     SET processing_state = 'pending', processing_error = NULL
+     WHERE ended = true
+       AND processing_state <> 'processing'
+       AND id IN (
+         SELECT sr.session_id FROM session_routes sr
+         WHERE sr.route_id = $1 AND sr.source = 'auto'
+       )`,
+    [routeId]
+  );
 }
