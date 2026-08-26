@@ -112,14 +112,13 @@ export default async function ListDetailPage({
               </div>
               {sourceHref && sourceLabel ? (
                 <p className="mt-3 text-[13px] text-muted">
-                  Source:{" "}
                   <a
                     href={sourceHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline hover:text-ink-2"
                   >
-                    {sourceLabel}
+                    View on {sourceLabel}
                   </a>
                 </p>
               ) : null}

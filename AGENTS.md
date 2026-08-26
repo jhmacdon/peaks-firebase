@@ -65,3 +65,10 @@ When writing or modifying `useEffect` hooks in the web app:
 - Node 20 runtime
 - Secrets stored via `functions.config()` (not hardcoded) — never commit secrets
 - `functions/functions/` is a legacy nested directory — do not use it
+
+## List External References
+
+- Peaks catalog lists are common lists, not Peakbagger lists. Never label
+  Peakbagger as a list's source or credit it for the list. A relevant
+  Peakbagger page may remain as an external reference with wording such as
+  "View on Peakbagger."
