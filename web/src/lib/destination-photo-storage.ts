@@ -3,12 +3,18 @@ import { isIP } from "node:net";
 import { getStorage } from "firebase-admin/storage";
 import sharp from "sharp";
 import "./firebase-admin";
+import { destinationPhotoDimensionError } from "./destination-photo-quality";
 
 const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 80_000_000;
-const MIN_SOURCE_WIDTH = 1_600;
-const MIN_SOURCE_HEIGHT = 900;
 const MAX_OUTPUT_EDGE = 2_400;
+
+export class DestinationPhotoSourceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DestinationPhotoSourceError";
+  }
+}
 
 export interface StoredDestinationPhoto {
   url: string;
@@ -68,7 +74,7 @@ export function assertRemoteImageUrl(rawUrl: string): URL {
   const url = new URL(rawUrl);
   const hostname = url.hostname.toLowerCase();
   if (url.protocol !== "https:") {
-    throw new Error("Photo source must use HTTPS");
+    throw new DestinationPhotoSourceError("Photo source must use HTTPS");
   }
   if (
     hostname === "localhost" ||
@@ -77,7 +83,7 @@ export function assertRemoteImageUrl(rawUrl: string): URL {
     hostname.endsWith(".internal") ||
     isPrivateIp(hostname)
   ) {
-    throw new Error("Photo source must be a public host");
+    throw new DestinationPhotoSourceError("Photo source must be a public host");
   }
   return url;
 }
@@ -118,24 +124,34 @@ async function downloadSourceImage(rawUrl: string): Promise<Buffer> {
       });
       if (response.status < 300 || response.status >= 400) break;
       const location = response.headers.get("location");
-      if (!location) throw new Error("Photo source returned a redirect without a location");
-      if (redirects === 5) throw new Error("Photo source redirected too many times");
+      if (!location) {
+        throw new DestinationPhotoSourceError(
+          "Photo source returned a redirect without a location"
+        );
+      }
+      if (redirects === 5) {
+        throw new DestinationPhotoSourceError("Photo source redirected too many times");
+      }
       url = assertRemoteImageUrl(new URL(location, url).toString());
     }
     if (!response?.ok) {
-      throw new Error(`Photo download failed with HTTP ${response?.status || "unknown"}`);
+      throw new DestinationPhotoSourceError(
+        `Photo download failed with HTTP ${response?.status || "unknown"}`
+      );
     }
 
     const contentType = response.headers.get("content-type");
     if (contentType && !contentType.toLowerCase().startsWith("image/")) {
-      throw new Error(`Photo source returned ${contentType}, not an image`);
+      throw new DestinationPhotoSourceError("Photo source did not return an image");
     }
     const contentLength = Number(response.headers.get("content-length") || 0);
     if (contentLength > MAX_SOURCE_BYTES) {
-      throw new Error("Photo source is larger than 40 MB");
+      throw new DestinationPhotoSourceError("Photo source is larger than 40 MB");
     }
 
-    if (!response.body) throw new Error("Photo source returned an empty response");
+    if (!response.body) {
+      throw new DestinationPhotoSourceError("Photo source returned an empty response");
+    }
     const reader = response.body.getReader();
     const chunks: Buffer[] = [];
     let bytes = 0;
@@ -145,14 +161,20 @@ async function downloadSourceImage(rawUrl: string): Promise<Buffer> {
       bytes += value.byteLength;
       if (bytes > MAX_SOURCE_BYTES) {
         await reader.cancel();
-        throw new Error("Photo source is larger than 40 MB");
+        throw new DestinationPhotoSourceError("Photo source is larger than 40 MB");
       }
       chunks.push(Buffer.from(value));
     }
     if (bytes === 0) {
-      throw new Error("Photo source is empty or larger than 40 MB");
+      throw new DestinationPhotoSourceError("Photo source is empty");
     }
     return Buffer.concat(chunks, bytes);
+  } catch (error) {
+    if (error instanceof DestinationPhotoSourceError) throw error;
+    if (controller.signal.aborted) {
+      throw new DestinationPhotoSourceError("Photo download timed out");
+    }
+    throw new DestinationPhotoSourceError("Could not download the source photo");
   } finally {
     clearTimeout(timeout);
   }
@@ -166,11 +188,8 @@ export async function renderDestinationPhoto(
   const swapsAxes = metadata.orientation != null && metadata.orientation >= 5;
   const width = swapsAxes ? metadata.height || 0 : metadata.width || 0;
   const height = swapsAxes ? metadata.width || 0 : metadata.height || 0;
-  if (width < MIN_SOURCE_WIDTH || height < MIN_SOURCE_HEIGHT) {
-    throw new Error(
-      `Photo is ${width}×${height}; covers must be at least ${MIN_SOURCE_WIDTH}×${MIN_SOURCE_HEIGHT}`
-    );
-  }
+  const dimensionError = destinationPhotoDimensionError(width, height);
+  if (dimensionError) throw new DestinationPhotoSourceError(dimensionError);
   const output = await source
     .rotate()
     .resize({

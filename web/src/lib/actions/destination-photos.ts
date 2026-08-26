@@ -6,10 +6,13 @@ import db from "../db";
 import { verifyAdminToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
 import {
+  DestinationPhotoSourceError,
   deleteStoredDestinationPhoto,
   storeDestinationPhoto,
   type StoredDestinationPhoto,
 } from "../destination-photo-storage";
+import { destinationPhotoActionErrorMessage } from "../destination-photo-action-error";
+import { destinationPhotoDimensionError } from "../destination-photo-quality";
 import {
   approvedDestinationPhotoFraming,
   destinationPhotoPageBounds,
@@ -65,8 +68,8 @@ export interface NewDestinationPhotoCandidate {
   photographer: string;
   licenseName: string;
   licenseUrl: string;
-  imageWidth?: number | null;
-  imageHeight?: number | null;
+  imageWidth: number;
+  imageHeight: number;
   focalX?: number;
   focalY?: number;
   notes?: string | null;
@@ -78,6 +81,18 @@ export interface PhotoDestinationSearchResult {
   state_code: string | null;
   country_code: string | null;
 }
+
+export type DestinationPhotoCandidateAddResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
+
+export type DestinationPhotoReviewResult =
+  | {
+      ok: true;
+      status: DestinationPhotoStatus;
+      finalImageUrl: string | null;
+    }
+  | { ok: false; error: string };
 
 function requiredText(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -100,11 +115,10 @@ function httpsUrl(value: unknown, label: string): string {
   return url.toString();
 }
 
-function optionalPositiveInt(value: unknown, label: string): number | null {
-  if (value == null || value === "") return null;
+function positiveInt(value: unknown, label: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive whole number`);
+    throw new DestinationPhotoSourceError(`${label} must be a positive whole number`);
   }
   return parsed;
 }
@@ -220,7 +234,7 @@ export async function searchDestinationsForPhotoCandidate(
   return result.rows;
 }
 
-export async function addDestinationPhotoCandidate(
+async function performAddDestinationPhotoCandidate(
   token: string,
   input: NewDestinationPhotoCandidate
 ): Promise<{ id: string }> {
@@ -232,8 +246,10 @@ export async function addDestinationPhotoCandidate(
   const photographer = requiredText(input.photographer, "Photographer");
   const licenseName = requiredText(input.licenseName, "License");
   const licenseUrl = httpsUrl(input.licenseUrl, "License URL");
-  const imageWidth = optionalPositiveInt(input.imageWidth, "Image width");
-  const imageHeight = optionalPositiveInt(input.imageHeight, "Image height");
+  const imageWidth = positiveInt(input.imageWidth, "Image width");
+  const imageHeight = positiveInt(input.imageHeight, "Image height");
+  const dimensionError = destinationPhotoDimensionError(imageWidth, imageHeight);
+  if (dimensionError) throw new DestinationPhotoSourceError(dimensionError);
   const photoFraming = framing({
     focalX: input.focalX ?? 50,
     focalY: input.focalY ?? 50,
@@ -271,6 +287,25 @@ export async function addDestinationPhotoCandidate(
     throw error;
   }
   return { id };
+}
+
+export async function addDestinationPhotoCandidate(
+  token: string,
+  input: NewDestinationPhotoCandidate
+): Promise<DestinationPhotoCandidateAddResult> {
+  try {
+    const result = await performAddDestinationPhotoCandidate(token, input);
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Destination photo candidate add failed", { error });
+    return {
+      ok: false,
+      error: destinationPhotoActionErrorMessage(
+        error,
+        "Could not add this photo. Try again."
+      ),
+    };
+  }
 }
 
 export async function updateDestinationPhotoCandidateFraming(
@@ -322,7 +357,7 @@ async function lockCandidate(client: PoolClient, id: string): Promise<Record<str
   return result.rows[0] || null;
 }
 
-export async function reviewDestinationPhotoCandidate(
+async function performDestinationPhotoReview(
   token: string,
   candidateId: string,
   decision: DestinationPhotoDecision,
@@ -453,5 +488,37 @@ export async function reviewDestinationPhotoCandidate(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+export async function reviewDestinationPhotoCandidate(
+  token: string,
+  candidateId: string,
+  decision: DestinationPhotoDecision,
+  reviewNote?: string | null,
+  requestedFraming?: DestinationPhotoFraming
+): Promise<DestinationPhotoReviewResult> {
+  try {
+    const result = await performDestinationPhotoReview(
+      token,
+      candidateId,
+      decision,
+      reviewNote,
+      requestedFraming
+    );
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Destination photo review failed", {
+      candidateId,
+      decision,
+      error,
+    });
+    return {
+      ok: false,
+      error: destinationPhotoActionErrorMessage(
+        error,
+        "Could not review this photo. Try again."
+      ),
+    };
   }
 }

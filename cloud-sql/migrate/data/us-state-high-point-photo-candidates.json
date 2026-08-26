@@ -395,17 +395,17 @@
     {
       "destinationId": "1EaR9QJoygBC8vWPfTDE",
       "destinationName": "White Butte",
-      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c0/White_butte_%281%29.JPG",
-      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:White_butte_(1).JPG",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2f/White-butte.jpg_-_panoramio.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:White-butte.jpg_-_panoramio.jpg",
       "sourceKind": "wikimedia_commons",
-      "photographer": "Bjr97543",
-      "licenseName": "Public domain",
-      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
-      "imageWidth": 1450,
-      "imageHeight": 1088,
+      "photographer": "Good Free Photos",
+      "licenseName": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "imageWidth": 3212,
+      "imageHeight": 2224,
       "focalX": 50,
       "focalY": 50,
-      "notes": "Clear high-point landscape checked at 2:1 and square crops."
+      "notes": "High-resolution White Butte landscape checked at 2:1 and square crops."
     },
     {
       "destinationId": "1lrwdkDBTztxH3kf11ri",
