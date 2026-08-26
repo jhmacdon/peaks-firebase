@@ -247,6 +247,11 @@ CREATE TABLE destination_photo_candidates (
     reviewed_by     TEXT,
     reviewed_at     TIMESTAMPTZ,
     review_note     TEXT,
+    reviewer_comment             TEXT,
+    reviewer_comment_by          TEXT,
+    reviewer_comment_updated_at  TIMESTAMPTZ,
+    reviewer_comment_resolved_by TEXT,
+    reviewer_comment_resolved_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -271,6 +276,11 @@ CREATE TABLE destination_photo_candidates (
 
 CREATE INDEX idx_destination_photo_candidates_review_queue
     ON destination_photo_candidates (status, created_at, id);
+
+CREATE INDEX idx_destination_photo_candidates_open_comments
+    ON destination_photo_candidates (reviewer_comment_updated_at DESC, id)
+    WHERE reviewer_comment IS NOT NULL
+      AND reviewer_comment_resolved_at IS NULL;
 
 -- ---------------------------------------------------------------------------
 -- lists

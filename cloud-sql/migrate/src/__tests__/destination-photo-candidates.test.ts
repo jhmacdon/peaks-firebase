@@ -141,6 +141,14 @@ test("schema migration makes review final and indexed", () => {
   );
   assert.match(framingMigration, /hero_image_focal_x[\s\S]*BETWEEN 0 AND 100/);
   assert.match(framingMigration, /hero_image_focal_y[\s\S]*BETWEEN 0 AND 100/);
+  const commentsMigration = readFileSync(
+    path.resolve(__dirname, "../../../migrations/20260826_destination_photo_comments.sql"),
+    "utf8"
+  );
+  assert.match(commentsMigration, /reviewer_comment TEXT/);
+  assert.match(commentsMigration, /reviewer_comment_resolved_at TIMESTAMPTZ/);
+  assert.match(commentsMigration, /idx_destination_photo_candidates_open_comments/);
+  assert.match(commentsMigration, /reviewer_comment_resolved_at IS NULL/);
 });
 
 test("reviewed Cascade manifest has one usable candidate for all 20 destinations", () => {
