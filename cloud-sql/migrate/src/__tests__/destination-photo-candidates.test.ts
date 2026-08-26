@@ -111,8 +111,8 @@ test("manifest parser rejects candidates below the cover quality bar", () => {
     focalY: 25,
   };
   for (const dimensions of [
-    { imageWidth: 1599, imageHeight: 900 },
-    { imageWidth: 1600, imageHeight: 899 },
+    { imageWidth: 899, imageHeight: 500 },
+    { imageWidth: 900, imageHeight: 499 },
   ]) {
     assert.throws(
       () => parseDestinationPhotoManifest({

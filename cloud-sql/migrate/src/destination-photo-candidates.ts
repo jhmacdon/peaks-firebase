@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
-const MIN_PHOTO_WIDTH = 1_600;
-const MIN_PHOTO_HEIGHT = 900;
+const MIN_PHOTO_WIDTH = 900;
+const MIN_PHOTO_HEIGHT = 500;
 
 export interface DestinationPhotoManifestCandidate {
   destinationId: string;
