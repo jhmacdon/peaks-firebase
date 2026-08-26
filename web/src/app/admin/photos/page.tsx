@@ -13,11 +13,14 @@ import { useAuth } from "../../../lib/auth-context";
 import {
   addDestinationPhotoCandidate,
   getDestinationPhotoCandidates,
+  resolveDestinationPhotoCandidateComment,
   reviewDestinationPhotoCandidate,
   searchDestinationsForPhotoCandidate,
+  updateDestinationPhotoCandidateComment,
   updateDestinationPhotoCandidateFraming,
   type DestinationPhotoCandidate,
   type DestinationPhotoDecision,
+  type DestinationPhotoListFilter,
   type DestinationPhotoStatus,
   type PhotoDestinationSearchResult,
 } from "../../../lib/actions/destination-photos";
@@ -32,8 +35,9 @@ import {
   requestedDestinationPhotoFraming,
 } from "../../../lib/destination-photo-review";
 
-const STATUS_TABS: { id: DestinationPhotoStatus; label: string }[] = [
+const STATUS_TABS: { id: DestinationPhotoListFilter; label: string }[] = [
   { id: "pending", label: "Pending" },
+  { id: "comments", label: "Open comments" },
   { id: "approved", label: "Approved" },
   { id: "denied", label: "Denied" },
 ];
@@ -59,7 +63,7 @@ export default function AdminPhotosPage() {
 
 function PhotoReviewContent() {
   const { getIdToken } = useAuth();
-  const [status, setStatus] = useState<DestinationPhotoStatus>("pending");
+  const [filter, setFilter] = useState<DestinationPhotoListFilter>("pending");
   const [candidates, setCandidates] = useState<DestinationPhotoCandidate[]>([]);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -75,7 +79,7 @@ function PhotoReviewContent() {
       if (!token) throw new Error("Sign in again to review photos");
       const result = await getDestinationPhotoCandidates(
         token,
-        status,
+        filter,
         page,
         DESTINATION_PHOTO_PAGE_SIZE
       );
@@ -87,7 +91,7 @@ function PhotoReviewContent() {
     } finally {
       setLoading(false);
     }
-  }, [getIdToken, page, status]);
+  }, [filter, getIdToken, page]);
 
   useEffect(() => {
     void loadCandidates();
@@ -113,7 +117,7 @@ function PhotoReviewContent() {
         <AddCandidateForm
           onAdded={() => {
             setShowAddForm(false);
-            if (status === "pending") {
+            if (filter === "pending") {
               if (page === 0) {
                 void loadCandidates();
               } else {
@@ -121,7 +125,7 @@ function PhotoReviewContent() {
               }
             } else {
               setPage(0);
-              setStatus("pending");
+              setFilter("pending");
             }
           }}
         />
@@ -130,10 +134,10 @@ function PhotoReviewContent() {
       <section className="mt-10" aria-label="Photo review queue">
         <Tabs
           items={STATUS_TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
-          value={status}
+          value={filter}
           onChange={(value) => {
             setPage(0);
-            setStatus(value as DestinationPhotoStatus);
+            setFilter(value as DestinationPhotoListFilter);
           }}
         />
 
@@ -144,8 +148,12 @@ function PhotoReviewContent() {
         ) : candidates.length === 0 ? (
           <EmptyState
             className="mt-6"
-            title={`No ${status} photo candidates`}
-            description="Candidates will appear here when they enter this review state."
+            title={filter === "comments" ? "No open comments" : `No ${filter} photo candidates`}
+            description={
+              filter === "comments"
+                ? "Comments disappear from this view after they are marked handled."
+                : "Candidates will appear here when they enter this review state."
+            }
           />
         ) : (
           <>
@@ -161,8 +169,11 @@ function PhotoReviewContent() {
                 <PhotoCandidateCard
                   key={candidate.id}
                   candidate={candidate}
-                  reviewEnabled={status === "pending"}
+                  reviewEnabled={candidate.status === "pending"}
                   onFinalized={() => void loadCandidates()}
+                  onCommentChanged={() => {
+                    if (filter === "comments") void loadCandidates();
+                  }}
                 />
               ))}
             </div>
@@ -474,10 +485,12 @@ function PhotoCandidateCard({
   candidate,
   reviewEnabled,
   onFinalized,
+  onCommentChanged,
 }: {
   candidate: DestinationPhotoCandidate;
   reviewEnabled: boolean;
   onFinalized: (id: string) => void;
+  onCommentChanged: () => void;
 }) {
   const { getIdToken } = useAuth();
   const [reviewing, setReviewing] = useState<DestinationPhotoDecision | null>(null);
@@ -486,9 +499,22 @@ function PhotoCandidateCard({
   const [savedFocalX, setSavedFocalX] = useState(candidate.focal_x);
   const [savedFocalY, setSavedFocalY] = useState(candidate.focal_y);
   const [savingFraming, setSavingFraming] = useState(false);
+  const [comment, setComment] = useState(candidate.reviewer_comment ?? "");
+  const [savedComment, setSavedComment] = useState(candidate.reviewer_comment ?? "");
+  const [commentUpdatedAt, setCommentUpdatedAt] = useState(
+    candidate.reviewer_comment_updated_at
+  );
+  const [commentResolvedAt, setCommentResolvedAt] = useState(
+    candidate.reviewer_comment_resolved_at
+  );
+  const [commentEditorOpen, setCommentEditorOpen] = useState(
+    Boolean(candidate.reviewer_comment)
+  );
+  const [savingComment, setSavingComment] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const framingChanged = focalX !== savedFocalX || focalY !== savedFocalY;
+  const commentChanged = comment.trim() !== savedComment;
 
   const saveFraming = async () => {
     setSavingFraming(true);
@@ -531,6 +557,43 @@ function PhotoCandidateCard({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Review failed");
       setReviewing(null);
+    }
+  };
+
+  const saveComment = async () => {
+    setSavingComment(true);
+    setError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again to save this comment");
+      const saved = await updateDestinationPhotoCandidateComment(token, candidate.id, comment);
+      const savedText = saved.comment ?? "";
+      setComment(savedText);
+      setSavedComment(savedText);
+      setCommentUpdatedAt(saved.updatedAt);
+      setCommentResolvedAt(saved.resolvedAt);
+      if (!savedText) setCommentEditorOpen(false);
+      onCommentChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save comment");
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
+  const markCommentHandled = async () => {
+    setSavingComment(true);
+    setError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again to handle this comment");
+      const saved = await resolveDestinationPhotoCandidateComment(token, candidate.id);
+      setCommentResolvedAt(saved.resolvedAt);
+      onCommentChanged();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not mark comment handled");
+    } finally {
+      setSavingComment(false);
     }
   };
 
@@ -592,6 +655,100 @@ function PhotoCandidateCard({
         </div>
 
         {candidate.notes ? <p className="mt-4 max-w-[68ch] text-sm text-ink-2">{candidate.notes}</p> : null}
+
+        {commentEditorOpen || savedComment ? (
+          <section
+            className="mt-6 rounded-media border border-border bg-surface p-4 sm:p-5"
+            aria-labelledby={`reviewer-comment-${candidate.id}`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 id={`reviewer-comment-${candidate.id}`} className="font-medium text-ink">
+                  Reviewer comment
+                </h3>
+                <p className="mt-1 max-w-[68ch] text-sm text-muted">
+                  Leave work here, then ask me to handle your image comments. Saving an edit reopens a handled comment.
+                </p>
+              </div>
+              {savedComment ? (
+                <Badge tone={commentResolvedAt ? "gray" : "amber"}>
+                  {commentResolvedAt ? "Handled" : "Open"}
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="mt-4">
+              <Label htmlFor={`reviewer-comment-input-${candidate.id}`}>Comment</Label>
+              <Textarea
+                id={`reviewer-comment-input-${candidate.id}`}
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                rows={3}
+                maxLength={2_000}
+                placeholder="For example: This is the wrong peak. Find a clear view of the northeast face."
+              />
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted">
+                {commentUpdatedAt
+                  ? `Last saved ${new Date(commentUpdatedAt).toLocaleString()}`
+                  : "No comment saved"}
+              </p>
+              <div className="flex gap-2">
+                {savedComment && !commentResolvedAt && !commentChanged ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={markCommentHandled}
+                    disabled={savingComment}
+                  >
+                    {savingComment ? "Saving…" : "Mark handled"}
+                  </Button>
+                ) : null}
+                {!savedComment ? (
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    size="sm"
+                    onClick={() => {
+                      setComment("");
+                      setCommentEditorOpen(false);
+                    }}
+                    disabled={savingComment}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveComment}
+                  disabled={!commentChanged || savingComment}
+                >
+                  {savingComment
+                    ? "Saving…"
+                    : savedComment && !comment.trim()
+                      ? "Remove comment"
+                      : "Save comment"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-5">
+            <p className="text-sm text-muted">Need a change? Leave a task for the next photo pass.</p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setCommentEditorOpen(true)}
+            >
+              Add comment
+            </Button>
+          </div>
+        )}
 
         {reviewEnabled ? (
           <section className="mt-8" aria-labelledby={`framing-${candidate.id}`}>
