@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 
+const MIN_PHOTO_WIDTH = 1_600;
+const MIN_PHOTO_HEIGHT = 900;
+
 export interface DestinationPhotoManifestCandidate {
   destinationId: string;
   destinationName: string;
@@ -48,6 +51,14 @@ function positiveInt(value: unknown, path: string): number {
     throw new Error(`${path} must be a positive whole number`);
   }
   return Number(value);
+}
+
+function minimumDimension(value: unknown, path: string, minimum: number): number {
+  const parsed = positiveInt(value, path);
+  if (parsed < minimum) {
+    throw new Error(`${path} must be at least ${minimum}`);
+  }
+  return parsed;
 }
 
 function percentInt(value: unknown, path: string): number {
@@ -110,8 +121,16 @@ export function parseDestinationPhotoManifest(value: unknown): DestinationPhotoM
       photographer: requiredString(candidate.photographer, `${path}.photographer`),
       licenseName: requiredString(candidate.licenseName, `${path}.licenseName`),
       licenseUrl: httpsUrl(candidate.licenseUrl, `${path}.licenseUrl`),
-      imageWidth: positiveInt(candidate.imageWidth, `${path}.imageWidth`),
-      imageHeight: positiveInt(candidate.imageHeight, `${path}.imageHeight`),
+      imageWidth: minimumDimension(
+        candidate.imageWidth,
+        `${path}.imageWidth`,
+        MIN_PHOTO_WIDTH
+      ),
+      imageHeight: minimumDimension(
+        candidate.imageHeight,
+        `${path}.imageHeight`,
+        MIN_PHOTO_HEIGHT
+      ),
       focalX: percentInt(candidate.focalX, `${path}.focalX`),
       focalY: percentInt(candidate.focalY, `${path}.focalY`),
       ...(notes ? { notes } : {}),

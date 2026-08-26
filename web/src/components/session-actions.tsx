@@ -16,6 +16,7 @@ import { buildSessionGpx } from "../lib/session-track";
 import { Button } from "./ui/button";
 import { Input, Label, Select } from "./ui/field";
 import { SectionHeading } from "./ui/section-heading";
+import { resolveShareUrl } from "./share-link-utils";
 
 function safeFilename(name: string): string {
   const cleaned = name
@@ -56,6 +57,9 @@ export default function SessionActions({
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmPublishToShare, setConfirmPublishToShare] = useState(false);
+  const [readyToShare, setReadyToShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isOwner = user?.uid === session.user_id;
@@ -64,11 +68,16 @@ export default function SessionActions({
     setName(session.name ?? "");
     setActivityType(session.activity_type ?? "");
     setIsPublic(session.is_public);
+  }, [session.name, session.activity_type, session.is_public]);
+
+  useEffect(() => {
     setEditing(false);
     setConfirmDelete(false);
+    setConfirmPublishToShare(false);
+    setReadyToShare(false);
     setMessage(null);
     setError(null);
-  }, [session.id, session.name, session.activity_type, session.is_public]);
+  }, [session.id]);
 
   async function save() {
     setSaving(true);
@@ -85,6 +94,7 @@ export default function SessionActions({
       await updateSessionMetadata(token, session.id, updates);
       onUpdated(updates);
       setEditing(false);
+      if (!updates.is_public) setReadyToShare(false);
       setMessage("Activity updated");
     } catch (caught) {
       setError(
@@ -146,29 +156,79 @@ export default function SessionActions({
     }
   }
 
+  async function sharePublicLink(): Promise<"shared" | "copied"> {
+    const url = resolveShareUrl(`/log/${encodeURIComponent(session.id)}`);
+    const shareData = {
+      title: displayName,
+      text: `${displayName} on Peaks`,
+      url,
+    };
+
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return "shared";
+    } else {
+      await navigator.clipboard.writeText(url);
+      setMessage("Activity link copied");
+      return "copied";
+    }
+  }
+
   async function share() {
     setError(null);
     setMessage(null);
     if (!session.is_public) {
-      setError("Make this activity public before sharing its link.");
+      if (isOwner) {
+        setConfirmPublishToShare(true);
+      } else {
+        setError("This activity is private.");
+      }
       return;
     }
-    const shareData = {
-      title: displayName,
-      text: `${displayName} on Peaks`,
-      url: window.location.href,
-    };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        setMessage("Activity link copied");
-      }
+      await sharePublicLink();
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
       setError("Could not share this activity");
+    }
+  }
+
+  async function publishForSharing() {
+    setSharing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again to share this activity");
+      const updates: SessionMetadataUpdate = {
+        name: session.name,
+        activity_type: session.activity_type,
+        is_public: true,
+      };
+      await updateSessionMetadata(token, session.id, updates);
+      onUpdated(updates);
+      setIsPublic(true);
+      setConfirmPublishToShare(false);
+      setReadyToShare(true);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not share this activity"
+      );
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function shareAfterPublishing() {
+    setError(null);
+    try {
+      const outcome = await sharePublicLink();
+      setReadyToShare(false);
+      if (outcome === "shared") setMessage("Activity shared");
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setError("The activity is public, but its link could not be shared.");
     }
   }
 
@@ -202,6 +262,7 @@ export default function SessionActions({
             onClick={() => {
               setEditing((value) => !value);
               setConfirmDelete(false);
+              setConfirmPublishToShare(false);
               setError(null);
             }}
           >
@@ -213,14 +274,15 @@ export default function SessionActions({
             {exporting ? "Preparing GPX…" : "Export GPX"}
           </Button>
         )}
-        <Button variant="secondary" onClick={share}>
-          Share
+        <Button variant="secondary" onClick={share} disabled={sharing}>
+          {sharing ? "Sharing…" : "Share"}
         </Button>
         {isOwner && (
           <Button
             variant="danger"
             onClick={() => {
               setConfirmDelete(true);
+              setConfirmPublishToShare(false);
               setMessage(null);
               setError(null);
             }}
@@ -239,6 +301,46 @@ export default function SessionActions({
         <p role="alert" className="text-sm text-alert">
           {error}
         </p>
+      )}
+
+      {readyToShare && (
+        <div role="status" className="rounded-media border border-success/40 bg-surface p-4">
+          <p className="text-sm text-ink-2">
+            The activity is public. Tap below to open the share sheet or copy its link.
+          </p>
+          <Button className="mt-3" onClick={shareAfterPublishing}>
+            Share public link
+          </Button>
+        </div>
+      )}
+
+      {confirmPublishToShare && isOwner && (
+        <div
+          role="alertdialog"
+          aria-labelledby="publish-activity-title"
+          aria-describedby="publish-activity-description"
+          className="rounded-media border border-border bg-surface p-4"
+        >
+          <p id="publish-activity-title" className="text-sm font-medium text-ink">
+            Make this activity public and share it?
+          </p>
+          <p id="publish-activity-description" className="mt-1 text-sm leading-6 text-ink-2">
+            Anyone with the link can view the exact GPS track, activity time and timing details,
+            plus derived pace or speed where shown. Photos and health data are not included.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button onClick={publishForSharing} disabled={sharing}>
+              {sharing ? "Making public…" : "Make public"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmPublishToShare(false)}
+              disabled={sharing}
+            >
+              Keep private
+            </Button>
+          </div>
+        </div>
       )}
 
       {confirmDelete && isOwner && (
@@ -300,7 +402,9 @@ export default function SessionActions({
                   Public activity
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-muted">
-                  Anyone with this link can view the activity and track.
+                  Anyone with the link can view the exact GPS track, activity time and timing
+                  details, plus derived pace or speed where shown. Photos and health data are not
+                  included.
                 </span>
               </span>
             </label>

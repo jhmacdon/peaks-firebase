@@ -60,7 +60,27 @@ export interface RouteElevationPoint {
   elevation: number;
 }
 
-export async function getRoutes(search?: string, limit = 50, offset = 0, status?: string): Promise<{ routes: RouteRow[]; total: number }> {
+export interface CatalogRoutePickerRow {
+  id: string;
+  name: string | null;
+  distance: number | null;
+  gain: number | null;
+}
+
+async function requireAdmin(token: string): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+}
+
+/** Raw catalog administration list. Browser callers must prove admin access. */
+export async function getRoutes(
+  token: string,
+  search?: string,
+  limit = 50,
+  offset = 0,
+  status?: string
+): Promise<{ routes: RouteRow[]; total: number }> {
+  await requireAdmin(token);
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIdx = 1;
@@ -108,11 +128,32 @@ export async function getRoutes(search?: string, limit = 50, offset = 0, status?
   };
 }
 
-export async function getRoute(
-  id: string,
-  options?: { publicOnly?: boolean }
-): Promise<RouteDetail | null> {
-  const publicFilter = options?.publicOnly
+/** Search only live Peaks catalog routes for non-admin pickers. */
+export async function searchCatalogRoutes(
+  search: string,
+  limit = 20
+): Promise<CatalogRoutePickerRow[]> {
+  const normalizedSearch = typeof search === "string" ? search.trim().slice(0, 200) : "";
+  if (!normalizedSearch) return [];
+  const boundedLimit = Number.isFinite(limit)
+    ? Math.min(Math.max(Math.trunc(limit), 1), 50)
+    : 20;
+
+  const result = await db.query(
+    `SELECT r.id, r.name, r.distance, r.gain
+     FROM routes r
+     WHERE r.owner = 'peaks'
+       AND r.status = 'active'
+       AND r.name ILIKE $1
+     ORDER BY r.name NULLS LAST
+     LIMIT $2`,
+    [`%${normalizedSearch}%`, boundedLimit]
+  );
+  return result.rows;
+}
+
+async function queryRoute(id: string, catalogOnly: boolean): Promise<RouteDetail | null> {
+  const accessFilter = catalogOnly
     ? ` AND r.owner = 'peaks' AND r.status = 'active'`
     : "";
 
@@ -137,7 +178,7 @@ export async function getRoute(
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
-     WHERE r.id = $1${publicFilter}`,
+     WHERE r.id = $1${accessFilter}`,
     [id]
   );
   const row = result.rows[0];
@@ -149,14 +190,27 @@ export async function getRoute(
   };
 }
 
-export async function getRouteDestinations(
+/** Public catalog detail. The catalog/active filter cannot be bypassed. */
+export async function getRoute(id: string): Promise<RouteDetail | null> {
+  return queryRoute(id, true);
+}
+
+export async function getAdminRoute(
+  token: string,
+  id: string
+): Promise<RouteDetail | null> {
+  await requireAdmin(token);
+  return queryRoute(id, false);
+}
+
+async function queryRouteDestinations(
   routeId: string,
-  options?: { publicOnly?: boolean }
+  catalogOnly: boolean
 ): Promise<RouteDestination[]> {
-  const publicJoin = options?.publicOnly
+  const publicJoin = catalogOnly
     ? `JOIN routes r ON r.id = rd.route_id`
     : "";
-  const publicFilter = options?.publicOnly
+  const publicFilter = catalogOnly
     ? ` AND r.owner = 'peaks' AND r.status = 'active'`
     : "";
 
@@ -175,6 +229,18 @@ export async function getRouteDestinations(
   return result.rows;
 }
 
+export async function getRouteDestinations(routeId: string): Promise<RouteDestination[]> {
+  return queryRouteDestinations(routeId, true);
+}
+
+export async function getAdminRouteDestinations(
+  token: string,
+  routeId: string
+): Promise<RouteDestination[]> {
+  await requireAdmin(token);
+  return queryRouteDestinations(routeId, false);
+}
+
 export interface RouteSegment {
   id: string;
   name: string | null;
@@ -187,14 +253,14 @@ export interface RouteSegment {
   route_count: number;
 }
 
-export async function getRouteSegments(
+async function queryRouteSegments(
   routeId: string,
-  options?: { publicOnly?: boolean }
+  catalogOnly: boolean
 ): Promise<RouteSegment[]> {
-  const publicJoin = options?.publicOnly
+  const publicJoin = catalogOnly
     ? `JOIN routes r ON r.id = rs.route_id`
     : "";
-  const publicFilter = options?.publicOnly
+  const publicFilter = catalogOnly
     ? ` AND r.owner = 'peaks' AND r.status = 'active'`
     : "";
 
@@ -212,11 +278,23 @@ export async function getRouteSegments(
   return result.rows;
 }
 
-export async function getRouteElevation(
+export async function getRouteSegments(routeId: string): Promise<RouteSegment[]> {
+  return queryRouteSegments(routeId, true);
+}
+
+export async function getAdminRouteSegments(
+  token: string,
+  routeId: string
+): Promise<RouteSegment[]> {
+  await requireAdmin(token);
+  return queryRouteSegments(routeId, false);
+}
+
+async function queryRouteElevation(
   routeId: string,
-  options?: { publicOnly?: boolean }
+  catalogOnly: boolean
 ): Promise<RouteElevationPoint[]> {
-  const publicFilter = options?.publicOnly
+  const publicFilter = catalogOnly
     ? ` WHERE id = $1 AND owner = 'peaks' AND status = 'active'`
     : ` WHERE id = $1`;
 
@@ -233,14 +311,26 @@ export async function getRouteElevation(
   return result.rows;
 }
 
-export async function getRouteSessionCount(
+export async function getRouteElevation(routeId: string): Promise<RouteElevationPoint[]> {
+  return queryRouteElevation(routeId, true);
+}
+
+export async function getAdminRouteElevation(
+  token: string,
+  routeId: string
+): Promise<RouteElevationPoint[]> {
+  await requireAdmin(token);
+  return queryRouteElevation(routeId, false);
+}
+
+async function queryRouteSessionCount(
   routeId: string,
-  options?: { publicOnly?: boolean }
+  catalogOnly: boolean
 ): Promise<number> {
-  const publicJoin = options?.publicOnly
+  const publicJoin = catalogOnly
     ? `JOIN routes r ON r.id = sr.route_id`
     : "";
-  const publicFilter = options?.publicOnly
+  const publicFilter = catalogOnly
     ? ` AND r.owner = 'peaks' AND r.status = 'active'`
     : "";
 
@@ -253,6 +343,18 @@ export async function getRouteSessionCount(
     [routeId]
   );
   return result.rows[0].count;
+}
+
+export async function getRouteSessionCount(routeId: string): Promise<number> {
+  return queryRouteSessionCount(routeId, true);
+}
+
+export async function getAdminRouteSessionCount(
+  token: string,
+  routeId: string
+): Promise<number> {
+  await requireAdmin(token);
+  return queryRouteSessionCount(routeId, false);
 }
 
 export async function updateRoute(
@@ -383,7 +485,7 @@ export async function rejectRoute(token: string, id: string): Promise<void> {
  * Analyze a pending route's segments against the existing segment graph.
  * Returns the decomposition for admin review before accepting.
  */
-export async function analyzePendingRoute(id: string): Promise<{
+async function analyzePendingRouteUnchecked(id: string): Promise<{
   decomposition: import("./segment-matcher").RouteDecomposition;
   points: import("../route-utils").TrackPoint[];
 }> {
@@ -446,6 +548,17 @@ export async function analyzePendingRoute(id: string): Promise<{
   });
 
   return { decomposition, points };
+}
+
+export async function analyzePendingRoute(
+  token: string,
+  id: string
+): Promise<{
+  decomposition: import("./segment-matcher").RouteDecomposition;
+  points: import("../route-utils").TrackPoint[];
+}> {
+  await requireAdmin(token);
+  return analyzePendingRouteUnchecked(id);
 }
 
 type RouteFactoryActivation = {
@@ -669,7 +782,7 @@ export async function acceptRouteWithSegments(
   const { computeElevationStats } = await import("../elevation");
 
   // Re-analyze server-side to get fresh decomposition with full points arrays
-  const { decomposition } = await analyzePendingRoute(id);
+  const { decomposition } = await analyzePendingRouteUnchecked(id);
 
   // If decomposition is all "new" segments with no splits or reuses,
   // the existing standalone segment is already correct — just flip status.
@@ -988,7 +1101,8 @@ export async function acceptRouteWithSegments(
   }
 }
 
-export async function getPendingRouteCount(): Promise<number> {
+export async function getPendingRouteCount(token: string): Promise<number> {
+  await requireAdmin(token);
   const result = await db.query(
     `SELECT COUNT(*)::int AS count FROM routes WHERE status = 'pending'`
   );

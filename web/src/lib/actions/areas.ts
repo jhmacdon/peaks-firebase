@@ -26,6 +26,7 @@ import {
 import {
   areaCoverPhotoFor,
   areaCoverPhotoSql,
+  distinctAreaCoverPhotosFor,
   type AreaCoverPhoto,
 } from "../area-cover-photo";
 
@@ -60,6 +61,11 @@ export interface AreaDestination {
   state_code: string | null;
   lat: number | null;
   lng: number | null;
+  hero_image: string | null;
+  hero_image_focal_x: number;
+  hero_image_focal_y: number;
+  hero_image_attribution: string | null;
+  hero_image_attribution_url: string | null;
 }
 
 export interface AreaRoute {
@@ -103,6 +109,12 @@ export interface AreaPersonalActivity {
   total_time: number;
   latest_visit: string | null;
   sessions: AreaPersonalSession[];
+  reached_destinations: Record<string, AreaReachedDestination>;
+}
+
+export interface AreaReachedDestination {
+  session_count: number;
+  reached_at: string | null;
 }
 
 interface RawAreaRow extends QueryResultRow {
@@ -146,6 +158,11 @@ interface RawDestinationRow extends QueryResultRow {
   state_code: unknown;
   lat: unknown;
   lng: unknown;
+  hero_image: unknown;
+  hero_image_focal_x: unknown;
+  hero_image_focal_y: unknown;
+  hero_image_attribution: unknown;
+  hero_image_attribution_url: unknown;
 }
 
 interface RawRouteRow extends QueryResultRow {
@@ -179,6 +196,12 @@ interface RawPersonalSessionRow extends QueryResultRow {
   total_gain: unknown;
   aggregate_time: unknown;
   latest_visit: unknown;
+}
+
+interface RawReachedDestinationRow extends QueryResultRow {
+  id: unknown;
+  session_count: unknown;
+  reached_at: unknown;
 }
 
 const AREA_BASE_SELECT = `
@@ -285,6 +308,8 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
     db.query<RawDestinationRow>(
       `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
               d.activities, d.features, d.country_code, d.state_code,
+              d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y,
+              d.hero_image_attribution, d.hero_image_attribution_url,
               ST_Y(d.location::geometry) AS lat,
               ST_X(d.location::geometry) AS lng
        FROM destination_areas da
@@ -293,7 +318,7 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
        ORDER BY d.prominence DESC NULLS LAST,
                 d.elevation DESC NULLS LAST,
                 d.name ASC NULLS LAST
-       LIMIT 30`,
+       LIMIT 200`,
       [id]
     ),
     db.query<RawRouteRow>(
@@ -339,37 +364,74 @@ export async function getAreaPersonalActivity(
   if (!user) throw new Error("Unauthorized");
 
   const safeLimit = Math.min(Math.max(Math.trunc(recentLimit), 1), 20);
-  const result = await db.query<RawPersonalSessionRow>(
-    `WITH area_sessions AS MATERIALIZED (
-       SELECT s.*
-       FROM session_areas sa
-       JOIN tracking_sessions s ON s.id = sa.session_id
-       WHERE sa.area_id = $1 AND s.user_id = $2
-     )
-     SELECT s.id, s.name, s.start_time, s.end_time, s.distance,
-            s.total_time, s.pace, s.gain, s.highest_point, s.ended,
-            s.activity_type,
-            ARRAY(
-              SELECT d.name
-              FROM session_destinations sd
-              JOIN destinations d ON d.id = sd.destination_id
-              WHERE sd.session_id = s.id
-                AND sd.relation = 'reached'
-                AND d.name IS NOT NULL
-              ORDER BY d.elevation DESC NULLS LAST, d.name
-            ) AS destination_names,
-            count(*) OVER ()::int AS visit_count,
-            COALESCE(sum(s.distance) OVER (), 0) AS total_distance,
-            COALESCE(sum(s.gain) OVER (), 0) AS total_gain,
-            COALESCE(sum(s.total_time) OVER (), 0) AS aggregate_time,
-            max(s.start_time) OVER () AS latest_visit
-     FROM area_sessions s
-     ORDER BY s.start_time DESC, s.id
-     LIMIT $3`,
-    [areaId, user.uid, safeLimit]
+  const [sessionResult, reachedResult] = await Promise.all([
+    db.query<RawPersonalSessionRow>(
+      `WITH area_sessions AS MATERIALIZED (
+         SELECT s.*
+         FROM session_areas sa
+         JOIN tracking_sessions s ON s.id = sa.session_id
+         WHERE sa.area_id = $1 AND s.user_id = $2
+       )
+       SELECT s.id, s.name, s.start_time, s.end_time, s.distance,
+              s.total_time, s.pace, s.gain, s.highest_point, s.ended,
+              s.activity_type,
+              ARRAY(
+                SELECT d.name
+                FROM session_destinations sd
+                JOIN destinations d ON d.id = sd.destination_id
+                WHERE sd.session_id = s.id
+                  AND sd.relation = 'reached'
+                  AND d.name IS NOT NULL
+                ORDER BY d.elevation DESC NULLS LAST, d.name
+              ) AS destination_names,
+              count(*) OVER ()::int AS visit_count,
+              COALESCE(sum(s.distance) OVER (), 0) AS total_distance,
+              COALESCE(sum(s.gain) OVER (), 0) AS total_gain,
+              COALESCE(sum(s.total_time) OVER (), 0) AS aggregate_time,
+              max(s.start_time) OVER () AS latest_visit
+       FROM area_sessions s
+       ORDER BY s.start_time DESC, s.id
+       LIMIT $3`,
+      [areaId, user.uid, safeLimit]
+    ),
+    db.query<RawReachedDestinationRow>(
+      `SELECT sd.destination_id AS id,
+              count(DISTINCT sd.session_id)::int AS session_count,
+              max(s.start_time) AS reached_at
+       FROM destination_areas da
+       JOIN destinations d
+         ON d.id = da.destination_id
+        AND d.owner = 'peaks'
+       JOIN session_destinations sd
+         ON sd.destination_id = da.destination_id
+        AND sd.relation = 'reached'
+       JOIN tracking_sessions s
+         ON s.id = sd.session_id
+        AND s.user_id = $2
+       WHERE da.area_id = $1
+       GROUP BY sd.destination_id
+       ORDER BY reached_at DESC, sd.destination_id ASC`,
+      [areaId, user.uid]
+    ),
+  ]);
+
+  const reachedDestinations = Object.fromEntries(
+    reachedResult.rows.flatMap((row) => {
+      const id = textValue(row.id);
+      if (!id) return [];
+      return [
+        [
+          id,
+          {
+            session_count: integerValue(row.session_count),
+            reached_at: isoValue(row.reached_at),
+          },
+        ],
+      ];
+    })
   );
 
-  const first = result.rows[0];
+  const first = sessionResult.rows[0];
   if (!first) {
     return {
       visit_count: 0,
@@ -378,6 +440,7 @@ export async function getAreaPersonalActivity(
       total_time: 0,
       latest_visit: null,
       sessions: [],
+      reached_destinations: reachedDestinations,
     };
   }
 
@@ -387,7 +450,8 @@ export async function getAreaPersonalActivity(
     total_gain: numberValue(first.total_gain) ?? 0,
     total_time: integerValue(first.aggregate_time),
     latest_visit: isoValue(first.latest_visit),
-    sessions: result.rows.map(mapPersonalSession),
+    sessions: sessionResult.rows.map(mapPersonalSession),
+    reached_destinations: reachedDestinations,
   };
 }
 
@@ -404,6 +468,11 @@ function mapDestination(row: RawDestinationRow): AreaDestination {
     state_code: textValue(row.state_code),
     lat: numberValue(row.lat),
     lng: numberValue(row.lng),
+    hero_image: httpUrl(row.hero_image),
+    hero_image_focal_x: boundedPercent(row.hero_image_focal_x),
+    hero_image_focal_y: boundedPercent(row.hero_image_focal_y),
+    hero_image_attribution: textValue(row.hero_image_attribution),
+    hero_image_attribution_url: httpUrl(row.hero_image_attribution_url),
   };
 }
 
@@ -629,7 +698,23 @@ export async function getAreasIndex(
       statesLimit,
       perStateLimit,
     });
-    return { ...nationalParks, totalAreas };
+    const rowsById = new Map(
+      candidateResult.rows.map((row) => [textValue(row.id) ?? "", row])
+    );
+    const coverPhotos = distinctAreaCoverPhotosFor(
+      nationalParks.areas.map((area) => ({
+        areaId: area.id,
+        row: rowsById.get(area.id),
+      }))
+    );
+    return {
+      ...nationalParks,
+      areas: nationalParks.areas.map((area, index) => ({
+        ...area,
+        coverPhoto: coverPhotos[index],
+      })),
+      totalAreas,
+    };
   }
 
   const { clause, params } = areaIndexFilter(search, designation, stateCode);
@@ -691,7 +776,7 @@ export async function getAreasIndex(
   // SQL above orders alphabetically by state for a stable ROW_NUMBER scan,
   // not by which state has the most matches.
   const stateOrder = new Map(stateCodes.map((code, index) => [code, index]));
-  const areas = rankedResult.rows
+  const selectedAreas = rankedResult.rows
     .map((row) => ({
       id: textValue(row.id) ?? "",
       name: textValue(row.name) ?? "Protected area",
@@ -699,12 +784,19 @@ export async function getAreasIndex(
       designation: textValue(row.designation),
       stateCode: textValue(row.state_code) ?? "",
       destinationCount: integerValue(row.destination_count),
-      coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
+      coverRow: row,
     }))
     .sort(
       (left, right) =>
         (stateOrder.get(left.stateCode) ?? 0) - (stateOrder.get(right.stateCode) ?? 0)
     );
+  const coverPhotos = distinctAreaCoverPhotosFor(
+    selectedAreas.map((area) => ({ areaId: area.id, row: area.coverRow }))
+  );
+  const areas = selectedAreas.map(({ coverRow, ...area }, index) => {
+    void coverRow;
+    return { ...area, coverPhoto: coverPhotos[index] };
+  });
 
   return { areas, states, totalMatching, totalAreas };
 }
@@ -742,14 +834,18 @@ export async function getTopAreasForState(
     [stateCode, limit]
   );
 
-  return result.rows.map((row) => ({
+  const coverPhotos = distinctAreaCoverPhotosFor(
+    result.rows.map((row) => ({ areaId: textValue(row.id) ?? "", row }))
+  );
+
+  return result.rows.map((row, index) => ({
     id: textValue(row.id) ?? "",
     name: textValue(row.name) ?? "Protected area",
     kind: normalizeAreaKind(row.kind),
     designation: textValue(row.designation),
     stateCode,
     destinationCount: integerValue(row.destination_count),
-    coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
+    coverPhoto: coverPhotos[index],
   }));
 }
 
@@ -767,6 +863,12 @@ function numberValue(value: unknown): number | null {
 function integerValue(value: unknown): number {
   const parsed = numberValue(value);
   return parsed == null ? 0 : Math.trunc(parsed);
+}
+
+function boundedPercent(value: unknown): number {
+  const parsed = numberValue(value);
+  if (parsed == null) return 50;
+  return Math.min(Math.max(Math.round(parsed), 0), 100);
 }
 
 function stringArray(value: unknown): string[] {

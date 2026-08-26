@@ -95,6 +95,36 @@ test("manifest parser rejects non-HTTPS sources", () => {
   );
 });
 
+test("manifest parser rejects candidates below the cover quality bar", () => {
+  const candidate = {
+    destinationId: "rainier",
+    destinationName: "Mount Rainier",
+    imageUrl: "https://upload.wikimedia.org/rainier.jpg",
+    sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Rainier.jpg",
+    sourceKind: "wikimedia_commons",
+    photographer: "A Photographer",
+    licenseName: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    imageWidth: 4000,
+    imageHeight: 2600,
+    focalX: 50,
+    focalY: 25,
+  };
+  for (const dimensions of [
+    { imageWidth: 1599, imageHeight: 900 },
+    { imageWidth: 1600, imageHeight: 899 },
+  ]) {
+    assert.throws(
+      () => parseDestinationPhotoManifest({
+        collection: "Cascade Volcanoes",
+        researchedAt: "2026-08-21",
+        candidates: [{ ...candidate, ...dimensions }],
+      }),
+      /must be at least/
+    );
+  }
+});
+
 test("schema migration makes review final and indexed", () => {
   const migration = readFileSync(
     path.resolve(__dirname, "../../../migrations/20260821_destination_photo_review.sql"),
@@ -111,6 +141,14 @@ test("schema migration makes review final and indexed", () => {
   );
   assert.match(framingMigration, /hero_image_focal_x[\s\S]*BETWEEN 0 AND 100/);
   assert.match(framingMigration, /hero_image_focal_y[\s\S]*BETWEEN 0 AND 100/);
+  const commentsMigration = readFileSync(
+    path.resolve(__dirname, "../../../migrations/20260826_destination_photo_comments.sql"),
+    "utf8"
+  );
+  assert.match(commentsMigration, /reviewer_comment TEXT/);
+  assert.match(commentsMigration, /reviewer_comment_resolved_at TIMESTAMPTZ/);
+  assert.match(commentsMigration, /idx_destination_photo_candidates_open_comments/);
+  assert.match(commentsMigration, /reviewer_comment_resolved_at IS NULL/);
 });
 
 test("reviewed Cascade manifest has one usable candidate for all 20 destinations", () => {
@@ -145,7 +183,7 @@ test("reviewed state high point manifest covers the 47 destinations not already 
   for (const candidate of manifest.candidates) {
     assert.equal(candidate.sourceKind, "wikimedia_commons");
     assert.ok(!previouslyReviewed.has(candidate.destinationId));
-    assert.ok(candidate.imageWidth >= 1400, `${candidate.destinationName} is too narrow`);
+    assert.ok(candidate.imageWidth >= 1600, `${candidate.destinationName} is too narrow`);
     assert.ok(candidate.imageHeight >= 900, `${candidate.destinationName} is too short`);
     assert.ok(candidate.focalX >= 0 && candidate.focalX <= 100);
     assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);

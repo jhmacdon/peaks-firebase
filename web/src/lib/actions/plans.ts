@@ -12,6 +12,11 @@ import {
   type PlanReachedDestinationRow,
   type PlanRouteRow,
 } from "../plan-detail";
+import {
+  assertAllPlanRoutesAccessible,
+  buildPlanRouteAccessQuery,
+  normalizePlanRouteIds,
+} from "../plan-route-access";
 
 export interface Plan {
   id: string;
@@ -21,6 +26,7 @@ export interface Plan {
   destinations: string[];
   routes: string[];
   party: string[];
+  isPublic: boolean;
   date: string | null;
   createdAt: string;
   updatedAt: string;
@@ -35,15 +41,28 @@ function docToPlan(id: string, data: FirebaseFirestore.DocumentData): Plan {
     destinations: data.destinations ?? [],
     routes: data.routes ?? [],
     party: data.party ?? [],
+    isPublic: data.isPublic === true,
     date: data.date ?? null,
     createdAt: data.createdAt ?? "",
     updatedAt: data.updatedAt ?? "",
   };
 }
 
+async function validatePlanRouteIdsForUser(
+  userId: string,
+  value: unknown
+): Promise<string[]> {
+  const routeIds = normalizePlanRouteIds(value);
+  if (routeIds.length === 0) return routeIds;
+  const query = buildPlanRouteAccessQuery(userId, routeIds);
+  const result = await db.query(query.text, query.values);
+  assertAllPlanRoutesAccessible(routeIds, result.rows);
+  return routeIds;
+}
+
 /**
- * Sync a plan and its join tables to Cloud SQL.
- * Fire-and-forget — errors are logged but don't block the caller.
+ * Sync a plan and its join tables to Cloud SQL. Failures reach the caller so
+ * a required post-cutover write cannot disappear into a log line.
  */
 async function syncPlanToSql(
   planId: string,
@@ -52,6 +71,7 @@ async function syncPlanToSql(
     name: string;
     description?: string;
     date?: string | null;
+    isPublic: boolean;
     destinations?: string[];
     routes?: string[];
   }
@@ -60,15 +80,29 @@ async function syncPlanToSql(
   try {
     await client.query("BEGIN");
 
-    await client.query(
-      `INSERT INTO plans (id, user_id, name, description, date)
-       VALUES ($1, $2, $3, $4, $5)
+    const planWrite = await client.query(
+      `INSERT INTO plans (id, user_id, name, description, date, is_public)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
-         date = EXCLUDED.date`,
-      [planId, userId, fields.name, fields.description || null, fields.date || null]
+         date = EXCLUDED.date,
+         is_public = EXCLUDED.is_public,
+         updated_at = now()
+       WHERE plans.user_id = EXCLUDED.user_id
+       RETURNING id`,
+      [
+        planId,
+        userId,
+        fields.name,
+        fields.description || null,
+        fields.date || null,
+        fields.isPublic,
+      ]
     );
+    if (planWrite.rows.length === 0) {
+      throw new Error("Route ID is unavailable");
+    }
 
     if (fields.destinations) {
       await client.query(`DELETE FROM plan_destinations WHERE plan_id = $1`, [planId]);
@@ -81,21 +115,35 @@ async function syncPlanToSql(
       }
     }
 
-    if (fields.routes) {
+    if (fields.routes !== undefined) {
+      const routeIds = normalizePlanRouteIds(fields.routes);
+      const accessQuery = buildPlanRouteAccessQuery(userId, routeIds);
+      const accessible = routeIds.length > 0
+        ? await client.query(accessQuery.text, accessQuery.values)
+        : { rows: [] };
+      assertAllPlanRoutesAccessible(routeIds, accessible.rows);
+
       await client.query(`DELETE FROM plan_routes WHERE plan_id = $1`, [planId]);
-      for (let i = 0; i < fields.routes.length; i++) {
-        await client.query(
+      for (let i = 0; i < routeIds.length; i++) {
+        const linked = await client.query(
           `INSERT INTO plan_routes (plan_id, route_id, ordinal)
-           VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-          [planId, fields.routes[i], i]
+           SELECT $1, r.id, $3
+           FROM routes r
+           WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $4)
+           ON CONFLICT (plan_id, route_id) DO UPDATE SET ordinal = EXCLUDED.ordinal
+           RETURNING route_id`,
+          [planId, routeIds[i], i, userId]
         );
+        if (linked.rows.length !== 1) {
+          throw new Error("One or more routes are unavailable");
+        }
       }
     }
 
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Cloud SQL plan sync failed:", err);
+    throw err;
   } finally {
     client.release();
   }
@@ -184,6 +232,7 @@ interface RouteQueryRow {
   distance: number | null;
   gain: number | null;
   status: string;
+  is_catalog: boolean;
 }
 
 interface ProcessingQueryRow {
@@ -212,6 +261,7 @@ function shapeRouteRow(row: RouteQueryRow): PlanRouteRow {
     distance: row.distance != null ? Number(row.distance) : null,
     gain: row.gain != null ? Number(row.gain) : null,
     status: row.status,
+    isCatalog: row.is_catalog === true,
   };
 }
 
@@ -282,10 +332,13 @@ export async function getPlanBundle(
     withFallback(
       (plan.routes.length > 0
         ? db.query<RouteQueryRow>(
-            `SELECT id, name, polyline6, distance, gain, status
+            `SELECT id, name, polyline6, distance, gain, status,
+                    owner = 'peaks' AS is_catalog
              FROM routes
-             WHERE id = ANY($1::text[]) AND status IN ('active', 'superseded')`,
-            [plan.routes]
+             WHERE id = ANY($1::text[])
+               AND status IN ('active', 'superseded')
+               AND (owner = 'peaks' OR owner = $2)`,
+            [plan.routes, plan.userId]
           )
         : Promise.resolve({ rows: [] as RouteQueryRow[] })
       ).then((result) => result.rows),
@@ -313,8 +366,16 @@ export async function getPlanBundle(
         .query<ProcessingQueryRow>(
           `SELECT distance, gain, processing_state,
                   CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
-           FROM plans
-           WHERE id = $1`,
+           FROM plans p
+           WHERE p.id = $1
+             AND NOT EXISTS (
+               SELECT 1
+               FROM plan_routes invalid_pr
+               JOIN routes invalid_route ON invalid_route.id = invalid_pr.route_id
+               WHERE invalid_pr.plan_id = p.id
+                 AND invalid_route.owner IS DISTINCT FROM 'peaks'
+                 AND invalid_route.owner IS DISTINCT FROM p.user_id
+             )`,
           [planId]
         )
         .then((result) => result.rows),
@@ -359,6 +420,9 @@ export async function createPlan(
 ): Promise<{ id: string }> {
   const auth = await verifyToken(token);
   if (!auth) throw new Error("Unauthorized");
+  const routeIds = data.routes !== undefined
+    ? await validatePlanRouteIdsForUser(auth.uid, data.routes)
+    : undefined;
 
   const now = new Date().toISOString();
   const ref = adminDb.collection("plans").doc();
@@ -368,21 +432,23 @@ export async function createPlan(
     name: data.name,
     description: data.description ?? "",
     destinations: data.destinations ?? [],
-    routes: data.routes ?? [],
+    routes: routeIds ?? [],
     party: [],
+    isPublic: false,
     date: data.date ?? null,
     createdAt: now,
     updatedAt: now,
   });
 
-  // Dual-write to Cloud SQL
-  syncPlanToSql(ref.id, auth.uid, {
+  // Dual-write to Cloud SQL and surface a failed required write to the caller.
+  await syncPlanToSql(ref.id, auth.uid, {
     name: data.name,
     description: data.description,
     date: data.date,
+    isPublic: false,
     destinations: data.destinations,
-    routes: data.routes,
-  }).catch(() => {});
+    routes: routeIds,
+  });
 
   return { id: ref.id };
 }
@@ -399,16 +465,20 @@ export async function updatePlan(
     destinations?: string[];
     routes?: string[];
     date?: string;
+    isPublic?: boolean;
   }
 ): Promise<void> {
   const auth = await verifyToken(token);
   if (!auth) throw new Error("Unauthorized");
 
   const doc = await adminDb.collection("plans").doc(planId).get();
-  if (!doc.exists) throw new Error("Plan not found");
+  if (!doc.exists) throw new Error("Route not found");
 
   const data = doc.data()!;
   if (data.userId !== auth.uid) throw new Error("Forbidden");
+  const routeIds = updates.routes !== undefined
+    ? await validatePlanRouteIdsForUser(auth.uid, updates.routes)
+    : undefined;
 
   const patch: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
@@ -417,19 +487,80 @@ export async function updatePlan(
   if (updates.name !== undefined) patch.name = updates.name;
   if (updates.description !== undefined) patch.description = updates.description;
   if (updates.destinations !== undefined) patch.destinations = updates.destinations;
-  if (updates.routes !== undefined) patch.routes = updates.routes;
+  if (routeIds !== undefined) patch.routes = routeIds;
   if (updates.date !== undefined) patch.date = updates.date;
+  if (updates.isPublic !== undefined) patch.isPublic = updates.isPublic;
 
   await adminDb.collection("plans").doc(planId).update(patch);
 
-  // Dual-write to Cloud SQL — merge current data with updates
-  syncPlanToSql(planId, auth.uid, {
-    name: updates.name ?? data.name ?? "",
-    description: updates.description ?? data.description,
-    date: updates.date ?? data.date,
-    destinations: updates.destinations ?? data.destinations,
-    routes: updates.routes ?? data.routes,
-  }).catch(() => {});
+  // Dual-write to Cloud SQL — merge current data with updates and surface
+  // failure so a repair is not silently skipped.
+  try {
+    await syncPlanToSql(planId, auth.uid, {
+      name: updates.name ?? data.name ?? "",
+      description: updates.description ?? data.description,
+      date: updates.date ?? data.date,
+      isPublic: updates.isPublic ?? (data.isPublic === true),
+      destinations: updates.destinations ?? data.destinations,
+      routes: routeIds ?? data.routes,
+    });
+  } catch (error) {
+    // A failed publish must not leave Firestore public while the web share is
+    // absent. Other edited fields stay visible for an idempotent repair.
+    if (updates.isPublic !== undefined) {
+      await adminDb.collection("plans").doc(planId).update({
+        isPublic: data.isPublic === true,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    throw error;
+  }
+}
+
+/** Change only saved-route visibility. Only the Firestore owner can reach the
+ * SQL write, which repeats the owner predicate. A failed SQL write restores
+ * the old Firestore value so a share does not half-complete. */
+export async function setPlanVisibility(
+  token: string,
+  planId: string,
+  isPublic: boolean
+): Promise<{ isPublic: boolean }> {
+  const auth = await verifyToken(token);
+  if (!auth) throw new Error("Unauthorized");
+  if (typeof isPublic !== "boolean") throw new Error("Invalid visibility");
+
+  const ref = adminDb.collection("plans").doc(planId);
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error("Route not found");
+  const data = doc.data()!;
+  if (data.userId !== auth.uid) throw new Error("Forbidden");
+
+  const oldVisibility = data.isPublic === true;
+  await ref.update({
+    isPublic,
+    updatedAt: new Date().toISOString(),
+  });
+
+  try {
+    const result = await db.query(
+      `UPDATE plans
+       SET is_public = $3, updated_at = now()
+       WHERE id = $1 AND user_id = $2
+       RETURNING id, is_public`,
+      [planId, auth.uid, isPublic]
+    );
+    if (result.rows.length === 0) {
+      throw new Error("Route not found");
+    }
+  } catch (error) {
+    await ref.update({
+      isPublic: oldVisibility,
+      updatedAt: new Date().toISOString(),
+    });
+    throw error;
+  }
+
+  return { isPublic };
 }
 
 /**
@@ -443,17 +574,22 @@ export async function deletePlan(
   if (!auth) throw new Error("Unauthorized");
 
   const doc = await adminDb.collection("plans").doc(planId).get();
-  if (!doc.exists) throw new Error("Plan not found");
+  if (!doc.exists) throw new Error("Route not found");
 
   const data = doc.data()!;
   if (data.userId !== auth.uid) throw new Error("Forbidden");
 
-  await adminDb.collection("plans").doc(planId).delete();
-
-  // Dual-write to Cloud SQL (CASCADE deletes join rows)
-  db.query(`DELETE FROM plans WHERE id = $1`, [planId]).catch((err) =>
-    console.error("Cloud SQL plan delete failed:", err)
+  // Remove the public SQL copy first. If Firestore then fails, the owner can
+  // retry, but a route they meant to delete cannot stay live at /route/:id.
+  const result = await db.query(
+    `DELETE FROM plans
+     WHERE id = $1 AND user_id = $2
+     RETURNING id`,
+    [planId, auth.uid]
   );
+  if (result.rows.length === 0) throw new Error("Route not found");
+
+  await adminDb.collection("plans").doc(planId).delete();
 }
 
 /**
@@ -468,7 +604,7 @@ export async function inviteToPlan(
   if (!auth) throw new Error("Unauthorized");
 
   const doc = await adminDb.collection("plans").doc(planId).get();
-  if (!doc.exists) throw new Error("Plan not found");
+  if (!doc.exists) throw new Error("Route not found");
 
   const data = doc.data()!;
   if (data.userId !== auth.uid) throw new Error("Forbidden");

@@ -3,10 +3,11 @@ import type { SessionDestination, SessionRoute } from "../../lib/actions/session
 import { sortAreasByProminence, type ProtectedArea } from "../../lib/area-types";
 import { AreaChip } from "../area-chip";
 import { SectionHeading } from "../ui/section-heading";
+import { catalogRoutePath } from "../route-paths";
 
 /** Everything the activity touched that isn't already a headline: the parks
  * and forests it crossed, the destinations it set out for but the achievement
- * lines don't cover, and the catalog routes it matched.
+ * lines don't cover, and the routes it matched.
  *
  * Chips rather than rows, because these are navigation, not data — one flat
  * outlined pill each, the same shape area chips already use across the
@@ -58,14 +59,28 @@ export function SessionRelated({
         {routes.length > 0 ? (
           <ChipRow label={routes.length === 1 ? "Route" : "Routes"}>
             {routes.map((route) => (
-              <LinkChip key={route.id} href={`/routes/${route.id}`}>
-                {route.name || "Unnamed route"}
-              </LinkChip>
+              route.isCatalog ? (
+                <LinkChip key={route.id} href={catalogRoutePath(route.id)}>
+                  {route.name || "Unnamed route"}
+                </LinkChip>
+              ) : (
+                <StaticChip key={route.id}>{route.name || "Unnamed route"}</StaticChip>
+              )
             ))}
           </ChipRow>
         ) : null}
       </div>
     </section>
+  );
+}
+
+/** A matched user route has no standalone catalog URL. Keep its name useful
+ * without promising navigation to a page that cannot open. */
+function StaticChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-border px-2.5 py-0.5 text-[13px] font-medium text-ink-2">
+      {children}
+    </span>
   );
 }
 

@@ -46,6 +46,14 @@ const publicFirebaseEnv = Object.fromEntries(
 
 const nextConfig: NextConfig = {
   env: publicFirebaseEnv,
+  async headers() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ];
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

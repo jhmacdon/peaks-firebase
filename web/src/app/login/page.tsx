@@ -11,13 +11,13 @@ import {
 } from "../../components/auth/auth-shell";
 import { Button } from "../../components/ui/button";
 import { Input, Label } from "../../components/ui/field";
-import { AuthProvider, useAuth } from "../../lib/auth-context";
+import { authErrorMessage, AuthProvider, useAuth } from "../../lib/auth-context";
 import { LOADING_LABEL } from "../../lib/constants";
 import { safeNextPath } from "../../lib/safe-next-path";
 
 const FEATURES = [
   {
-    title: "Map-first planning",
+    title: "Map-first routes",
     body: "Open topo maps, route geometry, and destination details in one place.",
   },
   {
@@ -26,7 +26,7 @@ const FEATURES = [
   },
   {
     title: "Progress tracking",
-    body: "Keep lists, sessions, and plans tied to your account.",
+    body: "Keep lists, sessions, and saved routes tied to your account.",
   },
 ];
 
@@ -51,6 +51,7 @@ function LoginContent() {
     resetPassword,
     user,
     loading,
+    authNotice,
   } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,6 +71,10 @@ function LoginContent() {
     if (!loading && user) router.replace(next);
   }, [loading, next, router, user]);
 
+  useEffect(() => {
+    if (authNotice) setError(authNotice);
+  }, [authNotice]);
+
   if (!loading && user) return null;
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -80,8 +85,8 @@ function LoginContent() {
     try {
       await signIn(email, password);
       router.replace(next);
-    } catch {
-      setError("Invalid email or password.");
+    } catch (caught) {
+      setError(authErrorMessage(caught, "Invalid email or password."));
     } finally {
       setSubmitting(false);
     }
@@ -92,8 +97,8 @@ function LoginContent() {
     setResetMessage("");
     try {
       await signInWithGoogle();
-    } catch {
-      setError("Google sign-in failed.");
+    } catch (caught) {
+      setError(authErrorMessage(caught, "Google sign-in failed."));
     }
   };
 
@@ -102,8 +107,8 @@ function LoginContent() {
     setResetMessage("");
     try {
       await signInWithApple();
-    } catch {
-      setError("Apple sign-in failed.");
+    } catch (caught) {
+      setError(authErrorMessage(caught, "Apple sign-in failed."));
     }
   };
 
@@ -126,7 +131,7 @@ function LoginContent() {
     <AuthShell
       eyebrow="Built for serious mountain progress"
       title="Keep your routes, reports, and summit progress in one place."
-      body="Jump back into saved plans, log new outings, and track the lists you’re chasing."
+      body="Jump back into saved routes, log new outings, and track the lists you’re chasing."
       features={FEATURES}
       formTitle="Sign in to Peaks"
       formBody="Pick up where you left off and keep your mountain history synced."

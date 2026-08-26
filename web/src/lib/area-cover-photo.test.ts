@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { areaCoverPhotoFor, areaCoverPhotoSql } from "./area-cover-photo";
+import {
+  areaCoverPhotoFor,
+  areaCoverPhotoSql,
+  distinctAreaCoverPhotosFor,
+} from "./area-cover-photo";
 
 test("area cover lookup runs only after areas have been ranked", () => {
   const sql = areaCoverPhotoSql();
@@ -9,6 +13,8 @@ test("area cover lookup runs only after areas have been ranked", () => {
   assert.match(sql, /JOIN destinations d ON d\.id = da\.destination_id/);
   assert.match(sql, /d\.owner = 'peaks'/);
   assert.match(sql, /d\.prominence DESC NULLS LAST/);
+  assert.match(sql, /cover_photo_candidates/);
+  assert.match(sql, /LIMIT 12/);
   assert.doesNotMatch(sql, /to_jsonb|boundary/);
 });
 
@@ -40,4 +46,100 @@ test("a curated area cover wins over a linked destination photo", () => {
 
   assert.match(cover?.imageUrl ?? "", /Coon_bluff_after_rain_1/);
   assert.equal(cover?.attribution, "Mkling98 · CC0");
+});
+
+test("area cover rows read and sanitize ranked photo candidates", () => {
+  assert.deepEqual(
+    areaCoverPhotoFor("another-area", {
+      cover_photo_candidates: [
+        {
+          imageUrl: "https://example.com/first.jpg",
+          focalX: -2,
+          focalY: 108,
+          attribution: "A. Hiker · CC BY 4.0",
+          attributionUrl: "javascript:alert(1)",
+        },
+        { imageUrl: "" },
+      ],
+    }),
+    {
+      imageUrl: "https://example.com/first.jpg",
+      focalX: 0,
+      focalY: 100,
+      attribution: "A. Hiker · CC BY 4.0",
+      attributionUrl: null,
+    }
+  );
+});
+
+test("distinct area covers move a flexible area to its next choice", () => {
+  const shared = {
+    imageUrl: "https://example.com/shared.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+  const alternate = {
+    imageUrl: "https://example.com/alternate.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+
+  const covers = distinctAreaCoverPhotosFor([
+    {
+      areaId: "flexible-area",
+      row: { cover_photo_candidates: [shared, alternate] },
+    },
+    {
+      areaId: "shared-only-area",
+      row: { cover_photo_candidates: [shared] },
+    },
+  ]);
+
+  assert.equal(covers[0]?.imageUrl, alternate.imageUrl);
+  assert.equal(covers[1]?.imageUrl, shared.imageUrl);
+});
+
+test("distinct area covers prefer the icon card over a repeated photo", () => {
+  const shared = {
+    imageUrl: "https://example.com/shared.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+  const covers = distinctAreaCoverPhotosFor([
+    { areaId: "first-area", row: { cover_photo_candidates: [shared] } },
+    { areaId: "second-area", row: { cover_photo_candidates: [shared] } },
+  ]);
+
+  assert.equal(covers[0]?.imageUrl, shared.imageUrl);
+  assert.equal(covers[1], null);
+});
+
+test("Wikimedia thumbnail sizes count as one photo", () => {
+  const sharedLarge = {
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Peak.jpg/1920px-Peak.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+  const sharedSmall = {
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Peak.jpg/1280px-Peak.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+  const alternate = {
+    imageUrl: "https://example.com/other.jpg",
+    focalX: 50,
+    focalY: 50,
+  };
+  const covers = distinctAreaCoverPhotosFor([
+    {
+      areaId: "first-area",
+      row: { cover_photo_candidates: [sharedLarge, alternate] },
+    },
+    { areaId: "second-area", row: { cover_photo_candidates: [sharedSmall] } },
+  ]);
+
+  assert.equal(covers[0]?.imageUrl, alternate.imageUrl);
+  assert.equal(covers[1]?.imageUrl, sharedSmall.imageUrl);
 });

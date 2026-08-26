@@ -1,25 +1,40 @@
 rules_version = '2';
 service cloud.firestore {
 	match /databases/{database}/documents {
-    match /sessions/{document=**} {
-    
-      allow read: if signedInOrPublic();
-      allow write, update, create: if request.resource.data.userId == request.auth.uid;
-      
-      function signedInOrPublic() {
-        return request.auth.uid != null || resource.data.status.public == true;
-    	}
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /sessions/{sessionId} {
+      // Raw activity documents can contain markers, health data, and other
+      // owner-only fields. Public activity pages read a sanitized SQL bundle.
+      allow read: if isSessionOwner();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSessionOwner()
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isSessionOwner();
+
+      function isSessionOwner() {
+        return signedIn() && resource.data.userId == request.auth.uid;
+      }
     }
     match /feedback/{document=**} {
       allow read, write: if request.auth.uid != null;
     }
-    match /points/{document=**} {
-      allow read: if signedInOrPublic();
-      allow write: if request.auth.uid != null;
-      
-      function signedInOrPublic() {
-        return request.auth.uid != null || get(/databases/$(database)/documents/sessions/$(document)).data.status.public == true
-    	}
+    match /points/{sessionId} {
+      // Public activity pages never read the unredacted Firestore point blob.
+      allow read: if isSessionOwner();
+      allow create, update: if isSessionOwner();
+      allow delete: if isSessionOwner();
+
+      function session() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId));
+      }
+
+      function isSessionOwner() {
+        return signedIn() && session().data.userId == request.auth.uid;
+      }
     }
     match /destinations/{document=**} {
     	allow read: if true;
@@ -44,18 +59,42 @@ service cloud.firestore {
           && request.auth.uid == uid;
       }
     }
-    match /plans/{document=**} {
-    	allow read: if true;
-      allow write: if isAtLeastMember();
-      allow delete: if request.auth.uid == request.resource.data.userId;
-      
-			function isAtLeastMember() {
-				return (request.auth.uid == request.resource.data.userId) || (request.auth.uid in resource.data.party)
-			}
+    match /plans/{planId} {
+      // Public route pages read a field-limited Cloud SQL bundle. Keep the
+      // legacy Firestore document private because rules cannot redact fields.
+      allow read: if isPlanOwnerOrMember();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isPlanOwner()
+        && request.resource.data.userId == resource.data.userId;
+      allow update: if isPlanMember()
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.get("party", []) == resource.data.get("party", [])
+        && request.resource.data.get("isPublic", false) == resource.data.get("isPublic", false);
+      allow delete: if isPlanOwner();
+
+      function isPlanOwner() {
+        return signedIn() && resource.data.userId == request.auth.uid;
+      }
+
+      function isPlanMember() {
+        return signedIn() && request.auth.uid in resource.data.get("party", []);
+      }
+
+      function isPlanOwnerOrMember() {
+        return isPlanOwner() || isPlanMember();
+      }
     }
-    match /routes/{document=**} {
-    	allow read: if true;
-      allow write, delete: if request.resource.data.owner == request.auth.uid;
+    match /routes/{routeId} {
+      allow read: if resource.data.owner == "peaks"
+        || (signedIn() && resource.data.owner == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.owner == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == resource.data.owner;
+      allow delete: if signedIn()
+        && resource.data.owner == request.auth.uid;
     }
     match /lists/{document=**} {
     	allow read: if true;

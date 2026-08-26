@@ -288,6 +288,7 @@ export function buildRouteCandidateSql(sessionId: string): { text: string; value
   return {
     text: `SELECT r.id FROM routes r, tracking_sessions s
      WHERE s.id = $1 AND s.path IS NOT NULL AND r.status = 'active'
+       AND (r.owner = 'peaks' OR r.owner = s.user_id)
        AND r.path::geometry && ST_Expand(s.path::geometry, 0.005)
        AND ST_DWithin(r.path::geometry, s.path::geometry, 0.005)`,
     values: [sessionId],
@@ -1072,8 +1073,11 @@ export async function processPlan(
        FROM (
          SELECT pr.plan_id,
                 ST_Force2D(ST_LineMerge(ST_Collect(r.path::geometry ORDER BY pr.ordinal)))::geography AS merged
-         FROM plan_routes pr JOIN routes r ON r.id = pr.route_id
+         FROM plan_routes pr
+         JOIN routes r ON r.id = pr.route_id
+         JOIN plans route_plan ON route_plan.id = pr.plan_id
          WHERE pr.plan_id = $1
+           AND (r.owner = 'peaks' OR r.owner = route_plan.user_id)
          GROUP BY pr.plan_id
        ) sub
        WHERE p.id = $1 AND p.path IS NULL`,

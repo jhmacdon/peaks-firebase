@@ -1,4 +1,5 @@
 import { Card } from "./ui/card";
+import { myRoutePath } from "./route-paths";
 
 interface PlanCardProps {
   id: string;
@@ -16,8 +17,8 @@ export default function PlanCard({
   partySize,
 }: PlanCardProps) {
   return (
-    <Card href={`/plans/${id}`}>
-      <div className="font-medium text-ink">{name || "Untitled Plan"}</div>
+    <Card href={myRoutePath(id)}>
+      <div className="font-medium text-ink">{name || "Untitled Route"}</div>
       {date && (
         <div className="text-sm text-muted mt-1">
           {new Date(date).toLocaleDateString("en-US", {

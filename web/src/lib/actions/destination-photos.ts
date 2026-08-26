@@ -6,10 +6,13 @@ import db from "../db";
 import { verifyAdminToken } from "../auth-actions";
 import { normalizeSearchName } from "../search-utils";
 import {
+  DestinationPhotoSourceError,
   deleteStoredDestinationPhoto,
   storeDestinationPhoto,
   type StoredDestinationPhoto,
 } from "../destination-photo-storage";
+import { destinationPhotoActionErrorMessage } from "../destination-photo-action-error";
+import { destinationPhotoDimensionError } from "../destination-photo-quality";
 import {
   approvedDestinationPhotoFraming,
   destinationPhotoPageBounds,
@@ -19,6 +22,7 @@ import {
 } from "../destination-photo-review";
 
 export type DestinationPhotoStatus = "pending" | "approved" | "denied";
+export type DestinationPhotoListFilter = DestinationPhotoStatus | "comments";
 export type { DestinationPhotoDecision, DestinationPhotoFraming } from "../destination-photo-review";
 
 export interface DestinationPhotoCandidate {
@@ -41,6 +45,11 @@ export interface DestinationPhotoCandidate {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_note: string | null;
+  reviewer_comment: string | null;
+  reviewer_comment_by: string | null;
+  reviewer_comment_updated_at: string | null;
+  reviewer_comment_resolved_by: string | null;
+  reviewer_comment_resolved_at: string | null;
   created_at: string;
   current_image_url: string | null;
   current_image_attribution: string | null;
@@ -57,6 +66,12 @@ export interface DestinationPhotoCandidatePage {
   pageCount: number;
 }
 
+export interface DestinationPhotoComment {
+  comment: string | null;
+  updatedAt: string | null;
+  resolvedAt: string | null;
+}
+
 export interface NewDestinationPhotoCandidate {
   destinationId: string;
   imageUrl: string;
@@ -65,8 +80,8 @@ export interface NewDestinationPhotoCandidate {
   photographer: string;
   licenseName: string;
   licenseUrl: string;
-  imageWidth?: number | null;
-  imageHeight?: number | null;
+  imageWidth: number;
+  imageHeight: number;
   focalX?: number;
   focalY?: number;
   notes?: string | null;
@@ -78,6 +93,18 @@ export interface PhotoDestinationSearchResult {
   state_code: string | null;
   country_code: string | null;
 }
+
+export type DestinationPhotoCandidateAddResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
+
+export type DestinationPhotoReviewResult =
+  | {
+      ok: true;
+      status: DestinationPhotoStatus;
+      finalImageUrl: string | null;
+    }
+  | { ok: false; error: string };
 
 function requiredText(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -100,11 +127,10 @@ function httpsUrl(value: unknown, label: string): string {
   return url.toString();
 }
 
-function optionalPositiveInt(value: unknown, label: string): number | null {
-  if (value == null || value === "") return null;
+function positiveInt(value: unknown, label: string): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive whole number`);
+    throw new DestinationPhotoSourceError(`${label} must be a positive whole number`);
   }
   return parsed;
 }
@@ -124,8 +150,17 @@ function framing(input: DestinationPhotoFraming): DestinationPhotoFraming {
   };
 }
 
+function commentText(value: unknown): string | null {
+  if (typeof value !== "string") throw new Error("Comment must be text");
+  const text = value.trim();
+  if (text.length > 2_000) throw new Error("Comment must be 2,000 characters or fewer");
+  return text || null;
+}
+
 function serializeCandidate(row: Record<string, unknown>): DestinationPhotoCandidate {
   const reviewedAt = row.reviewed_at;
+  const commentUpdatedAt = row.reviewer_comment_updated_at;
+  const commentResolvedAt = row.reviewer_comment_resolved_at;
   const createdAt = row.created_at;
   return {
     ...(row as unknown as DestinationPhotoCandidate),
@@ -137,6 +172,14 @@ function serializeCandidate(row: Record<string, unknown>): DestinationPhotoCandi
     current_image_focal_y: Number(row.current_image_focal_y ?? 50),
     reviewed_at:
       reviewedAt instanceof Date ? reviewedAt.toISOString() : (reviewedAt as string | null),
+    reviewer_comment_updated_at:
+      commentUpdatedAt instanceof Date
+        ? commentUpdatedAt.toISOString()
+        : (commentUpdatedAt as string | null),
+    reviewer_comment_resolved_at:
+      commentResolvedAt instanceof Date
+        ? commentResolvedAt.toISOString()
+        : (commentResolvedAt as string | null),
     created_at: createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
   };
 }
@@ -153,20 +196,23 @@ async function requireAdmin(token: string): Promise<{ uid: string }> {
 
 export async function getDestinationPhotoCandidates(
   token: string,
-  status: DestinationPhotoStatus = "pending",
+  filter: DestinationPhotoListFilter = "pending",
   page = 0,
   pageSize = DESTINATION_PHOTO_PAGE_SIZE
 ): Promise<DestinationPhotoCandidatePage> {
   await requireAdmin(token);
-  if (!(["pending", "approved", "denied"] as string[]).includes(status)) {
-    throw new Error("Invalid photo status");
+  if (!(["pending", "approved", "denied", "comments"] as string[]).includes(filter)) {
+    throw new Error("Invalid photo filter");
   }
 
   const countResult = await db.query(
     `SELECT count(*)::int AS total
        FROM destination_photo_candidates
-      WHERE status = $1`,
-    [status]
+      WHERE ($1 = 'comments'
+             AND reviewer_comment IS NOT NULL
+             AND reviewer_comment_resolved_at IS NULL)
+         OR ($1 <> 'comments' AND status = $1)`,
+    [filter]
   );
   const total = Number(countResult.rows[0]?.total ?? 0);
   const bounds = destinationPhotoPageBounds(total, page, pageSize);
@@ -178,7 +224,12 @@ export async function getDestinationPhotoCandidates(
             c.image_width, c.image_height, c.focal_x, c.focal_y,
             c.notes, c.status,
             c.final_image_url, c.reviewed_by, c.reviewed_at,
-            c.review_note, c.created_at,
+            c.review_note,
+            c.reviewer_comment, c.reviewer_comment_by,
+            c.reviewer_comment_updated_at,
+            c.reviewer_comment_resolved_by,
+            c.reviewer_comment_resolved_at,
+            c.created_at,
             d.hero_image AS current_image_url,
             d.hero_image_attribution AS current_image_attribution,
             d.hero_image_attribution_url AS current_image_attribution_url,
@@ -186,10 +237,15 @@ export async function getDestinationPhotoCandidates(
             d.hero_image_focal_y AS current_image_focal_y
        FROM destination_photo_candidates c
        JOIN destinations d ON d.id = c.destination_id
-      WHERE c.status = $1
-      ORDER BY c.created_at ASC, d.name ASC, c.id ASC
+      WHERE ($1 = 'comments'
+             AND c.reviewer_comment IS NOT NULL
+             AND c.reviewer_comment_resolved_at IS NULL)
+         OR ($1 <> 'comments' AND c.status = $1)
+      ORDER BY CASE WHEN $1 = 'comments' THEN c.reviewer_comment_updated_at END DESC NULLS LAST,
+               CASE WHEN $1 <> 'comments' THEN c.created_at END ASC,
+               d.name ASC, c.id ASC
       LIMIT $2 OFFSET $3`,
-    [status, bounds.pageSize, bounds.offset]
+    [filter, bounds.pageSize, bounds.offset]
   );
   return {
     candidates: result.rows.map(serializeCandidate),
@@ -220,7 +276,7 @@ export async function searchDestinationsForPhotoCandidate(
   return result.rows;
 }
 
-export async function addDestinationPhotoCandidate(
+async function performAddDestinationPhotoCandidate(
   token: string,
   input: NewDestinationPhotoCandidate
 ): Promise<{ id: string }> {
@@ -232,8 +288,10 @@ export async function addDestinationPhotoCandidate(
   const photographer = requiredText(input.photographer, "Photographer");
   const licenseName = requiredText(input.licenseName, "License");
   const licenseUrl = httpsUrl(input.licenseUrl, "License URL");
-  const imageWidth = optionalPositiveInt(input.imageWidth, "Image width");
-  const imageHeight = optionalPositiveInt(input.imageHeight, "Image height");
+  const imageWidth = positiveInt(input.imageWidth, "Image width");
+  const imageHeight = positiveInt(input.imageHeight, "Image height");
+  const dimensionError = destinationPhotoDimensionError(imageWidth, imageHeight);
+  if (dimensionError) throw new DestinationPhotoSourceError(dimensionError);
   const photoFraming = framing({
     focalX: input.focalX ?? 50,
     focalY: input.focalY ?? 50,
@@ -273,6 +331,25 @@ export async function addDestinationPhotoCandidate(
   return { id };
 }
 
+export async function addDestinationPhotoCandidate(
+  token: string,
+  input: NewDestinationPhotoCandidate
+): Promise<DestinationPhotoCandidateAddResult> {
+  try {
+    const result = await performAddDestinationPhotoCandidate(token, input);
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Destination photo candidate add failed", { error });
+    return {
+      ok: false,
+      error: destinationPhotoActionErrorMessage(
+        error,
+        "Could not add this photo. Try again."
+      ),
+    };
+  }
+}
+
 export async function updateDestinationPhotoCandidateFraming(
   token: string,
   candidateId: string,
@@ -294,6 +371,75 @@ export async function updateDestinationPhotoCandidateFraming(
   return {
     focalX: Number(result.rows[0].focal_x),
     focalY: Number(result.rows[0].focal_y),
+  };
+}
+
+export async function updateDestinationPhotoCandidateComment(
+  token: string,
+  candidateId: string,
+  comment: string
+): Promise<DestinationPhotoComment> {
+  const admin = await requireAdmin(token);
+  const id = requiredText(candidateId, "Candidate");
+  const text = commentText(comment);
+  const result = await db.query(
+    text
+      ? `UPDATE destination_photo_candidates
+            SET reviewer_comment = $1,
+                reviewer_comment_by = $2,
+                reviewer_comment_updated_at = now(),
+                reviewer_comment_resolved_by = NULL,
+                reviewer_comment_resolved_at = NULL,
+                updated_at = now()
+          WHERE id = $3
+          RETURNING reviewer_comment, reviewer_comment_updated_at,
+                    reviewer_comment_resolved_at`
+      : `UPDATE destination_photo_candidates
+            SET reviewer_comment = NULL,
+                reviewer_comment_by = NULL,
+                reviewer_comment_updated_at = NULL,
+                reviewer_comment_resolved_by = NULL,
+                reviewer_comment_resolved_at = NULL,
+                updated_at = now()
+          WHERE id = $1
+          RETURNING reviewer_comment, reviewer_comment_updated_at,
+                    reviewer_comment_resolved_at`,
+    text ? [text, admin.uid, id] : [id]
+  );
+  if (result.rowCount !== 1) throw new Error("Photo candidate was not found");
+  const row = result.rows[0];
+  const updatedAt = row.reviewer_comment_updated_at;
+  return {
+    comment: row.reviewer_comment as string | null,
+    updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : (updatedAt as string | null),
+    resolvedAt: null,
+  };
+}
+
+export async function resolveDestinationPhotoCandidateComment(
+  token: string,
+  candidateId: string
+): Promise<DestinationPhotoComment> {
+  const admin = await requireAdmin(token);
+  const id = requiredText(candidateId, "Candidate");
+  const result = await db.query(
+    `UPDATE destination_photo_candidates
+        SET reviewer_comment_resolved_by = COALESCE(reviewer_comment_resolved_by, $1),
+            reviewer_comment_resolved_at = COALESCE(reviewer_comment_resolved_at, now()),
+            updated_at = now()
+      WHERE id = $2 AND reviewer_comment IS NOT NULL
+      RETURNING reviewer_comment, reviewer_comment_updated_at,
+                reviewer_comment_resolved_at`,
+    [admin.uid, id]
+  );
+  if (result.rowCount !== 1) throw new Error("Photo candidate has no comment to handle");
+  const row = result.rows[0];
+  const updatedAt = row.reviewer_comment_updated_at;
+  const resolvedAt = row.reviewer_comment_resolved_at;
+  return {
+    comment: row.reviewer_comment as string,
+    updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : (updatedAt as string | null),
+    resolvedAt: resolvedAt instanceof Date ? resolvedAt.toISOString() : (resolvedAt as string | null),
   };
 }
 
@@ -322,7 +468,7 @@ async function lockCandidate(client: PoolClient, id: string): Promise<Record<str
   return result.rows[0] || null;
 }
 
-export async function reviewDestinationPhotoCandidate(
+async function performDestinationPhotoReview(
   token: string,
   candidateId: string,
   decision: DestinationPhotoDecision,
@@ -453,5 +599,37 @@ export async function reviewDestinationPhotoCandidate(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+export async function reviewDestinationPhotoCandidate(
+  token: string,
+  candidateId: string,
+  decision: DestinationPhotoDecision,
+  reviewNote?: string | null,
+  requestedFraming?: DestinationPhotoFraming
+): Promise<DestinationPhotoReviewResult> {
+  try {
+    const result = await performDestinationPhotoReview(
+      token,
+      candidateId,
+      decision,
+      reviewNote,
+      requestedFraming
+    );
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Destination photo review failed", {
+      candidateId,
+      decision,
+      error,
+    });
+    return {
+      ok: false,
+      error: destinationPhotoActionErrorMessage(
+        error,
+        "Could not review this photo. Try again."
+      ),
+    };
   }
 }

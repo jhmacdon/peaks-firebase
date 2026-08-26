@@ -12,6 +12,7 @@ import lists from "./routes/lists";
 import plans from "./routes/plans";
 import search from "./routes/search";
 import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
+import account from "./routes/account";
 import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
 import { sweepStuckSessions } from "./processing";
@@ -134,6 +135,7 @@ app.use("/api/lists", lists);
 app.use("/api/plans", plans);
 app.use("/api/search", search);
 app.use("/api/trip-reports", tripReports);
+app.use("/api/account", account);
 
 // A rejected handler promise lands here via asyncRoute (lib/async-route.ts).
 // Express 4 ignores the promise an async handler returns, so without that

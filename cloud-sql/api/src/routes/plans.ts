@@ -17,6 +17,10 @@ interface StatusQueryable {
   query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
 }
 
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+  return value === undefined || typeof value === "boolean";
+}
+
 interface PlanRouteRecord {
   id: string;
   geometry: { type: "LineString"; coordinates: number[][] };
@@ -29,6 +33,54 @@ interface PlanRouteRecord {
   gain_loss?: number;
   elevation_string?: string;
   completion?: "none" | "straight" | "reverse";
+}
+
+export class InaccessiblePlanRouteError extends Error {
+  constructor() {
+    super("One or more routes are unavailable");
+    this.name = "InaccessiblePlanRouteError";
+  }
+}
+
+/** Runtime validation for the browser/mobile supplied route id list. */
+export function normalizePlanRouteIds(
+  value: unknown
+): string[] | undefined | null {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) return null;
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0 || item.length > 1_500) {
+      return null;
+    }
+    if (!seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+export async function assertPlanRoutesAccessible(
+  client: Pick<PoolClient, "query">,
+  uid: string,
+  routeIds: string[]
+): Promise<void> {
+  if (routeIds.length === 0) return;
+  const result = await client.query<{ id: string }>(
+    `SELECT r.id
+     FROM routes r
+     WHERE r.id = ANY($1::text[])
+       AND (r.owner = 'peaks' OR r.owner = $2)
+     FOR SHARE`,
+    [routeIds, uid]
+  );
+  const accessible = new Set(result.rows.map((row) => row.id));
+  if (accessible.size !== routeIds.length
+      || routeIds.some((id) => !accessible.has(id))) {
+    throw new InaccessiblePlanRouteError();
+  }
 }
 
 // Validate a client-supplied GeoJSON geometry is a usable plan path: a
@@ -166,6 +218,28 @@ async function upsertPlanRouteRecords(
   }
 }
 
+async function replacePlanRoutes(
+  client: PoolClient,
+  planId: string,
+  uid: string,
+  routeIds: string[]
+): Promise<void> {
+  await assertPlanRoutesAccessible(client, uid, routeIds);
+  await client.query(`DELETE FROM plan_routes WHERE plan_id = $1`, [planId]);
+  for (let ordinal = 0; ordinal < routeIds.length; ordinal++) {
+    const linked = await client.query(
+      `INSERT INTO plan_routes (plan_id, route_id, ordinal)
+       SELECT $1, r.id, $3
+       FROM routes r
+       WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $4)
+       ON CONFLICT (plan_id, route_id) DO UPDATE SET ordinal = EXCLUDED.ordinal
+       RETURNING route_id`,
+      [planId, routeIds[ordinal], ordinal, uid]
+    );
+    if (linked.rows.length !== 1) throw new InaccessiblePlanRouteError();
+  }
+}
+
 // GET /api/plans/processing-status?ids=a,b — batch poll for plan processing
 // state. Returns ONLY scalar processing fields (owned by the caller) in a single
 // query — same poll-storm-safe contract as the sessions endpoint. Registered
@@ -203,7 +277,7 @@ router.get("/", asyncRoute(async (req, res: Response) => {
   const offset = Number.isFinite(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
   const result = await db.query(
-    `SELECT DISTINCT p.id, p.user_id, p.name, p.description, p.date,
+    `SELECT DISTINCT p.id, p.user_id, p.name, p.description, p.date, p.is_public,
             COALESCE((
               SELECT array_agg(pd.destination_id ORDER BY pd.ordinal)
               FROM plan_destinations pd WHERE pd.plan_id = p.id
@@ -237,7 +311,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
 
   const result = await db.query(
-    `SELECT p.id, p.user_id, p.name, p.description, p.date,
+    `SELECT p.id, p.user_id, p.name, p.description, p.date, p.is_public,
             COALESCE((
               SELECT array_agg(pd.destination_id ORDER BY pd.ordinal)
               FROM plan_destinations pd WHERE pd.plan_id = p.id
@@ -258,7 +332,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
     [id, uid]
   );
   if (result.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
   res.json(result.rows[0]);
@@ -326,6 +400,7 @@ export function buildPlanRoutesQuery(
     text: `SELECT r.id, r.name, r.polyline6, r.geohashes, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.completion, r.shape, r.provenance,
+            (r.owner = 'peaks') AS is_catalog,
             pr.ordinal
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
@@ -334,7 +409,9 @@ export function buildPlanRoutesQuery(
        AND EXISTS (
          SELECT 1 FROM plans p
          LEFT JOIN plan_party pp ON pp.plan_id = p.id AND pp.user_id = $2
-         WHERE p.id = $1 AND (p.user_id = $2 OR pp.user_id = $2)
+         WHERE p.id = $1
+           AND (r.owner = 'peaks' OR r.owner = p.user_id)
+           AND (p.user_id = $2 OR pp.user_id = $2)
        )
      ORDER BY pr.ordinal`,
     values: [id, uid],
@@ -396,7 +473,7 @@ export async function handlePlanAirQuality(
       [id, uid]
     );
     if (planResult.rows.length === 0) {
-      res.status(404).json({ error: "Plan not found" });
+      res.status(404).json({ error: "Route not found" });
       return;
     }
     const planDate = (planResult.rows[0] as { date: Date | null }).date;
@@ -471,13 +548,48 @@ export async function handlePlanAirQuality(
 
 router.get("/:id/air-quality", asyncRoute((req, res: Response) => handlePlanAirQuality(req, res)));
 
+/** Change sharing without replacing any other saved-route fields. */
+export async function handlePlanVisibility(
+  req: Request,
+  res: Response,
+  pool: StatusQueryable = db
+): Promise<void> {
+  const uid = getUid(req);
+  const { id } = req.params;
+  const isPublic = req.body?.is_public;
+  if (typeof isPublic !== "boolean") {
+    res.status(400).json({ error: "is_public must be a boolean" });
+    return;
+  }
+
+  const result = await pool.query(
+    `UPDATE plans
+     SET is_public = $3, updated_at = now()
+     WHERE id = $1 AND user_id = $2
+     RETURNING id, is_public`,
+    [id, uid, isPublic]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: "Route not found" });
+    return;
+  }
+  res.json(result.rows[0]);
+}
+
+router.patch(
+  "/:id/visibility",
+  asyncRoute((req, res: Response) => handlePlanVisibility(req, res))
+);
+
 // POST /api/plans — create a new plan
 router.post("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const {
-    id, name, description, date, destinations, routes: routeIds,
+    id, name, description, date, destinations, routes: routeIdsValue,
     route_records: routeRecordsValue, geometry, distance, gain,
+    is_public: isPublic,
   } = req.body;
+  const routeIds = normalizePlanRouteIds(routeIdsValue);
   const routeRecords = parsePlanRouteRecords(routeRecordsValue, routeIds);
 
   if (!id || !name) {
@@ -492,6 +604,14 @@ router.post("/", asyncRoute(async (req, res: Response) => {
     res.status(400).json({ error: "distance and gain must be finite numbers or null" });
     return;
   }
+  if (!isOptionalBoolean(isPublic)) {
+    res.status(400).json({ error: "is_public must be a boolean" });
+    return;
+  }
+  if (routeIds === null) {
+    res.status(400).json({ error: "routes must contain valid route ids" });
+    return;
+  }
   if (routeRecords === null) {
     res.status(400).json({ error: "route_records must contain valid routes listed in routes" });
     return;
@@ -503,26 +623,34 @@ router.post("/", asyncRoute(async (req, res: Response) => {
 
     // The plan path drives destination matching. route_records moves any
     // user/imported route into Cloud SQL before plan_routes links it.
-    await client.query(
-      `INSERT INTO plans (id, user_id, name, description, date, path, distance, gain,
+    const planWrite = await client.query(
+      `INSERT INTO plans (id, user_id, name, description, date, is_public, path, distance, gain,
                           processing_state, updated_at)
-       VALUES ($1, $2, $3, $4, $5,
-               CASE WHEN $6::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($6))::geography ELSE NULL END,
-               $7, $8,
-               CASE WHEN $6::text IS NOT NULL THEN 'pending' ELSE 'idle' END,
+       VALUES ($1, $2, $3, $4, $5, $6,
+               CASE WHEN $7::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($7))::geography ELSE NULL END,
+               $8, $9,
+               CASE WHEN $7::text IS NOT NULL THEN 'pending' ELSE 'idle' END,
                now())
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
          date = EXCLUDED.date,
+         is_public = EXCLUDED.is_public,
          path = COALESCE(EXCLUDED.path, plans.path),
          distance = COALESCE(EXCLUDED.distance, plans.distance),
          gain = COALESCE(EXCLUDED.gain, plans.gain),
          processing_state = CASE WHEN EXCLUDED.path IS NOT NULL THEN 'pending' ELSE plans.processing_state END,
-         updated_at = now()`,
-      [id, uid, name, description || null, date || null,
+         updated_at = now()
+       WHERE plans.user_id = EXCLUDED.user_id
+       RETURNING id, is_public`,
+      [id, uid, name, description || null, date || null, isPublic === true,
        geometry ? JSON.stringify(geometry) : null, distance ?? null, gain ?? null]
     );
+    if (planWrite.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(409).json({ error: "Route ID unavailable" });
+      return;
+    }
 
     if (destinations) {
       await client.query(
@@ -540,19 +668,8 @@ router.post("/", asyncRoute(async (req, res: Response) => {
 
     await upsertPlanRouteRecords(client, uid, routeRecords);
 
-    if (routeIds) {
-      await client.query(
-        `DELETE FROM plan_routes WHERE plan_id = $1`,
-        [id]
-      );
-      for (let i = 0; i < routeIds.length; i++) {
-        await client.query(
-          `INSERT INTO plan_routes (plan_id, route_id, ordinal)
-           SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM routes WHERE id = $2)
-           ON CONFLICT DO NOTHING`,
-          [id, routeIds[i], i]
-        );
-      }
+    if (routeIds !== undefined) {
+      await replacePlanRoutes(client, id, uid, routeIds);
     }
 
     await client.query("COMMIT");
@@ -566,9 +683,13 @@ router.post("/", asyncRoute(async (req, res: Response) => {
       );
     }
 
-    res.status(201).json({ id });
+    res.status(201).json({ id, is_public: isPublic === true });
   } catch (err) {
     await client.query("ROLLBACK");
+    if (err instanceof InaccessiblePlanRouteError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     console.error("Error creating plan:", err);
     res.status(500).json({ error: "Failed to create plan" });
   } finally {
@@ -581,11 +702,14 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
   const { id } = req.params;
   const {
-    name, description, date, destinations, routes: routeIds,
+    name, description, date, destinations, routes: routeIdsValue,
     route_records: routeRecordsValue, geometry, distance, gain,
+    is_public: isPublic,
   } = req.body;
+  const routeIds = normalizePlanRouteIds(routeIdsValue);
   const routeRecords = parsePlanRouteRecords(routeRecordsValue, routeIds);
   const hasDate = Object.prototype.hasOwnProperty.call(req.body, "date");
+  const hasIsPublic = Object.prototype.hasOwnProperty.call(req.body, "is_public");
 
   if (!isValidPlanGeometry(geometry)) {
     res.status(400).json({ error: "geometry must be a GeoJSON LineString with >= 2 points" });
@@ -593,6 +717,14 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
   }
   if (!isOptionalFiniteNumber(distance) || !isOptionalFiniteNumber(gain)) {
     res.status(400).json({ error: "distance and gain must be finite numbers or null" });
+    return;
+  }
+  if (!isOptionalBoolean(isPublic)) {
+    res.status(400).json({ error: "is_public must be a boolean" });
+    return;
+  }
+  if (routeIds === null) {
+    res.status(400).json({ error: "routes must contain valid route ids" });
     return;
   }
   if (routeRecords === null) {
@@ -606,7 +738,7 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     [id, uid]
   );
   if (plan.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
 
@@ -616,7 +748,7 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
 
     // Geometry (when supplied) replaces plans.path and re-flags 'pending' so the
     // plan re-processes; processPlan is kicked after COMMIT.
-    await client.query(
+    const updateResult = await client.query(
       `UPDATE plans SET
          name = COALESCE($2, name),
          description = COALESCE($3, description),
@@ -624,12 +756,20 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
          path = CASE WHEN $6::text IS NOT NULL THEN ST_Force2D(ST_GeomFromGeoJSON($6))::geography ELSE path END,
          distance = COALESCE($7, distance),
          gain = COALESCE($8, gain),
+         is_public = CASE WHEN $9 THEN $10::boolean ELSE is_public END,
          processing_state = CASE WHEN $6::text IS NOT NULL THEN 'pending' ELSE processing_state END,
          updated_at = now()
-       WHERE id = $1`,
+       WHERE id = $1 AND user_id = $11
+       RETURNING id, is_public`,
       [id, name ?? null, description ?? null, hasDate, date ?? null,
-       geometry ? JSON.stringify(geometry) : null, distance ?? null, gain ?? null]
+       geometry ? JSON.stringify(geometry) : null, distance ?? null, gain ?? null,
+       hasIsPublic, isPublic ?? false, uid]
     );
+    if (updateResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Route not found" });
+      return;
+    }
 
     if (destinations) {
       await client.query(
@@ -647,19 +787,8 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
 
     await upsertPlanRouteRecords(client, uid, routeRecords);
 
-    if (routeIds) {
-      await client.query(
-        `DELETE FROM plan_routes WHERE plan_id = $1`,
-        [id]
-      );
-      for (let i = 0; i < routeIds.length; i++) {
-        await client.query(
-          `INSERT INTO plan_routes (plan_id, route_id, ordinal)
-           SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM routes WHERE id = $2)
-           ON CONFLICT DO NOTHING`,
-          [id, routeIds[i], i]
-        );
-      }
+    if (routeIds !== undefined) {
+      await replacePlanRoutes(client, id, uid, routeIds);
     }
 
     await client.query("COMMIT");
@@ -670,9 +799,13 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
       );
     }
 
-    res.json({ id });
+    res.json(updateResult.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
+    if (err instanceof InaccessiblePlanRouteError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     console.error("Error updating plan:", err);
     res.status(500).json({ error: "Failed to update plan" });
   } finally {
@@ -690,7 +823,7 @@ router.delete("/:id", asyncRoute(async (req, res: Response) => {
     [id, uid]
   );
   if (result.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
   res.json({ deleted: true, id });
@@ -704,7 +837,7 @@ router.post("/:id/process", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const plan = await db.query(`SELECT id FROM plans WHERE id = $1 AND user_id = $2`, [id, uid]);
   if (plan.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
   try {
@@ -741,7 +874,7 @@ router.post("/:id/party", asyncRoute(async (req, res: Response) => {
     [id, uid]
   );
   if (plan.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
 
@@ -764,7 +897,7 @@ router.delete("/:id/party/:userId", asyncRoute(async (req, res: Response) => {
     [id]
   );
   if (plan.rows.length === 0) {
-    res.status(404).json({ error: "Plan not found" });
+    res.status(404).json({ error: "Route not found" });
     return;
   }
   if (plan.rows[0].user_id !== uid && memberId !== uid) {

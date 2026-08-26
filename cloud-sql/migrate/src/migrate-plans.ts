@@ -3,6 +3,7 @@ import db from "./db";
 import {
   firestorePlanDate,
   firestorePlanDestinationIds,
+  firestorePlanIsPublic,
   resolveMigratedPlanRouteId,
 } from "./migrate-plan-fields";
 
@@ -10,7 +11,7 @@ import {
  * Migrate Firestore `plans` collection → PostGIS `plans` + join tables.
  *
  * Firestore doc fields:
- *   userId, name, description, plannedDate,
+ *   userId, name, description, plannedDate, isPublic,
  *   goals: [destinationId, ...],
  *   routes: [routeId, ...],
  *   party: [userId, ...],
@@ -57,13 +58,16 @@ export async function migratePlans() {
 
       // Insert the plan
       await db.query(
-        `INSERT INTO plans (id, user_id, name, description, date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO plans (
+           id, user_id, name, description, date, is_public, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (id) DO UPDATE SET
            user_id = EXCLUDED.user_id,
            name = EXCLUDED.name,
            description = EXCLUDED.description,
            date = EXCLUDED.date,
+           is_public = EXCLUDED.is_public,
            updated_at = EXCLUDED.updated_at`,
         [
           id,
@@ -71,6 +75,7 @@ export async function migratePlans() {
           d.name || "Untitled",
           d.description || null,
           parseDateField(firestorePlanDate(d)),
+          firestorePlanIsPublic(d),
           parseTs(d.createdAt, doc.createTime.toDate()),
           parseTs(d.updatedAt, doc.updateTime.toDate()),
         ]

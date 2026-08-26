@@ -8,7 +8,7 @@ export function DiscoverLists({ lists }: { lists: ListRow[] }) {
     <DiscoverSection
       id="browse-lists"
       title="Browse lists"
-      description="Curated collections for peak-bagging, planning, and progress."
+      description="Curated collections for peak-bagging, route finding, and progress."
       action={<SectionLink href="/lists">All lists</SectionLink>}
     >
       {lists.length === 0 ? (

@@ -8,15 +8,18 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const libDir = fileURLToPath(new URL(".", import.meta.url));
-const read = (file: string) => readFileSync(join(libDir, "actions", file), "utf8");
+const read = (file: string) => readFileSync(join(libDir, file), "utf8");
 
+// Paths are relative to src/lib. The public-session read lives in its own
+// builder rather than under actions/ — PR #135 extracted it so it could be
+// unit-tested, and the predicate travelled with the query.
 const READERS = [
-  "routes.ts",
-  "sessions.ts",
-  "public-sessions.ts",
-  "search.ts",
-  "areas.ts",
-  "trip-reports.ts",
+  "actions/routes.ts",
+  "actions/sessions.ts",
+  "actions/search.ts",
+  "actions/areas.ts",
+  "actions/trip-reports.ts",
+  "public-session-routes.ts",
 ];
 
 test("every web action that reads session_routes carries the predicate", () => {
@@ -33,12 +36,12 @@ test("every web action that reads session_routes carries the predicate", () => {
 
 test("each web read carries its own predicate call", () => {
   const counts: Record<string, number> = {
-    "routes.ts": 3,
-    "sessions.ts": 1,
-    "public-sessions.ts": 1,
-    "search.ts": 3,
-    "areas.ts": 1,
-    "trip-reports.ts": 1,
+    "actions/routes.ts": 3,
+    "actions/sessions.ts": 1,
+    "actions/search.ts": 3,
+    "actions/areas.ts": 1,
+    "actions/trip-reports.ts": 1,
+    "public-session-routes.ts": 1,
   };
   for (const [file, expected] of Object.entries(counts)) {
     const uses = read(file).match(/routeDoneCoverageSql\(/g) ?? [];

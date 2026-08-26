@@ -74,7 +74,11 @@ const REPORT_SELECT = `
          ), '[]'::json) AS destination_ids,
          COALESCE((
            SELECT json_agg(rr.route_id ORDER BY rr.route_id)
-           FROM trip_report_routes rr WHERE rr.report_id = tr.id
+           FROM trip_report_routes rr
+           JOIN routes report_route ON report_route.id = rr.route_id
+           WHERE rr.report_id = tr.id
+             AND report_route.owner = 'peaks'
+             AND report_route.status = 'active'
          ), '[]'::json) AS route_ids,
          COALESCE((
            SELECT json_agg(json_build_object(
@@ -374,6 +378,7 @@ export async function createTripReport(
        JOIN routes r ON r.id = sr.route_id
        WHERE sr.session_id = $2
          AND ${routeDoneCoverageSql("sr")}
+         AND r.owner = 'peaks'
          AND r.status = 'active'`,
       [id, data.sessionId]
     );

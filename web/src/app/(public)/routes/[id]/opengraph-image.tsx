@@ -24,10 +24,10 @@ export default async function Image({
   let stats: string | null = null;
 
   try {
-    const route = await getRoute(id, { publicOnly: true });
+    const route = await getRoute(id);
     if (route) {
       name = route.name || "Unnamed route";
-      const destinations = await getRouteDestinations(id, { publicOnly: true });
+      const destinations = await getRouteDestinations(id);
       const primaryDestinationName = pickPrimaryRouteDestinationName(destinations);
       stats = joinStats([
         formatMiles(route.distance),

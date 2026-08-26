@@ -14,7 +14,7 @@ const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
 
 const DESCRIPTION =
-  "What Peaks does: a searchable catalog of peaks, trailheads, and protected areas, route planning on the map, GPS session tracking, and trip reports with photos.";
+  "What Peaks does: a searchable catalog of peaks, trailheads, and protected areas, saved routes on the map, GPS session tracking, and trip reports with photos.";
 
 // A different peak than the landing hero's (contour-art.tsx's
 // HERO_CONTOUR_SEED) — the same generator, a different seed, so the two
@@ -31,8 +31,8 @@ const PLANNING_FEATURES = [
     body: "Every standard route lists distance, gain, and shape, drawn from real GPS tracks we keep current.",
   },
   {
-    title: "Trip plans",
-    body: "Set a date, add your party, and keep the route with the plan until the day you climb.",
+    title: "Saved routes",
+    body: "Set a trip date, add your party, and keep the route ready for the day you climb.",
   },
 ];
 
@@ -141,7 +141,7 @@ export default async function FeaturesPage() {
 
         <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-32 sm:pb-24 md:pt-24 md:pb-16">
           <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
-            Plan the climb. Log the summit.
+            Choose the route. Log the summit.
           </h1>
           <p className="mt-6 max-w-[42ch] text-[18px] leading-[1.6] text-ink-2 sm:max-w-[56ch]">
             Search the catalog, plan the route, and record the climb — then
@@ -211,7 +211,7 @@ export default async function FeaturesPage() {
 
       {/* Planning */}
       <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
-        <SectionHeading size="lg">Planning</SectionHeading>
+        <SectionHeading size="lg">Routes</SectionHeading>
         <p className="mt-3 max-w-[60ch] text-base leading-[1.6] text-ink-2">
           Know the route before you leave the trailhead.
         </p>

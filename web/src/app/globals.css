@@ -305,6 +305,12 @@ a {
   color: var(--color-accent-text);
 }
 
+.map-embed .map-popup-status {
+  margin-top: 2px;
+  color: var(--color-success);
+  font-size: 12px;
+}
+
 .map-embed .leaflet-popup-close-button {
   color: var(--color-faint);
 }
@@ -320,6 +326,38 @@ a {
 
 .map-embed .leaflet-tooltip-top::before {
   border-top-color: var(--color-border);
+}
+
+.map-embed .area-map-legend {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-ctl);
+  background: color-mix(in srgb, var(--color-page) 90%, transparent);
+  box-shadow: var(--shadow-float);
+  padding: 6px 8px;
+  color: var(--color-ink-2);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.map-embed .area-map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-embed .area-map-legend-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #fff;
+  border-radius: 9999px;
+}
+
+.map-embed .area-map-legend-dot.is-reached {
+  width: 11px;
+  height: 11px;
+  border-width: 2px;
 }
 
 /* Map explorer peak labels (Leaflet tooltips promoted to permanent). Not

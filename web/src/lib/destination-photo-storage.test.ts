@@ -3,6 +3,7 @@ import test from "node:test";
 import sharp from "sharp";
 import {
   assertRemoteImageUrl,
+  DestinationPhotoSourceError,
   renderDestinationPhoto,
 } from "./destination-photo-storage";
 
@@ -50,4 +51,36 @@ test("destination cover renderer caps the longest edge at 2400 pixels", async ()
     </svg>`);
   const rendered = await renderDestinationPhoto(input);
   assert.deepEqual([rendered.width, rendered.height], [2400, 1200]);
+});
+
+test("destination cover renderer gives a clear error for the source that failed in photo review", async () => {
+  const input = Buffer.from(`
+    <svg width="910" height="618" xmlns="http://www.w3.org/2000/svg">
+      <rect width="910" height="618" fill="#445566"/>
+    </svg>`);
+  await assert.rejects(
+    renderDestinationPhoto(input),
+    (error: unknown) =>
+      error instanceof DestinationPhotoSourceError &&
+      error.message === "Photo is 910×618; covers must be at least 1600×900"
+  );
+});
+
+test("destination cover renderer rejects sources below 1600 by 900 pixels", async () => {
+  for (const [width, height] of [
+    [1599, 900],
+    [1600, 899],
+  ]) {
+    const input = Buffer.from(`
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="${width}" height="${height}" fill="#445566"/>
+      </svg>`);
+    await assert.rejects(
+      renderDestinationPhoto(input),
+      (error: unknown) =>
+        error instanceof DestinationPhotoSourceError &&
+        error.message ===
+          `Photo is ${width}×${height}; covers must be at least 1600×900`
+    );
+  }
 });

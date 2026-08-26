@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../../../../lib/auth-context";
+import { resolveShareUrl } from "../../../../components/share-link-utils";
 import {
   getFriends,
   createFriendInvite,
@@ -85,7 +86,9 @@ export default function FriendsPage() {
 
   const handleCopyInvite = async () => {
     if (!inviteCode) return;
-    const link = `${window.location.origin}/account/friends?invite=${inviteCode}`;
+    const link = resolveShareUrl(
+      `/account/friends?invite=${encodeURIComponent(inviteCode)}`
+    );
     await navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -185,7 +188,9 @@ export default function FriendsPage() {
               <Input
                 type="text"
                 readOnly
-                value={`${typeof window !== "undefined" ? window.location.origin : ""}/account/friends?invite=${inviteCode}`}
+                value={resolveShareUrl(
+                  `/account/friends?invite=${encodeURIComponent(inviteCode)}`
+                )}
                 className="flex-1 text-xs text-ink-2 truncate"
               />
               <Button

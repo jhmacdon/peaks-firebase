@@ -91,7 +91,7 @@ function DashboardContent() {
         if (!token) throw new Error("Missing admin token");
         const [destinations, routes, sessions, photos] = await Promise.allSettled([
           getDestinations("", 1, 0),
-          getRoutes("", 1, 0),
+          getRoutes(token, "", 1, 0),
           getAdminSessions(token, "", 1, 0),
           getDestinationPhotoCandidates(token, "pending", 0, 1),
         ]);

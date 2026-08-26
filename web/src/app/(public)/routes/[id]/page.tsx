@@ -53,9 +53,9 @@ export default async function RouteDetailPage({
 
   const [destinations, segments, elevationPoints, sessionCount] = await Promise.all([
     settled(getRouteDestinationsCached(id), []),
-    settled(getRouteSegments(id, { publicOnly: true }), []),
-    settled(getRouteElevation(id, { publicOnly: true }), []),
-    settled(getRouteSessionCount(id, { publicOnly: true }), 0),
+    settled(getRouteSegments(id), []),
+    settled(getRouteElevation(id), []),
+    settled(getRouteSessionCount(id), 0),
   ]);
 
   const start = destinations[0];
@@ -141,7 +141,7 @@ export default async function RouteDetailPage({
         className="mt-8"
       />
 
-      <RouteActions directionsUrl={directionsUrl} className="mt-8" />
+      <RouteActions routeId={id} name={name} directionsUrl={directionsUrl} className="mt-8" />
 
       <Topline stats={toplineStats} className="mt-10" />
 

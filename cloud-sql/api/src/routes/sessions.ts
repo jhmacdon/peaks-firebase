@@ -32,6 +32,75 @@ import {
 const router = Router();
 const PROCESSING_STATES = ["idle", "pending", "processing", "completed", "failed"] as const;
 
+export class InaccessibleSessionRouteError extends Error {
+  constructor() {
+    super("One or more routes are unavailable");
+    this.name = "InaccessibleSessionRouteError";
+  }
+}
+
+export function normalizeSessionRouteIds(
+  value: unknown
+): string[] | undefined | null {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) return null;
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0 || item.length > 1_500) {
+      return null;
+    }
+    if (!seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
+export async function assertSessionRoutesAccessible(
+  client: Pick<PoolClient, "query">,
+  uid: string,
+  routeIds: string[]
+): Promise<void> {
+  if (routeIds.length === 0) return;
+  const result = await client.query<{ id: string }>(
+    `SELECT r.id
+     FROM routes r
+     WHERE r.id = ANY($1::text[])
+       AND (r.owner = 'peaks' OR r.owner = $2)
+     FOR SHARE`,
+    [routeIds, uid]
+  );
+  const accessible = new Set(result.rows.map((row) => row.id));
+  if (accessible.size !== routeIds.length
+      || routeIds.some((id) => !accessible.has(id))) {
+    throw new InaccessibleSessionRouteError();
+  }
+}
+
+async function replaceSessionRoutes(
+  client: PoolClient,
+  sessionId: string,
+  uid: string,
+  routeIds: string[]
+): Promise<void> {
+  await assertSessionRoutesAccessible(client, uid, routeIds);
+  await client.query(`DELETE FROM session_routes WHERE session_id = $1`, [sessionId]);
+  for (const routeId of routeIds) {
+    const linked = await client.query(
+      `INSERT INTO session_routes (session_id, route_id)
+       SELECT $1, r.id
+       FROM routes r
+       WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $3)
+       ON CONFLICT DO NOTHING
+       RETURNING route_id`,
+      [sessionId, routeId, uid]
+    );
+    if (linked.rows.length !== 1) throw new InaccessibleSessionRouteError();
+  }
+}
+
 // Per-user in-flight cap on the heavy write/process endpoints (create session,
 // upload points, process). One shared limiter per process; a single account
 // can hold at most HEAVY_INFLIGHT_CAP concurrent heavy requests on this
@@ -83,13 +152,15 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     'id', r.id, 'name', r.name, 'polyline6', r.polyline6,
     'distance', r.distance, 'gain', r.gain, 'gain_loss', r.gain_loss,
     'provenance', r.provenance,
+    'is_catalog', r.owner = 'peaks',
     'source', sr.source, 'coverage', sr.coverage
   ) ORDER BY r.name, r.id)
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
   WHERE sr.session_id = s.id
     AND ${routeDoneCoverageSql("sr")}
-    AND r.status IN ('active', 'superseded')),
+    AND r.status IN ('active', 'superseded')
+    AND (r.owner = 'peaks' OR r.owner = s.user_id)),
   '[]'::json
 )`;
 
@@ -965,6 +1036,7 @@ router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
   const result = await db.query(
     `SELECT r.id, r.name, r.polyline6,
             r.distance, r.gain, r.gain_loss, r.provenance,
+            (r.owner = 'peaks') AS is_catalog,
             sr.source, sr.coverage
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
@@ -972,7 +1044,8 @@ router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
      WHERE sr.session_id = $1
        AND ${routeDoneCoverageSql("sr")}
        AND (s.user_id = $2 OR s.is_public = true)
-       AND r.status IN ('active', 'superseded')`,
+       AND r.status IN ('active', 'superseded')
+       AND (r.owner = 'peaks' OR r.owner = s.user_id)`,
     [id, uid]
   );
   res.json(result.rows);
@@ -1104,12 +1177,12 @@ router.get("/:id/comparisons", asyncRoute(async (req, res: Response) => {
   });
 }));
 
-// GET /api/sessions/:id/markers
-router.get("/:id/markers", asyncRoute(async (req, res: Response) => {
-  const uid = getUid(req);
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT sm.id, sm.name, sm.image,
+export function buildSessionMarkersQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT sm.id, sm.name, sm.image,
             CASE WHEN s.user_id = $2 THEN sm.created_by ELSE NULL END AS created_by,
             sm.created_at,
             ST_Y(sm.location::geometry) AS lat,
@@ -1118,10 +1191,17 @@ router.get("/:id/markers", asyncRoute(async (req, res: Response) => {
      FROM session_markers sm
      JOIN tracking_sessions s ON s.id = sm.session_id
      WHERE sm.session_id = $1
-       AND (s.user_id = $2 OR s.is_public = true)
+       AND s.user_id = $2
      ORDER BY sm.created_at`,
-    [id, uid]
-  );
+    values: [id, uid],
+  };
+}
+
+// GET /api/sessions/:id/markers — owner-only. Public activity bundles omit
+// user marker names and coordinates.
+router.get("/:id/markers", asyncRoute(async (req, res: Response) => {
+  const query = buildSessionMarkersQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 }));
 
@@ -1543,7 +1623,7 @@ export const SESSION_UPSERT_SQL = `INSERT INTO tracking_sessions
    END,
    ended = EXCLUDED.ended, is_public = EXCLUDED.is_public
  WHERE tracking_sessions.user_id = EXCLUDED.user_id
- RETURNING id`;
+ RETURNING id, is_public`;
 
 // POST /api/sessions — create a new session
 router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
@@ -1555,8 +1635,9 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
     activity_type, source, external_id,
     health_data, source_contributions,
     ended, is_public,
-    destinations_reached, destination_goals, routes: routeIds,
+    destinations_reached, destination_goals, routes: routeIdsValue,
   } = req.body;
+  const routeIds = normalizeSessionRouteIds(routeIdsValue);
 
   if (!id) {
     res.status(400).json({ error: "id is required" });
@@ -1564,6 +1645,10 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
   }
   if (!isOptionalFiniteNumber(gain) || !isOptionalFiniteNumber(high_point)) {
     res.status(400).json({ error: "gain and high_point must be finite numbers or null" });
+    return;
+  }
+  if (routeIds === null) {
+    res.status(400).json({ error: "routes must contain valid route ids" });
     return;
   }
 
@@ -1625,18 +1710,8 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
     }
 
     // Set routes
-    if (routeIds) {
-      await client.query(
-        `DELETE FROM session_routes WHERE session_id = $1`,
-        [id]
-      );
-      for (const routeId of routeIds) {
-        await client.query(
-          `INSERT INTO session_routes (session_id, route_id)
-           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [id, routeId]
-        );
-      }
+    if (routeIds !== undefined) {
+      await replaceSessionRoutes(client, id, uid, routeIds);
     }
 
     await client.query(
@@ -1655,10 +1730,15 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
     const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
     res.status(201).json({
       id,
+      is_public: upserted.rows[0].is_public === true,
       processing_state: finalState ?? (queuedForProcessing ? "pending" : null),
     });
   } catch (err) {
     await client.query("ROLLBACK");
+    if (err instanceof InaccessibleSessionRouteError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     console.error("Error creating session:", err);
     res.status(500).json({ error: "Failed to create session" });
   } finally {
@@ -1676,11 +1756,16 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     ascent_time, descent_time, still_time,
     activity_type, ended, is_public,
     health_data, source_contributions,
-    destinations_reached, destination_goals, routes: routeIds,
+    destinations_reached, destination_goals, routes: routeIdsValue,
   } = req.body;
+  const routeIds = normalizeSessionRouteIds(routeIdsValue);
 
   if (!isOptionalFiniteNumber(gain) || !isOptionalFiniteNumber(high_point)) {
     res.status(400).json({ error: "gain and high_point must be finite numbers or null" });
+    return;
+  }
+  if (routeIds === null) {
+    res.status(400).json({ error: "routes must contain valid route ids" });
     return;
   }
 
@@ -1709,7 +1794,7 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
       ? null
       : mergeSourceContributions(currentSession.source_contributions, source_contributions);
 
-    await client.query(
+    const updated = await client.query(
       `UPDATE tracking_sessions SET
          name = COALESCE($2, name),
          start_time = COALESCE($3, start_time),
@@ -1727,7 +1812,8 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
          is_public = COALESCE($15, is_public),
          health_data = COALESCE($16::jsonb, health_data),
          source_contributions = COALESCE($17::jsonb, source_contributions)
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING id, is_public`,
       [
         id,
         name ?? null, start_date ?? null, end_date ?? null,
@@ -1755,18 +1841,8 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     }
 
     // Update routes if provided
-    if (routeIds) {
-      await client.query(
-        `DELETE FROM session_routes WHERE session_id = $1`,
-        [id]
-      );
-      for (const routeId of routeIds) {
-        await client.query(
-          `INSERT INTO session_routes (session_id, route_id)
-           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [id, routeId]
-        );
-      }
+    if (routeIds !== undefined) {
+      await replaceSessionRoutes(client, id, uid, routeIds);
     }
 
     const queuedForProcessing =
@@ -1779,10 +1855,15 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     const finalState = await autoProcessIfQueued(queuedForProcessing, id, uid);
     res.json({
       id,
+      is_public: updated.rows[0].is_public === true,
       processing_state: finalState ?? (queuedForProcessing ? "pending" : null),
     });
   } catch (err) {
     await client.query("ROLLBACK");
+    if (err instanceof InaccessibleSessionRouteError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     console.error("Error updating session:", err);
     res.status(500).json({ error: "Failed to update session" });
   } finally {

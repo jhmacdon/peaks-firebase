@@ -21,8 +21,8 @@ import {
   VIEWPORT_ROUTE_LIMIT,
 } from "../map-view";
 import {
-  areaCoverPhotoFor,
   areaCoverPhotoSql,
+  distinctAreaCoverPhotosFor,
   type AreaCoverPhoto,
 } from "../area-cover-photo";
 
@@ -625,7 +625,11 @@ export async function searchAreas(
     [q, prefixPattern, safeLimit]
   );
 
-  return result.rows.map((row: any) => ({
+  const coverPhotos = distinctAreaCoverPhotosFor(
+    result.rows.map((row: any) => ({ areaId: String(row.id), row }))
+  );
+
+  return result.rows.map((row: any, index: number) => ({
     id: String(row.id),
     name: String(row.name),
     kind: normalizeAreaKind(row.kind),
@@ -636,7 +640,7 @@ export async function searchAreas(
     destination_count: Number(row.destination_count),
     route_count: Number(row.route_count),
     score: Number(row.score),
-    cover_photo: areaCoverPhotoFor(String(row.id), row),
+    cover_photo: coverPhotos[index],
   }));
 }
 

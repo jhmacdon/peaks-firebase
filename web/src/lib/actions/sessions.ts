@@ -79,6 +79,7 @@ export interface SessionRoute {
   distance: number | null;
   gain: number | null;
   provenance: RouteProvenance | null;
+  isCatalog: boolean;
 }
 
 export interface UserStats {
@@ -377,7 +378,8 @@ export async function getSessionRoutes(
   if (!user) throw new Error("Unauthorized");
 
   const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.provenance
+    `SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.provenance,
+            (r.owner = 'peaks') AS is_catalog
      FROM session_routes sr
      JOIN routes r ON r.id = sr.route_id
      JOIN tracking_sessions ts ON ts.id = sr.session_id
@@ -385,6 +387,7 @@ export async function getSessionRoutes(
        AND ${routeDoneCoverageSql("sr")}
        AND (ts.user_id = $2 OR ts.is_public = true)
        AND r.status IN ('active', 'superseded')
+       AND (r.owner = 'peaks' OR r.owner = ts.user_id)
      ORDER BY r.name ASC NULLS LAST`,
     [sessionId, user.uid]
   );
@@ -394,6 +397,7 @@ export async function getSessionRoutes(
     distance: r.distance != null ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
     provenance: parseRouteProvenance(r.provenance),
+    isCatalog: r.is_catalog === true,
   }));
 }
 

@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import db, { createDbClient } from "../db";
+import { getUid } from "../auth";
+import { buildRouteAccessSql } from "../lib/route-access";
 import { normalizeSearchName } from "../search-utils";
 
 const router = Router();
@@ -58,6 +60,7 @@ export interface DestinationSearchQueryInput {
   lat?: number;
   lng?: number;
   limit: number;
+  uid?: string;
 }
 
 interface SearchSqlQuery {
@@ -291,9 +294,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
     ? ", ST_Distance(r.path, ST_MakePoint($5, $4)::geography) AS distance_m"
     : "";
   const limitParam = hasGeo(input) ? "$6" : "$4";
+  const uidParam = hasGeo(input) ? "$7" : "$5";
   const values = hasGeo(input)
-    ? [q, normalizedPrefix, rawPrefix, input.lat, input.lng, routeLimit]
-    : [q, normalizedPrefix, rawPrefix, routeLimit];
+    ? [q, normalizedPrefix, rawPrefix, input.lat, input.lng, routeLimit, input.uid ?? ""]
+    : [q, normalizedPrefix, rawPrefix, routeLimit, input.uid ?? ""];
 
   return {
     text: `SELECT r.id, r.name, r.polyline6, r.owner,
@@ -316,6 +320,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        ) route_dest_names ON true
        ${routeAreaJoinSql}
        WHERE r.status = 'active'
+         AND ${buildRouteAccessSql("r", uidParam)}
          AND (
            ${routeSearchText} % $1
            OR lower(r.name) ILIKE $2
@@ -629,6 +634,7 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
       lat: requestGeo ? lat : undefined,
       lng: requestGeo ? lng : undefined,
       limit,
+      uid: getUid(req),
     });
 
     const destinations = await runSearchRows(res, queries.destinations);

@@ -7,6 +7,11 @@ export function firestorePlanDate(data: Record<string, any>): unknown {
   return data.plannedDate ?? data.date;
 }
 
+/** Missing or malformed visibility stays private during every repair run. */
+export function firestorePlanIsPublic(data: Record<string, any>): boolean {
+  return data.isPublic === true || data.is_public === true;
+}
+
 /**
  * Some early plan documents saved a generated route segment id even though
  * Firestore only retained the parent route document. Prefer an exact route,

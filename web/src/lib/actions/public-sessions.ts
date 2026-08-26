@@ -3,10 +3,10 @@
 
 import db from "../db";
 import { parseAreas, type ProtectedArea } from "../area-types";
-import { routeDoneCoverageSql } from "../route-coverage";
 import {
   parseRouteProvenance,
 } from "../route-provenance";
+import { buildPublicSessionRoutesQuery } from "../public-session-routes";
 import type {
   SessionDestination,
   SessionDetail,
@@ -66,6 +66,7 @@ export async function getPublicSessionBundle(
   );
 
   if (sessionResult.rows.length === 0) return null;
+  const publicRoutesQuery = buildPublicSessionRoutesQuery(sessionId);
 
   const [pointResult, destinationResult, routeResult, areaResult] =
     await Promise.all([
@@ -135,17 +136,7 @@ export async function getPublicSessionBundle(
          ORDER BY d.name ASC NULLS LAST`,
         [sessionId]
       ),
-      db.query(
-        `SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.provenance
-         FROM session_routes sr
-         JOIN routes r ON r.id = sr.route_id
-         JOIN tracking_sessions ts ON ts.id = sr.session_id
-         WHERE sr.session_id = $1 AND ts.is_public = true
-           AND ${routeDoneCoverageSql("sr")}
-           AND r.status IN ('active', 'superseded')
-         ORDER BY r.name ASC NULLS LAST`,
-        [sessionId]
-      ),
+      db.query(publicRoutesQuery.text, publicRoutesQuery.values),
       db.query(
         `SELECT COALESCE(
                   json_agg(
@@ -237,6 +228,7 @@ export async function getPublicSessionBundle(
       distance: route.distance != null ? Number(route.distance) : null,
       gain: route.gain != null ? Number(route.gain) : null,
       provenance: parseRouteProvenance(route.provenance),
+      isCatalog: route.is_catalog === true,
     })),
     areas: parseAreas(areaResult.rows[0]?.areas ?? []),
   };

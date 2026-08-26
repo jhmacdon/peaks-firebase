@@ -6,7 +6,7 @@ import {
 import { JsonLdScript } from "../../../../components/json-ld-script";
 import { buildListJsonLd } from "../../../../lib/json-ld";
 import { describeList } from "../../../../lib/seo-descriptions";
-import { absoluteUrl, siteConfig } from "../../../../lib/seo";
+import { absoluteUrl, siteConfig, summarizeText } from "../../../../lib/seo";
 
 // One template serving every curated list, and a list's membership changes
 // on the order of months, not requests — same ISR contract as
@@ -80,11 +80,14 @@ export async function generateMetadata({
     }
 
     const title = list.name;
-    const description = describeList({
-      name: title,
-      description: list.description,
-      destinationCount: list.destination_count,
-    });
+    const description =
+      summarizeText([
+        describeList({
+          name: title,
+          description: list.description,
+          destinationCount: list.destination_count,
+        }),
+      ]) ?? `${title} on Peaks.`;
 
     const canonicalPath = `/lists/${id}`;
     const imageUrl = absoluteUrl("/opengraph-image");

@@ -8,6 +8,7 @@ import { useAuth } from "../../../../lib/auth-context";
 import {
   getPlanBundle,
   updatePlan,
+  setPlanVisibility,
   deletePlan,
   inviteToPlan,
   type PlanBundle,
@@ -28,8 +29,10 @@ import { Breadcrumb } from "../../../../components/detail-sections";
 import { SectionHeading } from "../../../../components/ui/section-heading";
 import { Topline } from "../../../../components/ui/topline";
 import { Button } from "../../../../components/ui/button";
-import { Input, Textarea } from "../../../../components/ui/field";
+import { Input, Label, Textarea } from "../../../../components/ui/field";
 import { EmptyState } from "../../../../components/ui/empty-state";
+import { resolveShareUrl } from "../../../../components/share-link-utils";
+import { publicSavedRoutePath } from "../../../../components/route-paths";
 import { LOADING_LABEL } from "../../../../lib/constants";
 
 const PlanMap = dynamic(() => import("../../../../components/plan-map"), {
@@ -52,6 +55,7 @@ export default function PlanDetailPage() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editIsPublic, setEditIsPublic] = useState(false);
   const [editDestinations, setEditDestinations] = useState<string[]>([]);
   const [editRoutes, setEditRoutes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -66,6 +70,13 @@ export default function PlanDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Share state
+  const [confirmPublishToShare, setConfirmPublishToShare] = useState(false);
+  const [readyToShare, setReadyToShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const plan = bundle?.plan ?? null;
   const isOwner = plan?.userId === user?.uid;
@@ -91,7 +102,7 @@ export default function PlanDetailPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        setLoadError("Sign in again to view this plan.");
+        setLoadError("Sign in again to view this route.");
         return;
       }
 
@@ -104,7 +115,7 @@ export default function PlanDetailPage() {
         getPlanAirQuality(token, planId).then(setAirQuality).catch(() => {});
       }
     } catch {
-      setLoadError("Couldn’t load this plan. Try again.");
+      setLoadError("Couldn’t load this route. Try again.");
     } finally {
       setLoading(false);
     }
@@ -119,9 +130,11 @@ export default function PlanDetailPage() {
     setEditName(plan.name);
     setEditDescription(plan.description);
     setEditDate(plan.date || "");
+    setEditIsPublic(plan.isPublic);
     setEditDestinations([...plan.destinations]);
     setEditRoutes([...plan.routes]);
     setSaveError(null);
+    setConfirmPublishToShare(false);
     setEditing(true);
   };
 
@@ -147,14 +160,92 @@ export default function PlanDetailPage() {
         destinations: editDestinations,
         routes: editRoutes,
         date: editDate || undefined,
+        isPublic: editIsPublic,
       });
 
       setEditing(false);
+      if (!editIsPublic) setReadyToShare(false);
       await loadBundle();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Couldn’t save changes. Try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sharePublicRoute = async (): Promise<"shared" | "copied"> => {
+    if (!plan) throw new Error("Route not found");
+    const url = resolveShareUrl(publicSavedRoutePath(planId));
+    if (navigator.share) {
+      await navigator.share({
+        title: plan.name || "Shared route",
+        text: `${plan.name || "A route"} on Peaks`,
+        url,
+      });
+      return "shared";
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShareMessage("Route link copied");
+      return "copied";
+    }
+  };
+
+  const handleShare = async () => {
+    if (!plan) return;
+    setShareError(null);
+    setShareMessage(null);
+    if (!plan.isPublic) {
+      if (isOwner) {
+        setConfirmPublishToShare(true);
+      } else {
+        setShareError("Only the route owner can make this route public.");
+      }
+      return;
+    }
+
+    try {
+      await sharePublicRoute();
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setShareError("Couldn’t share this route.");
+    }
+  };
+
+  const publishForSharing = async () => {
+    if (!plan) return;
+    setSharing(true);
+    setShareError(null);
+    setShareMessage(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again to share this route.");
+      await setPlanVisibility(token, planId, true);
+      setBundle((current) =>
+        current
+          ? { ...current, plan: { ...current.plan, isPublic: true } }
+          : current
+      );
+      setEditIsPublic(true);
+      setConfirmPublishToShare(false);
+      setReadyToShare(true);
+    } catch (caught) {
+      setShareError(
+        caught instanceof Error ? caught.message : "Couldn’t share this route."
+      );
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const shareAfterPublishing = async () => {
+    setShareError(null);
+    try {
+      const outcome = await sharePublicRoute();
+      setReadyToShare(false);
+      if (outcome === "shared") setShareMessage("Route shared");
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setShareError("The route is public, but its link could not be shared.");
     }
   };
 
@@ -184,13 +275,13 @@ export default function PlanDetailPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        setDeleteError("Sign in again to delete this plan.");
+        setDeleteError("Sign in again to delete this route.");
         return;
       }
       await deletePlan(token, planId);
-      router.push("/plans");
+      router.push("/my-routes");
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Couldn’t delete this plan. Try again.");
+      setDeleteError(err instanceof Error ? err.message : "Couldn’t delete this route. Try again.");
     } finally {
       setDeleting(false);
     }
@@ -223,8 +314,8 @@ export default function PlanDetailPage() {
     return (
       <div className="mx-auto max-w-[1200px] px-6 py-8">
         <EmptyState
-          title="Plan not found"
-          description="This plan may have been removed, or you may not have access to it."
+          title="Route not found"
+          description="This route may have been removed, or you may not have access to it."
         />
       </div>
     );
@@ -238,7 +329,7 @@ export default function PlanDetailPage() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
-      <Breadcrumb current={plan.name || "Untitled Plan"} parentHref="/plans" parentLabel="Plans" />
+      <Breadcrumb current={plan.name || "Untitled Route"} parentHref="/my-routes" parentLabel="Routes" />
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -247,35 +338,49 @@ export default function PlanDetailPage() {
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              aria-label="Plan name"
+              aria-label="Route name"
               className="w-full border-b-2 border-accent bg-transparent font-display text-[28px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink focus:outline-none sm:text-[32px]"
             />
           ) : (
             <h1 className="font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]">
-              {plan.name || "Untitled Plan"}
+              {plan.name || "Untitled Route"}
             </h1>
           )}
-          {!editing && plan.date && (
+          {!editing && (plan.date || isOwner) && (
             <p className="mt-2 text-sm text-ink-2">
-              {new Date(plan.date).toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {[
+                plan.date
+                  ? `Trip Date: ${new Date(`${plan.date}T12:00:00`).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}`
+                  : null,
+                isOwner ? (plan.isPublic ? "Public route" : "Private route") : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
           {editing && (
-            <Input
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-              aria-label="Plan date"
-              className="mt-3 max-w-[220px]"
-            />
+            <div className="mt-3 max-w-[220px]">
+              <Label htmlFor="route-trip-date">Trip Date</Label>
+              <Input
+                id="route-trip-date"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+              />
+            </div>
           )}
         </div>
         <div className="flex shrink-0 gap-2">
+          {!editing && (
+            <Button variant="secondary" onClick={handleShare} disabled={sharing}>
+              {sharing ? "Sharing…" : "Share"}
+            </Button>
+          )}
           {isOwner && !editing && (
             <Button variant="secondary" onClick={startEditing}>
               Edit
@@ -300,20 +405,87 @@ export default function PlanDetailPage() {
         </p>
       )}
 
+      {shareMessage ? (
+        <p role="status" className="mt-3 text-sm font-medium text-success">
+          {shareMessage}
+        </p>
+      ) : null}
+      {shareError ? (
+        <p role="alert" className="mt-3 text-sm text-alert">
+          {shareError}
+        </p>
+      ) : null}
+
+      {readyToShare ? (
+        <div role="status" className="mt-4 rounded-media border border-success/40 bg-surface p-4">
+          <p className="text-sm text-ink-2">
+            The route is public. Tap below to open the share sheet or copy its link.
+          </p>
+          <Button className="mt-3" onClick={shareAfterPublishing}>
+            Share public link
+          </Button>
+        </div>
+      ) : null}
+
+      {confirmPublishToShare && isOwner ? (
+        <div
+          role="alertdialog"
+          aria-labelledby="publish-route-title"
+          aria-describedby="publish-route-description"
+          className="mt-4 rounded-media border border-border bg-surface p-4"
+        >
+          <p id="publish-route-title" className="text-sm font-medium text-ink">
+            Make this route public and share it?
+          </p>
+          <p id="publish-route-description" className="mt-1 text-sm leading-6 text-ink-2">
+            Anyone with the link can view the route details, destinations, and map, including any
+            saved track. Photos and party details are not included.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button onClick={publishForSharing} disabled={sharing}>
+              {sharing ? "Making public…" : "Make public"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmPublishToShare(false)}
+              disabled={sharing}
+            >
+              Keep private
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Directly under the actions row, matching the destination/route
           pages' established order (hero/actions, then Topline, then the
           rest of the content) — before the description, not after it. */}
       {!editing && toplineStats.length > 0 && <Topline stats={toplineStats} className="mt-8" />}
 
       {editing ? (
-        <Textarea
-          value={editDescription}
-          onChange={(e) => setEditDescription(e.target.value)}
-          rows={3}
-          placeholder="Trip notes…"
-          aria-label="Plan description"
-          className="mt-6"
-        />
+        <div className="mt-6 space-y-4">
+          <Textarea
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            rows={3}
+            placeholder="Trip notes…"
+            aria-label="Route description"
+          />
+          <label className="flex items-start gap-3 rounded-media border border-border p-4">
+            <input
+              type="checkbox"
+              checked={editIsPublic}
+              onChange={(event) => setEditIsPublic(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-accent"
+            />
+            <span>
+              <span className="block text-sm font-medium text-ink">Public route</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted">
+                Anyone with the link can view the route details, destinations, and map, including
+                any saved track. Photos and party details are not included.
+              </span>
+            </span>
+          </label>
+        </div>
       ) : plan.description ? (
         <p className="mt-6 max-w-[68ch] text-ink-2">{plan.description}</p>
       ) : null}
@@ -423,19 +595,30 @@ export default function PlanDetailPage() {
                     route.distance != null ? formatMiles(route.distance) : null,
                     route.gain != null ? `${formatFeet(route.gain)} gain` : null,
                   ].filter((part): part is string => Boolean(part));
+                  const content = (
+                    <>
+                      <span className={`font-medium text-ink ${route.isCatalog ? "group-hover:underline" : ""}`}>
+                        {route.name || "Unnamed"}
+                      </span>
+                      {metaParts.length > 0 && (
+                        <span className="shrink-0 text-xs text-muted">{metaParts.join(" · ")}</span>
+                      )}
+                    </>
+                  );
                   return (
                     <li key={route.id}>
-                      <Link
-                        href={`/routes/${route.id}`}
-                        className="group flex items-center justify-between gap-4 py-3"
-                      >
-                        <span className="font-medium text-ink group-hover:underline">
-                          {route.name || "Unnamed"}
-                        </span>
-                        {metaParts.length > 0 && (
-                          <span className="shrink-0 text-xs text-muted">{metaParts.join(" · ")}</span>
-                        )}
-                      </Link>
+                      {route.isCatalog ? (
+                        <Link
+                          href={`/routes/${route.id}`}
+                          className="group flex items-center justify-between gap-4 py-3"
+                        >
+                          {content}
+                        </Link>
+                      ) : (
+                        <div className="flex items-center justify-between gap-4 py-3">
+                          {content}
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -496,7 +679,7 @@ export default function PlanDetailPage() {
             <div className="mt-4">
               {!confirmDelete ? (
                 <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-                  Delete Plan
+                  Delete Route
                 </Button>
               ) : (
                 <div className="space-y-3">

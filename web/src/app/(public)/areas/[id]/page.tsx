@@ -16,6 +16,9 @@ import { AreaFacts } from "../../../../components/area/area-facts";
 import { AreaActivity } from "../../../../components/area/area-activity";
 import { AreaDestinations } from "../../../../components/area/area-destinations";
 import { AreaRoutes } from "../../../../components/area/area-routes";
+import { AreaSessions } from "../../../../components/area/area-sessions";
+import { AreaPersonalizationProvider } from "../../../../components/area/area-personalization";
+import { ShareLinkButton } from "../../../../components/share-link-button";
 
 function sourceLabel(source: string, version: string): string {
   const name = source.toLowerCase() === "padus" ? "USGS PAD-US" : source;
@@ -53,10 +56,8 @@ export default async function AreaDetailPage({
       : null,
   ].filter((stat): stat is ToplineStat => stat !== null);
 
-  // Designation already leads the hero's scrim, and region already sits in
-  // the meta row under the H1 — the facts grid below doesn't repeat either
-  // (design-tokens.md's "every stat once" reading of law 3). Manager is the
-  // one fact with nowhere else to live.
+  // Designation and region sit under the H1, so the facts grid doesn't
+  // repeat them. Manager is the one fact with nowhere else to live.
   const facts = managerLabel ? [{ label: "Manager", value: managerLabel }] : [];
 
   return (
@@ -66,7 +67,18 @@ export default async function AreaDetailPage({
           <Breadcrumb current={area.name} parentHref="/areas" parentLabel="Protected areas" />
         }
         title={area.name}
-        meta={<DestinationMetaRow alert={null} parts={[regionLabel]} />}
+        meta={
+          <DestinationMetaRow
+            alert={null}
+            parts={[designationLabel, regionLabel]}
+          />
+        }
+        actions={
+          <ShareLinkButton
+            url={`/areas/${encodeURIComponent(id)}`}
+            title={area.name}
+          />
+        }
       />
 
       {area.parent_id && area.parent_name ? (
@@ -78,31 +90,36 @@ export default async function AreaDetailPage({
         </Link>
       ) : null}
 
-      <AreaHero area={area} designationLabel={designationLabel} className="mt-8" />
+      <AreaPersonalizationProvider areaId={area.id}>
+        <div className="mt-8 space-y-12">
+          <AreaActivity destinationCount={area.destination_count} />
 
-      <Topline stats={toplineStats} className="mt-10" />
+          <AreaAbout
+            name={area.name}
+            description={area.description}
+            sourceName={area.description_source_name}
+            sourceUrl={area.description_source_url}
+            sourceLicense={area.description_source_license}
+            fallbackCredit={catalogSource}
+          />
 
-      <div className="mt-12 space-y-12">
-        <AreaActivity areaId={area.id} />
+          <div>
+            <AreaFacts facts={facts} />
+            <Topline stats={toplineStats} className={facts.length > 0 ? "mt-8" : ""} />
+          </div>
 
-        <AreaAbout
-          name={area.name}
-          description={area.description}
-          sourceName={area.description_source_name}
-          sourceUrl={area.description_source_url}
-          sourceLicense={area.description_source_license}
-          fallbackCredit={catalogSource}
-        />
+          <AreaHero area={area} />
 
-        <AreaFacts facts={facts} />
+          <AreaDestinations
+            destinations={area.destinations}
+            totalCount={area.destination_count}
+          />
 
-        <AreaDestinations
-          destinations={area.destinations}
-          totalCount={area.destination_count}
-        />
+          <AreaSessions />
 
-        <AreaRoutes routes={area.routes} totalCount={area.route_count} />
-      </div>
+          <AreaRoutes routes={area.routes} totalCount={area.route_count} />
+        </div>
+      </AreaPersonalizationProvider>
     </div>
   );
 }
