@@ -2,15 +2,31 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  areaKindLabel,
   describeAreaIndexDesignation,
   describeDesignation,
   describeManager,
+  normalizeAreaKind,
+  sortAreasByProminence,
 } from "./area-types";
 
 test("describeDesignation expands a known PAD-US code", () => {
   assert.equal(describeDesignation("WA", "wilderness"), "Wilderness Area");
   assert.equal(describeDesignation("NP", "national_park"), "National Park");
   assert.equal(describeDesignation("ACEC", "other_federal_area"), "Area of Critical Environmental Concern");
+  assert.equal(describeDesignation("SP", "state_park"), "State Park");
+});
+
+test("state parks keep their kind, label, and prominence", () => {
+  assert.equal(normalizeAreaKind("state_park"), "state_park");
+  assert.equal(areaKindLabel("state_park"), "State park");
+  assert.deepEqual(
+    sortAreasByProminence([
+      { id: "forest", name: "Pisgah National Forest", kind: "national_forest" },
+      { id: "state", name: "Mount Mitchell State Park", kind: "state_park" },
+    ]).map((area) => area.id),
+    ["state", "forest"]
+  );
 });
 
 test("describeDesignation is case-insensitive", () => {
@@ -57,6 +73,7 @@ test("describeManager expands a known PAD-US manager code", () => {
   assert.equal(describeManager("NPS"), "National Park Service");
   assert.equal(describeManager("BLM"), "Bureau of Land Management");
   assert.equal(describeManager("usfs"), "U.S. Forest Service");
+  assert.equal(describeManager("SPR"), "State parks and recreation");
 });
 
 test("describeManager omits (null) for missing or unmapped codes rather than show a raw code", () => {

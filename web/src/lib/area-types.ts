@@ -1,5 +1,6 @@
 export type AreaKind =
   | "national_park"
+  | "state_park"
   | "national_monument"
   | "national_forest"
   | "national_grassland"
@@ -34,6 +35,7 @@ export interface AreaBoundingBox {
 // "unknown" — the forward-compat fallback for server enum values this build predates.
 const KNOWN_KINDS: readonly AreaKind[] = [
   "national_park",
+  "state_park",
   "national_monument",
   "national_forest",
   "national_grassland",
@@ -91,6 +93,7 @@ export function parseAreaBoundary(raw: unknown): AreaBoundary | null {
 
 const KIND_LABELS: Record<AreaKind, string> = {
   national_park: "National park",
+  state_park: "State park",
   national_monument: "National monument",
   national_forest: "National forest",
   national_grassland: "National grassland",
@@ -176,6 +179,7 @@ const MANAGER_CODES: Record<string, string> = {
   JNT: "Joint management",
   OTHF: "Other federal agency",
   FED: "Federal government",
+  SPR: "State parks and recreation",
 };
 
 /** Manager display text: expands a known code and otherwise omits the row
@@ -194,20 +198,21 @@ export function isNationalParkService(area: ProtectedArea): boolean {
   return false;
 }
 
-// Ranks mirror iOS SessionDetailView.areaKindSortPriority exactly so chip
-// ordering matches across platforms.
+// Shared-kind ranks mirror iOS SessionDetailView.areaKindSortPriority. State
+// parks sit just after national parks; older iOS builds decode them as unknown.
 const PROMINENCE: Record<AreaKind, number> = {
   national_park: 0,
-  national_monument: 1,
-  national_recreation_area: 2,
-  national_conservation_area: 3,
-  wilderness: 4,
-  national_forest: 5,
-  national_grassland: 6,
-  wildlife_refuge: 7,
-  wild_and_scenic_river: 8,
-  other_federal_area: 9,
-  unknown: 10,
+  state_park: 1,
+  national_monument: 2,
+  national_recreation_area: 3,
+  national_conservation_area: 4,
+  wilderness: 5,
+  national_forest: 6,
+  national_grassland: 7,
+  wildlife_refuge: 8,
+  wild_and_scenic_river: 9,
+  other_federal_area: 10,
+  unknown: 11,
 };
 
 /** Most-prominent-designation first, then by name — mirrors iOS SessionDetailView. */
