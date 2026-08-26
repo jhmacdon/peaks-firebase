@@ -283,9 +283,16 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const normalizedPrefix = `${q}%`;
   const rawPrefix = `${raw}%`;
   const routeLimit = Math.min(input.limit, 10);
-  // Keep the concat parenthesized: the % token binds tighter than ||, so
-  // `a || b % $1` would concatenate a boolean into text (42804 under OR).
   const routeSearchText = "(COALESCE(NULLIF(lower(r.name), ''), '') || ' ' || COALESCE(route_dest_names.names, ''))";
+  const indexedDestinationCandidateWhere = q.length === 2
+    ? "candidate_d.search_name ILIKE $2"
+    : "(candidate_d.search_name % $1 OR candidate_d.search_name ILIKE $2)";
+  const routeNameCandidateWhere = q.length === 2
+    ? "(lower(candidate_r.name) ILIKE $2 OR lower(candidate_r.name) ILIKE $3)"
+    : "(lower(candidate_r.name) % $1 OR lower(candidate_r.name) ILIKE $2 OR lower(candidate_r.name) ILIKE $3)";
+  const missingDestinationCandidateWhere = q.length === 2
+    ? "lower(missing_d.name) ILIKE $3"
+    : "(lower(missing_d.name) % $1 OR lower(missing_d.name) ILIKE $3)";
 
   const geoScore = hasGeo(input)
     ? " + EXP(-1.0 * ST_Distance(r.path, ST_MakePoint($5, $4)::geography) / 500000.0) * 0.10"
@@ -300,7 +307,34 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
     : [q, normalizedPrefix, rawPrefix, routeLimit, input.uid ?? ""];
 
   return {
-    text: `SELECT r.id, r.name, r.polyline6, r.owner,
+    // Routes are wide rows because they carry geometry. First find the small
+    // set of matching IDs from route names and indexed destination names, then
+    // load geometry, destination text, and area JSON only for those candidates.
+    text: `WITH indexed_destination_candidates AS MATERIALIZED (
+         SELECT candidate_d.id
+         FROM destinations candidate_d
+         WHERE ${indexedDestinationCandidateWhere}
+       ),
+       candidate_route_ids AS MATERIALIZED (
+         SELECT candidate_r.id
+         FROM routes candidate_r
+         WHERE candidate_r.status = 'active'
+           AND ${routeNameCandidateWhere}
+         UNION
+         SELECT candidate_rd.route_id
+         FROM indexed_destination_candidates candidate_d
+         JOIN route_destinations candidate_rd
+           ON candidate_rd.destination_id = candidate_d.id
+         UNION
+         SELECT missing_rd.route_id
+         FROM destinations missing_d
+         JOIN route_destinations missing_rd
+           ON missing_rd.destination_id = missing_d.id
+         WHERE (SELECT count(*) FROM indexed_destination_candidates) < ${limitParam}
+           AND COALESCE(missing_d.search_name, '') = ''
+           AND ${missingDestinationCandidateWhere}
+       )
+       SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
               r.external_links, r.provenance, r.completion,
               ${routeAreaRowsSql}${geoSelect},
@@ -311,7 +345,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 + LEAST(COALESCE(r.distance, 0), 50000.0) / 50000.0 * 0.05
                 ${geoScore}
               ) AS score
-       FROM routes r
+       FROM candidate_route_ids candidate
+       JOIN routes r ON r.id = candidate.id
        LEFT JOIN LATERAL (
          SELECT string_agg(COALESCE(NULLIF(d.search_name, ''), lower(d.name)), ' ') AS names
          FROM route_destinations rd
@@ -321,11 +356,6 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        ${routeAreaJoinSql}
        WHERE r.status = 'active'
          AND ${buildRouteAccessSql("r", uidParam)}
-         AND (
-           ${routeSearchText} % $1
-           OR lower(r.name) ILIKE $2
-           OR lower(r.name) ILIKE $3
-         )
        ORDER BY score DESC
        LIMIT ${limitParam}`,
     values,
@@ -356,16 +386,26 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
     };
   }
 
-  const shortWhere = q.length === 2
-    ? "(a.search_name ILIKE $2 OR lower(a.name) ILIKE $3)"
-    : "(a.search_name % $1 OR a.search_name ILIKE $2 OR lower(a.name) ILIKE $3)";
-  const textScore = q.length === 2
-    ? "CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 1 ELSE 0 END"
+  // search_name is required and normalized by every area importer. Keeping raw
+  // lower(name) in this filter prevents PostgreSQL from using the trigram index
+  // and scans the boundary-heavy areas table on every keystroke.
+  const isShortQuery = q.length === 2;
+  const shortWhere = isShortQuery
+    ? "a.search_name ILIKE $1"
+    : "(a.search_name % $1 OR a.search_name ILIKE $2)";
+  const textScore = isShortQuery
+    ? "CASE WHEN a.search_name ILIKE $1 OR lower(a.name) ILIKE $2 THEN 1 ELSE 0 END"
     : "similarity(a.search_name, $1)";
-  const values: unknown[] = [q, normalizedPrefix, rawPrefix, areaLimit];
+  const prefixScore = isShortQuery
+    ? "CASE WHEN a.search_name ILIKE $1 OR lower(a.name) ILIKE $2 THEN 0.20 ELSE 0 END"
+    : "CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 0.20 ELSE 0 END";
+  const values: unknown[] = isShortQuery
+    ? [normalizedPrefix, rawPrefix, areaLimit]
+    : [q, normalizedPrefix, rawPrefix, areaLimit];
+  const limitParam = isShortQuery ? "$3" : "$4";
   const aliasParamIndex = aliases.length > 0 ? values.push(aliases) : null;
   const aliasPredicate = aliasParamIndex
-    ? `(a.search_name = ANY($${aliasParamIndex}::text[]) OR lower(a.name) = ANY($${aliasParamIndex}::text[]))`
+    ? `a.search_name = ANY($${aliasParamIndex}::text[])`
     : "";
   const whereClause = aliasPredicate ? `(${shortWhere} OR ${aliasPredicate})` : shortWhere;
   const aliasScore = aliasPredicate ? `+ CASE WHEN ${aliasPredicate} THEN 0.45 ELSE 0 END` : "";
@@ -380,7 +420,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
               COALESCE(route_counts.route_count, 0)::int AS route_count,
               (
                 ${textScore} * 0.70
-                + CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 0.20 ELSE 0 END
+                + ${prefixScore}
                 + LEAST(COALESCE(destination_counts.destination_count, 0), 200.0) / 200.0 * 0.07
                 + LEAST(COALESCE(route_counts.route_count, 0), 50.0) / 50.0 * 0.03
                 ${aliasScore}
@@ -398,7 +438,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
        ) route_counts ON true
        WHERE ${whereClause}
        ORDER BY score DESC
-       LIMIT $4`,
+       LIMIT ${limitParam}`,
     values,
   };
 }
