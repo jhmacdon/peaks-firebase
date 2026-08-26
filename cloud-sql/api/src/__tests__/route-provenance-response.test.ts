@@ -8,7 +8,7 @@ import { buildRouteSearchQuery } from "../routes/search";
 import { SESSION_ROUTES_SQL } from "../routes/sessions";
 
 test("route-bearing API queries expose route provenance", () => {
-  const routeDetail = buildRouteDetailQuery("route-1");
+  const routeDetail = buildRouteDetailQuery("route-1", "user-1");
   const routeSearch = buildRouteSearchQuery({
     normalizedQuery: "red mountain",
     rawQuery: "Red Mountain",
@@ -28,8 +28,10 @@ test("route-bearing API queries expose route provenance", () => {
     /r\.status IN \('active', 'superseded'\)/
   );
   assert.match(SESSION_ROUTES_SQL, /'provenance', r\.provenance/);
+  assert.match(SESSION_ROUTES_SQL, /'is_catalog', r\.owner = 'peaks'/);
   assert.match(
     SESSION_ROUTES_SQL,
     /r\.status IN \('active', 'superseded'\)/
   );
+  assert.match(SESSION_ROUTES_SQL, /r\.owner = 'peaks' OR r\.owner = s\.user_id/);
 });

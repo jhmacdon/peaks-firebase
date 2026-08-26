@@ -13,7 +13,7 @@ const REQUIRED_FIELDS = [
 ] as const;
 
 test("route detail and destination routes expose elevation credits", () => {
-  const routeDetail = buildRouteDetailQuery("route-1").text;
+  const routeDetail = buildRouteDetailQuery("route-1", "user-1").text;
   const destinationRoutes = fs.readFileSync(
     path.resolve(__dirname, "../routes/destinations.ts"),
     "utf8"

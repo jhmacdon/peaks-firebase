@@ -113,7 +113,7 @@ function mockRouteQueries(
 }
 
 test("route destinations query selects amenities in ordinal order", () => {
-  const query = buildRouteDestinationsQuery("route-1");
+  const query = buildRouteDestinationsQuery("route-1", "user-1");
 
   assert.match(query.text, /d\.amenities\b/);
   // The fields the client already reads stay exactly as they were.
@@ -122,7 +122,7 @@ test("route destinations query selects amenities in ordinal order", () => {
   assert.match(query.text, /ST_X\(d\.location::geometry\) AS lng/);
   assert.match(query.text, /rd\.ordinal/);
   assert.match(query.text, /ORDER BY rd\.ordinal/);
-  assert.deepEqual(query.values, ["route-1"]);
+  assert.deepEqual(query.values, ["route-1", "user-1"]);
 });
 
 test("GET /:id/destinations serves amenities per destination", async (t) => {
@@ -130,13 +130,13 @@ test("GET /:id/destinations serves amenities per destination", async (t) => {
 
   const handler = getRouteGetHandler("/:id/destinations");
   const response = new FakeResponse();
-  await handler({ params: { id: "route-1" } }, response);
+  await handler({ params: { id: "route-1" }, uid: "user-1" }, response);
 
   assert.deepEqual(response.jsonBody, DESTINATION_ROWS);
   assert.deepEqual(response.jsonBody[0].amenities, PARKING_AMENITIES);
   assert.equal(response.jsonBody[1].amenities, null);
   assert.equal(seen.length, 1);
-  assert.deepEqual(seen[0].values, ["route-1"]);
+  assert.deepEqual(seen[0].values, ["route-1", "user-1"]);
 });
 
 test("GET /:id embeds its destinations, ordered, with amenities", async (t) => {
@@ -147,7 +147,7 @@ test("GET /:id embeds its destinations, ordered, with amenities", async (t) => {
 
   const handler = getRouteGetHandler("/:id");
   const response = new FakeResponse();
-  await handler({ params: { id: "route-1" } }, response);
+  await handler({ params: { id: "route-1" }, uid: "user-1" }, response);
 
   assert.equal(response.statusCode, undefined);
   assert.equal(response.jsonBody.id, "route-1");
@@ -170,8 +170,11 @@ test("GET /:id embeds its destinations, ordered, with amenities", async (t) => {
   assert.equal(seen.length, 2);
   const destinationsQuery = seen.find((call) => /FROM destinations d/.test(call.text));
   assert.ok(destinationsQuery);
-  assert.equal(destinationsQuery.text, buildRouteDestinationsQuery("route-1").text);
-  assert.deepEqual(destinationsQuery.values, ["route-1"]);
+  assert.equal(
+    destinationsQuery.text,
+    buildRouteDestinationsQuery("route-1", "user-1").text
+  );
+  assert.deepEqual(destinationsQuery.values, ["route-1", "user-1"]);
 });
 
 test("a route with no destinations embeds an empty array", async (t) => {
@@ -179,7 +182,7 @@ test("a route with no destinations embeds an empty array", async (t) => {
 
   const handler = getRouteGetHandler("/:id");
   const response = new FakeResponse();
-  await handler({ params: { id: "route-1" } }, response);
+  await handler({ params: { id: "route-1" }, uid: "user-1" }, response);
 
   assert.deepEqual(response.jsonBody.destinations, []);
 });
@@ -189,7 +192,7 @@ test("a missing route still 404s", async (t) => {
 
   const handler = getRouteGetHandler("/:id");
   const response = new FakeResponse();
-  await handler({ params: { id: "gone" } }, response);
+  await handler({ params: { id: "gone" }, uid: "user-1" }, response);
 
   assert.equal(response.statusCode, 404);
   assert.deepEqual(response.jsonBody, { error: "Route not found" });

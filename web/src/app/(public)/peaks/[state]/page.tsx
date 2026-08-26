@@ -207,7 +207,7 @@ export default async function StateLandingPage({
 
       <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
         <SectionHeading eyebrow="Keep browsing" size="lg">
-          Plan a trip in {data.stateName}
+          Find a route in {data.stateName}
         </SectionHeading>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
           <Link

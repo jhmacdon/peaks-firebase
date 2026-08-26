@@ -16,6 +16,7 @@ import { AreaFacts } from "../../../../components/area/area-facts";
 import { AreaActivity } from "../../../../components/area/area-activity";
 import { AreaDestinations } from "../../../../components/area/area-destinations";
 import { AreaRoutes } from "../../../../components/area/area-routes";
+import { ShareLinkButton } from "../../../../components/share-link-button";
 
 function sourceLabel(source: string, version: string): string {
   const name = source.toLowerCase() === "padus" ? "USGS PAD-US" : source;
@@ -67,6 +68,12 @@ export default async function AreaDetailPage({
         }
         title={area.name}
         meta={<DestinationMetaRow alert={null} parts={[regionLabel]} />}
+        actions={
+          <ShareLinkButton
+            url={`/areas/${encodeURIComponent(id)}`}
+            title={area.name}
+          />
+        }
       />
 
       {area.parent_id && area.parent_name ? (

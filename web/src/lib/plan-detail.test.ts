@@ -32,6 +32,7 @@ function route(overrides: Partial<PlanRouteRow> = {}): PlanRouteRow {
     distance: 8000,
     gain: 900,
     status: "active",
+    isCatalog: true,
     ...overrides,
   };
 }

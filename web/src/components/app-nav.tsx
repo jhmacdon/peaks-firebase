@@ -36,7 +36,7 @@ const BROWSE_LINKS: NavLink[] = [
 /** A signed-in user's own records. Right group on desktop, tabs on mobile. */
 const ACTIVITY_LINKS: NavLink[] = [
   { href: "/log", label: "Log" },
-  { href: "/plans", label: "Plans" },
+  { href: "/my-routes", label: "Routes" },
 ];
 
 // Areas has no tab of its own — five is the most a 375px bar seats
@@ -151,7 +151,7 @@ export default function AppNav() {
   const shadow = stuck ? "shadow-float" : "";
 
   // Signed in, the avatar in the top bar is the account affordance, so the
-  // tab bar spends its fifth slot on Plans rather than a second route to
+  // tab bar spends its fifth slot on Routes rather than a second route to
   // Account — and Lists stops disappearing the moment a user signs in.
   const tabs: NavLink[] = signedIn
     ? [...MOBILE_BROWSE_TABS, ...ACTIVITY_LINKS]
@@ -428,7 +428,7 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       );
-    case "Plans":
+    case "Routes":
       return (
         <svg {...props}>
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />

@@ -45,6 +45,238 @@ async function expectStatus(label, response, expected) {
 
 const owner = await signUp("owner");
 const attacker = await signUp("attacker");
+const partyMember = await signUp("party-member");
+
+const privatePlanPath = "plans/private-plan";
+const privatePlanFields = {
+  userId: { stringValue: owner.uid },
+  name: { stringValue: "Private route" },
+  party: { arrayValue: { values: [{ stringValue: partyMember.uid }] } },
+};
+await expectStatus(
+  "owner can create private route",
+  await request(privatePlanPath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: privatePlanFields,
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read private route",
+  await request(privatePlanPath),
+  403
+);
+await expectStatus(
+  "attacker cannot read private route",
+  await request(privatePlanPath, { token: attacker.token }),
+  403
+);
+await expectStatus(
+  "party member can read private route",
+  await request(privatePlanPath, { token: partyMember.token }),
+  200
+);
+await expectStatus(
+  "party member cannot publish private route",
+  await request(privatePlanPath, {
+    method: "PATCH",
+    token: partyMember.token,
+    fields: {
+      ...privatePlanFields,
+      isPublic: { booleanValue: true },
+    },
+  }),
+  403
+);
+await expectStatus(
+  "owner can publish route",
+  await request(privatePlanPath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: {
+      ...privatePlanFields,
+      isPublic: { booleanValue: true },
+    },
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read raw public route document",
+  await request(privatePlanPath),
+  403
+);
+await expectStatus(
+  "party member can still read published route document",
+  await request(privatePlanPath, { token: partyMember.token }),
+  200
+);
+
+const privateRoutePath = "routes/private-route";
+const privateRouteFields = {
+  owner: { stringValue: owner.uid },
+  name: { stringValue: "Owner route geometry" },
+};
+await expectStatus(
+  "owner can create route geometry",
+  await request(privateRoutePath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: privateRouteFields,
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read private route geometry",
+  await request(privateRoutePath),
+  403
+);
+await expectStatus(
+  "attacker cannot read private route geometry",
+  await request(privateRoutePath, { token: attacker.token }),
+  403
+);
+await expectStatus(
+  "owner can read route geometry",
+  await request(privateRoutePath, { token: owner.token }),
+  200
+);
+await expectStatus(
+  "attacker cannot publish route geometry",
+  await request(privateRoutePath, {
+    method: "PATCH",
+    token: attacker.token,
+    fields: {
+      ...privateRouteFields,
+      isPublic: { booleanValue: true },
+    },
+  }),
+  403
+);
+await expectStatus(
+  "owner can publish route geometry",
+  await request(privateRoutePath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: {
+      ...privateRouteFields,
+      isPublic: { booleanValue: true },
+    },
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read raw user route geometry after publish",
+  await request(privateRoutePath),
+  403
+);
+
+const sessionPath = "sessions/private-session";
+const privateSessionFields = {
+  userId: { stringValue: owner.uid },
+  name: { stringValue: "Private activity" },
+  status: {
+    mapValue: {
+      fields: {
+        public: { booleanValue: false },
+      },
+    },
+  },
+};
+await expectStatus(
+  "owner can create private activity",
+  await request(sessionPath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: privateSessionFields,
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read private activity",
+  await request(sessionPath),
+  403
+);
+await expectStatus(
+  "attacker cannot read private activity",
+  await request(sessionPath, { token: attacker.token }),
+  403
+);
+await expectStatus(
+  "owner can read private activity",
+  await request(sessionPath, { token: owner.token }),
+  200
+);
+
+const pointsPath = "points/private-session";
+await expectStatus(
+  "owner can create activity points",
+  await request(pointsPath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: {
+      sessionId: { stringValue: "private-session" },
+      points: { arrayValue: { values: [] } },
+    },
+  }),
+  200
+);
+await expectStatus(
+  "attacker cannot read private activity points",
+  await request(pointsPath, { token: attacker.token }),
+  403
+);
+await expectStatus(
+  "attacker cannot write activity points",
+  await request(pointsPath, {
+    method: "PATCH",
+    token: attacker.token,
+    fields: {
+      sessionId: { stringValue: "private-session" },
+      points: { arrayValue: { values: [] } },
+    },
+  }),
+  403
+);
+await expectStatus(
+  "owner can publish activity",
+  await request(sessionPath, {
+    method: "PATCH",
+    token: owner.token,
+    fields: {
+      ...privateSessionFields,
+      status: {
+        mapValue: {
+          fields: {
+            public: { booleanValue: true },
+          },
+        },
+      },
+    },
+  }),
+  200
+);
+await expectStatus(
+  "anonymous cannot read raw public activity document",
+  await request(sessionPath),
+  403
+);
+await expectStatus(
+  "anonymous cannot read raw public activity points",
+  await request(pointsPath),
+  403
+);
+await expectStatus(
+  "owner can still read published activity",
+  await request(sessionPath, { token: owner.token }),
+  200
+);
+await expectStatus(
+  "owner can still read published activity points",
+  await request(pointsPath, { token: owner.token }),
+  200
+);
+
 const reportPath = "tripReports/owner-report";
 const reportFields = {
   userId: { stringValue: owner.uid },

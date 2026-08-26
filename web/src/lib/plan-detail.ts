@@ -34,6 +34,8 @@ export interface PlanRouteRow {
   distance: number | null;
   gain: number | null;
   status: string;
+  /** Only catalog routes have a public `/routes/{id}` page. */
+  isCatalog: boolean;
 }
 
 /** The plan's own processed fields — populated only once `processPlan` has

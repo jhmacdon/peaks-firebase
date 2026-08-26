@@ -22,11 +22,11 @@ const FEATURES = [
   },
   {
     title: "Save route context",
-    body: "Keep routes, destination guides, and plans tied to your profile.",
+    body: "Keep routes and destination guides tied to your profile.",
   },
   {
     title: "Publish useful reports",
-    body: "Share photos and field notes that help the next person plan.",
+    body: "Share photos and field notes that help the next person prepare.",
   },
 ];
 
@@ -119,7 +119,7 @@ function RegisterContent() {
     <AuthShell
       eyebrow="Build your outdoor profile"
       title="Keep lists, routes, maps, and field notes with you."
-      body="Save destinations, log completed outings, and keep planning tools in one place."
+      body="Save destinations, log completed outings, and keep route tools in one place."
       features={FEATURES}
       formTitle="Create your account"
       formBody="Start tracking your mountain history with email, Google, or Apple."

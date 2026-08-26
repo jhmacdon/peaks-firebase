@@ -1,5 +1,6 @@
 import { Button } from "../ui/button";
 import SaveDestinationButton from "../save-destination-button";
+import { ShareLinkButton } from "../share-link-button";
 
 /** Save (the one filled primary) · Directions · Report conditions.
  * Directions and the report link only ever get a neutral fill or plain
@@ -27,6 +28,10 @@ export function DestinationActions({
       <Button href={`/reports/new?dest=${destinationId}`} variant="quiet">
         Report conditions
       </Button>
+      <ShareLinkButton
+        url={`/destinations/${encodeURIComponent(destinationId)}`}
+        title={name || "Peaks destination"}
+      />
     </div>
   );
 }

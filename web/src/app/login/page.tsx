@@ -17,7 +17,7 @@ import { safeNextPath } from "../../lib/safe-next-path";
 
 const FEATURES = [
   {
-    title: "Map-first planning",
+    title: "Map-first routes",
     body: "Open topo maps, route geometry, and destination details in one place.",
   },
   {
@@ -26,7 +26,7 @@ const FEATURES = [
   },
   {
     title: "Progress tracking",
-    body: "Keep lists, sessions, and plans tied to your account.",
+    body: "Keep lists, sessions, and saved routes tied to your account.",
   },
 ];
 
@@ -126,7 +126,7 @@ function LoginContent() {
     <AuthShell
       eyebrow="Built for serious mountain progress"
       title="Keep your routes, reports, and summit progress in one place."
-      body="Jump back into saved plans, log new outings, and track the lists you’re chasing."
+      body="Jump back into saved routes, log new outings, and track the lists you’re chasing."
       features={FEATURES}
       formTitle="Sign in to Peaks"
       formBody="Pick up where you left off and keep your mountain history synced."

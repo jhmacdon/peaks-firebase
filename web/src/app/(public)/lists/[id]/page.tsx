@@ -12,6 +12,7 @@ import {
 import { ListCompletionProvider } from "../../../../components/list/list-completion-context";
 import { ListHero } from "../../../../components/list/list-hero";
 import { ListRoster } from "../../../../components/list/list-roster";
+import { ShareLinkButton } from "../../../../components/share-link-button";
 
 // The catalog's lists change rarely; this template is now a server shell
 // (Task 14) rather than a client component that re-fetched `getList` on
@@ -83,6 +84,12 @@ export default async function ListDetailPage({
         breadcrumb={<Breadcrumb current={list.name} parentHref="/lists" parentLabel="Lists" />}
         title={list.name}
         meta={<p>{metaLine}</p>}
+        actions={
+          <ShareLinkButton
+            url={`/lists/${encodeURIComponent(id)}`}
+            title={list.name}
+          />
+        }
       />
 
       {/* One provider around every section that needs a signed-in reader's

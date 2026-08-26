@@ -49,7 +49,7 @@ interface PageCursor {
   id: string;
 }
 
-const REPORT_SELECT = `
+export const REPORT_SELECT = `
   SELECT tr.id, tr.source_session_id AS session_id, tr.user_id,
          tr.author_name, tr.title, tr.body, tr.activity_name,
          tr.activity_type, tr.activity_date, tr.legacy_record,
@@ -76,7 +76,11 @@ const REPORT_SELECT = `
          ), '[]'::json) AS destination_ids,
          COALESCE((
            SELECT json_agg(rr.route_id ORDER BY rr.route_id)
-           FROM trip_report_routes rr WHERE rr.report_id = tr.id
+           FROM trip_report_routes rr
+           JOIN routes report_route ON report_route.id = rr.route_id
+           WHERE rr.report_id = tr.id
+             AND report_route.owner = 'peaks'
+             AND report_route.status = 'active'
          ), '[]'::json) AS route_ids
   FROM trip_reports tr
   LEFT JOIN tracking_sessions s ON s.id = tr.source_session_id
@@ -274,6 +278,15 @@ async function replacePhotos(
   }
 }
 
+export const TRIP_REPORT_ROUTE_COPY_SQL = `INSERT INTO trip_report_routes (report_id, route_id)
+  SELECT $1, sr.route_id
+  FROM session_routes sr
+  JOIN routes r ON r.id = sr.route_id
+  WHERE sr.session_id = $2
+    AND r.owner = 'peaks'
+    AND r.status = 'active'
+  ON CONFLICT DO NOTHING`;
+
 async function deriveLinks(client: PoolClient, reportId: string, sessionId: string): Promise<void> {
   await client.query("DELETE FROM trip_report_destinations WHERE report_id = $1", [reportId]);
   await client.query(
@@ -285,15 +298,7 @@ async function deriveLinks(client: PoolClient, reportId: string, sessionId: stri
     [reportId, sessionId]
   );
   await client.query("DELETE FROM trip_report_routes WHERE report_id = $1", [reportId]);
-  await client.query(
-    `INSERT INTO trip_report_routes (report_id, route_id)
-     SELECT $1, sr.route_id
-     FROM session_routes sr
-     JOIN routes r ON r.id = sr.route_id
-     WHERE sr.session_id = $2 AND r.status = 'active'
-     ON CONFLICT DO NOTHING`,
-    [reportId, sessionId]
-  );
+  await client.query(TRIP_REPORT_ROUTE_COPY_SQL, [reportId, sessionId]);
 }
 
 async function reportById(pool: Pool, uid: string, id: string): Promise<Record<string, unknown> | null> {
@@ -466,7 +471,9 @@ async function handleList(req: Request, res: Response): Promise<void> {
   }
   if (routeId) {
     values.push(routeId);
-    joins.push("JOIN trip_report_routes scope_r ON scope_r.report_id = tr.id");
+    joins.push(`JOIN trip_report_routes scope_r ON scope_r.report_id = tr.id
+      JOIN routes scope_route ON scope_route.id = scope_r.route_id
+        AND scope_route.owner = 'peaks' AND scope_route.status = 'active'`);
     where.push(`scope_r.route_id = $${values.length}`);
   }
   if (cursor) {

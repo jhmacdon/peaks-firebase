@@ -1,7 +1,9 @@
 import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
+import { getUid } from "../auth";
 import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
+import { buildRouteAccessSql } from "../lib/route-access";
 
 const router = Router();
 
@@ -407,11 +409,12 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
   res.json(mapDestinationDetailRow(result.rows[0]));
 }));
 
-// GET /api/destinations/:id/routes — routes for this destination
-router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6, r.owner,
+export function buildDestinationRoutesQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id, r.name, r.polyline6, r.owner,
             r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.elevation_source, r.elevation_source_url,
             r.elevation_attribution, r.elevation_license_url,
@@ -445,9 +448,16 @@ router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
        ) deduped
      ) area_rows ON true
      WHERE rd.destination_id = $1 AND r.status = 'active'
+       AND ${buildRouteAccessSql("r", "$2")}
      ORDER BY r.name`,
-    [id]
-  );
+    values: [id, uid],
+  };
+}
+
+// GET /api/destinations/:id/routes — routes for this destination
+router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
+  const query = buildDestinationRoutesQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
   res.json(
     result.rows.map((row: any) => {
       row.areas = Array.isArray(row.areas) ? row.areas : [];

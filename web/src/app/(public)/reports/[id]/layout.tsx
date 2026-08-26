@@ -6,6 +6,7 @@ import { adminDb } from "../../../../lib/firebase-admin";
 import { formatDate } from "../../../../lib/format";
 import { describeTripReport } from "../../../../lib/seo-descriptions";
 import { absoluteUrl, siteConfig } from "../../../../lib/seo";
+import { formatReportAuthorName } from "../../../../components/report-author-name";
 
 // One template serving every trip report, and a published report doesn't
 // change after the fact except for a rare edit — same ISR contract as
@@ -35,8 +36,8 @@ export default function ReportLayout({
 async function resolveAuthorDisplayName(userId: string): Promise<string> {
   try {
     const profile = await adminDb.collection("users").doc(userId).get();
-    const name = profile.exists ? profile.data()?.name : null;
-    if (typeof name === "string" && name.trim()) return name.trim();
+    const name = formatReportAuthorName(profile.exists ? profile.data()?.name : null);
+    if (name) return name;
   } catch {
     // A missing or unreadable profile must not block metadata generation.
   }
@@ -74,10 +75,6 @@ export async function generateMetadata({
     });
 
     const canonicalPath = `/reports/${id}`;
-    // Never the report's own photos here — those are Firebase Storage
-    // download URLs carrying a bucket name + access token (donner-a8608 +
-    // token leak). The generic branded image is the only safe default.
-    const imageUrl = absoluteUrl("/opengraph-image");
 
     return {
       title,
@@ -93,13 +90,11 @@ export async function generateMetadata({
         type: "article",
         publishedTime: report.date,
         authors: [authorName],
-        images: [{ url: imageUrl, width: 1200, height: 630, alt: siteConfig.name }],
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: [imageUrl],
       },
     };
   } catch {

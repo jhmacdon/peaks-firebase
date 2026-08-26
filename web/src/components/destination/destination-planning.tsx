@@ -27,7 +27,7 @@ export function DestinationPlanning({
   return (
     <section className={className} aria-labelledby="destination-planning">
       <SectionHeading>
-        <span id="destination-planning">Planning</span>
+        <span id="destination-planning">Before you go</span>
       </SectionHeading>
 
       {notes.length > 0 ? (
