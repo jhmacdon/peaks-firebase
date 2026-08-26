@@ -3,8 +3,22 @@ import test from "node:test";
 import {
   approvedDestinationPhotoFraming,
   destinationPhotoPageBounds,
+  destinationPhotoQueueAfterReview,
   requestedDestinationPhotoFraming,
 } from "./destination-photo-review";
+
+test("a completed review leaves the rest of the visible queue in place", () => {
+  const queue = {
+    candidates: [{ id: "first" }, { id: "second" }, { id: "third" }],
+    total: 15,
+  };
+
+  assert.deepEqual(destinationPhotoQueueAfterReview(queue, "second"), {
+    candidates: [{ id: "first" }, { id: "third" }],
+    total: 14,
+  });
+  assert.equal(destinationPhotoQueueAfterReview(queue, "missing"), queue);
+});
 
 test("photo review pages stay small and clamp after the queue shrinks", () => {
   assert.deepEqual(destinationPhotoPageBounds(936, 0), {
