@@ -10,6 +10,7 @@ import {
   storeDestinationPhoto,
   type StoredDestinationPhoto,
 } from "../destination-photo-storage";
+import { destinationPhotoReviewErrorMessage } from "../destination-photo-review-error";
 import {
   approvedDestinationPhotoFraming,
   destinationPhotoPageBounds,
@@ -78,6 +79,14 @@ export interface PhotoDestinationSearchResult {
   state_code: string | null;
   country_code: string | null;
 }
+
+export type DestinationPhotoReviewResult =
+  | {
+      ok: true;
+      status: DestinationPhotoStatus;
+      finalImageUrl: string | null;
+    }
+  | { ok: false; error: string };
 
 function requiredText(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -322,7 +331,7 @@ async function lockCandidate(client: PoolClient, id: string): Promise<Record<str
   return result.rows[0] || null;
 }
 
-export async function reviewDestinationPhotoCandidate(
+async function performDestinationPhotoReview(
   token: string,
   candidateId: string,
   decision: DestinationPhotoDecision,
@@ -453,5 +462,34 @@ export async function reviewDestinationPhotoCandidate(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+export async function reviewDestinationPhotoCandidate(
+  token: string,
+  candidateId: string,
+  decision: DestinationPhotoDecision,
+  reviewNote?: string | null,
+  requestedFraming?: DestinationPhotoFraming
+): Promise<DestinationPhotoReviewResult> {
+  try {
+    const result = await performDestinationPhotoReview(
+      token,
+      candidateId,
+      decision,
+      reviewNote,
+      requestedFraming
+    );
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Destination photo review failed", {
+      candidateId,
+      decision,
+      error,
+    });
+    return {
+      ok: false,
+      error: destinationPhotoReviewErrorMessage(error),
+    };
   }
 }

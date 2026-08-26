@@ -483,13 +483,18 @@ function PhotoCandidateCard({
     try {
       const token = await getIdToken();
       if (!token) throw new Error("Sign in again to review this photo");
-      await reviewDestinationPhotoCandidate(
+      const result = await reviewDestinationPhotoCandidate(
         token,
         candidate.id,
         decision,
         null,
         requestedDestinationPhotoFraming(decision, focalX, focalY)
       );
+      if (!result.ok) {
+        setError(result.error);
+        setReviewing(null);
+        return;
+      }
       onFinalized(candidate.id);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Review failed");
