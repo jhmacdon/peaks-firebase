@@ -23,6 +23,11 @@ import {
 } from "../../../lib/actions/destination-photos";
 import { LOADING_LABEL } from "../../../lib/constants";
 import {
+  DESTINATION_PHOTO_MIN_HEIGHT,
+  DESTINATION_PHOTO_MIN_WIDTH,
+  destinationPhotoDimensionError,
+} from "../../../lib/destination-photo-quality";
+import {
   DESTINATION_PHOTO_PAGE_SIZE,
   requestedDestinationPhotoFraming,
 } from "../../../lib/destination-photo-review";
@@ -279,11 +284,18 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
       setError("Choose a destination from the search results");
       return;
     }
+    const parsedWidth = imageWidth ? Number(imageWidth) : null;
+    const parsedHeight = imageHeight ? Number(imageHeight) : null;
+    const dimensionError = destinationPhotoDimensionError(parsedWidth, parsedHeight);
+    if (dimensionError) {
+      setError(dimensionError);
+      return;
+    }
     setSaving(true);
     try {
       const token = await getIdToken();
       if (!token) throw new Error("Sign in again to add a photo");
-      await addDestinationPhotoCandidate(token, {
+      const result = await addDestinationPhotoCandidate(token, {
         destinationId: destination.id,
         imageUrl,
         sourcePageUrl,
@@ -291,10 +303,14 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
         photographer,
         licenseName,
         licenseUrl,
-        imageWidth: imageWidth ? Number(imageWidth) : null,
-        imageHeight: imageHeight ? Number(imageHeight) : null,
+        imageWidth: parsedWidth!,
+        imageHeight: parsedHeight!,
         notes,
       });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       onAdded();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not add candidate");
@@ -415,8 +431,24 @@ function AddCandidateForm({ onAdded }: { onAdded: () => void }) {
           onChange={setLicenseUrl}
           type="url"
         />
-        <TextField id="photo-image-width" label="Image width" value={imageWidth} onChange={setImageWidth} type="number" />
-        <TextField id="photo-image-height" label="Image height" value={imageHeight} onChange={setImageHeight} type="number" />
+        <TextField
+          id="photo-image-width"
+          label={`Image width (min ${DESTINATION_PHOTO_MIN_WIDTH})`}
+          value={imageWidth}
+          onChange={setImageWidth}
+          type="number"
+          min={DESTINATION_PHOTO_MIN_WIDTH}
+          required
+        />
+        <TextField
+          id="photo-image-height"
+          label={`Image height (min ${DESTINATION_PHOTO_MIN_HEIGHT})`}
+          value={imageHeight}
+          onChange={setImageHeight}
+          type="number"
+          min={DESTINATION_PHOTO_MIN_HEIGHT}
+          required
+        />
         <div className="md:col-span-2">
           <Label htmlFor="photo-review-notes">Review notes</Label>
           <Textarea
@@ -774,6 +806,8 @@ function TextField({
   onChange,
   type = "text",
   placeholder,
+  min,
+  required,
 }: {
   id: string;
   label: string;
@@ -781,6 +815,8 @@ function TextField({
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
+  min?: number;
+  required?: boolean;
 }) {
   return (
     <div>
@@ -791,6 +827,8 @@ function TextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        min={min}
+        required={required}
       />
     </div>
   );

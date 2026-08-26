@@ -3,11 +3,10 @@ import { isIP } from "node:net";
 import { getStorage } from "firebase-admin/storage";
 import sharp from "sharp";
 import "./firebase-admin";
+import { destinationPhotoDimensionError } from "./destination-photo-quality";
 
 const MAX_SOURCE_BYTES = 40 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 80_000_000;
-const MIN_SOURCE_WIDTH = 900;
-const MIN_SOURCE_HEIGHT = 600;
 const MAX_OUTPUT_EDGE = 2_400;
 
 export class DestinationPhotoSourceError extends Error {
@@ -189,11 +188,8 @@ export async function renderDestinationPhoto(
   const swapsAxes = metadata.orientation != null && metadata.orientation >= 5;
   const width = swapsAxes ? metadata.height || 0 : metadata.width || 0;
   const height = swapsAxes ? metadata.width || 0 : metadata.height || 0;
-  if (width < MIN_SOURCE_WIDTH || height < MIN_SOURCE_HEIGHT) {
-    throw new DestinationPhotoSourceError(
-      `Photo is ${width}×${height}; covers must be at least ${MIN_SOURCE_WIDTH}×${MIN_SOURCE_HEIGHT}`
-    );
-  }
+  const dimensionError = destinationPhotoDimensionError(width, height);
+  if (dimensionError) throw new DestinationPhotoSourceError(dimensionError);
   const output = await source
     .rotate()
     .resize({

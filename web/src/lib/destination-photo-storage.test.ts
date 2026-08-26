@@ -53,19 +53,23 @@ test("destination cover renderer caps the longest edge at 2400 pixels", async ()
   assert.deepEqual([rendered.width, rendered.height], [2400, 1200]);
 });
 
-test("destination cover renderer accepts the source that failed in photo review", async () => {
+test("destination cover renderer gives a clear error for the source that failed in photo review", async () => {
   const input = Buffer.from(`
     <svg width="910" height="618" xmlns="http://www.w3.org/2000/svg">
       <rect width="910" height="618" fill="#445566"/>
     </svg>`);
-  const rendered = await renderDestinationPhoto(input);
-  assert.deepEqual([rendered.width, rendered.height], [910, 618]);
+  await assert.rejects(
+    renderDestinationPhoto(input),
+    (error: unknown) =>
+      error instanceof DestinationPhotoSourceError &&
+      error.message === "Photo is 910×618; covers must be at least 1600×900"
+  );
 });
 
-test("destination cover renderer rejects sources below 900 by 600 pixels", async () => {
+test("destination cover renderer rejects sources below 1600 by 900 pixels", async () => {
   for (const [width, height] of [
-    [899, 600],
-    [900, 599],
+    [1599, 900],
+    [1600, 899],
   ]) {
     const input = Buffer.from(`
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -76,7 +80,7 @@ test("destination cover renderer rejects sources below 900 by 600 pixels", async
       (error: unknown) =>
         error instanceof DestinationPhotoSourceError &&
         error.message ===
-          `Photo is ${width}×${height}; covers must be at least 900×600`
+          `Photo is ${width}×${height}; covers must be at least 1600×900`
     );
   }
 });
