@@ -37,7 +37,7 @@ async function cleanup(): Promise<void> {
 describe("account merge SQL", { skip: skipReason ?? undefined }, () => {
   before(async () => {
     await cleanup();
-    await db.query("INSERT INTO destinations (id, name, owner) VALUES ($1, 'Merge Peak', $2)", [
+    await db.query("INSERT INTO destinations (id, name, search_name, owner) VALUES ($1, 'Merge Peak', 'merge peak', $2)", [
       destinationId, oldUid,
     ]);
     await db.query("INSERT INTO routes (id, name, owner) VALUES ($1, 'Merge Route', $2)", [
