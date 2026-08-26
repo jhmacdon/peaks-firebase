@@ -11,7 +11,7 @@ import {
 } from "../../components/auth/auth-shell";
 import { Button } from "../../components/ui/button";
 import { Input, Label } from "../../components/ui/field";
-import { AuthProvider, useAuth } from "../../lib/auth-context";
+import { authErrorMessage, AuthProvider, useAuth } from "../../lib/auth-context";
 import { LOADING_LABEL } from "../../lib/constants";
 import { safeNextPath } from "../../lib/safe-next-path";
 
@@ -44,7 +44,7 @@ export default function RegisterPage() {
 }
 
 function RegisterContent() {
-  const { createAccount, signInWithGoogle, signInWithApple, user, loading } = useAuth();
+  const { createAccount, signInWithGoogle, signInWithApple, user, loading, authNotice } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [name, setName] = useState("");
@@ -62,6 +62,10 @@ function RegisterContent() {
   useEffect(() => {
     if (!loading && user) router.replace(next);
   }, [loading, next, router, user]);
+
+  useEffect(() => {
+    if (authNotice) setError(authNotice);
+  }, [authNotice]);
 
   if (!loading && user) return null;
 
@@ -88,7 +92,9 @@ function RegisterContent() {
     } catch (caught: unknown) {
       const firebaseError = caught as { code?: string };
       setError(
-        firebaseError?.code === "auth/email-already-in-use"
+        firebaseError?.code === "auth/account-link-required"
+          ? authErrorMessage(caught, "Registration failed. Please try again.")
+          : firebaseError?.code === "auth/email-already-in-use"
           ? "An account with this email already exists."
           : "Registration failed. Please try again."
       );
@@ -101,8 +107,8 @@ function RegisterContent() {
     setError("");
     try {
       await signInWithGoogle();
-    } catch {
-      setError("Google sign-in failed.");
+    } catch (caught) {
+      setError(authErrorMessage(caught, "Google sign-in failed."));
     }
   };
 
@@ -110,8 +116,8 @@ function RegisterContent() {
     setError("");
     try {
       await signInWithApple();
-    } catch {
-      setError("Apple sign-in failed.");
+    } catch (caught) {
+      setError(authErrorMessage(caught, "Apple sign-in failed."));
     }
   };
 

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
+import type { DecodedIdToken } from "firebase-admin/auth";
 
 // Initialize Firebase Admin — in Cloud Run this uses the default service account
 if (!admin.apps.length) {
@@ -8,6 +9,7 @@ if (!admin.apps.length) {
 
 export interface AuthRequest extends Request {
   uid: string;
+  authToken: DecodedIdToken;
 }
 
 /** Helper to extract uid from an auth-verified request */
@@ -35,6 +37,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const testUid = req.headers["x-test-user"];
     if (typeof testUid === "string" && testUid.length > 0) {
       (req as AuthRequest).uid = testUid;
+      (req as AuthRequest).authToken = {
+        uid: testUid,
+        firebase: { sign_in_provider: "password", identities: {} },
+      } as DecodedIdToken;
       next();
       return;
     }
@@ -52,8 +58,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const token = header.slice(7);
     const decoded = await admin.auth().verifyIdToken(token);
     (req as AuthRequest).uid = decoded.uid;
+    (req as AuthRequest).authToken = decoded;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 }

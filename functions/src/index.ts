@@ -541,60 +541,17 @@ export async function getPlan(id: string): Promise<DocumentSnapshot> {
   return firestore.collection("plans").doc(id).get()
 }
 
-export const linkAnonToPermAccount = onCall(async (request) => {
-
-    if (!request.auth) {
-        console.log("no auth!")
-        throw new HttpsError('failed-precondition', 'The function must be called ' +
-      'while authenticated.')
-    }
-
-    const newUid = request.auth.uid
-    const oldUid = request.data.oldUid
-
-    const oldSessionSnap = await getUserSessions(oldUid)
-
-    const promises:Promise<WriteResult>[] = []
-
-    oldSessionSnap.forEach(session => {
-      const p:Promise<WriteResult> = session.ref.set({
-        userId: newUid
-      }, {merge: true})
-      promises.push(p);
-    })
-
-    console.log("Successfully changed all sessions from " + oldUid + " to " + newUid + " for " + promises.length + " sessions")
-
-    const oldPlanSnap = await getUserPlans(oldUid)
-
-    oldPlanSnap.forEach(plan => {
-      const p:Promise<WriteResult> = plan.ref.set({
-        userId: newUid
-      }, {merge: true})
-      promises.push(p);
-    })
-
-    console.log("Successfully changed all plan from " + oldUid + " to " + newUid + " for " + promises.length + " plans + sessions")
-
-    const userDoc = await firestore.collection("users").doc(oldUid).get()
-    if (userDoc) {
-      await firestore.collection("users").doc(newUid).set(userDoc!.data()!, {merge: true})
-      await firestore.collection("users").doc(oldUid).delete()
-
-      console.log("Successfully transfered user doc over")
-    }
-
-
-    return Promise.all(promises);
+export const linkAnonToPermAccount = onCall(async (_request) => {
+    // Old clients sent only an arbitrary UID here, so this callable could move
+    // another person's data. Full migration now lives behind the authenticated
+    // Peaks API and requires the source account's anonymous ID token. Keep this
+    // name deployed so old builds fail closed instead of retaining the unsafe
+    // implementation.
+    throw new HttpsError(
+      'failed-precondition',
+      'Update Peaks to finish linking this account securely.'
+    )
 })
-
-export function getUserSessions(id: string): Promise<QuerySnapshot> {
-    return firestore.collection("sessions").where("userId", "==", id).get()
-}
-
-export function getUserPlans(id: string): Promise<QuerySnapshot> {
-  return firestore.collection("plans").where("userId", "==", id).get()
-}
 
 export const deleteSession = onCall(async (request) => {
   if (!request.auth) {
