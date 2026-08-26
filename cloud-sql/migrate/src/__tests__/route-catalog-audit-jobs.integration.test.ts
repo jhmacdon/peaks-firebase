@@ -92,13 +92,13 @@ test(
 
     try {
       await pool.query(
-        `INSERT INTO destinations (id, name, features)
+        `INSERT INTO destinations (id, name, search_name, features)
          VALUES
-           ($1, 'Route audit test summit',
+           ($1, 'Route audit test summit', 'route audit test summit',
             ARRAY['summit']::destination_feature[]),
-           ($2, 'Second route audit test summit',
+           ($2, 'Second route audit test summit', 'second route audit test summit',
             ARRAY['summit']::destination_feature[]),
-           ($3, 'Vanished route audit test summit',
+           ($3, 'Vanished route audit test summit', 'vanished route audit test summit',
             ARRAY['summit']::destination_feature[])`,
         [destinationId, secondDestinationId, vanishedDestinationId]
       );

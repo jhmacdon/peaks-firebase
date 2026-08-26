@@ -26,7 +26,8 @@ describe("Trip Report endpoints", { skip: skipReason ?? undefined }, () => {
   before(async () => {
     await cleanup();
     await db.query(
-      `INSERT INTO destinations (id, name) VALUES ($1, 'Mount Rainier'), ($2, 'Unrelated Peak')`,
+      `INSERT INTO destinations (id, name, search_name)
+       VALUES ($1, 'Mount Rainier', 'mount rainier'), ($2, 'Unrelated Peak', 'unrelated peak')`,
       [destination, unrelatedDestination]
     );
     await db.query(

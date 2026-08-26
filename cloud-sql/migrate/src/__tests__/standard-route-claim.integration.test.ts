@@ -47,11 +47,11 @@ test(
 
     try {
       await pool.query(
-        `INSERT INTO destinations (id, name, features)
+        `INSERT INTO destinations (id, name, search_name, features)
          VALUES
-           ($1, 'Targeted route claim summit',
+           ($1, 'Targeted route claim summit', 'targeted route claim summit',
             ARRAY['summit']::destination_feature[]),
-           ($2, 'Higher priority untargeted summit',
+           ($2, 'Higher priority untargeted summit', 'higher priority untargeted summit',
             ARRAY['summit']::destination_feature[])`,
         [targetId, otherId]
       );

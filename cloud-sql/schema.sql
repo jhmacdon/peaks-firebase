@@ -153,7 +153,7 @@ COMMENT ON FUNCTION elevation_matches_location_z(DOUBLE PRECISION, geography) IS
 CREATE TABLE destinations (
     id              TEXT PRIMARY KEY,
     name            TEXT,
-    search_name     TEXT,              -- lowercased, normalized for trigram search
+    search_name     TEXT NOT NULL,     -- lowercased, normalized for trigram search
     elevation       DOUBLE PRECISION,  -- meters
     prominence      DOUBLE PRECISION,  -- meters
     location        geography(PointZ, 4326),
@@ -218,7 +218,9 @@ CREATE TABLE destinations (
     recency         TIMESTAMPTZ,
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT destinations_search_name_nonempty
+      CHECK (search_name IS NOT NULL AND btrim(search_name) <> '')
 );
 
 -- ---------------------------------------------------------------------------
@@ -1601,6 +1603,14 @@ CREATE INDEX idx_destinations_search_name_fts
     to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name)))
   );
 CREATE INDEX idx_areas_search_name          ON areas USING GIN (search_name gin_trgm_ops);
+CREATE INDEX idx_areas_search_name_prefix   ON areas (search_name text_pattern_ops);
+CREATE INDEX idx_routes_active_name_trgm
+    ON routes USING GIN (lower(name) gin_trgm_ops)
+    WHERE status = 'active';
+CREATE INDEX idx_routes_active_name_prefix
+    ON routes (lower(name) text_pattern_ops)
+    INCLUDE (id)
+    WHERE status = 'active';
 
 -- GIN on array columns for containment queries (e.g. WHERE features @> '{summit}')
 CREATE INDEX idx_destinations_features      ON destinations USING GIN (features);

@@ -7,8 +7,8 @@ import { normalizeSearchName } from "../search-utils";
 
 const router = Router();
 
-const destinationSearchText = "COALESCE(NULLIF(search_name, ''), lower(name))";
-const destinationSearchVector = `to_tsvector('simple', ${destinationSearchText})`;
+const destinationSearchText = "search_name";
+const destinationSearchVector = "to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name)))";
 const destinationAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
 const destinationAreaJoinSql = `LEFT JOIN LATERAL (
          SELECT json_agg(area_obj ORDER BY kind, name) AS areas
@@ -74,11 +74,18 @@ interface MixedSearchSqlQueries {
   areas: SearchSqlQuery;
 }
 
+interface SearchDbClient {
+  query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
+  release(): void;
+}
+
 interface SearchDbPool {
-  connect(): Promise<{
-    query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
-    release(): void;
-  }>;
+  connect(): Promise<SearchDbClient>;
+}
+
+interface CancellableSearchRunner {
+  isClosed(): boolean;
+  query(query: SearchSqlQuery): Promise<any[] | undefined>;
 }
 
 function hasGeo(input: { lat?: number; lng?: number }): input is { lat: number; lng: number } {
@@ -164,51 +171,65 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
 
   if (hasGeo(input)) {
     return {
-      text: `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              country_code, state_code,
+      text: `WITH ranked_destinations AS MATERIALIZED (
+         SELECT id, name, elevation, prominence, type,
+                activities, features, country_code, state_code, location,
+                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
+                ST_Distance(location, ST_MakePoint($7, $6)::geography) AS distance_m,
+                (
+                  CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.55 ELSE 0 END
+                  + CASE WHEN ${destinationSearchText} LIKE $2 OR lower(name) LIKE $3 THEN 0.15 ELSE 0 END
+                  + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
+                  + EXP(-1.0 * ST_Distance(location, ST_MakePoint($7, $6)::geography) / 500000.0) * 0.10
+                  + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.07
+                  + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.03
+                ) AS score
+         FROM destinations
+         WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+         ORDER BY score DESC
+         LIMIT $8
+       )
+       SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
+              destinations.type, destinations.activities, destinations.features,
+              destinations.country_code, destinations.state_code,
               ${destinationAreaRowsSql},
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
-              ST_Distance(location, ST_MakePoint($7, $6)::geography) AS distance_m,
-              (
-                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.55 ELSE 0 END
-                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
-                + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
-                + EXP(-1.0 * ST_Distance(location, ST_MakePoint($7, $6)::geography) / 500000.0) * 0.10
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.07
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.03
-              ) AS score
-       FROM destinations
+              ST_Y(destinations.location::geometry) AS lat,
+              ST_X(destinations.location::geometry) AS lng,
+              destinations.text_score, destinations.distance_m, destinations.score
+       FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
-       WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
-       ORDER BY score DESC
-       LIMIT $8`,
+       ORDER BY destinations.score DESC`,
       values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, input.lat, input.lng, shortLimit],
     };
   }
 
   return {
-    text: `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              country_code, state_code,
+    text: `WITH ranked_destinations AS MATERIALIZED (
+         SELECT id, name, elevation, prominence, type,
+                activities, features, country_code, state_code, location,
+                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
+                (
+                  CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.60 ELSE 0 END
+                  + CASE WHEN ${destinationSearchText} LIKE $2 OR lower(name) LIKE $3 THEN 0.15 ELSE 0 END
+                  + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
+                  + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
+                  + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
+                ) AS score
+         FROM destinations
+         WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+         ORDER BY score DESC
+         LIMIT $6
+       )
+       SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
+              destinations.type, destinations.activities, destinations.features,
+              destinations.country_code, destinations.state_code,
               ${destinationAreaRowsSql},
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 1 ELSE 0 END AS text_score,
-              (
-                CASE WHEN ${destinationSearchVector} @@ to_tsquery('simple', $1) THEN 0.60 ELSE 0 END
-                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
-                + CASE WHEN ${destinationSearchText} = $4 OR lower(name) = $5 THEN 0.10 ELSE 0 END
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
-              ) AS score
-       FROM destinations
+              ST_Y(destinations.location::geometry) AS lat,
+              ST_X(destinations.location::geometry) AS lng,
+              destinations.text_score, destinations.score
+       FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
-       WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
-       ORDER BY score DESC
-       LIMIT $6`,
+       ORDER BY destinations.score DESC`,
     values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, shortLimit],
   };
 }
@@ -220,60 +241,70 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
   }
 
   const q = input.normalizedQuery;
-  const raw = input.rawQuery.trim().toLowerCase();
   const normalizedPrefix = `${q}%`;
-  const rawPrefix = `${raw}%`;
 
   if (hasGeo(input)) {
     return {
-      text: `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              country_code, state_code,
+      text: `WITH ranked_destinations AS MATERIALIZED (
+         SELECT id, name, elevation, prominence, type,
+                activities, features, country_code, state_code, location,
+                similarity(${destinationSearchText}, $1) AS text_score,
+                ST_Distance(location, ST_MakePoint($3, $2)::geography) AS distance_m,
+                (
+                  similarity(${destinationSearchText}, $1) * 0.55
+                  + CASE WHEN ${destinationSearchText} LIKE $4 THEN 0.15 ELSE 0 END
+                  + EXP(-1.0 * ST_Distance(location, ST_MakePoint($3, $2)::geography) / 500000.0) * 0.15
+                  + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
+                  + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
+                ) AS score
+         FROM destinations
+         WHERE ${destinationSearchText} % $1
+            OR ${destinationSearchText} LIKE $4
+         ORDER BY score DESC
+         LIMIT $5
+       )
+       SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
+              destinations.type, destinations.activities, destinations.features,
+              destinations.country_code, destinations.state_code,
               ${destinationAreaRowsSql},
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              similarity(${destinationSearchText}, $1) AS text_score,
-              ST_Distance(location, ST_MakePoint($3, $2)::geography) AS distance_m,
-              (
-                similarity(${destinationSearchText}, $1) * 0.55
-                + CASE WHEN ${destinationSearchText} ILIKE $4 OR lower(name) ILIKE $5 THEN 0.15 ELSE 0 END
-                + EXP(-1.0 * ST_Distance(location, ST_MakePoint($3, $2)::geography) / 500000.0) * 0.15
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.10
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
-              ) AS score
-       FROM destinations
+              ST_Y(destinations.location::geometry) AS lat,
+              ST_X(destinations.location::geometry) AS lng,
+              destinations.text_score, destinations.distance_m, destinations.score
+       FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
-       WHERE ${destinationSearchText} % $1
-          OR ${destinationSearchText} ILIKE $4
-          OR lower(name) ILIKE $5
-       ORDER BY score DESC
-       LIMIT $6`,
-      values: [q, input.lat, input.lng, normalizedPrefix, rawPrefix, input.limit],
+       ORDER BY destinations.score DESC`,
+      values: [q, input.lat, input.lng, normalizedPrefix, input.limit],
     };
   }
 
   return {
-    text: `SELECT id, name, elevation, prominence, type,
-              activities, features,
-              country_code, state_code,
+    text: `WITH ranked_destinations AS MATERIALIZED (
+         SELECT id, name, elevation, prominence, type,
+                activities, features, country_code, state_code, location,
+                similarity(${destinationSearchText}, $1) AS text_score,
+                (
+                  similarity(${destinationSearchText}, $1) * 0.60
+                  + CASE WHEN ${destinationSearchText} LIKE $2 THEN 0.15 ELSE 0 END
+                  + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.15
+                  + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
+                ) AS score
+         FROM destinations
+         WHERE ${destinationSearchText} % $1
+            OR ${destinationSearchText} LIKE $2
+         ORDER BY score DESC
+         LIMIT $3
+       )
+       SELECT destinations.id, destinations.name, destinations.elevation, destinations.prominence,
+              destinations.type, destinations.activities, destinations.features,
+              destinations.country_code, destinations.state_code,
               ${destinationAreaRowsSql},
-              ST_Y(location::geometry) AS lat,
-              ST_X(location::geometry) AS lng,
-              similarity(${destinationSearchText}, $1) AS text_score,
-              (
-                similarity(${destinationSearchText}, $1) * 0.60
-                + CASE WHEN ${destinationSearchText} ILIKE $2 OR lower(name) ILIKE $3 THEN 0.15 ELSE 0 END
-                + LEAST(COALESCE(elevation, 0), 9000.0) / 9000.0 * 0.15
-                + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
-              ) AS score
-       FROM destinations
+              ST_Y(destinations.location::geometry) AS lat,
+              ST_X(destinations.location::geometry) AS lng,
+              destinations.text_score, destinations.score
+       FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
-       WHERE ${destinationSearchText} % $1
-          OR ${destinationSearchText} ILIKE $2
-          OR lower(name) ILIKE $3
-       ORDER BY score DESC
-       LIMIT $4`,
-    values: [q, normalizedPrefix, rawPrefix, input.limit],
+       ORDER BY destinations.score DESC`,
+    values: [q, normalizedPrefix, input.limit],
   };
 }
 
@@ -285,21 +316,19 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
   const routeLimit = Math.min(input.limit, 10);
   const routeSearchText = "(COALESCE(NULLIF(lower(r.name), ''), '') || ' ' || COALESCE(route_dest_names.names, ''))";
   const indexedDestinationCandidateWhere = q.length === 2
-    ? "candidate_d.search_name ILIKE $2"
-    : "(candidate_d.search_name % $1 OR candidate_d.search_name ILIKE $2)";
+    ? "candidate_d.search_name LIKE $2"
+    : "(candidate_d.search_name % $1 OR candidate_d.search_name LIKE $2)";
   const routeNameCandidateWhere = q.length === 2
-    ? "(lower(candidate_r.name) ILIKE $2 OR lower(candidate_r.name) ILIKE $3)"
-    : "(lower(candidate_r.name) % $1 OR lower(candidate_r.name) ILIKE $2 OR lower(candidate_r.name) ILIKE $3)";
-  const missingDestinationCandidateWhere = q.length === 2
-    ? "lower(missing_d.name) ILIKE $3"
-    : "(lower(missing_d.name) % $1 OR lower(missing_d.name) ILIKE $3)";
+    ? "(lower(candidate_r.name) LIKE $2 OR lower(candidate_r.name) LIKE $3)"
+    : "(lower(candidate_r.name) % $1 OR lower(candidate_r.name) LIKE $2 OR lower(candidate_r.name) LIKE $3)";
 
   const geoScore = hasGeo(input)
     ? " + EXP(-1.0 * ST_Distance(r.path, ST_MakePoint($5, $4)::geography) / 500000.0) * 0.10"
     : "";
-  const geoSelect = hasGeo(input)
+  const geoRankSelect = hasGeo(input)
     ? ", ST_Distance(r.path, ST_MakePoint($5, $4)::geography) AS distance_m"
     : "";
+  const geoOutputSelect = hasGeo(input) ? ", r.distance_m" : "";
   const limitParam = hasGeo(input) ? "$6" : "$4";
   const uidParam = hasGeo(input) ? "$7" : "$5";
   const values = hasGeo(input)
@@ -321,43 +350,45 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          WHERE candidate_r.status = 'active'
            AND ${routeNameCandidateWhere}
          UNION
-         SELECT candidate_rd.route_id
+         SELECT linked_r.id
          FROM indexed_destination_candidates candidate_d
          JOIN route_destinations candidate_rd
            ON candidate_rd.destination_id = candidate_d.id
-         UNION
-         SELECT missing_rd.route_id
-         FROM destinations missing_d
-         JOIN route_destinations missing_rd
-           ON missing_rd.destination_id = missing_d.id
-         WHERE (SELECT count(*) FROM indexed_destination_candidates) < ${limitParam}
-           AND COALESCE(missing_d.search_name, '') = ''
-           AND ${missingDestinationCandidateWhere}
+         JOIN routes linked_r
+           ON linked_r.id = candidate_rd.route_id
+          AND linked_r.status = 'active'
+       ),
+       ranked_routes AS MATERIALIZED (
+         SELECT r.id, r.name, r.polyline6, r.owner,
+                r.distance, r.gain, r.gain_loss, r.elevation_string,
+                r.external_links, r.provenance, r.completion${geoRankSelect},
+                (
+                  similarity(${routeSearchText}, $1) * 0.70
+                  + CASE WHEN lower(r.name) LIKE $2 OR lower(r.name) LIKE $3 THEN 0.20 ELSE 0 END
+                  + LEAST(COALESCE(r.gain, 0), 3000.0) / 3000.0 * 0.05
+                  + LEAST(COALESCE(r.distance, 0), 50000.0) / 50000.0 * 0.05
+                  ${geoScore}
+                ) AS score
+         FROM candidate_route_ids candidate
+         JOIN routes r ON r.id = candidate.id
+         LEFT JOIN LATERAL (
+           SELECT string_agg(d.search_name, ' ') AS names
+           FROM route_destinations rd
+           JOIN destinations d ON d.id = rd.destination_id
+           WHERE rd.route_id = r.id
+         ) route_dest_names ON true
+         WHERE r.status = 'active'
+           AND ${buildRouteAccessSql("r", uidParam)}
+         ORDER BY score DESC
+         LIMIT ${limitParam}
        )
        SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
               r.external_links, r.provenance, r.completion,
-              ${routeAreaRowsSql}${geoSelect},
-              (
-                similarity(${routeSearchText}, $1) * 0.70
-                + CASE WHEN lower(r.name) ILIKE $2 OR lower(r.name) ILIKE $3 THEN 0.20 ELSE 0 END
-                + LEAST(COALESCE(r.gain, 0), 3000.0) / 3000.0 * 0.05
-                + LEAST(COALESCE(r.distance, 0), 50000.0) / 50000.0 * 0.05
-                ${geoScore}
-              ) AS score
-       FROM candidate_route_ids candidate
-       JOIN routes r ON r.id = candidate.id
-       LEFT JOIN LATERAL (
-         SELECT string_agg(COALESCE(NULLIF(d.search_name, ''), lower(d.name)), ' ') AS names
-         FROM route_destinations rd
-         JOIN destinations d ON d.id = rd.destination_id
-         WHERE rd.route_id = r.id
-       ) route_dest_names ON true
+              ${routeAreaRowsSql}${geoOutputSelect}, r.score
+       FROM ranked_routes r
        ${routeAreaJoinSql}
-       WHERE r.status = 'active'
-         AND ${buildRouteAccessSql("r", uidParam)}
-       ORDER BY score DESC
-       LIMIT ${limitParam}`,
+       ORDER BY r.score DESC`,
     values,
   };
 }
@@ -391,14 +422,14 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
   // and scans the boundary-heavy areas table on every keystroke.
   const isShortQuery = q.length === 2;
   const shortWhere = isShortQuery
-    ? "a.search_name ILIKE $1"
-    : "(a.search_name % $1 OR a.search_name ILIKE $2)";
+    ? "a.search_name LIKE $1"
+    : "(a.search_name % $1 OR a.search_name LIKE $2)";
   const textScore = isShortQuery
-    ? "CASE WHEN a.search_name ILIKE $1 OR lower(a.name) ILIKE $2 THEN 1 ELSE 0 END"
+    ? "CASE WHEN a.search_name LIKE $1 OR lower(a.name) LIKE $2 THEN 1 ELSE 0 END"
     : "similarity(a.search_name, $1)";
   const prefixScore = isShortQuery
-    ? "CASE WHEN a.search_name ILIKE $1 OR lower(a.name) ILIKE $2 THEN 0.20 ELSE 0 END"
-    : "CASE WHEN a.search_name ILIKE $2 OR lower(a.name) ILIKE $3 THEN 0.20 ELSE 0 END";
+    ? "CASE WHEN a.search_name LIKE $1 OR lower(a.name) LIKE $2 THEN 0.20 ELSE 0 END"
+    : "CASE WHEN a.search_name LIKE $2 OR lower(a.name) LIKE $3 THEN 0.20 ELSE 0 END";
   const values: unknown[] = isShortQuery
     ? [normalizedPrefix, rawPrefix, areaLimit]
     : [q, normalizedPrefix, rawPrefix, areaLimit];
@@ -468,30 +499,29 @@ export async function cancelBackend(pid: number): Promise<void> {
   }
 }
 
-export async function runSearchQuery(
-  _req: Request,
+async function withCancellableSearchClient<T>(
   res: Response,
-  query: SearchSqlQuery,
+  work: (runner: CancellableSearchRunner) => Promise<T | undefined>,
   pool: SearchDbPool = db,
   cancelBackendFn: (pid: number) => Promise<void> = cancelBackend
-): Promise<void> {
-  let client: Awaited<ReturnType<SearchDbPool["connect"]>> | undefined;
+): Promise<T | undefined> {
+  let client: SearchDbClient | undefined;
   let released = false;
-  let responseClosed = false;
+  let responseClosed = Boolean(res.destroyed || res.writableEnded);
   let queryInFlight = false;
   let cancelStarted = false;
   let cancelPromise: Promise<void> | undefined;
   let pid: number | undefined;
 
+  const isClosed = () => responseClosed || Boolean(res.destroyed || res.writableEnded);
   const releaseOnce = () => {
     if (!released && client) {
       released = true;
       client.release();
     }
   };
-
   const maybeCancel = () => {
-    if (!responseClosed || !queryInFlight || pid === undefined || cancelStarted) {
+    if (!isClosed() || !queryInFlight || pid === undefined || cancelStarted) {
       return;
     }
 
@@ -500,7 +530,6 @@ export async function runSearchQuery(
       console.error("Failed to cancel search query", error);
     });
   };
-
   const handleClose = () => {
     responseClosed = true;
     maybeCancel();
@@ -510,39 +539,39 @@ export async function runSearchQuery(
 
   try {
     client = await pool.connect();
-
-    if (responseClosed) {
-      return;
-    }
+    if (isClosed()) return undefined;
 
     const pidResult = await client.query("SELECT pg_backend_pid() AS pid");
     const rawPid = pidResult.rows[0]?.pid;
     const parsedPid = typeof rawPid === "number" ? rawPid : parseInt(String(rawPid), 10);
     pid = Number.isFinite(parsedPid) ? parsedPid : undefined;
+    if (isClosed()) return undefined;
 
-    if (responseClosed) {
-      return;
-    }
+    const runner: CancellableSearchRunner = {
+      isClosed,
+      query: async (query) => {
+        if (isClosed()) return undefined;
 
-    queryInFlight = true;
-    const result = await client.query(query.text, query.values);
-    queryInFlight = false;
+        queryInFlight = true;
+        try {
+          const result = await client!.query(query.text, query.values);
+          return isClosed() ? undefined : result.rows;
+        } finally {
+          queryInFlight = false;
+        }
+      },
+    };
 
-    if (!responseClosed) {
-      res.json(result.rows);
-    }
+    return await work(runner);
   } catch (error) {
     queryInFlight = false;
-
-    if (responseClosed) {
+    if (isClosed()) {
       if (!isPgQueryCanceled(error)) {
         console.error("Search failed after response closed", error);
       }
-      return;
+      return undefined;
     }
-
-    console.error("Search failed", error);
-    res.status(500).json({ error: "Search failed" });
+    throw error;
   } finally {
     res.off("close", handleClose);
     queryInFlight = false;
@@ -553,42 +582,64 @@ export async function runSearchQuery(
   }
 }
 
+export async function runSearchQuery(
+  _req: Request,
+  res: Response,
+  query: SearchSqlQuery,
+  pool: SearchDbPool = db,
+  cancelBackendFn: (pid: number) => Promise<void> = cancelBackend
+): Promise<void> {
+  try {
+    const rows = await withCancellableSearchClient(
+      res,
+      (runner) => runner.query(query),
+      pool,
+      cancelBackendFn
+    );
+    if (rows && !res.destroyed && !res.writableEnded) {
+      res.json(rows);
+    }
+  } catch (error) {
+    console.error("Search failed", error);
+    res.status(500).json({ error: "Search failed" });
+  }
+}
+
 // Secondary mixed-search buckets (routes, areas) degrade to an empty list on
 // failure instead of turning the whole /search/all response into a 500 — the
 // destinations bucket is the product-critical one and still hard-fails.
 async function runOptionalSearchRows(
-  res: Response,
+  runner: CancellableSearchRunner,
   query: SearchSqlQuery,
-  bucket: string,
-  pool: SearchDbPool = db
+  bucket: string
 ): Promise<any[] | undefined> {
   try {
-    return await runSearchRows(res, query, pool);
+    return await runner.query(query);
   } catch (error) {
+    if (runner.isClosed()) return undefined;
     console.error(`Mixed search ${bucket} bucket failed`, error);
     return [];
   }
 }
 
-async function runSearchRows(
+export async function runMixedSearchQueries(
   res: Response,
-  query: SearchSqlQuery,
-  pool: SearchDbPool = db
-): Promise<any[] | undefined> {
-  if (res.destroyed || res.writableEnded) {
-    return undefined;
-  }
+  queries: MixedSearchSqlQueries,
+  pool: SearchDbPool = db,
+  cancelBackendFn: (pid: number) => Promise<void> = cancelBackend
+): Promise<{ destinations: any[]; routes: any[]; areas: any[] } | undefined> {
+  return withCancellableSearchClient(res, async (runner) => {
+    const destinations = await runner.query(queries.destinations);
+    if (!destinations) return undefined;
 
-  const client = await pool.connect();
-  try {
-    if (res.destroyed || res.writableEnded) {
-      return undefined;
-    }
-    const result = await client.query(query.text, query.values);
-    return result.rows;
-  } finally {
-    client.release();
-  }
+    const routes = await runOptionalSearchRows(runner, queries.routes, "routes");
+    if (!routes) return undefined;
+
+    const areas = await runOptionalSearchRows(runner, queries.areas, "areas");
+    if (!areas) return undefined;
+
+    return { destinations, routes, areas };
+  }, pool, cancelBackendFn);
 }
 
 // GET /api/search?q=mt+rainier&lat=46.85&lng=-121.7&limit=20
@@ -677,14 +728,10 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
       uid: getUid(req),
     });
 
-    const destinations = await runSearchRows(res, queries.destinations);
-    if (routeClose.isClosed() || !destinations) return;
-    const routes = await runOptionalSearchRows(res, queries.routes, "routes");
-    if (routeClose.isClosed() || !routes) return;
-    const areas = await runOptionalSearchRows(res, queries.areas, "areas");
-    if (routeClose.isClosed() || !areas) return;
+    const results = await runMixedSearchQueries(res, queries);
+    if (routeClose.isClosed() || !results) return;
 
-    res.json({ destinations, routes, areas });
+    res.json(results);
   } catch (error) {
     if (!routeClose.isClosed()) {
       console.error("Mixed search failed", error);
