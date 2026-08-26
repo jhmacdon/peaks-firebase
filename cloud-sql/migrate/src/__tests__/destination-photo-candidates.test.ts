@@ -189,3 +189,21 @@ test("reviewed state high point manifest covers the 47 destinations not already 
     assert.ok(candidate.focalY >= 0 && candidate.focalY <= 100);
   }
 });
+
+test("reviewed listed-mountain manifest has one crop-safe candidate for all 929 gaps", () => {
+  const manifest = parseDestinationPhotoManifest(JSON.parse(readFileSync(
+    path.resolve(__dirname, "../../data/listed-mountain-photo-candidates-2026-08-22.json"),
+    "utf8"
+  )));
+  assert.equal(manifest.collection, "Listed mountains missing covers");
+  assert.equal(manifest.candidates.length, 929);
+  assert.equal(new Set(manifest.candidates.map((candidate) => candidate.destinationId)).size, 929);
+
+  for (const candidate of manifest.candidates) {
+    assert.ok(candidate.imageWidth >= 900, `${candidate.destinationName} is too narrow`);
+    assert.ok(candidate.imageHeight >= 500, `${candidate.destinationName} is too short`);
+    assert.equal(candidate.focalX, 50);
+    assert.equal(candidate.focalY, 50);
+    assert.match(candidate.notes ?? "", /Center crop checked at 2:1 and 1:1\./);
+  }
+});

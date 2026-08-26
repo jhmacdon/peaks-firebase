@@ -476,6 +476,54 @@ test("the four Western lists carry the metadata their audit-doc sources support"
   });
 });
 
+test("the two completed Sierra Club list imports keep their reviewed counts and aliases", () => {
+  const bySourceId = new Map(CURATED_LISTS.map((entry) => [entry.sourceListId, entry]));
+  const sierraPeaks = bySourceId.get(5051);
+  const hundredPeaks = bySourceId.get(5052);
+
+  assert.deepEqual({
+    id: sierraPeaks?.listId,
+    name: sierraPeaks?.name,
+    expectedCount: sierraPeaks?.expectedCount,
+    yearEstablished: sierraPeaks?.yearEstablished,
+    organization: sierraPeaks?.organization,
+    region: sierraPeaks?.region,
+    sourceUrl: sierraPeaks?.sourceUrl,
+    overrides: sierraPeaks?.destinationOverrides,
+  }, {
+    id: deterministicListId(5051),
+    name: "Sierra Peaks Section",
+    expectedCount: 247,
+    yearEstablished: 1955,
+    organization: "Sierra Club Angeles Chapter",
+    region: "Sierra Nevada",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5051",
+    overrides: {
+      13567: "89lGAhqgSm18Jih8vRUk",
+      69023: "D80BD9D570012B82ED80",
+    },
+  });
+  assert.deepEqual({
+    id: hundredPeaks?.listId,
+    name: hundredPeaks?.name,
+    expectedCount: hundredPeaks?.expectedCount,
+    yearEstablished: hundredPeaks?.yearEstablished,
+    organization: hundredPeaks?.organization,
+    region: hundredPeaks?.region,
+    sourceUrl: hundredPeaks?.sourceUrl,
+    overrides: hundredPeaks?.destinationOverrides,
+  }, {
+    id: deterministicListId(5052),
+    name: "Hundred Peaks Section",
+    expectedCount: 280,
+    yearEstablished: 1946,
+    organization: "Sierra Club Angeles Chapter",
+    region: "Southern California",
+    sourceUrl: "https://www.peakbagger.com/list.aspx?lid=5052",
+    overrides: { 1452: "B5EC8D01243FC4D046E8" },
+  });
+});
+
 test("the Idaho 12ers are the only partial list, and their selection is pinned", () => {
   const partial = CURATED_LISTS.filter((entry) => entry.sourcePeakIds != null);
   assert.equal(partial.length, 1);

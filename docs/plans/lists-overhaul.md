@@ -258,6 +258,10 @@ COMMIT;
 - [x] **Step 2 (per batch):** Dry-run → enumerate gaps → curated summit migration (same shape/guards as Task 10) → apply → re-dry-run → `--apply`. HPS (~280 SoCal peaks) is the likely big-gap case: if its gap list exceeds ~60 destinations, hold HPS with a note (same "held" mechanism as 08-18) rather than bulk-adding under time pressure, and say so in the audit doc.
 - [x] **Step 3:** After both batches: `cd cloud-sql/migrate && npm test`; prod count check (expected ~29–31 lists); re-run Task 9 Step 5 (`--all-lists --commit`) for imagery on the new members; audit doc complete with cost line. Commit per batch: `data: import Northeast classics` / `data: import Western classics`.
 
+Completion note, 2026-08-22: the full Sierra Peaks Section (247) and Hundred
+Peaks Section (280) are live. Peaks now has 31 lists and 1,596 distinct listed
+destinations. All 1,596 have a live cover or a pending, crop-reviewed candidate.
+
 ### Task 12: Wrap-up — verification sweep and PR
 
 **Files:**

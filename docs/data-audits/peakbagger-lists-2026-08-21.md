@@ -1228,3 +1228,79 @@ one of them has an article.
 No source page needed a login and none served a CAPTCHA.
 
 This work adds no service, job, or steady compute cost. Monthly cost impact: $0.
+
+---
+
+# 2026-08-22 completion pass — Sierra lists and cover queue
+
+Peaks now holds 31 lists with 2,081 memberships across 1,596 distinct
+destinations. Every listed destination now has either a live cover or a pending
+candidate.
+
+## Lists added
+
+| List | lid | Members | New OSM summits | New Peakbagger-only summits |
+|---|---:|---:|---:|---:|
+| [Sierra Peaks Section](https://www.peakbagger.com/list.aspx?lid=5051) | 5051 | 247 | 78 | 0 |
+| [Hundred Peaks Section](https://www.peakbagger.com/list.aspx?lid=5052) | 5052 | 280 | 216 | 17 |
+
+These close the two clear holes in the US catalog. Both are long-running Sierra
+Club Angeles Chapter lists with current membership, awards, and a strong record
+of climbers working toward completion. The [SPS list](https://www.sierraclub.org/sites/default/files/2024-03/SPS%20Peaks%20List%2C%2028th%20edition.pdf)
+has 247 active peaks. The [HPS list](https://hundredpeaks.org/peaks-list/) has
+280 peaks and gives awards at 100, 200, and full-list completion.
+
+This pass still leaves out grids, county high points, very large specialist
+lists, and close copies of lists Peaks already has. Those add noise without a
+clear new goal for most users. The Munros and the UIAA Alpine 4,000ers are worth
+supporting once the destination catalog covers the UK and Alps; adding empty or
+thin lists before their mountains exist would make the product worse.
+
+## New destinations
+
+The two lists needed 311 new destinations: 78 SPS and 216 HPS summits from
+OpenStreetMap, plus 17 summits that Peakbagger lists but OpenStreetMap does not.
+The guarded, repeat-safe migrations are:
+
+- `20260822_sierra_peaks_section_summits.sql`
+- `20260822_hundred_peaks_section_summits.sql`
+- `20260822_sierra_club_list_peakbagger_only_summits.sql`
+
+Each row has source identity, coordinates, elevation, prominence, state and
+country data. A second import resolves all 527 list rows and makes no further
+change.
+
+## Cover candidate completion
+
+The first audit found 929 listed destinations with neither a cover nor a pending
+candidate. `listed-mountain-photo-candidates-2026-08-22.json` adds one reviewed
+candidate for each gap:
+
+| Source | Candidates |
+|---|---:|
+| Wikimedia Commons | 883 |
+| Openverse / Flickr | 40 |
+| Openverse / Wikimedia | 5 |
+| Openverse / Rawpixel | 1 |
+
+All 929 images have a free or public-domain license and source credit. Each was
+checked in both a 2:1 cover crop and a square crop. A note calls out every
+nearby or regional view that does not claim to identify the exact summit. The
+live import added all 929 candidates; its next dry run reported zero changes.
+
+Production now has 660 listed destinations with a live cover and 936 with a
+pending candidate, including seven candidates that predate this pass. The query
+for a listed destination with neither returns zero.
+
+## Verification
+
+- 31 supported lists, 2,081 memberships and 1,596 distinct destinations.
+- Both list imports match their expected counts and keep a gap-free member
+  order.
+- The photo manifest has 929 unique destination IDs and one crop-safe candidate
+  for every opening found by the audit.
+- Applying the list migrations and the photo manifest twice makes no second
+  change.
+- `cd cloud-sql/migrate && npm test`: 697 pass, 0 fail, 8 skipped. `tsc` clean.
+
+This work adds no service, job, or steady compute cost. Monthly cost impact: $0.
