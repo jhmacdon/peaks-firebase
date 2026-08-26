@@ -24,7 +24,7 @@ export default function NewPlanPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Plan name is required");
+      setError("Route name is required");
       return;
     }
 
@@ -47,22 +47,22 @@ export default function NewPlanPage() {
         date: date || undefined,
       });
 
-      router.push(`/plans/${id}`);
+      router.push(`/my-routes/${id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create plan");
+      setError(err instanceof Error ? err.message : "Failed to create route");
       setSubmitting(false);
     }
   };
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-semibold mb-6 text-ink">New Trip Plan</h1>
+      <h1 className="text-2xl font-semibold mb-6 text-ink">New Route</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Name */}
         <div>
           <Label htmlFor="plan-name">
-            Plan Name <span className="text-alert">*</span>
+            Route Name <span className="text-alert">*</span>
           </Label>
           <Input
             id="plan-name"
@@ -87,7 +87,7 @@ export default function NewPlanPage() {
 
         {/* Date */}
         <div>
-          <Label htmlFor="plan-date">Date</Label>
+          <Label htmlFor="plan-date">Trip Date</Label>
           <Input
             id="plan-date"
             type="date"
@@ -121,7 +121,7 @@ export default function NewPlanPage() {
         {/* Submit */}
         <div className="flex gap-3">
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create Plan"}
+            {submitting ? "Creating…" : "Create Route"}
           </Button>
           <Button type="button" variant="secondary" onClick={() => router.back()}>
             Cancel

@@ -21,7 +21,7 @@ export default async function Image({
   return new ImageResponse(
     <EntityOgImage
       name={activityLandingConfig(type).h1}
-      stats="Track ascents · Plan routes · Browse mountain guides"
+      stats="Track ascents · Save routes · Browse mountain guides"
     />,
     size
   );

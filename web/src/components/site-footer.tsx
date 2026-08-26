@@ -25,7 +25,7 @@ const COLUMNS: Array<{
     heading: "Activity",
     links: [
       { label: "Log", href: "/log" },
-      { label: "Plans", href: "/plans" },
+      { label: "My routes", href: "/my-routes" },
       { label: "Trip reports", href: "/discover#recent-reports" },
     ],
   },

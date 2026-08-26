@@ -4,7 +4,7 @@ import test from "node:test";
 import { DEFAULT_NEXT_PATH, safeNextPath } from "./safe-next-path";
 
 test("safeNextPath honors a valid internal path", () => {
-  assert.equal(safeNextPath("/plans/abc123"), "/plans/abc123");
+  assert.equal(safeNextPath("/my-routes/abc123"), "/my-routes/abc123");
   assert.equal(safeNextPath("/log"), "/log");
   assert.equal(safeNextPath("/"), "/");
 });
@@ -75,5 +75,5 @@ test("safeNextPath rejects the decoded backslash that searchParams.get would act
 });
 
 test("safeNextPath rejects a normal-looking path with an embedded newline", () => {
-  assert.equal(safeNextPath("/plans/abc\ndef"), DEFAULT_NEXT_PATH);
+  assert.equal(safeNextPath("/my-routes/abc\ndef"), DEFAULT_NEXT_PATH);
 });

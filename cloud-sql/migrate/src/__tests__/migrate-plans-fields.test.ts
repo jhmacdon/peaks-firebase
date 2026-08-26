@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   firestorePlanDate,
   firestorePlanDestinationIds,
+  firestorePlanIsPublic,
   resolveMigratedPlanRouteId,
 } from "../migrate-plan-fields";
 
@@ -28,6 +29,14 @@ test("keeps legacy plan field aliases for the one-time backfill", () => {
 
   assert.deepEqual(firestorePlanDestinationIds(data), ["legacy-peak"]);
   assert.equal(firestorePlanDate(data), date);
+});
+
+test("migrates plan visibility and fails closed for missing or malformed values", () => {
+  assert.equal(firestorePlanIsPublic({ isPublic: true }), true);
+  assert.equal(firestorePlanIsPublic({ is_public: true }), true);
+  assert.equal(firestorePlanIsPublic({ isPublic: false }), false);
+  assert.equal(firestorePlanIsPublic({}), false);
+  assert.equal(firestorePlanIsPublic({ isPublic: "true" }), false);
 });
 
 test("recovers stale generated segment ids through a parent route", () => {

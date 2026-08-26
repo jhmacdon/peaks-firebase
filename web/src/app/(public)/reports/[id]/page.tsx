@@ -11,6 +11,7 @@ import { Breadcrumb } from "../../../../components/detail-sections";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { DestinationMetaRow } from "../../../../components/destination/destination-meta-row";
 import { ReportEditLink } from "../../../../components/report/report-edit-link";
+import { ShareLinkButton } from "../../../../components/share-link-button";
 
 export default async function TripReportDetailPage({
   params,
@@ -39,15 +40,20 @@ export default async function TripReportDetailPage({
 
   return (
     <div className="mx-auto max-w-[760px] px-6 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeader
-          breadcrumb={<Breadcrumb current={report.title} />}
-          title={report.title}
-          meta={<DestinationMetaRow alert={null} parts={[report.userName, formatDate(report.date)]} />}
-          className="min-w-0"
-        />
-        <ReportEditLink reportId={report.id} />
-      </div>
+      <PageHeader
+        breadcrumb={<Breadcrumb current={report.title} />}
+        title={report.title}
+        meta={<DestinationMetaRow alert={null} parts={[report.userName, formatDate(report.date)]} />}
+        actions={
+          <>
+            <ReportEditLink reportId={report.id} />
+            <ShareLinkButton
+              url={`/reports/${encodeURIComponent(report.id)}`}
+              title={report.title}
+            />
+          </>
+        }
+      />
 
       {destinations.length > 0 ? (
         <div className="mt-5 flex flex-wrap gap-2">

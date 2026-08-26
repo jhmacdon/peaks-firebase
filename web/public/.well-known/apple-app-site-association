@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "NBY6Q9BRN9.com.jhm.PeaksApp"
+        ],
+        "components": [
+          { "/": "/destinations/*" },
+          { "/": "/routes/*" },
+          { "/": "/route/*" },
+          { "/": "/plan/*" },
+          { "/": "/log/*" },
+          { "/": "/reports/*" },
+          { "/": "/areas/*" },
+          { "/": "/lists/*" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "NBY6Q9BRN9.com.jhm.PeaksApp"
+    ]
+  }
+}

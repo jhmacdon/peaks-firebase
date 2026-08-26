@@ -15,6 +15,7 @@ import { Input, Label } from "../../../components/ui/field";
 import { StatCluster } from "../../../components/ui/stat";
 import { Tabs } from "../../../components/ui/tabs";
 import { getRoutes, getPendingRouteCount, type RouteRow } from "../../../lib/actions/routes";
+import { useAuth } from "../../../lib/auth-context";
 import { LOADING_LABEL } from "../../../lib/constants";
 
 export default function RoutesPage() {
@@ -26,6 +27,7 @@ export default function RoutesPage() {
 }
 
 function RoutesContent() {
+  const { getIdToken, user } = useAuth();
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [total, setTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -37,23 +39,27 @@ function RoutesContent() {
 
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
+    const token = await getIdToken();
+    if (!token) throw new Error("Missing admin token");
     const [result, pending] = await Promise.all([
-      getRoutes(search, pageSize, page * pageSize, tab),
-      getPendingRouteCount(),
+      getRoutes(token, search, pageSize, page * pageSize, tab),
+      getPendingRouteCount(token),
     ]);
     setRoutes(result.routes);
     setTotal(result.total);
     setPendingCount(pending);
     setLoading(false);
-  }, [search, page, tab]);
+  }, [getIdToken, search, page, tab]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      const token = await getIdToken();
+      if (!token) throw new Error("Missing admin token");
       const [result, pending] = await Promise.all([
-        getRoutes(search, pageSize, page * pageSize, tab),
-        getPendingRouteCount(),
+        getRoutes(token, search, pageSize, page * pageSize, tab),
+        getPendingRouteCount(token),
       ]);
       if (!cancelled) {
         setRoutes(result.routes);
@@ -63,7 +69,7 @@ function RoutesContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [search, page, tab]);
+  }, [getIdToken, user?.uid, search, page, tab]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

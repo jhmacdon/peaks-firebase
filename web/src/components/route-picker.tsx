@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getRoutes, type RouteRow } from "../lib/actions/routes";
+import {
+  searchCatalogRoutes,
+  type CatalogRoutePickerRow,
+} from "../lib/actions/routes";
 import { Chip } from "./ui/chip";
 import { Input } from "./ui/field";
 
@@ -20,7 +23,7 @@ export default function RoutePicker({
   selectedRoutes,
 }: RoutePickerProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<RouteRow[]>([]);
+  const [results, setResults] = useState<CatalogRoutePickerRow[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedNames, setSelectedNames] = useState<Map<string, string>>(
     new Map()
@@ -54,8 +57,8 @@ export default function RoutePicker({
       return;
     }
     setSearching(true);
-    const res = await getRoutes(q.trim(), 20, 0, "active");
-    setResults(res.routes);
+    const routes = await searchCatalogRoutes(q.trim(), 20);
+    setResults(routes);
     setSearching(false);
   }, []);
 
@@ -67,7 +70,7 @@ export default function RoutePicker({
     };
   }, [query, doSearch]);
 
-  const addRoute = (route: RouteRow) => {
+  const addRoute = (route: CatalogRoutePickerRow) => {
     if (selectedIds.includes(route.id)) return;
     onChange([...selectedIds, route.id]);
     setSelectedNames((prev) => {

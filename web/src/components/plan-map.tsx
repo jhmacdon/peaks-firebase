@@ -143,7 +143,7 @@ export default function PlanMap({
       ref={mapRef}
       className={`map-embed bg-fill ${className}`.trim()}
       role="region"
-      aria-label="Plan map"
+      aria-label="Route map"
     />
   );
 }

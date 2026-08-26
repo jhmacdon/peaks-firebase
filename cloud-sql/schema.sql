@@ -1109,6 +1109,8 @@ CREATE TABLE plans (
     name            TEXT NOT NULL,
     description     TEXT,
     date            TIMESTAMPTZ,
+    -- Saved routes are private unless their owner explicitly shares them.
+    is_public       BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Matching geometry, supplied by the client on create/update (user-imported
     -- routes never reach the routes table, so a plan's path cannot be assembled

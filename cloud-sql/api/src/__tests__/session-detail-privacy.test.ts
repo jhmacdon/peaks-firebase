@@ -1,6 +1,9 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildSessionDetailQuery } from "../routes/sessions";
+import {
+  buildSessionDetailQuery,
+  buildSessionMarkersQuery,
+} from "../routes/sessions";
 
 test("public session detail strips owner-only health and import fields", () => {
   const query = buildSessionDetailQuery("session-1", "viewer-1");
@@ -34,5 +37,12 @@ test("public session detail strips owner-only health and import fields", () => {
     /THEN s\.processing_error\s+ELSE NULL\s+END AS processing_error/
   );
   assert.match(query.text, /s\.user_id = \$2 OR s\.is_public = true/);
+  assert.deepEqual(query.values, ["session-1", "viewer-1"]);
+});
+
+test("session marker names and coordinates remain owner-only", () => {
+  const query = buildSessionMarkersQuery("session-1", "viewer-1");
+  assert.match(query.text, /s\.user_id = \$2/);
+  assert.doesNotMatch(query.text, /s\.is_public/);
   assert.deepEqual(query.values, ["session-1", "viewer-1"]);
 });

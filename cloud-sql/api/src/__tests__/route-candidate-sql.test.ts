@@ -13,6 +13,7 @@ test("buildRouteCandidateSql selects active routes for the session", () => {
   const { text, values } = buildRouteCandidateSql("sess1");
   assert.match(text, /FROM routes r, tracking_sessions s/);
   assert.match(text, /r\.status = 'active'/);
+  assert.match(text, /r\.owner = 'peaks' OR r\.owner = s\.user_id/);
   assert.deepEqual(values, ["sess1"]);
 });
 

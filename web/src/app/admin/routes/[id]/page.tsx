@@ -17,10 +17,10 @@ import { SectionHeading } from "../../../../components/ui/section-heading";
 import { StatCluster } from "../../../../components/ui/stat";
 import { useAuth } from "../../../../lib/auth-context";
 import {
-  getRoute,
-  getRouteDestinations,
-  getRouteSegments,
-  getRouteSessionCount,
+  getAdminRoute,
+  getAdminRouteDestinations,
+  getAdminRouteSegments,
+  getAdminRouteSessionCount,
   updateRoute,
   rejectRoute,
   analyzePendingRoute,
@@ -62,11 +62,13 @@ function RouteDetailContent() {
 
   useEffect(() => {
     async function load() {
+      const token = await getIdToken();
+      if (!token) throw new Error("Missing admin token");
       const [r, dests, segs, sessions] = await Promise.all([
-        getRoute(id),
-        getRouteDestinations(id),
-        getRouteSegments(id),
-        getRouteSessionCount(id),
+        getAdminRoute(token, id),
+        getAdminRouteDestinations(token, id),
+        getAdminRouteSegments(token, id),
+        getAdminRouteSessionCount(token, id),
       ]);
       setRoute(r);
       setDestinations(dests);
@@ -80,7 +82,7 @@ function RouteDetailContent() {
         if (r.status === "pending") {
           setReviewAction("analyzing");
           try {
-            const result = await analyzePendingRoute(id);
+            const result = await analyzePendingRoute(token, id);
             setDecomposition(result.decomposition);
           } catch (err) {
             console.error("Segment analysis failed:", err);
@@ -91,7 +93,7 @@ function RouteDetailContent() {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [getIdToken, id]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -121,7 +123,7 @@ function RouteDetailContent() {
     setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
     setDecomposition(null);
     setReviewAction(null);
-    const segs = await getRouteSegments(id);
+    const segs = await getAdminRouteSegments(token, id);
     setSegments(segs);
   };
 

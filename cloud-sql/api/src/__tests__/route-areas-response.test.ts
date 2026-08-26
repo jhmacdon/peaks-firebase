@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { buildRouteDetailQuery, mapRouteDetailRow } from "../routes/routes";
 
 test("route detail query includes linked areas without area boundaries", () => {
-  const query = buildRouteDetailQuery("route-1");
+  const query = buildRouteDetailQuery("route-1", "user-1");
 
   assert.match(query.text, /FROM route_areas ra/);
   assert.match(query.text, /JOIN areas a ON a\.id = ra\.area_id/);
@@ -12,7 +12,7 @@ test("route detail query includes linked areas without area boundaries", () => {
   assert.doesNotMatch(query.text, /a\.boundary/);
   // duplicate PAD-US park fragments collapse so a park never shows twice
   assert.match(query.text, /DISTINCT ON \(a\.kind, a\.name\)/);
-  assert.deepEqual(query.values, ["route-1"]);
+  assert.deepEqual(query.values, ["route-1", "user-1"]);
 });
 
 test("mapRouteDetailRow defaults areas to empty array", () => {

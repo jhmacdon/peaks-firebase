@@ -64,7 +64,13 @@ exports.acceptPlanInvite = onCall(async (request) => {
         party: FieldValue.arrayUnion(uid)
     })
 
-    await sendPush(planDoc.data()!.userId, `${accepterProfile.name.first} ${accepterProfile.name.last} has joined your plan`, `Open to view plan`, accepterProfile.avatar, `https://peaksapp.com/plan/${planId}`)
+    await sendPush(
+        planDoc.data()!.userId,
+        `${accepterProfile.name.first} ${accepterProfile.name.last} has joined your route`,
+        `Open to view route`,
+        accepterProfile.avatar,
+        `https://getpeaks.app/route/${encodeURIComponent(planId)}`
+    )
 
     return planId
 })

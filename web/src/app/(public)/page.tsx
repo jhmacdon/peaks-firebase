@@ -26,11 +26,11 @@ const APP_STORE_URL =
   "https://apps.apple.com/us/app/peaks-track-your-climb/id1497469000";
 
 const DESCRIPTION =
-  "An iPhone peak-bagging tracker and public mountain guide. Log ascents, plan routes, and browse peaks, protected areas, and curated lists.";
+  "An iPhone peak-bagging tracker and public mountain guide. Log ascents, save routes, and browse peaks, protected areas, and curated lists.";
 
 const FEATURES = [
   {
-    title: "Map-first planning",
+    title: "Map-first routes",
     body: "Open the map, find the peak, and read its route and trailhead before you leave the house.",
   },
   {

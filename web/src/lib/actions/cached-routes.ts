@@ -10,17 +10,12 @@ import { getRoute, getRouteDestinations } from "./routes";
 // produces two independent memo tables and two round trips. Hence this
 // module, matching `cached-destinations.ts` / `cached-lists.ts`.
 //
-// `{ publicOnly: true }` is baked into the wrapped function rather than
-// passed in by each caller: `cache()` keys on argument identity, and a
-// fresh `{ publicOnly: true }` object literal at each call site would be a
-// different reference every time, defeating the memo entirely. Baking it
-// in also means every caller of this module gets the public-only filter by
-// construction — there's no raw, unfiltered variant to accidentally reach
-// for from a public page.
+// The wrapped actions enforce the live Peaks catalog filter themselves;
+// there is no caller-controlled raw mode.
 //
 // `server-only` keeps it out of any client bundle — these are direct
 // database reads, not server actions to be invoked from the browser.
-export const getRouteCached = cache((id: string) => getRoute(id, { publicOnly: true }));
+export const getRouteCached = cache((id: string) => getRoute(id));
 export const getRouteDestinationsCached = cache((id: string) =>
-  getRouteDestinations(id, { publicOnly: true })
+  getRouteDestinations(id)
 );

@@ -3,6 +3,7 @@ import { asyncRoute } from "../lib/async-route";
 import { getUid } from "../auth";
 import { buildAreaDescription } from "../area-description";
 import db from "../db";
+import { buildRouteAccessSql } from "../lib/route-access";
 
 const router = Router();
 
@@ -135,7 +136,10 @@ export function buildAreaDetailQuery(
      LEFT JOIN LATERAL (
        SELECT count(DISTINCT ra.route_id) AS route_count
        FROM route_areas ra
+       JOIN routes r ON r.id = ra.route_id
        WHERE ra.area_id = a.id
+         AND r.status = 'active'
+         AND ${buildRouteAccessSql("r", "$2")}
      ) route_counts ON true
      LEFT JOIN LATERAL (
        SELECT json_agg(destination_obj ORDER BY prominence DESC NULLS LAST, elevation DESC NULLS LAST, name) AS destinations
@@ -186,6 +190,7 @@ export function buildAreaDetailQuery(
          JOIN routes r ON r.id = ra.route_id
          WHERE ra.area_id = a.id
            AND r.status = 'active'
+           AND ${buildRouteAccessSql("r", "$2")}
          ORDER BY r.gain DESC NULLS LAST, r.distance DESC NULLS LAST, r.name
          LIMIT 15
        ) ranked_routes
