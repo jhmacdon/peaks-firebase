@@ -30,6 +30,8 @@ interface AreaMapProps {
   boundary: AreaBoundary | null;
   destinations?: AreaMapDestination[];
   routes?: AreaMapRoute[];
+  reachedDestinationIds?: string[];
+  showCompletion?: boolean;
   /** Height/shape of the embed. The container owns the radius (mirrors
    * components/destination-map.tsx's contract), so a hero tile can round
    * itself without the map re-rounding its own corners underneath. */
@@ -62,12 +64,13 @@ const SATELLITE_ATTRIBUTION =
 // route-map.tsx's ACCENT (design-tokens.md, "Accent budget" — a map
 // selection is one of the places the accent is spent) — the one map
 // color, used for the boundary (on a narrow pale edge with a low-opacity
-// fill so the topo underneath stays readable), the routes drawn through
+// fill so the terrain underneath stays readable), the routes drawn through
 // it, and the destination markers. Fixed hex rather than the token:
 // painted into a Leaflet canvas/SVG layer, which never sees the page's
 // CSS variables.
 const AREA_TEAL = "#46ADBC";
 const AREA_PALE_EDGE = "#CFEEF2";
+const REACHED_GREEN = "#2C6E49";
 
 export default function AreaMap({
   areaId,
@@ -78,6 +81,8 @@ export default function AreaMap({
   boundary,
   destinations = [],
   routes = [],
+  reachedDestinationIds = [],
+  showCompletion = false,
   className = "h-80 w-full sm:h-96",
   interactive = true,
 }: AreaMapProps) {
@@ -87,6 +92,7 @@ export default function AreaMap({
   const boundaryJson = boundary ? JSON.stringify(boundary) : "";
   const destinationsJson = JSON.stringify(destinations);
   const routesJson = JSON.stringify(routes);
+  const reachedDestinationsJson = JSON.stringify(reachedDestinationIds);
   const minLat = bbox.minLat;
   const maxLat = bbox.maxLat;
   const minLng = bbox.minLng;
@@ -110,20 +116,21 @@ export default function AreaMap({
     });
     mapInstance.current = map;
 
-    const topo = L.tileLayer(TOPO_TILE, {
-      attribution: TOPO_ATTRIBUTION,
-      maxZoom: 17,
+    const satellite = L.tileLayer(SATELLITE_TILE, {
+      attribution: SATELLITE_ATTRIBUTION,
+      maxZoom: 18,
       detectRetina: true,
     }).addTo(map);
 
     if (interactive) {
-      const satellite = L.tileLayer(SATELLITE_TILE, {
-        attribution: SATELLITE_ATTRIBUTION,
-        maxZoom: 18,
+      const topo = L.tileLayer(TOPO_TILE, {
+        attribution: TOPO_ATTRIBUTION,
+        maxZoom: 17,
+        detectRetina: true,
       });
       L.control
         .layers(
-          { Topo: topo, Satellite: satellite },
+          { Satellite: satellite, Topographic: topo },
           {},
           { position: "topright" }
         )
@@ -137,6 +144,9 @@ export default function AreaMap({
       destinationsJson
     ) as SerializedDestination[];
     const parsedRoutes = JSON.parse(routesJson) as SerializedRoute[];
+    const reachedDestinations = new Set(
+      JSON.parse(reachedDestinationsJson) as string[]
+    );
 
     let boundaryBounds: L.LatLngBounds | null = null;
     if (parsedBoundary) {
@@ -209,21 +219,35 @@ export default function AreaMap({
 
     for (const destination of parsedDestinations) {
       if (destination.lat == null || destination.lng == null) continue;
+      const reached = reachedDestinations.has(destination.id);
       const marker = L.circleMarker([destination.lat, destination.lng], {
-        radius: 4,
+        radius: reached ? 6 : 4,
         color: "#ffffff",
-        weight: 1.5,
-        fillColor: AREA_TEAL,
+        weight: reached ? 2 : 1.5,
+        fillColor: reached ? REACHED_GREEN : AREA_TEAL,
         fillOpacity: 0.95,
       }).addTo(map);
       if (interactive) {
+        marker.bindTooltip(
+          textNode(
+            `${destination.name ?? "Unnamed destination"}${reached ? " · Reached" : ""}`
+          ),
+          { sticky: true }
+        );
         marker.bindPopup(
           detailLink(
             destination.name ?? "Unnamed destination",
-            `/destinations/${encodeURIComponent(destination.id)}`
+            `/destinations/${encodeURIComponent(destination.id)}`,
+            reached
           )
         );
       }
+    }
+
+    if (interactive && showCompletion) {
+      const legend = new L.Control({ position: "bottomleft" });
+      legend.onAdd = () => completionLegend();
+      legend.addTo(map);
     }
 
     return () => {
@@ -243,6 +267,8 @@ export default function AreaMap({
     boundaryJson,
     destinationsJson,
     routesJson,
+    reachedDestinationsJson,
+    showCompletion,
     interactive,
   ]);
 
@@ -262,7 +288,7 @@ function textNode(text: string): HTMLElement {
   return node;
 }
 
-function detailLink(label: string, href: string): HTMLElement {
+function detailLink(label: string, href: string, reached: boolean): HTMLElement {
   const wrapper = document.createElement("div");
   const title = document.createElement("div");
   title.textContent = label;
@@ -270,11 +296,40 @@ function detailLink(label: string, href: string): HTMLElement {
   const link = document.createElement("a");
   link.href = href;
   link.textContent = "View details";
-  link.style.display = "inline-block";
-  link.style.marginTop = "4px";
-  link.style.color = AREA_TEAL;
-  wrapper.append(title, link);
+  link.className = "map-popup-link";
+  wrapper.append(title);
+  if (reached) {
+    const status = document.createElement("div");
+    status.textContent = "Reached";
+    status.className = "map-popup-status";
+    wrapper.append(status);
+  }
+  wrapper.append(link);
   return wrapper;
+}
+
+function completionLegend(): HTMLElement {
+  const wrapper = document.createElement("div");
+  wrapper.className = "area-map-legend";
+  wrapper.setAttribute("role", "group");
+  wrapper.setAttribute("aria-label", "Map marker key");
+
+  const reached = legendItem(REACHED_GREEN, "Reached", true);
+  const open = legendItem(AREA_TEAL, "Not yet", false);
+  wrapper.append(reached, open);
+  return wrapper;
+}
+
+function legendItem(color: string, label: string, large: boolean): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "area-map-legend-item";
+  const dot = document.createElement("span");
+  dot.className = large ? "area-map-legend-dot is-reached" : "area-map-legend-dot";
+  dot.style.backgroundColor = color;
+  const text = document.createElement("span");
+  text.textContent = label;
+  row.append(dot, text);
+  return row;
 }
 
 function decodePolyline6(encoded: string): [number, number][] {
