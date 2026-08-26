@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AdminGuard from "../../../components/admin-guard";
 import { AdminPage, AdminPageHeader } from "../../../components/admin/admin-page";
@@ -32,6 +32,7 @@ import {
 } from "../../../lib/destination-photo-quality";
 import {
   DESTINATION_PHOTO_PAGE_SIZE,
+  destinationPhotoQueueAfterReview,
   requestedDestinationPhotoFraming,
 } from "../../../lib/destination-photo-review";
 
@@ -64,16 +65,23 @@ export default function AdminPhotosPage() {
 function PhotoReviewContent() {
   const { getIdToken } = useAuth();
   const [filter, setFilter] = useState<DestinationPhotoListFilter>("pending");
-  const [candidates, setCandidates] = useState<DestinationPhotoCandidate[]>([]);
+  const [queue, setQueue] = useState<{ candidates: DestinationPhotoCandidate[]; total: number }>({
+    candidates: [],
+    total: 0,
+  });
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const loadRequestId = useRef(0);
+  const { candidates, total } = queue;
 
-  const loadCandidates = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
+  const loadCandidates = useCallback(async ({ quiet = false }: { quiet?: boolean } = {}) => {
+    const requestId = ++loadRequestId.current;
+    if (!quiet) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       const token = await getIdToken();
       if (!token) throw new Error("Sign in again to review photos");
@@ -83,15 +91,30 @@ function PhotoReviewContent() {
         page,
         DESTINATION_PHOTO_PAGE_SIZE
       );
-      setCandidates(result.candidates);
-      setTotal(result.total);
+      if (requestId !== loadRequestId.current) return true;
+      setQueue({ candidates: result.candidates, total: result.total });
       if (result.page !== page) setPage(result.page);
+      return true;
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load photos");
+      if (requestId !== loadRequestId.current) return true;
+      if (quiet) {
+        console.error("Could not refresh the destination photo queue", error);
+      } else {
+        setLoadError(error instanceof Error ? error.message : "Could not load photos");
+      }
+      return false;
     } finally {
-      setLoading(false);
+      if (!quiet && requestId === loadRequestId.current) setLoading(false);
     }
   }, [filter, getIdToken, page]);
+
+  const handleFinalized = useCallback((id: string) => {
+    void loadCandidates({ quiet: true }).then((refreshed) => {
+      if (!refreshed) {
+        setQueue((current) => destinationPhotoQueueAfterReview(current, id));
+      }
+    });
+  }, [loadCandidates]);
 
   useEffect(() => {
     void loadCandidates();
@@ -170,9 +193,9 @@ function PhotoReviewContent() {
                   key={candidate.id}
                   candidate={candidate}
                   reviewEnabled={candidate.status === "pending"}
-                  onFinalized={() => void loadCandidates()}
+                  onFinalized={handleFinalized}
                   onCommentChanged={() => {
-                    if (filter === "comments") void loadCandidates();
+                    if (filter === "comments") void loadCandidates({ quiet: true });
                   }}
                 />
               ))}
