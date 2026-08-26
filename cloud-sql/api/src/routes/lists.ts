@@ -69,7 +69,7 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
 
 // GET /api/lists/:id/destinations
 // Each row carries a best-route summary (community-most-climbed route, falling
-// back to shortest) and the destination's top popularity months, so the list
+// back to shortest) and the destination's common climbing months, so the list
 // screen can enrich unclimbed peaks in a single fetch.
 router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
@@ -115,24 +115,105 @@ const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun",
 
 type MonthBlob = { months?: Record<string, number> } | null | undefined;
 
-// Merge averages + averages_offset month counts and return the top-N calendar
-// months (1-12). Empty when there's no popularity data.
-function topMonths(averages: MonthBlob, offset: MonthBlob, count = 2): number[] {
-  const totals = new Map<number, number>();
+const MIN_CLIMB_LOGS = 12;
+const DOMINANT_SEASON_SHARE = 0.6;
+const MAX_SEASON_MONTHS = 6;
+const SHOULDER_MONTH_FRACTION = 0.5;
+const MIN_SEASON_DENSITY_RATIO = 1.5;
+
+/**
+ * Returns a statistically useful climbing season instead of simply returning
+ * the highest-count months. The season must:
+ * - have at least 12 climb logs behind it;
+ * - contain at least 60% of climbs in six or fewer adjacent calendar months;
+ * - stay at least 1.5 times denser per month than the rest of the year.
+ *
+ * Adjacent shoulder months with at least half the core season's monthly mean
+ * are retained. This keeps a balanced multi-month season intact while a sharp
+ * one-month spike remains a one-month result. Months wrap across year end.
+ */
+export function commonClimbingMonths(
+  averages: MonthBlob,
+  offset: MonthBlob
+): number[] {
+  const totals = Array<number>(12).fill(0);
   for (const blob of [averages, offset]) {
     const months = blob?.months;
     if (!months) continue;
     for (const [key, value] of Object.entries(months)) {
       const idx = MONTH_KEYS.indexOf(key);
-      if (idx < 0 || typeof value !== "number") continue;
-      totals.set(idx + 1, (totals.get(idx + 1) ?? 0) + value);
+      if (idx < 0 || typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+        continue;
+      }
+      totals[idx] += value;
     }
   }
-  return [...totals.entries()]
-    .filter(([, total]) => total > 0)
-    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-    .slice(0, count)
-    .map(([month]) => month);
+
+  const totalClimbs = totals.reduce((sum, value) => sum + value, 0);
+  if (totalClimbs < MIN_CLIMB_LOGS) return [];
+
+  const windowTotal = (start: number, length: number): number => {
+    let sum = 0;
+    for (let offsetIndex = 0; offsetIndex < length; offsetIndex += 1) {
+      sum += totals[(start + offsetIndex) % totals.length];
+    }
+    return sum;
+  };
+
+  let seasonStart = -1;
+  let seasonLength = 0;
+  let seasonTotal = 0;
+
+  // The shortest window that carries a clear majority is the season's core.
+  for (let length = 1; length <= MAX_SEASON_MONTHS; length += 1) {
+    let bestStart = 0;
+    let bestTotal = -1;
+    for (let start = 0; start < totals.length; start += 1) {
+      const candidateTotal = windowTotal(start, length);
+      if (candidateTotal > bestTotal) {
+        bestStart = start;
+        bestTotal = candidateTotal;
+      }
+    }
+    if (bestTotal / totalClimbs >= DOMINANT_SEASON_SHARE) {
+      seasonStart = bestStart;
+      seasonLength = length;
+      seasonTotal = bestTotal;
+      break;
+    }
+  }
+
+  if (seasonStart < 0) return [];
+
+  // Restore balanced shoulders that the shortest-majority rule may trim.
+  while (seasonLength < MAX_SEASON_MONTHS) {
+    const leftIndex = (seasonStart - 1 + totals.length) % totals.length;
+    const rightIndex = (seasonStart + seasonLength) % totals.length;
+    const threshold = (seasonTotal / seasonLength) * SHOULDER_MONTH_FRACTION;
+    const leftTotal = totals[leftIndex];
+    const rightTotal = totals[rightIndex];
+
+    if (leftTotal < threshold && rightTotal < threshold) break;
+    if (leftTotal >= rightTotal) {
+      seasonStart = leftIndex;
+      seasonTotal += leftTotal;
+    } else {
+      seasonTotal += rightTotal;
+    }
+    seasonLength += 1;
+  }
+
+  const outsideTotal = totalClimbs - seasonTotal;
+  const insideDensity = seasonTotal / seasonLength;
+  const outsideDensity = outsideTotal / (totals.length - seasonLength);
+  if (outsideDensity > 0 && insideDensity / outsideDensity < MIN_SEASON_DENSITY_RATIO) {
+    return [];
+  }
+
+  return Array.from(
+    { length: seasonLength },
+    (_, index) => ((seasonStart + index) % totals.length) + 1
+  );
 }
 
 export function mapListDestinationRow(row: Record<string, unknown>) {
@@ -144,7 +225,11 @@ export function mapListDestinationRow(row: Record<string, unknown>) {
     route_distance: row.route_distance ?? null,
     route_gain: row.route_gain ?? null,
     route_shape: row.route_shape ?? null,
-    popular_months: topMonths(averages as MonthBlob, averages_offset as MonthBlob),
+    // Keep the existing wire key for compatibility with released clients.
+    popular_months: commonClimbingMonths(
+      averages as MonthBlob,
+      averages_offset as MonthBlob
+    ),
   };
 }
 
