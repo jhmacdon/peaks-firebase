@@ -25,6 +25,7 @@ import {
 import {
   areaCoverPhotoFor,
   areaCoverPhotoSql,
+  distinctAreaCoverPhotosFor,
   type AreaCoverPhoto,
 } from "../area-cover-photo";
 
@@ -627,7 +628,23 @@ export async function getAreasIndex(
       statesLimit,
       perStateLimit,
     });
-    return { ...nationalParks, totalAreas };
+    const rowsById = new Map(
+      candidateResult.rows.map((row) => [textValue(row.id) ?? "", row])
+    );
+    const coverPhotos = distinctAreaCoverPhotosFor(
+      nationalParks.areas.map((area) => ({
+        areaId: area.id,
+        row: rowsById.get(area.id),
+      }))
+    );
+    return {
+      ...nationalParks,
+      areas: nationalParks.areas.map((area, index) => ({
+        ...area,
+        coverPhoto: coverPhotos[index],
+      })),
+      totalAreas,
+    };
   }
 
   const { clause, params } = areaIndexFilter(search, designation, stateCode);
@@ -689,7 +706,7 @@ export async function getAreasIndex(
   // SQL above orders alphabetically by state for a stable ROW_NUMBER scan,
   // not by which state has the most matches.
   const stateOrder = new Map(stateCodes.map((code, index) => [code, index]));
-  const areas = rankedResult.rows
+  const selectedAreas = rankedResult.rows
     .map((row) => ({
       id: textValue(row.id) ?? "",
       name: textValue(row.name) ?? "Protected area",
@@ -697,12 +714,19 @@ export async function getAreasIndex(
       designation: textValue(row.designation),
       stateCode: textValue(row.state_code) ?? "",
       destinationCount: integerValue(row.destination_count),
-      coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
+      coverRow: row,
     }))
     .sort(
       (left, right) =>
         (stateOrder.get(left.stateCode) ?? 0) - (stateOrder.get(right.stateCode) ?? 0)
     );
+  const coverPhotos = distinctAreaCoverPhotosFor(
+    selectedAreas.map((area) => ({ areaId: area.id, row: area.coverRow }))
+  );
+  const areas = selectedAreas.map(({ coverRow, ...area }, index) => {
+    void coverRow;
+    return { ...area, coverPhoto: coverPhotos[index] };
+  });
 
   return { areas, states, totalMatching, totalAreas };
 }
@@ -740,14 +764,18 @@ export async function getTopAreasForState(
     [stateCode, limit]
   );
 
-  return result.rows.map((row) => ({
+  const coverPhotos = distinctAreaCoverPhotosFor(
+    result.rows.map((row) => ({ areaId: textValue(row.id) ?? "", row }))
+  );
+
+  return result.rows.map((row, index) => ({
     id: textValue(row.id) ?? "",
     name: textValue(row.name) ?? "Protected area",
     kind: normalizeAreaKind(row.kind),
     designation: textValue(row.designation),
     stateCode,
     destinationCount: integerValue(row.destination_count),
-    coverPhoto: areaCoverPhotoFor(textValue(row.id) ?? "", row),
+    coverPhoto: coverPhotos[index],
   }));
 }
 
