@@ -79,22 +79,39 @@ export async function assertSessionRoutesAccessible(
   }
 }
 
-async function replaceSessionRoutes(
+/**
+ * Replace only the routes the client owns.
+ *
+ * `processSession` owns rows whose source is `auto`. iOS sends its local
+ * `routes` array on ordinary session updates, and that list does not include
+ * partial server matches. Deleting every row here used to erase those matches
+ * after processing had stored them. This mirrors destination reconciliation:
+ * client writes may replace manual rows, but they must not clobber backend
+ * results.
+ */
+export async function replaceSessionRoutes(
   client: PoolClient,
   sessionId: string,
   uid: string,
   routeIds: string[]
 ): Promise<void> {
   await assertSessionRoutesAccessible(client, uid, routeIds);
-  await client.query(`DELETE FROM session_routes WHERE session_id = $1`, [sessionId]);
+  await client.query(
+    `DELETE FROM session_routes WHERE session_id = $1 AND source = 'manual'`,
+    [sessionId]
+  );
   for (const routeId of routeIds) {
     const linked = await client.query(
-      `INSERT INTO session_routes (session_id, route_id)
-       SELECT $1, r.id
-       FROM routes r
-       WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $3)
-       ON CONFLICT DO NOTHING
-       RETURNING route_id`,
+      `WITH allowed AS (
+         SELECT r.id FROM routes r
+         WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $3)
+       ), inserted AS (
+         INSERT INTO session_routes (session_id, route_id, source)
+         SELECT $1, id, 'manual' FROM allowed
+         ON CONFLICT (session_id, route_id) DO NOTHING
+         RETURNING route_id
+       )
+       SELECT id AS route_id FROM allowed`,
       [sessionId, routeId, uid]
     );
     if (linked.rows.length !== 1) throw new InaccessibleSessionRouteError();

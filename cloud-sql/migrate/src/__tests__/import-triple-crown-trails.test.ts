@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   TRAIL_SOURCES,
+  buildSourceSections,
   chainConnectedLines,
   distanceMeters,
   encodePolyline6,
@@ -75,4 +76,67 @@ test("official sections chain south to north despite reversed parts and a tiny f
 
 test("polyline encoding is stable", () => {
   assert.equal(encodePolyline6([[-120.2, 38.5], [-120.95, 40.7]]), "_izlhA~rlgdF_{geC~ywl@");
+});
+
+test("PCT sections are the 29 continuous PCTA guidebook stretches", () => {
+  const sections = buildSourceSections(TRAIL_SOURCES[0], {
+    type: "FeatureCollection",
+    features: [],
+  } as any);
+
+  assert.equal(sections.length, 29);
+  assert.equal(sections[0].label, "Section A");
+  assert.equal(sections[17].label, "Section R / A");
+  assert.equal(sections[28].label, "Section L");
+  assert.equal(sections[0].startFraction, 0);
+  assert.equal(sections[28].endFraction, 1);
+  for (let index = 1; index < sections.length; index++) {
+    assert.equal(sections[index].startFraction, sections[index - 1].endFraction);
+  }
+});
+
+test("A.T. and CDT section order comes from their official source features", () => {
+  const atSections = buildSourceSections(TRAIL_SOURCES[1], {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[0, 0], [0, 0.01]] },
+        properties: {
+          Name: "GATC AT Treadway", Region: "3", Trail_Club: "30",
+          Status: "Official A.T. Route", Publish: "Yes",
+        },
+      },
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[0, 0.02], [0, 0.01]] },
+        properties: {
+          Name: "CMC AT Treadway", Region: "3", Trail_Club: "27",
+          Status: "Official A.T. Route", Publish: "Yes",
+        },
+      },
+    ],
+  } as any);
+  assert.deepEqual(atSections.map((section) => section.label), [
+    "Georgia Appalachian Trail Club",
+    "Carolina Mountain Club",
+  ]);
+  assert.equal(atSections[0].startFraction, 0);
+  assert.equal(atSections[1].endFraction, 1);
+
+  const states = ["New Mexico", "Colorado", "Wyoming", "Montana"];
+  const cdtSections = buildSourceSections(TRAIL_SOURCES[2], {
+    type: "FeatureCollection",
+    features: states.map((State, index) => ({
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: [[0, index * 0.01], [0, (index + 1) * 0.01]],
+      },
+      properties: { Label: "CDT Primary Route", State },
+    })),
+  } as any);
+  assert.deepEqual(cdtSections.map((section) => section.label), [
+    "New Mexico", "Colorado", "Wyoming", "Montana & Idaho",
+  ]);
 });

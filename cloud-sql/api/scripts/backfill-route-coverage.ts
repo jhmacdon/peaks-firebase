@@ -29,6 +29,7 @@
  *   --limit <n>      cap sessions processed this run
  *   --delay-ms <n>   pause between sessions (default 300)
  *   --user <uid>     restrict to one user
+ *   --session <id>   restrict to one session
  */
 
 import db from "../src/db";
@@ -63,6 +64,7 @@ const APPLY = process.argv.includes("--apply");
 const DELAY_MS = nonNegativeIntFlag("--delay-ms", 300);
 const LIMIT = intFlag("--limit", Number.MAX_SAFE_INTEGER);
 const USER = strFlag("--user");
+const SESSION = strFlag("--session");
 
 if (APPLY && process.argv.includes("--dry-run")) {
   console.error("Pass --dry-run or --apply, not both.");
@@ -85,8 +87,9 @@ async function main(): Promise<void> {
      FROM tracking_sessions s
      WHERE s.path IS NOT NULL
        AND ($1::text IS NULL OR s.user_id = $1)
+       AND ($2::text IS NULL OR s.id = $2)
      ORDER BY s.start_time ASC, s.id ASC`,
-    [USER]
+    [USER, SESSION]
   );
 
   const unpathed = await db.query<{ count: number }>(
@@ -94,8 +97,9 @@ async function main(): Promise<void> {
      FROM tracking_sessions s
      WHERE s.ended = true AND s.path IS NULL
        AND ($1::text IS NULL OR s.user_id = $1)
+       AND ($2::text IS NULL OR s.id = $2)
        AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)`,
-    [USER]
+    [USER, SESSION]
   );
 
   const targets = rows.slice(0, LIMIT);

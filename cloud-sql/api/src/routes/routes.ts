@@ -19,7 +19,8 @@ export function buildRouteDetailQuery(
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
             r.created_at, r.updated_at,
-            COALESCE(area_rows.areas, '[]'::json) AS areas
+            COALESCE(area_rows.areas, '[]'::json) AS areas,
+            COALESCE(section_rows.sections, '[]'::json) AS sections
      FROM routes r
      LEFT JOIN LATERAL (
        -- Collapse PAD-US fragments: a park can exist as several areas rows with
@@ -49,6 +50,20 @@ export function buildRouteDetailQuery(
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
+     LEFT JOIN LATERAL (
+       SELECT json_agg(
+         json_build_object(
+           'id', rs.section_id,
+           'label', rs.label,
+           'region', rs.region,
+           'detail', rs.detail,
+           'startFraction', rs.start_fraction,
+           'endFraction', rs.end_fraction
+         ) ORDER BY rs.ordinal
+       ) AS sections
+       FROM route_sections rs
+       WHERE rs.route_id = r.id
+     ) section_rows ON true
      WHERE r.id = $1 AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$2")}`,
     values: [id, uid],
@@ -101,6 +116,23 @@ export function buildRouteElevationQuery(
   };
 }
 
+export function buildRouteSectionsQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT rs.section_id AS id, rs.label, rs.region, rs.detail,
+                  rs.start_fraction AS "startFraction",
+                  rs.end_fraction AS "endFraction"
+           FROM route_sections rs
+           JOIN routes r ON r.id = rs.route_id
+           WHERE rs.route_id = $1 AND r.status = 'active'
+             AND ${buildRouteAccessSql("r", "$2")}
+           ORDER BY rs.ordinal`,
+    values: [id, uid],
+  };
+}
+
 export function buildNearbyRoutesQuery(
   lat: number,
   lng: number,
@@ -124,6 +156,7 @@ export function buildNearbyRoutesQuery(
 
 export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
   row.areas = Array.isArray(row.areas) ? row.areas : [];
+  row.sections = Array.isArray(row.sections) ? row.sections : [];
   row.external_links = normalizeExternalLinks(row.external_links);
   // Embedded in ordinal order, straight from the query — route detail costs
   // the client one request instead of two.
@@ -170,6 +203,15 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
 router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildRouteDestinationsQuery(id, getUid(req));
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows);
+}));
+
+// Lightweight catalog divisions for a route opened from search or disk. This
+// avoids downloading the route's continent-scale polyline a second time.
+router.get("/:id/sections", asyncRoute(async (req, res: Response) => {
+  const { id } = req.params;
+  const query = buildRouteSectionsQuery(id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
 }));
