@@ -185,6 +185,7 @@ test(
         evidence: {
           requeue_reason?: string;
           discarded_superseded_route_id?: string;
+          requeued_at?: string;
         };
         candidate: Record<string, unknown>;
         review: Record<string, unknown>;
@@ -203,7 +204,10 @@ test(
          WHERE destination_id = $1`,
         [destinationId]
       );
-      assert.deepEqual(saved.rows[0], {
+      const row = saved.rows[0];
+      assert.match(row.evidence.requeued_at ?? "", /^\d{4}-\d{2}-\d{2}T/);
+      const { requeued_at: _requeuedAt, ...stableEvidence } = row.evidence;
+      assert.deepEqual({ ...row, evidence: stableEvidence }, {
         state: "queued",
         evidence: {
           requeue_reason: reason,
