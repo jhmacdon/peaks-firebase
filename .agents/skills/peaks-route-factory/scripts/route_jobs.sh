@@ -1,8 +1,18 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
+
+initial_script_dir="${BASH_SOURCE[0]%/*}"
+if [[ "$initial_script_dir" == "${BASH_SOURCE[0]}" ]]; then
+  initial_script_dir="$PWD"
+elif [[ "$initial_script_dir" != /* ]]; then
+  initial_script_dir="$PWD/$initial_script_dir"
+fi
+builtin source "$initial_script_dir/route_worker_environment.sh"
+sanitize_route_worker_environment
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
+source "$script_dir/route_job_claim_role.sh"
 
 args=("$@")
 checkout_kind="$("$script_dir/resolve_worker_checkout.sh" "$repo_root")"
@@ -25,6 +35,8 @@ flag_value() {
 
 require_worker_artifact_path() {
   local flag="$1"
+  local expected_basename="$2"
+  local require_existing="$3"
   local value
   local resolved
   local resolved_parent
@@ -45,8 +57,9 @@ require_worker_artifact_path() {
       ;;
   esac
   resolved_parent="$(dirname "$resolved")"
-  if [[ "$resolved_parent" != "$absolute_worker_artifact_root" ]]; then
-    echo "$flag must name a direct worker-artifacts file without path traversal" >&2
+  if [[ "$resolved_parent" != "$absolute_worker_artifact_root" ||
+        "$(basename "$resolved")" != "$expected_basename" ]]; then
+    echo "$flag must name $expected_basename in this checkout's worker-artifacts directory" >&2
     exit 2
   fi
   mkdir -p "$absolute_worker_artifact_root"
@@ -55,23 +68,92 @@ require_worker_artifact_path() {
     echo "$flag must not use a symlinked worker-artifacts path" >&2
     exit 2
   fi
+  if [[ "$require_existing" == "yes" && ! -f "$resolved" ]]; then
+    echo "$flag must name an existing regular file" >&2
+    exit 2
+  fi
 }
 
-if [[ "$checkout_kind" != "canonical" ]]; then
-  case "${args[0]:-}" in
-    materialize|materialize-result)
-      require_worker_artifact_path "--output"
-      ;;
-    transition)
-      if flag_value "--result-file" >/dev/null; then
-        require_worker_artifact_path "--result-file"
-      fi
-      if flag_value "--artifact-path" >/dev/null; then
-        require_worker_artifact_path "--artifact-path"
-      fi
-      ;;
-  esac
-fi
+destination_id="$(flag_value "--destination-id" || true)"
+lease_token="$(flag_value "--lease-token" || true)"
+case "${args[0]:-}" in
+  materialize)
+    [[ -n "$destination_id" && -n "$lease_token" ]] || {
+      echo "materialize requires --destination-id and --lease-token" >&2
+      exit 2
+    }
+    require_worker_artifact_path \
+      "--output" "${destination_id}-${lease_token}.geojson" no
+    ;;
+  materialize-result)
+    [[ -n "$destination_id" && -n "$lease_token" ]] || {
+      echo "materialize-result requires --destination-id and --lease-token" >&2
+      exit 2
+    }
+    require_worker_artifact_path \
+      "--output" "${destination_id}-${lease_token}-candidate.json" no
+    ;;
+  transition)
+    [[ -n "$destination_id" && -n "$lease_token" ]] || {
+      echo "transition requires --destination-id and --lease-token" >&2
+      exit 2
+    }
+    transition_state="$(flag_value "--to" || true)"
+    if flag_value "--artifact-path" >/dev/null; then
+      require_worker_artifact_path \
+        "--artifact-path" "${destination_id}-${lease_token}.geojson" yes
+    fi
+    if flag_value "--result-file" >/dev/null; then
+      case "$transition_state" in
+        candidate_ready) result_suffix="candidate" ;;
+        approved) result_suffix="review" ;;
+        needs_revision)
+          if [[ "$checkout_kind" == "route-review" ]]; then
+            result_suffix="review"
+          else
+            result_suffix="needs_revision"
+          fi
+          ;;
+        waiting_rights|waiting_access|needs_human)
+          if [[ "$checkout_kind" == "route-review" ]]; then
+            result_suffix="review"
+          else
+            result_suffix="$transition_state"
+          fi
+          ;;
+        pending_review) result_suffix="import" ;;
+        *) result_suffix="$transition_state" ;;
+      esac
+      [[ -n "$result_suffix" ]] || {
+        echo "--result-file requires --to" >&2
+        exit 2
+      }
+      require_worker_artifact_path \
+        "--result-file" \
+        "${destination_id}-${lease_token}-${result_suffix}.json" yes
+    fi
+    if flag_value "--review-packet" >/dev/null; then
+      [[ "$checkout_kind" == "route-review" &&
+         "$transition_state" =~ ^(approved|needs_revision|waiting_rights|waiting_access|needs_human)$ ]] || {
+        echo "--review-packet is allowed only for a route-review outcome" >&2
+        exit 2
+      }
+      require_worker_artifact_path \
+        "--review-packet" \
+        "${destination_id}-${lease_token}-review-packet.json" yes
+    fi
+    if flag_value "--source-check" >/dev/null; then
+      [[ "$checkout_kind" == "route-review" &&
+         "$transition_state" =~ ^(approved|needs_revision|waiting_rights|waiting_access|needs_human)$ ]] || {
+        echo "--source-check is allowed only for a route-review outcome" >&2
+        exit 2
+      }
+      require_worker_artifact_path \
+        "--source-check" \
+        "${destination_id}-${lease_token}-source-check.json" yes
+    fi
+    ;;
+esac
 
 if [[ "${args[0]:-}" == "claim" ]]; then
   supplied_worker_id=""
@@ -116,7 +198,10 @@ if [[ "${args[0]:-}" == "claim" ]]; then
     echo "--integrity-repairs-only requires the route-repair checkout" >&2
     exit 2
   fi
+  route_job_validate_claim_stage "$checkout_kind" "${args[@]}"
 fi
 
 exec "$script_dir/with_route_db.sh" \
-  npm --prefix "$repo_root/cloud-sql/migrate" run routes:jobs -- "${args[@]}"
+  "$repo_root/cloud-sql/migrate/scripts/run-tsx.sh" \
+  "$repo_root/cloud-sql/migrate/src/standard-route-jobs.ts" \
+  "${args[@]}"

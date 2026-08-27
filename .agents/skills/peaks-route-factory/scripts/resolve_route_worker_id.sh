@@ -18,7 +18,13 @@ case "$checkout_kind" in
   route-repair)
     printf '%s\n' "luna-route-repair-01"
     ;;
+  route-review)
+    printf '%s\n' "luna-route-reviewer-01"
+    ;;
   canonical)
+    printf '\n'
+    ;;
+  route-operator)
     printf '\n'
     ;;
   *)

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
 
 destination_id=""
@@ -133,6 +133,7 @@ fi
 
 response="$(
   curl \
+    --disable \
     --fail \
     --silent \
     --show-error \

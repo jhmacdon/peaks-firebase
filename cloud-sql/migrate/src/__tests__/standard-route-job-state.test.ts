@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ROUTE_REVIEWER_WORKER_ID,
+  assertWorkerCanClaimStage,
   canTransition,
   canonicalJson,
   humanRequeueTargetState,
+  reviewerLeaseOwnerForTransition,
   stageForState,
   statesForStage,
   verificationAction,
@@ -39,6 +42,70 @@ test("claim stages favor finishing work already near publication", () => {
   assert.equal(stageForState("queued"), "research");
   assert.equal(stageForState("waiting_rights"), null);
   assert.deepEqual(statesForStage("verify"), ["published"]);
+  assert.deepEqual(statesForStage("factory"), [
+    "published",
+    "approved",
+    "candidate_ready",
+    "queued",
+    "researching",
+    "needs_revision",
+    "needs_geometry",
+  ]);
+  assert.equal(statesForStage("factory").includes("pending_review"), false);
+});
+
+test("claim roles keep review leases in the dedicated reviewer lane", () => {
+  assert.doesNotThrow(() =>
+    assertWorkerCanClaimStage(ROUTE_REVIEWER_WORKER_ID, "review")
+  );
+  assert.throws(
+    () => assertWorkerCanClaimStage("luna-route-worker-01", "review"),
+    /non-review workers/
+  );
+  assert.throws(
+    () => assertWorkerCanClaimStage("luna-route-worker-01", "next"),
+    /non-review workers/
+  );
+  assert.throws(
+    () => assertWorkerCanClaimStage(ROUTE_REVIEWER_WORKER_ID, "factory"),
+    /reviewer may claim only/
+  );
+});
+
+test("pending review outcomes require the live dedicated reviewer lease", () => {
+  for (const outcome of [
+    "approved",
+    "needs_revision",
+    "waiting_rights",
+    "waiting_access",
+    "needs_human",
+  ] as const) {
+    assert.equal(
+      reviewerLeaseOwnerForTransition(
+        "pending_review",
+        outcome,
+        ROUTE_REVIEWER_WORKER_ID
+      ),
+      ROUTE_REVIEWER_WORKER_ID
+    );
+    assert.throws(
+      () =>
+        reviewerLeaseOwnerForTransition(
+          "pending_review",
+          outcome,
+          "luna-route-worker-01"
+        ),
+      /fresh luna-route-reviewer-01 lease/
+    );
+  }
+  assert.equal(
+    reviewerLeaseOwnerForTransition(
+      "approved",
+      "published",
+      "luna-route-worker-01"
+    ),
+    null
+  );
 });
 
 test("blocked jobs are never part of the automatic next claim", () => {

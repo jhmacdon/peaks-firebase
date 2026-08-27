@@ -225,6 +225,44 @@ test("a loop may contact its summit internally without ending there", async () =
   }
 });
 
+test("one shared route verifies each linked summit", async () => {
+  const sharedRoute = {
+    ...route,
+    summit_count: 2,
+    destination_ids: ["trailhead-1", "peak-a", "peak-b"],
+    destination_features: [
+      ["trailhead"],
+      ["summit"],
+      ["summit", "volcano"],
+    ],
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(sharedRoute), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  try {
+    const sharedQueryable = {
+      async query<T extends Record<string, unknown>>() {
+        return { rows: [sharedRoute as unknown as T] };
+      },
+    };
+    for (const destinationId of ["peak-a", "peak-b"]) {
+      const result = await verifyStandardRoute(sharedQueryable, {
+        routeId: "route-1",
+        destinationId,
+        trailheadId: "trailhead-1",
+        publicBaseUrl: "https://example.test",
+      });
+      assert.equal(result.gates.destination_order, true, destinationId);
+      assert.equal(result.verdict, "PASS", destinationId);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("a summit without a catalog location fails closed", async () => {
   const missingLocation = {
     ...route,
@@ -451,9 +489,11 @@ test("an unrelated HTTP 200 shell cannot pass public verification", async () => 
 
 test("verification query serializes destination feature arrays as JSON", async () => {
   let queryText = "";
+  let queryValues: unknown[] | undefined;
   const recordingQueryable = {
-    async query<T extends Record<string, unknown>>(text: string) {
+    async query<T extends Record<string, unknown>>(text: string, values?: unknown[]) {
       queryText = text;
+      queryValues = values;
       return { rows: [route as unknown as T] };
     },
   };
@@ -476,6 +516,11 @@ test("verification query serializes destination feature arrays as JSON", async (
     );
     assert.match(queryText, /JSONB_AGG\(to_jsonb\(d\.features\)/);
     assert.doesNotMatch(queryText, /ARRAY_AGG\(d\.features::text\[\]/);
+    assert.match(
+      queryText,
+      /peaks_route_passes_publish_integrity\(r\.id, \$2, 'active'\)/
+    );
+    assert.deepEqual(queryValues, ["route-1", "peak-1"]);
   } finally {
     globalThis.fetch = originalFetch;
   }

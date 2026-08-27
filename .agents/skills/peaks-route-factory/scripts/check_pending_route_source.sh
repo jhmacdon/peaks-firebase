@@ -1,5 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
+
+initial_script_dir="${BASH_SOURCE[0]%/*}"
+if [[ "$initial_script_dir" == "${BASH_SOURCE[0]}" ]]; then
+  initial_script_dir="$PWD"
+elif [[ "$initial_script_dir" != /* ]]; then
+  initial_script_dir="$PWD/$initial_script_dir"
+fi
+builtin source "$initial_script_dir/route_worker_environment.sh"
+sanitize_route_worker_environment
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
@@ -57,16 +66,25 @@ case "$source_kind" in
   usgs)
     checker="$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts"
     ;;
+  official)
+    checker="$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_official_routes.mts"
+    ;;
   *)
-    printf '%s\n' "Source check requires --source osm or --source usgs" >&2
+    printf '%s\n' \
+      "Source check requires --source osm, --source usgs, or --source official" >&2
     exit 2
     ;;
 esac
 
 output_dir="$repo_root/cloud-sql/migrate/route-candidates/luna/worker-artifacts"
 output_file="$output_dir/$destination_id-$lease_token-source-check.json"
-temporary_file="$output_file.tmp.$$"
+umask 077
 mkdir -p "$output_dir"
+if [[ -L "$output_dir" || -L "$output_file" ]]; then
+  printf '%s\n' "Source-check output paths must not use symlinks" >&2
+  exit 1
+fi
+temporary_file="$(mktemp "$output_dir/.${destination_id}-${lease_token}-source-check.XXXXXX")"
 trap 'rm -f "$temporary_file"' EXIT
 
 checker_args=(--route-id "$route_id" --format json)
@@ -90,7 +108,6 @@ if [[ ! -s "$temporary_file" ]]; then
   exit 1
 fi
 
-chmod 600 "$temporary_file"
 mv "$temporary_file" "$output_file"
 trap - EXIT
 printf '{"status":"%s","result_file":"%s"}\n' \
