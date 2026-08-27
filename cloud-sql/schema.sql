@@ -448,6 +448,20 @@ CREATE TABLE routes (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Derived vertices for the three continent-scale Triple Crown routes. Their
+-- guarded importer replaces these rows whenever it updates a centerline.
+CREATE TABLE triple_crown_route_points (
+    route_id        TEXT NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+    idx             INT NOT NULL,
+    pt              geometry(Point, 4326) NOT NULL,
+    along_m         DOUBLE PRECISION NOT NULL CHECK (along_m >= 0),
+    PRIMARY KEY (route_id, idx),
+    CHECK (route_id IN ('triple-crown-pct', 'triple-crown-at', 'triple-crown-cdt'))
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON triple_crown_route_points TO "peaks-api";
+
 -- ---------------------------------------------------------------------------
 -- route_elevation_backfill_jobs
 -- Durable, leased local work to restore valid elevation profiles for
@@ -1630,6 +1644,8 @@ CREATE INDEX idx_destinations_type          ON destinations (type);
 CREATE INDEX idx_areas_kind                 ON areas (kind);
 
 CREATE INDEX idx_routes_owner               ON routes (owner);
+CREATE INDEX idx_triple_crown_route_points_pt
+  ON triple_crown_route_points USING GIST (pt);
 
 CREATE INDEX idx_route_elevation_backfill_jobs_claim
   ON route_elevation_backfill_jobs (
@@ -1925,9 +1941,10 @@ BEGIN
   ) r
   JOIN LATERAL (
     SELECT DISTINCT part.area_id
-    FROM area_boundary_parts part
-    WHERE part.boundary_part && r.geom
-      AND ST_Intersects(part.boundary_part, r.geom)
+    FROM ST_Subdivide(r.geom, 512) AS route_part(geom)
+    JOIN area_boundary_parts part
+      ON part.boundary_part && route_part.geom
+     AND ST_Intersects(part.boundary_part, route_part.geom)
   ) matched_area ON true
   JOIN areas a ON a.id = matched_area.area_id
   ON CONFLICT (route_id, area_id) DO NOTHING;

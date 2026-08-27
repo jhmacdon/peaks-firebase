@@ -282,6 +282,12 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
  * unchanged. Validated: the 71km session that still timed out after the
  * matchDestinations fix drops from 60s+ to ~140ms here.
  *
+ * A continent-scale route has a bounding box that covers several states, so
+ * most western sessions pass its bbox test. The Triple Crown routes use their
+ * importer-owned point index here. Other routes over 8,192 points are split
+ * into 512-point pieces for the exact same planar test. Both point spacing and
+ * the subdivision path preserve Phase 1's safe candidate superset.
+ *
  * Pure builder so its shape is unit-testable without a live DB.
  */
 export function buildRouteCandidateSql(sessionId: string): { text: string; values: unknown[] } {
@@ -290,8 +296,25 @@ export function buildRouteCandidateSql(sessionId: string): { text: string; value
      WHERE s.id = $1 AND s.path IS NOT NULL AND r.status = 'active'
        AND (r.owner = 'peaks' OR r.owner = s.user_id)
        AND r.path::geometry && ST_Expand(s.path::geometry, 0.005)
-       AND ST_DWithin(r.path::geometry, s.path::geometry, 0.005)`,
-    values: [sessionId],
+       AND CASE
+         WHEN r.id = ANY($2::text[])
+           THEN EXISTS (
+             SELECT 1
+             FROM triple_crown_route_points tcp
+             WHERE tcp.route_id = r.id
+               AND tcp.pt && ST_Expand(s.path::geometry, 0.005)
+               AND ST_DWithin(tcp.pt, s.path::geometry, 0.005)
+           )
+         WHEN ST_NPoints(r.path::geometry) <= 8192
+           THEN ST_DWithin(r.path::geometry, s.path::geometry, 0.005)
+         ELSE EXISTS (
+           SELECT 1
+           FROM ST_Subdivide(r.path::geometry, 512) AS route_part(geom)
+           WHERE route_part.geom && ST_Expand(s.path::geometry, 0.005)
+             AND ST_DWithin(route_part.geom, s.path::geometry, 0.005)
+         )
+       END`,
+    values: [sessionId, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
 
@@ -304,14 +327,11 @@ export function buildRouteCandidateSql(sessionId: string): { text: string; value
  *    denominator, unchanged in meaning from the pre-2026-08 query
  *  - `covered_along_m` — how far along the route each covered vertex sits
  *
- * Distance along the route is summed here rather than taken from
- * ST_LineLocatePoint, which is O(n) per vertex and so O(n²) per route, and
- * rather than from planar degrees, which over-weights east-west stretches by
- * 1/cos(latitude) — 47% at 47°N — and would tint the wrong part of the profile.
- * `ST_Distance(..., false)` measures on the sphere instead of the spheroid:
- * about 0.1% off, immaterial against a 500 m floor, and much cheaper. Using the
- * summed length (rather than ST_Length or routes.distance) keeps fractions and
- * metres exactly consistent with each other.
+ * triple_crown_route_points stores vertices and cumulative spherical distance
+ * for the three continent-scale routes. Their guarded importer replaces those
+ * rows with each source update. Other routes keep the existing on-demand path.
+ * This avoids dumping and remeasuring a 60,000-point trail for every hike while
+ * leaving normal route writes unchanged.
  *
  * No gate here. The merge and the gate live in route-coverage.ts so they are
  * unit-testable without a database.
@@ -324,9 +344,24 @@ export function buildRouteCoverageSql(
 ): { text: string; values: unknown[] } {
   return {
     text: `WITH session_track AS (
-        SELECT s.path AS track FROM tracking_sessions s WHERE s.id = $1
+        SELECT s.path AS track,
+               ST_Expand(ST_Envelope(s.path::geometry), 0.005) AS track_bbox
+        FROM tracking_sessions s WHERE s.id = $1
     ),
-    route_points AS (
+    indexed_route_stats AS (
+        SELECT route_id, MAX(along_m) AS length_m, COUNT(*) AS total_points
+        FROM triple_crown_route_points
+        WHERE route_id = ANY($2::text[])
+        GROUP BY route_id
+    ),
+    indexed_covered AS (
+        SELECT rp.route_id, rp.idx, rp.along_m
+        FROM triple_crown_route_points rp, session_track st
+        WHERE rp.route_id = ANY($2::text[])
+          AND rp.pt && st.track_bbox
+          AND ST_DWithin(rp.pt::geography, st.track, ${ROUTE_VERTEX_TOLERANCE_M})
+    ),
+    standard_route_points AS (
         SELECT sub.route_id,
                (sub.dp).path[1] AS idx,
                (sub.dp).geom AS pt
@@ -334,15 +369,19 @@ export function buildRouteCoverageSql(
           SELECT r.id AS route_id, ST_DumpPoints(r.path::geometry) AS dp
           FROM routes r
           WHERE r.id = ANY($2::text[])
+            AND NOT (r.id = ANY($3::text[]))
         ) sub
     ),
-    stepped AS (
+    standard_stepped AS (
         SELECT rp.route_id, rp.idx, rp.pt,
                lag(rp.pt) OVER (PARTITION BY rp.route_id ORDER BY rp.idx) AS prev_pt,
-               ST_DWithin(rp.pt::geography, st.track, ${ROUTE_VERTEX_TOLERANCE_M}) AS covered
-        FROM route_points rp, session_track st
+               CASE WHEN rp.pt && st.track_bbox
+                    THEN ST_DWithin(rp.pt::geography, st.track, ${ROUTE_VERTEX_TOLERANCE_M})
+                    ELSE false
+               END AS covered
+        FROM standard_route_points rp, session_track st
     ),
-    measured AS (
+    standard_measured AS (
         SELECT route_id, idx, covered,
                SUM(
                  CASE WHEN prev_pt IS NULL THEN 0
@@ -350,21 +389,36 @@ export function buildRouteCoverageSql(
                  END
                ) OVER (PARTITION BY route_id ORDER BY idx
                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS along_m
-        FROM stepped
+        FROM standard_stepped
+    ),
+    route_stats AS (
+        SELECT route_id, length_m, total_points FROM indexed_route_stats
+        UNION ALL
+        SELECT route_id, MAX(along_m), COUNT(*) FROM standard_measured GROUP BY route_id
+    ),
+    covered AS (
+        SELECT route_id, idx, along_m FROM indexed_covered
+        UNION ALL
+        SELECT route_id, idx, along_m FROM standard_measured WHERE covered
     )
-    SELECT route_id,
-           MAX(along_m) AS length_m,
-           COUNT(*) AS total_points,
-           COUNT(*) FILTER (WHERE covered) AS matched_points,
+    SELECT rs.route_id, rs.length_m, rs.total_points,
+           COUNT(c.idx) AS matched_points,
            COALESCE(
-             array_agg(along_m ORDER BY idx) FILTER (WHERE covered),
+             array_agg(c.along_m ORDER BY c.idx) FILTER (WHERE c.idx IS NOT NULL),
              ARRAY[]::double precision[]
            ) AS covered_along_m
-    FROM measured
-    GROUP BY route_id`,
-    values: [sessionId, routeIds],
+    FROM route_stats rs
+    LEFT JOIN covered c ON c.route_id = rs.route_id
+    GROUP BY rs.route_id, rs.length_m, rs.total_points`,
+    values: [sessionId, routeIds, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
+
+export const TRIPLE_CROWN_INDEXED_ROUTE_IDS = [
+  "triple-crown-pct",
+  "triple-crown-at",
+  "triple-crown-cdt",
+] as const;
 
 /**
  * Measure one session against every active route near its track and return the
@@ -382,7 +436,17 @@ export async function measureSessionRouteCoverage(
   const candidateIds = (candidates.rows as Array<{ id: string }>).map((r) => r.id);
   const coverageSql = buildRouteCoverageSql(sessionId, candidateIds);
   const measured = await q.query(coverageSql.text, coverageSql.values);
-  return selectRouteMatches(measured.rows as RouteCoverageRow[]);
+  const measuredRows = measured.rows as RouteCoverageRow[];
+  const measuredIds = new Set(measuredRows.map((row) => row.route_id));
+  for (const routeId of candidateIds) {
+    if (
+      (TRIPLE_CROWN_INDEXED_ROUTE_IDS as readonly string[]).includes(routeId) &&
+      !measuredIds.has(routeId)
+    ) {
+      throw new Error(`triple_crown_route_points_missing:${routeId}`);
+    }
+  }
+  return selectRouteMatches(measuredRows);
 }
 
 /**

@@ -119,7 +119,7 @@ async function main(): Promise<void> {
       failed++;
       console.error(`[backfill-route-coverage] ${session.id} failed:`, err);
     }
-    if ((index + 1) % 100 === 0 || index + 1 === targets.length) {
+    if ((index + 1) % 10 === 0 || index + 1 === targets.length) {
       console.log(`[backfill-route-coverage] ${index + 1}/${targets.length} sessions`);
     }
     if (DELAY_MS > 0) await sleep(DELAY_MS);

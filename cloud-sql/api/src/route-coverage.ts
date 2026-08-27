@@ -34,17 +34,23 @@ export const ROUTE_PARTIAL_MIN_COVERED_M = 500;
 export const GAP_TOLERANCE_MIN_M = 100;
 /** ...and on a long route the tolerance grows with it. */
 export const GAP_TOLERANCE_ROUTE_FRAC = 0.02;
+/** Never bridge more than a short GPS dropout, even on a continent-scale trail. */
+export const GAP_TOLERANCE_MAX_M = 1_000;
 
 /** Fractions are stored to this many decimals — sub-metre on a 100 km route. */
 const FRACTION_DECIMALS = 6;
 
 /**
- * Bridge gaps under 100 m or 2% of route length, whichever is larger, so a GPS
- * dropout does not shred one continuous hike into fragments.
+ * Bridge gaps under 100 m or 2% of route length, whichever is larger, up to a
+ * 1 km cap. Without the cap, one hike on a 3,000-mile trail could join covered
+ * stretches that are nearly 100 km apart.
  */
 export function gapToleranceMeters(routeLengthM: number): number {
   const proportional = Number.isFinite(routeLengthM) ? routeLengthM * GAP_TOLERANCE_ROUTE_FRAC : 0;
-  return Math.max(GAP_TOLERANCE_MIN_M, proportional);
+  return Math.min(
+    GAP_TOLERANCE_MAX_M,
+    Math.max(GAP_TOLERANCE_MIN_M, proportional)
+  );
 }
 
 function roundFraction(value: number): number {
