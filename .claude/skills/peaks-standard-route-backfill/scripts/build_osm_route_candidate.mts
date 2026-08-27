@@ -1,6 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import {
+  footAccessAllows,
+  isWalkableOsmWay,
+  requiresExplicitFootAccess,
+} from "../../../../cloud-sql/migrate/src/osm-route-access";
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
@@ -59,17 +64,6 @@ type Bounds = {
   north: number;
   east: number;
 };
-
-const walkableHighways = new Set([
-  "path",
-  "footway",
-  "steps",
-  "pedestrian",
-  "track",
-  "service",
-  "unclassified",
-  "residential",
-]);
 
 function usage(): string {
   return [
@@ -607,7 +601,7 @@ try {
     const query =
       `[out:json][timeout:30];` +
       `way(${wayScope})` +
-      `["highway"~"^(path|footway|steps|pedestrian|track|service|unclassified|residential)$"];` +
+      `["highway"~"^(path|footway|steps|pedestrian|track|service|unclassified|residential|bridleway|cycleway)$"];` +
       `out body;>;out skel qt;`;
 
     const controller = new AbortController();
@@ -664,14 +658,16 @@ try {
 
   const graph = new Map<number, GraphEdge[]>();
   const footAccessOverrides = new Set<number>();
+  const explicitFootHighways = new Set<number>();
   for (const way of ways) {
     const tags = way.tags ?? {};
-    if (!walkableHighways.has(tags.highway ?? "")) {
+    if (!isWalkableOsmWay(tags)) {
       continue;
     }
-    const footAllows = ["yes", "designated", "permissive", "permit"].includes(
-      tags.foot ?? ""
-    );
+    const footAllows = footAccessAllows(tags);
+    if (requiresExplicitFootAccess(tags)) {
+      explicitFootHighways.add(way.id);
+    }
     if (["no", "private"].includes(tags.access ?? "") && footAllows) {
       footAccessOverrides.add(way.id);
     }
@@ -762,6 +758,15 @@ try {
           usedOverrides.join(", ")
       );
     }
+    const usedExplicitFootHighways = wayIds.filter((wayId) =>
+      explicitFootHighways.has(wayId)
+    );
+    if (usedExplicitFootHighways.length > 0) {
+      console.log(
+        `Mode note: explicit foot access permits walking on ways ` +
+          usedExplicitFootHighways.join(", ")
+      );
+    }
     console.log(`License: ${attribution}, ${licenseName}; ${licenseUrl}`);
   } else {
     const geojson = JSON.stringify({
@@ -791,6 +796,9 @@ try {
               osm_way_names: wayNames,
               osm_foot_access_override_way_ids: wayIds.filter((wayId) =>
                 footAccessOverrides.has(wayId)
+              ),
+              osm_explicit_foot_highway_way_ids: wayIds.filter((wayId) =>
+                explicitFootHighways.has(wayId)
               ),
             },
             geometry: {

@@ -72,7 +72,7 @@ function usage(exitCode = 2): never {
       [--blocker-code CODE] [--message TEXT] [--retry-minutes N] --apply
   npm run routes:jobs -- release --lease-token TOKEN [--message TEXT] [--retry-minutes N]
   npm run routes:jobs -- requeue --destination-id ID --from STATE --reason TEXT
-      --acknowledge-human-review --apply
+      [--discard-superseded-route] --acknowledge-human-review --apply
   npm run routes:jobs -- recover-legacy [--apply]
   npm run routes:jobs -- show [--destination-id ID] [--state STATE] [--limit 20]
   npm run routes:jobs -- stats
@@ -1566,6 +1566,7 @@ async function requeue(argv: string[]): Promise<void> {
   const destinationId = requireId(argv, "--destination-id");
   const fromValue = flagValue(argv, "--from");
   const reason = flagValue(argv, "--reason");
+  const discardSupersededRoute = argv.includes("--discard-superseded-route");
   if (!fromValue || !isJobState(fromValue)) {
     throw new Error("--from must be a valid route job state");
   }
@@ -1577,6 +1578,60 @@ async function requeue(argv: string[]): Promise<void> {
   }
   if (!reason || reason.trim().length < 12) {
     throw new Error("--reason must explain the human decision");
+  }
+  if (discardSupersededRoute && fromValue !== "needs_human") {
+    throw new Error(
+      "--discard-superseded-route is limited to a needs_human repair"
+    );
+  }
+  if (discardSupersededRoute) {
+    const result = await db.query<{
+      destination_id: string;
+      state: JobState;
+      discarded_route_id: string;
+    }>(
+      `UPDATE standard_route_backfill_jobs job
+       SET state = $3,
+           evidence = evidence || jsonb_build_object(
+             'requeued_at', now(),
+             'requeue_reason', $4::text,
+             'discarded_superseded_route_id', stale.id
+           ),
+           candidate = '{}'::jsonb,
+           review = '{}'::jsonb,
+           trailhead_id = NULL,
+           candidate_path = NULL,
+           candidate_sha256 = NULL,
+           candidate_artifact = NULL,
+           published_route_id = NULL,
+           replacement_route_id = NULL,
+           blocker_code = NULL,
+           blocker_message = NULL,
+           last_error = NULL,
+           next_attempt_at = now(),
+           lease_owner = NULL,
+           lease_token = NULL,
+           lease_expires_at = NULL,
+           updated_at = now()
+       FROM routes stale
+       WHERE job.destination_id = $1
+         AND job.state = $2
+         AND job.blocker_code = 'stale_replacement_route'
+         AND stale.id = job.replacement_route_id
+         AND stale.id = job.published_route_id
+         AND stale.owner = 'peaks'
+         AND stale.status = 'superseded'
+       RETURNING job.destination_id, job.state,
+                 stale.id AS discarded_route_id`,
+      [destinationId, fromValue, targetState, reason.trim()]
+    );
+    if (!result.rows[0]) {
+      throw new Error(
+        "Job is not blocked on one Peaks-owned superseded replacement route"
+      );
+    }
+    print(result.rows[0]);
+    return;
   }
   const result = await db.query<{ destination_id: string; state: JobState }>(
     `UPDATE standard_route_backfill_jobs

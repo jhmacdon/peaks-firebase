@@ -58,7 +58,7 @@ bash .claude/skills/peaks-standard-route-backfill/scripts/audit_missing_standard
    - Start with high-confidence routes that have a clear source, clear trailhead, and one accepted line.
    - Give extra weight to peaks on several lists.
    - Flag an existing user route with sessions as a geometry-review lead.
-   - Defer peaks with competing normal routes, loose source support, private or closed access, or a technical line that may not fit a single route record.
+   - Defer peaks with competing normal routes, loose source support, disputed or permanently closed legal access, or a technical line that may not fit a single route record. Keep temporary closures and current conditions as planning advisories; they do not erase an established route from the catalog.
 
 6. Search public trail geometry.
    - Query the USGS National Digital Trails service around a confirmed gap:

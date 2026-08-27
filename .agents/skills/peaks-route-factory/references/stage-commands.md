@@ -297,10 +297,12 @@ unchanged pending route from `needs_revision` to `pending_review` with the
 human-only `requeue` command. It validates that the saved route is still
 Peaks-owned and pending. Luna never runs `requeue`.
 
-For unclear reuse rights or current access, use `waiting_rights` or
+For unclear reuse rights or legal public access, use `waiting_rights` or
 `waiting_access` instead and include both `--blocker-code <short-code>` and
 `--message "<exact facts needed>"`. Use `needs_human` for conflicting facts or
-a production repair. These states require a human requeue.
+a production repair. Temporary closures and current conditions stay in access
+advisories and do not block an established legal route. These states require a
+human requeue.
 
 ## Publish
 
