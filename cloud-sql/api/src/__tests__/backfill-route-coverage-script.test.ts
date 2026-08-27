@@ -24,7 +24,9 @@ test("the backfill is batched, resumable and gentle on a db-f1-micro", () => {
   assert.match(script, /--dry-run/);
   assert.match(script, /--limit/);
   assert.match(script, /--delay-ms/);
+  assert.match(script, /--session/);
   assert.match(script, /s\.path IS NOT NULL/);
+  assert.match(script, /s\.id = \$2/);
   assert.match(script, /ORDER BY s\.start_time ASC, s\.id ASC/);
 });
 

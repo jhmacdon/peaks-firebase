@@ -32,6 +32,11 @@ interface ArcGISFeature {
   properties: Record<string, unknown>;
 }
 
+interface LineRecord {
+  points: Coordinate[];
+  properties: Record<string, unknown>;
+}
+
 interface FeatureCollection {
   type: "FeatureCollection";
   features: ArcGISFeature[];
@@ -78,6 +83,104 @@ const CLIENT_MAX_VERTEX_SPACING_METERS = 500;
 const TERMINUS_TOLERANCE_METERS = 5_000;
 const EARTH_RADIUS_METERS = 6_371_000;
 const METERS_PER_MILE = 1_609.344;
+
+export interface TrailSectionPlan {
+  id: string;
+  label: string;
+  region: string | null;
+  detail: string | null;
+  startFraction: number;
+  endFraction: number;
+}
+
+interface PctSectionDefinition {
+  id: string;
+  label: string;
+  region: string;
+  detail: string;
+  startMile: number;
+  endMile: number;
+}
+
+/**
+ * PCTA's 29 physical guidebook sections, south to north. Northern California
+ * Section R and Oregon/Washington Section A describe the same Seiad-to-Ashland
+ * stretch, so the catalog presents that one piece as "Section R / A" rather
+ * than counting the same ground twice. Boundary miles follow PCTA's 2026 mile
+ * marker system and its published road/resupply endpoints.
+ */
+const PCT_SECTIONS: PctSectionDefinition[] = [
+  { id: "ca-a", label: "Section A", region: "Southern California", detail: "Mexican Border to Warner Springs", startMile: 0, endMile: 109 },
+  { id: "ca-b", label: "Section B", region: "Southern California", detail: "Warner Springs to I-10 / San Gorgonio Pass", startMile: 109, endMile: 210 },
+  { id: "ca-c", label: "Section C", region: "Southern California", detail: "I-10 / San Gorgonio Pass to I-15 / Cajon Pass", startMile: 210, endMile: 342 },
+  { id: "ca-d", label: "Section D", region: "Southern California", detail: "I-15 / Cajon Pass to Highway 14 / Agua Dulce", startMile: 342, endMile: 454 },
+  { id: "ca-e", label: "Section E", region: "Southern California", detail: "Highway 14 / Agua Dulce to Highway 58 / Tehachapi", startMile: 454, endMile: 566 },
+  { id: "ca-f", label: "Section F", region: "Southern California", detail: "Highway 58 / Tehachapi to Highway 178 / Walker Pass", startMile: 566, endMile: 652 },
+  { id: "ca-g", label: "Section G", region: "Central California", detail: "Highway 178 / Walker Pass to Mount Whitney", startMile: 652, endMile: 767 },
+  { id: "ca-h", label: "Section H", region: "Central California", detail: "Mount Whitney to Tuolumne Meadows", startMile: 767, endMile: 942 },
+  { id: "ca-i", label: "Section I", region: "Central California", detail: "Tuolumne Meadows to Sonora Pass", startMile: 942, endMile: 1_017 },
+  { id: "ca-j", label: "Section J", region: "Central California", detail: "Sonora Pass to Echo Lake", startMile: 1_017, endMile: 1_092 },
+  { id: "ca-k", label: "Section K", region: "Central California", detail: "Echo Lake to I-80 / Truckee", startMile: 1_092, endMile: 1_153 },
+  { id: "ca-l", label: "Section L", region: "Central California", detail: "I-80 / Truckee to Highway 49 / Sierra City", startMile: 1_153, endMile: 1_195 },
+  { id: "ca-m", label: "Section M", region: "Central California", detail: "Highway 49 / Sierra City to Highway 70 / Belden", startMile: 1_195, endMile: 1_289 },
+  { id: "ca-n", label: "Section N", region: "Northern California", detail: "Highway 70 / Belden to Burney Falls", startMile: 1_289, endMile: 1_420 },
+  { id: "ca-o", label: "Section O", region: "Northern California", detail: "Burney Falls to I-5 / Castle Crags", startMile: 1_420, endMile: 1_501 },
+  { id: "ca-p", label: "Section P", region: "Northern California", detail: "I-5 / Castle Crags to Etna Summit", startMile: 1_501, endMile: 1_600 },
+  { id: "ca-q", label: "Section Q", region: "Northern California", detail: "Etna Summit to Seiad Valley", startMile: 1_600, endMile: 1_656 },
+  { id: "ca-r-or-a", label: "Section R / A", region: "Northern California / Oregon", detail: "Seiad Valley to I-5 / Ashland", startMile: 1_656, endMile: 1_718 },
+  { id: "or-b", label: "Section B", region: "Oregon", detail: "I-5 / Ashland to Highway 140 / Fish Lake", startMile: 1_718, endMile: 1_772 },
+  { id: "or-c", label: "Section C", region: "Oregon", detail: "Highway 140 to Highway 138 / Mount Thielsen", startMile: 1_772, endMile: 1_848 },
+  { id: "or-d", label: "Section D", region: "Oregon", detail: "Highway 138 / Mount Thielsen to Highway 58 / Willamette Pass", startMile: 1_848, endMile: 1_908 },
+  { id: "or-e", label: "Section E", region: "Oregon", detail: "Highway 58 / Willamette Pass to Highway 242 / McKenzie Pass", startMile: 1_908, endMile: 1_984 },
+  { id: "or-f", label: "Section F", region: "Oregon", detail: "Highway 242 / McKenzie Pass to Highway 35 / Barlow Pass", startMile: 1_984, endMile: 2_104 },
+  { id: "or-g", label: "Section G", region: "Oregon", detail: "Highway 35 / Barlow Pass to I-84 / Cascade Locks", startMile: 2_104, endMile: 2_155 },
+  { id: "wa-h", label: "Section H", region: "Washington", detail: "Cascade Locks to Highway 12 / White Pass", startMile: 2_155, endMile: 2_295 },
+  { id: "wa-i", label: "Section I", region: "Washington", detail: "Highway 12 / White Pass to I-90 / Snoqualmie Pass", startMile: 2_295, endMile: 2_397 },
+  { id: "wa-j", label: "Section J", region: "Washington", detail: "I-90 / Snoqualmie Pass to Highway 2 / Stevens Pass", startMile: 2_397, endMile: 2_467 },
+  { id: "wa-k", label: "Section K", region: "Washington", detail: "Highway 2 / Stevens Pass to Highway 20 / Rainy Pass", startMile: 2_467, endMile: 2_593 },
+  { id: "wa-l", label: "Section L", region: "Washington", detail: "Highway 20 / Rainy Pass to the Canadian Border", startMile: 2_593, endMile: 2_655.84 },
+];
+
+const AT_REGIONS: Record<string, string> = {
+  "0": "New England",
+  "1": "Mid-Atlantic",
+  "2": "Virginia",
+  "3": "Southern",
+};
+
+const AT_TRAIL_CLUBS: Record<string, string> = {
+  "0": "Maine Appalachian Trail Club",
+  "1": "Appalachian Mountain Club",
+  "2": "Randolph Mountain Club",
+  "3": "Dartmouth Outing Club",
+  "4": "Green Mountain Club",
+  "5": "Appalachian Mountain Club – Western Massachusetts",
+  "6": "Appalachian Mountain Club – Connecticut",
+  "7": "New York–New Jersey Trail Conference",
+  "8": "Appalachian Mountain Club – Delaware Valley",
+  "9": "Batona Hiking Club",
+  "10": "Appalachian Mountain Club – Delaware Valley",
+  "11": "Keystone Trails Association",
+  "12": "Blue Mountain Eagle Climbing Club",
+  "13": "Allentown Hiking Club",
+  "14": "Susquehanna Appalachian Trail Club",
+  "15": "York Hiking Club",
+  "16": "Cumberland Valley Appalachian Trail Club",
+  "17": "Mountain Club of Maryland",
+  "18": "Potomac Appalachian Trail Club",
+  "19": "Old Dominion Appalachian Trail Club",
+  "20": "Tidewater Appalachian Trail Club",
+  "21": "Natural Bridge Appalachian Trail Club",
+  "22": "Outdoor Club of Virginia Tech",
+  "23": "Roanoke Appalachian Trail Club",
+  "24": "Piedmont Appalachian Trail Hikers",
+  "25": "Mount Rogers Appalachian Trail Club",
+  "26": "Tennessee Eastman Hiking and Canoeing Club",
+  "27": "Carolina Mountain Club",
+  "28": "Smoky Mountains Hiking Club",
+  "29": "Nantahala Hiking Club",
+  "30": "Georgia Appalachian Trail Club",
+};
 
 export const TRAIL_SOURCES: TrailSource[] = [
   {
@@ -259,11 +362,8 @@ export function segmentizeLine(points: Coordinate[], maxSpacingMeters: number): 
   return result;
 }
 
-function flattenLines(collection: FeatureCollection): Array<{
-  points: Coordinate[];
-  properties: Record<string, unknown>;
-}> {
-  const lines: Array<{ points: Coordinate[]; properties: Record<string, unknown> }> = [];
+function flattenLines(collection: FeatureCollection): LineRecord[] {
+  const lines: LineRecord[] = [];
   for (const feature of collection.features) {
     if (!feature.geometry) continue;
     if (feature.geometry.type === "LineString") {
@@ -280,19 +380,20 @@ function flattenLines(collection: FeatureCollection): Array<{
   return lines;
 }
 
-/** Join an unbranched set of sections from its southern endpoint northward. */
-export function chainConnectedLines(
-  input: Coordinate[][],
+/** Order and orient an unbranched set of published sections south to north. */
+function chainConnectedLineRecords(
+  input: LineRecord[],
   toleranceMeters = CONNECT_TOLERANCE_METERS
-): Coordinate[] {
+): LineRecord[] {
   const lines = input.filter(
-    (points) => points.length >= 2 && lineLengthMeters(points) >= SOURCE_FRAGMENT_MIN_METERS
+    (line) => line.points.length >= 2 &&
+      lineLengthMeters(line.points) >= SOURCE_FRAGMENT_MIN_METERS
   );
   if (lines.length === 0) throw new Error("source contains no usable trail line");
 
-  const endpoints = lines.flatMap((points, lineIndex) => [
-    { lineIndex, side: 0 as const, point: points[0] },
-    { lineIndex, side: 1 as const, point: points[points.length - 1] },
+  const endpoints = lines.flatMap((line, lineIndex) => [
+    { lineIndex, side: 0 as const, point: line.points[0] },
+    { lineIndex, side: 1 as const, point: line.points[line.points.length - 1] },
   ]);
   const loose = endpoints.filter((endpoint) => !endpoints.some((other) =>
     other.lineIndex !== endpoint.lineIndex &&
@@ -305,17 +406,12 @@ export function chainConnectedLines(
   const used = new Set<number>();
   let lineIndex = start.lineIndex;
   let reverse = start.side === 1;
-  let result: Coordinate[] = [];
+  const result: LineRecord[] = [];
 
   while (true) {
-    let nextLine = reverse ? [...lines[lineIndex]].reverse() : lines[lineIndex];
-    if (
-      result.length > 0 &&
-      distanceMeters(result[result.length - 1], nextLine[0]) <= toleranceMeters
-    ) {
-      nextLine = nextLine.slice(1);
-    }
-    result = result.concat(nextLine);
+    const source = lines[lineIndex];
+    const points = reverse ? [...source.points].reverse() : source.points;
+    result.push({ points, properties: source.properties });
     used.add(lineIndex);
 
     let nearest:
@@ -325,9 +421,12 @@ export function chainConnectedLines(
       if (used.has(candidate)) continue;
       for (const candidateReverse of [false, true]) {
         const candidatePoint = candidateReverse
-          ? lines[candidate][lines[candidate].length - 1]
-          : lines[candidate][0];
-        const distance = distanceMeters(result[result.length - 1], candidatePoint);
+          ? lines[candidate].points[lines[candidate].points.length - 1]
+          : lines[candidate].points[0];
+        const currentEnd = result[result.length - 1].points[
+          result[result.length - 1].points.length - 1
+        ];
+        const distance = distanceMeters(currentEnd, candidatePoint);
         if (!nearest || distance < nearest.distance) {
           nearest = { distance, lineIndex: candidate, reverse: candidateReverse };
         }
@@ -342,6 +441,116 @@ export function chainConnectedLines(
     throw new Error(`trail source chain used ${used.size} of ${lines.length} line parts`);
   }
   return result;
+}
+
+function concatenateLineRecords(lines: LineRecord[]): Coordinate[] {
+  const result: Coordinate[] = [];
+  for (const line of lines) {
+    const startIndex = result.length > 0 &&
+      distanceMeters(result[result.length - 1], line.points[0]) <= CONNECT_TOLERANCE_METERS
+      ? 1
+      : 0;
+    result.push(...line.points.slice(startIndex));
+  }
+  return result;
+}
+
+/** Join an unbranched set of sections from its southern endpoint northward. */
+export function chainConnectedLines(
+  input: Coordinate[][],
+  toleranceMeters = CONNECT_TOLERANCE_METERS
+): Coordinate[] {
+  return concatenateLineRecords(chainConnectedLineRecords(
+    input.map((points) => ({ points, properties: {} })),
+    toleranceMeters
+  ));
+}
+
+function safeFraction(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function slug(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+/** Build the divisions published by each trail's official data source. */
+export function buildSourceSections(
+  source: TrailSource,
+  collection: FeatureCollection
+): TrailSectionPlan[] {
+  if (source.key === "pct") {
+    return PCT_SECTIONS.map((section, index) => ({
+      id: section.id,
+      label: section.label,
+      region: section.region,
+      detail: section.detail,
+      startFraction: index === 0
+        ? 0
+        : safeFraction(section.startMile / source.officialMiles),
+      endFraction: index === PCT_SECTIONS.length - 1
+        ? 1
+        : safeFraction(section.endMile / source.officialMiles),
+    }));
+  }
+
+  let lines = flattenLines(collection);
+  if (source.key === "at") {
+    lines = lines.filter((line) =>
+      line.properties.Status === "Official A.T. Route" &&
+      line.properties.Publish === "Yes"
+    );
+  } else {
+    lines = lines.filter((line) => line.properties.Label === "CDT Primary Route");
+  }
+  const orderedParts = chainConnectedLineRecords(lines);
+  const sectionKey = (line: LineRecord): string => source.key === "at"
+    ? String(line.properties.Name ?? "")
+    : String(line.properties.State ?? "");
+  const ordered = orderedParts.reduce<LineRecord[]>((result, line) => {
+    const previous = result[result.length - 1];
+    if (previous && sectionKey(previous) === sectionKey(line)) {
+      const startIndex = distanceMeters(
+        previous.points[previous.points.length - 1],
+        line.points[0]
+      ) <= CONNECT_TOLERANCE_METERS ? 1 : 0;
+      previous.points.push(...line.points.slice(startIndex));
+    } else {
+      result.push({ points: [...line.points], properties: line.properties });
+    }
+    return result;
+  }, []);
+  const total = ordered.reduce((sum, line) => sum + lineLengthMeters(line.points), 0);
+  let along = 0;
+
+  return ordered.map((line, index) => {
+    const start = along;
+    along += lineLengthMeters(line.points);
+    if (source.key === "at") {
+      const rawName = String(line.properties.Name ?? `Section ${index + 1}`);
+      const clubCode = String(line.properties.Trail_Club ?? "");
+      const regionCode = String(line.properties.Region ?? "");
+      return {
+        id: `at-${slug(rawName)}`,
+        label: AT_TRAIL_CLUBS[clubCode] ?? rawName.replace(/ AT Treadway$/, ""),
+        region: AT_REGIONS[regionCode] ?? null,
+        detail: "Official A.T. trail-club section",
+        startFraction: index === 0 ? 0 : safeFraction(start / total),
+        endFraction: index === ordered.length - 1 ? 1 : safeFraction(along / total),
+      };
+    }
+
+    const state = String(line.properties.State ?? `Section ${index + 1}`);
+    const label = state === "Montana" ? "Montana & Idaho" : state;
+    return {
+      id: `cdt-${slug(state)}`,
+      label,
+      region: null,
+      detail: "Official CDT map section",
+      startFraction: index === 0 ? 0 : safeFraction(start / total),
+      endFraction: index === ordered.length - 1 ? 1 : safeFraction(along / total),
+    };
+  });
 }
 
 export function validateItem(source: TrailSource, item: ArcGISItem): void {
@@ -443,12 +652,14 @@ export interface TrailPlan {
   polyline6: string;
   geometryHash: string;
   provenance: Record<string, unknown>;
+  sections: TrailSectionPlan[];
 }
 
 export function buildTrailPlan(
   source: TrailSource,
   rawPoints: Coordinate[],
-  retrievedAt: string
+  retrievedAt: string,
+  sections: TrailSectionPlan[] = []
 ): TrailPlan {
   const serverPoints = segmentizeLine(
     simplifyLine(rawPoints, SERVER_DEVIATION_METERS),
@@ -488,6 +699,7 @@ export function buildTrailPlan(
     clientPoints,
     polyline6,
     geometryHash,
+    sections,
     provenance: {
       source_kind: source.sourceKind,
       source_url: `https://www.arcgis.com/home/item.html?id=${source.itemId}`,
@@ -543,7 +755,12 @@ async function fetchTrailPlan(source: TrailSource, retrievedAt: string): Promise
   validateItem(source, item);
   console.error(`[triple-crown] Fetching ${source.name} centerline`);
   const collection = await fetchJson<FeatureCollection>(layerQueryUrl(source));
-  return buildTrailPlan(source, sourceLine(source, collection), retrievedAt);
+  return buildTrailPlan(
+    source,
+    sourceLine(source, collection),
+    retrievedAt,
+    buildSourceSections(source, collection)
+  );
 }
 
 async function assertSafeTargets(client: PoolClient, plans: TrailPlan[]): Promise<void> {
@@ -682,6 +899,26 @@ async function applyPlans(client: PoolClient, plans: TrailPlan[]): Promise<void>
          VALUES ($1, $2, 0, 'forward')`,
         [source.routeId, source.segmentId]
       );
+
+      await client.query("DELETE FROM route_sections WHERE route_id = $1", [source.routeId]);
+      for (const [ordinal, section] of plan.sections.entries()) {
+        await client.query(
+          `INSERT INTO route_sections (
+             route_id, section_id, ordinal, label, region, detail,
+             start_fraction, end_fraction
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            source.routeId,
+            section.id,
+            ordinal,
+            section.label,
+            section.region,
+            section.detail,
+            section.startFraction,
+            section.endFraction,
+          ]
+        );
+      }
     }
     await client.query("COMMIT");
   } catch (error) {
@@ -697,6 +934,8 @@ async function currentRows(client: PoolClient, plans: TrailPlan[]): Promise<unkn
             CASE WHEN path IS NULL THEN NULL ELSE ST_NPoints(path::geometry) END AS path_points,
             (SELECT count(*)::int FROM triple_crown_route_points tcp
              WHERE tcp.route_id = routes.id) AS coverage_points,
+            (SELECT count(*)::int FROM route_sections rs
+             WHERE rs.route_id = routes.id) AS sections,
             length(polyline6) AS polyline_bytes,
             provenance->>'retrieved_at' AS retrieved_at
      FROM routes WHERE id = ANY($1::text[]) ORDER BY id`,
@@ -734,6 +973,7 @@ async function main(): Promise<void> {
         clientPoints: plan.clientPoints.length,
         polylineBytes: plan.polyline6.length,
         geometryHash: plan.geometryHash,
+        sections: plan.sections.length,
         source: plan.provenance.source_url,
         license: plan.source.licenseName,
       })),

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   assertSessionRoutesAccessible,
   normalizeSessionRouteIds,
+  replaceSessionRoutes,
   SESSION_UPSERT_SQL,
 } from "../routes/sessions";
 
@@ -43,4 +44,30 @@ test("session route access rejects a missing or foreign-owned row", async () => 
     ),
     /routes are unavailable/
   );
+});
+
+test("client route replacement preserves auto rows", async () => {
+  const statements: string[] = [];
+  const client = {
+    async query(sql: string) {
+      statements.push(sql);
+      if (sql.includes("FROM routes r") && sql.includes("FOR SHARE")) {
+        return { rows: [{ id: "route-1" }] };
+      }
+      if (sql.includes("RETURNING route_id")) {
+        return { rows: [{ route_id: "route-1" }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  await replaceSessionRoutes(client as never, "session-1", "user-1", ["route-1"]);
+
+  const deletion = statements.find((sql) => sql.includes("DELETE FROM session_routes"));
+  const insertion = statements.find((sql) => sql.includes("INSERT INTO session_routes"));
+  assert.match(deletion ?? "", /source = 'manual'/);
+  assert.match(insertion ?? "", /SELECT \$1, id, 'manual' FROM allowed/);
+  assert.match(insertion ?? "", /ON CONFLICT \(session_id, route_id\) DO NOTHING/);
+  assert.doesNotMatch(insertion ?? "", /coverage = NULL/);
+  assert.doesNotMatch(deletion ?? "", /source = 'auto'/);
 });
