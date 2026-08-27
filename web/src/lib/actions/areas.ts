@@ -515,6 +515,8 @@ function buildGenericDescription(
   switch (kind) {
     case "national_park":
       return `${name} protects a landmark landscape and its plants, wildlife, and wild places.`;
+    case "state_park":
+      return `${name} protects land set aside by the state for nature and public use.`;
     case "national_monument":
       return `${name} protects a landscape known for its natural or historic features.`;
     case "national_forest":

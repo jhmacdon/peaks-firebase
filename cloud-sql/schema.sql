@@ -20,6 +20,7 @@ CREATE TYPE activity_type AS ENUM ('outdoor-trek', 'outdoor-moto', 'ski');
 CREATE TYPE destination_feature AS ENUM ('volcano', 'fire-lookout', 'summit', 'trailhead', 'hut', 'lookout', 'lake', 'landform', 'viewpoint', 'waterfall', 'campsite');
 CREATE TYPE area_kind AS ENUM (
   'national_park',
+  'state_park',
   'national_monument',
   'national_forest',
   'national_grassland',

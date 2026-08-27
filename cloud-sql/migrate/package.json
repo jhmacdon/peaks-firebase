@@ -39,6 +39,8 @@
     "expand:lake-coverage": "tsx src/expand-lake-coverage.ts",
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
     "audit:external-links": "tsx src/audit-external-links.ts",
+    "audit:state-parks": "tsx src/audit-state-parks.ts",
+    "link:audited-state-parks": "tsx src/link-audited-state-parks.ts",
     "backfill:external-links": "tsx src/backfill-reviewed-external-links.ts",
     "backfill:recreation-gov-campgrounds": "tsx src/backfill-recreation-gov-campgrounds.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",

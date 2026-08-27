@@ -57,7 +57,8 @@ Revision and blocked states:
 - `needs_revision`: review found a fixable fault.
 - `needs_geometry`: no publishable route geometry yet; retry later.
 - `waiting_rights`: the only geometry found lacks reuse rights.
-- `waiting_access`: access is closed, disputed, or needs a permit decision.
+- `waiting_access`: legal public access is disputed, permanently closed, or
+  needs a permit decision before the route can be planned.
 - `needs_human`: the facts conflict or a production repair is needed.
 
 Blocked jobs remain in the queue. Only `needs_geometry` retries on its own.
@@ -96,8 +97,10 @@ technical, disputed, access-controlled, or not clearly named. Check:
 - whether the route truly reaches the selected summit;
 - scrambling, glacier, avalanche, or climbing limits.
 
-Do not hide a hard route by calling it a hike. A clear access ban blocks
-publication even when geometry passes.
+Do not hide a hard route by calling it a hike. A permanent access ban blocks
+publication even when geometry passes. A temporary closure, seasonal gate,
+fire order, storm repair, or current road condition does not remove an
+established legal route from the catalog; preserve it as a planning advisory.
 
 ## Geometry review
 

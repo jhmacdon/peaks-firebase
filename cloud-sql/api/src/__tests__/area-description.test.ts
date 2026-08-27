@@ -30,6 +30,19 @@ test("area description stays useful when no manager or peaks are known", () => {
   );
 });
 
+test("state park fallback names state protection and public use", () => {
+  assert.equal(
+    buildAreaDescription({
+      name: "Mount Mitchell State Park",
+      kind: "state_park",
+      manager: "SPR",
+      stateCodes: ["NC"],
+      peakNames: ["Mount Mitchell"],
+    }),
+    "Mount Mitchell State Park protects land set aside by the state for nature and public use in North Carolina. Notable high points include Mount Mitchell."
+  );
+});
+
 test("area fallback handles conservation land without manager copy", () => {
   assert.equal(
     buildAreaDescription({

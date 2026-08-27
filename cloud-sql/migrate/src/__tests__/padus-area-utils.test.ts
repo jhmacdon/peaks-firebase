@@ -89,6 +89,74 @@ test("keeps outdoor-relevant federal wilderness and rejects local parks", () => 
   assert.equal(shouldImportPadusFeature(localPark), false);
 });
 
+test("normalizes an official PAD-US state park", () => {
+  const area = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Mount Mitchell State Park",
+    Loc_Nm: "Mount Mitchell State Park",
+    Des_Tp: "SP",
+    Loc_Ds: "State Park",
+    Mang_Type: "UNK",
+    Mang_Name: "UNK",
+    Own_Type: "STAT",
+    Own_Name: "SPR",
+    Loc_Own: "State Park & Recreation",
+    State_Nm: "NC",
+    Source_PAID: "643",
+  }), "4.1");
+
+  assert.equal(area?.name, "Mount Mitchell State Park");
+  assert.equal(area?.kind, "state_park");
+  assert.equal(area?.designation, "SP");
+  assert.equal(area?.manager, "SPR");
+  assert.deepEqual(area?.stateCodes, ["NC"]);
+  assert.equal(area?.sourceRecordId, "643");
+  assert.equal(area?.groupKey, "source_paid:643|states:NC");
+});
+
+test("recognizes the official SP code when PAD-US has no state-park text", () => {
+  const area = normalizePadusFeature({
+    type: "Feature",
+    geometry: square,
+    properties: {
+      OBJECTID: 58806,
+      Category: "Fee",
+      Own_Type: "STAT",
+      Own_Name: "SDNR",
+      Loc_Own: "MD Department of Natural Resources",
+      Mang_Type: "UNK",
+      Mang_Name: "UNK",
+      Des_Tp: "SP",
+      Loc_Ds: "SP",
+      Unit_Nm: "South Mountain Sb",
+      State_Nm: "MD",
+      Source_PAID: "",
+    },
+  }, "4.1");
+
+  assert.equal(area?.kind, "state_park");
+  assert.equal(area?.name, "South Mountain Sb");
+  assert.equal(area?.manager, "SDNR");
+});
+
+test("does not collapse state parks with the same local source ID across states", () => {
+  const northCarolina = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Example State Park",
+    Loc_Ds: "State Park",
+    Own_Type: "STAT",
+    Source_PAID: "643",
+    State_Nm: "NC",
+  }), "4.1");
+  const virginia = normalizePadusFeature(padusFeature({
+    Unit_Nm: "Example State Park",
+    Loc_Ds: "State Park",
+    Own_Type: "STAT",
+    Source_PAID: "643",
+    State_Nm: "VA",
+  }), "4.1");
+
+  assert.notEqual(northCarolina?.sourceId, virginia?.sourceId);
+});
+
 test("rejects federal PAD-US records without outdoor protected-area designations", () => {
   const military = padusFeature({
     Unit_Nm: "Joint Base Example",

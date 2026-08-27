@@ -26,6 +26,7 @@ const STATE_NAMES: Record<string, string> = {
 
 const KIND_LABELS: Record<string, string> = {
   national_park: "national park",
+  state_park: "state park",
   national_monument: "national monument",
   national_forest: "national forest",
   national_grassland: "national grassland",
@@ -63,6 +64,8 @@ export function buildAreaDescription(input: AreaDescriptionInput): string {
     switch (input.kind) {
       case "national_park":
         return `${input.name} protects a nationally important landscape${place}.`;
+      case "state_park":
+        return `${input.name} protects land set aside by the state for nature and public use${place}.`;
       case "national_monument":
         return `${input.name} protects notable natural or cultural features${place}.`;
       case "national_forest":

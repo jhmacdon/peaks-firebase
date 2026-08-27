@@ -71,6 +71,7 @@ export function AreaKindIcon({ area, className }: { area: ProtectedArea; classNa
     case "national_forest":
     case "national_grassland":
     case "national_park":
+    case "state_park":
       return <Trees className={className} />;
     case "national_monument":
       return <Landmark className={className} />;

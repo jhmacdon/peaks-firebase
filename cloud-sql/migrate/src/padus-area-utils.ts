@@ -2,6 +2,7 @@ import crypto from "crypto";
 
 export type AreaKind =
   | "national_park"
+  | "state_park"
   | "national_monument"
   | "national_forest"
   | "national_grassland"
@@ -205,6 +206,8 @@ function canonicalDesignationName(designation: string | null, kind: AreaKind): s
   switch (kind) {
     case "national_park":
       return "national park";
+    case "state_park":
+      return "state park";
     case "national_monument":
       return "national monument";
     case "national_forest":
@@ -295,6 +298,9 @@ function fallbackGroupKey(
 }
 
 function mapKind(props: Record<string, unknown>): AreaKind | null {
+  const designationCode = normalizeSearchName(text(props.Des_Tp) ?? "");
+  if (designationCode === "sp") return "state_park";
+
   const designationText = [
     text(props.Des_Tp),
     text(props.Loc_Ds),
@@ -305,6 +311,7 @@ function mapKind(props: Record<string, unknown>): AreaKind | null {
   const normalizedDesignationText = normalizeSearchName(designationText);
 
   if (/\bnational monument\b/.test(normalizedDesignationText)) return "national_monument";
+  if (/\bstate park\b/.test(normalizedDesignationText)) return "state_park";
   if (/\bnational recreation area\b/.test(normalizedDesignationText)) return "national_recreation_area";
   if (/\bnational conservation area\b/.test(normalizedDesignationText)) return "national_conservation_area";
   if (/\bnational grassland\b/.test(normalizedDesignationText)) return "national_grassland";
@@ -378,7 +385,8 @@ export function shouldImportPadusFeature(feature: GeoJsonFeature): boolean {
   const props = feature.properties ?? {};
   if (!feature.geometry) return false;
   if (feature.geometry.type !== "Polygon" && feature.geometry.type !== "MultiPolygon") return false;
-  return isFederal(props) && mapKind(props) !== null;
+  const kind = mapKind(props);
+  return kind !== null && (isFederal(props) || kind === "state_park");
 }
 
 export function normalizePadusFeature(
@@ -393,12 +401,18 @@ export function normalizePadusFeature(
   if (!name || !kind || !feature.geometry) return null;
 
   const designation = text(props.Des_Tp) ?? text(props.Loc_Ds);
-  const manager = text(props.Mang_Name);
   const owner = text(props.Own_Name);
+  const storedManager = text(props.Mang_Name);
+  const manager = kind === "state_park" &&
+      (!storedManager || /^(?:unk|unknown)$/i.test(storedManager))
+    ? owner ?? text(props.Loc_Own)
+    : storedManager;
   const searchName = normalizeSearchName(name);
   const states = stateCodes(props);
-  const groupKey = sourceUnitKey(props) ??
-    fallbackGroupKey(kind, searchName, designation, props, states);
+  const sourceKey = sourceUnitKey(props);
+  const groupKey = kind === "state_park" && sourceKey
+    ? `${sourceKey}|states:${states.join(",")}`
+    : sourceKey ?? fallbackGroupKey(kind, searchName, designation, props, states);
 
   const sourceRecordId =
     firstTextProperty(props, ["Source_PAID", "PADUS_ID", "PADUSID", "GIS_ID", "OBJECTID"]) ??

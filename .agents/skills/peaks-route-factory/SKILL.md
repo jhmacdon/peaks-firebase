@@ -155,8 +155,10 @@ The reviewer must apply every gate in:
 A model opinion is not enough. `approved` requires `verdict: PASS` and every
 named review gate set to true, and the queue reruns the current OSM or USGS
 source check. A failed review goes to `needs_revision`.
-Unclear rights, access, or route identity goes to `waiting_rights`,
-`waiting_access`, or `needs_human`; it never becomes a quiet skip.
+Unclear rights, legal public access, or route identity goes to `waiting_rights`,
+`waiting_access`, or `needs_human`; it never becomes a quiet skip. Temporary
+closures and current conditions are planning advisories, not route-identity
+blocks, when the established route remains legal to plan.
 
 An old active route with missing provenance or segments is rebuild work, not a
 human block. Never copy its path. Research an independent OSM or USGS
