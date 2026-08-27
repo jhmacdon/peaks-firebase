@@ -450,7 +450,9 @@ function concatenateLineRecords(lines: LineRecord[]): Coordinate[] {
       distanceMeters(result[result.length - 1], line.points[0]) <= CONNECT_TOLERANCE_METERS
       ? 1
       : 0;
-    result.push(...line.points.slice(startIndex));
+    for (let index = startIndex; index < line.points.length; index++) {
+      result.push(line.points[index]);
+    }
   }
   return result;
 }
@@ -514,7 +516,9 @@ export function buildSourceSections(
         previous.points[previous.points.length - 1],
         line.points[0]
       ) <= CONNECT_TOLERANCE_METERS ? 1 : 0;
-      previous.points.push(...line.points.slice(startIndex));
+      for (let index = startIndex; index < line.points.length; index++) {
+        previous.points.push(line.points[index]);
+      }
     } else {
       result.push({ points: [...line.points], properties: line.properties });
     }
