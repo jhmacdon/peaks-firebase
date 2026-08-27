@@ -298,6 +298,9 @@ function fallbackGroupKey(
 }
 
 function mapKind(props: Record<string, unknown>): AreaKind | null {
+  const designationCode = normalizeSearchName(text(props.Des_Tp) ?? "");
+  if (designationCode === "sp") return "state_park";
+
   const designationText = [
     text(props.Des_Tp),
     text(props.Loc_Ds),

@@ -113,6 +113,31 @@ test("normalizes an official PAD-US state park", () => {
   assert.equal(area?.groupKey, "source_paid:643|states:NC");
 });
 
+test("recognizes the official SP code when PAD-US has no state-park text", () => {
+  const area = normalizePadusFeature({
+    type: "Feature",
+    geometry: square,
+    properties: {
+      OBJECTID: 58806,
+      Category: "Fee",
+      Own_Type: "STAT",
+      Own_Name: "SDNR",
+      Loc_Own: "MD Department of Natural Resources",
+      Mang_Type: "UNK",
+      Mang_Name: "UNK",
+      Des_Tp: "SP",
+      Loc_Ds: "SP",
+      Unit_Nm: "South Mountain Sb",
+      State_Nm: "MD",
+      Source_PAID: "",
+    },
+  }, "4.1");
+
+  assert.equal(area?.kind, "state_park");
+  assert.equal(area?.name, "South Mountain Sb");
+  assert.equal(area?.manager, "SDNR");
+});
+
 test("does not collapse state parks with the same local source ID across states", () => {
   const northCarolina = normalizePadusFeature(padusFeature({
     Unit_Nm: "Example State Park",
