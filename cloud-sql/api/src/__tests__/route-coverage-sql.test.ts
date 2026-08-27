@@ -5,25 +5,44 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildRouteCoverageSql } from "../processing";
+import {
+  TRIPLE_CROWN_INDEXED_ROUTE_IDS,
+  buildRouteCoverageSql,
+  measureSessionRouteCoverage,
+} from "../processing";
 
 test("coverage SQL measures vertices against the session's stored track", () => {
   const { text, values } = buildRouteCoverageSql("sess1", ["route-a", "route-b"]);
   assert.match(text, /FROM tracking_sessions s WHERE s\.id = \$1/);
-  assert.match(text, /ST_DumpPoints\(r\.path::geometry\)/);
+  assert.match(text, /ST_Expand\(ST_Envelope\(s\.path::geometry\), 0\.005\) AS track_bbox/);
+  assert.match(text, /FROM triple_crown_route_points/);
+  assert.match(text, /rp\.pt && st\.track_bbox/);
   assert.match(text, /ST_DWithin\(rp\.pt::geography, st\.track, 30\)/);
-  assert.deepEqual(values, ["sess1", ["route-a", "route-b"]]);
+  assert.deepEqual(values, ["sess1", ["route-a", "route-b"], TRIPLE_CROWN_INDEXED_ROUTE_IDS]);
 });
 
 test("coverage SQL returns distance along the route for every covered vertex", () => {
   const { text } = buildRouteCoverageSql("sess1", ["route-a"]);
-  // Cumulative metres from the previous vertex, in vertex order.
-  assert.match(text, /lag\(rp\.pt\) OVER \(PARTITION BY rp\.route_id ORDER BY rp\.idx\)/);
-  assert.match(text, /ST_Distance\(pt::geography, prev_pt::geography, false\)/);
-  assert.match(text, /ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW/);
-  assert.match(text, /array_agg\(along_m ORDER BY idx\) FILTER \(WHERE covered\)/);
   assert.match(text, /MAX\(along_m\) AS length_m/);
-  assert.match(text, /COUNT\(\*\) FILTER \(WHERE covered\) AS matched_points/);
+  assert.match(text, /COUNT\(\*\) AS total_points/);
+  assert.match(text, /COUNT\(c\.idx\) AS matched_points/);
+  assert.match(text, /array_agg\(c\.along_m ORDER BY c\.idx\)/);
+  assert.match(text, /ST_DumpPoints\(r\.path::geometry\)/);
+  assert.match(text, /ST_Distance\(pt::geography, prev_pt::geography, false\)/);
+  assert.match(text, /NOT \(r\.id = ANY\(\$3::text\[\]\)\)/);
+});
+
+test("a missing Triple Crown point index fails instead of using the standard path", async () => {
+  let query = 0;
+  const q = {
+    query: async () => query++ === 0
+      ? { rows: [{ id: "triple-crown-pct" }] }
+      : { rows: [] },
+  };
+  await assert.rejects(
+    () => measureSessionRouteCoverage(q as never, "sess1"),
+    /triple_crown_route_points_missing:triple-crown-pct/
+  );
 });
 
 test("coverage SQL applies no gate of its own", () => {

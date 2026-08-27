@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
+  GAP_TOLERANCE_MAX_M,
   GAP_TOLERANCE_MIN_M,
   ROUTE_DONE_COVERAGE,
   ROUTE_PARTIAL_MIN_COVERED_M,
@@ -25,16 +26,24 @@ test("the spec's constants are what the module uses", () => {
   assert.equal(ROUTE_DONE_COVERAGE, 0.7);
   assert.equal(ROUTE_PARTIAL_MIN_COVERED_M, 500);
   assert.equal(GAP_TOLERANCE_MIN_M, 100);
+  assert.equal(GAP_TOLERANCE_MAX_M, 1_000);
 });
 
-test("gap tolerance is the larger of 100 m and 2% of route length", () => {
+test("gap tolerance is 2% of route length, bounded from 100 m to 1 km", () => {
   // 2% of 1 km = 20 m, so the 100 m floor wins.
   assert.equal(gapToleranceMeters(1_000), 100);
   // 2% of 5 km = 100 m — the crossover.
   assert.equal(gapToleranceMeters(5_000), 100);
   // 2% of 29 km = 580 m, so the proportional term wins.
   assert.equal(gapToleranceMeters(29_000), 580);
+  // A 5,000 km route would otherwise bridge 100 km gaps.
+  assert.equal(gapToleranceMeters(5_000_000), 1_000);
   assert.equal(gapToleranceMeters(0), 100);
+});
+
+test("continent-scale routes keep hikes more than 1 km apart separate", () => {
+  const intervals = mergeCoveredIntervals([0, 100, 10_000, 10_100], 5_000_000);
+  assert.deepEqual(intervals, [[0, 0.00002], [0.002, 0.00202]]);
 });
 
 test("a contiguous run of covered vertices becomes one interval", () => {
