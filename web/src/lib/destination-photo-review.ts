@@ -14,6 +14,23 @@ export interface DestinationPhotoFraming {
   focalY: number;
 }
 
+export interface DestinationPhotoQueue<T extends { id: string }> {
+  candidates: T[];
+  total: number;
+}
+
+export function destinationPhotoQueueAfterReview<T extends { id: string }>(
+  queue: DestinationPhotoQueue<T>,
+  reviewedId: string
+): DestinationPhotoQueue<T> {
+  const candidates = queue.candidates.filter((candidate) => candidate.id !== reviewedId);
+  if (candidates.length === queue.candidates.length) return queue;
+  return {
+    candidates,
+    total: Math.max(0, queue.total - 1),
+  };
+}
+
 export function destinationPhotoPageBounds(
   total: number,
   requestedPage: number,

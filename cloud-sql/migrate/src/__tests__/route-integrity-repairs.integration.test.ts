@@ -93,10 +93,10 @@ test(
       // 20260803_route_integrity_repairs.sql is applied by test-db/provision.sh
       // as the admin role (locally and in CI). The test role deliberately holds
       // no DDL on schema public — see test-db/grants.sql.
-      await pool.query(`INSERT INTO destinations (id, features, location) VALUES
-        ($1, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121 47 1000)')),
-        ($2, ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 1000)')),
-        ($3, ARRAY[]::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122.00001 48.00001 1010)'))`, [destinationA, destinationB, nonSummit]);
+      await pool.query(`INSERT INTO destinations (id, search_name, features, location) VALUES
+        ($1, 'destination a', ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121 47 1000)')),
+        ($2, 'destination b', ARRAY['summit']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 1000)')),
+        ($3, 'non summit', ARRAY[]::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122.00001 48.00001 1010)'))`, [destinationA, destinationB, nonSummit]);
       const nearA = "SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)";
       const nearB = "SRID=4326;LINESTRING Z (-122 48 1000, -122.00001 48.00001 1010)";
       const throughAThenB = "SRID=4326;LINESTRING Z (-121 47 1000, -122 48 1010)";

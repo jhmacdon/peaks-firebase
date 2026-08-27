@@ -7,6 +7,7 @@ import searchRouter, {
   buildDestinationSearchQuery,
   buildMixedSearchQueries,
   clampSearchLimit,
+  runMixedSearchQueries,
   runSearchQuery,
 } from "../routes/search";
 
@@ -71,7 +72,7 @@ function assertSelectsDestinationDisplayLocation(sql: string) {
   assert.match(sql, /\bstate_code\b/);
 }
 
-test("destination search falls back to destination name when search_name is missing", () => {
+test("destination search keeps its filter on the indexed search_name", () => {
   const query = buildDestinationSearchQuery({
     normalizedQuery: "south sis",
     rawQuery: "South sis",
@@ -79,15 +80,16 @@ test("destination search falls back to destination name when search_name is miss
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)/);
-  assert.match(query.text, /lower\(name\) ILIKE/);
+  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$2/);
+  assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
   assert.match(query.text, /destination_areas da/);
   assert.match(query.text, /JOIN areas a ON a\.id = da\.area_id/);
   assert.match(query.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
-  assert.deepEqual(query.values, ["south sis", "south sis%", "south sis%", 20]);
+  assert.match(query.text, /LIMIT \$3/);
+  assert.deepEqual(query.values, ["south sis", "south sis%", 20]);
 });
 
-test("geo destination search uses the same name fallback", () => {
+test("geo destination search keeps its filter on the indexed search_name", () => {
   const query = buildDestinationSearchQuery({
     normalizedQuery: "south sis",
     rawQuery: "South sis",
@@ -97,9 +99,10 @@ test("geo destination search uses the same name fallback", () => {
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)/);
-  assert.match(query.text, /lower\(name\) ILIKE/);
-  assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", "south sis%", 20]);
+  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$4/);
+  assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
+  assert.match(query.text, /LIMIT \$5/);
+  assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", 20]);
 });
 
 test("2-character non-geo destination search uses full-text token prefix matching", () => {
@@ -114,10 +117,9 @@ test("2-character non-geo destination search uses full-text token prefix matchin
   assert.match(query.text, /to_tsquery\('simple', \$1\)/);
   assert.doesNotMatch(query.text, /similarity\(/);
   assert.doesNotMatch(query.text, /% \$1/);
-  assert.doesNotMatch(whereClause(query.text), / ILIKE /);
-  assert.equal(
-    whereClause(query.text).trim(),
-    "to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name))) @@ to_tsquery('simple', $1)"
+  assert.match(
+    query.text,
+    /FROM destinations\s+WHERE to_tsvector\('simple', COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)\) @@ to_tsquery\('simple', \$1\)/
   );
   assert.deepEqual(query.values, ["ra:*", "ra%", "ra%", "ra", "ra", 10]);
 });
@@ -134,10 +136,9 @@ test("2-character geo destination search uses full-text token prefix matching wi
   assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /ST_Distance\(location, ST_MakePoint\(\$7, \$6\)::geography\)/);
   assert.doesNotMatch(query.text, /similarity\(/);
-  assert.doesNotMatch(whereClause(query.text), / ILIKE /);
-  assert.equal(
-    whereClause(query.text).trim(),
-    "to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name))) @@ to_tsquery('simple', $1)"
+  assert.match(
+    query.text,
+    /FROM destinations\s+WHERE to_tsvector\('simple', COALESCE\(NULLIF\(search_name, ''\), lower\(name\)\)\) @@ to_tsquery\('simple', \$1\)/
   );
   assert.deepEqual(query.values, ["ra:*", "ra%", "ra%", "ra", "ra", 46.85, -121.7, 10]);
 });
@@ -166,7 +167,7 @@ test("3-character destination search keeps trigram matching", () => {
   assertSelectsDestinationDisplayLocation(query.text);
   assert.match(query.text, /similarity\(/);
   assert.match(query.text, /% \$1/);
-  assert.deepEqual(query.values, ["rai", "rai%", "rai%", 20]);
+  assert.deepEqual(query.values, ["rai", "rai%", 20]);
 });
 
 test("search limit is clamped to a small positive range", () => {
@@ -188,7 +189,7 @@ test("mixed search builds destination, route, and area queries", () => {
 
   assert.match(queries.destinations.text, /FROM destinations/);
   assert.match(queries.destinations.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
-  assert.match(queries.routes.text, /FROM routes r/);
+  assert.match(queries.routes.text, /JOIN routes r/);
   assert.match(queries.routes.text, /route_destinations/);
   assert.match(queries.routes.text, /COALESCE\(area_rows\.areas, '\[\]'::json\) AS areas/);
   assert.match(queries.areas.text, /FROM areas a/);
@@ -196,7 +197,7 @@ test("mixed search builds destination, route, and area queries", () => {
   assert.match(queries.areas.text, /route_count/);
 });
 
-test("route search parenthesizes concatenated search text before pg_trgm %", () => {
+test("route search narrows candidate IDs before loading route geometry", () => {
   const queries = buildMixedSearchQueries({
     normalizedQuery: "silver peak",
     rawQuery: "silver peak",
@@ -205,13 +206,45 @@ test("route search parenthesizes concatenated search text before pg_trgm %", () 
     limit: 20,
   });
 
-  // The % token binds tighter than || in Postgres, so an unparenthesized
-  // `a || ' ' || b % $1` concatenates a boolean into text and the WHERE
-  // clause dies with 42804 "argument of OR must be type boolean".
-  assert.match(
-    queries.routes.text,
-    /\(COALESCE\(NULLIF\(lower\(r\.name\), ''\), ''\) \|\| ' ' \|\| COALESCE\(route_dest_names\.names, ''\)\) % \$1/
-  );
+  const sql = queries.routes.text;
+  const candidateIndex = sql.indexOf("candidate_route_ids AS MATERIALIZED");
+  const routeJoinIndex = sql.indexOf("JOIN routes r ON r.id = candidate.id");
+  const destinationTextIndex = sql.indexOf("string_agg(");
+
+  assert.ok(candidateIndex >= 0, "expected a materialized candidate route set");
+  assert.ok(routeJoinIndex > candidateIndex, "expected route rows after the candidate set");
+  assert.ok(destinationTextIndex > routeJoinIndex, "expected destination text only for candidate routes");
+  assert.match(sql, /candidate_d\.search_name % \$1/);
+  assert.match(sql, /candidate_rd\.destination_id = candidate_d\.id/);
+  assert.doesNotMatch(sql, /missing_d|missing_rd/);
+  assert.match(sql, /linked_r\.status = 'active'/);
+  assert.doesNotMatch(sql, /WHERE route_dest_names\.names.*% \$1/s);
+});
+
+test("2-character route search uses prefix candidates instead of trigram scans", () => {
+  const queries = buildMixedSearchQueries({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    limit: 20,
+  });
+
+  assert.match(queries.routes.text, /candidate_d\.search_name LIKE \$2/);
+  assert.doesNotMatch(queries.routes.text, /candidate_d\.search_name % \$1/);
+  assert.match(queries.routes.text, /lower\(candidate_r\.name\) LIKE \$2/);
+});
+
+test("2-character area search uses contiguous prefix parameters", () => {
+  const query = buildAreaSearchQuery({
+    normalizedQuery: "ra",
+    rawQuery: "Ra",
+    limit: 20,
+  });
+
+  assert.match(query.text, /a\.search_name LIKE \$1/);
+  assert.match(query.text, /lower\(a\.name\) LIKE \$2/);
+  assert.match(query.text, /LIMIT \$3/);
+  assert.doesNotMatch(query.text, /% \$1/);
+  assert.deepEqual(query.values, ["ra%", "ra%", 10]);
 });
 
 test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", () => {
@@ -222,6 +255,7 @@ test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", (
   });
 
   assert.match(query.text, /a\.search_name = ANY\(\$5::text\[\]\)/);
+  assert.doesNotMatch(whereClause(query.text), /lower\(a\.name\)/);
   assert.match(query.text, /0\.45/);
   assert.deepEqual(query.values, [
     "baker snoqualmie",
@@ -276,11 +310,11 @@ test("mixed search route returns typed result buckets", async (t) => {
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
+      if (/JOIN routes r/.test(text)) {
+        return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
+      }
       if (/FROM destinations/.test(text)) {
         return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
-      }
-      if (/FROM routes r/.test(text)) {
-        return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
       }
       if (/FROM areas a/.test(text)) {
         return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
@@ -318,11 +352,11 @@ test("mixed search degrades secondary buckets to empty on failure instead of 500
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
+      if (/JOIN routes r/.test(text)) {
+        throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
+      }
       if (/FROM destinations/.test(text)) {
         return { rows: [{ id: "rainier", name: "Mount Rainier", areas: [] }] };
-      }
-      if (/FROM routes r/.test(text)) {
-        throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
       }
       if (/FROM areas a/.test(text)) {
         return { rows: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }] };
@@ -353,6 +387,54 @@ test("mixed search degrades secondary buckets to empty on failure instead of 500
     routes: [],
     areas: [{ id: "mora", name: "Mount Rainier National Park", kind: "national_park" }],
   });
+});
+
+test("mixed search cancels the active backend query when the client disconnects", async () => {
+  const queryStarted = deferred<void>();
+  const queryDeferred = deferred<{ rows: unknown[] }>();
+  const executedSql: string[] = [];
+  const canceledPids: number[] = [];
+  let releaseCount = 0;
+  const fakeClient = {
+    query: async (text: string) => {
+      executedSql.push(text);
+      if (text === "SELECT pg_backend_pid() AS pid") {
+        return { rows: [{ pid: 741 }] };
+      }
+      queryStarted.resolve();
+      return queryDeferred.promise;
+    },
+    release: () => {
+      releaseCount += 1;
+    },
+  };
+  const fakePool = { connect: async () => fakeClient };
+  const res = new FakeResponse();
+  const queries = buildMixedSearchQueries({
+    normalizedQuery: "campo",
+    rawQuery: "campo",
+    limit: 20,
+  });
+
+  const searchPromise = runMixedSearchQueries(
+    res as never,
+    queries,
+    fakePool as never,
+    async (pid) => {
+      canceledPids.push(pid);
+    }
+  );
+
+  await queryStarted.promise;
+  res.emit("close");
+  const cancelError = new Error("canceling statement due to user request") as Error & { code: string };
+  cancelError.code = "57014";
+  queryDeferred.reject(cancelError);
+
+  assert.equal(await searchPromise, undefined);
+  assert.deepEqual(canceledPids, [741]);
+  assert.equal(releaseCount, 1);
+  assert.equal(executedSql.length, 2, "route and area buckets must not start after cancellation");
 });
 
 test("search route does not start DB work or write after response closes before pool checkout", async (t) => {

@@ -26,8 +26,8 @@ test(
 
     try {
       await pool.query(
-        `INSERT INTO destinations (id, name, features)
-         VALUES ($1, 'Route requeue test summit',
+        `INSERT INTO destinations (id, name, search_name, features)
+         VALUES ($1, 'Route requeue test summit', 'route requeue test summit',
                  ARRAY['summit']::destination_feature[])`,
         [destinationId]
       );
