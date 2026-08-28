@@ -550,6 +550,12 @@ async function analyzePendingRouteUnchecked(id: string): Promise<{
   return { decomposition, points };
 }
 
+type RouteFactoryActivation = {
+  destinationId: string;
+  leaseToken: string;
+  replacementRouteId: string | null;
+};
+
 export async function analyzePendingRoute(
   token: string,
   id: string
@@ -561,11 +567,31 @@ export async function analyzePendingRoute(
   return analyzePendingRouteUnchecked(id);
 }
 
-type RouteFactoryActivation = {
-  destinationId: string;
-  leaseToken: string;
-  replacementRouteId: string | null;
-};
+export async function analyzePendingRouteForFactory(
+  id: string,
+  activation: RouteFactoryActivation
+): Promise<{
+  decomposition: import("./segment-matcher").RouteDecomposition;
+  points: import("../route-utils").TrackPoint[];
+}> {
+  const job = await db.query<{ replacement_route_id: string | null }>(
+    `SELECT replacement_route_id
+     FROM standard_route_backfill_jobs
+     WHERE destination_id = $1
+       AND state = 'approved'
+       AND published_route_id = $2
+       AND lease_token = $3
+       AND lease_expires_at >= clock_timestamp()`,
+    [activation.destinationId, id, activation.leaseToken]
+  );
+  if (job.rows.length !== 1) {
+    throw new Error("Route analysis is not bound to an approved job lease");
+  }
+  if (job.rows[0].replacement_route_id !== activation.replacementRouteId) {
+    throw new Error("Route replacement binding changed before analysis");
+  }
+  return analyzePendingRouteUnchecked(id);
+}
 
 async function refuseDirectFactoryActivation(id: string): Promise<void> {
   const factoryJob = await db.query(
@@ -759,14 +785,10 @@ async function settleReplacementCoverage(
  * route rebuild, the old active route becomes superseded in the same
  * transaction so existing plan and session links remain intact.
  */
-export async function acceptRouteWithSegments(
-  token: string,
+async function acceptRouteWithSegmentsUnchecked(
   id: string,
   factoryActivation?: RouteFactoryActivation | null
 ): Promise<void> {
-  const admin = await verifyAdminToken(token);
-  if (!admin) throw new Error("Unauthorized");
-
   const replacementRouteId =
     factoryActivation?.replacementRouteId ?? null;
   const replacementDestinationId =
@@ -1099,6 +1121,23 @@ export async function acceptRouteWithSegments(
   } finally {
     client.release();
   }
+}
+
+export async function acceptRouteWithSegments(
+  token: string,
+  id: string,
+  factoryActivation?: RouteFactoryActivation | null
+): Promise<void> {
+  const admin = await verifyAdminToken(token);
+  if (!admin) throw new Error("Unauthorized");
+  return acceptRouteWithSegmentsUnchecked(id, factoryActivation);
+}
+
+export async function acceptRouteWithSegmentsForFactory(
+  id: string,
+  activation: RouteFactoryActivation
+): Promise<void> {
+  return acceptRouteWithSegmentsUnchecked(id, activation);
 }
 
 export async function getPendingRouteCount(token: string): Promise<number> {
