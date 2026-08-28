@@ -3,8 +3,8 @@
 import process from "node:process";
 import db from "../../../../web/src/lib/db";
 import {
-  acceptRouteWithSegments,
-  analyzePendingRoute,
+  acceptRouteWithSegmentsForFactory,
+  analyzePendingRouteForFactory,
 } from "../../../../web/src/lib/actions/routes";
 
 function valueAfter(argv: string[], flag: string): string {
@@ -197,7 +197,15 @@ try {
         throw new Error("Active replacement route is not eligible");
       }
     }
-    const { decomposition } = await analyzePendingRoute(routeId);
+    const factoryActivation = {
+      destinationId,
+      leaseToken,
+      replacementRouteId,
+    };
+    const { decomposition } = await analyzePendingRouteForFactory(
+      routeId,
+      factoryActivation
+    );
     console.log(`Mode: ${apply ? "APPLY" : "DRY RUN"}`);
     console.log(`Route: ${route.name} (${routeId})`);
     console.log(
@@ -250,13 +258,9 @@ try {
     if (!apply) {
       console.log("DRY RUN — no rows written");
     } else {
-      await acceptRouteWithSegments(
+      await acceptRouteWithSegmentsForFactory(
         routeId,
-        {
-          destinationId,
-          leaseToken,
-          replacementRouteId,
-        }
+        factoryActivation
       );
       const verified = await db.query<{
         status: string;

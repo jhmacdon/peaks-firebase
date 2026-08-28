@@ -305,6 +305,18 @@ test("activation and public payload use the strict shared integrity contract", (
   assert.doesNotMatch(api, /ST_AsGeoJSON|ST_AsText|\blat(?:itude)?\b|\blng\b|\blongitude\b/i);
   assert.match(wrapper, /current_link_covered/);
   assert.match(wrapper, /remaining_repair_links/);
+  assert.match(wrapper, /analyzePendingRouteForFactory/);
+  assert.match(wrapper, /acceptRouteWithSegmentsForFactory/);
+  assert.doesNotMatch(wrapper, /await analyzePendingRoute\(routeId\)/);
+  assert.doesNotMatch(wrapper, /await acceptRouteWithSegments\(\s*routeId/);
+  assert.match(
+    actions,
+    /analyzePendingRouteForFactory[\s\S]+?state = 'approved'[\s\S]+?lease_token = \$3/
+  );
+  assert.match(
+    actions,
+    /acceptRouteWithSegmentsForFactory[\s\S]+?acceptRouteWithSegmentsUnchecked\(id, activation\)/
+  );
 });
 
 test("public verification rejects a same-count wrong profile or wrong stats", async () => {
