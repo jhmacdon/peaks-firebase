@@ -125,6 +125,52 @@ test("manifest parser rejects candidates below the cover quality bar", () => {
   }
 });
 
+test("manifest parser allows an explicit lower quality bar within the absolute floor", () => {
+  const candidate = {
+    destinationId: "abernathy",
+    destinationName: "Abernathy Peak",
+    imageUrl: "https://upload.wikimedia.org/abernathy.jpg",
+    sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Abernathy.jpg",
+    sourceKind: "wikimedia_commons",
+    photographer: "A Photographer",
+    licenseName: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    imageWidth: 900,
+    imageHeight: 500,
+    focalX: 50,
+    focalY: 50,
+  };
+  const parsed = parseDestinationPhotoManifest({
+    collection: "Listed mountains missing covers",
+    researchedAt: "2026-08-22",
+    minimumImageWidth: 900,
+    minimumImageHeight: 500,
+    candidates: [candidate],
+  });
+  assert.equal(parsed.minimumImageWidth, 900);
+  assert.equal(parsed.minimumImageHeight, 500);
+  assert.throws(
+    () => parseDestinationPhotoManifest({
+      collection: "Listed mountains missing covers",
+      researchedAt: "2026-08-22",
+      minimumImageWidth: 899,
+      minimumImageHeight: 500,
+      candidates: [candidate],
+    }),
+    /minimumImageWidth must be at least 900/
+  );
+  assert.throws(
+    () => parseDestinationPhotoManifest({
+      collection: "Listed mountains missing covers",
+      researchedAt: "2026-08-22",
+      minimumImageWidth: 900,
+      minimumImageHeight: 499,
+      candidates: [candidate],
+    }),
+    /minimumImageHeight must be at least 500/
+  );
+});
+
 test("schema migration makes review final and indexed", () => {
   const migration = readFileSync(
     path.resolve(__dirname, "../../../migrations/20260821_destination_photo_review.sql"),
