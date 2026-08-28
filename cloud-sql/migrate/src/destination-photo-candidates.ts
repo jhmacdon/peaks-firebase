@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 
 const MIN_PHOTO_WIDTH = 1_600;
 const MIN_PHOTO_HEIGHT = 900;
+const ABSOLUTE_MIN_PHOTO_WIDTH = 900;
+const ABSOLUTE_MIN_PHOTO_HEIGHT = 500;
 
 export interface DestinationPhotoManifestCandidate {
   destinationId: string;
@@ -22,6 +24,8 @@ export interface DestinationPhotoManifestCandidate {
 export interface DestinationPhotoManifest {
   collection: string;
   researchedAt: string;
+  minimumImageWidth?: number;
+  minimumImageHeight?: number;
   candidates: DestinationPhotoManifestCandidate[];
 }
 
@@ -86,6 +90,20 @@ export function parseDestinationPhotoManifest(value: unknown): DestinationPhotoM
   const record = value as Record<string, unknown>;
   const collection = requiredString(record.collection, "collection");
   const researchedAt = requiredString(record.researchedAt, "researchedAt");
+  const minimumImageWidth = record.minimumImageWidth == null
+    ? MIN_PHOTO_WIDTH
+    : minimumDimension(
+      record.minimumImageWidth,
+      "minimumImageWidth",
+      ABSOLUTE_MIN_PHOTO_WIDTH
+    );
+  const minimumImageHeight = record.minimumImageHeight == null
+    ? MIN_PHOTO_HEIGHT
+    : minimumDimension(
+      record.minimumImageHeight,
+      "minimumImageHeight",
+      ABSOLUTE_MIN_PHOTO_HEIGHT
+    );
   if (!/^\d{4}-\d{2}-\d{2}$/.test(researchedAt)) {
     throw new Error("researchedAt must use YYYY-MM-DD");
   }
@@ -124,12 +142,12 @@ export function parseDestinationPhotoManifest(value: unknown): DestinationPhotoM
       imageWidth: minimumDimension(
         candidate.imageWidth,
         `${path}.imageWidth`,
-        MIN_PHOTO_WIDTH
+        minimumImageWidth
       ),
       imageHeight: minimumDimension(
         candidate.imageHeight,
         `${path}.imageHeight`,
-        MIN_PHOTO_HEIGHT
+        minimumImageHeight
       ),
       focalX: percentInt(candidate.focalX, `${path}.focalX`),
       focalY: percentInt(candidate.focalY, `${path}.focalY`),
@@ -137,5 +155,11 @@ export function parseDestinationPhotoManifest(value: unknown): DestinationPhotoM
     };
   });
 
-  return { collection, researchedAt, candidates };
+  return {
+    collection,
+    researchedAt,
+    ...(record.minimumImageWidth == null ? {} : { minimumImageWidth }),
+    ...(record.minimumImageHeight == null ? {} : { minimumImageHeight }),
+    candidates,
+  };
 }
