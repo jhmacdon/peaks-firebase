@@ -74,6 +74,46 @@ test("official sections chain south to north despite reversed parts and a tiny f
   assert.deepEqual(chained, [[0, 0], [0, 0.01], [0, 0.02], [0, 0.03]]);
 });
 
+test("official source lines can exceed JavaScript's argument limit", () => {
+  const pointCount = 150_000;
+  const points = Array.from({ length: pointCount }, (_, index) =>
+    [0, index / 1_000_000] as [number, number]
+  );
+
+  const chained = chainConnectedLines([points]);
+
+  assert.equal(chained.length, pointCount);
+  assert.deepEqual(chained[0], points[0]);
+  assert.deepEqual(chained[pointCount - 1], points[pointCount - 1]);
+});
+
+test("large adjacent source parts merge into one published section", () => {
+  const pointsPerPart = 130_000;
+  const first = Array.from({ length: pointsPerPart }, (_, index) =>
+    [0, index / 1_000_000] as [number, number]
+  );
+  const second = Array.from({ length: pointsPerPart }, (_, index) =>
+    [0, (pointsPerPart - 1 + index) / 1_000_000] as [number, number]
+  );
+  const properties = {
+    Name: "GATC AT Treadway", Region: "3", Trail_Club: "30",
+    Status: "Official A.T. Route", Publish: "Yes",
+  };
+
+  const sections = buildSourceSections(TRAIL_SOURCES[1], {
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", geometry: { type: "LineString", coordinates: first }, properties },
+      { type: "Feature", geometry: { type: "LineString", coordinates: second }, properties },
+    ],
+  } as any);
+
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].label, "Georgia Appalachian Trail Club");
+  assert.equal(sections[0].startFraction, 0);
+  assert.equal(sections[0].endFraction, 1);
+});
+
 test("polyline encoding is stable", () => {
   assert.equal(encodePolyline6([[-120.2, 38.5], [-120.95, 40.7]]), "_izlhA~rlgdF_{geC~ywl@");
 });
