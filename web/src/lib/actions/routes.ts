@@ -428,6 +428,9 @@ export async function acceptRoute(token: string, id: string): Promise<void> {
     if (pending.rows.length !== 1) {
       throw new Error("Pending route changed before activation");
     }
+    // Lock the route first, then read its queue binding in this transaction.
+    // A concurrent factory import must commit both rows before this can pass.
+    await refuseDirectFactoryActivation(client, id);
     await assertNoConflictingLiveRoute(client, id, null);
     await assertRoutePublishIntegrity(client, id, null, "pending");
     await client.query(
@@ -453,7 +456,19 @@ export async function rejectRoute(token: string, id: string): Promise<void> {
 
   const client = await db.connect();
   try {
-    await client.query("BEGIN");
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+
+    const pending = await client.query(
+      `SELECT id
+       FROM routes
+       WHERE id = $1 AND status = 'pending'
+       FOR UPDATE`,
+      [id]
+    );
+    if (pending.rows.length !== 1) {
+      throw new Error("Pending route changed before rejection");
+    }
+    await refuseDirectFactoryActivation(client, id);
 
     // Find segments that ONLY belong to this route (don't delete shared segments)
     const orphanSegments = await client.query(
@@ -465,7 +480,10 @@ export async function rejectRoute(token: string, id: string): Promise<void> {
     );
 
     // Delete the route (cascades to route_segments, route_destinations)
-    await client.query(`DELETE FROM routes WHERE id = $1`, [id]);
+    await client.query(
+      `DELETE FROM routes WHERE id = $1 AND status = 'pending'`,
+      [id]
+    );
 
     // Delete orphan segments
     for (const seg of orphanSegments.rows) {
@@ -552,12 +570,17 @@ async function analyzePendingRouteUnchecked(id: string): Promise<{
 
 export async function analyzePendingRoute(
   token: string,
-  id: string
+  id: string,
+  factoryActivation?: RouteFactoryActivation | null
 ): Promise<{
   decomposition: import("./segment-matcher").RouteDecomposition;
   points: import("../route-utils").TrackPoint[];
 }> {
-  await requireAdmin(token);
+  if (factoryActivation) {
+    await requireRouteFactoryLease(id, token, factoryActivation);
+  } else {
+    await requireAdmin(token);
+  }
   return analyzePendingRouteUnchecked(id);
 }
 
@@ -567,8 +590,34 @@ type RouteFactoryActivation = {
   replacementRouteId: string | null;
 };
 
-async function refuseDirectFactoryActivation(id: string): Promise<void> {
-  const factoryJob = await db.query(
+async function requireRouteFactoryLease(
+  id: string,
+  token: string,
+  activation: RouteFactoryActivation
+): Promise<void> {
+  if (token !== activation.leaseToken) {
+    throw new Error("Unauthorized");
+  }
+  const job = await db.query(
+    `SELECT 1
+     FROM standard_route_backfill_jobs
+     WHERE destination_id = $1
+       AND state = 'approved'
+       AND published_route_id = $2
+       AND lease_token = $3
+       AND lease_expires_at >= clock_timestamp()`,
+    [activation.destinationId, id, activation.leaseToken]
+  );
+  if (job.rows.length !== 1) {
+    throw new Error("Route activation is not bound to an approved job lease");
+  }
+}
+
+async function refuseDirectFactoryActivation(
+  client: Pick<PoolClient, "query">,
+  id: string
+): Promise<void> {
+  const factoryJob = await client.query(
     `SELECT destination_id
      FROM standard_route_backfill_jobs
      WHERE published_route_id = $1
@@ -588,15 +637,55 @@ async function lockRouteFactoryActivation(
   id: string,
   activation: RouteFactoryActivation
 ): Promise<void> {
-  const job = await client.query<{ replacement_route_id: string | null }>(
-    `SELECT replacement_route_id
-     FROM standard_route_backfill_jobs
-     WHERE destination_id = $1
-       AND state = 'approved'
-       AND published_route_id = $2
-       AND lease_token = $3
-       AND lease_expires_at >= clock_timestamp()
-     FOR UPDATE`,
+  const job = await client.query<{
+    replacement_route_id: string | null;
+    candidate_binding_matches: boolean | null;
+    approved_destinations: unknown;
+  }>(
+    `SELECT job.replacement_route_id,
+            job.review #> '{approved_route_binding,destinations}'
+              AS approved_destinations,
+            r.name = job.review #>> '{approved_route_binding,routeName}'
+              AND r.shape::text =
+                job.review #>> '{approved_route_binding,routeShape}'
+              AND r.external_links =
+                job.review #> '{approved_route_binding,identitySources}'
+              AND jsonb_build_object(
+                'source_kind', r.provenance->'source_kind',
+                'source_url', r.provenance->'source_url',
+                'license_name', r.provenance->'license_name',
+                'license_url', r.provenance->'license_url',
+                'attribution', r.provenance->'attribution',
+                'retrieved_at', r.provenance->'retrieved_at',
+                'osm_way_ids', r.provenance->'osm_way_ids',
+                'osm_way_urls', r.provenance->'osm_way_urls',
+                'contains_osm_geometry',
+                  r.provenance->'contains_osm_geometry'
+              ) = job.review #> '{approved_route_binding,geometrySource}'
+              AND encode(
+                ST_AsEWKB(ST_Force2D(r.path::geometry)),
+                'hex'
+              ) = encode(
+                ST_AsEWKB(
+                  ST_Force2D(
+                    ST_SetSRID(
+                      ST_GeomFromGeoJSON(
+                        (job.review #> '{approved_route_binding,geometry}')::text
+                      ),
+                      4326
+                    )
+                  )
+                ),
+                'hex'
+              ) AS candidate_binding_matches
+     FROM standard_route_backfill_jobs job
+     JOIN routes r ON r.id = job.published_route_id
+     WHERE job.destination_id = $1
+       AND job.state = 'approved'
+       AND job.published_route_id = $2
+       AND job.lease_token = $3
+       AND job.lease_expires_at >= clock_timestamp()
+     FOR UPDATE OF job, r`,
     [activation.destinationId, id, activation.leaseToken]
   );
   if (job.rows.length !== 1) {
@@ -606,6 +695,39 @@ async function lockRouteFactoryActivation(
     job.rows[0].replacement_route_id !== activation.replacementRouteId
   ) {
     throw new Error("Route replacement binding changed before activation");
+  }
+  if (job.rows[0].candidate_binding_matches !== true) {
+    throw new Error("Approved route changed after review");
+  }
+  const approvedDestinations = job.rows[0].approved_destinations;
+  const destinations = await client.query<{
+    destination_id: string;
+    ordinal: number;
+  }>(
+    `SELECT rd.destination_id, rd.ordinal
+     FROM route_destinations rd
+     JOIN destinations d ON d.id = rd.destination_id
+     WHERE rd.route_id = $1
+     ORDER BY rd.ordinal, rd.destination_id
+     FOR UPDATE OF rd, d`,
+    [id]
+  );
+  const destinationsMatch =
+    Array.isArray(approvedDestinations) &&
+    approvedDestinations.length === destinations.rows.length &&
+    approvedDestinations.every((expected, index) => {
+      if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+        return false;
+      }
+      const binding = expected as Record<string, unknown>;
+      const actual = destinations.rows[index];
+      return (
+        binding.destinationId === actual.destination_id &&
+        binding.ordinal === Number(actual.ordinal)
+      );
+    });
+  if (!destinationsMatch) {
+    throw new Error("Approved route destinations changed after review");
   }
 }
 
@@ -751,6 +873,23 @@ async function settleReplacementCoverage(
   }
 }
 
+async function activateFactoryRoute(
+  client: PoolClient,
+  id: string,
+  activation: RouteFactoryActivation
+): Promise<void> {
+  const result = await client.query<{ status: string }>(
+    `SELECT activate_standard_route_factory($1, $2, $3) AS status`,
+    [activation.destinationId, id, activation.leaseToken]
+  );
+  if (
+    result.rows[0]?.status !== "active" &&
+    result.rows[0]?.status !== "superseded"
+  ) {
+    throw new Error("Factory activation returned an invalid replacement status");
+  }
+}
+
 /**
  * Accept a pending route with segment deduplication.
  * Re-analyzes segments server-side (don't rely on client-serialized decomposition
@@ -764,8 +903,12 @@ export async function acceptRouteWithSegments(
   id: string,
   factoryActivation?: RouteFactoryActivation | null
 ): Promise<void> {
-  const admin = await verifyAdminToken(token);
-  if (!admin) throw new Error("Unauthorized");
+  if (factoryActivation) {
+    await requireRouteFactoryLease(id, token, factoryActivation);
+  } else {
+    const admin = await verifyAdminToken(token);
+    if (!admin) throw new Error("Unauthorized");
+  }
 
   const replacementRouteId =
     factoryActivation?.replacementRouteId ?? null;
@@ -774,15 +917,19 @@ export async function acceptRouteWithSegments(
   if (replacementRouteId === id) {
     throw new Error("A route cannot replace itself");
   }
-  if (!factoryActivation) {
-    await refuseDirectFactoryActivation(id);
-  }
   const { haversineDistance, totalDistance } = await import("../gpx");
   const { encodePolyline6, pointsToLineStringZ, generateId } = await import("../route-utils");
   const { computeElevationStats } = await import("../elevation");
 
   // Re-analyze server-side to get fresh decomposition with full points arrays
   const { decomposition } = await analyzePendingRouteUnchecked(id);
+  if (
+    factoryActivation &&
+    (decomposition.splits.length > 0 ||
+      decomposition.affectedRoutes.length > 0)
+  ) {
+    throw new Error("Shared-segment changes require human web-admin review");
+  }
 
   // If decomposition is all "new" segments with no splits or reuses,
   // the existing standalone segment is already correct — just flip status.
@@ -812,6 +959,9 @@ export async function acceptRouteWithSegments(
       if (pending.rows.length !== 1) {
         throw new Error("Pending route changed before activation");
       }
+      if (!factoryActivation) {
+        await refuseDirectFactoryActivation(client, id);
+      }
       if (replacementRouteId) {
         const replacement = await client.query(
           `SELECT r.id
@@ -839,17 +989,21 @@ export async function acceptRouteWithSegments(
         replacementDestinationId,
         "pending"
       );
-      await client.query(
-        `UPDATE routes SET status = 'active' WHERE id = $1`,
-        [id]
-      );
-      if (replacementRouteId && replacementDestinationId) {
-        await settleReplacementCoverage(
-          client,
-          replacementRouteId,
-          replacementDestinationId,
-          id
+      if (factoryActivation) {
+        await activateFactoryRoute(client, id, factoryActivation);
+      } else {
+        await client.query(
+          `UPDATE routes SET status = 'active' WHERE id = $1`,
+          [id]
         );
+        if (replacementRouteId && replacementDestinationId) {
+          await settleReplacementCoverage(
+            client,
+            replacementRouteId,
+            replacementDestinationId,
+            id
+          );
+        }
       }
       await client.query("COMMIT");
     } catch (error) {
@@ -884,6 +1038,9 @@ export async function acceptRouteWithSegments(
     );
     if (routeResult.rows.length === 0) {
       throw new Error("Pending route not found");
+    }
+    if (!factoryActivation) {
+      await refuseDirectFactoryActivation(client, id);
     }
     if (replacementRouteId) {
       const replacement = await client.query(
@@ -1082,14 +1239,18 @@ export async function acceptRouteWithSegments(
     );
 
     // Set the reviewed route to active only after every hard gate passes.
-    await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
-    if (replacementRouteId && replacementDestinationId) {
-      await settleReplacementCoverage(
-        client,
-        replacementRouteId,
-        replacementDestinationId,
-        id
-      );
+    if (factoryActivation) {
+      await activateFactoryRoute(client, id, factoryActivation);
+    } else {
+      await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [id]);
+      if (replacementRouteId && replacementDestinationId) {
+        await settleReplacementCoverage(
+          client,
+          replacementRouteId,
+          replacementDestinationId,
+          id
+        );
+      }
     }
 
     await client.query("COMMIT");

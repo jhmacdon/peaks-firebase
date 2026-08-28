@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
+import worldGeometryImport from "../../../../cloud-sql/migrate/src/route-world-geometry";
+
+const {
+  interpolateWorldPosition,
+  pointToSegmentMeters: worldPointToSegmentMeters,
+} = worldGeometryImport;
 
 type Position = [number, number];
 
@@ -38,20 +44,11 @@ function pointToSegmentMeters(
   start: Position,
   end: Position
 ): number {
-  const meanLatitudeRadians =
-    (((point[1] + start[1] + end[1]) / 3) * Math.PI) / 180;
-  const xScale = 111320 * Math.cos(meanLatitudeRadians);
-  const yScale = 110540;
-  const px = (point[0] - start[0]) * xScale;
-  const py = (point[1] - start[1]) * yScale;
-  const ex = (end[0] - start[0]) * xScale;
-  const ey = (end[1] - start[1]) * yScale;
-  const lengthSquared = ex * ex + ey * ey;
-  const fraction =
-    lengthSquared === 0
-      ? 0
-      : Math.max(0, Math.min(1, (px * ex + py * ey) / lengthSquared));
-  return Math.hypot(px - fraction * ex, py - fraction * ey);
+  return worldPointToSegmentMeters(
+    { lng: point[0], lat: point[1] },
+    { lng: start[0], lat: start[1] },
+    { lng: end[0], lat: end[1] }
+  );
 }
 
 function nearestLineMeters(point: Position, line: Position[]): number {
@@ -77,10 +74,7 @@ function densifyLine(line: Position[], maxSegmentM = 10): Position[] {
     const steps = Math.max(1, Math.ceil(haversineMeters(start, end) / maxSegmentM));
     for (let step = 1; step <= steps; step += 1) {
       const fraction = step / steps;
-      densified.push([
-        start[0] + (end[0] - start[0]) * fraction,
-        start[1] + (end[1] - start[1]) * fraction,
-      ]);
+      densified.push(interpolateWorldPosition(start, end, fraction));
     }
   }
   return densified;

@@ -197,7 +197,16 @@ try {
         throw new Error("Active replacement route is not eligible");
       }
     }
-    const { decomposition } = await analyzePendingRoute(routeId);
+    const factoryActivation = {
+      destinationId,
+      leaseToken,
+      replacementRouteId,
+    };
+    const { decomposition } = await analyzePendingRoute(
+      leaseToken,
+      routeId,
+      factoryActivation
+    );
     console.log(`Mode: ${apply ? "APPLY" : "DRY RUN"}`);
     console.log(`Route: ${route.name} (${routeId})`);
     console.log(
@@ -251,12 +260,9 @@ try {
       console.log("DRY RUN — no rows written");
     } else {
       await acceptRouteWithSegments(
+        leaseToken,
         routeId,
-        {
-          destinationId,
-          leaseToken,
-          replacementRouteId,
-        }
+        factoryActivation
       );
       const verified = await db.query<{
         status: string;

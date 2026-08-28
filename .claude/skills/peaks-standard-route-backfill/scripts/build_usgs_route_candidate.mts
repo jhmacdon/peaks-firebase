@@ -3,17 +3,27 @@
 import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import usgsTrailsSourceImport from "../../../../cloud-sql/migrate/src/usgs-trails-source";
+
+const { ensureMinimumRouteCoordinates } = officialRouteGeometryImport;
+const {
+  assertExactUsgsTrailObjectIds,
+  buildUsgsTrailAttribution,
+  buildUsgsTrailsQueryUrl,
+  normalizeUsgsTrailOriginators,
+  USGS_TRAILS_LICENSE_NAME,
+  USGS_TRAILS_LICENSE_URL,
+  usgsTrailOriginatorFromProperties,
+} = usgsTrailsSourceImport;
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
 
-const SERVICE_URL =
-  "https://partnerships.nationalmap.gov/arcgis/rest/services/" +
-  "USGSTrails/MapServer/0/query";
-const LICENSE_URL =
-  "https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map";
+const ENDPOINT_CONNECTOR_MAX_M = 125;
+const SOURCE_JOIN_MAX_M = 5;
 
 type Options = {
   destinationId: string;
@@ -132,15 +142,7 @@ try {
   if (!destination) throw new Error("Destination was not found");
   if (!trailhead) throw new Error("Trailhead was not found");
 
-  const sourceUrl = new URL(SERVICE_URL);
-  sourceUrl.searchParams.set(
-    "where",
-    `objectid IN (${options.objectIds.join(",")})`
-  );
-  sourceUrl.searchParams.set("outFields", "*");
-  sourceUrl.searchParams.set("returnGeometry", "true");
-  sourceUrl.searchParams.set("outSR", "4326");
-  sourceUrl.searchParams.set("f", "geojson");
+  const sourceUrl = buildUsgsTrailsQueryUrl(options.objectIds);
   const response = await fetch(sourceUrl, {
     headers: {
       "user-agent":
@@ -171,6 +173,7 @@ try {
     properties: Properties;
     coordinates: Array<[number, number]>;
   }> = [];
+  const returnedObjectIds: number[] = [];
   for (const feature of payload.features) {
     const properties = feature.properties ?? {};
     const objectId = Number(
@@ -187,6 +190,7 @@ try {
     if (!Number.isSafeInteger(objectId) || !options.objectIds.includes(objectId)) {
       throw new Error("USGS feature has an unexpected object ID");
     }
+    returnedObjectIds.push(objectId);
     if (rawPaths.length === 0) {
       throw new Error(`USGS object ${objectId} has no line geometry`);
     }
@@ -216,6 +220,7 @@ try {
       networkPaths.push({ objectId, properties, coordinates });
     }
   }
+  assertExactUsgsTrailObjectIds(options.objectIds, returnedObjectIds);
 
   const trailheadCoordinate: [number, number] = [
     trailhead.lng,
@@ -278,7 +283,7 @@ try {
         endpointCoordinates[first],
         endpointCoordinates[second]
       );
-      if (distanceM > 100) continue;
+      if (distanceM > SOURCE_JOIN_MAX_M) continue;
       addEdge(first, {
         to: second,
         cost: distanceM,
@@ -300,7 +305,7 @@ try {
       trailheadCoordinate,
       endpointCoordinates[node]
     );
-    if (trailheadDistanceM <= 300) {
+    if (trailheadDistanceM <= ENDPOINT_CONNECTOR_MAX_M) {
       addEdge(sourceNode, {
         to: node,
         cost: trailheadDistanceM,
@@ -313,7 +318,7 @@ try {
       endpointCoordinates[node],
       destinationCoordinate
     );
-    if (summitDistanceM <= 250) {
+    if (summitDistanceM <= ENDPOINT_CONNECTOR_MAX_M) {
       addEdge(node, {
         to: targetNode,
         cost: summitDistanceM,
@@ -375,14 +380,15 @@ try {
     routeNode = step.node;
   }
   routeEdges.reverse();
-  const coordinates: Array<[number, number]> = [];
+  const assembledCoordinates: Array<[number, number]> = [];
   for (const edge of routeEdges) {
-    if (coordinates.length === 0) {
-      coordinates.push(...edge.coordinates);
+    if (assembledCoordinates.length === 0) {
+      assembledCoordinates.push(...edge.coordinates);
     } else {
-      coordinates.push(...edge.coordinates.slice(1));
+      assembledCoordinates.push(...edge.coordinates.slice(1));
     }
   }
+  const coordinates = ensureMinimumRouteCoordinates(assembledCoordinates, 5);
   const trailheadSnapM = routeEdges[0].connectionM;
   const summitSnapM = routeEdges[routeEdges.length - 1].connectionM;
   const largestConnectionM = Math.max(
@@ -398,29 +404,19 @@ try {
   );
   const usedObjectIds = [
     ...new Set(usedNetworkPaths.map(({ objectId }) => objectId)),
-  ];
-  const publishedSourceUrl = new URL(sourceUrl);
-  publishedSourceUrl.searchParams.set(
-    "where",
-    `objectid IN (${usedObjectIds.join(",")})`
-  );
+  ].sort((left, right) => left - right);
+  const publishedSourceUrl = buildUsgsTrailsQueryUrl(usedObjectIds);
   let distanceM = 0;
   for (let index = 1; index < coordinates.length; index += 1) {
     distanceM += haversineMeters(coordinates[index - 1], coordinates[index]);
   }
 
-  const originators = [
-    ...new Set(
-      usedNetworkPaths.map(
-        ({ properties }) =>
-          textProperty(properties, "sourceoriginator", "SOURCEORIGINATOR") ||
-          "U.S. Geological Survey"
-      )
-    ),
-  ];
-  const originator = originators.join(" and ");
-  const attribution =
-    `${originator} via U.S. Geological Survey, The National Map`;
+  const originators = normalizeUsgsTrailOriginators(
+    usedNetworkPaths.map(({ properties }) =>
+      usgsTrailOriginatorFromProperties(properties)
+    )
+  );
+  const attribution = buildUsgsTrailAttribution(originators);
   const output = {
     type: "FeatureCollection",
     peaks_destination_id: destination.id,
@@ -428,8 +424,8 @@ try {
     peaks_source_kind: "usgs-national-map",
     peaks_source: publishedSourceUrl.toString(),
     peaks_retrieval_source: publishedSourceUrl.toString(),
-    peaks_license_name: "Public domain",
-    peaks_license: LICENSE_URL,
+    peaks_license_name: USGS_TRAILS_LICENSE_NAME,
+    peaks_license: USGS_TRAILS_LICENSE_URL,
     peaks_attribution: attribution,
     peaks_retrieved_at: new Date().toISOString(),
     features: [
@@ -496,7 +492,9 @@ try {
       `largest selected-line connection ${largestConnectionM.toFixed(1)} m`
   );
   console.log(`Attribution: ${attribution}`);
-  console.log(`License: Public domain; ${LICENSE_URL}`);
+  console.log(
+    `License: ${USGS_TRAILS_LICENSE_NAME}; ${USGS_TRAILS_LICENSE_URL}`
+  );
 } finally {
   await db.end();
 }

@@ -39,6 +39,19 @@ test("queued repair selection is deterministic and only selects queued rows", ()
   assert.equal(selectQueuedRepair([{ route_id: "old", destination_id: "summit", state: "covered", created_at: "2026-08-03T00:00:00Z" }]), null);
 });
 
+test("standard route seed prefers a publishable active route over an older invalid route", () => {
+  const root = path.resolve(__dirname, "../..");
+  const jobs = fs.readFileSync(
+    path.join(root, "src/standard-route-jobs.ts"),
+    "utf8"
+  );
+
+  assert.match(
+    jobs,
+    /ORDER BY rd\.destination_id,\s*ready_to_verify DESC NULLS LAST,\s*COALESCE\(r\.id = current_job\.published_route_id, false\) DESC,\s*r\.created_at,\s*r\.id/
+  );
+});
+
 test("repair migration and standard jobs contract use strict repair gates without coordinates", () => {
   const root = path.resolve(__dirname, "../..");
   const migration = fs.readFileSync(path.join(root, "../migrations/20260803_route_integrity_repairs.sql"), "utf8");

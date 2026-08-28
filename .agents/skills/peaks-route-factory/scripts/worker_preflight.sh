@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "$script_dir/../../../.." && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+repo_root="$(cd "$script_dir/../../../.." && pwd -P)"
 "$script_dir/resolve_worker_checkout.sh" "$repo_root" >/dev/null
 
 if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
@@ -49,8 +49,11 @@ fi
 
 runtime_scripts=(
   "$repo_root/.claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts"
+  "$repo_root/.claude/skills/peaks-standard-route-backfill/scripts/find_official_trail_geometry.mts"
+  "$repo_root/.claude/skills/peaks-standard-route-backfill/scripts/build_official_route_candidate.mts"
   "$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_osm_routes.mts"
   "$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts"
+  "$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_official_routes.mts"
 )
 for runtime_script in "${runtime_scripts[@]}"; do
   if ! "$tsx_runner" "$runtime_script" --help >/dev/null 2>&1; then

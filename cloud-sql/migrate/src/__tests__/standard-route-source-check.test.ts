@@ -19,6 +19,10 @@ const CHECKERS = [
     REPO_ROOT,
     ".claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts"
   ),
+  join(
+    REPO_ROOT,
+    ".claude/skills/peaks-osm-route-approval/scripts/check_pending_official_routes.mts"
+  ),
 ];
 const WEB_ROUTE_ACTIONS = join(
   REPO_ROOT,

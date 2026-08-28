@@ -15,14 +15,18 @@ This is one bounded worker run:
    `.agents/skills/peaks-route-factory/scripts/route_jobs.sh`. Do not set
    `sandbox_permissions`; the installed rule handles this exact wrapper.
 3. Run stats, then claim one job with
-   `claim --stage next --integrity-repairs-only --apply`. Do not pass or invent
+   `claim --stage factory --integrity-repairs-only --apply`. Do not pass or invent
    a worker ID; the wrapper supplies `luna-route-repair-01`.
 4. If the supervisor names one destination for this run, add that exact
    `--destination-id` only to this claim. Do not reuse it on a later run.
 5. Require `target_reasons.integrity_repair` to be true. If it is not, release
    the lease and stop with the exact fault.
-6. Follow only the returned stage. For rebuild work, research an independent
-   OSM, USGS, or other reusable source. Never extend or copy the broken legacy
+6. Follow only the returned stage. For rebuild work, try independent
+   `ready_publishable` official geometry first, the existing USGS adapter next,
+   and OSM only after both earlier tiers have durable negative outcomes. Record
+   one fresh `official_source_attempts` entry for every registry source that
+   covers the stored destination country and bind that code in
+   `official_source_country_code`. Never extend or copy the broken legacy
    path merely to touch the summit. Use only the exact preflighted discovery
    commands in `references/stage-commands.md`; never replace them with a direct
    helper call or raw public-source request. A successful terminal transition
@@ -36,10 +40,8 @@ This is one bounded worker run:
    Never put environment assignments, `env`, or a shell before it. Quote the
    full route name as one value and require the dry-run `Name:` and
    `route_name` output to match it before apply.
-   At `review`, call `check_pending_route_source.sh` directly, with no command
-   prefix or redirection. Build and give the reviewer only the filtered
-   `build_route_review_packet.mjs` output, never the full candidate result or
-   extra URLs.
+   Never claim `review` or submit a review result. The separate worker in
+   `firebase-route-review` owns that stage and its lease.
 9. Finish or release this one lease, run final stats, and leave the checkout
    clean. Never claim a second destination in the same run.
 
