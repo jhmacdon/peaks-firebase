@@ -1627,6 +1627,7 @@ CREATE INDEX IF NOT EXISTS idx_destinations_massif_boundary
 CREATE INDEX idx_areas_boundary             ON areas USING GIST (boundary);
 CREATE INDEX idx_areas_centroid             ON areas USING GIST (centroid);
 CREATE INDEX idx_area_boundary_parts_geom   ON area_boundary_parts USING GIST (boundary_part);
+CREATE INDEX idx_segments_path              ON segments     USING GIST (path);
 CREATE INDEX idx_routes_path                ON routes       USING GIST (path);
 CREATE INDEX idx_tracking_points_location   ON tracking_points USING GIST (location);
 CREATE INDEX idx_session_markers_location   ON session_markers USING GIST (location);
