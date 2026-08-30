@@ -1,7 +1,10 @@
 import { ImageResponse } from "next/og";
 import { getRoute, getRouteDestinations } from "../../../../lib/actions/routes";
 import { pickPrimaryRouteDestinationName } from "../../../../lib/seo-descriptions";
-import { EntityOgImage } from "../../../../lib/seo-image";
+import {
+  EntityOgImage,
+  isPublicDomainImageAttribution,
+} from "../../../../lib/seo-image";
 import { formatFeet, formatMiles, joinStats } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +41,15 @@ export default async function Image({
         route.gain != null ? `${formatFeet(route.gain)} gain` : null,
         primaryDestinationName,
       ]);
-      imageUrl = route.cover_image;
-      imageFocalX = route.cover_image_focal_x ?? 50;
-      imageFocalY = route.cover_image_focal_y ?? 50;
-      imageAttribution = route.cover_image_attribution;
+      // A PNG cannot preserve working source and license links. CC BY and
+      // CC BY-SA covers remain on the linked route page; only an explicit
+      // public-domain grant may be cropped into the standalone share image.
+      if (isPublicDomainImageAttribution(route.cover_image_attribution)) {
+        imageUrl = route.cover_image;
+        imageFocalX = route.cover_image_focal_x ?? 50;
+        imageFocalY = route.cover_image_focal_y ?? 50;
+        imageAttribution = route.cover_image_attribution;
+      }
     }
   } catch {
     // Render the generic panel below rather than fail the image request.
