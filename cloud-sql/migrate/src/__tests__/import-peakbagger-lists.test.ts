@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import {
   buildDestinationPeakbaggerIds,
@@ -137,12 +139,81 @@ test("keeps one Peakbagger ID per destination across reviewed lists", () => {
   );
 });
 
+test("country and state scopes disambiguate coordinate-free source rows", () => {
+  const scopedList: CuratedList = {
+    ...list,
+    expectedCount: 1,
+    destinationOverrides: {},
+    allowedCountryCodes: ["US"],
+    allowedStateCodes: ["NH"],
+  };
+  const scopedSource = {
+    rows: [{ ordinal: 1, peakbaggerPeakId: 201, name: "Black Mountain", elevationFt: 2_829 }],
+  };
+  const scopedCatalog: CatalogPeak[] = [
+    {
+      id: "new-hampshire",
+      name: "Black Mountain",
+      elevationM: 862,
+      lat: 44.2,
+      lng: -71.9,
+      osmId: "10",
+      countryCode: "US",
+      stateCode: "NH",
+    },
+    {
+      id: "california",
+      name: "Black Mountain",
+      elevationM: 860,
+      lat: 37.3,
+      lng: -122.2,
+      osmId: "11",
+      countryCode: "US",
+      stateCode: "CA",
+    },
+  ];
+
+  assert.deepEqual(resolveListMembers(scopedList, scopedSource, scopedCatalog), [
+    {
+      destinationId: "new-hampshire",
+      ordinal: 0,
+      sourcePeakId: 201,
+      sourceName: "Black Mountain",
+    },
+  ]);
+  assert.throws(
+    () => resolveListMembers(
+      { ...scopedList, allowedCountryCodes: ["GB"] },
+      scopedSource,
+      scopedCatalog
+    ),
+    /resolved to 0 destinations/
+  );
+});
+
 test("fails closed on missing and ambiguous matches", () => {
   const noOverride = { ...list, destinationOverrides: {} };
   assert.throws(() => resolveListMembers(noOverride, source, catalog), /resolved to 0 destinations/);
   assert.throws(
     () => resolveListMembers(list, source, [...catalog, { ...catalog[0], id: "duplicate" }]),
     /resolved to 2 destinations/
+  );
+});
+
+test("reports every unresolved row in one pass", () => {
+  const unresolved = {
+    ...list,
+    expectedCount: 2,
+    destinationOverrides: {},
+  };
+  assert.throws(
+    () => resolveListMembers(unresolved, source, []),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /101 Mount Alpha/);
+      assert.match(error.message, /102 New Name/);
+      return true;
+    }
   );
 });
 
@@ -400,7 +471,7 @@ test("a partial list refuses a selection the page does not carry", () => {
 test("a partial list refuses a selection that disagrees with expectedCount", () => {
   assert.throws(
     () => validateSourceList({ ...partialList, sourcePeakIds: [101, 102, 103] }, partialSource),
-    /selects 3 peaks; expected 2/
+    /resolves 3 peaks; expected 2/
   );
 });
 
@@ -411,17 +482,46 @@ test("a partial list refuses a repeated selection", () => {
   );
 });
 
-test("sourcePeakIds and sourceRowCount only count together", () => {
+test("adjusted membership and sourceRowCount only count together", () => {
   const { sourceRowCount, ...noRowCount } = partialList;
   assert.throws(
     () => validateSourceList(noRowCount as CuratedList, partialSource),
-    /sourcePeakIds and sourceRowCount together/
+    /sourceRowCount with adjusted membership/
   );
   const { sourcePeakIds, ...noSelection } = partialList;
   assert.throws(
     () => validateSourceList(noSelection as CuratedList, partialSource),
-    /sourcePeakIds and sourceRowCount together/
+    /sourceRowCount with adjusted membership/
   );
+});
+
+test("a keeper-named companion summit joins its paired source-page entry", () => {
+  const pairedList: CuratedList = {
+    ...list,
+    expectedCount: 3,
+    sourceRowCount: 2,
+    supplementalSourcePeaks: [
+      { ordinal: 1, peakbaggerPeakId: 104, name: "Mount Gamma", elevationFt: 9_700 },
+    ],
+    destinationOverrides: {},
+  };
+  const pairedSource = {
+    rows: [
+      { ordinal: 1, peakbaggerPeakId: 101, name: "Mount Alpha", elevationFt: 9_842.52 },
+      { ordinal: 2, peakbaggerPeakId: 102, name: "Mount Beta", elevationFt: 9_600 },
+    ],
+  };
+  const pairedCatalog: CatalogPeak[] = [
+    catalog[0],
+    { id: "destination-beta", name: "Mount Beta", elevationM: 2_926, lat: 40, lng: -105, osmId: "3" },
+    { id: "destination-gamma", name: "Mount Gamma", elevationM: 2_956, lat: 40, lng: -105, osmId: "4" },
+  ];
+
+  assert.deepEqual(resolveListMembers(pairedList, pairedSource, pairedCatalog), [
+    { destinationId: "destination-1", ordinal: 0, sourcePeakId: 101, sourceName: "Mount Alpha" },
+    { destinationId: "destination-gamma", ordinal: 1, sourcePeakId: 104, sourceName: "Mount Gamma" },
+    { destinationId: "destination-beta", ordinal: 2, sourcePeakId: 102, sourceName: "Mount Beta" },
+  ]);
 });
 
 test("the four Western lists carry the metadata their audit-doc sources support", () => {
@@ -524,19 +624,122 @@ test("the two completed Sierra Club list imports keep their reviewed counts and 
   });
 });
 
-test("the Idaho 12ers are the only partial list, and their selection is pinned", () => {
+test("the four new classic lists carry their keeper-backed metadata and scopes", () => {
+  const bySourceId = new Map(CURATED_LISTS.map((entry) => [entry.sourceListId, entry]));
+  const shape = (curated: CuratedList | undefined) => ({
+    id: curated?.listId,
+    name: curated?.name,
+    expectedCount: curated?.expectedCount,
+    yearEstablished: curated?.yearEstablished,
+    organization: curated?.organization,
+    sourceName: curated?.sourceName,
+    sourceUrl: curated?.sourceUrl,
+    region: curated?.region,
+    allowedCountryCodes: curated?.allowedCountryCodes,
+    allowedStateCodes: curated?.allowedStateCodes,
+  });
+
+  assert.deepEqual(shape(bySourceId.get(200)), {
+    id: deterministicListId(200),
+    name: "Classic 8000-Meter Peaks",
+    expectedCount: 14,
+    yearEstablished: null,
+    organization: "International Climbing and Mountaineering Federation (UIAA)",
+    sourceName: "UIAA",
+    sourceUrl: "https://www.theuiaa.org/uiaa-position-on-8000m-peaks/",
+    region: "Himalaya and Karakoram",
+    allowedCountryCodes: ["CN", "IN", "NP", "PK"],
+    allowedStateCodes: undefined,
+  });
+  assert.deepEqual(bySourceId.get(200)?.destinationOverrides, {
+    10642: "8ObhH1SFcbVyfFLOkUzA",
+    10649: "CMzSuY3q2RqUlor9ATeB",
+    10634: "LB5NjLmbUixWZPhAT2EP",
+    10627: "nh9RfheEwRlCRUfYBULo",
+    10603: "t2utGd2uMc9LJwkW2MeF",
+    10621: "CJvnAqwqxztFb0sZIPnS",
+    10527: "h5rpyI7FZrzCMETj1fQw",
+    10519: "U9zqKEzWFkHkukEF7enG",
+    10525: "Bpd52aU5hQ953DGDgwOG",
+    10631: "ojZjwxp0vjfygs6insL4",
+  });
+  assert.deepEqual(shape(bySourceId.get(5410)), {
+    id: deterministicListId(5410),
+    name: "UIAA Alpine 4000ers",
+    expectedCount: 82,
+    yearEstablished: 1994,
+    organization: "International Climbing and Mountaineering Federation (UIAA)",
+    sourceName: "UIAA",
+    sourceUrl: "https://www.theuiaa.org/4000-alps/",
+    region: "Alps",
+    allowedCountryCodes: ["CH", "FR", "IT"],
+    allowedStateCodes: undefined,
+  });
+  assert.deepEqual(shape(bySourceId.get(5521)), {
+    id: deterministicListId(5521),
+    name: "Munros",
+    expectedCount: 282,
+    yearEstablished: 1891,
+    organization: "Scottish Mountaineering Club",
+    sourceName: "Scottish Mountaineering Club",
+    sourceUrl: "https://www.smc.org.uk/hills/",
+    region: "Scotland",
+    allowedCountryCodes: ["GB"],
+    allowedStateCodes: undefined,
+  });
+  assert.deepEqual(shape(bySourceId.get(5170)), {
+    id: deterministicListId(5170),
+    name: "New Hampshire 52 With a View",
+    expectedCount: 54,
+    yearEstablished: 1990,
+    organization: "Over the Hill Hikers",
+    sourceName: "Over the Hill Hikers",
+    sourceUrl: "https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html",
+    region: "New Hampshire",
+    allowedCountryCodes: ["US"],
+    allowedStateCodes: ["NH"],
+  });
+});
+
+test("the two partial source pages pin their selected peaks and full row counts", () => {
   const partial = CURATED_LISTS.filter((entry) => entry.sourcePeakIds != null);
-  assert.equal(partial.length, 1);
-  const idaho = partial[0];
+  assert.equal(partial.length, 2);
+  const idaho = partial.find((entry) => entry.sourceListId === 21330);
+  const eightThousanders = partial.find((entry) => entry.sourceListId === 200);
+  assert.ok(idaho);
+  assert.ok(eightThousanders);
   assert.equal(idaho.sourceListId, 21330);
   assert.equal(idaho.sourceRowCount, 138);
   assert.deepEqual(idaho.sourcePeakIds, [5142, 5147, 5164, 5150, 5151, 5145, 5154, 5152, 5118]);
   assert.equal(idaho.sourcePeakIds?.length, idaho.expectedCount);
+  assert.equal(eightThousanders.sourceRowCount, 23);
+  assert.deepEqual(eightThousanders.sourcePeakIds, [
+    10640, 10515, 10653, 10642, 10649, 10634, 10620,
+    10627, 10603, 10621, 10527, 10519, 10525, 10631,
+  ]);
+  assert.equal(eightThousanders.sourcePeakIds?.length, eightThousanders.expectedCount);
   for (const curated of CURATED_LISTS) {
-    assert.equal(
-      curated.sourcePeakIds == null,
-      curated.sourceRowCount == null,
-      `${curated.name} sets one of sourcePeakIds/sourceRowCount without the other`
-    );
+    const adjusted = curated.sourcePeakIds != null ||
+      (curated.supplementalSourcePeaks?.length ?? 0) > 0;
+    assert.equal(adjusted, curated.sourceRowCount != null, `${curated.name} has an unpinned adjustment`);
   }
+});
+
+test("the dated source fixture covers every curated list and only the four new tables", () => {
+  const fixture = JSON.parse(readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json"
+  ), "utf8"));
+
+  for (const curated of CURATED_LISTS) {
+    validateSourceList(curated, fixture[String(curated.sourceListId)]);
+  }
+  assert.equal(fixture["200"].rows.length, 23);
+  assert.equal(fixture["5410"].rows.length, 82);
+  assert.equal(fixture["5521"].rows.length, 282);
+  assert.equal(fixture["5170"].rows.length, 52);
+  assert.equal(fixture["5212"], undefined);
+  const withAView = CURATED_LISTS.find((curated) => curated.sourceListId === 5170);
+  assert.equal(withAView?.supplementalSourcePeaks?.length, 2);
+  assert.equal(withAView?.expectedCount, 54);
 });
