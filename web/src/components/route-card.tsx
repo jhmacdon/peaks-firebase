@@ -57,7 +57,12 @@ export default function RouteCard({ route }: RouteCardProps) {
     </>
   );
 
-  if (!route.cover_image) {
+  const hasCreditedCover =
+    route.cover_image &&
+    route.cover_image_attribution &&
+    route.cover_image_attribution_url;
+
+  if (!hasCreditedCover) {
     return (
       <Card href={`/routes/${route.id}`} className="h-full">
         {content}
@@ -66,26 +71,40 @@ export default function RouteCard({ route }: RouteCardProps) {
   }
 
   return (
-    <Link
-      href={`/routes/${route.id}`}
-      prefetch={false}
-      className="group block h-full overflow-hidden rounded-media border border-border bg-surface transition-colors hover:bg-fill"
-    >
-      <span className="block aspect-[16/9] overflow-hidden bg-fill">
-        {/* The title below already names the link, so the image is decorative. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={route.cover_image}
-          alt=""
-          className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-          style={{
-            objectPosition: `${route.cover_image_focal_x ?? 50}% ${
-              route.cover_image_focal_y ?? 50
-            }%`,
-          }}
-        />
-      </span>
-      <span className="block p-4">{content}</span>
-    </Link>
+    <article className="flex h-full flex-col overflow-hidden rounded-media border border-border bg-surface transition-colors hover:bg-fill">
+      <Link
+        href={`/routes/${route.id}`}
+        prefetch={false}
+        className="group block flex-1"
+      >
+        <div className="aspect-[16/9] overflow-hidden bg-fill">
+          {/* The title below already names the link, so the image is decorative. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={route.cover_image!}
+            alt=""
+            className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+            style={{
+              objectPosition: `${route.cover_image_focal_x ?? 50}% ${
+                route.cover_image_focal_y ?? 50
+              }%`,
+            }}
+          />
+        </div>
+        <div className="p-4">{content}</div>
+      </Link>
+      <div className="px-4 pb-3 text-[11px] leading-snug text-muted">
+        Photo:{" "}
+        <a
+          href={route.cover_image_attribution_url!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          {route.cover_image_attribution}
+        </a>{" "}
+        · cropped
+      </div>
+    </article>
   );
 }

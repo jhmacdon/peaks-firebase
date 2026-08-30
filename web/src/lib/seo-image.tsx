@@ -1,7 +1,22 @@
+/** A route share image cannot carry a working source or license link. Only
+ * credits that clearly name a public-domain grant may be cropped into that
+ * standalone file; attributed Creative Commons photos stay on linked pages. */
+export function isPublicDomainImageAttribution(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
+  const normalized = value
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/\u00a0/g, " ")
+    .toLowerCase();
+  return (
+    /\bcc0(?:\s|\d|$)/.test(normalized) ||
+    normalized.includes("creative commons zero") ||
+    normalized.includes("public domain") ||
+    /(?:^|[\s/])pd(?:[-\s]|$)/.test(normalized)
+  );
+}
+
 /** Per-entity dynamic OG image: name + one stat line + wordmark on a flat
- * dark warm panel. Deliberately plainer than `SeoImage` — legible at
- * thumbnail size across 60k+ generated pages instead of a bespoke look
- * per page, and no external image fetches. */
+ * dark warm panel, with an optional public-domain photo. */
 export function EntityOgImage({
   name,
   stats,
@@ -127,7 +142,7 @@ export function EntityOgImage({
                 textAlign: "right",
               }}
             >
-              Photo: {imageAttribution}
+              Photo: {imageAttribution} · cropped
             </div>
           ) : null}
         </div>
