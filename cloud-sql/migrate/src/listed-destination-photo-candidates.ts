@@ -26,6 +26,8 @@ export type ListedPhotoGapRow = {
   list_ids: string[];
   list_names: string[];
   existing_source_page_urls: string[];
+  existing_source_page_urls_without_sha: string[];
+  existing_media_sha1s: string[];
   has_pending_candidate: boolean;
 };
 
@@ -55,6 +57,7 @@ export type WikipediaArticle = {
 
 export type WikimediaImageMetadata = {
   fileTitle: string;
+  fileTitleAliases: string[];
   imageUrl: string | null;
   sourcePageUrl: string | null;
   photographer: string | null;
@@ -64,6 +67,7 @@ export type WikimediaImageMetadata = {
   height: number | null;
   mime: string | null;
   mediaType: string | null;
+  mediaSha1: string | null;
 };
 
 export type ListedPhotoClient = {
@@ -84,6 +88,8 @@ export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
   catalogWikidataId: string | null;
   catalogLat: number;
   catalogLng: number;
+  mediaSha1: string;
+  reviewHistoryFingerprint: string;
 };
 
 export type ListedPhotoPlan =
@@ -120,6 +126,10 @@ export const LISTED_PHOTO_GAPS_SQL = `WITH listed AS (
 ), history AS (
   SELECT destination_id,
          array_agg(source_page_url ORDER BY created_at, id) AS existing_source_page_urls,
+         array_agg(source_page_url ORDER BY created_at, id)
+           FILTER (WHERE media_sha1 IS NULL) AS existing_source_page_urls_without_sha,
+         array_agg(media_sha1 ORDER BY created_at, id)
+           FILTER (WHERE media_sha1 IS NOT NULL) AS existing_media_sha1s,
          bool_or(status = 'pending') AS has_pending_candidate
     FROM destination_photo_candidates
    GROUP BY destination_id
@@ -132,6 +142,9 @@ SELECT listed.id,
        listed.list_ids,
        listed.list_names,
        COALESCE(history.existing_source_page_urls, ARRAY[]::text[]) AS existing_source_page_urls,
+       COALESCE(history.existing_source_page_urls_without_sha, ARRAY[]::text[])
+         AS existing_source_page_urls_without_sha,
+       COALESCE(history.existing_media_sha1s, ARRAY[]::text[]) AS existing_media_sha1s,
        COALESCE(history.has_pending_candidate, false) AS has_pending_candidate
   FROM listed
   LEFT JOIN history ON history.destination_id = listed.id
@@ -146,7 +159,9 @@ function nullableText(value: unknown): string | null {
 }
 
 function nullableNumber(value: unknown): number | null {
-  const parsed = Number(value);
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const parsed = typeof value === "number" ? value : Number(value.trim());
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -167,6 +182,10 @@ export function serializeListedPhotoGapRow(row: Record<string, unknown>): Listed
     list_ids: stringArray(row.list_ids),
     list_names: stringArray(row.list_names),
     existing_source_page_urls: stringArray(row.existing_source_page_urls),
+    existing_source_page_urls_without_sha: stringArray(
+      row.existing_source_page_urls_without_sha
+    ),
+    existing_media_sha1s: stringArray(row.existing_media_sha1s),
     has_pending_candidate: row.has_pending_candidate === true,
   };
 }
@@ -263,7 +282,30 @@ export function sourcePageKey(value: string): string | null {
   } catch {
     pathname = url.pathname;
   }
-  return `${url.hostname.toLowerCase()}${pathname.replace(/_/g, " ").toLowerCase()}`;
+  const hostname = url.hostname.toLowerCase();
+  const fileMatch = pathname.match(/^\/wiki\/(File:.+)$/i);
+  if (
+    fileMatch &&
+    (hostname === "commons.wikimedia.org" || hostname === "en.wikipedia.org")
+  ) {
+    return `wikimedia:${fileMatch[1].replace(/_/g, " ").trim().toLowerCase()}`;
+  }
+  return `${hostname}${pathname.replace(/_/g, " ").toLowerCase()}`;
+}
+
+export function fileTitleFromWikimediaSourcePage(value: string): string | null {
+  const url = canonicalHttpsUrl(value);
+  if (!url) return null;
+  const hostname = url.hostname.toLowerCase();
+  if (hostname !== "commons.wikimedia.org" && hostname !== "en.wikipedia.org") return null;
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    return null;
+  }
+  const match = pathname.match(/^\/wiki\/(File:.+)$/i);
+  return match ? match[1].replace(/_/g, " ").trim() : null;
 }
 
 function isAllowedWikimediaImageUrl(value: string | null): value is string {
@@ -334,32 +376,85 @@ export function hasCompatibleLicenseRecord(
 
   const path = url.pathname.toLowerCase().replace(/\/+$/, "");
   const name = normalizedLicenseName(licenseName);
-  if (/^\/licenses\/by-sa\/\d+(?:\.\d+)*$/.test(path)) {
-    return /\bcc(?: |-)?by(?: |-)?sa\b/.test(name);
+  const pathParts = path.match(
+    /^\/(licenses\/(by-sa|by)|publicdomain\/(zero|mark))\/(\d+(?:\.\d+)*)$/
+  );
+  if (!pathParts) return false;
+  const family = pathParts[2] ?? pathParts[3];
+  const urlVersion = pathParts[4];
+  const nameVersion = name.match(/\b(\d+(?:\.\d+)*)\b/)?.[1] ?? null;
+
+  if (family === "by-sa") {
+    return /\bcc(?: |-)?by(?: |-)?sa\b/.test(name) && nameVersion === urlVersion;
   }
-  if (/^\/licenses\/by\/\d+(?:\.\d+)*$/.test(path)) {
-    return /\bcc(?: |-)?by\b/.test(name) && !/\bsa\b/.test(name);
+  if (family === "by") {
+    return (
+      /\bcc(?: |-)?by\b/.test(name) &&
+      !/\bsa\b/.test(name) &&
+      nameVersion === urlVersion
+    );
   }
-  if (/^\/publicdomain\/zero\/\d+(?:\.\d+)*$/.test(path)) {
-    return /\bcc0\b|creative commons zero/.test(name);
+  if (family === "zero") {
+    return (
+      /\bcc0\b|creative commons zero/.test(name) &&
+      (nameVersion === urlVersion || (nameVersion === null && urlVersion === "1.0"))
+    );
   }
-  if (/^\/publicdomain\/mark\/\d+(?:\.\d+)*$/.test(path)) {
-    return /public domain|\bpd\b/.test(name);
+  if (family === "mark") {
+    return (
+      /public domain|\bpd\b/.test(name) &&
+      (nameVersion === urlVersion || (nameVersion === null && urlVersion === "1.0"))
+    );
   }
   return false;
 }
 
 function exactPhotographer(value: string | null): value is string {
   if (!value?.trim()) return false;
-  const normalized = value.trim().toLowerCase();
-  return ![
-    "unknown",
-    "unknown author",
-    "author unknown",
-    "anonymous",
-    "n/a",
-    "wikimedia commons",
-  ].includes(normalized);
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  return !(
+    /\b(?:unknown|anonymous|unidentified|unspecified|various)\b/.test(normalized) ||
+    /\bnot (?:known|stated|provided|available|identified|specified|supplied|named|given)\b/.test(normalized) ||
+    /\b(?:author|artist|photographer) (?:not known|not stated|not named|unknown)\b/.test(normalized) ||
+    /\bno (?:named |identified |specified )?(?:author|artist|photographer)\b/.test(normalized) ||
+    /\bno (?:author|artist|photographer) (?:named|identified|specified|provided)\b/.test(normalized) ||
+    /\bno\b.*\b(?:author|artist|photographer)\b.*\b(?:provided|named|identified|specified|available)\b/.test(normalized) ||
+    /\bnot applicable\b/.test(normalized) ||
+    /\bsee (?:the )?(?:source|file|original)\b/.test(normalized) ||
+    /\bsee above\b/.test(normalized) ||
+    /\bmultiple (?:authors|artists|photographers)\b/.test(normalized) ||
+    /^(?:n\/?a|none|own work|uploader|the uploader|original uploader|self|self made|uncredited|no data available|original source|wikimedia commons)$/i.test(normalized)
+  );
+}
+
+export function normalizedWikimediaSha1(value: string | null): string | null {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return /^[0-9a-f]{40}$/.test(normalized) ? normalized : null;
+}
+
+export function listedPhotoReviewHistoryFingerprint(
+  sourcePageUrls: string[],
+  mediaSha1s: string[]
+): string {
+  const sourcePageKeys = [...new Set(
+    sourcePageUrls
+      .map(sourcePageKey)
+      .filter((key): key is string => key !== null)
+  )].sort();
+  const normalizedMediaSha1s = [...new Set(
+    mediaSha1s
+      .map(normalizedWikimediaSha1)
+      .filter((sha1): sha1 is string => sha1 !== null)
+  )].sort();
+  return JSON.stringify({
+    reviewCount: sourcePageUrls.length,
+    sourcePageKeys,
+    mediaSha1s: normalizedMediaSha1s,
+  });
 }
 
 export function imageMetadataRejection(
@@ -372,6 +467,9 @@ export function imageMetadataRejection(
     return `unsupported image MIME type ${image.mime ?? "missing"}`;
   }
   if (!exactPhotographer(image.photographer)) return "photographer metadata is missing or generic";
+  if (!normalizedWikimediaSha1(image.mediaSha1)) {
+    return "durable Wikimedia SHA-1 metadata is missing or invalid";
+  }
   if (!hasCompatibleLicenseRecord(image.licenseName, image.licenseUrl)) {
     return "license name and URL do not form an approved CC/PD record";
   }
@@ -539,11 +637,45 @@ export async function planListedPhotoCandidate(
       .map(sourcePageKey)
       .filter((key): key is string => key !== null)
   );
+  const existingMediaSha1s = new Set(
+    row.existing_media_sha1s
+      .map(normalizedWikimediaSha1)
+      .filter((sha1): sha1 is string => sha1 !== null)
+  );
+  const historicalFileTitles = [...new Set(
+    row.existing_source_page_urls_without_sha
+      .map(fileTitleFromWikimediaSourcePage)
+      .filter((title): title is string => title !== null)
+  )];
+  if (historicalFileTitles.length > 0) {
+    const historicalMetadata = await client.fetchImageMetadata(historicalFileTitles);
+    const historicalMetadataByTitle = new Map<string, WikimediaImageMetadata>();
+    for (const image of historicalMetadata) {
+      for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
+        historicalMetadataByTitle.set(normalizedWords(title), image);
+      }
+    }
+    for (const title of historicalFileTitles) {
+      const image = historicalMetadataByTitle.get(normalizedWords(title));
+      const sha1 = normalizedWikimediaSha1(image?.mediaSha1 ?? null);
+      if (!image || !sha1) {
+        return {
+          kind: "miss",
+          code: "historical_source_identity_unresolved",
+          reason: `reviewed Wikimedia source no longer resolves to a durable image identity: ${title}`,
+        };
+      }
+      existingMediaSha1s.add(sha1);
+    }
+  }
   const leadKey = article.leadImageTitle ? normalizedWords(article.leadImageTitle) : null;
   const metadata = await client.fetchImageMetadata(fileTitles);
-  const metadataByTitle = new Map(
-    metadata.map((image) => [normalizedWords(image.fileTitle), image])
-  );
+  const metadataByTitle = new Map<string, WikimediaImageMetadata>();
+  for (const image of metadata) {
+    for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
+      metadataByTitle.set(normalizedWords(title), image);
+    }
+  }
   const rejectedImages: string[] = [];
 
   for (const fileTitle of fileTitles) {
@@ -558,7 +690,8 @@ export async function planListedPhotoCandidate(
       continue;
     }
     const sourceKey = sourcePageKey(image.sourcePageUrl!);
-    if (!sourceKey || existingKeys.has(sourceKey)) {
+    const mediaSha1 = normalizedWikimediaSha1(image.mediaSha1);
+    if (!sourceKey || !mediaSha1 || existingKeys.has(sourceKey) || existingMediaSha1s.has(mediaSha1)) {
       rejectedImages.push(`${fileTitle}: source already reviewed or pending`);
       continue;
     }
@@ -589,6 +722,11 @@ export async function planListedPhotoCandidate(
       catalogWikidataId: row.wikidata_id,
       catalogLat: row.lat!,
       catalogLng: row.lng!,
+      mediaSha1,
+      reviewHistoryFingerprint: listedPhotoReviewHistoryFingerprint(
+        row.existing_source_page_urls,
+        row.existing_media_sha1s
+      ),
     };
     return { kind: "candidate", candidate, rejectedImages };
   }
@@ -606,6 +744,7 @@ export type QueueCandidateResult =
   | "already_covered"
   | "pending_review"
   | "source_seen"
+  | "history_changed"
   | "identity_changed";
 
 export async function queueListedPhotoCandidate(
@@ -658,18 +797,32 @@ export async function queueListedPhotoCandidate(
   }
 
   const sources = await client.query(
-    `SELECT source_page_url
+    `SELECT source_page_url, media_sha1
        FROM destination_photo_candidates
       WHERE destination_id = $1
       ORDER BY created_at, id`,
     [candidate.destinationId]
   );
   const candidateKey = sourcePageKey(candidate.sourcePageUrl);
+  const candidateMediaSha1 = normalizedWikimediaSha1(candidate.mediaSha1);
+  const currentHistoryFingerprint = listedPhotoReviewHistoryFingerprint(
+    sources.rows
+      .map((row) => nullableText(row.source_page_url))
+      .filter((source): source is string => source !== null),
+    sources.rows
+      .map((row) => nullableText(row.media_sha1))
+      .filter((sha1): sha1 is string => sha1 !== null)
+  );
+  if (currentHistoryFingerprint !== candidate.reviewHistoryFingerprint) {
+    return "history_changed";
+  }
   if (
     !candidateKey ||
+    !candidateMediaSha1 ||
     sources.rows.some((row) => {
       const source = nullableText(row.source_page_url);
-      return source ? sourcePageKey(source) === candidateKey : false;
+      const mediaSha1 = normalizedWikimediaSha1(nullableText(row.media_sha1));
+      return (source ? sourcePageKey(source) === candidateKey : false) || mediaSha1 === candidateMediaSha1;
     })
   ) {
     return "source_seen";
@@ -679,9 +832,12 @@ export async function queueListedPhotoCandidate(
     `INSERT INTO destination_photo_candidates (
        id, destination_id, image_url, source_page_url, source_kind,
        photographer, license_name, license_url,
-       image_width, image_height, focal_x, focal_y, notes
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-     ON CONFLICT (destination_id, source_page_url) DO NOTHING`,
+       image_width, image_height, focal_x, focal_y, notes, media_sha1,
+       candidate_origin
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+               'listed_photo_backfill')
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
     [
       candidate.id,
       candidate.destinationId,
@@ -696,7 +852,35 @@ export async function queueListedPhotoCandidate(
       candidate.focalX,
       candidate.focalY,
       candidate.notes ?? null,
+      candidateMediaSha1,
     ]
   );
-  return result.rowCount === 1 ? "inserted" : "source_seen";
+  if (result.rowCount === 1) return "inserted";
+
+  const conflict = await client.query(
+    `SELECT (${USABLE_COVER_SQL}) AS has_usable_cover,
+            EXISTS (
+              SELECT 1
+                FROM destination_photo_candidates pending
+               WHERE pending.destination_id = d.id
+                 AND pending.status = 'pending'
+            ) AS has_pending_candidate,
+            EXISTS (
+              SELECT 1
+                FROM destination_photo_candidates seen
+               WHERE seen.destination_id = d.id
+                 AND (
+                   seen.source_page_url = $2
+                   OR seen.media_sha1 = $3
+                 )
+            ) AS has_seen_source
+       FROM destinations d
+      WHERE d.id = $1`,
+    [candidate.destinationId, candidate.sourcePageUrl, candidateMediaSha1]
+  );
+  const currentConflict = conflict.rows[0];
+  if (currentConflict?.has_usable_cover === true) return "already_covered";
+  if (currentConflict?.has_pending_candidate === true) return "pending_review";
+  if (currentConflict?.has_seen_source === true) return "source_seen";
+  throw new Error(`photo candidate insert hit an unknown uniqueness conflict: ${candidate.id}`);
 }

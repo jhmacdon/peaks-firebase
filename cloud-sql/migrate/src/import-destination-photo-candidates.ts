@@ -64,8 +64,9 @@ async function upsertCandidates(
       `INSERT INTO destination_photo_candidates (
          id, destination_id, image_url, source_page_url, source_kind,
          photographer, license_name, license_url,
-         image_width, image_height, focal_x, focal_y, notes
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         image_width, image_height, focal_x, focal_y, notes, candidate_origin
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+                 'manifest_import')
        ON CONFLICT (destination_id, source_page_url) DO UPDATE
          SET focal_x = EXCLUDED.focal_x,
              focal_y = EXCLUDED.focal_y,

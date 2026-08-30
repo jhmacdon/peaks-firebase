@@ -18,7 +18,9 @@
  */
 
 import fs from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { PoolClient } from "pg";
 import db from "./db";
 import {
   LISTED_PHOTO_GEOSEARCH_RADIUS_METERS,
@@ -88,6 +90,9 @@ export function parseListedPhotoArgs(argv: readonly string[]): ListedPhotoArgs {
   if (auditArgs.length === 1 && !auditOutput) {
     throw new ListedPhotoFlagError("--audit-output needs a non-empty path");
   }
+  if (argv.includes("--apply") && !auditOutput) {
+    throw new ListedPhotoFlagError("--apply requires --audit-output so every write has an audit");
+  }
 
   return {
     apply: argv.includes("--apply"),
@@ -106,6 +111,15 @@ export class WikimediaRequestError extends Error {
   }
 }
 
+export function mediaWikiApiErrorMessage(json: unknown): string | null {
+  const root = objectRecord(json);
+  const error = objectRecord(root?.error);
+  if (!error) return null;
+  const code = text(error.code) ?? "unknown_error";
+  const info = text(error.info);
+  return `MediaWiki API ${code}${info ? `: ${info}` : ""}`;
+}
+
 async function requestJson(url: URL): Promise<unknown> {
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= REQUEST_ATTEMPTS; attempt += 1) {
@@ -114,7 +128,13 @@ async function requestJson(url: URL): Promise<unknown> {
         headers: { "User-Agent": USER_AGENT },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      if (response.ok) return await response.json();
+      if (response.ok) {
+        const json: unknown = await response.json();
+        const apiError = mediaWikiApiErrorMessage(json);
+        if (!apiError) return json;
+        lastError = new Error(apiError);
+        continue;
+      }
       lastError = new Error(`HTTP ${response.status} ${response.statusText}`);
       if (response.status !== 429 && response.status < 500) break;
       const retryAfter = Number(response.headers.get("retry-after"));
@@ -288,6 +308,47 @@ function canonicalWikimediaImageUrl(value: unknown): string | null {
   }
 }
 
+function mediaWikiTitleKey(value: string): string {
+  return value.replace(/_/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function mediaWikiFileTitleAliases(json: unknown, canonicalTitle: string): string[] {
+  const root = objectRecord(json);
+  const query = objectRecord(root?.query);
+  const relations = [query?.normalized, query?.redirects].flatMap((value) =>
+    Array.isArray(value)
+      ? value.flatMap((entry) => {
+          const record = objectRecord(entry);
+          const from = text(record?.from);
+          const to = text(record?.to);
+          return from && to ? [{ from, to }] : [];
+        })
+      : []
+  );
+  const nextTitle = new Map(relations.map(({ from, to }) => [mediaWikiTitleKey(from), to]));
+  const canonicalKey = mediaWikiTitleKey(canonicalTitle);
+  const nodes = new Set<string>();
+  for (const { from, to } of relations) {
+    nodes.add(from);
+    nodes.add(to);
+  }
+
+  return [...nodes].filter((title) => {
+    let current = title;
+    const seen = new Set<string>();
+    for (let hop = 0; hop <= relations.length; hop += 1) {
+      const key = mediaWikiTitleKey(current);
+      if (key === canonicalKey) return key !== mediaWikiTitleKey(title) || title !== canonicalTitle;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      const next = nextTitle.get(key);
+      if (!next) return false;
+      current = next;
+    }
+    return false;
+  });
+}
+
 export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetadata[] {
   return pageRecords(json).flatMap((page) => {
     const fileTitle = text(page.title);
@@ -297,6 +358,7 @@ export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetada
     const extmetadata = objectRecord(info.extmetadata);
     return [{
       fileTitle,
+      fileTitleAliases: mediaWikiFileTitleAliases(json, fileTitle),
       imageUrl: canonicalWikimediaImageUrl(info.url),
       sourcePageUrl: text(info.descriptionurl),
       photographer: plainMetadataText(extmetadata?.Artist),
@@ -306,6 +368,7 @@ export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetada
       height: number(info.height),
       mime: text(info.mime),
       mediaType: text(info.mediatype),
+      mediaSha1: text(info.sha1)?.toLowerCase() ?? null,
     }];
   });
 }
@@ -361,8 +424,9 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
     for (let index = 0; index < fileTitles.length; index += IMAGE_INFO_BATCH_SIZE) {
       const batch = fileTitles.slice(index, index + IMAGE_INFO_BATCH_SIZE);
       const url = actionApiUrl("en.wikipedia.org", {
+        redirects: "1",
         prop: "imageinfo",
-        iiprop: "url|size|mime|mediatype|extmetadata",
+        iiprop: "url|size|mime|mediatype|sha1|extmetadata",
         iiextmetadatalanguage: "en",
         iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl",
         titles: batch.join("|"),
@@ -515,14 +579,94 @@ export async function buildListedPhotoAudit(
   return { audit, candidates };
 }
 
+export type PreparedAuditOutput = {
+  absolutePath: string;
+  temporaryPath: string;
+};
+
+function auditJson(audit: ListedPhotoAudit): string {
+  return `${JSON.stringify(audit, null, 2)}\n`;
+}
+
+export async function prepareAuditOutput(
+  outputPath: string,
+  audit: ListedPhotoAudit
+): Promise<PreparedAuditOutput> {
+  const absolutePath = path.resolve(process.cwd(), outputPath);
+  const parent = path.dirname(absolutePath);
+  await fs.mkdir(parent, { recursive: true });
+  const existing = await fs.lstat(absolutePath).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (existing?.isDirectory()) {
+    throw new Error(`audit output is a directory: ${absolutePath}`);
+  }
+  const temporaryPath = path.join(
+    parent,
+    `.${path.basename(absolutePath)}.${process.pid}.${randomUUID()}.tmp`
+  );
+  await fs.writeFile(temporaryPath, auditJson(audit), { encoding: "utf8", flag: "wx" });
+  return { absolutePath, temporaryPath };
+}
+
+export async function stageAuditOutput(
+  prepared: PreparedAuditOutput,
+  audit: ListedPhotoAudit
+): Promise<void> {
+  await fs.writeFile(prepared.temporaryPath, auditJson(audit), "utf8");
+}
+
+async function discardAuditOutput(prepared: PreparedAuditOutput): Promise<void> {
+  await fs.unlink(prepared.temporaryPath).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
+}
+
+export async function publishAuditOutput(prepared: PreparedAuditOutput): Promise<void> {
+  await fs.rename(prepared.temporaryPath, prepared.absolutePath);
+  console.log(`Audit written to ${prepared.absolutePath}`);
+}
+
+export class AuditPublishAfterCommitError extends Error {
+  readonly databaseWritesCommitted = true;
+
+  constructor(readonly temporaryPath: string, readonly absolutePath: string, cause: unknown) {
+    super(
+      `database writes committed, but the audit could not move from ${temporaryPath} ` +
+        `to ${absolutePath}: ${cause instanceof Error ? cause.message : String(cause)}`
+    );
+  }
+}
+
+export class AuditCommitOutcomeUnknownError extends Error {
+  readonly databaseWritesMayHaveCommitted = true;
+
+  constructor(readonly temporaryPath: string, readonly absolutePath: string, cause: unknown) {
+    super(
+      `database commit outcome is unknown; retained the staged audit at ${temporaryPath} ` +
+        `instead of publishing ${absolutePath}: ${cause instanceof Error ? cause.message : String(cause)}`
+    );
+  }
+}
+
 async function applyCandidates(
   audit: ListedPhotoAudit,
-  candidates: ListedPhotoCandidate[]
+  candidates: ListedPhotoCandidate[],
+  auditOutput: string
 ): Promise<void> {
   if (audit.totals.requestErrors > 0) {
     throw new Error("refusing --apply because one or more Wikimedia requests failed");
   }
-  const client = await db.connect();
+  const prepared = await prepareAuditOutput(auditOutput, audit);
+  let client: PoolClient;
+  try {
+    client = await db.connect();
+  } catch (error) {
+    await discardAuditOutput(prepared);
+    throw error;
+  }
+  let commitAttempted = false;
   try {
     await client.query("BEGIN");
     await client.query(
@@ -537,20 +681,28 @@ async function applyCandidates(
       if (result === "inserted") audit.totals.queued += 1;
       audit.outcomes[`queue_${result}`] = (audit.outcomes[`queue_${result}`] ?? 0) + 1;
     }
+    await stageAuditOutput(prepared, audit);
+    commitAttempted = true;
     await client.query("COMMIT");
   } catch (error) {
+    if (commitAttempted) {
+      throw new AuditCommitOutcomeUnknownError(
+        prepared.temporaryPath,
+        prepared.absolutePath,
+        error
+      );
+    }
     await client.query("ROLLBACK");
+    await discardAuditOutput(prepared);
     throw error;
   } finally {
     client.release();
   }
-}
-
-async function writeAuditOutput(outputPath: string, audit: ListedPhotoAudit): Promise<void> {
-  const absolutePath = path.resolve(process.cwd(), outputPath);
-  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, `${JSON.stringify(audit, null, 2)}\n`, "utf8");
-  console.log(`Audit written to ${absolutePath}`);
+  try {
+    await publishAuditOutput(prepared);
+  } catch (error) {
+    throw new AuditPublishAfterCommitError(prepared.temporaryPath, prepared.absolutePath, error);
+  }
 }
 
 async function run(args: ListedPhotoArgs): Promise<ListedPhotoAudit> {
@@ -561,8 +713,12 @@ async function run(args: ListedPhotoArgs): Promise<ListedPhotoAudit> {
   const rows = await loadListedPhotoGaps(db);
   const { audit, candidates } = await buildListedPhotoAudit(rows, args);
   const unsafeApply = args.apply && audit.totals.requestErrors > 0;
-  if (args.apply && !unsafeApply) await applyCandidates(audit, candidates);
-  if (args.auditOutput) await writeAuditOutput(args.auditOutput, audit);
+  if (args.apply && !unsafeApply) {
+    await applyCandidates(audit, candidates, args.auditOutput!);
+  } else if (args.auditOutput) {
+    const prepared = await prepareAuditOutput(args.auditOutput, audit);
+    await publishAuditOutput(prepared);
+  }
   console.log(JSON.stringify(audit, null, 2));
   if (unsafeApply) {
     throw new Error("refusing --apply because one or more Wikimedia requests failed");
