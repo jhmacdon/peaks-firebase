@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.2.0",
-  "registry_version": "2026-08-30-primary-source-lower-bound-2",
+  "schema_version": "1.3.0",
+  "registry_version": "2026-08-30-primary-source-lower-bound-3",
   "created_at": "2026-08-30T00:00:00-07:00",
   "audit_posture": "adversarial",
   "scope": {
@@ -131,7 +131,7 @@
     [41, "Nuttalls", "gap", "qualifies", "ldwa-england-wales-2000", 442, {"Nuttalls": 442, "Hewitts_England_Wales": 316}, null, "not_covered", "open_cc_by_4", "not_imported_open", "https://ldwa.org.uk/hillwalkers/register1.php", "One LDWA Register 1 challenge unit; accepted English/Welsh 2000-foot roster variants are not separate denominator units."],
     [42, "Donald Hills", "gap", "replace", "smc-donalds", 89, {"Donalds_total": 141, "Donald_Hills": 89, "Donald_Tops": 52}, null, "not_covered", "open_cc_by_4", "not_imported_open", "https://www.smc.org.uk/hills/", "The official current Donald list is one 141-summit unit. Do not count Hills and Tops twice."],
     [43, "Vandeleur-Lynams", "gap", "qualifies", "vandeleur-lynams", 275, 275, null, "not_covered", "open_cc_by_4", "not_imported_open", "https://www.mountaineering.ie/content/ChallengeYourself/143", "Mountaineering Ireland names the traditional list; MountainViews records finishers and awards."],
-    [44, "Korean Forest Service 100 Famous Mountains", "gap", "qualifies", "kfs-100-famous-mountains", 100, 100, null, "not_covered", "open_government", "not_imported_open", "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01", "The Korean Forest Service selected and published the roster in 2002 and provides an unrestricted public-data API."],
+    [44, "Korean Forest Service 100 Famous Mountains", "gap", "qualifies", "kfs-100-famous-mountains", 100, 100, null, "not_covered", "open_government", "not_imported_open", "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100", "The Korean Forest Service selected and published the roster in 2002. Its official XLSX dated 2022-01-01 contains 100 rows and matches the live KFS roster checked 2026-08-30; the public-data portal states unrestricted reuse."],
     [45, "Great Britain Marilyns", "gap", "qualifies_current_count", "great-britain-marilyns", 1556, 1550, null, "not_covered", "open_cc_by_4", "not_imported_open", "https://www.pedantic.rhb.org.uk/index.php/registers/43-registers/886-marilyn-hall-of-fame", "Use the revised current 1,550 roster, not the stale 1,556 count. RHSoc has a distinct completion register."],
     [46, "Japan Hyakumeizan", "rights", "qualifies", "japan-hyakumeizan", 100, 100, null, "not_covered", "permission_required", "blocked_permission", "https://100meizan.org/mt_list_all/", "Named author list with a long completion tradition; lack of reuse rights does not remove it."],
     [47, "New Zealand 3000m Peaks", "rights", "qualifies", "new-zealand-3000m-peaks", 24, 24, null, "not_covered", "permission_required", "blocked_noncommercial_or_permission", "https://alpineclub.org.nz/sites/default/files/2023-07/NZAJ_22A%208-15.pdf", "NZ Alpine Journal documents the exact 24, a seventy-year completion goal, and finishers. ClimbNZ's usable crosswalk is CC BY-NC-SA, so commercial import needs permission."],
@@ -175,7 +175,7 @@
     ["ldwa-england-wales-2000", "England and Wales 2000-Foot Hill Register", "Europe", "LDWA Hillwalkers Register", {"Nuttalls": 442, "Hewitts_England_Wales": 316}, "LDWA Register 1 variants; DoBIH v18.5 N=442 and Hew E/W=316", "https://ldwa.org.uk/hillwalkers/register1.php", "club-register", "open_cc_by_4", "not_imported_open", "proposal-gap-41", "Nuttalls, Hewitts, and accepted book editions are roster variants of this one register unit."],
     ["smc-donalds", "Donalds", "Europe", "Scottish Mountaineering Club", {"total": 141, "Donald_Hills": 89, "Donald_Tops": 52}, "DoBIH v18.5 D=89 plus DT=52; SMC current total=141", "https://www.smc.org.uk/hills/", "club-roster-and-register", "open_cc_by_4", "not_imported_open", "replacement-for-proposal-gap-42", "Do not count Donald Hills and Donald Tops as separate denominator units."],
     ["vandeleur-lynams", "Vandeleur-Lynams", "Europe", "MountainViews / Mountaineering Ireland", 275, "DoBIH v18.5 VL=1, 275", "https://www.mountaineering.ie/content/ChallengeYourself/143", "national-body-endorsed-register", "open_cc_by_4", "not_imported_open", "proposal-gap-43", "MountainViews records finishers and annual awards."],
-    ["kfs-100-famous-mountains", "Korean Forest Service 100 Famous Mountains", "Asia", "Korea Forest Service", 100, "KFS 100 Famous Mountains API snapshot 2026-08-30, 100", "https://www.data.go.kr/data/3071170/openapi.do", "government-roster", "open_government", "not_imported_open", "proposal-gap-44", "The portal says reuse has no restriction and was modified 2026-03-12."],
+    ["kfs-100-famous-mountains", "Korean Forest Service 100 Famous Mountains", "Asia", "Korea Forest Service", 100, "KFS official XLSX dated 2022-01-01, 100; cross-checked against the live KFS roster on 2026-08-30", "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100", "government-roster", "open_government", "not_imported_open", "proposal-gap-44", "Official ZIP SHA-256 0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a; XLSX SHA-256 6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60; normalized ordered roster SHA-256 744d98299fb93653a525a65ba06f46913a2a0877ccae646d4ed4c69de2d17544. The public-data portal states unrestricted reuse and was modified 2026-03-12."],
     ["great-britain-marilyns", "Great Britain Marilyns", "Europe", "Relative Hills Society / Database of British and Irish Hills", 1550, "RHSoc revised Great Britain Marilyn roster 2025/current register, 1550", "https://www.pedantic.rhb.org.uk/index.php/registers/43-registers/886-marilyn-hall-of-fame", "club-register", "open_cc_by_4", "not_imported_open", "replacement-for-proposal-gap-45", "The earlier RHSoc page count 1,556 is stale."],
     ["japan-hyakumeizan", "Nihon Hyakumeizan / Japan's 100 Famous Mountains", "Asia", "Kyūya Fukada tradition / Japan Hundred Famous Mountains Association", 100, "association all-mountains roster, accessed 2026-08-30, 100", "https://100meizan.org/mt_list_all/", "association-roster-and-author-tradition", "permission_required", "blocked_permission", "proposal-rights-46", "Rights block import, not denominator entry."],
     ["new-zealand-3000m-peaks", "New Zealand 3000m Peaks", "Australasia", "New Zealand Alpine Club tradition", 24, "NZAJ 22A pages 8-15, exact 24", "https://alpineclub.org.nz/sites/default/files/2023-07/NZAJ_22A%208-15.pdf", "club-journal-roster-and-completers", "permission_required", "blocked_noncommercial_or_permission", "proposal-rights-47", "Primary journal reports a 70-plus-year pursuit and 22 finishers at publication."],
@@ -259,7 +259,7 @@
     "current_is_majority": false,
     "current_plus_queued_is_majority": false,
     "coverageClaimSupported": false,
-    "why_not_supported": "Even these percentages use a confirmed lower bound rather than an exhaustive world denominator. They may describe coverage of registry version 2026-08-30-primary-source-lower-bound-2, but they cannot support a worldwide majority claim.",
+    "why_not_supported": "Even these percentages use a confirmed lower bound rather than an exhaustive world denominator. They may describe coverage of registry version 2026-08-30-primary-source-lower-bound-3, but they cannot support a worldwide majority claim.",
     "queued_fixture_audits": [
       {
         "registry_id": "new-hampshire-52-with-a-view",
@@ -312,7 +312,7 @@
     ]
   },
   "next_open_source_tranche": {
-    "selection_version": "2026-08-30-open-nine-1",
+    "selection_version": "2026-08-30-open-nine-2",
     "starting_exact_registry_coverage": 29,
     "units_added": 9,
     "resulting_exact_registry_coverage": 38,
@@ -320,8 +320,8 @@
     "majority_threshold_for_74": 38,
     "registry_majority_after_tranche": true,
     "coverageClaimSupported": false,
-    "scope_warning": "This reaches a majority only of registry version 2026-08-30-primary-source-lower-bound-2. It does not support a worldwide majority claim.",
-    "selection_basis": "Nine list units are mathematically necessary from 29 to 38. Eight reuse one checked DoBIH v18.5 CSV and its CC BY 4.0 grant; the Korean government API adds one clean Asian unit. Every unit has a distinct keeper award or register, so overlapping summits do not create denominator double counts.",
+    "scope_warning": "This reaches a majority only of registry version 2026-08-30-primary-source-lower-bound-3. It does not support a worldwide majority claim.",
+    "selection_basis": "Nine list units are mathematically necessary from 29 to 38. Eight reuse one checked DoBIH v18.5 CSV and its CC BY 4.0 grant; the official KFS XLSX adds one Asian unit after a live-page cross-check. Every unit has a distinct keeper award or register, so overlapping summits do not create denominator double counts.",
     "shared_dobih_roster": {
       "version": "18.5",
       "source": "https://www.hill-bagging.co.uk/dobih/downloads/",
@@ -409,39 +409,48 @@
         "overlap_note": "The current 207-key variant is wholly contained in the earlier Vandeleur-Lynam roster; it remains a separate LDWA completion register."
       },
       {
-        "registry_id": "irish-county-highpoints",
-        "name": "Irish County Highpoints",
-        "expected_count_or_key": {"current": 38},
-        "roster_rule": "DoBIH v18.5 CoU=1 AND Country=I",
-        "keeper_source": "https://www.mountaineering.ie/content/ChallengeYourself/143",
+        "registry_id": "grahams",
+        "name": "Grahams",
+        "expected_count_or_key": {"current_600m": 231, "smc_legacy_2000ft": 219},
+        "roster_rule": "DoBIH v18.5 G=1 for the current 600m roster",
+        "keeper_source": "https://www.smc.org.uk/hills/",
         "roster_source": "https://www.hill-bagging.co.uk/dobih/downloads/",
         "rights_status": "open_cc_by_4",
-        "overlap_peak_keys_with_queued_or_earlier_tranche": 15,
-        "new_unique_dobih_peak_keys": 23
+        "overlap_peak_keys_with_queued_or_earlier_tranche": 23,
+        "new_unique_dobih_peak_keys": 208,
+        "overlap_note": "All 23 overlaps are Donalds in the earlier tranche; the other 208 DoBIH Number keys are new."
       },
       {
         "registry_id": "kfs-100-famous-mountains",
         "name": "Korean Forest Service 100 Famous Mountains",
         "expected_count_or_key": 100,
-        "roster_rule": "all 100 records in the dated KFS 100 Famous Mountains API snapshot",
-        "keeper_source": "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01",
-        "roster_source": "https://www.data.go.kr/data/3071170/openapi.do",
+        "roster_rule": "100-row official XLSX dated 2022-01-01; matched by base name and elevation to all 100 live KFS records on 2026-08-30",
+        "keeper_source": "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
+        "roster_source": "https://www.forest.go.kr/images/data/fonDown/100_mountain.zip",
+        "rights_source": "https://www.data.go.kr/data/3071170/openapi.do",
         "rights_status": "open_government",
+        "source_key_rule": "kfs:<mntnId>",
+        "source_file_date": "2022-01-01",
+        "source_zip_sha256": "0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a",
+        "source_xlsx_sha256": "6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60",
+        "normalized_ordered_roster_sha256": "744d98299fb93653a525a65ba06f46913a2a0877ccae646d4ed4c69de2d17544",
+        "live_page_checked_at": "2026-08-30",
+        "photo_rights_note": "Do not use KFS roster-page images as Peaks covers; those images have separate third-party copyright limits.",
         "likely_overlap": "No summit overlap with the British and Irish DoBIH tranche; product destination identity reuse still needs a crosswalk.",
         "projected_new_source_peak_keys": 100
       }
     ],
     "dedup_projection": {
-      "list_membership_rows": 1367,
-      "overlap_peak_keys_against_queued_or_earlier_tranche": 463,
-      "new_unique_dobih_peak_keys": 804,
+      "list_membership_rows": 1560,
+      "overlap_peak_keys_against_queued_or_earlier_tranche": 471,
+      "new_unique_dobih_peak_keys": 989,
       "projected_new_kfs_source_peak_keys": 100,
-      "projected_new_unique_source_peak_keys_total": 904,
+      "projected_new_unique_source_peak_keys_total": 1089,
       "method": "Exact DoBIH Number-key set unions against queued M=1, C=1, and W=1 rosters, then sequentially in the unit order above. KFS is geographically disjoint from DoBIH; product identity reuse remains to be checked."
     },
     "defer_until_after_threshold": [
       "ldwa-england-wales-2000: strong classic next choice, but its 442-member Nuttall variant adds more identity work than this tranche",
-      "grahams: keep its 231-current versus 219-SMC-legacy variants under one unit",
+      "irish-county-highpoints: keep the qualifying unit in the denominator but outside this import tranche; the current CoU roster includes non-summit jurisdiction points, and Peaks must not relabel them as summits",
       "irish-arderins and arderin-begs: counts need keeper reconciliation before exact coverage",
       "rights-blocked lists: they remain in the denominator but are not open-source import candidates"
     ]
