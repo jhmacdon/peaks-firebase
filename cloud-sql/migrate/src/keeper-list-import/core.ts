@@ -260,6 +260,8 @@ const MAX_CURATED_SOURCE_DISTANCE_M = 250;
 const REVIEWED_DUPLICATE_DISTANCE_M = 150;
 const CATALOG_FINGERPRINT_DISTANCE_M = 5;
 const CATALOG_FINGERPRINT_ELEVATION_M = 1;
+const MAX_CATALOG_REPAIR_DISTANCE_M = 750;
+const MAX_CATALOG_REPAIR_ELEVATION_M = 10;
 const KEEPER_CATALOG_AUDIT = "keeper-lists-2026-08-30";
 const KEEPER_IDENTITY_REPAIRED_AT = "2026-08-30";
 
@@ -604,8 +606,18 @@ export function validateKeeperResolutionFixture(
          !/^[a-f0-9]{64}$/i.test(value)))) {
     throw new Error("Keeper resolution catalog snapshot manifest is invalid");
   }
+  if (resolutions.lists == null || typeof resolutions.lists !== "object" ||
+      Array.isArray(resolutions.lists)) {
+    throw new Error("Keeper resolutions have no list map");
+  }
+  for (const definition of definitions) {
+    if (!Object.prototype.hasOwnProperty.call(resolutions.lists, definition.sourceKey)) {
+      throw new Error(`Keeper resolutions are missing list ${definition.sourceKey}`);
+    }
+  }
   const auxiliaryRepairIds = new Set<string>();
   const auxiliaryDestinationIds = new Set<string>();
+  const auxiliaryRepairByDestination = new Map<string, string>();
   for (const repair of resolutions.catalogRepairs ?? []) {
     if (repair == null || typeof repair !== "object") {
       throw new Error("Keeper auxiliary catalog repair unknown is invalid");
@@ -678,6 +690,7 @@ export function validateKeeperResolutionFixture(
     }
     auxiliaryRepairIds.add(repair.repairId);
     auxiliaryDestinationIds.add(repair.destinationId);
+    auxiliaryRepairByDestination.set(repair.destinationId, repair.repairId);
   }
 
   const definitionsBySource = new Map(definitions.map((definition) => [
@@ -686,6 +699,7 @@ export function validateKeeperResolutionFixture(
   ]));
   const seenSourceRows = new Set<string>();
   const seenDestinationsByList = new Map<string, Set<string>>();
+  const directRepairSourceByDestination = new Map<string, string>();
   for (const [sourceKey, resolutionList] of Object.entries(resolutions.lists)) {
     const definition = definitionsBySource.get(sourceKey);
     const sourceList = fixture.lists[sourceKey];
@@ -766,6 +780,21 @@ export function validateKeeperResolutionFixture(
         }
       }
       if (row.resolution === "catalog_repair") {
+        const auxiliaryRepairId = auxiliaryRepairByDestination.get(row.destinationId);
+        if (auxiliaryRepairId != null) {
+          throw new Error(
+            `Keeper catalog repair ${row.sourceMemberId} conflicts with auxiliary repair ` +
+            auxiliaryRepairId
+          );
+        }
+        const priorRepairSource = directRepairSourceByDestination.get(row.destinationId);
+        if (priorRepairSource != null && priorRepairSource !== row.sourceMemberId) {
+          throw new Error(
+            `Keeper catalog repairs ${priorRepairSource} and ${row.sourceMemberId} target the ` +
+            "same destination"
+          );
+        }
+        directRepairSourceByDestination.set(row.destinationId, row.sourceMemberId);
         const before = row.catalogBefore;
         if (before == null || typeof before !== "object" || Array.isArray(before)) {
           throw new Error(`Keeper catalog repair ${rowKey} has no valid before fingerprint`);
@@ -789,6 +818,23 @@ export function validateKeeperResolutionFixture(
               ? before.externalIds.osm != null
               : before.externalIds.osm !== before.osmNodeId)) {
           throw new Error(`Keeper catalog repair ${rowKey} has no valid before fingerprint`);
+        }
+        const repairDistanceM = haversineMeters(before, {
+          lat: row.destinationLat,
+          lng: row.destinationLng,
+        });
+        if (repairDistanceM > MAX_CATALOG_REPAIR_DISTANCE_M) {
+          throw new Error(
+            `Keeper catalog repair ${rowKey} moves ${Math.round(repairDistanceM)} m, ` +
+            `more than ${MAX_CATALOG_REPAIR_DISTANCE_M} m`
+          );
+        }
+        const repairElevationM = Math.abs(before.elevationM - row.destinationElevationM);
+        if (repairElevationM > MAX_CATALOG_REPAIR_ELEVATION_M) {
+          throw new Error(
+            `Keeper catalog repair ${rowKey} changes elevation by ${repairElevationM} m, ` +
+            `more than ${MAX_CATALOG_REPAIR_ELEVATION_M} m`
+          );
         }
         if (row.catalogExternalIdRemovals != null) {
           assertValidExternalIdRecord(
@@ -1109,6 +1155,139 @@ function catalogRepairAfterFingerprint(
   };
 }
 
+export function validateKeeperCrossListConsistency(
+  fixture: KeeperImportFixture,
+  resolutions: KeeperResolutionFixture,
+  definitions: KeeperListDefinition[]
+): void {
+  const definitionBySource = new Map(definitions.map((definition) => [
+    definition.sourceKey,
+    definition,
+  ]));
+  const sourceIdentityById = new Map<string, {
+    sourceKey: string;
+    identity: string;
+  }>();
+  const sourceOwnersById = new Map<string, Set<string>>();
+  for (const definition of definitions) {
+    for (const member of fixture.lists[definition.sourceKey]?.rows ?? []) {
+      const { ordinal: _ordinal, ...identityFields } = member;
+      const identity = canonicalJson(identityFields);
+      const previous = sourceIdentityById.get(member.sourceMemberId);
+      if (previous != null && previous.identity !== identity) {
+        throw new Error(
+          `Keeper source member ${member.sourceMemberId} changes between lists ` +
+          `${previous.sourceKey} and ${definition.sourceKey}`
+        );
+      }
+      if (previous == null) {
+        sourceIdentityById.set(member.sourceMemberId, {
+          sourceKey: definition.sourceKey,
+          identity,
+        });
+      }
+      const owners = sourceOwnersById.get(member.sourceMemberId) ?? new Set<string>();
+      owners.add(definition.sourceKey);
+      sourceOwnersById.set(member.sourceMemberId, owners);
+    }
+  }
+
+  const resolutionsBySourceId = new Map<string, Array<{
+    sourceKey: string;
+    row: KeeperResolutionRow;
+  }>>();
+  for (const definition of definitions) {
+    for (const row of resolutions.lists[definition.sourceKey]?.rows ?? []) {
+      const repeated = resolutionsBySourceId.get(row.sourceMemberId) ?? [];
+      repeated.push({ sourceKey: definition.sourceKey, row });
+      resolutionsBySourceId.set(row.sourceMemberId, repeated);
+    }
+  }
+
+  for (const [sourceMemberId, repeated] of resolutionsBySourceId) {
+    const ownerKeys = sourceOwnersById.get(sourceMemberId) ?? new Set<string>();
+    const resolutionKeys = new Set(repeated.map(({ sourceKey }) => sourceKey));
+    const missingOwnerKeys = [...ownerKeys].filter((sourceKey) => !resolutionKeys.has(sourceKey));
+    if (missingOwnerKeys.length > 0) {
+      throw new Error(
+        `Keeper source member ${sourceMemberId} has an explicit resolution but is missing ` +
+        `owner list ${missingOwnerKeys.join(", ")}`
+      );
+    }
+    if (repeated.length < 2) continue;
+    const destinationIds = new Set(repeated.map(({ row }) => row.destinationId));
+    if (destinationIds.size !== 1) {
+      throw new Error(
+        `Keeper source member ${sourceMemberId} has different destination IDs between lists ` +
+        repeated.map(({ sourceKey }) => sourceKey).join(", ")
+      );
+    }
+
+    const repairs = repeated.filter(({ row }) => row.resolution === "catalog_repair");
+    if (repairs.length > 1) {
+      throw new Error(
+        `Keeper source member ${sourceMemberId} has more than one catalog repair between lists`
+      );
+    }
+    if (repairs.length === 1) {
+      const repair = repairs[0];
+      const after = catalogRepairAfterFingerprint(repair.row);
+      const encodedAfter = canonicalJson(after);
+      for (const projection of repeated) {
+        if (projection === repair) continue;
+        if (projection.row.resolution !== "existing_destination") {
+          throw new Error(
+            `Keeper source member ${sourceMemberId} must project its catalog repair as an ` +
+            `existing destination in ${projection.sourceKey}`
+          );
+        }
+        const projected = {
+          ...resolutionDestinationFingerprint(projection.row),
+          externalIds: { ...(after.externalIds ?? {}) },
+        };
+        if (canonicalJson(projected) !== encodedAfter) {
+          throw new Error(
+            `Keeper source member ${sourceMemberId} has different destination fingerprints ` +
+            `between lists ${repair.sourceKey} and ${projection.sourceKey}`
+          );
+        }
+      }
+      continue;
+    }
+
+    const first = repeated[0];
+    const firstFingerprint = canonicalJson(resolutionDestinationFingerprint(first.row));
+    for (const candidate of repeated.slice(1)) {
+      if (canonicalJson(resolutionDestinationFingerprint(candidate.row)) !== firstFingerprint) {
+        throw new Error(
+          `Keeper source member ${sourceMemberId} has different destination fingerprints ` +
+          `between lists ${first.sourceKey} and ${candidate.sourceKey}`
+        );
+      }
+    }
+    const explicitDecision = ({ sourceKey, row }: typeof first) => ({
+      resolution: row.resolution,
+      ...(row.resolution === "curated_destination" ? {
+        dataSourceName: row.destinationDataSourceName ?? null,
+        dataSourceUrl: row.destinationDataSourceUrl ?? null,
+        dataLicense: row.destinationDataLicense ?? null,
+        keeperRosterSource:
+          definitionBySource.get(sourceKey)?.sourceDescriptor.keeperRosterSource ?? null,
+        distinctFromDestinationIds: [...(row.distinctFromDestinationIds ?? [])].sort(),
+      } : {}),
+    });
+    const firstDecision = canonicalJson(explicitDecision(first));
+    for (const candidate of repeated.slice(1)) {
+      if (canonicalJson(explicitDecision(candidate)) !== firstDecision) {
+        throw new Error(
+          `Keeper source member ${sourceMemberId} has different destination decisions ` +
+          `between lists ${first.sourceKey} and ${candidate.sourceKey}`
+        );
+      }
+    }
+  }
+}
+
 export function catalogWithReviewedKeeperDestinations(
   catalog: KeeperCatalogPeak[],
   fixture: KeeperImportFixture,
@@ -1123,6 +1302,7 @@ export function catalogWithReviewedKeeperDestinations(
 } {
   validateKeeperFixture(fixture, definitions);
   validateKeeperResolutionFixture(fixture, resolutions, definitions);
+  validateKeeperCrossListConsistency(fixture, resolutions, definitions);
   assertUniqueOsmOwners(externalIdOwners);
   const byId = new Map(catalog.map((peak) => [peak.id, peak]));
   const byOsmId = new Map(
@@ -1246,7 +1426,12 @@ export function catalogWithReviewedKeeperDestinations(
     byId.set(reviewedRepair.id, repairedPeak);
   }
 
-  for (const resolution of resolutionRows(resolutions)) {
+  const reviewedResolutions = resolutionRows(resolutions);
+  const repairFirstResolutions = [
+    ...reviewedResolutions.filter((row) => row.resolution === "catalog_repair"),
+    ...reviewedResolutions.filter((row) => row.resolution !== "catalog_repair"),
+  ];
+  for (const resolution of repairFirstResolutions) {
     const sourceOverrides = overrides.get(resolution.sourceKey) ?? {};
     sourceOverrides[resolution.sourceMemberId] = resolution.destinationId;
     overrides.set(resolution.sourceKey, sourceOverrides);
@@ -1623,6 +1808,28 @@ export function buildKeeperImportReport(
   const plans = reviewed.definitions.map((list) =>
     buildResolutionPlan(list, fixture.lists[list.sourceKey], reviewed.catalog, current)
   );
+  const resolvedBySourceId = new Map<string, {
+    destinationId: string;
+    sourceKey: string;
+  }>();
+  for (const plan of plans) {
+    for (const member of plan.members) {
+      const previous = resolvedBySourceId.get(member.sourceMemberId);
+      if (previous != null && previous.destinationId !== member.destinationId) {
+        throw new Error(
+          `Keeper source member ${member.sourceMemberId} resolves to different destinations ` +
+          `${previous.destinationId} and ${member.destinationId} between lists ` +
+          `${previous.sourceKey} and ${plan.list.sourceKey}`
+        );
+      }
+      if (previous == null) {
+        resolvedBySourceId.set(member.sourceMemberId, {
+          destinationId: member.destinationId,
+          sourceKey: plan.list.sourceKey,
+        });
+      }
+    }
+  }
   const nameById = new Map(reviewed.catalog.map((peak) => [peak.id, peak.name]));
   const complete = plans.every((plan) =>
     plan.issues.length === 0 && plan.members.length === plan.list.expectedCount
@@ -2178,6 +2385,9 @@ export async function runKeeperImport(
   definitions: KeeperListDefinition[]
 ): Promise<KeeperImportReport> {
   validateProductionKeeperDefinitions(definitions);
+  validateKeeperFixture(fixture, definitions);
+  validateKeeperResolutionFixture(fixture, resolutions, definitions);
+  validateKeeperCrossListConsistency(fixture, resolutions, definitions);
   await beginKeeperImportTransaction(client, apply);
   try {
     if (apply) {
