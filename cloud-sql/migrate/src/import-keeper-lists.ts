@@ -73,6 +73,14 @@ export interface KeeperCatalogPeak {
   stateCode: string | null;
   osmId: string | null;
   externalIds: Record<string, string>;
+  owner?: string | null;
+  destinationType?: string | null;
+  features?: string[];
+  dataSourceName?: string | null;
+  dataSourceUrl?: string | null;
+  dataLicense?: string | null;
+  keeperRosterSource?: string | null;
+  metadataDisplayName?: string | null;
 }
 
 export type KeeperResolutionKind =
@@ -233,6 +241,45 @@ const MAX_CURATED_SOURCE_DISTANCE_M = 250;
 const REVIEWED_DUPLICATE_DISTANCE_M = 150;
 const CATALOG_FINGERPRINT_DISTANCE_M = 5;
 const CATALOG_FINGERPRINT_ELEVATION_M = 1;
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isValidExternalIdRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.entries(value).every(([key, id]) =>
+    key.trim().length > 0 && isNonEmptyString(id)
+  );
+}
+
+function assertValidExternalIdRecord(value: unknown, label: string): asserts value is Record<string, string> {
+  if (!isValidExternalIdRecord(value)) {
+    throw new Error(`${label} has an invalid external-ID record`);
+  }
+}
+
+function isNullableNonEmptyString(value: unknown): value is string | null {
+  return value === null || isNonEmptyString(value);
+}
+
+function coordinatesAreWithinBounds(lat: unknown, lng: unknown): lat is number {
+  return typeof lat === "number" && Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
+    typeof lng === "number" && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+}
+
+function assertCoordinatesWithinBounds(lat: unknown, lng: unknown, label: string): void {
+  if (!coordinatesAreWithinBounds(lat, lng)) {
+    throw new Error(`${label} are outside latitude/longitude bounds`);
+  }
+}
+
+function keeperRosterSource(sourceKey: string): string {
+  return sourceKey.startsWith("dobih-") ? "dobih-v18.5" : "uiaa-bulletin-152";
+}
 
 interface ProductionKeeperSourceManifest {
   generatedAt: string;
@@ -409,7 +456,7 @@ function hasCoordinates(member: KeeperSourceMember): member is KeeperSourceMembe
   lat: number;
   lng: number;
 } {
-  return Number.isFinite(member.lat) && Number.isFinite(member.lng);
+  return coordinatesAreWithinBounds(member.lat, member.lng);
 }
 
 export function validateKeeperFixture(
@@ -471,7 +518,7 @@ export function validateKeeperFixture(
     const sourceIds = new Set<string>();
     const ordinals = new Set<number>();
     for (const member of source.rows) {
-      if (!member.sourceMemberId?.trim() || sourceIds.has(member.sourceMemberId)) {
+      if (!isNonEmptyString(member.sourceMemberId) || sourceIds.has(member.sourceMemberId)) {
         throw new Error(`Keeper list ${definition.sourceKey} repeats or omits a source member ID`);
       }
       if (!Number.isInteger(member.ordinal) || member.ordinal <= 0 || ordinals.has(member.ordinal)) {
@@ -480,16 +527,27 @@ export function validateKeeperFixture(
           `${member.ordinal}`
         );
       }
-      if (!member.name?.trim() || !Number.isFinite(member.elevationM)) {
+      if (!isNonEmptyString(member.name) ||
+          typeof member.elevationM !== "number" || !Number.isFinite(member.elevationM) ||
+          (member.aliases != null &&
+            (!Array.isArray(member.aliases) ||
+             member.aliases.some((alias) => !isNonEmptyString(alias))))) {
         throw new Error(
           `Keeper list ${definition.sourceKey} member ${member.sourceMemberId} is incomplete`
         );
       }
-      const hasLat = Number.isFinite(member.lat);
-      const hasLng = Number.isFinite(member.lng);
+      const hasLat = member.lat !== undefined;
+      const hasLng = member.lng !== undefined;
       if (hasLat !== hasLng) {
         throw new Error(
           `Keeper list ${definition.sourceKey} member ${member.sourceMemberId} has partial coordinates`
+        );
+      }
+      if (hasLat) {
+        assertCoordinatesWithinBounds(
+          member.lat,
+          member.lng,
+          `Keeper list ${definition.sourceKey} member ${member.sourceMemberId} source coordinates`
         );
       }
       if (definition.sourceKey === "dobih-corbetts" ||
@@ -565,23 +623,46 @@ export function validateKeeperResolutionFixture(
   const auxiliaryRepairIds = new Set<string>();
   const auxiliaryDestinationIds = new Set<string>();
   for (const repair of resolutions.catalogRepairs ?? []) {
-    const validExternalIds = (value: Record<string, string> | undefined) =>
-      value != null && Object.entries(value).every(([key, id]) => key.trim() && id.trim());
+    if (repair == null || typeof repair !== "object") {
+      throw new Error("Keeper auxiliary catalog repair unknown is invalid");
+    }
+    const repairLabel = `Keeper auxiliary catalog repair ${
+      isNonEmptyString(repair.repairId) ? repair.repairId : "unknown"
+    }`;
+    assertValidExternalIdRecord(repair.before?.externalIds, `${repairLabel} before fingerprint`);
+    assertValidExternalIdRecord(repair.after?.externalIds, `${repairLabel} after fingerprint`);
+    if (repair.externalIdRemovals != null) {
+      assertValidExternalIdRecord(repair.externalIdRemovals, `${repairLabel} removals`);
+    }
+    assertCoordinatesWithinBounds(
+      repair.before?.lat,
+      repair.before?.lng,
+      `${repairLabel} before coordinates`
+    );
+    assertCoordinatesWithinBounds(
+      repair.after?.lat,
+      repair.after?.lng,
+      `${repairLabel} after coordinates`
+    );
     const validFingerprint = (value: KeeperDestinationFingerprint) =>
-      value != null && Boolean(value.name?.trim()) && Number.isFinite(value.elevationM) &&
-      Number.isFinite(value.lat) && Number.isFinite(value.lng) &&
-      Boolean(value.countryCode?.trim()) &&
-      (value.osmNodeId == null || /^\d+$/.test(value.osmNodeId)) &&
-      validExternalIds(value.externalIds) &&
+      value != null && isNonEmptyString(value.name) &&
+      typeof value.elevationM === "number" && Number.isFinite(value.elevationM) &&
+      isNonEmptyString(value.countryCode) && isNullableNonEmptyString(value.stateCode) &&
+      (value.osmNodeId == null ||
+        (isNonEmptyString(value.osmNodeId) && /^\d+$/.test(value.osmNodeId))) &&
       (value.osmNodeId == null
         ? value.externalIds?.osm == null
         : value.externalIds?.osm === value.osmNodeId);
-    if (!repair.repairId?.trim() || auxiliaryRepairIds.has(repair.repairId) ||
-        !repair.destinationId?.trim() || auxiliaryDestinationIds.has(repair.destinationId) ||
+    if (!isNonEmptyString(repair.repairId) || auxiliaryRepairIds.has(repair.repairId) ||
+        !isNonEmptyString(repair.destinationId) ||
+        auxiliaryDestinationIds.has(repair.destinationId) ||
         !validFingerprint(repair.before) || !validFingerprint(repair.after) ||
-        !repair.dataSourceName?.trim() || !/^https:\/\//.test(repair.dataSourceUrl) ||
+        !isNonEmptyString(repair.dataSourceName) ||
+        !isNonEmptyString(repair.dataSourceUrl) ||
+        !/^https:\/\//.test(repair.dataSourceUrl) ||
+        !isNullableNonEmptyString(repair.dataLicense) ||
         !Array.isArray(repair.evidence) || repair.evidence.length === 0 ||
-        repair.evidence.some((value) => typeof value !== "string" || !value.trim())) {
+        repair.evidence.some((value) => !isNonEmptyString(value))) {
       throw new Error(`Keeper auxiliary catalog repair ${repair.repairId ?? "unknown"} is invalid`);
     }
     if (repair.before.osmNodeId !== repair.after.osmNodeId ||
@@ -648,18 +729,25 @@ export function validateKeeperResolutionFixture(
           row.resolution !== "curated_destination") {
         throw new Error(`Keeper resolution ${rowKey} has an invalid outcome`);
       }
-      if (!row.destinationId?.trim() || destinationIds.has(row.destinationId)) {
+      if (!isNonEmptyString(row.destinationId) || destinationIds.has(row.destinationId)) {
         throw new Error(`Keeper resolution ${rowKey} repeats or omits a destination ID`);
       }
       destinationIds.add(row.destinationId);
-      if (!row.destinationName?.trim() || !Number.isFinite(row.destinationElevationM) ||
-          !Number.isFinite(row.destinationLat) || !Number.isFinite(row.destinationLng)) {
+      if (!isNonEmptyString(row.destinationName) ||
+          typeof row.destinationElevationM !== "number" ||
+          !Number.isFinite(row.destinationElevationM)) {
         throw new Error(`Keeper resolution ${rowKey} has an incomplete destination fingerprint`);
       }
+      assertCoordinatesWithinBounds(
+        row.destinationLat,
+        row.destinationLng,
+        `Keeper resolution ${rowKey} destination coordinates`
+      );
       if (Math.abs(row.destinationElevationM - source.elevationM) > MAX_ELEVATION_DELTA_M) {
         throw new Error(`Keeper resolution ${rowKey} exceeds the 100 m elevation bound`);
       }
-      if (!row.destinationCountryCode?.trim() ||
+      if (!isNonEmptyString(row.destinationCountryCode) ||
+          !isNullableNonEmptyString(row.destinationStateCode) ||
           (definition.allowedCountryCodes != null &&
             !definition.allowedCountryCodes.includes(row.destinationCountryCode)) ||
           (definition.allowedStateCodes != null &&
@@ -668,15 +756,19 @@ export function validateKeeperResolutionFixture(
         throw new Error(`Keeper resolution ${rowKey} is outside the list bounds`);
       }
       if (!Array.isArray(row.evidence) || row.evidence.length === 0 ||
-          row.evidence.some((value) => typeof value !== "string" || !value.trim())) {
+          row.evidence.some((value) => !isNonEmptyString(value))) {
         throw new Error(`Keeper resolution ${rowKey} has no review evidence`);
       }
-      if (row.destinationOsmNodeId != null && !/^\d+$/.test(row.destinationOsmNodeId)) {
+      if (row.destinationOsmNodeId != null &&
+          (!isNonEmptyString(row.destinationOsmNodeId) ||
+           !/^\d+$/.test(row.destinationOsmNodeId))) {
         throw new Error(`Keeper resolution ${rowKey} has an invalid OSM node ID`);
       }
       if (row.resolution !== "existing_destination" &&
-          (!row.destinationDataSourceName?.trim() ||
-           !/^https:\/\//.test(row.destinationDataSourceUrl ?? ""))) {
+          (!isNonEmptyString(row.destinationDataSourceName) ||
+           !isNonEmptyString(row.destinationDataSourceUrl) ||
+           !/^https:\/\//.test(row.destinationDataSourceUrl) ||
+           !isNullableNonEmptyString(row.destinationDataLicense ?? null))) {
         throw new Error(`Keeper resolution ${rowKey} has no destination data credit`);
       }
       if (row.distinctFromDestinationIds != null) {
@@ -684,23 +776,47 @@ export function validateKeeperResolutionFixture(
             row.distinctFromDestinationIds.length === 0 ||
             new Set(row.distinctFromDestinationIds).size !==
               row.distinctFromDestinationIds.length ||
-            row.distinctFromDestinationIds.some((id) => !id.trim() || id === row.destinationId)) {
+            row.distinctFromDestinationIds.some((id) =>
+              !isNonEmptyString(id) || id === row.destinationId)) {
           throw new Error(`Keeper resolution ${rowKey} has an invalid distinct-neighbor review`);
         }
       }
       if (row.resolution === "catalog_repair") {
         const before = row.catalogBefore;
-        if (!before || !before.name?.trim() || !Number.isFinite(before.elevationM) ||
-            !Number.isFinite(before.lat) || !Number.isFinite(before.lng) ||
-            (before.countryCode != null && !before.countryCode.trim()) ||
-            (before.osmNodeId != null && !/^\d+$/.test(before.osmNodeId)) ||
-            before.externalIds == null ||
-            Object.entries(before.externalIds).some(([key, value]) =>
-              !key.trim() || !value.trim()) ||
+        if (before == null || typeof before !== "object" || Array.isArray(before)) {
+          throw new Error(`Keeper catalog repair ${rowKey} has no valid before fingerprint`);
+        }
+        assertValidExternalIdRecord(
+          before.externalIds,
+          `Keeper catalog repair ${rowKey} catalog-before fingerprint`
+        );
+        assertCoordinatesWithinBounds(
+          before.lat,
+          before.lng,
+          `Keeper catalog repair ${rowKey} catalog-before coordinates`
+        );
+        if (!isNonEmptyString(before.name) ||
+            typeof before.elevationM !== "number" || !Number.isFinite(before.elevationM) ||
+            !isNullableNonEmptyString(before.countryCode) ||
+            !isNullableNonEmptyString(before.stateCode) ||
+            (before.osmNodeId != null &&
+              (!isNonEmptyString(before.osmNodeId) || !/^\d+$/.test(before.osmNodeId))) ||
             (before.osmNodeId == null
               ? before.externalIds.osm != null
               : before.externalIds.osm !== before.osmNodeId)) {
           throw new Error(`Keeper catalog repair ${rowKey} has no valid before fingerprint`);
+        }
+        if (row.catalogExternalIdRemovals != null) {
+          assertValidExternalIdRecord(
+            row.catalogExternalIdRemovals,
+            `Keeper catalog repair ${rowKey} removals`
+          );
+        }
+        if (row.catalogExternalIdAdditions != null) {
+          assertValidExternalIdRecord(
+            row.catalogExternalIdAdditions,
+            `Keeper catalog repair ${rowKey} additions`
+          );
         }
         const afterExternalIds = { ...before.externalIds };
         for (const [key, value] of Object.entries(row.catalogExternalIdRemovals ?? {})) {
@@ -710,8 +826,7 @@ export function validateKeeperResolutionFixture(
           delete afterExternalIds[key];
         }
         for (const [key, value] of Object.entries(row.catalogExternalIdAdditions ?? {})) {
-          if (!key.trim() || !value.trim() ||
-              (afterExternalIds[key] != null && afterExternalIds[key] !== value)) {
+          if (afterExternalIds[key] != null && afterExternalIds[key] !== value) {
             throw new Error(`Keeper catalog repair ${rowKey} has an invalid external-ID addition`);
           }
           afterExternalIds[key] = value;
@@ -798,6 +913,53 @@ function catalogMatchesExactFingerprint(
     (fingerprint.externalIds == null ||
       JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
         JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
+}
+
+function reviewedKeeperDestination(
+  resolution: KeeperResolutionRow
+): ReviewedKeeperDestination {
+  return {
+    sourceKey: resolution.sourceKey,
+    sourceMemberId: resolution.sourceMemberId,
+    id: resolution.destinationId,
+    name: resolution.destinationName,
+    elevationM: resolution.destinationElevationM,
+    lat: resolution.destinationLat,
+    lng: resolution.destinationLng,
+    countryCode: resolution.destinationCountryCode,
+    stateCode: resolution.destinationStateCode,
+    osmId: resolution.destinationOsmNodeId,
+    dataSourceName: resolution.destinationDataSourceName!,
+    dataSourceUrl: resolution.destinationDataSourceUrl!,
+    dataLicense: resolution.destinationDataLicense ?? null,
+  };
+}
+
+function catalogMatchesExactReviewedDestination(
+  catalogPeak: KeeperCatalogPeak,
+  destination: ReviewedKeeperDestination
+): boolean {
+  const expectedExternalIds = destination.osmId == null ? {} : { osm: destination.osmId };
+  return catalogPeak.name === destination.name &&
+    catalogPeak.elevationM === destination.elevationM &&
+    catalogPeak.lat === destination.lat &&
+    catalogPeak.lng === destination.lng &&
+    catalogPeak.countryCode === destination.countryCode &&
+    catalogPeak.stateCode === destination.stateCode &&
+    catalogPeak.osmId === destination.osmId &&
+    isValidExternalIdRecord(catalogPeak.externalIds) &&
+    JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
+      JSON.stringify(Object.entries(expectedExternalIds).sort()) &&
+    catalogPeak.owner === "peaks" &&
+    catalogPeak.destinationType === "point" &&
+    Array.isArray(catalogPeak.features) &&
+    catalogPeak.features.length === 1 &&
+    catalogPeak.features[0] === "summit" &&
+    catalogPeak.dataSourceName === destination.dataSourceName &&
+    catalogPeak.dataSourceUrl === destination.dataSourceUrl &&
+    catalogPeak.dataLicense === destination.dataLicense &&
+    catalogPeak.keeperRosterSource === keeperRosterSource(destination.sourceKey) &&
+    catalogPeak.metadataDisplayName === destination.name;
 }
 
 function resolutionDestinationFingerprint(
@@ -928,6 +1090,7 @@ export function catalogWithReviewedKeeperDestinations(
       delete repairedExternalIds[key];
     }
     const repairedPeak: KeeperCatalogPeak = {
+      ...existing,
       id: reviewedRepair.id,
       name: reviewedRepair.name,
       elevationM: reviewedRepair.elevationM,
@@ -1013,6 +1176,7 @@ export function catalogWithReviewedKeeperDestinations(
       };
       destinationsToRepair.push(repaired);
       const repairedPeak: KeeperCatalogPeak = {
+        ...existing,
         id: repaired.id,
         name: repaired.name,
         elevationM: repaired.elevationM,
@@ -1041,10 +1205,12 @@ export function catalogWithReviewedKeeperDestinations(
         );
       }
     }
+    const destination = reviewedKeeperDestination(resolution);
     if (existing) {
-      if (!catalogMatchesFingerprint(existing, resolutionDestinationFingerprint(resolution))) {
+      if (!catalogMatchesExactReviewedDestination(existing, destination)) {
         throw new Error(
-          `Curated destination ID ${resolution.destinationId} belongs to another identity`
+          `Curated destination ID ${resolution.destinationId} does not match its exact ` +
+          "reviewed fingerprint"
         );
       }
       continue;
@@ -1062,21 +1228,6 @@ export function catalogWithReviewedKeeperDestinations(
         `${duplicate.id}:${duplicate.name}`
       );
     }
-    const destination: ReviewedKeeperDestination = {
-      sourceKey: resolution.sourceKey,
-      sourceMemberId: resolution.sourceMemberId,
-      id: resolution.destinationId,
-      name: resolution.destinationName,
-      elevationM: resolution.destinationElevationM,
-      lat: resolution.destinationLat,
-      lng: resolution.destinationLng,
-      countryCode: resolution.destinationCountryCode,
-      stateCode: resolution.destinationStateCode,
-      osmId: resolution.destinationOsmNodeId,
-      dataSourceName: resolution.destinationDataSourceName!,
-      dataSourceUrl: resolution.destinationDataSourceUrl!,
-      dataLicense: resolution.destinationDataLicense ?? null,
-    };
     destinationsToAdd.push(destination);
     const catalogAddition: KeeperCatalogPeak = {
       id: destination.id,
@@ -1088,6 +1239,14 @@ export function catalogWithReviewedKeeperDestinations(
       stateCode: destination.stateCode,
       osmId: destination.osmId,
       externalIds: destination.osmId == null ? {} : { osm: destination.osmId },
+      owner: "peaks",
+      destinationType: "point",
+      features: ["summit"],
+      dataSourceName: destination.dataSourceName,
+      dataSourceUrl: destination.dataSourceUrl,
+      dataLicense: destination.dataLicense,
+      keeperRosterSource: keeperRosterSource(destination.sourceKey),
+      metadataDisplayName: destination.name,
     };
     additions.push(catalogAddition);
     byId.set(destination.id, catalogAddition);
@@ -1360,6 +1519,14 @@ async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
     external_ids: Record<string, string> | null;
     country_code: string | null;
     state_code: string | null;
+    owner: string | null;
+    destination_type: string | null;
+    features: string[];
+    metadata_source: string | null;
+    metadata_source_url: string | null;
+    metadata_source_license: string | null;
+    keeper_roster_source: string | null;
+    metadata_display_name: string | null;
   }>(
     `SELECT id, name, elevation AS elevation_m,
             ST_Y(location::geometry) AS lat,
@@ -1367,7 +1534,15 @@ async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
             external_ids->>'osm' AS osm_id,
             external_ids,
             country_code,
-            state_code
+            state_code,
+            owner::text AS owner,
+            type::text AS destination_type,
+            features::text[] AS features,
+            metadata->>'source' AS metadata_source,
+            metadata->>'source_url' AS metadata_source_url,
+            metadata->>'source_license' AS metadata_source_license,
+            metadata->>'keeper_roster_source' AS keeper_roster_source,
+            metadata->'names'->>'display' AS metadata_display_name
      FROM destinations
      WHERE location IS NOT NULL
        AND name IS NOT NULL
@@ -1383,6 +1558,14 @@ async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
     stateCode: row.state_code,
     osmId: row.osm_id,
     externalIds: row.external_ids ?? {},
+    owner: row.owner,
+    destinationType: row.destination_type,
+    features: row.features,
+    dataSourceName: row.metadata_source,
+    dataSourceUrl: row.metadata_source_url,
+    dataLicense: row.metadata_source_license,
+    keeperRosterSource: row.keeper_roster_source,
+    metadataDisplayName: row.metadata_display_name,
   }));
 }
 
@@ -1472,7 +1655,7 @@ async function insertReviewedKeeperDestinations(
   );
 }
 
-async function assertReviewedKeeperDestinations(
+export async function assertReviewedKeeperDestinations(
   client: PoolClient,
   destinations: ReviewedKeeperDestination[]
 ): Promise<void> {
@@ -1481,18 +1664,9 @@ async function assertReviewedKeeperDestinations(
   const byId = new Map(catalog.map((peak) => [peak.id, peak]));
   for (const destination of destinations) {
     const inserted = byId.get(destination.id);
-    if (!inserted || !catalogMatchesFingerprint(inserted, {
-      name: destination.name,
-      elevationM: destination.elevationM,
-      lat: destination.lat,
-      lng: destination.lng,
-      osmNodeId: destination.osmId,
-      countryCode: destination.countryCode,
-      stateCode: destination.stateCode,
-      externalIds: destination.osmId == null ? {} : { osm: destination.osmId },
-    })) {
+    if (!inserted || !catalogMatchesExactReviewedDestination(inserted, destination)) {
       throw new Error(
-        `Reviewed destination ${destination.id} did not persist with its full fingerprint`
+        `Reviewed destination ${destination.id} did not persist with its exact reviewed fingerprint`
       );
     }
   }

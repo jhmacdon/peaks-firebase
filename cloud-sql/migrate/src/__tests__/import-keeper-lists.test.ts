@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  assertReviewedKeeperDestinations,
   buildKeeperImportReport,
   catalogWithReviewedKeeperDestinations,
   deterministicKeeperDestinationId,
@@ -155,6 +156,10 @@ function fullFixtureCatalogBeforeReview(): KeeperCatalogPeak[] {
 
 function cloneKeeperFixture(): KeeperImportFixture {
   return JSON.parse(JSON.stringify(fixture)) as KeeperImportFixture;
+}
+
+function cloneKeeperResolutions(): KeeperResolutionFixture {
+  return JSON.parse(JSON.stringify(resolutions)) as KeeperResolutionFixture;
 }
 
 test("parses dry-run and apply modes with an explicit reviewed resolution fixture", () => {
@@ -521,6 +526,253 @@ test("reviewed new destinations are stable, unique, and cannot hide a catalog du
     [onePeakList]
   );
   assert.equal(distinct.destinationsToAdd.length, 1);
+
+  const reviewedDestination = distinct.destinationsToAdd[0];
+  const exactCatalogAddition = distinct.catalog.find(
+    (peak) => peak.id === reviewedDestination.id
+  )!;
+  assert.deepEqual({
+    owner: exactCatalogAddition.owner,
+    destinationType: exactCatalogAddition.destinationType,
+    features: exactCatalogAddition.features,
+    dataSourceName: exactCatalogAddition.dataSourceName,
+    dataSourceUrl: exactCatalogAddition.dataSourceUrl,
+    dataLicense: exactCatalogAddition.dataLicense,
+    keeperRosterSource: exactCatalogAddition.keeperRosterSource,
+    metadataDisplayName: exactCatalogAddition.metadataDisplayName,
+  }, {
+    owner: "peaks",
+    destinationType: "point",
+    features: ["summit"],
+    dataSourceName: reviewedDestination.dataSourceName,
+    dataSourceUrl: reviewedDestination.dataSourceUrl,
+    dataLicense: reviewedDestination.dataLicense,
+    keeperRosterSource: "uiaa-bulletin-152",
+    metadataDisplayName: reviewedDestination.name,
+  });
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [{
+        ...exactCatalogAddition,
+        name: `${reviewedDestination.name}!`,
+        elevationM: reviewedDestination.elevationM + 0.5,
+        lat: reviewedDestination.lat + 0.00001,
+      }],
+      onePeakFixture,
+      reviewed,
+      [onePeakList]
+    ),
+    /exact reviewed fingerprint/
+  );
+  for (const mutation of [
+    { owner: "user" },
+    { destinationType: "area" },
+    { features: ["ridge"] },
+    { dataSourceName: "Wrong source" },
+    { dataSourceUrl: "https://example.test/wrong" },
+    { dataLicense: "Wrong license" },
+    { keeperRosterSource: "dobih-v18.5" },
+    { metadataDisplayName: "Wrong display name" },
+  ] satisfies Array<Partial<KeeperCatalogPeak>>) {
+    assert.throws(
+      () => catalogWithReviewedKeeperDestinations(
+        [{ ...exactCatalogAddition, ...mutation }],
+        onePeakFixture,
+        reviewed,
+        [onePeakList]
+      ),
+      /exact reviewed fingerprint/
+    );
+  }
+});
+
+test("post-conflict destination verification requires the exact reviewed fingerprint", async () => {
+  const destination = catalogWithReviewedKeeperDestinations(
+    [],
+    onePeakFixture,
+    {
+      schemaVersion: 1,
+      reviewedAt: "2026-08-30",
+      catalogSnapshotSha256: "a".repeat(64),
+      lists: {
+        "test-source": {
+          rows: [{
+            sourceKey: "test-source",
+            sourceMemberId: "keeper:1",
+            resolution: "curated_destination",
+            destinationId: deterministicKeeperDestinationId("keeper:1"),
+            destinationName: "Pico de Prueba",
+            destinationElevationM: 1_000,
+            destinationLat: 56,
+            destinationLng: -4,
+            destinationOsmNodeId: null,
+            destinationCountryCode: "GB",
+            destinationStateCode: null,
+            destinationDataSourceName: "Test source",
+            destinationDataSourceUrl: "https://example.test/source",
+            destinationDataLicense: null,
+            evidence: ["Reviewed test source"],
+          }],
+        },
+      },
+    },
+    [onePeakList]
+  ).destinationsToAdd[0];
+  const clientFor = (row: Record<string, unknown>) => ({
+    query: async () => ({
+      rows: [row],
+      rowCount: 1,
+    }),
+  });
+  const exactPersistedRow = {
+    id: destination.id,
+    name: destination.name,
+    elevation_m: destination.elevationM,
+    lat: destination.lat,
+    lng: destination.lng,
+    osm_id: destination.osmId,
+    external_ids: {},
+    country_code: destination.countryCode,
+    state_code: destination.stateCode,
+    owner: "peaks",
+    destination_type: "point",
+    features: ["summit"],
+    metadata_source: destination.dataSourceName,
+    metadata_source_url: destination.dataSourceUrl,
+    metadata_source_license: destination.dataLicense,
+    keeper_roster_source: "uiaa-bulletin-152",
+    metadata_display_name: destination.name,
+  };
+  await assert.rejects(
+    () => assertReviewedKeeperDestinations(clientFor({
+      ...exactPersistedRow,
+      name: `${destination.name}!`,
+      elevation_m: destination.elevationM + 0.5,
+      lat: destination.lat + 0.00001,
+    }) as never, [destination]),
+    /exact reviewed fingerprint/
+  );
+  for (const mutation of [
+    { owner: "user" },
+    { destination_type: "area" },
+    { features: ["ridge"] },
+    { metadata_source: "Wrong source" },
+    { metadata_source_url: "https://example.test/wrong" },
+    { metadata_source_license: "Wrong license" },
+    { keeper_roster_source: "dobih-v18.5" },
+    { metadata_display_name: "Wrong display name" },
+  ]) {
+    await assert.rejects(
+      () => assertReviewedKeeperDestinations(
+        clientFor({ ...exactPersistedRow, ...mutation }) as never,
+        [destination]
+      ),
+      /exact reviewed fingerprint/
+    );
+  }
+  await assert.doesNotReject(
+    () => assertReviewedKeeperDestinations(
+      clientFor(exactPersistedRow) as never,
+      [destination]
+    )
+  );
+});
+
+test("all keeper fixture coordinates are bounded before distance checks", () => {
+  const invalidSource = JSON.parse(JSON.stringify(onePeakFixture)) as KeeperImportFixture;
+  invalidSource.lists["test-source"].rows[0].lat = 91;
+  assert.throws(
+    () => validateKeeperFixture(invalidSource, [onePeakList]),
+    /source coordinates.*bounds/i
+  );
+
+  const periodicDestination: KeeperResolutionFixture = {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "curated_destination",
+          destinationId: deterministicKeeperDestinationId("keeper:1"),
+          destinationName: "Pico de Prueba",
+          destinationElevationM: 1_000,
+          destinationLat: 416,
+          destinationLng: 356,
+          destinationOsmNodeId: null,
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          destinationDataSourceName: "Test source",
+          destinationDataSourceUrl: "https://example.test/source",
+          destinationDataLicense: null,
+          evidence: ["Periodic coordinates must not pass haversine."],
+        }],
+      },
+    },
+  };
+  assert.throws(
+    () => validateKeeperResolutionFixture(
+      onePeakFixture,
+      periodicDestination,
+      [onePeakList]
+    ),
+    /destination coordinates.*bounds/i
+  );
+
+  const invalidAuxiliaryBefore = cloneKeeperResolutions();
+  invalidAuxiliaryBefore.catalogRepairs![0].before.lat = 91;
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryBefore),
+    /auxiliary.*before coordinates.*bounds/i
+  );
+
+  const invalidAuxiliaryAfter = cloneKeeperResolutions();
+  invalidAuxiliaryAfter.catalogRepairs![0].after.lng = 181;
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryAfter),
+    /auxiliary.*after coordinates.*bounds/i
+  );
+
+  const invalidCatalogBefore = cloneKeeperResolutions();
+  const catalogRepair = Object.values(invalidCatalogBefore.lists)
+    .flatMap((list) => list.rows)
+    .find((row) => row.resolution === "catalog_repair")!;
+  catalogRepair.catalogBefore!.lat = 91;
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, invalidCatalogBefore),
+    /catalog-before coordinates.*bounds/i
+  );
+});
+
+test("malformed resolution strings and external IDs fail with keeper validation errors", () => {
+  const numericAuxiliaryExternalId = cloneKeeperResolutions();
+  numericAuxiliaryExternalId.catalogRepairs![0].before.externalIds = {
+    osm: 123 as unknown as string,
+  };
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, numericAuxiliaryExternalId),
+    /invalid external-ID record/i
+  );
+
+  const numericCatalogBeforeExternalId = cloneKeeperResolutions();
+  const catalogRepair = Object.values(numericCatalogBeforeExternalId.lists)
+    .flatMap((list) => list.rows)
+    .find((row) => row.resolution === "catalog_repair")!;
+  catalogRepair.catalogBefore!.externalIds = { osm: 123 as unknown as string };
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, numericCatalogBeforeExternalId),
+    /invalid external-ID record/i
+  );
+
+  const numericDestinationName = cloneKeeperResolutions();
+  numericDestinationName.lists["dobih-corbetts"].rows[0].destinationName =
+    123 as unknown as string;
+  assert.throws(
+    () => validateKeeperResolutionFixture(fixture, numericDestinationName),
+    /incomplete destination fingerprint/i
+  );
 });
 
 test("catalog repairs pin the old identity and keep the same OSM source", () => {
@@ -846,7 +1098,7 @@ test("the keeper importer does not write keeper IDs into destination external ID
   assert.doesNotMatch(source, /destinationPeakbaggerId/);
   assert.match(source, /BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY/);
   assert.match(source, /assertReviewedKeeperDestinations/);
-  assert.match(source, /did not persist with its full fingerprint/);
+  assert.match(source, /did not persist with its exact reviewed fingerprint/);
   assert.match(source, /keeper_roster_source/);
   assert.match(source, /COALESCE\(metadata->'names', '\{\}'::jsonb\)/);
   assert.match(source, /jsonb_build_object\('display', \$2\)/);
