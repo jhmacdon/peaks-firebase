@@ -3,6 +3,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import officialTrailSourcesImport from "../../../../cloud-sql/migrate/src/official-trail-sources";
+import usgsTrailsSourceImport from "../../../../cloud-sql/migrate/src/usgs-trails-source";
+
+const { parseOfficialFeatureIdsFromSourceUrl } = officialRouteGeometryImport;
+const { getPublishableArcgisTrailSource } = officialTrailSourcesImport;
+const {
+  buildUsgsTrailAttribution,
+  parseUsgsTrailsQueryUrl,
+  USGS_TRAILS_LICENSE_NAME,
+  USGS_TRAILS_LICENSE_URL,
+} = usgsTrailsSourceImport;
 
 type Position = [number, number] | [number, number, number];
 
@@ -136,20 +148,93 @@ function audit(file: string, candidate: Candidate): string[] {
       errors.push("OSM candidates must name the ODbL license");
     }
   } else if (sourceKind === "usgs-national-map") {
-    if (!/Public domain/i.test(candidate.peaks_license_name ?? "")) {
-      errors.push("USGS candidates must name the public-domain license");
+    try {
+      const sourceObjectIds = parseUsgsTrailsQueryUrl(
+        candidate.peaks_source ?? ""
+      );
+      const candidateObjectIds = properties.usgs_object_ids;
+      if (
+        !Array.isArray(candidateObjectIds) ||
+        candidateObjectIds.length !== sourceObjectIds.length ||
+        candidateObjectIds.some(
+          (value, index) => value !== sourceObjectIds[index]
+        )
+      ) {
+        errors.push("USGS object IDs must match the canonical source URL");
+      }
+      const originators = properties.usgs_originators;
+      if (
+        !Array.isArray(originators) ||
+        candidate.peaks_attribution !== buildUsgsTrailAttribution(originators)
+      ) {
+        errors.push("USGS attribution must match its source originators");
+      }
+    } catch (error) {
+      errors.push(
+        `USGS source validation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
     if (
-      !Array.isArray(properties.usgs_object_ids) ||
-      properties.usgs_object_ids.length === 0
+      candidate.peaks_license_name !== USGS_TRAILS_LICENSE_NAME ||
+      candidate.peaks_license !== USGS_TRAILS_LICENSE_URL
     ) {
-      errors.push("USGS candidates require usgs_object_ids");
+      errors.push("USGS candidates must use the exact public-domain terms");
     }
     if (Array.isArray(wayIds) && wayIds.length > 0) {
       errors.push("USGS candidates cannot cite OSM way IDs");
     }
   } else {
-    errors.push(`unsupported peaks_source_kind: ${sourceKind}`);
+    try {
+      const source = getPublishableArcgisTrailSource(sourceKind);
+      if (!source) {
+        errors.push(`unsupported peaks_source_kind: ${sourceKind}`);
+      } else {
+        if (
+          candidate.peaks_license_name !== source.license.name ||
+          candidate.peaks_license !== source.license.url ||
+          candidate.peaks_attribution !== source.license.attribution
+        ) {
+          errors.push("official license metadata must match the source registry");
+        }
+        const featureIds = parseOfficialFeatureIdsFromSourceUrl(
+          source.service,
+          candidate.peaks_source ?? ""
+        );
+        const rawFeatureIds = properties.official_feature_ids;
+        const validFeatureIds =
+          Array.isArray(rawFeatureIds) &&
+          rawFeatureIds.length > 0 &&
+          rawFeatureIds.every(
+            (value) => typeof value === "string" && value.trim().length > 0
+          );
+        const candidateFeatureIds = validFeatureIds
+          ? (rawFeatureIds as string[]).map((value) => value.trim()).sort()
+          : [];
+        if (
+          !validFeatureIds ||
+          properties.official_source_id !== source.id ||
+          candidateFeatureIds.length !== featureIds.length ||
+          featureIds.some(
+            (featureId, index) => candidateFeatureIds[index] !== featureId
+          )
+        ) {
+          errors.push(
+            "official source ID and feature IDs must match the canonical source URL"
+          );
+        }
+        if (Array.isArray(wayIds) && wayIds.length > 0) {
+          errors.push("official candidates cannot cite OSM way IDs");
+        }
+      }
+    } catch (error) {
+      errors.push(
+        `official source validation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
   return errors;
 }

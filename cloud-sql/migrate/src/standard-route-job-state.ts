@@ -16,11 +16,22 @@ export const JOB_STATES = [
 export type JobState = (typeof JOB_STATES)[number];
 export type JobStage =
   | "next"
+  | "factory"
   | "research"
   | "import"
   | "review"
   | "publish"
   | "verify";
+
+export const ROUTE_REVIEWER_WORKER_ID = "luna-route-reviewer-01";
+
+const REVIEW_OUTCOME_STATES: ReadonlySet<JobState> = new Set([
+  "approved",
+  "needs_revision",
+  "waiting_rights",
+  "waiting_access",
+  "needs_human",
+]);
 
 export type VerificationAction =
   | "verified"
@@ -155,6 +166,16 @@ export function canTransition(from: JobState, to: JobState): boolean {
 
 export function statesForStage(stage: JobStage): readonly JobState[] {
   switch (stage) {
+    case "factory":
+      return [
+        "published",
+        "approved",
+        "candidate_ready",
+        "queued",
+        "researching",
+        "needs_revision",
+        "needs_geometry",
+      ];
     case "research":
       return ["queued", "researching", "needs_revision", "needs_geometry"];
     case "review":
@@ -177,6 +198,39 @@ export function statesForStage(stage: JobStage): readonly JobState[] {
         "needs_geometry",
       ];
   }
+}
+
+export function assertWorkerCanClaimStage(
+  workerId: string,
+  stage: JobStage
+): void {
+  if (workerId === ROUTE_REVIEWER_WORKER_ID) {
+    if (stage !== "review") {
+      throw new Error("the route reviewer may claim only the review stage");
+    }
+    return;
+  }
+  if (stage === "review" || stage === "next") {
+    throw new Error(
+      "non-review workers must use factory or an explicit non-review stage"
+    );
+  }
+}
+
+export function reviewerLeaseOwnerForTransition(
+  from: JobState,
+  to: JobState,
+  leaseOwner: string | null
+): string | null {
+  if (from !== "pending_review" || !REVIEW_OUTCOME_STATES.has(to)) {
+    return null;
+  }
+  if (leaseOwner !== ROUTE_REVIEWER_WORKER_ID) {
+    throw new Error(
+      `pending_review transitions require a fresh ${ROUTE_REVIEWER_WORKER_ID} lease`
+    );
+  }
+  return leaseOwner;
 }
 
 export function stageForState(state: JobState): Exclude<JobStage, "next"> | null {

@@ -1,6 +1,6 @@
 ---
 name: peaks-standard-route-backfill
-description: Audit Peaks Cloud SQL for summits on curated climbing lists that lack an active Peaks-owned standard route, research the accepted route with cited sources, rank safe backfill batches, and prepare route-import handoffs. Use when finding standard-route gaps by state or list, checking route coverage, researching normal routes, reviewing user-owned route geometry as a standard-route lead, or preparing GPX route backfills for Peaks.
+description: Audit Peaks Cloud SQL for summits on curated climbing lists that lack an active Peaks-owned standard route, research the accepted route with cited sources, rank safe backfill batches, and prepare route-import handoffs. Use when finding standard-route gaps worldwide, by state, or by list; checking route coverage; researching normal routes; reviewing user-owned route geometry as a standard-route lead; or preparing GPX route backfills for Peaks.
 ---
 
 # Peaks Standard Route Backfill
@@ -34,6 +34,10 @@ bash .claude/skills/peaks-standard-route-backfill/scripts/audit_missing_standard
 ```
 
    - Use `--list "Bulger List"` or another list name/id to narrow the batch.
+   - Use `--worldwide` to scan every summit on every Peaks-owned list. It can
+     be combined with `--list` or `--coverage`.
+   - Use `--state OR` to select another state. Omit both scope flags to keep the
+     Washington default. `--state` and `--worldwide` cannot be combined.
    - Add `--coverage` to return per-list route coverage instead of candidate rows.
    - Treat `state_code` as catalog metadata, not a boundary test.
 
@@ -48,7 +52,16 @@ bash .claude/skills/peaks-standard-route-backfill/scripts/audit_missing_standard
    - Keep source requests sequential per site when rate limits or bot checks are likely.
 
 4. Establish the normal route.
-   - Prefer, in order: land-manager pages and climbing ranger reports; Mountaineers route pages; WTA for trail access; then established guide or community sources.
+   - Check public AllTrails and Peakbagger pages first for the usual route name,
+     trailhead, and route shape. Use their geometry only as private comparison
+     evidence unless the exact file has clear reuse rights.
+   - Store both checks in `discovery_checks`. A `matched` page must also appear
+     in `identity_sources` with the right publisher type. Use a short
+     `no_match` or `unavailable` note plus the exact service search or result
+     page when there is no credible page. Add a fresh `checked_at` to each.
+   - Then prefer, in order: land-manager pages and climbing ranger reports;
+     Mountaineers route pages; WTA for trail access; then established guide or
+     community sources.
    - Use at least one strong source that names or clearly describes the ascent. Use a second source when the normal route is disputed, technical, or only implied.
    - Distinguish the easiest or normal ascent from a named technical variation. Do not call a route standard just because it has the clearest page.
    - Capture the route name, activity type, grade/class, access point, approach, season or permit limits, and direct source URLs.
@@ -61,6 +74,35 @@ bash .claude/skills/peaks-standard-route-backfill/scripts/audit_missing_standard
    - Defer peaks with competing normal routes, loose source support, private or closed access, or a technical line that may not fit a single route record.
 
 6. Search public trail geometry.
+   - Filter `cloud-sql/migrate/data/official-trail-sources.json` for the peak's
+     country first. Use relevant `validation_only` and `manual_gap` agency pages
+     to check route identity, access, or alignment, but never copy their
+     geometry. Use an exact registry ID and recorded host for any identity
+     source.
+   - Query every publishable official ArcGIS source registered for the peak's
+     country before OSM. The registry records exact rights, credit, stable ID
+     fields, and known limits:
+
+```bash
+cloud-sql/migrate/scripts/run-tsx.sh \
+  .claude/skills/peaks-standard-route-backfill/scripts/find_official_trail_geometry.mts \
+  --destination-id <destination-id> \
+  --radius-m 20000
+```
+
+   - Build a candidate only from a `ready_publishable` registry entry. Repeat
+     `--feature-id` for each stable feature chosen from the compact table:
+
+```bash
+cloud-sql/migrate/scripts/run-tsx.sh \
+  .claude/skills/peaks-standard-route-backfill/scripts/build_official_route_candidate.mts \
+  --source-id <registry-source-id> \
+  --destination-id <summit-id> \
+  --trailhead-id <trailhead-id> \
+  --feature-id <stable-feature-id> \
+  --output <candidate.geojson>
+```
+
    - Query the USGS National Digital Trails service around a confirmed gap:
 
 ```bash
@@ -138,7 +180,7 @@ MAPBOX_TOKEN=<token> cloud-sql/migrate/scripts/run-tsx.sh \
 cloud-sql/migrate/scripts/run-tsx.sh \
   .claude/skills/peaks-standard-route-backfill/scripts/cache_route_terrain_tiles.mts \
   --candidate /path/to/candidate.geojson \
-  --output-dir /private/tmp/peaks-route-worker/terrain
+  --output-dir <private-cache-directory>/terrain
 ```
 
    - Import a reviewed candidate with the bundled helper. It rechecks list
@@ -147,12 +189,10 @@ cloud-sql/migrate/scripts/run-tsx.sh \
      pending route:
 
 ```bash
-PEAKS_ELEVATION_SOURCE=terrain-cache \
-PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
-  cloud-sql/migrate/scripts/run-tsx.sh \
-  .claude/skills/peaks-standard-route-backfill/scripts/import_standard_route_from_osm_candidate.mts \
-  --candidate /path/to/candidate.geojson \
+.agents/skills/peaks-route-factory/scripts/import_route_candidate.sh \
+  --candidate cloud-sql/migrate/route-candidates/luna/worker-artifacts/<summit-id>-<lease-token>.geojson \
   --destination-id <summit-id> \
+  --lease-token <lease-token> \
   --trailhead-id <trailhead-id> \
   --name "<Peak> via <Route>" \
   --source-url mountaineers=https://www.mountaineers.org/...
@@ -161,6 +201,7 @@ PEAKS_TERRAIN_TILE_CACHE=/private/tmp/peaks-route-worker/terrain \
 After that dry run passes, repeat the same command with:
 
 ```text
+--result-file cloud-sql/migrate/route-candidates/luna/worker-artifacts/<summit-id>-<lease-token>-import.json \
 --apply --acknowledge-geometry-license --acknowledge-map-review
 ```
 
@@ -176,13 +217,12 @@ After that dry run passes, repeat the same command with:
      that reuses a segment must set its own route credit from that source or
      resample it; it must not copy credit from an unrelated older route.
 
-     For a legacy rebuild, add `--replace-active-route <route-id>` to both
-     importer runs. The importer locks and validates that exact Peaks-owned
-     active route, then allows the reviewed replacement to stay pending beside
-     it. Publication, not import, supersedes the old route. A distinct active
-     route on the same peak may coexist; for example, a mountaineering route
-     does not block a named hiking-route replacement. Never add that distinct
-     route as another replacement merely to bypass a conflict.
+     For a legacy rebuild, the importer reads the replacement from the locked
+     queue job. Never pass a replacement ID. It validates that exact
+     Peaks-owned active route, then keeps the reviewed replacement pending
+     beside it. Publication, not import, supersedes the old route. A distinct
+     active route on the same peak may coexist; for example, a mountaineering
+     route does not block a named hiking-route replacement.
 
      When a cliff-side AWS terrain sample creates false drops in an otherwise
      continuous ascent, `--elevation-profile monotonic_ascent` fits a
@@ -193,8 +233,9 @@ After that dry run passes, repeat the same command with:
      the adjustment in route and segment provenance.
 
    - Give each pending route to a separate agent using
-     `$peaks-osm-route-approval`. That skill fetches cited OSM ways or USGS
-     features again and checks the stored line without using the route builder.
+     `$peaks-osm-route-approval`. That skill fetches cited official features,
+     OSM ways, or USGS features again and checks the stored line without using
+     the route builder.
      A pass approves the geometry only; rights, route identity, access, and
      segment review still gate activation.
 
@@ -272,6 +313,14 @@ the destination from read-only Cloud SQL, then queries the public-domain USGS
 National Digital Trails ArcGIS service. Table output is best for discovery;
 GeoJSON output keeps the full line geometry and source metadata.
 
+`cloud-sql/migrate/data/official-trail-sources.json` is the reviewed global
+source memory. `scripts/find_official_trail_geometry.mts` queries only its
+publishable ArcGIS entries and prints stable feature IDs, names, and access
+fields. `scripts/build_official_route_candidate.mts` refetches selected IDs,
+builds one connected line, and writes the registry's exact license and credit.
+Validation-only and manual-gap entries can guide research but cannot supply
+published geometry.
+
 `scripts/find_osm_trail_geometry.sh` uses the same read-only destination lookup,
 then queries Overpass for nearby paths, footways, and tracks. Its GeoJSON output
 keeps exact way links and ODbL metadata. Query one candidate at a time to avoid
@@ -285,7 +334,8 @@ repeatable build from exact OSM ways without another Overpass search.
 `scripts/import_standard_route_from_osm_candidate.mts` reads that exact
 GeoJSON, fetches terrain elevations, checks the live gap and route identity
 links, and can create a pending route plus segment with matching provenance.
-It requires separate ODbL and map-review acknowledgments for an apply.
+It requires separate geometry-license and map-review acknowledgments for an
+apply.
 
 `scripts/render_route_candidate_map.mts` samples candidate GeoJSON only for a
 static Mapbox review image. It leaves the full candidate geometry unchanged.

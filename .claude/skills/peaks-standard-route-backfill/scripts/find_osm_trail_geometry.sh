@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
 
 destination_id=""
@@ -141,6 +141,7 @@ failures=()
 for candidate_url in "${overpass_urls[@]}"; do
   if ! candidate_response="$(
     curl \
+      --disable \
       --fail \
       --silent \
       --show-error \

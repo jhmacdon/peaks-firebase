@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,4 +15,10 @@ if [ ! -f "$tsx_loader" ]; then
   exit 1
 fi
 
-exec node --import "$tsx_loader" "$@"
+node_binary="$(command -v node || true)"
+if [[ -z "$node_binary" || "$node_binary" != /* || ! -x "$node_binary" ]]; then
+  echo "run-tsx.sh requires node on the trusted executable path" >&2
+  exit 1
+fi
+
+exec "$node_binary" --import "$tsx_loader" "$@"

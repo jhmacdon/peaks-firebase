@@ -15,13 +15,11 @@ usage() {
     "Audits the complete standard-route goal against Cloud SQL." \
     "The target set is the union of:" \
     "  - every summit with at least 1,500 m prominence;" \
-    "  - every summit on a Peaks-owned Ultras list;" \
-    "  - every Colorado 14er;" \
-    "  - every Smoot's 100 summit;" \
-    "  - every Washington Home Court 100 summit; and" \
+    "  - every destination on any Peaks-owned list; and" \
     "  - every summit at or above the popularity threshold." \
     "" \
-    "A standard route must be Peaks-owned and active."
+    "A standard route must be Peaks-owned, active, and pass publish integrity." \
+    "A listed destination without the summit feature remains a visible data blocker."
 }
 
 while (($#)); do
@@ -80,7 +78,6 @@ WITH destination_popularity AS (
            AS success_count
   FROM destinations d
   LEFT JOIN session_destinations sd ON sd.destination_id = d.id
-  WHERE 'summit'::destination_feature = ANY(d.features)
   GROUP BY d.id
 ),
 target_reasons AS (
@@ -96,31 +93,24 @@ target_reasons AS (
          p.success_count,
          COALESCE(
            ARRAY_AGG(DISTINCT l.name ORDER BY l.name)
-             FILTER (WHERE l.id IS NOT NULL),
+             FILTER (WHERE l.owner = 'peaks'),
            '{}'
          ) AS list_names,
-         d.prominence >= 1500 AS is_ultra_prominent,
+         'summit'::destination_feature = ANY(d.features)
+           AS summit_feature_valid,
+         'summit'::destination_feature = ANY(d.features)
+           AND d.prominence >= 1500 AS is_ultra_prominent,
          COALESCE(
-           BOOL_OR(
-             l.owner = 'peaks'
-             AND (
-               l.name ILIKE 'Ultras %'
-               OR l.name IN (
-                 'Colorado 14ers',
-                 'Smoot''s 100',
-                 'Washington Home Court 100'
-               )
-             )
-           ),
+           BOOL_OR(l.owner = 'peaks'),
            false
          ) AS is_target_list,
-         p.session_count >= :'popularity_threshold'::integer
+         'summit'::destination_feature = ANY(d.features)
+           AND p.session_count >= :'popularity_threshold'::integer
            AS is_high_popularity
   FROM destinations d
   JOIN destination_popularity p ON p.id = d.id
   LEFT JOIN list_destinations ld ON ld.destination_id = d.id
   LEFT JOIN lists l ON l.id = ld.list_id
-  WHERE 'summit'::destination_feature = ANY(d.features)
   GROUP BY d.id, p.session_count, p.success_count
 ),
 targets AS (
@@ -133,6 +123,14 @@ route_evidence AS (
          COUNT(DISTINCT r.id)
            FILTER (WHERE r.owner = 'peaks' AND r.status = 'active')
            AS active_peaks_routes,
+         COUNT(DISTINCT r.id)
+           FILTER (
+             WHERE r.owner = 'peaks'
+               AND r.status = 'active'
+               AND peaks_route_passes_publish_integrity(
+                 r.id, t.id, 'active'
+               )
+           ) AS valid_active_peaks_routes,
          COUNT(DISTINCT r.id)
            FILTER (WHERE r.owner = 'peaks' AND r.status = 'pending')
            AS pending_peaks_routes,
@@ -151,10 +149,12 @@ route_evidence AS (
 goal_rows AS (
   SELECT t.*,
          COALESCE(re.active_peaks_routes, 0) AS active_peaks_routes,
+         COALESCE(re.valid_active_peaks_routes, 0)
+           AS valid_active_peaks_routes,
          COALESCE(re.pending_peaks_routes, 0) AS pending_peaks_routes,
          COALESCE(re.user_routes, 0) AS user_routes,
          COALESCE(re.user_route_sessions, 0) AS user_route_sessions,
-         COALESCE(re.active_peaks_routes, 0) > 0 AS has_standard_route
+         COALESCE(re.valid_active_peaks_routes, 0) > 0 AS has_standard_route
   FROM targets t
   LEFT JOIN route_evidence re ON re.destination_id = t.id
 )
@@ -167,6 +167,9 @@ SELECT COUNT(*) AS targets,
        COUNT(*) FILTER (WHERE NOT has_standard_route) AS missing_standard_route,
        COUNT(*) FILTER (WHERE is_ultra_prominent) AS ultra_prominent,
        COUNT(*) FILTER (WHERE is_target_list) AS curated_list,
+       COUNT(*) FILTER (
+         WHERE is_target_list AND NOT summit_feature_valid
+       ) AS listed_data_blockers,
        COUNT(*) FILTER (WHERE is_high_popularity) AS high_popularity,
        COUNT(*) FILTER (
          WHERE NOT has_standard_route AND pending_peaks_routes > 0
@@ -189,11 +192,13 @@ SELECT COALESCE(
              'session_count', session_count,
              'success_count', success_count,
              'list_names', list_names,
+             'summit_feature_valid', summit_feature_valid,
              'is_ultra_prominent', is_ultra_prominent,
              'is_target_list', is_target_list,
              'is_high_popularity', is_high_popularity,
              'has_standard_route', has_standard_route,
              'active_peaks_routes', active_peaks_routes,
+             'valid_active_peaks_routes', valid_active_peaks_routes,
              'pending_peaks_routes', pending_peaks_routes,
              'user_routes', user_routes,
              'user_route_sessions', user_route_sessions
@@ -221,10 +226,13 @@ SELECT id AS destination_id,
        session_count,
        success_count,
        ARRAY_TO_STRING(list_names, ' | ') AS list_names,
+       summit_feature_valid,
        is_ultra_prominent,
        is_target_list,
        is_high_popularity,
        has_standard_route,
+       active_peaks_routes,
+       valid_active_peaks_routes,
        pending_peaks_routes,
        user_routes,
        user_route_sessions,
