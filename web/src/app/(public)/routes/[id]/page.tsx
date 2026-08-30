@@ -67,6 +67,18 @@ export default async function RouteDetailPage({
   const nearby = nearbyRaw.filter((n) => !onRouteIds.has(n.id)).slice(0, 6);
 
   const name = route.name || "Unnamed route";
+  const cover =
+    route.cover_image &&
+    route.cover_image_attribution &&
+    route.cover_image_attribution_url
+      ? {
+          url: route.cover_image,
+          attribution: route.cover_image_attribution,
+          attributionUrl: route.cover_image_attribution_url,
+          focalX: route.cover_image_focal_x ?? 50,
+          focalY: route.cover_image_focal_y ?? 50,
+        }
+      : null;
   const guide = summarizeRouteGuide(route, segments.length);
   const traversal = getRouteTraversalMetrics(route);
   const profilePoints = buildProfilePoints(elevationPoints);
@@ -137,7 +149,9 @@ export default async function RouteDetailPage({
       <AreaChips areas={route.areas} className="mt-4" />
 
       <RouteHero
+        name={name}
         polyline6={route.polyline6}
+        cover={cover}
         className="mt-8"
       />
 

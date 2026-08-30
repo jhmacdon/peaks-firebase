@@ -77,6 +77,13 @@ export interface SearchRouteResult {
   destination_count: number;
   session_count: number;
   provenance: RouteProvenance | null;
+  cover_destination_id: string | null;
+  cover_destination_name: string | null;
+  cover_image: string | null;
+  cover_image_attribution: string | null;
+  cover_image_attribution_url: string | null;
+  cover_image_focal_x: number | null;
+  cover_image_focal_y: number | null;
 }
 
 export interface SearchAreaResult {
@@ -540,11 +547,19 @@ export async function searchRoutes(
 
   const result = await db.query(
     `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
+            cover.destination_id AS cover_destination_id,
+            cover.destination_name AS cover_destination_name,
+            cover.image_url AS cover_image,
+            cover.attribution AS cover_image_attribution,
+            cover.attribution_url AS cover_image_attribution_url,
+            cover.focal_x AS cover_image_focal_x,
+            cover.focal_y AS cover_image_focal_y,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
             (SELECT COUNT(*) FROM session_routes sr
               WHERE sr.route_id = r.id
                 AND ${routeDoneCoverageSql("sr")})::int AS session_count
      FROM routes r
+     LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
        AND r.name ILIKE $1
@@ -560,18 +575,7 @@ export async function searchRoutes(
     [`%${q}%`, `${q}%`, limit]
   );
 
-  return result.rows.map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    distance: r.distance != null ? Number(r.distance) : null,
-    gain: r.gain != null ? Number(r.gain) : null,
-    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
-    provenance: parseRouteProvenance(r.provenance),
-    completion: r.completion,
-    shape: r.shape,
-    destination_count: Number(r.destination_count),
-    session_count: Number(r.session_count),
-  }));
+  return result.rows.map(mapSearchRouteRow);
 }
 
 export async function searchAreas(
@@ -649,20 +653,31 @@ export async function getPopularRoutes(
 ): Promise<SearchRouteResult[]> {
   const result = await db.query(
     `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape,
+            cover.destination_id AS cover_destination_id,
+            cover.destination_name AS cover_destination_name,
+            cover.image_url AS cover_image,
+            cover.attribution AS cover_image_attribution,
+            cover.attribution_url AS cover_image_attribution_url,
+            cover.focal_x AS cover_image_focal_x,
+            cover.focal_y AS cover_image_focal_y,
             (SELECT COUNT(*) FROM route_destinations rd WHERE rd.route_id = r.id)::int AS destination_count,
-            COUNT(sr.route_id)::int AS session_count
+            (SELECT COUNT(*) FROM session_routes sr
+              WHERE sr.route_id = r.id
+                AND ${routeDoneCoverageSql("sr")})::int AS session_count
      FROM routes r
-     LEFT JOIN session_routes sr ON sr.route_id = r.id
-       AND ${routeDoneCoverageSql("sr")}
+     LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
      WHERE r.owner = 'peaks'
        AND r.status = 'active'
-     GROUP BY r.id, r.name, r.distance, r.gain, r.gain_loss, r.provenance, r.completion, r.shape
      ORDER BY session_count DESC, destination_count DESC, r.distance ASC NULLS LAST, r.name ASC NULLS LAST
      LIMIT $1`,
     [limit]
   );
 
-  return result.rows.map((r: any) => ({
+  return result.rows.map(mapSearchRouteRow);
+}
+
+function mapSearchRouteRow(r: any): SearchRouteResult {
+  return {
     id: r.id,
     name: r.name,
     distance: r.distance != null ? Number(r.distance) : null,
@@ -673,7 +688,16 @@ export async function getPopularRoutes(
     shape: r.shape,
     destination_count: Number(r.destination_count),
     session_count: Number(r.session_count),
-  }));
+    cover_destination_id: r.cover_destination_id ?? null,
+    cover_destination_name: r.cover_destination_name ?? null,
+    cover_image: r.cover_image ?? null,
+    cover_image_attribution: r.cover_image_attribution ?? null,
+    cover_image_attribution_url: r.cover_image_attribution_url ?? null,
+    cover_image_focal_x:
+      r.cover_image_focal_x != null ? Number(r.cover_image_focal_x) : null,
+    cover_image_focal_y:
+      r.cover_image_focal_y != null ? Number(r.cover_image_focal_y) : null,
+  };
 }
 
 export async function getDiscoverStats(): Promise<DiscoverStats> {

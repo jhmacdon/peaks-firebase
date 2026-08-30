@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import type { SearchRouteResult } from "../lib/actions/search";
@@ -40,8 +41,8 @@ export default function RouteCard({ route }: RouteCardProps) {
     .filter((part): part is string => part !== null)
     .join(" · ");
 
-  return (
-    <Card href={`/routes/${route.id}`} className="h-full">
+  const content = (
+    <>
       <div className="text-base font-medium leading-tight text-ink">
         {route.name || "Unnamed route"}
       </div>
@@ -53,6 +54,38 @@ export default function RouteCard({ route }: RouteCardProps) {
           {route.destination_count} stop{route.destination_count === 1 ? "" : "s"}
         </Badge>
       </div>
-    </Card>
+    </>
+  );
+
+  if (!route.cover_image) {
+    return (
+      <Card href={`/routes/${route.id}`} className="h-full">
+        {content}
+      </Card>
+    );
+  }
+
+  return (
+    <Link
+      href={`/routes/${route.id}`}
+      prefetch={false}
+      className="group block h-full overflow-hidden rounded-media border border-border bg-surface transition-colors hover:bg-fill"
+    >
+      <span className="block aspect-[16/9] overflow-hidden bg-fill">
+        {/* The title below already names the link, so the image is decorative. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={route.cover_image}
+          alt=""
+          className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+          style={{
+            objectPosition: `${route.cover_image_focal_x ?? 50}% ${
+              route.cover_image_focal_y ?? 50
+            }%`,
+          }}
+        />
+      </span>
+      <span className="block p-4">{content}</span>
+    </Link>
   );
 }

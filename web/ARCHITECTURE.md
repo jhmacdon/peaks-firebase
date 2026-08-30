@@ -122,6 +122,13 @@ row. Web and app views apply that focal point to their own crop. Denial keeps th
 source record for audit history and cannot change the destination. A finished
 review cannot be changed.
 
+Routes do not store a second copy of a photo. The `route_cover_photos` database
+view picks one linked destination cover only when its image, credit, and credit
+link are all present. It prefers summits, then the last route stop, prominence,
+elevation, name, and ID. Route detail, search cards, nearby API rows, and share
+images all read that same row, so a destination cover edit takes effect on every
+route surface without a repair job.
+
 ## Auth Architecture
 
 ```
@@ -212,6 +219,8 @@ All map components use `react-leaflet` with `next/dynamic` + `ssr: false` (Leafl
 |-----------|---------|
 | `destination-card` | Discover, list detail, search results |
 | `area-card` | Protected-area search results |
+| `route-card` | Discover and route search results |
+| `route-hero` | Credited linked-destination cover and live route map |
 | `save-destination-button` | Destination detail |
 | `session-card` | Session log, protected-area activity |
 | `session-playback` | Session map, scrubber, elevation, speed, heart rate |

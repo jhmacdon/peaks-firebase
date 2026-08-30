@@ -385,8 +385,16 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
               r.external_links, r.provenance, r.completion,
+              cover.destination_id AS cover_destination_id,
+              cover.destination_name AS cover_destination_name,
+              cover.image_url AS cover_image,
+              cover.attribution AS cover_image_attribution,
+              cover.attribution_url AS cover_image_attribution_url,
+              cover.focal_x AS cover_image_focal_x,
+              cover.focal_y AS cover_image_focal_y,
               ${routeAreaRowsSql}${geoOutputSelect}, r.score
        FROM ranked_routes r
+       LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
        ${routeAreaJoinSql}
        ORDER BY r.score DESC`,
     values,
