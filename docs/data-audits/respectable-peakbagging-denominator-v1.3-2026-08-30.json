@@ -427,7 +427,7 @@
         "roster_rule": "100-row official XLSX dated 2022-01-01; matched by base name and elevation to all 100 live KFS records on 2026-08-30",
         "keeper_source": "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
         "roster_source": "https://www.forest.go.kr/images/data/fonDown/100_mountain.zip",
-        "rights_source": "https://www.data.go.kr/data/3071170/openapi.do",
+        "rights_source": "https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=3071170",
         "rights_status": "open_government",
         "source_key_rule": "kfs:<mntnId>",
         "source_file_date": "2022-01-01",
