@@ -8,6 +8,7 @@ import { parseStatusIds } from "./sessions";
 import { buildAirQualityResponse, snapToCell, HrrrRow } from "../air-quality";
 import { fetchCams, CamsFetcher } from "../open-meteo";
 import { isOptionalFiniteNumber } from "../lib/finite-number";
+import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 
 const router = Router();
 
@@ -401,9 +402,11 @@ export function buildPlanRoutesQuery(
             r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.completion, r.shape, r.provenance,
             (r.owner = 'peaks') AS is_catalog,
-            pr.ordinal
+            pr.ordinal,
+            ${routeCoverSelectSql()}
      FROM routes r
      JOIN plan_routes pr ON pr.route_id = r.id
+     ${routeCoverJoinSql()}
      WHERE pr.plan_id = $1
        AND r.status IN ('active', 'superseded')
        AND EXISTS (

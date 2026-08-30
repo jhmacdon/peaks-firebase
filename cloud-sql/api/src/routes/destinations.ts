@@ -4,6 +4,7 @@ import { getUid } from "../auth";
 import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
+import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 
 const router = Router();
 
@@ -420,9 +421,11 @@ export function buildDestinationRoutesQuery(
             r.elevation_attribution, r.elevation_license_url,
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
+            ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id
+     ${routeCoverJoinSql()}
      LEFT JOIN LATERAL (
        -- Same areas exposure as buildRouteDetailQuery: dedup PAD-US fragments
        -- by (kind,name), preferring the primary designation, never select
