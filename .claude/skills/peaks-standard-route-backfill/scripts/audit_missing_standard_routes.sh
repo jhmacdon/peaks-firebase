@@ -2,6 +2,8 @@
 set -euo pipefail
 
 state_code="WA"
+state_requested="false"
+worldwide="false"
 list_filter=""
 row_limit="0"
 print_sql="false"
@@ -9,9 +11,11 @@ coverage_only="false"
 
 usage() {
   printf '%s\n' \
-    "Usage: $0 [--state WA] [--list NAME_OR_ID] [--limit N] [--coverage] [--print-sql]" \
+    "Usage: $0 [--state WA | --worldwide] [--list NAME_OR_ID] [--limit N]" \
+    "          [--coverage] [--print-sql]" \
     "" \
-    "Audits Cloud SQL for listed summits with no active Peaks-owned route." \
+    "Audits Cloud SQL for listed destinations with no valid active Peaks-owned route." \
+    "The default scope is Washington. Use --worldwide for every Peaks-owned list." \
     "Output is tab-separated and the database session is forced read-only."
 }
 
@@ -19,7 +23,12 @@ while (($#)); do
   case "$1" in
     --state)
       state_code="${2:?--state requires a value}"
+      state_requested="true"
       shift 2
+      ;;
+    --worldwide)
+      worldwide="true"
+      shift
       ;;
     --list)
       list_filter="${2:?--list requires a value}"
@@ -49,6 +58,11 @@ while (($#)); do
   esac
 done
 
+if [[ "$state_requested" == "true" && "$worldwide" == "true" ]]; then
+  printf '%s\n' "Choose either --state or --worldwide" >&2
+  exit 2
+fi
+
 if ! [[ "$state_code" =~ ^[A-Za-z]{2}$ ]]; then
   printf '%s\n' "--state must be a two-letter code" >&2
   exit 2
@@ -65,6 +79,8 @@ WITH memberships AS (
   SELECT d.id,
          d.name,
          d.elevation,
+         'summit'::destination_feature = ANY(d.features)
+           AS summit_feature_valid,
          ST_Y(d.location::geometry) AS lat,
          ST_X(d.location::geometry) AS lng,
          l.id AS list_id,
@@ -72,8 +88,7 @@ WITH memberships AS (
   FROM destinations d
   JOIN list_destinations ld ON ld.destination_id = d.id
   JOIN lists l ON l.id = ld.list_id
-  WHERE d.state_code = :'state_code'
-    AND 'summit'::destination_feature = ANY(d.features)
+  WHERE (:'worldwide'::boolean OR d.state_code = :'state_code')
     AND l.owner = 'peaks'
     AND (
       :'list_filter' = ''
@@ -96,10 +111,16 @@ WITH memberships AS (
       WHERE current_rd.destination_id = d.id
         AND current_r.owner = 'peaks'
         AND current_r.status = 'active'
+        AND peaks_route_passes_publish_integrity(
+          current_r.id, d.id, 'active'
+        )
     )
 ),
 route_evidence AS (
   SELECT rd.destination_id,
+         COUNT(DISTINCT r.id)
+           FILTER (WHERE r.owner = 'peaks' AND r.status = 'active')
+           AS active_peaks_routes,
          COUNT(DISTINCT r.id)
            FILTER (WHERE r.owner = 'peaks' AND r.status = 'pending')
            AS pending_peaks_routes,
@@ -124,35 +145,40 @@ candidates AS (
   SELECT m.id AS destination_id,
          m.name AS destination_name,
          ROUND((m.elevation * 3.28084)::numeric) AS elevation_ft,
+         m.summit_feature_valid,
          ROUND(m.lat::numeric, 6) AS lat,
          ROUND(m.lng::numeric, 6) AS lng,
          COUNT(DISTINCT m.list_id) AS list_count,
          STRING_AGG(DISTINCT m.list_id, ' | ' ORDER BY m.list_id) AS list_ids,
          STRING_AGG(DISTINCT m.list_name, ' | ' ORDER BY m.list_name) AS list_names,
+         COALESCE(re.active_peaks_routes, 0) AS active_peaks_routes,
          COALESCE(re.pending_peaks_routes, 0) AS pending_peaks_routes,
          COALESCE(re.user_routes, 0) AS user_routes,
          COALESCE(re.user_route_sessions, 0) AS user_route_sessions,
          COALESCE(re.user_route_names, '') AS user_route_names
   FROM memberships m
   LEFT JOIN route_evidence re ON re.destination_id = m.id
-  GROUP BY m.id, m.name, m.elevation, m.lat, m.lng,
-           re.pending_peaks_routes, re.user_routes,
+  GROUP BY m.id, m.name, m.elevation, m.summit_feature_valid, m.lat, m.lng,
+           re.active_peaks_routes, re.pending_peaks_routes, re.user_routes,
            re.user_route_sessions, re.user_route_names
 )
 SELECT destination_id,
        destination_name,
        elevation_ft,
+       summit_feature_valid,
        lat,
        lng,
        list_count,
        list_ids,
        list_names,
+       active_peaks_routes,
        pending_peaks_routes,
        user_routes,
        user_route_sessions,
        user_route_names
 FROM candidates
-ORDER BY (user_routes > 0) DESC,
+ORDER BY (NOT summit_feature_valid) DESC,
+         (user_routes > 0) DESC,
          user_route_sessions DESC,
          list_count DESC,
          destination_name,
@@ -166,6 +192,8 @@ WITH list_rows AS (
   SELECT l.id AS list_id,
          l.name AS list_name,
          d.id AS destination_id,
+         'summit'::destination_feature = ANY(d.features)
+           AS summit_feature_valid,
          EXISTS (
            SELECT 1
            FROM route_destinations rd
@@ -173,13 +201,15 @@ WITH list_rows AS (
            WHERE rd.destination_id = d.id
              AND r.owner = 'peaks'
              AND r.status = 'active'
+             AND peaks_route_passes_publish_integrity(
+               r.id, d.id, 'active'
+             )
          ) AS has_standard_route
   FROM lists l
   JOIN list_destinations ld ON ld.list_id = l.id
   JOIN destinations d ON d.id = ld.destination_id
   WHERE l.owner = 'peaks'
-    AND d.state_code = :'state_code'
-    AND 'summit'::destination_feature = ANY(d.features)
+    AND (:'worldwide'::boolean OR d.state_code = :'state_code')
     AND (
       :'list_filter' = ''
       OR l.id = :'list_filter'
@@ -188,7 +218,9 @@ WITH list_rows AS (
 )
 SELECT list_id,
        list_name,
-       COUNT(*) AS summits,
+       COUNT(*) AS destinations,
+       COUNT(*) FILTER (WHERE NOT summit_feature_valid)
+         AS listed_data_blockers,
        COUNT(*) FILTER (WHERE has_standard_route) AS with_standard_route,
        COUNT(*) FILTER (WHERE NOT has_standard_route) AS missing_standard_route,
        ROUND(
@@ -242,6 +274,7 @@ printf '%s\n' "$sql" |
     -X \
     -v ON_ERROR_STOP=1 \
     -v state_code="$state_code" \
+    -v worldwide="$worldwide" \
     -v list_filter="$list_filter" \
     -v row_limit="$row_limit" \
     -h "$db_host" \

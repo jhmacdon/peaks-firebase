@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import atomicFileCache from "../../../../cloud-sql/migrate/src/atomic-file-cache";
+import worldGeometryImport from "../../../../cloud-sql/migrate/src/route-world-geometry";
 
 const ZOOM = 14;
+const MAX_TERRAIN_TILES = 500;
+const { writeAtomicCacheFile } = atomicFileCache;
+const { boundedRouteWorldTiles, wrappedTileX } = worldGeometryImport;
 const TILE_SOURCE =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium";
 
@@ -23,22 +28,6 @@ function valuesAfter(argv: string[], flag: string): string[] {
 
 function valueAfter(argv: string[], flag: string): string {
   return valuesAfter(argv, flag)[0] ?? "";
-}
-
-function tileFor(lng: number, rawLat: number): Tile {
-  const n = 2 ** ZOOM;
-  const lat = Math.max(-85.05112878, Math.min(85.05112878, rawLat));
-  const latRadians = lat * Math.PI / 180;
-  return {
-    x: Math.floor(((lng + 180) / 360) * n),
-    y: Math.floor(
-      (1 -
-        Math.log(Math.tan(latRadians) + 1 / Math.cos(latRadians)) /
-          Math.PI) /
-        2 *
-        n
-    ),
-  };
 }
 
 async function candidateCoordinates(
@@ -88,24 +77,25 @@ if (candidatePaths.length === 0 || !outputDir) {
 const tiles = new Map<string, Tile>();
 for (const candidatePath of candidatePaths) {
   const coordinates = await candidateCoordinates(candidatePath);
-  const lngs = coordinates.map((coordinate) => coordinate[0]);
-  const lats = coordinates.map((coordinate) => coordinate[1]);
-  const northwest = tileFor(Math.min(...lngs), Math.max(...lats));
-  const southeast = tileFor(Math.max(...lngs), Math.min(...lats));
-  const minX = Math.min(northwest.x, southeast.x);
-  const maxX = Math.max(northwest.x, southeast.x);
-  const minY = Math.min(northwest.y, southeast.y);
-  const maxY = Math.max(northwest.y, southeast.y);
-  for (let x = minX; x <= maxX; x += 1) {
+  const { minX, maxX, minY, maxY } = boundedRouteWorldTiles(
+    coordinates,
+    ZOOM,
+    { maxTiles: MAX_TERRAIN_TILES }
+  );
+  for (let unwrappedX = minX; unwrappedX <= maxX; unwrappedX += 1) {
+    const x = wrappedTileX(unwrappedX, ZOOM);
     for (let y = minY; y <= maxY; y += 1) {
-      tiles.set(`${x}/${y}`, { x, y });
+      const key = `${x}/${y}`;
+      if (tiles.has(key)) continue;
+      if (tiles.size >= MAX_TERRAIN_TILES) {
+        throw new Error(
+          `Refusing to fetch more than ${MAX_TERRAIN_TILES} terrain tiles; ` +
+            "split the candidates into smaller batches"
+        );
+      }
+      tiles.set(key, { x, y });
     }
   }
-}
-if (tiles.size > 500) {
-  throw new Error(
-    `Refusing to fetch ${tiles.size} tiles; split the candidates into smaller batches`
-  );
 }
 
 let fetched = 0;
@@ -143,15 +133,17 @@ for (let start = 0; start < queue.length; start += 12) {
             response.status
         );
       }
-      await mkdir(path.dirname(tilePath), { recursive: true });
-      await writeFile(tilePath, Buffer.from(await response.arrayBuffer()));
+      await writeAtomicCacheFile(
+        tilePath,
+        Buffer.from(await response.arrayBuffer())
+      );
       fetched += 1;
     })
   );
 }
 
 console.log(
-  `Terrain cache ready: ${tiles.size} rectangular-bounds tiles ` +
+  `Terrain cache ready: ${tiles.size} wrapped-bounds tiles ` +
     `(${fetched} fetched, ${cached} cached)`
 );
 console.log(`Source: ${TILE_SOURCE}; Registry of Open Data on AWS`);

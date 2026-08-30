@@ -41,3 +41,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO :"test_role";
+
+-- The worker-role migration removes this settlement function from PUBLIC and
+-- grants it to the production API role. Give the disposable API mirror the
+-- same narrow call right.
+GRANT EXECUTE ON FUNCTION settle_route_integrity_replacement(TEXT, TEXT, TEXT)
+  TO :"test_role";

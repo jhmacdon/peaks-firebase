@@ -36,6 +36,10 @@ CLOUD_SQL_DIR="$(cd "$HERE/.." && pwd)"
 
 : "${ADMIN_DATABASE_URL:?ADMIN_DATABASE_URL must be set}"
 TEST_DB_ROLE="${TEST_DB_ROLE:-peaks_test}"
+ROUTE_FACTORY_TEST_DB_ROLE="${ROUTE_FACTORY_TEST_DB_ROLE:-peaks-route-factory-test}"
+ROUTE_FACTORY_TEST_DB_PASSWORD="${ROUTE_FACTORY_TEST_DB_PASSWORD:-peaks_route_factory_test}"
+ROUTE_REVIEWER_TEST_DB_ROLE="${ROUTE_REVIEWER_TEST_DB_ROLE:-peaks-route-reviewer-test}"
+ROUTE_REVIEWER_TEST_DB_PASSWORD="${ROUTE_REVIEWER_TEST_DB_PASSWORD:-peaks_route_reviewer_test}"
 
 psql_admin() { psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -q "$@"; }
 
@@ -129,6 +133,8 @@ skip_reason() {
       echo "production data fixup; needs the real Rainier row" ;;
     20260821_list_data_debts.sql)
       echo "production data fixup; asserts Oregon Volcanoes' real (importer-created) list membership holds exactly 11 rows" ;;
+    20260827_listed_route_country_codes.sql)
+      echo "production data fixup; asserts the exact 91 reviewed catalog destinations exist" ;;
     *) echo "" ;;
   esac
 }
@@ -153,6 +159,62 @@ for migration in "$CLOUD_SQL_DIR"/migrations/*.sql; do
 done
 rm -f "$HERE/.migration-error"
 echo "  migrations: $applied applied, $skipped skipped"
+
+# ---------------------------------------------------------------------------
+# Route-worker login roles.
+#
+# The worker-role migration creates NOLOGIN marker roles. These disposable
+# logins let CI exercise the real factory/reviewer grants and trigger guards,
+# rather than skipping those tests or running them as the broad API test role.
+# ---------------------------------------------------------------------------
+if [[ "${CREATE_ROUTE_WORKER_TEST_LOGINS:-0}" == "1" ]]; then
+  if [[ -n "$(psql "$ADMIN_DATABASE_URL" -tAc \
+    "SELECT 1 FROM pg_database WHERE datname = 'peaks'")" ]]; then
+    cat >&2 <<'EOF'
+refusing to grant route-worker marker roles on a cluster that contains the
+production "peaks" database. PostgreSQL role membership spans every database
+in a cluster. Run these privilege tests only in the throwaway CI/local cluster.
+EOF
+    exit 1
+  fi
+  echo "  configuring route-worker test logins"
+  psql_admin \
+    -v factory_role="$ROUTE_FACTORY_TEST_DB_ROLE" \
+    -v factory_password="$ROUTE_FACTORY_TEST_DB_PASSWORD" \
+    -v reviewer_role="$ROUTE_REVIEWER_TEST_DB_ROLE" \
+    -v reviewer_password="$ROUTE_REVIEWER_TEST_DB_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN', :'factory_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'factory_role')
+\gexec
+SELECT format('CREATE ROLE %I LOGIN', :'reviewer_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'reviewer_role')
+\gexec
+
+ALTER ROLE :"factory_role" LOGIN PASSWORD :'factory_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT;
+ALTER ROLE :"reviewer_role" LOGIN PASSWORD :'reviewer_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT;
+
+SELECT format('REVOKE %I FROM %I', granted.rolname, member.rolname)
+FROM pg_auth_members membership
+JOIN pg_roles granted ON granted.oid = membership.roleid
+JOIN pg_roles member ON member.oid = membership.member
+WHERE member.rolname = :'factory_role'
+  AND granted.rolname <> 'peaks-route-factory'
+\gexec
+SELECT format('REVOKE %I FROM %I', granted.rolname, member.rolname)
+FROM pg_auth_members membership
+JOIN pg_roles granted ON granted.oid = membership.roleid
+JOIN pg_roles member ON member.oid = membership.member
+WHERE member.rolname = :'reviewer_role'
+  AND granted.rolname <> 'peaks-route-reviewer'
+\gexec
+GRANT "peaks-route-factory" TO :"factory_role";
+GRANT "peaks-route-reviewer" TO :"reviewer_role";
+SQL
+else
+  echo "  route-worker test logins: skipped"
+fi
 
 # ---------------------------------------------------------------------------
 # Privileges.

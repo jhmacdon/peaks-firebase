@@ -2,6 +2,8 @@ import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import atomicFileCache from "../../../../cloud-sql/migrate/src/atomic-file-cache";
+import worldGeometryImport from "../../../../cloud-sql/migrate/src/route-world-geometry";
 
 type Position = [number, number];
 
@@ -16,6 +18,13 @@ type Options = {
 const requireFromMigrate = createRequire(
   new URL("../../../../cloud-sql/migrate/package.json", import.meta.url)
 );
+const MAX_RENDER_TILES = 144;
+const { writeAtomicCacheFile } = atomicFileCache;
+const {
+  boundedRouteWorldTiles,
+  routeWorldTilePositions,
+  wrappedTileX,
+} = worldGeometryImport;
 const sharp = requireFromMigrate("sharp") as typeof import("sharp");
 
 function usage(): string {
@@ -79,23 +88,6 @@ function parseArgs(argv: string[]): Options {
   return options;
 }
 
-function clampLatitude(latitude: number): number {
-  return Math.max(-85.05112878, Math.min(85.05112878, latitude));
-}
-
-function worldTilePosition([longitude, latitude]: Position, zoom: number) {
-  const scale = 2 ** zoom;
-  const latRadians = (clampLatitude(latitude) * Math.PI) / 180;
-  return {
-    x: ((longitude + 180) / 360) * scale,
-    y:
-      ((1 -
-        Math.log(Math.tan(latRadians) + 1 / Math.cos(latRadians)) / Math.PI) /
-        2) *
-      scale,
-  };
-}
-
 function chooseZoom(
   coordinates: Position[],
   width: number,
@@ -104,15 +96,19 @@ function chooseZoom(
   const targetX = Math.max(2, (width - 180) / 256);
   const targetY = Math.max(2, (height - 180) / 256);
   for (let zoom = 16; zoom >= 3; zoom -= 1) {
-    const positions = coordinates.map((position) =>
-      worldTilePosition(position, zoom)
-    );
-    const spanX =
-      Math.max(...positions.map(({ x }) => x)) -
-      Math.min(...positions.map(({ x }) => x));
-    const spanY =
-      Math.max(...positions.map(({ y }) => y)) -
-      Math.min(...positions.map(({ y }) => y));
+    const positions = routeWorldTilePositions(coordinates, zoom);
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const position of positions) {
+      minX = Math.min(minX, position.x);
+      maxX = Math.max(maxX, position.x);
+      minY = Math.min(minY, position.y);
+      maxY = Math.max(maxY, position.y);
+    }
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
     if (spanX <= targetX && spanY <= targetY) return zoom;
   }
   return 3;
@@ -143,8 +139,7 @@ async function fetchTile(
     throw new Error(`OSM tile ${zoom}/${x}/${y} returned HTTP ${response.status}`);
   }
   const tile = Buffer.from(await response.arrayBuffer());
-  await mkdir(path.dirname(cachePath), { recursive: true });
-  await writeFile(cachePath, tile);
+  await writeAtomicCacheFile(cachePath, tile);
   return tile;
 }
 
@@ -183,26 +178,34 @@ const coordinates = line.map(
   (coordinate) => coordinate.slice(0, 2) as Position
 );
 const zoom = chooseZoom(coordinates, options.width, options.height);
-const tilePositions = coordinates.map((position) =>
-  worldTilePosition(position, zoom)
-);
-const tileCount = 2 ** zoom;
-const routeMinTileX = Math.floor(Math.min(...tilePositions.map(({ x }) => x)));
-const routeMaxTileX = Math.floor(Math.max(...tilePositions.map(({ x }) => x)));
-const routeMinTileY = Math.floor(Math.min(...tilePositions.map(({ y }) => y)));
-const routeMaxTileY = Math.floor(Math.max(...tilePositions.map(({ y }) => y)));
-const minTileX = Math.max(0, routeMinTileX - 1);
-const maxTileX = Math.min(tileCount - 1, routeMaxTileX + 1);
-const minTileY = Math.max(0, routeMinTileY - 1);
-const maxTileY = Math.min(tileCount - 1, routeMaxTileY + 1);
+const {
+  positions: tilePositions,
+  minX: minTileX,
+  maxX: maxTileX,
+  minY: minTileY,
+  maxY: maxTileY,
+} = boundedRouteWorldTiles(coordinates, zoom, {
+  maxTiles: MAX_RENDER_TILES,
+  paddingTiles: 1,
+});
 const mosaicWidth = (maxTileX - minTileX + 1) * 256;
 const mosaicHeight = (maxTileY - minTileY + 1) * 256;
 
 const tileJobs: Array<Promise<{ input: Buffer; left: number; top: number }>> = [];
 for (let x = minTileX; x <= maxTileX; x += 1) {
   for (let y = minTileY; y <= maxTileY; y += 1) {
+    if (tileJobs.length >= MAX_RENDER_TILES) {
+      throw new Error(
+        `Refusing to render more than ${MAX_RENDER_TILES} background tiles`
+      );
+    }
     tileJobs.push(
-      fetchTile(options.tileCachePath, zoom, x, y).then((input) => ({
+      fetchTile(
+        options.tileCachePath,
+        zoom,
+        wrappedTileX(x, zoom),
+        y
+      ).then((input) => ({
         input,
         left: (x - minTileX) * 256,
         top: (y - minTileY) * 256,

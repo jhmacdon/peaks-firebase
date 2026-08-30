@@ -1,11 +1,18 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import worldGeometryImport from "../../../../cloud-sql/migrate/src/route-world-geometry";
+
+const { ensureMinimumRouteCoordinates } = officialRouteGeometryImport;
+const { wrappedLongitudeCorridor } = worldGeometryImport;
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
+
+const ENDPOINT_CONNECTOR_MAX_M = 125;
 
 type Options = {
   destinationId: string;
@@ -17,9 +24,6 @@ type Options = {
   corridorPaddingM: number | null;
   snapM: number;
   wayIds: number[];
-  referencePath: string;
-  referenceStartPoint: number;
-  referenceMaxPoints: number;
   format: "summary" | "geojson";
   outputPath: string;
 };
@@ -79,9 +83,7 @@ function usage(): string {
     "    (--trailhead-id ID | --trailhead-name NAME \\",
     "      --trailhead-lat LAT --trailhead-lng LNG) \\",
     "    [--radius-m 5000 | --corridor-padding-m 3000] \\",
-    "    [--snap-m 300] [--way-ids ID,ID,...] \\",
-    "    [--reference route.gpx] [--reference-start-point N] \\",
-    "    [--reference-max-points N] \\",
+    `    [--snap-m ${ENDPOINT_CONNECTOR_MAX_M}] [--way-ids ID,ID,...] \\`,
     "    [--format summary|geojson] [--output candidate.geojson]",
     "",
     "Builds a review candidate along connected OpenStreetMap paths.",
@@ -99,11 +101,8 @@ function parseArgs(argv: string[]): Options {
     trailheadLng: null,
     radiusM: 5000,
     corridorPaddingM: null,
-    snapM: 300,
+    snapM: ENDPOINT_CONNECTOR_MAX_M,
     wayIds: [],
-    referencePath: "",
-    referenceStartPoint: 0,
-    referenceMaxPoints: Number.POSITIVE_INFINITY,
     format: "summary",
     outputPath: "",
   };
@@ -140,15 +139,6 @@ function parseArgs(argv: string[]): Options {
         .split(",")
         .filter(Boolean)
         .map(Number);
-      index += 1;
-    } else if (arg === "--reference") {
-      options.referencePath = value;
-      index += 1;
-    } else if (arg === "--reference-start-point") {
-      options.referenceStartPoint = Number(value);
-      index += 1;
-    } else if (arg === "--reference-max-points") {
-      options.referenceMaxPoints = Number(value);
       index += 1;
     } else if (arg === "--format") {
       if (value !== "summary" && value !== "geojson") {
@@ -206,8 +196,14 @@ function parseArgs(argv: string[]): Options {
   ) {
     throw new Error("--corridor-padding-m must be an integer from 500 to 10000");
   }
-  if (!Number.isInteger(options.snapM) || options.snapM < 10 || options.snapM > 1000) {
-    throw new Error("--snap-m must be an integer from 10 to 1000");
+  if (
+    !Number.isInteger(options.snapM) ||
+    options.snapM < 10 ||
+    options.snapM > ENDPOINT_CONNECTOR_MAX_M
+  ) {
+    throw new Error(
+      `--snap-m must be an integer from 10 to ${ENDPOINT_CONNECTOR_MAX_M}`
+    );
   }
   if (
     options.wayIds.some(
@@ -215,21 +211,6 @@ function parseArgs(argv: string[]): Options {
     )
   ) {
     throw new Error("--way-ids must be a comma-separated list of positive integers");
-  }
-  if (
-    !Number.isInteger(options.referenceStartPoint) ||
-    options.referenceStartPoint < 0
-  ) {
-    throw new Error("--reference-start-point must be a non-negative integer");
-  }
-  if (
-    options.referenceMaxPoints !== Number.POSITIVE_INFINITY &&
-    (
-      !Number.isInteger(options.referenceMaxPoints) ||
-      options.referenceMaxPoints < 2
-    )
-  ) {
-    throw new Error("--reference-max-points must be an integer of at least 2");
   }
   if (options.outputPath && options.format !== "geojson") {
     throw new Error("--output requires --format geojson");
@@ -255,64 +236,41 @@ function haversineMeters(
   return 2 * earthRadiusM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function referenceMatcher(
-  options: Options
-): Promise<((lat: number, lng: number) => number) | null> {
-  if (!options.referencePath) return null;
-  const gpx = await readFile(options.referencePath, "utf8");
-  const points = [...gpx.matchAll(
-    /<(?:trkpt|rtept)\b[^>]*\blat="(-?\d+(?:\.\d+)?)"[^>]*\blon="(-?\d+(?:\.\d+)?)"/gi
-  )]
-    .slice(
-      options.referenceStartPoint,
-      options.referenceStartPoint + options.referenceMaxPoints
-    )
-    .map((match) => ({
-      lat: Number(match[1]),
-      lng: Number(match[2]),
-    }));
-  if (points.length < 2) {
-    throw new Error("--reference does not contain enough selected track points");
-  }
-  return (lat: number, lng: number) => {
-    let nearest = Number.POSITIVE_INFINITY;
-    for (const point of points) {
-      nearest = Math.min(
-        nearest,
-        haversineMeters(lat, lng, point.lat, point.lng)
-      );
-    }
-    return nearest;
-  };
-}
-
-function corridorBoundingBox(
+function corridorBoundingBoxes(
   trailhead: PlaceRow,
   destination: PlaceRow,
   paddingM: number
-): Bounds {
+): Bounds[] {
   const meanLatRadians =
     ((trailhead.lat + destination.lat) / 2) * Math.PI / 180;
   const latPadding = paddingM / 111_320;
   const lngPadding =
     paddingM / (111_320 * Math.max(Math.cos(meanLatRadians), 0.1));
-  return {
-    south: Math.min(trailhead.lat, destination.lat) - latPadding,
-    west: Math.min(trailhead.lng, destination.lng) - lngPadding,
-    north: Math.max(trailhead.lat, destination.lat) + latPadding,
-    east: Math.max(trailhead.lng, destination.lng) + lngPadding,
-  };
+  const south = Math.max(
+    -90,
+    Math.min(trailhead.lat, destination.lat) - latPadding
+  );
+  const north = Math.min(
+    90,
+    Math.max(trailhead.lat, destination.lat) + latPadding
+  );
+  return wrappedLongitudeCorridor(
+    trailhead.lng,
+    destination.lng,
+    lngPadding
+  ).map(({ west, east }) => ({ south, west, north, east }));
 }
 
-function overpassBoundingBox(
+function overpassBoundingBoxes(
   trailhead: PlaceRow,
   destination: PlaceRow,
   paddingM: number
-): string {
-  const bounds = corridorBoundingBox(trailhead, destination, paddingM);
-  return [bounds.south, bounds.west, bounds.north, bounds.east]
-    .map((coordinate) => coordinate.toFixed(7))
-    .join(",");
+): string[] {
+  return corridorBoundingBoxes(trailhead, destination, paddingM).map((bounds) =>
+    [bounds.south, bounds.west, bounds.north, bounds.east]
+      .map((coordinate) => coordinate.toFixed(7))
+      .join(",")
+  );
 }
 
 function osmMapBoundingBox(bounds: Bounds): string {
@@ -567,8 +525,6 @@ try {
     };
   if (!destination) throw new Error(`Destination not found: ${options.destinationId}`);
   if (!trailhead) throw new Error(`Trailhead not found: ${options.trailheadId}`);
-  const matchReference = await referenceMatcher(options);
-
   let sourceUrl: string;
   let elements: Array<OsmNode | OsmWay>;
   if (options.wayIds.length > 0) {
@@ -597,17 +553,23 @@ try {
     elements = [...unique.values()];
   } else {
     sourceUrl = overpassUrl;
-    const wayScope = options.corridorPaddingM === null
-      ? `around:${options.radiusM},${destination.lat},${destination.lng}`
-      : overpassBoundingBox(
-        trailhead,
-        destination,
-        options.corridorPaddingM
-      );
+    const wayScopes = options.corridorPaddingM === null
+      ? [`around:${options.radiusM},${destination.lat},${destination.lng}`]
+      : overpassBoundingBoxes(
+          trailhead,
+          destination,
+          options.corridorPaddingM
+        );
+    const wayClauses = wayScopes
+      .map(
+        (scope) =>
+          `way(${scope})` +
+          `["highway"~"^(path|footway|steps|pedestrian|track|service|unclassified|residential)$"];`
+      )
+      .join("");
     const query =
       `[out:json][timeout:30];` +
-      `way(${wayScope})` +
-      `["highway"~"^(path|footway|steps|pedestrian|track|service|unclassified|residential)$"];` +
+      (wayScopes.length === 1 ? wayClauses : `(${wayClauses});`) +
       `out body;>;out skel qt;`;
 
     const controller = new AbortController();
@@ -639,15 +601,22 @@ try {
         `Overpass unavailable (${error instanceof Error ? error.message : String(error)}); ` +
         `falling back to the main OSM map API`
       );
-      const bounds = corridorBoundingBox(
+      const bounds = corridorBoundingBoxes(
         trailhead,
         destination,
         paddingM
       );
-      elements = await fetchOsmMapElements(
-        osmApiUrl,
-        bounds,
-        process.env.PEAKS_OVERPASS_USER_AGENT ?? "Peaks route research/1.0"
+      elements = mergeElements(
+        await Promise.all(
+          bounds.map((part) =>
+            fetchOsmMapElements(
+              osmApiUrl,
+              part,
+              process.env.PEAKS_OVERPASS_USER_AGENT ??
+                "Peaks route research/1.0"
+            )
+          )
+        )
       );
       sourceUrl = osmApiUrl;
     } finally {
@@ -689,19 +658,9 @@ try {
       const to = nodes.get(nodeIds[index]);
       if (!from || !to) continue;
       const distance = haversineMeters(from.lat, from.lon, to.lat, to.lon);
-      const referencePenalty = matchReference
-        ? 1 +
-          Math.min(
-            (
-              matchReference(from.lat, from.lon) +
-              matchReference(to.lat, to.lon)
-            ) / 2,
-            5000
-          ) / 5
-        : 1;
       const baseEdge = {
         distance,
-        cost: distance * edgePenalty(tags) * referencePenalty,
+        cost: distance * edgePenalty(tags),
         wayId: way.id,
         wayName: tags.name ?? null,
       };
@@ -729,11 +688,12 @@ try {
     const node = nodes.get(id)!;
     return [node.lon, node.lat];
   });
-  const coordinates = [
+  const rawCoordinates: Array<[number, number]> = [
     [trailhead.lng, trailhead.lat],
     ...networkCoordinates,
     [destination.lng, destination.lat],
   ];
+  const coordinates = ensureMinimumRouteCoordinates(rawCoordinates, 5);
   const distanceM =
     start.distance +
     path.edges.reduce((sum, edge) => sum + edge.distance, 0) +

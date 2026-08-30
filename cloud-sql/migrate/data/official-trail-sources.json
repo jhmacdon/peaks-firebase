@@ -1,0 +1,2375 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-27",
+  "sources": [
+    {
+      "id": "usfs-nfs-trails",
+      "name": "National Forest System Trails",
+      "authority": "USDA Forest Service",
+      "sourceKind": "managed_trails",
+      "status": "ready_publishable",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["US"],
+        "jurisdiction": "United States National Forest System lands",
+        "summary": "Published National Forest System trail centerlines and management attributes."
+      },
+      "discoveryUrl": "https://data-usfs.hub.arcgis.com/datasets/usfs::national-forest-system-trails-feature-layer",
+      "service": {
+        "type": "arcgis",
+        "queryUrl": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query",
+        "idField": "globalid",
+        "nameFields": ["trail_name", "trail_no"],
+        "accessFields": [
+          "attributesubset",
+          "accessibility_status",
+          "allowed_terra_use",
+          "hiker_pedestrian_managed",
+          "hiker_pedestrian_accpt",
+          "hiker_pedestrian_disc",
+          "hiker_pedestrian_accpt_disc",
+          "hiker_pedestrian_restricted"
+        ]
+      },
+      "accessPolicy": {
+        "type": "all_rules",
+        "rules": [
+          {
+            "field": "attributesubset",
+            "operator": "equals_any",
+            "values": ["TrailNFS_MGMT"],
+            "reason": "the Forest must publish management-level access data"
+          },
+          {
+            "field": "allowed_terra_use",
+            "operator": "equals_any",
+            "values": [
+              "1",
+              "21",
+              "31",
+              "321",
+              "41",
+              "421",
+              "431",
+              "4321",
+              "531",
+              "5321",
+              "541",
+              "5421",
+              "5431",
+              "54321",
+              "631",
+              "6321",
+              "64321",
+              "6531",
+              "65321",
+              "6541",
+              "65421",
+              "65431",
+              "654321"
+            ],
+            "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+          },
+          {
+            "field": "hiker_pedestrian_restricted",
+            "operator": "not_equals_any",
+            "values": ["01/01-12/31"],
+            "reason": "hiker or pedestrian use must not be restricted all year"
+          },
+          {
+            "field": "hiker_pedestrian_disc",
+            "operator": "not_equals_any",
+            "values": ["01/01-12/31"],
+            "reason": "hiker or pedestrian use must not be discouraged all year"
+          },
+          {
+            "field": "hiker_pedestrian_accpt_disc",
+            "operator": "not_equals_any",
+            "values": ["01/01-12/31"],
+            "reason": "accepted hiker or pedestrian use must not be discouraged all year"
+          }
+        ]
+      },
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0",
+          "format": "ArcGIS Feature Service; GeoJSON query output",
+          "purpose": "Fetch selected official trail features by stable identifier."
+        },
+        {
+          "type": "catalog",
+          "url": "https://data.fs.usda.gov/geodata/edw/datasets.php",
+          "format": "Forest Service Enterprise Data Warehouse catalog",
+          "purpose": "Check dataset description, publication state, and bulk downloads."
+        }
+      ],
+      "license": {
+        "name": "U.S. Government work under 17 U.S.C. § 105",
+        "url": "https://www.govinfo.gov/content/pkg/USCODE-2023-title17/html/USCODE-2023-title17-chap1-sec105.htm",
+        "attribution": "USDA Forest Service",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Publication and management-attribute completeness varies by national forest; reject a candidate when hiking access cannot be resolved.",
+        "The layer is not a live closure or hazard feed; current Forest Service orders and local notices take priority.",
+        "Use only selected feature geometry and retain feature IDs, retrieval URL, retrieval date, authority, license, and attribution."
+      ]
+    },
+    {
+      "id": "nps-public-trails",
+      "name": "NPS Public Trails",
+      "authority": "National Park Service",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["US"],
+        "jurisdiction": "Units of the United States National Park System",
+        "summary": "Public visitor-use trail centerlines published in the NPS national dataset."
+      },
+      "discoveryUrl": "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails/FeatureServer",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails/FeatureServer/0",
+          "format": "ArcGIS Feature Service; GeoJSON query output",
+          "purpose": "Fetch selected public trail features by geometry identifier."
+        }
+      ],
+      "license": {
+        "name": "U.S. Government work under 17 U.S.C. § 105",
+        "url": "https://www.govinfo.gov/content/pkg/USCODE-2023-title17/html/USCODE-2023-title17-chap1-sec105.htm",
+        "attribution": "National Park Service",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Keep this source validation-only: OPENTOPUBLIC is unpopulated in the live layer, so the former positive access rule matched no records.",
+        "Identify and test a populated, source-specific public hiking access signal before approving an adapter for publication.",
+        "Park alerts, closures, permits, and superintendent notices take priority over this national reference layer."
+      ]
+    },
+    {
+      "id": "blm-national-public-trails",
+      "name": "BLM National Public Trails",
+      "authority": "Bureau of Land Management",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["US"],
+        "jurisdiction": "Bureau of Land Management lands in the United States",
+        "summary": "National public-display trail layers from the BLM Ground Transportation Linear Features dataset."
+      },
+      "discoveryUrl": "https://gis.blm.gov/arcgis/rest/services/transportation/BLM_Natl_GTLF_Public_Display/MapServer",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://gis.blm.gov/arcgis/rest/services/transportation/BLM_Natl_GTLF_Public_Display/MapServer/4",
+          "format": "ArcGIS Map Service layer",
+          "purpose": "Inspect public non-motorized trails."
+        },
+        {
+          "type": "arcgis",
+          "url": "https://gis.blm.gov/arcgis/rest/services/transportation/BLM_Natl_GTLF_Public_Display/MapServer/5",
+          "format": "ArcGIS Map Service layer",
+          "purpose": "Inspect public non-mechanized trails."
+        },
+        {
+          "type": "arcgis",
+          "url": "https://gis.blm.gov/arcgis/rest/services/transportation/BLM_Natl_GTLF_Public_Display/MapServer/7",
+          "format": "ArcGIS Map Service layer",
+          "purpose": "Inspect all public trails and their mode and access fields."
+        }
+      ],
+      "license": {
+        "name": "U.S. Government work under 17 U.S.C. § 105",
+        "url": "https://www.govinfo.gov/content/pkg/USCODE-2023-title17/html/USCODE-2023-title17-chap1-sec105.htm",
+        "attribution": "Bureau of Land Management",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Keep this source validation-only until mode, access, authorization, and seasonal-restriction filters have fixtures.",
+        "Use GlobalID as the stable feature key and review PLAN_ALLOW_MODE_TRNSPRT, PLAN_ACCESS_RSTRCT, PLAN_SEASON_RSTRCT_CODE, and EXSTNG_AUTH_CODE.",
+        "BLM closures, fire orders, and local field-office notices take priority."
+      ]
+    },
+    {
+      "id": "usgs-national-digital-trails",
+      "name": "USGS National Digital Trails",
+      "authority": "U.S. Geological Survey, National Geospatial Program",
+      "sourceKind": "existing_adapter",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["US"],
+        "jurisdiction": "United States",
+        "summary": "National trail aggregation from federal, state, local, and nonprofit stewards."
+      },
+      "discoveryUrl": "https://www.usgs.gov/national-digital-trails/how-access-or-view-usgs-trails-dataset",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://apps.nationalmap.gov/downloader/",
+          "format": "The National Map Downloader",
+          "purpose": "Download current National Digital Trails data by area."
+        }
+      ],
+      "existingAdapter": "usgs-national-digital-trails",
+      "license": {
+        "name": "USGS public-domain data",
+        "url": "https://www.usgs.gov/faqs/are-there-any-costs-or-restrictions-usage-data-downloaded-national-map",
+        "attribution": "Data available from U.S. Geological Survey, National Geospatial Program.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Keep this source on the existing USGS import path rather than the generic ArcGIS publisher.",
+        "The national aggregation can lag its source stewards and is not a live closure feed.",
+        "Validate route geometry against the named managing agency where a more direct official layer exists."
+      ]
+    },
+    {
+      "id": "parks-canada-trails",
+      "name": "Parks Canada Trails",
+      "authority": "Parks Canada Agency",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CA"],
+        "jurisdiction": "Parks Canada administered places",
+        "summary": "Trail geometry and visitor-use attributes for participating Parks Canada places."
+      },
+      "discoveryUrl": "https://open.canada.ca/data/en/dataset/64a90e8d-5bc0-4027-8645-b5881b4068d4",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://services2.arcgis.com/wCOMu5IS7YdSyPNx/arcgis/rest/services/Trails_Sentiers_APCA_Temporary_Temporaire_APCA_OpenOuvert/FeatureServer/0",
+          "format": "ArcGIS Feature Service",
+          "purpose": "Validate proposed geometry and trail attributes."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence - Canada",
+        "url": "https://open.canada.ca/en/open-government-licence-canada",
+        "attribution": "Contains information licensed under the Open Government Licence - Canada; source: Parks Canada Agency.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The national dataset is incomplete and coverage depends on participating parks.",
+        "The current service is transitional; re-resolve it from the Open Canada catalog and require the public-view filter plus a stable-key plan before publication.",
+        "Current park bulletins, seasonal restrictions, and closures take priority."
+      ]
+    },
+    {
+      "id": "bc-recreation-lines",
+      "name": "British Columbia Recreation Lines",
+      "authority": "Government of British Columbia",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CA"],
+        "jurisdiction": "Province of British Columbia",
+        "summary": "Linear recreation features held in the provincial forest tenure system."
+      },
+      "discoveryUrl": "https://catalogue.data.gov.bc.ca/dataset/recreation-line",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW/ows?service=WFS&request=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Query recreation line geometry and status fields."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence - British Columbia",
+        "url": "https://www2.gov.bc.ca/gov/content/data/policy-standards/data-policies/open-data/open-government-licence-bc",
+        "attribution": "Contains information licensed under the Open Government Licence - British Columbia.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage centers on provincial forest recreation records and does not include every park or municipal trail.",
+        "Filter legal and operational status before using geometry.",
+        "Provincial closure notices take priority."
+      ]
+    },
+    {
+      "id": "alberta-designated-provincial-trails",
+      "name": "Alberta Designated and Provincial Trails",
+      "authority": "Government of Alberta",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CA"],
+        "jurisdiction": "Province of Alberta",
+        "summary": "Trails established under Alberta's Public Lands Act or ministerial orders."
+      },
+      "discoveryUrl": "https://geospatial.alberta.ca/mimas/rest/services/recreation/alberta_designated_and_provincial_trails/FeatureServer/1",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://geospatial.alberta.ca/mimas/rest/services/recreation/alberta_designated_and_provincial_trails/FeatureServer/1",
+          "format": "ArcGIS Feature Service",
+          "purpose": "Validate named trail geometry and designation fields."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence - Alberta",
+        "url": "https://open.alberta.ca/licence",
+        "attribution": "© Government of Alberta",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Filter for hiking use and current public access before treating a feature as a route.",
+        "Review current Public Lands Act orders and land-manager restrictions.",
+        "The ArcGIS schema needs fixture-backed access filters before publication."
+      ]
+    },
+    {
+      "id": "ontario-trail-network",
+      "name": "Ontario Trail Network",
+      "authority": "Ontario Ministry of Natural Resources and Forestry",
+      "sourceKind": "official_aggregator",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CA"],
+        "jurisdiction": "Province of Ontario",
+        "summary": "Provincial trail segments with manager, public-access, maintenance, marking, and permitted-use fields."
+      },
+      "discoveryUrl": "https://data.ontario.ca/dataset/ontario-trail-network",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://data.ontario.ca/en/dataset/ontario-trail-network/resource/4f09b41d-d4d4-41b2-97ad-f58f5cdf0858",
+          "format": "Official Ontario data resource page",
+          "purpose": "Resolve current downloads and source metadata."
+        },
+        {
+          "type": "catalog",
+          "url": "https://geohub.lio.gov.on.ca/datasets/mnrf::ontario-trail-network-otn-segment/explore",
+          "format": "Ontario GeoHub dataset page",
+          "purpose": "Inspect trail segments and allowed-use fields."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence - Ontario",
+        "url": "https://www.ontario.ca/page/open-government-licence-ontario",
+        "attribution": "© King's Printer for Ontario; Ministry of Natural Resources and Forestry and the record's named source organization.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The catalog data is dated 2021 and its last recorded validation was January 2025; confirm each route with its current manager.",
+        "Require public access, hike or walk use, and suitable maintained or marked status.",
+        "The source is not a live closure feed and needs a fixture-backed adapter before publication."
+      ]
+    },
+    {
+      "id": "sepaq-summer-trails",
+      "name": "Sépaq Summer Trails",
+      "authority": "Société des établissements de plein air du Québec",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CA"],
+        "jurisdiction": "Sépaq-managed areas in Québec",
+        "summary": "Published summer trail geometry in Sépaq parks and recreation areas."
+      },
+      "discoveryUrl": "https://www.donneesquebec.ca/recherche/dataset/sentiers-estivaux",
+      "endpoints": [
+        {
+          "type": "api",
+          "url": "https://www.donneesquebec.ca/recherche/api/3/action/package_show?id=sentiers-estivaux",
+          "format": "CKAN package API with current resource links",
+          "purpose": "Resolve current downloads without fixing a temporary resource URL."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Société des établissements de plein air du Québec (Sépaq).",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Resource URLs can change and must be resolved from the catalog at run time.",
+        "Geometry precision and update dates vary by managed area.",
+        "Sépaq access notices and closures take priority."
+      ]
+    },
+    {
+      "id": "new-zealand-doc-tracks",
+      "name": "DOC Tracks (Deprecated Service)",
+      "authority": "New Zealand Department of Conservation",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["NZ"],
+        "jurisdiction": "New Zealand public conservation land",
+        "summary": "A deprecated Department of Conservation track service kept for historical alignment checks while DOC prepares its replacement."
+      },
+      "discoveryUrl": "https://www.arcgis.com/home/item.html?id=5cba3b0a2e1041c9ad02ec694f3f3d37",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://services1.arcgis.com/3JjYDyG3oajxU6HO/arcgis/rest/services/DOC_Tracks_EAM/FeatureServer/0",
+          "format": "Deprecated ArcGIS Feature Service",
+          "purpose": "Check historical alignment only; do not treat it as current DOC route or access data."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Crown Copyright: Department of Conservation Te Papa Atawhai [year].",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "DOC marks this service as deprecated and no longer maintained; never use it as proof of current geometry or access.",
+        "Wait for DOC's replacement service and fixture-test its schema before publication is enabled.",
+        "Track alerts, permits, bookings, and backcountry conditions remain separate checks."
+      ]
+    },
+    {
+      "id": "new-south-wales-npws-track-sections",
+      "name": "NSW NPWS Track Sections",
+      "authority": "NSW Department of Climate Change, Energy, the Environment and Water",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AU"],
+        "jurisdiction": "New South Wales national parks and reserves",
+        "summary": "NPWS asset track sections that include walking tracks, routes, footpaths, continuity lines, and other classes."
+      },
+      "discoveryUrl": "https://data.nsw.gov.au/data/dataset/asset-infrastructure-track-section8bfcf",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://datasets.seed.nsw.gov.au/dataset/d814e21d-56d0-4ee6-a594-afb57d142de9/resource/162c4a2c-5e73-42b9-bc10-6555ab8b30c2/download/infrastructure_npws_tracksection.zip",
+          "format": "Bulk spatial-data ZIP",
+          "purpose": "Inspect NPWS track-section geometry and class fields."
+        }
+      ],
+      "license": {
+        "name": "Catalog states Creative Commons Attribution; exact version unconfirmed",
+        "url": "https://data.nsw.gov.au/data/dataset/asset-infrastructure-track-section8bfcf",
+        "attribution": "NSW Department of Climate Change, Energy, the Environment and Water",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Do not publish geometry until the exact licence instrument and required credit are tied to this package.",
+        "Filter mixed classes: walking routes, Aboriginal travel routes, footpaths, continuity lines, and off-park sections are not interchangeable.",
+        "NPWS alerts, closures, and fire restrictions take priority."
+      ]
+    },
+    {
+      "id": "victoria-recreation-tracks",
+      "name": "Recreation Tracks",
+      "authority": "State of Victoria, Department of Energy, Environment and Climate Action",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AU"],
+        "jurisdiction": "State forests in Victoria",
+        "summary": "Recreation tracks for walking, cycling, riding, and driving in Victorian state forests."
+      },
+      "discoveryUrl": "https://discover.data.vic.gov.au/dataset/recreation-tracks",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://discover.data.vic.gov.au/dataset/recreation-tracks",
+          "format": "Victorian open-data catalog with WFS and bulk resources",
+          "purpose": "Resolve the current state service or download."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "State of Victoria, Department of Energy, Environment and Climate Action.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The layer covers state-forest recreation tracks, not every Parks Victoria or local trail.",
+        "Filter use type before treating a line as a hiking route.",
+        "Fire, flood, and land-manager closure notices take priority."
+      ]
+    },
+    {
+      "id": "queensland-qpws-access",
+      "name": "Queensland Parks and Wildlife Service Access",
+      "authority": "Queensland Parks and Wildlife Service",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AU"],
+        "jurisdiction": "Queensland protected areas",
+        "summary": "Visitor access roads, tracks, and trails in QPWS-managed areas."
+      },
+      "discoveryUrl": "https://www.data.qld.gov.au/dataset/queensland-parks-and-wildlife-service-access",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://www.data.qld.gov.au/dataset/queensland-parks-and-wildlife-service-access",
+          "format": "Bulk SHP, TAB, file geodatabase, KMZ, and GeoPackage resources",
+          "purpose": "Resolve and download the current QPWS access release."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "State of Queensland (Queensland Parks and Wildlife Service).",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Roads, vehicle tracks, and walking trails share the dataset and require a strict hiking-use filter.",
+        "Updates are irregular and the layer is not a live closure feed.",
+        "QPWS park alerts take priority."
+      ]
+    },
+    {
+      "id": "tasmania-list-tracks",
+      "name": "LIST Tracks",
+      "authority": "Tasmanian Government, Land Tasmania",
+      "sourceKind": "official_topography",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AU"],
+        "jurisdiction": "Tasmania",
+        "summary": "State topographic track linework with transport class, status, and user type."
+      },
+      "discoveryUrl": "https://services.thelist.tas.gov.au/arcgis/rest/services/Public/TopographyAndRelief/MapServer/24",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://services.thelist.tas.gov.au/arcgis/rest/services/Public/TopographyAndRelief/MapServer/24",
+          "format": "ArcGIS Map Service",
+          "purpose": "Validate official topographic track alignment and attributes."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 3.0 Australia",
+        "url": "https://creativecommons.org/licenses/by/3.0/au/",
+        "attribution": "© State of Tasmania.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "This is topographic transport linework, not a managed hiking-route catalog.",
+        "Filter transport class, open status, and public or authorised user type.",
+        "Land-manager alerts and access rules take priority."
+      ]
+    },
+    {
+      "id": "wa-dbca-long-trails",
+      "name": "Western Australia Long Trails",
+      "authority": "Western Australia Department of Biodiversity, Conservation and Attractions",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AU"],
+        "jurisdiction": "Western Australia",
+        "summary": "Long-distance walking and cycling trail geometry managed by DBCA."
+      },
+      "discoveryUrl": "https://catalogue.data.wa.gov.au/dataset/long-trails",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://public-services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Transport/MapServer/31",
+          "format": "ArcGIS Map Service",
+          "purpose": "Validate long-trail alignment."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution-NonCommercial 4.0 International",
+        "url": "https://creativecommons.org/licenses/by-nc/4.0/",
+        "attribution": "Western Australia Department of Biodiversity, Conservation and Attractions.",
+        "commercialUse": "restricted",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The noncommercial term blocks use in a publishable commercial product without separate permission.",
+        "Coverage is limited to named long trails.",
+        "Use only for internal validation unless rights change or written permission is recorded."
+      ]
+    },
+    {
+      "id": "norway-turrutebasen",
+      "name": "Turrutebasen",
+      "authority": "Norwegian Mapping Authority and route-maintaining organizations",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["NO"],
+        "jurisdiction": "Norway",
+        "summary": "Marked and signed hiking, skiing, cycling, and other outdoor routes with a named maintainer."
+      },
+      "discoveryUrl": "https://data.norge.no/en/datasets/7872ef3d-f9b7-3743-9efe-42fff216133d/turrutebasen",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://wfs.geonorge.no/skwms1/wfs.turogfriluftsruter?service=WFS&request=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Query maintained outdoor route geometry and attributes."
+        }
+      ],
+      "license": {
+        "name": "No conditions apply in source metadata",
+        "url": "https://inspire.ec.europa.eu/metadata-codelist/ConditionsApplyingToAccessAndUse/noConditionsApply",
+        "attribution": "Norwegian Mapping Authority and the named route-maintaining organization.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The dataset covers marked and maintained routes, not every customary mountain line.",
+        "A WFS adapter and per-feature maintainer attribution need review before publication.",
+        "Avalanche, seasonal, and local access notices remain separate checks."
+      ]
+    },
+    {
+      "id": "sweden-naturvardsverket-trails",
+      "name": "Swedish Protected-Area and State Mountain Trails",
+      "authority": "Swedish Environmental Protection Agency",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["SE"],
+        "jurisdiction": "Swedish protected areas and the state mountain trail system",
+        "summary": "Published outdoor trail geometry accepted into the national protected-area dataset."
+      },
+      "discoveryUrl": "https://geodata.naturvardsverket.se/nedladdning/friluftsliv/",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://geodata.naturvardsverket.se/nedladdning/friluftsliv/Leder.geojson",
+          "format": "GeoJSON",
+          "purpose": "Download the current published trail geometry."
+        },
+        {
+          "type": "wfs",
+          "url": "https://geodata.naturvardsverket.se/leder_friluftsliv/wfs?service=WFS&request=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Inspect available trail feature types and schema."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons CC0 1.0 Universal",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "attribution": "Swedish Environmental Protection Agency.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage is incomplete and limited to approved published records in protected areas plus state mountain trails.",
+        "Honor publication state and geometry-quality fields.",
+        "An automated adapter needs schema fixtures before publication is enabled."
+      ]
+    },
+    {
+      "id": "finland-nls-topographic-database",
+      "name": "Topographic Database Paths",
+      "authority": "National Land Survey of Finland",
+      "sourceKind": "official_topography",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["FI"],
+        "jurisdiction": "Finland",
+        "summary": "Official national topographic linework that includes paths and tracks."
+      },
+      "discoveryUrl": "https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/datasets-and-interfaces/product-descriptions/topographic-database",
+      "endpoints": [
+        {
+          "type": "ogc_api_features",
+          "url": "https://avoin-paikkatieto.maanmittauslaitos.fi/maastotiedot/features/v1/",
+          "format": "OGC API - Features",
+          "purpose": "Query official topographic features after API-key setup."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://www.maanmittauslaitos.fi/en/opendata-licence-cc40",
+        "attribution": "National Land Survey of Finland, Topographic Database [delivery month/year].",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Paths are official topography, not proof of managed hiking access or current openness.",
+        "The interface requires an API key and has separate interface terms.",
+        "Use as geometry validation until a route-access source also supports the candidate."
+      ]
+    },
+    {
+      "id": "switzerland-swisstlm3d-hiking",
+      "name": "swissTLM3D Hiking Trails",
+      "authority": "Federal Office of Topography swisstopo",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CH", "LI"],
+        "jurisdiction": "Switzerland and Liechtenstein",
+        "summary": "Official hiking trail classes published as part of swissTLM3D."
+      },
+      "discoveryUrl": "https://www.swisstopo.admin.ch/en/hiking-maps",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://api3.geo.admin.ch/rest/services/api/MapServer/ch.swisstopo.swisstlm3d-wanderwege",
+          "format": "geo.admin.ch REST layer",
+          "purpose": "Inspect and identify official hiking trail features."
+        },
+        {
+          "type": "bulk",
+          "url": "https://ogd.swisstopo.admin.ch/ch.swisstopo.swisstlm3d?lang=en",
+          "format": "Open-government bulk download",
+          "purpose": "Prefer bulk data for repeat automated processing."
+        }
+      ],
+      "license": {
+        "name": "swisstopo free geodata terms of use",
+        "url": "https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices",
+        "attribution": "© swisstopo",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Interactive services have fair-use limits; repeat processing should use the bulk release.",
+        "The data is not a live closure, hazard, or winter-access feed.",
+        "Implement and fixture-test the swissTLM3D schema before publication is enabled."
+      ]
+    },
+    {
+      "id": "france-ign-bd-topo",
+      "name": "BD TOPO Paths and Tracks",
+      "authority": "Institut national de l'information géographique et forestière",
+      "sourceKind": "official_topography",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["FR"],
+        "jurisdiction": "France",
+        "summary": "National topographic path and track features in BD TOPO."
+      },
+      "discoveryUrl": "https://cartes.gouv.fr/rechercher-une-donnee/dataset/IGNF_BD-TOPO",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Query current BD TOPO feature types."
+        }
+      ],
+      "license": {
+        "name": "Licence Ouverte 2.0",
+        "url": "https://geoservices.ign.fr/licence-ouverte",
+        "attribution": "IGN - BD TOPO® [delivery month/year].",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Sentier and Chemin features are topographic transport lines, not an official hiking-route or access register.",
+        "Feature selection and attribution syntax need an adapter test before publication.",
+        "Local land-manager notices take priority."
+      ]
+    },
+    {
+      "id": "spain-cnig-park-routes",
+      "name": "CNIG National Park Routes and Nature Trails",
+      "authority": "Centro Nacional de Información Geográfica",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["ES"],
+        "jurisdiction": "Spain",
+        "summary": "Official leisure-route downloads, including National Park Routes and Caminos Naturales."
+      },
+      "discoveryUrl": "https://centrodedescargas.cnig.es/CentroDescargas/rutas-ocio-tiempo-libre",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://centrodedescargas.cnig.es/CentroDescargas/rutas-ocio-tiempo-libre",
+          "format": "KML, GPX, and SHP downloads by route collection",
+          "purpose": "Resolve official route packages and their source metadata."
+        }
+      ],
+      "license": {
+        "name": "CNIG open-data reuse policy",
+        "url": "https://www.ign.es/web/politica-datos",
+        "attribution": "Centro Nacional de Información Geográfica and the dataset's named source authority.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The catalog mixes collections from different source agencies; preserve each package's source attribution.",
+        "Start with National Park Routes and Caminos Naturales, not every leisure-route product.",
+        "A bulk-package parser and route identity checks are required before publication."
+      ]
+    },
+    {
+      "id": "england-natural-england-national-trails",
+      "name": "National Trails in England",
+      "authority": "Natural England",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GB"],
+        "jurisdiction": "England",
+        "summary": "Official centerlines for National Trails in England."
+      },
+      "discoveryUrl": "https://environment.data.gov.uk/dataset/9ea4c2b6-dfd3-44e3-b32e-2cb87536a44f",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://environment.data.gov.uk/dataset/9ea4c2b6-dfd3-44e3-b32e-2cb87536a44f",
+          "format": "ArcGIS REST, WFS, WMS, OGC API, and bulk downloads",
+          "purpose": "Resolve the current machine endpoint and dataset metadata."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence 3.0",
+        "url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+        "attribution": "© Natural England copyright. Contains Ordnance Survey data © Crown copyright and database right [year].",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage is limited to National Trails and is not a complete public-rights-of-way network.",
+        "The source is not a live diversion or closure feed.",
+        "Retain the full Natural England and Ordnance Survey attribution."
+      ]
+    },
+    {
+      "id": "scotland-core-paths",
+      "name": "Scotland Core Paths",
+      "authority": "Improvement Service Spatial Hub and Scottish access authorities",
+      "sourceKind": "official_aggregator",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GB"],
+        "jurisdiction": "Scotland",
+        "summary": "Core paths supplied by Scottish local authorities and National Park authorities."
+      },
+      "discoveryUrl": "https://data.spatialhub.scot/dataset/core_paths-is",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://geo.spatialhub.scot/geoserver/sh_cpth/wfs?service=wfs&typeName=sh_cpth:pub_cpth",
+          "format": "OGC WFS",
+          "purpose": "Query published core-path features and source-authority fields."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence 3.0",
+        "url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+        "attribution": "Improvement Service Spatial Hub and the record's named local authority or National Park authority.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "A core path can be a faint line, pavement, water route, or other access corridor rather than a built hiking trail.",
+        "Require suitable mode, surface, route identity, and current access evidence.",
+        "The source is not a live closure or condition feed."
+      ]
+    },
+    {
+      "id": "wales-nrw-recreation-routes",
+      "name": "NRW Recreation Routes",
+      "authority": "Natural Resources Wales",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GB"],
+        "jurisdiction": "Natural Resources Wales managed land",
+        "summary": "Waymarked walking, cycling, horse-riding, and accessible recreation routes."
+      },
+      "discoveryUrl": "https://datamap.gov.wales/layers/inspire-nrw%3ANRW_GB_RECREATION_ROUTES",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://datamap.gov.wales/geoserver/inspire-nrw/ows?service=WFS&version=2.0.0&request=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Query the NRW recreation route layer."
+        }
+      ],
+      "license": {
+        "name": "Open Government Licence 3.0",
+        "url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+        "attribution": "Contains Natural Resources Wales information © Natural Resources Wales and Database Right. All rights Reserved.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage is limited to NRW-managed recreation routes and is not a national path network.",
+        "Filter route activity and public status before use.",
+        "NRW closures and diversions take priority."
+      ]
+    },
+    {
+      "id": "ireland-national-trails-register",
+      "name": "National Trails Register",
+      "authority": "Sport Ireland Outdoors",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["IE"],
+        "jurisdiction": "Ireland",
+        "summary": "Accredited waymarked walking trails in the National Trails Register."
+      },
+      "discoveryUrl": "https://data.gov.ie/en_GB/dataset/8f375825-70f8-4f34-b56b-856bf6b4afa0/resource/26a4d256-8ed2-4b8b-ae04-b0f2f1782301",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://services-eu1.arcgis.com/CltcWyRoZmdwaB7T/ArcGIS/rest/services/GetIrelandActiveTrailRoutes/FeatureServer/0",
+          "format": "ArcGIS Feature Service",
+          "purpose": "Validate geometry for active accredited trail routes."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Sport Ireland Outdoors, National Trails Register.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage is limited to accredited waymarked routes and does not include every mountain path.",
+        "Confirm active status and temporary closures with the trail manager.",
+        "The ArcGIS schema needs a fixture-backed adapter before publication."
+      ]
+    },
+    {
+      "id": "bavaria-official-hiking-routes",
+      "name": "Bavarian Hiking Routes",
+      "authority": "Bavarian Agency for Digitisation, High-Speed Internet and Surveying",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["DE"],
+        "jurisdiction": "Free State of Bavaria",
+        "summary": "Official open-data hiking route linework compiled for Bavaria."
+      },
+      "discoveryUrl": "https://geodaten.bayern.de/opengeodata/OpenDataDetail.html?pn=bvv_wanderwege",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://geodaten.bayern.de/odd/m/2/freizeitwege/wanderwege/shape/wanderwege_shape.zip",
+          "format": "ESRI Shapefile ZIP",
+          "purpose": "Download the monthly statewide hiking route release."
+        },
+        {
+          "type": "bulk",
+          "url": "https://geodaten.bayern.de/odd/m/2/freizeitwege/wanderwege/gpx/wanderwege_gpx.zip",
+          "format": "GPX ZIP",
+          "purpose": "Download route tracks in GPX form."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://www.geodaten.bayern.de/odd/m/3/html/nutzungsbedingungen.html",
+        "attribution": "Bayerische Vermessungsverwaltung – www.geodaten.bayern.de",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Routes stop at the Bavarian border and need another source for cross-border continuation.",
+        "The release is monthly, not a live closure feed.",
+        "A package parser and stable route-key rules are required before publication."
+      ]
+    },
+    {
+      "id": "iceland-is50v",
+      "name": "IS 50V Base Map Paths",
+      "authority": "Natural Science Institute of Iceland (Náttúrufræðistofnun)",
+      "sourceKind": "official_topography",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["IS"],
+        "jurisdiction": "Iceland",
+        "summary": "Official national base-map transport and path linework."
+      },
+      "discoveryUrl": "https://www.natt.is/is/midlun/kortagogn/grunnkortagogn",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://www.natt.is/is/midlun/kortagogn/grunnkortagogn",
+          "format": "Natural Science Institute base-map downloads",
+          "purpose": "Resolve current IS 50V packages."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://www.natt.is/is/midlun/opin-gogn",
+        "attribution": "\"IS 50V Samgöngur\" by Náttúrufræðistofnun is licensed under CC BY 4.0.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "This is official topographic linework, not a managed hiking-route or access register.",
+        "Icelandic highland conditions and closures can change faster than the base map.",
+        "Use for alignment validation until a managing-agency route source also supports the candidate."
+      ]
+    },
+    {
+      "id": "taiwan-tourism-trails",
+      "name": "Taiwan Tourism Trail Geometry",
+      "authority": "Taiwan Tourism Administration",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["TW"],
+        "jurisdiction": "Taiwan national scenic areas and Tourism Administration trail records",
+        "summary": "Daily trail records with WKT line geometry published by the Tourism Administration."
+      },
+      "discoveryUrl": "https://data.gov.tw/en/datasets/41653",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://media.taiwan.net.tw/XMLReleaseAll_public/v2.0/Zh_tw/Trail-json.zip",
+          "format": "Daily ZIP containing JSON with WKT LINESTRING Z geometry",
+          "purpose": "Download official trail records and line geometry."
+        }
+      ],
+      "license": {
+        "name": "Taiwan Open Government Data License 1.0",
+        "url": "https://data.gov.tw/en/license",
+        "attribution": "Taiwan Tourism Administration.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Coverage centers on Tourism Administration and national scenic area trails, not every forest or alpine route.",
+        "The WKT archive needs fixture-backed parsing and coordinate checks before publication.",
+        "Current scenic-area and forestry closure notices take priority."
+      ]
+    },
+    {
+      "id": "hong-kong-afcd-country-park-trails",
+      "name": "Hong Kong Country Park Hiking Trails",
+      "authority": "Hong Kong Agriculture, Fisheries and Conservation Department",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["HK"],
+        "jurisdiction": "Hong Kong country parks",
+        "summary": "Named hiking trail centerlines published through the Common Spatial Data Infrastructure."
+      },
+      "discoveryUrl": "https://portal.csdi.gov.hk/csdi-webpage/dataset/afcd_rcd_1665568199103_4360",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://portal.csdi.gov.hk/server/rest/services/common/afcd_rcd_1665568199103_4360/FeatureServer/0",
+          "format": "ArcGIS Feature Service",
+          "purpose": "Validate named country-park hiking trail geometry."
+        },
+        {
+          "type": "wfs",
+          "url": "https://portal.csdi.gov.hk/server/services/common/afcd_rcd_1665568199103_4360/MapServer/WFSServer?service=WFS&request=GetCapabilities",
+          "format": "OGC WFS",
+          "purpose": "Inspect the public feature schema."
+        }
+      ],
+      "license": {
+        "name": "Hong Kong CSDI Terms and Conditions",
+        "url": "https://portal.csdi.gov.hk/csdi-webpage/doc/TNC",
+        "attribution": "Government of the Hong Kong SAR and CSDI Portal; source organization: Agriculture, Fisheries and Conservation Department.",
+        "commercialUse": "allowed",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The ArcGIS schema and CSDI attribution fields need fixture-backed review before publication.",
+        "Coverage is limited to the published country-park trail layer.",
+        "AFCD closure and safety notices take priority."
+      ]
+    },
+    {
+      "id": "south-korea-mlit-hiking-roads",
+      "name": "South Korea Hiking Road Information",
+      "authority": "Ministry of Land, Infrastructure and Transport",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["KR"],
+        "jurisdiction": "South Korea",
+        "summary": "National Spatial Data Infrastructure hiking-road features exposed through VWorld services."
+      },
+      "discoveryUrl": "https://www.data.go.kr/en/data/15057232/openapi.do",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://www.data.go.kr/en/data/15057232/openapi.do",
+          "format": "WMS and WFS application service registration",
+          "purpose": "Obtain service documentation and an application key."
+        }
+      ],
+      "license": {
+        "name": "Korea Open Government License Type 1",
+        "url": "https://www.kogl.or.kr/info/licenseTypeEn.do",
+        "attribution": "Ministry of Land, Infrastructure and Transport, National Spatial Data Infrastructure.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The catalog reports about 120 hiking-road records and is not broad national trail coverage.",
+        "Service use requires an application key and must follow current traffic rules.",
+        "The WFS schema and source-specific attribution need review before publication."
+      ]
+    },
+    {
+      "id": "mainland-china-official-route-gap",
+      "name": "Mainland China Official Route Data Gap",
+      "authority": "National Forestry and Grassland Administration (National Park Administration), PRC",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CN"],
+        "jurisdiction": "Mainland China",
+        "summary": "Recorded gap: official park and National Forest Trail guidance exists, but no reusable national route-geometry feed was confirmed."
+      },
+      "discoveryUrl": "https://www.forestry.gov.cn/c/www/gjgy.jhtml",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.forestry.gov.cn/lyj/1/lcdt/20260604/673741.html",
+          "format": "Official National Forest Trail material",
+          "purpose": "Start route-by-route research and find the responsible park or forestry authority."
+        }
+      ],
+      "license": {
+        "name": "No national route-geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "National Forestry and Grassland Administration (National Park Administration), PRC; add the source agency for each record.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "This entry records a coverage gap and does not grant route-geometry reuse rights.",
+        "Use official pages only for route identity, access, and agency discovery until exact data terms are reviewed.",
+        "Add a separate source record before automating geometry from any park or regional feed."
+      ]
+    },
+    {
+      "id": "himalaya-official-route-gap",
+      "name": "Himalaya Official Route Data Gap",
+      "authority": "National park and mapping agencies of Nepal, India, Pakistan, and Bhutan",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["NP", "IN", "PK", "BT"],
+        "jurisdiction": "Popular Himalayan hiking areas in Nepal, India, Pakistan, and Bhutan",
+        "summary": "Recorded gap: no cross-region official machine trail layer with clear reuse terms was confirmed."
+      },
+      "discoveryUrl": "https://dnpwc.gov.np/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://dnpwc.gov.np/",
+          "format": "Nepal Department of National Parks and Wildlife Conservation pages",
+          "purpose": "Start park-specific manual route and access research in Nepal."
+        },
+        {
+          "type": "web",
+          "url": "https://onlinemaps.surveyofindia.gov.in/",
+          "format": "Survey of India online map portal",
+          "purpose": "Check official topographic products and their product-specific terms in India."
+        },
+        {
+          "type": "web",
+          "url": "https://surveyofpakistan.gov.pk/",
+          "format": "Survey of Pakistan official site",
+          "purpose": "Check official topographic products and route-data contacts in Pakistan."
+        },
+        {
+          "type": "web",
+          "url": "https://bhutan.travel/",
+          "format": "Official Bhutan tourism route guidance",
+          "purpose": "Check trek identity, permit rules, and current official guidance in Bhutan."
+        }
+      ],
+      "license": {
+        "name": "No reusable regional trail-geometry license confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without country- and source-specific permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "This entry records a coverage gap, not one shared dataset or authority.",
+        "Official topographic products, protected-area rules, permits, and reuse terms differ by country and park.",
+        "Use the links only as manual starting points; add a separate source record before automating any geometry."
+      ]
+    },
+    {
+      "id": "japan-moe-tokai-nature-trail",
+      "name": "Tokai Nature Trail GPX",
+      "authority": "Ministry of the Environment, Government of Japan",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["JP"],
+        "jurisdiction": "Tokai Nature Trail, Japan",
+        "summary": "Official GPX package for the Tokai Nature Trail published by Japan's Ministry of the Environment."
+      },
+      "discoveryUrl": "https://www.env.go.jp/nature/long-trail.html",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://www.env.go.jp/content/000304454.zip",
+          "format": "GPX ZIP",
+          "purpose": "Download the official Tokai Nature Trail route package."
+        }
+      ],
+      "license": {
+        "name": "Government of Japan Standard Terms of Use 2.0 (Public Data License 1.0 compatible)",
+        "url": "https://www.env.go.jp/mail.html",
+        "attribution": "Source: Ministry of the Environment website (source URL; retrieval date); add \"modified by Peaks\" if changed.",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The package covers the Tokai Nature Trail, not every long-distance nature trail in Japan.",
+        "A GPX parser, stable segment-key rules, current access review, and attribution rendering are required before publication.",
+        "Local closures, weather, and land-manager guidance take priority."
+      ]
+    },
+    {
+      "id": "japan-other-long-distance-trails-gap",
+      "name": "Other Japan Long-Distance Nature Trails Gap",
+      "authority": "Ministry of the Environment, Government of Japan",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["JP"],
+        "jurisdiction": "Japan outside the Tokai Nature Trail package",
+        "summary": "Recorded gap for the rest of Japan's official long-distance nature trail network."
+      },
+      "discoveryUrl": "https://www.env.go.jp/nature/long-trail.html",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.env.go.jp/nature/long-trail.html",
+          "format": "Official program pages and regional route links",
+          "purpose": "Find source-specific geometry and rights for the other long-distance nature trails."
+        }
+      ],
+      "license": {
+        "name": "No reusable machine geometry confirmed for the other trails",
+        "url": null,
+        "attribution": "Do not republish geometry without a source-specific rights review.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Do not treat the Tokai GPX package as nationwide coverage.",
+        "Regional route downloads and Geospatial Information Authority base-map terms vary.",
+        "Add a separate source record for each confirmed machine-readable package and its terms."
+      ]
+    },
+    {
+      "id": "south-africa-capenature-forge",
+      "name": "CapeNature FORGE Maps",
+      "authority": "CapeNature",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["ZA"],
+        "jurisdiction": "CapeNature reserves in Western Cape",
+        "summary": "Official reserve trail maps distributed through CapeNature's mapping partner."
+      },
+      "discoveryUrl": "https://www.capenature.co.za/forge-maps",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.capenature.co.za/forge-maps",
+          "format": "Official map links",
+          "purpose": "Manual route discovery and reserve-specific review."
+        }
+      ],
+      "license": {
+        "name": "No open route-data reuse license confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without written permission from CapeNature and the map provider.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No open API or bulk trail layer was confirmed.",
+        "Partner map access does not itself grant geometry reuse rights.",
+        "Use only for manual validation and route-source outreach."
+      ]
+    },
+    {
+      "id": "peru-sernanp-geoanp",
+      "name": "SERNANP GEO ANP",
+      "authority": "Servicio Nacional de Áreas Naturales Protegidas por el Estado",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["PE"],
+        "jurisdiction": "Peruvian protected areas",
+        "summary": "Official protected-area geospatial viewer and download services."
+      },
+      "discoveryUrl": "https://geo.sernanp.gob.pe/visorsernanp/",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://geoservicios.sernanp.gob.pe/arcgis/rest/services/sernanp_visor/servicio_descarga/MapServer/layers",
+          "format": "ArcGIS Map Service layer catalog",
+          "purpose": "Check for protected-area-specific route layers during manual research."
+        }
+      ],
+      "license": {
+        "name": "No national trail-geometry reuse terms confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without SERNANP source and rights review.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable nationwide hiking-trail layer was confirmed in the official service catalog.",
+        "Protected-area layers and reuse terms must be reviewed case by case.",
+        "Use only for manual discovery until an exact official route layer and license are recorded."
+      ]
+    },
+    {
+      "id": "brazil-icmbio-geodata",
+      "name": "ICMBio Geospatial Data",
+      "authority": "Instituto Chico Mendes de Conservação da Biodiversidade",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["BR"],
+        "jurisdiction": "Brazilian federal conservation units",
+        "summary": "Official federal conservation-unit geodata and service catalog."
+      },
+      "discoveryUrl": "https://www.gov.br/icmbio/pt-br/dados-icmbio/dados_geoespaciais",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.gov.br/icmbio/pt-br/dados-icmbio/dados_geoespaciais/mapa-tematico-e-dados-geoestatisticos-das-unidades-de-conservacao-federais",
+          "format": "Official geospatial data page",
+          "purpose": "Review the current federal conservation-unit catalog and source terms."
+        },
+        {
+          "type": "wfs",
+          "url": "https://geoservicos.inde.gov.br/geoserver/ICMBio/ows?service=WFS&version=2.0.0&request=GetCapabilities",
+          "format": "OGC WFS catalog",
+          "purpose": "Check official conservation-unit layers during manual research."
+        }
+      ],
+      "license": {
+        "name": "No nationwide trail-layer reuse terms confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without ICMBio source and rights review.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable national hiking-trail geometry layer was confirmed.",
+        "Conservation-unit data does not by itself establish a route or current visitor access.",
+        "Use only for manual discovery until an exact official trail layer and license are recorded."
+      ]
+    },
+    {
+      "id": "argentina-national-parks-trails",
+      "name": "Argentina National Parks Hiking References",
+      "authority": "Administración de Parques Nacionales",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AR"],
+        "jurisdiction": "Argentina national parks",
+        "summary": "Official hiking pages and Argentina Natural park app references."
+      },
+      "discoveryUrl": "https://www.argentina.gob.ar/parquesnacionales/experiencias-del-turismo-de-naturaleza/senderismo-y-trekking",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.argentina.gob.ar/noticias/argentina-natural-nueva-aplicacion-para-recorrer-los-parques-nacionales",
+          "format": "Official park app and web guidance",
+          "purpose": "Manual route identity and access checks."
+        }
+      ],
+      "license": {
+        "name": "No open national route-geometry license confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without Administración de Parques Nacionales permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No public machine-readable national trail geometry endpoint was confirmed.",
+        "App availability does not grant data extraction or redistribution rights.",
+        "Use only for manual validation and agency outreach."
+      ]
+    },
+    {
+      "id": "chile-conaf-trails",
+      "name": "CONAF Territorial Information System",
+      "authority": "Corporación Nacional Forestal",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CL"],
+        "jurisdiction": "Chile protected wild areas and forest lands",
+        "summary": "Official territorial viewer used to check protected-area context."
+      },
+      "discoveryUrl": "https://sit.conaf.cl/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://sit.conaf.cl/varios/Manual_de_Usuario_SIT_VersionJun2021.pdf",
+          "format": "Official viewer user manual",
+          "purpose": "Manual service discovery and layer review."
+        }
+      ],
+      "license": {
+        "name": "No stable national trail-layer license confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without CONAF permission and source review.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable nationwide hiking-route geometry layer and reuse license were confirmed.",
+        "Protected-area context does not establish current trail access.",
+        "Use only for manual validation until an exact route endpoint and terms are recorded."
+      ]
+    },
+    {
+      "id": "mexico-conanp-trail-gap",
+      "name": "Mexico CONANP Trail Data Gap",
+      "authority": "Comisión Nacional de Áreas Naturales Protegidas",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["MX"],
+        "jurisdiction": "Federal protected areas in Mexico",
+        "summary": "Official protected-area maps, management plans, and open-data catalogs that may identify park routes."
+      },
+      "discoveryUrl": "https://www.gob.mx/conanp/es/acciones-y-programas/sistema-de-informacion-geografica-de-las-areas-naturales-protegidas",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://www.gob.mx/conanp/acciones-y-programas/datos-abiertos-370885",
+          "format": "Official open-data catalog",
+          "purpose": "Check for a current route layer and its reuse terms."
+        },
+        {
+          "type": "web",
+          "url": "https://sig.conanp.gob.mx/Shape",
+          "format": "Official protected-area shapefile downloads",
+          "purpose": "Check protected-area context; these files do not form a hiking route."
+        }
+      ],
+      "license": {
+        "name": "No nationwide trail-geometry package and source-specific reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry until CONANP identifies the exact source and terms.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The confirmed downloads are protected-area context, not a national trail network.",
+        "Park management plans may show routes only in maps or PDFs.",
+        "Use only for manual route identity and agency outreach until an exact trail layer is approved."
+      ]
+    },
+    {
+      "id": "northern-ireland-rights-of-way-gap",
+      "name": "Northern Ireland Rights of Way Gap",
+      "authority": "Northern Ireland local councils and Department of Agriculture, Environment and Rural Affairs",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GB"],
+        "jurisdiction": "Northern Ireland",
+        "summary": "Official rights-of-way guidance and forest walking maps held across local councils and Forest Service."
+      },
+      "discoveryUrl": "https://www.nidirect.gov.uk/articles/public-rights-way",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.nidirect.gov.uk/articles/walking-forests",
+          "format": "Official forest walking and trail-map links",
+          "purpose": "Find land-manager route guidance and local map owners."
+        }
+      ],
+      "license": {
+        "name": "No single open route-geometry license confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without the responsible council or Forest Service terms.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Councils make and preserve their own rights-of-way maps, so there is no confirmed national machine layer.",
+        "Permissive paths may close or carry limits that differ from legal rights of way.",
+        "Review each route with its council or land manager before use."
+      ]
+    },
+    {
+      "id": "portugal-icnf-naturalptrails-gap",
+      "name": "Portugal Natural.PTrails Gap",
+      "authority": "Instituto da Conservação da Natureza e das Florestas",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["PT"],
+        "jurisdiction": "Protected areas and forest routes in mainland Portugal",
+        "summary": "Official Natural.PTrails route guidance and ICNF geographic catalog."
+      },
+      "discoveryUrl": "https://www.icnf.pt/noticias/appnaturalptrails",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://geocatalogo.icnf.pt/",
+          "format": "Official geographic catalog",
+          "purpose": "Search for route data, service details, and source terms."
+        }
+      ],
+      "license": {
+        "name": "No reusable Natural.PTrails geometry grant confirmed",
+        "url": null,
+        "attribution": "Do not extract or republish route geometry without ICNF terms for the exact dataset.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "An official app or viewer does not grant bulk extraction or redistribution rights.",
+        "Confirm stable route IDs, current access, and dataset-specific terms before building an adapter.",
+        "Use only for route discovery and land-manager checks."
+      ]
+    },
+    {
+      "id": "georgia-apa-trails-gap",
+      "name": "Georgia Protected Areas Trails",
+      "authority": "Agency of Protected Areas of Georgia",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GE"],
+        "jurisdiction": "National parks and protected areas in Georgia",
+        "summary": "Official park-by-park tourist trail guides for Georgia's protected areas."
+      },
+      "discoveryUrl": "https://apa.gov.ge/en/eco-tourism/Trails",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://apa.gov.ge/en/eco-tourism/Trails",
+          "format": "Official park trail pages and maps",
+          "purpose": "Check route names, access rules, and the responsible protected-area office."
+        }
+      ],
+      "license": {
+        "name": "No machine-readable route package or reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish map geometry without permission from the Agency of Protected Areas.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The national page links park route guides but no stable bulk trail layer was confirmed.",
+        "Maps and guide pages require source-specific rights and current access checks.",
+        "Use only for manual discovery until an exact route endpoint is approved."
+      ]
+    },
+    {
+      "id": "kenya-kws-mountain-routes-gap",
+      "name": "Kenya Wildlife Service Mountain Routes",
+      "authority": "Kenya Wildlife Service",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["KE"],
+        "jurisdiction": "Kenya Wildlife Service mountain parks, including Mount Kenya",
+        "summary": "Official park pages and brochures that name approved mountain gates and routes."
+      },
+      "discoveryUrl": "https://kws.go.ke/park/mt-kenya-national-park/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://kws.go.ke/wp-content/uploads/2026/02/Mt.-Kenya-National-Park.pdf",
+          "format": "Official park brochure and route map",
+          "purpose": "Check the official Naro Moru, Sirimon, and Chogoria route identities."
+        }
+      ],
+      "license": {
+        "name": "No open route-map geometry license confirmed",
+        "url": null,
+        "attribution": "Do not trace or republish map geometry without Kenya Wildlife Service permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The brochure names official routes but is not a reusable vector trail dataset.",
+        "Some routes require special permission, park fees, guides, or gate controls.",
+        "Use only for route identity and current park checks."
+      ]
+    },
+    {
+      "id": "tanzania-tanapa-kilimanjaro-routes-gap",
+      "name": "TANAPA Kilimanjaro Routes",
+      "authority": "Tanzania National Parks",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["TZ"],
+        "jurisdiction": "Kilimanjaro National Park",
+        "summary": "Official visitor guide and route map for Kilimanjaro climbing routes."
+      },
+      "discoveryUrl": "https://www.tanzaniaparks.go.tz/kilimanjaro/visitor-guide",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.tanzaniaparks.go.tz/uploads/publications/en-1633027058-KI.pdf",
+          "format": "Official visitor brochure and climbing-route map",
+          "purpose": "Check named park routes, gates, camps, and access rules."
+        }
+      ],
+      "license": {
+        "name": "No reusable vector route data or derivative grant confirmed",
+        "url": null,
+        "attribution": "Do not trace or republish route-map geometry without TANAPA permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The official map is a manual reference, not a machine trail layer.",
+        "All climbs require a licensed guide or operator and current park approval.",
+        "Use only for route identity, access review, and agency outreach."
+      ]
+    },
+    {
+      "id": "uganda-uwa-rwenzori-routes-gap",
+      "name": "Uganda Wildlife Authority Rwenzori Routes",
+      "authority": "Uganda Wildlife Authority",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["UG"],
+        "jurisdiction": "Rwenzori Mountains National Park",
+        "summary": "Official park guidance for high-mountain routes and visitor access."
+      },
+      "discoveryUrl": "https://ugandawildlife.org/national_parks/rwenzori/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://ugandawildlife.org/national_parks/rwenzori/",
+          "format": "Official national-park visitor page",
+          "purpose": "Check current route guidance and the responsible park authority."
+        }
+      ],
+      "license": {
+        "name": "No open machine-readable route layer confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without Uganda Wildlife Authority permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable official vector route package and reuse terms were confirmed.",
+        "Routes may require guides, permits, fees, and current park checks.",
+        "Use only for manual discovery until an exact data source is approved."
+      ]
+    },
+    {
+      "id": "indonesia-ksdae-mountain-routes-gap",
+      "name": "Indonesia National Park Mountain Routes Gap",
+      "authority": "Directorate General of Natural Resources and Ecosystem Conservation",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["ID"],
+        "jurisdiction": "Indonesian national parks and conservation areas",
+        "summary": "Official park and climbing notices that distinguish approved mountain routes from closed or unofficial paths."
+      },
+      "discoveryUrl": "https://ksdae.menlhk.go.id/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://ksdae.menlhk.go.id/berita/12224/Evakuasi-Pendaki-di-Jalur-Timbanuh-TN-Gunung-Rinjani.html",
+          "format": "Official park route and access notice",
+          "purpose": "Confirm that a proposed route is official and open with its park office."
+        }
+      ],
+      "license": {
+        "name": "No nationwide trail-data service or reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not copy route geometry from park maps without source-specific permission.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Route status is managed by each national park and can change after hazards or conservation closures.",
+        "Official notices may name paths without publishing reusable geometry.",
+        "Use only for route identity and direct park review."
+      ]
+    },
+    {
+      "id": "philippines-bmb-pais-trails-gap",
+      "name": "Philippines Protected Area Trail Gap",
+      "authority": "Biodiversity Management Bureau, Department of Environment and Natural Resources",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["PH"],
+        "jurisdiction": "Philippine protected areas",
+        "summary": "Official Protected Area Information System used to find park managers and protected-area records."
+      },
+      "discoveryUrl": "https://pais.bmb.gov.ph/pas/home",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://pais.bmb.gov.ph/pas/home",
+          "format": "Official protected-area information system",
+          "purpose": "Find the responsible office and check for park-specific route data."
+        }
+      ],
+      "license": {
+        "name": "No national hiking-route geometry layer or reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without DENR-BMB or park-specific terms.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Protected-area records do not establish trail geometry or current visitor access.",
+        "No stable nationwide hiking-route endpoint was confirmed.",
+        "Use only for manual discovery and park-office outreach."
+      ]
+    },
+    {
+      "id": "austria-gip-alpine-paths",
+      "name": "Austria GIP and Alpine Path Network",
+      "authority": "Austrian public authorities through ÖVDAT and GIP",
+      "sourceKind": "official_aggregator",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AT"],
+        "jurisdiction": "Austria",
+        "summary": "The official national transport graph, including walking links and Alpine path data maintained through AWIS.GIP."
+      },
+      "discoveryUrl": "https://gip.gv.at/",
+      "endpoints": [
+        {
+          "type": "catalog",
+          "url": "https://www.data.gv.at/katalog/dataset/3fefc838-791d-4dde-975b-a4131a54e7c5",
+          "format": "GIP 2.0 Open Government Data bulk export",
+          "purpose": "Download the current official graph and review its walking and Alpine path fields."
+        },
+        {
+          "type": "web",
+          "url": "https://www.awisgip.at/",
+          "format": "Official Alpine path maintenance system",
+          "purpose": "Check the scope and upkeep of Alpine route records in GIP."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Datenquelle: gip.gv.at",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "The national graph contains many transport modes; an adapter must isolate walkable, public Alpine paths.",
+        "Confirm stable edge IDs, access fields, graph direction, and the current export schema before publication.",
+        "The graph is not a live closure or mountain-hazard feed."
+      ]
+    },
+    {
+      "id": "slovenia-mapzs-mountain-trails",
+      "name": "Slovenia maPZS Mountain Trails",
+      "authority": "Alpine Association of Slovenia",
+      "sourceKind": "official_aggregator",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["SI"],
+        "jurisdiction": "Maintained mountain trails in Slovenia",
+        "summary": "The route-maintaining association's map of mountain trails, conditions, and closures."
+      },
+      "discoveryUrl": "https://mapzs.pzs.si/about?lang=en",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://mapzs.pzs.si/?lang=en",
+          "format": "Interactive maintained-trail map",
+          "purpose": "Validate route identity, marked-trail status, and current closure notices."
+        }
+      ],
+      "license": {
+        "name": "No clear bulk geometry redistribution grant confirmed",
+        "url": null,
+        "attribution": "Do not extract or republish maPZS geometry without written terms from the Alpine Association of Slovenia.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The public map is useful for validation but no approved machine endpoint and reuse grant were confirmed.",
+        "Trail conditions and closures can change between data updates.",
+        "Use only for route checks until a source agreement and adapter exist."
+      ]
+    },
+    {
+      "id": "croatia-geohrvatska-hiking-trails",
+      "name": "GeoHrvatska Hiking Trails",
+      "authority": "State Geodetic Administration of Croatia and National Spatial Data Infrastructure bodies",
+      "sourceKind": "official_aggregator",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["HR"],
+        "jurisdiction": "Croatia",
+        "summary": "Official public-authority spatial services displayed through GeoHrvatska, including hiking trails."
+      },
+      "discoveryUrl": "https://dgu.gov.hr/istaknute-teme/geohrvatska-prostorni-podaci-republike-hrvatske-5300/5300",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.geohrvatska.hr/",
+          "format": "Official spatial-data viewer backed by public-authority network services",
+          "purpose": "Identify the agency service that owns a proposed hiking-trail feature."
+        }
+      ],
+      "license": {
+        "name": "Dataset-specific terms vary by contributing authority",
+        "url": null,
+        "attribution": "Do not republish geometry until the exact contributing service and its terms are recorded.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The viewer combines data from many public bodies and does not give one license for every layer.",
+        "Resolve the trail's source service, stable ID, access fields, and exact rights before publication.",
+        "Use only for official validation until a source-specific record is approved."
+      ]
+    },
+    {
+      "id": "italy-cai-sentiero-italia",
+      "name": "Sentiero Italia CAI",
+      "authority": "Club Alpino Italiano",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["IT"],
+        "jurisdiction": "Sentiero Italia across every Italian region",
+        "summary": "The route-maintaining association's stage catalog, current notes, and downloadable GPX tracks for Sentiero Italia."
+      },
+      "discoveryUrl": "https://sentieroitalia.cai.it/en/the-trail/stage-sheets/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://sentieroitalia.cai.it/en/the-trail/stage-sheets/",
+          "format": "Official stage pages with downloadable GPX tracks",
+          "purpose": "Validate route names, stage IDs, route class, and current field notes."
+        }
+      ],
+      "license": {
+        "name": "No separate CAI geometry redistribution grant confirmed",
+        "url": null,
+        "attribution": "Use CAI pages only for route facts; obtain publishable geometry through the reviewed OSM path unless CAI grants separate rights.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "CAI marks the site content as all rights reserved, and its digital map states that geometry comes from OpenStreetMap.",
+        "Do not copy the CAI GPX; fetch and review the matching OSM objects through the OSM adapter.",
+        "Stage pages can carry current route warnings that must block or qualify publication."
+      ]
+    },
+    {
+      "id": "czechia-zabaged-marked-hiking-routes",
+      "name": "Czechia ZABAGED Marked Hiking Routes",
+      "authority": "Czech Office for Surveying, Mapping and Cadastre",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CZ"],
+        "jurisdiction": "Czechia",
+        "summary": "Nationwide ZABAGED marked pedestrian routes, including object type AP050 maintained by the Czech Hiking Club."
+      },
+      "discoveryUrl": "https://geoportal.cuzk.gov.cz/Default.aspx?lng=EN&mapid=8&menu=241&metadataID=CZ-CUZK-ZABAGED-VP&mode=TextMeta&side=zabaged",
+      "endpoints": [
+        {
+          "type": "arcgis",
+          "url": "https://ags.cuzk.gov.cz/arcgis/rest/services/ZABAGED_POLOHOPIS/MapServer/150",
+          "format": "ArcGIS REST marked hiking-route layer",
+          "purpose": "Inspect nationwide route geometry, names, and fields for an adapter."
+        },
+        {
+          "type": "bulk",
+          "url": "https://geoportal.cuzk.gov.cz/Default.aspx?lng=EN&mapid=8&menu=241&metadataID=CZ-CUZK-ZABAGED-VP&mode=TextMeta&side=zabaged",
+          "format": "Nationwide GeoPackage, file geodatabase, WFS, and GML downloads",
+          "purpose": "Check current metadata, delivery formats, and reuse terms."
+        }
+      ],
+      "license": {
+        "name": "Creative Commons Attribution 4.0 International",
+        "url": "https://creativecommons.org/licenses/by/4.0/",
+        "attribution": "Czech Office for Surveying, Mapping and Cadastre",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "Confirm the current AP050 schema, stable IDs, hiking access, and route-state fields before publication.",
+        "A mapped route does not prove that it is open today; check current land-manager notices.",
+        "Add a source-specific adapter and response fixtures before moving this record to publishable."
+      ]
+    },
+    {
+      "id": "poland-bdot10k-foot-cycle-paths",
+      "name": "Poland BDOT10k Foot and Cycle Paths",
+      "authority": "Head Office of Geodesy and Cartography",
+      "sourceKind": "official_topography",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["PL"],
+        "jurisdiction": "Poland",
+        "summary": "Nationwide topographic foot and cycle ways, chiefly BDOT10k class OT_SKRP_L."
+      },
+      "discoveryUrl": "https://www.geoportal.gov.pl/pl/dane/baza-danych-obiektow-topograficznych-bdot10k/",
+      "endpoints": [
+        {
+          "type": "wfs",
+          "url": "https://mapy.geoportal.gov.pl/wss/service/PZGIK/BDOT/WFS/PobieranieBDOT10k",
+          "format": "Official BDOT10k WFS download service",
+          "purpose": "Inspect path geometry and current schema for route-alignment checks."
+        },
+        {
+          "type": "web",
+          "url": "https://www.gov.pl/web/gugik/nowy-sposob-udostepniania-danych-bdot10k-w-geoportalu",
+          "format": "Official download-format notice",
+          "purpose": "Check current GML, GeoPackage, and GeoParquet delivery options."
+        }
+      ],
+      "license": {
+        "name": "Official free-use terms with source attribution",
+        "url": "https://www.geoportal.gov.pl/pl/dane/baza-danych-obiektow-topograficznych-bdot10k/",
+        "attribution": "Head Office of Geodesy and Cartography, Poland",
+        "commercialUse": "allowed",
+        "derivativeUse": "allowed"
+      },
+      "limits": [
+        "BDOT10k path geometry supports alignment but does not by itself identify a marked hiking route.",
+        "Require a separate route-identity source and explicit public hiking access.",
+        "Confirm stable object IDs, topology, and exact credit text before publication."
+      ]
+    },
+    {
+      "id": "greece-necca-national-trail-network-gap",
+      "name": "Greece NECCA National Trail Network Gap",
+      "authority": "Natural Environment and Climate Change Agency",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["GR"],
+        "jurisdiction": "Greece, with emphasis on Natura 2000 areas",
+        "summary": "The planned national register of walking and cycling trails and its public trail portal."
+      },
+      "discoveryUrl": "https://monopatia.necca.gov.gr/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://greece20.gov.gr/?projects=draseis-prostasias-tis-viopoikilotitas-16851-2",
+          "format": "Official project description",
+          "purpose": "Track the national trail-register project and future public data."
+        }
+      ],
+      "license": {
+        "name": "No public bulk geometry or reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without source-specific terms from NECCA.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable public geometry API or bulk trail package was confirmed.",
+        "Use the portal only for route identity, access checks, and future-source discovery.",
+        "Review Natura 2000 and local land-manager limits separately."
+      ]
+    },
+    {
+      "id": "turkiye-dkmp-ekotaban-routes-gap",
+      "name": "Türkiye DKMP EKOTABAN Route Gap",
+      "authority": "General Directorate of Nature Conservation and National Parks",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["TR"],
+        "jurisdiction": "Protected areas in Türkiye",
+        "summary": "Protected-area route records and the national program to inventory and standardize hiking routes."
+      },
+      "discoveryUrl": "https://ekotaban.tarimorman.gov.tr/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.tarimorman.gov.tr/DKMP/Belgeler/DKMP%202026%20Y%C4%B1l%C4%B1%20Performans%20Program%C4%B1.pdf",
+          "format": "Official DKMP program PDF",
+          "purpose": "Track the hiking-route inventory and standardization program."
+        },
+        {
+          "type": "web",
+          "url": "https://nigde.ktb.gov.tr/TR-364530/aladaglar-milli-parki-nigde-bolumu-yuruyus-rotalari.html",
+          "format": "Official Aladağlar National Park route page",
+          "purpose": "Validate route names and park-specific visitor guidance."
+        }
+      ],
+      "license": {
+        "name": "No public geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish EKOTABAN or park-route geometry without written terms.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "No stable public machine-readable trail feed was confirmed.",
+        "Use official records and documents only for route identity and access checks.",
+        "Park permits, seasonal limits, and closures require a current local check."
+      ]
+    },
+    {
+      "id": "iran-official-mountain-route-gap",
+      "name": "Iran Official Mountain Route Data Gap",
+      "authority": "Ministry of Cultural Heritage, Tourism and Handicrafts; Department of Environment; Natural Resources and Watershed Management Organization",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["IR"],
+        "jurisdiction": "Iranian mountain and protected-area routes",
+        "summary": "The national nature-tourism rules name the responsible agencies, but no stable machine-readable official mountain-trail layer with clear reuse terms was confirmed."
+      },
+      "discoveryUrl": "https://nezamat.ir/%D8%A2%DB%8C%DB%8C%D9%86%D9%86%D8%A7%D9%85%D9%87-%D8%B7%D8%A8%DB%8C%D8%B9%D8%AA%DA%AF%D8%B1%D8%AF%DB%8C/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://nezamat.ir/%D8%A2%DB%8C%DB%8C%D9%86%D9%86%D8%A7%D9%85%D9%87-%D8%B7%D8%A8%DB%8C%D8%B9%D8%AA%DA%AF%D8%B1%D8%AF%DB%8C/",
+          "format": "Public record of Iran's national nature-tourism regulation",
+          "purpose": "Identify the responsible national and local authorities for route, access, and permit research."
+        }
+      ],
+      "license": {
+        "name": "No public trail-geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish route geometry without terms from the responsible Iranian land manager.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The regulation identifies oversight duties but does not publish a national trail geometry layer.",
+        "Use the record only to find the responsible authority and confirm route identity, access, and permits.",
+        "Do not copy, trace, simplify, or republish unofficial maps or track files as official data."
+      ]
+    },
+    {
+      "id": "kazakhstan-state-tourist-route-register-gap",
+      "name": "Kazakhstan State Tourist Route Register Gap",
+      "authority": "Ministry of Tourism and Sports of Kazakhstan and regional tourism offices",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["KZ"],
+        "jurisdiction": "Kazakhstan",
+        "summary": "Official registers of tourist routes and trails, including mountain routes near Almaty."
+      },
+      "discoveryUrl": "https://www.gov.kz/memleket/entities/almobl/activities/401",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.gov.kz/memleket/entities/almobl/press/article/details/69384",
+          "format": "Official regional route-register page",
+          "purpose": "Validate registered route names, itineraries, and responsible offices."
+        },
+        {
+          "type": "web",
+          "url": "https://www.gov.kz/uploads/2025/2/5/2b189806ac83bab2d519bc0e1fdb97b3_original.601531.pdf",
+          "format": "Official route-register PDF",
+          "purpose": "Check listed routes and restrictions when the HTML record lacks detail."
+        }
+      ],
+      "license": {
+        "name": "No public trail-geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "Do not republish geometry without terms from the responsible national or regional office.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The confirmed records are HTML and PDF tables, not a national geometry service.",
+        "Use them for route registration, names, itineraries, and restrictions only.",
+        "Confirm current border, permit, guide, and protected-area rules before route approval."
+      ]
+    },
+    {
+      "id": "south-africa-sanparks-trails-gap",
+      "name": "South African National Parks Trail Gap",
+      "authority": "South African National Parks",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["ZA"],
+        "jurisdiction": "South African national parks",
+        "summary": "Official trail pages, maps, and brochures for major parks, including Table Mountain, Garden Route, and Golden Gate."
+      },
+      "discoveryUrl": "https://www.sanparks.org/travel/plan/what-to-do/activities/hikes-walks-trails",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.sanparks.org/parks/table-mountain/what-to-do/activities/hikes-walks-trails",
+          "format": "Official park trail pages",
+          "purpose": "Validate route names, difficulty, permits, and current visitor rules."
+        },
+        {
+          "type": "web",
+          "url": "https://www.sanparks.org/corporate/media/e-brochures",
+          "format": "Official maps and brochures",
+          "purpose": "Check park-specific trail maps and notices manually."
+        }
+      ],
+      "license": {
+        "name": "SANParks site content requires written reproduction consent",
+        "url": "https://www.sanparks.org/legal/terms-conditions",
+        "attribution": "Do not reproduce or distribute SANParks geometry without written consent.",
+        "commercialUse": "restricted",
+        "derivativeUse": "restricted"
+      },
+      "limits": [
+        "No open national-park trail geometry service was confirmed.",
+        "SANParks terms do not permit copying site maps or geometry into Peaks without consent.",
+        "Use only for manual route identity, access, permit, and closure checks."
+      ]
+    },
+    {
+      "id": "costa-rica-sinac-chirripo-trails",
+      "name": "Costa Rica SINAC Chirripó Trails",
+      "authority": "National System of Conservation Areas",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CR"],
+        "jurisdiction": "Chirripó National Park, Costa Rica",
+        "summary": "Official Chirripó approach and summit-area trail references."
+      },
+      "discoveryUrl": "https://www.sinac.go.cr/ES/ac/aclap/pnch/Paginas/default.aspx",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.sinac.go.cr/ES/Boletines%20Prensa/Boletines%202021/08.%20Agosto.PDF",
+          "format": "Official trail-map bulletin",
+          "purpose": "Confirm that SINAC published the Chirripó trail map and its intended use."
+        },
+        {
+          "type": "web",
+          "url": "https://www.google.com/maps/d/u/0/viewer?mid=1gkGb4xviFL81WwdWsjkQ5nV0oqORHq5Z&ll=9.484342432981467%2C-83.49984009521485&z=13",
+          "format": "SINAC-published Google My Maps trail map with KML download",
+          "purpose": "Validate official trail names and alignment without republishing the geometry."
+        }
+      ],
+      "license": {
+        "name": "No route-geometry redistribution grant confirmed",
+        "url": null,
+        "attribution": "Use SINAC material for validation only until exact geometry reuse terms are confirmed.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "A downloadable KML does not by itself grant rights to republish its geometry.",
+        "Use the map only to check route identity, trail names, and independent geometry alignment.",
+        "Reservations, quotas, closures, and park rules require a current SINAC check."
+      ]
+    },
+    {
+      "id": "colombia-pnnc-ecotourism-trails",
+      "name": "Colombia National Parks Ecotourism Trails",
+      "authority": "National Natural Parks of Colombia",
+      "sourceKind": "official_routes",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["CO"],
+        "jurisdiction": "Colombian national parks, including El Cocuy and Los Nevados",
+        "summary": "Official route authorizations, inventories, rules, and maps for high-use mountain parks."
+      },
+      "discoveryUrl": "https://www.parquesnacionales.gov.co/wp-content/uploads/2025/08/2.-Auto-002-de-2025-PNN-EL-COCUY.pdf",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.parquesnacionales.gov.co/wp-content/uploads/2025/06/2023_08_04-RES-207-AperturaReglamentacion-Ecoturismo.pdf",
+          "format": "Official Los Nevados ecotourism route rules",
+          "purpose": "Validate legal route names, access, guide, and permit terms."
+        },
+        {
+          "type": "web",
+          "url": "https://www.parquesnacionales.gov.co/wp-content/uploads/2026/03/PUBLICACIO%CC%81N-PNN-LOS-NEVADOS-2026-V2.pdf",
+          "format": "Current official Los Nevados route inventory",
+          "purpose": "Check current authorized routes and park-specific restrictions."
+        }
+      ],
+      "license": {
+        "name": "Route-asset reuse terms remain unclear",
+        "url": null,
+        "attribution": "Do not republish park geometry until National Natural Parks of Colombia grants exact rights for that asset.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Current official PDFs support route identity and legal access checks, not geometry publication.",
+        "Do not apply terms from a separate PNNC web map to these route files.",
+        "Older KMZ references may check alignment only; use current park rules for access."
+      ]
+    },
+    {
+      "id": "russia-federal-protected-area-route-gap",
+      "name": "Russia Federal Protected-Area Route Data Gap",
+      "authority": "Ministry of Natural Resources and Environment of the Russian Federation; National Park Prielbrusye; Main Directorate of EMERCOM of Russia for the Kabardino-Balkarian Republic",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["RU"],
+        "jurisdiction": "Russian federal protected areas, with Elbrus route and access references",
+        "summary": "Official route passports and access guidance exist, but no stable machine trail layer with a route-geometry reuse grant was confirmed."
+      },
+      "discoveryUrl": "https://www.mnr.gov.ru/activity/oopt_fedtourism/touristic-marsh/",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://summer.resort-elbrus.ru/",
+          "format": "Official Elbrus resort route catalog and linked route passports",
+          "purpose": "Check the usual Elbrus route, ascent stages, operator guidance, and the current passport links."
+        },
+        {
+          "type": "web",
+          "url": "https://resort-elbrus.ru/importantToKnow/national-park",
+          "format": "Official Elbrus resort national-park access guidance",
+          "purpose": "Check current national-park entry and permit terms."
+        },
+        {
+          "type": "web",
+          "url": "https://07.mchs.gov.ru/deyatelnost/informaciya-o-registracii-turgrupp",
+          "format": "Regional EMERCOM tourist-group registration rules",
+          "purpose": "Check current notice, completion-report, and mountain safety duties."
+        }
+      ],
+      "license": {
+        "name": "No public route-geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "Use the Russian Ministry, National Park Prielbrusye, EMERCOM, and official resort material only for route identity and access checks until exact geometry rights are granted.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "The official resort page links route passports through third-party hosting; that does not grant geometry reuse rights.",
+        "Do not copy, trace, simplify, or republish resort maps, passport maps, or track files.",
+        "Require current park entry, EMERCOM notice, guide, weather, glacier, and route-condition checks before publication."
+      ]
+    },
+    {
+      "id": "antarctica-official-climbing-route-gap",
+      "name": "Antarctica Official Climbing Route Data Gap",
+      "authority": "Antarctic Treaty Secretariat and the relevant Antarctic Treaty Party national competent authority",
+      "sourceKind": "manual_reference",
+      "status": "manual_gap",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["AQ"],
+        "jurisdiction": "Antarctica, with Vinson route and access references",
+        "summary": "Treaty access records and open official base data exist, but no official machine climbing-route line was confirmed."
+      },
+      "discoveryUrl": "https://www.ats.aq/e/tourism.html",
+      "endpoints": [
+        {
+          "type": "web",
+          "url": "https://www.ats.aq/devAS/Ats/NationalCompetentAuthorities?lang=e",
+          "format": "Antarctic Treaty national competent-authority directory",
+          "purpose": "Find the authority that must approve the visit under the relevant Treaty Party's law."
+        },
+        {
+          "type": "web",
+          "url": "https://antarctic-logistics.com/trip/climb-mount-vinson/",
+          "format": "Current Vinson operator route description",
+          "purpose": "Check the Branscomb Shoulder route identity and current operator logistics without reusing geometry."
+        },
+        {
+          "type": "bulk",
+          "url": "https://data.bas.ac.uk/items/e74543c0-4c4e-4b41-aa33-5bb2f67df389/",
+          "format": "SCAR Antarctic Digital Database topography in GeoPackage and Shapefile",
+          "purpose": "Use as an official open basemap for terrain and context; it contains no climbing routes or trails."
+        }
+      ],
+      "license": {
+        "name": "No public Vinson route-geometry reuse grant confirmed",
+        "url": null,
+        "attribution": "Use Antarctic Treaty access records and SCAR/British Antarctic Survey base data within their exact terms; do not treat an operator route as official open geometry.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "There is no single Antarctic land manager; check the relevant Treaty Party's current permit and environmental review before each route.",
+        "The filed Vinson environmental review through 2025-26 does not prove later authorization and notes that route changes are briefed at base camp.",
+        "SCAR ADD and REMA provide reusable base data, not trail or climbing-route linework.",
+        "Do not copy operator maps or geometry; require current logistics, weather, glacier, crevasse, rescue, and waste checks."
+      ]
+    }
+  ]
+}

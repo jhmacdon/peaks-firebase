@@ -156,6 +156,27 @@ const routeJobsWrapper = fileURLToPath(
   )
 );
 
+const routeWorkerEnvironment = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/route_worker_environment.sh",
+    import.meta.url
+  )
+);
+
+const routeJobClaimRole = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/route_job_claim_role.sh",
+    import.meta.url
+  )
+);
+
+const routeWorkerIdResolver = fileURLToPath(
+  new URL(
+    "../../../../.agents/skills/peaks-route-factory/scripts/resolve_route_worker_id.sh",
+    import.meta.url
+  )
+);
+
 const routeRepairLunaPrompt = fileURLToPath(
   new URL(
     "../../../../.agents/skills/peaks-route-factory/references/luna-repair-goal-prompt.md",
@@ -258,15 +279,19 @@ test("approved worker checkouts resolve by exact path", () => {
   }
 });
 
-test("route importer wrapper owns terrain settings and the fixed importer", () => {
+test("database wrapper owns portable terrain settings and the fixed importer", () => {
   const wrapper = readFileSync(routeImporterWrapper, "utf8");
+  const databaseWrapper = readFileSync(routeDatabaseWrapper, "utf8");
   const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
 
-  assert.match(wrapper, /export PEAKS_ELEVATION_SOURCE="terrain-cache"/);
+  assert.doesNotMatch(wrapper, /PEAKS_ELEVATION_SOURCE|PEAKS_TERRAIN_TILE_CACHE/);
+  assert.match(databaseWrapper, /export PEAKS_ELEVATION_SOURCE="terrain-cache"/);
   assert.match(
-    wrapper,
-    /export PEAKS_TERRAIN_TILE_CACHE="\/private\/tmp\/peaks-route-worker\/terrain"/
+    databaseWrapper,
+    /export PEAKS_TERRAIN_TILE_CACHE="\$worker_terrain_root"/
   );
+  assert.match(databaseWrapper, /resolved_worker_command\+=\(--output-dir "\$worker_terrain_root"\)/);
+  assert.doesNotMatch(stageCommands, /\/private\/tmp\/peaks-route-worker/);
   assert.match(wrapper, /exec "\$script_dir\/with_route_db\.sh"/);
   assert.match(wrapper, /import_standard_route_from_osm_candidate\.mts/);
   assert.match(wrapper, /"\$@"/);
@@ -292,8 +317,9 @@ test("route source-check wrapper owns checker choice and result path", () => {
   assert.match(wrapper, /check_pending_usgs_routes\.mts/);
   assert.match(
     wrapper,
-    /output_file="\$output_dir\/\$destination_id-source-check\.json"/
+    /output_file="\$output_dir\/\$destination_id-\$lease_token-source-check\.json"/
   );
+  assert.match(wrapper, /worker-artifacts/);
   assert.match(wrapper, /checker_status.*-ne 0.*-ne 2/s);
   assert.match(wrapper, /mv "\$temporary_file" "\$output_file"/);
   assert.doesNotMatch(
@@ -309,19 +335,37 @@ test("route source-check wrapper owns checker choice and result path", () => {
 test("route reviewer gets a small packet and a bounded useful window", async () => {
   const reviewer = readFileSync(routeReviewerConfig, "utf8");
   const stageCommands = readFileSync(routeFactoryStageCommands, "utf8");
+  const checkedAt = new Date().toISOString();
   const discardedUrl = "https://discarded.example/route";
-  const conflictUrl = "https://www.alltrails.com/trail/example";
+  const accessUrl = "https://www.nps.gov/example/access";
+  const conflictUrl =
+    "https://www.alltrails.com/trail/us/washington/example";
   const candidate = {
     route_name: "Mount Example via Standard Route",
     route_shape: "out_and_back",
+    official_source_country_code: "US",
+    official_source_attempts: {
+      "usfs-nfs-trails": {
+        status: "no_complete_geometry",
+        attempted_url:
+          "https://data-usfs.hub.arcgis.com/datasets/usfs::national-forest-system-trails-feature-layer",
+        checked_at: checkedAt,
+        note: "No complete route geometry found for this candidate.",
+      },
+    },
+    discovery_checks: {
+      alltrails: { status: "matched", url: conflictUrl, checked_at: checkedAt },
+      peakbagger: {
+        status: "matched",
+        url: "https://www.peakbagger.com/peak.aspx?pid=1",
+        checked_at: checkedAt,
+      },
+    },
     identity_sources: [
-      { type: "official", url: "https://www.nps.gov/example" },
-      { type: "route_guide", url: "https://www.wta.org/go-hiking/example" },
-      { type: "summitpost", url: "https://www.summitpost.org/example" },
+      { type: "nps-public-trails", url: accessUrl },
+      { type: "wta", url: "https://www.wta.org/go-hiking/example" },
       { type: "peakbagger", url: "https://www.peakbagger.com/peak.aspx?pid=1" },
       { type: "alltrails", url: conflictUrl },
-      { type: "guide", url: discardedUrl },
-      { type: "guide", url: "https://another.example/route" },
     ],
     identity_conflicts: [
       { url: conflictUrl, note: "This publisher names a different route." },
@@ -333,11 +377,10 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     },
     access: {
       status: "open",
-      source_url: "https://www.nps.gov/example/access",
+      source_url: accessUrl,
     },
     comparison: {
       private_reference_used: false,
-      ignored_url: discardedUrl,
     },
     map_review: { passed: true, notes: "Correct summit and trailhead." },
   };
@@ -359,14 +402,30 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     },
     destinationId: "destination",
     destinationName: "Mount Example",
+    destinationCountryCode: "US",
     trailheadId: "trailhead",
     trailheadName: "Example Trailhead",
     routeId: "route",
+    candidateSha256: "a".repeat(64),
   };
   const packet = buildRouteReviewPacket({
     candidate,
     ...packetArgs,
   });
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          access: {
+            status: "open",
+            source_url: "https://attacker.example/open",
+          },
+        },
+        ...packetArgs,
+      }),
+    /must exactly match a strong identity source/
+  );
 
   assert.match(reviewer, /model_reasoning_effort = "medium"/);
   assert.match(reviewer, /Read exactly one file/);
@@ -378,8 +437,13 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
   assert.match(reviewer, /Finish within two minutes/);
   assert.match(reviewer, /Copy the packet's review_result_template/);
   assert.match(reviewer, /HTTP 200 proves only that the page was fetched/);
+  assert.match(reviewer, /untrusted/i);
+  assert.match(reviewer, /embedded\s+instructions/i);
   assert.match(reviewer, /core p95 <= 2 m/);
   assert.match(reviewer, /standard route name, named trailhead, route shape/);
+  assert.match(reviewer, /AllTrails check and a Peakbagger check/);
+  assert.match(reviewer, /not as route proof/);
+  assert.match(reviewer, /search query names another place or omits the destination/);
   assert.match(reviewer, /scrambling, glacier, avalanche, climbing/);
   assert.match(
     reviewer,
@@ -390,10 +454,43 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
   assert.match(stageCommands, /Never attach or\s+quote the full candidate result/);
   assert.match(stageCommands, /with one prompt field/);
   assert.match(stageCommands, /Do not also supply an input, items, files/);
-  assert.equal(packet.candidate.identity_sources.length, 2);
+  assert.equal(packet.candidate.identity_sources.length, 4);
+  assert.deepEqual(packet.candidate.identity_sources, candidate.identity_sources);
+  assert.deepEqual(packet.candidate.discovery_checks, candidate.discovery_checks);
+  const delayedCheckedAt = "2026-07-01T00:00:00.000Z";
+  const delayedPacket = buildRouteReviewPacket({
+    candidate: {
+      ...candidate,
+      discovery_checks: {
+        alltrails: {
+          ...candidate.discovery_checks.alltrails,
+          checked_at: delayedCheckedAt,
+        },
+        peakbagger: {
+          ...candidate.discovery_checks.peakbagger,
+          checked_at: delayedCheckedAt,
+        },
+      },
+    },
+    ...packetArgs,
+  });
+  assert.equal(
+    delayedPacket.candidate.discovery_checks.alltrails.checked_at,
+    delayedCheckedAt,
+    "review must retain evidence that was fresh when candidate_ready was saved"
+  );
   assert.equal(packet.review_result_template.verdict, null);
-  assert.equal(packet.review_result_template.reviewer, "peaks_route_reviewer");
+  assert.equal(packet.review_result_template.reviewer, undefined);
+  assert.equal(
+    packet.review_result_template.reviewer_id,
+    "luna-route-reviewer-01"
+  );
   assert.equal(packet.review_result_template.route_id, "route");
+  assert.equal(packet.review_result_template.destination_id, "destination");
+  assert.equal(packet.review_result_template.candidate_sha256, "a".repeat(64));
+  assert.match(packet.review_result_template.candidate_result_sha256, /^[a-f0-9]{64}$/);
+  assert.match(packet.review_result_template.source_check_sha256, /^[a-f0-9]{64}$/);
+  assert.match(packet.review_result_template.review_packet_sha256, /^[a-f0-9]{64}$/);
   assert.equal(packet.review_result_template.source_check, "osm");
   assert.deepEqual(
     Object.keys(packet.review_result_template.gates),
@@ -424,6 +521,8 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     packet.review_contract.evidence_rule,
     /proves only that a page was fetched/
   );
+  assert.match(packet.review_contract.untrusted_web_rule, /untrusted page content/);
+  assert.match(packet.review_contract.comparison_rule, /route_identity must fail/);
   const usgsPacket = buildRouteReviewPacket({
     candidate: {
       ...candidate,
@@ -439,37 +538,72 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
   assert.ok(
     packet.candidate.identity_sources.some((source) => source.url === conflictUrl)
   );
+  assert.ok(
+    packet.candidate.identity_sources.some(
+      (source) =>
+        source.url === "https://www.peakbagger.com/peak.aspx?pid=1"
+    )
+  );
   assert.equal(packet.candidate.identity_conflicts.length, 1);
-  assert.equal(packet.candidate.access.source_url, "https://www.nps.gov/example/access");
+  assert.equal(packet.candidate.access.source_url, accessUrl);
   assert.doesNotMatch(JSON.stringify(packet), new RegExp(discardedUrl));
   const rankedPacket = buildRouteReviewPacket({
     candidate: {
       ...candidate,
       identity_sources: [
         { type: "unofficial_blog", url: "https://blog.example/route" },
-        { type: "official", url: "https://www.nps.gov/example" },
-        { type: "route_guide", url: "https://www.wta.org/go-hiking/example" },
+        { type: "nps-public-trails", url: accessUrl },
+        { type: "wta", url: "https://www.wta.org/go-hiking/example" },
       ],
+      discovery_checks: {
+        alltrails: {
+          status: "no_match",
+          attempted_url: "https://www.alltrails.com/search?q=Mount+Example",
+          checked_at: checkedAt,
+          note: "No direct route match.",
+        },
+        peakbagger: {
+          status: "unavailable",
+          attempted_url:
+            "https://www.peakbagger.com/search.aspx?tid=R&query=Mount+Example",
+          checked_at: checkedAt,
+          note: "The public page was unavailable.",
+        },
+      },
       identity_conflicts: [],
     },
     ...packetArgs,
   });
   assert.deepEqual(
     rankedPacket.candidate.identity_sources.map((source) => source.type),
-    ["official", "route_guide"]
+    ["unofficial_blog", "nps-public-trails", "wta"]
   );
   const samePublisherUrls = [
     "https://conflicts.example/route-one",
     "https://conflicts.example/route-two",
-    "https://conflicts.example/route-three",
   ];
   const samePublisherPacket = buildRouteReviewPacket({
     candidate: {
       ...candidate,
       identity_sources: [
         ...samePublisherUrls.map((url) => ({ type: "guide", url })),
-        { type: "official", url: "https://www.nps.gov/example" },
+        { type: "nps-public-trails", url: accessUrl },
       ],
+      discovery_checks: {
+        alltrails: {
+          status: "no_match",
+          attempted_url: "https://www.alltrails.com/search?q=Mount+Example",
+          checked_at: checkedAt,
+          note: "No direct route match.",
+        },
+        peakbagger: {
+          status: "no_match",
+          attempted_url:
+            "https://www.peakbagger.com/search.aspx?tid=R&query=Mount+Example",
+          checked_at: checkedAt,
+          note: "No direct route match.",
+        },
+      },
       identity_conflicts: samePublisherUrls.map((url, index) => ({
         url,
         note: `Conflict ${index + 1}.`,
@@ -477,18 +611,154 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
     },
     ...packetArgs,
   });
-  assert.equal(samePublisherPacket.candidate.identity_conflicts.length, 1);
+  assert.equal(samePublisherPacket.candidate.identity_conflicts.length, 2);
   assert.equal(
     samePublisherPacket.candidate.identity_conflicts[0].url,
     samePublisherUrls[0]
   );
-  assert.match(
-    samePublisherPacket.candidate.identity_conflicts[0].note,
-    /Conflict 1\. Conflict 2\. Conflict 3\./
+  assert.match(JSON.stringify(samePublisherPacket), /route-two/);
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          identity_sources: [
+            { type: "guide", url: "https://conflicts.example/route-one" },
+            { type: "guide", url: "https://conflicts.example/route-two" },
+            { type: "guide", url: "https://conflicts.example/route-three" },
+            { type: "nps-public-trails", url: accessUrl },
+          ],
+          discovery_checks: rankedPacket.candidate.discovery_checks,
+          identity_conflicts: [
+            "https://conflicts.example/route-one",
+            "https://conflicts.example/route-two",
+            "https://conflicts.example/route-three",
+          ].map((url, index) => ({ url, note: `Conflict ${index + 1}.` })),
+        },
+        ...packetArgs,
+      }),
+    /more than two identity conflicts needs human review/
   );
-  assert.doesNotMatch(
-    JSON.stringify(samePublisherPacket),
-    /route-two|route-three/
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          identity_sources: [
+            ...candidate.identity_sources,
+            { type: "guide", url: discardedUrl },
+          ],
+        },
+        ...packetArgs,
+      }),
+    /no more than four reviewed sources/
+  );
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: { ...candidate, discovery_checks: undefined },
+        ...packetArgs,
+      }),
+    /candidate\.discovery_checks must be an object/
+  );
+  for (const [service, attempted_url] of [
+    ["alltrails", "https://www.alltrails.com/"],
+    ["peakbagger", "https://www.peakbagger.com/search.aspx"],
+  ]) {
+    assert.throws(
+      () =>
+        buildRouteReviewPacket({
+          candidate: {
+            ...rankedPacket.candidate,
+            comparison: candidate.comparison,
+            map_review: candidate.map_review,
+            geometry: candidate.geometry,
+            access: candidate.access,
+            discovery_checks: {
+              ...rankedPacket.candidate.discovery_checks,
+              [service]: {
+                status: "no_match",
+                attempted_url,
+                checked_at: checkedAt,
+                note: "No direct route match.",
+              },
+            },
+          },
+          ...packetArgs,
+        }),
+      /must be a public search for destination/
+    );
+  }
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...rankedPacket.candidate,
+          comparison: candidate.comparison,
+          map_review: candidate.map_review,
+          geometry: candidate.geometry,
+          access: candidate.access,
+          discovery_checks: {
+            ...rankedPacket.candidate.discovery_checks,
+            alltrails: {
+              status: "no_match",
+              attempted_url:
+                "https://www.alltrails.com/search?q=Mount+Wrong+Mount+Example",
+              checked_at: checkedAt,
+              note: "No direct route match.",
+            },
+          },
+        },
+        ...packetArgs,
+      }),
+    /must be a public search for destination "Mount Example"/
+  );
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          identity_sources: candidate.identity_sources.map((source) =>
+            source.type === "alltrails"
+              ? { ...source, url: "https://www.alltrails.com/search?q=Example" }
+              : source
+          ),
+          discovery_checks: {
+            ...candidate.discovery_checks,
+            alltrails: {
+              status: "matched",
+              url: "https://www.alltrails.com/search?q=Example",
+              checked_at: checkedAt,
+            },
+          },
+        },
+        ...packetArgs,
+      }),
+    /alltrails\.url must name a concrete public result page/
+  );
+  const comparedPacket = buildRouteReviewPacket({
+    candidate: {
+      ...candidate,
+      comparison: { private_reference_used: true, max_offset_m: 50.1 },
+    },
+    ...packetArgs,
+  });
+  assert.deepEqual(comparedPacket.candidate.comparison, {
+    private_reference_used: true,
+    max_offset_m: 50.1,
+    threshold_m: 50,
+    passed: false,
+  });
+  assert.throws(
+    () =>
+      buildRouteReviewPacket({
+        candidate: {
+          ...candidate,
+          comparison: { private_reference_used: true, max_offset_m: Infinity },
+        },
+        ...packetArgs,
+      }),
+    /finite number from 0 to 1000000/
   );
   const requestedUrls = [];
   const evidencePacket = await addReviewWebEvidence(
@@ -520,11 +790,32 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
       },
     }
   );
-  assert.equal(requestedUrls.length, 3);
-  assert.equal(evidencePacket.web_evidence.length, 3);
+  assert.equal(requestedUrls.length, 4);
+  assert.equal(evidencePacket.web_evidence.length, 4);
+  assert.ok(
+    evidencePacket.web_evidence.every(
+      (evidence) => evidence.untrusted_content === true
+    )
+  );
+  assert.notEqual(
+    evidencePacket.attestation.review_packet_sha256,
+    packet.attestation.review_packet_sha256
+  );
+  assert.equal(
+    evidencePacket.review_result_template.review_packet_sha256,
+    evidencePacket.attestation.review_packet_sha256
+  );
   assert.equal(
     evidencePacket.web_evidence.filter((evidence) => evidence.ok).length,
-    2
+    3
+  );
+  assert.ok(
+    evidencePacket.web_evidence.some(
+      (evidence) =>
+        evidence.url === conflictUrl &&
+        evidence.roles.includes("identity") &&
+        evidence.roles.includes("discovery_attempt")
+    )
   );
   assert.ok(
     evidencePacket.web_evidence.some(
@@ -536,6 +827,31 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
   );
   assert.match(JSON.stringify(evidencePacket), /Mount Example Route/);
   assert.doesNotMatch(JSON.stringify(evidencePacket), /discard me|<html>/);
+  const negativeAttemptUrls = [];
+  await addReviewWebEvidence(rankedPacket, {
+    resolveHost: async () => [
+      { address: "93.184.216.34", family: 4 },
+    ],
+    requestHop: async (url) => {
+      negativeAttemptUrls.push(url);
+      return {
+        status: 200,
+        content_type: "text/plain",
+        location: null,
+        body: "Public route search result.",
+      };
+    },
+  });
+  assert.ok(
+    negativeAttemptUrls.includes(
+      "https://www.alltrails.com/search?q=Mount+Example"
+    )
+  );
+  assert.ok(
+    negativeAttemptUrls.includes(
+      "https://www.peakbagger.com/search.aspx?tid=R&query=Mount+Example"
+    )
+  );
   let redirectRequests = 0;
   await assert.rejects(
     fetchPublicPage("https://public.example/start", {
@@ -646,6 +962,7 @@ test("route reviewer gets a small packet and a bounded useful window", async () 
           ...candidate,
           identity_sources: [
             { type: "official", url: "https://127.0.0.1/private" },
+            { type: "nps-public-trails", url: accessUrl },
           ],
           identity_conflicts: [],
         },
@@ -679,7 +996,11 @@ test("elevation wrapper preflights before every queue call and owns its worker I
   const npmIndex = source.indexOf("npm --prefix");
   assert.doesNotMatch(source, /worker_preflight\.sh/);
   assert.match(databaseSource, /worker_preflight\.sh/);
-  assert.ok(databaseSource.indexOf("worker_preflight.sh") < databaseSource.indexOf('exec "$@"'));
+  assert.ok(
+    databaseSource.indexOf("worker_preflight.sh") <
+      databaseSource.indexOf('exec "${resolved_worker_command[@]}"')
+  );
+  assert.doesNotMatch(databaseSource, /exec "\$@"/);
   assert.ok(
     npmIndex > databaseWrapperIndex,
     "database wrapper runs the queue CLI"
@@ -787,15 +1108,29 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     root,
     ".agents/skills/peaks-route-factory/scripts"
   );
+  const migrateScripts = join(root, "cloud-sql/migrate/scripts");
   const bin = join(root, "bin");
   try {
     mkdirSync(factoryScripts, { recursive: true });
+    mkdirSync(migrateScripts, { recursive: true });
     mkdirSync(bin);
     const wrapper = join(factoryScripts, "route_jobs.sh");
     copyFileSync(routeJobsWrapper, wrapper);
+    copyFileSync(
+      routeJobClaimRole,
+      join(factoryScripts, "route_job_claim_role.sh")
+    );
+    copyFileSync(
+      routeWorkerIdResolver,
+      join(factoryScripts, "resolve_route_worker_id.sh")
+    );
+    copyFileSync(
+      routeWorkerEnvironment,
+      join(factoryScripts, "route_worker_environment.sh")
+    );
     writeFileSync(
       join(factoryScripts, "resolve_worker_checkout.sh"),
-      "#!/usr/bin/env bash\nprintf '%s\\n' route-repair\n"
+      "#!/usr/bin/env bash\nprintf '%s\\n' route-factory\n"
     );
     writeFileSync(
       join(factoryScripts, "with_route_db.sh"),
@@ -805,19 +1140,130 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
       join(bin, "npm"),
       "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"
     );
+    writeFileSync(
+      join(migrateScripts, "run-tsx.sh"),
+      "#!/bin/bash -p\nprintf '%s\\n' \"$@\"\n"
+    );
     for (const executable of [
       wrapper,
+      join(factoryScripts, "route_job_claim_role.sh"),
+      join(factoryScripts, "resolve_route_worker_id.sh"),
+      join(factoryScripts, "route_worker_environment.sh"),
       join(factoryScripts, "resolve_worker_checkout.sh"),
       join(factoryScripts, "with_route_db.sh"),
+      join(migrateScripts, "run-tsx.sh"),
       join(bin, "npm"),
     ]) chmodSync(executable, 0o755);
     const environment = {
       ...process.env,
       PATH: `${bin}:${process.env.PATH}`,
     };
+    for (const [kind, workerId] of [
+      ["route-factory", "luna-route-worker-01"],
+      ["route-factory-02", "luna-route-worker-02"],
+      ["route-factory-03", "luna-route-worker-03"],
+      ["route-factory-04", "luna-route-worker-04"],
+    ]) {
+      writeFileSync(
+        join(factoryScripts, "resolve_worker_checkout.sh"),
+        `#!/usr/bin/env bash\nprintf '%s\\n' ${kind}\n`
+      );
+      const generalOutput = execFileSync(
+        wrapper,
+        ["claim", "--stage", "factory", "--apply"],
+        { encoding: "utf8", env: environment }
+      );
+      assert.match(
+        generalOutput,
+        new RegExp(`--worker-id\\n${workerId}`)
+      );
+      assert.doesNotMatch(generalOutput, /--integrity-repairs-only/);
+    }
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "transition",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--to", "candidate_ready",
+          "--artifact-path", "/private/tmp/peaks-route-worker/peak-1.geojson",
+          "--result-file", "/private/tmp/peaks-route-worker/peak-1.json",
+          "--apply",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    const artifactDirectory = join(
+      root,
+      "cloud-sql/migrate/route-candidates/luna/worker-artifacts"
+    );
+    mkdirSync(artifactDirectory, { recursive: true });
+    writeFileSync(
+      join(artifactDirectory, "peak-1-lease-1.geojson"),
+      '{"type":"FeatureCollection","features":[]}\n'
+    );
+    writeFileSync(
+      join(artifactDirectory, "peak-1-lease-1-candidate.json"),
+      '{}\n'
+    );
+    const isolatedOutput = execFileSync(
+      wrapper,
+      [
+        "transition",
+        "--destination-id", "peak-1",
+        "--lease-token", "lease-1",
+        "--to", "candidate_ready",
+        "--artifact-path",
+        "cloud-sql/migrate/route-candidates/luna/worker-artifacts/peak-1-lease-1.geojson",
+        "--result-file",
+        "cloud-sql/migrate/route-candidates/luna/worker-artifacts/peak-1-lease-1-candidate.json",
+        "--apply",
+      ],
+      { encoding: "utf8", env: environment }
+    );
+    assert.match(isolatedOutput, /worker-artifacts/);
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "materialize",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--output",
+          "cloud-sql/migrate/route-candidates/luna/worker-artifacts/../escape.geojson",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    symlinkSync(
+      join(root, "outside.json"),
+      join(artifactDirectory, "linked.json")
+    );
+    assert.throws(
+      () => execFileSync(
+        wrapper,
+        [
+          "materialize-result",
+          "--destination-id", "peak-1",
+          "--lease-token", "lease-1",
+          "--kind", "candidate",
+          "--output",
+          "cloud-sql/migrate/route-candidates/luna/worker-artifacts/linked.json",
+        ],
+        { encoding: "utf8", env: environment, stdio: "pipe" }
+      ),
+      /Command failed/
+    );
+    writeFileSync(
+      join(factoryScripts, "resolve_worker_checkout.sh"),
+      "#!/usr/bin/env bash\nprintf '%s\\n' route-repair\n"
+    );
     const output = execFileSync(
       wrapper,
-      ["claim", "--stage", "next", "--apply"],
+      ["claim", "--stage", "factory", "--apply"],
       { encoding: "utf8", env: environment }
     );
     assert.match(output, /--worker-id\nluna-route-repair-01/);
@@ -847,7 +1293,12 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     );
     const canonicalOutput = execFileSync(
       wrapper,
-      ["claim", "--worker-id", "supervisor-route-claim", "--apply"],
+      [
+        "claim",
+        "--worker-id", "supervisor-route-claim",
+        "--stage", "factory",
+        "--apply",
+      ],
       { encoding: "utf8", env: environment }
     );
     assert.match(canonicalOutput, /--worker-id\nsupervisor-route-claim/);
@@ -855,7 +1306,7 @@ test("repair lane owns its claim identity and cannot claim ordinary work", () =>
     assert.throws(
       () => execFileSync(
         wrapper,
-        ["claim", "--apply"],
+        ["claim", "--stage", "factory", "--apply"],
         { encoding: "utf8", env: environment, stdio: "pipe" }
       ),
       /Command failed/
@@ -1011,6 +1462,50 @@ test("database wrapper accepts only a private local password cache", () => {
     );
     assert.equal(output, "test-password");
 
+    assert.throws(
+      () =>
+        execFileSync(
+          "bash",
+          [
+            "-euc",
+            'source "$1" "$2" factory',
+            "_",
+            routeDatabasePasswordLoader,
+            repoRoot,
+          ],
+          {
+            encoding: "utf8",
+            env: {
+              ...environment,
+              DB_PASS: "operator-password",
+              PEAKS_ROUTE_DB_PASS: "operator-password",
+              PEAKS_ROUTE_FACTORY_DB_PASS: "",
+              PATH: "/usr/bin:/bin",
+            },
+            stdio: "pipe",
+          }
+        ),
+      /Command failed/
+    );
+    const factoryOutput = execFileSync(
+      "bash",
+      [
+        "-euc",
+        'source "$1" "$2" factory; printf "%s" "$DB_PASS"',
+        "_",
+        routeDatabasePasswordLoader,
+        repoRoot,
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          ...environment,
+          PEAKS_ROUTE_FACTORY_DB_PASS: "factory-password",
+        },
+      }
+    );
+    assert.equal(factoryOutput, "factory-password");
+
     chmodSync(credentialFile, 0o644);
     assert.throws(
       () => execFileSync(
@@ -1045,13 +1540,28 @@ test("password cache writer rejects symlinks and replaces loose files atomically
     const cacheScript = join(scripts, "cache_route_db_password.sh");
     const resolver = join(scripts, "resolve_worker_checkout.sh");
     const gcloud = join(bin, "gcloud");
-    copyFileSync(routeDatabasePasswordCache, cacheScript);
+    writeFileSync(
+      cacheScript,
+      readFileSync(routeDatabasePasswordCache, "utf8").replaceAll(
+        "gcloud",
+        gcloud
+      )
+    );
+    copyFileSync(
+      routeWorkerEnvironment,
+      join(scripts, "route_worker_environment.sh")
+    );
     writeFileSync(resolver, "#!/usr/bin/env bash\nexit 0\n");
     writeFileSync(
       gcloud,
       "#!/usr/bin/env bash\nset -euo pipefail\noutput_file=''\nfor argument in \"$@\"; do\n  case \"$argument\" in --out-file=*) output_file=\"${argument#--out-file=}\" ;; esac\ndone\n[ -n \"$output_file\" ]\nprintf '%s\\n' fresh-secret >\"$output_file\"\n"
     );
-    for (const executable of [cacheScript, resolver, gcloud]) {
+    for (const executable of [
+      cacheScript,
+      resolver,
+      join(scripts, "route_worker_environment.sh"),
+      gcloud,
+    ]) {
       chmodSync(executable, 0o755);
     }
     const environment = {
@@ -1536,7 +2046,11 @@ test("elevation preflight contains dirty, stale, and runtime guards", () => {
   const databaseWrapper = readFileSync(routeDatabaseWrapper, "utf8");
   const preflight = readFileSync(workerPreflight, "utf8");
   assert.match(wrapper, /with_route_db\.sh/);
-  assert.ok(databaseWrapper.indexOf("worker_preflight.sh") < databaseWrapper.indexOf('exec "$@"'));
+  assert.ok(
+    databaseWrapper.indexOf("worker_preflight.sh") <
+      databaseWrapper.indexOf('exec "${resolved_worker_command[@]}"')
+  );
+  assert.doesNotMatch(databaseWrapper, /exec "\$@"/);
   assert.ok(preflight.indexOf("git -C \"$repo_root\" status") < preflight.indexOf("npm --prefix"));
   assert.ok(preflight.indexOf("rev-parse origin/main") < preflight.indexOf("npm --prefix"));
   assert.match(preflight, /route-elevation-jobs\.ts/);
@@ -1547,7 +2061,7 @@ test("elevation preflight contains dirty, stale, and runtime guards", () => {
 test("worker TypeScript runner avoids the tsx IPC command", () => {
   const source = readFileSync(routeTsxRunner, "utf8");
   const packageJson = JSON.parse(readFileSync(migratePackage, "utf8"));
-  assert.match(source, /node --import \"\$tsx_loader\"/);
+  assert.match(source, /exec \"\$node_binary\" --import \"\$tsx_loader\"/);
   assert.doesNotMatch(source, /node_modules\/\.bin\/tsx/);
   for (const scriptName of [
     "routes:jobs",
