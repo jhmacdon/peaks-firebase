@@ -7,7 +7,9 @@ import {
   catalogWithReviewedKeeperDestinations,
   deterministicKeeperDestinationId,
   deterministicKeeperListId,
+  deterministicOsmKeeperDestinationId,
   KeeperCatalogPeak,
+  KeeperDestinationFingerprint,
   KeeperImportFixture,
   KeeperListDefinition,
   KeeperResolutionFixture,
@@ -78,6 +80,78 @@ const catalogPeak: KeeperCatalogPeak = {
   osmId: null,
   externalIds: {},
 };
+
+function catalogPeakFromFingerprint(
+  id: string,
+  fingerprint: KeeperDestinationFingerprint
+): KeeperCatalogPeak {
+  return {
+    id,
+    name: fingerprint.name,
+    elevationM: fingerprint.elevationM,
+    lat: fingerprint.lat,
+    lng: fingerprint.lng,
+    countryCode: fingerprint.countryCode,
+    stateCode: fingerprint.stateCode,
+    osmId: fingerprint.osmNodeId,
+    externalIds: { ...(fingerprint.externalIds ?? {}) },
+  };
+}
+
+function fullFixtureCatalogBeforeReview(): KeeperCatalogPeak[] {
+  const byId = new Map<string, KeeperCatalogPeak>();
+  const add = (peak: KeeperCatalogPeak) => {
+    if (!byId.has(peak.id)) byId.set(peak.id, peak);
+  };
+
+  for (const repair of resolutions.catalogRepairs ?? []) {
+    add(catalogPeakFromFingerprint(repair.destinationId, repair.before));
+  }
+
+  for (const definition of KEEPER_LISTS) {
+    const reviewedBySourceId = new Map(
+      resolutions.lists[definition.sourceKey].rows.map((row) => [row.sourceMemberId, row])
+    );
+    for (const source of fixture.lists[definition.sourceKey].rows) {
+      const reviewed = reviewedBySourceId.get(source.sourceMemberId);
+      if (!reviewed) {
+        assert.equal(definition.allowedCountryCodes?.length, 1);
+        assert.ok(Number.isFinite(source.lat) && Number.isFinite(source.lng));
+        add({
+          id: `automatic:${source.sourceMemberId}`,
+          name: source.name,
+          elevationM: source.elevationM,
+          lat: source.lat!,
+          lng: source.lng!,
+          countryCode: definition.allowedCountryCodes![0],
+          stateCode: null,
+          osmId: null,
+          externalIds: {},
+        });
+        continue;
+      }
+      if (reviewed.resolution === "curated_destination") continue;
+      if (reviewed.resolution === "catalog_repair") {
+        add(catalogPeakFromFingerprint(reviewed.destinationId, reviewed.catalogBefore!));
+        continue;
+      }
+      add({
+        id: reviewed.destinationId,
+        name: reviewed.destinationName,
+        elevationM: reviewed.destinationElevationM,
+        lat: reviewed.destinationLat,
+        lng: reviewed.destinationLng,
+        countryCode: reviewed.destinationCountryCode,
+        stateCode: reviewed.destinationStateCode,
+        osmId: reviewed.destinationOsmNodeId,
+        externalIds: reviewed.destinationOsmNodeId == null
+          ? {}
+          : { osm: reviewed.destinationOsmNodeId },
+      });
+    }
+  }
+  return [...byId.values()];
+}
 
 test("parses dry-run and apply modes with an explicit reviewed resolution fixture", () => {
   assert.deepEqual(parseKeeperImportArgs([
@@ -313,6 +387,31 @@ test("the reviewed identity fixture is complete, bounded, and tied to the source
       `uiaa-pyrenees-main:${String(index + 1).padStart(3, "0")}`));
 });
 
+test("the full reviewed keeper import is idempotent after its first catalog plan", () => {
+  const first = catalogWithReviewedKeeperDestinations(
+    fullFixtureCatalogBeforeReview(),
+    fixture,
+    resolutions
+  );
+  assert.equal(first.destinationsToAdd.length, 62);
+  assert.equal(first.destinationsToRepair.length, 13);
+
+  const second = buildKeeperImportReport(
+    fixture,
+    resolutions,
+    first.catalog,
+    [],
+    false
+  );
+  assert.equal(second.report.complete, true);
+  assert.equal(second.destinationsToAdd.length, 0);
+  assert.equal(second.destinationsToRepair.length, 0);
+  assert.equal(
+    second.report.lists.reduce((sum, list) => sum + list.resolvedCount, 0),
+    565
+  );
+});
+
 test("reviewed new destinations are stable, unique, and cannot hide a catalog duplicate", () => {
   const reviewedRows = Object.values(resolutions.lists).flatMap((list) => list.rows);
   const curatedRows = reviewedRows.filter((row) => row.resolution === "curated_destination");
@@ -321,7 +420,7 @@ test("reviewed new destinations are stable, unique, and cannot hide a catalog du
   for (const row of curatedRows) {
     assert.equal(row.destinationId, row.destinationOsmNodeId == null
       ? deterministicKeeperDestinationId(row.sourceMemberId)
-      : row.destinationId);
+      : deterministicOsmKeeperDestinationId(row.destinationOsmNodeId));
     assert.ok(row.destinationDataSourceName?.trim());
     assert.match(row.destinationDataSourceUrl ?? "", /^https:\/\//);
   }
@@ -422,6 +521,28 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
     reviewed.catalog.find((peak) => peak.id === catalogPeak.id),
     { ...catalogPeak, elevationM: 1_000, lat: 56, lng: -4 }
   );
+  const rerun = catalogWithReviewedKeeperDestinations(
+    reviewed.catalog,
+    onePeakFixture,
+    repair,
+    [onePeakList]
+  );
+  assert.equal(rerun.destinationsToRepair.length, 0);
+  assert.equal(
+    rerun.definitions[0].destinationOverrides["keeper:1"],
+    catalogPeak.id
+  );
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      reviewed.catalog.map((peak) => peak.id === catalogPeak.id
+        ? { ...peak, elevationM: 1_002 }
+        : peak),
+      onePeakFixture,
+      repair,
+      [onePeakList]
+    ),
+    /neither its reviewed before nor after fingerprint/
+  );
 
   repair.lists["test-source"].rows[0].destinationOsmNodeId = "123";
   repair.lists["test-source"].rows[0].catalogExternalIdAdditions = { osm: "123" };
@@ -484,6 +605,10 @@ test("external-ID repairs pin exact before and after JSON", () => {
   );
   assert.deepEqual(plan.destinationsToRepair[0].externalIdRemovals, { wikidata: "Q1" });
   assert.deepEqual(plan.catalog[0].externalIds, { osm: "123" });
+  const rerun = catalogWithReviewedKeeperDestinations(
+    plan.catalog, onePeakFixture, reviewed, [onePeakList]
+  );
+  assert.equal(rerun.destinationsToRepair.length, 0);
 
   assert.throws(
     () => catalogWithReviewedKeeperDestinations(
@@ -492,7 +617,7 @@ test("external-ID repairs pin exact before and after JSON", () => {
       reviewed,
       [onePeakList]
     ),
-    /no longer matches its before fingerprint/
+    /neither its reviewed before nor after fingerprint/
   );
   reviewed.catalogRepairs![0].after.externalIds = { osm: "123", wikidata: "Q9" };
   assert.throws(

@@ -682,6 +682,26 @@ function resolutionDestinationFingerprint(
   };
 }
 
+function catalogRepairAfterFingerprint(
+  resolution: KeeperResolutionRow
+): KeeperDestinationFingerprint {
+  const externalIds = { ...resolution.catalogBefore!.externalIds! };
+  for (const key of Object.keys(resolution.catalogExternalIdRemovals ?? {})) {
+    delete externalIds[key];
+  }
+  Object.assign(externalIds, resolution.catalogExternalIdAdditions ?? {});
+  return {
+    name: resolution.destinationName,
+    elevationM: resolution.destinationElevationM,
+    lat: resolution.destinationLat,
+    lng: resolution.destinationLng,
+    osmNodeId: resolution.destinationOsmNodeId,
+    countryCode: resolution.destinationCountryCode,
+    stateCode: resolution.destinationStateCode,
+    externalIds,
+  };
+}
+
 export function catalogWithReviewedKeeperDestinations(
   catalog: KeeperCatalogPeak[],
   fixture: KeeperImportFixture,
@@ -726,9 +746,19 @@ export function catalogWithReviewedKeeperDestinations(
 
   for (const repair of resolutions.catalogRepairs ?? []) {
     const existing = byId.get(repair.destinationId);
-    if (!existing || !catalogMatchesFingerprint(existing, repair.before)) {
+    if (!existing) {
       throw new Error(
-        `Auxiliary catalog repair ${repair.repairId} no longer matches its before fingerprint`
+        `Auxiliary catalog repair ${repair.repairId} is missing`
+      );
+    }
+    if (!catalogMatchesFingerprint(existing, repair.before)) {
+      if (catalogMatchesFingerprint(existing, repair.after)) {
+        updateOsmIndexForRepair(repair.destinationId, repair.before.osmNodeId, existing);
+        continue;
+      }
+      throw new Error(
+        `Auxiliary catalog repair ${repair.repairId} matches neither its reviewed ` +
+        "before nor after fingerprint"
       );
     }
     const reviewedRepair: ReviewedKeeperCatalogRepair = {
@@ -799,10 +829,19 @@ export function catalogWithReviewedKeeperDestinations(
           `${resolution.sourceMemberId} is missing`
         );
       }
+      const afterFingerprint = catalogRepairAfterFingerprint(resolution);
       if (!catalogMatchesFingerprint(existing, resolution.catalogBefore!)) {
+        if (catalogMatchesFingerprint(existing, afterFingerprint)) {
+          updateOsmIndexForRepair(
+            resolution.destinationId,
+            resolution.catalogBefore!.osmNodeId,
+            existing
+          );
+          continue;
+        }
         throw new Error(
-          `Catalog repair destination ${resolution.destinationId} no longer matches its ` +
-          "before fingerprint"
+          `Catalog repair destination ${resolution.destinationId} matches neither its ` +
+          "reviewed before nor after fingerprint"
         );
       }
       const repaired: ReviewedKeeperCatalogRepair = {
@@ -824,11 +863,6 @@ export function catalogWithReviewedKeeperDestinations(
         externalIdRemovals: resolution.catalogExternalIdRemovals ?? {},
       };
       destinationsToRepair.push(repaired);
-      const repairedExternalIds = { ...existing.externalIds };
-      for (const key of Object.keys(repaired.externalIdRemovals)) {
-        delete repairedExternalIds[key];
-      }
-      Object.assign(repairedExternalIds, repaired.externalIdAdditions);
       const repairedPeak: KeeperCatalogPeak = {
         id: repaired.id,
         name: repaired.name,
@@ -838,7 +872,7 @@ export function catalogWithReviewedKeeperDestinations(
         countryCode: repaired.countryCode,
         stateCode: repaired.stateCode,
         osmId: repaired.osmId,
-        externalIds: repairedExternalIds,
+        externalIds: afterFingerprint.externalIds!,
       };
       updateOsmIndexForRepair(
         repaired.id,
