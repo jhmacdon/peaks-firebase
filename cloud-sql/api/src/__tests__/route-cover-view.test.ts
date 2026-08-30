@@ -7,6 +7,14 @@ import {
   buildRouteDetailQuery,
 } from "../routes/routes";
 import { buildRouteSearchQuery } from "../routes/search";
+import { buildDestinationRoutesQuery } from "../routes/destinations";
+import { buildAreaDetailQuery } from "../routes/areas";
+import { buildListDestinationsQuery } from "../routes/lists";
+import { buildPlanRoutesQuery } from "../routes/plans";
+import {
+  buildSessionRoutesQuery,
+  SESSION_ROUTES_SQL,
+} from "../routes/sessions";
 
 const migration = readFileSync(
   resolve(__dirname, "../../../migrations/20260830_route_cover_photos.sql"),
@@ -49,7 +57,17 @@ test("schema and migration carry the same derived view without route photo colum
   assert.doesNotMatch(routesTable, /hero_image|cover_image|photo/);
 });
 
-test("route API detail, nearby, and mixed search return the derived cover", () => {
+const coverAliases = [
+  "cover_destination_id",
+  "cover_destination_name",
+  "cover_image",
+  "cover_image_attribution",
+  "cover_image_attribution_url",
+  "cover_image_focal_x",
+  "cover_image_focal_y",
+];
+
+test("every flat route API shape returns the shared derived cover", () => {
   const queries = [
     buildRouteDetailQuery("route-1", "user-1").text,
     buildNearbyRoutesQuery(47.4, -121.6, 5000, 20, "user-1").text,
@@ -59,15 +77,30 @@ test("route API detail, nearby, and mixed search return the derived cover", () =
       limit: 10,
       uid: "user-1",
     }).text,
+    buildDestinationRoutesQuery("destination-1", "user-1").text,
+    buildListDestinationsQuery("list-1").text,
+    buildPlanRoutesQuery("plan-1", "user-1").text,
+    buildSessionRoutesQuery("session-1", "user-1").text,
+  ];
+
+  for (const sql of queries) {
+    assert.match(sql, /LEFT JOIN route_cover_photos cover ON cover\.route_id = (?:r\.id|br\.route_id)/);
+    for (const alias of coverAliases) {
+      assert.match(sql, new RegExp(`AS ${alias}\\b`));
+    }
+  }
+});
+
+test("every embedded route API shape returns the shared derived cover", () => {
+  const queries = [
+    buildAreaDetailQuery("area-1", "user-1").text,
+    SESSION_ROUTES_SQL,
   ];
 
   for (const sql of queries) {
     assert.match(sql, /LEFT JOIN route_cover_photos cover ON cover\.route_id = r\.id/);
-    assert.match(sql, /cover\.destination_id AS cover_destination_id/);
-    assert.match(sql, /cover\.image_url AS cover_image/);
-    assert.match(sql, /cover\.attribution AS cover_image_attribution/);
-    assert.match(sql, /cover\.attribution_url AS cover_image_attribution_url/);
-    assert.match(sql, /cover\.focal_x AS cover_image_focal_x/);
-    assert.match(sql, /cover\.focal_y AS cover_image_focal_y/);
+    for (const key of coverAliases) {
+      assert.match(sql, new RegExp(`'${key}'`));
+    }
   }
 });

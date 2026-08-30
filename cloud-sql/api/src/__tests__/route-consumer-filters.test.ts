@@ -8,7 +8,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { buildListDestinationsQuery } from "../routes/lists";
-import { SESSION_ROUTES_SQL } from "../routes/sessions";
+import {
+  buildSessionRoutesQuery,
+  SESSION_ROUTES_SQL,
+} from "../routes/sessions";
 import { TRIP_REPORT_ROUTE_COPY_SQL } from "../routes/trip-reports";
 import { routeDoneCoverageSql } from "../route-coverage";
 
@@ -29,13 +32,9 @@ test("session detail lists only routes the session actually did", () => {
 });
 
 test("GET /api/sessions/:id/routes carries the same predicate", () => {
-  const source = readFileSync(resolve(__dirname, "../routes/sessions.ts"), "utf8");
-  const handler = source.slice(
-    source.indexOf("// GET /api/sessions/:id/routes"),
-    source.indexOf("// GET /api/sessions/:id/comparisons/:otherId")
-  );
+  const query = buildSessionRoutesQuery("session-1", "user-1");
   assert.ok(
-    handler.includes("routeDoneCoverageSql(\"sr\")"),
+    query.text.includes(routeDoneCoverageSql("sr")),
     "the routes endpoint must carry the did-this-route predicate"
   );
 });

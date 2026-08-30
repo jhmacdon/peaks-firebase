@@ -4,6 +4,7 @@ import { getUid } from "../auth";
 import { buildAreaDescription } from "../area-description";
 import db from "../db";
 import { buildRouteAccessSql } from "../lib/route-access";
+import { routeCoverJoinSql, routeCoverJsonFieldsSql } from "../lib/route-cover";
 
 const router = Router();
 
@@ -184,10 +185,12 @@ export function buildAreaDetailQuery(
                   'elevation_string', r.elevation_string,
                   'external_links', r.external_links,
                   'provenance', r.provenance,
-                  'completion', r.completion
+                  'completion', r.completion,
+                  ${routeCoverJsonFieldsSql()}
                 ) AS route_obj
          FROM route_areas ra
          JOIN routes r ON r.id = ra.route_id
+         ${routeCoverJoinSql()}
          WHERE ra.area_id = a.id
            AND r.status = 'active'
            AND ${buildRouteAccessSql("r", "$2")}
