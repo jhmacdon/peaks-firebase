@@ -80,7 +80,14 @@ export interface KeeperCatalogPeak {
   dataSourceUrl?: string | null;
   dataLicense?: string | null;
   keeperRosterSource?: string | null;
+  searchNameMatchesLowerName?: boolean;
   metadataDisplayName?: string | null;
+  catalogAudit?: string | null;
+  keeperIdentityRepairedAt?: string | null;
+  keeperRepairSourceName?: string | null;
+  keeperRepairSourceUrl?: string | null;
+  keeperRepairSourceLicense?: string | null;
+  keeperRepairSourceLicensePresent?: boolean;
 }
 
 export interface KeeperExternalIdOwner {
@@ -247,6 +254,8 @@ const MAX_CURATED_SOURCE_DISTANCE_M = 250;
 const REVIEWED_DUPLICATE_DISTANCE_M = 150;
 const CATALOG_FINGERPRINT_DISTANCE_M = 5;
 const CATALOG_FINGERPRINT_ELEVATION_M = 1;
+const KEEPER_CATALOG_AUDIT = "keeper-lists-2026-08-30";
+const KEEPER_IDENTITY_REPAIRED_AT = "2026-08-30";
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -989,6 +998,68 @@ function catalogMatchesExactFingerprint(
         JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
 }
 
+function reviewedRepairAfterFingerprint(
+  repair: ReviewedKeeperCatalogRepair
+): KeeperDestinationFingerprint {
+  const externalIds = { ...(repair.before.externalIds ?? {}) };
+  for (const key of Object.keys(repair.externalIdRemovals)) delete externalIds[key];
+  Object.assign(externalIds, repair.externalIdAdditions);
+  return {
+    name: repair.name,
+    elevationM: repair.elevationM,
+    lat: repair.lat,
+    lng: repair.lng,
+    osmNodeId: repair.osmId,
+    countryCode: repair.countryCode,
+    stateCode: repair.stateCode,
+    externalIds,
+  };
+}
+
+function appliedRepairCatalogFields(
+  repair: ReviewedKeeperCatalogRepair
+): Pick<
+  KeeperCatalogPeak,
+  | "searchNameMatchesLowerName"
+  | "metadataDisplayName"
+  | "catalogAudit"
+  | "keeperIdentityRepairedAt"
+  | "keeperRepairSourceName"
+  | "keeperRepairSourceUrl"
+  | "keeperRepairSourceLicense"
+  | "keeperRepairSourceLicensePresent"
+> {
+  return {
+    searchNameMatchesLowerName: true,
+    metadataDisplayName: repair.name,
+    catalogAudit: KEEPER_CATALOG_AUDIT,
+    keeperIdentityRepairedAt: KEEPER_IDENTITY_REPAIRED_AT,
+    keeperRepairSourceName: repair.dataSourceName,
+    keeperRepairSourceUrl: repair.dataSourceUrl,
+    keeperRepairSourceLicense: repair.dataLicense,
+    keeperRepairSourceLicensePresent: true,
+  };
+}
+
+function catalogMatchesExactAppliedRepair(
+  catalogPeak: KeeperCatalogPeak,
+  repair: ReviewedKeeperCatalogRepair
+): boolean {
+  const expected = appliedRepairCatalogFields(repair);
+  return catalogMatchesExactFingerprint(
+    catalogPeak,
+    reviewedRepairAfterFingerprint(repair)
+  ) && catalogPeakIsEligible(catalogPeak) &&
+    catalogPeak.searchNameMatchesLowerName === true &&
+    catalogPeak.metadataDisplayName === expected.metadataDisplayName &&
+    catalogPeak.catalogAudit === expected.catalogAudit &&
+    catalogPeak.keeperIdentityRepairedAt === expected.keeperIdentityRepairedAt &&
+    catalogPeak.keeperRepairSourceName === expected.keeperRepairSourceName &&
+    catalogPeak.keeperRepairSourceUrl === expected.keeperRepairSourceUrl &&
+    catalogPeak.keeperRepairSourceLicense === expected.keeperRepairSourceLicense &&
+    catalogPeak.keeperRepairSourceLicensePresent === true;
+}
+
 function reviewedKeeperDestination(
   resolution: KeeperResolutionRow
 ): ReviewedKeeperDestination {
@@ -1151,22 +1222,6 @@ export function catalogWithReviewedKeeperDestinations(
       );
     }
     assertCatalogPeakIsEligible(existing, `Auxiliary catalog repair ${repair.repairId}`);
-    if (!catalogMatchesRepairBeforeFingerprint(existing, repair.before)) {
-      if (catalogMatchesExactFingerprint(existing, repair.after)) {
-        updateOsmIndexForRepair(repair.destinationId, repair.before.osmNodeId, existing);
-        continue;
-      }
-      if (catalogMatchesFingerprint(existing, repair.after)) {
-        throw new Error(
-          `Auxiliary catalog repair ${repair.repairId} does not match its exact reviewed ` +
-          "after fingerprint"
-        );
-      }
-      throw new Error(
-        `Auxiliary catalog repair ${repair.repairId} matches neither its exact reviewed ` +
-        "before fingerprint nor exact reviewed after fingerprint"
-      );
-    }
     const reviewedRepair: ReviewedKeeperCatalogRepair = {
       sourceKey: "catalog",
       sourceMemberId: repair.repairId,
@@ -1185,6 +1240,27 @@ export function catalogWithReviewedKeeperDestinations(
       externalIdAdditions: {},
       externalIdRemovals: repair.externalIdRemovals ?? {},
     };
+    if (catalogMatchesExactAppliedRepair(existing, reviewedRepair)) {
+      updateOsmIndexForRepair(repair.destinationId, repair.before.osmNodeId, existing);
+      continue;
+    }
+    if (catalogMatchesExactFingerprint(existing, reviewedRepairAfterFingerprint(reviewedRepair))) {
+      throw new Error(
+        `Auxiliary catalog repair ${repair.repairId} has an incomplete applied repair state`
+      );
+    }
+    if (!catalogMatchesRepairBeforeFingerprint(existing, repair.before)) {
+      if (catalogMatchesFingerprint(existing, repair.after)) {
+        throw new Error(
+          `Auxiliary catalog repair ${repair.repairId} does not match its exact reviewed ` +
+          "after fingerprint"
+        );
+      }
+      throw new Error(
+        `Auxiliary catalog repair ${repair.repairId} matches neither its exact reviewed ` +
+        "before fingerprint nor exact reviewed after fingerprint"
+      );
+    }
     destinationsToRepair.push(reviewedRepair);
     const repairedExternalIds = { ...existing.externalIds };
     for (const key of Object.keys(reviewedRepair.externalIdRemovals)) {
@@ -1201,6 +1277,7 @@ export function catalogWithReviewedKeeperDestinations(
       stateCode: reviewedRepair.stateCode,
       osmId: reviewedRepair.osmId,
       externalIds: repairedExternalIds,
+      ...appliedRepairCatalogFields(reviewedRepair),
     };
     updateOsmIndexForRepair(reviewedRepair.id, repair.before.osmNodeId, repairedPeak);
     byId.set(reviewedRepair.id, repairedPeak);
@@ -1242,26 +1319,6 @@ export function catalogWithReviewedKeeperDestinations(
       }
       assertCatalogPeakIsEligible(existing, `Catalog repair destination ${resolution.destinationId}`);
       const afterFingerprint = catalogRepairAfterFingerprint(resolution);
-      if (!catalogMatchesRepairBeforeFingerprint(existing, resolution.catalogBefore!)) {
-        if (catalogMatchesExactFingerprint(existing, afterFingerprint)) {
-          updateOsmIndexForRepair(
-            resolution.destinationId,
-            resolution.catalogBefore!.osmNodeId,
-            existing
-          );
-          continue;
-        }
-        if (catalogMatchesFingerprint(existing, afterFingerprint)) {
-          throw new Error(
-            `Catalog repair destination ${resolution.destinationId} does not match its exact ` +
-            "reviewed after fingerprint"
-          );
-        }
-        throw new Error(
-          `Catalog repair destination ${resolution.destinationId} matches neither its exact ` +
-          "reviewed before fingerprint nor exact reviewed after fingerprint"
-        );
-      }
       const repaired: ReviewedKeeperCatalogRepair = {
         sourceKey: resolution.sourceKey,
         sourceMemberId: resolution.sourceMemberId,
@@ -1280,6 +1337,32 @@ export function catalogWithReviewedKeeperDestinations(
         externalIdAdditions: resolution.catalogExternalIdAdditions ?? {},
         externalIdRemovals: resolution.catalogExternalIdRemovals ?? {},
       };
+      if (catalogMatchesExactAppliedRepair(existing, repaired)) {
+        updateOsmIndexForRepair(
+          resolution.destinationId,
+          resolution.catalogBefore!.osmNodeId,
+          existing
+        );
+        continue;
+      }
+      if (catalogMatchesExactFingerprint(existing, afterFingerprint)) {
+        throw new Error(
+          `Catalog repair destination ${resolution.destinationId} has an incomplete applied ` +
+          "repair state"
+        );
+      }
+      if (!catalogMatchesRepairBeforeFingerprint(existing, resolution.catalogBefore!)) {
+        if (catalogMatchesFingerprint(existing, afterFingerprint)) {
+          throw new Error(
+            `Catalog repair destination ${resolution.destinationId} does not match its exact ` +
+            "reviewed after fingerprint"
+          );
+        }
+        throw new Error(
+          `Catalog repair destination ${resolution.destinationId} matches neither its exact ` +
+          "reviewed before fingerprint nor exact reviewed after fingerprint"
+        );
+      }
       destinationsToRepair.push(repaired);
       const repairedPeak: KeeperCatalogPeak = {
         ...existing,
@@ -1292,6 +1375,7 @@ export function catalogWithReviewedKeeperDestinations(
         stateCode: repaired.stateCode,
         osmId: repaired.osmId,
         externalIds: afterFingerprint.externalIds!,
+        ...appliedRepairCatalogFields(repaired),
       };
       updateOsmIndexForRepair(
         repaired.id,
@@ -1680,7 +1764,14 @@ async function loadCatalog(
     metadata_source_url: string | null;
     metadata_source_license: string | null;
     keeper_roster_source: string | null;
+    search_name_matches_lower_name: boolean;
     metadata_display_name: string | null;
+    catalog_audit: string | null;
+    keeper_identity_repaired_at: string | null;
+    keeper_repair_source: string | null;
+    keeper_repair_source_url: string | null;
+    keeper_repair_source_license: string | null;
+    keeper_repair_source_license_present: boolean;
   }>(
     `SELECT id, name, elevation AS elevation_m,
             ST_Y(location::geometry) AS lat,
@@ -1696,7 +1787,18 @@ async function loadCatalog(
             metadata->>'source_url' AS metadata_source_url,
             metadata->>'source_license' AS metadata_source_license,
             metadata->>'keeper_roster_source' AS keeper_roster_source,
-            metadata->'names'->>'display' AS metadata_display_name
+            search_name IS NOT DISTINCT FROM lower(name)
+              AS search_name_matches_lower_name,
+            metadata->'names'->>'display' AS metadata_display_name,
+            metadata->>'catalog_audit' AS catalog_audit,
+            metadata->>'keeper_identity_repaired_at' AS keeper_identity_repaired_at,
+            metadata->>'keeper_repair_source' AS keeper_repair_source,
+            metadata->>'keeper_repair_source_url' AS keeper_repair_source_url,
+            metadata->>'keeper_repair_source_license' AS keeper_repair_source_license,
+            COALESCE(
+              metadata ? 'keeper_repair_source_license',
+              false
+            ) AS keeper_repair_source_license_present
      FROM destinations
      WHERE location IS NOT NULL
        AND name IS NOT NULL
@@ -1721,7 +1823,14 @@ async function loadCatalog(
     dataSourceUrl: row.metadata_source_url,
     dataLicense: row.metadata_source_license,
     keeperRosterSource: row.keeper_roster_source,
+    searchNameMatchesLowerName: row.search_name_matches_lower_name,
     metadataDisplayName: row.metadata_display_name,
+    catalogAudit: row.catalog_audit,
+    keeperIdentityRepairedAt: row.keeper_identity_repaired_at,
+    keeperRepairSourceName: row.keeper_repair_source,
+    keeperRepairSourceUrl: row.keeper_repair_source_url,
+    keeperRepairSourceLicense: row.keeper_repair_source_license,
+    keeperRepairSourceLicensePresent: row.keeper_repair_source_license_present,
   }));
   return { catalog, externalIdOwners };
 }
@@ -1838,6 +1947,22 @@ export async function applyReviewedKeeperCatalogRepairs(
       id: string;
       external_ids: Record<string, string>;
       metadata_names: Record<string, string>;
+      name_matches: boolean;
+      elevation_matches: boolean;
+      location_matches: boolean;
+      country_code_matches: boolean;
+      state_code_matches: boolean;
+      osm_id_matches: boolean;
+      owner_matches: boolean;
+      type_matches: boolean;
+      summit_matches: boolean;
+      search_name_matches: boolean;
+      display_name_matches: boolean;
+      catalog_audit_matches: boolean;
+      keeper_identity_repaired_at_matches: boolean;
+      keeper_repair_source_matches: boolean;
+      keeper_repair_source_url_matches: boolean;
+      keeper_repair_source_license_matches: boolean;
     }>(
       `UPDATE destinations
        SET name = $2,
@@ -1879,7 +2004,37 @@ export async function applyReviewedKeeperCatalogRepairs(
            WHERE conflicting.id <> $1
              AND conflicting.external_ids->>requested.key = requested.value
          )
-       RETURNING id, external_ids, metadata->'names' AS metadata_names`,
+       RETURNING id,
+                 external_ids,
+                 metadata->'names' AS metadata_names,
+                 name IS NOT DISTINCT FROM $2 AS name_matches,
+                 elevation IS NOT DISTINCT FROM $3::double precision AS elevation_matches,
+                 (
+                   ST_Y(location::geometry) IS NOT DISTINCT FROM $4::double precision
+                   AND ST_X(location::geometry) IS NOT DISTINCT FROM $5::double precision
+                   AND ST_Z(location::geometry) IS NOT DISTINCT FROM $3::double precision
+                 ) AS location_matches,
+                 country_code IS NOT DISTINCT FROM $6 AS country_code_matches,
+                 state_code IS NOT DISTINCT FROM $7 AS state_code_matches,
+                 external_ids->>'osm' IS NOT DISTINCT FROM $22 AS osm_id_matches,
+                 owner = 'peaks' AS owner_matches,
+                 type = 'point' AS type_matches,
+                 'summit'::destination_feature = ANY(features) AS summit_matches,
+                 search_name IS NOT DISTINCT FROM lower(name) AS search_name_matches,
+                 metadata->'names'->>'display' IS NOT DISTINCT FROM $2
+                   AS display_name_matches,
+                 metadata->>'catalog_audit' IS NOT DISTINCT FROM
+                   'keeper-lists-2026-08-30' AS catalog_audit_matches,
+                 metadata->>'keeper_identity_repaired_at' IS NOT DISTINCT FROM
+                   '2026-08-30' AS keeper_identity_repaired_at_matches,
+                 metadata->>'keeper_repair_source' IS NOT DISTINCT FROM $16
+                   AS keeper_repair_source_matches,
+                 metadata->>'keeper_repair_source_url' IS NOT DISTINCT FROM $17
+                   AS keeper_repair_source_url_matches,
+                 (
+                   metadata ? 'keeper_repair_source_license'
+                   AND metadata->>'keeper_repair_source_license' IS NOT DISTINCT FROM $18
+                 ) AS keeper_repair_source_license_matches`,
       [
         repair.id,
         repair.name,
@@ -1902,13 +2057,29 @@ export async function applyReviewedKeeperCatalogRepairs(
         JSON.stringify(repair.before.externalIds),
         Object.keys(repair.externalIdRemovals),
         JSON.stringify(repair.externalIdAdditions),
+        repair.osmId,
       ]
     );
-    const expectedExternalIds = { ...(repair.before.externalIds ?? {}) };
-    for (const key of Object.keys(repair.externalIdRemovals)) delete expectedExternalIds[key];
-    Object.assign(expectedExternalIds, repair.externalIdAdditions);
+    const expectedExternalIds = reviewedRepairAfterFingerprint(repair).externalIds!;
     const repaired = result.rows[0];
-    if (result.rowCount !== 1 || repaired?.metadata_names?.display !== repair.name ||
+    if (result.rowCount !== 1 || repaired?.id !== repair.id ||
+        repaired.name_matches !== true ||
+        repaired.elevation_matches !== true ||
+        repaired.location_matches !== true ||
+        repaired.country_code_matches !== true ||
+        repaired.state_code_matches !== true ||
+        repaired.osm_id_matches !== true ||
+        repaired.owner_matches !== true ||
+        repaired.type_matches !== true ||
+        repaired.summit_matches !== true ||
+        repaired.search_name_matches !== true ||
+        repaired.display_name_matches !== true ||
+        repaired.catalog_audit_matches !== true ||
+        repaired.keeper_identity_repaired_at_matches !== true ||
+        repaired.keeper_repair_source_matches !== true ||
+        repaired.keeper_repair_source_url_matches !== true ||
+        repaired.keeper_repair_source_license_matches !== true ||
+        repaired.metadata_names?.display !== repair.name ||
         JSON.stringify(Object.entries(repaired?.external_ids ?? {}).sort()) !==
           JSON.stringify(Object.entries(expectedExternalIds).sort())) {
       throw new Error(

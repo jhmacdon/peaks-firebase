@@ -80,6 +80,24 @@ const eligibleCatalogFields: Pick<
   features: ["summit"],
 };
 
+function appliedRepairCatalogFields(
+  name: string,
+  sourceName: string,
+  sourceUrl: string,
+  sourceLicense: string | null
+): Partial<KeeperCatalogPeak> {
+  return {
+    searchNameMatchesLowerName: true,
+    metadataDisplayName: name,
+    catalogAudit: "keeper-lists-2026-08-30",
+    keeperIdentityRepairedAt: "2026-08-30",
+    keeperRepairSourceName: sourceName,
+    keeperRepairSourceUrl: sourceUrl,
+    keeperRepairSourceLicense: sourceLicense,
+    keeperRepairSourceLicensePresent: true,
+  };
+}
+
 const catalogPeak: KeeperCatalogPeak = {
   id: "destination-1",
   name: "Test Peak",
@@ -1006,7 +1024,18 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
   assert.equal(reviewed.destinationsToRepair.length, 1);
   assert.deepEqual(
     reviewed.catalog.find((peak) => peak.id === catalogPeak.id),
-    { ...catalogPeak, elevationM: 1_000, lat: 56, lng: -4 }
+    {
+      ...catalogPeak,
+      elevationM: 1_000,
+      lat: 56,
+      lng: -4,
+      ...appliedRepairCatalogFields(
+        catalogPeak.name,
+        "Reviewed survey",
+        "https://example.test/survey",
+        null
+      ),
+    }
   );
   const rerun = catalogWithReviewedKeeperDestinations(
     reviewed.catalog,
@@ -1019,6 +1048,28 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
     rerun.definitions[0].destinationOverrides["keeper:1"],
     catalogPeak.id
   );
+  for (const mutation of [
+    { searchNameMatchesLowerName: false },
+    { metadataDisplayName: "Stale display name" },
+    { catalogAudit: "stale-audit" },
+    { keeperIdentityRepairedAt: "2026-08-29" },
+    { keeperRepairSourceName: "Stale source" },
+    { keeperRepairSourceUrl: "https://example.test/stale" },
+    { keeperRepairSourceLicense: "Stale license" },
+    { keeperRepairSourceLicensePresent: false },
+  ] satisfies Array<Partial<KeeperCatalogPeak>>) {
+    assert.throws(
+      () => catalogWithReviewedKeeperDestinations(
+        reviewed.catalog.map((peak) => peak.id === catalogPeak.id
+          ? { ...peak, ...mutation }
+          : peak),
+        onePeakFixture,
+        repair,
+        [onePeakList]
+      ),
+      /incomplete applied repair state/
+    );
+  }
   assert.throws(
     () => catalogWithReviewedKeeperDestinations(
       reviewed.catalog.map((peak) => peak.id === catalogPeak.id
@@ -1177,10 +1228,39 @@ test("external-ID repairs pin exact before and after JSON", () => {
   );
   assert.deepEqual(plan.destinationsToRepair[0].externalIdRemovals, { wikidata: "Q1" });
   assert.deepEqual(plan.catalog[0].externalIds, { osm: "123" });
+  assert.deepEqual(
+    {
+      searchNameMatchesLowerName: plan.catalog[0].searchNameMatchesLowerName,
+      metadataDisplayName: plan.catalog[0].metadataDisplayName,
+      catalogAudit: plan.catalog[0].catalogAudit,
+      keeperIdentityRepairedAt: plan.catalog[0].keeperIdentityRepairedAt,
+      keeperRepairSourceName: plan.catalog[0].keeperRepairSourceName,
+      keeperRepairSourceUrl: plan.catalog[0].keeperRepairSourceUrl,
+      keeperRepairSourceLicense: plan.catalog[0].keeperRepairSourceLicense,
+      keeperRepairSourceLicensePresent: plan.catalog[0].keeperRepairSourceLicensePresent,
+    },
+    appliedRepairCatalogFields(
+      peak.name,
+      "Reviewed source",
+      "https://example.test/review",
+      null
+    )
+  );
   const rerun = catalogWithReviewedKeeperDestinations(
     plan.catalog, onePeakFixture, reviewed, [onePeakList]
   );
   assert.equal(rerun.destinationsToRepair.length, 0);
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      plan.catalog.map((candidate) => candidate.id === peak.id
+        ? { ...candidate, metadataDisplayName: "Stale display name" }
+        : candidate),
+      onePeakFixture,
+      reviewed,
+      [onePeakList]
+    ),
+    /incomplete applied repair state/
+  );
   assert.throws(
     () => catalogWithReviewedKeeperDestinations(
       plan.catalog.map((candidate) => candidate.id === peak.id
@@ -1224,26 +1304,75 @@ test("catalog repair apply guards eligibility and verifies persisted state", asy
   }).applyReviewedKeeperCatalogRepairs;
   assert.equal(typeof applyRepairs, "function");
 
+  const persistedRepair = {
+    id: catalogPeak.id,
+    external_ids: { wikidata: "Q123" },
+    metadata_names: { display: catalogPeak.name },
+    name_matches: true,
+    elevation_matches: true,
+    location_matches: true,
+    country_code_matches: true,
+    state_code_matches: true,
+    osm_id_matches: true,
+    owner_matches: true,
+    type_matches: true,
+    summit_matches: true,
+    search_name_matches: true,
+    display_name_matches: true,
+    catalog_audit_matches: true,
+    keeper_identity_repaired_at_matches: true,
+    keeper_repair_source_matches: true,
+    keeper_repair_source_url_matches: true,
+    keeper_repair_source_license_matches: true,
+  };
   const queries: Array<{ sql: string; values?: unknown[] }> = [];
-  const client = {
+  const clientFor = (row: typeof persistedRepair) => ({
     query: async (sql: string, values?: unknown[]) => {
       queries.push({ sql, values });
-      return {
-        rowCount: 1,
-        rows: [{
-          id: catalogPeak.id,
-          external_ids: { wikidata: "Q123" },
-          metadata_names: { display: catalogPeak.name },
-        }],
-      };
+      return { rowCount: 1, rows: [row] };
     },
-  };
+  });
+  const client = clientFor(persistedRepair);
   await applyRepairs!(client as never, plan.destinationsToRepair);
   assert.equal(queries.length, 1);
   assert.match(queries[0].sql, /owner = 'peaks'/);
   assert.match(queries[0].sql, /type = 'point'/);
   assert.match(queries[0].sql, /'summit'::destination_feature = ANY\(features\)/);
   assert.match(queries[0].sql, /NOT EXISTS[\s\S]*external_ids->>/);
+
+  for (const field of [
+    "name_matches",
+    "elevation_matches",
+    "location_matches",
+    "country_code_matches",
+    "state_code_matches",
+    "osm_id_matches",
+    "owner_matches",
+    "type_matches",
+    "summit_matches",
+    "search_name_matches",
+    "display_name_matches",
+    "catalog_audit_matches",
+    "keeper_identity_repaired_at_matches",
+    "keeper_repair_source_matches",
+    "keeper_repair_source_url_matches",
+    "keeper_repair_source_license_matches",
+  ] as const) {
+    await assert.rejects(
+      () => applyRepairs!(
+        clientFor({ ...persistedRepair, [field]: false }) as never,
+        plan.destinationsToRepair
+      ),
+      /did not persist its reviewed fingerprint/
+    );
+  }
+  await assert.rejects(
+    () => applyRepairs!(
+      clientFor({ ...persistedRepair, external_ids: { wikidata: "Q999" } }) as never,
+      plan.destinationsToRepair
+    ),
+    /did not persist its reviewed fingerprint/
+  );
 
   await assert.rejects(
     () => applyRepairs!({
