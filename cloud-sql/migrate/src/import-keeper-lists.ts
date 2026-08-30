@@ -83,6 +83,12 @@ export interface KeeperCatalogPeak {
   metadataDisplayName?: string | null;
 }
 
+export interface KeeperExternalIdOwner {
+  destinationId: string;
+  key: string;
+  value: string;
+}
+
 export type KeeperResolutionKind =
   | "existing_destination"
   | "catalog_repair"
@@ -600,6 +606,20 @@ function resolutionRows(fixture: KeeperResolutionFixture): KeeperResolutionRow[]
   return Object.values(fixture.lists).flatMap((list) => list.rows);
 }
 
+function requestedExternalIdAdditions(
+  resolutions: KeeperResolutionFixture
+): KeeperExternalIdOwner[] {
+  return resolutionRows(resolutions)
+    .flatMap((row) => Object.entries(row.catalogExternalIdAdditions ?? {}).map(([key, value]) => ({
+      destinationId: row.destinationId,
+      key,
+      value,
+    })))
+    .sort((left, right) => left.key.localeCompare(right.key) ||
+      left.value.localeCompare(right.value) ||
+      left.destinationId.localeCompare(right.destinationId));
+}
+
 export function validateKeeperResolutionFixture(
   fixture: KeeperImportFixture,
   resolutions: KeeperResolutionFixture,
@@ -878,6 +898,45 @@ export function validateKeeperResolutionFixture(
   }
 }
 
+function catalogPeakIsEligible(peak: KeeperCatalogPeak): boolean {
+  return peak.owner === "peaks" && peak.destinationType === "point" &&
+    Array.isArray(peak.features) && peak.features.includes("summit");
+}
+
+function assertCatalogPeakIsEligible(peak: KeeperCatalogPeak, label: string): void {
+  if (!catalogPeakIsEligible(peak)) {
+    throw new Error(`${label} is not a Peaks-owned point summit`);
+  }
+}
+
+function externalIdOwnersFromCatalog(catalog: KeeperCatalogPeak[]): KeeperExternalIdOwner[] {
+  return catalog.flatMap((peak) => Object.entries(peak.externalIds).map(([key, value]) => ({
+    destinationId: peak.id,
+    key,
+    value,
+  })));
+}
+
+function assertUniqueOsmOwners(owners: KeeperExternalIdOwner[]): void {
+  const byOsmId = new Map<string, Set<string>>();
+  for (const owner of owners) {
+    if (owner.key !== "osm" || !isNonEmptyString(owner.value)) continue;
+    const destinationIds = byOsmId.get(owner.value) ?? new Set<string>();
+    destinationIds.add(owner.destinationId);
+    byOsmId.set(owner.value, destinationIds);
+  }
+  const duplicate = [...byOsmId.entries()]
+    .map(([osmId, destinationIds]) => [osmId, [...destinationIds].sort()] as const)
+    .filter(([, destinationIds]) => destinationIds.length > 1)
+    .sort(([left], [right]) => left.localeCompare(right))[0];
+  if (duplicate != null) {
+    throw new Error(
+      `Catalog OSM node ${duplicate[0]} belongs to multiple destinations: ` +
+      duplicate[1].join(", ")
+    );
+  }
+}
+
 function catalogMatchesFingerprint(
   catalogPeak: KeeperCatalogPeak,
   fingerprint: KeeperDestinationFingerprint
@@ -896,7 +955,22 @@ function catalogMatchesFingerprint(
     catalogPeak.osmId === fingerprint.osmNodeId &&
     (fingerprint.externalIds == null ||
       JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
-        JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
+      JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
+}
+
+function catalogMatchesRepairBeforeFingerprint(
+  catalogPeak: KeeperCatalogPeak,
+  fingerprint: KeeperDestinationFingerprint
+): boolean {
+  return catalogPeak.name === fingerprint.name &&
+    catalogPeak.elevationM === fingerprint.elevationM &&
+    haversineMeters(catalogPeak, fingerprint) <= CATALOG_FINGERPRINT_DISTANCE_M &&
+    catalogPeak.countryCode === fingerprint.countryCode &&
+    catalogPeak.stateCode === fingerprint.stateCode &&
+    catalogPeak.osmId === fingerprint.osmNodeId &&
+    fingerprint.externalIds != null &&
+    JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
+      JSON.stringify(Object.entries(fingerprint.externalIds).sort());
 }
 
 function catalogMatchesExactFingerprint(
@@ -1005,7 +1079,8 @@ export function catalogWithReviewedKeeperDestinations(
   catalog: KeeperCatalogPeak[],
   fixture: KeeperImportFixture,
   resolutions: KeeperResolutionFixture,
-  definitions: KeeperListDefinition[] = KEEPER_LISTS
+  definitions: KeeperListDefinition[] = KEEPER_LISTS,
+  externalIdOwners: KeeperExternalIdOwner[] = externalIdOwnersFromCatalog(catalog)
 ): {
   catalog: KeeperCatalogPeak[];
   destinationsToAdd: ReviewedKeeperDestination[];
@@ -1014,33 +1089,58 @@ export function catalogWithReviewedKeeperDestinations(
 } {
   validateKeeperFixture(fixture, definitions);
   validateKeeperResolutionFixture(fixture, resolutions, definitions);
+  assertUniqueOsmOwners(externalIdOwners);
   const byId = new Map(catalog.map((peak) => [peak.id, peak]));
   const byOsmId = new Map(
-    catalog.filter((peak) => peak.osmId != null).map((peak) => [peak.osmId as string, peak])
+    externalIdOwners
+      .filter((owner) => owner.key === "osm" && isNonEmptyString(owner.value))
+      .map((owner) => [owner.value, owner.destinationId])
   );
   const additions: KeeperCatalogPeak[] = [];
   const destinationsToAdd: ReviewedKeeperDestination[] = [];
   const destinationsToRepair: ReviewedKeeperCatalogRepair[] = [];
   const overrides = new Map<string, Record<string, string>>();
+  const ownersByExternalId = new Map<string, Set<string>>();
+  for (const owner of externalIdOwners) {
+    const claim = JSON.stringify([owner.key, owner.value]);
+    const destinationIds = ownersByExternalId.get(claim) ?? new Set<string>();
+    destinationIds.add(owner.destinationId);
+    ownersByExternalId.set(claim, destinationIds);
+  }
+  for (const request of requestedExternalIdAdditions(resolutions)) {
+    const claim = JSON.stringify([request.key, request.value]);
+    const conflictingOwners = [...(ownersByExternalId.get(claim) ?? [])]
+      .filter((ownerId) => ownerId !== request.destinationId)
+      .sort();
+    if (conflictingOwners.length > 0) {
+      throw new Error(
+        `Catalog repair ${request.destinationId} requested external ID ` +
+        `${request.key}=${request.value}, but it belongs to ${conflictingOwners.join(", ")}`
+      );
+    }
+    const destinationIds = ownersByExternalId.get(claim) ?? new Set<string>();
+    destinationIds.add(request.destinationId);
+    ownersByExternalId.set(claim, destinationIds);
+  }
   const updateOsmIndexForRepair = (
     destinationId: string,
     beforeOsmId: string | null,
     repairedPeak: KeeperCatalogPeak
   ) => {
     if (repairedPeak.osmId != null) {
-      const owner = byOsmId.get(repairedPeak.osmId);
-      if (owner && owner.id !== destinationId) {
+      const ownerId = byOsmId.get(repairedPeak.osmId);
+      if (ownerId && ownerId !== destinationId) {
         throw new Error(
           `Catalog repair ${destinationId} would reuse OSM node ${repairedPeak.osmId} ` +
-          `from destination ${owner.id}`
+          `from destination ${ownerId}`
         );
       }
     }
     if (beforeOsmId != null && beforeOsmId !== repairedPeak.osmId &&
-        byOsmId.get(beforeOsmId)?.id === destinationId) {
+        byOsmId.get(beforeOsmId) === destinationId) {
       byOsmId.delete(beforeOsmId);
     }
-    if (repairedPeak.osmId != null) byOsmId.set(repairedPeak.osmId, repairedPeak);
+    if (repairedPeak.osmId != null) byOsmId.set(repairedPeak.osmId, destinationId);
   };
 
   for (const repair of resolutions.catalogRepairs ?? []) {
@@ -1050,7 +1150,8 @@ export function catalogWithReviewedKeeperDestinations(
         `Auxiliary catalog repair ${repair.repairId} is missing`
       );
     }
-    if (!catalogMatchesFingerprint(existing, repair.before)) {
+    assertCatalogPeakIsEligible(existing, `Auxiliary catalog repair ${repair.repairId}`);
+    if (!catalogMatchesRepairBeforeFingerprint(existing, repair.before)) {
       if (catalogMatchesExactFingerprint(existing, repair.after)) {
         updateOsmIndexForRepair(repair.destinationId, repair.before.osmNodeId, existing);
         continue;
@@ -1062,8 +1163,8 @@ export function catalogWithReviewedKeeperDestinations(
         );
       }
       throw new Error(
-        `Auxiliary catalog repair ${repair.repairId} matches neither its reviewed ` +
-        "before nor after fingerprint"
+        `Auxiliary catalog repair ${repair.repairId} matches neither its exact reviewed ` +
+        "before fingerprint nor exact reviewed after fingerprint"
       );
     }
     const reviewedRepair: ReviewedKeeperCatalogRepair = {
@@ -1117,6 +1218,10 @@ export function catalogWithReviewedKeeperDestinations(
           `Reviewed destination ${resolution.destinationId} for ${resolution.sourceMemberId} is missing`
         );
       }
+      assertCatalogPeakIsEligible(
+        existing,
+        `Reviewed destination ${resolution.destinationId}`
+      );
       if (!catalogMatchesFingerprint(existing, resolutionDestinationFingerprint(resolution))) {
         throw new Error(
           `Reviewed destination ${resolution.destinationId} no longer matches its pinned fingerprint`
@@ -1135,8 +1240,9 @@ export function catalogWithReviewedKeeperDestinations(
           `${resolution.sourceMemberId} is missing`
         );
       }
+      assertCatalogPeakIsEligible(existing, `Catalog repair destination ${resolution.destinationId}`);
       const afterFingerprint = catalogRepairAfterFingerprint(resolution);
-      if (!catalogMatchesFingerprint(existing, resolution.catalogBefore!)) {
+      if (!catalogMatchesRepairBeforeFingerprint(existing, resolution.catalogBefore!)) {
         if (catalogMatchesExactFingerprint(existing, afterFingerprint)) {
           updateOsmIndexForRepair(
             resolution.destinationId,
@@ -1152,8 +1258,8 @@ export function catalogWithReviewedKeeperDestinations(
           );
         }
         throw new Error(
-          `Catalog repair destination ${resolution.destinationId} matches neither its ` +
-          "reviewed before nor after fingerprint"
+          `Catalog repair destination ${resolution.destinationId} matches neither its exact ` +
+          "reviewed before fingerprint nor exact reviewed after fingerprint"
         );
       }
       const repaired: ReviewedKeeperCatalogRepair = {
@@ -1197,11 +1303,11 @@ export function catalogWithReviewedKeeperDestinations(
     }
 
     if (resolution.destinationOsmNodeId != null) {
-      const existingByOsm = byOsmId.get(resolution.destinationOsmNodeId);
-      if (existingByOsm && existingByOsm.id !== resolution.destinationId) {
+      const existingByOsmId = byOsmId.get(resolution.destinationOsmNodeId);
+      if (existingByOsmId && existingByOsmId !== resolution.destinationId) {
         throw new Error(
           `OSM node ${resolution.destinationOsmNodeId} already belongs to destination ` +
-          existingByOsm.id
+          existingByOsmId
         );
       }
     }
@@ -1250,12 +1356,12 @@ export function catalogWithReviewedKeeperDestinations(
     };
     additions.push(catalogAddition);
     byId.set(destination.id, catalogAddition);
-    if (destination.osmId != null) byOsmId.set(destination.osmId, catalogAddition);
+    if (destination.osmId != null) byOsmId.set(destination.osmId, destination.id);
   }
 
   return {
     catalog: [
-      ...catalog.map((peak) => byId.get(peak.id) ?? peak),
+      ...catalog.filter(catalogPeakIsEligible).map((peak) => byId.get(peak.id) ?? peak),
       ...additions,
     ],
     destinationsToAdd,
@@ -1346,7 +1452,8 @@ export function resolveKeeperList(
   source: KeeperSourceList,
   catalog: KeeperCatalogPeak[]
 ): { members: ResolvedKeeperMember[]; issues: KeeperResolutionIssue[] } {
-  const catalogById = new Map(catalog.map((peak) => [peak.id, peak]));
+  const eligibleCatalog = catalog.filter(catalogPeakIsEligible);
+  const catalogById = new Map(eligibleCatalog.map((peak) => [peak.id, peak]));
   const members: ResolvedKeeperMember[] = [];
   const issues: KeeperResolutionIssue[] = [];
 
@@ -1361,7 +1468,7 @@ export function resolveKeeperList(
         ? validateOverrideCandidate(sourceMember, candidate, list)
         : `reviewed override ${overrideId} is missing`;
     } else {
-      candidates = resolveAutomaticCandidate(sourceMember, catalog, list);
+      candidates = resolveAutomaticCandidate(sourceMember, eligibleCatalog, list);
       if (candidates.length !== 1) {
         reason = candidates.length === 0
           ? "no exact scoped name and elevation match"
@@ -1372,7 +1479,7 @@ export function resolveKeeperList(
     if (reason || candidates.length !== 1) {
       const auditCandidates = candidates.length > 0
         ? candidates
-        : nearbyAuditCandidates(sourceMember, catalog, list);
+        : nearbyAuditCandidates(sourceMember, eligibleCatalog, list);
       issues.push({
         sourceMemberId: sourceMember.sourceMemberId,
         sourceName: sourceMember.name,
@@ -1451,7 +1558,8 @@ export function buildKeeperImportReport(
   catalog: KeeperCatalogPeak[],
   current: CurrentListMember[],
   apply: boolean,
-  definitions: KeeperListDefinition[] = KEEPER_LISTS
+  definitions: KeeperListDefinition[] = KEEPER_LISTS,
+  externalIdOwners: KeeperExternalIdOwner[] = externalIdOwnersFromCatalog(catalog)
 ): {
   report: KeeperImportReport;
   plans: KeeperListResolution[];
@@ -1462,7 +1570,8 @@ export function buildKeeperImportReport(
     catalog,
     fixture,
     resolutions,
-    definitions
+    definitions,
+    externalIdOwners
   );
   const plans = reviewed.definitions.map((list) =>
     buildResolutionPlan(list, fixture.lists[list.sourceKey], reviewed.catalog, current)
@@ -1508,7 +1617,52 @@ export function buildKeeperImportReport(
   };
 }
 
-async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
+async function loadCatalog(
+  client: PoolClient,
+  requestedClaims: KeeperExternalIdOwner[] = []
+): Promise<{
+  catalog: KeeperCatalogPeak[];
+  externalIdOwners: KeeperExternalIdOwner[];
+}> {
+  const identityResult = await client.query<{
+    destination_id: string;
+    key: string;
+    value: string;
+  }>(
+    `WITH requested AS (
+       SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
+         destination_id text, key text, value text
+       )
+     )
+     SELECT destination.id AS destination_id, claim.key, claim.value
+     FROM destinations destination
+     CROSS JOIN LATERAL jsonb_each_text(
+       COALESCE(destination.external_ids, '{}'::jsonb)
+     ) claim
+     WHERE (claim.key = 'osm' AND btrim(claim.value) <> '')
+        OR EXISTS (
+          SELECT 1
+          FROM requested
+          WHERE requested.key = claim.key
+            AND requested.value = claim.value
+        )
+     ORDER BY claim.key, claim.value, destination.id`,
+    [JSON.stringify(requestedClaims.map((claim) => ({
+      destination_id: claim.destinationId,
+      key: claim.key,
+      value: claim.value,
+    })))]
+  );
+  const externalIdOwners = identityResult.rows
+    .filter((row) => isNonEmptyString(row.destination_id) &&
+      isNonEmptyString(row.key) && isNonEmptyString(row.value))
+    .map((row) => ({
+      destinationId: row.destination_id,
+      key: row.key,
+      value: row.value,
+    }));
+  assertUniqueOsmOwners(externalIdOwners);
+
   const result = await client.query<{
     id: string;
     name: string;
@@ -1546,9 +1700,11 @@ async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
      FROM destinations
      WHERE location IS NOT NULL
        AND name IS NOT NULL
+       AND owner = 'peaks'
+       AND type = 'point'
        AND 'summit'::destination_feature = ANY(features)`
   );
-  return result.rows.map((row) => ({
+  const catalog = result.rows.map((row) => ({
     id: row.id,
     name: row.name,
     elevationM: row.elevation_m == null ? null : Number(row.elevation_m),
@@ -1567,6 +1723,7 @@ async function loadCatalog(client: PoolClient): Promise<KeeperCatalogPeak[]> {
     keeperRosterSource: row.keeper_roster_source,
     metadataDisplayName: row.metadata_display_name,
   }));
+  return { catalog, externalIdOwners };
 }
 
 async function loadCurrentMembers(
@@ -1660,7 +1817,7 @@ export async function assertReviewedKeeperDestinations(
   destinations: ReviewedKeeperDestination[]
 ): Promise<void> {
   if (destinations.length === 0) return;
-  const catalog = await loadCatalog(client);
+  const { catalog } = await loadCatalog(client);
   const byId = new Map(catalog.map((peak) => [peak.id, peak]));
   for (const destination of destinations) {
     const inserted = byId.get(destination.id);
@@ -1672,7 +1829,7 @@ export async function assertReviewedKeeperDestinations(
   }
 }
 
-async function applyReviewedKeeperCatalogRepairs(
+export async function applyReviewedKeeperCatalogRepairs(
   client: PoolClient,
   repairs: ReviewedKeeperCatalogRepair[]
 ): Promise<void> {
@@ -1701,6 +1858,9 @@ async function applyReviewedKeeperCatalogRepairs(
            ),
            updated_at = now()
        WHERE id = $1
+         AND owner = 'peaks'
+         AND type = 'point'
+         AND 'summit'::destination_feature = ANY(features)
          AND name = $8
          AND elevation IS NOT DISTINCT FROM $9::double precision
          AND ST_DWithin(
@@ -1712,6 +1872,13 @@ async function applyReviewedKeeperCatalogRepairs(
          AND state_code IS NOT DISTINCT FROM $13
          AND external_ids->>'osm' IS NOT DISTINCT FROM $15
          AND external_ids IS NOT DISTINCT FROM $19::jsonb
+         AND NOT EXISTS (
+           SELECT 1
+           FROM destinations conflicting
+           CROSS JOIN LATERAL jsonb_each_text($21::jsonb) requested
+           WHERE conflicting.id <> $1
+             AND conflicting.external_ids->>requested.key = requested.value
+         )
        RETURNING id, external_ids, metadata->'names' AS metadata_names`,
       [
         repair.id,
@@ -1862,27 +2029,38 @@ async function applyKeeperPlans(
   }
 }
 
+export async function beginKeeperImportTransaction(
+  client: PoolClient,
+  apply: boolean
+): Promise<void> {
+  await client.query(
+    apply ? "BEGIN ISOLATION LEVEL SERIALIZABLE" :
+      "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"
+  );
+}
+
 async function runImport(
   client: PoolClient,
   fixture: KeeperImportFixture,
   resolutions: KeeperResolutionFixture,
   apply: boolean
 ): Promise<KeeperImportReport> {
-  await client.query(
-    apply ? "BEGIN" : "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"
-  );
+  await beginKeeperImportTransaction(client, apply);
   try {
     if (apply) {
       await client.query("SELECT pg_advisory_xact_lock(hashtext('keeper-list-import'))");
     }
-    const catalog = await loadCatalog(client);
+    const requestedClaims = requestedExternalIdAdditions(resolutions);
+    const { catalog, externalIdOwners } = await loadCatalog(client, requestedClaims);
     const current = await loadCurrentMembers(client, KEEPER_LISTS.map((list) => list.listId));
     const { report, plans, destinationsToAdd, destinationsToRepair } = buildKeeperImportReport(
       fixture,
       resolutions,
       catalog,
       current,
-      apply
+      apply,
+      KEEPER_LISTS,
+      externalIdOwners
     );
     if (apply && !report.complete) {
       throw new Error("Keeper list apply refused: one or more identities remain unresolved");

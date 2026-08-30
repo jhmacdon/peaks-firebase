@@ -29,7 +29,7 @@ The Corbett review adds only DoBIH rows 82, 413, 596, 744, 1129, and 1835. Rows 
 
 The Pyrenees review reuses 82 catalog rows, adds 46 summits, and repairs Pic Badet. Its close-summit guards keep each reviewed pair distinct, including Pic Simó and Pico Jolis.
 
-All new rows state the source of their point and height. UIAA supplies the Pyrenees roster and identity; OSM, DoBIH, or a named survey supplies each new point. The importer rejects an unreviewed summit within 150 metres and accepts a close pair only when the fixture pins the other destination ID. It also checks exact old names, points, heights, country fields, and external IDs before a catalog repair. A stale row fails rather than applying part of the plan.
+All new rows state the source of their point and height. UIAA supplies the Pyrenees roster and identity; OSM, DoBIH, or a named survey supplies each new point. The importer rejects an unreviewed summit within 150 metres and accepts a close pair only when the fixture pins the other destination ID. Before a catalog repair, it checks old names, heights, country and state fields, OSM IDs, and full external-ID sets exactly. It allows old points within 5 metres. A stale row fails rather than applying part of the plan.
 
 Review artifacts:
 

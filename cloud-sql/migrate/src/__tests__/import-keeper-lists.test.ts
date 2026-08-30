@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import * as keeperImporter from "../import-keeper-lists";
 import {
   assertReviewedKeeperDestinations,
   buildKeeperImportReport,
@@ -70,6 +71,15 @@ const onePeakFixture: KeeperImportFixture = {
   },
 };
 
+const eligibleCatalogFields: Pick<
+  KeeperCatalogPeak,
+  "owner" | "destinationType" | "features"
+> = {
+  owner: "peaks",
+  destinationType: "point",
+  features: ["summit"],
+};
+
 const catalogPeak: KeeperCatalogPeak = {
   id: "destination-1",
   name: "Test Peak",
@@ -80,6 +90,7 @@ const catalogPeak: KeeperCatalogPeak = {
   stateCode: null,
   osmId: null,
   externalIds: {},
+  ...eligibleCatalogFields,
 };
 
 function catalogPeakFromFingerprint(
@@ -87,6 +98,7 @@ function catalogPeakFromFingerprint(
   fingerprint: KeeperDestinationFingerprint
 ): KeeperCatalogPeak {
   return {
+    ...eligibleCatalogFields,
     id,
     name: fingerprint.name,
     elevationM: fingerprint.elevationM,
@@ -119,6 +131,7 @@ function fullFixtureCatalogBeforeReview(): KeeperCatalogPeak[] {
         assert.equal(definition.allowedCountryCodes?.length, 1);
         assert.ok(Number.isFinite(source.lat) && Number.isFinite(source.lng));
         add({
+          ...eligibleCatalogFields,
           id: `automatic:${source.sourceMemberId}`,
           name: source.name,
           elevationM: source.elevationM,
@@ -137,6 +150,7 @@ function fullFixtureCatalogBeforeReview(): KeeperCatalogPeak[] {
         continue;
       }
       add({
+        ...eligibleCatalogFields,
         id: reviewed.destinationId,
         name: reviewed.destinationName,
         elevationM: reviewed.destinationElevationM,
@@ -160,6 +174,50 @@ function cloneKeeperFixture(): KeeperImportFixture {
 
 function cloneKeeperResolutions(): KeeperResolutionFixture {
   return JSON.parse(JSON.stringify(resolutions)) as KeeperResolutionFixture;
+}
+
+function onePeakCatalogRepairResolution(
+  externalIdAdditions: Record<string, string> = {}
+): KeeperResolutionFixture {
+  return {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "catalog_repair",
+          destinationId: catalogPeak.id,
+          destinationName: catalogPeak.name,
+          destinationElevationM: 1_000,
+          destinationLat: 56,
+          destinationLng: -4,
+          destinationOsmNodeId: null,
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          destinationDataSourceName: "Reviewed survey",
+          destinationDataSourceUrl: "https://example.test/survey",
+          destinationDataLicense: null,
+          catalogBefore: {
+            name: catalogPeak.name,
+            elevationM: catalogPeak.elevationM!,
+            lat: catalogPeak.lat,
+            lng: catalogPeak.lng,
+            osmNodeId: catalogPeak.osmId,
+            countryCode: catalogPeak.countryCode,
+            stateCode: catalogPeak.stateCode,
+            externalIds: catalogPeak.externalIds,
+          },
+          ...(Object.keys(externalIdAdditions).length > 0
+            ? { catalogExternalIdAdditions: externalIdAdditions }
+            : {}),
+          evidence: ["The catalog point was a lower cairn on the same summit."],
+        }],
+      },
+    },
+  };
 }
 
 test("parses dry-run and apply modes with an explicit reviewed resolution fixture", () => {
@@ -467,6 +525,113 @@ test("the full reviewed keeper import is idempotent after its first catalog plan
   );
 });
 
+test("only Peaks-owned point summits can match or receive catalog repairs", () => {
+  assert.equal(resolveKeeperList(
+    onePeakList,
+    onePeakFixture.lists["test-source"],
+    [catalogPeak]
+  ).members.length, 1);
+  for (const mutation of [
+    { owner: "user" },
+    { destinationType: "region" },
+    { features: ["ridge"] },
+  ] satisfies Array<Partial<KeeperCatalogPeak>>) {
+    const ineligible = { ...catalogPeak, ...mutation };
+    const resolved = resolveKeeperList(
+      onePeakList,
+      onePeakFixture.lists["test-source"],
+      [ineligible]
+    );
+    assert.equal(resolved.members.length, 0);
+    assert.equal(resolved.issues.length, 1);
+    assert.throws(
+      () => catalogWithReviewedKeeperDestinations(
+        [ineligible],
+        onePeakFixture,
+        onePeakCatalogRepairResolution(),
+        [onePeakList]
+      ),
+      /Peaks-owned point summit/
+    );
+  }
+});
+
+test("duplicate catalog OSM identities fail regardless of row order", () => {
+  const left = {
+    ...catalogPeak,
+    id: "destination-a",
+    osmId: "123",
+    externalIds: { osm: "123" },
+  };
+  const right = {
+    ...catalogPeak,
+    id: "destination-b",
+    osmId: "123",
+    externalIds: { osm: "123" },
+  };
+  const emptyResolutions: KeeperResolutionFixture = {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: { "test-source": { rows: [] } },
+  };
+  const errors = [[left, right], [right, left]].map((catalog) => {
+    let message = "";
+    try {
+      catalogWithReviewedKeeperDestinations(
+        catalog,
+        onePeakFixture,
+        emptyResolutions,
+        [onePeakList]
+      );
+    } catch (error) {
+      message = String(error);
+    }
+    assert.match(message, /OSM node 123.*destination-a, destination-b/);
+    return message;
+  });
+  assert.equal(errors[0], errors[1]);
+});
+
+test("a curated OSM destination cannot reuse a globally owned noneligible OSM ID", () => {
+  const reviewed: KeeperResolutionFixture = {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "curated_destination",
+          destinationId: deterministicOsmKeeperDestinationId("123"),
+          destinationName: "Pico de Prueba",
+          destinationElevationM: 1_000,
+          destinationLat: 56,
+          destinationLng: -4,
+          destinationOsmNodeId: "123",
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          destinationDataSourceName: "Test source",
+          destinationDataSourceUrl: "https://example.test/source",
+          destinationDataLicense: null,
+          evidence: ["Reviewed test source"],
+        }],
+      },
+    },
+  };
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [],
+      onePeakFixture,
+      reviewed,
+      [onePeakList],
+      [{ destinationId: "noneligible-owner", key: "osm", value: "123" }]
+    ),
+    /OSM node 123 already belongs to destination noneligible-owner/
+  );
+});
+
 test("reviewed new destinations are stable, unique, and cannot hide a catalog duplicate", () => {
   const reviewedRows = Object.values(resolutions.lists).flatMap((list) => list.rows);
   const curatedRows = reviewedRows.filter((row) => row.resolution === "curated_destination");
@@ -676,6 +841,26 @@ test("post-conflict destination verification requires the exact reviewed fingerp
       [destination]
     )
   );
+  for (const claims of [
+    [
+      { destination_id: "destination-a", key: "osm", value: "123" },
+      { destination_id: "destination-b", key: "osm", value: "123" },
+    ],
+    [
+      { destination_id: "destination-b", key: "osm", value: "123" },
+      { destination_id: "destination-a", key: "osm", value: "123" },
+    ],
+  ]) {
+    await assert.rejects(
+      () => assertReviewedKeeperDestinations({
+        query: async (sql: string) => ({
+          rows: sql.includes("jsonb_each_text") ? claims : [exactPersistedRow],
+          rowCount: sql.includes("jsonb_each_text") ? claims.length : 1,
+        }),
+      } as never, [destination]),
+      /OSM node 123.*destination-a, destination-b/
+    );
+  }
 });
 
 test("all keeper fixture coordinates are bounded before distance checks", () => {
@@ -854,7 +1039,7 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
       repair,
       [onePeakList]
     ),
-    /neither its reviewed before nor after fingerprint/
+    /neither its exact reviewed before fingerprint nor exact reviewed after fingerprint/
   );
 
   repair.lists["test-source"].rows[0].destinationOsmNodeId = "123";
@@ -871,13 +1056,87 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
       repair,
       [onePeakList]
     ),
-    /would reuse OSM node 123/
+    /requested external ID osm=123.*other-destination/
   );
   repair.lists["test-source"].rows[0].catalogExternalIdAdditions = undefined;
   assert.throws(
     () => validateKeeperResolutionFixture(onePeakFixture, repair, [onePeakList]),
     /does not pin its after OSM identity/
   );
+});
+
+test("catalog repair before-state uses exact fields and a five-metre point bound", () => {
+  const repair = onePeakCatalogRepairResolution();
+  for (const drift of [
+    { name: `${catalogPeak.name}!` },
+    { elevationM: catalogPeak.elevationM! + 0.5 },
+  ]) {
+    assert.throws(
+      () => catalogWithReviewedKeeperDestinations(
+        [{ ...catalogPeak, ...drift }],
+        onePeakFixture,
+        repair,
+        [onePeakList]
+      ),
+      /exact reviewed before fingerprint/
+    );
+  }
+  assert.equal(catalogWithReviewedKeeperDestinations(
+    [{ ...catalogPeak, lat: catalogPeak.lat + 0.00004 }],
+    onePeakFixture,
+    repair,
+    [onePeakList]
+  ).destinationsToRepair.length, 1);
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [{ ...catalogPeak, lat: catalogPeak.lat + 0.00006 }],
+      onePeakFixture,
+      repair,
+      [onePeakList]
+    ),
+    /reviewed before fingerprint/
+  );
+});
+
+test("requested external-ID additions reject only owners of the requested value", () => {
+  const requested = onePeakCatalogRepairResolution({ wikidata: "Q123" });
+  const owner = {
+    ...catalogPeak,
+    id: "other-destination",
+    name: "Other Summit",
+    externalIds: { wikidata: "Q123" },
+  };
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [catalogPeak, owner],
+      onePeakFixture,
+      requested,
+      [onePeakList]
+    ),
+    /requested external ID wikidata=Q123.*other-destination/
+  );
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [catalogPeak],
+      onePeakFixture,
+      requested,
+      [onePeakList],
+      [{ destinationId: "noneligible-owner", key: "wikidata", value: "Q123" }]
+    ),
+    /requested external ID wikidata=Q123.*noneligible-owner/
+  );
+
+  const unrelatedDuplicateOwners = ["duplicate-a", "duplicate-b"].map((id) => ({
+    ...owner,
+    id,
+    externalIds: { wikidata: "Q999" },
+  }));
+  assert.equal(catalogWithReviewedKeeperDestinations(
+    [catalogPeak, ...unrelatedDuplicateOwners],
+    onePeakFixture,
+    requested,
+    [onePeakList]
+  ).destinationsToRepair.length, 1);
 });
 
 test("external-ID repairs pin exact before and after JSON", () => {
@@ -941,13 +1200,77 @@ test("external-ID repairs pin exact before and after JSON", () => {
       reviewed,
       [onePeakList]
     ),
-    /neither its reviewed before nor after fingerprint/
+    /neither its exact reviewed before fingerprint nor exact reviewed after fingerprint/
   );
   reviewed.catalogRepairs![0].after.externalIds = { osm: "123", wikidata: "Q9" };
   assert.throws(
     () => validateKeeperResolutionFixture(onePeakFixture, reviewed, [onePeakList]),
     /wrong after external-ID set/
   );
+});
+
+test("catalog repair apply guards eligibility and verifies persisted state", async () => {
+  const plan = catalogWithReviewedKeeperDestinations(
+    [catalogPeak],
+    onePeakFixture,
+    onePeakCatalogRepairResolution({ wikidata: "Q123" }),
+    [onePeakList]
+  );
+  const applyRepairs = (keeperImporter as unknown as {
+    applyReviewedKeeperCatalogRepairs?: (
+      client: never,
+      repairs: typeof plan.destinationsToRepair
+    ) => Promise<void>;
+  }).applyReviewedKeeperCatalogRepairs;
+  assert.equal(typeof applyRepairs, "function");
+
+  const queries: Array<{ sql: string; values?: unknown[] }> = [];
+  const client = {
+    query: async (sql: string, values?: unknown[]) => {
+      queries.push({ sql, values });
+      return {
+        rowCount: 1,
+        rows: [{
+          id: catalogPeak.id,
+          external_ids: { wikidata: "Q123" },
+          metadata_names: { display: catalogPeak.name },
+        }],
+      };
+    },
+  };
+  await applyRepairs!(client as never, plan.destinationsToRepair);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0].sql, /owner = 'peaks'/);
+  assert.match(queries[0].sql, /type = 'point'/);
+  assert.match(queries[0].sql, /'summit'::destination_feature = ANY\(features\)/);
+  assert.match(queries[0].sql, /NOT EXISTS[\s\S]*external_ids->>/);
+
+  await assert.rejects(
+    () => applyRepairs!({
+      query: async () => ({ rowCount: 0, rows: [] }),
+    } as never, plan.destinationsToRepair),
+    /did not persist its reviewed fingerprint/
+  );
+});
+
+test("keeper import transactions use serializable apply and read-only dry-run modes", async () => {
+  const beginTransaction = (keeperImporter as unknown as {
+    beginKeeperImportTransaction?: (client: never, apply: boolean) => Promise<void>;
+  }).beginKeeperImportTransaction;
+  assert.equal(typeof beginTransaction, "function");
+  const sql: string[] = [];
+  const client = {
+    query: async (statement: string) => {
+      sql.push(statement);
+      return { rows: [], rowCount: 0 };
+    },
+  };
+  await beginTransaction!(client as never, true);
+  await beginTransaction!(client as never, false);
+  assert.deepEqual(sql, [
+    "BEGIN ISOLATION LEVEL SERIALIZABLE",
+    "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
+  ]);
 });
 
 test("refreshes only postgis area links for changed destinations", async () => {
@@ -1094,15 +1417,24 @@ test("reports an incomplete plan and never relabels it as valid", () => {
 test("the keeper importer does not write keeper IDs into destination external IDs", () => {
   const source = readFileSync(path.resolve(__dirname, "../import-keeper-lists.ts"), "utf8");
   assert.doesNotMatch(source, /jsonb_build_object\(['"]peakbagger/);
-  assert.doesNotMatch(source, /SET\s+external_ids\s*=/);
   assert.doesNotMatch(source, /destinationPeakbaggerId/);
-  assert.match(source, /BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY/);
+  assert.match(
+    source,
+    /FROM destinations[\s\S]*owner = 'peaks'[\s\S]*type = 'point'[\s\S]*ANY\(features\)/
+  );
   assert.match(source, /assertReviewedKeeperDestinations/);
   assert.match(source, /did not persist with its exact reviewed fingerprint/);
   assert.match(source, /keeper_roster_source/);
   assert.match(source, /COALESCE\(metadata->'names', '\{\}'::jsonb\)/);
   assert.match(source, /jsonb_build_object\('display', \$2\)/);
   assert.deepEqual(KEEPER_LISTS.map((list) => list.expectedCount), [222, 214, 129]);
+
+  const audit = readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/keeper-lists-2026-08-30.md"
+  ), "utf8");
+  assert.doesNotMatch(audit, /exact old names, points, heights/);
+  assert.match(audit, /checks old names, heights[\s\S]*exactly[\s\S]*within 5 metres/);
 });
 
 test("fixture validation rejects missing, duplicate, and partial source records", () => {
