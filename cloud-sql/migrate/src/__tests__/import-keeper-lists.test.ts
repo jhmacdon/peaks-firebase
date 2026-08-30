@@ -153,6 +153,10 @@ function fullFixtureCatalogBeforeReview(): KeeperCatalogPeak[] {
   return [...byId.values()];
 }
 
+function cloneKeeperFixture(): KeeperImportFixture {
+  return JSON.parse(JSON.stringify(fixture)) as KeeperImportFixture;
+}
+
 test("parses dry-run and apply modes with an explicit reviewed resolution fixture", () => {
   assert.deepEqual(parseKeeperImportArgs([
     "--input=/tmp/keeper.json",
@@ -274,6 +278,52 @@ test("pins official source versions, checksums, and DoBIH license", () => {
   assert.equal(
     sources["uiaa-pyrenees-main"].identitySource,
     "UIAA Bulletin 152 (December 1995)"
+  );
+});
+
+test("production keeper fixture rejects changed source metadata and list selectors", () => {
+  const reorderedSourceKeys = cloneKeeperFixture();
+  reorderedSourceKeys.sources = Object.fromEntries(
+    Object.entries(reorderedSourceKeys.sources).reverse().map(([key, value]) => [
+      key,
+      Object.fromEntries(Object.entries(value as Record<string, unknown>).reverse()),
+    ])
+  );
+  assert.doesNotThrow(() => validateKeeperFixture(reorderedSourceKeys));
+
+  const changedDate = cloneKeeperFixture();
+  changedDate.generatedAt = "2026-08-31";
+  assert.throws(() => validateKeeperFixture(changedDate), /generated date/i);
+
+  const changedSources = cloneKeeperFixture();
+  const dobihSource = changedSources.sources["dobih-v18.5"] as Record<string, unknown>;
+  dobihSource.csvSha256 = "f".repeat(64);
+  assert.throws(() => validateKeeperFixture(changedSources), /source metadata.*checksum/i);
+
+  const changedSourceKey = cloneKeeperFixture();
+  changedSourceKey.lists["dobih-corbetts"].source = "fabricated-source";
+  assert.throws(() => validateKeeperFixture(changedSourceKey), /source selector/i);
+
+  const changedSelection = cloneKeeperFixture();
+  changedSelection.lists["dobih-wainwrights"].selection = "W=maybe";
+  assert.throws(() => validateKeeperFixture(changedSelection), /selection/i);
+});
+
+test("production keeper fixture rejects reordered and source-inconsistent roster rows", () => {
+  const reordered = cloneKeeperFixture();
+  [reordered.lists["dobih-corbetts"].rows[0], reordered.lists["dobih-corbetts"].rows[1]] =
+    [reordered.lists["dobih-corbetts"].rows[1], reordered.lists["dobih-corbetts"].rows[0]];
+  assert.throws(() => validateKeeperFixture(reordered), /ordered roster.*checksum/i);
+
+  const wrongDobihIdentity = cloneKeeperFixture();
+  wrongDobihIdentity.lists["dobih-corbetts"].rows[0].dobihNumber! += 1;
+  assert.throws(() => validateKeeperFixture(wrongDobihIdentity), /DoBIH.*source member ID/i);
+
+  const wrongUiaaIdentity = cloneKeeperFixture();
+  wrongUiaaIdentity.lists["uiaa-pyrenees-main"].rows[0].buyseMainNumber! += 1;
+  assert.throws(
+    () => validateKeeperFixture(wrongUiaaIdentity),
+    /UIAA.*ordinal.*source member ID/i
   );
 });
 
@@ -535,6 +585,17 @@ test("catalog repairs pin the old identity and keep the same OSM source", () => 
   assert.throws(
     () => catalogWithReviewedKeeperDestinations(
       reviewed.catalog.map((peak) => peak.id === catalogPeak.id
+        ? { ...peak, elevationM: 1_000.5 }
+        : peak),
+      onePeakFixture,
+      repair,
+      [onePeakList]
+    ),
+    /exact reviewed after fingerprint/
+  );
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      reviewed.catalog.map((peak) => peak.id === catalogPeak.id
         ? { ...peak, elevationM: 1_002 }
         : peak),
       onePeakFixture,
@@ -609,6 +670,17 @@ test("external-ID repairs pin exact before and after JSON", () => {
     plan.catalog, onePeakFixture, reviewed, [onePeakList]
   );
   assert.equal(rerun.destinationsToRepair.length, 0);
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      plan.catalog.map((candidate) => candidate.id === peak.id
+        ? { ...candidate, name: `${candidate.name}!` }
+        : candidate),
+      onePeakFixture,
+      reviewed,
+      [onePeakList]
+    ),
+    /exact reviewed after fingerprint/
+  );
 
   assert.throws(
     () => catalogWithReviewedKeeperDestinations(

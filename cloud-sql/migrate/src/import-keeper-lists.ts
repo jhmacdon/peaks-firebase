@@ -234,6 +234,58 @@ const REVIEWED_DUPLICATE_DISTANCE_M = 150;
 const CATALOG_FINGERPRINT_DISTANCE_M = 5;
 const CATALOG_FINGERPRINT_ELEVATION_M = 1;
 
+interface ProductionKeeperSourceManifest {
+  generatedAt: string;
+  sourcesSha256: string;
+  listSource: string;
+  selection: string;
+  rosterSha256: string;
+}
+
+const PRODUCTION_KEEPER_SOURCE_MANIFEST: Record<string, ProductionKeeperSourceManifest> = {
+  "dobih-corbetts": {
+    generatedAt: "2026-08-30",
+    sourcesSha256: "8c38763ea4436f83dfb95ca96b51e74b1437419b2dee7d7e34c463489e885ce3",
+    listSource: "dobih-v18.5",
+    selection: "C=1",
+    rosterSha256: "801bc61653fe7719dc1287c3ac6c9e1cfbe735efb1915afff53a8b464ca4b88a",
+  },
+  "dobih-wainwrights": {
+    generatedAt: "2026-08-30",
+    sourcesSha256: "8c38763ea4436f83dfb95ca96b51e74b1437419b2dee7d7e34c463489e885ce3",
+    listSource: "dobih-v18.5",
+    selection: "W=1",
+    rosterSha256: "7140cce0a84d66f149293294b1897e382cf1d82aa75c1823b48d55eb7611f562",
+  },
+  "uiaa-pyrenees-main": {
+    generatedAt: "2026-08-30",
+    sourcesSha256: "8c38763ea4436f83dfb95ca96b51e74b1437419b2dee7d7e34c463489e885ce3",
+    listSource: "uiaa-pyrenees-main",
+    selection: "main:001..main:129",
+    rosterSha256: "ac47afa4687859971fa5e459738740c6336f8562df37186ee47de7650fc122f5",
+  },
+};
+
+function canonicalJson(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return `{${Object.keys(object).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalJson(object[key])}`
+    ).join(",")}}`;
+  }
+  const encoded = JSON.stringify(value);
+  if (encoded == null) throw new Error("Keeper fixture contains a non-JSON value");
+  return encoded;
+}
+
+function canonicalSha256(value: unknown): string {
+  return crypto.createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
 export function deterministicKeeperListId(sourceKey: string): string {
   return crypto
     .createHash("sha256")
@@ -367,6 +419,29 @@ export function validateKeeperFixture(
   if (fixture.schemaVersion !== 1) {
     throw new Error(`Unsupported keeper fixture schema ${fixture.schemaVersion}`);
   }
+  const productionManifests = definitions
+    .map((definition) => PRODUCTION_KEEPER_SOURCE_MANIFEST[definition.sourceKey])
+    .filter((manifest): manifest is ProductionKeeperSourceManifest => manifest != null);
+  if (productionManifests.length > 0) {
+    const expectedDate = productionManifests[0].generatedAt;
+    if (fixture.generatedAt !== expectedDate ||
+        productionManifests.some((manifest) => manifest.generatedAt !== expectedDate)) {
+      throw new Error(
+        `Keeper production fixture generated date ${fixture.generatedAt} does not match ` +
+        expectedDate
+      );
+    }
+    const expectedSourcesSha256 = productionManifests[0].sourcesSha256;
+    const actualSourcesSha256 = canonicalSha256(fixture.sources);
+    if (actualSourcesSha256 !== expectedSourcesSha256 ||
+        productionManifests.some((manifest) =>
+          manifest.sourcesSha256 !== expectedSourcesSha256)) {
+      throw new Error(
+        `Keeper production source metadata checksum ${actualSourcesSha256} does not match ` +
+        expectedSourcesSha256
+      );
+    }
+  }
   for (const definition of definitions) {
     const source = fixture.lists[definition.sourceKey];
     if (!source || !Array.isArray(source.rows)) {
@@ -377,6 +452,21 @@ export function validateKeeperFixture(
         `Keeper list ${definition.sourceKey} has ${source.rows.length} rows; ` +
         `expected ${definition.expectedCount}`
       );
+    }
+    const productionManifest = PRODUCTION_KEEPER_SOURCE_MANIFEST[definition.sourceKey];
+    if (productionManifest != null) {
+      if (source.source !== productionManifest.listSource) {
+        throw new Error(
+          `Keeper list ${definition.sourceKey} source selector ${source.source} does not match ` +
+          productionManifest.listSource
+        );
+      }
+      if (source.selection !== productionManifest.selection) {
+        throw new Error(
+          `Keeper list ${definition.sourceKey} selection ${source.selection} does not match ` +
+          productionManifest.selection
+        );
+      }
     }
     const sourceIds = new Set<string>();
     const ordinals = new Set<number>();
@@ -402,6 +492,28 @@ export function validateKeeperFixture(
           `Keeper list ${definition.sourceKey} member ${member.sourceMemberId} has partial coordinates`
         );
       }
+      if (definition.sourceKey === "dobih-corbetts" ||
+          definition.sourceKey === "dobih-wainwrights") {
+        if (!Number.isInteger(member.dobihNumber) ||
+            member.sourceMemberId !== `dobih:${member.dobihNumber}`) {
+          throw new Error(
+            `DoBIH keeper member ${member.sourceMemberId} has a Number that does not match ` +
+            "its source member ID"
+          );
+        }
+      }
+      if (definition.sourceKey === "uiaa-pyrenees-main") {
+        const expectedSourceMemberId =
+          `uiaa-pyrenees-main:${String(member.ordinal).padStart(3, "0")}`;
+        if (member.buyseMainNumber !== member.ordinal ||
+            member.sourceMemberId !== expectedSourceMemberId) {
+          throw new Error(
+            `UIAA keeper member ${member.sourceMemberId} must match ordinal ` +
+            `${member.ordinal}, Buyse main number, and padded source member ID ` +
+            expectedSourceMemberId
+          );
+        }
+      }
       sourceIds.add(member.sourceMemberId);
       ordinals.add(member.ordinal);
     }
@@ -413,6 +525,15 @@ export function validateKeeperFixture(
         `Keeper list ${definition.sourceKey} ordinals must be contiguous from 1 to ` +
         definition.expectedCount
       );
+    }
+    if (productionManifest != null) {
+      const actualRosterSha256 = canonicalSha256(source.rows);
+      if (actualRosterSha256 !== productionManifest.rosterSha256) {
+        throw new Error(
+          `Keeper list ${definition.sourceKey} ordered roster checksum ` +
+          `${actualRosterSha256} does not match ${productionManifest.rosterSha256}`
+        );
+      }
     }
   }
 }
@@ -663,6 +784,22 @@ function catalogMatchesFingerprint(
         JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
 }
 
+function catalogMatchesExactFingerprint(
+  catalogPeak: KeeperCatalogPeak,
+  fingerprint: KeeperDestinationFingerprint
+): boolean {
+  return catalogPeak.name === fingerprint.name &&
+    catalogPeak.elevationM === fingerprint.elevationM &&
+    catalogPeak.lat === fingerprint.lat &&
+    catalogPeak.lng === fingerprint.lng &&
+    catalogPeak.countryCode === fingerprint.countryCode &&
+    catalogPeak.stateCode === fingerprint.stateCode &&
+    catalogPeak.osmId === fingerprint.osmNodeId &&
+    (fingerprint.externalIds == null ||
+      JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
+        JSON.stringify(Object.entries(fingerprint.externalIds).sort()));
+}
+
 function resolutionDestinationFingerprint(
   resolution: KeeperResolutionRow
 ): KeeperDestinationFingerprint {
@@ -752,9 +889,15 @@ export function catalogWithReviewedKeeperDestinations(
       );
     }
     if (!catalogMatchesFingerprint(existing, repair.before)) {
-      if (catalogMatchesFingerprint(existing, repair.after)) {
+      if (catalogMatchesExactFingerprint(existing, repair.after)) {
         updateOsmIndexForRepair(repair.destinationId, repair.before.osmNodeId, existing);
         continue;
+      }
+      if (catalogMatchesFingerprint(existing, repair.after)) {
+        throw new Error(
+          `Auxiliary catalog repair ${repair.repairId} does not match its exact reviewed ` +
+          "after fingerprint"
+        );
       }
       throw new Error(
         `Auxiliary catalog repair ${repair.repairId} matches neither its reviewed ` +
@@ -831,13 +974,19 @@ export function catalogWithReviewedKeeperDestinations(
       }
       const afterFingerprint = catalogRepairAfterFingerprint(resolution);
       if (!catalogMatchesFingerprint(existing, resolution.catalogBefore!)) {
-        if (catalogMatchesFingerprint(existing, afterFingerprint)) {
+        if (catalogMatchesExactFingerprint(existing, afterFingerprint)) {
           updateOsmIndexForRepair(
             resolution.destinationId,
             resolution.catalogBefore!.osmNodeId,
             existing
           );
           continue;
+        }
+        if (catalogMatchesFingerprint(existing, afterFingerprint)) {
+          throw new Error(
+            `Catalog repair destination ${resolution.destinationId} does not match its exact ` +
+            "reviewed after fingerprint"
+          );
         }
         throw new Error(
           `Catalog repair destination ${resolution.destinationId} matches neither its ` +
