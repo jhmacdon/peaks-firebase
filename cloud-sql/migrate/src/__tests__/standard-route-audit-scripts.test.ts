@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { Pool } from "pg";
 
 import {
   buildUsgsTrailAttribution,
@@ -32,6 +33,7 @@ const LOOP_MERGER = join(
   ".claude/skills/peaks-standard-route-backfill/scripts/merge_route_loop_candidates.mts"
 );
 const TSX = join(MIGRATE_ROOT, "node_modules/.bin/tsx");
+const ROUTE_JOB_TEST_DATABASE_URL = process.env.ROUTE_JOB_TEST_DATABASE_URL;
 
 function run(script: string, ...args: string[]) {
   return spawnSync("bash", [script, ...args], {
@@ -79,10 +81,156 @@ test("listed route-cover audit keeps every photo and route gap visible", () => {
   );
   assert.match(result.stdout, /peaks_route_passes_publish_integrity\(/);
   assert.match(result.stdout, /active_peaks_routes_without_cover/);
-  assert.match(result.stdout, /active_listed_routes_missing_cover/);
+  assert.match(
+    result.stdout,
+    /FROM routes r\s+LEFT JOIN route_cover_photos cover ON cover\.route_id = r\.id\s+WHERE r\.owner = 'peaks'\s+AND r\.status = 'active'/
+  );
+  assert.match(result.stdout, /active_peaks_routes_missing_cover/);
+  assert.match(result.stdout, /'active_peaks_route'::text AS record_type/);
   assert.match(result.stdout, /listed_route_cover_complete/);
+  assert.match(result.stdout, /COUNT\(\*\) > 0/);
   assert.match(result.stdout, /AS goal_complete/);
 });
+
+test(
+  "listed route-cover SQL fails closed and exposes an orphan route gap",
+  {
+    skip: ROUTE_JOB_TEST_DATABASE_URL
+      ? false
+      : "ROUTE_JOB_TEST_DATABASE_URL not set",
+  },
+  async () => {
+    const summary = run(COVER_GOAL_AUDIT, "--format", "summary", "--print-sql");
+    assert.equal(summary.status, 0, summary.stderr || summary.stdout);
+    const detail = run(
+      COVER_GOAL_AUDIT,
+      "--format",
+      "json",
+      "--incomplete-only",
+      "--print-sql"
+    );
+    assert.equal(detail.status, 0, detail.stderr || detail.stdout);
+    const tsv = run(
+      COVER_GOAL_AUDIT,
+      "--format",
+      "tsv",
+      "--incomplete-only",
+      "--print-sql"
+    );
+    assert.equal(tsv.status, 0, tsv.stderr || tsv.stdout);
+
+    const pool = new Pool({ connectionString: ROUTE_JOB_TEST_DATABASE_URL });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`
+        CREATE TEMP TABLE destinations (
+          id text PRIMARY KEY,
+          name text,
+          state_code text,
+          country_code text,
+          elevation double precision,
+          prominence double precision,
+          location geography(PointZ, 4326),
+          features destination_feature[],
+          hero_image text,
+          hero_image_attribution text,
+          hero_image_attribution_url text
+        ) ON COMMIT DROP;
+        CREATE TEMP TABLE lists (
+          id text PRIMARY KEY,
+          name text,
+          owner text
+        ) ON COMMIT DROP;
+        CREATE TEMP TABLE list_destinations (
+          list_id text,
+          destination_id text
+        ) ON COMMIT DROP;
+        CREATE TEMP TABLE routes (
+          id text PRIMARY KEY,
+          name text,
+          owner text,
+          status text
+        ) ON COMMIT DROP;
+        CREATE TEMP TABLE route_destinations (
+          route_id text,
+          destination_id text
+        ) ON COMMIT DROP;
+        CREATE TEMP TABLE route_cover_photos (
+          route_id text PRIMARY KEY
+        ) ON COMMIT DROP;
+        INSERT INTO routes (id, name, owner, status)
+        VALUES ('orphan-route', 'Orphan route', 'peaks', 'active');
+        INSERT INTO route_cover_photos (route_id) VALUES ('orphan-route');
+      `);
+
+      const emptyListResult = await client.query(summary.stdout);
+      assert.equal(Number(emptyListResult.rows[0].listed_destinations), 0);
+      assert.equal(Number(emptyListResult.rows[0].active_peaks_routes), 1);
+      assert.equal(
+        Number(emptyListResult.rows[0].active_peaks_routes_missing_cover),
+        0
+      );
+      assert.equal(emptyListResult.rows[0].goal_complete, false);
+
+      await client.query("DELETE FROM route_cover_photos");
+      const orphanGapResult = await client.query(summary.stdout);
+      assert.equal(
+        Number(orphanGapResult.rows[0].active_peaks_routes_missing_cover),
+        1
+      );
+      assert.equal(orphanGapResult.rows[0].goal_complete, false);
+
+      const detailSql = detail.stdout
+        .split(":'incomplete_only'::boolean")
+        .join("true")
+        .split(":'row_limit'")
+        .join("'0'");
+      const detailResult = await client.query(detailSql);
+      assert.deepEqual(detailResult.rows[0].detail_rows, [
+        {
+          record_type: "active_peaks_route",
+          destination_id: null,
+          route_id: "orphan-route",
+          name: "Orphan route",
+          country_code: null,
+          state_code: null,
+          elevation_m: null,
+          prominence_m: null,
+          lat: null,
+          lng: null,
+          list_names: [],
+          summit_feature_valid: null,
+          destination_cover_complete: null,
+          has_standard_route: null,
+          has_standard_route_cover: null,
+          active_peaks_routes: null,
+          valid_active_peaks_routes: null,
+          valid_active_peaks_routes_with_cover: null,
+          active_peaks_routes_without_cover: null,
+          route_ids_without_cover: [],
+          route_cover_complete: false,
+          complete: false,
+        },
+      ]);
+
+      const tsvSql = tsv.stdout
+        .split(":'incomplete_only'::boolean")
+        .join("true")
+        .split(":'row_limit'")
+        .join("'0'");
+      const tsvResult = await client.query(tsvSql);
+      assert.equal(tsvResult.rows.length, 1);
+      assert.equal(tsvResult.rows[0].record_type, "active_peaks_route");
+      assert.equal(tsvResult.rows[0].route_id, "orphan-route");
+      assert.equal(tsvResult.rows[0].complete, false);
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+      await pool.end();
+    }
+  }
+);
 
 test("listed route-cover detail mode filters only explicit incomplete rows", () => {
   const result = run(
@@ -95,8 +243,9 @@ test("listed route-cover detail mode filters only explicit incomplete rows", () 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(
     result.stdout,
-    /NOT :'incomplete_only'::boolean\s+OR NOT listed_route_cover_complete/
+    /NOT :'incomplete_only'::boolean\s+OR NOT complete/
   );
+  assert.match(result.stdout, /FROM detail_rows/);
 
   const invalid = run(
     COVER_GOAL_AUDIT,
@@ -106,6 +255,27 @@ test("listed route-cover detail mode filters only explicit incomplete rows", () 
   );
   assert.equal(invalid.status, 2);
   assert.match(invalid.stderr, /requires --format summary/);
+
+  const bypass = run(
+    COVER_GOAL_AUDIT,
+    "--format",
+    "summary",
+    "--require-complete",
+    "--print-sql"
+  );
+  assert.equal(bypass.status, 2);
+  assert.match(
+    bypass.stderr,
+    /--require-complete cannot be combined with --print-sql/
+  );
+
+  const missingFormat = run(COVER_GOAL_AUDIT, "--format");
+  assert.equal(missingFormat.status, 2);
+  assert.match(missingFormat.stderr, /--format requires a value/);
+
+  const missingLimit = run(COVER_GOAL_AUDIT, "--limit");
+  assert.equal(missingLimit.status, 2);
+  assert.match(missingLimit.stderr, /--limit requires a value/);
 });
 
 test("listed route-cover completion check exits nonzero on any reported gap", () => {
