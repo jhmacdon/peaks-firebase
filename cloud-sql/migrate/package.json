@@ -43,6 +43,7 @@
     "backfill:external-links": "tsx src/backfill-reviewed-external-links.ts",
     "backfill:recreation-gov-campgrounds": "tsx src/backfill-recreation-gov-campgrounds.ts",
     "audit:standard-route-osm": "tsx src/audit-standard-route-osm.ts",
+    "audit:kfs-trail-archive": "tsx src/find-kfs-trail-geometry.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
     "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",
     "routes:integrity-repairs": "./scripts/run-tsx.sh src/route-integrity-repairs.ts",
@@ -55,14 +56,19 @@
     "@duckdb/node-api": "^1.5.5-r.4",
     "firebase-admin": "^13.0.0",
     "pg": "^8.13.0",
-    "sharp": "^0.33.0"
+    "proj4": "^2.22.0",
+    "sharp": "^0.33.0",
+    "unzipper": "^0.12.5"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/pg": "^8.11.0",
+    "@types/unzipper": "^0.10.11",
+    "@types/yazl": "^3.3.1",
     "esbuild": "^0.27.4",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "yazl": "^3.3.1"
   },
   "private": true
 }
