@@ -5,13 +5,15 @@ interface ProgressBarProps {
 }
 
 export default function ProgressBar({ completed, total, className = "" }: ProgressBarProps) {
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const boundedTotal = Math.max(0, total);
+  const boundedCompleted = Math.min(Math.max(0, completed), boundedTotal);
+  const pct = boundedTotal > 0 ? Math.round((boundedCompleted / boundedTotal) * 100) : 0;
 
   return (
     <div className={className}>
       <div className="flex items-center justify-between text-sm mb-1">
         <span className="font-mono-num tabular-nums text-ink-2">
-          {completed} / {total}
+          {boundedCompleted} / {boundedTotal}
         </span>
         <span className="font-mono-num tabular-nums font-medium text-ink">{pct}%</span>
       </div>

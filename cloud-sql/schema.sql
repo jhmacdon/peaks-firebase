@@ -294,6 +294,13 @@ CREATE TABLE lists (
     description     TEXT,
     owner           TEXT NOT NULL DEFAULT 'peaks',
 
+    -- NULL means every current member is required. A smaller positive value
+    -- supports keeper rules such as "any 13 of these 18 peaks" without
+    -- changing the roster itself.
+    completion_target INT,
+    CONSTRAINT lists_completion_target_positive
+        CHECK (completion_target IS NULL OR completion_target > 0),
+
     -- Curated-list display metadata (see migrations/20260821_list_metadata.sql).
     year_established INT,
     organization    TEXT,
@@ -315,6 +322,31 @@ CREATE TABLE list_destinations (
     ordinal         INT NOT NULL DEFAULT 0,
     PRIMARY KEY (list_id, destination_id)
 );
+
+COMMENT ON COLUMN lists.completion_target IS
+    'Required member count; NULL means every current list member is required';
+
+-- Treat a missing, non-positive, or stale-too-large target as "all current
+-- members". Reads use this helper so bad data can never make a list easier to
+-- complete than its checked roster permits.
+CREATE OR REPLACE FUNCTION effective_list_completion_target(
+    configured_target INT,
+    member_count INT
+)
+RETURNS INT
+LANGUAGE SQL
+IMMUTABLE
+AS $$
+    SELECT CASE
+        WHEN GREATEST(COALESCE(member_count, 0), 0) = 0 THEN 0
+        WHEN configured_target BETWEEN 1 AND GREATEST(COALESCE(member_count, 0), 0)
+            THEN configured_target
+        ELSE GREATEST(COALESCE(member_count, 0), 0)
+    END;
+$$;
+
+COMMENT ON FUNCTION effective_list_completion_target(INT, INT) IS
+    'Returns a bounded list completion target; invalid or NULL targets require all current members';
 
 -- ---------------------------------------------------------------------------
 -- areas

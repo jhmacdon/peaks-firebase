@@ -245,18 +245,31 @@ test("re-importing an unchanged list produces an empty membership diff", () => {
   assert.deepEqual(plan.reorderedDestinationIds, []);
 });
 
-test("the list upsert plan carries all five metadata columns", () => {
+test("the list upsert plan carries metadata and the default all-members rule", () => {
   const params = buildListUpsertParams(list);
   assert.deepEqual(params, {
     listId: list.listId,
     name: list.name,
     description: list.description,
+    completionTarget: null,
     yearEstablished: list.yearEstablished,
     organization: list.organization,
     sourceName: list.sourceName,
     sourceUrl: list.sourceUrl,
     region: list.region,
   });
+});
+
+test("the list upsert plan carries a bounded partial completion target", () => {
+  const params = buildListUpsertParams({ ...list, completionTarget: 1 });
+  assert.equal(params.completionTarget, 1);
+});
+
+test("the list upsert plan rejects a completion target outside the roster", () => {
+  assert.throws(
+    () => buildListUpsertParams({ ...list, completionTarget: 3 }),
+    /completion target must be between 1 and 2/
+  );
 });
 
 test("the list upsert plan passes a null organization through as SQL NULL, not the string 'null'", () => {

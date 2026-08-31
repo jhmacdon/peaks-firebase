@@ -32,6 +32,7 @@ export interface ActivityLandingClassicList {
   id: string;
   name: string;
   destination_count: number;
+  completion_target: number;
 }
 
 export interface ActivityLandingData {
@@ -85,6 +86,7 @@ export async function getActivityLandingData(
       id: list.id,
       name: list.name,
       destination_count: list.destination_count,
+      completion_target: list.completion_target,
     }));
 
   return {

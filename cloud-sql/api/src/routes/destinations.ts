@@ -472,8 +472,16 @@ router.get("/:id/lists", asyncRoute(async (req, res: Response) => {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id) AS destination_count
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations
+       WHERE list_id = l.id
+     ) list_counts
      JOIN list_destinations ld ON ld.list_id = l.id
      WHERE ld.destination_id = $1
      ORDER BY l.name`,

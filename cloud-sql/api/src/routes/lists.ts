@@ -13,10 +13,17 @@ router.get("/popular", asyncRoute(async (req, res: Response) => {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id)
-              AS destination_count,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
             l.created_at, l.updated_at
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations
+       WHERE list_id = l.id
+     ) list_counts
      ORDER BY destination_count DESC NULLS LAST, l.name ASC
      LIMIT $1`,
     [limit]
@@ -38,10 +45,17 @@ router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
   const result = await db.query(
     `SELECT DISTINCT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id)
-              AS destination_count,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
             l.created_at, l.updated_at
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations
+       WHERE list_id = l.id
+     ) list_counts
      JOIN list_destinations ld ON ld.list_id = l.id
      WHERE ld.destination_id = ANY($1::text[])
      ORDER BY l.name`,
@@ -54,10 +68,20 @@ router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const result = await db.query(
-    `SELECT id, name, description, owner,
-            year_established, organization, source_name, source_url, region,
-            created_at, updated_at
-     FROM lists WHERE id = $1`,
+    `SELECT l.id, l.name, l.description, l.owner,
+            l.year_established, l.organization, l.source_name, l.source_url, l.region,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
+            l.created_at, l.updated_at
+     FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations
+       WHERE list_id = l.id
+     ) list_counts
+     WHERE l.id = $1`,
     [id]
   );
   if (result.rows.length === 0) {
@@ -241,9 +265,17 @@ router.get("/", asyncRoute(async (req, res: Response) => {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations WHERE list_id = l.id) AS destination_count,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
             l.created_at, l.updated_at
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations
+       WHERE list_id = l.id
+     ) list_counts
      ORDER BY l.name
      LIMIT $1 OFFSET $2`,
     [limit, offset]

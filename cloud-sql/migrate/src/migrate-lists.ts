@@ -1,11 +1,15 @@
 import { firestore } from "./firebase";
 import db from "./db";
+import {
+  normalizeStoredListCompletionTarget,
+  readImportedListCompletionTarget,
+} from "./list-completion-target";
 
 /**
  * Migrate Firestore `lists` collection → PostGIS `lists` + `list_destinations` tables.
  *
  * Firestore doc fields:
- *   name, owner, description,
+ *   name, owner, description, completionTarget?,
  *   destinations: [destinationId, ...] (array of IDs)
  *   meta: { [destId]: { name, elevation, l } } (lightweight dest info)
  */
@@ -23,19 +27,38 @@ export async function migrateLists() {
     const id = doc.id;
 
     try {
+      const destIds: string[] = Array.isArray(d.destinations) ? d.destinations : [];
+      const rawCompletionTarget = readImportedListCompletionTarget(d);
+      const completionTarget = normalizeStoredListCompletionTarget(
+        rawCompletionTarget,
+        destIds.length
+      );
+      if (rawCompletionTarget != null && completionTarget == null) {
+        console.warn(
+          `  List ${id} has invalid completion target ${String(rawCompletionTarget)}; ` +
+          "requiring all members"
+        );
+      }
+
       // Insert the list
       await db.query(
-        `INSERT INTO lists (id, name, description, owner)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO lists (id, name, description, owner, completion_target)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name,
            description = EXCLUDED.description,
+           completion_target = EXCLUDED.completion_target,
            updated_at = now()`,
-        [id, d.name || "Unnamed", d.description || null, d.owner || "peaks"]
+        [
+          id,
+          d.name || "Unnamed",
+          d.description || null,
+          d.owner || "peaks",
+          completionTarget,
+        ]
       );
 
       // Insert list_destinations join rows
-      const destIds: string[] = d.destinations || [];
       for (let i = 0; i < destIds.length; i++) {
         await db.query(
           `INSERT INTO list_destinations (list_id, destination_id, ordinal)

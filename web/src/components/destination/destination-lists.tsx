@@ -32,6 +32,9 @@ export function DestinationLists({
                   {list.destination_count.toLocaleString("en-US")}
                 </span>{" "}
                 destinations
+                {list.completion_target < list.destination_count
+                  ? ` · ${list.completion_target.toLocaleString("en-US")} required`
+                  : ""}
               </span>
             </Link>
           </li>

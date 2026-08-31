@@ -59,6 +59,13 @@ export default async function ListDetailPage({
     facts.count > 0
       ? { key: "peaks", value: facts.count.toLocaleString("en-US"), label: "Peaks" }
       : null,
+    list.completion_target < list.destination_count
+      ? {
+          key: "required",
+          value: list.completion_target.toLocaleString("en-US"),
+          label: "Required to complete",
+        }
+      : null,
     facts.highestFt != null
       ? {
           key: "highest",
@@ -113,7 +120,10 @@ export default async function ListDetailPage({
             </section>
           ) : null}
 
-          <ListRoster destinations={destinations} />
+          <ListRoster
+            destinations={destinations}
+            completionTarget={list.completion_target}
+          />
 
           {sourceHref && sourceLabel ? (
             <p className="text-[13px] text-muted">

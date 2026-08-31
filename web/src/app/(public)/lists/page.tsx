@@ -98,6 +98,9 @@ export default async function ListsIndexPage({
                       {list.destination_count.toLocaleString("en-US")}
                     </span>{" "}
                     {list.destination_count === 1 ? "destination" : "destinations"}
+                    {list.completion_target < list.destination_count
+                      ? ` · ${list.completion_target.toLocaleString("en-US")} required`
+                      : ""}
                   </span>
                 </Link>
               </li>
