@@ -26,6 +26,7 @@ import {
   LISTED_PHOTO_GEOSEARCH_RADIUS_METERS,
   canonicalWikimediaLicenseUrl,
   loadListedPhotoGaps,
+  normalizedWikimediaFileTitle,
   planListedPhotoCandidate,
   queueListedPhotoCandidate,
   type ListedPhotoCandidate,
@@ -36,6 +37,7 @@ import {
   type WikimediaImageMetadata,
   type WikidataArticleIdentity,
   type WikipediaArticle,
+  type WikipediaLanguage,
   type WikipediaSearchHit,
 } from "./listed-destination-photo-candidates";
 
@@ -190,26 +192,67 @@ function coordinates(value: unknown): WikimediaCoordinates | null {
 
 export function parseWikidataArticleIdentity(
   json: unknown,
-  wikidataId: string
+  wikidataId: string,
+  preferredLanguage: WikipediaLanguage = "en"
 ): WikidataArticleIdentity | null {
   const root = objectRecord(json);
   const entities = objectRecord(root?.entities);
   const entity = objectRecord(entities?.[wikidataId]);
   if (!entity || entity.missing !== undefined) return null;
   const sitelinks = objectRecord(entity.sitelinks);
+  const preferredWiki = objectRecord(sitelinks?.[`${preferredLanguage}wiki`]);
   const enwiki = objectRecord(sitelinks?.enwiki);
-  const articleTitle = text(enwiki?.title);
+  const articleTitle = text(preferredWiki?.title) ?? text(enwiki?.title);
+  const articleLanguage: WikipediaLanguage = text(preferredWiki?.title)
+    ? preferredLanguage
+    : "en";
   const claims = objectRecord(entity.claims);
   const positionClaims = claims?.P625;
-  const firstClaim = Array.isArray(positionClaims) ? objectRecord(positionClaims[0]) : null;
-  const mainsnak = objectRecord(firstClaim?.mainsnak);
-  const dataValue = objectRecord(mainsnak?.datavalue);
-  const point = coordinates(dataValue?.value);
   if (!articleTitle) return null;
-  return { wikidataId, articleTitle, coordinates: point };
+  const nonDeprecatedClaims = Array.isArray(positionClaims)
+    ? positionClaims
+        .map(objectRecord)
+        .filter((claim): claim is Record<string, unknown> =>
+          claim !== null && text(claim.rank) !== "deprecated"
+        )
+    : [];
+  const claimsHaveKnownRanks = nonDeprecatedClaims.every((claim) =>
+    ["normal", "preferred"].includes(text(claim.rank) ?? "")
+  );
+  const preferredClaims = nonDeprecatedClaims.filter(
+    (claim) => text(claim.rank) === "preferred"
+  );
+  const highestRankClaims = preferredClaims.length > 0
+    ? preferredClaims
+    : nonDeprecatedClaims;
+  const points = highestRankClaims.map((claim) => {
+    const mainsnak = objectRecord(claim.mainsnak);
+    if (text(mainsnak?.snaktype) !== "value") return null;
+    const dataValue = objectRecord(mainsnak?.datavalue);
+    const value = objectRecord(dataValue?.value);
+    const globe = text(value?.globe);
+    if (
+      globe !== "http://www.wikidata.org/entity/Q2" &&
+      globe !== "https://www.wikidata.org/entity/Q2"
+    ) return null;
+    return coordinates(value);
+  });
+  const uniquePoints = new Map(
+    points.flatMap((point) => point ? [[`${point.lat},${point.lng}`, point]] : [])
+  );
+  const point = claimsHaveKnownRanks &&
+      points.length > 0 &&
+      points.every((candidate) => candidate !== null) &&
+      uniquePoints.size === 1
+    ? [...uniquePoints.values()][0]
+    : null;
+  return { wikidataId, articleTitle, articleLanguage, coordinates: point };
 }
 
-export function parseWikipediaSearchHits(json: unknown): WikipediaSearchHit[] {
+export function parseWikipediaSearchHits(
+  json: unknown,
+  language: WikipediaLanguage = "en"
+): WikipediaSearchHit[] {
   const root = objectRecord(json);
   const query = objectRecord(root?.query);
   const hits = objectRecord(query)?.geosearch;
@@ -218,16 +261,14 @@ export function parseWikipediaSearchHits(json: unknown): WikipediaSearchHit[] {
     const hit = objectRecord(raw);
     const title = text(hit?.title);
     const point = coordinates(hit);
-    return title && point ? [{ title, coordinates: point }] : [];
+    return title && point ? [{ title, language, coordinates: point }] : [];
   });
 }
 
-function normalizedFileTitle(value: string | null): string | null {
-  if (!value) return null;
-  return value.toLowerCase().startsWith("file:") ? value : `File:${value}`;
-}
-
-export function parseWikipediaArticle(json: unknown): WikipediaArticle | null {
+export function parseWikipediaArticle(
+  json: unknown,
+  language: WikipediaLanguage = "en"
+): WikipediaArticle | null {
   const page = pageRecords(json)[0];
   if (!page || page.missing !== undefined || Number(page.ns) !== 0) return null;
   const title = text(page.title);
@@ -236,14 +277,15 @@ export function parseWikipediaArticle(json: unknown): WikipediaArticle | null {
   const wikidataId = text(pageProps?.wikibase_item);
   const rawCoordinates = Array.isArray(page.coordinates) ? page.coordinates[0] : null;
   const articleCoordinates = coordinates(rawCoordinates);
-  const leadImageTitle = normalizedFileTitle(text(page.pageimage));
+  const leadImageTitle = normalizedWikimediaFileTitle(text(page.pageimage));
   const images = Array.isArray(page.images) ? page.images : [];
   const imageTitles = images
-    .map((raw) => text(objectRecord(raw)?.title))
+    .map((raw) => normalizedWikimediaFileTitle(text(objectRecord(raw)?.title)))
     .filter((value): value is string => value !== null);
   if (!title) return null;
   return {
     title,
+    language,
     wikidataId,
     coordinates: articleCoordinates,
     leadImageTitle,
@@ -351,14 +393,17 @@ function mediaWikiFileTitleAliases(json: unknown, canonicalTitle: string): strin
 
 export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetadata[] {
   return pageRecords(json).flatMap((page) => {
-    const fileTitle = text(page.title);
+    const rawFileTitle = text(page.title);
+    const fileTitle = normalizedWikimediaFileTitle(rawFileTitle);
     const infoRows = Array.isArray(page.imageinfo) ? page.imageinfo : [];
     const info = objectRecord(infoRows[0]);
-    if (!fileTitle || !info) return [];
+    if (!rawFileTitle || !fileTitle || !info) return [];
     const extmetadata = objectRecord(info.extmetadata);
     return [{
       fileTitle,
-      fileTitleAliases: mediaWikiFileTitleAliases(json, fileTitle),
+      fileTitleAliases: mediaWikiFileTitleAliases(json, rawFileTitle)
+        .map(normalizedWikimediaFileTitle)
+        .filter((title): title is string => title !== null),
       imageUrl: canonicalWikimediaImageUrl(info.url),
       sourcePageUrl: text(info.descriptionurl),
       photographer: plainMetadataText(extmetadata?.Artist),
@@ -387,43 +432,50 @@ function actionApiUrl(hostname: string, params: Record<string, string>): URL {
 }
 
 export const wikimediaListedPhotoClient: ListedPhotoClient = {
-  async resolveWikidataArticle(wikidataId) {
+  async resolveWikidataArticle(wikidataId, preferredLanguage) {
+    const sites = preferredLanguage === "en"
+      ? "enwiki"
+      : `${preferredLanguage}wiki|enwiki`;
     const url = actionApiUrl("www.wikidata.org", {
       action: "wbgetentities",
       ids: wikidataId,
       props: "claims|sitelinks",
-      sitefilter: "enwiki",
+      sitefilter: sites,
     });
-    return parseWikidataArticleIdentity(await requestJson(url), wikidataId);
+    return parseWikidataArticleIdentity(
+      await requestJson(url),
+      wikidataId,
+      preferredLanguage
+    );
   },
 
-  async searchWikipediaArticles(name, lat, lng) {
-    const url = actionApiUrl("en.wikipedia.org", {
+  async searchWikipediaArticles(name, lat, lng, language) {
+    const url = actionApiUrl(`${language}.wikipedia.org`, {
       list: "geosearch",
       gscoord: `${lat}|${lng}`,
       gsradius: String(LISTED_PHOTO_GEOSEARCH_RADIUS_METERS),
       gslimit: "20",
       gsnamespace: "0",
     });
-    return parseWikipediaSearchHits(await requestJson(url));
+    return parseWikipediaSearchHits(await requestJson(url), language);
   },
 
-  async fetchWikipediaArticle(title) {
-    const url = actionApiUrl("en.wikipedia.org", {
+  async fetchWikipediaArticle(title, language) {
+    const url = actionApiUrl(`${language}.wikipedia.org`, {
       redirects: "1",
       prop: "coordinates|pageprops|pageimages|images",
       piprop: "name",
       imlimit: "max",
       titles: title,
     });
-    return parseWikipediaArticle(await requestJson(url));
+    return parseWikipediaArticle(await requestJson(url), language);
   },
 
-  async fetchImageMetadata(fileTitles) {
+  async fetchImageMetadata(fileTitles, language) {
     const records: WikimediaImageMetadata[] = [];
     for (let index = 0; index < fileTitles.length; index += IMAGE_INFO_BATCH_SIZE) {
       const batch = fileTitles.slice(index, index + IMAGE_INFO_BATCH_SIZE);
-      const url = actionApiUrl("en.wikipedia.org", {
+      const url = actionApiUrl(`${language}.wikipedia.org`, {
         redirects: "1",
         prop: "imageinfo",
         iiprop: "url|size|mime|mediatype|sha1|extmetadata",

@@ -29,6 +29,7 @@ import {
   rankedArticlePhotoTitles,
   serializeListedPhotoGapRow,
   sourcePageKey,
+  wikipediaLanguageForCountry,
   type ListedPhotoClient,
   type ListedPhotoGapRow,
   type Queryable,
@@ -44,6 +45,7 @@ function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
     name: "Mount Rainier",
     lat: 46.8523,
     lng: -121.7603,
+    country_code: "US",
     wikidata_id: "Q194057",
     list_ids: ["state-high-points"],
     list_names: ["US State High Points"],
@@ -58,6 +60,7 @@ function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
 function article(overrides: Partial<WikipediaArticle> = {}): WikipediaArticle {
   return {
     title: "Mount Rainier",
+    language: "en",
     wikidataId: "Q194057",
     coordinates: { lat: 46.8523, lng: -121.7603 },
     leadImageTitle: "File:Mount Rainier from Paradise.jpg",
@@ -96,11 +99,16 @@ function client(overrides: Partial<ListedPhotoClient> = {}): ListedPhotoClient {
       return {
         wikidataId,
         articleTitle: "Mount Rainier",
+        articleLanguage: "en",
         coordinates: { lat: 46.8523, lng: -121.7603 },
       };
     },
     async searchWikipediaArticles() {
-      return [{ title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } }];
+      return [{
+        title: "Mount Rainier",
+        language: "en",
+        coordinates: { lat: 46.8523, lng: -121.7603 },
+      }];
     },
     async fetchWikipediaArticle() {
       return article();
@@ -166,6 +174,7 @@ test("gap query targets every Peaks-owned list member with incomplete cover cred
   );
   assert.match(LISTED_PHOTO_GAPS_SQL, /existing_source_page_urls/);
   assert.match(LISTED_PHOTO_GAPS_SQL, /has_pending_candidate/);
+  assert.match(LISTED_PHOTO_GAPS_SQL, /country_code/);
   assert.doesNotMatch(LISTED_PHOTO_GAPS_SQL, /LIMIT|list_id = \$/);
 });
 
@@ -176,6 +185,7 @@ test("gap rows preserve full list and review history for the audit", () => {
       name: "Peak",
       lat: "1.25",
       lng: "-2.5",
+      country_code: "KR",
       wikidata_id: "Q1",
       list_ids: ["b", "a"],
       list_names: ["B", "A"],
@@ -191,6 +201,7 @@ test("gap rows preserve full list and review history for the audit", () => {
       name: "Peak",
       lat: 1.25,
       lng: -2.5,
+      country_code: "KR",
       wikidata_id: "Q1",
       list_ids: ["b", "a"],
       list_names: ["B", "A"],
@@ -212,23 +223,112 @@ test("gap coordinates reject null, blanks, and booleans instead of becoming zero
   }
 });
 
-test("Wikidata parser requires an English sitelink and reads P625 coordinates", () => {
+test("Wikidata parser prefers the country wiki, falls back to English, and reads P625", () => {
   const parsed = parseWikidataArticleIdentity({
+    entities: {
+      Q194057: {
+        sitelinks: {
+          enwiki: { title: "Mount Rainier" },
+          kowiki: { title: "레이니어산" },
+        },
+        claims: {
+          P625: [{
+            rank: "normal",
+            mainsnak: {
+              snaktype: "value",
+              datavalue: {
+                value: {
+                  latitude: 46.8523,
+                  longitude: -121.7603,
+                  globe: "http://www.wikidata.org/entity/Q2",
+                },
+              },
+            },
+          }],
+        },
+      },
+    },
+  }, "Q194057", "ko");
+  assert.deepEqual(parsed, {
+    wikidataId: "Q194057",
+    articleTitle: "레이니어산",
+    articleLanguage: "ko",
+    coordinates: { lat: 46.8523, lng: -121.7603 },
+  });
+  assert.deepEqual(parseWikidataArticleIdentity({
     entities: {
       Q194057: {
         sitelinks: { enwiki: { title: "Mount Rainier" } },
         claims: {
-          P625: [{ mainsnak: { datavalue: { value: { latitude: 46.8523, longitude: -121.7603 } } } }],
+          P625: [{
+            rank: "normal",
+            mainsnak: {
+              snaktype: "value",
+              datavalue: {
+                value: {
+                  latitude: 46.8523,
+                  longitude: -121.7603,
+                  globe: "https://www.wikidata.org/entity/Q2",
+                },
+              },
+            },
+          }],
         },
       },
     },
-  }, "Q194057");
-  assert.deepEqual(parsed, {
+  }, "Q194057", "ko"), {
     wikidataId: "Q194057",
     articleTitle: "Mount Rainier",
+    articleLanguage: "en",
     coordinates: { lat: 46.8523, lng: -121.7603 },
   });
   assert.equal(parseWikidataArticleIdentity({ entities: { Q194057: {} } }, "Q194057"), null);
+});
+
+test("Wikidata P625 parsing requires one ranked Earth coordinate", () => {
+  const claim = (
+    latitude: number,
+    longitude: number,
+    rank: "normal" | "preferred" | "deprecated" = "normal",
+    globe = "http://www.wikidata.org/entity/Q2"
+  ) => ({
+    rank,
+    mainsnak: {
+      snaktype: "value",
+      datavalue: { value: { latitude, longitude, globe } },
+    },
+  });
+  const parse = (claims: unknown[]) => parseWikidataArticleIdentity({
+    entities: {
+      Q1: {
+        sitelinks: { enwiki: { title: "Peak" } },
+        claims: { P625: claims },
+      },
+    },
+  }, "Q1")?.coordinates;
+
+  assert.equal(parse([claim(1, 2, "deprecated")]), null);
+  assert.equal(
+    parse([claim(1, 2, "normal", "http://www.wikidata.org/entity/Q111")]),
+    null
+  );
+  assert.equal(parse([claim(1, 2), claim(3, 4)]), null);
+  assert.deepEqual(parse([claim(1, 2), claim(3, 4, "preferred")]), { lat: 3, lng: 4 });
+  assert.equal(
+    parse([
+      claim(1, 2),
+      claim(3, 4, "preferred", "http://www.wikidata.org/entity/Q111"),
+    ]),
+    null
+  );
+  assert.deepEqual(parse([claim(1, 2), claim(1, 2)]), { lat: 1, lng: 2 });
+});
+
+test("South Korean destinations use Korean Wikipedia while other countries keep English", () => {
+  assert.equal(wikipediaLanguageForCountry("KR"), "ko");
+  assert.equal(wikipediaLanguageForCountry("kr"), "ko");
+  assert.equal(wikipediaLanguageForCountry("US"), "en");
+  assert.equal(wikipediaLanguageForCountry(null), "en");
 });
 
 test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and article images", () => {
@@ -239,9 +339,13 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
         { title: "Broken", lat: "46", lon: -121 },
       ],
     },
-  });
+  }, "ko");
   assert.deepEqual(hits, [
-    { title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } },
+    {
+      title: "Mount Rainier",
+      language: "ko",
+      coordinates: { lat: 46.8523, lng: -121.7603 },
+    },
   ]);
 
   const parsed = parseWikipediaArticle({
@@ -259,9 +363,10 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
         ],
       }],
     },
-  });
+  }, "ko");
   assert.deepEqual(parsed, {
     title: "Mount Rainier",
+    language: "ko",
     wikidataId: "Q194057",
     coordinates: { lat: 46.8523, lng: -121.7603 },
     leadImageTitle: "File:Mount Rainier lead.jpg",
@@ -276,6 +381,31 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
       }],
     },
   }), null);
+});
+
+test("Korean Wikipedia file namespaces normalize to canonical File titles", () => {
+  const parsed = parseWikipediaArticle({
+    query: {
+      pages: [{
+        ns: 0,
+        title: "관악산",
+        pageprops: { wikibase_item: "Q626275" },
+        pageimage: "관악산.jpg",
+        images: [
+          { title: "파일:관악산.jpg" },
+          { title: "파일:관악산 설경.jpg" },
+        ],
+      }],
+    },
+  }, "ko");
+  assert.deepEqual(parsed, {
+    title: "관악산",
+    language: "ko",
+    wikidataId: "Q626275",
+    coordinates: null,
+    leadImageTitle: "File:관악산.jpg",
+    imageTitles: ["File:관악산.jpg", "File:관악산 설경.jpg"],
+  });
 });
 
 test("imageinfo parser keeps exact URL, artist, license URL, dimensions, and format", () => {
@@ -353,6 +483,53 @@ test("imageinfo parser maps normalized and redirected File aliases to canonical 
     "File:Old_Rainier_name.jpg",
     "File:Old Rainier name.jpg",
   ]);
+});
+
+test("imageinfo parser and source identity canonicalize the Korean File namespace", () => {
+  const parsed = parseWikimediaImageMetadata({
+    query: {
+      normalized: [{
+        from: "File:관악산_옛이름.jpg",
+        to: "파일:관악산 옛이름.jpg",
+      }],
+      redirects: [{
+        from: "파일:관악산 옛이름.jpg",
+        to: "파일:관악산.jpg",
+      }],
+      pages: [{
+        ns: 6,
+        title: "파일:관악산.jpg",
+        imageinfo: [{
+          url: "https://upload.wikimedia.org/wikipedia/ko/a/aa/Gwanaksan.jpg",
+          descriptionurl: "https://ko.wikipedia.org/wiki/파일:관악산.jpg",
+          width: 2_000,
+          height: 1_500,
+          mime: "image/jpeg",
+          mediatype: "BITMAP",
+          sha1: RAINIER_MEDIA_SHA1,
+          extmetadata: {
+            Artist: { value: "홍길동" },
+            LicenseShortName: { value: "CC BY-SA 4.0" },
+            LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/4.0/" },
+          },
+        }],
+      }],
+    },
+  });
+  assert.equal(parsed[0].fileTitle, "File:관악산.jpg");
+  assert.deepEqual(parsed[0].fileTitleAliases, [
+    "File:관악산_옛이름.jpg",
+    "File:관악산 옛이름.jpg",
+  ]);
+  assert.equal(imageMetadataRejection(parsed[0]), null);
+  assert.equal(
+    sourcePageKey("https://ko.wikipedia.org/wiki/%ED%8C%8C%EC%9D%BC:%EA%B4%80%EC%95%85%EC%82%B0.jpg"),
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:관악산.jpg")
+  );
+  assert.notEqual(
+    sourcePageKey("https://ko.wikipedia.org/wiki/관악산"),
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:관악산")
+  );
 });
 
 test("only internally consistent Creative Commons and public-domain records pass", () => {
@@ -442,6 +619,11 @@ test("metadata validation fails closed on host, source, artist, license, size, a
     "Uploader",
     "Unidentified artist",
     "Various authors",
+    "미상",
+    "알 수 없음",
+    "촬영자 미상",
+    "본인 촬영",
+    "업로더",
   ]) {
     assert.match(imageMetadataRejection(image({ photographer }))!, /photographer/);
   }
@@ -473,6 +655,19 @@ test("article photo order keeps the lead then exact named alternatives and drops
     }), "Mount Rainier"),
     ["File:Rainier lead.jpg", "File:Mount Rainier winter.jpg"]
   );
+  assert.deepEqual(
+    rankedArticlePhotoTitles(article({
+      title: "관악산",
+      language: "ko",
+      leadImageTitle: "파일:관악산.jpg",
+      imageTitles: [
+        "파일:관악산 설경.jpg",
+        "파일:관악산 위치 지도.png",
+        "파일:북한산.jpg",
+      ],
+    }), "관악산"),
+    ["File:관악산.jpg", "File:관악산 설경.jpg"]
+  );
 });
 
 test("stored Wikidata identity yields a pending candidate, never a hero-image write", async () => {
@@ -486,6 +681,120 @@ test("stored Wikidata identity yields a pending candidate, never a hero-image wr
   assert.equal(plan.candidate.mediaSha1, RAINIER_MEDIA_SHA1);
   assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
   assert.equal("heroImage" in plan.candidate, false);
+});
+
+test("a stored Wikidata point anchors a matching Korean article without article coordinates", async () => {
+  const calls: string[] = [];
+  const koreanRow = row({
+    id: "dest-gwanaksan",
+    name: "관악산",
+    country_code: "KR",
+    lat: 37.4451398,
+    lng: 126.9642379,
+    wikidata_id: "Q626275",
+  });
+  const plan = await planListedPhotoCandidate(koreanRow, client({
+    async resolveWikidataArticle(wikidataId, language) {
+      calls.push(`identity:${language}`);
+      return {
+        wikidataId,
+        articleTitle: "관악산",
+        articleLanguage: "ko",
+        coordinates: { lat: 37.4451398, lng: 126.9642379 },
+      };
+    },
+    async fetchWikipediaArticle(title, language) {
+      calls.push(`article:${language}:${title}`);
+      return article({
+        title: "관악산",
+        language: "ko",
+        wikidataId: "Q626275",
+        coordinates: null,
+        leadImageTitle: "File:Gwanaksan.jpg",
+        imageTitles: ["File:Gwanaksan.jpg"],
+      });
+    },
+    async fetchImageMetadata(titles, language) {
+      calls.push(`images:${language}`);
+      return titles.map((fileTitle) => image({ fileTitle }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected Korean candidate");
+  assert.deepEqual(calls, ["identity:ko", "article:ko:관악산", "images:ko"]);
+  assert.match(plan.candidate.notes ?? "", /Korean Wikipedia article 관악산/);
+});
+
+test("a stored Korean Wikidata identity can fall back to its English sitelink", async () => {
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-korean-peak",
+    name: "한국봉",
+    country_code: "KR",
+    lat: 37.0,
+    lng: 127.0,
+    wikidata_id: "Q123",
+  }), client({
+    async resolveWikidataArticle(wikidataId, language) {
+      assert.equal(language, "ko");
+      return {
+        wikidataId,
+        articleTitle: "Hangukbong",
+        articleLanguage: "en",
+        coordinates: { lat: 37.0, lng: 127.0 },
+      };
+    },
+    async fetchWikipediaArticle(title, language) {
+      assert.equal(title, "Hangukbong");
+      assert.equal(language, "en");
+      return article({
+        title,
+        language,
+        wikidataId: "Q123",
+        coordinates: null,
+        leadImageTitle: "File:Hangukbong.jpg",
+        imageTitles: ["File:Hangukbong.jpg"],
+      });
+    },
+    async fetchImageMetadata(titles) {
+      return titles.map((fileTitle) => image({
+        fileTitle,
+        sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Hangukbong.jpg",
+      }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected English fallback candidate");
+  assert.match(plan.candidate.notes ?? "", /English Wikipedia article Hangukbong/);
+});
+
+test("stored Wikidata does not excuse conflicting Korean article coordinates", async () => {
+  assert.equal(
+    await planCode(row({
+      name: "관악산",
+      country_code: "KR",
+      lat: 37.4451398,
+      lng: 126.9642379,
+      wikidata_id: "Q626275",
+    }), client({
+      async resolveWikidataArticle(wikidataId) {
+        return {
+          wikidataId,
+          articleTitle: "관악산",
+          articleLanguage: "ko",
+          coordinates: { lat: 37.4451398, lng: 126.9642379 },
+        };
+      },
+      async fetchWikipediaArticle() {
+        return article({
+          title: "관악산",
+          language: "ko",
+          wikidataId: "Q626275",
+          coordinates: { lat: 35.0, lng: 129.0 },
+        });
+      },
+    })),
+    "wikipedia_identity_too_far"
+  );
 });
 
 test("a redirected article File title keeps its canonical image metadata", async () => {
@@ -527,7 +836,12 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
   assert.equal(
     await planCode(row(), client({
       async resolveWikidataArticle(wikidataId) {
-        return { wikidataId, articleTitle: "Mount Rainier", coordinates: { lat: 40, lng: -105 } };
+        return {
+          wikidataId,
+          articleTitle: "Mount Rainier",
+          articleLanguage: "en",
+          coordinates: { lat: 40, lng: -105 },
+        };
       },
     })),
     "wikidata_identity_too_far"
@@ -535,7 +849,12 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
   assert.equal(
     await planCode(row(), client({
       async resolveWikidataArticle(wikidataId) {
-        return { wikidataId, articleTitle: "Mount Rainier", coordinates: null };
+        return {
+          wikidataId,
+          articleTitle: "Mount Rainier",
+          articleLanguage: "en",
+          coordinates: null,
+        };
       },
     })),
     "wikidata_identity_incomplete"
@@ -549,11 +868,27 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
     "wikipedia_identity_mismatch"
   );
   assert.equal(
+    await planCode(row(), client({
+      async fetchWikipediaArticle() {
+        return article({ wikidataId: "Q999", coordinates: null });
+      },
+    })),
+    "wikipedia_identity_mismatch"
+  );
+  assert.equal(
     await planCode(row({ wikidata_id: null }), client({
       async searchWikipediaArticles() {
         return [
-          { title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } },
-          { title: "Mount Rainier (duplicate)", coordinates: { lat: 46.8524, lng: -121.7604 } },
+          {
+            title: "Mount Rainier",
+            language: "en",
+            coordinates: { lat: 46.8523, lng: -121.7603 },
+          },
+          {
+            title: "Mount Rainier (duplicate)",
+            language: "en",
+            coordinates: { lat: 46.8524, lng: -121.7604 },
+          },
         ];
       },
     })),
@@ -567,10 +902,22 @@ test("a destination without stored Wikidata still needs one unique exact anchore
   assert.equal(
     await planCode(row({ wikidata_id: null }), client({
       async searchWikipediaArticles() {
-        return [{ title: "Mount Adams", coordinates: { lat: 46.8523, lng: -121.7603 } }];
+        return [{
+          title: "Mount Adams",
+          language: "en",
+          coordinates: { lat: 46.8523, lng: -121.7603 },
+        }];
       },
     })),
     "no_exact_article"
+  );
+  assert.equal(
+    await planCode(row({ wikidata_id: null }), client({
+      async fetchWikipediaArticle() {
+        return article({ coordinates: null });
+      },
+    })),
+    "wikipedia_identity_incomplete"
   );
 });
 
@@ -649,6 +996,10 @@ test("source identity treats percent escapes, spaces, and underscores as the sam
     sourcePageKey("https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg"),
     sourcePageKey("https://en.wikipedia.org/wiki/File:Mount_Rainier.jpg")
   );
+  assert.equal(
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg"),
+    sourcePageKey("https://ko.wikipedia.org/wiki/File:Mount_Rainier.jpg")
+  );
 });
 
 class QueryStub implements Queryable {
@@ -669,6 +1020,7 @@ function currentState(overrides: Record<string, unknown> = {}): Record<string, u
     name: "Mount Rainier",
     lat: 46.8523,
     lng: -121.7603,
+    country_code: "US",
     wikidata_id: "Q194057",
     has_usable_cover: false,
     has_pending_candidate: false,
@@ -802,6 +1154,10 @@ test("queue refuses a destination identity that changed after research", async (
   const relinked = new QueryStub([{ rows: [currentState({ wikidata_id: "Q999" })] }]);
   assert.equal(await queueListedPhotoCandidate(relinked, await candidate()), "identity_changed");
   assert.equal(relinked.calls.length, 1);
+
+  const countryChanged = new QueryStub([{ rows: [currentState({ country_code: "CA" })] }]);
+  assert.equal(await queueListedPhotoCandidate(countryChanged, await candidate()), "identity_changed");
+  assert.equal(countryChanged.calls.length, 1);
 });
 
 test("audit reports the whole gap set, limit deferrals, pending review, and $0 fixed cost", async () => {
