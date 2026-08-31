@@ -1,0 +1,2145 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-30",
+  "catalogSnapshotSha256": "f0824ae26adfa1e0c6f35071a593fe4bbf6729bd465fb04ae728e801b0adbe9d",
+  "lists": {
+    "kfs-100-famous-mountains": {
+      "rows": [
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000004",
+          "resolution": "existing_destination",
+          "destinationId": "46D88A130EEFCD1E7EF3",
+          "destinationName": "가리산",
+          "destinationElevationM": 1051,
+          "destinationLat": 37.8713832,
+          "destinationLng": 127.9564688,
+          "destinationOsmNodeId": "7972724186",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972724186"
+          },
+          "evidence": [
+            "KFS 20000004 names 가리산 at 1050.9 m in 강원도 홍천군 두촌면ㆍ화촌면, 춘천시 북산면ㆍ동면.",
+            "Reviewed OSM peak node 7972724186 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000006",
+          "resolution": "curated_destination",
+          "destinationId": "A11945CA1EFC70F61114",
+          "destinationName": "가리왕산",
+          "destinationElevationM": 1561.8,
+          "destinationLat": 37.4614337,
+          "destinationLng": 128.5633877,
+          "destinationOsmNodeId": "7972724271",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972724271",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000006 names 가리왕산 at 1561.8 m in 강원도 정선군 북평면ㆍ정선읍 회동리, 평창군 진부면.",
+            "Reviewed OSM peak node 7972724271 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000009",
+          "resolution": "curated_destination",
+          "destinationId": "98EF21EAFA1C1A56A7A4",
+          "destinationName": "가야산",
+          "destinationElevationM": 1432.6,
+          "destinationLat": 35.8225637,
+          "destinationLng": 128.1229428,
+          "destinationOsmNodeId": "5750035918",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5750035918",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000009 names 가야산 at 1432.6 m in 경상남도 합천군ㆍ거창군, 경상북도 성주군.",
+            "Reviewed OSM peak node 5750035918 at the saved point under ODbL 1.0.",
+            "KFS height selects 가야산칠불봉 (1433 m), not nearby 상왕봉/우두봉 (1430 m)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000012",
+          "resolution": "curated_destination",
+          "destinationId": "FDBDD82B46CCAFD7B293",
+          "destinationName": "가지산",
+          "destinationElevationM": 1240.9,
+          "destinationLat": 35.6202857,
+          "destinationLng": 129.0029231,
+          "destinationOsmNodeId": "1931784829",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1931784829",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000012 names 가지산 at 1240.9 m in 울산광역시 울주군, 경상북도 청도군, 경상남도 밀양시.",
+            "Reviewed OSM peak node 1931784829 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000024",
+          "resolution": "curated_destination",
+          "destinationId": "8DEE274D47E5F5B1A017",
+          "destinationName": "감악산",
+          "destinationElevationM": 674.9,
+          "destinationLat": 37.941156,
+          "destinationLng": 126.9700763,
+          "destinationOsmNodeId": "4867285021",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/4867285021",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000024 names 감악산 at 674.9 m in 경기도 파주시 적성면, 양주시 남면, 연천군 전곡읍.",
+            "Reviewed OSM peak node 4867285021 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000028",
+          "resolution": "curated_destination",
+          "destinationId": "8413F4CEB93582E2C5DB",
+          "destinationName": "강천산",
+          "destinationElevationM": 585.8,
+          "destinationLat": 35.40192,
+          "destinationLng": 127.04838,
+          "destinationOsmNodeId": "5368979882",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5368979882",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000028 names 강천산 at 585.8 m in 전라북도 순창군 팔덕면, 전라남도 담양군 용면.",
+            "Reviewed OSM peak node 5368979882 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000040",
+          "resolution": "curated_destination",
+          "destinationId": "C815A28AAE419B6BE6AF",
+          "destinationName": "계룡산",
+          "destinationElevationM": 846.5,
+          "destinationLat": 36.3423624,
+          "destinationLng": 127.2060396,
+          "destinationOsmNodeId": "7609103069",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7609103069",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000040 names 계룡산 at 846.5 m in 대전광역시, 충청남도 공주시 계룡면, 논산시 상월면, 계룡시 신도안면.",
+            "Reviewed OSM peak node 7609103069 at the saved point under ODbL 1.0.",
+            "The compound OSM name 계룡산천황봉 and 846 m tag identify the KFS summit."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000043",
+          "resolution": "existing_destination",
+          "destinationId": "2A01DA8FF0BC355F421D",
+          "destinationName": "계방산",
+          "destinationElevationM": 1579.1,
+          "destinationLat": 37.7282723,
+          "destinationLng": 128.4654808,
+          "destinationOsmNodeId": "7972724285",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972724285",
+            "wikidata": "Q623665"
+          },
+          "evidence": [
+            "KFS 20000043 names 계방산 at 1579.1 m in 강원도 홍천군 내면, 평창군 용편면ㆍ진부면.",
+            "Reviewed OSM peak node 7972724285 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000058",
+          "resolution": "existing_destination",
+          "destinationId": "0EE5ADDBD79475396BCF",
+          "destinationName": "공작산",
+          "destinationElevationM": 887,
+          "destinationLat": 37.7159579,
+          "destinationLng": 128.0106651,
+          "destinationOsmNodeId": "5182674321",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5182674321",
+            "wikidata": "Q626966"
+          },
+          "evidence": [
+            "KFS 20000058 names 공작산 at 887.4 m in 강원도 홍천군 동면, 화촌면.",
+            "Reviewed OSM peak node 5182674321 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000059",
+          "resolution": "existing_destination",
+          "destinationId": "88C20A53C41A6D26A229",
+          "destinationName": "관악산",
+          "destinationElevationM": 632,
+          "destinationLat": 37.4451398,
+          "destinationLng": 126.9642379,
+          "destinationOsmNodeId": "442878166",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "442878166",
+            "wikidata": "Q626275"
+          },
+          "evidence": [
+            "KFS 20000059 names 관악산 at 632.2 m in 서울특별시 관악구, 경기도 안양시, 과천시.",
+            "Reviewed OSM peak node 442878166 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000073",
+          "resolution": "existing_destination",
+          "destinationId": "D8EB448FB5C3CA204300",
+          "destinationName": "구병산",
+          "destinationElevationM": 876.2,
+          "destinationLat": 36.4695827,
+          "destinationLng": 127.8617468,
+          "destinationOsmNodeId": "5255224531",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5255224531",
+            "wikidata": "Q5614460"
+          },
+          "evidence": [
+            "KFS 20000073 names 구병산 at 876.3 m in 경상북도 상주신 화북면, 충청북도 보은군 마로면ㆍ속리산면.",
+            "Reviewed OSM peak node 5255224531 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000934",
+          "resolution": "curated_destination",
+          "destinationId": "0BC6D800293EA386AD12",
+          "destinationName": "금산",
+          "destinationElevationM": 704.9,
+          "destinationLat": 34.753798,
+          "destinationLng": 127.9829362,
+          "destinationOsmNodeId": "2608238467",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/2608238467",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000934 names 금산 at 704.9 m in 경상남도 남해군 상주면, 이동면, 삼동면.",
+            "Reviewed OSM peak node 2608238467 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000091",
+          "resolution": "curated_destination",
+          "destinationId": "98C3D64A03CFC055DD04",
+          "destinationName": "금수산",
+          "destinationElevationM": 1015.8,
+          "destinationLat": 36.9847255,
+          "destinationLng": 128.2569094,
+          "destinationOsmNodeId": "7972716201",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972716201",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000091 names 금수산 at 1015.8 m in 충청북도 제천시 수산면, 단양군 적성면.",
+            "Reviewed OSM peak node 7972716201 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000092",
+          "resolution": "existing_destination",
+          "destinationId": "931A05D54F5C735378EE",
+          "destinationName": "금오산(현월봉)",
+          "destinationElevationM": 977,
+          "destinationLat": 36.0917364,
+          "destinationLng": 128.3001983,
+          "destinationOsmNodeId": "6212374418",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "6212374418"
+          },
+          "evidence": [
+            "KFS 20000092 names 금오산 at 976.5 m in 경상북도 구미시, 칠곡군 북삼읍, 김천시 남면.",
+            "Reviewed OSM peak node 6212374418 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000094",
+          "resolution": "curated_destination",
+          "destinationId": "1B2D6104FE61F015C9DE",
+          "destinationName": "금정산",
+          "destinationElevationM": 800.8,
+          "destinationLat": 35.2801497,
+          "destinationLng": 129.0506168,
+          "destinationOsmNodeId": "1431796378",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1431796378",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000094 names 금정산 at 800.8 m in 부산광역시 금정구ㆍ북구, 경상남도 양산시.",
+            "Reviewed OSM peak node 1431796378 at the saved point under ODbL 1.0.",
+            "OSM names the high point 금정산(고당봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20001254",
+          "resolution": "curated_destination",
+          "destinationId": "A6B289B963FB542E24ED",
+          "destinationName": "깃대봉",
+          "destinationElevationM": 367.8,
+          "destinationLat": 34.6968754,
+          "destinationLng": 125.2031864,
+          "destinationOsmNodeId": "5376883809",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5376883809",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20001254 names 깃대봉 at 367.8 m in 전라남도 신안군 흑산면 홍도.",
+            "Reviewed OSM peak node 5376883809 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000108",
+          "resolution": "curated_destination",
+          "destinationId": "131CC8DCF3431E8F1329",
+          "destinationName": "남산(금오산)",
+          "destinationElevationM": 495.1,
+          "destinationLat": 35.76756,
+          "destinationLng": 129.22529,
+          "destinationOsmNodeId": "5376919634",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5376919634",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000108 names 남산(금오산) at 495.1 m in 경상북도 경주시 남산동, 내남면.",
+            "Reviewed OSM peak node 5376919634 at the saved point under ODbL 1.0.",
+            "Gyeongju 고위봉 is 495.1 m and lies in the KFS Gyeongju Namsan area; Seoul 남산 is a false same-name catalog candidate."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000111",
+          "resolution": "curated_destination",
+          "destinationId": "34FFDBE213B4B5ABAF27",
+          "destinationName": "내연산",
+          "destinationElevationM": 711.3,
+          "destinationLat": 36.2786758,
+          "destinationLng": 129.2899056,
+          "destinationOsmNodeId": "5369653604",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5369653604",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000111 names 내연산 at 711.3 m in 경상북도 포항시 송라면ㆍ청하면ㆍ죽장면, 영덕군 남정면.",
+            "Reviewed OSM peak node 5369653604 at the saved point under ODbL 1.0.",
+            "OSM names the high point 내연산(삼지봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000112",
+          "resolution": "existing_destination",
+          "destinationId": "8393F1D102260F457B4C",
+          "destinationName": "내장산(신선봉)",
+          "destinationElevationM": 763,
+          "destinationLat": 35.4783324,
+          "destinationLng": 126.8889872,
+          "destinationOsmNodeId": "5750036192",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5750036192"
+          },
+          "evidence": [
+            "KFS 20000112 names 내장산(신선봉) at 763.5 m in 전라북도 정읍시 내장동, 순창군 쌍치면ㆍ복흥면.",
+            "Reviewed OSM peak node 5750036192 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000131",
+          "resolution": "existing_destination",
+          "destinationId": "847AC55208D99F4DAAD1",
+          "destinationName": "Daedunsan",
+          "destinationElevationM": 878.9,
+          "destinationLat": 36.124594,
+          "destinationLng": 127.3204771,
+          "destinationOsmNodeId": "3819433157",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "3819433157",
+            "wikidata": "Q5208179"
+          },
+          "evidence": [
+            "KFS 20000131 names 대둔산 at 879.1 m in 충청남도 논산시 벌곡면ㆍ금산군 진산면, 전라북도 완주군 운주면.",
+            "Reviewed OSM peak node 3819433157 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20001321",
+          "resolution": "existing_destination",
+          "destinationId": "0D61DA3A124271374B4E",
+          "destinationName": "대암산",
+          "destinationElevationM": 1312.6,
+          "destinationLat": 38.2110649,
+          "destinationLng": 128.1347132,
+          "destinationOsmNodeId": "5141269324",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5141269324",
+            "wikidata": "Q5208144"
+          },
+          "evidence": [
+            "KFS 20001321 names 대암산 at 1312.6 m in 강원 양구군 동면, 인제군 서화면.",
+            "Reviewed OSM peak node 5141269324 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000138",
+          "resolution": "curated_destination",
+          "destinationId": "3C90F69125374FDD2B51",
+          "destinationName": "대야산",
+          "destinationElevationM": 931,
+          "destinationLat": 36.6692579,
+          "destinationLng": 127.9294814,
+          "destinationOsmNodeId": "1862839230",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1862839230",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000138 names 대야산 at 931 m in 경상북도 문경시 가은읍, 충청북도 괴산군 청천면.",
+            "Reviewed OSM peak node 1862839230 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000143",
+          "resolution": "curated_destination",
+          "destinationId": "8E2DBAEC5DB4481221F2",
+          "destinationName": "덕숭산(수덕산)",
+          "destinationElevationM": 495.2,
+          "destinationLat": 36.6717743,
+          "destinationLng": 126.6243386,
+          "destinationOsmNodeId": "5376946871",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5376946871",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000143 names 덕숭산(수덕산) at 495.2 m in 충청남도 예산군 덕산면.",
+            "Reviewed OSM peak node 5376946871 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000144",
+          "resolution": "curated_destination",
+          "destinationId": "C32F320EE818729F8A50",
+          "destinationName": "덕유산(향적봉)",
+          "destinationElevationM": 1614.2,
+          "destinationLat": 35.8600127,
+          "destinationLng": 127.7465185,
+          "destinationOsmNodeId": "444235774",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/444235774",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000144 names 덕유산(향적봉) at 1614.2 m in 전라북도 무주군ㆍ장수군, 경상남도 거창군ㆍ함양군.",
+            "Reviewed OSM peak node 444235774 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 향적봉 matches OSM 덕유산 향적봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000149",
+          "resolution": "curated_destination",
+          "destinationId": "8CEB7EFDF618FC6732E1",
+          "destinationName": "덕항산",
+          "destinationElevationM": 1072.9,
+          "destinationLat": 37.308788,
+          "destinationLng": 129.012634,
+          "destinationOsmNodeId": "1873819543",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1873819543",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000149 names 덕항산 at 1072.9 m in 강원도 삼척시 신기면, 태백시 하사미동.",
+            "Reviewed OSM peak node 1873819543 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000152",
+          "resolution": "existing_destination",
+          "destinationId": "D2EF03C72217A42A740E",
+          "destinationName": "도락산",
+          "destinationElevationM": 959.7546,
+          "destinationLat": 36.8562636,
+          "destinationLng": 128.3112796,
+          "destinationOsmNodeId": "1345461074",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1345461074",
+            "wikidata": "Q5297499"
+          },
+          "evidence": [
+            "KFS 20000152 names 도락산 at 965.3 m in 충청북도 단양군  단성면, 대강면.",
+            "Reviewed OSM peak node 1345461074 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000155",
+          "resolution": "curated_destination",
+          "destinationId": "958AD1411BC49B469BE1",
+          "destinationName": "도봉산(자운봉)",
+          "destinationElevationM": 740.2,
+          "destinationLat": 37.6988424,
+          "destinationLng": 127.0154594,
+          "destinationOsmNodeId": "5515194666",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5515194666",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000155 names 도봉산(자운봉) at 740.2 m in 서울특별시 도봉구, 경기도 의정부시 호원동ㆍ양주시 장흥면.",
+            "Reviewed OSM peak node 5515194666 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 자운봉 matches OSM 도봉산자운봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000165",
+          "resolution": "curated_destination",
+          "destinationId": "2C3F5B1B5A67C6D9F564",
+          "destinationName": "두륜산",
+          "destinationElevationM": 700,
+          "destinationLat": 34.471912,
+          "destinationLng": 126.6375673,
+          "destinationOsmNodeId": "1479832159",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1479832159",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000165 names 두륜산 at 700 m in 전라남도 해남군 삼산면ㆍ북일면ㆍ북평면ㆍ현산면.",
+            "Reviewed OSM peak node 1479832159 at the saved point under ODbL 1.0.",
+            "OSM identifies the high point as 두륜산(가련봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000167",
+          "resolution": "curated_destination",
+          "destinationId": "BF540350A67FDA9F2002",
+          "destinationName": "두타산",
+          "destinationElevationM": 1357,
+          "destinationLat": 37.4266369,
+          "destinationLng": 129.0044248,
+          "destinationOsmNodeId": "1873819548",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1873819548",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000167 names 두타산 at 1357 m in 강원도 동해시 삼화동, 삼척시 미로면ㆍ하자면.",
+            "Reviewed OSM peak node 1873819548 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000171",
+          "resolution": "existing_destination",
+          "destinationId": "B539C2D278693501A5AE",
+          "destinationName": "마니산",
+          "destinationElevationM": 469,
+          "destinationLat": 37.615542,
+          "destinationLng": 126.4296828,
+          "destinationOsmNodeId": "1943766210",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1943766210",
+            "wikidata": "Q624003"
+          },
+          "evidence": [
+            "KFS 20000171 names 마니산 at 472.1 m in 인천광역시 강화군 화도면.",
+            "Reviewed OSM peak node 1943766210 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000176",
+          "resolution": "curated_destination",
+          "destinationId": "65E1F7B37FF7102CE5C0",
+          "destinationName": "마이산(암마이산)",
+          "destinationElevationM": 687.4,
+          "destinationLat": 35.7605404,
+          "destinationLng": 127.4114974,
+          "destinationOsmNodeId": "9684280383",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/9684280383",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000176 names 마이산(암마이산) at 687.4 m in 전라북도 진안군 진안읍ㆍ마령면.",
+            "Reviewed OSM peak node 9684280383 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 암마이산 resolves to OSM 암마이봉 (687 m), not nearby 숫마이산 (681 m)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000217",
+          "resolution": "existing_destination",
+          "destinationId": "E6099A6057381C00CB44",
+          "destinationName": "명성산",
+          "destinationElevationM": 922,
+          "destinationLat": 38.1042997,
+          "destinationLng": 127.3381489,
+          "destinationOsmNodeId": "5392409440",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5392409440",
+            "wikidata": "Q6947377"
+          },
+          "evidence": [
+            "KFS 20000217 names 명성산 at 922 m in 강원도 철원군 갈말읍, 경기도 포천시 영북면ㆍ이동면.",
+            "Reviewed OSM peak node 5392409440 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000218",
+          "resolution": "existing_destination",
+          "destinationId": "89C6252A17E22E813FB7",
+          "destinationName": "명지산",
+          "destinationElevationM": 1252.3,
+          "destinationLat": 37.9414798,
+          "destinationLng": 127.4321451,
+          "destinationOsmNodeId": "7972724215",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972724215",
+            "wikidata": "Q8528363"
+          },
+          "evidence": [
+            "KFS 20000218 names 명지산 at 1252.3 m in 경기도 가평군 북면ㆍ하면.",
+            "Reviewed OSM peak node 7972724215 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000219",
+          "resolution": "curated_destination",
+          "destinationId": "25BAF35B90B377165F2F",
+          "destinationName": "모악산",
+          "destinationElevationM": 795.2,
+          "destinationLat": 35.7285867,
+          "destinationLng": 127.0851739,
+          "destinationOsmNodeId": "5084170049",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5084170049",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000219 names 모악산 at 795.2 m in 전라북도 김제시 금산면, 전주시 완산구, 완주군 구이면.",
+            "Reviewed OSM peak node 5084170049 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000225",
+          "resolution": "curated_destination",
+          "destinationId": "3BDE883C882EB9065D76",
+          "destinationName": "무등산",
+          "destinationElevationM": 1186.8,
+          "destinationLat": 35.1250388,
+          "destinationLng": 127.0085732,
+          "destinationOsmNodeId": "5204274494",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5204274494",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000225 names 무등산 at 1186.8 m in 광주광역시 동구, 전라남도 담양군 남면ㆍ화순군 이서면.",
+            "Reviewed OSM peak node 5204274494 at the saved point under ODbL 1.0.",
+            "OSM identifies the 1186.8 m summit as 무등산(천왕봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000227",
+          "resolution": "existing_destination",
+          "destinationId": "B894D5B2D9DCEAA5F7D6",
+          "destinationName": "무학산",
+          "destinationElevationM": 761.1,
+          "destinationLat": 35.2101065,
+          "destinationLng": 128.535514,
+          "destinationOsmNodeId": "1892296102",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1892296102",
+            "wikidata": "Q624473"
+          },
+          "evidence": [
+            "KFS 20000227 names 무학산 at 761.4 m in 경상남도 창원시 교방동ㆍ두척동ㆍ내서읍.",
+            "Reviewed OSM peak node 1892296102 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000242",
+          "resolution": "curated_destination",
+          "destinationId": "93A9A878F282DA759D1D",
+          "destinationName": "미륵산",
+          "destinationElevationM": 458.4,
+          "destinationLat": 34.8106641,
+          "destinationLng": 128.4161136,
+          "destinationOsmNodeId": "5376903442",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5376903442",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000242 names 미륵산 at 458.4 m in 경상남도 통영시 산양읍ㆍ봉평동.",
+            "Reviewed OSM peak node 5376903442 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000247",
+          "resolution": "existing_destination",
+          "destinationId": "BFB1C1A9B3B6F813E506",
+          "destinationName": "민주지산",
+          "destinationElevationM": 1242,
+          "destinationLat": 36.0397937,
+          "destinationLng": 127.8492728,
+          "destinationOsmNodeId": "6212374417",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "6212374417",
+            "wikidata": "Q8533668"
+          },
+          "evidence": [
+            "KFS 20000247 names 민주지산 at 1241.7 m in 충청북도 영동군 쌍촌면ㆍ용화면, 전라북도 무주군 설천면, 경상북도 김천시 부항면.",
+            "Reviewed OSM peak node 6212374417 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000261",
+          "resolution": "curated_destination",
+          "destinationId": "BED9406D17A15435C7A8",
+          "destinationName": "방장산",
+          "destinationElevationM": 733.6,
+          "destinationLat": 35.4557175,
+          "destinationLng": 126.7543608,
+          "destinationOsmNodeId": "7972724204",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972724204",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000261 names 방장산 at 733.6 m in 전라북도 고창군 신림면ㆍ정읍시 입암면, 전라남도 장성군.",
+            "Reviewed OSM peak node 7972724204 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000262",
+          "resolution": "curated_destination",
+          "destinationId": "E52F8A41064008AA750A",
+          "destinationName": "방태산(주억봉)",
+          "destinationElevationM": 1445.7,
+          "destinationLat": 37.8882546,
+          "destinationLng": 128.3901797,
+          "destinationOsmNodeId": "1881933251",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1881933251",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000262 names 방태산(주억봉) at 1445.7 m in 강원도 인제군 기린면ㆍ상남면, 홍천군 내면.",
+            "Reviewed OSM peak node 1881933251 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 주억봉 is present in OSM name:ko for the selected 방태산 node."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000263",
+          "resolution": "curated_destination",
+          "destinationId": "7007B5D14847AD7EE552",
+          "destinationName": "백덕산",
+          "destinationElevationM": 1350.1,
+          "destinationLat": 37.3964738,
+          "destinationLng": 128.2935238,
+          "destinationOsmNodeId": "4943372823",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/4943372823",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000263 names 백덕산 at 1350.1 m in 강원도 평창군 방림면, 횡성군 안흥면, 영월군 수주면.",
+            "Reviewed OSM peak node 4943372823 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000276",
+          "resolution": "curated_destination",
+          "destinationId": "708765E9DB993E87C592",
+          "destinationName": "백암산",
+          "destinationElevationM": 741.2,
+          "destinationLat": 35.4612804,
+          "destinationLng": 126.8684688,
+          "destinationOsmNodeId": "5382153299",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5382153299",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000276 names 백암산 at 741.2 m in 전라북도 순창군 복흥면, 잔라남도 장성군 북하면.",
+            "Reviewed OSM peak node 5382153299 at the saved point under ODbL 1.0.",
+            "OSM identifies the high point as 백암산(상왕봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000279",
+          "resolution": "curated_destination",
+          "destinationId": "B18DBE117AE5EB6233C0",
+          "destinationName": "백운산(포천)",
+          "destinationElevationM": 903,
+          "destinationLat": 38.0749351,
+          "destinationLng": 127.4445315,
+          "destinationOsmNodeId": "5150951221",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5150951221",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000279 names 백운산(포천) at 903 m in 경기도 포천시 이동면.",
+            "Reviewed OSM peak node 5150951221 at the saved point under ODbL 1.0.",
+            "The 포천 qualifier and 903 m height distinguish this 백운산 from 광양 and 정선."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000281",
+          "resolution": "existing_destination",
+          "destinationId": "2C1345CF171D28345D1A",
+          "destinationName": "백운산",
+          "destinationElevationM": 1222,
+          "destinationLat": 35.1063783,
+          "destinationLng": 127.6213246,
+          "destinationOsmNodeId": "2017973660",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "2017973660",
+            "wikidata": "Q625808"
+          },
+          "evidence": [
+            "KFS 20000281 names 백운산(광양) at 1222.2 m in 전라남도 광양시 진상면ㆍ옥룡면ㆍ봉강면ㆍ다압면, 구례군 간전면.",
+            "Reviewed OSM peak node 2017973660 at the saved point under ODbL 1.0.",
+            "The 광양 qualifier and 1222.2 m height match the existing production 백운산."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20001076",
+          "resolution": "curated_destination",
+          "destinationId": "0FD901416523A6A55418",
+          "destinationName": "백운산(정선)",
+          "destinationElevationM": 883.5,
+          "destinationLat": 37.27999,
+          "destinationLng": 128.59609,
+          "destinationOsmNodeId": "5391069867",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5391069867",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20001076 names 백운산(정선) at 883.5 m in 강원도 정선군 신동읍, 평창군 미탄면.",
+            "Reviewed OSM peak node 5391069867 at the saved point under ODbL 1.0.",
+            "The 정선 qualifier and 883.5 m height distinguish this 백운산 from 광양 and 포천."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000775",
+          "resolution": "curated_destination",
+          "destinationId": "353340EEB39A911C96CC",
+          "destinationName": "변산(의상봉)",
+          "destinationElevationM": 459,
+          "destinationLat": 35.6782,
+          "destinationLng": 126.5988,
+          "destinationOsmNodeId": "10250409125",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/10250409125",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000775 names 변산(의상봉) at 459 m in 전라북도 부안군 변산면, 상서면, 진서면.",
+            "Reviewed OSM peak node 10250409125 at the saved point under ODbL 1.0.",
+            "The selected 의상봉 lies in Buan/Byeonsan, but KFS 459 m and OSM 546 m conflict; identity follows the explicit KFS summit qualifier and location."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000317",
+          "resolution": "curated_destination",
+          "destinationId": "9F7C04F02A37514A13AD",
+          "destinationName": "북한산(백운대)",
+          "destinationElevationM": 835.6,
+          "destinationLat": 37.6586301,
+          "destinationLng": 126.9780032,
+          "destinationOsmNodeId": "5515194671",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5515194671",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000317 names 북한산(백운대) at 835.6 m in 서울특별시 강북구ㆍ성북구ㆍ종로구ㆍ은평구, 경기도 고양시ㆍ양주시.",
+            "Reviewed OSM peak node 5515194671 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 백운대 matches OSM 북한산(백운대)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000329",
+          "resolution": "existing_destination",
+          "destinationId": "4F5CA1B51FE2938C6E87",
+          "destinationName": "비슬산",
+          "destinationElevationM": 1083,
+          "destinationLat": 35.715597,
+          "destinationLng": 128.5231844,
+          "destinationOsmNodeId": "7592786296",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7592786296",
+            "wikidata": "Q4917297"
+          },
+          "evidence": [
+            "KFS 20000329 names 비슬산(천왕봉) at 1083.4 m in 대구광역시 달성군 옥포면ㆍ유가면ㆍ가창면, 경상북도 청도군 각북면.",
+            "Reviewed OSM peak node 7592786296 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000702",
+          "resolution": "existing_destination",
+          "destinationId": "CEC7AAD58BB6DC014666",
+          "destinationName": "삼악산",
+          "destinationElevationM": 655.8,
+          "destinationLat": 37.8397223,
+          "destinationLng": 127.6603714,
+          "destinationOsmNodeId": "5379905196",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5379905196",
+            "wikidata": "Q7408508"
+          },
+          "evidence": [
+            "KFS 20000702 names 삼악산 at 655.8 m in 강원도 춘천시 서면.",
+            "Reviewed OSM peak node 5379905196 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000370",
+          "resolution": "curated_destination",
+          "destinationId": "901281705450FA7E8C90",
+          "destinationName": "서대산",
+          "destinationElevationM": 905.3,
+          "destinationLat": 36.22066,
+          "destinationLng": 127.53837,
+          "destinationOsmNodeId": "5371870467",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5371870467",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000370 names 서대산 at 905.3 m in 충청남도 금산군 추부면ㆍ군북면, 충청북도 옥천군 군서면.",
+            "Reviewed OSM peak node 5371870467 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000383",
+          "resolution": "curated_destination",
+          "destinationId": "C902751417B176E0A85D",
+          "destinationName": "선운산",
+          "destinationElevationM": 334.7,
+          "destinationLat": 35.49868,
+          "destinationLng": 126.56899,
+          "destinationOsmNodeId": "5385294849",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5385294849",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000383 names 선운산 at 334.7 m in 전라북도 고창군 아산면ㆍ심원면ㆍ해리면.",
+            "Reviewed OSM peak node 5385294849 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000386",
+          "resolution": "curated_destination",
+          "destinationId": "862F189C5B9F1EB85918",
+          "destinationName": "설악산(대청봉)",
+          "destinationElevationM": 1708.1,
+          "destinationLat": 38.1191725,
+          "destinationLng": 128.4653076,
+          "destinationOsmNodeId": "5739515162",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5739515162",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000386 names 설악산(대청봉) at 1708.1 m in 강원도 속초시 설악동, 인제군 북면ㆍ인제읍, 양양군 서면ㆍ강현면.",
+            "Reviewed OSM peak node 5739515162 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 대청봉 matches OSM 대청봉 at the Seoraksan high point."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000389",
+          "resolution": "existing_destination",
+          "destinationId": "827335EB326C33839F0A",
+          "destinationName": "성인봉",
+          "destinationElevationM": 986,
+          "destinationLat": 37.4980056,
+          "destinationLng": 130.8670471,
+          "destinationOsmNodeId": "6392077595",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "6392077595",
+            "wikidata": "Q7451593"
+          },
+          "evidence": [
+            "KFS 20000389 names 성인봉 at 986.5 m in 경상북도 울릉군 울릉읍 서면ㆍ북면.",
+            "Reviewed OSM peak node 6392077595 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000397",
+          "resolution": "curated_destination",
+          "destinationId": "0164CE419EF8A8BBB87B",
+          "destinationName": "소백산",
+          "destinationElevationM": 1439.7,
+          "destinationLat": 36.9574928,
+          "destinationLng": 128.4848972,
+          "destinationOsmNodeId": "444326662",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/444326662",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000397 names 소백산 at 1439.7 m in 경상북도 영주시 풍기읍, 충청북도 단양군 단양읍.",
+            "Reviewed OSM peak node 444326662 at the saved point under ODbL 1.0.",
+            "OSM names the high point 소백산 비로봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000398",
+          "resolution": "curated_destination",
+          "destinationId": "89F8A79D3086DBAA655A",
+          "destinationName": "소요산",
+          "destinationElevationM": 587.5,
+          "destinationLat": 37.938516,
+          "destinationLng": 127.087934,
+          "destinationOsmNodeId": "5379626566",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5379626566",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000398 names 소요산 at 587.5 m in 경기도 동두천시, 포천시 신북면.",
+            "Reviewed OSM peak node 5379626566 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000399",
+          "resolution": "curated_destination",
+          "destinationId": "1CE83A8BF630D0A07E9A",
+          "destinationName": "속리산",
+          "destinationElevationM": 1058.4,
+          "destinationLat": 36.5432287,
+          "destinationLng": 127.8708588,
+          "destinationOsmNodeId": "1862839218",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1862839218",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000399 names 속리산 at 1058.4 m in 경상북도 상주시 화북면, 충청북도 보은군 내속리면.",
+            "Reviewed OSM peak node 1862839218 at the saved point under ODbL 1.0.",
+            "The Songnisan high point is OSM 천왕봉 at the exact KFS 1058.4 m height; 소속리산 is unrelated."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000422",
+          "resolution": "curated_destination",
+          "destinationId": "10ECCB04E2126AB68639",
+          "destinationName": "신불산",
+          "destinationElevationM": 1159.3,
+          "destinationLat": 35.5394127,
+          "destinationLng": 129.0540979,
+          "destinationOsmNodeId": "1475996577",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1475996577",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000422 names 신불산 at 1159.3 m in 울산광역시 울주군 삼남면ㆍ상북면.",
+            "Reviewed OSM peak node 1475996577 at the saved point under ODbL 1.0.",
+            "The OSM node is the correctly located 신불산 summit, but its 1209 m tag conflicts with KFS 1159.3 m."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000451",
+          "resolution": "existing_destination",
+          "destinationId": "2DAD0D18726C7CEB7726",
+          "destinationName": "연화산",
+          "destinationElevationM": 524,
+          "destinationLat": 35.0710342,
+          "destinationLng": 128.2650363,
+          "destinationOsmNodeId": "5377096878",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5377096878",
+            "wikidata": "Q8052475"
+          },
+          "evidence": [
+            "KFS 20000451 names 연화산 at 524 m in 경상남도 고성군 개천면ㆍ영현면.",
+            "Reviewed OSM peak node 5377096878 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000455",
+          "resolution": "curated_destination",
+          "destinationId": "33463BA61321FCD7F079",
+          "destinationName": "오대산(비로봉)",
+          "destinationElevationM": 1565.4,
+          "destinationLat": 37.793749,
+          "destinationLng": 128.5426535,
+          "destinationOsmNodeId": "1012069796",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1012069796",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000455 names 오대산(비로봉) at 1565.4 m in 강원도 평창군 진부면, 홍천군 내면, 강릉시 연곡면.",
+            "Reviewed OSM peak node 1012069796 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 비로봉 matches the Odaesan 비로봉 node."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000456",
+          "resolution": "curated_destination",
+          "destinationId": "7D869552F1C3DA832F55",
+          "destinationName": "오봉산",
+          "destinationElevationM": 777.9,
+          "destinationLat": 38.0001701,
+          "destinationLng": 127.8071802,
+          "destinationOsmNodeId": "7972716196",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972716196",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000456 names 오봉산 at 777.9 m in 강원도 춘천시 북산면, 화천군 간동면.",
+            "Reviewed OSM peak node 7972716196 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000476",
+          "resolution": "curated_destination",
+          "destinationId": "3798D990D065C085B2BC",
+          "destinationName": "용문산",
+          "destinationElevationM": 1157.1,
+          "destinationLat": 37.5619678,
+          "destinationLng": 127.5490717,
+          "destinationOsmNodeId": "10296666662",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/10296666662",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000476 names 용문산 at 1157.1 m in 경기도 양평군 용문면ㆍ옥천면.",
+            "Reviewed OSM peak node 10296666662 at the saved point under ODbL 1.0.",
+            "OSM names the Yongmunsan high point 용문산 가섭봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000484",
+          "resolution": "existing_destination",
+          "destinationId": "857D2C274FF87E335A6E",
+          "destinationName": "용화산",
+          "destinationElevationM": 877.8,
+          "destinationLat": 38.0381932,
+          "destinationLng": 127.7479919,
+          "destinationOsmNodeId": "7972716191",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972716191",
+            "wikidata": "Q8055011"
+          },
+          "evidence": [
+            "KFS 20000484 names 용화산 at 877.8 m in 강원도 화천군 간동면ㆍ하남면, 춘천시 사북면.",
+            "Reviewed OSM peak node 7972716191 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000492",
+          "resolution": "existing_destination",
+          "destinationId": "BF56AA53E0087705D146",
+          "destinationName": "운문산",
+          "destinationElevationM": 1195.1,
+          "destinationLat": 35.6155103,
+          "destinationLng": 128.9596632,
+          "destinationOsmNodeId": "6474733400",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "6474733400",
+            "wikidata": "Q7897128"
+          },
+          "evidence": [
+            "KFS 20000492 names 운문산 at 1195.1 m in 경상북도 청도군 운문면, 경상남도 밀양시 산내면.",
+            "Reviewed OSM peak node 6474733400 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000493",
+          "resolution": "curated_destination",
+          "destinationId": "32495558247397855DA7",
+          "destinationName": "운악산(현등산)",
+          "destinationElevationM": 934.7,
+          "destinationLat": 37.87869,
+          "destinationLng": 127.32288,
+          "destinationOsmNodeId": "10253010745",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/10253010745",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000493 names 운악산(현등산) at 934.7 m in 경기도 가평군 하면, 포천시 화현면.",
+            "Reviewed OSM peak node 10253010745 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000495",
+          "resolution": "existing_destination",
+          "destinationId": "A5856E4CF7021493345B",
+          "destinationName": "운장산",
+          "destinationElevationM": 1125.8,
+          "destinationLat": 35.9113453,
+          "destinationLng": 127.3576515,
+          "destinationOsmNodeId": "5397216642",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5397216642",
+            "wikidata": "Q7896931"
+          },
+          "evidence": [
+            "KFS 20000495 names 운장산 at 1125.8 m in 전라북도 진안군 주천면, 부귀면, 정천면, 완주군 동상면.",
+            "Reviewed OSM peak node 5397216642 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000505",
+          "resolution": "curated_destination",
+          "destinationId": "47D2EFD1234631730AE4",
+          "destinationName": "월악산",
+          "destinationElevationM": 1095.3,
+          "destinationLat": 36.8860792,
+          "destinationLng": 128.1058367,
+          "destinationOsmNodeId": "7972716276",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972716276",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000505 names 월악산 at 1095.3 m in 충청북도 제천시 한수면, 덕산면.",
+            "Reviewed OSM peak node 7972716276 at the saved point under ODbL 1.0.",
+            "OSM names the Wolaksan high point 월악산 영봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000507",
+          "resolution": "curated_destination",
+          "destinationId": "09DC0597070CF98C1FD9",
+          "destinationName": "월출산",
+          "destinationElevationM": 810.7,
+          "destinationLat": 34.7666192,
+          "destinationLng": 126.7040428,
+          "destinationOsmNodeId": "7972724224",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972724224",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000507 names 월출산 at 810.7 m in 전라남도 영암군 영암읍ㆍ군서면ㆍ학산면, 강진군 성전면.",
+            "Reviewed OSM peak node 7972724224 at the saved point under ODbL 1.0.",
+            "OSM names the Wolchulsan high point 월출산(천황봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000514",
+          "resolution": "existing_destination",
+          "destinationId": "25EFB77386A4E3BFA2F7",
+          "destinationName": "유명산",
+          "destinationElevationM": 864,
+          "destinationLat": 37.5753362,
+          "destinationLng": 127.486706,
+          "destinationOsmNodeId": "5388363536",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5388363536",
+            "wikidata": "Q626674"
+          },
+          "evidence": [
+            "KFS 20000514 names 유명산 at 864 m in 경기도 가평군 설악면, 양평군 옥천면.",
+            "Reviewed OSM peak node 5388363536 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000522",
+          "resolution": "existing_destination",
+          "destinationId": "2BC65831BF5823A0E3F1",
+          "destinationName": "응봉산",
+          "destinationElevationM": 999.7,
+          "destinationLat": 37.0766173,
+          "destinationLng": 129.2305241,
+          "destinationOsmNodeId": "3878806510",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "3878806510",
+            "wikidata": "Q5409714"
+          },
+          "evidence": [
+            "KFS 20000522 names 응봉산(매봉산) at 999.7 m in 강원도 삼척시 가곡면ㆍ원덕읍, 경상북도 울진군 북면.",
+            "Reviewed OSM peak node 3878806510 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000543",
+          "resolution": "curated_destination",
+          "destinationId": "E3F7BA8BC234F8E31D05",
+          "destinationName": "장안산",
+          "destinationElevationM": 1237.4,
+          "destinationLat": 35.6291843,
+          "destinationLng": 127.5950744,
+          "destinationOsmNodeId": "5750036142",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5750036142",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000543 names 장안산 at 1237.4 m in 전라북도 장수군 장수읍, 계남면.",
+            "Reviewed OSM peak node 5750036142 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000545",
+          "resolution": "existing_destination",
+          "destinationId": "CF0626774BFEF216C7F4",
+          "destinationName": "재약산",
+          "destinationElevationM": 1119,
+          "destinationLat": 35.5454243,
+          "destinationLng": 128.9806162,
+          "destinationOsmNodeId": "7972724274",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972724274",
+            "wikidata": "Q6121735"
+          },
+          "evidence": [
+            "KFS 20000545 names 재약산 at 1119.1 m in 경상남도 밀양시 단장면ㆍ산내면, 울산광역시 울주군 상북면.",
+            "Reviewed OSM peak node 7972724274 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000548",
+          "resolution": "curated_destination",
+          "destinationId": "C4678453C787C1FE7165",
+          "destinationName": "적상산",
+          "destinationElevationM": 1030.6,
+          "destinationLat": 35.94638,
+          "destinationLng": 127.69019,
+          "destinationOsmNodeId": "5371885873",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5371885873",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000548 names 적상산 at 1030.6 m in 전라북도 무주군 적상면.",
+            "Reviewed OSM peak node 5371885873 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000553",
+          "resolution": "curated_destination",
+          "destinationId": "3E8355290E4E56E8F1AC",
+          "destinationName": "점봉산",
+          "destinationElevationM": 1426,
+          "destinationLat": 38.04874,
+          "destinationLng": 128.425643,
+          "destinationOsmNodeId": "1881933287",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1881933287",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000553 names 점봉산 at 1426 m in 강원도 양양군 서면, 인제군 인제읍ㆍ기린면.",
+            "Reviewed OSM peak node 1881933287 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000559",
+          "resolution": "existing_destination",
+          "destinationId": "02632ED0FE1ABBABB644",
+          "destinationName": "조계산",
+          "destinationElevationM": 884,
+          "destinationLat": 35.0013041,
+          "destinationLng": 127.3136274,
+          "destinationOsmNodeId": "2321410475",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "2321410475",
+            "wikidata": "Q6214838"
+          },
+          "evidence": [
+            "KFS 20000559 names 조계산 at 887.3 m in 전라남도 순천시 승주읍ㆍ송광면.",
+            "Reviewed OSM peak node 2321410475 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000573",
+          "resolution": "curated_destination",
+          "destinationId": "9E946D54AC315445CFF9",
+          "destinationName": "주왕산",
+          "destinationElevationM": 722.1,
+          "destinationLat": 36.3893554,
+          "destinationLng": 129.1623858,
+          "destinationOsmNodeId": "5750034489",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5750034489",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000573 names 주왕산 at 722.1 m in 경상북도 청송군 청송읍ㆍ부동면, 영덕군 지품면ㆍ달산면.",
+            "Reviewed OSM peak node 5750034489 at the saved point under ODbL 1.0.",
+            "OSM names the selected KFS summit 주왕산 주봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000575",
+          "resolution": "curated_destination",
+          "destinationId": "A7B72B05291C09B75D27",
+          "destinationName": "주흘산",
+          "destinationElevationM": 1108.4,
+          "destinationLat": 36.7780687,
+          "destinationLng": 128.1059931,
+          "destinationOsmNodeId": "1865098592",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1865098592",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000575 names 주흘산 at 1108.4 m in 경상북도 문경시 문경읍.",
+            "Reviewed OSM peak node 1865098592 at the saved point under ODbL 1.0.",
+            "OSM names the selected KFS summit 주흘산(주흘주봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000946",
+          "resolution": "curated_destination",
+          "destinationId": "991482F2580F8D314B7A",
+          "destinationName": "지리산(천왕봉)",
+          "destinationElevationM": 1915.4,
+          "destinationLat": 35.3369536,
+          "destinationLng": 127.7305907,
+          "destinationOsmNodeId": "307955533",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/307955533",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000946 names 지리산(천왕봉) at 1915.4 m in 경상남도 하동군ㆍ산청군ㆍ함양군, 전라북도 남원시, 전라남도 구례군.",
+            "Reviewed OSM peak node 307955533 at the saved point under ODbL 1.0.",
+            "The KFS qualifier 천왕봉 and 1915.4 m height distinguish mainland Jirisan from the Tongyeong namesake."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20001322",
+          "resolution": "curated_destination",
+          "destinationId": "50DB4EECCEF6077ED000",
+          "destinationName": "지리산(통영)",
+          "destinationElevationM": 399.3,
+          "destinationLat": 34.8459331,
+          "destinationLng": 128.182163,
+          "destinationOsmNodeId": "5376906399",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5376906399",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20001322 names 지리산 at 399.3 m in 경상남도 통영시 사량면.",
+            "Reviewed OSM peak node 5376906399 at the saved point under ODbL 1.0.",
+            "KFS live name 지리산(통영) and Tongyeong/Saryang location select the Saryangdo node; OSM ele=368 conflicts with KFS 399.3 m."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000591",
+          "resolution": "existing_destination",
+          "destinationId": "23B957090A711176E681",
+          "destinationName": "천관산연대봉",
+          "destinationElevationM": 723,
+          "destinationLat": 34.5317274,
+          "destinationLng": 126.91966,
+          "destinationOsmNodeId": "3810195917",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "3810195917",
+            "wikidata": "Q5091668"
+          },
+          "evidence": [
+            "KFS 20000591 names 천관산 at 724.3 m in 전라남도 장흥군 관산읍, 대덕읍.",
+            "Reviewed OSM peak node 3810195917 at the saved point under ODbL 1.0.",
+            "OSM names the high point 천관산연대봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000597",
+          "resolution": "existing_destination",
+          "destinationId": "9B37D62096EA7517C8F9",
+          "destinationName": "천마산",
+          "destinationElevationM": 810.3,
+          "destinationLat": 37.6802108,
+          "destinationLng": 127.2733462,
+          "destinationOsmNodeId": "3169664778",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "3169664778",
+            "wikidata": "Q5091679"
+          },
+          "evidence": [
+            "KFS 20000597 names 천마산 at 810.3 m in 경기도 남양주시 화도읍, 오남읍.",
+            "Reviewed OSM peak node 3169664778 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000601",
+          "resolution": "curated_destination",
+          "destinationId": "65D60AEF9DD046A7E873",
+          "destinationName": "천성산",
+          "destinationElevationM": 920.2,
+          "destinationLat": 35.4015733,
+          "destinationLng": 129.1062817,
+          "destinationOsmNodeId": "7972716269",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972716269",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000601 names 천성산 at 920.2 m in 경상남도 양산시 하북면, 웅상읍, 상북면.",
+            "Reviewed OSM peak node 7972716269 at the saved point under ODbL 1.0.",
+            "OSM names the high point 천성산(원효봉)."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000606",
+          "resolution": "curated_destination",
+          "destinationId": "643EF5D7426EB46FCFF1",
+          "destinationName": "천태산",
+          "destinationElevationM": 714.3,
+          "destinationLat": 36.1591297,
+          "destinationLng": 127.5999517,
+          "destinationOsmNodeId": "5381320862",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5381320862",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000606 names 천태산 at 714.3 m in 충청북도 영동군 양산면, 충청남도 금산군 제원면.",
+            "Reviewed OSM peak node 5381320862 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000613",
+          "resolution": "curated_destination",
+          "destinationId": "75AE2FD14AE01EDCEB59",
+          "destinationName": "청량산",
+          "destinationElevationM": 869.7,
+          "destinationLat": 36.7944382,
+          "destinationLng": 128.9088203,
+          "destinationOsmNodeId": "5389019143",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5389019143",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000613 names 청량산 at 869.7 m in 경상북도 봉화군 명호면ㆍ재산면, 안동시 도산면ㆍ예안면.",
+            "Reviewed OSM peak node 5389019143 at the saved point under ODbL 1.0.",
+            "OSM names the high point 청량산 장인봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000622",
+          "resolution": "existing_destination",
+          "destinationId": "95FF6C33650360EA47DE",
+          "destinationName": "추월산",
+          "destinationElevationM": 731.2,
+          "destinationLat": 35.3999299,
+          "destinationLng": 126.9760399,
+          "destinationOsmNodeId": "7972724262",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "7972724262",
+            "wikidata": "Q5118414"
+          },
+          "evidence": [
+            "KFS 20000622 names 추월산 at 731.2 m in 전라남도 담양군 용면, 전라북도 순창군 복흥면.",
+            "Reviewed OSM peak node 7972724262 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000623",
+          "resolution": "existing_destination",
+          "destinationId": "BAFDCE06CE474E7C0E10",
+          "destinationName": "축령산",
+          "destinationElevationM": 879,
+          "destinationLat": 37.7527629,
+          "destinationLng": 127.333886,
+          "destinationOsmNodeId": "443204531",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "443204531",
+            "wikidata": "Q27286249"
+          },
+          "evidence": [
+            "KFS 20000623 names 축령산 at 887.1 m in 경기도 남양주시 수동면, 가평군 상면.",
+            "Reviewed OSM peak node 443204531 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000628",
+          "resolution": "existing_destination",
+          "destinationId": "75AF4150F340FE16701D",
+          "destinationName": "치악산(비로봉)",
+          "destinationElevationM": 1228,
+          "destinationLat": 37.3651455,
+          "destinationLng": 128.0556322,
+          "destinationOsmNodeId": "3805445347",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "3805445347"
+          },
+          "evidence": [
+            "KFS 20000628 names 치악산 at 1282 m in 강원도 원주시, 횡성군, 영월군.",
+            "Reviewed OSM peak node 3805445347 at the saved point under ODbL 1.0.",
+            "The existing production/OSM node is the correctly located 치악산(비로봉), but ele=1228 conflicts with KFS 1282 m."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000629",
+          "resolution": "existing_destination",
+          "destinationId": "651BE7E03515F9150C62",
+          "destinationName": "칠갑산",
+          "destinationElevationM": 560,
+          "destinationLat": 36.4130234,
+          "destinationLng": 126.8848823,
+          "destinationOsmNodeId": "5377252847",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5377252847",
+            "wikidata": "Q5098908"
+          },
+          "evidence": [
+            "KFS 20000629 names 칠갑산 at 559.7 m in 충청남도 청양군 대치면, 정산면, 장평면.",
+            "Reviewed OSM peak node 5377252847 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000638",
+          "resolution": "curated_destination",
+          "destinationId": "2575A73825F895B384FC",
+          "destinationName": "태백산",
+          "destinationElevationM": 1566.7,
+          "destinationLat": 37.0985621,
+          "destinationLng": 128.9161522,
+          "destinationOsmNodeId": "1871881184",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1871881184",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000638 names 태백산 at 1566.7 m in 강원도 태백시, 경상북도 봉화군 석포면.",
+            "Reviewed OSM peak node 1871881184 at the saved point under ODbL 1.0.",
+            "OSM names the high point 태백산 장군봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000803",
+          "resolution": "existing_destination",
+          "destinationId": "136884F143DCAB4F1CE5",
+          "destinationName": "태화산",
+          "destinationElevationM": 1027.5,
+          "destinationLat": 37.1175851,
+          "destinationLng": 128.4853782,
+          "destinationOsmNodeId": "5395089718",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5395089718",
+            "wikidata": "Q7674755"
+          },
+          "evidence": [
+            "KFS 20000803 names 태화산 at 1027.5 m in 강원도 영월군 남면, 충청북도 단양군 영춘면.",
+            "Reviewed OSM peak node 5395089718 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000651",
+          "resolution": "curated_destination",
+          "destinationId": "9676E99C140134852220",
+          "destinationName": "팔공산",
+          "destinationElevationM": 1192.3,
+          "destinationLat": 36.0165476,
+          "destinationLng": 128.6953232,
+          "destinationOsmNodeId": "5750035647",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5750035647",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000651 names 팔공산 at 1192.3 m in 경상북도 군위군 부계면, 영천시 신녕면, 대구광역시 동구.",
+            "Reviewed OSM peak node 5750035647 at the saved point under ODbL 1.0.",
+            "The 1193 m Daegu/Gunwi/Yeongcheon 팔공산비로봉 is the KFS summit; production 팔공산 at 35.62063,127.46561 is a remote different mountain."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000652",
+          "resolution": "curated_destination",
+          "destinationId": "0D661A6AFD6CF4E394CC",
+          "destinationName": "팔봉산",
+          "destinationElevationM": 328.2,
+          "destinationLat": 37.6958831,
+          "destinationLng": 127.6971195,
+          "destinationOsmNodeId": "7631245833",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7631245833",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000652 names 팔봉산 at 328.2 m in 강원도 홍천군 서면.",
+            "Reviewed OSM peak node 7631245833 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000654",
+          "resolution": "curated_destination",
+          "destinationId": "E0C799D659E926351A41",
+          "destinationName": "팔영산",
+          "destinationElevationM": 606.9,
+          "destinationLat": 34.6171525,
+          "destinationLng": 127.4364443,
+          "destinationOsmNodeId": "7972724265",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/7972724265",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000654 names 팔영산 at 606.9 m in 전라남도 고흥군 점암면, 영남면.",
+            "Reviewed OSM peak node 7972724265 at the saved point under ODbL 1.0.",
+            "OSM names the high point 팔영산 깃대봉."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000661",
+          "resolution": "curated_destination",
+          "destinationId": "7366D25EDA2F36244D6E",
+          "destinationName": "한라산",
+          "destinationElevationM": 1947.3,
+          "destinationLat": 33.3617536,
+          "destinationLng": 126.5291977,
+          "destinationOsmNodeId": "8334051398",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/8334051398",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000661 names 한라산 at 1947.3 m in 제주특별자치도.",
+            "Reviewed OSM volcano node 8334051398 at the saved point under ODbL 1.0.",
+            "Hallasan is mapped as natural=volcano, not natural=peak. OSM node 8334051398 has ele=1947 and Wikidata Q494645; Wikidata links back to the same OSM node."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000679",
+          "resolution": "existing_destination",
+          "destinationId": "3BA968E6409D9D0D1690",
+          "destinationName": "화악산",
+          "destinationElevationM": 1468.3,
+          "destinationLat": 37.9946674,
+          "destinationLng": 127.5034314,
+          "destinationOsmNodeId": "11637337293",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "11637337293",
+            "wikidata": "Q626975"
+          },
+          "evidence": [
+            "KFS 20000679 names 화악산 at 1468.3 m in 경기도 가평군 북면, 강원도 화천군 사내면.",
+            "Reviewed OSM peak node 11637337293 at the saved point under ODbL 1.0.",
+            "KFS XLSX says 화악산 at 1468.3 m while the live page says 화악산(중봉). OSM 중봉 is 1446.1 m; the selected 1468.3 m main-summit node follows the pinned roster name/height. A second OSM peak node sits about 15 m away."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000681",
+          "resolution": "existing_destination",
+          "destinationId": "8D5CBEA88BD17668F741",
+          "destinationName": "화왕산",
+          "destinationElevationM": 757.7,
+          "destinationLat": 35.5471482,
+          "destinationLng": 128.531694,
+          "destinationOsmNodeId": "5382414737",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5382414737",
+            "wikidata": "Q5952091"
+          },
+          "evidence": [
+            "KFS 20000681 names 화왕산 at 757.7 m in 경상남도 창녕군 창녕읍, 고암면.",
+            "Reviewed OSM peak node 5382414737 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000684",
+          "resolution": "curated_destination",
+          "destinationId": "D319B2B83A218D9A2C81",
+          "destinationName": "황매산",
+          "destinationElevationM": 1113.1,
+          "destinationLat": 35.4942361,
+          "destinationLng": 127.9745887,
+          "destinationOsmNodeId": "3426219616",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/3426219616",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000684 names 황매산 at 1113.1 m in 경상남도 합천군 대병면ㆍ가회면, 산청군 차황면.",
+            "Reviewed OSM peak node 3426219616 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000686",
+          "resolution": "existing_destination",
+          "destinationId": "7427E76E2AB5B95CE823",
+          "destinationName": "황석산",
+          "destinationElevationM": 1192.5,
+          "destinationLat": 35.6551172,
+          "destinationLng": 127.7554842,
+          "destinationOsmNodeId": "5403644213",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5403644213",
+            "wikidata": "Q5952055"
+          },
+          "evidence": [
+            "KFS 20000686 names 황석산 at 1192.5 m in 경상남도 함양군 안의면, 서하면, 서상면.",
+            "Reviewed OSM peak node 5403644213 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000687",
+          "resolution": "existing_destination",
+          "destinationId": "F8BAD5857FE1F787725E",
+          "destinationName": "황악산",
+          "destinationElevationM": 1111,
+          "destinationLat": 36.118049,
+          "destinationLng": 127.966796,
+          "destinationOsmNodeId": "1859787923",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1859787923",
+            "wikidata": "Q5951990"
+          },
+          "evidence": [
+            "KFS 20000687 names 황악산 at 1111.4 m in 경상북도 김천시 대항면.",
+            "Reviewed OSM peak node 1859787923 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000688",
+          "resolution": "curated_destination",
+          "destinationId": "E55A2E7D694E74E2EE28",
+          "destinationName": "황장산",
+          "destinationElevationM": 1078.9,
+          "destinationLat": 36.81274,
+          "destinationLng": 128.278182,
+          "destinationOsmNodeId": "1867179906",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1867179906",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000688 names 황장산 at 1078.9 m in 경상북도 문경시 동로면.",
+            "Reviewed OSM peak node 1867179906 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        },
+        {
+          "sourceKey": "kfs-100-famous-mountains",
+          "sourceMemberId": "kfs:20000699",
+          "resolution": "curated_destination",
+          "destinationId": "3C73A385AE92624C6121",
+          "destinationName": "희양산",
+          "destinationElevationM": 996.4,
+          "destinationLat": 36.714641,
+          "destinationLng": 128.005065,
+          "destinationOsmNodeId": "1863254729",
+          "destinationCountryCode": "KR",
+          "destinationStateCode": null,
+          "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
+          "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1863254729",
+          "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
+          "evidence": [
+            "KFS 20000699 names 희양산 at 996.4 m in 경상북도 문경시 가은읍, 충청북도 괴산군 연풍면.",
+            "Reviewed OSM peak node 1863254729 at the saved point under ODbL 1.0.",
+            "Reviewed OSM summit name/alias, coordinate, elevation, and KFS location together; no name-only match was accepted."
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -5,6 +5,7 @@ import * as core from "../keeper-list-import/core";
 import { BASE_THREE_KEEPER_LISTS } from "../keeper-list-import/bundles/base-three";
 import {
   DOBIH_V18_5_SOURCE,
+  KFS_100_FAMOUS_MOUNTAINS_SOURCE,
   UIAA_BULLETIN_152_SOURCE,
 } from "../keeper-list-import/sources";
 
@@ -73,6 +74,43 @@ test("the base-three lists carry explicit roster sources", () => {
   );
   assert.equal(BASE_THREE_KEEPER_LISTS[0].sourceDescriptor, DOBIH_V18_5_SOURCE);
   assert.equal(BASE_THREE_KEEPER_LISTS[2].sourceDescriptor, UIAA_BULLETIN_152_SOURCE);
+});
+
+test("the KFS descriptor pins an eight-digit mountain identity", () => {
+  const member: core.KeeperSourceMember = {
+    sourceMemberId: "kfs:20000004",
+    ordinal: 1,
+    name: "가리산",
+    elevationM: 1_050.9,
+    kfsMntnId: "20000004",
+  };
+  assert.doesNotThrow(() =>
+    KFS_100_FAMOUS_MOUNTAINS_SOURCE.assertMemberIdentity(
+      "kfs-100-famous-mountains",
+      member
+    )
+  );
+  for (const invalid of [
+    { ...member, kfsMntnId: "2000004" },
+    { ...member, kfsMntnId: "2000000A" },
+    { ...member, sourceMemberId: "kfs:20000005" },
+    { ...member, kfsMntnId: undefined },
+  ]) {
+    assert.throws(
+      () => KFS_100_FAMOUS_MOUNTAINS_SOURCE.assertMemberIdentity(
+        "kfs-100-famous-mountains",
+        invalid
+      ),
+      /KFS.*mountain ID/i
+    );
+  }
+  assert.throws(
+    () => KFS_100_FAMOUS_MOUNTAINS_SOURCE.assertMemberIdentity(
+      "not-the-kfs-100-list",
+      member
+    ),
+    /KFS 100 list/i
+  );
 });
 
 test("source and stored ordinals keep their current bases", () => {

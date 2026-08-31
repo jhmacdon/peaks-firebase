@@ -43,3 +43,19 @@ export const UIAA_BULLETIN_152_SOURCE: KeeperSourceDescriptor = {
     }
   },
 };
+
+export const KFS_100_FAMOUS_MOUNTAINS_SOURCE: KeeperSourceDescriptor = {
+  fixtureSource: "kfs-100-famous-mountains-2022-01-01",
+  keeperRosterSource: "kfs-100-famous-mountains-2022-01-01",
+  assertMemberIdentity(sourceKey, member) {
+    if (sourceKey !== "kfs-100-famous-mountains" ||
+        typeof member.kfsMntnId !== "string" ||
+        !/^\d{8}$/.test(member.kfsMntnId) ||
+        member.sourceMemberId !== `kfs:${member.kfsMntnId}`) {
+      throw new Error(
+        `KFS keeper member ${member.sourceMemberId} must belong to the KFS 100 list and ` +
+        "have an eight-digit mountain ID that matches its source member ID"
+      );
+    }
+  },
+};
