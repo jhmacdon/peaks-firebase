@@ -5,7 +5,7 @@ import {
 import { KFS_100_FAMOUS_MOUNTAINS_SOURCE } from "../sources";
 
 export const KFS_100_FAMOUS_MOUNTAINS_RESOLUTIONS_SHA256 =
-  "e75b6368d95ef5d860644c992849623234d21bf3b01082a06960dcb9db368968";
+  "d5159b66757dc205eab106a190e747261c4cf6ab3e934ddade77a21e6afe6d80";
 
 export const KFS_100_FAMOUS_MOUNTAINS_KEEPER_LISTS: KeeperListDefinition[] = [{
   listId: deterministicKeeperListId("kfs:100-famous-mountains"),

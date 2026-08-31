@@ -177,13 +177,14 @@ export interface ReviewedKeeperDestination {
   countryCode: string;
   stateCode: string | null;
   osmId: string | null;
+  externalIds: Record<string, string>;
   dataSourceName: string;
   dataSourceUrl: string;
   dataLicense: string | null;
 }
 
 export interface ReviewedKeeperCatalogRepair
-  extends Omit<ReviewedKeeperDestination, "keeperRosterSource"> {
+  extends Omit<ReviewedKeeperDestination, "keeperRosterSource" | "externalIds"> {
   before: KeeperDestinationFingerprint;
   externalIdAdditions: Record<string, string>;
   externalIdRemovals: Record<string, string>;
@@ -575,15 +576,16 @@ function resolutionRows(fixture: KeeperResolutionFixture): KeeperResolutionRow[]
   return Object.values(fixture.lists).flatMap((list) => list.rows);
 }
 
-function requestedExternalIdAdditions(
+function requestedExternalIdClaims(
   resolutions: KeeperResolutionFixture
 ): KeeperExternalIdOwner[] {
   return resolutionRows(resolutions)
-    .flatMap((row) => Object.entries(row.catalogExternalIdAdditions ?? {}).map(([key, value]) => ({
-      destinationId: row.destinationId,
-      key,
-      value,
-    })))
+    .flatMap((row) => [
+      ...Object.entries(row.catalogExternalIdAdditions ?? {}),
+      ...(row.resolution === "curated_destination"
+        ? Object.entries(row.destinationExternalIds ?? {})
+        : []),
+    ].map(([key, value]) => ({ destinationId: row.destinationId, key, value })))
     .sort((left, right) => left.key.localeCompare(right.key) ||
       left.value.localeCompare(right.value) ||
       left.destinationId.localeCompare(right.destinationId));
@@ -770,7 +772,8 @@ export function validateKeeperResolutionFixture(
           row.destinationExternalIds,
           `Keeper resolution ${rowKey} destination fingerprint`
         );
-        if (row.resolution !== "existing_destination" ||
+        if ((row.resolution !== "existing_destination" &&
+             row.resolution !== "curated_destination") ||
             (row.destinationOsmNodeId == null
               ? row.destinationExternalIds.osm != null
               : row.destinationExternalIds.osm !== row.destinationOsmNodeId)) {
@@ -1100,6 +1103,11 @@ function reviewedKeeperDestination(
     countryCode: resolution.destinationCountryCode,
     stateCode: resolution.destinationStateCode,
     osmId: resolution.destinationOsmNodeId,
+    externalIds: resolution.destinationExternalIds == null
+      ? resolution.destinationOsmNodeId == null
+        ? {}
+        : { osm: resolution.destinationOsmNodeId }
+      : { ...resolution.destinationExternalIds },
     dataSourceName: resolution.destinationDataSourceName!,
     dataSourceUrl: resolution.destinationDataSourceUrl!,
     dataLicense: resolution.destinationDataLicense ?? null,
@@ -1110,7 +1118,6 @@ function catalogMatchesExactReviewedDestination(
   catalogPeak: KeeperCatalogPeak,
   destination: ReviewedKeeperDestination
 ): boolean {
-  const expectedExternalIds = destination.osmId == null ? {} : { osm: destination.osmId };
   return catalogPeak.name === destination.name &&
     catalogPeak.elevationM === destination.elevationM &&
     catalogPeak.lat === destination.lat &&
@@ -1120,7 +1127,7 @@ function catalogMatchesExactReviewedDestination(
     catalogPeak.osmId === destination.osmId &&
     isValidExternalIdRecord(catalogPeak.externalIds) &&
     JSON.stringify(Object.entries(catalogPeak.externalIds).sort()) ===
-      JSON.stringify(Object.entries(expectedExternalIds).sort()) &&
+      JSON.stringify(Object.entries(destination.externalIds).sort()) &&
     catalogPeak.owner === "peaks" &&
     catalogPeak.destinationType === "point" &&
     Array.isArray(catalogPeak.features) &&
@@ -1144,13 +1151,13 @@ function resolutionDestinationFingerprint(
     osmNodeId: resolution.destinationOsmNodeId,
     countryCode: resolution.destinationCountryCode,
     stateCode: resolution.destinationStateCode,
-    ...(resolution.resolution === "curated_destination" ? {
+    ...(resolution.destinationExternalIds != null ? {
+      externalIds: { ...resolution.destinationExternalIds },
+    } : resolution.resolution === "curated_destination" ? {
       externalIds: resolution.destinationOsmNodeId == null
         ? {}
         : { osm: resolution.destinationOsmNodeId },
-    } : resolution.destinationExternalIds == null ? {} : {
-      externalIds: { ...resolution.destinationExternalIds },
-    }),
+    } : {}),
   };
 }
 
@@ -1340,14 +1347,14 @@ export function catalogWithReviewedKeeperDestinations(
     destinationIds.add(owner.destinationId);
     ownersByExternalId.set(claim, destinationIds);
   }
-  for (const request of requestedExternalIdAdditions(resolutions)) {
+  for (const request of requestedExternalIdClaims(resolutions)) {
     const claim = JSON.stringify([request.key, request.value]);
     const conflictingOwners = [...(ownersByExternalId.get(claim) ?? [])]
       .filter((ownerId) => ownerId !== request.destinationId)
       .sort();
     if (conflictingOwners.length > 0) {
       throw new Error(
-        `Catalog repair ${request.destinationId} requested external ID ` +
+        `Reviewed destination ${request.destinationId} requested external ID ` +
         `${request.key}=${request.value}, but it belongs to ${conflictingOwners.join(", ")}`
       );
     }
@@ -1595,7 +1602,7 @@ export function catalogWithReviewedKeeperDestinations(
       countryCode: destination.countryCode,
       stateCode: destination.stateCode,
       osmId: destination.osmId,
-      externalIds: destination.osmId == null ? {} : { osm: destination.osmId },
+      externalIds: { ...destination.externalIds },
       owner: "peaks",
       destinationType: "point",
       features: ["summit"],
@@ -2055,7 +2062,7 @@ async function insertReviewedKeeperDestinations(
        SELECT * FROM jsonb_to_recordset($1::jsonb) AS value(
          id text, name text, elevation_m double precision,
          lat double precision, lng double precision, country_code text,
-         state_code text, osm_id text, data_source_name text,
+         state_code text, osm_id text, external_ids jsonb, data_source_name text,
          data_source_url text, data_license text, keeper_roster_source text
        )
      )
@@ -2077,9 +2084,7 @@ async function insertReviewedKeeperDestinations(
             'peaks',
             incoming.country_code,
             incoming.state_code,
-            CASE WHEN incoming.osm_id IS NULL THEN '{}'::jsonb
-                 ELSE jsonb_build_object('osm', incoming.osm_id)
-            END,
+            incoming.external_ids,
             jsonb_strip_nulls(jsonb_build_object(
               'source', incoming.data_source_name,
               'source_url', incoming.data_source_url,
@@ -2099,6 +2104,7 @@ async function insertReviewedKeeperDestinations(
       country_code: destination.countryCode,
       state_code: destination.stateCode,
       osm_id: destination.osmId,
+      external_ids: destination.externalIds,
       data_source_name: destination.dataSourceName,
       data_source_url: destination.dataSourceUrl,
       data_license: destination.dataLicense,
@@ -2412,7 +2418,7 @@ export async function runKeeperImport(
     if (apply) {
       await client.query("SELECT pg_advisory_xact_lock(hashtext('keeper-list-import'))");
     }
-    const requestedClaims = requestedExternalIdAdditions(resolutions);
+    const requestedClaims = requestedExternalIdClaims(resolutions);
     const { catalog, externalIdOwners } = await loadCatalog(client, requestedClaims);
     const current = await loadCurrentMembers(client, definitions.map((list) => list.listId));
     const { report, plans, destinationsToAdd, destinationsToRepair } = buildKeeperImportReport(

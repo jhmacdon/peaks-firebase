@@ -100,7 +100,7 @@ const coordinateCrosswalk = JSON.parse(coordinateCrosswalkBytes.toString("utf8")
     sourceMemberId: string;
     mntnId: string;
     kfs: { name: string; elevationM: number };
-    reviewedSummitPoint: { osmNodeId: number };
+    reviewedSummitPoint: { osmNodeId: number; wikidataId: string | null };
     identityReview: { status: string; flags: string[] };
     productionNeighborsWithin150m: Array<{ destinationId: string }>;
     kfsSummitNeighborsWithin150m: Array<{ sourceMemberId: string }>;
@@ -121,6 +121,17 @@ const coordinateCrosswalk = JSON.parse(coordinateCrosswalkBytes.toString("utf8")
 const migratePackage = JSON.parse(
   readFileSync(path.resolve(__dirname, "../../package.json"), "utf8")
 ) as { scripts: Record<string, string> };
+const curatedWikidataIds = {
+  "kfs:20000028": "Q5521102",
+  "kfs:20000138": "Q5208296",
+  "kfs:20000165": "Q5316834",
+  "kfs:20000370": "Q7451509",
+  "kfs:20000543": "Q6154017",
+  "kfs:20000548": "Q8533740",
+  "kfs:20000606": "Q626656",
+  "kfs:20000661": "Q494645",
+  "kfs:20000699": "Q5701198",
+} as const;
 
 function sha256(value: crypto.BinaryLike): string {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -403,6 +414,12 @@ test("plans 62 additions once and a fully unchanged second import", () => {
   assert.equal(first.destinationsToRepair.length, 0);
   assert.equal(first.catalog.length, 100);
   assert.equal(new Set(first.catalog.map((row) => row.id)).size, 100);
+  assert.deepEqual(
+    Object.fromEntries(first.destinationsToAdd
+      .filter((row) => row.externalIds.wikidata != null)
+      .map((row) => [row.sourceMemberId, row.externalIds.wikidata])),
+    curatedWikidataIds
+  );
 
   const firstRun = buildKeeperImportReport(
     fixture,
@@ -512,18 +529,42 @@ test("pins the six manual point choices and five documented source conflicts", (
   );
 });
 
-test("keeps Wikidata tags as checked evidence rather than curated write fields", () => {
+test("imports only the nine reviewed curated Wikidata IDs", () => {
   const rowsWithWikidata = coordinateCrosswalk.rows.filter((row) =>
     row.destination.externalIds.wikidata != null
   );
   assert.equal(rowsWithWikidata.length, 49);
-  const hallasan = rowsWithWikidata.find((row) => row.sourceMemberId === "kfs:20000661");
-  assert.equal(hallasan?.destination.externalIds.wikidata, "Q494645");
-  const resolution = resolutions.lists["kfs-100-famous-mountains"].rows.find(
-    (row) => row.sourceMemberId === "kfs:20000661"
+  const reviewedBySourceId = new Map(coordinateCrosswalk.rows.map((row) => [
+    row.sourceMemberId,
+    row,
+  ]));
+  const curatedWithWikidata = resolutions.lists["kfs-100-famous-mountains"].rows
+    .filter((row) => row.resolution === "curated_destination" &&
+      row.destinationExternalIds?.wikidata != null);
+  assert.deepEqual(
+    Object.fromEntries(curatedWithWikidata.map((row) => [
+      row.sourceMemberId,
+      row.destinationExternalIds!.wikidata,
+    ])),
+    curatedWikidataIds
   );
-  assert.equal(resolution?.destinationOsmNodeId, "8334051398");
-  assert.equal("catalogExternalIdAdditions" in (resolution ?? {}), false);
+  assert.equal(curatedWithWikidata.length, 9);
+  for (const [sourceMemberId, wikidataId] of Object.entries(curatedWikidataIds)) {
+    const reviewed = reviewedBySourceId.get(sourceMemberId)!;
+    const resolution = curatedWithWikidata.find((row) =>
+      row.sourceMemberId === sourceMemberId
+    )!;
+    assert.equal(reviewed.productionResolution, "curated_destination");
+    assert.equal(reviewed.reviewedSummitPoint.wikidataId, wikidataId);
+    assert.equal(reviewed.destination.externalIds.wikidata, wikidataId);
+    assert.deepEqual(resolution.destinationExternalIds, {
+      osm: String(reviewed.reviewedSummitPoint.osmNodeId),
+      wikidata: wikidataId,
+    });
+    assert.equal("catalogExternalIdAdditions" in resolution, false);
+  }
+  assert.equal(curatedWithWikidata.some((row) =>
+    row.destinationExternalIds?.wikidata === "Q27279494"), false);
 });
 
 test("rejects changed pinned inputs before producing either fixture", () => {

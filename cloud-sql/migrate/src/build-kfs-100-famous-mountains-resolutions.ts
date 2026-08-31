@@ -23,6 +23,17 @@ const SOURCE_SHA256 =
   "b113780ebec8206cae3ca24022af7a9d77c2b718a258b000666a940f6ebd4735";
 const CATALOG_SHA256 =
   "f0824ae26adfa1e0c6f35071a593fe4bbf6729bd465fb04ae728e801b0adbe9d";
+const CURATED_WIKIDATA_IDS: Readonly<Record<string, string>> = Object.freeze({
+  "kfs:20000028": "Q5521102",
+  "kfs:20000138": "Q5208296",
+  "kfs:20000165": "Q5316834",
+  "kfs:20000370": "Q7451509",
+  "kfs:20000543": "Q6154017",
+  "kfs:20000548": "Q8533740",
+  "kfs:20000606": "Q626656",
+  "kfs:20000661": "Q494645",
+  "kfs:20000699": "Q5701198",
+});
 const REVIEW_INPUT_SHA256: Record<string, string> = {
   "kfs-100-crosswalk-2026-08-30.json": SOURCE_SHA256,
   "kfs-100-famous-mountains-official-list.xlsx":
@@ -159,6 +170,7 @@ function assertCoordinateCrosswalk(value: unknown): asserts value is CoordinateC
 
 function resolutionRow(row: CoordinateRow): KeeperResolutionRow {
   const osmNodeId = String(row.reviewedSummitPoint.osmNodeId);
+  const curatedWikidataId = CURATED_WIKIDATA_IDS[row.sourceMemberId];
   const externalIdKeys = Object.keys(row.destination.externalIds).sort();
   const allowedExternalIdKeys = row.reviewedSummitPoint.wikidataId == null
     ? ["osm"]
@@ -193,6 +205,14 @@ function resolutionRow(row: CoordinateRow): KeeperResolutionRow {
       throw new Error(`KFS curated row ${row.sourceMemberId} has changed reviewed provenance`);
     }
   }
+  if (curatedWikidataId != null &&
+      (row.productionResolution !== "curated_destination" ||
+       row.reviewedSummitPoint.wikidataId !== curatedWikidataId ||
+       row.destination.externalIds.wikidata !== curatedWikidataId)) {
+    throw new Error(
+      `KFS curated row ${row.sourceMemberId} does not match Wikidata ${curatedWikidataId}`
+    );
+  }
   return {
     sourceKey: SOURCE_KEY,
     sourceMemberId: row.sourceMemberId,
@@ -208,6 +228,12 @@ function resolutionRow(row: CoordinateRow): KeeperResolutionRow {
     ...(row.productionResolution === "existing_destination" ? {
       destinationExternalIds: { ...row.destination.externalIds },
     } : {}),
+    ...(curatedWikidataId == null ? {} : {
+      destinationExternalIds: {
+        osm: osmNodeId,
+        wikidata: curatedWikidataId,
+      },
+    }),
     ...(row.productionResolution === "curated_destination" ? {
       destinationDataSourceName: row.destination.dataSourceName,
       destinationDataSourceUrl: row.destination.dataSourceUrl,
@@ -256,13 +282,22 @@ export function buildKfs100Resolutions(
     destinationIds.add(row.destination.destinationId);
     osmNodeIds.add(row.reviewedSummitPoint.osmNodeId);
   }
+  const rows = review.rows.map(resolutionRow);
+  const emittedCuratedWikidataIds = Object.fromEntries(rows
+    .filter((row) => row.resolution === "curated_destination" &&
+      row.destinationExternalIds?.wikidata != null)
+    .map((row) => [row.sourceMemberId, row.destinationExternalIds!.wikidata]));
+  if (JSON.stringify(sortedEntries(emittedCuratedWikidataIds)) !==
+      JSON.stringify(sortedEntries(CURATED_WIKIDATA_IDS))) {
+    throw new Error("KFS curated Wikidata allowlist was not emitted exactly");
+  }
   const output: KeeperResolutionFixture = {
     schemaVersion: 1,
     reviewedAt: "2026-08-30",
     catalogSnapshotSha256: CATALOG_SHA256,
     lists: {
       [SOURCE_KEY]: {
-        rows: review.rows.map(resolutionRow),
+        rows,
       },
     },
   };

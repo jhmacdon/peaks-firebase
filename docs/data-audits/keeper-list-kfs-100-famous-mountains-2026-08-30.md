@@ -53,7 +53,7 @@ The review used the full South Korea `natural=peak` OSM snapshot, the exact Hall
 | Reviewed coordinate crosswalk | `949672eeec5d5c44f212632fd500cc6d594fbf1316e7c317a1165f0ef78b1636` |
 | Reviewed coordinate CSV | `708400e8e904743ba8c9395aaddcb0cacb44ae84be1bca4daa416c8140813769` |
 | Reviewed coordinate audit | `46b60bf2cf5f5ae9f169e92c9443b6fd865043e2442beb88dad7d06f8f4df6af` |
-| Checked identity resolutions | `e75b6368d95ef5d860644c992849623234d21bf3b01082a06960dcb9db368968` |
+| Checked identity resolutions | `d5159b66757dc205eab106a190e747261c4cf6ab3e934ddade77a21e6afe6d80` |
 
 The review has 95 `confirmed` rows and five `confirmed_with_documented_source_conflict` rows:
 
@@ -77,6 +77,14 @@ The six manual choices are:
 | 화악산 | `11637337293` | `5429893547`, `7972716230` | The selected main summit matches the roster height. One node duplicates it and Jungbong is a distinct top. |
 
 The review also rejected four remote same-name production rows: Seoul Namsan, the Gwangyang record for Pocheon Baegunsan, the same Gwangyang record for Jeongseon Baegunsan, and a remote production Palgongsan.
+
+## Curated Wikidata IDs
+
+A follow-up review on 2026-08-31 allows nine curated destinations to keep the exact Wikidata ID that the checked coordinate crosswalk pins: 강천산 `Q5521102`, 대야산 `Q5208296`, 두륜산 `Q5316834`, 서대산 `Q7451509`, 장안산 `Q6154017`, 적상산 `Q8533740`, 천태산 `Q626656`, 한라산 `Q494645`, and 희양산 `Q5701198`. Each new destination keeps both its reviewed OSM node ID and this Wikidata ID. The importer does not write the other six curated OSM Wikidata tags, including 금산 `Q27279494`.
+
+The saved Commons File-namespace scan at `/private/tmp/kfs-photo-audit.aaKsbO/kfs-commons-file-geosearch-2026-08-31.json` has SHA-256 `e42fd1033afb15afa4e5ab1cce591c917321391da3f2bb08bd17198addec4cde`. With the strict photo discovery in PR #166, this identity repair adds two net article candidates: 장안산 and 적상산. It approves and applies no photo. The importer still defaults to a dry run, this change made no production database write, and its fixed run-rate cost is `$0/month`.
+
+Checks passed: the 45-test KFS and importer suite, the TypeScript build, and all 836 migration tests with 828 passes, eight configured database skips, and no failures.
 
 ## Trail archive handoff
 
