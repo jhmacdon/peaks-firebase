@@ -100,7 +100,34 @@ destination-to-file table, not a new search path:
 - 팔공산: `File:팔공산.jpg`; and
 - 황매산: `File:황매산.jpg`.
 
-For these five destination IDs, the command uses `reviewed_commons_file`
+A second review froze seven more exact files:
+
+- 무등산: `File:Mt Mudeungsan - panoramio - gary4now (1).jpg`;
+- 비슬산: `File:Peak of Cheonwangbong at Biseulsan.jpg`;
+- 소백산: `File:Sobaeksan 2.jpg`;
+- 속리산: `File:Songnisan as seen from Cheonwangbong.jpg`;
+- 오대산(비로봉): `File:Odaesan Mountain.jpg`;
+- 월출산: `File:Wolchulsan National Park - panoramio - gary4now.jpg`; and
+- 치악산(비로봉): `File:Chiaksan National Park.jpg`.
+
+Each full-size image was checked for a clear mountain view and safe wide crop.
+Commons reports one camera point for each file, 40 to 958 metres from the
+reviewed summit. The exact-file records pin the named photographer, compatible
+CC license, dimensions, SHA-1, source page, and camera point. A read-only run of
+the existing article path found no candidate for these seven rows, so this set
+does not duplicate the earlier strict candidates.
+
+The same review rejected `File:삼악산 정상 3.jpg` because the strict article
+path already covers 삼악산; `File:설악산 대청봉 정상석.jpg` because the marker
+and cloud do not give a useful mountain view; `File:남이바위 축령산 2.jpg`
+because it is a close view of boots and rock; `File:Maisan - panoramio.jpg`
+because its tall framing does not survive a wide cover crop; both
+`File:Geumjeong Mountain - panoramio (1).jpg` and
+`File:釜山-金井山-姑堂峰.jpg` because they show dark close rock or a tall summit
+marker; and `File:Mt.Taebaek Somunsubong.jpg` because it names a different
+Taebaeksan subpeak.
+
+For these twelve destination IDs, the command uses `reviewed_commons_file`
 evidence instead of `wikipedia_article` evidence. It requires the exact saved
 name, South Korea country code, KFS list membership, nullable planned Wikidata
 value, and a catalog point within 25 metres of the reviewed KFS import row. It
@@ -200,6 +227,12 @@ production database writes.
   were absent. A read-only live run of the five exact-title Commons calls
   returned each frozen title, one coordinate, author, license, size, and SHA-1.
   It made no production database write.
+- The seven-file follow-up repeats those checks for all twelve frozen bindings.
+  Its 50 focused tests and TypeScript build passed. The full migration run
+  passed 790 of 799 tests and skipped 9 database suites whose test URLs were
+  absent. Each new file passed a full-size visual review and a read-only
+  exact-title Commons metadata check. The current strict article path missed
+  all seven rows. This follow-up made no production database write.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
@@ -212,3 +245,6 @@ operator-started command and adds no service, timer, or scheduled job.
 
 The five reviewed Commons bindings also cost **$0/month**. They use the same
 operator-started command and add no hosted service, timer, or scheduled job.
+
+The seven-file reviewed follow-up also costs **$0/month** and adds no hosted
+service, timer, instance, or scheduled job.

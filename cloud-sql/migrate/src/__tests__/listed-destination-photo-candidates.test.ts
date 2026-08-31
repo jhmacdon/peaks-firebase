@@ -800,8 +800,15 @@ test("article photo order keeps the lead then exact named alternatives and drops
   );
 });
 
-test("the reviewed Commons allowlist contains only the five accepted KFS files", () => {
+test("the reviewed Commons allowlist contains only the twelve accepted KFS files", () => {
   assert.deepEqual(Object.keys(LISTED_PHOTO_REVIEWED_COMMONS_FILES).sort(), [
+    "0164CE419EF8A8BBB87B",
+    "09DC0597070CF98C1FD9",
+    "1CE83A8BF630D0A07E9A",
+    "33463BA61321FCD7F079",
+    "3BDE883C882EB9065D76",
+    "4F5CA1B51FE2938C6E87",
+    "75AF4150F340FE16701D",
     "8E2DBAEC5DB4481221F2",
     "958AD1411BC49B469BE1",
     "9676E99C140134852220",
@@ -837,6 +844,22 @@ test("the reviewed Commons allowlist contains only the five accepted KFS files",
       .some((audit) => audit.fileTitle.includes("설악산")),
     false
   );
+  for (const rejectedFile of [
+    "File:삼악산 정상 3.jpg",
+    "File:설악산 대청봉 정상석.jpg",
+    "File:남이바위 축령산 2.jpg",
+    "File:Maisan - panoramio.jpg",
+    "File:Geumjeong Mountain - panoramio (1).jpg",
+    "File:釜山-金井山-姑堂峰.jpg",
+    "File:Mt.Taebaek Somunsubong.jpg",
+  ]) {
+    assert.equal(
+      Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+        .some((audit) => audit.fileTitle === rejectedFile),
+      false,
+      rejectedFile
+    );
+  }
 });
 
 test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
@@ -864,7 +887,7 @@ test("reviewed Commons requests use one exact title and no discovery mechanism",
   );
 });
 
-test("all five exact reviewed Commons bindings yield pending-review evidence", async () => {
+test("all twelve exact reviewed Commons bindings yield pending-review evidence", async () => {
   for (const audit of Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)) {
     const calls: string[] = [];
     const unexpected = async (): Promise<never> => {
