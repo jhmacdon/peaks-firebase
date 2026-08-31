@@ -89,6 +89,35 @@ article-image path still rejects that name mismatch. The frozen P18 path may
 continue only because the stored Q-id, Wikidata point, linked article Q-id, and
 any article point all match. It does not use that article's images.
 
+Five more KFS rows have one human-reviewed Commons file each. This is a closed
+destination-to-file table, not a new search path:
+
+- 덕숭산(수덕산): `File:충남 서산 덕산 덕숭산 Korea - panoramio.jpg`;
+- 도봉산(자운봉): `File:Geology of South Korea - Dobongsan Peaks (도봉산 정산)
+  (3578202462).jpg`;
+- 북한산(백운대): `File:Geology of South Korea - Bukhansan (북한산)
+  (9581214596).jpg`;
+- 팔공산: `File:팔공산.jpg`; and
+- 황매산: `File:황매산.jpg`.
+
+For these five destination IDs, the command uses `reviewed_commons_file`
+evidence instead of `wikipedia_article` evidence. It requires the exact saved
+name, South Korea country code, KFS list membership, nullable planned Wikidata
+value, and a catalog point within 25 metres of the reviewed KFS import row. It
+then asks Commons for the one exact title with only `imageinfo` and
+`coordinates`. It does not request redirects, categories, P373, nearby files,
+or geosearch. The returned File page, author, license, dimensions, SHA-1, and
+single coordinate must equal the frozen review. That coordinate must stay
+within 25 metres of the reviewed file point and within 1.5 kilometres of the
+summit. Any mismatch stops that row. A pinned ID never falls through to article
+or P18 discovery. Seoraksan has no reviewed binding in this set.
+
+The same final guards still apply. A pending photo skips all source requests.
+An old source or SHA-1 stays final, including a denied image. The write lock
+rechecks the cover, pending state, exact row identity, KFS membership, and
+review history. A passing result adds only a pending photo review row; it never
+writes a hero image.
+
 Commons sometimes reports an HTTP localized Creative Commons deed URL. The
 command keeps the reported license family and version, and stores its canonical
 HTTPS license page because the review table requires HTTPS.
@@ -164,6 +193,13 @@ production database writes.
   URLs were absent. A read-only live Wikimedia check produced the two frozen
   candidates with their pinned source pages, credits, and SHA-1 values. It made
   no database call.
+- The five-file reviewed Commons follow-up checks every accepted binding plus
+  catalog drift, source drift, exact request shape, review history, and the
+  final queue lock. Its 50 focused tests and TypeScript build passed. The full
+  migration run passed 790 tests and skipped 9 database suites whose test URLs
+  were absent. A read-only live run of the five exact-title Commons calls
+  returned each frozen title, one coordinate, author, license, size, and SHA-1.
+  It made no production database write.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
@@ -173,3 +209,6 @@ It added no hosted service or scheduled work.
 
 The two-file P18 fallback also costs **$0/month**. It runs only inside the same
 operator-started command and adds no service, timer, or scheduled job.
+
+The five reviewed Commons bindings also cost **$0/month**. They use the same
+operator-started command and add no hosted service, timer, or scheduled job.

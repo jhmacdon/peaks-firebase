@@ -15,12 +15,15 @@ import {
   plainMetadataText,
   prepareAuditOutput,
   publishAuditOutput,
+  reviewedCommonsFileApiUrl,
   stageAuditOutput,
 } from "../backfill-listed-destination-photo-candidates";
 import {
   LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS,
   LISTED_PHOTO_GAPS_SQL,
+  LISTED_PHOTO_REVIEWED_COMMONS_FILES,
   canonicalWikimediaLicenseUrl,
+  distanceMeters,
   fileTitleNamesDestination,
   hasCompatibleLicenseRecord,
   imageMetadataRejection,
@@ -35,6 +38,7 @@ import {
   type ListedPhotoClient,
   type ListedPhotoGapRow,
   type Queryable,
+  type ReviewedCommonsFilePhoto,
   type WikimediaImageMetadata,
   type WikipediaArticle,
 } from "../listed-destination-photo-candidates";
@@ -79,6 +83,8 @@ function image(overrides: Partial<WikimediaImageMetadata> = {}): WikimediaImageM
   return {
     fileTitle: "File:Mount Rainier from Paradise.jpg",
     fileTitleAliases: [],
+    coordinates: null,
+    coordinateCount: 0,
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/a/aa/Mount_Rainier_from_Paradise.jpg",
     sourcePageUrl:
@@ -118,11 +124,53 @@ function client(overrides: Partial<ListedPhotoClient> = {}): ListedPhotoClient {
     async fetchWikidataLeadImage() {
       return null;
     },
+    async fetchReviewedCommonsFile(fileTitle) {
+      return image({ fileTitle });
+    },
     async fetchImageMetadata(titles) {
       return titles.map((fileTitle) => image({ fileTitle }));
     },
     ...overrides,
   };
+}
+
+function reviewedRow(
+  audit: Readonly<ReviewedCommonsFilePhoto>,
+  overrides: Partial<ListedPhotoGapRow> = {}
+): ListedPhotoGapRow {
+  return row({
+    id: audit.destinationId,
+    name: audit.destinationName,
+    lat: audit.catalogCoordinates.lat,
+    lng: audit.catalogCoordinates.lng,
+    country_code: audit.countryCode,
+    wikidata_id: audit.catalogWikidataId,
+    list_ids: [audit.requiredListId],
+    list_names: ["Korea Forest Service 100 Famous Mountains"],
+    ...overrides,
+  });
+}
+
+function reviewedImage(
+  audit: Readonly<ReviewedCommonsFilePhoto>,
+  overrides: Partial<WikimediaImageMetadata> = {}
+): WikimediaImageMetadata {
+  return image({
+    fileTitle: audit.fileTitle,
+    fileTitleAliases: [],
+    coordinates: audit.fileCoordinates,
+    coordinateCount: 1,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/a/aa/reviewed-file.jpg",
+    sourcePageUrl:
+      `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle)}`,
+    photographer: audit.photographer,
+    licenseName: audit.licenseName,
+    licenseUrl: audit.licenseUrl,
+    width: audit.width,
+    height: audit.height,
+    mediaSha1: audit.mediaSha1,
+    ...overrides,
+  });
 }
 
 async function planCode(
@@ -493,6 +541,7 @@ test("imageinfo parser keeps exact URL, artist, license URL, dimensions, and for
       pages: [{
         ns: 6,
         title: "File:Mount Rainier.jpg",
+        coordinates: [{ lat: 46.8523, lon: -121.7603 }],
         imageinfo: [{
           url: "https://upload.wikimedia.org/rainier.jpg?utm_source=en.wikipedia.org",
           descriptionurl: "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg",
@@ -513,6 +562,8 @@ test("imageinfo parser keeps exact URL, artist, license URL, dimensions, and for
   assert.deepEqual(parsed, [{
     fileTitle: "File:Mount Rainier.jpg",
     fileTitleAliases: [],
+    coordinates: { lat: 46.8523, lng: -121.7603 },
+    coordinateCount: 1,
     imageUrl: "https://upload.wikimedia.org/rainier.jpg",
     sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg",
     photographer: "Jane & Joe",
@@ -749,12 +800,228 @@ test("article photo order keeps the lead then exact named alternatives and drops
   );
 });
 
+test("the reviewed Commons allowlist contains only the five accepted KFS files", () => {
+  assert.deepEqual(Object.keys(LISTED_PHOTO_REVIEWED_COMMONS_FILES).sort(), [
+    "8E2DBAEC5DB4481221F2",
+    "958AD1411BC49B469BE1",
+    "9676E99C140134852220",
+    "9F7C04F02A37514A13AD",
+    "D319B2B83A218D9A2C81",
+  ]);
+  for (const [destinationId, audit] of Object.entries(
+    LISTED_PHOTO_REVIEWED_COMMONS_FILES
+  )) {
+    assert.equal(audit.evidenceType, "reviewed_commons_file");
+    assert.equal(audit.destinationId, destinationId);
+    assert.equal(audit.requiredListId, "39F59B1A26E9B0818EBE");
+    assert.equal(audit.countryCode, "KR");
+    assert.ok(audit.fileTitle.startsWith("File:"));
+    assert.match(audit.mediaSha1, /^[0-9a-f]{40}$/);
+    assert.ok(
+      distanceMeters(
+        audit.catalogCoordinates.lat,
+        audit.catalogCoordinates.lng,
+        audit.fileCoordinates.lat,
+        audit.fileCoordinates.lng
+      ) <= 1_500,
+      `${destinationId} reviewed file must stay within 1.5 km of its summit`
+    );
+  }
+  assert.equal(
+    Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+      .some((audit) => audit.fileTitle.includes("Seoraksan")),
+    false
+  );
+  assert.equal(
+    Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+      .some((audit) => audit.fileTitle.includes("설악산")),
+    false
+  );
+});
+
+test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
+  const title = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"].fileTitle;
+  const url = reviewedCommonsFileApiUrl(title);
+  assert.equal(url.hostname, "commons.wikimedia.org");
+  assert.equal(url.searchParams.get("titles"), title);
+  assert.equal(url.searchParams.get("prop"), "imageinfo|coordinates");
+  for (const forbidden of [
+    "redirects",
+    "generator",
+    "list",
+    "gscoord",
+    "gsradius",
+    "gslimit",
+    "clcategories",
+    "clshow",
+  ]) {
+    assert.equal(url.searchParams.has(forbidden), false, forbidden);
+  }
+  assert.doesNotMatch(url.toString(), /P373|geosearch|categor/iu);
+  assert.throws(
+    () => reviewedCommonsFileApiUrl(title.replace("File:", "")),
+    /not canonical/
+  );
+});
+
+test("all five exact reviewed Commons bindings yield pending-review evidence", async () => {
+  for (const audit of Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)) {
+    const calls: string[] = [];
+    const unexpected = async (): Promise<never> => {
+      assert.fail("a pinned reviewed Commons row must not enter article discovery");
+    };
+    const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+      resolveWikidataArticle: unexpected,
+      searchWikipediaArticles: unexpected,
+      fetchWikipediaArticle: unexpected,
+      fetchWikidataLeadImage: unexpected,
+      async fetchReviewedCommonsFile(fileTitle) {
+        calls.push(fileTitle);
+        assert.equal(fileTitle, audit.fileTitle);
+        return reviewedImage(audit);
+      },
+      fetchImageMetadata: unexpected,
+    }));
+
+    assert.equal(plan.kind, "candidate");
+    if (plan.kind !== "candidate") assert.fail("expected reviewed Commons candidate");
+    assert.deepEqual(calls, [audit.fileTitle]);
+    assert.equal(plan.candidate.destinationId, audit.destinationId);
+    assert.equal(plan.candidate.matchedArticleTitle, null);
+    assert.equal(plan.candidate.matchedWikidataId, audit.catalogWikidataId);
+    assert.equal(plan.candidate.catalogWikidataId, audit.catalogWikidataId);
+    assert.equal(plan.candidate.mediaSha1, audit.mediaSha1);
+    assert.equal(plan.candidate.sourceKind, "wikimedia_commons");
+    assert.equal(plan.candidate.evidence.type, "reviewed_commons_file");
+    if (plan.candidate.evidence.type !== "reviewed_commons_file") {
+      assert.fail("expected reviewed Commons evidence");
+    }
+    assert.equal(plan.candidate.evidence.destinationId, audit.destinationId);
+    assert.equal(plan.candidate.evidence.requiredListId, audit.requiredListId);
+    assert.equal(plan.candidate.evidence.fileTitle, audit.fileTitle);
+    assert.deepEqual(
+      plan.candidate.evidence.catalogCoordinates,
+      audit.catalogCoordinates
+    );
+    assert.match(plan.candidate.notes ?? "", /Human-reviewed exact Commons file/);
+    assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
+    assert.equal("heroImage" in plan.candidate, false);
+  }
+});
+
+test("reviewed Commons bindings fail closed when the frozen catalog identity changes", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["8E2DBAEC5DB4481221F2"];
+  const cases: Array<[string, Partial<ListedPhotoGapRow>]> = [
+    ["name", { name: "덕숭산" }],
+    ["country", { country_code: "KP" }],
+    ["list", { list_ids: ["another-list"] }],
+    ["Wikidata", { wikidata_id: "Q123" }],
+    ["catalog coordinate", { lat: audit.catalogCoordinates.lat + 0.001 }],
+  ];
+
+  for (const [label, override] of cases) {
+    let calls = 0;
+    const plan = await planListedPhotoCandidate(reviewedRow(audit, override), client({
+      async fetchReviewedCommonsFile() {
+        calls += 1;
+        return reviewedImage(audit);
+      },
+    }));
+    assert.equal(plan.kind, "miss", label);
+    if (plan.kind !== "miss") assert.fail(`expected ${label} to fail`);
+    assert.equal(plan.code, "reviewed_commons_catalog_changed", label);
+    assert.equal(calls, 0, `${label} drift must fail before a Commons request`);
+  }
+});
+
+test("reviewed Commons bindings reject every frozen file-metadata change", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"];
+  const cases: Array<[string, Partial<WikimediaImageMetadata>]> = [
+    ["title", { fileTitle: "File:Different mountain.jpg" }],
+    ["redirect", { fileTitleAliases: [audit.fileTitle] }],
+    ["source", { sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Different.jpg" }],
+    [
+      "source title case",
+      {
+        sourcePageUrl:
+          `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle.toUpperCase())}`,
+      },
+    ],
+    ["author", { photographer: "Another photographer" }],
+    ["license", { licenseName: "CC BY-SA 3.0" }],
+    ["width", { width: audit.width + 1 }],
+    ["height", { height: audit.height + 1 }],
+    ["SHA-1", { mediaSha1: "0123456789abcdef0123456789abcdef01234567" }],
+    ["missing coordinate", { coordinates: null }],
+    ["duplicate coordinate", { coordinateCount: 2 }],
+    [
+      "moved coordinate",
+      { coordinates: { lat: audit.fileCoordinates.lat + 0.001, lng: audit.fileCoordinates.lng } },
+    ],
+  ];
+
+  for (const [label, override] of cases) {
+    const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+      async fetchReviewedCommonsFile() {
+        return reviewedImage(audit, override);
+      },
+    }));
+    assert.equal(plan.kind, "miss", label);
+    if (plan.kind !== "miss") assert.fail(`expected ${label} to fail`);
+    assert.equal(plan.code, "reviewed_commons_file_changed", label);
+    assert.equal(plan.rejectedImages?.length, 1, label);
+  }
+});
+
+test("a pinned reviewed Commons row never falls through after an exact-file miss", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9676E99C140134852220"];
+  let articleCalls = 0;
+  const unexpectedArticleCall = async (): Promise<never> => {
+    articleCalls += 1;
+    assert.fail("pinned rows must not fall through to article discovery");
+  };
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    resolveWikidataArticle: unexpectedArticleCall,
+    searchWikipediaArticles: unexpectedArticleCall,
+    fetchWikipediaArticle: unexpectedArticleCall,
+    fetchWikidataLeadImage: unexpectedArticleCall,
+    async fetchReviewedCommonsFile() {
+      return null;
+    },
+    fetchImageMetadata: unexpectedArticleCall,
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected exact-file miss");
+  assert.equal(plan.code, "reviewed_commons_file_unresolved");
+  assert.equal(articleCalls, 0);
+});
+
+test("a pinned row resolves SHA-less review history with exact Commons requests", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES.D319B2B83A218D9A2C81;
+  const historicalSource = "https://commons.wikimedia.org/wiki/File:Old_Hwangmaesan.jpg";
+  const calls: string[] = [];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit, {
+    existing_source_page_urls: [historicalSource],
+    existing_source_page_urls_without_sha: [historicalSource],
+  }), client({
+    async fetchReviewedCommonsFile(fileTitle) {
+      calls.push(fileTitle);
+      return null;
+    },
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected unresolved history miss");
+  assert.equal(plan.code, "historical_source_identity_unresolved");
+  assert.deepEqual(calls, ["File:Old Hwangmaesan.jpg"]);
+});
+
 test("stored Wikidata identity yields a pending candidate, never a hero-image write", async () => {
   const plan = await planListedPhotoCandidate(row(), client());
   assert.equal(plan.kind, "candidate");
   if (plan.kind !== "candidate") assert.fail("expected a candidate");
   assert.equal(plan.candidate.destinationId, "dest-rainier");
   assert.equal(plan.candidate.matchedWikidataId, "Q194057");
+  assert.equal(plan.candidate.evidence.type, "wikipedia_article");
   assert.equal(plan.candidate.sourceKind, "wikimedia_commons");
   assert.equal(plan.candidate.imageWidth, 4_000);
   assert.equal(plan.candidate.mediaSha1, RAINIER_MEDIA_SHA1);
@@ -940,6 +1207,11 @@ test("only the two frozen Korean P18 audits can add pending candidates", async (
     assert.equal(plan.candidate.photographer, audited.photographer);
     assert.equal(plan.candidate.licenseName, "CC BY-SA 3.0");
     assert.equal(plan.candidate.mediaSha1, audited.mediaSha1);
+    assert.equal(plan.candidate.evidence.type, "wikipedia_article");
+    if (plan.candidate.evidence.type !== "wikipedia_article") {
+      assert.fail("expected article-anchored P18 evidence");
+    }
+    assert.equal(plan.candidate.evidence.discovery, "audited_wikidata_p18");
     assert.match(plan.candidate.notes ?? "", /human-audited same-entity Wikidata P18/);
     assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
     assert.equal("heroImage" in plan.candidate, false);
@@ -1323,6 +1595,7 @@ function currentState(overrides: Record<string, unknown> = {}): Record<string, u
     lng: -121.7603,
     country_code: "US",
     wikidata_id: "Q194057",
+    list_ids: ["state-high-points"],
     has_usable_cover: false,
     has_pending_candidate: false,
     ...overrides,
@@ -1459,6 +1732,41 @@ test("queue refuses a destination identity that changed after research", async (
   const countryChanged = new QueryStub([{ rows: [currentState({ country_code: "CA" })] }]);
   assert.equal(await queueListedPhotoCandidate(countryChanged, await candidate()), "identity_changed");
   assert.equal(countryChanged.calls.length, 1);
+});
+
+test("queue rechecks the exact KFS list and nullable Wikidata binding", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["958AD1411BC49B469BE1"];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit);
+    },
+  }));
+  if (plan.kind !== "candidate") assert.fail("expected reviewed Commons candidate");
+  const state = {
+    name: audit.destinationName,
+    lat: audit.catalogCoordinates.lat,
+    lng: audit.catalogCoordinates.lng,
+    country_code: audit.countryCode,
+    wikidata_id: audit.catalogWikidataId,
+    list_ids: [audit.requiredListId],
+    has_usable_cover: false,
+    has_pending_candidate: false,
+  };
+
+  const leftList = new QueryStub([{ rows: [{ ...state, list_ids: ["other-list"] }] }]);
+  assert.equal(
+    await queueListedPhotoCandidate(leftList, plan.candidate),
+    "identity_changed"
+  );
+  assert.equal(leftList.calls.length, 1);
+  assert.match(leftList.calls[0].text, /ARRAY\([\s\S]*list_destinations/);
+
+  const gainedWikidata = new QueryStub([{ rows: [{ ...state, wikidata_id: "Q123" }] }]);
+  assert.equal(
+    await queueListedPhotoCandidate(gainedWikidata, plan.candidate),
+    "identity_changed"
+  );
+  assert.equal(gainedWikidata.calls.length, 1);
 });
 
 test("audit reports the whole gap set, limit deferrals, pending review, and $0 fixed cost", async () => {
