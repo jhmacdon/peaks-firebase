@@ -11,6 +11,11 @@ These four units would move the checked list denominator from 38 of 83 to 42 of
 83 only after that work passes. This source fixture alone does not change
 coverage.
 
+The follow-up [identity analysis](./keeper-list-dobih-majority-four-identities-2026-08-31.md)
+checks the 317 prior overlaps against a fresh read-only catalog snapshot and
+finds 169 safe new catalog matches. It leaves 530 identities open and still
+does not add an importer.
+
 The change adds no service, timer, job, or other running resource. Run-rate
 change: **$0/month**.
 
