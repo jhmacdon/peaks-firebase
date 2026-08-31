@@ -13,15 +13,15 @@ import {
   DOBIH_OPEN_EIGHT_KEEPER_LISTS,
 } from "./keeper-list-import/bundles/dobih-open-eight";
 
-const DOBIH_CSV_SHA256 =
+export const DOBIH_CSV_SHA256 =
   "d27bc69dbb6d30a6f171ef277408831fe8763fc9043422f4e375e63f4cc190ea";
-const DOBIH_ARCHIVE_SHA256 =
+export const DOBIH_ARCHIVE_SHA256 =
   "0c39e13ac59dd3fa172ac21dd56dd0f6fef19a14af47c7a5a444cce691e9f021";
-const DOBIH_SOURCES_SHA256 =
+export const DOBIH_SOURCES_SHA256 =
   "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402";
 const CORRECTED_20085_RAW_NAME = "Meenteog [Moing an tSamhaidh]]";
 
-type SelectionFlag =
+export type DobihSelectionFlag =
   | "C"
   | "W"
   | "MT"
@@ -32,16 +32,19 @@ type SelectionFlag =
   | "Fel"
   | "VL"
   | "Hew"
-  | "G";
+  | "G"
+  | "B"
+  | "Sy"
+  | "sMa";
 
-interface ParsedDobihRow {
+export interface ParsedDobihRow {
   number: number;
   rawName: string;
   metres: string;
   latitude: string;
   longitude: string;
   country: string;
-  flags: Record<SelectionFlag, boolean>;
+  flags: Record<DobihSelectionFlag, boolean>;
 }
 
 interface OpenEightSelection {
@@ -50,7 +53,7 @@ interface OpenEightSelection {
   includes(row: ParsedDobihRow): boolean;
 }
 
-const FLAG_COLUMNS: SelectionFlag[] = [
+const FLAG_COLUMNS: DobihSelectionFlag[] = [
   "C",
   "W",
   "MT",
@@ -62,6 +65,9 @@ const FLAG_COLUMNS: SelectionFlag[] = [
   "VL",
   "Hew",
   "G",
+  "B",
+  "Sy",
+  "sMa",
 ];
 
 const REQUIRED_COLUMNS = [
@@ -239,7 +245,7 @@ function parseFiniteNumber(value: string, label: string): number {
   return parsed;
 }
 
-function parseDobihRows(csvText: string): ParsedDobihRow[] {
+export function parseDobihRows(csvText: string): ParsedDobihRow[] {
   const matrix = parseStrictCsv(csvText);
   if (matrix.length < 2) throw new Error("DoBIH CSV has no data rows");
   const headers = matrix[0].map((header) => header.trim());
@@ -276,7 +282,7 @@ function parseDobihRows(csvText: string): ParsedDobihRow[] {
     const country = valueAt(row, "Country").trim();
     if (country.length === 0) throw new Error(`DoBIH Number ${number} has no Country`);
 
-    const flags = {} as Record<SelectionFlag, boolean>;
+    const flags = {} as Record<DobihSelectionFlag, boolean>;
     for (const column of FLAG_COLUMNS) {
       const value = valueAt(row, column).trim();
       if (value !== "0" && value !== "1") {
@@ -326,7 +332,10 @@ export function normalizeDobihName(
   return { name, aliases };
 }
 
-function buildSourceMember(row: ParsedDobihRow, ordinal: number): KeeperSourceMember {
+export function buildDobihSourceMember(
+  row: ParsedDobihRow,
+  ordinal: number
+): KeeperSourceMember {
   const { name, aliases } = normalizeDobihName(row.number, row.rawName);
   const elevationM = parseFiniteNumber(row.metres, `DoBIH Number ${row.number} Metres`);
   const lat = parseFiniteNumber(row.latitude, `DoBIH Number ${row.number} Latitude`);
@@ -473,7 +482,7 @@ export function buildDobihOpenEightFixture(
     lists[definition.sourceKey] = {
       source: "dobih-v18.5",
       selection: selection.selection,
-      rows: selectedRows.map((row, index) => buildSourceMember(row, index + 1)),
+      rows: selectedRows.map((row, index) => buildDobihSourceMember(row, index + 1)),
     };
   }
 
