@@ -41,7 +41,7 @@ function officialPath(
 
 test("production registry has exactly one reviewed ArcGIS publisher", () => {
   const sources = listOfficialTrailSources();
-  assert.equal(sources.length, 63);
+  assert.equal(sources.length, 64);
   assert.equal(
     new Set(sources.flatMap((source) => source.coverage.countries)).size,
     51
@@ -53,7 +53,7 @@ test("production registry has exactly one reviewed ArcGIS publisher", () => {
         sources.filter((source) => source.status === status).length,
       ])
     ),
-    { ready_publishable: 1, validation_only: 38, manual_gap: 24 }
+    { ready_publishable: 1, validation_only: 39, manual_gap: 24 }
   );
   assert.deepEqual(
     sources
@@ -267,6 +267,27 @@ test("USGS remains recorded as an existing adapter", () => {
   assert.equal(source.sourceKind, "existing_adapter");
   assert.equal(source.existingAdapter, "usgs-national-digital-trails");
   assert.equal(source.service, undefined);
+});
+
+test("KFS archive stays validation-only and separate from current access", () => {
+  const source = getOfficialTrailSource("south-korea-kfs-hiking-trails-archive");
+  assert.equal(source.status, "validation_only");
+  assert.equal(source.sourceKind, "managed_trails");
+  assert.equal(source.service, undefined);
+  assert.equal(source.accessPolicy, undefined);
+  assert.equal(source.license.commercialUse, "unclear");
+  assert.equal(source.license.derivativeUse, "unclear");
+  assert.equal(
+    source.endpoints.find((endpoint) => endpoint.type === "bulk")?.url,
+    "https://www.forest.go.kr/kfsweb/opda/dataMng/fileDown.do?dataType=/mount/mountain.zip"
+  );
+  assert.match(source.limits.join("\n"), /2016-12-31/);
+  assert.match(source.limits.join("\n"), /not current access/i);
+  assert.match(source.limits.join("\n"), /trailhead candidates/i);
+  assert.throws(
+    () => getPublishableArcgisTrailSource(source.id),
+    /not approved for publication/
+  );
 });
 
 test("reviewed catalog keeps current sources and uncertain rights fail closed", () => {

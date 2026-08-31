@@ -111,7 +111,7 @@ test("access evidence must be the exact URL of a strong identity source", () => 
   );
   assert.throws(
     () => validateRouteAccessSource("https://attacker.example/access", sources),
-    /exactly match a strong identity source/
+    /exactly match a strong current-access source/
   );
   assert.throws(
     () =>
@@ -119,6 +119,6 @@ test("access evidence must be the exact URL of a strong identity source", () => 
         "https://www.alltrails.com/trail/us/washington/example",
         sources
       ),
-    /exactly match a strong identity source/
+    /exactly match a strong current-access source/
   );
 });

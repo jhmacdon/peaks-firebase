@@ -16,6 +16,10 @@ const fixedPublisherHosts = new Map<string, readonly string[]>([
   ["wta", ["wta.org"]],
 ]);
 
+const identityOnlyOfficialSources = new Set([
+  "south-korea-kfs-hiking-trails-archive",
+]);
+
 const officialSourcesByType = new Map(
   listOfficialTrailSources().map((source) => [source.id, source])
 );
@@ -58,6 +62,55 @@ function officialSourceHosts(source: OfficialTrailSource): readonly string[] {
     .filter((hostname, index, all) => all.indexOf(hostname) === index);
 }
 
+function ownershipPathname(url: URL): string {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(url.pathname);
+  } catch {
+    decoded = url.pathname;
+  }
+  const withoutMatrixParameters = decoded
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((segment) => segment.split(";", 1)[0])
+    .join("/");
+  const collapsed = withoutMatrixParameters.replace(/\/{2,}/g, "/");
+  return collapsed.length > 1 ? collapsed.replace(/\/+$/, "") : collapsed;
+}
+
+function pathBelongsToReviewedEndpoint(pathname: string, reviewed: string): boolean {
+  return (
+    pathname === reviewed ||
+    pathname.startsWith(`${reviewed}/`) ||
+    pathname.startsWith(`${reviewed};`)
+  );
+}
+
+function identityOnlyOfficialSourceForUrl(url: URL): string | null {
+  const hostname = normalizedHostname(url.toString());
+  const pathname = ownershipPathname(url);
+  for (const sourceId of identityOnlyOfficialSources) {
+    const source = officialSourcesByType.get(sourceId);
+    if (!source) {
+      throw new Error(`identity-only official source is not registered: ${sourceId}`);
+    }
+    for (const reviewedUrl of [
+      source.discoveryUrl,
+      ...source.endpoints.map(({ url: endpointUrl }) => endpointUrl),
+    ]) {
+      const reviewed = new URL(reviewedUrl);
+      const reviewedPathname = ownershipPathname(reviewed);
+      if (
+        hostMatches(hostname, normalizedHostname(reviewed.toString())) &&
+        pathBelongsToReviewedEndpoint(pathname, reviewedPathname)
+      ) {
+        return sourceId;
+      }
+    }
+  }
+  return null;
+}
+
 export function validateRouteIdentitySource(
   value: unknown,
   index: number
@@ -76,6 +129,12 @@ export function validateRouteIdentitySource(
   }
   const type = source.type.trim().toLowerCase();
   const parsedUrl = publicHttpsUrl(source.url, `${label}.url`);
+  const identityOnlyOwner = identityOnlyOfficialSourceForUrl(parsedUrl);
+  if (identityOnlyOwner && identityOnlyOwner !== type) {
+    throw new Error(
+      `candidate identity source URL belongs to ${identityOnlyOwner}, not ${type}`
+    );
+  }
   const hostname = normalizedHostname(parsedUrl.toString());
   const fixedHosts = fixedPublisherHosts.get(type);
   if (fixedHosts) {
@@ -108,17 +167,23 @@ export function validateRouteAccessSource(
   value: unknown,
   identitySources: readonly ValidatedRouteIdentitySource[]
 ): string {
-  const sourceUrl = publicHttpsUrl(
-    value,
-    "candidate access.source_url"
-  ).toString();
+  const parsedSourceUrl = publicHttpsUrl(value, "candidate access.source_url");
+  const sourceUrl = parsedSourceUrl.toString();
+  if (identityOnlyOfficialSourceForUrl(parsedSourceUrl)) {
+    throw new Error(
+      "candidate access.source_url is archival identity evidence and cannot prove current access"
+    );
+  }
   if (
     !identitySources.some(
-      (source) => isStrongRouteIdentitySource(source.type) && source.url === sourceUrl
+      (source) =>
+        isStrongRouteIdentitySource(source.type) &&
+        !identityOnlyOfficialSources.has(source.type) &&
+        source.url === sourceUrl
     )
   ) {
     throw new Error(
-      "candidate access.source_url must exactly match a strong identity source"
+      "candidate access.source_url must exactly match a strong current-access source"
     );
   }
   return sourceUrl;

@@ -1147,6 +1147,48 @@
       ]
     },
     {
+      "id": "south-korea-kfs-hiking-trails-archive",
+      "name": "Korea Forest Service Hiking Trail Archive",
+      "authority": "Korea Forest Service",
+      "sourceKind": "managed_trails",
+      "status": "validation_only",
+      "reviewedAt": "2026-08-27",
+      "coverage": {
+        "countries": ["KR"],
+        "jurisdiction": "South Korea",
+        "summary": "Korea Forest Service mountain hiking-trail lines and managed spot records in one national archive."
+      },
+      "discoveryUrl": "https://www.data.go.kr/data/3034022/fileData.do",
+      "endpoints": [
+        {
+          "type": "bulk",
+          "url": "https://www.forest.go.kr/kfsweb/opda/dataMng/fileDown.do?dataType=/mount/mountain.zip",
+          "format": "ZIP of per-mountain shapefile, Esri JSON, and GPX packages",
+          "purpose": "Validate official trail alignment and identify agency start/end point candidates from the pinned archive."
+        },
+        {
+          "type": "catalog",
+          "url": "https://www.data.go.kr/data/3034022/fileData.do",
+          "format": "Korean Public Data Portal file-data record",
+          "purpose": "Check the archive description, update record, and reuse notice."
+        }
+      ],
+      "license": {
+        "name": "Korean Public Data Portal file-data terms; archive-specific review pending",
+        "url": "https://www.data.go.kr/data/3034022/fileData.do",
+        "attribution": "Korea Forest Service.",
+        "commercialUse": "unclear",
+        "derivativeUse": "unclear"
+      },
+      "limits": [
+        "Keep this source validation-only: the reviewed archive has 2,932 package IDs while the catalog reports 2,919 records, and no publishable adapter has been approved.",
+        "Confirm the archive file's exact commercial and derivative reuse terms before any publication review; do not borrow terms from another Korean public dataset.",
+        "The archive fields are old, with the main snapshot dated 2016-12-31; the archive URL and catalog URL are not current access evidence and do not prove closures, permits, or hazards.",
+        "MANAGE_SP1=01 and MANAGE_SP2=시종점 records are trailhead candidates only; they do not prove parking, legal public access, or a usable route start.",
+        "Use the outer nine-digit package ID and PMNTN_SN as the stable line key, ignore zero-elevation GPX, and bind destinations only through a separately checked ID crosswalk."
+      ]
+    },
+    {
       "id": "mainland-china-official-route-gap",
       "name": "Mainland China Official Route Data Gap",
       "authority": "National Forestry and Grassland Administration (National Park Administration), PRC",
