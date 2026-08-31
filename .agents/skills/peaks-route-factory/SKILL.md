@@ -243,7 +243,8 @@ zero:
 ```
 
 It also requires a fully credited destination cover and a derived cover for
-every active Peaks route linked to the list set. A route-only zero is not the
+every active Peaks-owned route. Run this final gate from an operator checkout;
+factory, repair, and reviewer checkouts reject it. A route-only zero is not the
 finished goal.
 
 Use [references/luna-goal-prompt.md](references/luna-goal-prompt.md) for general

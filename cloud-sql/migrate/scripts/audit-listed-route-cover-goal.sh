@@ -13,7 +13,7 @@ usage() {
     "          [--require-complete] [--print-sql]" \
     "" \
     "Audits route and cover-photo completeness for every destination on a" \
-    "Peaks-owned list and every active Peaks route linked to those destinations." \
+    "Peaks-owned list and every active Peaks-owned route." \
     "" \
     "A destination is complete only when it is a summit, has a fully credited" \
     "cover, has a publish-valid active standard route with a derived cover, and" \
@@ -26,7 +26,11 @@ usage() {
 while (($#)); do
   case "$1" in
     --format)
-      format="${2:?--format requires a value}"
+      if (($# < 2)); then
+        printf '%s\n' "--format requires a value" >&2
+        exit 2
+      fi
+      format="$2"
       shift 2
       ;;
     --incomplete-only)
@@ -38,7 +42,11 @@ while (($#)); do
       shift
       ;;
     --limit)
-      row_limit="${2:?--limit requires a value}"
+      if (($# < 2)); then
+        printf '%s\n' "--limit requires a value" >&2
+        exit 2
+      fi
+      row_limit="$2"
       shift 2
       ;;
     --print-sql)
@@ -67,6 +75,10 @@ if ! [[ "$row_limit" =~ ^[0-9]+$ ]]; then
 fi
 if [[ "$require_complete" == "true" && "$format" != "summary" ]]; then
   printf '%s\n' "--require-complete requires --format summary" >&2
+  exit 2
+fi
+if [[ "$require_complete" == "true" && "$print_sql" == "true" ]]; then
+  printf '%s\n' "--require-complete cannot be combined with --print-sql" >&2
   exit 2
 fi
 
@@ -165,13 +177,63 @@ goal_rows AS (
   LEFT JOIN route_evidence evidence
     ON evidence.destination_id = listed.id
 ),
-listed_routes AS (
-  SELECT route_id,
-         MIN(route_name) AS route_name,
-         BOOL_OR(route_cover_complete) AS route_cover_complete
-  FROM route_links
-  WHERE active_peaks_route
-  GROUP BY route_id
+active_peaks_routes AS (
+  SELECT r.id AS route_id,
+         r.name AS route_name,
+         cover.route_id IS NOT NULL AS route_cover_complete
+  FROM routes r
+  LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
+  WHERE r.owner = 'peaks'
+    AND r.status = 'active'
+),
+detail_rows AS (
+  SELECT 'listed_destination'::text AS record_type,
+         id AS destination_id,
+         NULL::text AS route_id,
+         name,
+         country_code,
+         state_code,
+         elevation,
+         prominence,
+         lat,
+         lng,
+         list_names,
+         summit_feature_valid,
+         destination_cover_complete,
+         has_standard_route,
+         has_standard_route_cover,
+         active_peaks_routes,
+         valid_active_peaks_routes,
+         valid_active_peaks_routes_with_cover,
+         active_peaks_routes_without_cover,
+         route_ids_without_cover,
+         NULL::boolean AS route_cover_complete,
+         listed_route_cover_complete AS complete
+  FROM goal_rows
+  UNION ALL
+  SELECT 'active_peaks_route'::text AS record_type,
+         NULL::text AS destination_id,
+         route_id,
+         route_name AS name,
+         NULL::text AS country_code,
+         NULL::text AS state_code,
+         NULL::double precision AS elevation,
+         NULL::double precision AS prominence,
+         NULL::double precision AS lat,
+         NULL::double precision AS lng,
+         '{}'::text[] AS list_names,
+         NULL::boolean AS summit_feature_valid,
+         NULL::boolean AS destination_cover_complete,
+         NULL::boolean AS has_standard_route,
+         NULL::boolean AS has_standard_route_cover,
+         NULL::bigint AS active_peaks_routes,
+         NULL::bigint AS valid_active_peaks_routes,
+         NULL::bigint AS valid_active_peaks_routes_with_cover,
+         NULL::bigint AS active_peaks_routes_without_cover,
+         '{}'::text[] AS route_ids_without_cover,
+         route_cover_complete,
+         route_cover_complete AS complete
+  FROM active_peaks_routes
 )
 SQL
 
@@ -195,14 +257,15 @@ SELECT COUNT(*) AS listed_destinations,
          AS complete_listed_destinations,
        COUNT(*) FILTER (WHERE NOT listed_route_cover_complete)
          AS incomplete_listed_destinations,
-       (SELECT COUNT(*) FROM listed_routes) AS active_listed_routes,
-       (SELECT COUNT(*) FROM listed_routes WHERE route_cover_complete)
-         AS active_listed_routes_with_cover,
-       (SELECT COUNT(*) FROM listed_routes WHERE NOT route_cover_complete)
-         AS active_listed_routes_missing_cover,
-       COUNT(*) FILTER (WHERE NOT listed_route_cover_complete) = 0
+       (SELECT COUNT(*) FROM active_peaks_routes) AS active_peaks_routes,
+       (SELECT COUNT(*) FROM active_peaks_routes WHERE route_cover_complete)
+         AS active_peaks_routes_with_cover,
+       (SELECT COUNT(*) FROM active_peaks_routes WHERE NOT route_cover_complete)
+         AS active_peaks_routes_missing_cover,
+       COUNT(*) > 0
+         AND COUNT(*) FILTER (WHERE NOT listed_route_cover_complete) = 0
          AND NOT EXISTS (
-           SELECT 1 FROM listed_routes WHERE NOT route_cover_complete
+           SELECT 1 FROM active_peaks_routes WHERE NOT route_cover_complete
          ) AS goal_complete
 FROM goal_rows;
 SQL
@@ -211,7 +274,9 @@ elif [[ "$format" == "json" ]]; then
 SELECT COALESCE(
          JSONB_AGG(
            JSONB_BUILD_OBJECT(
-             'destination_id', id,
+             'record_type', record_type,
+             'destination_id', destination_id,
+             'route_id', route_id,
              'name', name,
              'state_code', state_code,
              'country_code', country_code,
@@ -231,24 +296,29 @@ SELECT COALESCE(
              'active_peaks_routes_without_cover',
                active_peaks_routes_without_cover,
              'route_ids_without_cover', route_ids_without_cover,
-             'listed_route_cover_complete', listed_route_cover_complete
+             'route_cover_complete', route_cover_complete,
+             'complete', complete
            )
-           ORDER BY listed_route_cover_complete, name, id
+           ORDER BY complete, record_type, name,
+             COALESCE(destination_id, route_id)
          ),
          '[]'::jsonb
-       )
+       ) AS detail_rows
 FROM (
   SELECT *
-  FROM goal_rows
+  FROM detail_rows
   WHERE NOT :'incomplete_only'::boolean
-     OR NOT listed_route_cover_complete
-  ORDER BY listed_route_cover_complete, name, id
+     OR NOT complete
+  ORDER BY complete, record_type, name,
+    COALESCE(destination_id, route_id)
   LIMIT NULLIF(:'row_limit', '0')::integer
 ) rows;
 SQL
 else
   read -r -d '' output_sql <<'SQL' || true
-SELECT id AS destination_id,
+SELECT record_type,
+       destination_id,
+       route_id,
        name,
        country_code,
        state_code,
@@ -265,13 +335,15 @@ SELECT id AS destination_id,
        active_peaks_routes_without_cover,
        ARRAY_TO_STRING(route_ids_without_cover, ' | ')
          AS route_ids_without_cover,
-       listed_route_cover_complete,
+       route_cover_complete,
+       complete,
        ROUND(lat::numeric, 6) AS lat,
        ROUND(lng::numeric, 6) AS lng
-FROM goal_rows
+FROM detail_rows
 WHERE NOT :'incomplete_only'::boolean
-   OR NOT listed_route_cover_complete
-ORDER BY listed_route_cover_complete, name, id
+   OR NOT complete
+ORDER BY complete, record_type, name,
+  COALESCE(destination_id, route_id)
 LIMIT NULLIF(:'row_limit', '0')::integer;
 SQL
 fi
