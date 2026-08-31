@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://www.data.go.kr/data/15058662/openapi.do",
+  "retrievedAt": "2026-08-31",
+  "rawPageSha256": "a47c620cd929e92f4ea747f1f9cb2573c93fa0049b51a36b9b1284ff691fadb8",
+  "datasetId": "15058662",
+  "title": "산림청_산정보 서비스(국내 소재 3,368개 설명)",
+  "provider": "산림청",
+  "modifiedAt": "2025-09-11",
+  "coverageEvidence": "100대 명산",
+  "licenseScope": "이용허락범위 제한 없음",
+  "licenseScopeEnglish": "No restriction on use"
+}

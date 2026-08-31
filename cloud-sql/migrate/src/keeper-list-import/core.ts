@@ -34,6 +34,7 @@ export interface KeeperSourceMember {
   dobihNumber?: number;
   buyseMainNumber?: number;
   zone?: number;
+  kfsMntnId?: string;
 }
 
 export interface KeeperSourceList {
@@ -128,6 +129,7 @@ export interface KeeperResolutionRow {
   destinationOsmNodeId: string | null;
   destinationCountryCode: string;
   destinationStateCode: string | null;
+  destinationExternalIds?: Record<string, string>;
   destinationDataSourceName?: string;
   destinationDataSourceUrl?: string;
   destinationDataLicense?: string | null;
@@ -422,10 +424,11 @@ export function parseKeeperImportArgs(argv = process.argv.slice(2)): KeeperImpor
 export function normalizeKeeperPeakName(name: string): string {
   return name
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{M}+/gu, "")
+    .normalize("NFC")
     .toLocaleLowerCase("en")
     .replace(/[\u2010-\u2015-]+/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .replace(/\s+/g, " ");
 }
@@ -761,6 +764,20 @@ export function validateKeeperResolutionFixture(
           (!isNonEmptyString(row.destinationOsmNodeId) ||
            !/^\d+$/.test(row.destinationOsmNodeId))) {
         throw new Error(`Keeper resolution ${rowKey} has an invalid OSM node ID`);
+      }
+      if (row.destinationExternalIds != null) {
+        assertValidExternalIdRecord(
+          row.destinationExternalIds,
+          `Keeper resolution ${rowKey} destination fingerprint`
+        );
+        if (row.resolution !== "existing_destination" ||
+            (row.destinationOsmNodeId == null
+              ? row.destinationExternalIds.osm != null
+              : row.destinationExternalIds.osm !== row.destinationOsmNodeId)) {
+          throw new Error(
+            `Keeper resolution ${rowKey} has invalid pinned destination external IDs`
+          );
+        }
       }
       if (row.resolution !== "existing_destination" &&
           (!isNonEmptyString(row.destinationDataSourceName) ||
@@ -1131,7 +1148,9 @@ function resolutionDestinationFingerprint(
       externalIds: resolution.destinationOsmNodeId == null
         ? {}
         : { osm: resolution.destinationOsmNodeId },
-    } : {}),
+    } : resolution.destinationExternalIds == null ? {} : {
+      externalIds: { ...resolution.destinationExternalIds },
+    }),
   };
 }
 

@@ -311,6 +311,17 @@ test("normalizes accents and punctuation without joining words", () => {
   assert.notEqual(normalizeKeeperPeakName("North Peak"), normalizeKeeperPeakName("Northpeak"));
 });
 
+test("keeps Korean letters and digits while folding marks and dashes", () => {
+  assert.equal(normalizeKeeperPeakName("한라산"), "한라산");
+  assert.equal(normalizeKeeperPeakName("남산(금오산)"), "남산 금오산");
+  assert.equal(normalizeKeeperPeakName("백운산 20000004"), "백운산 20000004");
+  assert.notEqual(normalizeKeeperPeakName("백운산"), normalizeKeeperPeakName("한라산"));
+  assert.equal(
+    normalizeKeeperPeakName("Pico Lézat—Nord"),
+    normalizeKeeperPeakName("Pico Lezat Nord")
+  );
+});
+
 test("pins the exact keeper fixture counts and durable identities", () => {
   validateKeeperFixture(fixture, KEEPER_LISTS);
   assert.equal(fixture.lists["dobih-corbetts"].rows.length, 222);
