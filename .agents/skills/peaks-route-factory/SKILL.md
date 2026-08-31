@@ -233,6 +233,19 @@ Release or clear the lease, run `routes:jobs stats`, and report:
 - next safe action;
 - total verified and remaining.
 
+Do not call the listed-peak goal complete until this read-only final gate exits
+zero:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
+  cloud-sql/migrate/scripts/audit-listed-route-cover-goal.sh \
+  --format summary --require-complete
+```
+
+It also requires a fully credited destination cover and a derived cover for
+every active Peaks route linked to the list set. A route-only zero is not the
+finished goal.
+
 Use [references/luna-goal-prompt.md](references/luna-goal-prompt.md) for general
 workers, [references/luna-repair-goal-prompt.md](references/luna-repair-goal-prompt.md)
 for repair, and [references/luna-review-goal-prompt.md](references/luna-review-goal-prompt.md)

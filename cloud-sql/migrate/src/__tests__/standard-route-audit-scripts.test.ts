@@ -19,6 +19,10 @@ import {
 const MIGRATE_ROOT = join(__dirname, "../..");
 const REPO_ROOT = join(MIGRATE_ROOT, "../..");
 const GOAL_AUDIT = join(MIGRATE_ROOT, "scripts/audit-standard-route-goal.sh");
+const COVER_GOAL_AUDIT = join(
+  MIGRATE_ROOT,
+  "scripts/audit-listed-route-cover-goal.sh"
+);
 const GAP_AUDIT = join(
   REPO_ROOT,
   ".claude/skills/peaks-standard-route-backfill/scripts/audit_missing_standard_routes.sh"
@@ -60,6 +64,97 @@ test("goal audit targets all and only Peaks-owned lists", () => {
     result.stdout,
     /WHERE 'summit'::destination_feature = ANY\(d\.features\)\s+GROUP BY d\.id/
   );
+});
+
+test("listed route-cover audit keeps every photo and route gap visible", () => {
+  const result = run(COVER_GOAL_AUDIT, "--format", "summary", "--print-sql");
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /WHERE l\.owner = 'peaks'/);
+  assert.match(result.stdout, /NULLIF\(BTRIM\(d\.hero_image\), ''\) IS NOT NULL/);
+  assert.match(result.stdout, /d\.hero_image_attribution/);
+  assert.match(result.stdout, /d\.hero_image_attribution_url/);
+  assert.match(
+    result.stdout,
+    /LEFT JOIN route_cover_photos cover ON cover\.route_id = r\.id/
+  );
+  assert.match(result.stdout, /peaks_route_passes_publish_integrity\(/);
+  assert.match(result.stdout, /active_peaks_routes_without_cover/);
+  assert.match(result.stdout, /active_listed_routes_missing_cover/);
+  assert.match(result.stdout, /listed_route_cover_complete/);
+  assert.match(result.stdout, /AS goal_complete/);
+});
+
+test("listed route-cover detail mode filters only explicit incomplete rows", () => {
+  const result = run(
+    COVER_GOAL_AUDIT,
+    "--format",
+    "json",
+    "--incomplete-only",
+    "--print-sql"
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(
+    result.stdout,
+    /NOT :'incomplete_only'::boolean\s+OR NOT listed_route_cover_complete/
+  );
+
+  const invalid = run(
+    COVER_GOAL_AUDIT,
+    "--format",
+    "json",
+    "--require-complete"
+  );
+  assert.equal(invalid.status, 2);
+  assert.match(invalid.stderr, /requires --format summary/);
+});
+
+test("listed route-cover completion check exits nonzero on any reported gap", () => {
+  const directory = mkdtempSync(join(tmpdir(), "peaks-cover-goal-"));
+  try {
+    const fakePsql = join(directory, "psql");
+    writeFileSync(
+      fakePsql,
+      [
+        "#!/bin/sh",
+        "cat >/dev/null",
+        "printf 'listed_destinations\\tgoal_complete\\n1\\t%s\\n' \"${FAKE_GOAL_COMPLETE:-f}\"",
+        "",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${directory}:${process.env.PATH ?? ""}`,
+      PEAKS_ROUTE_DB_PASS: "test-password",
+    };
+    const incomplete = spawnSync(
+      "bash",
+      [COVER_GOAL_AUDIT, "--require-complete"],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        timeout: 5_000,
+        env: { ...environment, FAKE_GOAL_COMPLETE: "f" },
+      }
+    );
+    assert.equal(incomplete.status, 1, incomplete.stderr || incomplete.stdout);
+    assert.match(incomplete.stderr, /goal is incomplete/);
+
+    const complete = spawnSync(
+      "bash",
+      [COVER_GOAL_AUDIT, "--require-complete"],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        timeout: 5_000,
+        env: { ...environment, FAKE_GOAL_COMPLETE: "t" },
+      }
+    );
+    assert.equal(complete.status, 0, complete.stderr || complete.stdout);
+    assert.match(complete.stdout, /1\tt/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("gap audit supports an explicit worldwide scope", () => {
