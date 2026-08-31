@@ -5,17 +5,17 @@
   "audit_posture": "adversarial",
   "scope": {
     "result_type": "confirmed lower bound, not an exhaustive global denominator",
-    "confirmed_qualifying_units": 85,
+    "confirmed_qualifying_units": 83,
     "coverageClaimSupported": false,
     "majorityClaimSupported": false,
-    "reason": "Registry v1.3 proved 74 qualifying units. This pass proves eleven more: five Mountaineers awards, two Colorado Mountain Club registers, and one unit each from New Zealand, Taiwan, South Africa, and Japan. Several source families and regions still lack a closed discovery boundary.",
+    "reason": "Registry v1.3 proved 74 qualifying units. This pass proves nine more: five Mountaineers awards and one unit each from New Zealand, Taiwan, South Africa, and Japan. Two Colorado Mountain Club completion categories remain uncertain because the owner publishes neither exact row manifests nor stable inclusion keys. Several source families and regions still lack a closed discovery boundary.",
     "rights_rule": "A list that qualifies stays in the denominator even when Peaks lacks reuse rights. Rights and import readiness are separate fields.",
-    "warning": "Do not call 85 the worldwide total. Publish it as a dated confirmed lower bound, keep source defects visible, and accept cited additions and corrections."
+    "warning": "Do not call 83 the worldwide total. Publish it as a dated confirmed lower bound, keep source defects visible, and accept cited additions and corrections."
   },
   "proposal_summary": {
     "proposed_rows": 50,
     "confirmed_qualifying_units_represented": 41,
-    "new_confirmed_omissions": 44,
+    "new_confirmed_omissions": 42,
     "uncertain_rows": 2,
     "rejected_rows": 7,
     "current_31": {
@@ -44,15 +44,13 @@
       "Great Britain Marilyns 1556 -> revised 1550",
       "Southeast Asian Ribus 548 -> reject as stale 229-member regional slice of World Ribus"
     ],
-    "interpretation": "The 41 proposal-derived qualifying units plus 44 newly proved omissions produce the 85-unit confirmed lower bound.",
+    "interpretation": "The 41 proposal-derived qualifying units plus 42 newly proved omissions produce the 83-unit confirmed lower bound.",
     "v1_4_additions": [
       "mountaineers-five-majors",
       "mountaineers-bakers-dozen",
       "mountaineers-cascade-classics",
       "mountaineers-everett-classic-eight",
       "mountaineers-olympic-peaks",
-      "cmc-bicentennials",
-      "cmc-all-13ers",
       "nzac-100-peaks-challenge",
       "taiwan-small-100",
       "mcsa-stellenbosch-10-peaks",
@@ -1384,7 +1382,7 @@
       "https://www.smc.org.uk/hills/",
       "club-roster-and-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "proposal-gap-39",
       "One unit."
     ],
@@ -1401,7 +1399,7 @@
       "https://www.smc.org.uk/hills/",
       "keeper-roster-and-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact_current_variant",
       "proposal-gap-40",
       "Accepted variants stay in one unit."
     ],
@@ -1436,7 +1434,7 @@
       "https://www.smc.org.uk/hills/",
       "club-roster-and-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact_compound_key",
       "replacement-for-proposal-gap-42",
       "Do not count Donald Hills and Donald Tops as separate denominator units."
     ],
@@ -1450,7 +1448,7 @@
       "https://www.mountaineering.ie/content/ChallengeYourself/143",
       "national-body-endorsed-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "proposal-gap-43",
       "MountainViews records finishers and annual awards."
     ],
@@ -1464,9 +1462,9 @@
       "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
       "government-roster",
       "open_government",
-      "not_imported_open",
+      "queued_exact",
       "proposal-gap-44",
-      "Official ZIP SHA-256 0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a; XLSX SHA-256 6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60; normalized ordered roster SHA-256 744d98299fb93653a525a65ba06f46913a2a0877ccae646d4ed4c69de2d17544. The public-data portal states unrestricted reuse and was modified 2026-03-12."
+      "Official ZIP SHA-256 0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a; XLSX SHA-256 6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60; normalized ordered importer roster SHA-256 b26e7aca4881529e65b41ad29626eba4d0b370426b6db9dc6edce0bbbfd903a2 over ordinal, mntnId, normalized official name, and elevation. The public-data portal states unrestricted reuse and was modified 2026-03-12."
     ],
     [
       "great-britain-marilyns",
@@ -1548,7 +1546,7 @@
       "https://www.smc.org.uk/hills/",
       "club-roster-and-full-house-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "omission",
       "SMC explicitly maintains this separate named list; Full House completions include Tops."
     ],
@@ -1562,7 +1560,7 @@
       "https://ldwa.org.uk/hillwalkers/register2.php",
       "club-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "omission",
       "Separate register from the 214 Wainwrights."
     ],
@@ -1590,7 +1588,7 @@
       "https://ldwa.org.uk/hillwalkers/register2.php",
       "club-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "omission",
       "Separate completion register."
     ],
@@ -1684,7 +1682,7 @@
       "https://ldwa.org.uk/hillwalkers/register4.php",
       "club-register",
       "open_cc_by_4",
-      "not_imported_open",
+      "queued_exact",
       "omission",
       "One register unit across accepted book and roster variants."
     ],
@@ -2088,34 +2086,6 @@
       "The finite fifteen-peak award qualifies for the denominator, but Peaks must not import an exact progress rule until the keeper resolves the current contradiction. No immutable roster download or captured page hash is available."
     ],
     [
-      "cmc-bicentennials",
-      "Colorado Mountain Club Bicentennials",
-      "North America",
-      "Colorado Mountain Club",
-      200,
-      "The owner completion-register page defines the unit as Colorado's highest 200 summits; no exact owner row manifest or stable inclusion key was found.",
-      "https://www.cmc.org/community/summit-completers",
-      "club-completion-register",
-      "unverified_no_reuse_license",
-      "blocked_missing_exact_roster_manifest",
-      "v1.4-omission",
-      "The named completion category qualifies. Count it in the denominator, but do not infer the 200 rows from a third-party list or threshold."
-    ],
-    [
-      "cmc-all-13ers",
-      "Colorado Mountain Club All 13ers",
-      "North America",
-      "Colorado Mountain Club",
-      637,
-      "The owner completion-register page says all 637 Colorado summits from 13,000 through 13,999 feet; no exact owner row manifest or stable inclusion rule was found.",
-      "https://www.cmc.org/community/summit-completers",
-      "club-completion-register",
-      "unverified_no_reuse_license",
-      "blocked_missing_exact_roster_manifest",
-      "v1.4-omission",
-      "The named completion category qualifies. Count it in the denominator, but do not derive membership from an uncited threshold query."
-    ],
-    [
       "nzac-100-peaks-challenge",
       "NZAC 100 Peaks Challenge",
       "Australasia",
@@ -2124,10 +2094,10 @@
       "Owner-linked 100-row Google Sheet captured 2026-08-31; normalized roster SHA-256 548d345ca6a6b4345af22da6313854a6ecc870d43ec7191a47fb15a0d1fea370.",
       "https://alpineclub.org.nz/news/don-french-becomes-first-person-complete-100-peaks-challenge",
       "club-challenge-owner-linked-roster",
-      "unverified_no_reuse_license",
-      "researched_not_queued_rights_unverified",
+      "permission_required",
+      "blocked_permission",
       "v1.4-omission",
-      "Current NZAC practice treats all 100 as completion. The 1991 event ranked the most climbed in one year; NZAC reports the first full completion in 2021. The live Google-hosted roster is pinned, but it is not an immutable NZAC-hosted release."
+      "Current NZAC practice treats all 100 as completion. The 1991 event ranked the most climbed in one year; NZAC reports the first full completion in 2021. NZAC reserves rights. The live Google-hosted roster is pinned, but it is not an immutable NZAC-hosted release."
     ],
     [
       "taiwan-small-100",
@@ -2138,10 +2108,10 @@
       "Ten captured Sports Administration roster pages normalize to 100 rows; normalized roster SHA-256 50568f482c52da651ace62a31ddb34e45a1abf96a01b97c888e9ad938a1ac591.",
       "https://isports.sa.gov.tw/apps/TIS/TIS05/TIS0550M_03v1.aspx",
       "government-roster-and-commercial-award",
-      "unverified_no_reuse_license",
-      "blocked_split_keeper_and_rights_unverified",
+      "permission_required",
+      "blocked_split_keeper_and_permission",
       "v1.4-omission",
-      "ATUNAS runs the 50-peak and all-100 awards, while the Sports Administration owns the roster. Preserve both owners. The captured ASP.NET pages include dynamic state and are not immutable releases."
+      "ATUNAS runs the 50-peak and all-100 awards, while the Sports Administration owns the roster. Preserve both owners. Both sources reserve rights. The captured ASP.NET pages include dynamic state and are not immutable releases. Preserve the source-key fault: displayed row 38 uses PKNO=100; later displayed row numbers are one above PKNO, ending at row 100 with PKNO=99."
     ],
     [
       "mcsa-stellenbosch-10-peaks",
@@ -2169,13 +2139,33 @@
       "JAC 300-row PDF captured 2026-08-31; normalized roster SHA-256 97ef9b9adda9dab69e6d82c5dbc8dd2a4c1246141b93ce2b7a6fbdab5446b24e.",
       "https://jac1.or.jp/document/mountain_data_collection",
       "club-roster-and-documented-completion-practice",
-      "unverified_no_reuse_license",
-      "blocked_no_formal_rule_and_source_defects",
+      "permission_required",
+      "blocked_permission_no_formal_rule_and_source_defects",
       "v1.4-omission",
-      "JAC publications document more than ten years of full-roster completion practice, but no formal award, register, evidence standard, or current completion rule was found. Preserve PDF defects: row 248 is truncated and row 253 conflicts with its map-sheet cell."
+      "JAC publications document more than ten years of full-roster completion practice, but no formal award, register, evidence standard, or current completion rule was found. JAC reserves rights, and its branch source says volcanic or conservation closures can prevent literal completion. Preserve PDF defects: row 248 is truncated and row 253 conflicts with its map-sheet cell."
     ]
   ],
   "uncertain_candidates": [
+    [
+      "cmc-bicentennials",
+      "Colorado Mountain Club Bicentennials",
+      "North America",
+      200,
+      "https://www.cmc.org/community/summit-completers",
+      "unverified_no_reuse_license",
+      "hold_missing_exact_roster_manifest",
+      "The owner names a Highest 200 completion category but publishes neither an exact row manifest nor stable inclusion keys. It does not yet meet R1 or R3."
+    ],
+    [
+      "cmc-all-13ers",
+      "Colorado Mountain Club All 13ers",
+      "North America",
+      637,
+      "https://www.cmc.org/community/summit-completers",
+      "unverified_no_reuse_license",
+      "hold_missing_exact_roster_manifest",
+      "The owner names a 637-peak completion category but publishes neither an exact row manifest nor a stable inclusion rule. It does not yet meet R1 or R3."
+    ],
     [
       "utah-13ers",
       "Utah 13ers",
@@ -2394,12 +2384,12 @@
     }
   ],
   "coverage": {
-    "confirmed_lower_bound_denominator": 85,
+    "confirmed_lower_bound_denominator": 83,
     "current_exact_count": 22,
-    "current_exact_percent_of_lower_bound": 25.8824,
+    "current_exact_percent_of_lower_bound": 26.5060,
     "queued_additional_exact_count": 16,
     "current_plus_queued_exact_count": 38,
-    "current_plus_queued_exact_percent_of_lower_bound": 44.7059,
+    "current_plus_queued_exact_percent_of_lower_bound": 45.7831,
     "current_is_majority": false,
     "current_plus_queued_is_majority": false,
     "coverageClaimSupported": false,
@@ -2758,8 +2748,8 @@
         "KFS official 2022-01-01 roster, normalized roster SHA-256 b26e7aca4881529e65b41ad29626eba4d0b370426b6db9dc6edce0bbbfd903a2"
       ]
     ],
-    "additional_exact_units_needed_for_43": 5,
-    "majority_threshold_for_85": 43,
+    "additional_exact_units_needed_for_42": 4,
+    "majority_threshold_for_83": 42,
     "majorityClaimSupported": false,
     "queued_pull_requests": [
       {
@@ -2794,13 +2784,13 @@
     "starting_exact_registry_coverage": 38,
     "units_added_if_implemented": 6,
     "resulting_exact_registry_coverage": 44,
-    "resulting_exact_percent_of_85": 51.7647,
-    "majority_threshold_for_85": 43,
+    "resulting_exact_percent_of_83": 53.0120,
+    "majority_threshold_for_83": 42,
     "registry_majority_after_tranche": true,
     "coverageClaimSupported": false,
     "majorityClaimSupported": false,
-    "scope_warning": "If each unit is separately implemented and reviewed, 44 of 85 is a majority only of registry version 2026-08-31-primary-source-lower-bound-4. It never proves a worldwide majority.",
-    "selection_basis": "The four Mountaineers rosters have exact live owner rows and clear completion rules. NZAC and MCSA add exact owner-linked, pinned rosters outside North America. Rights remain unverified, and none of the six is queued.",
+    "scope_warning": "If each unit is separately implemented and reviewed, 44 of 83 is a majority only of registry version 2026-08-31-primary-source-lower-bound-4. It never proves a worldwide majority.",
+    "selection_basis": "The four Mountaineers rosters have exact live owner rows and clear completion rules. NZAC and MCSA add exact owner-linked, pinned rosters outside North America. NZAC requires permission; the other five lack reuse grants. None of the six is queued.",
     "units": [
       {
         "registry_id": "mountaineers-five-majors",
@@ -2853,8 +2843,8 @@
         "keeper_source": "https://alpineclub.org.nz/news/don-french-becomes-first-person-complete-100-peaks-challenge",
         "roster_source": "https://docs.google.com/spreadsheets/d/1moPOR8BdrgIjyz1gCT0GbfIjnwIOe_GdM66v4cTk9DE/export?format=csv&gid=0",
         "exact_roster_sha256": "548d345ca6a6b4345af22da6313854a6ecc870d43ec7191a47fb15a0d1fea370",
-        "rights_status": "unverified_no_reuse_license",
-        "import_status": "researched_not_queued"
+        "rights_status": "permission_required",
+        "import_status": "blocked_permission"
       },
       {
         "registry_id": "mcsa-stellenbosch-10-peaks",
@@ -2883,9 +2873,9 @@
       "South America": 0
     },
     "proposed_50_north_america_percent": 60,
-    "finding": "The proposed set was selected around the product's US imports, not through a closed world discovery method. The 85-unit lower bound still leans toward North America and Britain/Ireland. Asia, Africa, South America, continental Europe outside Britain/Ireland, and Australasia need deeper family-level discovery.",
-    "confirmed_lower_bound_85": {
-      "North America": 37,
+    "finding": "The proposed set was selected around the product's US imports, not through a closed world discovery method. The 83-unit lower bound still leans toward North America and Britain/Ireland. Asia, Africa, South America, continental Europe outside Britain/Ireland, and Australasia need deeper family-level discovery.",
+    "confirmed_lower_bound_83": {
+      "North America": 35,
       "Europe": 30,
       "Asia": 6,
       "Australasia": 4,
@@ -2936,7 +2926,7 @@
     "mountaineers_and_cmc_review": {
       "method": "live owner HTML review on 2026-08-31",
       "immutable_roster_artifacts_available": false,
-      "warning": "The live pages prove the denominator units. They do not supply reusable, immutable roster releases. CMC also lacks exact row manifests or stable inclusion keys.",
+      "warning": "The Mountaineers live pages prove five denominator units but do not supply reusable, immutable roster releases. The CMC page proves two named completion categories, but neither meets R1 or R3 because CMC publishes no exact row manifest or stable inclusion key.",
       "mountaineers_units": [
         {
           "registry_id": "mountaineers-five-majors",
@@ -3260,6 +3250,7 @@
           "owner_url": "https://www.cmc.org/community/summit-completers",
           "owner_claim": "Colorado's highest 200 summits",
           "member_count": 200,
+          "qualification_status": "uncertain_fails_r1_r3",
           "exact_row_manifest_available": false,
           "stable_inclusion_keys_available": false,
           "captured_page_sha256": null
@@ -3269,6 +3260,7 @@
           "owner_url": "https://www.cmc.org/community/summit-completers",
           "owner_claim": "all 637 Colorado summits from 13,000 through 13,999 feet",
           "member_count": 637,
+          "qualification_status": "uncertain_fails_r1_r3",
           "exact_row_manifest_available": false,
           "stable_inclusion_keys_available": false,
           "captured_page_sha256": null
@@ -3361,7 +3353,8 @@
           "rows": 100,
           "bytes": 20512,
           "sha256": "50568f482c52da651ace62a31ddb34e45a1abf96a01b97c888e9ad938a1ac591"
-        }
+        },
+        "pin_caveat": "Sports Administration supplies no immutable roster download. The ASP.NET captures include dynamic state. Preserve both displayed row numbers and source keys: row 38 uses PKNO=100; later displayed row numbers are one above PKNO, ending at row 100 with PKNO=99."
       },
       {
         "registry_id": "mcsa-stellenbosch-10-peaks",
@@ -3413,15 +3406,16 @@
           "rows": 300,
           "bytes": 88784,
           "sha256": "97ef9b9adda9dab69e6d82c5dbc8dd2a4c1246141b93ce2b7a6fbdab5446b24e"
-        }
+        },
+        "pin_caveat": "JAC reserves rights. No formal completion rule was found, and the branch source says volcanic or conservation closures can prevent literal completion. Preserve PDF defects: row 248 is truncated and row 253 conflicts with its map-sheet cell."
       }
     ]
   },
   "conclusion": {
     "exhaustive_global_majority_claim": "not supported",
     "coverageClaimSupported": false,
-    "plain_statement": "Peaks covers 22 of this confirmed 85-unit lower bound now. The ready exact pull-request stack would raise that to 38, five short of the 43 needed for a majority of 85. A separate six-unit cross-region tranche could reach 44 only after its rights, imports, and reviews are complete. None of these figures proves a worldwide share.",
-    "rights_statement": "Qualifying blocked lists remain in the 85. Rights uncertainty and source defects stay visible; neither can be erased to make import or coverage figures look better.",
+    "plain_statement": "Peaks covers 22 of this confirmed 83-unit lower bound now. The ready exact pull-request stack would raise that to 38, four short of the 42 needed for a majority of 83. A separate six-unit cross-region tranche could reach 44 only after its rights, imports, and reviews are complete. None of these figures proves a worldwide share.",
+    "rights_statement": "Qualifying blocked lists remain in the 83. Rights blocks, rights uncertainty, and source defects stay visible; none can be erased to make import or coverage figures look better.",
     "majorityClaimSupported": false
   }
 }
