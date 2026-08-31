@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { Pool } from "pg";
 import * as keeperImporter from "../import-keeper-lists";
 import {
   assertReviewedKeeperDestinations,
   buildKeeperImportReport,
   catalogWithReviewedKeeperDestinations,
+  checkKeeperPublicationReadiness,
   deterministicKeeperDestinationId,
   deterministicKeeperListId,
   deterministicOsmKeeperDestinationId,
@@ -14,6 +17,7 @@ import {
   KeeperDestinationFingerprint,
   KeeperImportFixture,
   KeeperListDefinition,
+  KeeperListResolution,
   KeeperResolutionFixture,
   KEEPER_LISTS,
   normalizeKeeperPeakName,
@@ -34,6 +38,7 @@ const resolutionsPath = path.resolve(
   "../../../../docs/data-audits/fixtures/keeper-list-identity-resolutions-2026-08-30.json"
 );
 const resolutions = JSON.parse(readFileSync(resolutionsPath, "utf8")) as KeeperResolutionFixture;
+const KEEPER_PUBLICATION_TEST_DATABASE_URL = process.env.ROUTE_JOB_TEST_DATABASE_URL;
 
 const testSourceDescriptor = {
   fixtureSource: "test",
@@ -77,6 +82,98 @@ const onePeakFixture: KeeperImportFixture = {
     },
   },
 };
+
+function canonicalTestJson(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `[${value.map(canonicalTestJson).join(",")}]`;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalTestJson(record[key])}`
+    ).join(",")}}`;
+  }
+  const encoded = JSON.stringify(value);
+  if (encoded == null) throw new Error("Test fixture contains a non-JSON value");
+  return encoded;
+}
+
+function testSha256(value: unknown): string {
+  return crypto.createHash("sha256").update(canonicalTestJson(value)).digest("hex");
+}
+
+const productionOnePeakList: KeeperListDefinition = {
+  ...onePeakList,
+  productionManifest: {
+    generatedAt: onePeakFixture.generatedAt,
+    sourcesSha256: testSha256(onePeakFixture.sources),
+    selection: onePeakFixture.lists[onePeakList.sourceKey].selection,
+    rosterSha256: testSha256(onePeakFixture.lists[onePeakList.sourceKey].rows),
+  },
+};
+
+function onePeakExistingResolution(): KeeperResolutionFixture {
+  return {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "existing_destination",
+          destinationId: "destination-1",
+          destinationName: "Test Peak",
+          destinationElevationM: 1_010,
+          destinationLat: 56.001,
+          destinationLng: -4.001,
+          destinationOsmNodeId: null,
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          evidence: ["Reviewed test identity."],
+        }],
+      },
+    },
+  };
+}
+
+function onePeakCuratedResolution(): KeeperResolutionFixture {
+  return {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "curated_destination",
+          destinationId: deterministicKeeperDestinationId("keeper:1"),
+          destinationName: "Pico de Prueba",
+          destinationElevationM: 1_000,
+          destinationLat: 56,
+          destinationLng: -4,
+          destinationOsmNodeId: null,
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          destinationDataSourceName: "Reviewed source",
+          destinationDataSourceUrl: "https://example.test/destination",
+          destinationDataLicense: null,
+          evidence: ["Reviewed test destination."],
+        }],
+      },
+    },
+  };
+}
+
+function onePeakUnresolvedResolution(): KeeperResolutionFixture {
+  return {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: { "test-source": { rows: [] } },
+  };
+}
 
 const eligibleCatalogFields: Pick<
   KeeperCatalogPeak,
@@ -245,24 +342,49 @@ function onePeakCatalogRepairResolution(
   };
 }
 
-test("parses dry-run and apply modes with an explicit reviewed resolution fixture", () => {
+test("parses explicit keeper import phases and rejects legacy apply", () => {
   assert.deepEqual(parseKeeperImportArgs([
     "--input=/tmp/keeper.json",
     "--resolutions=/tmp/resolutions.json",
   ]), {
     input: "/tmp/keeper.json",
     resolutions: "/tmp/resolutions.json",
-    apply: false,
+    mode: "dry-run",
   });
-  assert.deepEqual(parseKeeperImportArgs([
-    "--apply",
-    "--input=/tmp/keeper.json",
-    "--resolutions=/tmp/resolutions.json",
-  ]), {
-    input: "/tmp/keeper.json",
-    resolutions: "/tmp/resolutions.json",
-    apply: true,
-  });
+  for (const [flag, mode] of [
+    ["--stage-destinations", "stage-destinations"],
+    ["--check-publication", "check-publication"],
+    ["--publish-lists", "publish-lists"],
+  ] as const) {
+    assert.equal(parseKeeperImportArgs([
+      flag,
+      "--input=/tmp/keeper.json",
+      "--resolutions=/tmp/resolutions.json",
+    ]).mode, mode);
+  }
+  assert.throws(
+    () => parseKeeperImportArgs([
+      "--apply",
+      "--input=/tmp/keeper.json",
+      "--resolutions=/tmp/resolutions.json",
+    ]),
+    /--apply is disabled/
+  );
+  assert.throws(
+    () => parseKeeperImportArgs([
+      "--stage-destinations",
+      "--publish-lists",
+      "--input=/tmp/keeper.json",
+      "--resolutions=/tmp/resolutions.json",
+    ]),
+    /only one keeper import mode/
+  );
+  assert.equal(keeperImporter.normalizeKeeperImportMode(false), "dry-run");
+  assert.equal(keeperImporter.normalizeKeeperImportMode(true), "publish-lists");
+  assert.throws(
+    () => keeperImporter.normalizeKeeperImportMode("unknown" as never),
+    /Unknown keeper import mode/
+  );
   assert.throws(() => parseKeeperImportArgs([]), /--input is required/);
   assert.throws(
     () => parseKeeperImportArgs(["--input=/tmp/keeper.json"]),
@@ -1407,9 +1529,12 @@ test("catalog repair apply guards eligibility and verifies persisted state", asy
   );
 });
 
-test("keeper import transactions use serializable apply and read-only dry-run modes", async () => {
+test("keeper import transactions isolate writes from read-only checks", async () => {
   const beginTransaction = (keeperImporter as unknown as {
-    beginKeeperImportTransaction?: (client: never, apply: boolean) => Promise<void>;
+    beginKeeperImportTransaction?: (
+      client: never,
+      mode: "dry-run" | "stage-destinations" | "check-publication" | "publish-lists"
+    ) => Promise<void>;
   }).beginKeeperImportTransaction;
   assert.equal(typeof beginTransaction, "function");
   const sql: string[] = [];
@@ -1419,12 +1544,534 @@ test("keeper import transactions use serializable apply and read-only dry-run mo
       return { rows: [], rowCount: 0 };
     },
   };
-  await beginTransaction!(client as never, true);
-  await beginTransaction!(client as never, false);
+  await beginTransaction!(client as never, "stage-destinations");
+  await beginTransaction!(client as never, "publish-lists");
+  await beginTransaction!(client as never, "dry-run");
+  await beginTransaction!(client as never, "check-publication");
   assert.deepEqual(sql, [
     "BEGIN ISOLATION LEVEL SERIALIZABLE",
+    "BEGIN ISOLATION LEVEL SERIALIZABLE",
+    "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
     "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
   ]);
+});
+
+function publicationPlan(destinationIds: string[]): KeeperListResolution[] {
+  return [{
+    list: { ...onePeakList, expectedCount: destinationIds.length },
+    members: destinationIds.map((destinationId, index) => ({
+      destinationId,
+      ordinal: index + 1,
+      sourceMemberId: `keeper:${index + 1}`,
+      sourceName: `Peak ${index + 1}`,
+    })),
+    issues: [],
+    addedDestinationIds: [],
+    removedDestinationIds: [],
+    reorderedDestinationIds: [],
+  }];
+}
+
+interface TestPublicationRow {
+  id: string;
+  name: string | null;
+  destination_exists: boolean;
+  summit_feature_valid: boolean;
+  destination_cover_complete: boolean;
+  valid_active_routes_with_cover: string;
+  active_peaks_routes_without_cover: string;
+  route_ids_without_cover: string[];
+}
+
+function readyPublicationRow(id = "destination-1"): TestPublicationRow {
+  return {
+    id,
+    name: "Test Peak",
+    destination_exists: true,
+    summit_feature_valid: true,
+    destination_cover_complete: true,
+    valid_active_routes_with_cover: "1",
+    active_peaks_routes_without_cover: "0",
+    route_ids_without_cover: [],
+  };
+}
+
+function catalogDatabaseRow(
+  peak: KeeperCatalogPeak,
+  metadata: Partial<Record<string, unknown>> = {}
+) {
+  return {
+    id: peak.id,
+    name: peak.name,
+    elevation_m: peak.elevationM,
+    lat: peak.lat,
+    lng: peak.lng,
+    osm_id: peak.osmId,
+    external_ids: peak.externalIds,
+    country_code: peak.countryCode,
+    state_code: peak.stateCode,
+    owner: peak.owner,
+    destination_type: peak.destinationType,
+    features: peak.features,
+    metadata_source: peak.dataSourceName ?? null,
+    metadata_source_url: peak.dataSourceUrl ?? null,
+    metadata_source_license: peak.dataLicense ?? null,
+    keeper_roster_source: peak.keeperRosterSource ?? null,
+    search_name_matches_lower_name: peak.searchNameMatchesLowerName ?? true,
+    metadata_display_name: peak.metadataDisplayName ?? null,
+    catalog_audit: peak.catalogAudit ?? null,
+    keeper_identity_repaired_at: peak.keeperIdentityRepairedAt ?? null,
+    keeper_repair_source: peak.keeperRepairSourceName ?? null,
+    keeper_repair_source_url: peak.keeperRepairSourceUrl ?? null,
+    keeper_repair_source_license: peak.keeperRepairSourceLicense ?? null,
+    keeper_repair_source_license_present:
+      peak.keeperRepairSourceLicensePresent ?? false,
+    ...metadata,
+  };
+}
+
+function keeperRunClient(options: {
+  catalog?: KeeperCatalogPeak[];
+  stagedCatalog?: KeeperCatalogPeak[];
+  publicationRows?: Array<ReturnType<typeof readyPublicationRow>>;
+  globalRouteRows?: Array<{ id: string; name: string }>;
+} = {}) {
+  const sql: string[] = [];
+  let staged = false;
+  const client = {
+    query: async (statement: string) => {
+      sql.push(statement);
+      if (/jsonb_each_text/.test(statement)) return { rows: [], rowCount: 0 };
+      if (/SELECT id, name, elevation AS elevation_m/.test(statement)) {
+        const catalog = staged
+          ? (options.stagedCatalog ?? options.catalog ?? [])
+          : (options.catalog ?? []);
+        return { rows: catalog.map((peak) => catalogDatabaseRow(peak)), rowCount: catalog.length };
+      }
+      if (/SELECT list_id, destination_id, ordinal/.test(statement)) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (/route_links AS/.test(statement)) {
+        return { rows: options.publicationRows ?? [readyPublicationRow()], rowCount: 1 };
+      }
+      if (/SELECT route\.id, route\.name/.test(statement)) {
+        return { rows: options.globalRouteRows ?? [], rowCount: 0 };
+      }
+      if (/INSERT INTO destinations/.test(statement)) staged = true;
+      return { rows: [], rowCount: 1 };
+    },
+  };
+  return { client, sql };
+}
+
+const stagedKeeperCatalogPeak: KeeperCatalogPeak = {
+  id: deterministicKeeperDestinationId("keeper:1"),
+  name: "Pico de Prueba",
+  elevationM: 1_000,
+  lat: 56,
+  lng: -4,
+  countryCode: "GB",
+  stateCode: null,
+  osmId: null,
+  externalIds: {},
+  ...eligibleCatalogFields,
+  dataSourceName: "Reviewed source",
+  dataSourceUrl: "https://example.test/destination",
+  dataLicense: null,
+  keeperRosterSource: "test-source",
+  searchNameMatchesLowerName: true,
+  metadataDisplayName: "Pico de Prueba",
+  catalogAudit: "keeper-lists-2026-08-30",
+};
+
+test("publication readiness pins destination credit, route integrity, and global covers", async () => {
+  const queries: Array<{ sql: string; values?: unknown[] }> = [];
+  const client = {
+    query: async (sql: string, values?: unknown[]) => {
+      queries.push({ sql, values });
+      return queries.length === 1
+        ? { rows: [readyPublicationRow("destination-a"), readyPublicationRow("destination-b")] }
+        : { rows: [] };
+    },
+  };
+  const report = await checkKeeperPublicationReadiness(
+    client as never,
+    publicationPlan(["destination-b", "destination-a", "destination-b"])
+  );
+  assert.equal(report.ready, true);
+  assert.deepEqual(report.stageRequired, {
+    destinationAdditions: 0,
+    destinationRepairs: 0,
+  });
+  assert.ok(report.destinations.every((destination) => destination.complete));
+  assert.deepEqual(queries[0].values, [["destination-a", "destination-b"]]);
+  assert.match(queries[0].sql, /hero_image_attribution/);
+  assert.match(queries[0].sql, /hero_image_attribution_url/);
+  assert.match(queries[0].sql, /peaks_route_passes_publish_integrity/);
+  assert.match(queries[0].sql, /route_cover_photos/);
+  assert.match(queries[1].sql, /route\.owner = 'peaks'/);
+  assert.match(queries[1].sql, /route\.status = 'active'/);
+  assert.match(queries[1].sql, /cover\.route_id IS NULL/);
+});
+
+test("publication readiness fails every destination and global route gap closed", async () => {
+  const cases: Array<[string, Record<string, unknown>]> = [
+    ["missing destination", { destination_exists: false, name: null }],
+    ["wrong feature", { summit_feature_valid: false }],
+    ["missing destination cover", { destination_cover_complete: false }],
+    ["no valid covered route", { valid_active_routes_with_cover: "0" }],
+    ["linked route without cover", {
+      active_peaks_routes_without_cover: "1",
+      route_ids_without_cover: ["route-gap"],
+    }],
+  ];
+  for (const [label, change] of cases) {
+    let query = 0;
+    const client = {
+      query: async () => (++query === 1
+        ? { rows: [{ ...readyPublicationRow(), ...change }] }
+        : { rows: [] }),
+    };
+    const report = await checkKeeperPublicationReadiness(
+      client as never,
+      publicationPlan(["destination-1"])
+    );
+    assert.equal(report.ready, false, label);
+    assert.equal(report.destinations[0].complete, false, label);
+  }
+
+  let query = 0;
+  const globalGap = await checkKeeperPublicationReadiness({
+    query: async () => (++query === 1
+      ? { rows: [readyPublicationRow()] }
+      : { rows: [{ id: "route-other", name: "Other active route" }] }),
+  } as never, publicationPlan(["destination-1"]));
+  assert.equal(globalGap.destinations[0].complete, true);
+  assert.equal(globalGap.ready, false);
+  assert.deepEqual(globalGap.activePeaksRoutesMissingCover, [{
+    id: "route-other",
+    name: "Other active route",
+  }]);
+});
+
+test("publication readiness rejects empty, changed, and malformed evidence", async () => {
+  await assert.rejects(
+    () => checkKeeperPublicationReadiness({ query: async () => ({ rows: [] }) } as never, []),
+    /at least one destination/
+  );
+  await assert.rejects(
+    () => checkKeeperPublicationReadiness({
+      query: async () => ({ rows: [readyPublicationRow("changed-id")] }),
+    } as never, publicationPlan(["destination-1"])),
+    /changed destination set/
+  );
+  await assert.rejects(
+    () => checkKeeperPublicationReadiness({
+      query: async () => ({
+        rows: [{ ...readyPublicationRow(), route_ids_without_cover: [""] }],
+      }),
+    } as never, publicationPlan(["destination-1"])),
+    /evidence is malformed/
+  );
+});
+
+test("publication readiness SQL executes and catches a real route-cover gap", {
+  skip: KEEPER_PUBLICATION_TEST_DATABASE_URL
+    ? false
+    : "ROUTE_JOB_TEST_DATABASE_URL not set",
+}, async () => {
+  const pool = new Pool({ connectionString: KEEPER_PUBLICATION_TEST_DATABASE_URL });
+  const client = await pool.connect();
+  const functionSchema = `keeper_publication_test_${process.pid}_${Date.now()}`;
+  try {
+    await client.query("BEGIN");
+    await client.query(`
+      CREATE SCHEMA ${functionSchema};
+      CREATE FUNCTION ${functionSchema}.peaks_route_passes_publish_integrity(
+        route_id text,
+        destination_id text,
+        desired_status text
+      ) RETURNS boolean
+      LANGUAGE sql
+      AS $$ SELECT desired_status = 'active' $$;
+      SET LOCAL search_path TO pg_temp, ${functionSchema}, public;
+    `);
+    await client.query(`
+      CREATE TEMP TABLE destinations (
+        id text PRIMARY KEY,
+        name text,
+        features destination_feature[],
+        hero_image text,
+        hero_image_attribution text,
+        hero_image_attribution_url text
+      ) ON COMMIT DROP;
+      CREATE TEMP TABLE routes (
+        id text PRIMARY KEY,
+        name text,
+        owner text,
+        status text
+      ) ON COMMIT DROP;
+      CREATE TEMP TABLE route_destinations (
+        route_id text,
+        destination_id text
+      ) ON COMMIT DROP;
+      CREATE TEMP TABLE route_cover_photos (
+        route_id text PRIMARY KEY
+      ) ON COMMIT DROP;
+      INSERT INTO destinations
+        (id, name, features, hero_image, hero_image_attribution,
+         hero_image_attribution_url)
+      VALUES
+        ('destination-1', 'Test Peak', ARRAY['summit']::destination_feature[],
+         'https://example.test/peak.jpg', 'Test author, CC BY 4.0',
+         'https://example.test/credit');
+      INSERT INTO routes (id, name, owner, status)
+      VALUES ('route-1', 'Test Peak Route', 'peaks', 'active');
+      INSERT INTO route_destinations (route_id, destination_id)
+      VALUES ('route-1', 'destination-1');
+      INSERT INTO route_cover_photos (route_id) VALUES ('route-1');
+    `);
+
+    const complete = await checkKeeperPublicationReadiness(
+      client,
+      publicationPlan(["destination-1"])
+    );
+    assert.equal(complete.ready, true);
+
+    await client.query("DELETE FROM route_cover_photos");
+    const gap = await checkKeeperPublicationReadiness(
+      client,
+      publicationPlan(["destination-1"])
+    );
+    assert.equal(gap.ready, false);
+    assert.deepEqual(gap.destinations[0].routeIdsWithoutCover, ["route-1"]);
+    assert.deepEqual(gap.activePeaksRoutesMissingCover, [{
+      id: "route-1",
+      name: "Test Peak Route",
+    }]);
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+    await pool.end();
+  }
+});
+
+test("destination staging writes only reviewed destinations and area links", async () => {
+  const { client, sql } = keeperRunClient({
+    catalog: [],
+    stagedCatalog: [stagedKeeperCatalogPeak],
+  });
+  const report = await keeperImporter.runKeeperImport(
+    client as never,
+    onePeakFixture,
+    onePeakCuratedResolution(),
+    "stage-destinations",
+    [productionOnePeakList]
+  );
+  assert.equal(report.mode, "stage-destinations");
+  assert.equal(report.complete, true);
+  assert.equal(report.destinationsToAdd.length, 1);
+  assert.ok(sql.some((statement) => /INSERT INTO destinations/.test(statement)));
+  assert.ok(sql.some((statement) => /DELETE FROM destination_areas/.test(statement)));
+  assert.ok(sql.some((statement) => /INSERT INTO destination_areas/.test(statement)));
+  assert.match(sql[1], /^LOCK TABLE destinations IN SHARE ROW EXCLUSIVE MODE NOWAIT$/);
+  assert.match(sql[2], /pg_advisory_xact_lock/);
+  assert.ok(!sql.some((statement) => /INSERT INTO lists/.test(statement)));
+  assert.ok(!sql.some((statement) => /INSERT INTO list_destinations/.test(statement)));
+  assert.equal(sql.at(-1), "COMMIT");
+});
+
+test("publication checks are read-only and report when staging is still needed", async () => {
+  const staged = keeperRunClient({ catalog: [] });
+  const stageNeeded = await keeperImporter.runKeeperImport(
+    staged.client as never,
+    onePeakFixture,
+    onePeakCuratedResolution(),
+    "check-publication",
+    [productionOnePeakList]
+  );
+  assert.equal(stageNeeded.publication?.ready, false);
+  assert.deepEqual(stageNeeded.publication?.stageRequired, {
+    destinationAdditions: 1,
+    destinationRepairs: 0,
+  });
+  assert.ok(!staged.sql.some((statement) => /route_links AS/.test(statement)));
+  assert.ok(!staged.sql.some((statement) => /LOCK TABLE destinations/.test(statement)));
+  assert.ok(!staged.sql.some((statement) =>
+    /\b(?:INSERT INTO|UPDATE|DELETE FROM)\b/.test(statement)
+  ));
+  assert.equal(staged.sql.at(-1), "ROLLBACK");
+
+  const ready = keeperRunClient({ catalog: [catalogPeak] });
+  const checked = await keeperImporter.runKeeperImport(
+    ready.client as never,
+    onePeakFixture,
+    onePeakExistingResolution(),
+    "check-publication",
+    [productionOnePeakList]
+  );
+  assert.equal(checked.publication?.ready, true);
+  assert.ok(ready.sql.some((statement) => /route_links AS/.test(statement)));
+  assert.ok(!ready.sql.some((statement) =>
+    /\b(?:INSERT INTO|UPDATE|DELETE FROM)\b/.test(statement)
+  ));
+  assert.ok(!ready.sql.some((statement) => /LOCK TABLE destinations/.test(statement)));
+  assert.equal(ready.sql.at(-1), "ROLLBACK");
+
+  const unresolved = keeperRunClient({ catalog: [] });
+  const incomplete = await keeperImporter.runKeeperImport(
+    unresolved.client as never,
+    onePeakFixture,
+    onePeakUnresolvedResolution(),
+    "check-publication",
+    [productionOnePeakList]
+  );
+  assert.equal(incomplete.complete, false);
+  assert.equal(incomplete.publication?.ready, false);
+  assert.ok(!unresolved.sql.some((statement) => /route_links AS/.test(statement)));
+  assert.equal(unresolved.sql.at(-1), "ROLLBACK");
+});
+
+test("list publication writes memberships only after every gate passes", async () => {
+  const { client, sql } = keeperRunClient({ catalog: [catalogPeak] });
+  const report = await keeperImporter.runKeeperImport(
+    client as never,
+    onePeakFixture,
+    onePeakExistingResolution(),
+    "publish-lists",
+    [productionOnePeakList]
+  );
+  assert.equal(report.mode, "publish-lists");
+  assert.equal(report.publication?.ready, true);
+  const publicationLock = sql.findIndex((statement) =>
+    /LOCK TABLE destinations/.test(statement)
+  );
+  const advisoryLock = sql.findIndex((statement) => /pg_advisory_xact_lock/.test(statement));
+  const firstCatalogRead = sql.findIndex((statement) =>
+    /jsonb_each_text/.test(statement)
+  );
+  assert.equal(publicationLock, 1);
+  assert.ok(publicationLock < advisoryLock);
+  assert.ok(advisoryLock < firstCatalogRead);
+  assert.match(sql[publicationLock], /list_destinations/);
+  assert.match(sql[publicationLock], /route_destinations/);
+  assert.match(sql[publicationLock], /route_segments/);
+  assert.match(sql[publicationLock], /segments/);
+  assert.match(sql[publicationLock], /SHARE ROW EXCLUSIVE MODE NOWAIT/);
+  assert.ok(sql.some((statement) => /INSERT INTO lists/.test(statement)));
+  assert.ok(sql.some((statement) => /DELETE FROM list_destinations/.test(statement)));
+  assert.ok(sql.some((statement) => /INSERT INTO list_destinations/.test(statement)));
+  assert.ok(!sql.some((statement) => /INSERT INTO destinations/.test(statement)));
+  assert.ok(!sql.some((statement) => /UPDATE destinations/.test(statement)));
+  assert.ok(!sql.some((statement) => /destination_areas/.test(statement)));
+  assert.equal(sql.at(-1), "COMMIT");
+});
+
+test("list publication fails before its snapshot when a catalog writer is active", async () => {
+  const sql: string[] = [];
+  const client = {
+    query: async (statement: string) => {
+      sql.push(statement);
+      if (/LOCK TABLE destinations/.test(statement)) {
+        throw new Error("could not obtain lock on relation destinations");
+      }
+      return { rows: [], rowCount: 0 };
+    },
+  };
+  await assert.rejects(
+    () => keeperImporter.runKeeperImport(
+      client as never,
+      onePeakFixture,
+      onePeakExistingResolution(),
+      "publish-lists",
+      [productionOnePeakList]
+    ),
+    /could not obtain lock/
+  );
+  assert.equal(sql[0], "BEGIN ISOLATION LEVEL SERIALIZABLE");
+  assert.match(sql[1], /SHARE ROW EXCLUSIVE MODE NOWAIT/);
+  assert.equal(sql.at(-1), "ROLLBACK");
+  assert.ok(!sql.some((statement) => /pg_advisory_xact_lock/.test(statement)));
+  assert.ok(!sql.some((statement) => /jsonb_each_text/.test(statement)));
+});
+
+test("list publication refuses cover gaps before any membership write", async () => {
+  const gap = keeperRunClient({
+    catalog: [catalogPeak],
+    publicationRows: [{
+      ...readyPublicationRow(),
+      active_peaks_routes_without_cover: "1",
+      route_ids_without_cover: ["route-gap"],
+    }],
+  });
+  await assert.rejects(
+    () => keeperImporter.runKeeperImport(
+      gap.client as never,
+      onePeakFixture,
+      onePeakExistingResolution(),
+      "publish-lists",
+      [productionOnePeakList]
+    ),
+    /publication gate failed \(1 destination gaps, 0 active route cover gaps\)/
+  );
+  assert.ok(!gap.sql.some((statement) => /INSERT INTO lists/.test(statement)));
+  assert.ok(!gap.sql.some((statement) => /list_destinations/.test(statement) &&
+    /\b(?:INSERT INTO|DELETE FROM)\b/.test(statement)));
+  assert.equal(gap.sql.at(-1), "ROLLBACK");
+
+  const globalGap = keeperRunClient({
+    catalog: [catalogPeak],
+    globalRouteRows: [{ id: "route-other", name: "Other active route" }],
+  });
+  await assert.rejects(
+    () => keeperImporter.runKeeperImport(
+      globalGap.client as never,
+      onePeakFixture,
+      onePeakExistingResolution(),
+      "publish-lists",
+      [productionOnePeakList]
+    ),
+    /publication gate failed \(0 destination gaps, 1 active route cover gaps\)/
+  );
+  assert.ok(!globalGap.sql.some((statement) => /INSERT INTO lists/.test(statement)));
+  assert.equal(globalGap.sql.at(-1), "ROLLBACK");
+});
+
+test("list publication refuses unstaged and unresolved identities without writes", async () => {
+  for (const mode of ["publish-lists", true] as const) {
+    const pending = keeperRunClient({ catalog: [] });
+    await assert.rejects(
+      () => keeperImporter.runKeeperImport(
+        pending.client as never,
+        onePeakFixture,
+        onePeakCuratedResolution(),
+        mode,
+        [productionOnePeakList]
+      ),
+      /reviewed destinations must be staged first/
+    );
+    assert.ok(!pending.sql.some((statement) => /INSERT INTO destinations/.test(statement)));
+    assert.ok(!pending.sql.some((statement) => /INSERT INTO lists/.test(statement)));
+    assert.equal(pending.sql.at(-1), "ROLLBACK");
+  }
+
+  for (const mode of ["stage-destinations", "publish-lists"] as const) {
+    const unresolved = keeperRunClient({ catalog: [] });
+    await assert.rejects(
+      () => keeperImporter.runKeeperImport(
+        unresolved.client as never,
+        onePeakFixture,
+        onePeakUnresolvedResolution(),
+        mode,
+        [productionOnePeakList]
+      ),
+      /identities remain unresolved/
+    );
+    assert.ok(!unresolved.sql.some((statement) =>
+      /\b(?:INSERT INTO|UPDATE|DELETE FROM)\b/.test(statement)
+    ));
+    assert.equal(unresolved.sql.at(-1), "ROLLBACK");
+  }
 });
 
 test("refreshes only postgis area links for changed destinations", async () => {
