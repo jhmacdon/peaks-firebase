@@ -1,7 +1,7 @@
 /**
  * Convert an imported completion target to the nullable value stored on a
- * list. NULL means every current member is required. Bad values also become
- * NULL, which is the stricter rule and matches the database read helper.
+ * list. NULL means every current member is required. Callers that import an
+ * explicit non-NULL value must reject a NULL result before writing.
  */
 export function normalizeStoredListCompletionTarget(
   value: unknown,

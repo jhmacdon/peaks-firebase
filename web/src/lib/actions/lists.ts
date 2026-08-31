@@ -3,6 +3,10 @@
 
 import db from "../db";
 import { verifyToken } from "../auth-actions";
+import {
+  buildListProgress,
+  type ListProgressCounts,
+} from "../list-completion";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -57,14 +61,7 @@ export interface ListDestination {
   country_code: string | null;
 }
 
-export interface ListProgress {
-  /** Compatibility alias for completion_target. */
-  total: number;
-  member_count: number;
-  completion_target: number;
-  completed: number;
-  is_complete: boolean;
-}
+export type ListProgress = ListProgressCounts;
 
 export interface ListCompletionEntry {
   reached_at: string | null;
@@ -294,26 +291,14 @@ export async function getListProgress(
   );
 
   if (result.rows.length === 0) {
-    return {
-      total: 0,
-      member_count: 0,
-      completion_target: 0,
-      completed: 0,
-      is_complete: false,
-    };
+    return buildListProgress(0, 0, 0);
   }
 
   const memberCount = Number(result.rows[0].member_count);
   const completionTarget = Number(result.rows[0].completion_target);
   const completed = Number(result.rows[0].completed);
 
-  return {
-    total: completionTarget,
-    member_count: memberCount,
-    completion_target: completionTarget,
-    completed,
-    is_complete: completionTarget > 0 && completed >= completionTarget,
-  };
+  return buildListProgress(memberCount, completionTarget, completed);
 }
 
 /**

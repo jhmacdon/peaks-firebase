@@ -12,7 +12,10 @@ const migration = readFileSync(
   "utf8"
 );
 const schema = readFileSync(resolve(__dirname, "../../../schema.sql"), "utf8");
-const firestoreMigrator = readFileSync(resolve(__dirname, "../migrate-lists.ts"), "utf8");
+const firestoreMigrator = readFileSync(
+  resolve(__dirname, "../migrate-list-record.ts"),
+  "utf8"
+);
 
 test("normalizes only positive integer targets within the roster", () => {
   assert.equal(normalizeStoredListCompletionTarget(13, 18), 13);
@@ -45,7 +48,9 @@ test("migration and baseline schema share the nullable field and bounded read he
 });
 
 test("the Firestore migrator reads either field spelling and writes the column", () => {
-  assert.match(firestoreMigrator, /readImportedListCompletionTarget\(d\)/);
+  assert.match(firestoreMigrator, /readImportedListCompletionTarget\(value\)/);
   assert.match(firestoreMigrator, /INSERT INTO lists \(id, name, description, owner, completion_target\)/);
   assert.match(firestoreMigrator, /completion_target = EXCLUDED\.completion_target/);
+  assert.match(firestoreMigrator, /DELETE FROM list_destinations/);
+  assert.match(firestoreMigrator, /WHERE list_id = \$1/);
 });
