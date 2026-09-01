@@ -33,6 +33,7 @@ export type DobihSelectionFlag =
   | "VL"
   | "Hew"
   | "G"
+  | "Dew"
   | "DDew"
   | "sMa";
 
@@ -64,6 +65,7 @@ const FLAG_COLUMNS: DobihSelectionFlag[] = [
   "VL",
   "Hew",
   "G",
+  "Dew",
   "DDew",
   "sMa",
 ];

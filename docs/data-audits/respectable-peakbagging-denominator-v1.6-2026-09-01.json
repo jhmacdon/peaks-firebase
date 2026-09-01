@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-09-01-primary-source-lower-bound-6",
+  "created_at": "2026-09-01T01:46:26Z",
+  "kind": "readiness_amendment",
+  "base_registry": {
+    "version": "2026-08-31-primary-source-lower-bound-5",
+    "json_path": "docs/data-audits/respectable-peakbagging-denominator-v1.5-2026-08-31.json",
+    "json_sha256": "7272964cad7edbe1649bba2b14b3cc0af74bc266eabb7a506e365e2e48ac3030",
+    "markdown_sha256": "d549c73e529ac253c95f0924aed2f8ae4145afde188959bea3eb1c13504dd2d9"
+  },
+  "stack_base": {
+    "pull_request": 192,
+    "url": "https://github.com/jhmacdon/peaks-firebase/pull/192",
+    "head_commit": "5ef776bb209be7c9bfa1109093ab09076345b433",
+    "status": "ready_for_review_not_merged"
+  },
+  "source_change": {
+    "status": "ready_for_review_not_merged",
+    "publication_ready": false,
+    "production_write_performed": false,
+    "fixture_path": "docs/data-audits/fixtures/keeper-list-dobih-deweys-candidates-2026-09-01.json",
+    "fixture_sha256": "730ac1326f97d13f41cb289028c118206feebd0270daecedcba583d5655109ea",
+    "source_metadata_sha256": "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402",
+    "source_csv_sha256": "d27bc69dbb6d30a6f171ef277408831fe8763fc9043422f4e375e63f4cc190ea",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "coverage": {
+    "confirmed_lower_bound_denominator": 83,
+    "current_exact_count": 22,
+    "prior_ready_exact_count": 20,
+    "new_ready_exact_count": 1,
+    "ready_exact_count": 21,
+    "current_plus_ready_exact_count": 43,
+    "current_plus_ready_exact_percent_of_lower_bound": 51.8072,
+    "majority_threshold_for_83": 42,
+    "additional_ready_units_needed_for_registry_majority": 0,
+    "ready_stack_reaches_registry_majority": true,
+    "production_reaches_registry_majority": false,
+    "worldwide_majority_claim_supported": false,
+    "coverage_claim_supported": false,
+    "scope_warning": "The 43 of 83 result is a ready review stack against one dated lower-bound registry. It is not merged or imported, and it does not prove a worldwide majority."
+  },
+  "new_ready_units": [
+    {
+      "denominator_registry_id": "deweys",
+      "source_key": "dobih-deweys",
+      "list_id": "75B4485F6944A4BB43F5",
+      "name": "Deweys",
+      "count": 425,
+      "selection": "Dew=1",
+      "roster_sha256": "f0aa896b51d6a7f1ae3ec50a774c0c2b17a63288b7f74d5d54de1af143c4fd4a",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    }
+  ],
+  "source_work": {
+    "membership_count": 425,
+    "unique_identity_count": 425,
+    "prior_reviewed_identity_count": 52,
+    "new_identity_review_count": 373,
+    "country_split": {
+      "W": 240,
+      "E": 174,
+      "ES": 6,
+      "M": 5
+    },
+    "isle_of_man_source_numbers": [
+      1946,
+      3337,
+      3338,
+      3339,
+      3340
+    ],
+    "route_publication_blocks": [
+      "dobih:3649"
+    ]
+  },
+  "before_production": [
+    "Merge the reviewed source and identity stack.",
+    "Resolve all 425 identities.",
+    "Keep dobih:3649 blocked from any summit route until review pins a non-climbing endpoint or a clear exception.",
+    "Add a credited destination cover, a safe reviewed route, and a credited route cover for every member.",
+    "Run the read-only zero-gap audit and require no gap.",
+    "Add any import or apply path only in a separate reviewed change with approval."
+  ],
+  "cost": {
+    "infrastructure_change": false,
+    "estimated_monthly_usd": 0
+  }
+}

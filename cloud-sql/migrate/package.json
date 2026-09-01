@@ -29,6 +29,7 @@
     "import:keeper-lists:dobih-open-eight": "tsx src/import-dobih-open-eight-lists.ts",
     "build:keeper-list-resolutions:dobih-open-eight": "tsx src/build-dobih-open-eight-resolutions.ts",
     "build:keeper-list-fixture:dobih-smaller-majority-four": "tsx src/build-dobih-smaller-majority-four-fixture.ts",
+    "build:keeper-list-fixture:dobih-deweys": "tsx src/build-dobih-deweys-fixture.ts",
     "analyze:keeper-list-identities:dobih-smaller-majority-four": "tsx src/build-dobih-smaller-majority-four-identity-analysis.ts --allow-incomplete",
     "build:keeper-list-resolutions:dobih-smaller-majority-four": "tsx src/build-dobih-smaller-majority-four-resolutions.ts",
     "build:keeper-list-fixture:kfs-100-famous-mountains": "tsx src/build-kfs-100-famous-mountains-fixture.ts",

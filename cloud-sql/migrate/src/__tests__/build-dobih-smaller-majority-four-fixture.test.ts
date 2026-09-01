@@ -242,17 +242,18 @@ test("blocks all four firing-range members from automatic route publication", ()
   );
 });
 
-test("shared DoBIH parser requires the Donald Dewey and Submarilyn flags", () => {
+test("shared DoBIH parser requires the Dewey, Donald Dewey, and Submarilyn flags", () => {
   const headers = [
     "Number", "Name", "Metres", "Latitude", "Longitude", "Country",
     "C", "W", "MT", "F", "D", "DT", "WO", "Fel", "VL", "Hew", "G",
-    "DDew", "sMa",
+    "Dew", "DDew", "sMa",
   ];
   const row = [
     "1", "Test Fell", "100", "51", "-1", "E",
-    ...Array.from({ length: 13 }, () => "1"),
+    ...Array.from({ length: 14 }, () => "1"),
   ];
   const parsed = parseDobihRows(`${headers.join(",")}\n${row.join(",")}\n`);
+  assert.equal(parsed[0].flags.Dew, true);
   assert.equal(parsed[0].flags.DDew, true);
   assert.equal(parsed[0].flags.sMa, true);
 
@@ -266,6 +267,12 @@ test("shared DoBIH parser requires the Donald Dewey and Submarilyn flags", () =>
     () => parseDobihRows(`${withoutDonaldDewey.join(",")}\n` +
       `${row.slice(0, -1).join(",")}\n`),
     /missing column DDew/
+  );
+  const withoutDewey = headers.filter((header) => header !== "Dew");
+  assert.throws(
+    () => parseDobihRows(`${withoutDewey.join(",")}\n` +
+      `${row.slice(0, -1).join(",")}\n`),
+    /missing column Dew/
   );
 });
 
