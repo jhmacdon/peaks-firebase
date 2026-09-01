@@ -141,8 +141,9 @@ until the registry records at least a reviewed `manual_gap` entry.
 
 Keep one through four unique `identity_sources`. Use `alltrails`,
 `peakbagger`, `mountaineers`, `wta`, `summitpost`, or `knps` only with that
-publisher's public host. KNPS evidence must use an exact course main, course
-detail, or current control-detail URL with one six-digit `parkId`. For official
+publisher's public host. An audited KFS/KNPS candidate must include its exact
+course page with one six-digit `parkId` and its separate control-detail page
+with one four-digit `rstId`. For official
 evidence, use the exact source ID from the reviewed
 official trail registry as the type; its URL must use a discovery or endpoint
 host recorded for that same source. Generic labels such as `official`, `park`,
@@ -154,9 +155,11 @@ access-controlled route needs two such sources.
 `access.status` must be `open`, `permit_required`, `seasonal`, or
 `guide_required`. Its `source_url` must exactly match one strong entry in
 `identity_sources`; AllTrails and Peakbagger cannot attest access. A KNPS access
-source must be the exact `acsCtrDtl.do` control-detail URL. Its current state,
-reason, effective time, and named open or closed sections must support the
-claimed route; a KNPS course page or the 2016 KFS archive cannot attest access.
+source must be the exact audited `acsCtrDtl.do` control-detail URL. The dated
+fixture must still be fresh and class the destination as `proven_open`; every
+other disposition fails closed. Its current state, reason, effective time, and
+named open or closed sections must support the claimed route. A course page,
+broad park page, or the 2016 KFS archive cannot attest access.
 For comparison evidence, use exactly `{"private_reference_used":false}` when no
 private track was checked. When one was checked, add only `max_offset_m` as a
 finite non-negative number. Never add a filename, download URL, or coordinates.

@@ -144,11 +144,12 @@ a short true note. A search for another place does not count.
 For official identity evidence, set the source type to the exact reviewed
 official trail registry ID and use a URL on that source's recorded discovery
 or endpoint host. Generic publisher labels do not pass the queue gate.
-For a South Korean national-park route, use `knps` only with the exact course
-page and current control-detail page for the same six-digit `parkId`. The access
-URL must be the control-detail page, and its state, reason, effective time, and
-named sections must cover the route. A course page, the KFS archive, or the KFS
-seasonal raster map does not prove current access.
+For an audited KFS route in a South Korean national park, use `knps` with both
+the exact six-digit-`parkId` course page and the separately audited four-digit
+`rstId` control-detail page for that destination. The dated KNPS fixture must
+class the row as `proven_open` and still be fresh. A course page, a broad park
+page, the KFS archive, or a KFS seasonal raster map does not prove current
+access. Partial, unresolved, conditional, excluded, and blocked rows stop.
 
 Do not sign in, evade a block, or automate an authenticated GPX download.
 AllTrails, Peakbagger, SummitPost, and other trip-report GPX files are private
