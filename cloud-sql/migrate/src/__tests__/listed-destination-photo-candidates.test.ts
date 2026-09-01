@@ -8,6 +8,7 @@ import {
   mediaWikiApiErrorMessage,
   parseListedPhotoArgs,
   parseWikidataArticleIdentity,
+  parseWikidataLeadImage,
   parseWikipediaArticle,
   parseWikipediaSearchHits,
   parseWikimediaImageMetadata,
@@ -17,6 +18,7 @@ import {
   stageAuditOutput,
 } from "../backfill-listed-destination-photo-candidates";
 import {
+  LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS,
   LISTED_PHOTO_GAPS_SQL,
   canonicalWikimediaLicenseUrl,
   fileTitleNamesDestination,
@@ -112,6 +114,9 @@ function client(overrides: Partial<ListedPhotoClient> = {}): ListedPhotoClient {
     },
     async fetchWikipediaArticle() {
       return article();
+    },
+    async fetchWikidataLeadImage() {
+      return null;
     },
     async fetchImageMetadata(titles) {
       return titles.map((fileTitle) => image({ fileTitle }));
@@ -322,6 +327,80 @@ test("Wikidata P625 parsing requires one ranked Earth coordinate", () => {
     null
   );
   assert.deepEqual(parse([claim(1, 2), claim(1, 2)]), { lat: 1, lng: 2 });
+});
+
+test("Wikidata P18 parsing requires one highest-rank Commons file on the exact item", () => {
+  const claim = (
+    value: string,
+    rank: "normal" | "preferred" | "deprecated" = "normal",
+    datatype = "commonsMedia"
+  ) => ({
+    rank,
+    mainsnak: {
+      snaktype: "value",
+      property: "P18",
+      datatype,
+      datavalue: { value, type: "string" },
+    },
+  });
+  const response = (id: string, claims: unknown[]) => ({
+    entities: {
+      Q5208179: {
+        id,
+        type: "item",
+        claims: { P18: claims },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Chilseongbong at Daedunsan.jpg")]),
+      "Q5208179"
+    ),
+    {
+      wikidataId: "Q5208179",
+      fileTitle: "File:Chilseongbong at Daedunsan.jpg",
+    }
+  );
+  assert.deepEqual(
+    parseWikidataLeadImage(
+      response("Q5208179", [
+        claim("Old.jpg"),
+        claim("Chilseongbong at Daedunsan.jpg", "preferred"),
+      ]),
+      "Q5208179"
+    )?.fileTitle,
+    "File:Chilseongbong at Daedunsan.jpg"
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("One.jpg"), claim("Two.jpg")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Old.jpg", "deprecated")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q999", [claim("Chilseongbong at Daedunsan.jpg")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Chilseongbong at Daedunsan.jpg", "normal", "string")]),
+      "Q5208179"
+    ),
+    null
+  );
 });
 
 test("South Korean destinations use Korean Wikipedia while other countries keep English", () => {
@@ -765,6 +844,228 @@ test("a stored Korean Wikidata identity can fall back to its English sitelink", 
   assert.equal(plan.kind, "candidate");
   if (plan.kind !== "candidate") assert.fail("expected English fallback candidate");
   assert.match(plan.candidate.notes ?? "", /English Wikipedia article Hangukbong/);
+});
+
+test("only the two frozen Korean P18 audits can add pending candidates", async () => {
+  assert.deepEqual(
+    Object.keys(LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS).sort(),
+    ["Q5208179", "Q8533668"]
+  );
+  const cases = [
+    {
+      wikidataId: "Q5208179",
+      destinationId: "dest-daedunsan",
+      destinationName: "Daedunsan",
+      articleTitle: "대둔산 (충남/전북)",
+      articleLanguage: "ko" as const,
+      lat: 36.124594,
+      lng: 127.3204771,
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/a/a8/Chilseongbong_at_Daedunsan.jpg",
+      sourcePageUrl:
+        "https://commons.wikimedia.org/wiki/File:Chilseongbong_at_Daedunsan.jpg",
+    },
+    {
+      wikidataId: "Q8533668",
+      destinationId: "dest-minjujisan",
+      destinationName: "민주지산",
+      articleTitle: "민주지산",
+      articleLanguage: "ko" as const,
+      lat: 36.0397937,
+      lng: 127.8492728,
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/3/35/Minjujisan_Muju.jpg",
+      sourcePageUrl:
+        "https://commons.wikimedia.org/wiki/File:Minjujisan_Muju.jpg",
+    },
+  ];
+
+  for (const fixture of cases) {
+    const audited = LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS[fixture.wikidataId];
+    const calls: string[] = [];
+    const plan = await planListedPhotoCandidate(row({
+      id: fixture.destinationId,
+      name: fixture.destinationName,
+      lat: fixture.lat,
+      lng: fixture.lng,
+      country_code: "KR",
+      wikidata_id: fixture.wikidataId,
+    }), client({
+      async resolveWikidataArticle(wikidataId, language) {
+        calls.push(`identity:${language}`);
+        return {
+          wikidataId,
+          articleTitle: fixture.articleTitle,
+          articleLanguage: fixture.articleLanguage,
+          coordinates: { lat: fixture.lat, lng: fixture.lng },
+        };
+      },
+      async fetchWikipediaArticle(title, language) {
+        calls.push(`article:${language}:${title}`);
+        return article({
+          title,
+          language,
+          wikidataId: fixture.wikidataId,
+          coordinates: null,
+          leadImageTitle: null,
+          imageTitles: [],
+        });
+      },
+      async fetchWikidataLeadImage(wikidataId) {
+        calls.push(`p18:${wikidataId}`);
+        return { wikidataId, fileTitle: audited.fileTitle };
+      },
+      async fetchImageMetadata(titles, language) {
+        calls.push(`images:${language}`);
+        assert.deepEqual(titles, [audited.fileTitle]);
+        return [image({
+          fileTitle: audited.fileTitle,
+          imageUrl: fixture.imageUrl,
+          sourcePageUrl: fixture.sourcePageUrl,
+          photographer: audited.photographer,
+          licenseName: audited.licenseName,
+          licenseUrl: audited.licenseUrl,
+          width: audited.width,
+          height: audited.height,
+          mediaSha1: audited.mediaSha1,
+        })];
+      },
+    }));
+
+    assert.equal(plan.kind, "candidate");
+    if (plan.kind !== "candidate") assert.fail("expected an audited P18 candidate");
+    assert.equal(plan.candidate.destinationId, fixture.destinationId);
+    assert.equal(plan.candidate.matchedWikidataId, fixture.wikidataId);
+    assert.equal(plan.candidate.sourcePageUrl, fixture.sourcePageUrl);
+    assert.equal(plan.candidate.photographer, audited.photographer);
+    assert.equal(plan.candidate.licenseName, "CC BY-SA 3.0");
+    assert.equal(plan.candidate.mediaSha1, audited.mediaSha1);
+    assert.match(plan.candidate.notes ?? "", /human-audited same-entity Wikidata P18/);
+    assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
+    assert.equal("heroImage" in plan.candidate, false);
+    assert.deepEqual(calls, [
+      "identity:ko",
+      `article:${fixture.articleLanguage}:${fixture.articleTitle}`,
+      `p18:${fixture.wikidataId}`,
+      `images:${fixture.articleLanguage}`,
+    ]);
+  }
+});
+
+test("article images stay ahead of the audited Wikidata P18 fallback", async () => {
+  let p18Called = false;
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-daedunsan",
+    name: "Daedunsan",
+    country_code: "KR",
+    lat: 36.124594,
+    lng: 127.3204771,
+    wikidata_id: "Q5208179",
+  }), client({
+    async resolveWikidataArticle(wikidataId) {
+      return {
+        wikidataId,
+        articleTitle: "Daedunsan",
+        articleLanguage: "en",
+        coordinates: { lat: 36.124594, lng: 127.3204771 },
+      };
+    },
+    async fetchWikipediaArticle() {
+      return article({
+        title: "Daedunsan",
+        language: "en",
+        wikidataId: "Q5208179",
+        coordinates: null,
+        leadImageTitle: "File:Daedunsan autumn.jpg",
+        imageTitles: ["File:Daedunsan autumn.jpg"],
+      });
+    },
+    async fetchWikidataLeadImage() {
+      p18Called = true;
+      return null;
+    },
+    async fetchImageMetadata(titles) {
+      return titles.map((fileTitle) => image({
+        fileTitle,
+        sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Daedunsan_autumn.jpg",
+      }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected the article image candidate");
+  assert.equal(p18Called, false);
+  assert.match(plan.candidate.notes ?? "", /article lead image/);
+  assert.doesNotMatch(plan.candidate.notes ?? "", /Wikidata P18/);
+});
+
+test("P18 discovery stays closed to every Wikidata item outside the frozen audits", async () => {
+  let p18Called = false;
+  assert.equal(
+    await planCode(row(), client({
+      async fetchWikipediaArticle() {
+        return article({ leadImageTitle: null, imageTitles: [] });
+      },
+      async fetchWikidataLeadImage() {
+        p18Called = true;
+        return {
+          wikidataId: "Q194057",
+          fileTitle: "File:Mount Rainier from Paradise.jpg",
+        };
+      },
+    })),
+    "no_named_article_photo"
+  );
+  assert.equal(p18Called, false);
+});
+
+test("an audited P18 file must keep its frozen image identity and credit", async () => {
+  const audited = LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS.Q5208179;
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-daedunsan",
+    name: "Daedunsan",
+    country_code: "KR",
+    lat: 36.124594,
+    lng: 127.3204771,
+    wikidata_id: audited.wikidataId,
+  }), client({
+    async resolveWikidataArticle(wikidataId) {
+      return {
+        wikidataId,
+        articleTitle: "Daedunsan",
+        articleLanguage: "en",
+        coordinates: { lat: 36.124594, lng: 127.3204771 },
+      };
+    },
+    async fetchWikipediaArticle() {
+      return article({
+        title: "Daedunsan",
+        language: "en",
+        wikidataId: audited.wikidataId,
+        coordinates: null,
+        leadImageTitle: null,
+        imageTitles: [],
+      });
+    },
+    async fetchWikidataLeadImage(wikidataId) {
+      return { wikidataId, fileTitle: audited.fileTitle };
+    },
+    async fetchImageMetadata() {
+      return [image({
+        fileTitle: audited.fileTitle,
+        sourcePageUrl:
+          "https://commons.wikimedia.org/wiki/File:Chilseongbong_at_Daedunsan.jpg",
+        photographer: audited.photographer,
+        licenseName: audited.licenseName,
+        licenseUrl: audited.licenseUrl,
+        width: audited.width,
+        height: audited.height,
+        mediaSha1: RAINIER_MEDIA_SHA1,
+      })];
+    },
+  }));
+  if (plan.kind !== "miss") assert.fail("changed media must not enter review");
+  assert.equal(plan.code, "no_usable_new_source");
+  assert.match(plan.rejectedImages?.[0] ?? "", /SHA-1 changed from the human-audited/);
 });
 
 test("stored Wikidata does not excuse conflicting Korean article coordinates", async () => {

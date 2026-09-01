@@ -69,6 +69,26 @@ Korean file titles and the local `파일:` namespace normalize to the same revie
 identity as `File:`. Korean map, logo, flag, unknown-author, uploader, and
 own-work labels fail the same checks as their English forms.
 
+After every article image fails, two human-checked Korean peaks may use the P18
+file on the same stored Wikidata item:
+
+- Daedunsan (`Q5208179`): `File:Chilseongbong at Daedunsan.jpg`, Yoo Chung,
+  CC BY-SA 3.0, 5483 by 2050, SHA-1
+  `0632cdaca83add61f33ebfde6f541b870469ff98`.
+- 민주지산 (`Q8533668`): `File:Minjujisan Muju.jpg`, Ha98574 (Min's), CC BY-SA
+  3.0, 1600 by 1200, SHA-1
+  `551de49c173c77197d9ad0ce091470cccf367e16`.
+
+The code freezes this two-file set and checks the Q-id, P18 title, SHA-1,
+credit, license, and size again. It rejects all other P18 files. It does not
+use P373, Commons categories, or file geosearch. A match still creates only a
+pending row for human review.
+
+Daedunsan's Korean article title differs from its English catalog name. The
+article-image path still rejects that name mismatch. The frozen P18 path may
+continue only because the stored Q-id, Wikidata point, linked article Q-id, and
+any article point all match. It does not use that article's images.
+
 Commons sometimes reports an HTTP localized Creative Commons deed URL. The
 command keeps the reported license family and version, and stores its canonical
 HTTPS license page because the review table requires HTTPS.
@@ -139,9 +159,17 @@ production database writes.
   Wikidata and Wikipedia coordinates and read its Commons lead image with a
   named photographer, CC0 license page, and 5611 by 3741 dimensions. The full
   candidate plan passed all gates. It made no database call.
+- The P18 follow-up passed all 42 focused tests and the TypeScript build. The
+  full migration run passed 782 tests and skipped 9 database suites whose test
+  URLs were absent. A read-only live Wikimedia check produced the two frozen
+  candidates with their pinned source pages, credits, and SHA-1 values. It made
+  no database call.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
 
 The Korean-language lookup follow-up on 2026-08-31 kept that **$0/month** cost.
 It added no hosted service or scheduled work.
+
+The two-file P18 fallback also costs **$0/month**. It runs only inside the same
+operator-started command and adds no service, timer, or scheduled job.
