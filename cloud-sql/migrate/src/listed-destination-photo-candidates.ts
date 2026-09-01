@@ -8,6 +8,9 @@ export const LISTED_PHOTO_MIN_WIDTH = 1_600;
 export const LISTED_PHOTO_MIN_HEIGHT = 900;
 export const LISTED_PHOTO_GEOSEARCH_RADIUS_METERS = 1_500;
 export const LISTED_PHOTO_WIKIDATA_RADIUS_METERS = 5_000;
+export const LISTED_PHOTO_REVIEWED_CATALOG_RADIUS_METERS = 25;
+export const LISTED_PHOTO_REVIEWED_FILE_RADIUS_METERS = 25;
+export const LISTED_PHOTO_REVIEWED_SUMMIT_FILE_RADIUS_METERS = 1_500;
 export const LISTED_PHOTO_MAX_ARTICLE_IMAGES = 24;
 
 export type Queryable = {
@@ -69,6 +72,8 @@ export type WikipediaArticle = {
 export type WikimediaImageMetadata = {
   fileTitle: string;
   fileTitleAliases: string[];
+  coordinates: WikimediaCoordinates | null;
+  coordinateCount: number;
   imageUrl: string | null;
   sourcePageUrl: string | null;
   photographer: string | null;
@@ -99,6 +104,9 @@ export type ListedPhotoClient = {
   fetchWikidataLeadImage(
     wikidataId: string
   ): Promise<WikidataLeadImage | null>;
+  fetchReviewedCommonsFile(
+    fileTitle: string
+  ): Promise<WikimediaImageMetadata | null>;
   fetchImageMetadata(
     fileTitles: string[],
     language: WikipediaLanguage
@@ -145,10 +153,144 @@ export const LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS: Readonly<
   }),
 });
 
+export type ReviewedCommonsFilePhoto = {
+  evidenceType: "reviewed_commons_file";
+  destinationId: string;
+  destinationName: string;
+  requiredListId: string;
+  countryCode: "KR";
+  catalogWikidataId: string | null;
+  catalogCoordinates: WikimediaCoordinates;
+  fileTitle: string;
+  fileCoordinates: WikimediaCoordinates;
+  photographer: string;
+  licenseName: string;
+  licenseUrl: string;
+  width: number;
+  height: number;
+  mediaSha1: string;
+};
+
+const KFS_100_FAMOUS_MOUNTAINS_LIST_ID = "39F59B1A26E9B0818EBE";
+
+/**
+ * Human-reviewed Commons files bound to exact KFS catalog rows. These files do
+ * not authorize a wider Commons search or any fallback for the pinned rows.
+ */
+export const LISTED_PHOTO_REVIEWED_COMMONS_FILES: Readonly<
+  Record<string, Readonly<ReviewedCommonsFilePhoto>>
+> = Object.freeze({
+  "8E2DBAEC5DB4481221F2": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "8E2DBAEC5DB4481221F2",
+    destinationName: "덕숭산(수덕산)",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 36.6717743, lng: 126.6243386 },
+    fileTitle: "File:충남 서산 덕산 덕숭산 Korea - panoramio.jpg",
+    fileCoordinates: { lat: 36.667868, lng: 126.634598 },
+    photographer: "Chanilim714",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 1_600,
+    height: 1_200,
+    mediaSha1: "ba7c4641033fcbf73c73a820a414adbd13f4bd06",
+  }),
+  "958AD1411BC49B469BE1": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "958AD1411BC49B469BE1",
+    destinationName: "도봉산(자운봉)",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 37.6988424, lng: 127.0154594 },
+    fileTitle:
+      "File:Geology of South Korea - Dobongsan Peaks (도봉산 정산) (3578202462).jpg",
+    fileCoordinates: { lat: 37.695041, lng: 127.011472 },
+    photographer: "Seongbin Im from Seoul, Korea, Republic of",
+    licenseName: "CC BY-SA 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/",
+    width: 2_048,
+    height: 1_327,
+    mediaSha1: "5164902f52e98c89e6837fdfcaf5ad52ea16bf8a",
+  }),
+  "9F7C04F02A37514A13AD": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "9F7C04F02A37514A13AD",
+    destinationName: "북한산(백운대)",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 37.6586301, lng: 126.9780032 },
+    fileTitle:
+      "File:Geology of South Korea - Bukhansan (북한산) (9581214596).jpg",
+    fileCoordinates: { lat: 37.658683, lng: 126.977994 },
+    photographer: "Seongbin Im from Seoul, Korea, Republic of",
+    licenseName: "CC BY-SA 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/",
+    width: 7_877,
+    height: 2_852,
+    mediaSha1: "fbd17a371893de70c2b27becf632867ddbe1f797",
+  }),
+  "9676E99C140134852220": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "9676E99C140134852220",
+    destinationName: "팔공산",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 36.0165476, lng: 128.6953232 },
+    fileTitle: "File:팔공산.jpg",
+    fileCoordinates: { lat: 36.013364, lng: 128.697022 },
+    photographer: "Chrisxjohnson",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 3_264,
+    height: 2_448,
+    mediaSha1: "01d8049c67ea3dc3b1f95711cc7b75bdfe488707",
+  }),
+  D319B2B83A218D9A2C81: Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "D319B2B83A218D9A2C81",
+    destinationName: "황매산",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: "Q29083934",
+    catalogCoordinates: { lat: 35.4942361, lng: 127.9745887 },
+    fileTitle: "File:황매산.jpg",
+    fileCoordinates: { lat: 35.486032, lng: 127.969778 },
+    photographer: "마우진",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 5_472,
+    height: 3_078,
+    mediaSha1: "cc0c9645ef875a20ffaa75909b489ba0571b2509",
+  }),
+});
+
+export type ListedPhotoEvidence =
+  | {
+      type: "wikipedia_article";
+      articleTitle: string;
+      articleLanguage: WikipediaLanguage;
+      wikidataId: string;
+      discovery: "article_image" | "audited_wikidata_p18";
+    }
+  | {
+      type: "reviewed_commons_file";
+      destinationId: string;
+      requiredListId: string;
+      fileTitle: string;
+      catalogCoordinates: WikimediaCoordinates;
+      fileCoordinates: WikimediaCoordinates;
+    };
+
 export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
   id: string;
-  matchedArticleTitle: string;
-  matchedWikidataId: string;
+  evidence: ListedPhotoEvidence;
+  matchedArticleTitle: string | null;
+  matchedWikidataId: string | null;
   catalogWikidataId: string | null;
   catalogCountryCode: string | null;
   catalogLat: number;
@@ -652,6 +794,233 @@ function auditedWikidataP18MetadataRejection(
   return null;
 }
 
+function reviewedCommonsCatalogRejection(
+  row: ListedPhotoGapRow,
+  audit: Readonly<ReviewedCommonsFilePhoto>
+): string | null {
+  if (row.id !== audit.destinationId) {
+    return "destination id changed from the reviewed Commons binding";
+  }
+  if (row.name !== audit.destinationName) {
+    return "destination name changed from the reviewed Commons binding";
+  }
+  if (row.country_code?.trim().toUpperCase() !== audit.countryCode) {
+    return "destination country changed from the reviewed Commons binding";
+  }
+  if (!row.list_ids.includes(audit.requiredListId)) {
+    return "destination left the required KFS list";
+  }
+  if (row.wikidata_id !== audit.catalogWikidataId) {
+    return "destination Wikidata id changed from the reviewed Commons binding";
+  }
+  if (row.lat === null || row.lng === null) {
+    return "destination coordinates are missing";
+  }
+  const catalogDistance = distanceMeters(
+    row.lat,
+    row.lng,
+    audit.catalogCoordinates.lat,
+    audit.catalogCoordinates.lng
+  );
+  if (catalogDistance > LISTED_PHOTO_REVIEWED_CATALOG_RADIUS_METERS) {
+    return `destination moved ${catalogDistance.toFixed(1)} m from the reviewed catalog point`;
+  }
+  return null;
+}
+
+function reviewedCommonsFileMetadataRejection(
+  row: ListedPhotoGapRow,
+  image: WikimediaImageMetadata,
+  audit: Readonly<ReviewedCommonsFilePhoto>
+): string | null {
+  const exactFileTitle = normalizedWikimediaFileTitle(image.fileTitle)?.normalize("NFC");
+  if (exactFileTitle !== audit.fileTitle.normalize("NFC") || image.fileTitleAliases.length > 0) {
+    return "File title changed or redirected from the human-reviewed Commons file";
+  }
+  if (sourceKind(image.sourcePageUrl) !== "wikimedia_commons") {
+    return "source page is not the human-reviewed Commons File page";
+  }
+  if (
+    fileTitleFromWikimediaSourcePage(image.sourcePageUrl ?? "")?.normalize("NFC") !==
+    audit.fileTitle.normalize("NFC")
+  ) {
+    return "source File title changed from the human-reviewed Commons page";
+  }
+  const expectedSourceKey = sourcePageKey(
+    `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle)}`
+  );
+  if (sourcePageKey(image.sourcePageUrl ?? "") !== expectedSourceKey) {
+    return "source page changed from the human-reviewed Commons file";
+  }
+  if (image.photographer?.trim() !== audit.photographer) {
+    return "photographer changed from the human-reviewed Commons record";
+  }
+  if (
+    image.licenseName?.trim() !== audit.licenseName ||
+    canonicalWikimediaLicenseUrl(image.licenseUrl) !== audit.licenseUrl
+  ) {
+    return "license changed from the human-reviewed Commons record";
+  }
+  if (image.width !== audit.width || image.height !== audit.height) {
+    return "dimensions changed from the human-reviewed Commons file";
+  }
+  if (normalizedWikimediaSha1(image.mediaSha1) !== audit.mediaSha1) {
+    return "media SHA-1 changed from the human-reviewed Commons file";
+  }
+  if (image.coordinateCount !== 1 || !image.coordinates) {
+    return "human-reviewed Commons file no longer has exactly one coordinate";
+  }
+  const fileCoordinateDrift = distanceMeters(
+    image.coordinates.lat,
+    image.coordinates.lng,
+    audit.fileCoordinates.lat,
+    audit.fileCoordinates.lng
+  );
+  if (fileCoordinateDrift > LISTED_PHOTO_REVIEWED_FILE_RADIUS_METERS) {
+    return `Commons file coordinate moved ${fileCoordinateDrift.toFixed(1)} m from review`;
+  }
+  const summitFileDistance = distanceMeters(
+    row.lat!,
+    row.lng!,
+    image.coordinates.lat,
+    image.coordinates.lng
+  );
+  if (summitFileDistance > LISTED_PHOTO_REVIEWED_SUMMIT_FILE_RADIUS_METERS) {
+    return `Commons file coordinate is ${summitFileDistance.toFixed(1)} m from the summit`;
+  }
+  return null;
+}
+
+async function planReviewedCommonsFileCandidate(
+  row: ListedPhotoGapRow,
+  client: ListedPhotoClient,
+  audit: Readonly<ReviewedCommonsFilePhoto>
+): Promise<ListedPhotoPlan> {
+  const catalogRejection = reviewedCommonsCatalogRejection(row, audit);
+  if (catalogRejection) {
+    return {
+      kind: "miss",
+      code: "reviewed_commons_catalog_changed",
+      reason: catalogRejection,
+    };
+  }
+
+  const existingKeys = new Set(
+    row.existing_source_page_urls
+      .map(sourcePageKey)
+      .filter((key): key is string => key !== null)
+  );
+  const existingMediaSha1s = new Set(
+    row.existing_media_sha1s
+      .map(normalizedWikimediaSha1)
+      .filter((sha1): sha1 is string => sha1 !== null)
+  );
+  const historicalFileTitles = [...new Set(
+    row.existing_source_page_urls_without_sha
+      .map(fileTitleFromWikimediaSourcePage)
+      .filter((title): title is string => title !== null)
+  )];
+  for (const historicalTitle of historicalFileTitles) {
+    const historicalImage = await client.fetchReviewedCommonsFile(historicalTitle);
+    const historicalSha1 = normalizedWikimediaSha1(historicalImage?.mediaSha1 ?? null);
+    if (!historicalImage || !historicalSha1) {
+      return {
+        kind: "miss",
+        code: "historical_source_identity_unresolved",
+        reason:
+          "reviewed Wikimedia source no longer resolves to a durable image identity: " +
+          historicalTitle,
+      };
+    }
+    existingMediaSha1s.add(historicalSha1);
+  }
+
+  const image = await client.fetchReviewedCommonsFile(audit.fileTitle);
+  if (!image) {
+    return {
+      kind: "miss",
+      code: "reviewed_commons_file_unresolved",
+      reason: `${audit.fileTitle} no longer resolves as the exact reviewed Commons file`,
+    };
+  }
+  const rejection = imageMetadataRejection(image) ??
+    reviewedCommonsFileMetadataRejection(row, image, audit);
+  if (rejection) {
+    return {
+      kind: "miss",
+      code: "reviewed_commons_file_changed",
+      reason: rejection,
+      rejectedImages: [`${audit.fileTitle}: ${rejection}`],
+    };
+  }
+
+  const sourcePageUrl = image.sourcePageUrl!;
+  const sourceKey = sourcePageKey(sourcePageUrl);
+  const mediaSha1 = normalizedWikimediaSha1(image.mediaSha1);
+  if (
+    !sourceKey ||
+    !mediaSha1 ||
+    existingKeys.has(sourceKey) ||
+    existingMediaSha1s.has(mediaSha1)
+  ) {
+    return {
+      kind: "miss",
+      code: "no_usable_new_source",
+      reason: "human-reviewed Commons file was already reviewed or pending",
+      rejectedImages: [`${audit.fileTitle}: source already reviewed or pending`],
+    };
+  }
+
+  const summitFileDistance = distanceMeters(
+    row.lat!,
+    row.lng!,
+    image.coordinates!.lat,
+    image.coordinates!.lng
+  );
+  return {
+    kind: "candidate",
+    candidate: {
+      id: deterministicPhotoCandidateId(row.id, sourcePageUrl),
+      destinationId: row.id,
+      destinationName: row.name!,
+      imageUrl: image.imageUrl!,
+      sourcePageUrl,
+      sourceKind: "wikimedia_commons",
+      photographer: image.photographer!,
+      licenseName: image.licenseName!,
+      licenseUrl: image.licenseUrl!,
+      imageWidth: image.width!,
+      imageHeight: image.height!,
+      focalX: 50,
+      focalY: 50,
+      notes:
+        `Human-reviewed exact Commons file ${audit.fileTitle}; its saved file ` +
+        `coordinate is ${summitFileDistance.toFixed(1)} m from the KFS summit. ` +
+        "Framing requires human review.",
+      evidence: {
+        type: "reviewed_commons_file",
+        destinationId: audit.destinationId,
+        requiredListId: audit.requiredListId,
+        fileTitle: audit.fileTitle,
+        catalogCoordinates: audit.catalogCoordinates,
+        fileCoordinates: image.coordinates!,
+      },
+      matchedArticleTitle: null,
+      matchedWikidataId: audit.catalogWikidataId,
+      catalogWikidataId: audit.catalogWikidataId,
+      catalogCountryCode: audit.countryCode,
+      catalogLat: row.lat!,
+      catalogLng: row.lng!,
+      mediaSha1,
+      reviewHistoryFingerprint: listedPhotoReviewHistoryFingerprint(
+        row.existing_source_page_urls,
+        row.existing_media_sha1s
+      ),
+    },
+    rejectedImages: [],
+  };
+}
+
 type StableArticleOutcome =
   | { kind: "article"; article: WikipediaArticle }
   | {
@@ -845,6 +1214,11 @@ export async function planListedPhotoCandidate(
     };
   }
 
+  const reviewedCommonsFile = LISTED_PHOTO_REVIEWED_COMMONS_FILES[row.id];
+  if (reviewedCommonsFile) {
+    return planReviewedCommonsFileCandidate(row, client, reviewedCommonsFile);
+  }
+
   const auditedP18ForRow = row.wikidata_id
     ? LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS[row.wikidata_id]
     : undefined;
@@ -918,6 +1292,7 @@ export async function planListedPhotoCandidate(
   const candidateFromTitles = async (
     fileTitles: string[],
     sourceDescription: (fileTitle: string) => string,
+    discovery: "article_image" | "audited_wikidata_p18",
     frozenAudit?: Readonly<AuditedWikidataP18Photo>
   ): Promise<ListedPhotoCandidate | null> => {
     if (fileTitles.length === 0) return null;
@@ -974,6 +1349,13 @@ export async function planListedPhotoCandidate(
           `Wikipedia article ${article.title} ` +
           `(${matchedWikidataId}); ${sourceDescription(fileTitle)}. ` +
           "Framing requires human review.",
+        evidence: {
+          type: "wikipedia_article",
+          articleTitle: article.title,
+          articleLanguage: article.language,
+          wikidataId: matchedWikidataId,
+          discovery,
+        },
         matchedArticleTitle: article.title,
         matchedWikidataId,
         catalogWikidataId: row.wikidata_id,
@@ -995,7 +1377,8 @@ export async function planListedPhotoCandidate(
     (fileTitle) =>
       leadKey !== null && normalizedWords(fileTitle) === leadKey
         ? "article lead image"
-        : "file title names the destination"
+        : "file title names the destination",
+    "article_image"
   );
   if (articleCandidate) {
     return { kind: "candidate", candidate: articleCandidate, rejectedImages };
@@ -1017,6 +1400,7 @@ export async function planListedPhotoCandidate(
       const p18Candidate = await candidateFromTitles(
         [leadImage.fileTitle],
         () => "human-audited same-entity Wikidata P18 lead image",
+        "audited_wikidata_p18",
         auditedP18
       );
       if (p18Candidate) {
@@ -1053,6 +1437,13 @@ export async function queueListedPhotoCandidate(
             ST_X(d.location::geometry) AS lng,
             d.country_code,
             d.external_ids->>'wikidata' AS wikidata_id,
+            ARRAY(
+              SELECT l.id
+                FROM list_destinations ld
+                JOIN lists l ON l.id = ld.list_id AND l.owner = 'peaks'
+               WHERE ld.destination_id = d.id
+               ORDER BY l.id
+            ) AS list_ids,
             (${USABLE_COVER_SQL}) AS has_usable_cover,
             EXISTS (
               SELECT 1
@@ -1081,16 +1472,35 @@ export async function queueListedPhotoCandidate(
   const currentLng = nullableNumber(current.lng);
   const currentCountryCode = nullableText(current.country_code)?.toUpperCase() ?? null;
   const currentWikidataId = nullableText(current.wikidata_id);
-  const wikidataChanged = candidate.catalogWikidataId
+  const currentListIds = stringArray(current.list_ids);
+  const isReviewedCommonsFile = candidate.evidence.type === "reviewed_commons_file";
+  const requiredListId = candidate.evidence.type === "reviewed_commons_file"
+    ? candidate.evidence.requiredListId
+    : null;
+  const catalogCoordinates = candidate.evidence.type === "reviewed_commons_file"
+    ? candidate.evidence.catalogCoordinates
+    : { lat: candidate.catalogLat, lng: candidate.catalogLng };
+  const wikidataChanged = isReviewedCommonsFile
     ? currentWikidataId !== candidate.catalogWikidataId
-    : currentWikidataId !== null && currentWikidataId !== candidate.matchedWikidataId;
+    : candidate.catalogWikidataId
+      ? currentWikidataId !== candidate.catalogWikidataId
+      : currentWikidataId !== null && currentWikidataId !== candidate.matchedWikidataId;
   if (
     wikidataChanged ||
+    (
+      requiredListId !== null &&
+      !currentListIds.includes(requiredListId)
+    ) ||
     currentCountryCode !== candidate.catalogCountryCode ||
     currentName !== candidate.destinationName ||
     currentLat === null ||
     currentLng === null ||
-    distanceMeters(candidate.catalogLat, candidate.catalogLng, currentLat, currentLng) > 25
+    distanceMeters(
+      catalogCoordinates.lat,
+      catalogCoordinates.lng,
+      currentLat,
+      currentLng
+    ) > LISTED_PHOTO_REVIEWED_CATALOG_RADIUS_METERS
   ) {
     return "identity_changed";
   }

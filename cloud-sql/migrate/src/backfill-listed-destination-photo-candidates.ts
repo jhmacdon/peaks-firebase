@@ -452,10 +452,12 @@ function mediaWikiFileTitleAliases(json: unknown, canonicalTitle: string): strin
 
 export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetadata[] {
   return pageRecords(json).flatMap((page) => {
+    if (Number(page.ns) !== 6) return [];
     const rawFileTitle = text(page.title);
     const fileTitle = normalizedWikimediaFileTitle(rawFileTitle);
     const infoRows = Array.isArray(page.imageinfo) ? page.imageinfo : [];
     const info = objectRecord(infoRows[0]);
+    const coordinateRows = Array.isArray(page.coordinates) ? page.coordinates : [];
     if (!rawFileTitle || !fileTitle || !info) return [];
     const extmetadata = objectRecord(info.extmetadata);
     return [{
@@ -463,6 +465,8 @@ export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetada
       fileTitleAliases: mediaWikiFileTitleAliases(json, rawFileTitle)
         .map(normalizedWikimediaFileTitle)
         .filter((title): title is string => title !== null),
+      coordinates: coordinateRows.length === 1 ? coordinates(coordinateRows[0]) : null,
+      coordinateCount: coordinateRows.length,
       imageUrl: canonicalWikimediaImageUrl(info.url),
       sourcePageUrl: text(info.descriptionurl),
       photographer: plainMetadataText(extmetadata?.Artist),
@@ -488,6 +492,20 @@ function actionApiUrl(hostname: string, params: Record<string, string>): URL {
     url.searchParams.set(name, value);
   }
   return url;
+}
+
+export function reviewedCommonsFileApiUrl(fileTitle: string): URL {
+  const exactTitle = normalizedWikimediaFileTitle(fileTitle);
+  if (!exactTitle || exactTitle !== fileTitle) {
+    throw new Error(`reviewed Commons title is not canonical: ${fileTitle}`);
+  }
+  return actionApiUrl("commons.wikimedia.org", {
+    prop: "imageinfo|coordinates",
+    iiprop: "url|size|mime|mediatype|sha1|extmetadata",
+    iiextmetadatalanguage: "en",
+    iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl",
+    titles: exactTitle,
+  });
 }
 
 export const wikimediaListedPhotoClient: ListedPhotoClient = {
@@ -537,6 +555,13 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
       props: "claims",
     });
     return parseWikidataLeadImage(await requestJson(url), wikidataId);
+  },
+
+  async fetchReviewedCommonsFile(fileTitle) {
+    const records = parseWikimediaImageMetadata(
+      await requestJson(reviewedCommonsFileApiUrl(fileTitle))
+    );
+    return records.length === 1 ? records[0] : null;
   },
 
   async fetchImageMetadata(fileTitles, language) {
