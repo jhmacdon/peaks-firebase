@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { asyncRoute } from "../lib/async-route";
 import db from "../db";
 import { routeDoneCoverageSql } from "../route-coverage";
+import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 
 const router = Router();
 
@@ -86,7 +87,8 @@ export function buildListDestinationsQuery(listId: string) {
             ld.ordinal,
             d.averages, d.averages_offset,
             br.route_id, br.route_name, br.route_distance,
-            br.route_gain, br.route_shape, br.route_provenance
+            br.route_gain, br.route_shape, br.route_provenance,
+            ${routeCoverSelectSql()}
      FROM destinations d
      JOIN list_destinations ld ON ld.destination_id = d.id
      LEFT JOIN LATERAL (
@@ -104,6 +106,7 @@ export function buildListDestinationsQuery(listId: string) {
        ORDER BY session_count DESC NULLS LAST, r.distance ASC NULLS LAST, r.id ASC
        LIMIT 1
      ) br ON true
+     ${routeCoverJoinSql("br", "cover", "route_id")}
      WHERE ld.list_id = $1
      ORDER BY ld.ordinal`,
     values: [listId],

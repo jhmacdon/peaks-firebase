@@ -43,6 +43,7 @@ export default async function RouteLayout({
       jsonLd = buildRouteJsonLd({
         name: route.name,
         url: absoluteUrl(`/routes/${id}`),
+        image: route.cover_image,
         distanceMeters: route.distance,
         gainMeters: route.gain,
       });
@@ -98,10 +99,8 @@ export async function generateMetadata({
       alternates: {
         canonical: absoluteUrl(canonicalPath),
       },
-      // No `images` here: the co-located `opengraph-image.tsx` in this same
-      // segment is picked up automatically, with the correct build-hashed,
-      // cache-busted URL Next.js generates for it — a hand-built URL can't
-      // reproduce that hash.
+      // The co-located image route uses this route's derived destination cover
+      // when one exists, with the plain branded panel as its fallback.
       openGraph: {
         title,
         description,

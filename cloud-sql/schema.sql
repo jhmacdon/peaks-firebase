@@ -2207,6 +2207,35 @@ EXECUTE FUNCTION link_areas_on_destination_insert();
 -- Views
 -- =============================================================================
 
+-- One credited destination photo per route. Routes do not own copied photo
+-- data: this view always reads the current destination cover and drops a photo
+-- unless its image, credit, and credit link are all present. Prefer a summit,
+-- then the last linked stop and the strongest peak facts, with stable text/ID
+-- ties so every reader gets the same result.
+CREATE OR REPLACE VIEW route_cover_photos AS
+SELECT DISTINCT ON (rd.route_id)
+    rd.route_id,
+    d.id AS destination_id,
+    d.name AS destination_name,
+    btrim(d.hero_image) AS image_url,
+    btrim(d.hero_image_attribution) AS attribution,
+    btrim(d.hero_image_attribution_url) AS attribution_url,
+    d.hero_image_focal_x AS focal_x,
+    d.hero_image_focal_y AS focal_y
+FROM route_destinations rd
+JOIN destinations d ON d.id = rd.destination_id
+WHERE NULLIF(btrim(d.hero_image), '') IS NOT NULL
+  AND NULLIF(btrim(d.hero_image_attribution), '') IS NOT NULL
+  AND NULLIF(btrim(d.hero_image_attribution_url), '') IS NOT NULL
+ORDER BY
+    rd.route_id,
+    ('summit'::destination_feature = ANY(d.features)) DESC,
+    rd.ordinal DESC,
+    d.prominence DESC NULLS LAST,
+    d.elevation DESC NULLS LAST,
+    d.name ASC NULLS LAST,
+    d.id ASC;
+
 -- One row per source that has ever run: the latest finished_at of a
 -- successful, non-dry-run 'import' or 'normalize' run, how many days old
 -- that is, and whether it has gone stale (no such run in the last 90 days).

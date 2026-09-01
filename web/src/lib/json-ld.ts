@@ -170,10 +170,12 @@ export function buildAreaJsonLd(input: {
 export function buildRouteJsonLd(input: {
   name?: string | null;
   url: string;
+  image?: string | null;
   distanceMeters?: number | null;
   gainMeters?: number | null;
 }): JsonLd {
   const name = text(input.name);
+  const image = text(input.image);
   const distance = number(input.distanceMeters);
   const gain = number(input.gainMeters);
   const additionalProperty = [
@@ -204,6 +206,7 @@ export function buildRouteJsonLd(input: {
     "@type": "Place",
     ...(name ? { name } : {}),
     url: input.url,
+    ...(image ? { image } : {}),
     ...(additionalProperty.length > 0 ? { additionalProperty } : {}),
   };
 }
