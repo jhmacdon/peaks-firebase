@@ -1,0 +1,4683 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-31",
+  "registryId": "kfs-100-famous-mountains",
+  "use": "validation_only",
+  "summitReachThresholdM": 250,
+  "inputSha256": {
+    "coordinateCrosswalk": "949672eeec5d5c44f212632fd500cc6d594fbf1316e7c317a1165f0ef78b1636",
+    "sourceCrosswalk": "b113780ebec8206cae3ca24022af7a9d77c2b718a258b000666a940f6ebd4735"
+  },
+  "archive": {
+    "sourceUrl": "https://www.forest.go.kr/kfsweb/opda/dataMng/fileDown.do?dataType=/mount/mountain.zip",
+    "sha256": "e017b599947b4a14493771ed810d0c0221d5e9ab7e9dd5c5b1fc24a69ede0c72",
+    "sizeBytes": 265601808,
+    "outerEntryCount": 8802,
+    "ignoredBackupEntryCount": 5,
+    "packageCount": 2932,
+    "shapefilePackageCount": 2932,
+    "geojsonPackageCount": 2932,
+    "gpxPackageCount": 2932,
+    "sourceDataDate": "2016-12-31",
+    "coordinateSystem": "WGS84 GPX"
+  },
+  "summary": {
+    "rowCount": 100,
+    "confirmed": 83,
+    "unresolved": 17,
+    "bindingCount": 90,
+    "archiveCatalogCount": 2932,
+    "portalPublishedCount": 2919,
+    "catalogCountDisagreement": 13
+  },
+  "rows": [
+    {
+      "ordinal": 1,
+      "sourceMemberId": "kfs:20000004",
+      "mntnId": "20000004",
+      "destinationId": "46D88A130EEFCD1E7EF3",
+      "kfsName": "가리산",
+      "summit": {
+        "lat": 37.8713832,
+        "lng": 127.9564688
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "427207401",
+        "lineNames": [
+          "새득이봉"
+        ],
+        "pointNames": [
+          "새득이봉"
+        ],
+        "nearestLineDistanceM": 0.0
+      },
+      "unresolvedReason": "identity_not_established",
+      "reviewNote": "The nearest line is named 새득이봉 and has no 가리산 line or point identity; proximity alone cannot bind it."
+    },
+    {
+      "ordinal": 2,
+      "sourceMemberId": "kfs:20000006",
+      "mntnId": "20000006",
+      "destinationId": "A11945CA1EFC70F61114",
+      "kfsName": "가리왕산",
+      "summit": {
+        "lat": 37.4614337,
+        "lng": 128.5633877
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427700101",
+          "archiveMntnIds": [
+            "2211050100",
+            "427700101"
+          ],
+          "archiveMntnCodes": [
+            "427700101"
+          ],
+          "lineNames": [
+            "가리왕산"
+          ],
+          "pointNames": [
+            "가리왕산"
+          ],
+          "nearestLineDistanceM": 0.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 가리왕산 matches the reviewed KFS mountain identity 가리왕산.",
+            "The WGS84 GPX line comes within 0.6 m of the reviewed summit.",
+            "Official package 427700101 carries checked MNTN_ID value(s) 2211050100, 427700101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427700101",
+        "lineNames": [
+          "가리왕산"
+        ],
+        "pointNames": [
+          "가리왕산"
+        ],
+        "nearestLineDistanceM": 0.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427700101 at 0.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 3,
+      "sourceMemberId": "kfs:20000009",
+      "mntnId": "20000009",
+      "destinationId": "98EF21EAFA1C1A56A7A4",
+      "kfsName": "가야산",
+      "summit": {
+        "lat": 35.8225637,
+        "lng": 128.1229428
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "488906604",
+        "lineNames": [
+          "남산숲길"
+        ],
+        "pointNames": [
+          "남산숲길"
+        ],
+        "nearestLineDistanceM": 3037.1
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 남산숲길 at 3037.1 m; all 가야산 packages are more than 100 km away."
+    },
+    {
+      "ordinal": 4,
+      "sourceMemberId": "kfs:20000012",
+      "mntnId": "20000012",
+      "destinationId": "FDBDD82B46CCAFD7B293",
+      "kfsName": "가지산",
+      "summit": {
+        "lat": 35.6202857,
+        "lng": 129.0029231
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "317100101",
+          "archiveMntnIds": [
+            "1704060100",
+            "317100101",
+            "478200101",
+            "482700201",
+            "482700301"
+          ],
+          "archiveMntnCodes": [
+            "317100101"
+          ],
+          "lineNames": [
+            "가지산"
+          ],
+          "pointNames": [
+            "가지산"
+          ],
+          "nearestLineDistanceM": 0.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 가지산 matches the reviewed KFS mountain identity 가지산.",
+            "The WGS84 GPX line comes within 0.2 m of the reviewed summit.",
+            "Official package 317100101 carries checked MNTN_ID value(s) 1704060100, 317100101, 478200101, 482700201, 482700301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "317100101",
+        "lineNames": [
+          "가지산"
+        ],
+        "pointNames": [
+          "가지산"
+        ],
+        "nearestLineDistanceM": 0.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 317100101 at 0.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 5,
+      "sourceMemberId": "kfs:20000024",
+      "mntnId": "20000024",
+      "destinationId": "8DEE274D47E5F5B1A017",
+      "kfsName": "감악산",
+      "summit": {
+        "lat": 37.941156,
+        "lng": 126.9700763
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "414800101",
+          "archiveMntnIds": [
+            "2140140100",
+            "416300101",
+            "418000101"
+          ],
+          "archiveMntnCodes": [
+            "414800101"
+          ],
+          "lineNames": [
+            "감악산"
+          ],
+          "pointNames": [
+            "감악산"
+          ],
+          "nearestLineDistanceM": 0.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 감악산 matches the reviewed KFS mountain identity 감악산.",
+            "The WGS84 GPX line comes within 0.9 m of the reviewed summit.",
+            "Official package 414800101 carries checked MNTN_ID value(s) 2140140100, 416300101, 418000101 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "414803004",
+          "archiveMntnIds": [
+            "414803004"
+          ],
+          "archiveMntnCodes": [
+            "414803004"
+          ],
+          "lineNames": [
+            "감악산약수터"
+          ],
+          "pointNames": [
+            "감악산약수터"
+          ],
+          "nearestLineDistanceM": 160.1,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 감악산약수터 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 160.1 m of the reviewed summit.",
+            "Official package 414803004 carries checked MNTN_ID value(s) 414803004 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "414800101",
+        "lineNames": [
+          "감악산"
+        ],
+        "pointNames": [
+          "감악산"
+        ],
+        "nearestLineDistanceM": 0.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 414800101 at 0.9 m, 414803004 at 160.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 6,
+      "sourceMemberId": "kfs:20000028",
+      "mntnId": "20000028",
+      "destinationId": "8413F4CEB93582E2C5DB",
+      "kfsName": "강천산",
+      "summit": {
+        "lat": 35.40192,
+        "lng": 127.04838
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457700101",
+          "archiveMntnIds": [
+            "2607102300"
+          ],
+          "archiveMntnCodes": [
+            "457700101"
+          ],
+          "lineNames": [
+            "강천산_왕자봉"
+          ],
+          "pointNames": [
+            "강천산_왕자봉"
+          ],
+          "nearestLineDistanceM": 1.0,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 강천산_왕자봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 1.0 m of the reviewed summit.",
+            "Official package 457700101 carries checked MNTN_ID value(s) 2607102300 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457700101",
+        "lineNames": [
+          "강천산_왕자봉"
+        ],
+        "pointNames": [
+          "강천산_왕자봉"
+        ],
+        "nearestLineDistanceM": 1.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457700101 at 1.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 7,
+      "sourceMemberId": "kfs:20000040",
+      "mntnId": "20000040",
+      "destinationId": "C815A28AAE419B6BE6AF",
+      "kfsName": "계룡산",
+      "summit": {
+        "lat": 36.3423624,
+        "lng": 127.2060396
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "447600103",
+        "lineNames": [
+          "금남정맥"
+        ],
+        "pointNames": [
+          "금남정맥",
+          "천마산"
+        ],
+        "nearestLineDistanceM": 85.0
+      },
+      "unresolvedReason": "identity_not_established",
+      "reviewNote": "금남정맥 passes within 85.0 m, but its line and point names do not identify 계룡산; the exact-name package is 203952.5 m away."
+    },
+    {
+      "ordinal": 8,
+      "sourceMemberId": "kfs:20000043",
+      "mntnId": "20000043",
+      "destinationId": "2A01DA8FF0BC355F421D",
+      "kfsName": "계방산",
+      "summit": {
+        "lat": 37.7283389,
+        "lng": 128.4654971
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427206801",
+          "archiveMntnIds": [
+            "2215064300"
+          ],
+          "archiveMntnCodes": [
+            "427206801"
+          ],
+          "lineNames": [
+            "계방산"
+          ],
+          "pointNames": [
+            "계방산"
+          ],
+          "nearestLineDistanceM": 11.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 계방산 matches the reviewed KFS mountain identity 계방산.",
+            "The WGS84 GPX line comes within 11.5 m of the reviewed summit.",
+            "Official package 427206801 carries checked MNTN_ID value(s) 2215064300 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427206801",
+        "lineNames": [
+          "계방산"
+        ],
+        "pointNames": [
+          "계방산"
+        ],
+        "nearestLineDistanceM": 11.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427206801 at 11.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 9,
+      "sourceMemberId": "kfs:20000058",
+      "mntnId": "20000058",
+      "destinationId": "0EE5ADDBD79475396BCF",
+      "kfsName": "공작산",
+      "summit": {
+        "lat": 37.7159579,
+        "lng": 128.0106651
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427200401",
+          "archiveMntnIds": [
+            "2216100300"
+          ],
+          "archiveMntnCodes": [
+            "427200401"
+          ],
+          "lineNames": [
+            "공작산"
+          ],
+          "pointNames": [
+            "공작산"
+          ],
+          "nearestLineDistanceM": 2.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 공작산 matches the reviewed KFS mountain identity 공작산.",
+            "The WGS84 GPX line comes within 2.2 m of the reviewed summit.",
+            "Official package 427200401 carries checked MNTN_ID value(s) 2216100300 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427200401",
+        "lineNames": [
+          "공작산"
+        ],
+        "pointNames": [
+          "공작산"
+        ],
+        "nearestLineDistanceM": 2.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427200401 at 2.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 10,
+      "sourceMemberId": "kfs:20000059",
+      "mntnId": "20000059",
+      "destinationId": "88C20A53C41A6D26A229",
+      "kfsName": "관악산",
+      "summit": {
+        "lat": 37.4451398,
+        "lng": 126.9642379
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "116200201",
+          "archiveMntnIds": [
+            "1105040200"
+          ],
+          "archiveMntnCodes": [
+            "116200201"
+          ],
+          "lineNames": [
+            "관악산"
+          ],
+          "pointNames": [
+            "관악산"
+          ],
+          "nearestLineDistanceM": 4.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 관악산 matches the reviewed KFS mountain identity 관악산.",
+            "The WGS84 GPX line comes within 4.0 m of the reviewed summit.",
+            "Official package 116200201 carries checked MNTN_ID value(s) 1105040200 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "116200904",
+          "archiveMntnIds": [
+            "116200904"
+          ],
+          "archiveMntnCodes": [
+            "116200904"
+          ],
+          "lineNames": [
+            "관악산학바위능선"
+          ],
+          "pointNames": [
+            "관악산학바위능선"
+          ],
+          "nearestLineDistanceM": 4.6,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 관악산학바위능선 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 4.6 m of the reviewed summit.",
+            "Official package 116200904 carries checked MNTN_ID value(s) 116200904 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "116200201",
+        "lineNames": [
+          "관악산"
+        ],
+        "pointNames": [
+          "관악산"
+        ],
+        "nearestLineDistanceM": 4.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 116200201 at 4.0 m, 116200904 at 4.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 11,
+      "sourceMemberId": "kfs:20000073",
+      "mntnId": "20000073",
+      "destinationId": "D8EB448FB5C3CA204300",
+      "kfsName": "구병산",
+      "summit": {
+        "lat": 36.4695827,
+        "lng": 127.8617468
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "437200401",
+          "archiveMntnIds": [
+            "2303020400"
+          ],
+          "archiveMntnCodes": [
+            "437200401"
+          ],
+          "lineNames": [
+            "구병산"
+          ],
+          "pointNames": [
+            "구병산"
+          ],
+          "nearestLineDistanceM": 3.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 구병산 matches the reviewed KFS mountain identity 구병산.",
+            "The WGS84 GPX line comes within 3.0 m of the reviewed summit.",
+            "Official package 437200401 carries checked MNTN_ID value(s) 2303020400 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "437200401",
+        "lineNames": [
+          "구병산"
+        ],
+        "pointNames": [
+          "구병산"
+        ],
+        "nearestLineDistanceM": 3.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 437200401 at 3.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 12,
+      "sourceMemberId": "kfs:20000934",
+      "mntnId": "20000934",
+      "destinationId": "0BC6D800293EA386AD12",
+      "kfsName": "금산",
+      "summit": {
+        "lat": 34.753798,
+        "lng": 127.9829362
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "488403901",
+        "lineNames": [
+          "호구산"
+        ],
+        "pointNames": [
+          "호구산"
+        ],
+        "nearestLineDistanceM": 4243.3
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 호구산 at 4243.3 m; each exact 금산 package is at least 77968.4 m away."
+    },
+    {
+      "ordinal": 13,
+      "sourceMemberId": "kfs:20000091",
+      "mntnId": "20000091",
+      "destinationId": "98C3D64A03CFC055DD04",
+      "kfsName": "금수산",
+      "summit": {
+        "lat": 36.9847255,
+        "lng": 128.2569094
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "438002601",
+          "archiveMntnIds": [
+            "438002601"
+          ],
+          "archiveMntnCodes": [
+            "438002601"
+          ],
+          "lineNames": [
+            "금수산"
+          ],
+          "pointNames": [
+            "금수산"
+          ],
+          "nearestLineDistanceM": 14.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 금수산 matches the reviewed KFS mountain identity 금수산.",
+            "The WGS84 GPX line comes within 14.9 m of the reviewed summit.",
+            "Official package 438002601 carries checked MNTN_ID value(s) 438002601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "438002601",
+        "lineNames": [
+          "금수산"
+        ],
+        "pointNames": [
+          "금수산"
+        ],
+        "nearestLineDistanceM": 14.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 438002601 at 14.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 14,
+      "sourceMemberId": "kfs:20000092",
+      "mntnId": "20000092",
+      "destinationId": "931A05D54F5C735378EE",
+      "kfsName": "금오산",
+      "summit": {
+        "lat": 36.0917364,
+        "lng": 128.3001983
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "471900101",
+          "archiveMntnIds": [
+            "2704390100",
+            "471900101",
+            "478500601"
+          ],
+          "archiveMntnCodes": [
+            "471900101"
+          ],
+          "lineNames": [
+            "금오산"
+          ],
+          "pointNames": [
+            "금오산",
+            "효자봉"
+          ],
+          "nearestLineDistanceM": 51.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 금오산 matches the reviewed KFS mountain identity 금오산.",
+            "The WGS84 GPX line comes within 51.0 m of the reviewed summit.",
+            "Official package 471900101 carries checked MNTN_ID value(s) 2704390100, 471900101, 478500601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "471900101",
+        "lineNames": [
+          "금오산"
+        ],
+        "pointNames": [
+          "금오산",
+          "효자봉"
+        ],
+        "nearestLineDistanceM": 51.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 471900101 at 51.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 15,
+      "sourceMemberId": "kfs:20000094",
+      "mntnId": "20000094",
+      "destinationId": "1B2D6104FE61F015C9DE",
+      "kfsName": "금정산",
+      "summit": {
+        "lat": 35.2801497,
+        "lng": 129.0506168
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "264100101",
+          "archiveMntnIds": [
+            "262600101",
+            "263200101",
+            "264100101",
+            "2810040200",
+            "483300301"
+          ],
+          "archiveMntnCodes": [
+            "264100101"
+          ],
+          "lineNames": [
+            "금정산"
+          ],
+          "pointNames": [
+            "금정산"
+          ],
+          "nearestLineDistanceM": 2.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 금정산 matches the reviewed KFS mountain identity 금정산.",
+            "The WGS84 GPX line comes within 2.1 m of the reviewed summit.",
+            "Official package 264100101 carries checked MNTN_ID value(s) 262600101, 263200101, 264100101, 2810040200, 483300301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "264100101",
+        "lineNames": [
+          "금정산"
+        ],
+        "pointNames": [
+          "금정산"
+        ],
+        "nearestLineDistanceM": 2.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 264100101 at 2.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 16,
+      "sourceMemberId": "kfs:20001254",
+      "mntnId": "20001254",
+      "destinationId": "A6B289B963FB542E24ED",
+      "kfsName": "깃대봉",
+      "summit": {
+        "lat": 34.6968754,
+        "lng": 125.2031864
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "469100501",
+          "archiveMntnIds": [
+            "469100501"
+          ],
+          "archiveMntnCodes": [
+            "469100501"
+          ],
+          "lineNames": [
+            "깃대봉"
+          ],
+          "pointNames": [
+            "깃대봉"
+          ],
+          "nearestLineDistanceM": 5.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 깃대봉 matches the reviewed KFS mountain identity 깃대봉.",
+            "The WGS84 GPX line comes within 5.5 m of the reviewed summit.",
+            "Official package 469100501 carries checked MNTN_ID value(s) 469100501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "469100501",
+        "lineNames": [
+          "깃대봉"
+        ],
+        "pointNames": [
+          "깃대봉"
+        ],
+        "nearestLineDistanceM": 5.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 469100501 at 5.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 17,
+      "sourceMemberId": "kfs:20000108",
+      "mntnId": "20000108",
+      "destinationId": "131CC8DCF3431E8F1329",
+      "kfsName": "남산(금오산)",
+      "summit": {
+        "lat": 35.76756,
+        "lng": 129.22529
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "317104401",
+        "lineNames": [
+          "묵장산"
+        ],
+        "pointNames": [
+          "묵장산"
+        ],
+        "nearestLineDistanceM": 7119.1
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 묵장산 at 7119.1 m; common 남산 and 금오산 names resolve to other places."
+    },
+    {
+      "ordinal": 18,
+      "sourceMemberId": "kfs:20000111",
+      "mntnId": "20000111",
+      "destinationId": "34FFDBE213B4B5ABAF27",
+      "kfsName": "내연산",
+      "summit": {
+        "lat": 36.2786758,
+        "lng": 129.2899056
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "471100801",
+          "archiveMntnIds": [
+            "2724130500",
+            "471130201"
+          ],
+          "archiveMntnCodes": [
+            "471100801"
+          ],
+          "lineNames": [
+            "내연산"
+          ],
+          "pointNames": [
+            "내연산"
+          ],
+          "nearestLineDistanceM": 7.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 내연산 matches the reviewed KFS mountain identity 내연산.",
+            "The WGS84 GPX line comes within 7.9 m of the reviewed summit.",
+            "Official package 471100801 carries checked MNTN_ID value(s) 2724130500, 471130201 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "471100801",
+        "lineNames": [
+          "내연산"
+        ],
+        "pointNames": [
+          "내연산"
+        ],
+        "nearestLineDistanceM": 7.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 471100801 at 7.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 19,
+      "sourceMemberId": "kfs:20000112",
+      "mntnId": "20000112",
+      "destinationId": "8393F1D102260F457B4C",
+      "kfsName": "내장산(신선봉)",
+      "summit": {
+        "lat": 35.4783324,
+        "lng": 126.8889872
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "451803401",
+        "lineNames": [
+          "월봉"
+        ],
+        "pointNames": [
+          "월봉"
+        ],
+        "nearestLineDistanceM": 3818.8
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 월봉 at 3818.8 m; neither a 내장산 nor 신선봉 package reaches the reviewed summit."
+    },
+    {
+      "ordinal": 20,
+      "sourceMemberId": "kfs:20000131",
+      "mntnId": "20000131",
+      "destinationId": "847AC55208D99F4DAAD1",
+      "kfsName": "대둔산",
+      "summit": {
+        "lat": 36.124594,
+        "lng": 127.3204771
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "442300801",
+          "archiveMntnIds": [
+            "2404170800"
+          ],
+          "archiveMntnCodes": [
+            "442300801"
+          ],
+          "lineNames": [
+            "대둔산_마천대"
+          ],
+          "pointNames": [
+            "대둔산",
+            "대둔산_마천대"
+          ],
+          "nearestLineDistanceM": 0.2,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 대둔산_마천대 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 0.2 m of the reviewed summit.",
+            "Official package 442300801 carries checked MNTN_ID value(s) 2404170800 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "442300801",
+        "lineNames": [
+          "대둔산_마천대"
+        ],
+        "pointNames": [
+          "대둔산",
+          "대둔산_마천대"
+        ],
+        "nearestLineDistanceM": 0.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 442300801 at 0.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 21,
+      "sourceMemberId": "kfs:20001321",
+      "mntnId": "20001321",
+      "destinationId": "0D61DA3A124271374B4E",
+      "kfsName": "대암산",
+      "summit": {
+        "lat": 38.2110649,
+        "lng": 128.1347132
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "428100403",
+        "lineNames": [
+          "백두대간트레일인제"
+        ],
+        "pointNames": [
+          "백두대간트레일인제"
+        ],
+        "nearestLineDistanceM": 2411.4
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "백두대간트레일인제 is nearest at 2411.4 m and the exact 대암산 package remains 4351.7 m away."
+    },
+    {
+      "ordinal": 22,
+      "sourceMemberId": "kfs:20000138",
+      "mntnId": "20000138",
+      "destinationId": "3C90F69125374FDD2B51",
+      "kfsName": "대야산",
+      "summit": {
+        "lat": 36.6692579,
+        "lng": 127.9294814
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "472800901",
+          "archiveMntnIds": [
+            "2707010800",
+            "472800901"
+          ],
+          "archiveMntnCodes": [
+            "472800901"
+          ],
+          "lineNames": [
+            "대야산"
+          ],
+          "pointNames": [
+            "대야산"
+          ],
+          "nearestLineDistanceM": 9.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 대야산 matches the reviewed KFS mountain identity 대야산.",
+            "The WGS84 GPX line comes within 9.1 m of the reviewed summit.",
+            "Official package 472800901 carries checked MNTN_ID value(s) 2707010800, 472800901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "472800901",
+        "lineNames": [
+          "대야산"
+        ],
+        "pointNames": [
+          "대야산"
+        ],
+        "nearestLineDistanceM": 9.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 472800901 at 9.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 23,
+      "sourceMemberId": "kfs:20000143",
+      "mntnId": "20000143",
+      "destinationId": "8E2DBAEC5DB4481221F2",
+      "kfsName": "덕숭산(수덕산)",
+      "summit": {
+        "lat": 36.6717743,
+        "lng": 126.6243386
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "448100401",
+          "archiveMntnIds": [
+            "2412050400"
+          ],
+          "archiveMntnCodes": [
+            "448100401"
+          ],
+          "lineNames": [
+            "덕숭산_수덕산"
+          ],
+          "pointNames": [
+            "덕숭산_수덕산"
+          ],
+          "nearestLineDistanceM": 0.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 덕숭산_수덕산 matches the reviewed KFS mountain identity 덕숭산(수덕산).",
+            "The WGS84 GPX line comes within 0.5 m of the reviewed summit.",
+            "Official package 448100401 carries checked MNTN_ID value(s) 2412050400 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "448100401",
+        "lineNames": [
+          "덕숭산_수덕산"
+        ],
+        "pointNames": [
+          "덕숭산_수덕산"
+        ],
+        "nearestLineDistanceM": 0.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 448100401 at 0.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 24,
+      "sourceMemberId": "kfs:20000144",
+      "mntnId": "20000144",
+      "destinationId": "C32F320EE818729F8A50",
+      "kfsName": "덕유산(향적봉)",
+      "summit": {
+        "lat": 35.8600127,
+        "lng": 127.7465185
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457300702",
+          "archiveMntnIds": [
+            "457300701",
+            "488801601"
+          ],
+          "archiveMntnCodes": [
+            "457300702"
+          ],
+          "lineNames": [
+            "덕유산_향적봉"
+          ],
+          "pointNames": [
+            "덕유산_향적봉"
+          ],
+          "nearestLineDistanceM": 24.8,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 덕유산_향적봉 matches the reviewed KFS mountain identity 덕유산(향적봉).",
+            "The WGS84 GPX line comes within 24.8 m of the reviewed summit.",
+            "Official package 457300702 carries checked MNTN_ID value(s) 457300701, 488801601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457300702",
+        "lineNames": [
+          "덕유산_향적봉"
+        ],
+        "pointNames": [
+          "덕유산_향적봉"
+        ],
+        "nearestLineDistanceM": 24.8
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457300702 at 24.8 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 25,
+      "sourceMemberId": "kfs:20000149",
+      "mntnId": "20000149",
+      "destinationId": "8CEB7EFDF618FC6732E1",
+      "kfsName": "덕항산",
+      "summit": {
+        "lat": 37.308788,
+        "lng": 129.012634
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "421900601",
+          "archiveMntnIds": [
+            "2214180500",
+            "421900601"
+          ],
+          "archiveMntnCodes": [
+            "421900601"
+          ],
+          "lineNames": [
+            "덕항산"
+          ],
+          "pointNames": [
+            "덕항산"
+          ],
+          "nearestLineDistanceM": 4.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 덕항산 matches the reviewed KFS mountain identity 덕항산.",
+            "The WGS84 GPX line comes within 4.0 m of the reviewed summit.",
+            "Official package 421900601 carries checked MNTN_ID value(s) 2214180500, 421900601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "421900601",
+        "lineNames": [
+          "덕항산"
+        ],
+        "pointNames": [
+          "덕항산"
+        ],
+        "nearestLineDistanceM": 4.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 421900601 at 4.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 26,
+      "sourceMemberId": "kfs:20000152",
+      "mntnId": "20000152",
+      "destinationId": "D2EF03C72217A42A740E",
+      "kfsName": "도락산",
+      "summit": {
+        "lat": 36.8562636,
+        "lng": 128.3112796
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "438002801",
+          "archiveMntnIds": [
+            "438002801"
+          ],
+          "archiveMntnCodes": [
+            "438002801"
+          ],
+          "lineNames": [
+            "도락산"
+          ],
+          "pointNames": [
+            "도락산"
+          ],
+          "nearestLineDistanceM": 8.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 도락산 matches the reviewed KFS mountain identity 도락산.",
+            "The WGS84 GPX line comes within 8.6 m of the reviewed summit.",
+            "Official package 438002801 carries checked MNTN_ID value(s) 438002801 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "438002801",
+        "lineNames": [
+          "도락산"
+        ],
+        "pointNames": [
+          "도락산"
+        ],
+        "nearestLineDistanceM": 8.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 438002801 at 8.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 27,
+      "sourceMemberId": "kfs:20000155",
+      "mntnId": "20000155",
+      "destinationId": "958AD1411BC49B469BE1",
+      "kfsName": "도봉산(자운봉)",
+      "summit": {
+        "lat": 37.6988424,
+        "lng": 127.0154594
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "113200102",
+          "archiveMntnIds": [
+            "113050101",
+            "113200101",
+            "411500101",
+            "416300601"
+          ],
+          "archiveMntnCodes": [
+            "113200102"
+          ],
+          "lineNames": [
+            "도봉산_자운봉"
+          ],
+          "pointNames": [
+            "도봉산_자운봉"
+          ],
+          "nearestLineDistanceM": 12.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 도봉산_자운봉 matches the reviewed KFS mountain identity 도봉산(자운봉).",
+            "The WGS84 GPX line comes within 12.7 m of the reviewed summit.",
+            "Official package 113200102 carries checked MNTN_ID value(s) 113050101, 113200101, 411500101, 416300601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "113200102",
+        "lineNames": [
+          "도봉산_자운봉"
+        ],
+        "pointNames": [
+          "도봉산_자운봉"
+        ],
+        "nearestLineDistanceM": 12.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 113200102 at 12.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 28,
+      "sourceMemberId": "kfs:20000165",
+      "mntnId": "20000165",
+      "destinationId": "2C3F5B1B5A67C6D9F564",
+      "kfsName": "두륜산",
+      "summit": {
+        "lat": 34.471912,
+        "lng": 126.6375673
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "468201301",
+          "archiveMntnIds": [
+            "468201301"
+          ],
+          "archiveMntnCodes": [
+            "468201301"
+          ],
+          "lineNames": [
+            "두륜산_가련봉"
+          ],
+          "pointNames": [
+            "두륜산",
+            "두륜산_가련봉",
+            "오봉산"
+          ],
+          "nearestLineDistanceM": 0.5,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 두륜산_가련봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 0.5 m of the reviewed summit.",
+            "Official package 468201301 carries checked MNTN_ID value(s) 468201301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "468201301",
+        "lineNames": [
+          "두륜산_가련봉"
+        ],
+        "pointNames": [
+          "두륜산",
+          "두륜산_가련봉",
+          "오봉산"
+        ],
+        "nearestLineDistanceM": 0.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 468201301 at 0.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 29,
+      "sourceMemberId": "kfs:20000167",
+      "mntnId": "20000167",
+      "destinationId": "BF540350A67FDA9F2002",
+      "kfsName": "두타산",
+      "summit": {
+        "lat": 37.4266369,
+        "lng": 129.0044248
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "422301901",
+          "archiveMntnIds": [
+            "2204151100",
+            "422301901"
+          ],
+          "archiveMntnCodes": [
+            "422301901"
+          ],
+          "lineNames": [
+            "두타산"
+          ],
+          "pointNames": [
+            "두타산"
+          ],
+          "nearestLineDistanceM": 3.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 두타산 matches the reviewed KFS mountain identity 두타산.",
+            "The WGS84 GPX line comes within 3.7 m of the reviewed summit.",
+            "Official package 422301901 carries checked MNTN_ID value(s) 2204151100, 422301901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "422300704",
+        "lineNames": [
+          "백두대간건의령고적대"
+        ],
+        "pointNames": [
+          "백두대간건의령고적대"
+        ],
+        "nearestLineDistanceM": 3.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 422301901 at 3.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 30,
+      "sourceMemberId": "kfs:20000171",
+      "mntnId": "20000171",
+      "destinationId": "B539C2D278693501A5AE",
+      "kfsName": "마니산",
+      "summit": {
+        "lat": 37.615542,
+        "lng": 126.4296828
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "287100601",
+          "archiveMntnIds": [
+            "1401990600"
+          ],
+          "archiveMntnCodes": [
+            "287100601"
+          ],
+          "lineNames": [
+            "마니산"
+          ],
+          "pointNames": [
+            "마니산"
+          ],
+          "nearestLineDistanceM": 29.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 마니산 matches the reviewed KFS mountain identity 마니산.",
+            "The WGS84 GPX line comes within 29.2 m of the reviewed summit.",
+            "Official package 287100601 carries checked MNTN_ID value(s) 1401990600 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "287100601",
+        "lineNames": [
+          "마니산"
+        ],
+        "pointNames": [
+          "마니산"
+        ],
+        "nearestLineDistanceM": 29.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 287100601 at 29.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 31,
+      "sourceMemberId": "kfs:20000176",
+      "mntnId": "20000176",
+      "destinationId": "65E1F7B37FF7102CE5C0",
+      "kfsName": "마이산(암마이산)",
+      "summit": {
+        "lat": 35.7605404,
+        "lng": 127.4114974
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457200901",
+          "archiveMntnIds": [
+            "2515021000"
+          ],
+          "archiveMntnCodes": [
+            "457200901"
+          ],
+          "lineNames": [
+            "마이산"
+          ],
+          "pointNames": [
+            "마이산"
+          ],
+          "nearestLineDistanceM": 223.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 마이산 matches the reviewed KFS mountain identity 마이산(암마이산).",
+            "The WGS84 GPX line comes within 223.9 m of the reviewed summit.",
+            "Official package 457200901 carries checked MNTN_ID value(s) 2515021000 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457200104",
+        "lineNames": [
+          "금호남정맥"
+        ],
+        "pointNames": [
+          "금호남정맥"
+        ],
+        "nearestLineDistanceM": 223.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed package 457200901 by its 마이산 line and checked location; its 223.9 m reach remains inside the fixed 250 m gate."
+    },
+    {
+      "ordinal": 32,
+      "sourceMemberId": "kfs:20000217",
+      "mntnId": "20000217",
+      "destinationId": "E6099A6057381C00CB44",
+      "kfsName": "명성산",
+      "summit": {
+        "lat": 38.1042997,
+        "lng": 127.3381489
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427800701",
+          "archiveMntnIds": [
+            "2212010400",
+            "427800701"
+          ],
+          "archiveMntnCodes": [
+            "427800701"
+          ],
+          "lineNames": [
+            "명성산"
+          ],
+          "pointNames": [
+            "명성산"
+          ],
+          "nearestLineDistanceM": 2.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 명성산 matches the reviewed KFS mountain identity 명성산.",
+            "The WGS84 GPX line comes within 2.5 m of the reviewed summit.",
+            "Official package 427800701 carries checked MNTN_ID value(s) 2212010400, 427800701 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427800701",
+        "lineNames": [
+          "명성산"
+        ],
+        "pointNames": [
+          "명성산"
+        ],
+        "nearestLineDistanceM": 2.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427800701 at 2.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 33,
+      "sourceMemberId": "kfs:20000218",
+      "mntnId": "20000218",
+      "destinationId": "89C6252A17E22E813FB7",
+      "kfsName": "명지산",
+      "summit": {
+        "lat": 37.9414798,
+        "lng": 127.4321451
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "418201401",
+          "archiveMntnIds": [
+            "2101021300",
+            "418201401"
+          ],
+          "archiveMntnCodes": [
+            "418201401"
+          ],
+          "lineNames": [
+            "명지산"
+          ],
+          "pointNames": [
+            "명지산"
+          ],
+          "nearestLineDistanceM": 31.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 명지산 matches the reviewed KFS mountain identity 명지산.",
+            "The WGS84 GPX line comes within 31.5 m of the reviewed summit.",
+            "Official package 418201401 carries checked MNTN_ID value(s) 2101021300, 418201401 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "418201401",
+        "lineNames": [
+          "명지산"
+        ],
+        "pointNames": [
+          "명지산"
+        ],
+        "nearestLineDistanceM": 31.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 418201401 at 31.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 34,
+      "sourceMemberId": "kfs:20000219",
+      "mntnId": "20000219",
+      "destinationId": "25BAF35B90B377165F2F",
+      "kfsName": "모악산",
+      "summit": {
+        "lat": 35.7285867,
+        "lng": 127.0851739
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "452100701",
+          "archiveMntnIds": [
+            "2503060700"
+          ],
+          "archiveMntnCodes": [
+            "452100701"
+          ],
+          "lineNames": [
+            "모악산"
+          ],
+          "pointNames": [
+            "모악산"
+          ],
+          "nearestLineDistanceM": 35.3,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 모악산 matches the reviewed KFS mountain identity 모악산.",
+            "The WGS84 GPX line comes within 35.3 m of the reviewed summit.",
+            "Official package 452100701 carries checked MNTN_ID value(s) 2503060700 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "451103301",
+          "archiveMntnIds": [
+            "451103301"
+          ],
+          "archiveMntnCodes": [
+            "451103301"
+          ],
+          "lineNames": [
+            "모악산"
+          ],
+          "pointNames": [
+            "모악산"
+          ],
+          "nearestLineDistanceM": 46.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 모악산 matches the reviewed KFS mountain identity 모악산.",
+            "The WGS84 GPX line comes within 46.0 m of the reviewed summit.",
+            "Official package 451103301 carries checked MNTN_ID value(s) 451103301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "452100701",
+        "lineNames": [
+          "모악산"
+        ],
+        "pointNames": [
+          "모악산"
+        ],
+        "nearestLineDistanceM": 35.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 452100701 at 35.3 m, 451103301 at 46.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 35,
+      "sourceMemberId": "kfs:20000225",
+      "mntnId": "20000225",
+      "destinationId": "3BDE883C882EB9065D76",
+      "kfsName": "무등산",
+      "summit": {
+        "lat": 35.1250388,
+        "lng": 127.0085732
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "467902501",
+        "lineNames": [
+          "안양산"
+        ],
+        "pointNames": [
+          "안양산"
+        ],
+        "nearestLineDistanceM": 693.3
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 안양산 at 693.3 m; the package whose point layer mentions 무등산 is 2349.2 m away."
+    },
+    {
+      "ordinal": 36,
+      "sourceMemberId": "kfs:20000227",
+      "mntnId": "20000227",
+      "destinationId": "B894D5B2D9DCEAA5F7D6",
+      "kfsName": "무학산",
+      "summit": {
+        "lat": 35.2101065,
+        "lng": 128.535514
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "481500901",
+          "archiveMntnIds": [
+            "2806020900",
+            "481250601",
+            "481270301"
+          ],
+          "archiveMntnCodes": [
+            "481500901"
+          ],
+          "lineNames": [
+            "무학산"
+          ],
+          "pointNames": [
+            "무학산"
+          ],
+          "nearestLineDistanceM": 0.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 무학산 matches the reviewed KFS mountain identity 무학산.",
+            "The WGS84 GPX line comes within 0.5 m of the reviewed summit.",
+            "Official package 481500901 carries checked MNTN_ID value(s) 2806020900, 481250601, 481270301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "481500901",
+        "lineNames": [
+          "무학산"
+        ],
+        "pointNames": [
+          "무학산"
+        ],
+        "nearestLineDistanceM": 0.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 481500901 at 0.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 37,
+      "sourceMemberId": "kfs:20000242",
+      "mntnId": "20000242",
+      "destinationId": "93A9A878F282DA759D1D",
+      "kfsName": "미륵산",
+      "summit": {
+        "lat": 34.8106641,
+        "lng": 128.4161136
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "482201101",
+          "archiveMntnIds": [
+            "2816111100"
+          ],
+          "archiveMntnCodes": [
+            "482201101"
+          ],
+          "lineNames": [
+            "미륵산"
+          ],
+          "pointNames": [
+            "미륵산"
+          ],
+          "nearestLineDistanceM": 1.8,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 미륵산 matches the reviewed KFS mountain identity 미륵산.",
+            "The WGS84 GPX line comes within 1.8 m of the reviewed summit.",
+            "Official package 482201101 carries checked MNTN_ID value(s) 2816111100 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "482201101",
+        "lineNames": [
+          "미륵산"
+        ],
+        "pointNames": [
+          "미륵산"
+        ],
+        "nearestLineDistanceM": 1.8
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 482201101 at 1.8 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 38,
+      "sourceMemberId": "kfs:20000247",
+      "mntnId": "20000247",
+      "destinationId": "BFB1C1A9B3B6F813E506",
+      "kfsName": "민주지산",
+      "summit": {
+        "lat": 36.0397937,
+        "lng": 127.8492728
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "437401401",
+          "archiveMntnIds": [
+            "2304021500"
+          ],
+          "archiveMntnCodes": [
+            "437401401"
+          ],
+          "lineNames": [
+            "민주지산"
+          ],
+          "pointNames": [
+            "각호산",
+            "민주지산",
+            "삼도봉"
+          ],
+          "nearestLineDistanceM": 3.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 민주지산 matches the reviewed KFS mountain identity 민주지산.",
+            "The WGS84 GPX line comes within 3.0 m of the reviewed summit.",
+            "Official package 437401401 carries checked MNTN_ID value(s) 2304021500 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "457302704",
+          "archiveMntnIds": [
+            "457302704"
+          ],
+          "archiveMntnCodes": [
+            "457302704"
+          ],
+          "lineNames": [
+            "민주지산불대"
+          ],
+          "pointNames": [
+            "민주지산불대"
+          ],
+          "nearestLineDistanceM": 23.7,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 민주지산불대 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 23.7 m of the reviewed summit.",
+            "Official package 457302704 carries checked MNTN_ID value(s) 457302704 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "437401401",
+        "lineNames": [
+          "민주지산"
+        ],
+        "pointNames": [
+          "각호산",
+          "민주지산",
+          "삼도봉"
+        ],
+        "nearestLineDistanceM": 3.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 437401401 at 3.0 m, 457302704 at 23.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 39,
+      "sourceMemberId": "kfs:20000261",
+      "mntnId": "20000261",
+      "destinationId": "BED9406D17A15435C7A8",
+      "kfsName": "방장산",
+      "summit": {
+        "lat": 35.4557175,
+        "lng": 126.7543608
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457900601",
+          "archiveMntnIds": [
+            "2501100600"
+          ],
+          "archiveMntnCodes": [
+            "457900601"
+          ],
+          "lineNames": [
+            "방장산"
+          ],
+          "pointNames": [
+            "방장산"
+          ],
+          "nearestLineDistanceM": 1.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 방장산 matches the reviewed KFS mountain identity 방장산.",
+            "The WGS84 GPX line comes within 1.0 m of the reviewed summit.",
+            "Official package 457900601 carries checked MNTN_ID value(s) 2501100600 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457900601",
+        "lineNames": [
+          "방장산"
+        ],
+        "pointNames": [
+          "방장산"
+        ],
+        "nearestLineDistanceM": 1.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457900601 at 1.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 40,
+      "sourceMemberId": "kfs:20000262",
+      "mntnId": "20000262",
+      "destinationId": "E52F8A41064008AA750A",
+      "kfsName": "방태산(주억봉)",
+      "summit": {
+        "lat": 37.8882546,
+        "lng": 128.3901797
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "428102201",
+          "archiveMntnIds": [
+            "2210011400"
+          ],
+          "archiveMntnCodes": [
+            "428102201"
+          ],
+          "lineNames": [
+            "방태산"
+          ],
+          "pointNames": [
+            "방태산"
+          ],
+          "nearestLineDistanceM": 2.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 방태산 matches the reviewed KFS mountain identity 방태산(주억봉).",
+            "The WGS84 GPX line comes within 2.7 m of the reviewed summit.",
+            "Official package 428102201 carries checked MNTN_ID value(s) 2210011400 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "428102201",
+        "lineNames": [
+          "방태산"
+        ],
+        "pointNames": [
+          "방태산"
+        ],
+        "nearestLineDistanceM": 2.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 428102201 at 2.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 41,
+      "sourceMemberId": "kfs:20000263",
+      "mntnId": "20000263",
+      "destinationId": "7007B5D14847AD7EE552",
+      "kfsName": "백덕산",
+      "summit": {
+        "lat": 37.3964738,
+        "lng": 128.2935238
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427602301",
+          "archiveMntnIds": [
+            "2215081700",
+            "427502101",
+            "427602301"
+          ],
+          "archiveMntnCodes": [
+            "427602301"
+          ],
+          "lineNames": [
+            "백덕산"
+          ],
+          "pointNames": [
+            "백덕산"
+          ],
+          "nearestLineDistanceM": 1.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 백덕산 matches the reviewed KFS mountain identity 백덕산.",
+            "The WGS84 GPX line comes within 1.7 m of the reviewed summit.",
+            "Official package 427602301 carries checked MNTN_ID value(s) 2215081700, 427502101, 427602301 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "427505801",
+          "archiveMntnIds": [
+            "427505801"
+          ],
+          "archiveMntnCodes": [
+            "427505801"
+          ],
+          "lineNames": [
+            "백덕산"
+          ],
+          "pointNames": [
+            "백덕산"
+          ],
+          "nearestLineDistanceM": 21.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 백덕산 matches the reviewed KFS mountain identity 백덕산.",
+            "The WGS84 GPX line comes within 21.9 m of the reviewed summit.",
+            "Official package 427505801 carries checked MNTN_ID value(s) 427505801 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427602301",
+        "lineNames": [
+          "백덕산"
+        ],
+        "pointNames": [
+          "백덕산"
+        ],
+        "nearestLineDistanceM": 1.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427602301 at 1.7 m, 427505801 at 21.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 42,
+      "sourceMemberId": "kfs:20000276",
+      "mntnId": "20000276",
+      "destinationId": "708765E9DB993E87C592",
+      "kfsName": "백암산",
+      "summit": {
+        "lat": 35.4612804,
+        "lng": 126.8684688
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "468800501",
+        "lineNames": [
+          "공원산"
+        ],
+        "pointNames": [
+          "공원산"
+        ],
+        "nearestLineDistanceM": 5403.4
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 공원산 at 5403.4 m; every exact 백암산 package belongs to a distant summit."
+    },
+    {
+      "ordinal": 43,
+      "sourceMemberId": "kfs:20000279",
+      "mntnId": "20000279",
+      "destinationId": "B18DBE117AE5EB6233C0",
+      "kfsName": "백운산(포천)",
+      "summit": {
+        "lat": 38.0749351,
+        "lng": 127.4445315
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "416501801",
+          "archiveMntnIds": [
+            "2142141300",
+            "416501801"
+          ],
+          "archiveMntnCodes": [
+            "416501801"
+          ],
+          "lineNames": [
+            "백운산"
+          ],
+          "pointNames": [
+            "백운산"
+          ],
+          "nearestLineDistanceM": 6.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 백운산 matches the reviewed KFS mountain identity 백운산(포천).",
+            "The WGS84 GPX line comes within 6.5 m of the reviewed summit.",
+            "Official package 416501801 carries checked MNTN_ID value(s) 2142141300, 416501801 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "416501801",
+        "lineNames": [
+          "백운산"
+        ],
+        "pointNames": [
+          "백운산"
+        ],
+        "nearestLineDistanceM": 6.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 416501801 at 6.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 44,
+      "sourceMemberId": "kfs:20000281",
+      "mntnId": "20000281",
+      "destinationId": "2C1345CF171D28345D1A",
+      "kfsName": "백운산(광양)",
+      "summit": {
+        "lat": 35.1063783,
+        "lng": 127.6213246
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "462300801",
+          "archiveMntnIds": [
+            "2604100800"
+          ],
+          "archiveMntnCodes": [
+            "462300801"
+          ],
+          "lineNames": [
+            "백운산"
+          ],
+          "pointNames": [
+            "백운산"
+          ],
+          "nearestLineDistanceM": 0.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 백운산 matches the reviewed KFS mountain identity 백운산(광양).",
+            "The WGS84 GPX line comes within 0.5 m of the reviewed summit.",
+            "Official package 462300801 carries checked MNTN_ID value(s) 2604100800 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "462300801",
+        "lineNames": [
+          "백운산"
+        ],
+        "pointNames": [
+          "백운산"
+        ],
+        "nearestLineDistanceM": 0.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 462300801 at 0.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 45,
+      "sourceMemberId": "kfs:20001076",
+      "mntnId": "20001076",
+      "destinationId": "0FD901416523A6A55418",
+      "kfsName": "백운산(정선)",
+      "summit": {
+        "lat": 37.27999,
+        "lng": 128.59609
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427708601",
+          "archiveMntnIds": [
+            "2215034400",
+            "427602501"
+          ],
+          "archiveMntnCodes": [
+            "427708601"
+          ],
+          "lineNames": [
+            "백운산"
+          ],
+          "pointNames": [
+            "백운산"
+          ],
+          "nearestLineDistanceM": 1.3,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 백운산 matches the reviewed KFS mountain identity 백운산(정선).",
+            "The WGS84 GPX line comes within 1.3 m of the reviewed summit.",
+            "Official package 427708601 carries checked MNTN_ID value(s) 2215034400, 427602501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427708601",
+        "lineNames": [
+          "백운산"
+        ],
+        "pointNames": [
+          "백운산"
+        ],
+        "nearestLineDistanceM": 1.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427708601 at 1.3 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 46,
+      "sourceMemberId": "kfs:20000775",
+      "mntnId": "20000775",
+      "destinationId": "353340EEB39A911C96CC",
+      "kfsName": "변산(의상봉)",
+      "summit": {
+        "lat": 35.6782,
+        "lng": 126.5988
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "458000201",
+        "lineNames": [
+          "계화산"
+        ],
+        "pointNames": [
+          "계화산"
+        ],
+        "nearestLineDistanceM": 11664.2
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 계화산 at 11664.2 m; no 변산 or 의상봉 identity reaches the reviewed summit."
+    },
+    {
+      "ordinal": 47,
+      "sourceMemberId": "kfs:20000317",
+      "mntnId": "20000317",
+      "destinationId": "9F7C04F02A37514A13AD",
+      "kfsName": "북한산(백운대)",
+      "summit": {
+        "lat": 37.6586301,
+        "lng": 126.9780032
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "113050202",
+          "archiveMntnIds": [
+            "111100201",
+            "112900101",
+            "113050201",
+            "113800201",
+            "412810301",
+            "416300801"
+          ],
+          "archiveMntnCodes": [
+            "113050202"
+          ],
+          "lineNames": [
+            "북한산_백운대"
+          ],
+          "pointNames": [
+            "북한산_백운대"
+          ],
+          "nearestLineDistanceM": 14.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 북한산_백운대 matches the reviewed KFS mountain identity 북한산(백운대).",
+            "The WGS84 GPX line comes within 14.0 m of the reviewed summit.",
+            "Official package 113050202 carries checked MNTN_ID value(s) 111100201, 112900101, 113050201, 113800201, 412810301, 416300801 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "113050202",
+        "lineNames": [
+          "북한산_백운대"
+        ],
+        "pointNames": [
+          "북한산_백운대"
+        ],
+        "nearestLineDistanceM": 14.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 113050202 at 14.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 48,
+      "sourceMemberId": "kfs:20000329",
+      "mntnId": "20000329",
+      "destinationId": "4F5CA1B51FE2938C6E87",
+      "kfsName": "비슬산(천왕봉)",
+      "summit": {
+        "lat": 35.715597,
+        "lng": 128.5231844
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "277101501",
+          "archiveMntnIds": [
+            "1303011500",
+            "478201501"
+          ],
+          "archiveMntnCodes": [
+            "277101501"
+          ],
+          "lineNames": [
+            "비슬산"
+          ],
+          "pointNames": [
+            "비슬산"
+          ],
+          "nearestLineDistanceM": 29.4,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 비슬산 matches the reviewed KFS mountain identity 비슬산(천왕봉).",
+            "The WGS84 GPX line comes within 29.4 m of the reviewed summit.",
+            "Official package 277101501 carries checked MNTN_ID value(s) 1303011500, 478201501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "277101501",
+        "lineNames": [
+          "비슬산"
+        ],
+        "pointNames": [
+          "비슬산"
+        ],
+        "nearestLineDistanceM": 29.4
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 277101501 at 29.4 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 49,
+      "sourceMemberId": "kfs:20000702",
+      "mntnId": "20000702",
+      "destinationId": "CEC7AAD58BB6DC014666",
+      "kfsName": "삼악산",
+      "summit": {
+        "lat": 37.8397223,
+        "lng": 127.6603714
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "421102701",
+          "archiveMntnIds": [
+            "2213142900",
+            "421102701"
+          ],
+          "archiveMntnCodes": [
+            "421102701"
+          ],
+          "lineNames": [
+            "삼악산"
+          ],
+          "pointNames": [
+            "삼악산"
+          ],
+          "nearestLineDistanceM": 2.3,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 삼악산 matches the reviewed KFS mountain identity 삼악산.",
+            "The WGS84 GPX line comes within 2.3 m of the reviewed summit.",
+            "Official package 421102701 carries checked MNTN_ID value(s) 2213142900, 421102701 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "421102701",
+        "lineNames": [
+          "삼악산"
+        ],
+        "pointNames": [
+          "삼악산"
+        ],
+        "nearestLineDistanceM": 2.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 421102701 at 2.3 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 50,
+      "sourceMemberId": "kfs:20000370",
+      "mntnId": "20000370",
+      "destinationId": "901281705450FA7E8C90",
+      "kfsName": "서대산",
+      "summit": {
+        "lat": 36.22066,
+        "lng": 127.53837
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "447101401",
+          "archiveMntnIds": [
+            "2403011500"
+          ],
+          "archiveMntnCodes": [
+            "447101401"
+          ],
+          "lineNames": [
+            "서대산"
+          ],
+          "pointNames": [
+            "서대산"
+          ],
+          "nearestLineDistanceM": 4.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 서대산 matches the reviewed KFS mountain identity 서대산.",
+            "The WGS84 GPX line comes within 4.2 m of the reviewed summit.",
+            "Official package 447101401 carries checked MNTN_ID value(s) 2403011500 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "447101401",
+        "lineNames": [
+          "서대산"
+        ],
+        "pointNames": [
+          "서대산"
+        ],
+        "nearestLineDistanceM": 4.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 447101401 at 4.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 51,
+      "sourceMemberId": "kfs:20000383",
+      "mntnId": "20000383",
+      "destinationId": "C902751417B176E0A85D",
+      "kfsName": "선운산",
+      "summit": {
+        "lat": 35.49868,
+        "lng": 126.56899
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457901001",
+          "archiveMntnIds": [
+            "2501121000"
+          ],
+          "archiveMntnCodes": [
+            "457901001"
+          ],
+          "lineNames": [
+            "선운산_도솔봉"
+          ],
+          "pointNames": [
+            "선운산_도솔봉"
+          ],
+          "nearestLineDistanceM": 0.9,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 선운산_도솔봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 0.9 m of the reviewed summit.",
+            "Official package 457901001 carries checked MNTN_ID value(s) 2501121000 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457901001",
+        "lineNames": [
+          "선운산_도솔봉"
+        ],
+        "pointNames": [
+          "선운산_도솔봉"
+        ],
+        "nearestLineDistanceM": 0.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457901001 at 0.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 52,
+      "sourceMemberId": "kfs:20000386",
+      "mntnId": "20000386",
+      "destinationId": "862F189C5B9F1EB85918",
+      "kfsName": "설악산(대청봉)",
+      "summit": {
+        "lat": 38.1191725,
+        "lng": 128.4653076
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "428302602",
+          "archiveMntnIds": [
+            "422100901",
+            "428103001",
+            "428302601"
+          ],
+          "archiveMntnCodes": [
+            "428302602"
+          ],
+          "lineNames": [
+            "설악산_대청봉"
+          ],
+          "pointNames": [
+            "설악산_대청봉"
+          ],
+          "nearestLineDistanceM": 4.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 설악산_대청봉 matches the reviewed KFS mountain identity 설악산(대청봉).",
+            "The WGS84 GPX line comes within 4.6 m of the reviewed summit.",
+            "Official package 428302602 carries checked MNTN_ID value(s) 422100901, 428103001, 428302601 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "428302602",
+        "lineNames": [
+          "설악산_대청봉"
+        ],
+        "pointNames": [
+          "설악산_대청봉"
+        ],
+        "nearestLineDistanceM": 4.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 428302602 at 4.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 53,
+      "sourceMemberId": "kfs:20000389",
+      "mntnId": "20000389",
+      "destinationId": "827335EB326C33839F0A",
+      "kfsName": "성인봉",
+      "summit": {
+        "lat": 37.4980056,
+        "lng": 130.8670471
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "479400103",
+          "archiveMntnIds": [
+            "479400103"
+          ],
+          "archiveMntnCodes": [
+            "479400103"
+          ],
+          "lineNames": [
+            "울릉군숲길"
+          ],
+          "pointNames": [
+            "성인봉",
+            "울릉군숲길"
+          ],
+          "nearestLineDistanceM": 2.6,
+          "identityMatch": "same_package_point_name",
+          "identityEvidence": [
+            "The same official package point layer names 성인봉 alongside line 울릉군숲길.",
+            "The WGS84 GPX line comes within 2.6 m of the reviewed summit.",
+            "Official package 479400103 carries checked MNTN_ID value(s) 479400103 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "479400103",
+        "lineNames": [
+          "울릉군숲길"
+        ],
+        "pointNames": [
+          "성인봉",
+          "울릉군숲길"
+        ],
+        "nearestLineDistanceM": 2.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed package 479400103: its point layer names 성인봉, its 울릉군숲길 line reaches within 2.6 m, and no name-only inference was used."
+    },
+    {
+      "ordinal": 54,
+      "sourceMemberId": "kfs:20000397",
+      "mntnId": "20000397",
+      "destinationId": "0164CE419EF8A8BBB87B",
+      "kfsName": "소백산",
+      "summit": {
+        "lat": 36.9574928,
+        "lng": 128.4848972
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "438001301",
+          "archiveMntnIds": [
+            "438001301"
+          ],
+          "archiveMntnCodes": [
+            "438001301"
+          ],
+          "lineNames": [
+            "소백산_비로봉"
+          ],
+          "pointNames": [
+            "소백산",
+            "소백산_비로봉"
+          ],
+          "nearestLineDistanceM": 1.9,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 소백산_비로봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 1.9 m of the reviewed summit.",
+            "Official package 438001301 carries checked MNTN_ID value(s) 438001301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "438001301",
+        "lineNames": [
+          "소백산_비로봉"
+        ],
+        "pointNames": [
+          "소백산",
+          "소백산_비로봉"
+        ],
+        "nearestLineDistanceM": 1.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 438001301 at 1.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 55,
+      "sourceMemberId": "kfs:20000398",
+      "mntnId": "20000398",
+      "destinationId": "89F8A79D3086DBAA655A",
+      "kfsName": "소요산",
+      "summit": {
+        "lat": 37.938516,
+        "lng": 127.087934
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "412500201",
+          "archiveMntnIds": [
+            "2112130200"
+          ],
+          "archiveMntnCodes": [
+            "412500201"
+          ],
+          "lineNames": [
+            "소요산"
+          ],
+          "pointNames": [
+            "소요산"
+          ],
+          "nearestLineDistanceM": 6.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 소요산 matches the reviewed KFS mountain identity 소요산.",
+            "The WGS84 GPX line comes within 6.1 m of the reviewed summit.",
+            "Official package 412500201 carries checked MNTN_ID value(s) 2112130200 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "412500201",
+        "lineNames": [
+          "소요산"
+        ],
+        "pointNames": [
+          "소요산"
+        ],
+        "nearestLineDistanceM": 6.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 412500201 at 6.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 56,
+      "sourceMemberId": "kfs:20000399",
+      "mntnId": "20000399",
+      "destinationId": "1CE83A8BF630D0A07E9A",
+      "kfsName": "속리산",
+      "summit": {
+        "lat": 36.5432287,
+        "lng": 127.8708588
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "437201201",
+          "archiveMntnIds": [
+            "437201201"
+          ],
+          "archiveMntnCodes": [
+            "437201201"
+          ],
+          "lineNames": [
+            "속리산_천황봉"
+          ],
+          "pointNames": [
+            "속리산",
+            "속리산_천황봉"
+          ],
+          "nearestLineDistanceM": 3.1,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 속리산_천황봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 3.1 m of the reviewed summit.",
+            "Official package 437201201 carries checked MNTN_ID value(s) 437201201 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "437201201",
+        "lineNames": [
+          "속리산_천황봉"
+        ],
+        "pointNames": [
+          "속리산",
+          "속리산_천황봉"
+        ],
+        "nearestLineDistanceM": 3.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 437201201 at 3.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 57,
+      "sourceMemberId": "kfs:20000422",
+      "mntnId": "20000422",
+      "destinationId": "10ECCB04E2126AB68639",
+      "kfsName": "신불산",
+      "summit": {
+        "lat": 35.5394127,
+        "lng": 129.0540979
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "317102401",
+          "archiveMntnIds": [
+            "1704041600",
+            "317102401",
+            "483301101"
+          ],
+          "archiveMntnCodes": [
+            "317102401"
+          ],
+          "lineNames": [
+            "신불산"
+          ],
+          "pointNames": [
+            "신불산"
+          ],
+          "nearestLineDistanceM": 18.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 신불산 matches the reviewed KFS mountain identity 신불산.",
+            "The WGS84 GPX line comes within 18.2 m of the reviewed summit.",
+            "Official package 317102401 carries checked MNTN_ID value(s) 1704041600, 317102401, 483301101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "317102401",
+        "lineNames": [
+          "신불산"
+        ],
+        "pointNames": [
+          "신불산"
+        ],
+        "nearestLineDistanceM": 18.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 317102401 at 18.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 58,
+      "sourceMemberId": "kfs:20000451",
+      "mntnId": "20000451",
+      "destinationId": "2DAD0D18726C7CEB7726",
+      "kfsName": "연화산",
+      "summit": {
+        "lat": 35.0710342,
+        "lng": 128.2650363
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "488205101",
+          "archiveMntnIds": [
+            "2803010100"
+          ],
+          "archiveMntnCodes": [
+            "488205101"
+          ],
+          "lineNames": [
+            "연화산"
+          ],
+          "pointNames": [
+            "연화산"
+          ],
+          "nearestLineDistanceM": 4.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 연화산 matches the reviewed KFS mountain identity 연화산.",
+            "The WGS84 GPX line comes within 4.7 m of the reviewed summit.",
+            "Official package 488205101 carries checked MNTN_ID value(s) 2803010100 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "488205101",
+        "lineNames": [
+          "연화산"
+        ],
+        "pointNames": [
+          "연화산"
+        ],
+        "nearestLineDistanceM": 4.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 488205101 at 4.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 59,
+      "sourceMemberId": "kfs:20000455",
+      "mntnId": "20000455",
+      "destinationId": "33463BA61321FCD7F079",
+      "kfsName": "오대산(비로봉)",
+      "summit": {
+        "lat": 37.793749,
+        "lng": 128.5426535
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "421504602",
+        "lineNames": [
+          "오대산_노인봉"
+        ],
+        "pointNames": [
+          "오대산_노인봉"
+        ],
+        "nearestLineDistanceM": 2330.1
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "오대산_노인봉 is nearest at 2330.1 m and does not reach the reviewed 비로봉 summit."
+    },
+    {
+      "ordinal": 60,
+      "sourceMemberId": "kfs:20000456",
+      "mntnId": "20000456",
+      "destinationId": "7D869552F1C3DA832F55",
+      "kfsName": "오봉산",
+      "summit": {
+        "lat": 38.0001701,
+        "lng": 127.8071802
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "421103801",
+          "archiveMntnIds": [
+            "2213103900"
+          ],
+          "archiveMntnCodes": [
+            "421103801"
+          ],
+          "lineNames": [
+            "오봉산"
+          ],
+          "pointNames": [
+            "오봉산"
+          ],
+          "nearestLineDistanceM": 3.5,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 오봉산 matches the reviewed KFS mountain identity 오봉산.",
+            "The WGS84 GPX line comes within 3.5 m of the reviewed summit.",
+            "Official package 421103801 carries checked MNTN_ID value(s) 2213103900 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "421103801",
+        "lineNames": [
+          "오봉산"
+        ],
+        "pointNames": [
+          "오봉산"
+        ],
+        "nearestLineDistanceM": 3.5
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 421103801 at 3.5 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 61,
+      "sourceMemberId": "kfs:20000476",
+      "mntnId": "20000476",
+      "destinationId": "3798D990D065C085B2BC",
+      "kfsName": "용문산",
+      "summit": {
+        "lat": 37.5619678,
+        "lng": 127.5490717
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "418303101",
+          "archiveMntnIds": [
+            "418303101"
+          ],
+          "archiveMntnCodes": [
+            "418303101"
+          ],
+          "lineNames": [
+            "용문산"
+          ],
+          "pointNames": [
+            "용문산"
+          ],
+          "nearestLineDistanceM": 1.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 용문산 matches the reviewed KFS mountain identity 용문산.",
+            "The WGS84 GPX line comes within 1.0 m of the reviewed summit.",
+            "Official package 418303101 carries checked MNTN_ID value(s) 418303101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "418303101",
+        "lineNames": [
+          "용문산"
+        ],
+        "pointNames": [
+          "용문산"
+        ],
+        "nearestLineDistanceM": 1.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 418303101 at 1.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 62,
+      "sourceMemberId": "kfs:20000484",
+      "mntnId": "20000484",
+      "destinationId": "857D2C274FF87E335A6E",
+      "kfsName": "용화산",
+      "summit": {
+        "lat": 38.0381932,
+        "lng": 127.7479919
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427901901",
+          "archiveMntnIds": [
+            "2217011600",
+            "421104001",
+            "427901901"
+          ],
+          "archiveMntnCodes": [
+            "427901901"
+          ],
+          "lineNames": [
+            "용화산"
+          ],
+          "pointNames": [
+            "용화산"
+          ],
+          "nearestLineDistanceM": 4.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 용화산 matches the reviewed KFS mountain identity 용화산.",
+            "The WGS84 GPX line comes within 4.2 m of the reviewed summit.",
+            "Official package 427901901 carries checked MNTN_ID value(s) 2217011600, 421104001, 427901901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427901901",
+        "lineNames": [
+          "용화산"
+        ],
+        "pointNames": [
+          "용화산"
+        ],
+        "nearestLineDistanceM": 4.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427901901 at 4.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 63,
+      "sourceMemberId": "kfs:20000492",
+      "mntnId": "20000492",
+      "destinationId": "BF56AA53E0087705D146",
+      "kfsName": "운문산",
+      "summit": {
+        "lat": 35.6155103,
+        "lng": 128.9596632
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "478202401",
+          "archiveMntnIds": [
+            "2720052300",
+            "482703701"
+          ],
+          "archiveMntnCodes": [
+            "478202401"
+          ],
+          "lineNames": [
+            "운문산"
+          ],
+          "pointNames": [
+            "운문산"
+          ],
+          "nearestLineDistanceM": 3.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 운문산 matches the reviewed KFS mountain identity 운문산.",
+            "The WGS84 GPX line comes within 3.9 m of the reviewed summit.",
+            "Official package 478202401 carries checked MNTN_ID value(s) 2720052300, 482703701 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "317100104",
+        "lineNames": [
+          "영남알프스둘레길"
+        ],
+        "pointNames": [
+          "영남알프스둘레길"
+        ],
+        "nearestLineDistanceM": 3.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 478202401 at 3.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 64,
+      "sourceMemberId": "kfs:20000493",
+      "mntnId": "20000493",
+      "destinationId": "32495558247397855DA7",
+      "kfsName": "운악산(현등산)",
+      "summit": {
+        "lat": 37.87869,
+        "lng": 127.32288
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "416502601",
+          "archiveMntnIds": [
+            "416502601",
+            "418203101"
+          ],
+          "archiveMntnCodes": [
+            "416502601"
+          ],
+          "lineNames": [
+            "운악산"
+          ],
+          "pointNames": [
+            "운악산"
+          ],
+          "nearestLineDistanceM": 3.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 운악산 matches the reviewed KFS mountain identity 운악산(현등산).",
+            "The WGS84 GPX line comes within 3.9 m of the reviewed summit.",
+            "Official package 416502601 carries checked MNTN_ID value(s) 416502601, 418203101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "416502601",
+        "lineNames": [
+          "운악산"
+        ],
+        "pointNames": [
+          "운악산"
+        ],
+        "nearestLineDistanceM": 3.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 416502601 at 3.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 65,
+      "sourceMemberId": "kfs:20000495",
+      "mntnId": "20000495",
+      "destinationId": "A5856E4CF7021493345B",
+      "kfsName": "운장산",
+      "summit": {
+        "lat": 35.9113453,
+        "lng": 127.3576515
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457202301",
+          "archiveMntnIds": [
+            "457102501"
+          ],
+          "archiveMntnCodes": [
+            "457202301"
+          ],
+          "lineNames": [
+            "운장산"
+          ],
+          "pointNames": [
+            "운장산"
+          ],
+          "nearestLineDistanceM": 4.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 운장산 matches the reviewed KFS mountain identity 운장산.",
+            "The WGS84 GPX line comes within 4.6 m of the reviewed summit.",
+            "Official package 457202301 carries checked MNTN_ID value(s) 457102501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457202301",
+        "lineNames": [
+          "운장산"
+        ],
+        "pointNames": [
+          "운장산"
+        ],
+        "nearestLineDistanceM": 4.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457202301 at 4.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 66,
+      "sourceMemberId": "kfs:20000505",
+      "mntnId": "20000505",
+      "destinationId": "47D2EFD1234631730AE4",
+      "kfsName": "월악산",
+      "summit": {
+        "lat": 36.8860792,
+        "lng": 128.1058367
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "431503501",
+          "archiveMntnIds": [
+            "431503501"
+          ],
+          "archiveMntnCodes": [
+            "431503501"
+          ],
+          "lineNames": [
+            "월악산_영봉"
+          ],
+          "pointNames": [
+            "월악산_영봉"
+          ],
+          "nearestLineDistanceM": 3.8,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 월악산_영봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 3.8 m of the reviewed summit.",
+            "Official package 431503501 carries checked MNTN_ID value(s) 431503501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "431503501",
+        "lineNames": [
+          "월악산_영봉"
+        ],
+        "pointNames": [
+          "월악산_영봉"
+        ],
+        "nearestLineDistanceM": 3.8
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 431503501 at 3.8 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 67,
+      "sourceMemberId": "kfs:20000507",
+      "mntnId": "20000507",
+      "destinationId": "09DC0597070CF98C1FD9",
+      "kfsName": "월출산",
+      "summit": {
+        "lat": 34.7666192,
+        "lng": 126.7040428
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "468102904",
+        "lineNames": [
+          "노릿재"
+        ],
+        "pointNames": [
+          "노릿재"
+        ],
+        "nearestLineDistanceM": 1999.0
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 노릿재 at 1999.0 m, and the archive has no 월출산 identity at the checked summit."
+    },
+    {
+      "ordinal": 68,
+      "sourceMemberId": "kfs:20000514",
+      "mntnId": "20000514",
+      "destinationId": "25EFB77386A4E3BFA2F7",
+      "kfsName": "유명산",
+      "summit": {
+        "lat": 37.5753362,
+        "lng": 127.486706
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "418303301",
+          "archiveMntnIds": [
+            "2130093200",
+            "418303301"
+          ],
+          "archiveMntnCodes": [
+            "418303301"
+          ],
+          "lineNames": [
+            "유명산"
+          ],
+          "pointNames": [
+            "유명산"
+          ],
+          "nearestLineDistanceM": 1.4,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 유명산 matches the reviewed KFS mountain identity 유명산.",
+            "The WGS84 GPX line comes within 1.4 m of the reviewed summit.",
+            "Official package 418303301 carries checked MNTN_ID value(s) 2130093200, 418303301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "418303301",
+        "lineNames": [
+          "유명산"
+        ],
+        "pointNames": [
+          "유명산"
+        ],
+        "nearestLineDistanceM": 1.4
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 418303301 at 1.4 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 69,
+      "sourceMemberId": "kfs:20000522",
+      "mntnId": "20000522",
+      "destinationId": "2BC65831BF5823A0E3F1",
+      "kfsName": "응봉산(매봉산)",
+      "summit": {
+        "lat": 37.0765793,
+        "lng": 129.2305194
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "422305301",
+          "archiveMntnIds": [
+            "422305301"
+          ],
+          "archiveMntnCodes": [
+            "422305301"
+          ],
+          "lineNames": [
+            "응봉산"
+          ],
+          "pointNames": [
+            "응봉산"
+          ],
+          "nearestLineDistanceM": 7.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 응봉산 matches the reviewed KFS mountain identity 응봉산(매봉산).",
+            "The WGS84 GPX line comes within 7.0 m of the reviewed summit.",
+            "Official package 422305301 carries checked MNTN_ID value(s) 422305301 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "479301901",
+          "archiveMntnIds": [
+            "479301901"
+          ],
+          "archiveMntnCodes": [
+            "479301901"
+          ],
+          "lineNames": [
+            "응봉산"
+          ],
+          "pointNames": [
+            "응봉산"
+          ],
+          "nearestLineDistanceM": 8.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 응봉산 matches the reviewed KFS mountain identity 응봉산(매봉산).",
+            "The WGS84 GPX line comes within 8.2 m of the reviewed summit.",
+            "Official package 479301901 carries checked MNTN_ID value(s) 479301901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "422305301",
+        "lineNames": [
+          "응봉산"
+        ],
+        "pointNames": [
+          "응봉산"
+        ],
+        "nearestLineDistanceM": 7.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 422305301 at 7.0 m, 479301901 at 8.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 70,
+      "sourceMemberId": "kfs:20000543",
+      "mntnId": "20000543",
+      "destinationId": "E3F7BA8BC234F8E31D05",
+      "kfsName": "장안산",
+      "summit": {
+        "lat": 35.6291843,
+        "lng": 127.5950744
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457402601",
+          "archiveMntnIds": [
+            "2511992400"
+          ],
+          "archiveMntnCodes": [
+            "457402601"
+          ],
+          "lineNames": [
+            "장안산_상봉"
+          ],
+          "pointNames": [
+            "장안산_상봉"
+          ],
+          "nearestLineDistanceM": 0.7,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 장안산_상봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 0.7 m of the reviewed summit.",
+            "Official package 457402601 carries checked MNTN_ID value(s) 2511992400 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457402601",
+        "lineNames": [
+          "장안산_상봉"
+        ],
+        "pointNames": [
+          "장안산_상봉"
+        ],
+        "nearestLineDistanceM": 0.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457402601 at 0.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 71,
+      "sourceMemberId": "kfs:20000545",
+      "mntnId": "20000545",
+      "destinationId": "CF0626774BFEF216C7F4",
+      "kfsName": "재약산",
+      "summit": {
+        "lat": 35.5454243,
+        "lng": 128.9806162
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "482704101",
+          "archiveMntnIds": [
+            "2807063600",
+            "317103601",
+            "482704101"
+          ],
+          "archiveMntnCodes": [
+            "482704101"
+          ],
+          "lineNames": [
+            "재약산"
+          ],
+          "pointNames": [
+            "재약산"
+          ],
+          "nearestLineDistanceM": 8.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 재약산 matches the reviewed KFS mountain identity 재약산.",
+            "The WGS84 GPX line comes within 8.7 m of the reviewed summit.",
+            "Official package 482704101 carries checked MNTN_ID value(s) 2807063600, 317103601, 482704101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "482704101",
+        "lineNames": [
+          "재약산"
+        ],
+        "pointNames": [
+          "재약산"
+        ],
+        "nearestLineDistanceM": 8.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 482704101 at 8.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 72,
+      "sourceMemberId": "kfs:20000548",
+      "mntnId": "20000548",
+      "destinationId": "C4678453C787C1FE7165",
+      "kfsName": "적상산",
+      "summit": {
+        "lat": 35.94638,
+        "lng": 127.69019
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "457301901",
+          "archiveMntnIds": [
+            "2505061400",
+            "457301901"
+          ],
+          "archiveMntnCodes": [
+            "457301901"
+          ],
+          "lineNames": [
+            "적상산"
+          ],
+          "pointNames": [
+            "적상산"
+          ],
+          "nearestLineDistanceM": 44.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 적상산 matches the reviewed KFS mountain identity 적상산.",
+            "The WGS84 GPX line comes within 44.7 m of the reviewed summit.",
+            "Official package 457301901 carries checked MNTN_ID value(s) 2505061400, 457301901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "457301901",
+        "lineNames": [
+          "적상산"
+        ],
+        "pointNames": [
+          "적상산"
+        ],
+        "nearestLineDistanceM": 44.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 457301901 at 44.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 73,
+      "sourceMemberId": "kfs:20000553",
+      "mntnId": "20000553",
+      "destinationId": "3E8355290E4E56E8F1AC",
+      "kfsName": "점봉산",
+      "summit": {
+        "lat": 38.04874,
+        "lng": 128.425643
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "428104601",
+          "archiveMntnIds": [
+            "428104601",
+            "428304301"
+          ],
+          "archiveMntnCodes": [
+            "428104601"
+          ],
+          "lineNames": [
+            "점봉산"
+          ],
+          "pointNames": [
+            "점봉산"
+          ],
+          "nearestLineDistanceM": 8.8,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 점봉산 matches the reviewed KFS mountain identity 점봉산.",
+            "The WGS84 GPX line comes within 8.8 m of the reviewed summit.",
+            "Official package 428104601 carries checked MNTN_ID value(s) 428104601, 428304301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "428104601",
+        "lineNames": [
+          "점봉산"
+        ],
+        "pointNames": [
+          "점봉산"
+        ],
+        "nearestLineDistanceM": 8.8
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 428104601 at 8.8 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 74,
+      "sourceMemberId": "kfs:20000559",
+      "mntnId": "20000559",
+      "destinationId": "02632ED0FE1ABBABB644",
+      "kfsName": "조계산",
+      "summit": {
+        "lat": 35.0013041,
+        "lng": 127.3136274
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "461502801",
+          "archiveMntnIds": [
+            "2611193200"
+          ],
+          "archiveMntnCodes": [
+            "461502801"
+          ],
+          "lineNames": [
+            "조계산_장군봉"
+          ],
+          "pointNames": [
+            "조계산",
+            "조계산_장군봉"
+          ],
+          "nearestLineDistanceM": 1.7,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 조계산_장군봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 1.7 m of the reviewed summit.",
+            "Official package 461502801 carries checked MNTN_ID value(s) 2611193200 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "461502801",
+        "lineNames": [
+          "조계산_장군봉"
+        ],
+        "pointNames": [
+          "조계산",
+          "조계산_장군봉"
+        ],
+        "nearestLineDistanceM": 1.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 461502801 at 1.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 75,
+      "sourceMemberId": "kfs:20000573",
+      "mntnId": "20000573",
+      "destinationId": "9E946D54AC315445CFF9",
+      "kfsName": "주왕산",
+      "summit": {
+        "lat": 36.3893554,
+        "lng": 129.1623858
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "477502301",
+          "archiveMntnIds": [
+            "477502301"
+          ],
+          "archiveMntnCodes": [
+            "477502301"
+          ],
+          "lineNames": [
+            "주왕산"
+          ],
+          "pointNames": [
+            "주왕산"
+          ],
+          "nearestLineDistanceM": 1.7,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 주왕산 matches the reviewed KFS mountain identity 주왕산.",
+            "The WGS84 GPX line comes within 1.7 m of the reviewed summit.",
+            "Official package 477502301 carries checked MNTN_ID value(s) 477502301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "477502301",
+        "lineNames": [
+          "주왕산"
+        ],
+        "pointNames": [
+          "주왕산"
+        ],
+        "nearestLineDistanceM": 1.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 477502301 at 1.7 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 76,
+      "sourceMemberId": "kfs:20000575",
+      "mntnId": "20000575",
+      "destinationId": "A7B72B05291C09B75D27",
+      "kfsName": "주흘산",
+      "summit": {
+        "lat": 36.7780687,
+        "lng": 128.1059931
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "472803901",
+          "archiveMntnIds": [
+            "2707083600",
+            "472803801"
+          ],
+          "archiveMntnCodes": [
+            "472803901"
+          ],
+          "lineNames": [
+            "주흘산"
+          ],
+          "pointNames": [
+            "주흘산"
+          ],
+          "nearestLineDistanceM": 0.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 주흘산 matches the reviewed KFS mountain identity 주흘산.",
+            "The WGS84 GPX line comes within 0.9 m of the reviewed summit.",
+            "Official package 472803901 carries checked MNTN_ID value(s) 2707083600, 472803801 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "472803901",
+        "lineNames": [
+          "주흘산"
+        ],
+        "pointNames": [
+          "주흘산"
+        ],
+        "nearestLineDistanceM": 0.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 472803901 at 0.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 77,
+      "sourceMemberId": "kfs:20000946",
+      "mntnId": "20000946",
+      "destinationId": "991482F2580F8D314B7A",
+      "kfsName": "지리산(천왕봉)",
+      "summit": {
+        "lat": 35.3369536,
+        "lng": 127.7305907
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "488605302",
+          "archiveMntnIds": [
+            "451903401",
+            "457402701",
+            "467301601",
+            "488501001",
+            "488605301",
+            "488703001"
+          ],
+          "archiveMntnCodes": [
+            "488605302"
+          ],
+          "lineNames": [
+            "지리산_천왕봉"
+          ],
+          "pointNames": [
+            "지리산",
+            "지리산_천왕봉"
+          ],
+          "nearestLineDistanceM": 5.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 지리산_천왕봉 matches the reviewed KFS mountain identity 지리산(천왕봉).",
+            "The WGS84 GPX line comes within 5.6 m of the reviewed summit.",
+            "Official package 488605302 carries checked MNTN_ID value(s) 451903401, 457402701, 467301601, 488501001, 488605301, 488703001 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "488605302",
+        "lineNames": [
+          "지리산_천왕봉"
+        ],
+        "pointNames": [
+          "지리산",
+          "지리산_천왕봉"
+        ],
+        "nearestLineDistanceM": 5.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 488605302 at 5.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 78,
+      "sourceMemberId": "kfs:20001322",
+      "mntnId": "20001322",
+      "destinationId": "50DB4EECCEF6077ED000",
+      "kfsName": "지리산",
+      "summit": {
+        "lat": 34.8459331,
+        "lng": 128.182163
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "482202301",
+          "archiveMntnIds": [
+            "2816132100"
+          ],
+          "archiveMntnCodes": [
+            "482202301"
+          ],
+          "lineNames": [
+            "지리산"
+          ],
+          "pointNames": [
+            "지리산"
+          ],
+          "nearestLineDistanceM": 7.0,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 지리산 matches the reviewed KFS mountain identity 지리산.",
+            "The WGS84 GPX line comes within 7.0 m of the reviewed summit.",
+            "Official package 482202301 carries checked MNTN_ID value(s) 2816132100 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "482202301",
+        "lineNames": [
+          "지리산"
+        ],
+        "pointNames": [
+          "지리산"
+        ],
+        "nearestLineDistanceM": 7.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 482202301 at 7.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 79,
+      "sourceMemberId": "kfs:20000591",
+      "mntnId": "20000591",
+      "destinationId": "23B957090A711176E681",
+      "kfsName": "천관산",
+      "summit": {
+        "lat": 34.5317274,
+        "lng": 126.91966
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "468001701",
+          "archiveMntnIds": [
+            "468001701"
+          ],
+          "archiveMntnCodes": [
+            "468001701"
+          ],
+          "lineNames": [
+            "천관산"
+          ],
+          "pointNames": [
+            "천관산"
+          ],
+          "nearestLineDistanceM": 0.4,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 천관산 matches the reviewed KFS mountain identity 천관산.",
+            "The WGS84 GPX line comes within 0.4 m of the reviewed summit.",
+            "Official package 468001701 carries checked MNTN_ID value(s) 468001701 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "468001701",
+        "lineNames": [
+          "천관산"
+        ],
+        "pointNames": [
+          "천관산"
+        ],
+        "nearestLineDistanceM": 0.4
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 468001701 at 0.4 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 80,
+      "sourceMemberId": "kfs:20000597",
+      "mntnId": "20000597",
+      "destinationId": "9B37D62096EA7517C8F9",
+      "kfsName": "천마산",
+      "summit": {
+        "lat": 37.6802108,
+        "lng": 127.2733462
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "413602201",
+          "archiveMntnIds": [
+            "2111091500",
+            "413602201"
+          ],
+          "archiveMntnCodes": [
+            "413602201"
+          ],
+          "lineNames": [
+            "천마산"
+          ],
+          "pointNames": [
+            "천마산"
+          ],
+          "nearestLineDistanceM": 1.2,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 천마산 matches the reviewed KFS mountain identity 천마산.",
+            "The WGS84 GPX line comes within 1.2 m of the reviewed summit.",
+            "Official package 413602201 carries checked MNTN_ID value(s) 2111091500, 413602201 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "413602201",
+        "lineNames": [
+          "천마산"
+        ],
+        "pointNames": [
+          "천마산"
+        ],
+        "nearestLineDistanceM": 1.2
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 413602201 at 1.2 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 81,
+      "sourceMemberId": "kfs:20000601",
+      "mntnId": "20000601",
+      "destinationId": "65D60AEF9DD046A7E873",
+      "kfsName": "천성산",
+      "summit": {
+        "lat": 35.4015733,
+        "lng": 129.1062817
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "483302101",
+          "archiveMntnIds": [
+            "2810181300",
+            "483302101"
+          ],
+          "archiveMntnCodes": [
+            "483302101"
+          ],
+          "lineNames": [
+            "천성산"
+          ],
+          "pointNames": [
+            "천성산"
+          ],
+          "nearestLineDistanceM": 146.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 천성산 matches the reviewed KFS mountain identity 천성산.",
+            "The WGS84 GPX line comes within 146.1 m of the reviewed summit.",
+            "Official package 483302101 carries checked MNTN_ID value(s) 2810181300, 483302101 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "483302101",
+        "lineNames": [
+          "천성산"
+        ],
+        "pointNames": [
+          "천성산"
+        ],
+        "nearestLineDistanceM": 146.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed package 483302101 by its exact 천성산 identity and checked location; its 146.1 m reach remains inside the fixed 250 m gate."
+    },
+    {
+      "ordinal": 82,
+      "sourceMemberId": "kfs:20000606",
+      "mntnId": "20000606",
+      "destinationId": "643EF5D7426EB46FCFF1",
+      "kfsName": "천태산",
+      "summit": {
+        "lat": 36.1591297,
+        "lng": 127.5999517
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "437403501",
+          "archiveMntnIds": [
+            "2304053500"
+          ],
+          "archiveMntnCodes": [
+            "437403501"
+          ],
+          "lineNames": [
+            "천태산"
+          ],
+          "pointNames": [
+            "천태산"
+          ],
+          "nearestLineDistanceM": 0.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 천태산 matches the reviewed KFS mountain identity 천태산.",
+            "The WGS84 GPX line comes within 0.9 m of the reviewed summit.",
+            "Official package 437403501 carries checked MNTN_ID value(s) 2304053500 in its line attributes."
+          ]
+        },
+        {
+          "packageCode": "447103501",
+          "archiveMntnIds": [
+            "447103501"
+          ],
+          "archiveMntnCodes": [
+            "447103501"
+          ],
+          "lineNames": [
+            "천태산"
+          ],
+          "pointNames": [
+            "천태산"
+          ],
+          "nearestLineDistanceM": 23.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 천태산 matches the reviewed KFS mountain identity 천태산.",
+            "The WGS84 GPX line comes within 23.9 m of the reviewed summit.",
+            "Official package 447103501 carries checked MNTN_ID value(s) 447103501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "437403501",
+        "lineNames": [
+          "천태산"
+        ],
+        "pointNames": [
+          "천태산"
+        ],
+        "nearestLineDistanceM": 0.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 437403501 at 0.9 m, 447103501 at 23.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 83,
+      "sourceMemberId": "kfs:20000613",
+      "mntnId": "20000613",
+      "destinationId": "75AE2FD14AE01EDCEB59",
+      "kfsName": "청량산",
+      "summit": {
+        "lat": 36.7944382,
+        "lng": 128.9088203
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "479203401",
+          "archiveMntnIds": [
+            "2708013300"
+          ],
+          "archiveMntnCodes": [
+            "479203401"
+          ],
+          "lineNames": [
+            "청량산_의상봉"
+          ],
+          "pointNames": [
+            "청량산_의상봉"
+          ],
+          "nearestLineDistanceM": 17.0,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 청량산_의상봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 17.0 m of the reviewed summit.",
+            "Official package 479203401 carries checked MNTN_ID value(s) 2708013300 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "479203401",
+        "lineNames": [
+          "청량산_의상봉"
+        ],
+        "pointNames": [
+          "청량산_의상봉"
+        ],
+        "nearestLineDistanceM": 17.0
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 479203401 at 17.0 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 84,
+      "sourceMemberId": "kfs:20000622",
+      "mntnId": "20000622",
+      "destinationId": "95FF6C33650360EA47DE",
+      "kfsName": "추월산",
+      "summit": {
+        "lat": 35.3999299,
+        "lng": 126.9760399
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "467101801",
+          "archiveMntnIds": [
+            "2607102100"
+          ],
+          "archiveMntnCodes": [
+            "467101801"
+          ],
+          "lineNames": [
+            "추월산"
+          ],
+          "pointNames": [
+            "추월산"
+          ],
+          "nearestLineDistanceM": 1.3,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 추월산 matches the reviewed KFS mountain identity 추월산.",
+            "The WGS84 GPX line comes within 1.3 m of the reviewed summit.",
+            "Official package 467101801 carries checked MNTN_ID value(s) 2607102100 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "467101801",
+        "lineNames": [
+          "추월산"
+        ],
+        "pointNames": [
+          "추월산"
+        ],
+        "nearestLineDistanceM": 1.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 467101801 at 1.3 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 85,
+      "sourceMemberId": "kfs:20000623",
+      "mntnId": "20000623",
+      "destinationId": "BAFDCE06CE474E7C0E10",
+      "kfsName": "축령산",
+      "summit": {
+        "lat": 37.7527629,
+        "lng": 127.333886
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "418203901",
+          "archiveMntnIds": [
+            "2101033200"
+          ],
+          "archiveMntnCodes": [
+            "418203901"
+          ],
+          "lineNames": [
+            "축령산"
+          ],
+          "pointNames": [
+            "축령산"
+          ],
+          "nearestLineDistanceM": 7.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 축령산 matches the reviewed KFS mountain identity 축령산.",
+            "The WGS84 GPX line comes within 7.6 m of the reviewed summit.",
+            "Official package 418203901 carries checked MNTN_ID value(s) 2101033200 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "418202301",
+        "lineNames": [
+          "서리산"
+        ],
+        "pointNames": [
+          "서리산"
+        ],
+        "nearestLineDistanceM": 6.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed exact 축령산 package 418203901 at 7.6 m; skipped the slightly closer 서리산 package because its identity differs."
+    },
+    {
+      "ordinal": 86,
+      "sourceMemberId": "kfs:20000628",
+      "mntnId": "20000628",
+      "destinationId": "75AF4150F340FE16701D",
+      "kfsName": "치악산",
+      "summit": {
+        "lat": 37.3651455,
+        "lng": 128.0556322
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "421300901",
+        "lineNames": [
+          "매봉산"
+        ],
+        "pointNames": [
+          "매봉산"
+        ],
+        "nearestLineDistanceM": 10658.5
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 매봉산 at 10658.5 m; the archive has no 치악산 identity at the checked summit."
+    },
+    {
+      "ordinal": 87,
+      "sourceMemberId": "kfs:20000629",
+      "mntnId": "20000629",
+      "destinationId": "651BE7E03515F9150C62",
+      "kfsName": "칠갑산",
+      "summit": {
+        "lat": 36.4130234,
+        "lng": 126.8848823
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "447902001",
+          "archiveMntnIds": [
+            "2414022100"
+          ],
+          "archiveMntnCodes": [
+            "447902001"
+          ],
+          "lineNames": [
+            "칠갑산"
+          ],
+          "pointNames": [
+            "칠갑산"
+          ],
+          "nearestLineDistanceM": 2.8,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 칠갑산 matches the reviewed KFS mountain identity 칠갑산.",
+            "The WGS84 GPX line comes within 2.8 m of the reviewed summit.",
+            "Official package 447902001 carries checked MNTN_ID value(s) 2414022100 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "447902001",
+        "lineNames": [
+          "칠갑산"
+        ],
+        "pointNames": [
+          "칠갑산"
+        ],
+        "nearestLineDistanceM": 2.8
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 447902001 at 2.8 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 88,
+      "sourceMemberId": "kfs:20000638",
+      "mntnId": "20000638",
+      "destinationId": "2575A73825F895B384FC",
+      "kfsName": "태백산",
+      "summit": {
+        "lat": 37.0985621,
+        "lng": 128.9161522
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "421902201",
+          "archiveMntnIds": [
+            "2214211300"
+          ],
+          "archiveMntnCodes": [
+            "421902201"
+          ],
+          "lineNames": [
+            "태백산_장군봉"
+          ],
+          "pointNames": [
+            "태백산_장군봉"
+          ],
+          "nearestLineDistanceM": 7.6,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 태백산_장군봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 7.6 m of the reviewed summit.",
+            "Official package 421902201 carries checked MNTN_ID value(s) 2214211300 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "421902201",
+        "lineNames": [
+          "태백산_장군봉"
+        ],
+        "pointNames": [
+          "태백산_장군봉"
+        ],
+        "nearestLineDistanceM": 7.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 421902201 at 7.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 89,
+      "sourceMemberId": "kfs:20000803",
+      "mntnId": "20000803",
+      "destinationId": "136884F143DCAB4F1CE5",
+      "kfsName": "태화산",
+      "summit": {
+        "lat": 37.1175851,
+        "lng": 128.4853782
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427504901",
+          "archiveMntnIds": [
+            "427504901"
+          ],
+          "archiveMntnCodes": [
+            "427504901"
+          ],
+          "lineNames": [
+            "태화산"
+          ],
+          "pointNames": [
+            "태화산"
+          ],
+          "nearestLineDistanceM": 6.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 태화산 matches the reviewed KFS mountain identity 태화산.",
+            "The WGS84 GPX line comes within 6.1 m of the reviewed summit.",
+            "Official package 427504901 carries checked MNTN_ID value(s) 427504901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427504901",
+        "lineNames": [
+          "태화산"
+        ],
+        "pointNames": [
+          "태화산"
+        ],
+        "nearestLineDistanceM": 6.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427504901 at 6.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 90,
+      "sourceMemberId": "kfs:20000651",
+      "mntnId": "20000651",
+      "destinationId": "9676E99C140134852220",
+      "kfsName": "팔공산",
+      "summit": {
+        "lat": 36.0165476,
+        "lng": 128.6953232
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "271401201",
+          "archiveMntnIds": [
+            "1304461200"
+          ],
+          "archiveMntnCodes": [
+            "271401201"
+          ],
+          "lineNames": [
+            "팔공산_비로봉"
+          ],
+          "pointNames": [
+            "팔공산",
+            "팔공산_비로봉"
+          ],
+          "nearestLineDistanceM": 100.6,
+          "identityMatch": "qualified_line_name",
+          "identityEvidence": [
+            "Official line name 팔공산_비로봉 keeps the reviewed KFS mountain name and adds a local trail or summit qualifier.",
+            "The WGS84 GPX line comes within 100.6 m of the reviewed summit.",
+            "Official package 271401201 carries checked MNTN_ID value(s) 1304461200 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "271401201",
+        "lineNames": [
+          "팔공산_비로봉"
+        ],
+        "pointNames": [
+          "팔공산",
+          "팔공산_비로봉"
+        ],
+        "nearestLineDistanceM": 100.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed package 271401201 by its 팔공산_비로봉 identity and checked location; its 100.6 m reach remains inside the fixed 250 m gate."
+    },
+    {
+      "ordinal": 91,
+      "sourceMemberId": "kfs:20000652",
+      "mntnId": "20000652",
+      "destinationId": "0D661A6AFD6CF4E394CC",
+      "kfsName": "팔봉산",
+      "summit": {
+        "lat": 37.6958831,
+        "lng": 127.6971195
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "427206501",
+          "archiveMntnIds": [
+            "427206501"
+          ],
+          "archiveMntnCodes": [
+            "427206501"
+          ],
+          "lineNames": [
+            "팔봉산"
+          ],
+          "pointNames": [
+            "팔봉산"
+          ],
+          "nearestLineDistanceM": 11.1,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 팔봉산 matches the reviewed KFS mountain identity 팔봉산.",
+            "The WGS84 GPX line comes within 11.1 m of the reviewed summit.",
+            "Official package 427206501 carries checked MNTN_ID value(s) 427206501 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "427206501",
+        "lineNames": [
+          "팔봉산"
+        ],
+        "pointNames": [
+          "팔봉산"
+        ],
+        "nearestLineDistanceM": 11.1
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 427206501 at 11.1 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 92,
+      "sourceMemberId": "kfs:20000654",
+      "mntnId": "20000654",
+      "destinationId": "E0C799D659E926351A41",
+      "kfsName": "팔영산",
+      "summit": {
+        "lat": 34.6171525,
+        "lng": 127.4364443
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "467702901",
+          "archiveMntnIds": [
+            "467702901"
+          ],
+          "archiveMntnCodes": [
+            "467702901"
+          ],
+          "lineNames": [
+            "팔영산"
+          ],
+          "pointNames": [
+            "팔영산"
+          ],
+          "nearestLineDistanceM": 2.6,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 팔영산 matches the reviewed KFS mountain identity 팔영산.",
+            "The WGS84 GPX line comes within 2.6 m of the reviewed summit.",
+            "Official package 467702901 carries checked MNTN_ID value(s) 467702901 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "467702901",
+        "lineNames": [
+          "팔영산"
+        ],
+        "pointNames": [
+          "팔영산"
+        ],
+        "nearestLineDistanceM": 2.6
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 467702901 at 2.6 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 93,
+      "sourceMemberId": "kfs:20000661",
+      "mntnId": "20000661",
+      "destinationId": "7366D25EDA2F36244D6E",
+      "kfsName": "한라산",
+      "summit": {
+        "lat": 33.3617536,
+        "lng": 126.5291977
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "491300204",
+        "lineNames": [
+          "동백길"
+        ],
+        "pointNames": [
+          "동백길"
+        ],
+        "nearestLineDistanceM": 4619.2
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 동백길 at 4619.2 m; no archive line reaches the reviewed 한라산 summit."
+    },
+    {
+      "ordinal": 94,
+      "sourceMemberId": "kfs:20000679",
+      "mntnId": "20000679",
+      "destinationId": "3BA968E6409D9D0D1690",
+      "kfsName": "화악산",
+      "summit": {
+        "lat": 37.9946674,
+        "lng": 127.5034314
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "418204301",
+        "lineNames": [
+          "화악산"
+        ],
+        "pointNames": [
+          "화악산"
+        ],
+        "nearestLineDistanceM": 301.5
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The exact 화악산 line stops 301.5 m from the reviewed summit, outside the fixed 250 m gate."
+    },
+    {
+      "ordinal": 95,
+      "sourceMemberId": "kfs:20000681",
+      "mntnId": "20000681",
+      "destinationId": "8D5CBEA88BD17668F741",
+      "kfsName": "화왕산",
+      "summit": {
+        "lat": 35.5471482,
+        "lng": 128.531694
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "487403301",
+          "archiveMntnIds": [
+            "2814140100",
+            "487403301"
+          ],
+          "archiveMntnCodes": [
+            "487403301"
+          ],
+          "lineNames": [
+            "화왕산"
+          ],
+          "pointNames": [
+            "화왕산"
+          ],
+          "nearestLineDistanceM": 0.9,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 화왕산 matches the reviewed KFS mountain identity 화왕산.",
+            "The WGS84 GPX line comes within 0.9 m of the reviewed summit.",
+            "Official package 487403301 carries checked MNTN_ID value(s) 2814140100, 487403301 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "487403301",
+        "lineNames": [
+          "화왕산"
+        ],
+        "pointNames": [
+          "화왕산"
+        ],
+        "nearestLineDistanceM": 0.9
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 487403301 at 0.9 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 96,
+      "sourceMemberId": "kfs:20000684",
+      "mntnId": "20000684",
+      "destinationId": "D319B2B83A218D9A2C81",
+      "kfsName": "황매산",
+      "summit": {
+        "lat": 35.4942361,
+        "lng": 127.9745887
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "488906401",
+          "archiveMntnIds": [
+            "488606001"
+          ],
+          "archiveMntnCodes": [
+            "488906401"
+          ],
+          "lineNames": [
+            "황매산"
+          ],
+          "pointNames": [
+            "황매산"
+          ],
+          "nearestLineDistanceM": 8.4,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 황매산 matches the reviewed KFS mountain identity 황매산.",
+            "The WGS84 GPX line comes within 8.4 m of the reviewed summit.",
+            "Official package 488906401 carries checked MNTN_ID value(s) 488606001 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "488906401",
+        "lineNames": [
+          "황매산"
+        ],
+        "pointNames": [
+          "황매산"
+        ],
+        "nearestLineDistanceM": 8.4
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 488906401 at 8.4 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 97,
+      "sourceMemberId": "kfs:20000686",
+      "mntnId": "20000686",
+      "destinationId": "7427E76E2AB5B95CE823",
+      "kfsName": "황석산",
+      "summit": {
+        "lat": 35.6551172,
+        "lng": 127.7554842
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "488703501",
+          "archiveMntnIds": [
+            "2819072400"
+          ],
+          "archiveMntnCodes": [
+            "488703501"
+          ],
+          "lineNames": [
+            "황석산"
+          ],
+          "pointNames": [
+            "황석산"
+          ],
+          "nearestLineDistanceM": 2.3,
+          "identityMatch": "exact_line_name",
+          "identityEvidence": [
+            "Official line name 황석산 matches the reviewed KFS mountain identity 황석산.",
+            "The WGS84 GPX line comes within 2.3 m of the reviewed summit.",
+            "Official package 488703501 carries checked MNTN_ID value(s) 2819072400 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "488703501",
+        "lineNames": [
+          "황석산"
+        ],
+        "pointNames": [
+          "황석산"
+        ],
+        "nearestLineDistanceM": 2.3
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed 488703501 at 2.3 m after reviewing Korean line and point names with the checked summit; distant same-name packages were not bound."
+    },
+    {
+      "ordinal": 98,
+      "sourceMemberId": "kfs:20000687",
+      "mntnId": "20000687",
+      "destinationId": "F8BAD5857FE1F787725E",
+      "kfsName": "황악산",
+      "summit": {
+        "lat": 36.118049,
+        "lng": 127.966796
+      },
+      "status": "confirmed",
+      "bindings": [
+        {
+          "packageCode": "437403701",
+          "archiveMntnIds": [
+            "2706133700"
+          ],
+          "archiveMntnCodes": [
+            "437403701"
+          ],
+          "lineNames": [
+            "황학산"
+          ],
+          "pointNames": [
+            "황악산",
+            "황학산"
+          ],
+          "nearestLineDistanceM": 4.7,
+          "identityMatch": "reviewed_spelling_variant",
+          "identityEvidence": [
+            "The line name 황학산 differs by one Korean syllable, while the same package point layer also names 황악산.",
+            "The WGS84 GPX line comes within 4.7 m of the reviewed summit.",
+            "Official package 437403701 carries checked MNTN_ID value(s) 2706133700 in its line attributes."
+          ]
+        }
+      ],
+      "nearestArchiveLine": {
+        "packageCode": "437403701",
+        "lineNames": [
+          "황학산"
+        ],
+        "pointNames": [
+          "황악산",
+          "황학산"
+        ],
+        "nearestLineDistanceM": 4.7
+      },
+      "unresolvedReason": null,
+      "reviewNote": "Confirmed package 437403701 after review: its line says 황학산, its point layer also says 황악산, and its line is 4.7 m from the summit; the exact-name package 437403801 is 1781.7 m away."
+    },
+    {
+      "ordinal": 99,
+      "sourceMemberId": "kfs:20000688",
+      "mntnId": "20000688",
+      "destinationId": "E55A2E7D694E74E2EE28",
+      "kfsName": "황장산",
+      "summit": {
+        "lat": 36.81274,
+        "lng": 128.278182
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "431501201",
+        "lineNames": [
+          "대미산"
+        ],
+        "pointNames": [
+          "대미산"
+        ],
+        "nearestLineDistanceM": 2190.6
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 대미산 at 2190.6 m; both exact 황장산 packages are more than 181 km away."
+    },
+    {
+      "ordinal": 100,
+      "sourceMemberId": "kfs:20000699",
+      "mntnId": "20000699",
+      "destinationId": "3C73A385AE92624C6121",
+      "kfsName": "희양산",
+      "summit": {
+        "lat": 36.714641,
+        "lng": 128.005065
+      },
+      "status": "unresolved",
+      "bindings": [],
+      "nearestArchiveLine": {
+        "packageCode": "437603501",
+        "lineNames": [
+          "악희봉"
+        ],
+        "pointNames": [
+          "악희봉"
+        ],
+        "nearestLineDistanceM": 939.4
+      },
+      "unresolvedReason": "no_near_summit_geometry",
+      "reviewNote": "The nearest archive line is 악희봉 at 939.4 m and the exact 희양산 line is 1058.0 m away."
+    }
+  ]
+}
