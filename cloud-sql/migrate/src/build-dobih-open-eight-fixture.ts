@@ -35,7 +35,9 @@ export type DobihSelectionFlag =
   | "G"
   | "Dew"
   | "DDew"
-  | "sMa";
+  | "sMa"
+  | "B"
+  | "Sy";
 
 export interface ParsedDobihRow {
   number: number;
@@ -68,6 +70,8 @@ const FLAG_COLUMNS: DobihSelectionFlag[] = [
   "Dew",
   "DDew",
   "sMa",
+  "B",
+  "Sy",
 ];
 
 const REQUIRED_COLUMNS = [
