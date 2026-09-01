@@ -1426,6 +1426,7 @@ test("keeps the base-three and open-eight command bundles isolated", () => {
 
 test("runs the open-eight command boundary with exact output, definitions, and cleanup", async () => {
   const report: KeeperImportReport = {
+    mode: "stage-destinations",
     apply: true,
     complete: false,
     destinationsToAdd: [],
@@ -1441,7 +1442,7 @@ test("runs the open-eight command boundary with exact output, definitions, and c
   const exitCode = await openEightCommand.runDobihOpenEightCommand([
     "--input=/tmp/open-eight-input.json",
     "--resolutions=/tmp/open-eight-resolutions.json",
-    "--apply",
+    "--stage-destinations",
   ], {
     readFile: async (filePath) => {
       readPaths.push(filePath);
@@ -1467,7 +1468,7 @@ test("runs the open-eight command boundary with exact output, definitions, and c
   assert.equal(calls[0][0], client);
   assert.deepEqual(calls[0][1], fixture);
   assert.deepEqual(calls[0][2], resolutions);
-  assert.equal(calls[0][3], true);
+  assert.equal(calls[0][3], "stage-destinations");
   assert.equal(calls[0][4], DOBIH_OPEN_EIGHT_KEEPER_LISTS);
   assert.deepEqual(output, [JSON.stringify(report, null, 2)]);
   assert.equal(releases, 1);
@@ -1487,6 +1488,7 @@ test("returns success and cleans up when the import is complete", async () => {
     connect: async () => ({ release: () => { releases += 1; } }) as never,
     end: async () => { ends += 1; },
     runKeeperImport: async () => ({
+      mode: "dry-run",
       apply: false,
       complete: true,
       destinationsToAdd: [],
@@ -1498,6 +1500,36 @@ test("returns success and cleans up when the import is complete", async () => {
   assert.equal(exitCode, 0);
   assert.equal(releases, 1);
   assert.equal(ends, 1);
+});
+
+test("returns review-needed when a publication check finds a gap", async () => {
+  const exitCode = await openEightCommand.runDobihOpenEightCommand([
+    "--input=/tmp/open-eight-input.json",
+    "--resolutions=/tmp/open-eight-resolutions.json",
+    "--check-publication",
+  ], {
+    readFile: async (filePath) => filePath.includes("resolutions")
+      ? JSON.stringify(resolutions)
+      : JSON.stringify(fixture),
+    connect: async () => ({ release: () => {} }) as never,
+    end: async () => {},
+    runKeeperImport: async () => ({
+      mode: "check-publication",
+      apply: false,
+      complete: true,
+      destinationsToAdd: [],
+      destinationsToRepair: [],
+      lists: [],
+      publication: {
+        ready: false,
+        stageRequired: { destinationAdditions: 0, destinationRepairs: 0 },
+        destinations: [],
+        activePeaksRoutesMissingCover: [{ id: "route-gap", name: "Route gap" }],
+      },
+    }),
+    writeLine: () => {},
+  });
+  assert.equal(exitCode, 2);
 });
 
 test("maps command failures to exit code 1 through an injectable main boundary", async () => {

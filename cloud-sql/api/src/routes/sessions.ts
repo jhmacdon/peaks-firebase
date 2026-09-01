@@ -24,6 +24,11 @@ import { mergeHealthData, mergeSourceContributions } from "../session-enrichment
 import { notifySessionProcessed } from "../slack";
 import { streamQueryAsJsonArray } from "../lib/stream-json";
 import {
+  routeCoverJoinSql,
+  routeCoverJsonFieldsSql,
+  routeCoverSelectSql,
+} from "../lib/route-cover";
+import {
   ConcurrencyLimiter,
   HEAVY_INFLIGHT_CAP,
   perUserConcurrencyGuard,
@@ -170,10 +175,12 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     'distance', r.distance, 'gain', r.gain, 'gain_loss', r.gain_loss,
     'provenance', r.provenance,
     'is_catalog', r.owner = 'peaks',
-    'source', sr.source, 'coverage', sr.coverage
+    'source', sr.source, 'coverage', sr.coverage,
+    ${routeCoverJsonFieldsSql()}
   ) ORDER BY r.name, r.id)
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
+  ${routeCoverJoinSql()}
   WHERE sr.session_id = s.id
     AND ${routeDoneCoverageSql("sr")}
     AND r.status IN ('active', 'superseded')
@@ -1046,25 +1053,33 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   res.json(result.rows);
 }));
 
-// GET /api/sessions/:id/routes
-router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
-  const uid = getUid(req);
-  const { id } = req.params;
-  const result = await db.query(
-    `SELECT r.id, r.name, r.polyline6,
+export function buildSessionRoutesQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `SELECT r.id, r.name, r.polyline6,
             r.distance, r.gain, r.gain_loss, r.provenance,
             (r.owner = 'peaks') AS is_catalog,
-            sr.source, sr.coverage
+            sr.source, sr.coverage,
+            ${routeCoverSelectSql()}
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
      JOIN tracking_sessions s ON s.id = sr.session_id
+     ${routeCoverJoinSql()}
      WHERE sr.session_id = $1
        AND ${routeDoneCoverageSql("sr")}
        AND (s.user_id = $2 OR s.is_public = true)
        AND r.status IN ('active', 'superseded')
        AND (r.owner = 'peaks' OR r.owner = s.user_id)`,
-    [id, uid]
-  );
+    values: [id, uid],
+  };
+}
+
+// GET /api/sessions/:id/routes
+router.get("/:id/routes", asyncRoute(async (req, res: Response) => {
+  const query = buildSessionRoutesQuery(req.params.id, getUid(req));
+  const result = await db.query(query.text, query.values);
   res.json(result.rows);
 }));
 

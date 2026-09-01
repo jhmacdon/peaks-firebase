@@ -41,6 +41,13 @@ export interface RouteDetail extends RouteRow {
   polyline6: string | null;
   geohashes: string[] | null;
   areas: ProtectedArea[];
+  cover_destination_id: string | null;
+  cover_destination_name: string | null;
+  cover_image: string | null;
+  cover_image_attribution: string | null;
+  cover_image_attribution_url: string | null;
+  cover_image_focal_x: number | null;
+  cover_image_focal_y: number | null;
 }
 
 export interface RouteDestination {
@@ -163,8 +170,16 @@ async function queryRoute(id: string, catalogOnly: boolean): Promise<RouteDetail
             r.external_links, r.provenance, r.completion, r.shape, r.status,
             (SELECT COUNT(*) FROM route_destinations WHERE route_id = r.id)::int AS destination_count,
             r.created_at, r.updated_at,
+            cover.destination_id AS cover_destination_id,
+            cover.destination_name AS cover_destination_name,
+            cover.image_url AS cover_image,
+            cover.attribution AS cover_image_attribution,
+            cover.attribution_url AS cover_image_attribution_url,
+            cover.focal_x AS cover_image_focal_x,
+            cover.focal_y AS cover_image_focal_y,
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
+     LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
      LEFT JOIN LATERAL (
        SELECT json_agg(area_obj ORDER BY kind, name) AS areas
        FROM (
@@ -187,6 +202,10 @@ async function queryRoute(id: string, catalogOnly: boolean): Promise<RouteDetail
     ...row,
     areas: parseAreas(row.areas),
     provenance: parseRouteProvenance(row.provenance),
+    cover_image_focal_x:
+      row.cover_image_focal_x != null ? Number(row.cover_image_focal_x) : null,
+    cover_image_focal_y:
+      row.cover_image_focal_y != null ? Number(row.cover_image_focal_y) : null,
   };
 }
 

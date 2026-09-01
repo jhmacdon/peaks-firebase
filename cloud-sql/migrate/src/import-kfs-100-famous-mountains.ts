@@ -1,4 +1,9 @@
-/** Imports the reviewed Korea Forest Service 100 Famous Mountains roster. */
+/**
+ * Imports the reviewed Korea Forest Service 100 Famous Mountains roster.
+ *
+ * Dry-run is the default. Destination staging and list publication are
+ * separate. Publication also requires complete summit and route covers.
+ */
 
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -56,11 +61,14 @@ export async function runKfs100Command(
       client,
       fixture,
       resolutions,
-      args.apply,
+      args.mode,
       KFS_100_FAMOUS_MOUNTAINS_KEEPER_LISTS
     );
     writeLine(JSON.stringify(report, null, 2));
-    return report.complete ? 0 : 2;
+    return report.complete &&
+      (args.mode !== "check-publication" || report.publication?.ready === true)
+      ? 0
+      : 2;
   } finally {
     client.release();
     await end();

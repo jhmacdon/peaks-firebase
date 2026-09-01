@@ -6,8 +6,9 @@
  * identify fixture rows only.
  *
  * Dry-run is the default. A dry run opens a read-only transaction and reports
- * every unresolved identity. Apply refuses to write unless every list resolves
- * to its full, unique membership.
+ * every unresolved identity. Writes use separate destination-staging and
+ * list-publication modes so this importer cannot publish a membership from an
+ * incomplete route or cover snapshot.
  */
 
 import crypto from "node:crypto";
@@ -17,10 +18,16 @@ import type {
   KeeperSourceDescriptor,
 } from "./sources";
 
+export type KeeperImportMode =
+  | "dry-run"
+  | "stage-destinations"
+  | "check-publication"
+  | "publish-lists";
+
 export interface KeeperImportArgs {
   input: string;
   resolutions: string;
-  apply: boolean;
+  mode: KeeperImportMode;
 }
 
 export interface KeeperSourceMember {
@@ -225,6 +232,7 @@ export interface KeeperListResolution {
 }
 
 export interface KeeperImportReport {
+  mode: KeeperImportMode;
   apply: boolean;
   complete: boolean;
   destinationsToAdd: Array<{
@@ -252,6 +260,32 @@ export interface KeeperImportReport {
     added: Array<{ id: string; name: string | null }>;
     removed: Array<{ id: string; name: string | null }>;
     reorderedCount: number;
+  }>;
+  publication?: KeeperPublicationReadiness;
+}
+
+export interface KeeperPublicationDestination {
+  id: string;
+  name: string | null;
+  exists: boolean;
+  summitFeatureValid: boolean;
+  destinationCoverComplete: boolean;
+  validActiveRoutesWithCover: number;
+  activePeaksRoutesWithoutCover: number;
+  routeIdsWithoutCover: string[];
+  complete: boolean;
+}
+
+export interface KeeperPublicationReadiness {
+  ready: boolean;
+  stageRequired: {
+    destinationAdditions: number;
+    destinationRepairs: number;
+  };
+  destinations: KeeperPublicationDestination[];
+  activePeaksRoutesMissingCover: Array<{
+    id: string;
+    name: string;
   }>;
 }
 
@@ -416,10 +450,42 @@ export function parseKeeperImportArgs(argv = process.argv.slice(2)): KeeperImpor
   const resolutionsArg = argv.find((arg) => arg.startsWith("--resolutions="));
   const resolutions = resolutionsArg?.slice("--resolutions=".length).trim();
   if (!resolutions) throw new Error("--resolutions is required");
-  const unknown = argv.filter((arg) => arg !== "--apply" &&
+  if (argv.includes("--apply")) {
+    throw new Error(
+      "--apply is disabled; use --stage-destinations, --check-publication, " +
+      "then --publish-lists"
+    );
+  }
+  const modeFlags: Array<[string, KeeperImportMode]> = [
+    ["--stage-destinations", "stage-destinations"],
+    ["--check-publication", "check-publication"],
+    ["--publish-lists", "publish-lists"],
+  ];
+  const selectedModes = modeFlags.filter(([flag]) => argv.includes(flag));
+  if (selectedModes.length > 1) {
+    throw new Error("Choose only one keeper import mode");
+  }
+  const unknown = argv.filter((arg) => !modeFlags.some(([flag]) => arg === flag) &&
     !arg.startsWith("--input=") && !arg.startsWith("--resolutions="));
   if (unknown.length > 0) throw new Error(`Unknown option: ${unknown[0]}`);
-  return { input, resolutions, apply: argv.includes("--apply") };
+  return {
+    input,
+    resolutions,
+    mode: selectedModes[0]?.[1] ?? "dry-run",
+  };
+}
+
+export function normalizeKeeperImportMode(
+  requestedMode: KeeperImportMode | boolean
+): KeeperImportMode {
+  const mode = typeof requestedMode === "boolean"
+    ? (requestedMode ? "publish-lists" : "dry-run")
+    : requestedMode;
+  if (mode !== "dry-run" && mode !== "stage-destinations" &&
+      mode !== "check-publication" && mode !== "publish-lists") {
+    throw new Error(`Unknown keeper import mode: ${String(mode)}`);
+  }
+  return mode;
 }
 
 export function normalizeKeeperPeakName(name: string): string {
@@ -1815,7 +1881,7 @@ export function buildKeeperImportReport(
   resolutions: KeeperResolutionFixture,
   catalog: KeeperCatalogPeak[],
   current: CurrentListMember[],
-  apply: boolean,
+  requestedMode: KeeperImportMode | boolean,
   definitions: KeeperListDefinition[],
   externalIdOwners: KeeperExternalIdOwner[] = externalIdOwnersFromCatalog(catalog)
 ): {
@@ -1824,6 +1890,8 @@ export function buildKeeperImportReport(
   destinationsToAdd: ReviewedKeeperDestination[];
   destinationsToRepair: ReviewedKeeperCatalogRepair[];
 } {
+  const mode = normalizeKeeperImportMode(requestedMode);
+  const apply = mode === "stage-destinations" || mode === "publish-lists";
   const reviewed = catalogWithReviewedKeeperDestinations(
     catalog,
     fixture,
@@ -1865,6 +1933,7 @@ export function buildKeeperImportReport(
     destinationsToAdd: reviewed.destinationsToAdd,
     destinationsToRepair: reviewed.destinationsToRepair,
     report: {
+      mode,
       apply,
       complete,
       destinationsToAdd: reviewed.destinationsToAdd.map((destination) => ({
@@ -2050,6 +2119,155 @@ async function loadCurrentMembers(
     destinationId: row.destination_id,
     ordinal: Number(row.ordinal),
   }));
+}
+
+export async function checkKeeperPublicationReadiness(
+  client: PoolClient,
+  plans: KeeperListResolution[]
+): Promise<KeeperPublicationReadiness> {
+  const destinationIds = [...new Set(plans.flatMap((plan) =>
+    plan.members.map((member) => member.destinationId)
+  ))].sort();
+  if (destinationIds.length === 0) {
+    throw new Error("Keeper publication check requires at least one destination");
+  }
+
+  const destinationResult = await client.query<{
+    id: string;
+    name: string | null;
+    destination_exists: boolean;
+    summit_feature_valid: boolean;
+    destination_cover_complete: boolean;
+    valid_active_routes_with_cover: string | number;
+    active_peaks_routes_without_cover: string | number;
+    route_ids_without_cover: string[];
+  }>(
+    `WITH requested AS (
+       SELECT UNNEST($1::text[]) AS id
+     ),
+     route_links AS (
+       SELECT requested.id AS destination_id,
+              r.id AS route_id,
+              r.owner = 'peaks' AND r.status = 'active' AS active_peaks_route,
+              CASE
+                WHEN r.owner = 'peaks' AND r.status = 'active'
+                  THEN peaks_route_passes_publish_integrity(
+                    r.id, requested.id, 'active'
+                  )
+                ELSE false
+              END AS valid_active_peaks_route,
+              cover.route_id IS NOT NULL AS route_cover_complete
+       FROM requested
+       LEFT JOIN route_destinations rd ON rd.destination_id = requested.id
+       LEFT JOIN routes r ON r.id = rd.route_id
+       LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
+     ),
+     route_evidence AS (
+       SELECT destination_id,
+              COUNT(DISTINCT route_id) FILTER (
+                WHERE valid_active_peaks_route AND route_cover_complete
+              ) AS valid_active_routes_with_cover,
+              COUNT(DISTINCT route_id) FILTER (
+                WHERE active_peaks_route AND NOT route_cover_complete
+              ) AS active_peaks_routes_without_cover,
+              COALESCE(
+                ARRAY_AGG(DISTINCT route_id ORDER BY route_id) FILTER (
+                  WHERE active_peaks_route AND NOT route_cover_complete
+                ),
+                '{}'::text[]
+              ) AS route_ids_without_cover
+       FROM route_links
+       GROUP BY destination_id
+     )
+     SELECT requested.id,
+            destination.name,
+            destination.id IS NOT NULL AS destination_exists,
+            COALESCE(
+              'summit'::destination_feature = ANY(destination.features),
+              false
+            ) AS summit_feature_valid,
+            COALESCE(
+              NULLIF(BTRIM(destination.hero_image), '') IS NOT NULL
+                AND NULLIF(BTRIM(destination.hero_image_attribution), '') IS NOT NULL
+                AND NULLIF(BTRIM(destination.hero_image_attribution_url), '') IS NOT NULL,
+              false
+            ) AS destination_cover_complete,
+            COALESCE(evidence.valid_active_routes_with_cover, 0)
+              AS valid_active_routes_with_cover,
+            COALESCE(evidence.active_peaks_routes_without_cover, 0)
+              AS active_peaks_routes_without_cover,
+            COALESCE(evidence.route_ids_without_cover, '{}'::text[])
+              AS route_ids_without_cover
+     FROM requested
+     LEFT JOIN destinations destination ON destination.id = requested.id
+     LEFT JOIN route_evidence evidence ON evidence.destination_id = requested.id
+     ORDER BY requested.id`,
+    [destinationIds]
+  );
+
+  if (destinationResult.rows.length !== destinationIds.length ||
+      destinationResult.rows.some((row, index) => row.id !== destinationIds[index])) {
+    throw new Error("Keeper publication check returned a changed destination set");
+  }
+  const destinations = destinationResult.rows.map((row) => {
+    const validActiveRoutesWithCover = Number(row.valid_active_routes_with_cover);
+    const activePeaksRoutesWithoutCover = Number(row.active_peaks_routes_without_cover);
+    if (!Number.isSafeInteger(validActiveRoutesWithCover) ||
+        validActiveRoutesWithCover < 0 ||
+        !Number.isSafeInteger(activePeaksRoutesWithoutCover) ||
+        activePeaksRoutesWithoutCover < 0 ||
+        !Array.isArray(row.route_ids_without_cover) ||
+        row.route_ids_without_cover.some((routeId) => !isNonEmptyString(routeId))) {
+      throw new Error(`Keeper publication evidence is malformed for ${row.id}`);
+    }
+    const destination: KeeperPublicationDestination = {
+      id: row.id,
+      name: isNonEmptyString(row.name) ? row.name : null,
+      exists: row.destination_exists === true,
+      summitFeatureValid: row.summit_feature_valid === true,
+      destinationCoverComplete: row.destination_cover_complete === true,
+      validActiveRoutesWithCover,
+      activePeaksRoutesWithoutCover,
+      routeIdsWithoutCover: [...row.route_ids_without_cover],
+      complete: false,
+    };
+    destination.complete = destination.exists &&
+      destination.summitFeatureValid &&
+      destination.destinationCoverComplete &&
+      destination.validActiveRoutesWithCover > 0 &&
+      destination.activePeaksRoutesWithoutCover === 0;
+    return destination;
+  });
+
+  const globalRouteResult = await client.query<{
+    id: string;
+    name: string;
+  }>(
+    `SELECT route.id, route.name
+     FROM routes route
+     LEFT JOIN route_cover_photos cover ON cover.route_id = route.id
+     WHERE route.owner = 'peaks'
+       AND route.status = 'active'
+       AND cover.route_id IS NULL
+     ORDER BY route.id`
+  );
+  const activePeaksRoutesMissingCover = globalRouteResult.rows.map((row) => {
+    if (!isNonEmptyString(row.id) || !isNonEmptyString(row.name)) {
+      throw new Error("Keeper publication found a malformed active route cover gap");
+    }
+    return { id: row.id, name: row.name };
+  });
+
+  return {
+    ready: destinations.every((destination) => destination.complete) &&
+      activePeaksRoutesMissingCover.length === 0,
+    stageRequired: {
+      destinationAdditions: 0,
+      destinationRepairs: 0,
+    },
+    destinations,
+    activePeaksRoutesMissingCover,
+  };
 }
 
 async function insertReviewedKeeperDestinations(
@@ -2325,9 +2543,8 @@ export async function refreshAffectedDestinationAreaLinks(
   );
 }
 
-async function applyKeeperPlans(
+async function applyKeeperDestinations(
   client: PoolClient,
-  plans: KeeperListResolution[],
   destinationsToAdd: ReviewedKeeperDestination[],
   destinationsToRepair: ReviewedKeeperCatalogRepair[]
 ): Promise<void> {
@@ -2338,6 +2555,12 @@ async function applyKeeperPlans(
     client,
     [...destinationsToAdd, ...destinationsToRepair].map((destination) => destination.id)
   );
+}
+
+async function applyKeeperLists(
+  client: PoolClient,
+  plans: KeeperListResolution[]
+): Promise<void> {
   for (const plan of plans) {
     await client.query(
       `INSERT INTO lists (
@@ -2392,12 +2615,33 @@ async function applyKeeperPlans(
   }
 }
 
+async function lockKeeperPublicationTables(client: PoolClient): Promise<void> {
+  await client.query(
+    `LOCK TABLE destinations,
+                list_destinations,
+                lists,
+                route_destinations,
+                route_segments,
+                routes,
+                segments
+     IN SHARE ROW EXCLUSIVE MODE NOWAIT`
+  );
+}
+
+async function lockKeeperDestinationStagingTable(client: PoolClient): Promise<void> {
+  await client.query(
+    "LOCK TABLE destinations IN SHARE ROW EXCLUSIVE MODE NOWAIT"
+  );
+}
+
 export async function beginKeeperImportTransaction(
   client: PoolClient,
-  apply: boolean
+  requestedMode: KeeperImportMode | boolean
 ): Promise<void> {
+  const mode = normalizeKeeperImportMode(requestedMode);
+  const writes = mode === "stage-destinations" || mode === "publish-lists";
   await client.query(
-    apply ? "BEGIN ISOLATION LEVEL SERIALIZABLE" :
+    writes ? "BEGIN ISOLATION LEVEL SERIALIZABLE" :
       "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"
   );
 }
@@ -2406,16 +2650,29 @@ export async function runKeeperImport(
   client: PoolClient,
   fixture: KeeperImportFixture,
   resolutions: KeeperResolutionFixture,
-  apply: boolean,
+  requestedMode: KeeperImportMode | boolean,
   definitions: KeeperListDefinition[]
 ): Promise<KeeperImportReport> {
+  const mode = normalizeKeeperImportMode(requestedMode);
+  const writes = mode === "stage-destinations" || mode === "publish-lists";
   validateProductionKeeperDefinitions(definitions);
   validateKeeperFixture(fixture, definitions);
   validateKeeperResolutionFixture(fixture, resolutions, definitions);
   validateKeeperCrossListConsistency(fixture, resolutions, definitions);
-  await beginKeeperImportTransaction(client, apply);
+  await beginKeeperImportTransaction(client, mode);
   try {
-    if (apply) {
+    if (mode === "publish-lists") {
+      // Take these locks before any SELECT establishes the serializable
+      // snapshot. A concurrent catalog or route writer makes publication fail
+      // now; it cannot change the checked evidence before this transaction
+      // commits its memberships.
+      await lockKeeperPublicationTables(client);
+    } else if (mode === "stage-destinations") {
+      // Keep the same table-then-advisory order as publication. This prevents
+      // the two write modes from waiting on each other's locks.
+      await lockKeeperDestinationStagingTable(client);
+    }
+    if (writes) {
       await client.query("SELECT pg_advisory_xact_lock(hashtext('keeper-list-import'))");
     }
     const requestedClaims = requestedExternalIdClaims(resolutions);
@@ -2426,19 +2683,61 @@ export async function runKeeperImport(
       resolutions,
       catalog,
       current,
-      apply,
+      mode,
       definitions,
       externalIdOwners
     );
-    if (apply && !report.complete) {
-      throw new Error("Keeper list apply refused: one or more identities remain unresolved");
+    if (writes && !report.complete) {
+      throw new Error(
+        `Keeper ${mode} refused: one or more identities remain unresolved`
+      );
     }
-    if (apply) {
-      await applyKeeperPlans(client, plans, destinationsToAdd, destinationsToRepair);
+
+    if (mode === "stage-destinations") {
+      await applyKeeperDestinations(client, destinationsToAdd, destinationsToRepair);
       await client.query("COMMIT");
-    } else {
-      await client.query("ROLLBACK");
+      return report;
     }
+
+    if (mode === "check-publication" || mode === "publish-lists") {
+      if (!report.complete || destinationsToAdd.length > 0 || destinationsToRepair.length > 0) {
+        report.publication = {
+          ready: false,
+          stageRequired: {
+            destinationAdditions: destinationsToAdd.length,
+            destinationRepairs: destinationsToRepair.length,
+          },
+          destinations: [],
+          activePeaksRoutesMissingCover: [],
+        };
+        if (mode === "publish-lists") {
+          throw new Error(
+            "Keeper publish-lists refused: reviewed destinations must be staged first"
+          );
+        }
+      } else {
+        report.publication = await checkKeeperPublicationReadiness(client, plans);
+      }
+    }
+
+    if (mode === "publish-lists") {
+      if (report.publication?.ready !== true) {
+        const incompleteDestinations = report.publication?.destinations
+          .filter((destination) => !destination.complete).length ?? 0;
+        const globalRouteCoverGaps =
+          report.publication?.activePeaksRoutesMissingCover.length ?? 0;
+        throw new Error(
+          "Keeper publish-lists refused: publication gate failed " +
+          `(${incompleteDestinations} destination gaps, ` +
+          `${globalRouteCoverGaps} active route cover gaps)`
+        );
+      }
+      await applyKeeperLists(client, plans);
+      await client.query("COMMIT");
+      return report;
+    }
+
+    await client.query("ROLLBACK");
     return report;
   } catch (error) {
     await client.query("ROLLBACK");

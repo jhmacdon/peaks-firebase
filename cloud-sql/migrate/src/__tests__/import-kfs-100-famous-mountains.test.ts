@@ -592,6 +592,7 @@ test("rejects changed pinned inputs before producing either fixture", () => {
 
 test("runs the KFS command boundary with exact definitions and cleanup", async () => {
   const report: KeeperImportReport = {
+    mode: "dry-run",
     apply: false,
     complete: true,
     destinationsToAdd: [],
@@ -623,11 +624,47 @@ test("runs the KFS command boundary with exact definitions and cleanup", async (
   assert.equal(calls[0][0], client);
   assert.deepEqual(calls[0][1], fixture);
   assert.deepEqual(calls[0][2], resolutions);
-  assert.equal(calls[0][3], false);
+  assert.equal(calls[0][3], "dry-run");
   assert.equal(calls[0][4], KFS_100_FAMOUS_MOUNTAINS_KEEPER_LISTS);
   assert.deepEqual(output, [JSON.stringify(report, null, 2)]);
   assert.equal(releases, 1);
   assert.equal(ends, 1);
+});
+
+test("returns review-needed when a KFS publication check finds a gap", async () => {
+  const calls: unknown[][] = [];
+  const exitCode = await kfsCommand.runKfs100Command([
+    "--input=/tmp/kfs-input.json",
+    "--resolutions=/tmp/kfs-resolutions.json",
+    "--check-publication",
+  ], {
+    readFile: async (filePath) => filePath.includes("resolutions")
+      ? resolutionText
+      : JSON.stringify(fixture),
+    connect: async () => ({ release: () => {} }) as never,
+    end: async () => {},
+    runKeeperImport: async (...args) => {
+      calls.push(args);
+      return {
+        mode: "check-publication",
+        apply: false,
+        complete: true,
+        destinationsToAdd: [],
+        destinationsToRepair: [],
+        lists: [],
+        publication: {
+          ready: false,
+          stageRequired: { destinationAdditions: 0, destinationRepairs: 0 },
+          destinations: [],
+          activePeaksRoutesMissingCover: [{ id: "route-gap", name: "Route gap" }],
+        },
+      };
+    },
+    writeLine: () => {},
+  });
+  assert.equal(exitCode, 2);
+  assert.equal(calls[0][3], "check-publication");
+  assert.equal(calls[0][4], KFS_100_FAMOUS_MOUNTAINS_KEEPER_LISTS);
 });
 
 test("rejects a changed resolution artifact before opening the database", async () => {

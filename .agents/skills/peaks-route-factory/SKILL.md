@@ -144,6 +144,11 @@ a short true note. A search for another place does not count.
 For official identity evidence, set the source type to the exact reviewed
 official trail registry ID and use a URL on that source's recorded discovery
 or endpoint host. Generic publisher labels do not pass the queue gate.
+For a South Korean national-park route, use `knps` only with the exact course
+page and current control-detail page for the same six-digit `parkId`. The access
+URL must be the control-detail page, and its state, reason, effective time, and
+named sections must cover the route. A course page, the KFS archive, or the KFS
+seasonal raster map does not prove current access.
 
 Do not sign in, evade a block, or automate an authenticated GPX download.
 AllTrails, Peakbagger, SummitPost, and other trip-report GPX files are private
@@ -232,6 +237,20 @@ Release or clear the lease, run `routes:jobs stats`, and report:
 - state reached and exact blocker, if any;
 - next safe action;
 - total verified and remaining.
+
+Do not call the listed-peak goal complete until this read-only final gate exits
+zero:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
+  cloud-sql/migrate/scripts/audit-listed-route-cover-goal.sh \
+  --format summary --require-complete
+```
+
+It also requires a fully credited destination cover and a derived cover for
+every active Peaks-owned route. Run this final gate from an operator checkout;
+factory, repair, and reviewer checkouts reject it. A route-only zero is not the
+finished goal.
 
 Use [references/luna-goal-prompt.md](references/luna-goal-prompt.md) for general
 workers, [references/luna-repair-goal-prompt.md](references/luna-repair-goal-prompt.md)

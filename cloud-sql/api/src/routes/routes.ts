@@ -4,6 +4,7 @@ import { getUid } from "../auth";
 import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
+import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 
 const router = Router();
 
@@ -19,9 +20,11 @@ export function buildRouteDetailQuery(
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
             r.created_at, r.updated_at,
+            ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas,
             COALESCE(section_rows.sections, '[]'::json) AS sections
      FROM routes r
+     ${routeCoverJoinSql()}
      LEFT JOIN LATERAL (
        -- Collapse PAD-US fragments: a park can exist as several areas rows with
        -- the same kind+name (e.g. Olympic NP, split into 'NP' and 'MPA'
@@ -143,8 +146,10 @@ export function buildNearbyRoutesQuery(
   return {
     text: `SELECT r.id, r.name, r.distance, r.gain, r.gain_loss, r.elevation_string,
             r.external_links, r.provenance, r.completion,
+            ${routeCoverSelectSql()},
             ST_Distance(r.path, ST_MakePoint($2, $1)::geography) AS distance_to_point
      FROM routes r
+     ${routeCoverJoinSql()}
      WHERE ST_DWithin(r.path, ST_MakePoint($2, $1)::geography, $3)
        AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$5")}

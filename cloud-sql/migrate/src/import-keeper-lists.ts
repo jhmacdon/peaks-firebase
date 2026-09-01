@@ -1,8 +1,8 @@
 /**
  * Imports reviewed peak lists from saved keeper-source fixtures.
  *
- * Dry-run is the default. Apply refuses to write unless every list resolves
- * to its full, unique membership.
+ * Dry-run is the default. Destination staging and list publication are
+ * separate. Publication also requires complete summit and route covers.
  */
 
 import fs from "node:fs/promises";
@@ -36,11 +36,14 @@ async function main(): Promise<void> {
       client,
       fixture,
       resolutions,
-      args.apply,
+      args.mode,
       BASE_THREE_KEEPER_LISTS
     );
     console.log(JSON.stringify(report, null, 2));
-    if (!report.complete) process.exitCode = 2;
+    if (!report.complete ||
+        (args.mode === "check-publication" && report.publication?.ready !== true)) {
+      process.exitCode = 2;
+    }
   } finally {
     client.release();
     await db.end();
