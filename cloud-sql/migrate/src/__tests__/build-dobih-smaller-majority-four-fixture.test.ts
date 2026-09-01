@@ -242,31 +242,33 @@ test("blocks all four firing-range members from automatic route publication", ()
   );
 });
 
-test("shared DoBIH parser requires the Donald Dewey and Submarilyn flags", () => {
+test("shared DoBIH parser requires every source-bundle selection flag", () => {
   const headers = [
     "Number", "Name", "Metres", "Latitude", "Longitude", "Country",
     "C", "W", "MT", "F", "D", "DT", "WO", "Fel", "VL", "Hew", "G",
-    "DDew", "sMa",
+    "Dew", "DDew", "sMa", "B", "Sy",
   ];
   const row = [
     "1", "Test Fell", "100", "51", "-1", "E",
-    ...Array.from({ length: 13 }, () => "1"),
+    ...Array.from({ length: 16 }, () => "1"),
   ];
   const parsed = parseDobihRows(`${headers.join(",")}\n${row.join(",")}\n`);
+  assert.equal(parsed[0].flags.Dew, true);
   assert.equal(parsed[0].flags.DDew, true);
   assert.equal(parsed[0].flags.sMa, true);
+  assert.equal(parsed[0].flags.B, true);
+  assert.equal(parsed[0].flags.Sy, true);
 
-  assert.throws(
-    () => parseDobihRows(`${headers.slice(0, -1).join(",")}\n` +
-      `${row.slice(0, -1).join(",")}\n`),
-    /missing column sMa/
-  );
-  const withoutDonaldDewey = headers.filter((header) => header !== "DDew");
-  assert.throws(
-    () => parseDobihRows(`${withoutDonaldDewey.join(",")}\n` +
-      `${row.slice(0, -1).join(",")}\n`),
-    /missing column DDew/
-  );
+  for (const requiredColumn of ["Dew", "DDew", "sMa", "B", "Sy"]) {
+    const keptIndexes = headers.flatMap((header, index) =>
+      header === requiredColumn ? [] : [index]);
+    const changedHeaders = keptIndexes.map((index) => headers[index]);
+    const changedRow = keptIndexes.map((index) => row[index]);
+    assert.throws(
+      () => parseDobihRows(`${changedHeaders.join(",")}\n${changedRow.join(",")}\n`),
+      new RegExp(`missing column ${requiredColumn}`)
+    );
+  }
 });
 
 test("refuses any raw CSV other than the pinned v18.5 bytes", () => {
