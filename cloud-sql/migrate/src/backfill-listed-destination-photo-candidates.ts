@@ -256,17 +256,27 @@ export function parseWikidataLeadImage(
   wikidataId: string
 ): WikidataLeadImage | null {
   const root = objectRecord(json);
-  const entities = objectRecord(root?.entities);
-  const entity = objectRecord(entities?.[wikidataId]);
-  if (
-    !entity ||
-    entity.missing !== undefined ||
-    text(entity.id) !== wikidataId ||
-    text(entity.type) !== "item"
-  ) return null;
-
-  const claims = objectRecord(entity.claims);
-  const rawClaims = claims?.P18;
+  let rawClaims: unknown;
+  if (root && Object.prototype.hasOwnProperty.call(root, "entities")) {
+    const entities = objectRecord(root.entities);
+    const entity = objectRecord(entities?.[wikidataId]);
+    if (
+      !entity ||
+      entity.missing !== undefined ||
+      text(entity.id) !== wikidataId ||
+      text(entity.type) !== "item"
+    ) return null;
+    rawClaims = objectRecord(entity.claims)?.P18;
+  } else {
+    const directClaims = objectRecord(root?.claims)?.P18;
+    if (!Array.isArray(directClaims)) return null;
+    const claimIdPrefix = `${wikidataId}$`;
+    if (!directClaims.every((claim) => {
+      const record = objectRecord(claim);
+      return record !== null && text(record.id)?.startsWith(claimIdPrefix);
+    })) return null;
+    rawClaims = directClaims;
+  }
   const nonDeprecatedClaims = Array.isArray(rawClaims)
     ? rawClaims
         .map(objectRecord)
@@ -550,9 +560,9 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
 
   async fetchWikidataLeadImage(wikidataId) {
     const url = actionApiUrl("www.wikidata.org", {
-      action: "wbgetentities",
-      ids: wikidataId,
-      props: "claims",
+      action: "wbgetclaims",
+      entity: wikidataId,
+      property: "P18",
     });
     return parseWikidataLeadImage(await requestJson(url), wikidataId);
   },

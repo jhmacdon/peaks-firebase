@@ -1,0 +1,746 @@
+{
+  "schemaVersion": 1,
+  "kind": "listed_active_route_cover_gap_audit",
+  "generatedAt": "2026-09-01T01:46:50.222Z",
+  "source": {
+    "database": "peaks",
+    "readMode": "default_transaction_read_only=on",
+    "routeCoverViewPresent": false,
+    "routeCoverProjection": "inline replay of cloud-sql/migrations/20260830_route_cover_photos.sql",
+    "routeStackRef": "origin/codex/integrate-route-stack-main-20260831@ffcb01d0599ebab1d575eefc6c8a1e9c7f725ee4",
+    "photoBaseRef": "origin/codex/add-two-kfs-global-covers-20260901@ae8c63390260b98ff751feead6d8067992f6535d"
+  },
+  "summary": {
+    "listedDestinations": 1596,
+    "listedWithDestinationCover": 696,
+    "listedMissingDestinationCover": 900,
+    "listedWithPublishValidActiveRoute": 67,
+    "listedMissingPublishValidActiveRoute": 1529,
+    "listedWithPublishValidActiveRouteAndDerivedCover": 61,
+    "listedMissingPublishValidActiveRouteAndDerivedCover": 1535,
+    "listedDataBlockers": 0,
+    "activePeaksRoutes": 260,
+    "activePeaksRoutesWithDerivedCover": 194,
+    "activePeaksRoutesMissingDerivedCover": 66,
+    "targetDestinations": 11,
+    "targetUncoveredActiveRouteLinks": 14,
+    "targetDistinctUncoveredActiveRoutes": 14,
+    "targetPublishValidRouteLinks": 6,
+    "targetPublishInvalidRouteLinks": 8,
+    "targetsWithPendingPhotoCandidate": 1,
+    "targetsWithDeniedPhotoCandidateOnly": 3,
+    "targetsWithNoPhotoCandidateHistory": 7
+  },
+  "destinations": [
+    {
+      "catalog": {
+        "id": "GwLKVzkyBpklFRhl69MR",
+        "name": "Cleveland Mountain",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1609,
+        "prominenceM": 195,
+        "lat": 47.680898,
+        "lng": -121.42454,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49020994",
+        "osmId": "356544589",
+        "externalIds": {"osm": "356544589", "wikidata": "Q49020994"},
+        "updatedAt": "2026-07-23T17:48:15.135352+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 78,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "V61GDpgp95UBsTrcRGkA",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Paddling_on_Lake_Ilswoot._Cascade_Mountains,_Washington.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/30/Paddling_on_Lake_Ilswoot._Cascade_Mountains%2C_Washington.jpg",
+          "sourceKind": "wikimedia_commons",
+          "photographer": "Paxson Woelber",
+          "licenseName": "CC BY 2.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+          "imageWidth": 5639,
+          "imageHeight": 3760,
+          "focalX": 50,
+          "focalY": 50,
+          "notes": "Geotagged landscape 16.7 km from the destination; not an exact identification unless the source page says so. Center crop checked at 2:1 and 1:1.",
+          "reviewedAt": "2026-08-26T07:28:22.193579+00:00",
+          "reviewNote": null,
+          "createdAt": "2026-08-22T14:49:16.910774+00:00",
+          "updatedAt": "2026-08-26T07:28:22.193579+00:00"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "SviDXc3ZmjsCQc6dz8zH",
+          "routeName": "Cleveland Mountain via Temple Mountain Road",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 10285,
+          "gainM": 1497.4999999999993,
+          "completion": "none",
+          "linkedDestinationIds": ["949C3C8A353D7C1D0932", "GwLKVzkyBpklFRhl69MR"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "8RtxmvglalqMYeuCTLvS",
+        "name": "Damavand",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 5610,
+        "prominenceM": 4667,
+        "lat": 35.955533,
+        "lng": 52.110085,
+        "countryCode": null,
+        "stateCode": null,
+        "wikidataId": null,
+        "osmId": null,
+        "externalIds": {},
+        "updatedAt": "2026-06-15T21:00:07.938089+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "cJb67d0QVHo9F7qSLUGi",
+          "listName": "Ultras of Iran",
+          "ordinal": 0,
+          "organization": null,
+          "region": "Iran",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=49301"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "ESlTsqMIbRL2SFATA_di",
+          "status": "pending",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:990513-Damavand-IMG_4854-2.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8c/990513-Damavand-IMG_4854-2.jpg",
+          "sourceKind": "wikimedia_commons",
+          "photographer": "Safa.daneshvar",
+          "licenseName": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "imageWidth": 4200,
+          "imageHeight": 2800,
+          "focalX": 50,
+          "focalY": 50,
+          "notes": "Geotagged landscape 0.1 km from the destination; not an exact identification unless the source page says so. Center crop checked at 2:1 and 1:1.",
+          "reviewedAt": null,
+          "reviewNote": null,
+          "createdAt": "2026-08-22T14:49:16.910774+00:00",
+          "updatedAt": "2026-08-22T14:49:16.910774+00:00"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "eWPuOSoE2uk6KM1vziGf",
+          "routeName": "Damavand via South Route",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 8911,
+          "gainM": 2628.900000000001,
+          "completion": "none",
+          "linkedDestinationIds": ["4D7B93615A5D4EFBB62A", "8RtxmvglalqMYeuCTLvS"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "xQ1CTVAiot62T0IOwCcg",
+        "name": "Dirtybox Peak",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1501,
+        "prominenceM": 233,
+        "lat": 47.458033,
+        "lng": -121.633207,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": null,
+        "osmId": "914088298",
+        "externalIds": {"osm": "914088298"},
+        "updatedAt": "2026-08-28T05:55:34.977515+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FxQ1CTVAiot62T0IOwCcg.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 96,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "FO5rjIvYUcNDaiyoDsTb",
+          "routeName": "Dirtybox Peak via Mailbox Peak Old Trail",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 5846,
+          "gainM": 1473.2000000000003,
+          "completion": "none",
+          "linkedDestinationIds": ["GHg65nKUeQhQU3D9A7ie", "xQ1CTVAiot62T0IOwCcg"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "42aBrtB02YE3L8h4tTPo",
+        "name": "Granite Mountain",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1716,
+        "prominenceM": 350,
+        "lat": 47.417727,
+        "lng": -121.481516,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q5595891",
+        "osmId": "349018654",
+        "externalIds": {"osm": "349018654", "wikidata": "Q5595891"},
+        "updatedAt": "2026-08-28T05:55:31.505897+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2F42aBrtB02YE3L8h4tTPo.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100",
+          "ordinal": 94,
+          "organization": "Jeff Smoot",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5005"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 49,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "DpSKJSuIBiyhMehRTw5w",
+          "routeName": "Granite Mountain Trail",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 5646,
+          "gainM": 1159,
+          "completion": "none",
+          "linkedDestinationIds": ["9cV3hAKedABIRy5qknHj", "42aBrtB02YE3L8h4tTPo"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "DJcLG4ln4RdHQ0zCEXxs",
+        "name": "Kaleetan Peak",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1909,
+        "prominenceM": 567,
+        "lat": 47.462526,
+        "lng": -121.47825,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49040648",
+        "osmId": "349018659",
+        "externalIds": {"osm": "349018659", "wikidata": "Q49040648", "summitpost": "152705"},
+        "updatedAt": "2026-08-28T05:55:47.770275+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FDJcLG4ln4RdHQ0zCEXxs.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100",
+          "ordinal": 80,
+          "organization": "Jeff Smoot",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5005"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 28,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "43cwqarPiqPVet9MK4Pe",
+          "routeName": "Kaleetan Peak via South Ridge",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 8633,
+          "gainM": 1521.9999999999984,
+          "completion": "none",
+          "linkedDestinationIds": ["QiPkmSEDvzgYwrdpays0", "DJcLG4ln4RdHQ0zCEXxs"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "3Q1lVpAXWZFx146E6NUF",
+        "name": "Mount Everest",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 8848.86,
+        "prominenceM": 8848,
+        "lat": 27.988257,
+        "lng": 86.925145,
+        "countryCode": "NP",
+        "stateCode": "P1",
+        "wikidataId": "Q513",
+        "osmId": "164979149",
+        "externalIds": {"osm": "164979149", "wikidata": "Q513"},
+        "updatedAt": "2026-07-25T16:58:05.827608+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2F3Q1lVpAXWZFx146E6NUF.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "hPNDxe5mvtLjtlTnWlnf",
+          "listName": "The Seven Summits",
+          "ordinal": 0,
+          "organization": "Reinhold Messner",
+          "region": "World",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=1000"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "nUeKo8AEX3arbSb9T7Lv",
+          "routeName": "Northeast Ridge Route",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 27416.815893194722,
+          "gainM": 12361.6640625,
+          "completion": "none",
+          "linkedDestinationIds": ["W17P4boD63wBNH0iXuNK", "3Q1lVpAXWZFx146E6NUF"]
+        },
+        {
+          "routeId": "hHwSD16aZo4SLHgrRQ0x",
+          "routeName": "South Col Route",
+          "destinationOrdinal": 5,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 13309.51761468788,
+          "gainM": 3551.2421875,
+          "completion": "none",
+          "linkedDestinationIds": ["2Xoi9JKVAd0tydzWHtVl", "9FPo0AmPVlRsh4N0vZRK", "QijPf4OOdISRoS8se0EP", "DJpHtNoLaFun73cesfJQ", "kdc7qN9GBa5TvkdiFQYY", "3Q1lVpAXWZFx146E6NUF"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "0O1nLlAchTkwWlUimyJP",
+        "name": "Mount Phelps",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1687,
+        "prominenceM": 334,
+        "lat": 47.68836,
+        "lng": -121.565351,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49054013",
+        "osmId": "356545812",
+        "externalIds": {"osm": "356545812", "wikidata": "Q49054013"},
+        "updatedAt": "2026-07-23T17:48:15.135352+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 59,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "Hbq8yKWshglw8JDsZW0F",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:2023-05-20,_Bridal_Veil_Falls_Trail_(Snohomish_County,_Washington),_030.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/83/2023-05-20%2C_Bridal_Veil_Falls_Trail_%28Snohomish_County%2C_Washington%29%2C_030.jpg",
+          "sourceKind": "wikimedia_commons",
+          "photographer": "Steven Pavlov",
+          "licenseName": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "imageWidth": 4032,
+          "imageHeight": 3024,
+          "focalX": 50,
+          "focalY": 50,
+          "notes": "Geotagged landscape 11.4 km from the destination; not an exact identification unless the source page says so. Center crop checked at 2:1 and 1:1.",
+          "reviewedAt": "2026-08-26T07:22:49.678907+00:00",
+          "reviewNote": null,
+          "createdAt": "2026-08-22T14:49:16.910774+00:00",
+          "updatedAt": "2026-08-26T07:22:49.678907+00:00"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "nFsTYDYLL8NwOeM6p1wo",
+          "routeName": "Mount Phelps via Blackhawk Mine",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 4130,
+          "gainM": 1060.5,
+          "completion": "none",
+          "linkedDestinationIds": ["3B4048A3FF9EA9CAA5F2", "0O1nLlAchTkwWlUimyJP"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "dg1agFR89EivHNOiFvbp",
+        "name": "Mount Shuksan",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 2783,
+        "prominenceM": 1344,
+        "lat": 48.831284,
+        "lng": -121.602849,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q1788022",
+        "osmId": "349028214",
+        "externalIds": {"osm": "349028214", "wikidata": "Q1788022", "peakbagger": "1630", "listsofjohn": "16753"},
+        "updatedAt": "2026-08-23T04:29:02.118532+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2Fdg1agFR89EivHNOiFvbp.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "DOlya3YYfIg60trgTm0n",
+          "listName": "Bulger List",
+          "ordinal": 9,
+          "organization": "The Bulgers",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5003"
+        },
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100",
+          "ordinal": 9,
+          "organization": "Jeff Smoot",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5005"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "SqsZA07zm6JRpb4mkiLp",
+          "routeName": "Fisher Chimneys",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 11737.474417195297,
+          "gainM": 1783.390625,
+          "completion": "none",
+          "linkedDestinationIds": ["hCcII1TjyZiQ31g2Wn99", "dg1agFR89EivHNOiFvbp"]
+        },
+        {
+          "routeId": "hJwT8jB4nBaRg7ZwhGKv",
+          "routeName": "Sulphide Glacier",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 10851.27141359591,
+          "gainM": 2036.1640625,
+          "completion": "none",
+          "linkedDestinationIds": ["C7DIt5NTV75ZcFXoaGvY", "dg1agFR89EivHNOiFvbp"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "nSf6z4vL0zjdG2sXibBM",
+        "name": "Mount Si",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1274,
+        "prominenceM": 79,
+        "lat": 47.506807,
+        "lng": -121.739039,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": null,
+        "osmId": "356546426",
+        "externalIds": {"osm": "356546426"},
+        "updatedAt": "2026-08-28T05:55:42.523775+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FnSf6z4vL0zjdG2sXibBM.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100",
+          "ordinal": 99,
+          "organization": "Jeff Smoot",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5005"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "whvKZyztqB1ncVabFFtR",
+          "routeName": "Mount Si Old Trail",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 5163.555900799526,
+          "gainM": 1143.046875,
+          "completion": "none",
+          "linkedDestinationIds": ["7etiVGkvGugHxmFja3xK", "nSf6z4vL0zjdG2sXibBM"]
+        },
+        {
+          "routeId": "40oJLRsV6f8hgVLXqkB7",
+          "routeName": "Mount Si via Mount Si Trail",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 6171,
+          "gainM": 1126.5,
+          "completion": "none",
+          "linkedDestinationIds": ["FLFBZ7rDLOFHPlUn9TMI", "nSf6z4vL0zjdG2sXibBM"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "75Za8vKu3Un5WFcg3zcK",
+        "name": "Red Mountain",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1792,
+        "prominenceM": 780,
+        "lat": 47.397476,
+        "lng": -121.144723,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q7304628",
+        "osmId": "348771918",
+        "externalIds": {"osm": "348771918", "wikidata": "Q7304628"},
+        "updatedAt": "2026-08-21T09:05:16.62327+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 41,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "DUTFUgC0P25j0dZXnoIl",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Kendall_Peak_from_below_Red_Mountain.jpg",
+          "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Kendall_Peak_from_below_Red_Mountain.jpg",
+          "sourceKind": "wikimedia_commons",
+          "photographer": "Wilderness trespasser",
+          "licenseName": "CC BY-SA 4.0",
+          "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+          "imageWidth": 4032,
+          "imageHeight": 2268,
+          "focalX": 50,
+          "focalY": 50,
+          "notes": "Geotagged landscape 19.7 km from the destination; not an exact identification unless the source page says so. Center crop checked at 2:1 and 1:1.",
+          "reviewedAt": "2026-08-26T07:19:27.373788+00:00",
+          "reviewNote": null,
+          "createdAt": "2026-08-22T14:49:16.910774+00:00",
+          "updatedAt": "2026-08-26T07:19:27.373788+00:00"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "rIobWMnEopNRi6A0F4gM",
+          "routeName": "Red Mountain via Trail 1330",
+          "destinationOrdinal": 1,
+          "publishValid": true,
+          "derivedCoverComplete": false,
+          "distanceM": 3731,
+          "gainM": 1060.6000000000006,
+          "completion": "none",
+          "linkedDestinationIds": ["64DA46511CE2A37496A8", "75Za8vKu3Un5WFcg3zcK"]
+        }
+      ]
+    },
+    {
+      "catalog": {
+        "id": "zntKOa5F6FjN6pzYadwv",
+        "name": "Snoqualmie Mountain",
+        "owner": "peaks",
+        "features": ["summit"],
+        "elevationM": 1914,
+        "prominenceM": 305,
+        "lat": 47.458988,
+        "lng": -121.416537,
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q7548046",
+        "osmId": "356546473",
+        "externalIds": {"osm": "356546473", "wikidata": "Q7548046"},
+        "updatedAt": "2026-08-28T05:55:39.727688+00:00"
+      },
+      "coverState": {
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FzntKOa5F6FjN6pzYadwv.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null,
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false
+      },
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100",
+          "ordinal": 79,
+          "organization": "Jeff Smoot",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5005"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100",
+          "ordinal": 26,
+          "organization": "Jeff Howbert",
+          "region": "Washington",
+          "sourceName": "Peakbagger",
+          "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=50033"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "b0XehnmTWs20b6lXkfyw",
+          "routeName": "Snoqualmie Mountain via Alpental",
+          "destinationOrdinal": 1,
+          "publishValid": false,
+          "derivedCoverComplete": false,
+          "distanceM": 2419,
+          "gainM": 948.7,
+          "completion": "none",
+          "linkedDestinationIds": ["7mdR4I31n8VQQdPVN5Nd", "zntKOa5F6FjN6pzYadwv"]
+        }
+      ]
+    }
+  ]
+}

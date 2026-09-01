@@ -1,0 +1,845 @@
+{
+  "schemaVersion": 1,
+  "kind": "listed_active_route_photo_priority_review",
+  "reviewedAt": "2026-09-01T02:00:33Z",
+  "mode": "dry_run_only",
+  "sourceAudit": {
+    "path": "docs/data-audits/fixtures/listed-active-route-cover-gap-audit-2026-09-01.json",
+    "byteLength": 26118,
+    "sha256": "3fbc74c5416294771f03cc1d974974ed506a415052b230575aeb408b7c4a67b3",
+    "generatedAt": "2026-09-01T01:46:50.222Z",
+    "database": "peaks",
+    "readMode": "default_transaction_read_only=on",
+    "routeCoverViewPresent": false,
+    "routeCoverProjection": "inline replay of cloud-sql/migrations/20260830_route_cover_photos.sql",
+    "routeStackRef": "origin/codex/integrate-route-stack-main-20260831@ffcb01d0599ebab1d575eefc6c8a1e9c7f725ee4",
+    "photoBaseRef": "origin/codex/add-two-kfs-global-covers-20260901@ae8c63390260b98ff751feead6d8067992f6535d"
+  },
+  "exactReplay": {
+    "path": "docs/data-audits/fixtures/listed-active-route-photo-priority-replay-2026-09-01.json",
+    "byteLength": 26476,
+    "sha256": "7dcd04e9fa96c764878431bbec864ff0eaacd03a32858309f25270973e272939",
+    "responseCount": 11,
+    "encoding": "base64"
+  },
+  "summary": {
+    "targetDestinations": 11,
+    "acceptedNewPendingPlans": 6,
+    "rejectedNew": 4,
+    "preservedExistingPending": 1,
+    "productionWrites": 0,
+    "applyUsed": false,
+    "fixedMonthlyCostUsd": 0,
+    "targetUncoveredActiveRouteLinksBefore": 14,
+    "targetUncoveredActiveRouteLinksCoveredIfAllAcceptedLater": 9,
+    "targetUncoveredActiveRouteLinksAfterIfAllAcceptedLater": 5,
+    "globalActivePeaksRoutesMissingDerivedCoverBefore": 66,
+    "globalActivePeaksRoutesMissingDerivedCoverAfterIfAllAcceptedLater": 57,
+    "publishValidRouteLinksCoveredIfAllAcceptedLater": 2,
+    "publishInvalidRouteLinksCoveredIfAllAcceptedLater": 7
+  },
+  "decisions": [
+    {
+      "destinationId": "GwLKVzkyBpklFRhl69MR",
+      "destinationName": "Cleveland Mountain",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49020994",
+        "lat": 47.680898,
+        "lng": -121.42454
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "V61GDpgp95UBsTrcRGkA",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Paddling_on_Lake_Ilswoot._Cascade_Mountains,_Washington.jpg"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "SviDXc3ZmjsCQc6dz8zH",
+          "routeName": "Cleveland Mountain via Temple Mountain Road",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "rejected_no_strict_file",
+      "search": {
+        "kind": "commons_geosearch",
+        "request": {
+          "endpoint": "https://commons.wikimedia.org/w/api.php",
+          "params": {
+            "action": "query",
+            "format": "json",
+            "formatversion": "2",
+            "list": "geosearch",
+            "gscoord": "47.680898|-121.42454",
+            "gsradius": "1500",
+            "gslimit": "500",
+            "gsnamespace": "6"
+          }
+        },
+        "localPath": "/private/tmp/peaks-route-gap-commons-20260901/geosearch/cleveland.json",
+        "byteLength": 47,
+        "sha256": "163a2b784d18d13038c30608da0aa0522f9f6bfa1eb253e4b8cd3ca8d9cf4f34",
+        "resultCount": 0,
+        "resultTitles": []
+      },
+      "identityReview": {
+        "reviewedWikidataId": "Q49020994",
+        "wikidataP18": null,
+        "commonsCategory": null,
+        "conflictingSameNameRegion": "Montana files do not identify this Washington summit"
+      },
+      "reason": "No file was within 1.5 km and no exact Commons or Wikidata image identifies the Washington summit. Same-name Montana files fail identity.",
+      "deniedRecordsRemainDenied": [
+        "V61GDpgp95UBsTrcRGkA"
+      ]
+    },
+    {
+      "destinationId": "8RtxmvglalqMYeuCTLvS",
+      "destinationName": "Damavand",
+      "catalog": {
+        "countryCode": null,
+        "stateCode": null,
+        "wikidataId": null,
+        "lat": 35.955533,
+        "lng": 52.110085
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "cJb67d0QVHo9F7qSLUGi",
+          "listName": "Ultras of Iran"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "ESlTsqMIbRL2SFATA_di",
+          "status": "pending",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:990513-Damavand-IMG_4854-2.jpg"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "eWPuOSoE2uk6KM1vziGf",
+          "routeName": "Damavand via South Route",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "preserved_existing_pending",
+      "existingPendingCandidateId": "ESlTsqMIbRL2SFATA_di",
+      "existingPendingSourcePageUrl": "https://commons.wikimedia.org/wiki/File:990513-Damavand-IMG_4854-2.jpg",
+      "newCandidatePlanned": false,
+      "reason": "The live pending candidate is state evidence and blocks duplicate discovery."
+    },
+    {
+      "destinationId": "xQ1CTVAiot62T0IOwCcg",
+      "destinationName": "Dirtybox Peak",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": null,
+        "lat": 47.458033,
+        "lng": -121.633207
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "FO5rjIvYUcNDaiyoDsTb",
+          "routeName": "Dirtybox Peak via Mailbox Peak Old Trail",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "rejected_no_strict_file",
+      "search": {
+        "kind": "commons_geosearch",
+        "request": {
+          "endpoint": "https://commons.wikimedia.org/w/api.php",
+          "params": {
+            "action": "query",
+            "format": "json",
+            "formatversion": "2",
+            "list": "geosearch",
+            "gscoord": "47.458033|-121.633207",
+            "gsradius": "1500",
+            "gslimit": "500",
+            "gsnamespace": "6"
+          }
+        },
+        "localPath": "/private/tmp/peaks-route-gap-commons-20260901/geosearch/dirtybox.json",
+        "byteLength": 2430,
+        "sha256": "04bb19c848957e8bd729748b7054aecbf7b082d5ac9e072bc46455b4d18620e9",
+        "resultCount": 17,
+        "resultTitles": [
+          "File:Mailbox Peak summit views 04.jpg",
+          "File:Mailbox Peak summit views 05.jpg",
+          "File:Mailbox Peak, United States (Unsplash).jpg",
+          "File:Mailbox Peak summit views 01.jpg",
+          "File:Mailbox Peak summit views 07.jpg",
+          "File:Rattlesnake Ridge from Mailbox Peak.jpg",
+          "File:Mailbox Peak summit views 10.jpg",
+          "File:Mailbox Peak summit views 12.jpg",
+          "File:Mailbox Peak summit views 13.jpg",
+          "File:Mailbox Peak summit views 11.jpg",
+          "File:Mailbox Peak summit views 03.jpg",
+          "File:Mailbox Peak summit views 02.jpg",
+          "File:Mailbox Peak summit views 06.jpg",
+          "File:Mailbox Peak summit views 09.jpg",
+          "File:Mailbox Peak summit views 08.jpg",
+          "File:View from Dirty Harry's Peak - panoramio.jpg",
+          "File:Two Volcanos - Flickr - brewbooks (1).jpg"
+        ]
+      },
+      "identityReview": {
+        "reviewedWikidataId": null,
+        "wikidataP18": null,
+        "commonsCategory": null
+      },
+      "reason": "All 17 nearby files identify Mailbox Peak, Dirty Harry's Peak, or other scenery; none identifies Dirtybox Peak."
+    },
+    {
+      "destinationId": "42aBrtB02YE3L8h4tTPo",
+      "destinationName": "Granite Mountain",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q5595891",
+        "lat": 47.417727,
+        "lng": -121.481516
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "DpSKJSuIBiyhMehRTw5w",
+          "routeName": "Granite Mountain Trail",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Granite Mountain lookout - Flickr - brewbooks.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Granite_Mountain_lookout_-_Flickr_-_brewbooks.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/89/Granite_Mountain_lookout_-_Flickr_-_brewbooks.jpg",
+        "photographer": "brewbooks from near Seattle, USA",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+        "width": 4128,
+        "height": 3096,
+        "mediaSha1": "639a4196d3b7d465b78039ffeb9645fb79de46bc",
+        "coordinates": {
+          "lat": 47.417575,
+          "lng": -121.4812
+        },
+        "coordinateCount": 1,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Granite Mountain lookout - Flickr - brewbooks.jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/granite.json",
+          "byteLength": 2008,
+          "sha256": "f1c5f2cab8940c2e0802e9d54ef50ac40f5615db685b0eb43228c6bf2645eba2"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/granite-lookout.jpg",
+          "byteLength": 4066595,
+          "sha256": "0e38c36303f0e5f83f3d44dcdefd2dc71aa17cf986b216a4c627a85374bb4d50",
+          "visualReview": "Original 4128×3096 file is sharp and shows the summit trail and lookout."
+        },
+        "identity": {
+          "type": "camera_coordinate",
+          "summitDistanceMeters": 29.2,
+          "review": "The file camera point is 29.2 m from the catalog summit."
+        }
+      }
+    },
+    {
+      "destinationId": "DJcLG4ln4RdHQ0zCEXxs",
+      "destinationName": "Kaleetan Peak",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49040648",
+        "lat": 47.462526,
+        "lng": -121.47825
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "43cwqarPiqPVet9MK4Pe",
+          "routeName": "Kaleetan Peak via South Ridge",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Kaleetan Peak (from Abiel Peak).jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Kaleetan_Peak_(from_Abiel_Peak).jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/17/Kaleetan_Peak_%28from_Abiel_Peak%29.jpg",
+        "photographer": "Martin Bravenboer",
+        "licenseName": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "width": 7555,
+        "height": 4864,
+        "mediaSha1": "861dcbefb1d6a6870c396bd9ce1fe92d8b30fa38",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Kaleetan Peak (from Abiel Peak).jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/kaleetan.json",
+          "byteLength": 1433,
+          "sha256": "98a71928e082213b0e8ab36b93995c2b5df8021ba7b956ba15f1e23eef91d0f3"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/kaleetan.jpg",
+          "byteLength": 15071179,
+          "sha256": "32e94ffd613773ca178b4942da26dc7f708f1c074dbf558acfc89f96f7c85c8a",
+          "visualReview": "Original 7555×4864 file is sharp and gives a clear full-peak view through high cloud."
+        },
+        "identity": {
+          "type": "exact_peak",
+          "reviewedWikidataId": "Q49040648",
+          "wikidataP18": false,
+          "commonsCategory": "Category:Kaleetan Peak",
+          "wikidataP18FileTitle": null,
+          "wikidataP18ResponseSha256": null,
+          "review": "The exact title and description name Kaleetan Peak and the file is in its exact category."
+        }
+      }
+    },
+    {
+      "destinationId": "3Q1lVpAXWZFx146E6NUF",
+      "destinationName": "Mount Everest",
+      "catalog": {
+        "countryCode": "NP",
+        "stateCode": "P1",
+        "wikidataId": "Q513",
+        "lat": 27.988257,
+        "lng": 86.925145
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "hPNDxe5mvtLjtlTnWlnf",
+          "listName": "The Seven Summits"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "nUeKo8AEX3arbSb9T7Lv",
+          "routeName": "Northeast Ridge Route",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        },
+        {
+          "routeId": "hHwSD16aZo4SLHgrRQ0x",
+          "routeName": "South Col Route",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Mount Everest as seen from Drukair2 PLW edit.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Mount_Everest_as_seen_from_Drukair2_PLW_edit.jpg",
+        "photographer": "Mount_Everest_as_seen_from_Drukair2.jpg : shrimpo1967 derivative work: Papa Lima Whiskey 2 ( talk )",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+        "width": 2971,
+        "height": 1615,
+        "mediaSha1": "f3374ad94a12cd8143edc347d1b9bc11feee05d5",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Mount Everest as seen from Drukair2 PLW edit.jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/everest.json",
+          "byteLength": 3916,
+          "sha256": "c4b721a2844adfd755718fb9687f08ed68bb61a0e02dea22a3dd725a664481a7"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/everest-p18.jpg",
+          "byteLength": 5598569,
+          "sha256": "a806517a2d90fad68aa2416345a48a3a5638deffb3fc9cb9ff585504be13460b",
+          "visualReview": "Original 2971×1615 file gives a sharp aerial view with Everest clear in the frame."
+        },
+        "identity": {
+          "type": "exact_peak",
+          "reviewedWikidataId": "Q513",
+          "wikidataP18": true,
+          "commonsCategory": "Category:Aerial photographs of Mount Everest",
+          "wikidataP18FileTitle": null,
+          "wikidataP18ResponseSha256": null,
+          "review": "The exact Wikidata item uses this file as P18 and the file directly names Mount Everest."
+        }
+      }
+    },
+    {
+      "destinationId": "0O1nLlAchTkwWlUimyJP",
+      "destinationName": "Mount Phelps",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q49054013",
+        "lat": 47.68836,
+        "lng": -121.565351
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "Hbq8yKWshglw8JDsZW0F",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:2023-05-20,_Bridal_Veil_Falls_Trail_(Snohomish_County,_Washington),_030.jpg"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "nFsTYDYLL8NwOeM6p1wo",
+          "routeName": "Mount Phelps via Blackhawk Mine",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "rejected_no_strict_file",
+      "search": {
+        "kind": "commons_geosearch",
+        "request": {
+          "endpoint": "https://commons.wikimedia.org/w/api.php",
+          "params": {
+            "action": "query",
+            "format": "json",
+            "formatversion": "2",
+            "list": "geosearch",
+            "gscoord": "47.68836|-121.565351",
+            "gsradius": "1500",
+            "gslimit": "500",
+            "gsnamespace": "6"
+          }
+        },
+        "localPath": "/private/tmp/peaks-route-gap-commons-20260901/geosearch/phelps.json",
+        "byteLength": 47,
+        "sha256": "163a2b784d18d13038c30608da0aa0522f9f6bfa1eb253e4b8cd3ca8d9cf4f34",
+        "resultCount": 0,
+        "resultTitles": []
+      },
+      "identityReview": {
+        "reviewedWikidataId": "Q49054013",
+        "wikidataP18": null,
+        "commonsCategory": null,
+        "conflictingSameNameRegion": "New York results do not identify this Washington summit"
+      },
+      "reason": "No file was within 1.5 km and Q49054013 has no P18 or Commons category. Same-name New York files fail identity.",
+      "deniedRecordsRemainDenied": [
+        "Hbq8yKWshglw8JDsZW0F"
+      ]
+    },
+    {
+      "destinationId": "dg1agFR89EivHNOiFvbp",
+      "destinationName": "Mount Shuksan",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q1788022",
+        "lat": 48.831284,
+        "lng": -121.602849
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "DOlya3YYfIg60trgTm0n",
+          "listName": "Bulger List"
+        },
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "SqsZA07zm6JRpb4mkiLp",
+          "routeName": "Fisher Chimneys",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        },
+        {
+          "routeId": "hJwT8jB4nBaRg7ZwhGKv",
+          "routeName": "Sulphide Glacier",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Mount Shuksan tarn.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Shuksan_tarn.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/53/Mount_Shuksan_tarn.jpg",
+        "photographer": "Frank Kovalchek from Anchorage, Alaska, USA",
+        "licenseName": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+        "width": 3422,
+        "height": 2217,
+        "mediaSha1": "32bc1530395e0fdffd118beaa211adce366b01ad",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Mount Shuksan tarn.jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/shuksan.json",
+          "byteLength": 2108,
+          "sha256": "095ad10c9a4a82179e897845f7133619cb1b680dee3310b609dcf145091f3b7b"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/shuksan.jpg",
+          "byteLength": 799302,
+          "sha256": "89bcb7ba5704ac4025fa584bf12d20b90c627e815fe2d522fac2af6586a581c4",
+          "visualReview": "Original 3422×2217 file is sharp and shows the full mountain reflected in a tarn."
+        },
+        "identity": {
+          "type": "exact_peak",
+          "reviewedWikidataId": "Q1788022",
+          "wikidataP18": true,
+          "commonsCategory": "Category:Mount Shuksan",
+          "wikidataP18FileTitle": null,
+          "wikidataP18ResponseSha256": null,
+          "review": "The exact Wikidata item uses this file as P18 and the file is in the Mount Shuksan category."
+        }
+      }
+    },
+    {
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "destinationName": "Mount Si",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": null,
+        "lat": 47.506807,
+        "lng": -121.739039
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "whvKZyztqB1ncVabFFtR",
+          "routeName": "Mount Si Old Trail",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        },
+        {
+          "routeId": "40oJLRsV6f8hgVLXqkB7",
+          "routeName": "Mount Si via Mount Si Trail",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Mount Si seen from Mill Pond Road in Washington state.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/20/Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+        "photographer": "Ron Clausen",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 2272,
+        "height": 1638,
+        "mediaSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Mount Si seen from Mill Pond Road in Washington state.jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/si-mill-pond.json",
+          "byteLength": 1323,
+          "sha256": "d8948f1cc48aa744b12016c1494a2b5e0dc31f05152f7192d94c9e1359bb86a8"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/si-mill-pond.jpg",
+          "byteLength": 943458,
+          "sha256": "057b0c8999334194dc16d818d5be72f8ce686319200fe0e84c05fc6c84990308",
+          "visualReview": "Original 2272×1638 file clearly shows the full mountain and reflection and keeps both in useful crops."
+        },
+        "identity": {
+          "type": "exact_peak",
+          "reviewedWikidataId": "Q6923639",
+          "wikidataP18": false,
+          "commonsCategory": "Category:Mount Si",
+          "wikidataP18FileTitle": null,
+          "wikidataP18ResponseSha256": null,
+          "review": "The exact title and description name Mount Si and the file is in its exact Commons category."
+        }
+      }
+    },
+    {
+      "destinationId": "75Za8vKu3Un5WFcg3zcK",
+      "destinationName": "Red Mountain",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q7304628",
+        "lat": 47.397476,
+        "lng": -121.144723
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [
+        {
+          "id": "DUTFUgC0P25j0dZXnoIl",
+          "status": "denied",
+          "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Kendall_Peak_from_below_Red_Mountain.jpg"
+        }
+      ],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "rIobWMnEopNRi6A0F4gM",
+          "routeName": "Red Mountain via Trail 1330",
+          "publishValid": true,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "rejected_no_strict_file",
+      "search": {
+        "kind": "commons_geosearch",
+        "request": {
+          "endpoint": "https://commons.wikimedia.org/w/api.php",
+          "params": {
+            "action": "query",
+            "format": "json",
+            "formatversion": "2",
+            "list": "geosearch",
+            "gscoord": "47.397476|-121.144723",
+            "gsradius": "1500",
+            "gslimit": "500",
+            "gsnamespace": "6"
+          }
+        },
+        "localPath": "/private/tmp/peaks-route-gap-commons-20260901/geosearch/red.json",
+        "byteLength": 588,
+        "sha256": "8a0018f8a2d7da399e852158f7b5db80948f1a636e8345fadc553b9293a4ca5b",
+        "resultCount": 4,
+        "resultTitles": [
+          "File:M 4712139 se 10 1 20130806.tif",
+          "File:M 4712139 se 10 060 20210723.tif",
+          "File:M 4712139 se 10 1 20171016.tif",
+          "File:M 4712139 se 10 1 20150730.tif"
+        ]
+      },
+      "identityReview": {
+        "reviewedWikidataId": "Q7304628",
+        "wikidataP18": null,
+        "commonsCategory": null,
+        "exactPeakbaggerId": "2158",
+        "exactGnisId": "1524941",
+        "rejectedConflictingWikidataId": "Q49067807",
+        "conflictingPeakbaggerId": "2107",
+        "conflictingGnisId": "1524951",
+        "conflictingCoordinates": {
+          "lat": 47.45588,
+          "lng": -121.3891607
+        }
+      },
+      "reason": "The only nearby files are map TIFFs. New exact-category photos identify Q49067807 near Snoqualmie Pass, not catalog Q7304628 in Kittitas County.",
+      "deniedRecordsRemainDenied": [
+        "DUTFUgC0P25j0dZXnoIl"
+      ]
+    },
+    {
+      "destinationId": "zntKOa5F6FjN6pzYadwv",
+      "destinationName": "Snoqualmie Mountain",
+      "catalog": {
+        "countryCode": "US",
+        "stateCode": "WA",
+        "wikidataId": "Q7548046",
+        "lat": 47.458988,
+        "lng": -121.416537
+      },
+      "coverComplete": false,
+      "listMemberships": [
+        {
+          "listId": "XHG0eHY8ePaltNO3dWs0",
+          "listName": "Smoot's 100"
+        },
+        {
+          "listId": "grDJmpZ6mtpgtFY8X7i1",
+          "listName": "Washington Home Court 100"
+        }
+      ],
+      "photoCandidateHistory": [],
+      "uncoveredActiveRoutes": [
+        {
+          "routeId": "b0XehnmTWs20b6lXkfyw",
+          "routeName": "Snoqualmie Mountain via Alpental",
+          "publishValid": false,
+          "derivedCoverComplete": false
+        }
+      ],
+      "disposition": "accepted_new_pending_plan",
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "commons": {
+        "fileTitle": "File:Snoqualmie Mountain.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Snoqualmie_Mountain.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/68/Snoqualmie_Mountain.jpg",
+        "photographer": "J Brew",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+        "width": 3264,
+        "height": 2448,
+        "mediaSha1": "7585707fb29192a32722d1d9e87d589db1be0a73",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "request": {
+            "endpoint": "https://commons.wikimedia.org/w/api.php",
+            "params": {
+              "action": "query",
+              "format": "json",
+              "formatversion": "2",
+              "prop": "imageinfo|coordinates",
+              "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+              "iiextmetadatalanguage": "en",
+              "iiextmetadatafilter": "Categories|ImageDescription|Artist|LicenseShortName|LicenseUrl",
+              "titles": "File:Snoqualmie Mountain.jpg"
+            }
+          },
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/exact/snoqualmie.json",
+          "byteLength": 1814,
+          "sha256": "8a90d76d35a954bfdb1f1f70cf10c00046e7df43c6b165c0e0414a8a322ed9ac"
+        },
+        "originalReview": {
+          "localPath": "/private/tmp/peaks-route-gap-commons-20260901/originals/snoqualmie.jpg",
+          "byteLength": 4188481,
+          "sha256": "fde00ed032eee6aaec5ee78f8be191c9bcf8e8f7949b0b37124c511ec19ffe0c",
+          "visualReview": "Original 3264×2448 file is sharp and gives a clear full-mountain view."
+        },
+        "identity": {
+          "type": "exact_peak",
+          "reviewedWikidataId": "Q7548046",
+          "wikidataP18": true,
+          "commonsCategory": null,
+          "wikidataP18FileTitle": "File:Snoqualmie Mountain.jpg",
+          "wikidataP18ResponseSha256": "2c2cb071a3219a0e86265018457bd70410f5c4712f6df260e5558e1ef11ee784",
+          "review": "The exact Wikidata item uses this file as P18 and the file title and description name Snoqualmie Mountain."
+        }
+      }
+    }
+  ]
+}

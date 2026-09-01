@@ -2,6 +2,11 @@ import {
   deterministicPhotoCandidateId,
   type DestinationPhotoManifestCandidate,
 } from "./destination-photo-candidates";
+import {
+  LISTED_ACTIVE_ROUTE_REVIEWED_COMMONS_FILES,
+  type ReviewedRouteGapCommonsPhoto,
+  type ReviewedRouteGapPhotoIdentity,
+} from "./listed-active-route-photo-candidates";
 import { isFreeLicense, namesMatch } from "./lib/wikipedia";
 
 export const LISTED_PHOTO_MIN_WIDTH = 1_600;
@@ -521,6 +526,25 @@ export const LISTED_PHOTO_REVIEWED_COMMONS_FILES: Readonly<
   }),
 });
 
+export function overlappingReviewedPhotoBindingIds(
+  routeBindings: Readonly<Record<string, unknown>> =
+    LISTED_ACTIVE_ROUTE_REVIEWED_COMMONS_FILES,
+  kfsBindings: Readonly<Record<string, unknown>> =
+    LISTED_PHOTO_REVIEWED_COMMONS_FILES
+): string[] {
+  return Object.keys(routeBindings)
+    .filter((destinationId) => destinationId in kfsBindings)
+    .sort();
+}
+
+const REVIEWED_PHOTO_BINDING_OVERLAPS = overlappingReviewedPhotoBindingIds();
+if (REVIEWED_PHOTO_BINDING_OVERLAPS.length > 0) {
+  throw new Error(
+    "reviewed active-route bindings overlap the KFS-only contract: " +
+    REVIEWED_PHOTO_BINDING_OVERLAPS.join(", ")
+  );
+}
+
 export type ListedPhotoEvidence =
   | {
       type: "wikipedia_article";
@@ -538,6 +562,19 @@ export type ListedPhotoEvidence =
       fileCoordinates: WikimediaCoordinates | null;
       identityBasis: "camera_coordinate" | "audited_exact_peak";
       exactPeakIdentity: Readonly<NonNullable<ReviewedCommonsFilePhoto["exactPeakIdentity"]>> | null;
+    }
+  | {
+      type: "reviewed_active_route_commons_file";
+      destinationId: string;
+      catalogListIds: string[];
+      catalogListNames: string[];
+      fileTitle: string;
+      catalogCoordinates: WikimediaCoordinates;
+      fileCoordinates: WikimediaCoordinates | null;
+      fileCoordinateCount: number;
+      identityBasis: "camera_coordinate" | "audited_exact_peak";
+      metadataSha256: string;
+      identity: Readonly<ReviewedRouteGapPhotoIdentity>;
     };
 
 export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
@@ -1299,6 +1336,340 @@ async function planReviewedCommonsFileCandidate(
   };
 }
 
+function sameStrings(actual: readonly string[], expected: readonly string[]): boolean {
+  return actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index]);
+}
+
+function isCanonicalCommonsCategory(value: string): boolean {
+  if (!value.startsWith("Category:") || value.normalize("NFC") !== value) return false;
+  const title = value.slice("Category:".length);
+  return title.length > 0 &&
+    title.trim() === title &&
+    !title.includes("_") &&
+    !/[\u0000-\u001f\u007f]/u.test(title);
+}
+
+export function reviewedRouteGapIdentityRejection(
+  audit: Readonly<ReviewedRouteGapCommonsPhoto>
+): string | null {
+  if (audit.identity.type !== "exact_peak") return null;
+  const identity = audit.identity;
+  if (!/^Q\d+$/u.test(identity.reviewedWikidataId)) {
+    return "reviewed active-route Wikidata id is malformed";
+  }
+  if (
+    audit.catalogWikidataId !== null &&
+    identity.reviewedWikidataId !== audit.catalogWikidataId
+  ) {
+    return "reviewed active-route Wikidata id differs from the catalog binding";
+  }
+  if (
+    identity.commonsCategory !== null &&
+    !isCanonicalCommonsCategory(identity.commonsCategory)
+  ) {
+    return "reviewed active-route Commons category is not canonical";
+  }
+  const hasCategoryProof = identity.commonsCategory !== null;
+  if (!identity.wikidataP18 && !hasCategoryProof) {
+    return "reviewed active-route binding has no exact-identity proof";
+  }
+  const hasP18Replay =
+    identity.wikidataP18FileTitle !== null ||
+    identity.wikidataP18ResponseSha256 !== null;
+  if (hasP18Replay) {
+    if (
+      !identity.wikidataP18 ||
+      identity.wikidataP18FileTitle !== audit.fileTitle ||
+      !/^[0-9a-f]{64}$/u.test(identity.wikidataP18ResponseSha256 ?? "")
+    ) {
+      return "reviewed active-route P18 replay does not bind the exact file";
+    }
+  }
+  if (identity.wikidataP18 && !hasCategoryProof && !hasP18Replay) {
+    return "reviewed active-route P18-only proof has no exact replay";
+  }
+  return null;
+}
+
+function reviewedRouteGapCatalogRejection(
+  row: ListedPhotoGapRow,
+  audit: Readonly<ReviewedRouteGapCommonsPhoto>
+): string | null {
+  const identityRejection = reviewedRouteGapIdentityRejection(audit);
+  if (identityRejection) return identityRejection;
+  if (row.id !== audit.destinationId) {
+    return "destination id changed from the reviewed active-route binding";
+  }
+  if (row.name !== audit.destinationName) {
+    return "destination name changed from the reviewed active-route binding";
+  }
+  if ((row.country_code?.trim().toUpperCase() ?? null) !== audit.countryCode) {
+    return "destination country changed from the reviewed active-route binding";
+  }
+  if (row.wikidata_id !== audit.catalogWikidataId) {
+    return "destination Wikidata id changed from the reviewed active-route binding";
+  }
+  if (!sameStrings(row.list_ids, audit.catalogListIds)) {
+    return "destination list ids changed from the reviewed active-route binding";
+  }
+  if (!sameStrings(row.list_names, audit.catalogListNames)) {
+    return "destination list names changed from the reviewed active-route binding";
+  }
+  if (
+    listedPhotoReviewHistoryFingerprint(
+      row.existing_source_page_urls,
+      row.existing_media_sha1s
+    ) !== audit.catalogReviewHistoryFingerprint
+  ) {
+    return "destination photo review history changed from the active-route audit";
+  }
+  if (row.lat === null || row.lng === null) {
+    return "destination coordinates are missing";
+  }
+  const catalogDistance = distanceMeters(
+    row.lat,
+    row.lng,
+    audit.catalogCoordinates.lat,
+    audit.catalogCoordinates.lng
+  );
+  if (catalogDistance > LISTED_PHOTO_REVIEWED_CATALOG_RADIUS_METERS) {
+    return `destination moved ${catalogDistance.toFixed(1)} m from the reviewed catalog point`;
+  }
+  return null;
+}
+
+function reviewedRouteGapFileMetadataRejection(
+  row: ListedPhotoGapRow,
+  image: WikimediaImageMetadata,
+  audit: Readonly<ReviewedRouteGapCommonsPhoto>
+): string | null {
+  const exactFileTitle = normalizedWikimediaFileTitle(image.fileTitle)?.normalize("NFC");
+  if (exactFileTitle !== audit.fileTitle.normalize("NFC") || image.fileTitleAliases.length > 0) {
+    return "File title changed or redirected from the reviewed active-route Commons file";
+  }
+  if (
+    sourceKind(image.sourcePageUrl) !== "wikimedia_commons" ||
+    sourcePageKey(image.sourcePageUrl ?? "") !== sourcePageKey(audit.sourcePageUrl)
+  ) {
+    return "source page changed from the reviewed active-route Commons file";
+  }
+  if (image.photographer?.trim() !== audit.photographer) {
+    return "photographer changed from the reviewed active-route Commons record";
+  }
+  if (
+    image.licenseName?.trim() !== audit.licenseName ||
+    canonicalWikimediaLicenseUrl(image.licenseUrl) !== audit.licenseUrl
+  ) {
+    return "license changed from the reviewed active-route Commons record";
+  }
+  if (image.width !== audit.width || image.height !== audit.height) {
+    return "dimensions changed from the reviewed active-route Commons file";
+  }
+  if (normalizedWikimediaSha1(image.mediaSha1) !== audit.mediaSha1) {
+    return "media SHA-1 changed from the reviewed active-route Commons file";
+  }
+  if (image.coordinateCount !== audit.fileCoordinateCount) {
+    return "coordinate count changed from the reviewed active-route Commons file";
+  }
+  if (audit.fileCoordinates === null) {
+    if (image.coordinates !== null) {
+      return "coordinate state changed from the reviewed active-route Commons file";
+    }
+  } else {
+    if (!image.coordinates) {
+      return "reviewed active-route Commons coordinate disappeared";
+    }
+    const fileCoordinateDrift = distanceMeters(
+      image.coordinates.lat,
+      image.coordinates.lng,
+      audit.fileCoordinates.lat,
+      audit.fileCoordinates.lng
+    );
+    if (fileCoordinateDrift > LISTED_PHOTO_REVIEWED_FILE_RADIUS_METERS) {
+      return `Commons file coordinate moved ${fileCoordinateDrift.toFixed(1)} m from review`;
+    }
+  }
+  if (audit.identity.type === "camera_coordinate") {
+    if (!image.coordinates || row.lat === null || row.lng === null) {
+      return "camera-coordinate proof is incomplete";
+    }
+    const summitFileDistance = distanceMeters(
+      row.lat,
+      row.lng,
+      image.coordinates.lat,
+      image.coordinates.lng
+    );
+    if (summitFileDistance > LISTED_PHOTO_REVIEWED_SUMMIT_FILE_RADIUS_METERS) {
+      return `Commons file coordinate is ${summitFileDistance.toFixed(1)} m from the summit`;
+    }
+  }
+  return null;
+}
+
+export async function planReviewedRouteGapCommonsFileCandidate(
+  row: ListedPhotoGapRow,
+  client: ListedPhotoClient,
+  audit: Readonly<ReviewedRouteGapCommonsPhoto>
+): Promise<ListedPhotoPlan> {
+  const catalogRejection = reviewedRouteGapCatalogRejection(row, audit);
+  if (catalogRejection) {
+    return {
+      kind: "miss",
+      code: "reviewed_active_route_catalog_changed",
+      reason: catalogRejection,
+    };
+  }
+
+  if (
+    audit.identity.type === "exact_peak" &&
+    audit.identity.commonsCategory === null
+  ) {
+    const currentP18 = await client.fetchWikidataLeadImage(
+      audit.identity.reviewedWikidataId
+    );
+    if (
+      !currentP18 ||
+      currentP18.wikidataId !== audit.identity.reviewedWikidataId ||
+      wikimediaFileTitleKey(currentP18.fileTitle) !==
+        wikimediaFileTitleKey(audit.identity.wikidataP18FileTitle ?? "")
+    ) {
+      return {
+        kind: "miss",
+        code: "reviewed_active_route_identity_changed",
+        reason: "exact Wikidata P18 no longer matches the reviewed Commons file",
+      };
+    }
+  }
+
+  const existingKeys = new Set(
+    row.existing_source_page_urls
+      .map(sourcePageKey)
+      .filter((key): key is string => key !== null)
+  );
+  const existingMediaSha1s = new Set(
+    row.existing_media_sha1s
+      .map(normalizedWikimediaSha1)
+      .filter((sha1): sha1 is string => sha1 !== null)
+  );
+  const historicalFileTitles = [...new Set(
+    row.existing_source_page_urls_without_sha
+      .map(fileTitleFromWikimediaSourcePage)
+      .filter((title): title is string => title !== null)
+  )];
+  for (const historicalTitle of historicalFileTitles) {
+    const historicalImage = await client.fetchReviewedCommonsFile(historicalTitle);
+    const historicalSha1 = normalizedWikimediaSha1(historicalImage?.mediaSha1 ?? null);
+    if (!historicalImage || !historicalSha1) {
+      return {
+        kind: "miss",
+        code: "historical_source_identity_unresolved",
+        reason:
+          "reviewed Wikimedia source no longer resolves to a durable image identity: " +
+          historicalTitle,
+      };
+    }
+    existingMediaSha1s.add(historicalSha1);
+  }
+
+  const image = await client.fetchReviewedCommonsFile(audit.fileTitle);
+  if (!image) {
+    return {
+      kind: "miss",
+      code: "reviewed_active_route_file_unresolved",
+      reason: `${audit.fileTitle} no longer resolves as the exact reviewed Commons file`,
+    };
+  }
+  const rejection = imageMetadataRejection(image) ??
+    reviewedRouteGapFileMetadataRejection(row, image, audit);
+  if (rejection) {
+    return {
+      kind: "miss",
+      code: "reviewed_active_route_file_changed",
+      reason: rejection,
+      rejectedImages: [`${audit.fileTitle}: ${rejection}`],
+    };
+  }
+
+  const sourcePageUrl = image.sourcePageUrl!;
+  const sourceKey = sourcePageKey(sourcePageUrl);
+  const mediaSha1 = normalizedWikimediaSha1(image.mediaSha1);
+  if (
+    !sourceKey ||
+    !mediaSha1 ||
+    existingKeys.has(sourceKey) ||
+    existingMediaSha1s.has(mediaSha1)
+  ) {
+    return {
+      kind: "miss",
+      code: "no_usable_new_source",
+      reason: "reviewed active-route Commons file was already reviewed or pending",
+      rejectedImages: [`${audit.fileTitle}: source already reviewed or pending`],
+    };
+  }
+
+  const identityNote = audit.identity.type === "camera_coordinate"
+    ? audit.identity.review
+    : (
+        `frozen exact-peak evidence binds it to reviewed Wikidata ` +
+        `${audit.identity.reviewedWikidataId}` +
+        `${audit.identity.wikidataP18 ? " P18" : ""}` +
+        `${audit.identity.wikidataP18ResponseSha256
+          ? ` response SHA-256 ${audit.identity.wikidataP18ResponseSha256}`
+          : ""}` +
+        `${audit.identity.commonsCategory ? ` and ${audit.identity.commonsCategory}` : ""}; ` +
+        audit.identity.review.replace(/\.+$/u, "")
+      );
+  return {
+    kind: "candidate",
+    candidate: {
+      id: deterministicPhotoCandidateId(row.id, sourcePageUrl),
+      destinationId: row.id,
+      destinationName: row.name!,
+      imageUrl: image.imageUrl!,
+      sourcePageUrl,
+      sourceKind: "wikimedia_commons",
+      photographer: image.photographer!,
+      licenseName: image.licenseName!,
+      licenseUrl: image.licenseUrl!,
+      imageWidth: image.width!,
+      imageHeight: image.height!,
+      focalX: 50,
+      focalY: 50,
+      notes:
+        `Human-reviewed active-route Commons file ${audit.fileTitle}; ${identityNote}; ` +
+        `metadata SHA-256 ${audit.metadataSha256}. ` +
+        "The original full frame was reviewed; framing still requires human review.",
+      evidence: {
+        type: "reviewed_active_route_commons_file",
+        destinationId: audit.destinationId,
+        catalogListIds: [...audit.catalogListIds],
+        catalogListNames: [...audit.catalogListNames],
+        fileTitle: audit.fileTitle,
+        catalogCoordinates: audit.catalogCoordinates,
+        fileCoordinates: image.coordinates,
+        fileCoordinateCount: image.coordinateCount,
+        identityBasis: audit.identity.type === "camera_coordinate"
+          ? "camera_coordinate"
+          : "audited_exact_peak",
+        metadataSha256: audit.metadataSha256,
+        identity: audit.identity,
+      },
+      matchedArticleTitle: null,
+      matchedWikidataId: audit.identity.type === "exact_peak"
+        ? audit.identity.reviewedWikidataId
+        : audit.catalogWikidataId,
+      catalogWikidataId: audit.catalogWikidataId,
+      catalogCountryCode: audit.countryCode,
+      catalogLat: row.lat!,
+      catalogLng: row.lng!,
+      mediaSha1,
+      reviewHistoryFingerprint: audit.catalogReviewHistoryFingerprint,
+    },
+    rejectedImages: [],
+  };
+}
+
 type StableArticleOutcome =
   | { kind: "article"; article: WikipediaArticle }
   | {
@@ -1493,8 +1864,24 @@ export async function planListedPhotoCandidate(
   }
 
   const reviewedCommonsFile = LISTED_PHOTO_REVIEWED_COMMONS_FILES[row.id];
+  const reviewedActiveRouteFile =
+    LISTED_ACTIVE_ROUTE_REVIEWED_COMMONS_FILES[row.id];
+  if (reviewedCommonsFile && reviewedActiveRouteFile) {
+    return {
+      kind: "miss",
+      code: "reviewed_photo_binding_overlap",
+      reason: "destination is bound by both generic route and KFS-only review maps",
+    };
+  }
   if (reviewedCommonsFile) {
     return planReviewedCommonsFileCandidate(row, client, reviewedCommonsFile);
+  }
+  if (reviewedActiveRouteFile) {
+    return planReviewedRouteGapCommonsFileCandidate(
+      row,
+      client,
+      reviewedActiveRouteFile
+    );
   }
 
   const auditedP18ForRow = row.wikidata_id
@@ -1722,6 +2109,13 @@ export async function queueListedPhotoCandidate(
                WHERE ld.destination_id = d.id
                ORDER BY l.id
             ) AS list_ids,
+            ARRAY(
+              SELECT l.name
+                FROM list_destinations ld
+                JOIN lists l ON l.id = ld.list_id AND l.owner = 'peaks'
+               WHERE ld.destination_id = d.id
+               ORDER BY l.name
+            ) AS list_names,
             (${USABLE_COVER_SQL}) AS has_usable_cover,
             EXISTS (
               SELECT 1
@@ -1751,11 +2145,24 @@ export async function queueListedPhotoCandidate(
   const currentCountryCode = nullableText(current.country_code)?.toUpperCase() ?? null;
   const currentWikidataId = nullableText(current.wikidata_id);
   const currentListIds = stringArray(current.list_ids);
-  const isReviewedCommonsFile = candidate.evidence.type === "reviewed_commons_file";
+  const currentListNames = stringArray(current.list_names);
+  const isKfsReviewedCommonsFile = candidate.evidence.type === "reviewed_commons_file";
+  const isRouteGapReviewedCommonsFile =
+    candidate.evidence.type === "reviewed_active_route_commons_file";
+  const isReviewedCommonsFile =
+    isKfsReviewedCommonsFile || isRouteGapReviewedCommonsFile;
   const requiredListId = candidate.evidence.type === "reviewed_commons_file"
     ? candidate.evidence.requiredListId
     : null;
-  const catalogCoordinates = candidate.evidence.type === "reviewed_commons_file"
+  const exactListIds = candidate.evidence.type === "reviewed_active_route_commons_file"
+    ? candidate.evidence.catalogListIds
+    : null;
+  const exactListNames = candidate.evidence.type === "reviewed_active_route_commons_file"
+    ? candidate.evidence.catalogListNames
+    : null;
+  const catalogCoordinates =
+    candidate.evidence.type === "reviewed_commons_file" ||
+    candidate.evidence.type === "reviewed_active_route_commons_file"
     ? candidate.evidence.catalogCoordinates
     : { lat: candidate.catalogLat, lng: candidate.catalogLng };
   const wikidataChanged = isReviewedCommonsFile
@@ -1769,6 +2176,8 @@ export async function queueListedPhotoCandidate(
       requiredListId !== null &&
       !currentListIds.includes(requiredListId)
     ) ||
+    (exactListIds !== null && !sameStrings(currentListIds, exactListIds)) ||
+    (exactListNames !== null && !sameStrings(currentListNames, exactListNames)) ||
     currentCountryCode !== candidate.catalogCountryCode ||
     currentName !== candidate.destinationName ||
     currentLat === null ||
