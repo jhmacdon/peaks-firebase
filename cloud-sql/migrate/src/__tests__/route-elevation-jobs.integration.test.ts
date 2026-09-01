@@ -1113,6 +1113,7 @@ test(
     const routeA = `route-elevation-a-${suffix}`;
     const routeB = `route-elevation-b-${suffix}`;
     const validRoute = `route-elevation-valid-${suffix}`;
+    const validDestination = `route-elevation-valid-destination-${suffix}`;
     const validSegment = `route-elevation-valid-segment-${suffix}`;
     const supersededRoute = `route-elevation-superseded-${suffix}`;
     const userRoute = `route-elevation-user-${suffix}`;
@@ -1147,7 +1148,20 @@ test(
     try {
       await insertRoute(routeA, "peaks");
       await insertRoute(routeB, "peaks");
-      await insertRoute(validRoute, "peaks", "active");
+      await pool.query(
+        `INSERT INTO destinations (
+           id, name, search_name, features,
+           hero_image, hero_image_attribution, hero_image_attribution_url
+         ) VALUES (
+           $1, 'Valid elevation route summit', 'valid elevation route summit',
+           ARRAY['summit']::destination_feature[],
+           'https://upload.wikimedia.org/route-elevation.jpg',
+           'Route Elevation Photographer',
+           'https://commons.wikimedia.org/wiki/File:Route_elevation.jpg'
+         )`,
+        [validDestination]
+      );
+      await insertRoute(validRoute, "peaks");
       await pool.query(
         `UPDATE routes SET gain = 10, gain_loss = 0 WHERE id = $1`,
         [validRoute]
@@ -1166,6 +1180,15 @@ test(
         `INSERT INTO route_segments (route_id, segment_id, ordinal)
          VALUES ($1, $2, 0)`,
         [validRoute, validSegment]
+      );
+      await pool.query(
+        `INSERT INTO route_destinations (route_id, destination_id, ordinal)
+         VALUES ($1, $2, 0)`,
+        [validRoute, validDestination]
+      );
+      await pool.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [validRoute]
       );
       await insertRoute(supersededRoute, "peaks", "superseded");
       await insertRoute(userRoute, "user-test");
@@ -1426,6 +1449,7 @@ test(
       await pool.query(`DELETE FROM route_segments WHERE route_id = $1`, [validRoute]);
       await pool.query(`DELETE FROM routes WHERE id = ANY($1::text[])`, [[routeA, routeB, validRoute, supersededRoute, userRoute]]);
       await pool.query(`DELETE FROM segments WHERE id = $1`, [validSegment]);
+      await pool.query(`DELETE FROM destinations WHERE id = $1`, [validDestination]);
       await pool.end();
     }
   }

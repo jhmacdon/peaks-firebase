@@ -64,7 +64,8 @@ test(
            id, owner, status, shape, path, provenance, elevation_string,
            gain, gain_loss
          )
-         VALUES ($1, $2, 'active', $6::route_shape, ST_GeogFromText($3), $4::jsonb,
+         VALUES ($1, $2, CASE WHEN $2 = 'peaks' THEN 'pending' ELSE 'active' END,
+                 $6::route_shape, ST_GeogFromText($3), $4::jsonb,
                  CASE WHEN $5 THEN encode_route_elevation_profile(ST_GeogFromText($3)) ELSE NULL END,
                  (SELECT gain FROM route_elevation_stats(ST_GeogFromText($3))),
                  (SELECT loss FROM route_elevation_stats(ST_GeogFromText($3))))`,
@@ -77,9 +78,19 @@ test(
         await pool.query(`UPDATE routes SET elevation_string = NULL WHERE id = $1`, [id]);
       }
     };
-    const link = (route: string, destination: string, ordinal: number) => pool.query(
-      `INSERT INTO route_destinations (route_id, destination_id, ordinal) VALUES ($1, $2, $3)`, [route, destination, ordinal]
-    );
+    const link = async (route: string, destination: string, ordinal: number) => {
+      await pool.query(
+        `INSERT INTO route_destinations (route_id, destination_id, ordinal)
+         VALUES ($1, $2, $3)`,
+        [route, destination, ordinal]
+      );
+      await pool.query(
+        `UPDATE routes
+         SET status = 'active'
+         WHERE id = $1 AND owner = 'peaks' AND status = 'pending'`,
+        [route]
+      );
+    };
     const segment = async (route: string, id: string, line: string, source = provenance, ordinal = 0, direction = "forward") => {
       await pool.query(
         `INSERT INTO segments (id, path, gain, gain_loss, provenance)
@@ -105,6 +116,15 @@ test(
         ($4, 'trailhead a', ARRAY['trailhead']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121 47 900)'), 'US'),
         ($5, 'trailhead b', ARRAY['trailhead']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-122 48 900)'), 'US'),
         ($6, 'distant trailhead', ARRAY['trailhead']::destination_feature[], ST_GeogFromText('SRID=4326;POINT Z (-121.01 47.01 900)'), 'US')`, [destinationA, destinationB, nonSummit, trailheadA, trailheadB, distantTrailhead]);
+      await pool.query(
+        `UPDATE destinations
+         SET hero_image = 'https://upload.wikimedia.org/route-integrity.jpg',
+             hero_image_attribution = 'Route Integrity Photographer',
+             hero_image_attribution_url =
+               'https://commons.wikimedia.org/wiki/File:Route_integrity.jpg'
+         WHERE id = ANY($1::text[])`,
+        [[destinationA, destinationB, nonSummit, trailheadA, trailheadB, distantTrailhead]]
+      );
       const nearA = "SRID=4326;LINESTRING Z (-121 47 1000, -121.00001 47.00001 1010)";
       const nearB = "SRID=4326;LINESTRING Z (-122 48 1000, -122.00001 48.00001 1010)";
       const throughAThenB = "SRID=4326;LINESTRING Z (-121 47 1000, -122 48 1010)";

@@ -103,8 +103,17 @@ test(
         [destinationId, secondDestinationId, vanishedDestinationId]
       );
       await pool.query(
+        `UPDATE destinations
+         SET hero_image = 'https://upload.wikimedia.org/route-audit.jpg',
+             hero_image_attribution = 'Route Audit Photographer',
+             hero_image_attribution_url =
+               'https://commons.wikimedia.org/wiki/File:Route_audit.jpg'
+         WHERE id = $1`,
+        [destinationId]
+      );
+      await pool.query(
         `INSERT INTO routes (id, name, owner, status)
-         VALUES ($1, 'Route audit test route', 'peaks', 'active')`,
+         VALUES ($1, 'Route audit test route', 'peaks', 'pending')`,
         [routeId]
       );
       await pool.query(
@@ -128,6 +137,10 @@ test(
         `INSERT INTO route_destinations (route_id, destination_id, ordinal)
          VALUES ($1, $2, 0), ($1, $3, 1)`,
         [routeId, destinationId, secondDestinationId]
+      );
+      await pool.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [routeId]
       );
 
       command("seed", "--apply");

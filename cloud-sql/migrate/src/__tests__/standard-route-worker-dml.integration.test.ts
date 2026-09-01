@@ -93,10 +93,19 @@ test(
         [destinationId, reviewDestinationId, retargetDestinationId]
       );
       await operator.query(
+        `UPDATE destinations
+         SET hero_image = 'https://upload.wikimedia.org/route-worker.jpg',
+             hero_image_attribution = 'Route Worker Photographer',
+             hero_image_attribution_url =
+               'https://commons.wikimedia.org/wiki/File:Route_worker.jpg'
+         WHERE id = $1`,
+        [destinationId]
+      );
+      await operator.query(
         `INSERT INTO routes (id, name, owner, status)
          VALUES
            ($1, 'Pending worker DML test route', 'peaks', 'pending'),
-           ($2, 'Active worker DML test route', 'peaks', 'active'),
+           ($2, 'Active worker DML test route', 'peaks', 'pending'),
            ($3, 'Temp-shadow victim route', 'peaks', 'pending')`,
         [pendingRouteId, activeRouteId, shadowVictimRouteId]
       );
@@ -114,6 +123,10 @@ test(
         `INSERT INTO route_segments (route_id, segment_id, ordinal)
          VALUES ($1, $2, 0)`,
         [activeRouteId, segmentId]
+      );
+      await operator.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [activeRouteId]
       );
       await operator.query(
         `INSERT INTO standard_route_backfill_jobs (
@@ -431,6 +444,15 @@ test(
         [summitId, trailheadId, sharedSummitId]
       );
       await operator.query(
+        `UPDATE destinations
+         SET hero_image = 'https://upload.wikimedia.org/route-worker-activation.jpg',
+             hero_image_attribution = 'Route Worker Activation Photographer',
+             hero_image_attribution_url =
+               'https://commons.wikimedia.org/wiki/File:Route_worker_activation.jpg'
+         WHERE id = $1`,
+        [summitId]
+      );
+      await operator.query(
         `INSERT INTO routes (
            id, name, owner, status, shape, path, external_links, provenance,
            elevation_string, gain, gain_loss
@@ -454,7 +476,7 @@ test(
            id, name, owner, status, shape, path, external_links, provenance,
            elevation_string, gain, gain_loss
          ) VALUES (
-           $1, $2, 'peaks', 'active', 'out_and_back',
+           $1, $2, 'peaks', 'pending', 'out_and_back',
            ST_GeogFromText($3), $4::jsonb, $5::jsonb,
            encode_route_elevation_profile(ST_GeogFromText($3)),
            (SELECT gain FROM route_elevation_stats(ST_GeogFromText($3))),
@@ -498,6 +520,10 @@ test(
         `INSERT INTO route_segments (route_id, segment_id, ordinal, direction)
          VALUES ($1, $3, 0, 'forward'), ($2, $4, 0, 'forward')`,
         [routeId, sharedRouteId, segmentId, sharedSegmentId]
+      );
+      await operator.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [sharedRouteId]
       );
       await operator.query(
         `INSERT INTO standard_route_backfill_jobs (

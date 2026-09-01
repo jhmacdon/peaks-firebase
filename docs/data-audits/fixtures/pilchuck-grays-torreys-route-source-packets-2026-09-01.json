@@ -1,0 +1,437 @@
+{
+  "schema_version": 2,
+  "packet_kind": "source_only_route_review",
+  "base_ref": {
+    "pull_request": 191,
+    "commit": "848fabe210b98c8ed4aeeb2e48906a212ef1a1fa",
+    "branch": "codex/maintain-active-route-cover-invariant-20260901"
+  },
+  "mutation_guard": {
+    "source_only": true,
+    "ready_for_import": false,
+    "has_executable_apply_path": false,
+    "writes_database": false,
+    "queues_jobs": false,
+    "runs_route_workers": false,
+    "imports_routes": false,
+    "approves_routes": false,
+    "activates_routes": false,
+    "current_listed_destination_gain": 0,
+    "later_independent_review_and_activation_required": true
+  },
+  "coverage": {
+    "base_ref_listed_destinations": 1596,
+    "base_ref_publish_valid_listed_destinations": 67,
+    "base_ref_missing_publish_valid_route": 1529,
+    "possible_only_after_independent_review_and_activation": {
+      "listed_destination_gain": 3,
+      "list_membership_gain": 5,
+      "publish_valid_listed_destinations": 70,
+      "missing_publish_valid_route": 1526,
+      "destination_ids": [
+        "iAD3EhqmkKVKXBjJjprj",
+        "bRE1ayiwpfQlXiLJkLLI",
+        "29XhN18XdxRgJrDN3ORu"
+      ]
+    }
+  },
+  "coverage_capture": {
+    "query_path": "pilchuck-grays-torreys-route-coverage-capture-2026-09-01.sql",
+    "query_bytes": 5573,
+    "query_sha256": "8a23c39af84b974b1bd7bb6faddae2e9ec75918bf18a7f3b7e9926a1ea93b460",
+    "output_replay_id": "catalog-coverage-proof"
+  },
+  "replay_bundle": {
+    "root": "route-source-replay-2026-09-01",
+    "encoding": "gzip",
+    "deterministic_compression": "gzip -n -9",
+    "raw_headers_committed": false,
+    "security_review": {
+      "checked_for_credentials_and_session_material": true,
+      "catalog_fields_omitted": [
+        "lease_owner",
+        "lease_token",
+        "lease_expires_at",
+        "candidate_path",
+        "candidate_artifact",
+        "hero_image"
+      ]
+    },
+    "artifacts": [
+      {
+        "id": "pilchuck-osm-way-37583693",
+        "path": "pilchuck-osm-way-37583693.json.gz",
+        "media_type": "application/json",
+        "fetched_at": "2026-09-01T03:13:56Z",
+        "http_status": 200,
+        "raw_bytes": 44100,
+        "raw_sha256": "2568c522d769feaf49bea8bae64e6e6805a6e822266c645af5af0081ac4507c2",
+        "encoded_bytes": 4691,
+        "encoded_sha256": "ab07144063da96f17b2ef7500ad772f5db16b393918bf0ef308230704b89620b"
+      },
+      {
+        "id": "pilchuck-usfs-trail-700",
+        "path": "pilchuck-usfs-trail-700.geojson.gz",
+        "media_type": "application/geo+json",
+        "fetched_at": "2026-09-01T03:14:50Z",
+        "http_status": 200,
+        "raw_bytes": 26392,
+        "raw_sha256": "14ac41cdeeffb991f0d58946269c8e57987de25d5233e23fe92722b5fd69e0a8",
+        "encoded_bytes": 10110,
+        "encoded_sha256": "0a6f7f49f7ddecc436f1eda688889d385e11b805d44b85ddd4ba6ba67cc1e185"
+      },
+      {
+        "id": "pilchuck-usfs-brochure-404",
+        "path": "pilchuck-usfs-brochure-404.html.gz",
+        "media_type": "text/html",
+        "fetched_at": "2026-09-01T03:15:23Z",
+        "http_status": 404,
+        "raw_bytes": 82994,
+        "raw_sha256": "0681fc81fcfd6633e09dbd65771d921f75028681fb29d98085c83f65da081f48",
+        "encoded_bytes": 14740,
+        "encoded_sha256": "6b93f30e05d114fcb1c7361b7b4d8849c61a41b8d9eee211b324c906ec44a9fd"
+      },
+      {
+        "id": "grays-usgs",
+        "path": "grays-usgs.geojson.gz",
+        "media_type": "application/geo+json",
+        "fetched_at": "2026-09-01T04:08:40Z",
+        "http_status": 200,
+        "raw_bytes": 35717,
+        "raw_sha256": "01140003da14072d3c57fc1fbb0893970ccefdf7fbe1c55b4d33cc648bf700a5",
+        "encoded_bytes": 13693,
+        "encoded_sha256": "808c5eaa3a8852120349660820b43ffacde94ac6c1f3a1f4dcbe8339ae8aaed8"
+      },
+      {
+        "id": "torreys-usgs",
+        "path": "torreys-usgs.geojson.gz",
+        "media_type": "application/geo+json",
+        "fetched_at": "2026-09-01T04:08:40Z",
+        "http_status": 200,
+        "raw_bytes": 40010,
+        "raw_sha256": "f8c4fa2878d289d9c8a873c0c2f2751270a813ca30ae9fbc4ddebaab3484ea9d",
+        "encoded_bytes": 15050,
+        "encoded_sha256": "73161e28e2bc4bc4e9b125a1f6883bf45917e975ca38e9971c82c21f1636c4d4"
+      },
+      {
+        "id": "grays-usfs-trailhead",
+        "path": "grays-usfs-trailhead.html.gz",
+        "media_type": "text/html",
+        "fetched_at": "2026-09-01T03:54:33Z",
+        "http_status": 200,
+        "raw_bytes": 221466,
+        "raw_sha256": "a168546f5fea32932bd7e1ca2cf017ab2150d263e03d1e9a580fcc83fdd11248",
+        "encoded_bytes": 78425,
+        "encoded_sha256": "b1ec368f96f6f814b2d3f30f7e75ded0ddc0dfdeffdb15797d4e0cf57f2866db"
+      },
+      {
+        "id": "grays-usfs-trail",
+        "path": "grays-usfs-trail.html.gz",
+        "media_type": "text/html",
+        "fetched_at": "2026-09-01T03:55:00Z",
+        "http_status": 200,
+        "raw_bytes": 221407,
+        "raw_sha256": "60d6d05141285b1fd3640b926e8f7820a3449f00b69393071e3629e04f04200d",
+        "encoded_bytes": 78426,
+        "encoded_sha256": "36244a199eb6d67b9a4a25bc3afe75854c83ece297da0339d52bad45ec39c5e6"
+      },
+      {
+        "id": "catalog-job-snapshot",
+        "path": "catalog-job-snapshot.json.gz",
+        "media_type": "application/json",
+        "fetched_at": "2026-09-01T04:06:54.569283Z",
+        "http_status": null,
+        "raw_bytes": 17917,
+        "raw_sha256": "ecdbdca927403de2f6ab75dfa04901b9ee873dbd82887774b21df4238011f1f8",
+        "encoded_bytes": 3358,
+        "encoded_sha256": "32e2b894453abf9df7c93430d8ac463c63712578a7b4988e7269bbe50fc7a4e7"
+      },
+      {
+        "id": "catalog-coverage-proof",
+        "path": "catalog-coverage-proof.json.gz",
+        "media_type": "application/json",
+        "fetched_at": "2026-09-01T04:39:03.565080Z",
+        "http_status": null,
+        "raw_bytes": 5713,
+        "raw_sha256": "88d17001643e7494c75d96fb62f932e0c35e714c04f744c42e2401e0ab95c62e",
+        "encoded_bytes": 1530,
+        "encoded_sha256": "41276238065a19074c38562e10bc06bf1c41e970999e4254f229f86ecfa7a07a"
+      }
+    ]
+  },
+  "official_sources": {
+    "pilchuck_osm": {
+      "replay_id": "pilchuck-osm-way-37583693",
+      "url": "https://api.openstreetmap.org/api/0.6/way/37583693/full.json",
+      "license": "ODbL 1.0",
+      "attribution": "OpenStreetMap contributors",
+      "expected_way": {
+        "id": 37583693,
+        "version": 10,
+        "timestamp": "2024-07-18T02:16:00Z",
+        "changeset": 154080560,
+        "node_count": 237,
+        "name": "Mount Pilchuck Trail #700",
+        "highway": "path",
+        "foot": "designated",
+        "surface": "ground",
+        "bicycle": "no",
+        "horse": "no",
+        "coordinates_sha256": "afdcd29e7a7392c499ce519627d9313b2407af207568a16d1130565f16bffa0a"
+      }
+    },
+    "pilchuck_usfs_trail": {
+      "replay_id": "pilchuck-usfs-trail-700",
+      "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?where=trail_no%3D%27700%27%20AND%20UPPER%28trail_name%29%20LIKE%20%27%25PILCHUCK%25%27&outFields=globalid%2Ctrail_name%2Ctrail_no%2Cattributesubset%2Caccessibility_status%2Callowed_terra_use%2Chiker_pedestrian_managed%2Chiker_pedestrian_accpt%2Chiker_pedestrian_disc%2Chiker_pedestrian_accpt_disc%2Chiker_pedestrian_restricted&returnGeometry=true&returnZ=false&returnM=false&outSR=4326&f=geojson",
+      "license": "U.S. Government work under 17 U.S.C. § 105",
+      "license_url": "https://www.govinfo.gov/content/pkg/USCODE-2023-title17/html/USCODE-2023-title17-chap1-sec105.htm",
+      "attribution": "USDA Forest Service",
+      "expected_feature": {
+        "globalid": "{3BB70979-934C-43C9-A1B0-962D8D14F7FF}",
+        "trail_name": "PILCHUCK LOOKOUT",
+        "trail_no": "700",
+        "allowed_terra_use": "1",
+        "hiker_pedestrian_managed": "01/01-12/31",
+        "hiker_pedestrian_restricted": null,
+        "coordinate_count": 635,
+        "coordinates_sha256": "c1414f3220d477f314cdc3bb85d449089a2f8853187effb71606ace5bfa6a708"
+      }
+    },
+    "pilchuck_retired_brochure": {
+      "replay_id": "pilchuck-usfs-brochure-404",
+      "url": "https://www.fs.usda.gov/Internet/FSE_DOCUMENTS/fseprd530006.pdf",
+      "status": "unavailable_not_relied_upon",
+      "expected_title": "404 Not Found | US Forest Service"
+    },
+    "grays_usfs_trailhead": {
+      "replay_id": "grays-usfs-trailhead",
+      "url": "https://www.fs.usda.gov/r02/arp/recreation/grays-peak-trailhead",
+      "supported_claims": [
+        {
+          "claim": "At the fetch time, the page said this trailhead provides access to Grays Peak Trail (#54) and Torreys.",
+          "exact_text": "It provides access to the Grays Peak Trail (#54) and Torreys."
+        },
+        {
+          "claim": "The page qualified snow-free access as generally not occurring until late June or even July in some years.",
+          "exact_text": "Due to high elevation, the area is not generally snow-free until late June or even July in some years."
+        },
+        {
+          "claim": "The page said the road typically is not plowed and early or late conditions may require a start from the I-70 parking area.",
+          "exact_text": "The road typically isn't plowed, so early and late season conditions my require hiking from the parking area off I-70."
+        },
+        {
+          "claim": "The directions qualified the road as rough, at times four-wheel-drive, and impassable in winter.",
+          "exact_text": "This road is rough and may be considered a 4-wheel drive road at times. In the winter, the road is impassable."
+        }
+      ]
+    },
+    "grays_usfs_trail": {
+      "replay_id": "grays-usfs-trail",
+      "url": "https://www.fs.usda.gov/r02/arp/recreation/trails/grays-peak-trail",
+      "supported_claims": [
+        {
+          "claim": "At the fetch time, the page said the trail starts at Grays Peak Trailhead and offers a chance to summit Grays and Torreys in one day.",
+          "exact_text": "Beginning at the Grays Peak Trailhead and hiking high above treeline, this trail offers hikers the opportunity to summit two 14,000-foot mountains (Grays and Torreys) in one day."
+        },
+        {
+          "claim": "The page labels the route a Standard/Terra Trail; it does not supply a climbing grade.",
+          "exact_text": "Standard/Terra Trail"
+        },
+        {
+          "claim": "The page names Grays Peak Trailhead as the starting point.",
+          "exact_text": "<p>Grays Peak Trailhead</p>"
+        }
+      ]
+    },
+    "usgs": {
+      "license": "Public domain",
+      "license_url": "https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map",
+      "attribution": "U.S. Forest Service via U.S. Geological Survey, The National Map",
+      "source_originator": "U.S. Forest Service",
+      "features": [
+        {
+          "object_id": 2518708,
+          "name": "TORREYS SUMMIT 54.1",
+          "coordinate_count": 190,
+          "coordinates_sha256": "4e8af4950a984785cd6e6f738dac6076f686f1c476c33bfad27abdf19cd57c73",
+          "first_lon_lat": [-105.8186295599685, 39.63765200573873],
+          "last_lon_lat": [-105.82122735802766, 39.642771329160205]
+        },
+        {
+          "object_id": 2532973,
+          "name": "GRAYS PEAK 54.3",
+          "coordinate_count": 254,
+          "coordinates_sha256": "89e7e322fc53705d721a126209e5d97b7c2d1bc95134f0faf166b8e6374cec9b",
+          "first_lon_lat": [-105.81321776189823, 39.63789000198128],
+          "last_lon_lat": [-105.81720221334857, 39.633672545929954]
+        },
+        {
+          "object_id": 2540103,
+          "name": "GRAYS PEAK 54.3",
+          "coordinate_count": 562,
+          "coordinates_sha256": "c98323450414af4ce0014587101395ba31c68709288652fa728a704341bc5e05",
+          "first_lon_lat": [-105.78457315809656, 39.66080556642498],
+          "last_lon_lat": [-105.81321776189823, 39.63789000198128]
+        },
+        {
+          "object_id": 2555256,
+          "name": "GRAYS/TORREYS CONNECTOR 54.2",
+          "coordinate_count": 141,
+          "coordinates_sha256": "52d4b8d8c27e26a1bec3cc417ce332ac30d29cfb9de69ca5714fbc86083360c2",
+          "first_lon_lat": [-105.8186295599685, 39.63765200573873],
+          "last_lon_lat": [-105.81321776189823, 39.63789000198128]
+        }
+      ]
+    }
+  },
+  "packets": [
+    {
+      "packet_id": "mount-pilchuck-trail-700",
+      "packet_state": "existing_pending_job_and_source_pinned",
+      "route_id": "ekqRguipqw8GERL7Yvet",
+      "route_name": "Mount Pilchuck via Mount Pilchuck Trail #700",
+      "route_shape": "out_and_back",
+      "ready_for_import": false,
+      "expected_listed_destination_gain_after_activation": 1,
+      "destination_links": [
+        "E65jXwR5gzXhiQc4ak6l",
+        "iAD3EhqmkKVKXBjJjprj"
+      ],
+      "catalog_snapshot_replay_id": "catalog-job-snapshot",
+      "selected_geometry": {
+        "source_kind": "openstreetmap",
+        "source_replay_id": "pilchuck-osm-way-37583693",
+        "way_ids": [37583693]
+      },
+      "official_identity_and_access_replay_ids": [
+        "pilchuck-usfs-trail-700"
+      ],
+      "unavailable_not_relied_upon_replay_ids": [
+        "pilchuck-usfs-brochure-404"
+      ],
+      "saved_candidate_sha256": "5a050e4c0e6905ba5a3d1efc2134e313df63e96e0a4a44f244c329eb7d6e1d84",
+      "prior_geometry_review_replayable": false,
+      "saved_job_condition": {
+        "exact_error": "Publish dry run failed again: PostgreSQL statement timeout 57014 in findCandidateSegments",
+        "classification": "rerun_only",
+        "blocks_source_packet": false,
+        "requires_fresh_publish_dry_run": true
+      }
+    },
+    {
+      "packet_id": "grays-peak-trail-54-out-and-back",
+      "packet_state": "source_geometry_plan_reviewed_not_imported",
+      "route_id": "Lr8czzLjpc2GKkulapJ3",
+      "route_name": "Grays Peak via North Slopes",
+      "route_shape": "out_and_back",
+      "ready_for_import": false,
+      "expected_listed_destination_gain_after_activation": 1,
+      "destination_links": [
+        "lWuZlk7s093GiwO9yVxU",
+        "bRE1ayiwpfQlXiLJkLLI"
+      ],
+      "catalog_snapshot_replay_id": "catalog-job-snapshot",
+      "official_identity_and_access_replay_ids": [
+        "grays-usfs-trailhead",
+        "grays-usfs-trail"
+      ],
+      "geometry_plan": {
+        "source_kind": "usgs-national-map",
+        "source_replay_id": "grays-usgs",
+        "source_url": "https://partnerships.nationalmap.gov/arcgis/rest/services/USGSTrails/MapServer/0/query?where=objectid+IN+%282532973%2C2540103%29&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+        "traversal": [
+          { "object_id": 2540103, "direction": "forward" },
+          { "object_id": 2532973, "direction": "forward" }
+        ],
+        "assembly": "exact catalog trailhead, all source vertices and one repeated vertex for each explicit zero-distance source-join edge, exact catalog summit",
+        "path_point_count": 818,
+        "path_coordinates_sha256": "17bce27438e05e7f27b9a61feddab4631077dee2b828caec0e13d5f1ee266bb3",
+        "zero_length_source_join_segment_indexes": [562],
+        "path_distance_m": 5912.0186918,
+        "strict_trailhead_contact_m": 0,
+        "strict_summit_contact_m": 0,
+        "physical_start_connector_m": 16.237125278951517,
+        "physical_summit_connector_m": 33.45736263641486
+      },
+      "real_reviewer_expectation": {
+        "function": "reviewOfficialRouteGeometry",
+        "internal_connector_segment_indexes": [],
+        "source_topology_valid": true,
+        "used_object_ids": [2532973, 2540103],
+        "unused_object_ids": [],
+        "start_connector_m": 16.237125278951517,
+        "end_connector_m": 33.45736263641486,
+        "start_connector_join_offset_m": 0,
+        "end_connector_join_offset_m": 0,
+        "core_max_offset_m": 4.882795855306822e-9,
+        "core_p95_offset_m": 3.83312178136731e-9,
+        "core_coverage_pct": 100
+      }
+    },
+    {
+      "packet_id": "torreys-peak-standard-out-and-back",
+      "packet_state": "source_geometry_plan_reviewed_not_imported",
+      "route_id": null,
+      "route_name": "Torreys Peak via Grays Peak Trail and Grays/Torreys Connector",
+      "route_shape": "out_and_back",
+      "ready_for_import": false,
+      "expected_listed_destination_gain_after_activation": 1,
+      "destination_links": [
+        "lWuZlk7s093GiwO9yVxU",
+        "29XhN18XdxRgJrDN3ORu"
+      ],
+      "catalog_snapshot_replay_id": "catalog-job-snapshot",
+      "official_identity_and_access_replay_ids": [
+        "grays-usfs-trailhead",
+        "grays-usfs-trail"
+      ],
+      "geometry_plan": {
+        "source_kind": "usgs-national-map",
+        "source_replay_id": "torreys-usgs",
+        "source_url": "https://partnerships.nationalmap.gov/arcgis/rest/services/USGSTrails/MapServer/0/query?where=objectid+IN+%282518708%2C2540103%2C2555256%29&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+        "traversal": [
+          { "object_id": 2540103, "direction": "forward" },
+          { "object_id": 2555256, "direction": "reverse" },
+          { "object_id": 2518708, "direction": "forward" }
+        ],
+        "assembly": "exact catalog trailhead, all source vertices and one repeated vertex for each explicit zero-distance source-join edge, exact catalog summit",
+        "path_point_count": 895,
+        "path_coordinates_sha256": "f91cdb6df46870580855a2a5e26b738a949481efaa14b01cf133a9576b41c151",
+        "zero_length_source_join_segment_indexes": [562, 703],
+        "path_distance_m": 5893.5923287,
+        "strict_trailhead_contact_m": 0,
+        "strict_summit_contact_m": 0,
+        "physical_start_connector_m": 16.237125278951517,
+        "physical_summit_connector_m": 4.443040653334382
+      },
+      "real_reviewer_expectation": {
+        "function": "reviewOfficialRouteGeometry",
+        "internal_connector_segment_indexes": [],
+        "source_topology_valid": true,
+        "used_object_ids": [2518708, 2540103, 2555256],
+        "unused_object_ids": [],
+        "start_connector_m": 16.237125278951517,
+        "end_connector_m": 0,
+        "start_connector_join_offset_m": 0,
+        "end_connector_join_offset_m": 4.44304051642236,
+        "core_max_offset_m": 4.443040507162996,
+        "core_p95_offset_m": 4.230067910362758e-9,
+        "core_coverage_pct": 99.94391475042065
+      },
+      "precision_warning": "The Torreys summit contact is only about 0.56 m inside the real reviewer’s 5 m source-offset limit; retain every source decimal."
+    }
+  ],
+  "hard_exclusions": [
+    { "route_id": "AOCSvgvnhW5nd8dPei6J", "name": "Grays Peak Kelso Ridge" },
+    { "route_id": "gCscJF593nTsMdp1Z6EE", "name": "Kelso Ridge" },
+    { "route_id": "fSHZk8ioXWIjUNPnTgMU", "name": "Dead Dog Couloir" },
+    { "route_id": null, "name": "Any technical or exposed climbing alternative" }
+  ],
+  "later_review_risks": [
+    "The Pilchuck candidate, path, and prior review bytes are absent; later work must rerun the full geometry and source review plus a fresh publish dry run before import.",
+    "The direct Forest Service pages describe seasonal snow and road limits; check current access again before import or activation.",
+    "The current Torreys job points at a hard-excluded technical replacement route; a later write task must correct the guarded replacement binding before import.",
+    "The endpoint-only path assembly matches the guarded USGS candidate builder. Do not replace it with buildOfficialRoutePath, whose interior cuts fail the Torreys topology review.",
+    "Each route provenance URL must cite only its used USGS object IDs or the real checker will reject unused objects."
+  ]
+}
