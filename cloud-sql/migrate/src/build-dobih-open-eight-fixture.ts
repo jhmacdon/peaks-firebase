@@ -20,6 +20,7 @@ export const DOBIH_ARCHIVE_SHA256 =
 export const DOBIH_SOURCES_SHA256 =
   "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402";
 const CORRECTED_20085_RAW_NAME = "Meenteog [Moing an tSamhaidh]]";
+const CORRECTED_1124_RAW_NAME = "Foinaven [Foinne Bhein] - Ganu Mor";
 
 export type DobihSelectionFlag =
   | "C"
@@ -37,7 +38,11 @@ export type DobihSelectionFlag =
   | "DDew"
   | "sMa"
   | "B"
-  | "Sy";
+  | "Sy"
+  | "Ma"
+  | "HHB"
+  | "Sim"
+  | "sSim";
 
 export interface ParsedDobihRow {
   number: number;
@@ -72,6 +77,10 @@ const FLAG_COLUMNS: DobihSelectionFlag[] = [
   "sMa",
   "B",
   "Sy",
+  "Ma",
+  "HHB",
+  "Sim",
+  "sSim",
 ];
 
 const REQUIRED_COLUMNS = [
@@ -310,6 +319,15 @@ export function normalizeDobihName(
   number: number,
   rawName: string
 ): { name: string; aliases: string[] } {
+  if (number === 1_124) {
+    if (rawName !== CORRECTED_1124_RAW_NAME) {
+      throw new Error(
+        `DoBIH Number 1124 Name changed from ${JSON.stringify(CORRECTED_1124_RAW_NAME)}`
+      );
+    }
+    return { name: "Foinaven - Ganu Mor", aliases: ["Foinne Bhein"] };
+  }
+
   if (number === 20_085) {
     if (rawName !== CORRECTED_20085_RAW_NAME) {
       throw new Error(
