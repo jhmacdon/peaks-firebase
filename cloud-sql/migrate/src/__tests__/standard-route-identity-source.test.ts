@@ -122,3 +122,83 @@ test("access evidence must be the exact URL of a strong identity source", () => 
     /exactly match a strong current-access source/
   );
 });
+
+test("KNPS course and current control pages are narrow official evidence", () => {
+  const courseUrl =
+    "https://www.knps.or.kr/front/portal/visit/visitCourseSubMain.do?menuNo=8000275&parkId=122200&parkNavGb=guide";
+  const accessUrl =
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do?menuNo=8000340&parkId=122200";
+  const course = validateRouteIdentitySource(
+    { type: "knps", url: courseUrl },
+    0
+  );
+  const access = validateRouteIdentitySource(
+    { type: "knps", url: accessUrl },
+    1
+  );
+
+  assert.equal(isStrongRouteIdentitySource(course.type), true);
+  assert.equal(validateRouteAccessSource(accessUrl, [course, access]), accessUrl);
+  assert.throws(
+    () => validateRouteAccessSource(courseUrl, [course, access]),
+    /exact current control-detail page/
+  );
+
+  const otherParkCourse = validateRouteIdentitySource(
+    {
+      type: "knps",
+      url: "https://www.knps.or.kr/front/portal/visit/visitCourseMain.do?parkId=121300",
+    },
+    2
+  );
+  assert.throws(
+    () =>
+      validateRouteAccessSource(accessUrl, [
+        course,
+        access,
+        otherParkCourse,
+      ]),
+    /same parkId/
+  );
+});
+
+test("KNPS evidence rejects broad, ambiguous, and relabeled pages", () => {
+  for (const url of [
+    "https://www.knps.or.kr/front/portal/safe/safeBoardList.do?parkId=122200",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do?parkId=12220",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do?parkId=122200&parkId=121300",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do/extra?parkId=122200",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do;stale?parkId=122200",
+    "https://www.knps.or.kr/front/portal/safe/%61csCtrDtl.do?parkId=122200",
+    "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do?parkId=122200#old",
+  ]) {
+    assert.throws(
+      () => validateRouteIdentitySource({ type: "knps", url }, 0),
+      /exact course or control-detail URL/
+    );
+  }
+
+  assert.throws(
+    () =>
+      validateRouteIdentitySource(
+        {
+          type: "knps",
+          url: "https://knps.or.kr.attacker.example/front/portal/safe/acsCtrDtl.do?parkId=122200",
+        },
+        0
+      ),
+    /wrong publisher host/
+  );
+  assert.throws(
+    () =>
+      validateRouteIdentitySource(
+        {
+          type: "south-korea-kfs-hiking-trails-archive",
+          url: "https://www.knps.or.kr/front/portal/safe/acsCtrDtl.do?parkId=122200",
+        },
+        0
+      ),
+    /reviewed official publisher host/
+  );
+});

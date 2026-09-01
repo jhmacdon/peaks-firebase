@@ -12,9 +12,16 @@ const fixedPublisherHosts = new Map<string, readonly string[]>([
   ["alltrails", ["alltrails.com"]],
   ["peakbagger", ["peakbagger.com"]],
   ["mountaineers", ["mountaineers.org"]],
+  ["knps", ["knps.or.kr"]],
   ["summitpost", ["summitpost.org"]],
   ["wta", ["wta.org"]],
 ]);
+
+const KNPS_COURSE_PATHS = new Set([
+  "/front/portal/visit/visitCourseMain.do",
+  "/front/portal/visit/visitCourseSubMain.do",
+]);
+const KNPS_ACCESS_PATH = "/front/portal/safe/acsCtrDtl.do";
 
 const identityOnlyOfficialSources = new Set([
   "south-korea-kfs-hiking-trails-archive",
@@ -86,6 +93,49 @@ function pathBelongsToReviewedEndpoint(pathname: string, reviewed: string): bool
   );
 }
 
+function knpsPathname(url: URL): string | null {
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    return null;
+  }
+  if (
+    pathname !== url.pathname ||
+    pathname.includes("\\") ||
+    pathname.includes(";") ||
+    pathname.includes("//")
+  ) {
+    return null;
+  }
+  return pathname;
+}
+
+function knpsParkId(url: URL): string | null {
+  const parkIds = url.searchParams.getAll("parkId");
+  return parkIds.length === 1 && /^\d{6}$/.test(parkIds[0] ?? "")
+    ? parkIds[0] ?? null
+    : null;
+}
+
+function isKnpsIdentityUrl(url: URL): boolean {
+  const pathname = knpsPathname(url);
+  return (
+    !url.hash &&
+    knpsParkId(url) !== null &&
+    pathname !== null &&
+    (KNPS_COURSE_PATHS.has(pathname) || pathname === KNPS_ACCESS_PATH)
+  );
+}
+
+function isKnpsAccessUrl(url: URL): boolean {
+  return (
+    !url.hash &&
+    knpsParkId(url) !== null &&
+    knpsPathname(url) === KNPS_ACCESS_PATH
+  );
+}
+
 function identityOnlyOfficialSourceForUrl(url: URL): string | null {
   const hostname = normalizedHostname(url.toString());
   const pathname = ownershipPathname(url);
@@ -143,6 +193,11 @@ export function validateRouteIdentitySource(
         `candidate identity source type ${type} has the wrong publisher host`
       );
     }
+    if (type === "knps" && !isKnpsIdentityUrl(parsedUrl)) {
+      throw new Error(
+        "candidate identity source type knps requires an exact course or control-detail URL with one six-digit parkId"
+      );
+    }
     return { type, url: parsedUrl.toString() };
   }
 
@@ -174,17 +229,34 @@ export function validateRouteAccessSource(
       "candidate access.source_url is archival identity evidence and cannot prove current access"
     );
   }
-  if (
-    !identitySources.some(
-      (source) =>
-        isStrongRouteIdentitySource(source.type) &&
-        !identityOnlyOfficialSources.has(source.type) &&
-        source.url === sourceUrl
-    )
-  ) {
+  const matchingSource = identitySources.find(
+    (source) =>
+      isStrongRouteIdentitySource(source.type) &&
+      !identityOnlyOfficialSources.has(source.type) &&
+      source.url === sourceUrl
+  );
+  if (!matchingSource) {
     throw new Error(
       "candidate access.source_url must exactly match a strong current-access source"
     );
+  }
+  if (matchingSource.type === "knps" && !isKnpsAccessUrl(parsedSourceUrl)) {
+    throw new Error(
+      "candidate KNPS access.source_url must use the exact current control-detail page"
+    );
+  }
+  if (matchingSource.type === "knps") {
+    const accessParkId = knpsParkId(parsedSourceUrl);
+    const mismatchedPark = identitySources.some(
+      (source) =>
+        source.type === "knps" &&
+        knpsParkId(new URL(source.url)) !== accessParkId
+    );
+    if (mismatchedPark) {
+      throw new Error(
+        "candidate KNPS course and access sources must use the same parkId"
+      );
+    }
   }
   return sourceUrl;
 }
