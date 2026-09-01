@@ -156,6 +156,28 @@ show close rocks; and the Geumjeongsan fortress files because walls, buildings,
 or fog hide the peak. Low-resolution Cheongnyangsan and Hongdo files also
 failed the 1600 by 900 floor.
 
+A fourth review added no binding. It began at the exact third-review head
+`56b8d0ce83bcb3e153046b9d1fc4aec0c16f63d1` and checked a new slice of 67
+uncovered KFS rows. A live Commons File-namespace search used a strict
+1.5-kilometre radius around each saved summit. Fifty-two rows had no nearby
+File page. The other 15 rows had 29 files in all. Exact live metadata checks
+replayed all 29 titles; none passed the cover rules.
+
+The frozen audit fixture at
+`docs/data-audits/fixtures/kfs-photo-batch-four-zero-accept-2026-08-31.json`
+keeps the 67 row ordinals and IDs, every nearby-file count, and all 29 rejected
+titles with their dimensions, summit distances, SHA-1 values, and reasons.
+It pins the 101,027-byte source scan at SHA-256
+`e42fd1033afb15afa4e5ab1cce591c917321391da3f2bb08bd17198addec4cde`.
+Fifteen files were orbital Earth images whose coordinates name a ground target,
+not a camera point. Seven were close wildlife photos. Five showed a helicopter
+evacuation, pagodas, a bridge, a temple hall, or a person instead of a mountain.
+`File:Godang-bong.jpg` names Geumjeongsan rather than Cheonseongsan and is only
+800 by 600. A full-frame check of `File:In A Beautiful Place (30628057).jpeg`
+confirmed a clear Geumsan view, but Commons holds only a 960 by 640 source, so
+it fails the 1600 by 900 floor. The closed reviewed Commons table stays at 16
+bindings, and the strict KFS total stays **25/100**.
+
 For these sixteen destination IDs, the command uses `reviewed_commons_file`
 evidence instead of `wikipedia_article` evidence. It requires the exact saved
 name, South Korea country code, KFS list membership, nullable planned Wikidata
@@ -269,6 +291,11 @@ production database writes.
   exact-title Commons metadata check. The current article path missed all four
   rows before the bindings were added. This follow-up made no production
   database write.
+- The zero-accept fourth review passed 51 focused tests and the TypeScript
+  build. The full migration run passed 791 of 800 tests and skipped 9 database
+  suites whose test URLs were absent. A read-only live replay checked the exact
+  67 rows and all 29 nearby File pages against the frozen titles, dimensions,
+  distances, and SHA-1 values. It made no production database write.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
@@ -286,4 +313,8 @@ The seven-file reviewed follow-up also costs **$0/month** and adds no hosted
 service, timer, instance, or scheduled job.
 
 The four-file third review also costs **$0/month** and adds no hosted service,
+timer, instance, or scheduled job.
+
+The zero-accept fourth review also costs **$0/month**. It changed only the audit
+record and its test, made no production write, and added no hosted service,
 timer, instance, or scheduled job.
