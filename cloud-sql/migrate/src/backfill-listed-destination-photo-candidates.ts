@@ -1,6 +1,7 @@
 /**
  * Find review-first cover candidates for every Peaks-owned destination on a
- * Peaks-owned list that does not yet have a usable credited cover.
+ * Peaks-owned list, plus exact reviewed active-route rows, that lack a usable
+ * credited cover.
  *
  * This command never writes destinations.hero_image. It resolves a stable
  * Wikipedia/Wikidata identity, accepts only exact Wikimedia source and license
@@ -256,17 +257,27 @@ export function parseWikidataLeadImage(
   wikidataId: string
 ): WikidataLeadImage | null {
   const root = objectRecord(json);
-  const entities = objectRecord(root?.entities);
-  const entity = objectRecord(entities?.[wikidataId]);
-  if (
-    !entity ||
-    entity.missing !== undefined ||
-    text(entity.id) !== wikidataId ||
-    text(entity.type) !== "item"
-  ) return null;
-
-  const claims = objectRecord(entity.claims);
-  const rawClaims = claims?.P18;
+  let rawClaims: unknown;
+  if (root && Object.prototype.hasOwnProperty.call(root, "entities")) {
+    const entities = objectRecord(root.entities);
+    const entity = objectRecord(entities?.[wikidataId]);
+    if (
+      !entity ||
+      entity.missing !== undefined ||
+      text(entity.id) !== wikidataId ||
+      text(entity.type) !== "item"
+    ) return null;
+    rawClaims = objectRecord(entity.claims)?.P18;
+  } else {
+    const directClaims = objectRecord(root?.claims)?.P18;
+    if (!Array.isArray(directClaims)) return null;
+    const claimIdPrefix = `${wikidataId}$`;
+    if (!directClaims.every((claim) => {
+      const record = objectRecord(claim);
+      return record !== null && text(record.id)?.startsWith(claimIdPrefix);
+    })) return null;
+    rawClaims = directClaims;
+  }
   const nonDeprecatedClaims = Array.isArray(rawClaims)
     ? rawClaims
         .map(objectRecord)
@@ -450,6 +461,40 @@ function mediaWikiFileTitleAliases(json: unknown, canonicalTitle: string): strin
   });
 }
 
+export function parseReviewedCommonsFileCategories(
+  json: unknown,
+  expectedFileTitle: string
+): string[] | null {
+  const pages = pageRecords(json);
+  if (pages.length !== 1) return null;
+  const page = pages[0];
+  const rawTitle = text(page.title);
+  const fileTitle = normalizedWikimediaFileTitle(rawTitle);
+  if (
+    Number(page.ns) !== 6 ||
+    page.missing !== undefined ||
+    !rawTitle ||
+    fileTitle !== expectedFileTitle ||
+    mediaWikiFileTitleAliases(json, rawTitle).length > 0
+  ) {
+    return null;
+  }
+  const rawCategories = page.categories;
+  if (rawCategories === undefined) return [];
+  if (!Array.isArray(rawCategories)) return null;
+  const categories = rawCategories.map((raw) => text(objectRecord(raw)?.title));
+  if (
+    categories.some((category) =>
+      category === null ||
+      !category.startsWith("Category:") ||
+      category.normalize("NFC") !== category
+    )
+  ) {
+    return null;
+  }
+  return categories as string[];
+}
+
 export function parseWikimediaImageMetadata(json: unknown): WikimediaImageMetadata[] {
   return pageRecords(json).flatMap((page) => {
     if (Number(page.ns) !== 6) return [];
@@ -508,6 +553,18 @@ export function reviewedCommonsFileApiUrl(fileTitle: string): URL {
   });
 }
 
+export function reviewedCommonsFileCategoriesApiUrl(fileTitle: string): URL {
+  const exactTitle = normalizedWikimediaFileTitle(fileTitle);
+  if (!exactTitle || exactTitle !== fileTitle) {
+    throw new Error(`reviewed Commons title is not canonical: ${fileTitle}`);
+  }
+  return actionApiUrl("commons.wikimedia.org", {
+    prop: "categories",
+    cllimit: "max",
+    titles: exactTitle,
+  });
+}
+
 export const wikimediaListedPhotoClient: ListedPhotoClient = {
   async resolveWikidataArticle(wikidataId, preferredLanguage) {
     const sites = preferredLanguage === "en"
@@ -550,9 +607,9 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
 
   async fetchWikidataLeadImage(wikidataId) {
     const url = actionApiUrl("www.wikidata.org", {
-      action: "wbgetentities",
-      ids: wikidataId,
-      props: "claims",
+      action: "wbgetclaims",
+      entity: wikidataId,
+      property: "P18",
     });
     return parseWikidataLeadImage(await requestJson(url), wikidataId);
   },
@@ -562,6 +619,13 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
       await requestJson(reviewedCommonsFileApiUrl(fileTitle))
     );
     return records.length === 1 ? records[0] : null;
+  },
+
+  async fetchReviewedCommonsFileCategories(fileTitle) {
+    return parseReviewedCommonsFileCategories(
+      await requestJson(reviewedCommonsFileCategoriesApiUrl(fileTitle)),
+      fileTitle
+    );
   },
 
   async fetchImageMetadata(fileTitles, language) {
@@ -597,7 +661,7 @@ type AuditDetail = {
 export type ListedPhotoAudit = {
   generatedAt: string;
   mode: "dry-run" | "apply";
-  scope: "all Peaks-owned list members without a usable credited cover";
+  scope: "listed Peaks destinations plus exact reviewed active-route rows without a usable credited cover";
   fixedMonthlyCostUsd: 0;
   totals: {
     coverGaps: number;
@@ -706,7 +770,8 @@ export async function buildListedPhotoAudit(
   const audit: ListedPhotoAudit = {
     generatedAt: new Date().toISOString(),
     mode: args.apply ? "apply" : "dry-run",
-    scope: "all Peaks-owned list members without a usable credited cover",
+    scope:
+      "listed Peaks destinations plus exact reviewed active-route rows without a usable credited cover",
     fixedMonthlyCostUsd: 0,
     totals: {
       coverGaps: rows.length,
@@ -853,7 +918,7 @@ async function applyCandidates(
 async function run(args: ListedPhotoArgs): Promise<ListedPhotoAudit> {
   console.log(
     `Listed destination photo candidates — ${args.apply ? "APPLY" : "DRY RUN"}; ` +
-      "scope=all Peaks-owned list members missing a usable credited cover"
+      "scope=listed Peaks destinations plus exact reviewed active-route rows missing a usable credited cover"
   );
   const rows = await loadListedPhotoGaps(db);
   const { audit, candidates } = await buildListedPhotoAudit(rows, args);

@@ -1,0 +1,1008 @@
+{
+  "schemaVersion": 1,
+  "kind": "next_active_route_photo_priority_review",
+  "reviewedAt": "2026-09-01T03:22:22Z",
+  "mode": "dry_run_only",
+  "implementationBaseRef": "origin/codex/add-route-gap-cover-priority-20260901@b3218423f8832ca2474be32038f9093ca03acb55",
+  "sourceAudit": {
+    "path": "docs/data-audits/fixtures/next-active-route-cover-gap-audit-2026-09-01.json",
+    "byteLength": 29114,
+    "sha256": "bfda0523c0e6dff797ce69983ec1b8ba6b6c2472159f6365aa8263d6091759bb",
+    "generatedAt": "2026-09-01T03:20:48.764608+00:00",
+    "readMode": "default_transaction_read_only=on",
+    "transactionReadOnly": "on"
+  },
+  "sourceQuery": {
+    "path": "docs/data-audits/fixtures/next-active-route-cover-gap-query-2026-09-01.sql",
+    "byteLength": 9903,
+    "sha256": "9d5b41887cc519c8d04fec7cb040f832688d99498ddeceabb7af35f642ad8537"
+  },
+  "exactReplay": {
+    "path": "docs/data-audits/fixtures/next-active-route-photo-priority-replay-2026-09-01.json",
+    "byteLength": 30356,
+    "sha256": "33979c11c6bb78eab3207ff84e9a5bb030f20c6b6ad896d7493af538ab52193e",
+    "responseCount": 16,
+    "encoding": "base64"
+  },
+  "summary": {
+    "targetDestinations": 8,
+    "acceptedNewPendingPlans": 8,
+    "rejectedNew": 0,
+    "productionWrites": 0,
+    "applyUsed": false,
+    "fixedMonthlyCostUsd": 0,
+    "liveListedMemberships": 0,
+    "futureRespectableListEvidenceRows": 3,
+    "globalActivePeaksRoutesMissingDerivedCoverAfterPriorBatchesIfApproved": 57,
+    "targetUncoveredActiveRouteLinks": 10,
+    "targetDistinctUncoveredActiveRoutes": 10,
+    "globalActivePeaksRoutesMissingDerivedCoverAfterAllAcceptedLater": 47
+  },
+  "decisions": [
+    {
+      "rank": 1,
+      "destinationId": "YhxmMJE5KqAsa2jMYlrs",
+      "destinationName": "Mount Monadnock",
+      "uncoveredActiveRouteLinks": 2,
+      "catalog": {
+        "id": "YhxmMJE5KqAsa2jMYlrs",
+        "lat": 42.861117,
+        "lng": -72.108292,
+        "name": "Mount Monadnock",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": "NH",
+        "updatedAt": "2026-07-23T17:12:37.629869+00:00",
+        "elevationM": 960,
+        "wikidataId": "Q289542",
+        "countryCode": "US",
+        "externalIds": {
+          "osm": "357724336",
+          "wikidata": "Q289542"
+        },
+        "prominenceM": 649
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": {
+        "fixture": {
+          "path": "docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json",
+          "byteLength": 667430,
+          "sha256": "42e0251d4eb212b00d033d2c1fb771be7b09b415bf7189017ccae9f02669f143"
+        },
+        "listId": "5170",
+        "listName": "New Hampshire 52 with a View",
+        "ordinal": 22,
+        "peakbaggerPeakId": 6744,
+        "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5170"
+      },
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 564.25390625,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "gZoKcidRFdBCNYMJC0xc",
+          "distanceM": 6275.222432825526,
+          "routeName": "Pumpelly Trail",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "H61azRSg0ZrtzaXJ42eC",
+            "YhxmMJE5KqAsa2jMYlrs"
+          ]
+        },
+        {
+          "gainM": 541.76171875,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "iufwHEWy2ZrAe7IIUAdW",
+          "distanceM": 2772.794337361321,
+          "routeName": "White Dot Trail",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "P0NlbaNGLy1HN5fohVv3",
+            "YhxmMJE5KqAsa2jMYlrs"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 564.25390625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"gZoKcidRFdBCNYMJC0xc\", \"distanceM\": 6275.222432825526, \"routeName\": \"Pumpelly Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"H61azRSg0ZrtzaXJ42eC\", \"YhxmMJE5KqAsa2jMYlrs\"]}, {\"gainM\": 541.76171875, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"iufwHEWy2ZrAe7IIUAdW\", \"distanceM\": 2772.794337361321, \"routeName\": \"White Dot Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"P0NlbaNGLy1HN5fohVv3\", \"YhxmMJE5KqAsa2jMYlrs\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "NDReKJHnUc8lQOD5gPxd",
+      "commons": {
+        "fileTitle": "File:Mount Monadnock as seen from Bald Rock.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Monadnock_as_seen_from_Bald_Rock.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Mount_Monadnock_as_seen_from_Bald_Rock.jpg",
+        "photographer": "Jonwmcinenrey",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 4288,
+        "height": 2848,
+        "mediaSha1": "3cfe7ffe8a1eb318e7c0dae1f677afa26a4572b1",
+        "coordinates": {
+          "lat": 42.853827,
+          "lng": -72.107082
+        },
+        "coordinateCount": 1,
+        "metadataResponse": {
+          "responseFileName": "monadnock-metadata.json",
+          "byteLength": 1185,
+          "sha256": "c241fe0baccc8505ebe9881443dbcbfa1211115bb3f5c5d72026d6cec83da212"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Mount_Monadnock_as_seen_from_Bald_Rock.jpg",
+        "byteLength": 3072663,
+        "sha256": "3ff7750a856e16303305f43ba136c395fbabeda065076a95f95e7a25d11180ef",
+        "sha1": "3cfe7ffe8a1eb318e7c0dae1f677afa26a4572b1",
+        "width": 4288,
+        "height": 2848,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q289542",
+        "catalogWikidataId": "Q289542",
+        "wikidataP18": true,
+        "commonsCategory": null,
+        "wikidataP18FileTitle": "File:Mount Monadnock as seen from Bald Rock.jpg",
+        "wikidataP18Response": {
+          "responseFileName": "monadnock-p18.json",
+          "byteLength": 317,
+          "sha256": "8de4663295a115403c8e2832e4ea0487c327abba7893f278db3a8b9c03e076f2"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "Clear rocky Monadnock dome above forest; the named peak stays centered and recognizable in the full frame, centered 2:1 crop, and centered square crop."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 2,
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "destinationName": "Mailbox Peak",
+      "uncoveredActiveRouteLinks": 2,
+      "catalog": {
+        "id": "5hVnUW4tmqj3A6YbU0oB",
+        "lat": 47.462465,
+        "lng": -121.63942,
+        "name": "Mailbox Peak",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": "WA",
+        "updatedAt": "2026-08-28T05:55:43.486792+00:00",
+        "elevationM": 1476,
+        "wikidataId": "Q111944228",
+        "countryCode": "US",
+        "externalIds": {
+          "osm": "285408190",
+          "wikidata": "Q111944228"
+        },
+        "prominenceM": 37
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": null,
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 1208.75390625,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "4gkUxiJyoPVyJWokOinE",
+          "distanceM": 4018.9009517120226,
+          "routeName": "Mailbox Peak Old Trail",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "GHg65nKUeQhQU3D9A7ie",
+            "5hVnUW4tmqj3A6YbU0oB"
+          ]
+        },
+        {
+          "gainM": 1329.16015625,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "KG89JzIf3B07ppaWjLxm",
+          "distanceM": 8251.016019616058,
+          "routeName": "Mailbox Peak Trail",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "GHg65nKUeQhQU3D9A7ie",
+            "5hVnUW4tmqj3A6YbU0oB"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 1208.75390625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"4gkUxiJyoPVyJWokOinE\", \"distanceM\": 4018.9009517120226, \"routeName\": \"Mailbox Peak Old Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"GHg65nKUeQhQU3D9A7ie\", \"5hVnUW4tmqj3A6YbU0oB\"]}, {\"gainM\": 1329.16015625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"KG89JzIf3B07ppaWjLxm\", \"distanceM\": 8251.016019616058, \"routeName\": \"Mailbox Peak Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"GHg65nKUeQhQU3D9A7ie\", \"5hVnUW4tmqj3A6YbU0oB\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "commons": {
+        "fileTitle": "File:Mailbox from Mount Teneriffe.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Mailbox_from_Mount_Teneriffe.jpg",
+        "photographer": "Buidhe",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 4624,
+        "height": 3472,
+        "mediaSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+        "coordinates": {
+          "lat": 47.509269,
+          "lng": -121.695022
+        },
+        "coordinateCount": 1,
+        "metadataResponse": {
+          "responseFileName": "mailbox-metadata.json",
+          "byteLength": 1058,
+          "sha256": "ae09b3f31c3dfbf2b46559b16a3f5f3b6c5ec1e76909129793e93adae6af2755"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Mailbox_from_Mount_Teneriffe.jpg",
+        "byteLength": 3798842,
+        "sha256": "fd3daaf4d788d8ed81e905a4d6fefff489f1ca0495e92021e5d78dbcfd09954a",
+        "sha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+        "width": 4624,
+        "height": 3472,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q111944228",
+        "catalogWikidataId": "Q111944228",
+        "wikidataP18": false,
+        "commonsCategory": "Category:Mailbox Peak",
+        "commonsCategoryResponse": {
+          "responseFileName": "mailbox-categories.json",
+          "byteLength": 424,
+          "sha256": "8bea08f2bc32aa068dfeb6ea50dd8e513dddc93123a989f0d7b3db2c515279a7"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "Mailbox Peak is the clear central wooded pyramid seen from Mount Teneriffe. The frame has extra sky, but the subject remains centered and distinct in both useful crops."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 3,
+      "destinationId": "30FBA25F6A12506D101B",
+      "destinationName": "Barre des Écrins",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "30FBA25F6A12506D101B",
+        "lat": 44.92216,
+        "lng": 6.359547,
+        "name": "Barre des Écrins",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": null,
+        "updatedAt": "2026-07-23T20:58:49.414472+00:00",
+        "elevationM": 4102,
+        "wikidataId": "Q30480",
+        "countryCode": "FR",
+        "externalIds": {
+          "osm": "26862530",
+          "wikidata": "Q30480"
+        },
+        "prominenceM": 2045
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": {
+        "fixture": {
+          "path": "docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json",
+          "byteLength": 667430,
+          "sha256": "42e0251d4eb212b00d033d2c1fb771be7b09b415bf7189017ccae9f02669f143"
+        },
+        "listId": "5410",
+        "listName": "UIAA Alpine 4000-meter Peaks",
+        "ordinal": 52,
+        "peakbaggerPeakId": 9904,
+        "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5410"
+      },
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 2534.8000000000006,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "rB04wEqY2JQXh6QggSSf",
+          "distanceM": 12094,
+          "routeName": "Barre des Écrins via Normal West Ridge",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "B60AD3BB339C44E7BB05",
+            "30FBA25F6A12506D101B"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 2534.8000000000006, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"rB04wEqY2JQXh6QggSSf\", \"distanceM\": 12094, \"routeName\": \"Barre des Écrins via Normal West Ridge\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"B60AD3BB339C44E7BB05\", \"30FBA25F6A12506D101B\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "1Y3PS4vLqt74Sd-UMGIh",
+      "commons": {
+        "fileTitle": "File:La Barre des Écrins.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:La_Barre_des_%C3%89crins.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e3/La_Barre_des_%C3%89crins.jpg",
+        "photographer": "Günter Seggebäing, Coesfeld, Germany",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+        "width": 3648,
+        "height": 2736,
+        "mediaSha1": "d9269188bdef41c191224f7a1cf7f7eb92fe716c",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "responseFileName": "barre-des-ecrins-metadata.json",
+          "byteLength": 962,
+          "sha256": "46ad429931253da93794cea4334d0eb3892dd4bdd86129f38922ba22243376fb"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e3/La_Barre_des_%C3%89crins.jpg",
+        "byteLength": 6948456,
+        "sha256": "176aa5aabd5bd55dff6db07d8aa237b57030cf61678b2eb75cf5b9f957d075f6",
+        "sha1": "d9269188bdef41c191224f7a1cf7f7eb92fe716c",
+        "width": 3648,
+        "height": 2736,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q30480",
+        "catalogWikidataId": "Q30480",
+        "wikidataP18": true,
+        "commonsCategory": null,
+        "wikidataP18FileTitle": "File:La Barre des Écrins.jpg",
+        "wikidataP18Response": {
+          "responseFileName": "barre-des-ecrins-p18.json",
+          "byteLength": 298,
+          "sha256": "d5d1f6ba67b3dd2ab59268674eb9070f72749f2b14a8fbefc8e4b78f89b0762d"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The close glacier-and-summit frame identifies Barre des Écrins cleanly and remains strong at full, centered 2:1, and centered square framing."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 4,
+      "destinationId": "2E5FFFF77936BBE3C5D7",
+      "destinationName": "Gran Paradiso",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "2E5FFFF77936BBE3C5D7",
+        "lat": 45.5178193,
+        "lng": 7.2672005,
+        "name": "Gran Paradiso",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": null,
+        "updatedAt": "2026-07-23T21:04:58.537846+00:00",
+        "elevationM": 4061,
+        "wikidataId": "Q1372",
+        "countryCode": "IT",
+        "externalIds": {
+          "osm": "26863010",
+          "wikidata": "Q1372"
+        },
+        "prominenceM": 1888
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": {
+        "fixture": {
+          "path": "docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json",
+          "byteLength": 667430,
+          "sha256": "42e0251d4eb212b00d033d2c1fb771be7b09b415bf7189017ccae9f02669f143"
+        },
+        "listId": "5410",
+        "listName": "UIAA Alpine 4000-meter Peaks",
+        "ordinal": 63,
+        "peakbaggerPeakId": 9948,
+        "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5410"
+      },
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 2234.699999999997,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "K7HlMn1qHI9gkPFd8kna",
+          "distanceM": 9411,
+          "routeName": "Gran Paradiso via Pont Normal Route",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "A17DB58D2952ED0446C3",
+            "2E5FFFF77936BBE3C5D7"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 2234.699999999997, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"K7HlMn1qHI9gkPFd8kna\", \"distanceM\": 9411, \"routeName\": \"Gran Paradiso via Pont Normal Route\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"A17DB58D2952ED0446C3\", \"2E5FFFF77936BBE3C5D7\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "jXd7_EBH8vj30B3LOOYl",
+      "commons": {
+        "fileTitle": "File:Cogne gruppo gran paradiso (2).jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Cogne_gruppo_gran_paradiso_(2).jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Cogne_gruppo_gran_paradiso_%282%29.jpg",
+        "photographer": "Bramfab",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 5472,
+        "height": 3648,
+        "mediaSha1": "2a1541e5bf44e7662799e41940728e078a1586c1",
+        "coordinates": {
+          "lat": 45.533333,
+          "lng": 7.266667
+        },
+        "coordinateCount": 1,
+        "metadataResponse": {
+          "responseFileName": "gran-paradiso-metadata.json",
+          "byteLength": 1066,
+          "sha256": "38b2a56c6e4532cef258b6879ceb61ea2b5be88277871899594b8a4031d03553"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Cogne_gruppo_gran_paradiso_%282%29.jpg",
+        "byteLength": 4013041,
+        "sha256": "47f422930a0f82efa55074f0bd579059f1f8d05b48ad4578e43ffc2f0d8a9453",
+        "sha1": "2a1541e5bf44e7662799e41940728e078a1586c1",
+        "width": 5472,
+        "height": 3648,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q1372",
+        "catalogWikidataId": "Q1372",
+        "wikidataP18": false,
+        "commonsCategory": "Category:Gran Paradiso",
+        "commonsCategoryResponse": {
+          "responseFileName": "gran-paradiso-categories.json",
+          "byteLength": 736,
+          "sha256": "cd45c2dbbe7b993f9df3431a8bcde7ea732d6dec7e0fec6fef562fe5bed61323"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The Gran Paradiso group is centered at the head of the valley and remains legible in both useful crops; no foreground person or structure becomes the subject."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 5,
+      "destinationId": "6916E6CB5E5C45C02499",
+      "destinationName": "Chamechaude",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "6916E6CB5E5C45C02499",
+        "lat": 45.2876803,
+        "lng": 5.7881527,
+        "name": "Chamechaude",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": null,
+        "updatedAt": "2026-07-23T20:58:49.414472+00:00",
+        "elevationM": 2082,
+        "wikidataId": "Q2321630",
+        "countryCode": "FR",
+        "externalIds": {
+          "osm": "433265195",
+          "wikidata": "Q2321630"
+        },
+        "prominenceM": 1771
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": null,
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 796.1000000000004,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "8Bj0ryavUtKX4ekuNkKc",
+          "distanceM": 4068,
+          "routeName": "Chamechaude via Col de Porte",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "169808D1CD6E1D75D218",
+            "6916E6CB5E5C45C02499"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 796.1000000000004, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"8Bj0ryavUtKX4ekuNkKc\", \"distanceM\": 4068, \"routeName\": \"Chamechaude via Col de Porte\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"169808D1CD6E1D75D218\", \"6916E6CB5E5C45C02499\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "27DWJVkqTTGC3ov12VKg",
+      "commons": {
+        "fileTitle": "File:Chamechaude-depuis-la-pinea.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Chamechaude-depuis-la-pinea.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Chamechaude-depuis-la-pinea.jpg",
+        "photographer": "Remontees",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 5184,
+        "height": 3888,
+        "mediaSha1": "92f0bd26ba4df8fcfdc390c73a3164d33c6d16cf",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "responseFileName": "chamechaude-metadata.json",
+          "byteLength": 981,
+          "sha256": "927979d36e1ec0979843faf78d521d56d2978e982c53d7ff33dc2c5ee5c04886"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Chamechaude-depuis-la-pinea.jpg",
+        "byteLength": 5468071,
+        "sha256": "bec237ecbdd757e18a3d715bbf9277444975d5a2f564e2b631e395b264989c8e",
+        "sha1": "92f0bd26ba4df8fcfdc390c73a3164d33c6d16cf",
+        "width": 5184,
+        "height": 3888,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q2321630",
+        "catalogWikidataId": "Q2321630",
+        "wikidataP18": true,
+        "commonsCategory": null,
+        "wikidataP18FileTitle": "File:Chamechaude-depuis-la-pinea.jpg",
+        "wikidataP18Response": {
+          "responseFileName": "chamechaude-p18.json",
+          "byteLength": 307,
+          "sha256": "ebb83d70eeff85719eca2be8b6c1be7e5f62d10deb0e25c7786d0f63e012adac"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The broad summit block is centered, isolated from the distant range, and clear in the original, wide crop, and square crop."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 6,
+      "destinationId": "AFD21967E06AA9D81BA1",
+      "destinationName": "Großglockner",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "AFD21967E06AA9D81BA1",
+        "lat": 47.0745464,
+        "lng": 12.6938826,
+        "name": "Großglockner",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": null,
+        "updatedAt": "2026-07-23T18:33:08.740561+00:00",
+        "elevationM": 3798,
+        "wikidataId": "Q3388",
+        "countryCode": "AT",
+        "externalIds": {
+          "osm": "26863041",
+          "wikidata": "Q3388"
+        },
+        "prominenceM": 2428
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": null,
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 1913.4999999999993,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "0x4EiGAP5HchuDuliqtd",
+          "distanceM": 9113,
+          "routeName": "Großglockner via Lucknerhaus Normal Route",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "9A6A7F33A62D50654883",
+            "AFD21967E06AA9D81BA1"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 1913.4999999999993, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"0x4EiGAP5HchuDuliqtd\", \"distanceM\": 9113, \"routeName\": \"Großglockner via Lucknerhaus Normal Route\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"9A6A7F33A62D50654883\", \"AFD21967E06AA9D81BA1\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "f7z1bCVGFQ4qAIufHHmj",
+      "commons": {
+        "fileTitle": "File:Großglockner (Hochgasser).jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Gro%C3%9Fglockner_(Hochgasser).jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Gro%C3%9Fglockner_%28Hochgasser%29.jpg",
+        "photographer": "Jörg Braukmann",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 7360,
+        "height": 4912,
+        "mediaSha1": "b804198321d27b29558551ac181cc3f6ebef095d",
+        "coordinates": {
+          "lat": 47.15064,
+          "lng": 12.5218
+        },
+        "coordinateCount": 1,
+        "metadataResponse": {
+          "responseFileName": "grossglockner-metadata.json",
+          "byteLength": 1075,
+          "sha256": "d13e8f7f5234670cd93c3b1bdd225be944f08a37561b7c9680d89f99005608a8"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Gro%C3%9Fglockner_%28Hochgasser%29.jpg",
+        "byteLength": 13367183,
+        "sha256": "012ee22ab1e7b460381699c8badd1836a31ae05b292cc8c7ac08252672b8bc7c",
+        "sha1": "b804198321d27b29558551ac181cc3f6ebef095d",
+        "width": 7360,
+        "height": 4912,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q3388",
+        "catalogWikidataId": "Q3388",
+        "wikidataP18": false,
+        "commonsCategory": "Category:Großglockner",
+        "commonsCategoryResponse": {
+          "responseFileName": "grossglockner-categories.json",
+          "byteLength": 1492,
+          "sha256": "acbdb4fa3f311e8184eb6876747208f5d5b755c5e220ea3f711e83cb88161d14"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The distinct pointed Großglockner summit remains centered over the glacier in the full frame and both useful crops."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 7,
+      "destinationId": "wDFtTKWGTP96rsoi2tNA",
+      "destinationName": "Haleakala",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "wDFtTKWGTP96rsoi2tNA",
+        "lat": 20.709718,
+        "lng": -156.253331,
+        "name": "Haleakala",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": null,
+        "updatedAt": "2026-06-15T21:00:07.938089+00:00",
+        "elevationM": 3055,
+        "wikidataId": null,
+        "countryCode": null,
+        "externalIds": {},
+        "prominenceM": 3055
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": null,
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": null,
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 6.199999999999818,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "6E3lfeLCn8p5ekOQNVT8",
+          "distanceM": 109,
+          "routeName": "Haleakalā via Puʻuʻulaʻula Summit Trail",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "16A5041A156C538CEEB6",
+            "wDFtTKWGTP96rsoi2tNA"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 6.199999999999818, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"6E3lfeLCn8p5ekOQNVT8\", \"distanceM\": 109, \"routeName\": \"Haleakalā via Puʻuʻulaʻula Summit Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"16A5041A156C538CEEB6\", \"wDFtTKWGTP96rsoi2tNA\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "fUqFi-S-cRw5cVesNs7l",
+      "commons": {
+        "fileTitle": "File:Haleakalā, Peak Shadow.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Haleakal%C4%81,_Peak_Shadow.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/80/Haleakal%C4%81%2C_Peak_Shadow.jpg",
+        "photographer": "belindah",
+        "licenseName": "CC BY 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+        "width": 3604,
+        "height": 2135,
+        "mediaSha1": "e5c10f53a03ebacea39c439e9005035f02f45716",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "responseFileName": "haleakala-metadata.json",
+          "byteLength": 985,
+          "sha256": "750adcdef3432a8fecf638ee9813cd0f2a1256ba885a6e7ff1995067ecdf3fc2"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/80/Haleakal%C4%81%2C_Peak_Shadow.jpg",
+        "byteLength": 1988099,
+        "sha256": "4013e7c946157ead7606344d7cc4f97db82f58251a07a9ad6c360540c637b88a",
+        "sha1": "e5c10f53a03ebacea39c439e9005035f02f45716",
+        "width": 3604,
+        "height": 2135,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q515719",
+        "catalogWikidataId": null,
+        "wikidataP18": true,
+        "commonsCategory": null,
+        "wikidataP18FileTitle": "File:Haleakalā, Peak Shadow.jpg",
+        "wikidataP18Response": {
+          "responseFileName": "haleakala-p18.json",
+          "byteLength": 302,
+          "sha256": "0866e233730f99234b27449fe14428bdcef5cba35987970f4fc2aeebf8ca47ff"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The crater rim and cinder forms make a strong Haleakalā landscape; full, centered wide, and centered square frames all preserve the subject."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    },
+    {
+      "rank": 8,
+      "destinationId": "lTBztUOvhj79YWPEtGGV",
+      "destinationName": "Middle Teton",
+      "uncoveredActiveRouteLinks": 1,
+      "catalog": {
+        "id": "lTBztUOvhj79YWPEtGGV",
+        "lat": 43.729852,
+        "lng": -110.811275,
+        "name": "Middle Teton",
+        "owner": "peaks",
+        "features": [
+          "summit"
+        ],
+        "stateCode": "WY",
+        "updatedAt": "2026-08-28T05:55:39.204371+00:00",
+        "elevationM": 3903,
+        "wikidataId": "Q2060335",
+        "countryCode": "US",
+        "externalIds": {
+          "osm": "356506474",
+          "wikidata": "Q2060335"
+        },
+        "prominenceM": 343
+      },
+      "coverState": {
+        "focalX": 50,
+        "focalY": 50,
+        "complete": false,
+        "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FlTBztUOvhj79YWPEtGGV.jpg",
+        "heroImageAttributionRaw": null,
+        "heroImageAttributionUrlRaw": null
+      },
+      "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": \"https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FlTBztUOvhj79YWPEtGGV.jpg\", \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+      "listMemberships": [],
+      "futureRespectableListEvidence": null,
+      "photoCandidateHistory": [],
+      "reviewHistoryFingerprint": "{\"reviewCount\":0,\"sourcePageKeys\":[],\"mediaSha1s\":[]}",
+      "activeRouteBindings": [
+        {
+          "gainM": 1901.1875,
+          "owner": "peaks",
+          "status": "active",
+          "routeId": "HY5RuRNroyNoHvVhaenc",
+          "distanceM": 10779.846286978594,
+          "routeName": "Southwest Couloir",
+          "completion": "none",
+          "destinationOrdinal": 1,
+          "derivedCoverComplete": false,
+          "linkedDestinationIds": [
+            "Od1xhYmqvBKHLZoYjdBV",
+            "lTBztUOvhj79YWPEtGGV"
+          ]
+        }
+      ],
+      "activeRouteFingerprint": "[{\"gainM\": 1901.1875, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"HY5RuRNroyNoHvVhaenc\", \"distanceM\": 10779.846286978594, \"routeName\": \"Southwest Couloir\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"Od1xhYmqvBKHLZoYjdBV\", \"lTBztUOvhj79YWPEtGGV\"]}]",
+      "disposition": "accepted_new_pending_plan",
+      "candidateId": "DckS1mxUi0QlVWpLz8hR",
+      "commons": {
+        "fileTitle": "File:Middle Teton Grand Teton NP1.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Middle_Teton_Grand_Teton_NP1.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Middle_Teton_Grand_Teton_NP1.jpg",
+        "photographer": "Acroterion",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "width": 3464,
+        "height": 2536,
+        "mediaSha1": "b7adb7dcfd91eccb5d930fb7aea0974ec104b004",
+        "coordinates": null,
+        "coordinateCount": 0,
+        "metadataResponse": {
+          "responseFileName": "middle-teton-metadata.json",
+          "byteLength": 1037,
+          "sha256": "12292fa8389aa6f0e7b4215a92f9cd6ccbc5b141ba4e0e2254d7cdf64c5c07e9"
+        }
+      },
+      "originalDownload": {
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Middle_Teton_Grand_Teton_NP1.jpg",
+        "byteLength": 6830066,
+        "sha256": "ca68d10195dd8e7672f951ab46c6acd6fdd21e879a291aa6ccf248fd21aee5f6",
+        "sha1": "b7adb7dcfd91eccb5d930fb7aea0974ec104b004",
+        "width": 3464,
+        "height": 2536,
+        "verifiedAgainstCommonsMetadata": true
+      },
+      "identity": {
+        "type": "exact_peak",
+        "reviewedWikidataId": "Q2060335",
+        "catalogWikidataId": "Q2060335",
+        "wikidataP18": true,
+        "commonsCategory": null,
+        "wikidataP18FileTitle": "File:Middle Teton Grand Teton NP1.jpg",
+        "wikidataP18Response": {
+          "responseFileName": "middle-teton-p18.json",
+          "byteLength": 308,
+          "sha256": "c0fbbcdfceafebfa5173cb48c3afad39e42235390a06c8221978dca57c1c0ae7"
+        }
+      },
+      "visualReview": {
+        "originalFullFrame": "accepted",
+        "centeredWideTwoToOne": "accepted",
+        "centeredSquareOneToOne": "accepted",
+        "unsafeOrWrongIdentity": false,
+        "notes": "The close rocky Middle Teton summit fills the frame and stays unambiguous in the original and both centered crops."
+      },
+      "queuePolicy": {
+        "status": "pending_only",
+        "applyUsed": false,
+        "heroUpdate": false,
+        "productionWrite": false
+      }
+    }
+  ]
+}
