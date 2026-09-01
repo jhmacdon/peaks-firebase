@@ -240,6 +240,11 @@ CREATE TABLE destination_photo_candidates (
     license_url     TEXT NOT NULL CHECK (license_url ~ '^https://[^[:space:]]+$'),
     image_width     INT CHECK (image_width IS NULL OR image_width > 0),
     image_height    INT CHECK (image_height IS NULL OR image_height > 0),
+    media_sha1      TEXT CONSTRAINT destination_photo_candidates_media_sha1_format
+                    CHECK (media_sha1 IS NULL OR media_sha1 ~ '^[0-9a-f]{40}$'),
+    candidate_origin TEXT NOT NULL DEFAULT 'manual'
+                    CONSTRAINT destination_photo_candidates_origin_allowed
+                    CHECK (candidate_origin IN ('manual', 'manifest_import', 'listed_photo_backfill')),
     focal_x         SMALLINT NOT NULL DEFAULT 50 CHECK (focal_x BETWEEN 0 AND 100),
     focal_y         SMALLINT NOT NULL DEFAULT 50 CHECK (focal_y BETWEEN 0 AND 100),
     notes           TEXT,
@@ -278,6 +283,58 @@ CREATE TABLE destination_photo_candidates (
 
 CREATE INDEX idx_destination_photo_candidates_review_queue
     ON destination_photo_candidates (status, created_at, id);
+
+CREATE UNIQUE INDEX uq_destination_photo_candidates_listed_backfill_pending
+    ON destination_photo_candidates (destination_id)
+    WHERE status = 'pending'
+      AND candidate_origin = 'listed_photo_backfill';
+
+CREATE UNIQUE INDEX uq_destination_photo_candidates_media_sha1
+    ON destination_photo_candidates (destination_id, media_sha1)
+    WHERE media_sha1 IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION guard_listed_photo_backfill_pending()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.status <> 'pending' THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.status = 'pending'
+       AND OLD.destination_id = NEW.destination_id
+       AND OLD.candidate_origin = NEW.candidate_origin THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  PERFORM 1
+    FROM destinations
+   WHERE id = NEW.destination_id
+   FOR UPDATE;
+
+  IF NEW.candidate_origin = 'listed_photo_backfill'
+     AND EXISTS (
+       SELECT 1
+         FROM destination_photo_candidates existing
+        WHERE existing.destination_id = NEW.destination_id
+          AND existing.status = 'pending'
+          AND existing.id <> NEW.id
+     ) THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER destination_photo_candidates_pending_guard
+BEFORE INSERT OR UPDATE OF status, destination_id, candidate_origin
+ON destination_photo_candidates
+FOR EACH ROW
+EXECUTE FUNCTION guard_listed_photo_backfill_pending();
 
 CREATE INDEX idx_destination_photo_candidates_open_comments
     ON destination_photo_candidates (reviewer_comment_updated_at DESC, id)
