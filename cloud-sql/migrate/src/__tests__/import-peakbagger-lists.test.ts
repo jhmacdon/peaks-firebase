@@ -7,6 +7,7 @@ import {
   buildListPlan,
   buildListUpsertParams,
   CatalogPeak,
+  CURATED_DESTINATIONS,
   CURATED_LISTS,
   CuratedList,
   deterministicListId,
@@ -742,4 +743,123 @@ test("the dated source fixture covers every curated list and only the four new t
   const withAView = CURATED_LISTS.find((curated) => curated.sourceListId === 5170);
   assert.equal(withAView?.supplementalSourcePeaks?.length, 2);
   assert.equal(withAView?.expectedCount, 54);
+});
+
+test("the reviewed identity fixture pins every fail-closed row", () => {
+  const sourceFixture = JSON.parse(readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json"
+  ), "utf8"));
+  const resolutions = JSON.parse(readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/four-list-identity-resolutions-2026-08-30.json"
+  ), "utf8"));
+  const expectedCounts = new Map([
+    [5410, 30],
+    [5521, 69],
+    [5170, 38],
+  ]);
+
+  for (const [sourceListId, expectedCount] of expectedCounts) {
+    const list = CURATED_LISTS.find((entry) => entry.sourceListId === sourceListId);
+    assert.ok(list);
+    const reviewedRows = resolutions[String(sourceListId)].rows;
+    assert.equal(reviewedRows.length, expectedCount);
+    const sourceRows = new Map<number, { peakbaggerPeakId: number; lat?: number; lng?: number }>(
+      sourceFixture[String(sourceListId)].rows.map(
+        (row: { peakbaggerPeakId: number; lat?: number; lng?: number }) => [row.peakbaggerPeakId, row]
+      )
+    );
+    for (const reviewed of reviewedRows) {
+      assert.equal(list.destinationOverrides[reviewed.peakbaggerPeakId], reviewed.destinationId);
+      assert.ok(reviewed.distanceM <= 350, `${reviewed.sourceName} is too far from its destination`);
+      const sourceRow = sourceRows.get(reviewed.peakbaggerPeakId);
+      if (sourceRow) {
+        assert.equal(sourceRow.lat, reviewed.sourceLat);
+        assert.equal(sourceRow.lng, reviewed.sourceLng);
+      }
+    }
+  }
+
+  const munros = CURATED_LISTS.find((entry) => entry.sourceListId === 5521);
+  assert.ok(munros);
+  assert.deepEqual(resolutions["5521"].additionalRows.map(
+    (row: { peakbaggerPeakId: number }) => row.peakbaggerPeakId
+  ), [21247, 15373]);
+  for (const reviewed of resolutions["5521"].additionalRows) {
+    assert.equal(munros.destinationOverrides[reviewed.peakbaggerPeakId], reviewed.destinationId);
+    assert.ok(reviewed.distanceM <= 350, `${reviewed.sourceName} is too far from its destination`);
+  }
+});
+
+test("every reviewed catalog addition matches its evidence row", () => {
+  const resolutions = JSON.parse(readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/four-list-identity-resolutions-2026-08-30.json"
+  ), "utf8"));
+  const reviewedRows = [
+    ...resolutions["5410"].rows,
+    ...resolutions["5521"].rows,
+    ...resolutions["5521"].additionalRows,
+    ...resolutions["5170"].rows,
+  ];
+  const additions = reviewedRows.filter(
+    (row: { resolution: string }) => row.resolution === "curated_destination"
+  );
+  assert.equal(additions.length, 53);
+  assert.equal(new Set(additions.map((row: { destinationId: string }) => row.destinationId)).size, 53);
+  assert.equal(new Set(additions.map((row: { destinationOsmNodeId: string }) =>
+    row.destinationOsmNodeId)).size, 53);
+
+  const curatedById = new Map(CURATED_DESTINATIONS.map((destination) => [destination.id, destination]));
+  for (const reviewed of additions) {
+    assert.equal(reviewed.destinationId, deterministicOsmDestinationId(reviewed.destinationOsmNodeId));
+    assert.deepEqual(curatedById.get(reviewed.destinationId), {
+      id: reviewed.destinationId,
+      name: reviewed.destinationName,
+      elevationM: reviewed.destinationElevationM,
+      lat: reviewed.destinationLat,
+      lng: reviewed.destinationLng,
+      countryCode: reviewed.countryCode,
+      stateCode: reviewed.stateCode,
+      osmId: reviewed.destinationOsmNodeId,
+    });
+  }
+});
+
+test("the keeper lists still select unique full member counts", () => {
+  const fixture = JSON.parse(readFileSync(path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/peakbagger-list-candidates-2026-08-22.json"
+  ), "utf8"));
+  for (const sourceListId of [5410, 5521, 5170]) {
+    const list = CURATED_LISTS.find((entry) => entry.sourceListId === sourceListId);
+    assert.ok(list);
+    const source = fixture[String(sourceListId)];
+    const sourceRows = [
+      ...source.rows,
+      ...(list.supplementalSourcePeaks ?? []),
+    ];
+    const destinationOverrides = { ...list.destinationOverrides };
+    const syntheticCatalog: CatalogPeak[] = sourceRows.map(
+      (row: { peakbaggerPeakId: number; name: string; elevationFt: number; lat?: number; lng?: number }) => {
+        const destinationId = destinationOverrides[row.peakbaggerPeakId] ??
+          `fixture-${sourceListId}-${row.peakbaggerPeakId}`;
+        destinationOverrides[row.peakbaggerPeakId] = destinationId;
+        return {
+          id: destinationId,
+          name: row.name,
+          elevationM: row.elevationFt * 0.3048,
+          lat: row.lat ?? 0,
+          lng: row.lng ?? 0,
+          osmId: null,
+          countryCode: list.allowedCountryCodes?.[0] ?? null,
+          stateCode: list.allowedStateCodes?.[0] ?? null,
+        };
+      }
+    );
+    const members = resolveListMembers({ ...list, destinationOverrides }, source, syntheticCatalog);
+    assert.equal(members.length, list.expectedCount);
+    assert.equal(new Set(members.map((member) => member.destinationId)).size, list.expectedCount);
+  }
 });
