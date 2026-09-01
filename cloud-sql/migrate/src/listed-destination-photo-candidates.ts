@@ -22,6 +22,7 @@ export type ListedPhotoGapRow = {
   name: string | null;
   lat: number | null;
   lng: number | null;
+  country_code: string | null;
   wikidata_id: string | null;
   list_ids: string[];
   list_names: string[];
@@ -39,16 +40,21 @@ export type WikimediaCoordinates = {
 export type WikidataArticleIdentity = {
   wikidataId: string;
   articleTitle: string;
+  articleLanguage: WikipediaLanguage;
   coordinates: WikimediaCoordinates | null;
 };
 
+export type WikipediaLanguage = "en" | "ko";
+
 export type WikipediaSearchHit = {
   title: string;
+  language: WikipediaLanguage;
   coordinates: WikimediaCoordinates;
 };
 
 export type WikipediaArticle = {
   title: string;
+  language: WikipediaLanguage;
   wikidataId: string | null;
   coordinates: WikimediaCoordinates | null;
   leadImageTitle: string | null;
@@ -71,14 +77,24 @@ export type WikimediaImageMetadata = {
 };
 
 export type ListedPhotoClient = {
-  resolveWikidataArticle(wikidataId: string): Promise<WikidataArticleIdentity | null>;
+  resolveWikidataArticle(
+    wikidataId: string,
+    preferredLanguage: WikipediaLanguage
+  ): Promise<WikidataArticleIdentity | null>;
   searchWikipediaArticles(
     name: string,
     lat: number,
-    lng: number
+    lng: number,
+    language: WikipediaLanguage
   ): Promise<WikipediaSearchHit[]>;
-  fetchWikipediaArticle(title: string): Promise<WikipediaArticle | null>;
-  fetchImageMetadata(fileTitles: string[]): Promise<WikimediaImageMetadata[]>;
+  fetchWikipediaArticle(
+    title: string,
+    language: WikipediaLanguage
+  ): Promise<WikipediaArticle | null>;
+  fetchImageMetadata(
+    fileTitles: string[],
+    language: WikipediaLanguage
+  ): Promise<WikimediaImageMetadata[]>;
 };
 
 export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
@@ -86,6 +102,7 @@ export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
   matchedArticleTitle: string;
   matchedWikidataId: string;
   catalogWikidataId: string | null;
+  catalogCountryCode: string | null;
   catalogLat: number;
   catalogLng: number;
   mediaSha1: string;
@@ -110,6 +127,7 @@ export const LISTED_PHOTO_GAPS_SQL = `WITH listed AS (
          d.name,
          ST_Y(d.location::geometry) AS lat,
          ST_X(d.location::geometry) AS lng,
+         d.country_code,
          d.external_ids->>'wikidata' AS wikidata_id,
          array_agg(DISTINCT l.id ORDER BY l.id) AS list_ids,
          array_agg(DISTINCT l.name ORDER BY l.name) AS list_names
@@ -138,6 +156,7 @@ SELECT listed.id,
        listed.name,
        listed.lat,
        listed.lng,
+       listed.country_code,
        listed.wikidata_id,
        listed.list_ids,
        listed.list_names,
@@ -178,6 +197,7 @@ export function serializeListedPhotoGapRow(row: Record<string, unknown>): Listed
     name: nullableText(row.name),
     lat: nullableNumber(row.lat),
     lng: nullableNumber(row.lng),
+    country_code: nullableText(row.country_code)?.toUpperCase() ?? null,
     wikidata_id: nullableText(row.wikidata_id),
     list_ids: stringArray(row.list_ids),
     list_names: stringArray(row.list_names),
@@ -213,15 +233,55 @@ export function distanceMeters(
   return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(haversine)));
 }
 
+export function wikipediaLanguageForCountry(
+  countryCode: string | null
+): WikipediaLanguage {
+  return countryCode?.trim().toUpperCase() === "KR" ? "ko" : "en";
+}
+
+function wikipediaLanguageLabel(language: WikipediaLanguage): string {
+  return language === "ko" ? "Korean" : "English";
+}
+
+export function normalizedWikimediaFileTitle(value: string | null): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const title = trimmed.replace(/^(?:file|파일):/iu, "").trim();
+  return title ? `File:${title}` : null;
+}
+
+function explicitWikimediaFileTitle(value: string | null): string | null {
+  return value && /^(?:file|파일):/iu.test(value)
+    ? normalizedWikimediaFileTitle(value)
+    : null;
+}
+
+function localizedWikipediaNamesMatch(
+  destinationName: string,
+  articleTitle: string,
+  language: WikipediaLanguage
+): boolean {
+  if (language === "en") return namesMatch(destinationName, articleTitle);
+  const fold = (value: string) => value
+    .normalize("NFKC")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/\([^)]*\)/g, " ")
+    .match(/[\p{L}\p{N}]+/gu)
+    ?.join("") ?? "";
+  const destination = fold(destinationName);
+  const article = fold(articleTitle);
+  return destination.length > 0 && destination === article;
+}
+
 function normalizedWords(value: string): string {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/^file:/, "")
+    .replace(/^(?:file|파일):/u, "")
     .replace(/\.[a-z0-9]{2,5}$/i, "")
     .replace(/\bmt\.?\b/g, "mount")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
@@ -240,7 +300,7 @@ export function fileTitleNamesDestination(destinationName: string, fileTitle: st
 
 const PHOTO_FILE_EXTENSION = /\.(?:jpe?g|png|webp|tiff?)$/i;
 const NON_PHOTO_FILE_WORDS =
-  /\b(?:locator|location map|map blank|route map|topographic map|topo map|flag|logo|icon|symbol|coat of arms|wikidata|commons logo)\b/i;
+  /(?:\b(?:locator|location map|map blank|route map|topographic map|topo map|flag|logo|icon|symbol|coat of arms|wikidata|commons logo)\b|위치 ?지도|노선도|등산로 ?지도|지형도|지도|로고|아이콘|국기)/iu;
 
 export function rankedArticlePhotoTitles(
   article: WikipediaArticle,
@@ -249,7 +309,8 @@ export function rankedArticlePhotoTitles(
 ): string[] {
   const titles: string[] = [];
   const seen = new Set<string>();
-  const add = (title: string | null, lead: boolean) => {
+  const add = (rawTitle: string | null, lead: boolean) => {
+    const title = normalizedWikimediaFileTitle(rawTitle);
     if (!title || !PHOTO_FILE_EXTENSION.test(title) || NON_PHOTO_FILE_WORDS.test(title)) return;
     if (!lead && !fileTitleNamesDestination(destinationName, title)) return;
     const key = normalizedWords(title);
@@ -283,12 +344,18 @@ export function sourcePageKey(value: string): string | null {
     pathname = url.pathname;
   }
   const hostname = url.hostname.toLowerCase();
-  const fileMatch = pathname.match(/^\/wiki\/(File:.+)$/i);
+  const fileTitle = explicitWikimediaFileTitle(
+    pathname.match(/^\/wiki\/(.+)$/u)?.[1] ?? null
+  );
   if (
-    fileMatch &&
-    (hostname === "commons.wikimedia.org" || hostname === "en.wikipedia.org")
+    fileTitle &&
+    (
+      hostname === "commons.wikimedia.org" ||
+      hostname === "en.wikipedia.org" ||
+      hostname === "ko.wikipedia.org"
+    )
   ) {
-    return `wikimedia:${fileMatch[1].replace(/_/g, " ").trim().toLowerCase()}`;
+    return `wikimedia:${fileTitle.replace(/_/g, " ").trim().toLowerCase()}`;
   }
   return `${hostname}${pathname.replace(/_/g, " ").toLowerCase()}`;
 }
@@ -297,15 +364,20 @@ export function fileTitleFromWikimediaSourcePage(value: string): string | null {
   const url = canonicalHttpsUrl(value);
   if (!url) return null;
   const hostname = url.hostname.toLowerCase();
-  if (hostname !== "commons.wikimedia.org" && hostname !== "en.wikipedia.org") return null;
+  if (
+    hostname !== "commons.wikimedia.org" &&
+    hostname !== "en.wikipedia.org" &&
+    hostname !== "ko.wikipedia.org"
+  ) return null;
   let pathname: string;
   try {
     pathname = decodeURIComponent(url.pathname);
   } catch {
     return null;
   }
-  const match = pathname.match(/^\/wiki\/(File:.+)$/i);
-  return match ? match[1].replace(/_/g, " ").trim() : null;
+  return explicitWikimediaFileTitle(
+    pathname.match(/^\/wiki\/(.+)$/u)?.[1]?.replace(/_/g, " ") ?? null
+  );
 }
 
 function isAllowedWikimediaImageUrl(value: string | null): value is string {
@@ -322,10 +394,14 @@ function sourceKind(value: string | null): "wikimedia_commons" | "wikipedia" | n
   } catch {
     return null;
   }
-  if (!/^\/wiki\/File:/i.test(pathname)) return null;
+  if (!explicitWikimediaFileTitle(pathname.match(/^\/wiki\/(.+)$/u)?.[1] ?? null)) {
+    return null;
+  }
   const hostname = url.hostname.toLowerCase();
   if (hostname === "commons.wikimedia.org") return "wikimedia_commons";
-  if (hostname === "en.wikipedia.org") return "wikipedia";
+  if (hostname === "en.wikipedia.org" || hostname === "ko.wikipedia.org") {
+    return "wikipedia";
+  }
   return null;
 }
 
@@ -427,6 +503,8 @@ function exactPhotographer(value: string | null): value is string {
     /\bsee (?:the )?(?:source|file|original)\b/.test(normalized) ||
     /\bsee above\b/.test(normalized) ||
     /\bmultiple (?:authors|artists|photographers)\b/.test(normalized) ||
+    /^(?:미상|불명|익명|알 수 없음|정보 없음|자료 없음|본인 촬영|직접 촬영|자작|업로더|올린이)$/u.test(normalized) ||
+    /(?:촬영자|사진가|작가|저자|작성자|작자)\s*(?:미상|불명|알 수 없음|명시되지 않음)/u.test(normalized) ||
     /^(?:n\/?a|none|own work|uploader|the uploader|original uploader|self|self made|uncredited|no data available|original source|wikimedia commons)$/i.test(normalized)
   );
 }
@@ -502,6 +580,7 @@ async function resolveStableArticle(
       reason: "destination needs a name and coordinates",
     };
   }
+  const preferredLanguage = wikipediaLanguageForCountry(row.country_code);
 
   if (row.wikidata_id) {
     if (!/^Q\d+$/.test(row.wikidata_id)) {
@@ -511,12 +590,17 @@ async function resolveStableArticle(
         reason: `stored Wikidata id ${row.wikidata_id} is not valid`,
       };
     }
-    const identity = await client.resolveWikidataArticle(row.wikidata_id);
+    const identity = await client.resolveWikidataArticle(
+      row.wikidata_id,
+      preferredLanguage
+    );
     if (!identity || identity.wikidataId !== row.wikidata_id || !identity.coordinates) {
       return {
         kind: "miss",
         code: "wikidata_identity_incomplete",
-        reason: "stored Wikidata item needs an English article and coordinates",
+        reason:
+          `stored Wikidata item needs a ${wikipediaLanguageLabel(preferredLanguage)} ` +
+          "or English article and coordinates",
       };
     }
     const identityDistance = distanceMeters(
@@ -532,58 +616,85 @@ async function resolveStableArticle(
         reason: `stored Wikidata item is ${(identityDistance / 1_000).toFixed(1)} km away`,
       };
     }
-    const article = await client.fetchWikipediaArticle(identity.articleTitle);
+    const article = await client.fetchWikipediaArticle(
+      identity.articleTitle,
+      identity.articleLanguage
+    );
     if (
       !article ||
+      article.language !== identity.articleLanguage ||
       article.wikidataId !== row.wikidata_id ||
-      !namesMatch(name, article.title) ||
-      !article.coordinates
+      (
+        article.language === preferredLanguage &&
+        !localizedWikipediaNamesMatch(name, article.title, article.language)
+      )
     ) {
       return {
         kind: "miss",
         code: "wikipedia_identity_mismatch",
-        reason: "English article does not confirm the stored Wikidata identity, name, and coordinates",
+        reason:
+          `${wikipediaLanguageLabel(identity.articleLanguage)} article does not ` +
+          "confirm the stored Wikidata identity and name",
       };
     }
-    const articleDistance = distanceMeters(
-      row.lat,
-      row.lng,
-      article.coordinates.lat,
-      article.coordinates.lng
-    );
-    if (articleDistance > LISTED_PHOTO_WIKIDATA_RADIUS_METERS) {
+    const articleDistance = article.coordinates
+      ? distanceMeters(
+        row.lat,
+        row.lng,
+        article.coordinates.lat,
+        article.coordinates.lng
+      )
+      : null;
+    if (
+      articleDistance !== null &&
+      articleDistance > LISTED_PHOTO_WIKIDATA_RADIUS_METERS
+    ) {
       return {
         kind: "miss",
         code: "wikipedia_identity_too_far",
-        reason: `English article is ${(articleDistance / 1_000).toFixed(1)} km away`,
+        reason:
+          `${wikipediaLanguageLabel(article.language)} article is ` +
+          `${(articleDistance / 1_000).toFixed(1)} km away`,
       };
     }
     return { kind: "article", article };
   }
 
-  const hits = (await client.searchWikipediaArticles(name, row.lat, row.lng)).filter(
+  const hits = (await client.searchWikipediaArticles(
+    name,
+    row.lat,
+    row.lng,
+    preferredLanguage
+  )).filter(
     (hit) =>
-      namesMatch(name, hit.title) &&
+      localizedWikipediaNamesMatch(name, hit.title, hit.language) &&
       distanceMeters(row.lat!, row.lng!, hit.coordinates.lat, hit.coordinates.lng) <=
         LISTED_PHOTO_GEOSEARCH_RADIUS_METERS
   );
-  const uniqueTitles = [...new Map(hits.map((hit) => [hit.title, hit])).values()];
+  const uniqueTitles = [
+    ...new Map(hits.map((hit) => [`${hit.language}:${hit.title}`, hit])).values(),
+  ];
   if (uniqueTitles.length !== 1) {
     return {
       kind: "miss",
       code: uniqueTitles.length === 0 ? "no_exact_article" : "ambiguous_article",
       reason:
         uniqueTitles.length === 0
-          ? "no exact nearby English Wikipedia article"
-          : `${uniqueTitles.length} exact nearby English Wikipedia articles`,
+          ? `no exact nearby ${wikipediaLanguageLabel(preferredLanguage)} Wikipedia article`
+          : `${uniqueTitles.length} exact nearby ${wikipediaLanguageLabel(preferredLanguage)} ` +
+            "Wikipedia articles",
     };
   }
 
-  const article = await client.fetchWikipediaArticle(uniqueTitles[0].title);
+  const article = await client.fetchWikipediaArticle(
+    uniqueTitles[0].title,
+    uniqueTitles[0].language
+  );
   if (
     !article ||
+    article.language !== uniqueTitles[0].language ||
     !/^Q\d+$/.test(article.wikidataId ?? "") ||
-    !namesMatch(name, article.title) ||
+    !localizedWikipediaNamesMatch(name, article.title, article.language) ||
     !article.coordinates
   ) {
     return {
@@ -648,7 +759,10 @@ export async function planListedPhotoCandidate(
       .filter((title): title is string => title !== null)
   )];
   if (historicalFileTitles.length > 0) {
-    const historicalMetadata = await client.fetchImageMetadata(historicalFileTitles);
+    const historicalMetadata = await client.fetchImageMetadata(
+      historicalFileTitles,
+      article.language
+    );
     const historicalMetadataByTitle = new Map<string, WikimediaImageMetadata>();
     for (const image of historicalMetadata) {
       for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
@@ -669,7 +783,7 @@ export async function planListedPhotoCandidate(
     }
   }
   const leadKey = article.leadImageTitle ? normalizedWords(article.leadImageTitle) : null;
-  const metadata = await client.fetchImageMetadata(fileTitles);
+  const metadata = await client.fetchImageMetadata(fileTitles, article.language);
   const metadataByTitle = new Map<string, WikimediaImageMetadata>();
   for (const image of metadata) {
     for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
@@ -714,12 +828,14 @@ export async function planListedPhotoCandidate(
       focalX: 50,
       focalY: 50,
       notes:
-        `Identity checked against English Wikipedia article ${article.title} ` +
+        `Identity checked against ${wikipediaLanguageLabel(article.language)} ` +
+        `Wikipedia article ${article.title} ` +
         `(${matchedWikidataId}); ${isLead ? "article lead image" : "file title names the destination"}. ` +
         "Framing requires human review.",
       matchedArticleTitle: article.title,
       matchedWikidataId,
       catalogWikidataId: row.wikidata_id,
+      catalogCountryCode: row.country_code,
       catalogLat: row.lat!,
       catalogLng: row.lng!,
       mediaSha1,
@@ -755,6 +871,7 @@ export async function queueListedPhotoCandidate(
     `SELECT d.name,
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
+            d.country_code,
             d.external_ids->>'wikidata' AS wikidata_id,
             (${USABLE_COVER_SQL}) AS has_usable_cover,
             EXISTS (
@@ -782,12 +899,14 @@ export async function queueListedPhotoCandidate(
   const currentName = nullableText(current.name);
   const currentLat = nullableNumber(current.lat);
   const currentLng = nullableNumber(current.lng);
+  const currentCountryCode = nullableText(current.country_code)?.toUpperCase() ?? null;
   const currentWikidataId = nullableText(current.wikidata_id);
   const wikidataChanged = candidate.catalogWikidataId
     ? currentWikidataId !== candidate.catalogWikidataId
     : currentWikidataId !== null && currentWikidataId !== candidate.matchedWikidataId;
   if (
     wikidataChanged ||
+    currentCountryCode !== candidate.catalogCountryCode ||
     currentName !== candidate.destinationName ||
     currentLat === null ||
     currentLng === null ||
