@@ -1,8 +1,8 @@
 /**
  * Imports the eight reviewed DoBIH open-list rosters from saved fixtures.
  *
- * Dry-run is the default. Apply refuses to write unless every list resolves
- * to its full, unique membership.
+ * Dry-run is the default. Destination staging and list publication are
+ * separate. Publication also requires complete summit and route covers.
  */
 
 import fs from "node:fs/promises";
@@ -50,11 +50,14 @@ export async function runDobihOpenEightCommand(
       client,
       fixture,
       resolutions,
-      args.apply,
+      args.mode,
       DOBIH_OPEN_EIGHT_KEEPER_LISTS
     );
     writeLine(JSON.stringify(report, null, 2));
-    return report.complete ? 0 : 2;
+    return report.complete &&
+      (args.mode !== "check-publication" || report.publication?.ready === true)
+      ? 0
+      : 2;
   } finally {
     client.release();
     await end();

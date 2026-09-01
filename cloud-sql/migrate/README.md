@@ -82,3 +82,22 @@ Its deferred trigger stops a pending Peaks-owned route from becoming active
 unless one linked destination supplies an image, named credit, and credit link.
 The final zero-gap audit still checks old active routes and later photo changes.
 The trigger adds no service and has a fixed cost of $0/month.
+
+## Keeper list publication
+
+Keeper imports use four separate phases. The default is an identity dry run.
+The three explicit modes are:
+
+```bash
+npm run import:keeper-lists -- --input=/path/to/roster.json --resolutions=/path/to/review.json --stage-destinations
+npm run import:keeper-lists -- --input=/path/to/roster.json --resolutions=/path/to/review.json --check-publication
+npm run import:keeper-lists -- --input=/path/to/roster.json --resolutions=/path/to/review.json --publish-lists
+```
+
+Use `import:keeper-lists:dobih-open-eight` for that bundle. The same flags and
+order apply. The old `--apply` flag is disabled. A publish run fails until all
+reviewed destinations have been staged, each summit has a credited cover and a
+publish-valid covered route, and every active Peaks route has a cover.
+
+See the [staged publication audit](../../docs/data-audits/keeper-list-staged-publication-gate-2026-08-31.md)
+for the full gate and rollout order.
