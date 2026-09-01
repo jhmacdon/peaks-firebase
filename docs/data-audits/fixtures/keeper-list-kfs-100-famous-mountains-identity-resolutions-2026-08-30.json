@@ -122,6 +122,10 @@
           "destinationOsmNodeId": "5368979882",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5368979882",
+            "wikidata": "Q5521102"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5368979882",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -464,6 +468,10 @@
           "destinationOsmNodeId": "1862839230",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1862839230",
+            "wikidata": "Q5208296"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1862839230",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -591,6 +599,10 @@
           "destinationOsmNodeId": "1479832159",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1479832159",
+            "wikidata": "Q5316834"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1479832159",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -1061,6 +1073,10 @@
           "destinationOsmNodeId": "5371870467",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5371870467",
+            "wikidata": "Q7451509"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5371870467",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -1488,6 +1504,10 @@
           "destinationOsmNodeId": "5750036142",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5750036142",
+            "wikidata": "Q6154017"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5750036142",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -1531,6 +1551,10 @@
           "destinationOsmNodeId": "5371885873",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5371885873",
+            "wikidata": "Q8533740"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5371885873",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -1744,6 +1768,10 @@
           "destinationOsmNodeId": "5381320862",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "5381320862",
+            "wikidata": "Q626656"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/5381320862",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -1979,6 +2007,10 @@
           "destinationOsmNodeId": "8334051398",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "8334051398",
+            "wikidata": "Q494645"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/8334051398",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",
@@ -2130,6 +2162,10 @@
           "destinationOsmNodeId": "1863254729",
           "destinationCountryCode": "KR",
           "destinationStateCode": null,
+          "destinationExternalIds": {
+            "osm": "1863254729",
+            "wikidata": "Q5701198"
+          },
           "destinationDataSourceName": "Korea Forest Service and OpenStreetMap contributors",
           "destinationDataSourceUrl": "https://www.openstreetmap.org/node/1863254729",
           "destinationDataLicense": "OSM coordinates: ODbL 1.0; KFS roster used for source identity",

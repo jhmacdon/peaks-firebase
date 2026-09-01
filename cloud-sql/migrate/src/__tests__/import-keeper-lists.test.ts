@@ -682,6 +682,57 @@ test("a curated OSM destination cannot reuse a globally owned noneligible OSM ID
   );
 });
 
+test("curated destinations keep reviewed external IDs and reject another owner", () => {
+  const reviewed: KeeperResolutionFixture = {
+    schemaVersion: 1,
+    reviewedAt: "2026-08-30",
+    catalogSnapshotSha256: "a".repeat(64),
+    lists: {
+      "test-source": {
+        rows: [{
+          sourceKey: "test-source",
+          sourceMemberId: "keeper:1",
+          resolution: "curated_destination",
+          destinationId: deterministicOsmKeeperDestinationId("123"),
+          destinationName: "Pico de Prueba",
+          destinationElevationM: 1_000,
+          destinationLat: 56,
+          destinationLng: -4,
+          destinationOsmNodeId: "123",
+          destinationCountryCode: "GB",
+          destinationStateCode: null,
+          destinationExternalIds: { osm: "123", wikidata: "Q123" },
+          destinationDataSourceName: "Test source",
+          destinationDataSourceUrl: "https://example.test/source",
+          destinationDataLicense: null,
+          evidence: ["Reviewed test source"],
+        }],
+      },
+    },
+  };
+  const first = catalogWithReviewedKeeperDestinations(
+    [], onePeakFixture, reviewed, [onePeakList]
+  );
+  assert.deepEqual(first.destinationsToAdd[0].externalIds, {
+    osm: "123",
+    wikidata: "Q123",
+  });
+  assert.deepEqual(first.catalog[0].externalIds, { osm: "123", wikidata: "Q123" });
+  assert.equal(catalogWithReviewedKeeperDestinations(
+    first.catalog, onePeakFixture, reviewed, [onePeakList]
+  ).destinationsToAdd.length, 0);
+  assert.throws(
+    () => catalogWithReviewedKeeperDestinations(
+      [],
+      onePeakFixture,
+      reviewed,
+      [onePeakList],
+      [{ destinationId: "other", key: "wikidata", value: "Q123" }]
+    ),
+    /requested external ID wikidata=Q123, but it belongs to other/
+  );
+});
+
 test("reviewed new destinations are stable, unique, and cannot hide a catalog duplicate", () => {
   const reviewedRows = Object.values(resolutions.lists).flatMap((list) => list.rows);
   const curatedRows = reviewedRows.filter((row) => row.resolution === "curated_destination");
@@ -1594,6 +1645,8 @@ test("the keeper importer does not write keeper IDs into destination external ID
   assert.match(source, /did not persist with its exact reviewed fingerprint/);
   assert.match(source, /keeper_roster_source/);
   assert.match(source, /'keeper_roster_source', incoming\.keeper_roster_source/);
+  assert.match(source, /osm_id text, external_ids jsonb/);
+  assert.match(source, /incoming\.external_ids/);
   assert.doesNotMatch(source, /sourceKey\.startsWith\("dobih-"\)/);
   assert.doesNotMatch(source, /CASE WHEN incoming\.source_key LIKE 'dobih-%'/);
   assert.match(source, /COALESCE\(metadata->'names', '\{\}'::jsonb\)/);
