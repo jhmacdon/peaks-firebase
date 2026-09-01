@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-31",
+  "sourceUrl": "https://api.openstreetmap.org/api/0.6/node/2781920981.json",
+  "sourcePageUrl": "https://www.openstreetmap.org/node/2781920981",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "node": {
+    "type": "node",
+    "id": 2781920981,
+    "lat": 56.8795609,
+    "lon": -5.0137955,
+    "version": 1,
+    "timestamp": "2014-04-10T18:21:03Z",
+    "tags": {
+      "corbett": "no",
+      "description": "Crooked slope",
+      "ele": "232",
+      "graham": "no",
+      "marilyn": "yes",
+      "munro": "no",
+      "name": "Cruim Leacainn",
+      "natural": "peak",
+      "prominence": "150"
+    }
+  }
+}
