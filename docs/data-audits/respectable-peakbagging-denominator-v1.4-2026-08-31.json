@@ -1,0 +1,3421 @@
+{
+  "schema_version": "1.4.0",
+  "registry_version": "2026-08-31-primary-source-lower-bound-4",
+  "created_at": "2026-08-31T00:00:00-07:00",
+  "audit_posture": "adversarial",
+  "scope": {
+    "result_type": "confirmed lower bound, not an exhaustive global denominator",
+    "confirmed_qualifying_units": 83,
+    "coverageClaimSupported": false,
+    "majorityClaimSupported": false,
+    "reason": "Registry v1.3 proved 74 qualifying units. This pass proves nine more: five Mountaineers awards and one unit each from New Zealand, Taiwan, South Africa, and Japan. Two Colorado Mountain Club completion categories remain uncertain because the owner publishes neither exact row manifests nor stable inclusion keys. Several source families and regions still lack a closed discovery boundary.",
+    "rights_rule": "A list that qualifies stays in the denominator even when Peaks lacks reuse rights. Rights and import readiness are separate fields.",
+    "warning": "Do not call 83 the worldwide total. Publish it as a dated confirmed lower bound, keep source defects visible, and accept cited additions and corrections."
+  },
+  "proposal_summary": {
+    "proposed_rows": 50,
+    "confirmed_qualifying_units_represented": 41,
+    "new_confirmed_omissions": 42,
+    "uncertain_rows": 2,
+    "rejected_rows": 7,
+    "current_31": {
+      "exact_current_keepers": 22,
+      "remove": [
+        "Oregon Volcanoes",
+        "Sierra Peaks Section Emblem Peaks",
+        "Tennessee 4500ft Peaks",
+        "Ultras of Iran",
+        "Ultras of the Contiguous United States",
+        "Washington State Volcanoes"
+      ],
+      "replace_current_roster": [
+        "Traditional Colorado Centennials -> Colorado Centennials current LiDAR/GNSS roster"
+      ],
+      "hold_uncertain": [
+        "Utah 13ers",
+        "Oregon Top 100"
+      ],
+      "keep_but_rekey_source": [
+        "Idaho 12ers -> Idaho: A Climbing Guide, The 12ers"
+      ]
+    },
+    "other_required_corrections": [
+      "Donald Hills 89 -> one Donalds unit of 141",
+      "Great Britain Marilyns 1556 -> revised 1550",
+      "Southeast Asian Ribus 548 -> reject as stale 229-member regional slice of World Ribus"
+    ],
+    "interpretation": "The 41 proposal-derived qualifying units plus 42 newly proved omissions produce the 83-unit confirmed lower bound.",
+    "v1_4_additions": [
+      "mountaineers-five-majors",
+      "mountaineers-bakers-dozen",
+      "mountaineers-cascade-classics",
+      "mountaineers-everett-classic-eight",
+      "mountaineers-olympic-peaks",
+      "nzac-100-peaks-challenge",
+      "taiwan-small-100",
+      "mcsa-stellenbosch-10-peaks",
+      "jac-japan-300-mountains"
+    ]
+  },
+  "field_schemas": {
+    "proposal_audit": [
+      "ordinal",
+      "name",
+      "stage",
+      "decision",
+      "registry_id_or_replacement",
+      "claimed_count",
+      "confirmed_count_or_variants",
+      "peaks_list_id",
+      "coverage",
+      "rights_status",
+      "import_status",
+      "primary_source",
+      "reason"
+    ],
+    "qualifying_list": [
+      "id",
+      "name",
+      "region",
+      "keeper",
+      "membership_count_or_variants",
+      "membership_key",
+      "primary_source",
+      "source_class",
+      "rights_status",
+      "import_status",
+      "proposal_relation",
+      "notes"
+    ],
+    "uncertain_candidate": [
+      "id",
+      "name",
+      "region",
+      "claimed_count",
+      "source",
+      "rights_status",
+      "import_status",
+      "uncertainty"
+    ],
+    "coverage_mapping": [
+      "registry_id",
+      "peaks_list_id",
+      "peaks_name",
+      "membership_count_or_compound_key",
+      "coverage_state",
+      "roster_key"
+    ]
+  },
+  "objective_rules": [
+    {
+      "id": "R1-unit",
+      "rule": "One denominator unit is one externally named, finite, ongoing summit or high-point challenge, award, or completion register with a stable roster or version key."
+    },
+    {
+      "id": "R2-proof",
+      "rule": "Qualification needs either a federation, club, government, or author-maintained award/register, or a named challenge with an authoritative public roster and at least ten years of documented completion practice."
+    },
+    {
+      "id": "R3-members",
+      "rule": "Members must be summits or jurisdiction high points. The roster must be finite and identify each member well enough to build a reproducible crosswalk."
+    },
+    {
+      "id": "R4-one-current-unit",
+      "rule": "Count one current challenge once. Retired editions, map-datum editions, winter rounds, and alternative accepted rosters are variants of that unit unless a keeper gives each a distinct award or register."
+    },
+    {
+      "id": "R5-parent-subset",
+      "rule": "A parent and subset may both count only when the keeper offers distinct awards or registers. A regional browse slice of a global database is not a second unit."
+    },
+    {
+      "id": "R6-exclusions",
+      "rule": "Exclude app-made collections, raw database filters, arbitrary threshold cuts with no outside challenge tradition, and a product-selected subset of another page. A real outside named source can cure the last defect, as Idaho's 12ers does."
+    },
+    {
+      "id": "R7-rights",
+      "rule": "Qualification does not depend on whether Peaks can import the roster. Keep a qualifying rights-blocked list in the denominator and mark it blocked."
+    },
+    {
+      "id": "R8-no-cap",
+      "rule": "Do not impose an after-the-fact minimum or maximum member count. Three-peak, five-peak, nine-peak, and multi-thousand-peak registers qualify when they meet the same proof rule."
+    },
+    {
+      "id": "R9-rounds",
+      "rule": "A classic route or timed round qualifies only when it also has a stable named summit roster and an ongoing cumulative completion tradition."
+    },
+    {
+      "id": "R10-coverage",
+      "rule": "Count Peaks coverage only when the product list ID has the current accepted roster key and exact membership. A retired roster or wrong count is zero coverage until corrected."
+    },
+    {
+      "id": "R11-geography",
+      "rule": "Use no geographic quota, but report discovery coverage by region and leave the registry open where primary-source discovery is incomplete."
+    }
+  ],
+  "rights_status_values": {
+    "open_cc_by_4": "Roster data may be reused with CC BY 4.0 attribution.",
+    "open_government": "The keeper publishes the roster with unrestricted government-data reuse.",
+    "permission_required": "The source reserves rights or limits downloads; obtain commercial permission before import.",
+    "unverified_no_reuse_license": "The public page proves the list but gives no clear roster-reuse grant.",
+    "legacy_import_unverified": "Peaks already has a roster, but this audit did not prove the old import's reuse grant."
+  },
+  "proposal_audit": [
+    [
+      1,
+      "Bulger List",
+      "current",
+      "qualifies",
+      "bulger-wa-100",
+      100,
+      100,
+      "DOlya3YYfIg60trgTm0n",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.countryhighpoints.com/washington-hundred-highest-bulgers/",
+      "Named Washington Hundred Highest/Bulger challenge with a public history and completion record."
+    ],
+    [
+      2,
+      "California Fourteeners",
+      "current",
+      "qualifies",
+      "california-fourteeners",
+      15,
+      15,
+      "B2867467BB8132CB8D34",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "Steven Porcella and Cameron Burns, California's Fourteeners (1991), ISBN 0963049003",
+      "Author-defined, long-lived fifteen-peak challenge."
+    ],
+    [
+      3,
+      "Cascade Volcanoes Peak Pin",
+      "current",
+      "qualifies",
+      "mountaineers-cascade-volcanoes-pin",
+      20,
+      20,
+      "ULCGhLnsWcYYRqXQ3aOo",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.mountaineers.org/membership/badges/award-badges/tacoma-branch/tacoma-branch-cascade-volcanoes",
+      "The Mountaineers offers a distinct all-twenty peak pin."
+    ],
+    [
+      4,
+      "Colorado 14ers",
+      "current",
+      "qualifies",
+      "colorado-fourteeners",
+      53,
+      53,
+      "LAZcIKjluO0oT3o9g6MC",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.14ers.com/14ers",
+      "Long-lived named completion challenge; this key uses the traditional ranked 53."
+    ],
+    [
+      5,
+      "Mazama Guardian Peaks",
+      "current",
+      "qualifies",
+      "mazamas-guardian-peaks",
+      3,
+      3,
+      "dd7K4267UF9mBlg6yUgh",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://mazamas.org/awards/",
+      "Mazamas offers a distinct three-peak award."
+    ],
+    [
+      6,
+      "Nevada Peaks Club",
+      "current",
+      "qualifies",
+      "nevada-peaks-club",
+      73,
+      73,
+      "z9Esvqgng0SvnQVP16iI",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "http://www.peakbagging.com/NPCart1.htm",
+      "The Nevada Peaks Club keeps the named challenge and finishers."
+    ],
+    [
+      7,
+      "Oregon Volcanoes",
+      "current",
+      "reject",
+      null,
+      11,
+      null,
+      "4HxxAe4pgIKHU9gbOxtV",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://mazamas.org/awards/",
+      "Peaks-made collection. Replace the idea with Mazamas' Seven Oregon Cascades award; do not rename the eleven as that award."
+    ],
+    [
+      8,
+      "Sierra Peaks Section Emblem Peaks",
+      "current",
+      "reject",
+      null,
+      15,
+      null,
+      "43142E0739A961123EDC",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://www.sierraclub.org/angeles/sierra-peaks/awards-emblems",
+      "The emblem requires any ten Emblem Peaks plus other SPS peaks, not completion of a fixed fifteen-peak roster. The full SPS list is the cumulative unit."
+    ],
+    [
+      9,
+      "Smoot's 100",
+      "current",
+      "qualifies",
+      "smoots-100",
+      100,
+      100,
+      "XHG0eHY8ePaltNO3dWs0",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "Jeff Smoot, Climbing Washington's Mountains (Falcon, 2002), ISBN 0762710861",
+      "Author-defined named list with more than twenty years of use."
+    ],
+    [
+      10,
+      "Tennessee 4500ft Peaks",
+      "current",
+      "reject",
+      null,
+      55,
+      null,
+      "3S29a3viZKKnSMz4wzPQ",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://www.peakbagger.com/list.aspx?lid=21457",
+      "A Peakbagger elevation filter with no distinct outside keeper, award, register, or documented completion tradition."
+    ],
+    [
+      11,
+      "The Seven Summits",
+      "current",
+      "qualifies",
+      "seven-summits",
+      7,
+      {
+        "Messner": 7,
+        "Bass": 7
+      },
+      "hPNDxe5mvtLjtlTnWlnf",
+      "current_exact_messner_variant",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.guinnessworldrecords.com/world-records/tallest-mountain",
+      "One challenge unit with accepted Messner and Bass variants; Peaks holds the Messner roster."
+    ],
+    [
+      12,
+      "Ultras of Iran",
+      "current",
+      "reject",
+      null,
+      55,
+      null,
+      "cJb67d0QVHo9F7qSLUGi",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://www.peakbagger.com/list.aspx?lid=49301",
+      "A geographic slice of the ultra-prominence taxonomy, with no distinct award or register found."
+    ],
+    [
+      13,
+      "Ultras of the Contiguous United States",
+      "current",
+      "reject",
+      null,
+      57,
+      null,
+      "9zsS3gPZhQCiPMl0DRMf",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://www.peakbagger.com/list.aspx?lid=4904",
+      "A geographic slice of the ultra-prominence taxonomy, with no distinct award or register found."
+    ],
+    [
+      14,
+      "US State High Points",
+      "current",
+      "qualifies",
+      "us-state-highpoints",
+      50,
+      50,
+      "dR9aHGKw3VwBhfsHSwlB",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://highpointers.org/",
+      "The Highpointers Club maintains the fifty-state completion tradition."
+    ],
+    [
+      15,
+      "Utah 13ers",
+      "current",
+      "uncertain",
+      null,
+      19,
+      {
+        "Peakbagger": 19,
+        "other_public_variants": [
+          13,
+          21
+        ]
+      },
+      "JCKrJp4PR2Ygtz6hLJLv",
+      "excluded_from_confirmed_denominator",
+      "legacy_import_unverified",
+      "hold",
+      "https://www.peakbagger.com/list.aspx?lid=21349",
+      "The name and count vary, and no primary keeper, award, or completion register was found."
+    ],
+    [
+      16,
+      "Traditional Alpine Lakes Home Court",
+      "current",
+      "qualifies",
+      "traditional-alpine-lakes-home-court",
+      100,
+      100,
+      "grDJmpZ6mtpgtFY8X7i1",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "http://howbert.com/mountains/back_court/back_court_article.html",
+      "Jeff Howbert's named 1995 roster and recorded finishers establish the challenge."
+    ],
+    [
+      17,
+      "Washington State Volcanoes",
+      "current",
+      "reject",
+      null,
+      5,
+      null,
+      "YtFZZHcw3YKGERzO0JEW",
+      "not_qualifying",
+      "legacy_import_unverified",
+      "remove",
+      "https://mazamas.org/awards/",
+      "Peaks-made collection. Mazamas and The Mountaineers have real but different volcano awards; this five-peak set has no outside keeper."
+    ],
+    [
+      18,
+      "Adirondack 46ers",
+      "current",
+      "qualifies",
+      "adirondack-46ers",
+      46,
+      46,
+      "2945F52A0B9B7AC3E190",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://adk46er.org/a-bit-of-history/",
+      "The Adirondack Forty-Sixers keeps the historic list and completer record."
+    ],
+    [
+      19,
+      "New England 4000-Footers",
+      "current",
+      "qualifies",
+      "amc-new-england-4000",
+      67,
+      67,
+      "16E88FE9AFBC532C05CE",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.amc4000footer.org/",
+      "One of four distinct AMC Four Thousand Footer Club all-season awards."
+    ],
+    [
+      20,
+      "Oregon Top 100 Peaks",
+      "current",
+      "uncertain",
+      null,
+      100,
+      100,
+      "348C43996E0F828CD414",
+      "excluded_from_confirmed_denominator",
+      "legacy_import_unverified",
+      "hold",
+      "https://www.glassmountains.us/clm_or100a.html",
+      "A documented 1996 named list and completion practice exist, but no current primary keeper for the LiDAR-era roster was found."
+    ],
+    [
+      21,
+      "Traditional Colorado Centennials",
+      "current",
+      "replace",
+      "colorado-centennials-current-lidar",
+      100,
+      100,
+      "82746E80A10CB7C0FBA5",
+      "current_roster_not_covered",
+      "legacy_import_unverified",
+      "replace_roster",
+      "https://www.countryhighpoints.com/gnss-based-colorado-centennials-list/",
+      "The product holds the retired quad-based 1977-2021 roster. Count the one continuing Centennial challenge against its current LiDAR/GNSS roster."
+    ],
+    [
+      22,
+      "New Hampshire 4000-Footers",
+      "current",
+      "qualifies",
+      "amc-new-hampshire-4000",
+      48,
+      48,
+      "1F41A3B59884FC63C614",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.amc4000footer.org/",
+      "Distinct AMC award."
+    ],
+    [
+      23,
+      "Catskill 3500",
+      "current",
+      "qualifies",
+      "catskill-3500",
+      33,
+      33,
+      "383FD2173C973917CFBB",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://catskill-3500-club.org/peaks/",
+      "The Catskill 3500 Club keeps the roster and membership challenge."
+    ],
+    [
+      24,
+      "New England Hundred Highest",
+      "current",
+      "qualifies",
+      "amc-new-england-hundred-highest",
+      100,
+      100,
+      "EA39DF819ED3592904FB",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.amc4000footer.org/",
+      "Distinct AMC award."
+    ],
+    [
+      25,
+      "Northeast 111/115",
+      "current",
+      "qualifies",
+      "amc-northeast-115",
+      115,
+      115,
+      "6A04B522211FE1C3E375",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.amc4000footer.org/",
+      "Distinct AMC award; 115 is the current membership count and 111 is the historic name."
+    ],
+    [
+      26,
+      "Desert Peaks Section",
+      "current",
+      "qualifies",
+      "sierra-club-desert-peaks",
+      95,
+      95,
+      "B9FF8D354285BB97D057",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://desertpeaks.org/about/",
+      "The Sierra Club section keeps a full-list completion emblem and roster."
+    ],
+    [
+      27,
+      "Tahoe Ogul Peaks",
+      "current",
+      "qualifies",
+      "tahoe-ogul",
+      63,
+      63,
+      "3B96675933CC7E424A7E",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.tahoeogul.org/history-of-the-oguls/",
+      "Named list with a maintained history and completion tradition."
+    ],
+    [
+      28,
+      "South Beyond 6000",
+      "current",
+      "qualifies",
+      "south-beyond-6000",
+      40,
+      40,
+      "17A38951FA2EFAC16F77",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://carolinamountainclub.org/hiking/hike-challenges/south-beyond-6000-challenge-sb6k/",
+      "Two clubs jointly keep the forty-peak challenge and award."
+    ],
+    [
+      29,
+      "Idaho 12ers",
+      "current",
+      "qualifies_rekey_source",
+      "idaho-12ers",
+      9,
+      9,
+      "5C16243B2F33DC56D7E2",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_but_source_key_must_change",
+      "https://www.idahoaclimbingguide.com/the-12ers/",
+      "The exact nine have a real outside named source. Replace the product's misleading source derivation from an Idaho 11,000-foot page."
+    ],
+    [
+      30,
+      "Sierra Peaks Section",
+      "current",
+      "qualifies",
+      "sierra-club-sierra-peaks",
+      247,
+      247,
+      "73DC8A7D8D517F801F0B",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://www.sierraclub.org/angeles/sierra-peaks/peaks-list",
+      "The full SPS roster has its own completion emblem."
+    ],
+    [
+      31,
+      "Hundred Peaks Section",
+      "current",
+      "qualifies",
+      "sierra-club-hundred-peaks",
+      280,
+      280,
+      "91FB0E2033C11ACC6646",
+      "current_exact",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "https://hundredpeaks.org/about/",
+      "The full HPS roster has a completion emblem and register."
+    ],
+    [
+      32,
+      "Classic 8000-Meter Peaks",
+      "queued",
+      "qualifies",
+      "classic-8000m",
+      14,
+      14,
+      "9D3891FC36C4A9EB6F98",
+      "queued_exact",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "https://www.theuiaa.org/8000m-peaks/",
+      "One classic fourteen-peak unit; subsidiary 8000m tops are not separate units."
+    ],
+    [
+      33,
+      "UIAA Alpine 4000ers",
+      "queued",
+      "qualifies",
+      "uiaa-alps-4000-main",
+      82,
+      {
+        "main": 82,
+        "extended": 46
+      },
+      "4902426801549C6CC704",
+      "queued_exact_main_variant",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "https://www.theuiaa.org/4000-alps/",
+      "Count the main 82 once; the UIAA extended 46 are a variant, not another unit."
+    ],
+    [
+      34,
+      "Munros",
+      "queued",
+      "qualifies",
+      "smc-munros",
+      282,
+      282,
+      "31B6457AF88EEA2B8FEA",
+      "queued_exact",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "https://www.smc.org.uk/hills/",
+      "SMC keeps the list and completion register."
+    ],
+    [
+      35,
+      "New Hampshire 52 With a View",
+      "queued",
+      "qualifies",
+      "new-hampshire-52-with-a-view",
+      54,
+      {
+        "challenge_entries": 52,
+        "required_summits": 54
+      },
+      "88D28274BF911652C36E",
+      "queued_exact_compound_key",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html",
+      "The current keeper roster has 52 challenge entries and 54 required summits because two entries pair neighboring summits; the checked fixture matches all current entries and both companion summits."
+    ],
+    [
+      36,
+      "Corbetts",
+      "queued",
+      "qualifies",
+      "smc-corbetts",
+      222,
+      222,
+      "90D16FA85888AFF87D21",
+      "queued_exact",
+      "open_cc_by_4",
+      "queued_exact",
+      "https://www.smc.org.uk/hills/",
+      "SMC list; queued roster is DoBIH v18.5 C=1."
+    ],
+    [
+      37,
+      "Wainwrights",
+      "queued",
+      "qualifies",
+      "wainwrights",
+      214,
+      214,
+      "14DB769BB51BAFF29BC1",
+      "queued_exact",
+      "open_cc_by_4",
+      "queued_exact",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "Distinct LDWA Register 2A; queued roster is DoBIH v18.5 W=1."
+    ],
+    [
+      38,
+      "UIAA Pyrenees Main 3000ers",
+      "queued",
+      "qualifies",
+      "uiaa-pyrenees-main-3000",
+      129,
+      {
+        "main": 129,
+        "secondary": 83
+      },
+      "E0F0541E40FCB7B142FE",
+      "queued_exact_main_variant",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "https://www.theuiaa.org/3000-pyrenees/",
+      "One main-list unit; queued roster keys to UIAA Bulletin 152 and fixes the current page's table error."
+    ],
+    [
+      39,
+      "Furths",
+      "gap",
+      "qualifies",
+      "smc-furths",
+      34,
+      34,
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://www.smc.org.uk/hills/",
+      "SMC maintains the list and accepts hill-list completion submissions."
+    ],
+    [
+      40,
+      "Grahams",
+      "gap",
+      "qualifies",
+      "grahams",
+      231,
+      {
+        "current_600m": 231,
+        "smc_legacy_completion_2000ft": 219
+      },
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://www.smc.org.uk/hills/",
+      "One Graham unit with a current 600m roster and an SMC legacy completion variant."
+    ],
+    [
+      41,
+      "Nuttalls",
+      "gap",
+      "qualifies",
+      "ldwa-england-wales-2000",
+      442,
+      {
+        "Nuttalls": 442,
+        "Hewitts_England_Wales": 316
+      },
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://ldwa.org.uk/hillwalkers/register1.php",
+      "One LDWA Register 1 challenge unit; accepted English/Welsh 2000-foot roster variants are not separate denominator units."
+    ],
+    [
+      42,
+      "Donald Hills",
+      "gap",
+      "replace",
+      "smc-donalds",
+      89,
+      {
+        "Donalds_total": 141,
+        "Donald_Hills": 89,
+        "Donald_Tops": 52
+      },
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://www.smc.org.uk/hills/",
+      "The official current Donald list is one 141-summit unit. Do not count Hills and Tops twice."
+    ],
+    [
+      43,
+      "Vandeleur-Lynams",
+      "gap",
+      "qualifies",
+      "vandeleur-lynams",
+      275,
+      275,
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://www.mountaineering.ie/content/ChallengeYourself/143",
+      "Mountaineering Ireland names the traditional list; MountainViews records finishers and awards."
+    ],
+    [
+      44,
+      "Korean Forest Service 100 Famous Mountains",
+      "gap",
+      "qualifies",
+      "kfs-100-famous-mountains",
+      100,
+      100,
+      null,
+      "not_covered",
+      "open_government",
+      "not_imported_open",
+      "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
+      "The Korean Forest Service selected and published the roster in 2002. Its official XLSX dated 2022-01-01 contains 100 rows and matches the live KFS roster checked 2026-08-30; the public-data portal states unrestricted reuse."
+    ],
+    [
+      45,
+      "Great Britain Marilyns",
+      "gap",
+      "qualifies_current_count",
+      "great-britain-marilyns",
+      1556,
+      1550,
+      null,
+      "not_covered",
+      "open_cc_by_4",
+      "not_imported_open",
+      "https://www.pedantic.rhb.org.uk/index.php/registers/43-registers/886-marilyn-hall-of-fame",
+      "Use the revised current 1,550 roster, not the stale 1,556 count. RHSoc has a distinct completion register."
+    ],
+    [
+      46,
+      "Japan Hyakumeizan",
+      "rights",
+      "qualifies",
+      "japan-hyakumeizan",
+      100,
+      100,
+      null,
+      "not_covered",
+      "permission_required",
+      "blocked_permission",
+      "https://100meizan.org/mt_list_all/",
+      "Named author list with a long completion tradition; lack of reuse rights does not remove it."
+    ],
+    [
+      47,
+      "New Zealand 3000m Peaks",
+      "rights",
+      "qualifies",
+      "new-zealand-3000m-peaks",
+      24,
+      24,
+      null,
+      "not_covered",
+      "permission_required",
+      "blocked_noncommercial_or_permission",
+      "https://alpineclub.org.nz/sites/default/files/2023-07/NZAJ_22A%208-15.pdf",
+      "NZ Alpine Journal documents the exact 24, a seventy-year completion goal, and finishers. ClimbNZ's usable crosswalk is CC BY-NC-SA, so commercial import needs permission."
+    ],
+    [
+      48,
+      "Taiwan Baiyue",
+      "rights",
+      "qualifies",
+      "taiwan-baiyue",
+      100,
+      100,
+      null,
+      "not_covered",
+      "permission_required",
+      "blocked_permission",
+      "https://www.tmca-tpe.org/content.asp?cat=98&id=643&type=1",
+      "The Taiwan Mountaineering Association documents the named hundred; no commercial roster-reuse grant was found."
+    ],
+    [
+      49,
+      "Tasmania Abels",
+      "rights",
+      "qualifies",
+      "tasmania-abels",
+      158,
+      158,
+      null,
+      "not_covered",
+      "permission_required",
+      "blocked_permission",
+      "https://www.hobartwalkingclub.org.au/resources/peak-baggers-list/",
+      "Hobart Walking Club keeps the 158-peak Abel list and completion tradition."
+    ],
+    [
+      50,
+      "Southeast Asian Ribus",
+      "rights",
+      "reject_double_count_and_stale_count",
+      "world-ribus",
+      548,
+      229,
+      null,
+      "not_qualifying_as_separate_unit",
+      "permission_required",
+      "do_not_import_as_separate_list",
+      "https://worldribus.org/southeast-asia/",
+      "The current official regional page has 229, not 548. It is a browse slice of World Ribus; the completion register is for the global Ribus class, so count one World Ribus unit only."
+    ]
+  ],
+  "confirmed_qualifying_set": [
+    [
+      "bulger-wa-100",
+      "Bulger List / Washington Hundred Highest",
+      "North America",
+      "The Bulgers / Washington Hundred Highest community",
+      100,
+      "countryhighpoints Bulgers roster, accessed 2026-08-30, 100",
+      "https://www.countryhighpoints.com/washington-hundred-highest-bulgers/",
+      "keeper-history-and-roster",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-1",
+      "Product ID DOlya3YYfIg60trgTm0n."
+    ],
+    [
+      "california-fourteeners",
+      "California Fourteeners",
+      "North America",
+      "Steven Porcella and Cameron Burns",
+      15,
+      "California's Fourteeners, 1991 author roster, 15",
+      "https://openlibrary.org/search.json?q=California%27s+Fourteeners+Porcella",
+      "author-book",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-2",
+      "Product ID B2867467BB8132CB8D34."
+    ],
+    [
+      "mountaineers-cascade-volcanoes-pin",
+      "Cascade Volcanoes Peak Pin",
+      "North America",
+      "The Mountaineers, Tacoma Branch",
+      20,
+      "Mountaineers current peak-pin roster, accessed 2026-08-30, 20",
+      "https://www.mountaineers.org/membership/badges/award-badges/tacoma-branch/tacoma-branch-cascade-volcanoes",
+      "club-award",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-3",
+      "Product ID ULCGhLnsWcYYRqXQ3aOo."
+    ],
+    [
+      "colorado-fourteeners",
+      "Colorado 14ers",
+      "North America",
+      "Colorado 14er completion community",
+      53,
+      "traditional ranked Colorado 14ers, 53",
+      "https://www.14ers.com/14ers",
+      "authoritative-community-roster",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-4",
+      "Product ID LAZcIKjluO0oT3o9g6MC; record the rule because some sources count 58 named summits."
+    ],
+    [
+      "mazamas-guardian-peaks",
+      "Mazama Guardian Peaks",
+      "North America",
+      "Mazamas",
+      3,
+      "Mazamas Guardian Peaks award roster, accessed 2026-08-30, 3",
+      "https://mazamas.org/awards/",
+      "club-award",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-5",
+      "Product ID dd7K4267UF9mBlg6yUgh."
+    ],
+    [
+      "nevada-peaks-club",
+      "Nevada Peaks Club",
+      "North America",
+      "Nevada Peaks Club",
+      73,
+      "Nevada Peaks Club keeper roster, current 73",
+      "http://www.peakbagging.com/NPCart1.htm",
+      "club-roster-and-completers",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-6",
+      "Product ID z9Esvqgng0SvnQVP16iI."
+    ],
+    [
+      "smoots-100",
+      "Smoot's 100",
+      "North America",
+      "Jeff Smoot",
+      100,
+      "Climbing Washington's Mountains, 2002 author selection, 100",
+      "https://openlibrary.org/search.json?q=Climbing+Washington%27s+Mountains+Smoot",
+      "author-book",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-9",
+      "Product ID XHG0eHY8ePaltNO3dWs0."
+    ],
+    [
+      "seven-summits",
+      "Seven Summits",
+      "Global",
+      "Seven Summits record tradition / Guinness World Records",
+      {
+        "Messner": 7,
+        "Bass": 7
+      },
+      "one unit; variant=Messner or Bass; snapshot 2026-08-30",
+      "https://www.guinnessworldrecords.com/world-records/tallest-mountain",
+      "record-and-completion-tradition",
+      "legacy_import_unverified",
+      "current_exact_messner_variant",
+      "proposal-current-11",
+      "Product ID hPNDxe5mvtLjtlTnWlnf holds the Messner variant."
+    ],
+    [
+      "us-state-highpoints",
+      "US State High Points",
+      "North America",
+      "Highpointers Club",
+      50,
+      "Highpointers Club fifty-state roster",
+      "https://highpointers.org/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-14",
+      "Product ID dR9aHGKw3VwBhfsHSwlB."
+    ],
+    [
+      "traditional-alpine-lakes-home-court",
+      "Traditional Alpine Lakes Home Court",
+      "North America",
+      "Jeff Howbert",
+      100,
+      "Howbert Pack & Paddle July 1995 traditional roster, 100",
+      "http://howbert.com/mountains/back_court/back_court_article.html",
+      "author-roster-and-completers",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-16",
+      "Product ID grDJmpZ6mtpgtFY8X7i1; keep the traditional roster distinct from later revisions only as a version, not another unit."
+    ],
+    [
+      "adirondack-46ers",
+      "Adirondack 46ers",
+      "North America",
+      "Adirondack Forty-Sixers",
+      46,
+      "ADK Forty-Sixers historic roster, 46",
+      "https://adk46er.org/a-bit-of-history/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-18",
+      "Product ID 2945F52A0B9B7AC3E190."
+    ],
+    [
+      "amc-new-england-4000",
+      "New England 4000-Footers",
+      "North America",
+      "AMC Four Thousand Footer Club",
+      67,
+      "AMC all-season New England 4000-Footers, 67",
+      "https://www.amc4000footer.org/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-19",
+      "Product ID 16E88FE9AFBC532C05CE."
+    ],
+    [
+      "amc-new-hampshire-4000",
+      "New Hampshire 4000-Footers",
+      "North America",
+      "AMC Four Thousand Footer Club",
+      48,
+      "AMC all-season New Hampshire 4000-Footers, 48",
+      "https://www.amc4000footer.org/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-22",
+      "Product ID 1F41A3B59884FC63C614."
+    ],
+    [
+      "catskill-3500",
+      "Catskill 3500",
+      "North America",
+      "Catskill 3500 Club",
+      33,
+      "Catskill 3500 Club current peak roster, 33",
+      "https://catskill-3500-club.org/peaks/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-23",
+      "Product ID 383FD2173C973917CFBB."
+    ],
+    [
+      "amc-new-england-hundred-highest",
+      "New England Hundred Highest",
+      "North America",
+      "AMC Four Thousand Footer Club",
+      100,
+      "AMC all-season New England Hundred Highest, 100",
+      "https://www.amc4000footer.org/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-24",
+      "Product ID EA39DF819ED3592904FB."
+    ],
+    [
+      "amc-northeast-115",
+      "Northeast 111/115",
+      "North America",
+      "AMC Four Thousand Footer Club",
+      115,
+      "AMC all-season Northeast 115 current roster, 115",
+      "https://www.amc4000footer.org/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-25",
+      "Product ID 6A04B522211FE1C3E375; 111 is a historic name, not a second unit."
+    ],
+    [
+      "sierra-club-desert-peaks",
+      "Desert Peaks Section List",
+      "North America",
+      "Sierra Club Angeles Chapter, Desert Peaks Section",
+      95,
+      "DPS current full-list roster, 95",
+      "https://desertpeaks.org/about/",
+      "club-award",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-26",
+      "Product ID B9FF8D354285BB97D057."
+    ],
+    [
+      "tahoe-ogul",
+      "Tahoe Ogul Peaks",
+      "North America",
+      "Tahoe Ogul community",
+      63,
+      "Tahoe Ogul keeper roster, 63",
+      "https://www.tahoeogul.org/history-of-the-oguls/",
+      "keeper-history-and-roster",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-27",
+      "Product ID 3B96675933CC7E424A7E."
+    ],
+    [
+      "south-beyond-6000",
+      "South Beyond 6000",
+      "North America",
+      "Carolina Mountain Club and Tennessee Eastman Hiking & Canoeing Club",
+      40,
+      "SB6K official challenge roster, 40",
+      "https://carolinamountainclub.org/hiking/hike-challenges/south-beyond-6000-challenge-sb6k/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-28",
+      "Product ID 17A38951FA2EFAC16F77."
+    ],
+    [
+      "idaho-12ers",
+      "Idaho 12ers",
+      "North America",
+      "Idaho: A Climbing Guide",
+      9,
+      "Idaho climbing guide The 12ers roster, 9",
+      "https://www.idahoaclimbingguide.com/the-12ers/",
+      "author-roster",
+      "legacy_import_unverified",
+      "current_exact_rekey_source",
+      "proposal-current-29",
+      "Product ID 5C16243B2F33DC56D7E2; replace the Peakbagger-11k derivation in source metadata."
+    ],
+    [
+      "sierra-club-sierra-peaks",
+      "Sierra Peaks Section List",
+      "North America",
+      "Sierra Club Angeles Chapter, Sierra Peaks Section",
+      247,
+      "SPS current full-list roster, 247",
+      "https://www.sierraclub.org/angeles/sierra-peaks/peaks-list",
+      "club-award",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-30",
+      "Product ID 73DC8A7D8D517F801F0B."
+    ],
+    [
+      "sierra-club-hundred-peaks",
+      "Hundred Peaks Section List",
+      "North America",
+      "Sierra Club Angeles Chapter, Hundred Peaks Section",
+      280,
+      "HPS current full-list roster, 280",
+      "https://hundredpeaks.org/about/",
+      "club-award-and-register",
+      "legacy_import_unverified",
+      "current_exact_legacy",
+      "proposal-current-31",
+      "Product ID 91FB0E2033C11ACC6646."
+    ],
+    [
+      "colorado-centennials-current-lidar",
+      "Colorado Centennials",
+      "North America",
+      "Colorado Centennial completion community / GNSS roster keeper",
+      100,
+      "GNSS/LiDAR current Colorado Centennials snapshot 2026-08-30, 100",
+      "https://www.countryhighpoints.com/gnss-based-colorado-centennials-list/",
+      "current-roster-and-completion-tradition",
+      "unverified_no_reuse_license",
+      "not_imported_replace_retired",
+      "replacement-for-proposal-current-21",
+      "Do not count the retired Traditional Centennials as a second unit."
+    ],
+    [
+      "new-hampshire-52-with-a-view",
+      "New Hampshire 52 With a View",
+      "North America",
+      "Over the Hill Hikers / 52 With a View",
+      {
+        "challenge_entries": 52,
+        "required_summits": 54
+      },
+      "official June 2025 current version: 52 challenge entries and 54 required summits, with two paired entries",
+      "https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html",
+      "keeper-roster-and-patch",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "proposal-queued-35",
+      "Queued product ID 88D28274BF911652C36E matches all 52 challenge entries plus companion summits South Doublehead and Welch Mountain."
+    ],
+    [
+      "classic-8000m",
+      "Classic 8000-Meter Peaks",
+      "Global",
+      "UIAA",
+      14,
+      "UIAA classic main 8000m peaks, accessed 2026-08-30, 14",
+      "https://www.theuiaa.org/8000m-peaks/",
+      "federation-roster",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "proposal-queued-32",
+      "Queued product ID 9D3891FC36C4A9EB6F98."
+    ],
+    [
+      "uiaa-alps-4000-main",
+      "UIAA Alpine 4000ers",
+      "Europe",
+      "UIAA",
+      {
+        "main": 82,
+        "extended": 46
+      },
+      "UIAA 4000 Alps main list=82; extended list=46; accessed 2026-08-30",
+      "https://www.theuiaa.org/4000-alps/",
+      "federation-roster",
+      "unverified_no_reuse_license",
+      "queued_exact_main",
+      "proposal-queued-33",
+      "Queued product ID 4902426801549C6CC704 covers the main variant."
+    ],
+    [
+      "smc-munros",
+      "Munros",
+      "Europe",
+      "Scottish Mountaineering Club",
+      282,
+      "SMC current Munros roster, accessed 2026-08-30, 282",
+      "https://www.smc.org.uk/hills/",
+      "club-roster-and-register",
+      "unverified_no_reuse_license",
+      "queued_exact",
+      "proposal-queued-34",
+      "Queued product ID 31B6457AF88EEA2B8FEA."
+    ],
+    [
+      "smc-corbetts",
+      "Corbetts",
+      "Europe",
+      "Scottish Mountaineering Club",
+      222,
+      "DoBIH v18.5 C=1, 222",
+      "https://www.smc.org.uk/hills/",
+      "club-roster-and-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "proposal-queued-36",
+      "Queued product ID 90D16FA85888AFF87D21; DoBIH CSV SHA-256 d27bc69dbb6d30a6f171ef277408831fe8763fc9043422f4e375e63f4cc190ea."
+    ],
+    [
+      "wainwrights",
+      "Wainwrights",
+      "Europe",
+      "Wainwright Society and LDWA Hillwalkers Register",
+      214,
+      "DoBIH v18.5 W=1, 214",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "club-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "proposal-queued-37",
+      "Queued product ID 14DB769BB51BAFF29BC1."
+    ],
+    [
+      "uiaa-pyrenees-main-3000",
+      "UIAA Pyrenees Main 3000ers",
+      "Europe",
+      "UIAA",
+      {
+        "main": 129,
+        "secondary": 83
+      },
+      "UIAA Bulletin 152 main list, 129; scan SHA-256 3febd345eef36d8384dd355e5f5a96f1b3b4d417fad9f5da2803c04267e23369",
+      "https://www.theuiaa.org/3000-pyrenees/",
+      "federation-roster",
+      "unverified_no_reuse_license",
+      "queued_exact_main",
+      "proposal-queued-38",
+      "Queued product ID E0F0541E40FCB7B142FE."
+    ],
+    [
+      "smc-furths",
+      "Furths",
+      "Europe",
+      "Scottish Mountaineering Club",
+      34,
+      "DoBIH v18.5 F=1, 34",
+      "https://www.smc.org.uk/hills/",
+      "club-roster-and-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "proposal-gap-39",
+      "One unit."
+    ],
+    [
+      "grahams",
+      "Grahams",
+      "Europe",
+      "Alan Dawson / Relative Hills Society; SMC legacy register",
+      {
+        "current_600m": 231,
+        "smc_legacy_2000ft": 219
+      },
+      "DoBIH v18.5 G=1, 231; SMC completion variant >=2000ft, 219",
+      "https://www.smc.org.uk/hills/",
+      "keeper-roster-and-register",
+      "open_cc_by_4",
+      "queued_exact_current_variant",
+      "proposal-gap-40",
+      "Accepted variants stay in one unit."
+    ],
+    [
+      "ldwa-england-wales-2000",
+      "England and Wales 2000-Foot Hill Register",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      {
+        "Nuttalls": 442,
+        "Hewitts_England_Wales": 316
+      },
+      "LDWA Register 1 variants; DoBIH v18.5 N=442 and Hew E/W=316",
+      "https://ldwa.org.uk/hillwalkers/register1.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "proposal-gap-41",
+      "Nuttalls, Hewitts, and accepted book editions are roster variants of this one register unit."
+    ],
+    [
+      "smc-donalds",
+      "Donalds",
+      "Europe",
+      "Scottish Mountaineering Club",
+      {
+        "total": 141,
+        "Donald_Hills": 89,
+        "Donald_Tops": 52
+      },
+      "DoBIH v18.5 D=89 plus DT=52; SMC current total=141",
+      "https://www.smc.org.uk/hills/",
+      "club-roster-and-register",
+      "open_cc_by_4",
+      "queued_exact_compound_key",
+      "replacement-for-proposal-gap-42",
+      "Do not count Donald Hills and Donald Tops as separate denominator units."
+    ],
+    [
+      "vandeleur-lynams",
+      "Vandeleur-Lynams",
+      "Europe",
+      "MountainViews / Mountaineering Ireland",
+      275,
+      "DoBIH v18.5 VL=1, 275",
+      "https://www.mountaineering.ie/content/ChallengeYourself/143",
+      "national-body-endorsed-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "proposal-gap-43",
+      "MountainViews records finishers and annual awards."
+    ],
+    [
+      "kfs-100-famous-mountains",
+      "Korean Forest Service 100 Famous Mountains",
+      "Asia",
+      "Korea Forest Service",
+      100,
+      "KFS official XLSX dated 2022-01-01, 100; cross-checked against the live KFS roster on 2026-08-30",
+      "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
+      "government-roster",
+      "open_government",
+      "queued_exact",
+      "proposal-gap-44",
+      "Official ZIP SHA-256 0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a; XLSX SHA-256 6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60; normalized ordered importer roster SHA-256 b26e7aca4881529e65b41ad29626eba4d0b370426b6db9dc6edce0bbbfd903a2 over ordinal, mntnId, normalized official name, and elevation. The public-data portal states unrestricted reuse and was modified 2026-03-12."
+    ],
+    [
+      "great-britain-marilyns",
+      "Great Britain Marilyns",
+      "Europe",
+      "Relative Hills Society / Database of British and Irish Hills",
+      1550,
+      "RHSoc revised Great Britain Marilyn roster 2025/current register, 1550",
+      "https://www.pedantic.rhb.org.uk/index.php/registers/43-registers/886-marilyn-hall-of-fame",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "replacement-for-proposal-gap-45",
+      "The earlier RHSoc page count 1,556 is stale."
+    ],
+    [
+      "japan-hyakumeizan",
+      "Nihon Hyakumeizan / Japan's 100 Famous Mountains",
+      "Asia",
+      "Kyūya Fukada tradition / Japan Hundred Famous Mountains Association",
+      100,
+      "association all-mountains roster, accessed 2026-08-30, 100",
+      "https://100meizan.org/mt_list_all/",
+      "association-roster-and-author-tradition",
+      "permission_required",
+      "blocked_permission",
+      "proposal-rights-46",
+      "Rights block import, not denominator entry."
+    ],
+    [
+      "new-zealand-3000m-peaks",
+      "New Zealand 3000m Peaks",
+      "Australasia",
+      "New Zealand Alpine Club tradition",
+      24,
+      "NZAJ 22A pages 8-15, exact 24",
+      "https://alpineclub.org.nz/sites/default/files/2023-07/NZAJ_22A%208-15.pdf",
+      "club-journal-roster-and-completers",
+      "permission_required",
+      "blocked_noncommercial_or_permission",
+      "proposal-rights-47",
+      "Primary journal reports a 70-plus-year pursuit and 22 finishers at publication."
+    ],
+    [
+      "taiwan-baiyue",
+      "Taiwan Baiyue",
+      "Asia",
+      "Taiwan Mountaineering Association",
+      100,
+      "TMCA Baiyue roster, accessed 2026-08-30, 100",
+      "https://www.tmca-tpe.org/content.asp?cat=98&id=643&type=1",
+      "association-roster",
+      "permission_required",
+      "blocked_permission",
+      "proposal-rights-48",
+      "Rights block import, not denominator entry."
+    ],
+    [
+      "tasmania-abels",
+      "Tasmania Abels",
+      "Australasia",
+      "Hobart Walking Club",
+      158,
+      "HWC current Abels roster, accessed 2026-08-30, 158",
+      "https://www.hobartwalkingclub.org.au/resources/peak-baggers-list/",
+      "club-roster-and-register",
+      "permission_required",
+      "blocked_permission",
+      "proposal-rights-49",
+      "Rights block import, not denominator entry."
+    ],
+    [
+      "smc-munro-tops",
+      "Munro Tops",
+      "Europe",
+      "Scottish Mountaineering Club",
+      226,
+      "SMC current Munro Tops roster, accessed 2026-08-30, 226; DoBIH v18.5 MT=1",
+      "https://www.smc.org.uk/hills/",
+      "club-roster-and-full-house-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "omission",
+      "SMC explicitly maintains this separate named list; Full House completions include Tops."
+    ],
+    [
+      "wainwright-outlying-fells",
+      "Wainwright's Outlying Fells",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      116,
+      "LDWA Register 2B; DoBIH v18.5 WO=1, 116",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "club-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "omission",
+      "Separate register from the 214 Wainwrights."
+    ],
+    [
+      "birketts",
+      "Birketts",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      541,
+      "LDWA Register 2C; DoBIH v18.5 B=1, 541",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "Separate completion register; Pillar Rock waiver does not change the roster key."
+    ],
+    [
+      "fellrangers",
+      "Fellrangers",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      230,
+      "LDWA Register 2D; DoBIH v18.5 Fel=1, 230",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "club-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "omission",
+      "Separate completion register."
+    ],
+    [
+      "synges",
+      "Synges",
+      "Europe",
+      "LDWA Hillwalkers Register / Tim Synge",
+      670,
+      "LDWA Register 2E current 2025 edition; DoBIH v18.5 Sy=1, 670",
+      "https://ldwa.org.uk/hillwalkers/register2.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "The retired 648 edition is a variant, not another unit."
+    ],
+    [
+      "deweys",
+      "Deweys",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      425,
+      "LDWA Register 5; DoBIH v18.5 Dew=1, 425",
+      "https://ldwa.org.uk/hillwalkers/register5.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "Distinct register class."
+    ],
+    [
+      "donald-deweys",
+      "Donald Deweys",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      247,
+      "LDWA Register 5; DoBIH v18.5 DDew=1, 247",
+      "https://ldwa.org.uk/hillwalkers/register5.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "Distinct register class, not Donald Tops."
+    ],
+    [
+      "ldwa-england-wales-county-tops",
+      "England and Wales County Tops",
+      "Europe",
+      "LDWA Hillwalkers Register",
+      {
+        "historic_county_high_points_unique_EW": 53,
+        "administrative_county_tops_unique_EW": 76,
+        "current_county_unitary_tops_unique_EW": 143
+      },
+      "one LDWA Register 3 unit; DoBIH v18.5 CoH/CoA/CoU country filters",
+      "https://ldwa.org.uk/hillwalkers/register3.php",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "County-era rosters are accepted variants, not three denominator units."
+    ],
+    [
+      "irish-county-highpoints",
+      "Irish County Highpoints",
+      "Europe",
+      "MountainViews / Mountaineering Ireland and LDWA",
+      {
+        "historic": 27,
+        "current": 38
+      },
+      "one county-highpoint unit; DoBIH v18.5 CoH Ireland=27 and CoU Ireland=38",
+      "https://www.mountaineering.ie/content/ChallengeYourself/143",
+      "national-body-endorsed-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "Historic and current county schemes are variants."
+    ],
+    [
+      "irish-2000-foot-register",
+      "Irish 2000-Foot Mountains",
+      "Europe",
+      "LDWA Hillwalkers Register / MountainViews",
+      {
+        "current_Hewitts_Ireland": 207,
+        "historical_variants": "Register 4 accepts named editions"
+      },
+      "LDWA Register 4; DoBIH v18.5 Hew Ireland=207",
+      "https://ldwa.org.uk/hillwalkers/register4.php",
+      "club-register",
+      "open_cc_by_4",
+      "queued_exact",
+      "omission",
+      "One register unit across accepted book and roster variants."
+    ],
+    [
+      "irish-arderins",
+      "Arderins",
+      "Europe",
+      "Mountaineering Ireland and MountainViews",
+      409,
+      "DoBIH v18.5 A=1, 409; reconcile against keeper page before import",
+      "https://www.mountaineering.ie/content/Arderins/144",
+      "national-body-official-list-and-award",
+      "open_cc_by_4",
+      "not_imported_count_reconciliation_required",
+      "omission",
+      "Keeper prose says 400 and also cites 406 historic finishers; current DoBIH v18.5 yields 409. Qualification is firm, current import count needs keeper sign-off."
+    ],
+    [
+      "welsh-3000s",
+      "Welsh 3000s",
+      "Europe",
+      "British Mountaineering Council tradition",
+      15,
+      "BMC Welsh 3000ers standard roster, 15; Castell y Gwynt optional/not counted",
+      "https://thebmc.co.uk/en/how-to-run-the-welsh-3000ers",
+      "national-body-challenge",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Classic timed round also has a stable cumulative fifteen-summit roster."
+    ],
+    [
+      "irish-highest-hundred",
+      "Irish Highest Hundred",
+      "Europe",
+      "Mountaineering Ireland and MountainViews",
+      100,
+      "MountainViews Highest Hundred current roster, 100",
+      "https://mountainviews.ie/lists/highest/",
+      "national-body-endorsed-roster-and-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Mountaineering Ireland uses it in Irish Peaks."
+    ],
+    [
+      "canadian-rockies-11000ers",
+      "Canadian Rockies 11,000ers",
+      "North America",
+      "Alpine Club of Canada tradition",
+      56,
+      "ACC January 2026 current roster, 56",
+      "https://alpineclubofcanada.ca/56-peaks-27-years-and-a-full-time-job/",
+      "club-roster-and-completers",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "ACC documents the change from 54 to 56 and 22 finishers."
+    ],
+    [
+      "vancouver-island-6000ers",
+      "Vancouver Island 6000ers",
+      "North America",
+      "Alpine Club of Canada, Vancouver Island Section",
+      53,
+      "ACCVI current 6000ers roster, 53",
+      "https://accvi.ca/programs/vancouver-island-6000/",
+      "club-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Charles Turner award challenge."
+    ],
+    [
+      "accvi-island-qualifiers",
+      "Island Qualifiers",
+      "North America",
+      "Alpine Club of Canada, Vancouver Island Section",
+      9,
+      "ACCVI current Island Qualifiers roster, 9",
+      "https://accvi.ca/programs/the-island-qualifiers/",
+      "club-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Published in 1977; Rick Eppler award and recorded finishers."
+    ],
+    [
+      "andes-6000m-100",
+      "Andes 6000m Peaks",
+      "South America",
+      "John Biggar / Andes website",
+      100,
+      "Andes.org.uk roster updated 2026-08-19, elevation>=6000m and prominence>=400m, exactly 100",
+      "https://www.andes.org.uk/andes-information-files/6000m-peaks.asp",
+      "author-roster-and-ascent-register",
+      "permission_required",
+      "blocked_permission",
+      "omission",
+      "The keeper also publishes climber standings for the 100."
+    ],
+    [
+      "crown-of-polish-mountains",
+      "Crown of Polish Mountains",
+      "Europe",
+      "Klub Zdobywców Korony Gór Polski",
+      28,
+      "official club roster, 28",
+      "https://kgp.info.pl/",
+      "club-award-and-register",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Founded 1997; official club reports a large membership and completer register."
+    ],
+    [
+      "snow-leopard-peaks",
+      "Snow Leopard Peaks",
+      "Asia",
+      "International Federation of Sports Mountaineering / national federations",
+      5,
+      "IFSM Snow Leopard regulations 2023, five named 7000m peaks",
+      "https://alpfederation.ru/documents/1681/download",
+      "federation-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Award tradition dates to 1967."
+    ],
+    [
+      "south-africa-nine-peaks",
+      "South Africa Nine Peaks",
+      "Africa",
+      "Nine Peaks Challenge",
+      9,
+      "official nine-province high-point roster, 9",
+      "https://ninepeakschallenge.co.za/",
+      "keeper-challenge-and-register",
+      "permission_required",
+      "blocked_permission",
+      "omission",
+      "Stable roster and ongoing completion rules."
+    ],
+    [
+      "volcanic-seven-summits",
+      "Volcanic Seven Summits",
+      "Global",
+      "Guinness World Records tradition",
+      7,
+      "Guinness Volcanic Seven Summits roster, 7",
+      "https://www.guinnessworldrecords.com/world-records/617605-fastest-time-to-climb-the-seven-volcanic-summits-male",
+      "record-and-completion-tradition",
+      "permission_required",
+      "blocked_permission",
+      "omission",
+      "Distinct roster and record category from the Seven Summits."
+    ],
+    [
+      "second-seven-summits",
+      "Second Seven Summits",
+      "Global",
+      "Guinness World Records tradition",
+      7,
+      "Guinness Second Seven Summits roster, 7",
+      "https://www.guinnessworldrecords.com/world-records/first-person-to-climb-the-second-seven-summits",
+      "record-and-completion-tradition",
+      "permission_required",
+      "blocked_permission",
+      "omission",
+      "Distinct second-highest-per-continent roster."
+    ],
+    [
+      "tasmania-peak-baggers",
+      "Tasmania Peak Baggers",
+      "Australasia",
+      "Hobart Walking Club",
+      481,
+      "HWC 2017 current Peak Baggers list, 481",
+      "https://www.hobartwalkingclub.org.au/resources/peak-baggers-list/",
+      "club-roster-and-register",
+      "permission_required",
+      "blocked_permission",
+      "omission",
+      "Challenge began in 1965; distinct from the Abels."
+    ],
+    [
+      "world-ribus",
+      "World Ribus",
+      "Global",
+      "World Ribus / Relative Hills Society",
+      7151,
+      "World Ribus Earth database V3 2025-12-06, 7,151 Ribus",
+      "https://worldribus.org/publications/",
+      "keeper-publication-and-register",
+      "permission_required",
+      "blocked_commercial_permission",
+      "omission-and-replacement-for-proposal-50",
+      "RHSoc has a Ribus register from 100 ascents; regional pages are not separate units."
+    ],
+    [
+      "high-hills-of-britain",
+      "High Hills of Britain",
+      "Europe",
+      "Relative Hills Society",
+      1035,
+      "RHSoc High Hills current book/register, 1,035",
+      "https://www.pedantic.rhb.org.uk/books/5",
+      "club-publication-and-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "Distinct RHSoc register."
+    ],
+    [
+      "simms",
+      "Simms",
+      "Europe",
+      "Relative Hills Society / Database of British and Irish Hills",
+      2755,
+      "DoBIH v18.5 Sim=1, 2,755",
+      "https://www.pedantic.rhb.org.uk/index.php/registers",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "RHSoc register recognizes progress and completion."
+    ],
+    [
+      "submarilyns-great-britain",
+      "Great Britain Submarilyns",
+      "Europe",
+      "Relative Hills Society / Database of British and Irish Hills",
+      100,
+      "DoBIH v18.5 sMa=1 filtered E/S/W, 100",
+      "https://www.pedantic.rhb.org.uk/index.php/registers",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "DoBIH including Ireland has 109; the RHSoc Great Britain completion unit has 100."
+    ],
+    [
+      "subsimms",
+      "Subsimms",
+      "Europe",
+      "Relative Hills Society / Database of British and Irish Hills",
+      739,
+      "DoBIH v18.5 sSim=1, 739",
+      "https://www.pedantic.rhb.org.uk/index.php/registers",
+      "club-register",
+      "open_cc_by_4",
+      "not_imported_open",
+      "omission",
+      "RHSoc register threshold is 500 ascents."
+    ],
+    [
+      "arderin-begs",
+      "Arderin Begs",
+      "Europe",
+      "MountainViews",
+      105,
+      "DoBIH v18.5 Ireland elevation>=500m, prominence 15m to <30m, 105; reconcile against the keeper before import",
+      "https://www.mountaineering.ie/_files/2022920154845_578b9cf3.pdf",
+      "national-body-documented-award",
+      "open_cc_by_4",
+      "not_imported_count_reconciliation_required",
+      "omission",
+      "Mountaineering Ireland's journal documents annual completion awards; the current count is the reproducible DoBIH v18.5 rule result, while older public counts differ."
+    ],
+    [
+      "sierra-club-lower-peaks",
+      "Lower Peaks Committee List",
+      "North America",
+      "Sierra Club Angeles Chapter, Lower Peaks Committee",
+      86,
+      "LPC current official roster, 86",
+      "https://hundredpeaks.org/lowerpeaks-list/",
+      "club-award-and-register",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Official page has a list-finisher patch and register."
+    ],
+    [
+      "chemeketan-eighteen",
+      "Chemeketan Eighteen Northwest Peaks",
+      "North America",
+      "Chemeketans",
+      18,
+      "Chemeketan official award roster, 18",
+      "https://www.chemeketans.org/content.aspx?actr=4&club_id=11928&module_id=312974&page_id=22",
+      "club-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Distinct club award."
+    ],
+    [
+      "mazamas-seven-oregon-cascades",
+      "Mazamas Seven Oregon Cascades",
+      "North America",
+      "Mazamas",
+      7,
+      "Mazamas Seven Oregon Cascades award roster, 7",
+      "https://mazamas.org/awards/",
+      "club-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission-and-replacement-concept-for-proposal-7",
+      "Real Oregon-volcano award; do not reuse the app-made eleven-peak membership."
+    ],
+    [
+      "mazamas-sixteen-major-northwest",
+      "Mazamas Sixteen Major Northwest Peaks",
+      "North America",
+      "Mazamas",
+      16,
+      "Mazamas Sixteen Major Northwest Peaks award roster, 16",
+      "https://mazamas.org/awards/",
+      "club-award",
+      "unverified_no_reuse_license",
+      "not_imported_permission_unknown",
+      "omission",
+      "Distinct club award from Guardian Peaks and Seven Oregon Cascades."
+    ],
+    [
+      "mountaineers-five-majors",
+      "Mountaineers Five Majors",
+      "North America",
+      "The Mountaineers, Seattle Branch",
+      5,
+      "Five live owner rows reviewed 2026-08-31; all five are required.",
+      "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-01-five-majors",
+      "club-award-and-live-owner-roster",
+      "unverified_no_reuse_license",
+      "not_imported_rights_unverified",
+      "v1.4-omission",
+      "Rows: Mount Adams, Mount Baker, Glacier Peak, Mount Olympus, and Mount Rainier. No immutable owner roster download or captured page hash is available."
+    ],
+    [
+      "mountaineers-bakers-dozen",
+      "Mountaineers Baker's Dozen",
+      "North America",
+      "The Mountaineers, Bellingham Branch",
+      {
+        "eligible_roster": 18,
+        "required_for_award": 13
+      },
+      "Eighteen live owner rows reviewed 2026-08-31; any thirteen are required.",
+      "https://www.mountaineers.org/membership/badges/award-badges/bellingham-branch/bellingham-branch-bakers-dozen",
+      "club-award-and-live-owner-roster",
+      "unverified_no_reuse_license",
+      "not_imported_rights_unverified",
+      "v1.4-omission",
+      "The owner page supplies an exact eighteen-row roster, but no immutable owner roster download or captured page hash."
+    ],
+    [
+      "mountaineers-cascade-classics",
+      "Mountaineers Cascade Classics",
+      "North America",
+      "The Mountaineers, Seattle Branch",
+      18,
+      "Eighteen live owner rows reviewed 2026-08-31; all eighteen are required.",
+      "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-cascade-classics",
+      "club-award-and-live-owner-roster",
+      "unverified_no_reuse_license",
+      "not_imported_rights_unverified",
+      "v1.4-omission",
+      "The owner page supplies an exact eighteen-row roster, but no immutable owner roster download or captured page hash."
+    ],
+    [
+      "mountaineers-everett-classic-eight",
+      "Mountaineers Everett Classic Eight",
+      "North America",
+      "The Mountaineers, Everett Branch",
+      8,
+      "Eight live owner rows reviewed 2026-08-31; all eight are required, with at most three credited in one year.",
+      "https://www.mountaineers.org/membership/badges/award-badges/everett-branch/everett-branch-classic-eight",
+      "club-award-and-live-owner-roster",
+      "unverified_no_reuse_license",
+      "not_imported_rights_unverified",
+      "v1.4-omission",
+      "The owner page supplies an exact eight-row roster, but no immutable owner roster download or captured page hash."
+    ],
+    [
+      "mountaineers-olympic-peaks",
+      "Mountaineers Olympic Peaks",
+      "North America",
+      "The Mountaineers, Olympia Branch",
+      {
+        "eligible_roster": 15,
+        "headline_required": 10,
+        "how_to_obtain_required": 15
+      },
+      "Fifteen owner rows reviewed 2026-08-31. The current page conflicts: its headline and About text say any ten with one from each of five areas, while How to Obtain says all fifteen.",
+      "https://www.mountaineers.org/membership/badges/award-badges/olympia-branch/olympia-branch-olympia-peaks",
+      "club-award-and-live-owner-roster-with-rule-conflict",
+      "unverified_no_reuse_license",
+      "blocked_completion_rule_conflict",
+      "v1.4-omission",
+      "The finite fifteen-peak award qualifies for the denominator, but Peaks must not import an exact progress rule until the keeper resolves the current contradiction. No immutable roster download or captured page hash is available."
+    ],
+    [
+      "nzac-100-peaks-challenge",
+      "NZAC 100 Peaks Challenge",
+      "Australasia",
+      "New Zealand Alpine Club",
+      100,
+      "Owner-linked 100-row Google Sheet captured 2026-08-31; normalized roster SHA-256 548d345ca6a6b4345af22da6313854a6ecc870d43ec7191a47fb15a0d1fea370.",
+      "https://alpineclub.org.nz/news/don-french-becomes-first-person-complete-100-peaks-challenge",
+      "club-challenge-owner-linked-roster",
+      "permission_required",
+      "blocked_permission",
+      "v1.4-omission",
+      "Current NZAC practice treats all 100 as completion. The 1991 event ranked the most climbed in one year; NZAC reports the first full completion in 2021. NZAC reserves rights. The live Google-hosted roster is pinned, but it is not an immutable NZAC-hosted release."
+    ],
+    [
+      "taiwan-small-100",
+      "臺灣小百岳 / Taiwan Small 100",
+      "Asia",
+      "Taiwan Sports Administration roster; ATUNAS completion challenge",
+      100,
+      "Ten captured Sports Administration roster pages normalize to 100 rows; normalized roster SHA-256 50568f482c52da651ace62a31ddb34e45a1abf96a01b97c888e9ad938a1ac591.",
+      "https://isports.sa.gov.tw/apps/TIS/TIS05/TIS0550M_03v1.aspx",
+      "government-roster-and-commercial-award",
+      "permission_required",
+      "blocked_split_keeper_and_permission",
+      "v1.4-omission",
+      "ATUNAS runs the 50-peak and all-100 awards, while the Sports Administration owns the roster. Preserve both owners. Both sources reserve rights. The captured ASP.NET pages include dynamic state and are not immutable releases. Preserve the source-key fault: displayed row 38 uses PKNO=100; later displayed row numbers are one above PKNO, ending at row 100 with PKNO=99."
+    ],
+    [
+      "mcsa-stellenbosch-10-peaks",
+      "MCSA Stellenbosch 10 Peaks Challenge",
+      "Africa",
+      "Mountain Club of South Africa, Stellenbosch Section",
+      {
+        "eligible_roster": 23,
+        "required_for_award": 10
+      },
+      "Owner-linked 23-row PDF captured 2026-08-31; normalized roster SHA-256 56c7417736c1bfa5d3756377c640825284f8b2d3f3e17434732599f6ec2a468c.",
+      "https://stellenbosch.mcsa.org.za/en/activities/10-peaks-stamp-project/",
+      "club-award-owner-linked-roster",
+      "unverified_no_reuse_license",
+      "researched_not_queued_rights_unverified",
+      "v1.4-omission",
+      "Submit evidence for any ten of the 23 listed peaks. The current owner page links a 2019 PDF on Google Drive; pin both sets of bytes and do not use obsolete stamp locations as the current rule."
+    ],
+    [
+      "jac-japan-300-mountains",
+      "日本三百名山 / JAC Japan 300 Mountains",
+      "Asia",
+      "Japanese Alpine Club",
+      300,
+      "JAC 300-row PDF captured 2026-08-31; normalized roster SHA-256 97ef9b9adda9dab69e6d82c5dbc8dd2a4c1246141b93ce2b7a6fbdab5446b24e.",
+      "https://jac1.or.jp/document/mountain_data_collection",
+      "club-roster-and-documented-completion-practice",
+      "permission_required",
+      "blocked_permission_no_formal_rule_and_source_defects",
+      "v1.4-omission",
+      "JAC publications document more than ten years of full-roster completion practice, but no formal award, register, evidence standard, or current completion rule was found. JAC reserves rights, and its branch source says volcanic or conservation closures can prevent literal completion. Preserve PDF defects: row 248 is truncated and row 253 conflicts with its map-sheet cell."
+    ]
+  ],
+  "uncertain_candidates": [
+    [
+      "cmc-bicentennials",
+      "Colorado Mountain Club Bicentennials",
+      "North America",
+      200,
+      "https://www.cmc.org/community/summit-completers",
+      "unverified_no_reuse_license",
+      "hold_missing_exact_roster_manifest",
+      "The owner names a Highest 200 completion category but publishes neither an exact row manifest nor stable inclusion keys. It does not yet meet R1 or R3."
+    ],
+    [
+      "cmc-all-13ers",
+      "Colorado Mountain Club All 13ers",
+      "North America",
+      637,
+      "https://www.cmc.org/community/summit-completers",
+      "unverified_no_reuse_license",
+      "hold_missing_exact_roster_manifest",
+      "The owner names a 637-peak completion category but publishes neither an exact row manifest nor a stable inclusion rule. It does not yet meet R1 or R3."
+    ],
+    [
+      "utah-13ers",
+      "Utah 13ers",
+      "North America",
+      {
+        "Peakbagger": 19,
+        "other_public_variants": [
+          13,
+          21
+        ]
+      },
+      "https://www.peakbagger.com/list.aspx?lid=21349",
+      "legacy_import_unverified",
+      "hold",
+      "No primary keeper or completion register found; count and prominence rule vary."
+    ],
+    [
+      "oregon-top-100",
+      "Oregon Top 100",
+      "North America",
+      100,
+      "https://www.glassmountains.us/clm_or100a.html",
+      "legacy_import_unverified",
+      "hold",
+      "The 1996 list and finishers are real, but the current LiDAR roster lacks a clear primary keeper."
+    ],
+    [
+      "mountainviews-carns",
+      "Carns",
+      "Europe",
+      {
+        "public_page_claim": 337,
+        "DoBIH_v18_5_Ca": 338
+      },
+      "https://mountainviews.ie/lists/carn/",
+      "unverified_no_reuse_license",
+      "hold",
+      "The public count and current DoBIH classification differ, and this pass did not verify a distinct completion award/register."
+    ],
+    [
+      "mountainviews-binnions",
+      "Binnions",
+      "Europe",
+      484,
+      "https://www.mountaineering.ie/content/ChallengeYourself/143",
+      "unverified_no_reuse_license",
+      "hold",
+      "Named within MountainViews' 23-list family; exact current keeper roster and distinct award proof still need capture."
+    ],
+    [
+      "mountainviews-other-lists",
+      "Other MountainViews summit lists",
+      "Europe",
+      null,
+      "https://www.mountaineering.ie/content/ChallengeYourself/143",
+      "unverified_no_reuse_license",
+      "discovery_backlog",
+      "Mountaineering Ireland says MountainViews offers 23 lists; only the cited County, Highest Hundred, Vandeleur-Lynam, Arderin, and evidenced Arderin Beg units are closed here."
+    ],
+    [
+      "mountaineers-other-peak-pins",
+      "Other Mountaineers peak-pin families",
+      "North America",
+      null,
+      "https://www.mountaineers.org/membership/badges/award-badges",
+      "unverified_no_reuse_license",
+      "discovery_backlog",
+      "The award catalog may contain more finite summit-roster units; no complete primary-source family audit was done."
+    ],
+    [
+      "new-hampshire-regional-challenges",
+      "Trailwrights 72, YMCA Alpine Club 100, fire-tower and similar Northeast challenges",
+      "North America",
+      null,
+      "https://www.kenmacgray.org/",
+      "unverified_no_reuse_license",
+      "discovery_backlog",
+      "Several look likely to qualify, but this pass did not close each keeper, current roster key, and double-count relation."
+    ],
+    [
+      "australian-state-highpoints",
+      "Australian State and Territory High Points",
+      "Australasia",
+      8,
+      "https://www.ga.gov.au/scientific-topics/national-location-information/landforms/highest-mountains",
+      "unverified_no_reuse_license",
+      "hold",
+      "Government facts prove the points, but a primary challenge keeper/register was not found."
+    ],
+    [
+      "australian-ten-highest",
+      "Australia's Ten Highest Peaks",
+      "Australasia",
+      10,
+      "https://www.ga.gov.au/scientific-topics/national-location-information/landforms/highest-mountains",
+      "unverified_no_reuse_license",
+      "hold",
+      "Count and summit-separation conventions vary; no primary completion keeper was closed."
+    ],
+    [
+      "hobart-other-lists",
+      "Other Hobart Walking Club peak-bagging lists",
+      "Australasia",
+      null,
+      "https://www.hobartwalkingclub.org.au/resources/peak-baggers-list/",
+      "permission_required",
+      "discovery_backlog",
+      "The club page points to other historic challenges; each needs its own current roster and register proof."
+    ],
+    [
+      "rhsoc-other-classes",
+      "Other Relative Hills Society classes, including Humps and Murdos",
+      "Europe",
+      null,
+      "https://www.pedantic.rhb.org.uk/index.php/registers",
+      "open_cc_by_4",
+      "discovery_backlog",
+      "Do not add raw classifications until a distinct current award/register is proved and overlap rules are set."
+    ],
+    [
+      "world-country-highpoints",
+      "World country and territory high points",
+      "Global",
+      null,
+      "https://worldribus.org/",
+      "permission_required",
+      "hold",
+      "Many variants exist; this pass found no single primary keeper and closed roster key that can stand as one global unit."
+    ],
+    [
+      "pure-timed-rounds",
+      "Pure timed rounds without a cumulative summit roster",
+      "Global",
+      null,
+      null,
+      "unverified_no_reuse_license",
+      "exclude_unless_proved",
+      "Route fame alone is not enough. Add only when a stable peak roster and ongoing cumulative list tradition are proved."
+    ]
+  ],
+  "rejects_and_double_counts": [
+    {
+      "name": "Oregon Volcanoes",
+      "type": "false inclusion",
+      "reason": "app-made eleven-peak set"
+    },
+    {
+      "name": "Washington State Volcanoes",
+      "type": "false inclusion",
+      "reason": "app-made five-peak set"
+    },
+    {
+      "name": "Sierra Peaks Section Emblem Peaks",
+      "type": "false inclusion",
+      "reason": "award does not require completion of all fifteen; full SPS is the cumulative unit"
+    },
+    {
+      "name": "Tennessee 4500ft Peaks",
+      "type": "false inclusion",
+      "reason": "raw threshold page with no outside challenge proof"
+    },
+    {
+      "name": "Ultras of Iran",
+      "type": "false inclusion",
+      "reason": "regional taxonomy slice with no separate award/register"
+    },
+    {
+      "name": "Ultras of the Contiguous United States",
+      "type": "false inclusion",
+      "reason": "regional taxonomy slice with no separate award/register"
+    },
+    {
+      "name": "Southeast Asian Ribus 548",
+      "type": "double count and stale key",
+      "reason": "current regional page is 229 and is a slice of the one World Ribus unit"
+    },
+    {
+      "name": "Traditional Colorado Centennials",
+      "type": "retired variant",
+      "reason": "replace with the current LiDAR/GNSS Centennial roster; count one Centennial unit"
+    },
+    {
+      "name": "Donald Hills 89",
+      "type": "partial variant",
+      "reason": "replace with the official one-unit total of 141 Donalds: 89 Hills plus 52 Tops"
+    },
+    {
+      "name": "Great Britain Marilyns 1556",
+      "type": "stale count",
+      "reason": "current revised register count is 1550"
+    },
+    {
+      "name": "UIAA Alpine extended 4000ers",
+      "type": "variant",
+      "reason": "keep main 82 and extended 46 under one UIAA Alpine unit"
+    },
+    {
+      "name": "UIAA Pyrenees secondary 3000ers",
+      "type": "variant",
+      "reason": "keep main 129 and secondary 83 under one UIAA Pyrenees unit"
+    },
+    {
+      "name": "Seven Summits Bass and Messner",
+      "type": "variants",
+      "reason": "one named challenge unit with accepted seven-peak variants"
+    },
+    {
+      "name": "County-top eras",
+      "type": "variants",
+      "reason": "one geographic challenge register per jurisdiction family; do not multiply by historical county scheme"
+    },
+    {
+      "name": "Winter and repeated rounds",
+      "type": "variants",
+      "reason": "same membership does not create another denominator unit"
+    }
+  ],
+  "coverage": {
+    "confirmed_lower_bound_denominator": 83,
+    "current_exact_count": 22,
+    "current_exact_percent_of_lower_bound": 26.5060,
+    "queued_additional_exact_count": 16,
+    "current_plus_queued_exact_count": 38,
+    "current_plus_queued_exact_percent_of_lower_bound": 45.7831,
+    "current_is_majority": false,
+    "current_plus_queued_is_majority": false,
+    "coverageClaimSupported": false,
+    "why_not_supported": "These percentages use a dated confirmed lower bound rather than an exhaustive world denominator. They describe registry version 2026-08-31-primary-source-lower-bound-4 only and cannot support a worldwide majority claim.",
+    "queued_fixture_audits": [
+      {
+        "registry_id": "new-hampshire-52-with-a-view",
+        "peaks_list_id": "88D28274BF911652C36E",
+        "sourceRowCount": 52,
+        "expectedCount": 54,
+        "registry_unit_key": {
+          "challenge_entries": 52,
+          "required_summits": 54
+        },
+        "companion_summits": [
+          "South Doublehead",
+          "Welch Mountain"
+        ],
+        "paired_challenge_entries": [
+          {
+            "entry": "North Doublehead and South Doublehead",
+            "required_summits": [
+              "North Doublehead",
+              "South Doublehead"
+            ]
+          },
+          {
+            "entry": "Welch Mountain and Dickey Mountain",
+            "required_summits": [
+              "Welch Mountain",
+              "Dickey Mountain"
+            ]
+          }
+        ],
+        "fixture_matches_all_entries_and_companions": true,
+        "coverage_state": "queued_exact_compound_key",
+        "keeper_source": "https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html"
+      }
+    ],
+    "current_exact_mappings": [
+      [
+        "bulger-wa-100",
+        "DOlya3YYfIg60trgTm0n",
+        "Bulger List",
+        100,
+        "current_exact",
+        "countryhighpoints Bulgers roster, 100"
+      ],
+      [
+        "california-fourteeners",
+        "B2867467BB8132CB8D34",
+        "California Fourteeners",
+        15,
+        "current_exact",
+        "Porcella/Burns author roster, 15"
+      ],
+      [
+        "mountaineers-cascade-volcanoes-pin",
+        "ULCGhLnsWcYYRqXQ3aOo",
+        "Cascade Volcanoes",
+        20,
+        "current_exact",
+        "Mountaineers peak pin, 20"
+      ],
+      [
+        "colorado-fourteeners",
+        "LAZcIKjluO0oT3o9g6MC",
+        "Colorado 14ers",
+        53,
+        "current_exact",
+        "traditional ranked 53"
+      ],
+      [
+        "mazamas-guardian-peaks",
+        "dd7K4267UF9mBlg6yUgh",
+        "Mazama Guardian Peaks",
+        3,
+        "current_exact",
+        "Mazamas award, 3"
+      ],
+      [
+        "nevada-peaks-club",
+        "z9Esvqgng0SvnQVP16iI",
+        "Nevada Peaks Club",
+        73,
+        "current_exact",
+        "NPC keeper roster, 73"
+      ],
+      [
+        "smoots-100",
+        "XHG0eHY8ePaltNO3dWs0",
+        "Smoot's 100",
+        100,
+        "current_exact",
+        "Smoot 2002 author roster, 100"
+      ],
+      [
+        "seven-summits",
+        "hPNDxe5mvtLjtlTnWlnf",
+        "The Seven Summits",
+        7,
+        "current_exact_variant",
+        "Messner variant, 7"
+      ],
+      [
+        "us-state-highpoints",
+        "dR9aHGKw3VwBhfsHSwlB",
+        "US State High Points",
+        50,
+        "current_exact",
+        "Highpointers fifty states"
+      ],
+      [
+        "traditional-alpine-lakes-home-court",
+        "grDJmpZ6mtpgtFY8X7i1",
+        "Washington Home Court 100",
+        100,
+        "current_exact",
+        "Howbert traditional roster, 100"
+      ],
+      [
+        "adirondack-46ers",
+        "2945F52A0B9B7AC3E190",
+        "Adirondack 46ers",
+        46,
+        "current_exact",
+        "ADK historic roster, 46"
+      ],
+      [
+        "amc-new-england-4000",
+        "16E88FE9AFBC532C05CE",
+        "New England 4000-Footers",
+        67,
+        "current_exact",
+        "AMC all-season roster, 67"
+      ],
+      [
+        "amc-new-hampshire-4000",
+        "1F41A3B59884FC63C614",
+        "New Hampshire 4000-Footers",
+        48,
+        "current_exact",
+        "AMC all-season roster, 48"
+      ],
+      [
+        "catskill-3500",
+        "383FD2173C973917CFBB",
+        "Catskill 3500",
+        33,
+        "current_exact",
+        "Catskill club current roster, 33"
+      ],
+      [
+        "amc-new-england-hundred-highest",
+        "EA39DF819ED3592904FB",
+        "New England Hundred Highest",
+        100,
+        "current_exact",
+        "AMC all-season roster, 100"
+      ],
+      [
+        "amc-northeast-115",
+        "6A04B522211FE1C3E375",
+        "Northeast 111",
+        115,
+        "current_exact",
+        "AMC Northeast 115 current roster"
+      ],
+      [
+        "sierra-club-desert-peaks",
+        "B9FF8D354285BB97D057",
+        "Desert Peaks Section",
+        95,
+        "current_exact",
+        "DPS current roster, 95"
+      ],
+      [
+        "tahoe-ogul",
+        "3B96675933CC7E424A7E",
+        "Tahoe Ogul Peaks",
+        63,
+        "current_exact",
+        "Ogul keeper roster, 63"
+      ],
+      [
+        "south-beyond-6000",
+        "17A38951FA2EFAC16F77",
+        "South Beyond 6000",
+        40,
+        "current_exact",
+        "SB6K official roster, 40"
+      ],
+      [
+        "idaho-12ers",
+        "5C16243B2F33DC56D7E2",
+        "Idaho 12ers",
+        9,
+        "current_exact_rekey_source",
+        "Idaho climbing guide The 12ers, 9"
+      ],
+      [
+        "sierra-club-sierra-peaks",
+        "73DC8A7D8D517F801F0B",
+        "Sierra Peaks Section",
+        247,
+        "current_exact",
+        "SPS current roster, 247"
+      ],
+      [
+        "sierra-club-hundred-peaks",
+        "91FB0E2033C11ACC6646",
+        "Hundred Peaks Section",
+        280,
+        "current_exact",
+        "HPS current roster, 280"
+      ]
+    ],
+    "queued_additional_exact_mappings": [
+      [
+        "classic-8000m",
+        "9D3891FC36C4A9EB6F98",
+        "Classic 8000-Meter Peaks",
+        14,
+        "queued_exact",
+        "UIAA classic main peaks, 14"
+      ],
+      [
+        "uiaa-alps-4000-main",
+        "4902426801549C6CC704",
+        "UIAA Alpine 4000ers",
+        82,
+        "queued_exact_main",
+        "UIAA main roster, 82"
+      ],
+      [
+        "smc-munros",
+        "31B6457AF88EEA2B8FEA",
+        "Munros",
+        282,
+        "queued_exact",
+        "SMC current roster, 282"
+      ],
+      [
+        "smc-corbetts",
+        "90D16FA85888AFF87D21",
+        "Corbetts",
+        222,
+        "queued_exact",
+        "DoBIH v18.5 C=1, 222"
+      ],
+      [
+        "wainwrights",
+        "14DB769BB51BAFF29BC1",
+        "Wainwrights",
+        214,
+        "queued_exact",
+        "DoBIH v18.5 W=1, 214"
+      ],
+      [
+        "uiaa-pyrenees-main-3000",
+        "E0F0541E40FCB7B142FE",
+        "UIAA Pyrenees 3000ers",
+        129,
+        "queued_exact_main",
+        "UIAA Bulletin 152 main roster, 129"
+      ],
+      [
+        "new-hampshire-52-with-a-view",
+        "88D28274BF911652C36E",
+        "New Hampshire 52 With a View",
+        {
+          "challenge_entries": 52,
+          "required_summits": 54
+        },
+        "queued_exact_compound_key",
+        "official June 2025 current version: 52 challenge entries / 54 required summits"
+      ],
+      [
+        "smc-munro-tops",
+        "2D6085E1F8A83611B254",
+        "Munro Tops",
+        226,
+        "queued_exact",
+        "DoBIH v18.5 MT=1, roster SHA-256 160fd59e3b4409919a7b5e70bfed265fa70a9bc62feb9743ae754ce198a5c65f"
+      ],
+      [
+        "smc-furths",
+        "3F89BA4000AC2F219F24",
+        "Furths",
+        34,
+        "queued_exact",
+        "DoBIH v18.5 F=1, roster SHA-256 020e054ab78d24151f4c16169acd847e63d6a6867d792b98148906ac2b3fae1d"
+      ],
+      [
+        "smc-donalds",
+        "B167A387630B745AE6A5",
+        "Donalds",
+        {
+          "total": 141,
+          "Donald_Hills": 89,
+          "Donald_Tops": 52
+        },
+        "queued_exact_compound_key",
+        "DoBIH v18.5 D=1 OR DT=1, roster SHA-256 a64c6bba2e79621fa08004bb28d1721259b0cd1f6dc0f7685935cb9b6290bfae"
+      ],
+      [
+        "wainwright-outlying-fells",
+        "5B2ECF1DEB1708867AED",
+        "Wainwright's Outlying Fells",
+        116,
+        "queued_exact",
+        "DoBIH v18.5 WO=1, roster SHA-256 5ffd1ed3e76a350203a27d57ded8f7b7ac354c0443547f63cb8a788cd30f4999"
+      ],
+      [
+        "fellrangers",
+        "8A6978ADBBAC1DB066C6",
+        "Fellrangers",
+        230,
+        "queued_exact",
+        "DoBIH v18.5 Fel=1, roster SHA-256 f72a4325df13c1e3e4b5f3046b297e558e900441cad6a44637b017e9988d11c8"
+      ],
+      [
+        "vandeleur-lynams",
+        "65DF2B16A9B4E20A20CB",
+        "Vandeleur-Lynams",
+        275,
+        "queued_exact",
+        "DoBIH v18.5 VL=1, roster SHA-256 c02ccde9dc1094bdc54262c0d336cff34805abbb2d6552d213cf45f8ebf4eee7"
+      ],
+      [
+        "irish-2000-foot-register",
+        "5E3E4171391831A39DF1",
+        "Irish 2000-Foot Mountains",
+        {
+          "current_Hewitts_Ireland": 207
+        },
+        "queued_exact",
+        "DoBIH v18.5 Hew=1 AND Country=I, roster SHA-256 cca6ca4c0a1a901b5038cc9cb1a7d80f759d42a0136b863a5e94542cf78bcbf4"
+      ],
+      [
+        "grahams",
+        "4944331F036CEB9BE3A1",
+        "Grahams",
+        {
+          "current_600m": 231
+        },
+        "queued_exact_current_variant",
+        "DoBIH v18.5 G=1, roster SHA-256 57e27078f2ec8a323cc34521210d707eba817e3baf8297fa6dbb6971b0c298be"
+      ],
+      [
+        "kfs-100-famous-mountains",
+        "39F59B1A26E9B0818EBE",
+        "Korea Forest Service 100 Famous Mountains",
+        100,
+        "queued_exact",
+        "KFS official 2022-01-01 roster, normalized roster SHA-256 b26e7aca4881529e65b41ad29626eba4d0b370426b6db9dc6edce0bbbfd903a2"
+      ]
+    ],
+    "additional_exact_units_needed_for_42": 4,
+    "majority_threshold_for_83": 42,
+    "majorityClaimSupported": false,
+    "queued_pull_requests": [
+      {
+        "pull_request": 158,
+        "url": "https://github.com/jhmacdon/peaks-firebase/pull/158",
+        "exact_units": 4,
+        "status": "ready_for_review_not_merged"
+      },
+      {
+        "pull_request": 162,
+        "url": "https://github.com/jhmacdon/peaks-firebase/pull/162",
+        "exact_units": 3,
+        "status": "ready_for_review_not_merged"
+      },
+      {
+        "pull_request": 164,
+        "url": "https://github.com/jhmacdon/peaks-firebase/pull/164",
+        "exact_units": 8,
+        "status": "ready_for_review_not_merged"
+      },
+      {
+        "pull_request": 165,
+        "url": "https://github.com/jhmacdon/peaks-firebase/pull/165",
+        "exact_units": 1,
+        "status": "ready_for_review_not_merged"
+      }
+    ]
+  },
+  "next_open_source_tranche": {
+    "selection_version": "2026-08-31-cross-region-six-1",
+    "status": "researched_only_not_queued",
+    "starting_exact_registry_coverage": 38,
+    "units_added_if_implemented": 6,
+    "resulting_exact_registry_coverage": 44,
+    "resulting_exact_percent_of_83": 53.0120,
+    "majority_threshold_for_83": 42,
+    "registry_majority_after_tranche": true,
+    "coverageClaimSupported": false,
+    "majorityClaimSupported": false,
+    "scope_warning": "If each unit is separately implemented and reviewed, 44 of 83 is a majority only of registry version 2026-08-31-primary-source-lower-bound-4. It never proves a worldwide majority.",
+    "selection_basis": "The four Mountaineers rosters have exact live owner rows and clear completion rules. NZAC and MCSA add exact owner-linked, pinned rosters outside North America. NZAC requires permission; the other five lack reuse grants. None of the six is queued.",
+    "units": [
+      {
+        "registry_id": "mountaineers-five-majors",
+        "name": "Mountaineers Five Majors",
+        "expected_count_or_key": 5,
+        "completion_rule": "all five",
+        "keeper_source": "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-01-five-majors",
+        "rights_status": "unverified_no_reuse_license",
+        "import_status": "researched_not_queued",
+        "pin_caveat": "Exact live owner rows were reviewed on 2026-08-31, but no immutable roster download or captured page hash exists."
+      },
+      {
+        "registry_id": "mountaineers-bakers-dozen",
+        "name": "Mountaineers Baker's Dozen",
+        "expected_count_or_key": {
+          "eligible_roster": 18,
+          "required_for_award": 13
+        },
+        "completion_rule": "any thirteen of eighteen",
+        "keeper_source": "https://www.mountaineers.org/membership/badges/award-badges/bellingham-branch/bellingham-branch-bakers-dozen",
+        "rights_status": "unverified_no_reuse_license",
+        "import_status": "researched_not_queued",
+        "pin_caveat": "Exact live owner rows were reviewed on 2026-08-31, but no immutable roster download or captured page hash exists."
+      },
+      {
+        "registry_id": "mountaineers-cascade-classics",
+        "name": "Mountaineers Cascade Classics",
+        "expected_count_or_key": 18,
+        "completion_rule": "all eighteen",
+        "keeper_source": "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-cascade-classics",
+        "rights_status": "unverified_no_reuse_license",
+        "import_status": "researched_not_queued",
+        "pin_caveat": "Exact live owner rows were reviewed on 2026-08-31, but no immutable roster download or captured page hash exists."
+      },
+      {
+        "registry_id": "mountaineers-everett-classic-eight",
+        "name": "Mountaineers Everett Classic Eight",
+        "expected_count_or_key": 8,
+        "completion_rule": "all eight; at most three credited in one year",
+        "keeper_source": "https://www.mountaineers.org/membership/badges/award-badges/everett-branch/everett-branch-classic-eight",
+        "rights_status": "unverified_no_reuse_license",
+        "import_status": "researched_not_queued",
+        "pin_caveat": "Exact live owner rows were reviewed on 2026-08-31, but no immutable roster download or captured page hash exists."
+      },
+      {
+        "registry_id": "nzac-100-peaks-challenge",
+        "name": "NZAC 100 Peaks Challenge",
+        "expected_count_or_key": 100,
+        "completion_rule": "all 100 under current NZAC usage",
+        "keeper_source": "https://alpineclub.org.nz/news/don-french-becomes-first-person-complete-100-peaks-challenge",
+        "roster_source": "https://docs.google.com/spreadsheets/d/1moPOR8BdrgIjyz1gCT0GbfIjnwIOe_GdM66v4cTk9DE/export?format=csv&gid=0",
+        "exact_roster_sha256": "548d345ca6a6b4345af22da6313854a6ecc870d43ec7191a47fb15a0d1fea370",
+        "rights_status": "permission_required",
+        "import_status": "blocked_permission"
+      },
+      {
+        "registry_id": "mcsa-stellenbosch-10-peaks",
+        "name": "MCSA Stellenbosch 10 Peaks Challenge",
+        "expected_count_or_key": {
+          "eligible_roster": 23,
+          "required_for_award": 10
+        },
+        "completion_rule": "any ten of twenty-three",
+        "keeper_source": "https://stellenbosch.mcsa.org.za/en/activities/10-peaks-stamp-project/",
+        "roster_source": "https://drive.google.com/uc?export=download&id=1s_cWgQ69ocRp5KsQBrXu90ddDROIqxV6",
+        "exact_roster_sha256": "56c7417736c1bfa5d3756377c640825284f8b2d3f3e17434732599f6ec2a468c",
+        "rights_status": "unverified_no_reuse_license",
+        "import_status": "researched_not_queued"
+      }
+    ]
+  },
+  "regional_bias": {
+    "proposed_50": {
+      "North America": 30,
+      "Europe": 11,
+      "Asia": 5,
+      "Australasia": 2,
+      "Global": 2,
+      "Africa": 0,
+      "South America": 0
+    },
+    "proposed_50_north_america_percent": 60,
+    "finding": "The proposed set was selected around the product's US imports, not through a closed world discovery method. The 83-unit lower bound still leans toward North America and Britain/Ireland. Asia, Africa, South America, continental Europe outside Britain/Ireland, and Australasia need deeper family-level discovery.",
+    "confirmed_lower_bound_83": {
+      "North America": 35,
+      "Europe": 30,
+      "Asia": 6,
+      "Australasia": 4,
+      "Global": 5,
+      "Africa": 2,
+      "South America": 1
+    }
+  },
+  "registry_method": {
+    "publication": "Publish a public, versioned registry rather than a fixed marketing denominator.",
+    "required_fields": [
+      "stable registry ID",
+      "name",
+      "keeper",
+      "region",
+      "primary proof",
+      "roster version or content hash",
+      "current count or accepted variants",
+      "award/register proof",
+      "rights status",
+      "import status",
+      "replacement or parent relation",
+      "review date"
+    ],
+    "change_process": [
+      "Accept additions and removals only with a primary citation and an R1-R11 decision.",
+      "Record roster changes as a new version; never preserve coverage by leaving a retired key current.",
+      "Run duplicate checks on keeper, membership overlap, parent/subset relation, and accepted variants.",
+      "Audit one keeper family at a time and publish what regions and languages have been searched.",
+      "Compute product coverage only for the named registry version and label it registry coverage, not global majority."
+    ],
+    "next_discovery_passes": [
+      "complete MountainViews' 23-list family",
+      "complete Mountaineers badge and peak-pin family",
+      "close Northeast US regional challenge keepers",
+      "survey Alpine clubs beyond UIAA lists",
+      "survey African and South American national-club registers",
+      "survey Japanese, Korean, Taiwanese, Himalayan, and Central Asian club lists in source languages",
+      "close Australian mainland and state challenge keepers",
+      "audit the remaining RHSoc and Hobart Walking Club families"
+    ]
+  },
+  "v1_4_source_evidence": {
+    "audit": "denominator-v1.4-source-capture",
+    "retrieval_date": "2026-08-31",
+    "source_capture_file": "source-capture-audit.json",
+    "source_capture_sha256": "9a99235af11e268d07ddf76ce1f16a4b31d1a8b247a1009bcfee3db4632ec8ec",
+    "mountaineers_and_cmc_review": {
+      "method": "live owner HTML review on 2026-08-31",
+      "immutable_roster_artifacts_available": false,
+      "warning": "The Mountaineers live pages prove five denominator units but do not supply reusable, immutable roster releases. The CMC page proves two named completion categories, but neither meets R1 or R3 because CMC publishes no exact row manifest or stable inclusion key.",
+      "mountaineers_units": [
+        {
+          "registry_id": "mountaineers-five-majors",
+          "owner_url": "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-01-five-majors",
+          "completion_rule": "all five",
+          "captured_page_sha256": null,
+          "roster_rows": [
+            {
+              "name": "Mount Adams",
+              "elevation_ft": 12276
+            },
+            {
+              "name": "Mount Baker",
+              "elevation_ft": 10771
+            },
+            {
+              "name": "Glacier Peak",
+              "elevation_ft": 10541
+            },
+            {
+              "name": "Mount Olympus",
+              "elevation_ft": 7965
+            },
+            {
+              "name": "Mount Rainier",
+              "elevation_ft": 14410
+            }
+          ]
+        },
+        {
+          "registry_id": "mountaineers-bakers-dozen",
+          "owner_url": "https://www.mountaineers.org/membership/badges/award-badges/bellingham-branch/bellingham-branch-bakers-dozen",
+          "completion_rule": "any thirteen of eighteen",
+          "captured_page_sha256": null,
+          "roster_rows": [
+            {
+              "name": "Mount Baker",
+              "elevation_ft": 10781
+            },
+            {
+              "name": "Mount Shuksan",
+              "elevation_ft": 9131
+            },
+            {
+              "name": "Seward Peak",
+              "elevation_ft": 8000
+            },
+            {
+              "name": "American Border Peak",
+              "elevation_ft": 7994
+            },
+            {
+              "name": "Mount Larrabee",
+              "elevation_ft": 7861
+            },
+            {
+              "name": "Mount Blum",
+              "elevation_ft": 7680
+            },
+            {
+              "name": "Hadley Peak",
+              "elevation_ft": 7515
+            },
+            {
+              "name": "Canadian Border Peak",
+              "elevation_ft": 7470
+            },
+            {
+              "name": "Seahpo Peak",
+              "elevation_ft": 7441
+            },
+            {
+              "name": "Tomyhoi Peak",
+              "elevation_ft": 7435
+            },
+            {
+              "name": "Mount Sefrit",
+              "elevation_ft": 7151
+            },
+            {
+              "name": "Ruth Mountain",
+              "elevation_ft": 7115
+            },
+            {
+              "name": "Hagan Mountain",
+              "elevation_ft": 7080
+            },
+            {
+              "name": "Icy Peak",
+              "elevation_ft": 7073
+            },
+            {
+              "name": "Bacon Peak",
+              "elevation_ft": 7061
+            },
+            {
+              "name": "South Twin Sister",
+              "elevation_ft": 7000
+            },
+            {
+              "name": "North Twin Sister",
+              "elevation_ft": 6640
+            },
+            {
+              "name": "Mount Watson",
+              "elevation_ft": 6220
+            }
+          ]
+        },
+        {
+          "registry_id": "mountaineers-cascade-classics",
+          "owner_url": "https://www.mountaineers.org/membership/badges/award-badges/seattle-branch/seattle-branch-cascade-classics",
+          "completion_rule": "all eighteen",
+          "captured_page_sha256": null,
+          "roster_rows": [
+            {
+              "name": "Black Peak",
+              "elevation_ft": 8970
+            },
+            {
+            "name": "Bonanza",
+              "elevation_ft": 9511
+            },
+            {
+            "name": "Dome",
+              "elevation_ft": 8920
+            },
+            {
+            "name": "Dragontail",
+              "elevation_ft": 8840
+            },
+            {
+            "name": "Eldorado",
+              "elevation_ft": 8868
+            },
+            {
+            "name": "Forbidden",
+              "elevation_ft": 8815
+            },
+            {
+            "name": "Goode",
+              "elevation_ft": 9200
+            },
+            {
+            "name": "Jack",
+              "elevation_ft": 9066
+            },
+            {
+              "name": "Mount Buckner",
+              "elevation_ft": 9144
+            },
+            {
+              "name": "Mount Fernow",
+              "elevation_ft": 9249
+            },
+            {
+              "name": "Mount Logan",
+              "elevation_ft": 9087
+            },
+            {
+              "name": "Mount Maude",
+              "elevation_ft": 9040
+            },
+            {
+              "name": "Mount Redoubt",
+              "elevation_ft": 8969
+            },
+            {
+              "name": "Mount Shuksan",
+              "elevation_ft": 9131
+            },
+            {
+              "name": "Mount Spickard",
+              "elevation_ft": 8979
+            },
+            {
+              "name": "Mount Stuart",
+              "elevation_ft": 9415
+            },
+            {
+            "name": "North Gardner",
+              "elevation_ft": 8956
+            },
+            {
+            "name": "Silver Star",
+              "elevation_ft": 8876
+            }
+          ]
+        },
+        {
+          "registry_id": "mountaineers-everett-classic-eight",
+          "owner_url": "https://www.mountaineers.org/membership/badges/award-badges/everett-branch/everett-branch-classic-eight",
+          "completion_rule": "all eight; at most three credited in one year",
+          "captured_page_sha256": null,
+          "roster_rows": [
+            {
+            "name": "Bonanza",
+              "elevation_ft": 9511
+            },
+            {
+            "name": "Goode",
+              "elevation_ft": 9200
+            },
+            {
+              "name": "Mount Logan",
+              "elevation_ft": 9087,
+              "source_unit_present": false
+            },
+            {
+              "name": "Mount Redoubt",
+              "elevation_ft": 8969
+            },
+            {
+            "name": "Dome",
+              "elevation_ft": 8920
+            },
+            {
+            "name": "Eldorado",
+              "elevation_ft": 8868
+            },
+            {
+            "name": "Forbidden",
+              "elevation_ft": 8815
+            },
+            {
+              "name": "Mount Challenger",
+              "elevation_ft": 8207
+            }
+          ]
+        },
+        {
+          "registry_id": "mountaineers-olympic-peaks",
+          "owner_url": "https://www.mountaineers.org/membership/badges/award-badges/olympia-branch/olympia-branch-olympia-peaks",
+          "completion_rule_conflict": {
+            "headline_and_about": "any ten, with at least one from each of five areas",
+            "how_to_obtain": "all fifteen"
+          },
+          "captured_page_sha256": null,
+          "roster_rows": [
+            {
+              "area": "Constance-Greywolf",
+              "name": "Mount Angeles",
+              "elevation_ft": 6454
+            },
+            {
+              "area": "Constance-Greywolf",
+              "name": "Mount Deception",
+              "elevation_ft": 7778
+            },
+            {
+              "area": "Constance-Greywolf",
+              "name": "McCartney",
+              "elevation_ft": 6728
+            },
+            {
+              "area": "Elwha",
+              "name": "Mount Christie",
+              "elevation_ft": 6177
+            },
+            {
+              "area": "Elwha",
+              "name": "Mount Queets",
+              "elevation_ft": 6480
+            },
+            {
+              "area": "Elwha",
+              "name": "Mount Seattle",
+              "elevation_ft": 6246
+            },
+            {
+              "area": "Dosewallips",
+              "name": "Mount Anderson",
+              "elevation_ft": 7321
+            },
+            {
+              "area": "Dosewallips",
+              "name": "Mount Elklick",
+              "elevation_ft": 6517
+            },
+            {
+              "area": "Dosewallips",
+              "name": "Mount La Crosse",
+              "elevation_ft": 6417
+            },
+            {
+              "area": "Skokomish-Duckabush",
+              "name": "The Fin",
+              "elevation_ft": 5500
+            },
+            {
+              "area": "Skokomish-Duckabush",
+              "name": "Mount Stone",
+              "elevation_ft": 6612
+            },
+            {
+              "area": "Skokomish-Duckabush",
+              "name": "Mount Washington",
+              "elevation_ft": 6255
+            },
+            {
+              "area": "Olympic-Soleduck",
+              "name": "Mount Appleton",
+              "elevation_ft": 6000
+            },
+            {
+              "area": "Olympic-Soleduck",
+              "name": "Mount Carrie",
+              "elevation_ft": 6995
+            },
+            {
+              "area": "Olympic-Soleduck",
+              "name": "Mount Tom",
+              "elevation_ft": 7048
+            }
+          ]
+        }
+      ],
+      "cmc_units": [
+        {
+          "registry_id": "cmc-bicentennials",
+          "owner_url": "https://www.cmc.org/community/summit-completers",
+          "owner_claim": "Colorado's highest 200 summits",
+          "member_count": 200,
+          "qualification_status": "uncertain_fails_r1_r3",
+          "exact_row_manifest_available": false,
+          "stable_inclusion_keys_available": false,
+          "captured_page_sha256": null
+        },
+        {
+          "registry_id": "cmc-all-13ers",
+          "owner_url": "https://www.cmc.org/community/summit-completers",
+          "owner_claim": "all 637 Colorado summits from 13,000 through 13,999 feet",
+          "member_count": 637,
+          "qualification_status": "uncertain_fails_r1_r3",
+          "exact_row_manifest_available": false,
+          "stable_inclusion_keys_available": false,
+          "captured_page_sha256": null
+        }
+      ]
+    },
+    "pinned_roster_artifacts": [
+      {
+        "registry_id": "nzac-100-peaks-challenge",
+        "source_artifacts": [
+          {
+            "file": "nzac-100-peaks.csv",
+            "bytes": 3113,
+            "sha256": "9e91ce49d975ef14abab9ee8dbc81732f7da2b4a1cb5f4fa9645ac8a3a8e57f8"
+          }
+        ],
+        "exact_roster": {
+          "file": "nzac-100-peaks-roster.json",
+          "rows": 100,
+          "bytes": 20023,
+          "sha256": "548d345ca6a6b4345af22da6313854a6ecc870d43ec7191a47fb15a0d1fea370"
+        }
+      },
+      {
+        "registry_id": "taiwan-small-100",
+        "source_artifacts": [
+          {
+            "file": "taiwan-small-100-page1.html",
+            "bytes": 72516,
+            "sha256": "494a60f7c7fa66a710cd6ed95990c44b233968463bdbcf26bc869eb42005e65c"
+          },
+          {
+            "file": "taiwan-small-100-page2.html",
+            "bytes": 74435,
+            "sha256": "c607e2b73f64a48064ee64b27cda2cfe9ded8a2db78c382e4b0d99ab57469499"
+          },
+          {
+            "file": "taiwan-small-100-page3.html",
+            "bytes": 74453,
+            "sha256": "4fa024e81b4483c8cbafcf9bba1e214d2553d754150d9e121cf9813fe9c32c54"
+          },
+          {
+            "file": "taiwan-small-100-page4.html",
+            "bytes": 74486,
+            "sha256": "c1bab940bada42926e27206561d9948584888e3398c3fc4788e44aab5fa4cdaa"
+          },
+          {
+            "file": "taiwan-small-100-page5.html",
+            "bytes": 74475,
+            "sha256": "9aae2621c46b50d82d9370fe45f480c8d882f0df32274411de9cdffb3db6583a"
+          },
+          {
+            "file": "taiwan-small-100-page6.html",
+            "bytes": 74494,
+            "sha256": "a87149b85ac47a5ecb34298d12dce97a6f3043a89941fc89c31ee657e67fe844"
+          },
+          {
+            "file": "taiwan-small-100-page7.html",
+            "bytes": 74535,
+            "sha256": "44ad2c6711a0979f52a1b720a91c144ee9996aab50c9c7186be0907f20c43bfa"
+          },
+          {
+            "file": "taiwan-small-100-page8.html",
+            "bytes": 74443,
+            "sha256": "0792a50b5f577de02b9a0c2667a92429e91466bbd8147e43f5723cc98797b18e"
+          },
+          {
+            "file": "taiwan-small-100-page9.html",
+            "bytes": 74519,
+            "sha256": "800861b9c75d0639f7d1dbbae6b38c014ef7b07cc17d1766119236994683b2f2"
+          },
+          {
+            "file": "taiwan-small-100-page10.html",
+            "bytes": 73897,
+            "sha256": "be8ccb136418cefcc0f24fcc8adb810a8c4bdb26390f30696b3a01c7c3a2aee1"
+          },
+          {
+            "file": "taiwan-atunas-2024-2026.html",
+            "bytes": 327468,
+            "sha256": "e27add31b9e19e410f9b97b7985177a925b7e5488fa573c9f9ac4f60672bd754"
+          },
+          {
+            "file": "taiwan-atunas-2026-awards.html",
+            "bytes": 171806,
+            "sha256": "58aa1bb6ff780ca590f9f606b58150bce91e9407ca49dafa6cb14d3e1e0a8339"
+          }
+        ],
+        "exact_roster": {
+          "file": "taiwan-small-100-roster.json",
+          "rows": 100,
+          "bytes": 20512,
+          "sha256": "50568f482c52da651ace62a31ddb34e45a1abf96a01b97c888e9ad938a1ac591"
+        },
+        "pin_caveat": "Sports Administration supplies no immutable roster download. The ASP.NET captures include dynamic state. Preserve both displayed row numbers and source keys: row 38 uses PKNO=100; later displayed row numbers are one above PKNO, ending at row 100 with PKNO=99."
+      },
+      {
+        "registry_id": "mcsa-stellenbosch-10-peaks",
+        "source_artifacts": [
+          {
+            "file": "mcsa-10-peaks.html",
+            "bytes": 100295,
+            "sha256": "8a3e3c432d920937375e544aca70e84836e8dcfebac578aa09ca514bbe00981e"
+          },
+          {
+            "file": "mcsa-23-peaks-download",
+            "bytes": 662783,
+            "sha256": "371b34bb1def99ee8d283e54b4ba190cf64a74e6aa321ad21884ffac644e9732"
+          }
+        ],
+        "exact_roster": {
+          "file": "mcsa-stellenbosch-23-peaks-roster.json",
+          "rows": 23,
+          "bytes": 4776,
+          "sha256": "56c7417736c1bfa5d3756377c640825284f8b2d3f3e17434732599f6ec2a468c"
+        }
+      },
+      {
+        "registry_id": "jac-japan-300-mountains",
+        "source_artifacts": [
+          {
+            "file": "jac-mountain-data-collection.html",
+            "bytes": 42016,
+            "sha256": "c0bdb55977a0bc02da3be882799f11e60401978b2e8b0c76f790b05b26590c05"
+          },
+          {
+            "file": "jac-published-books.html",
+            "bytes": 54058,
+            "sha256": "a02a5c00dd8618ab89d4037932d15a8262cf1f0446dd227593b55a927a2f7a0a"
+          },
+          {
+            "file": "jac-japan-300.pdf",
+            "bytes": 148617,
+            "sha256": "327a47618191418356a8c51ba05f50ba867afd4980b6c5a7a038e363fef49c6e"
+          },
+          {
+            "file": "jac-chiba-branch-2011-completion.pdf",
+            "bytes": 1195267,
+            "sha256": "1682ec0045a26a9a7849b1e533b9ed303525e1986ad447afb92d8391f46b1b80"
+          }
+        ],
+        "exact_roster": {
+          "file": "jac-japan-300-roster.json",
+          "rows": 300,
+          "bytes": 88784,
+          "sha256": "97ef9b9adda9dab69e6d82c5dbc8dd2a4c1246141b93ce2b7a6fbdab5446b24e"
+        },
+        "pin_caveat": "JAC reserves rights. No formal completion rule was found, and the branch source says volcanic or conservation closures can prevent literal completion. Preserve PDF defects: row 248 is truncated and row 253 conflicts with its map-sheet cell."
+      }
+    ]
+  },
+  "conclusion": {
+    "exhaustive_global_majority_claim": "not supported",
+    "coverageClaimSupported": false,
+    "plain_statement": "Peaks covers 22 of this confirmed 83-unit lower bound now. The ready exact pull-request stack would raise that to 38, four short of the 42 needed for a majority of 83. A separate six-unit cross-region tranche could reach 44 only after its rights, imports, and reviews are complete. None of these figures proves a worldwide share.",
+    "rights_statement": "Qualifying blocked lists remain in the 83. Rights blocks, rights uncertainty, and source defects stay visible; none can be erased to make import or coverage figures look better.",
+    "majorityClaimSupported": false
+  }
+}
