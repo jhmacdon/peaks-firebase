@@ -178,17 +178,58 @@ confirmed a clear Geumsan view, but Commons holds only a 960 by 640 source, so
 it fails the 1600 by 900 floor. The closed reviewed Commons table stays at 16
 bindings, and the strict KFS total stays **25/100**.
 
-For these sixteen destination IDs, the command uses `reviewed_commons_file`
+A later global pass searched all 75 remaining KFS rows through exact names,
+Wikidata P18 and P180, Commons categories, and summit-bounded file search. It
+found 1,222 unique files and checked 1,240 destination/file pairs. Automated
+rules rejected 1,111 pairs. Reviewers checked 129 full frames and 24 promising
+original files, then rejected 127 more pairs. Two files passed:
+
+- 월악산: `File:Mount Worak Korea 242.jpg`, Rhythm, CC BY-SA 3.0, 3264 by
+  2448, SHA-1 `2d0291eac9bfd76217592ce9e0fd95565f3f1279`. Wikidata P18
+  `Q482709`, `Category:Woraksan`, the title, description, and summit profile all
+  identify Wolaksan.
+- 주왕산: `File:주왕산 ( 8 ).jpg`, 최옥석, CC BY-SA 4.0, 5184 by 3456,
+  SHA-1 `aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d`. The Korean title,
+  description, `Category:Juwangsan`, and rock profile all identify Juwangsan.
+
+Neither file has a Commons camera point. The review does not invent one or copy
+the Wikidata point into the file record. Both KFS catalog rows keep a null
+planned Wikidata value; the external Q-ids remain review evidence only. The
+other 1,238 pairs stay rejected. This includes Maisan and Naejangsan files that
+name only the wider massif, not the qualified summit in the list.
+
+The frozen fixture at
+`docs/data-audits/fixtures/kfs-photo-global-strict-review-2026-09-01.json`
+keeps all 75 row identities, every rejected destination/file pair and reason,
+the two full accepted records, and the review-tree hashes. It pins the
+3,326,878-byte source report at SHA-256
+`42fe2317e08a3bf56fa6217ab70fcc3098afbbb0fa1995b3bfa09a3c42a2ed68`
+and the 5,499-byte package manifest at SHA-256
+`a3e22e4e66815db06bf9ecb0164778aea26149c08a26193ef6a0d32fe247c0f1`.
+The repository also keeps that exact package manifest and the 8,090-byte
+accepted-file live replay, SHA-256
+`e6d20e0342fd2611afbc70db41428cd9f2e171ce3556f45b901eb0be3013a749`.
+The replay contains the raw accepted metadata, categories, and field checks.
+The main fixture separately freezes each source report's empty coordinate array
+as normalized `coordinateCount: 0` and `coordinates: null`; the replay request
+did not ask for coordinates.
+The `/private/tmp` source path records where the larger report was built; all
+decisions and the small review inputs needed later live in repository fixtures.
+The reviewed Commons table now has 18 bindings, and strict KFS cover coverage
+is **27/100**.
+
+For these eighteen destination IDs, the command uses `reviewed_commons_file`
 evidence instead of `wikipedia_article` evidence. It requires the exact saved
 name, South Korea country code, KFS list membership, nullable planned Wikidata
 value, and a catalog point within 25 metres of the reviewed KFS import row. It
 then asks Commons for the one exact title with only `imageinfo` and
 `coordinates`. It does not request redirects, categories, P373, nearby files,
 or geosearch. The returned File page, author, license, dimensions, SHA-1, and
-single coordinate must equal the frozen review. That coordinate must stay
-within 25 metres of the reviewed file point and within 1.5 kilometres of the
-summit. Any mismatch stops that row. A pinned ID never falls through to article
-or P18 discovery.
+coordinate state must equal the frozen review. The first 16 bindings require
+one camera point within 25 metres of its reviewed value and 1.5 kilometres of
+the summit. The two global-review bindings require no camera point and carry
+frozen exact-peak proof instead. Any mismatch stops that row. A pinned ID never
+falls through to article or P18 discovery.
 
 The same final guards still apply. A pending photo skips all source requests.
 An old source or SHA-1 stays final, including a denied image. The write lock
@@ -296,6 +337,12 @@ production database writes.
   suites whose test URLs were absent. A read-only live replay checked the exact
   67 rows and all 29 nearby File pages against the frozen titles, dimensions,
   distances, and SHA-1 values. It made no production database write.
+- The global KFS review checked all 75 remaining rows, all 1,240
+  destination/file pairs, and both SHA-1-verified originals. The frozen fixture
+  keeps every one of the 1,238 rejects. The two exact-file bindings passed a
+  read-only live metadata replay. Its 54 focused checks and TypeScript build
+  passed. The full migration run passed 956 tests and skipped 14 database tests
+  whose test URLs were absent. This follow-up made no production database write.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
@@ -318,3 +365,7 @@ timer, instance, or scheduled job.
 The zero-accept fourth review also costs **$0/month**. It changed only the audit
 record and its test, made no production write, and added no hosted service,
 timer, instance, or scheduled job.
+
+The global KFS review also costs **$0/month**. It adds two closed bindings to
+the same operator-started command and adds no hosted service, timer, instance,
+or scheduled job.

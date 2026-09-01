@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -89,6 +90,122 @@ type KfsPhotoZeroAcceptAudit = {
     mediaSha1: string;
     rejectionReason: string;
   }>;
+  productionWrites: boolean;
+  apply: boolean;
+  fixedMonthlyCostUsd: number;
+};
+
+type KfsPhotoGlobalStrictAudit = {
+  schemaVersion: number;
+  reviewedAt: string;
+  sourceReport: {
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+    schemaVersion: number;
+  };
+  packageManifest: {
+    path: string;
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+  };
+  acceptedLiveReplay: {
+    path: string;
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+    rawResponseSha256: string;
+  };
+  artifactIntegrity: {
+    requestCache: { requestCount: number; canonicalSha256: string };
+    cacheTree: { fileCount: number; canonicalSha256: string };
+    thumbnailTree: { fileCount: number; canonicalSha256: string };
+    originalTree: { fileCount: number; canonicalSha256: string };
+    thumbnailManifestVerified: boolean;
+    originalCommonsSha1Verified: boolean;
+  };
+  summary: {
+    searchedPeaks: number;
+    searchedPeaksWithAccept: number;
+    searchedPeaksWithoutAccept: number;
+    uniqueCommonsFiles: number;
+    peakFileEvaluations: number;
+    acceptedPeakFileBindings: number;
+    rejectedPeakFileEvaluations: number;
+    automatedRejectedPeakFileEvaluations: number;
+    fullFrameReviewedPeakFileEvaluations: number;
+    fullFrameRejectedPeakFileEvaluations: number;
+    strictCoveredBefore: number;
+    strictAcceptedThisPass: number;
+    strictCoveredIfIntegrated: number;
+  };
+  rows: Array<{
+    ordinal: number;
+    destinationId: string;
+    name: string;
+    uniqueFiles: number;
+    automaticRejects: number;
+    fullFrameReviews: number;
+    fullFrameRejects: number;
+    accepts: number;
+  }>;
+  acceptedBindings: Array<{
+    ordinal: number;
+    destinationId: string;
+    destinationName: string;
+    catalog: { lat: number; lng: number; wikidataId: string | null };
+    reviewedWikidataId: string;
+    fileTitle: string;
+    sourcePageUrl: string;
+    imageUrl: string;
+    width: number;
+    height: number;
+    mediaSha1: string;
+    metadataSha256: string;
+    photographer: string;
+    licenseName: string;
+    licenseUrl: string;
+    identityEvidence: {
+      exactCoordinate: boolean;
+      exactCategory: boolean;
+      exactP18: boolean;
+      namesPeak: boolean;
+    };
+    coordinateAudit: {
+      rawCoordinates: unknown[];
+      normalizedCoordinateCount: number;
+      normalizedCoordinates: null;
+    };
+    evidence: Array<{
+      channel: string;
+      wikidataId?: string;
+      category?: string;
+    }>;
+    visualReview: {
+      fullFrameReviewed: boolean;
+      fullResolutionReviewed: boolean;
+    };
+    originalArtifact: {
+      path: string;
+      byteLength: number;
+      sha256: string;
+    };
+    identityReview: string;
+  }>;
+  rejectionReasons: Array<{ reason: string; count: number }>;
+  rejectedEvaluationFields: string[];
+  rejectedEvaluations: Array<[
+    "automatic" | "full_frame",
+    number,
+    string,
+    string,
+    number | null,
+    number | null,
+    string | null,
+    string | null,
+    string,
+  ]>;
   productionWrites: boolean;
   apply: boolean;
   fixedMonthlyCostUsd: number;
@@ -208,7 +325,7 @@ function reviewedImage(
     fileTitle: audit.fileTitle,
     fileTitleAliases: [],
     coordinates: audit.fileCoordinates,
-    coordinateCount: 1,
+    coordinateCount: audit.fileCoordinates === null ? 0 : 1,
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/a/aa/reviewed-file.jpg",
     sourcePageUrl:
       `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle)}`,
@@ -849,13 +966,14 @@ test("article photo order keeps the lead then exact named alternatives and drops
   );
 });
 
-test("the reviewed Commons allowlist contains only the sixteen accepted KFS files", () => {
+test("the reviewed Commons allowlist contains only the eighteen accepted KFS files", () => {
   assert.deepEqual(Object.keys(LISTED_PHOTO_REVIEWED_COMMONS_FILES).sort(), [
     "0164CE419EF8A8BBB87B",
     "09DC0597070CF98C1FD9",
     "1CE83A8BF630D0A07E9A",
     "33463BA61321FCD7F079",
     "3BDE883C882EB9065D76",
+    "47D2EFD1234631730AE4",
     "4F5CA1B51FE2938C6E87",
     "75AF4150F340FE16701D",
     "862F189C5B9F1EB85918",
@@ -863,6 +981,7 @@ test("the reviewed Commons allowlist contains only the sixteen accepted KFS file
     "93A9A878F282DA759D1D",
     "958AD1411BC49B469BE1",
     "9676E99C140134852220",
+    "9E946D54AC315445CFF9",
     "9F7C04F02A37514A13AD",
     "A6B289B963FB542E24ED",
     "BAFDCE06CE474E7C0E10",
@@ -877,15 +996,23 @@ test("the reviewed Commons allowlist contains only the sixteen accepted KFS file
     assert.equal(audit.countryCode, "KR");
     assert.ok(audit.fileTitle.startsWith("File:"));
     assert.match(audit.mediaSha1, /^[0-9a-f]{40}$/);
-    assert.ok(
-      distanceMeters(
-        audit.catalogCoordinates.lat,
-        audit.catalogCoordinates.lng,
-        audit.fileCoordinates.lat,
-        audit.fileCoordinates.lng
-      ) <= 1_500,
-      `${destinationId} reviewed file must stay within 1.5 km of its summit`
-    );
+    if (audit.fileCoordinates === null) {
+      assert.ok(audit.exactPeakIdentity, destinationId);
+      assert.match(audit.exactPeakIdentity.wikidataId, /^Q\d+$/, destinationId);
+      assert.match(audit.exactPeakIdentity.commonsCategory, /^Category:/, destinationId);
+      assert.match(audit.exactPeakIdentity.metadataSha256, /^[0-9a-f]{64}$/, destinationId);
+      assert.ok(audit.exactPeakIdentity.review.length > 0, destinationId);
+    } else {
+      assert.ok(
+        distanceMeters(
+          audit.catalogCoordinates.lat,
+          audit.catalogCoordinates.lng,
+          audit.fileCoordinates.lat,
+          audit.fileCoordinates.lng
+        ) <= 1_500,
+        `${destinationId} reviewed file must stay within 1.5 km of its summit`
+      );
+    }
   }
   for (const rejectedFile of [
     "File:삼악산 정상 3.jpg",
@@ -996,6 +1123,252 @@ test("the fourth KFS review freezes its zero-accept slice and every rejected fil
   assert.equal(audit.fixedMonthlyCostUsd, 0);
 });
 
+test("the global KFS review freezes all 75 gaps, 1,238 rejects, and two accepts", async () => {
+  const fixturePath = path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/kfs-photo-global-strict-review-2026-09-01.json"
+  );
+  const audit = JSON.parse(await readFile(fixturePath, "utf8")) as KfsPhotoGlobalStrictAudit;
+
+  assert.equal(audit.schemaVersion, 1);
+  assert.equal(audit.reviewedAt, "2026-09-01");
+  assert.deepEqual(audit.sourceReport, {
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/kfs-global-strict-discovery-report.json",
+    sha256: "42fe2317e08a3bf56fa6217ab70fcc3098afbbb0fa1995b3bfa09a3c42a2ed68",
+    byteLength: 3_326_878,
+    schemaVersion: 2,
+  });
+  assert.deepEqual(audit.packageManifest, {
+    path: "docs/data-audits/fixtures/kfs-photo-global-strict-package-manifest-2026-09-01.json",
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/kfs-global-strict-discovery-package-manifest.json",
+    sha256: "a3e22e4e66815db06bf9ecb0164778aea26149c08a26193ef6a0d32fe247c0f1",
+    byteLength: 5_499,
+  });
+  assert.deepEqual(audit.acceptedLiveReplay, {
+    path: "docs/data-audits/fixtures/kfs-photo-global-strict-accepted-live-replay-2026-09-01.json",
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/accepted-live-replay.json",
+    sha256: "e6d20e0342fd2611afbc70db41428cd9f2e171ce3556f45b901eb0be3013a749",
+    byteLength: 8_090,
+    rawResponseSha256: "5abf57d953198800b42bc220fae6c9fc82d66e7e6b106d648450b5f65becdd22",
+  });
+  const fixtureDirectory = path.dirname(fixturePath);
+  const packageManifestBytes = await readFile(path.join(
+    fixtureDirectory,
+    "kfs-photo-global-strict-package-manifest-2026-09-01.json"
+  ));
+  assert.equal(packageManifestBytes.byteLength, audit.packageManifest.byteLength);
+  assert.equal(
+    createHash("sha256").update(packageManifestBytes).digest("hex"),
+    audit.packageManifest.sha256
+  );
+  const liveReplayBytes = await readFile(path.join(
+    fixtureDirectory,
+    "kfs-photo-global-strict-accepted-live-replay-2026-09-01.json"
+  ));
+  assert.equal(liveReplayBytes.byteLength, audit.acceptedLiveReplay.byteLength);
+  assert.equal(
+    createHash("sha256").update(liveReplayBytes).digest("hex"),
+    audit.acceptedLiveReplay.sha256
+  );
+  const liveReplay = JSON.parse(liveReplayBytes.toString("utf8")) as {
+    schemaVersion: number;
+    count: number;
+    rawResponseSha256: string;
+    allPinnedFieldsMatch: boolean;
+    results: Array<{ allPinnedFieldsMatch: boolean }>;
+  };
+  assert.equal(liveReplay.schemaVersion, 1);
+  assert.equal(liveReplay.count, 2);
+  assert.equal(liveReplay.rawResponseSha256, audit.acceptedLiveReplay.rawResponseSha256);
+  assert.equal(liveReplay.allPinnedFieldsMatch, true);
+  assert.deepEqual(liveReplay.results.map(({ allPinnedFieldsMatch }) => allPinnedFieldsMatch), [
+    true,
+    true,
+  ]);
+  assert.deepEqual(audit.summary, {
+    searchedPeaks: 75,
+    searchedPeaksWithAccept: 2,
+    searchedPeaksWithoutAccept: 73,
+    uniqueCommonsFiles: 1_222,
+    peakFileEvaluations: 1_240,
+    acceptedPeakFileBindings: 2,
+    rejectedPeakFileEvaluations: 1_238,
+    automatedRejectedPeakFileEvaluations: 1_111,
+    fullFrameReviewedPeakFileEvaluations: 129,
+    fullFrameRejectedPeakFileEvaluations: 127,
+    strictCoveredBefore: 25,
+    strictAcceptedThisPass: 2,
+    strictCoveredIfIntegrated: 27,
+  });
+  assert.equal(audit.rows.length, 75);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.uniqueFiles, 0), 1_240);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.automaticRejects, 0), 1_111);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.fullFrameReviews, 0), 129);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.fullFrameRejects, 0), 127);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.accepts, 0), 2);
+  assert.deepEqual(
+    audit.rows.filter(({ accepts }) => accepts === 1).map(({ ordinal }) => ordinal),
+    [66, 75]
+  );
+  assert.equal(new Set(audit.rows.map(({ ordinal }) => ordinal)).size, 75);
+  assert.equal(new Set(audit.rows.map(({ destinationId }) => destinationId)).size, 75);
+  assert.equal(
+    audit.rejectionReasons.reduce((sum, reason) => sum + reason.count, 0),
+    1_238
+  );
+  assert.deepEqual(audit.rejectedEvaluationFields, [
+    "stage",
+    "rowOrdinal",
+    "destinationId",
+    "fileTitle",
+    "width",
+    "height",
+    "mediaSha1",
+    "metadataSha256",
+    "reason",
+  ]);
+  assert.equal(audit.rejectedEvaluations.length, 1_238);
+  assert.equal(
+    new Set(audit.rejectedEvaluations.map((entry) => `${entry[1]}\0${entry[3]}`)).size,
+    1_238
+  );
+  assert.equal(new Set(audit.rejectedEvaluations.map((entry) => entry[3])).size, 1_220);
+  assert.equal(
+    audit.rejectedEvaluations.filter(([stage]) => stage === "automatic").length,
+    1_111
+  );
+  assert.equal(
+    audit.rejectedEvaluations.filter(([stage]) => stage === "full_frame").length,
+    127
+  );
+  for (const row of audit.rows) {
+    const rejected = audit.rejectedEvaluations.filter((entry) => entry[1] === row.ordinal);
+    assert.equal(
+      rejected.filter(([stage]) => stage === "automatic").length,
+      row.automaticRejects,
+      row.name
+    );
+    assert.equal(
+      rejected.filter(([stage]) => stage === "full_frame").length,
+      row.fullFrameRejects,
+      row.name
+    );
+    assert.equal(row.fullFrameReviews, row.fullFrameRejects + row.accepts, row.name);
+    assert.equal(rejected.length + row.accepts, row.uniqueFiles, row.name);
+  }
+  for (const [, rowOrdinal, destinationId, fileTitle, width, height, mediaSha1,
+    metadataSha256, reason] of audit.rejectedEvaluations) {
+    const auditedRow = audit.rows.find(({ ordinal }) => ordinal === rowOrdinal);
+    assert.equal(auditedRow?.destinationId, destinationId, fileTitle);
+    assert.ok(fileTitle.startsWith("File:"), fileTitle);
+    assert.ok(width === null || width > 0, fileTitle);
+    assert.ok(height === null || height > 0, fileTitle);
+    assert.ok(mediaSha1 === null || /^[0-9a-f]{40}$/.test(mediaSha1), fileTitle);
+    assert.ok(metadataSha256 === null || /^[0-9a-f]{64}$/.test(metadataSha256), fileTitle);
+    assert.ok(reason.length > 0, fileTitle);
+    assert.notEqual(
+      LISTED_PHOTO_REVIEWED_COMMONS_FILES[destinationId]?.fileTitle,
+      fileTitle,
+      `${destinationId} must not bind a rejected file`
+    );
+  }
+  assert.deepEqual(
+    audit.acceptedBindings.map(({ destinationId, fileTitle, mediaSha1, originalArtifact }) => ({
+      destinationId,
+      fileTitle,
+      mediaSha1,
+      originalArtifact,
+    })),
+    [
+      {
+        destinationId: "47D2EFD1234631730AE4",
+        fileTitle: "File:Mount Worak Korea 242.jpg",
+        mediaSha1: "2d0291eac9bfd76217592ce9e0fd95565f3f1279",
+        originalArtifact: {
+          path: "review-originals/074.jpg",
+          byteLength: 2_524_431,
+          sha256: "1bc9bb148c55d89f0c321ce54e1099211c943975a4adf9c655cb86aa9ee5e1cc",
+        },
+      },
+      {
+        destinationId: "9E946D54AC315445CFF9",
+        fileTitle: "File:주왕산 ( 8 ).jpg",
+        mediaSha1: "aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d",
+        originalArtifact: {
+          path: "review-originals/101.jpg",
+          byteLength: 14_706_748,
+          sha256: "57369efd12d4993eb5cd2b422d87da1dd81e20466993fcf6b2b0db3fdf12137d",
+        },
+      },
+    ]
+  );
+  for (const accepted of audit.acceptedBindings) {
+    const binding = LISTED_PHOTO_REVIEWED_COMMONS_FILES[accepted.destinationId];
+    assert.ok(binding, accepted.destinationId);
+    assert.equal(binding.destinationName, accepted.destinationName);
+    assert.equal(binding.fileTitle, accepted.fileTitle);
+    assert.equal(binding.width, accepted.width);
+    assert.equal(binding.height, accepted.height);
+    assert.equal(binding.mediaSha1, accepted.mediaSha1);
+    assert.equal(binding.photographer, accepted.photographer);
+    assert.equal(binding.licenseName, accepted.licenseName);
+    assert.equal(binding.licenseUrl, `${accepted.licenseUrl}/`);
+    assert.deepEqual(binding.catalogCoordinates, {
+      lat: accepted.catalog.lat,
+      lng: accepted.catalog.lng,
+    });
+    assert.equal(binding.catalogWikidataId, accepted.catalog.wikidataId);
+    assert.equal(binding.fileCoordinates, null);
+    assert.equal(binding.exactPeakIdentity?.metadataSha256, accepted.metadataSha256);
+    assert.equal(
+      binding.exactPeakIdentity?.wikidataId,
+      accepted.reviewedWikidataId
+    );
+    assert.equal(
+      binding.exactPeakIdentity?.commonsCategory,
+      accepted.evidence.find(({ channel }) => channel === "commons_category")?.category
+    );
+    assert.equal(accepted.identityEvidence.exactCoordinate, false);
+    assert.equal(accepted.identityEvidence.exactCategory, true);
+    assert.equal(accepted.identityEvidence.namesPeak, true);
+    assert.deepEqual(accepted.coordinateAudit, {
+      rawCoordinates: [],
+      normalizedCoordinateCount: 0,
+      normalizedCoordinates: null,
+    });
+    assert.equal(accepted.visualReview.fullFrameReviewed, true);
+    assert.equal(accepted.visualReview.fullResolutionReviewed, true);
+    assert.match(accepted.sourcePageUrl, /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    assert.match(accepted.imageUrl, /^https:\/\/upload\.wikimedia\.org\//);
+    assert.match(accepted.originalArtifact.sha256, /^[0-9a-f]{64}$/);
+    assert.ok(accepted.originalArtifact.byteLength > 0);
+    assert.ok(accepted.identityReview.length > 0);
+  }
+  assert.deepEqual(audit.artifactIntegrity, {
+    requestCache: {
+      requestCount: 808,
+      canonicalSha256: "c7bb23222ef06c2340ea09ffa633319dde7a8be73a5379d6c534d3e1a98c39b8",
+    },
+    cacheTree: {
+      fileCount: 860,
+      canonicalSha256: "7817a14be0a73c8f1e6abe8442bc3a084eff33b87c9223c442c214c70d6e190a",
+    },
+    thumbnailTree: {
+      fileCount: 129,
+      canonicalSha256: "c3956df14e2da07e47727daf37fa401f46cbf0ef346e58c9347772644e76b62d",
+    },
+    originalTree: {
+      fileCount: 24,
+      canonicalSha256: "0f784201fde3ab2983fecf57ca7bba537ea13ea0490762ab36a9267a30d625cd",
+    },
+    thumbnailManifestVerified: true,
+    originalCommonsSha1Verified: true,
+  });
+  assert.equal(audit.productionWrites, false);
+  assert.equal(audit.apply, false);
+  assert.equal(audit.fixedMonthlyCostUsd, 0);
+});
+
 test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
   const title = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"].fileTitle;
   const url = reviewedCommonsFileApiUrl(title);
@@ -1021,7 +1394,7 @@ test("reviewed Commons requests use one exact title and no discovery mechanism",
   );
 });
 
-test("all sixteen exact reviewed Commons bindings yield pending-review evidence", async () => {
+test("all eighteen exact reviewed Commons bindings yield pending-review evidence", async () => {
   for (const audit of Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)) {
     const calls: string[] = [];
     const unexpected = async (): Promise<never> => {
@@ -1060,6 +1433,21 @@ test("all sixteen exact reviewed Commons bindings yield pending-review evidence"
       plan.candidate.evidence.catalogCoordinates,
       audit.catalogCoordinates
     );
+    assert.equal(
+      plan.candidate.evidence.identityBasis,
+      audit.fileCoordinates === null ? "audited_exact_peak" : "camera_coordinate"
+    );
+    assert.deepEqual(
+      plan.candidate.evidence.exactPeakIdentity,
+      audit.exactPeakIdentity ?? null
+    );
+    if (audit.fileCoordinates === null) {
+      assert.ok(audit.exactPeakIdentity);
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.wikidataId));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.commonsCategory));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.metadataSha256));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.review));
+    }
     assert.match(plan.candidate.notes ?? "", /Human-reviewed exact Commons file/);
     assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
     assert.equal("heroImage" in plan.candidate, false);
@@ -1093,6 +1481,8 @@ test("reviewed Commons bindings fail closed when the frozen catalog identity cha
 
 test("reviewed Commons bindings reject every frozen file-metadata change", async () => {
   const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"];
+  const fileCoordinates = audit.fileCoordinates;
+  assert.ok(fileCoordinates);
   const cases: Array<[string, Partial<WikimediaImageMetadata>]> = [
     ["title", { fileTitle: "File:Different mountain.jpg" }],
     ["redirect", { fileTitleAliases: [audit.fileTitle] }],
@@ -1113,7 +1503,7 @@ test("reviewed Commons bindings reject every frozen file-metadata change", async
     ["duplicate coordinate", { coordinateCount: 2 }],
     [
       "moved coordinate",
-      { coordinates: { lat: audit.fileCoordinates.lat + 0.001, lng: audit.fileCoordinates.lng } },
+      { coordinates: { lat: fileCoordinates.lat + 0.001, lng: fileCoordinates.lng } },
     ],
   ];
 
@@ -1128,6 +1518,25 @@ test("reviewed Commons bindings reject every frozen file-metadata change", async
     assert.equal(plan.code, "reviewed_commons_file_changed", label);
     assert.equal(plan.rejectedImages?.length, 1, label);
   }
+});
+
+test("reviewed exact-peak bindings pin the absence of a camera coordinate", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["47D2EFD1234631730AE4"];
+  assert.equal(audit.fileCoordinates, null);
+  assert.ok(audit.exactPeakIdentity);
+
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit, {
+        coordinates: audit.catalogCoordinates,
+        coordinateCount: 1,
+      });
+    },
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected changed coordinate state to fail");
+  assert.equal(plan.code, "reviewed_commons_file_changed");
+  assert.match(plan.reason, /coordinate state changed/);
 });
 
 test("a pinned reviewed Commons row never falls through after an exact-file miss", async () => {
@@ -1778,6 +2187,42 @@ test("queue inserts only a pending review row and never writes hero_image", asyn
   assert.match(stub.calls[2].text, /ON CONFLICT[\s\S]*DO NOTHING/);
   assert.match(stub.calls[2].text, /media_sha1/);
   assert.doesNotMatch(stub.calls[2].text, /UPDATE destinations|hero_image\s*=/);
+});
+
+test("queue keeps exact-peak proof in the pending review note", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["47D2EFD1234631730AE4"];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit);
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected reviewed candidate");
+
+  const stub = new QueryStub([
+    {
+      rows: [currentState({
+        name: audit.destinationName,
+        lat: audit.catalogCoordinates.lat,
+        lng: audit.catalogCoordinates.lng,
+        country_code: audit.countryCode,
+        wikidata_id: audit.catalogWikidataId,
+        list_ids: [audit.requiredListId],
+      })],
+    },
+    { rows: [] },
+    { rows: [], rowCount: 1 },
+  ]);
+  assert.equal(await queueListedPhotoCandidate(stub, plan.candidate), "inserted");
+  const storedNote = stub.calls[2].values?.[12];
+  assert.equal(storedNote, plan.candidate.notes);
+  assert.equal(typeof storedNote, "string");
+  if (typeof storedNote !== "string") assert.fail("expected durable review note");
+  assert.ok(audit.exactPeakIdentity);
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.wikidataId));
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.commonsCategory));
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.metadataSha256));
+  assert.doesNotMatch(storedNote, /\.\. Framing/);
 });
 
 test("queue rechecks current cover, pending state, and normalized source history", async () => {
