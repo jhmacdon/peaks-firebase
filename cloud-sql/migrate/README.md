@@ -51,3 +51,27 @@ explains why it must not come back.
 CI runs the whole set: `.github/workflows/test-route-worker.yml` provisions a
 throwaway PostGIS container with `test-db/provision.sh`, then runs
 `npm run test:db`.
+
+## Listed route and cover goal
+
+After the route-cover view migration is applied, audit every destination on a
+Peaks-owned list and every active Peaks-owned route:
+
+```bash
+.agents/skills/peaks-route-factory/scripts/with_route_db.sh \
+  cloud-sql/migrate/scripts/audit-listed-route-cover-goal.sh \
+  --format summary
+```
+
+Use `--format tsv --incomplete-only` or `--format json --incomplete-only` for
+the exact gaps. Detail rows identify either a `listed_destination` or an
+`active_peaks_route`, so an orphan or unlisted route cannot disappear from the
+report. The final cutover check adds `--require-complete`; it exits 1
+until every listed destination is a summit with a fully credited cover, every
+listed destination has a publish-valid active standard route with a derived
+cover, and no active Peaks-owned route lacks a cover. The command uses operator
+database access; route-factory, route-repair, and route-review checkouts reject
+it.
+
+The audit forces read-only database transactions. It adds no service or stored
+copy and has a fixed cost of $0/month.
