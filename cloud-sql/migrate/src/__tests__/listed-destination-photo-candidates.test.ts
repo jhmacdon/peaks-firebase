@@ -45,6 +45,55 @@ import {
 
 const RAINIER_MEDIA_SHA1 = "7a1f2627e0f702e514290f1c06aa76e838dd845f";
 
+type KfsPhotoZeroAcceptAudit = {
+  schemaVersion: number;
+  reviewedAt: string;
+  base: {
+    branch: string;
+    commit: string;
+  };
+  scan: {
+    source: string;
+    sourceSha256: string;
+    sourceByteLength: number;
+    commonsNamespace: number;
+    summitRadiusMeters: number;
+    rowOrdinals: number[];
+  };
+  strictCount: {
+    before: number;
+    after: number;
+  };
+  summary: {
+    rowsWithNoNearbyFiles: number;
+    rowsWithNearbyFiles: number;
+    nearbyFileCount: number;
+    acceptedFileCount: number;
+    rejectedFileCount: number;
+  };
+  rows: Array<{
+    ordinal: number;
+    destinationId: string;
+    name: string;
+    nearbyFileCount: number;
+  }>;
+  acceptedFiles: unknown[];
+  rejectedFiles: Array<{
+    rowOrdinal: number;
+    destinationId: string;
+    destinationName: string;
+    fileTitle: string;
+    width: number;
+    height: number;
+    distanceMeters: number;
+    mediaSha1: string;
+    rejectionReason: string;
+  }>;
+  productionWrites: boolean;
+  apply: boolean;
+  fixedMonthlyCostUsd: number;
+};
+
 function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
   return {
     id: "dest-rainier",
@@ -866,6 +915,85 @@ test("the reviewed Commons allowlist contains only the sixteen accepted KFS file
       rejectedFile
     );
   }
+});
+
+test("the fourth KFS review freezes its zero-accept slice and every rejected file", async () => {
+  const fixturePath = path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/kfs-photo-batch-four-zero-accept-2026-08-31.json"
+  );
+  const audit = JSON.parse(await readFile(fixturePath, "utf8")) as KfsPhotoZeroAcceptAudit;
+
+  assert.equal(audit.schemaVersion, 1);
+  assert.equal(audit.reviewedAt, "2026-08-31");
+  assert.deepEqual(audit.base, {
+    branch: "codex/kfs-reviewed-photo-batch-three-20260831",
+    commit: "56b8d0ce83bcb3e153046b9d1fc4aec0c16f63d1",
+  });
+  assert.equal(
+    audit.scan.source,
+    "/private/tmp/kfs-photo-audit.aaKsbO/kfs-commons-file-geosearch-2026-08-31.json"
+  );
+  assert.equal(
+    audit.scan.sourceSha256,
+    "e42fd1033afb15afa4e5ab1cce591c917321391da3f2bb08bd17198addec4cde"
+  );
+  assert.equal(audit.scan.sourceByteLength, 101_027);
+  assert.equal(audit.scan.commonsNamespace, 6);
+  assert.equal(audit.scan.summitRadiusMeters, 1_500);
+  assert.deepEqual(audit.scan.rowOrdinals, [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 18, 19, 21, 22, 24, 25,
+    26, 28, 29, 30, 32, 33, 34, 36, 39, 40, 41, 42, 43, 44, 45, 46, 50, 51,
+    57, 58, 60, 61, 62, 63, 64, 65, 66, 69, 71, 73, 74, 75, 76, 78, 79, 81,
+    82, 84, 87, 89, 91, 92, 94, 95, 97, 98, 99, 100,
+  ]);
+  assert.equal(audit.rows.length, 67);
+  assert.deepEqual(audit.rows.map(({ ordinal }) => ordinal), audit.scan.rowOrdinals);
+  assert.equal(audit.rows.filter(({ nearbyFileCount }) => nearbyFileCount === 0).length, 52);
+  assert.equal(audit.rows.filter(({ nearbyFileCount }) => nearbyFileCount > 0).length, 15);
+  assert.equal(
+    audit.rows.reduce((count, { nearbyFileCount }) => count + nearbyFileCount, 0),
+    29
+  );
+  assert.deepEqual(audit.summary, {
+    rowsWithNoNearbyFiles: 52,
+    rowsWithNearbyFiles: 15,
+    nearbyFileCount: 29,
+    acceptedFileCount: 0,
+    rejectedFileCount: 29,
+  });
+  assert.deepEqual(audit.acceptedFiles, []);
+  assert.deepEqual(audit.strictCount, { before: 25, after: 25 });
+  assert.equal(audit.rejectedFiles.length, 29);
+  assert.equal(new Set(audit.rejectedFiles.map(({ fileTitle }) => fileTitle)).size, 29);
+  for (const rejected of audit.rejectedFiles) {
+    const auditedRow = audit.rows.find(({ ordinal }) => ordinal === rejected.rowOrdinal);
+    assert.ok(auditedRow, rejected.fileTitle);
+    assert.equal(rejected.destinationId, auditedRow.destinationId, rejected.fileTitle);
+    assert.equal(rejected.destinationName, auditedRow.name, rejected.fileTitle);
+    assert.ok(rejected.fileTitle.startsWith("File:"), rejected.fileTitle);
+    assert.ok(Number.isInteger(rejected.width) && rejected.width > 0, rejected.fileTitle);
+    assert.ok(Number.isInteger(rejected.height) && rejected.height > 0, rejected.fileTitle);
+    assert.ok(rejected.distanceMeters >= 0 && rejected.distanceMeters <= 1_500, rejected.fileTitle);
+    assert.match(rejected.mediaSha1, /^[0-9a-f]{40}$/, rejected.fileTitle);
+    assert.ok(rejected.rejectionReason.length > 0, rejected.fileTitle);
+    assert.equal(
+      Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+        .some(({ fileTitle }) => fileTitle === rejected.fileTitle),
+      false,
+      rejected.fileTitle
+    );
+  }
+  for (const auditedRow of audit.rows) {
+    assert.equal(
+      audit.rejectedFiles.filter(({ rowOrdinal }) => rowOrdinal === auditedRow.ordinal).length,
+      auditedRow.nearbyFileCount,
+      auditedRow.name
+    );
+  }
+  assert.equal(audit.productionWrites, false);
+  assert.equal(audit.apply, false);
+  assert.equal(audit.fixedMonthlyCostUsd, 0);
 });
 
 test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
