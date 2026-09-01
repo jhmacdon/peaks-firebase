@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-09-01-primary-source-lower-bound-8",
+  "created_at": "2026-09-01T05:12:19Z",
+  "kind": "readiness_amendment",
+  "base_registry": {
+    "version": "2026-09-01-primary-source-lower-bound-7",
+    "json_path": "docs/data-audits/respectable-peakbagging-denominator-v1.7-2026-09-01.json",
+    "json_sha256": "7d904693f8b67356bcd256827de30b58ab4352093a46d80e081c63cfbc72c233",
+    "markdown_sha256": "07b62e886d03385dc0487c31b76567a0cc498dff267310dfcf78d74e5e22988f"
+  },
+  "stack_base": {
+    "pull_request": 196,
+    "url": "https://github.com/jhmacdon/peaks-firebase/pull/196",
+    "head_commit": "c1e800ebd5091d9d0d245b7e57e008033bbc8abe",
+    "status": "ready_for_review_not_merged"
+  },
+  "source_change": {
+    "status": "source_only_not_merged",
+    "publication_ready": false,
+    "production_write_performed": false,
+    "fixture_path": "docs/data-audits/fixtures/keeper-list-dobih-rhsoc-four-candidates-2026-09-01.json",
+    "fixture_sha256": "cb75b57dc26431565b592f11e7c96f218cda090841fc258628e24f5753347005",
+    "source_metadata_sha256": "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402",
+    "source_archive_sha256": "0c39e13ac59dd3fa172ac21dd56dd0f6fef19a14af47c7a5a444cce691e9f021",
+    "source_csv_sha256": "d27bc69dbb6d30a6f171ef277408831fe8763fc9043422f4e375e63f4cc190ea",
+    "source_csv_row_count": 21576,
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "coverage": {
+    "confirmed_lower_bound_denominator": 83,
+    "current_exact_count": 22,
+    "prior_ready_exact_count": 23,
+    "new_ready_exact_count": 4,
+    "ready_exact_count": 27,
+    "current_plus_ready_exact_count": 49,
+    "current_plus_ready_exact_percent_of_lower_bound": 59.0361,
+    "majority_threshold_for_83": 42,
+    "additional_ready_units_needed_for_registry_majority": 0,
+    "ready_stack_reaches_registry_majority": true,
+    "production_reaches_registry_majority": false,
+    "worldwide_majority_claim_supported": false,
+    "coverage_claim_supported": false,
+    "scope_warning": "The 49 of 83 result is a ready review stack against one dated lower-bound registry. It is not merged or imported, and it does not prove a worldwide majority."
+  },
+  "new_ready_units": [
+    {
+      "denominator_registry_id": "great-britain-marilyns",
+      "source_key": "dobih-great-britain-marilyns",
+      "list_id": "28159A46DB14A20C6AAD",
+      "name": "Great Britain Marilyns",
+      "count": 1550,
+      "selection": "Ma=1 AND Country IN (E,ES,S,W)",
+      "roster_sha256": "055fe69b5a5ad8dc78445fdbc0051e9c062b813f777983d843a844b9943eddbd",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "high-hills-of-britain",
+      "source_key": "dobih-high-hills-of-britain",
+      "list_id": "07F30062B5F3654C3493",
+      "name": "High Hills of Britain",
+      "count": 1035,
+      "selection": "HHB=1",
+      "roster_sha256": "66f5919cddefae958d02337610c0e0218543ebd7cb261a909b98286d004b52e0",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "simms",
+      "source_key": "dobih-simms",
+      "list_id": "71F41F9E96DDD5D0FF02",
+      "name": "Simms",
+      "count": 2755,
+      "selection": "Sim=1",
+      "roster_sha256": "59be2fd9017be3ec6f4284a5e2884f5ad05f77eced5ab53e1b83b1e1139b7a87",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "subsimms",
+      "source_key": "dobih-subsimms",
+      "list_id": "8C5F5BC5DC2D8F765ACB",
+      "name": "Subsimms",
+      "count": 739,
+      "selection": "sSim=1",
+      "roster_sha256": "241812f1e490c6521c34dc0bdee310ed3a4eede95a941889d05c793221237c96",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    }
+  ],
+  "source_work": {
+    "membership_count": 6079,
+    "unique_identity_count": 4306,
+    "membership_frequency": {
+      "one_list": 2875,
+      "two_lists": 1089,
+      "three_lists": 342,
+      "four_lists": 0
+    },
+    "pairwise_overlap": {
+      "great_britain_marilyns__high_hills_of_britain": 342,
+      "great_britain_marilyns__simms": 767,
+      "great_britain_marilyns__subsimms": 0,
+      "high_hills_of_britain__simms": 828,
+      "high_hills_of_britain__subsimms": 178,
+      "simms__subsimms": 0
+    },
+    "prior_reviewed_identity_count": 1552,
+    "new_identity_review_count": 2754,
+    "prior_reviewed_membership_by_list": {
+      "great_britain_marilyns": 667,
+      "high_hills_of_britain": 401,
+      "simms": 1313,
+      "subsimms": 131
+    },
+    "country_split": {
+      "E": 430,
+      "ES": 2,
+      "I": 262,
+      "M": 1,
+      "S": 5013,
+      "W": 371
+    },
+    "alias_bearing_identity_count": 290,
+    "duplicate_primary_name_group_count": 227,
+    "duplicate_primary_name_row_count": 722,
+    "exact_coordinate_duplicate_group_count": 0,
+    "route_safety_audit_complete": false,
+    "route_publication_block_set_non_exhaustive": true,
+    "route_safety_warning": "This initial block set is non-exhaustive. Absence from it never means a source member or proposed route is safe; every route requires separate safety and access review.",
+    "route_publication_blocks": [
+      "dobih:79",
+      "dobih:1212",
+      "dobih:1240",
+      "dobih:1260",
+      "dobih:1639",
+      "dobih:1641",
+      "dobih:2711",
+      "dobih:2713",
+      "dobih:2735",
+      "dobih:2877",
+      "dobih:2952",
+      "dobih:7888",
+      "dobih:19843",
+      "dobih:21237"
+    ],
+    "named_completion_exceptions": []
+  },
+  "before_production": [
+    "Merge the reviewed source and identity stack.",
+    "Resolve all 4306 identities by DoBIH Number, coordinates, and elevation; never resolve the 227 repeated-name groups by name alone.",
+    "Keep dobih:2711, dobih:2713, dobih:2735, and dobih:2877 blocked from summit-route publication while their firing-range restrictions apply.",
+    "Keep all 14 initial route-publication blocks enforced; this set is non-exhaustive, and absence from it never means safe.",
+    "Complete a separate safety and access audit for every proposed route before publication.",
+    "Add a credited destination cover, a safe reviewed route, and a credited route cover for every unblocked member.",
+    "Run the read-only zero-gap audit and require no unblocked gap.",
+    "Add any import or apply path only in a separate reviewed change with approval."
+  ],
+  "cost": {
+    "infrastructure_change": false,
+    "estimated_monthly_usd": 0
+  }
+}

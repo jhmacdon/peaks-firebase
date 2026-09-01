@@ -246,11 +246,11 @@ test("shared DoBIH parser requires every source-bundle selection flag", () => {
   const headers = [
     "Number", "Name", "Metres", "Latitude", "Longitude", "Country",
     "C", "W", "MT", "F", "D", "DT", "WO", "Fel", "VL", "Hew", "G",
-    "Dew", "DDew", "sMa", "B", "Sy",
+    "Dew", "DDew", "sMa", "B", "Sy", "Ma", "HHB", "Sim", "sSim",
   ];
   const row = [
     "1", "Test Fell", "100", "51", "-1", "E",
-    ...Array.from({ length: 16 }, () => "1"),
+    ...Array.from({ length: 20 }, () => "1"),
   ];
   const parsed = parseDobihRows(`${headers.join(",")}\n${row.join(",")}\n`);
   assert.equal(parsed[0].flags.Dew, true);
@@ -258,8 +258,14 @@ test("shared DoBIH parser requires every source-bundle selection flag", () => {
   assert.equal(parsed[0].flags.sMa, true);
   assert.equal(parsed[0].flags.B, true);
   assert.equal(parsed[0].flags.Sy, true);
+  assert.equal(parsed[0].flags.Ma, true);
+  assert.equal(parsed[0].flags.HHB, true);
+  assert.equal(parsed[0].flags.Sim, true);
+  assert.equal(parsed[0].flags.sSim, true);
 
-  for (const requiredColumn of ["Dew", "DDew", "sMa", "B", "Sy"]) {
+  for (const requiredColumn of [
+    "Dew", "DDew", "sMa", "B", "Sy", "Ma", "HHB", "Sim", "sSim",
+  ]) {
     const keptIndexes = headers.flatMap((header, index) =>
       header === requiredColumn ? [] : [index]);
     const changedHeaders = keptIndexes.map((index) => headers[index]);
