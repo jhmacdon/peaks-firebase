@@ -45,6 +45,8 @@ export interface CatalogPeak {
   lat: number;
   lng: number;
   osmId: string | null;
+  countryCode?: string | null;
+  stateCode?: string | null;
 }
 
 interface CuratedDestination {
@@ -68,13 +70,18 @@ export interface CuratedList {
    * A list that takes only part of one Peakbagger page names the peaks it
    * takes. Set it with `sourceRowCount`, never alone: the selection says which
    * rows belong to the list, and the row count says the page they came from is
-   * still the page that was reviewed. The Idaho 12ers are the case — Peakbagger
-   * has no 12,000-foot list, only an 11,000-foot one.
+   * still the page that was reviewed. The Idaho 12ers and the fourteen ranked
+   * 8,000ers both take a reviewed subset of a broader page.
    */
   sourcePeakIds?: number[];
-  /** The row count the whole source page must still have. See `sourcePeakIds`. */
+  /** The row count the whole source page must still have before an adjustment. */
   sourceRowCount?: number;
+  /** Reviewed keeper peaks that a source page folds into a paired entry. */
+  supplementalSourcePeaks?: PeakbaggerSourcePeak[];
   destinationOverrides: Record<number, string>;
+  /** ISO bounds for saved source rows that do not carry coordinates. */
+  allowedCountryCodes?: string[];
+  allowedStateCodes?: string[];
   yearEstablished: number | null;
   /** Nullable by design: plain elevation/prominence cuts have no keeper. */
   organization: string | null;
@@ -633,6 +640,117 @@ export const CURATED_LISTS: CuratedList[] = [
     sourceUrl: "https://www.peakbagger.com/list.aspx?lid=21330",
     region: "Idaho",
   },
+  {
+    listId: deterministicListId(200),
+    sourceListId: 200,
+    name: "Classic 8000-Meter Peaks",
+    description:
+      "The UIAA recognizes fourteen classic mountains whose main summits rise above 8,000 " +
+      "meters. They stand in the Himalaya and Karakoram across Nepal, China, Pakistan and " +
+      "India. Mount Everest is the highest and Shishapangma the lowest. Higher subsidiary " +
+      "summits remain part of their parent mountains rather than separate entries.",
+    expectedCount: 14,
+    // The source page also shows nine unranked subsidiary summits above 8,000 metres.
+    // Pin the fourteen main summits while sourceRowCount guards the whole page.
+    sourcePeakIds: [
+      10640, 10515, 10653, 10642, 10649, 10634, 10620,
+      10627, 10603, 10621, 10527, 10519, 10525, 10631,
+    ],
+    sourceRowCount: 23,
+    // These exact-name catalog rows predate country-code backfill. Pin their reviewed
+    // identities so the geographic scope stays strict for every other row.
+    destinationOverrides: {
+      10642: "8ObhH1SFcbVyfFLOkUzA", // Lhotse
+      10649: "CMzSuY3q2RqUlor9ATeB", // Makalu
+      10634: "LB5NjLmbUixWZPhAT2EP", // Cho Oyu
+      10627: "nh9RfheEwRlCRUfYBULo", // Manaslu
+      10603: "t2utGd2uMc9LJwkW2MeF", // Nanga Parbat
+      10621: "CJvnAqwqxztFb0sZIPnS", // Annapurna
+      10527: "h5rpyI7FZrzCMETj1fQw", // Gasherbrum I
+      10519: "U9zqKEzWFkHkukEF7enG", // Broad Peak
+      10525: "Bpd52aU5hQ953DGDgwOG", // Gasherbrum II
+      10631: "ojZjwxp0vjfygs6insL4", // Shishapangma
+    },
+    allowedCountryCodes: ["CN", "IN", "NP", "PK"],
+    yearEstablished: null,
+    organization: "International Climbing and Mountaineering Federation (UIAA)",
+    sourceName: "UIAA",
+    sourceUrl: "https://www.theuiaa.org/uiaa-position-on-8000m-peaks/",
+    region: "Himalaya and Karakoram",
+  },
+  {
+    listId: deterministicListId(5410),
+    sourceListId: 5410,
+    name: "UIAA Alpine 4000ers",
+    description:
+      "The UIAA and Club Alpino Italiano published this official list of eighty-two Alpine " +
+      "summits in 1994. Each rises above 4,000 meters and qualifies through a mix of " +
+      "topographic separation, the shape of the summit and its place in mountaineering. " +
+      "Mont Blanc is the highest.",
+    expectedCount: 82,
+    destinationOverrides: {},
+    allowedCountryCodes: ["CH", "FR", "IT"],
+    yearEstablished: 1994,
+    organization: "International Climbing and Mountaineering Federation (UIAA)",
+    sourceName: "UIAA",
+    sourceUrl: "https://www.theuiaa.org/4000-alps/",
+    region: "Alps",
+  },
+  {
+    listId: deterministicListId(5521),
+    sourceListId: 5521,
+    name: "Munros",
+    description:
+      "Sir Hugh Munro published the first table of Scottish mountains above 3,000 feet in " +
+      "the Scottish Mountaineering Club Journal in 1891. The club still keeps the list and " +
+      "updates it when nationally recognized survey data changes. It now holds 282 peaks, " +
+      "with Ben Nevis at the top.",
+    expectedCount: 282,
+    destinationOverrides: {},
+    allowedCountryCodes: ["GB"],
+    yearEstablished: 1891,
+    organization: "Scottish Mountaineering Club",
+    sourceName: "Scottish Mountaineering Club",
+    sourceUrl: "https://www.smc.org.uk/hills/",
+    region: "Scotland",
+  },
+  {
+    listId: deterministicListId(5170),
+    sourceListId: 5170,
+    name: "New Hampshire 52 With a View",
+    description:
+      "The Over the Hill Hikers created this set of fifty-two scenic New Hampshire hikes " +
+      "below 4,000 feet in 1990. The group remains its official keeper and revised the list " +
+      "in June 2025 as views and trail access changed. Two hikes pair neighboring summits, " +
+      "so Peaks links all fifty-four named mountains. Sandwich Mountain is the highest.",
+    expectedCount: 54,
+    // Peakbagger represents each paired hike with one summit. The keeper names both North
+    // and South Doublehead, and both Welch and Dickey, so add the companion summits while
+    // sourceRowCount pins the public source page at 52 rows.
+    sourceRowCount: 52,
+    supplementalSourcePeaks: [
+      {
+        ordinal: 27,
+        peakbaggerPeakId: 12604,
+        name: "South Doublehead",
+        elevationFt: 2939.2,
+      },
+      {
+        ordinal: 40,
+        peakbaggerPeakId: 23554,
+        name: "Welch Mountain",
+        elevationFt: 2598.3,
+      },
+    ],
+    destinationOverrides: {},
+    allowedCountryCodes: ["US"],
+    allowedStateCodes: ["NH"],
+    yearEstablished: 1990,
+    organization: "Over the Hill Hikers",
+    sourceName: "Over the Hill Hikers",
+    sourceUrl: "https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html",
+    region: "New Hampshire",
+  },
 ];
 
 export function parseArgs(argv = process.argv.slice(2)): ImportArgs {
@@ -674,12 +792,14 @@ export function validateSourceList(list: CuratedList, source: PeakbaggerSourceLi
     throw new Error(`Peakbagger list ${list.sourceListId} is missing from the input`);
   }
   const selection = list.sourcePeakIds;
-  if ((selection == null) !== (list.sourceRowCount == null)) {
+  const supplements = list.supplementalSourcePeaks ?? [];
+  const hasAdjustedMembership = selection != null || supplements.length > 0;
+  if (hasAdjustedMembership !== (list.sourceRowCount != null)) {
     throw new Error(
-      `Peakbagger list ${list.sourceListId} needs sourcePeakIds and sourceRowCount together`
+      `Peakbagger list ${list.sourceListId} needs sourceRowCount with adjusted membership`
     );
   }
-  const expectedRows = selection == null ? list.expectedCount : list.sourceRowCount as number;
+  const expectedRows = list.sourceRowCount ?? list.expectedCount;
   if (source.rows.length !== expectedRows) {
     throw new Error(
       `Peakbagger list ${list.sourceListId} has ${source.rows.length} rows; ` +
@@ -702,32 +822,63 @@ export function validateSourceList(list: CuratedList, source: PeakbaggerSourceLi
     }
     peakIds.add(row.peakbaggerPeakId);
   }
-  if (selection == null) return;
-  if (new Set(selection).size !== selection.length) {
+  const supplementalIds = new Set<number>();
+  for (const row of supplements) {
+    if (!Number.isInteger(row.peakbaggerPeakId) || row.peakbaggerPeakId <= 0 ||
+        !Number.isInteger(row.ordinal) || row.ordinal <= 0 ||
+        !row.name?.trim() || !Number.isFinite(row.elevationFt)) {
+      throw new Error(`List ${list.sourceListId} has an invalid supplemental peak`);
+    }
+    if (peakIds.has(row.peakbaggerPeakId) || supplementalIds.has(row.peakbaggerPeakId)) {
+      throw new Error(`List ${list.sourceListId} repeats supplemental peak ${row.peakbaggerPeakId}`);
+    }
+    supplementalIds.add(row.peakbaggerPeakId);
+  }
+  if (selection != null && new Set(selection).size !== selection.length) {
     throw new Error(`Peakbagger list ${list.sourceListId} repeats selected peaks`);
   }
-  if (selection.length !== list.expectedCount) {
+  const selectedCount = selection?.length ?? source.rows.length;
+  if (selectedCount + supplements.length !== list.expectedCount) {
     throw new Error(
-      `Peakbagger list ${list.sourceListId} selects ${selection.length} peaks; ` +
+      `Peakbagger list ${list.sourceListId} resolves ${selectedCount + supplements.length} peaks; ` +
       `expected ${list.expectedCount}`
     );
   }
-  const absent = selection.find((peakId) => !peakIds.has(peakId));
+  const absent = selection?.find((peakId) => !peakIds.has(peakId));
   if (absent != null) {
     throw new Error(`Peakbagger list ${list.sourceListId} is missing selected peak ${absent}`);
   }
 }
 
+function selectedSourceRows(
+  list: CuratedList,
+  source: PeakbaggerSourceList
+): PeakbaggerSourcePeak[] {
+  const selection = list.sourcePeakIds == null ? null : new Set(list.sourcePeakIds);
+  const selectedRows = selection == null
+    ? source.rows
+    : source.rows.filter((row) => selection.has(row.peakbaggerPeakId));
+  return [...selectedRows, ...(list.supplementalSourcePeaks ?? [])]
+    .sort((left, right) => left.ordinal - right.ordinal);
+}
+
 function resolveExactNameCandidate(
   source: PeakbaggerSourcePeak,
-  catalog: CatalogPeak[]
+  catalog: CatalogPeak[],
+  list: CuratedList
 ): CatalogPeak {
   const normalizedName = normalizeListPeakName(source.name);
   const sourceElevationM = source.elevationFt * METERS_PER_FOOT;
-  let candidates = catalog.filter((peak) =>
+  const exactCandidates = catalog.filter((peak) =>
     normalizeListPeakName(peak.name) === normalizedName &&
     peak.elevationM != null &&
     Math.abs(peak.elevationM - sourceElevationM) <= MAX_ELEVATION_DELTA_M
+  );
+  let candidates = exactCandidates.filter((peak) =>
+    (list.allowedCountryCodes == null ||
+      (peak.countryCode != null && list.allowedCountryCodes.includes(peak.countryCode))) &&
+    (list.allowedStateCodes == null ||
+      (peak.stateCode != null && list.allowedStateCodes.includes(peak.stateCode)))
   );
 
   // The distance bound applies to every candidate, not just to a tie. A lone
@@ -752,7 +903,13 @@ function resolveExactNameCandidate(
   }
 
   if (candidates.length !== 1) {
-    const details = candidates.map((peak) => `${peak.id}:${peak.name}`).join(", ") || "none";
+    let details = candidates.map((peak) => `${peak.id}:${peak.name}`).join(", ") || "none";
+    if (candidates.length === 0 && exactCandidates.length > 0) {
+      const unscoped = exactCandidates.map((peak) =>
+        `${peak.id}:${peak.name}:${peak.countryCode ?? "?"}/${peak.stateCode ?? "?"}`
+      ).join(", ");
+      details += `; unscoped ${unscoped}`;
+    }
     throw new Error(
       `List peak ${source.peakbaggerPeakId} ${source.name} resolved to ` +
       `${candidates.length} destinations (${details})`
@@ -768,27 +925,33 @@ export function resolveListMembers(
 ): ResolvedListMember[] {
   validateSourceList(list, source);
   const catalogById = new Map(catalog.map((peak) => [peak.id, peak]));
-  const selection = list.sourcePeakIds == null ? null : new Set(list.sourcePeakIds);
-  const rows = selection == null
-    ? source.rows
-    : source.rows.filter((row) => selection.has(row.peakbaggerPeakId));
-  const members = rows.map((row, index) => {
-    const overrideId = list.destinationOverrides[row.peakbaggerPeakId];
-    const destination = overrideId
-      ? catalogById.get(overrideId)
-      : resolveExactNameCandidate(row, catalog);
-    if (!destination) {
-      throw new Error(
-        `List peak ${row.peakbaggerPeakId} ${row.name} has missing override ${overrideId}`
-      );
+  const rows = selectedSourceRows(list, source);
+  const members: ResolvedListMember[] = [];
+  const resolutionErrors: string[] = [];
+  rows.forEach((row, index) => {
+    try {
+      const overrideId = list.destinationOverrides[row.peakbaggerPeakId];
+      const destination = overrideId
+        ? catalogById.get(overrideId)
+        : resolveExactNameCandidate(row, catalog, list);
+      if (!destination) {
+        throw new Error(
+          `List peak ${row.peakbaggerPeakId} ${row.name} has missing override ${overrideId}`
+        );
+      }
+      members.push({
+        destinationId: destination.id,
+        ordinal: index,
+        sourcePeakId: row.peakbaggerPeakId,
+        sourceName: row.name,
+      });
+    } catch (error) {
+      resolutionErrors.push(error instanceof Error ? error.message : String(error));
     }
-    return {
-      destinationId: destination.id,
-      ordinal: index,
-      sourcePeakId: row.peakbaggerPeakId,
-      sourceName: row.name,
-    };
   });
+  if (resolutionErrors.length > 0) {
+    throw new Error(resolutionErrors.join("; "));
+  }
   const destinationIds = new Set(members.map((member) => member.destinationId));
   if (destinationIds.size !== members.length) {
     throw new Error(`Peakbagger list ${list.sourceListId} resolves two peaks to one destination`);
@@ -852,11 +1015,15 @@ async function loadCatalog(client: PoolClient): Promise<CatalogPeak[]> {
     lat: string | number;
     lng: string | number;
     osm_id: string | null;
+    country_code: string | null;
+    state_code: string | null;
   }>(
     `SELECT id, name, elevation AS elevation_m,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng,
-            external_ids->>'osm' AS osm_id
+            external_ids->>'osm' AS osm_id,
+            country_code,
+            state_code
      FROM destinations
      WHERE location IS NOT NULL
        AND name IS NOT NULL
@@ -869,6 +1036,8 @@ async function loadCatalog(client: PoolClient): Promise<CatalogPeak[]> {
     lat: Number(row.lat),
     lng: Number(row.lng),
     osmId: row.osm_id,
+    countryCode: row.country_code,
+    stateCode: row.state_code,
   }));
 }
 
@@ -931,6 +1100,8 @@ function catalogWithCuratedDestinations(catalog: CatalogPeak[]): {
       lat: destination.lat,
       lng: destination.lng,
       osmId: destination.osmId,
+      countryCode: destination.countryCode,
+      stateCode: destination.stateCode,
     });
   }
   return { catalog: [...catalog, ...additions], destinationsToAdd };
@@ -1110,11 +1281,22 @@ async function main(): Promise<void> {
     const liveCatalog = await loadCatalog(client);
     const { catalog, destinationsToAdd } = catalogWithCuratedDestinations(liveCatalog);
     const current = await loadCurrentMembers(client, CURATED_LISTS.map((list) => list.listId));
-    const plans = CURATED_LISTS.map((list) => {
-      const source = audit[String(list.sourceListId)];
-      const members = resolveListMembers(list, source, catalog);
-      return buildListPlan(list, members, current);
-    });
+    const plans: ListImportPlan[] = [];
+    const resolutionErrors: string[] = [];
+    for (const list of CURATED_LISTS) {
+      try {
+        const source = audit[String(list.sourceListId)];
+        const members = resolveListMembers(list, source, catalog);
+        plans.push(buildListPlan(list, members, current));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        resolutionErrors.push(`${list.name}: ${message}`);
+      }
+    }
+    if (resolutionErrors.length > 0) {
+      throw new Error(`List import found ${resolutionErrors.length} resolution errors:\n` +
+        resolutionErrors.join("\n"));
+    }
     const peakbaggerIds = buildDestinationPeakbaggerIds(
       plans.flatMap((plan) => plan.members),
       DESTINATION_PEAKBAGGER_ID_OVERRIDES
