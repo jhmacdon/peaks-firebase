@@ -76,3 +76,9 @@ it.
 
 The audit forces read-only database transactions. It adds no service or stored
 copy and has a fixed cost of $0/month.
+
+Apply `20260831_route_cover_activation_gate.sql` after the route-cover view.
+Its deferred trigger stops a pending Peaks-owned route from becoming active
+unless one linked destination supplies an image, named credit, and credit link.
+The final zero-gap audit still checks old active routes and later photo changes.
+The trigger adds no service and has a fixed cost of $0/month.
