@@ -800,12 +800,23 @@ test("article photo order keeps the lead then exact named alternatives and drops
   );
 });
 
-test("the reviewed Commons allowlist contains only the five accepted KFS files", () => {
+test("the reviewed Commons allowlist contains only the sixteen accepted KFS files", () => {
   assert.deepEqual(Object.keys(LISTED_PHOTO_REVIEWED_COMMONS_FILES).sort(), [
+    "0164CE419EF8A8BBB87B",
+    "09DC0597070CF98C1FD9",
+    "1CE83A8BF630D0A07E9A",
+    "33463BA61321FCD7F079",
+    "3BDE883C882EB9065D76",
+    "4F5CA1B51FE2938C6E87",
+    "75AF4150F340FE16701D",
+    "862F189C5B9F1EB85918",
     "8E2DBAEC5DB4481221F2",
+    "93A9A878F282DA759D1D",
     "958AD1411BC49B469BE1",
     "9676E99C140134852220",
     "9F7C04F02A37514A13AD",
+    "A6B289B963FB542E24ED",
+    "BAFDCE06CE474E7C0E10",
     "D319B2B83A218D9A2C81",
   ]);
   for (const [destinationId, audit] of Object.entries(
@@ -827,16 +838,34 @@ test("the reviewed Commons allowlist contains only the five accepted KFS files",
       `${destinationId} reviewed file must stay within 1.5 km of its summit`
     );
   }
-  assert.equal(
-    Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
-      .some((audit) => audit.fileTitle.includes("Seoraksan")),
-    false
-  );
-  assert.equal(
-    Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
-      .some((audit) => audit.fileTitle.includes("설악산")),
-    false
-  );
+  for (const rejectedFile of [
+    "File:삼악산 정상 3.jpg",
+    "File:설악산 대청봉 정상석.jpg",
+    "File:남이바위 축령산 2.jpg",
+    "File:Maisan - panoramio.jpg",
+    "File:Geumjeong Mountain - panoramio (1).jpg",
+    "File:釜山-金井山-姑堂峰.jpg",
+    "File:Mt.Taebaek Somunsubong.jpg",
+    "File:Seoraksan, Inje-gun, South Korea (Unsplash).jpg",
+    "File:Daecheongbong.jpg",
+    "File:Seoraksan in the Fall 1- 설악산 단풍.jpg",
+    "File:Janggunbong at Taebaeksan.jpg",
+    "File:P20170829 135357766 CF79A71D-FBBE-4D67-992A-9044CDEA4E61.jpg",
+    "File:Ulleungdo, Ulleung-gun, South Korea (11177344706).jpg",
+    "File:Panoramic View of Pyeongnae, Hopyeong, and Onam (2025).jpg",
+    "File:Soyosan.jpg",
+    "File:Peak of Yumyeong Mountain.JPG",
+    "File:Panoramic View at Peak of Yumyeong Mountain 20090110.jpg",
+    "File:JM-tb1.jpg",
+    "File:Geumjeong Fortress.jpg",
+  ]) {
+    assert.equal(
+      Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+        .some((audit) => audit.fileTitle === rejectedFile),
+      false,
+      rejectedFile
+    );
+  }
 });
 
 test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
@@ -864,7 +893,7 @@ test("reviewed Commons requests use one exact title and no discovery mechanism",
   );
 });
 
-test("all five exact reviewed Commons bindings yield pending-review evidence", async () => {
+test("all sixteen exact reviewed Commons bindings yield pending-review evidence", async () => {
   for (const audit of Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)) {
     const calls: string[] = [];
     const unexpected = async (): Promise<never> => {
