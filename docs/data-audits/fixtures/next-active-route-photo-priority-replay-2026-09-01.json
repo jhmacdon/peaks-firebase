@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "kind": "next_active_route_photo_priority_replay",
+  "capturedAt": "2026-09-01T03:22:22Z",
+  "mode": "read_only_source_capture",
+  "responseCount": 16,
+  "responses": [
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "30FBA25F6A12506D101B",
+      "destinationName": "Barre des Écrins",
+      "fileTitle": "File:La Barre des Écrins.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:La Barre des Écrins.jpg"
+        }
+      },
+      "responseFileName": "barre-des-ecrins-metadata.json",
+      "byteLength": 962,
+      "sha256": "46ad429931253da93794cea4334d0eb3892dd4bdd86129f38922ba22243376fb",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjb250aW51ZSI6eyJpaXN0YXJ0IjoiMjAxMC0wOC0wNVQxNjo0Mzo0NFoiLCJjb250aW51ZSI6Inx8Y29vcmRpbmF0ZXMifSwicXVlcnkiOnsicGFnZXMiOlt7InBhZ2VpZCI6MTEwOTg1MDYsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6TGEgQmFycmUgZGVzIMOJY3JpbnMuanBnIiwiaW1hZ2VyZXBvc2l0b3J5IjoibG9jYWwiLCJpbWFnZWluZm8iOlt7InNpemUiOjY5NDg0NTYsIndpZHRoIjozNjQ4LCJoZWlnaHQiOjI3MzYsInVybCI6Imh0dHBzOi8vdXBsb2FkLndpa2ltZWRpYS5vcmcvd2lraXBlZGlhL2NvbW1vbnMvZS9lMy9MYV9CYXJyZV9kZXNfJUMzJTg5Y3JpbnMuanBnP3V0bV9zb3VyY2U9Y29tbW9ucy53aWtpbWVkaWEub3JnJnV0bV9jYW1wYWlnbj1pbWFnZWluZm8mdXRtX2NvbnRlbnQ9b3JpZ2luYWwiLCJkZXNjcmlwdGlvbnVybCI6Imh0dHBzOi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3dpa2kvRmlsZTpMYV9CYXJyZV9kZXNfJUMzJTg5Y3JpbnMuanBnIiwiZGVzY3JpcHRpb25zaG9ydHVybCI6Imh0dHBzOi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3cvaW5kZXgucGhwP2N1cmlkPTExMDk4NTA2Iiwic2hhMSI6ImQ5MjY5MTg4YmRlZjQxYzE5MTIyNGY3YTFjZjdmN2ViOTJmZTcxNmMiLCJleHRtZXRhZGF0YSI6eyJBcnRpc3QiOnsidmFsdWUiOiJHw7xudGVyIFNlZ2dlYsOkaW5nLCBDb2VzZmVsZCwgR2VybWFueSIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn0sIkxpY2Vuc2VTaG9ydE5hbWUiOnsidmFsdWUiOiJDQyBCWS1TQSAzLjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSIsImhpZGRlbiI6IiJ9LCJMaWNlbnNlVXJsIjp7InZhbHVlIjoiaHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LXNhLzMuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn19LCJtaW1lIjoiaW1hZ2UvanBlZyIsIm1lZGlhdHlwZSI6IkJJVE1BUCJ9XX1dfX0="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "6916E6CB5E5C45C02499",
+      "destinationName": "Chamechaude",
+      "fileTitle": "File:Chamechaude-depuis-la-pinea.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Chamechaude-depuis-la-pinea.jpg"
+        }
+      },
+      "responseFileName": "chamechaude-metadata.json",
+      "byteLength": 981,
+      "sha256": "927979d36e1ec0979843faf78d521d56d2978e982c53d7ff33dc2c5ee5c04886",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxMTY4Njc3NTUsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6Q2hhbWVjaGF1ZGUtZGVwdWlzLWxhLXBpbmVhLmpwZyIsImltYWdlcmVwb3NpdG9yeSI6ImxvY2FsIiwiaW1hZ2VpbmZvIjpbeyJzaXplIjo1NDY4MDcxLCJ3aWR0aCI6NTE4NCwiaGVpZ2h0IjozODg4LCJ1cmwiOiJodHRwczovL3VwbG9hZC53aWtpbWVkaWEub3JnL3dpa2lwZWRpYS9jb21tb25zLzQvNGQvQ2hhbWVjaGF1ZGUtZGVwdWlzLWxhLXBpbmVhLmpwZz91dG1fc291cmNlPWNvbW1vbnMud2lraW1lZGlhLm9yZyZ1dG1fY2FtcGFpZ249aW1hZ2VpbmZvJnV0bV9jb250ZW50PW9yaWdpbmFsIiwiZGVzY3JpcHRpb251cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL0ZpbGU6Q2hhbWVjaGF1ZGUtZGVwdWlzLWxhLXBpbmVhLmpwZyIsImRlc2NyaXB0aW9uc2hvcnR1cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93L2luZGV4LnBocD9jdXJpZD0xMTY4Njc3NTUiLCJzaGExIjoiOTJmMGJkMjZiYTRkZjhmY2ZkYzM5MGM3M2EzMTY0ZDMzYzZkMTZjZiIsImV4dG1ldGFkYXRhIjp7IkFydGlzdCI6eyJ2YWx1ZSI6IjxhIGhyZWY9XCIvL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL1VzZXI6UmVtb250ZWVzXCIgdGl0bGU9XCJVc2VyOlJlbW9udGVlc1wiPlJlbW9udGVlczwvYT4iLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSJ9LCJMaWNlbnNlU2hvcnROYW1lIjp7InZhbHVlIjoiQ0MgQlktU0EgNC4wIiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UiLCJoaWRkZW4iOiIifSwiTGljZW5zZVVybCI6eyJ2YWx1ZSI6Imh0dHBzOi8vY3JlYXRpdmVjb21tb25zLm9yZy9saWNlbnNlcy9ieS1zYS80LjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSJ9fSwibWltZSI6ImltYWdlL2pwZWciLCJtZWRpYXR5cGUiOiJCSVRNQVAifV19XX19"
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "2E5FFFF77936BBE3C5D7",
+      "destinationName": "Gran Paradiso",
+      "fileTitle": "File:Cogne gruppo gran paradiso (2).jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Cogne gruppo gran paradiso (2).jpg"
+        }
+      },
+      "responseFileName": "gran-paradiso-metadata.json",
+      "byteLength": 1066,
+      "sha256": "38b2a56c6e4532cef258b6879ceb61ea2b5be88277871899594b8a4031d03553",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjo3Mjk5MTA5NywibnMiOjYsInRpdGxlIjoiRmlsZTpDb2duZSBncnVwcG8gZ3JhbiBwYXJhZGlzbyAoMikuanBnIiwiaW1hZ2VyZXBvc2l0b3J5IjoibG9jYWwiLCJpbWFnZWluZm8iOlt7InNpemUiOjQwMTMwNDEsIndpZHRoIjo1NDcyLCJoZWlnaHQiOjM2NDgsInVybCI6Imh0dHBzOi8vdXBsb2FkLndpa2ltZWRpYS5vcmcvd2lraXBlZGlhL2NvbW1vbnMvZi9mYS9Db2duZV9ncnVwcG9fZ3Jhbl9wYXJhZGlzb18lMjgyJTI5LmpwZz91dG1fc291cmNlPWNvbW1vbnMud2lraW1lZGlhLm9yZyZ1dG1fY2FtcGFpZ249aW1hZ2VpbmZvJnV0bV9jb250ZW50PW9yaWdpbmFsIiwiZGVzY3JpcHRpb251cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL0ZpbGU6Q29nbmVfZ3J1cHBvX2dyYW5fcGFyYWRpc29fKDIpLmpwZyIsImRlc2NyaXB0aW9uc2hvcnR1cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93L2luZGV4LnBocD9jdXJpZD03Mjk5MTA5NyIsInNoYTEiOiIyYTE1NDFlNWJmNDRlNzY2Mjc5OWU0MTk0MDcyOGUwNzhhMTU4NmMxIiwiZXh0bWV0YWRhdGEiOnsiQXJ0aXN0Ijp7InZhbHVlIjoiPGEgaHJlZj1cIi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3dpa2kvVXNlcjpCcmFtZmFiXCIgdGl0bGU9XCJVc2VyOkJyYW1mYWJcIj5CcmFtZmFiPC9hPiIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn0sIkxpY2Vuc2VTaG9ydE5hbWUiOnsidmFsdWUiOiJDQyBCWS1TQSA0LjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSIsImhpZGRlbiI6IiJ9LCJMaWNlbnNlVXJsIjp7InZhbHVlIjoiaHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LXNhLzQuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn19LCJtaW1lIjoiaW1hZ2UvanBlZyIsIm1lZGlhdHlwZSI6IkJJVE1BUCJ9XSwiY29vcmRpbmF0ZXMiOlt7ImxhdCI6NDUuNTMzMzMzLCJsb24iOjcuMjY2NjY3LCJwcmltYXJ5Ijp0cnVlLCJnbG9iZSI6ImVhcnRoIn1dfV19fQ=="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "AFD21967E06AA9D81BA1",
+      "destinationName": "Großglockner",
+      "fileTitle": "File:Großglockner (Hochgasser).jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Großglockner (Hochgasser).jpg"
+        }
+      },
+      "responseFileName": "grossglockner-metadata.json",
+      "byteLength": 1075,
+      "sha256": "d13e8f7f5234670cd93c3b1bdd225be944f08a37561b7c9680d89f99005608a8",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxOTc0NTc4NzMsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6R3Jvw59nbG9ja25lciAoSG9jaGdhc3NlcikuanBnIiwiaW1hZ2VyZXBvc2l0b3J5IjoibG9jYWwiLCJpbWFnZWluZm8iOlt7InNpemUiOjEzMzY3MTgzLCJ3aWR0aCI6NzM2MCwiaGVpZ2h0Ijo0OTEyLCJ1cmwiOiJodHRwczovL3VwbG9hZC53aWtpbWVkaWEub3JnL3dpa2lwZWRpYS9jb21tb25zL2UvZTkvR3JvJUMzJTlGZ2xvY2tuZXJfJTI4SG9jaGdhc3NlciUyOS5qcGc/dXRtX3NvdXJjZT1jb21tb25zLndpa2ltZWRpYS5vcmcmdXRtX2NhbXBhaWduPWltYWdlaW5mbyZ1dG1fY29udGVudD1vcmlnaW5hbCIsImRlc2NyaXB0aW9udXJsIjoiaHR0cHM6Ly9jb21tb25zLndpa2ltZWRpYS5vcmcvd2lraS9GaWxlOkdybyVDMyU5Rmdsb2NrbmVyXyhIb2NoZ2Fzc2VyKS5qcGciLCJkZXNjcmlwdGlvbnNob3J0dXJsIjoiaHR0cHM6Ly9jb21tb25zLndpa2ltZWRpYS5vcmcvdy9pbmRleC5waHA/Y3VyaWQ9MTk3NDU3ODczIiwic2hhMSI6ImI4MDQxOTgzMjFkMjdiMjk1NTg1NTFhYzE4MWNjM2Y2ZWJlZjA5NWQiLCJleHRtZXRhZGF0YSI6eyJBcnRpc3QiOnsidmFsdWUiOiI8YSBocmVmPVwiLy9jb21tb25zLndpa2ltZWRpYS5vcmcvd2lraS9Vc2VyOk1pbHNlYnVyZ1wiIHRpdGxlPVwiVXNlcjpNaWxzZWJ1cmdcIj5Kw7ZyZyBCcmF1a21hbm48L2E+Iiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UifSwiTGljZW5zZVNob3J0TmFtZSI6eyJ2YWx1ZSI6IkNDIEJZLVNBIDQuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIiwiaGlkZGVuIjoiIn0sIkxpY2Vuc2VVcmwiOnsidmFsdWUiOiJodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnktc2EvNC4wIiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UifX0sIm1pbWUiOiJpbWFnZS9qcGVnIiwibWVkaWF0eXBlIjoiQklUTUFQIn1dLCJjb29yZGluYXRlcyI6W3sibGF0Ijo0Ny4xNTA2NCwibG9uIjoxMi41MjE4LCJwcmltYXJ5Ijp0cnVlLCJnbG9iZSI6ImVhcnRoIn1dfV19fQ=="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "wDFtTKWGTP96rsoi2tNA",
+      "destinationName": "Haleakala",
+      "fileTitle": "File:Haleakalā, Peak Shadow.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Haleakalā, Peak Shadow.jpg"
+        }
+      },
+      "responseFileName": "haleakala-metadata.json",
+      "byteLength": 985,
+      "sha256": "750adcdef3432a8fecf638ee9813cd0f2a1256ba885a6e7ff1995067ecdf3fc2",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxNjE1OTkwMSwibnMiOjYsInRpdGxlIjoiRmlsZTpIYWxlYWthbMSBLCBQZWFrIFNoYWRvdy5qcGciLCJpbWFnZXJlcG9zaXRvcnkiOiJsb2NhbCIsImltYWdlaW5mbyI6W3sic2l6ZSI6MTk4ODA5OSwid2lkdGgiOjM2MDQsImhlaWdodCI6MjEzNSwidXJsIjoiaHR0cHM6Ly91cGxvYWQud2lraW1lZGlhLm9yZy93aWtpcGVkaWEvY29tbW9ucy84LzgwL0hhbGVha2FsJUM0JTgxJTJDX1BlYWtfU2hhZG93LmpwZz91dG1fc291cmNlPWNvbW1vbnMud2lraW1lZGlhLm9yZyZ1dG1fY2FtcGFpZ249aW1hZ2VpbmZvJnV0bV9jb250ZW50PW9yaWdpbmFsIiwiZGVzY3JpcHRpb251cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL0ZpbGU6SGFsZWFrYWwlQzQlODEsX1BlYWtfU2hhZG93LmpwZyIsImRlc2NyaXB0aW9uc2hvcnR1cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93L2luZGV4LnBocD9jdXJpZD0xNjE1OTkwMSIsInNoYTEiOiJlNWMxMGY1M2EwM2ViYWNlYTM5YzQzOWU5MDA1MDM1ZjAyZjQ1NzE2IiwiZXh0bWV0YWRhdGEiOnsiQXJ0aXN0Ijp7InZhbHVlIjoiPGEgcmVsPVwibm9mb2xsb3dcIiBjbGFzcz1cImV4dGVybmFsIHRleHRcIiBocmVmPVwiaHR0cHM6Ly93d3cuZmxpY2tyLmNvbS9wZW9wbGUvODgxOTI1NDBATjAwXCI+YmVsaW5kYWg8L2E+Iiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UifSwiTGljZW5zZVNob3J0TmFtZSI6eyJ2YWx1ZSI6IkNDIEJZIDIuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIiwiaGlkZGVuIjoiIn0sIkxpY2Vuc2VVcmwiOnsidmFsdWUiOiJodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMi4wIiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UifX0sIm1pbWUiOiJpbWFnZS9qcGVnIiwibWVkaWF0eXBlIjoiQklUTUFQIn1dfV19fQ=="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "destinationName": "Mailbox Peak",
+      "fileTitle": "File:Mailbox from Mount Teneriffe.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Mailbox from Mount Teneriffe.jpg"
+        }
+      },
+      "responseFileName": "mailbox-metadata.json",
+      "byteLength": 1058,
+      "sha256": "ae09b3f31c3dfbf2b46559b16a3f5f3b6c5ec1e76909129793e93adae6af2755",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxNzAzMTgyODUsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6TWFpbGJveCBmcm9tIE1vdW50IFRlbmVyaWZmZS5qcGciLCJpbWFnZXJlcG9zaXRvcnkiOiJsb2NhbCIsImltYWdlaW5mbyI6W3sic2l6ZSI6Mzc5ODg0Miwid2lkdGgiOjQ2MjQsImhlaWdodCI6MzQ3MiwidXJsIjoiaHR0cHM6Ly91cGxvYWQud2lraW1lZGlhLm9yZy93aWtpcGVkaWEvY29tbW9ucy9kL2Q3L01haWxib3hfZnJvbV9Nb3VudF9UZW5lcmlmZmUuanBnP3V0bV9zb3VyY2U9Y29tbW9ucy53aWtpbWVkaWEub3JnJnV0bV9jYW1wYWlnbj1pbWFnZWluZm8mdXRtX2NvbnRlbnQ9b3JpZ2luYWwiLCJkZXNjcmlwdGlvbnVybCI6Imh0dHBzOi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3dpa2kvRmlsZTpNYWlsYm94X2Zyb21fTW91bnRfVGVuZXJpZmZlLmpwZyIsImRlc2NyaXB0aW9uc2hvcnR1cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93L2luZGV4LnBocD9jdXJpZD0xNzAzMTgyODUiLCJzaGExIjoiNmJlMmEzNzY5Mjg4ZGM1M2JmNmE2ZDRlNjNkYzEzNjM2NzUwMzg3NyIsImV4dG1ldGFkYXRhIjp7IkFydGlzdCI6eyJ2YWx1ZSI6IjxhIGhyZWY9XCIvL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL1VzZXI6QnVpZGhlXCIgdGl0bGU9XCJVc2VyOkJ1aWRoZVwiPkJ1aWRoZTwvYT4iLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSJ9LCJMaWNlbnNlU2hvcnROYW1lIjp7InZhbHVlIjoiQ0MgQlktU0EgNC4wIiwic291cmNlIjoiY29tbW9ucy1kZXNjLXBhZ2UiLCJoaWRkZW4iOiIifSwiTGljZW5zZVVybCI6eyJ2YWx1ZSI6Imh0dHBzOi8vY3JlYXRpdmVjb21tb25zLm9yZy9saWNlbnNlcy9ieS1zYS80LjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSJ9fSwibWltZSI6ImltYWdlL2pwZWciLCJtZWRpYXR5cGUiOiJCSVRNQVAifV0sImNvb3JkaW5hdGVzIjpbeyJsYXQiOjQ3LjUwOTI2OSwibG9uIjotMTIxLjY5NTAyMiwicHJpbWFyeSI6dHJ1ZSwiZ2xvYmUiOiJlYXJ0aCJ9XX1dfX0="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "lTBztUOvhj79YWPEtGGV",
+      "destinationName": "Middle Teton",
+      "fileTitle": "File:Middle Teton Grand Teton NP1.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Middle Teton Grand Teton NP1.jpg"
+        }
+      },
+      "responseFileName": "middle-teton-metadata.json",
+      "byteLength": 1037,
+      "sha256": "12292fa8389aa6f0e7b4215a92f9cd6ccbc5b141ba4e0e2254d7cdf64c5c07e9",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjb250aW51ZSI6eyJpaXN0YXJ0IjoiMjAxMC0xMS0xNVQwMzo0NToxNVoiLCJjb250aW51ZSI6Inx8Y29vcmRpbmF0ZXMifSwicXVlcnkiOnsicGFnZXMiOlt7InBhZ2VpZCI6MTE2MzkyMTMsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6TWlkZGxlIFRldG9uIEdyYW5kIFRldG9uIE5QMS5qcGciLCJpbWFnZXJlcG9zaXRvcnkiOiJsb2NhbCIsImltYWdlaW5mbyI6W3sic2l6ZSI6NjgzMDA2Niwid2lkdGgiOjM0NjQsImhlaWdodCI6MjUzNiwidXJsIjoiaHR0cHM6Ly91cGxvYWQud2lraW1lZGlhLm9yZy93aWtpcGVkaWEvY29tbW9ucy83LzdiL01pZGRsZV9UZXRvbl9HcmFuZF9UZXRvbl9OUDEuanBnP3V0bV9zb3VyY2U9Y29tbW9ucy53aWtpbWVkaWEub3JnJnV0bV9jYW1wYWlnbj1pbWFnZWluZm8mdXRtX2NvbnRlbnQ9b3JpZ2luYWwiLCJkZXNjcmlwdGlvbnVybCI6Imh0dHBzOi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3dpa2kvRmlsZTpNaWRkbGVfVGV0b25fR3JhbmRfVGV0b25fTlAxLmpwZyIsImRlc2NyaXB0aW9uc2hvcnR1cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93L2luZGV4LnBocD9jdXJpZD0xMTYzOTIxMyIsInNoYTEiOiJiN2FkYjdkY2ZkOTFlY2NiNWQ5MzBmYjdhZWEwOTc0ZWMxMDRiMDA0IiwiZXh0bWV0YWRhdGEiOnsiQXJ0aXN0Ijp7InZhbHVlIjoiPGEgaHJlZj1cIi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3dpa2kvVXNlcjpBY3JvdGVyaW9uXCIgdGl0bGU9XCJVc2VyOkFjcm90ZXJpb25cIj5BY3JvdGVyaW9uPC9hPiIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn0sIkxpY2Vuc2VTaG9ydE5hbWUiOnsidmFsdWUiOiJDQyBCWS1TQSA0LjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSIsImhpZGRlbiI6IiJ9LCJMaWNlbnNlVXJsIjp7InZhbHVlIjoiaHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LXNhLzQuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn19LCJtaW1lIjoiaW1hZ2UvanBlZyIsIm1lZGlhdHlwZSI6IkJJVE1BUCJ9XX1dfX0="
+    },
+    {
+      "kind": "commons_exact_file_metadata",
+      "destinationId": "YhxmMJE5KqAsa2jMYlrs",
+      "destinationName": "Mount Monadnock",
+      "fileTitle": "File:Mount Monadnock as seen from Bald Rock.jpg",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "imageinfo|coordinates",
+          "iiprop": "url|size|mime|mediatype|sha1|extmetadata",
+          "iiextmetadatalanguage": "en",
+          "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+          "titles": "File:Mount Monadnock as seen from Bald Rock.jpg"
+        }
+      },
+      "responseFileName": "monadnock-metadata.json",
+      "byteLength": 1185,
+      "sha256": "c241fe0baccc8505ebe9881443dbcbfa1211115bb3f5c5d72026d6cec83da212",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjozOTMwODg2NywibnMiOjYsInRpdGxlIjoiRmlsZTpNb3VudCBNb25hZG5vY2sgYXMgc2VlbiBmcm9tIEJhbGQgUm9jay5qcGciLCJpbWFnZXJlcG9zaXRvcnkiOiJsb2NhbCIsImltYWdlaW5mbyI6W3sic2l6ZSI6MzA3MjY2Mywid2lkdGgiOjQyODgsImhlaWdodCI6Mjg0OCwidXJsIjoiaHR0cHM6Ly91cGxvYWQud2lraW1lZGlhLm9yZy93aWtpcGVkaWEvY29tbW9ucy9mL2ZiL01vdW50X01vbmFkbm9ja19hc19zZWVuX2Zyb21fQmFsZF9Sb2NrLmpwZz91dG1fc291cmNlPWNvbW1vbnMud2lraW1lZGlhLm9yZyZ1dG1fY2FtcGFpZ249aW1hZ2VpbmZvJnV0bV9jb250ZW50PW9yaWdpbmFsIiwiZGVzY3JpcHRpb251cmwiOiJodHRwczovL2NvbW1vbnMud2lraW1lZGlhLm9yZy93aWtpL0ZpbGU6TW91bnRfTW9uYWRub2NrX2FzX3NlZW5fZnJvbV9CYWxkX1JvY2suanBnIiwiZGVzY3JpcHRpb25zaG9ydHVybCI6Imh0dHBzOi8vY29tbW9ucy53aWtpbWVkaWEub3JnL3cvaW5kZXgucGhwP2N1cmlkPTM5MzA4ODY3Iiwic2hhMSI6IjNjZmU3ZmZlOGExZWIzMThlN2MwZGFlMWY2NzdhZmEyNmE0NTcyYjEiLCJleHRtZXRhZGF0YSI6eyJBcnRpc3QiOnsidmFsdWUiOiI8YSBocmVmPVwiLy9jb21tb25zLndpa2ltZWRpYS5vcmcvdy9pbmRleC5waHA/dGl0bGU9VXNlcjpKb253bWNpbmVucmV5JmFtcDthY3Rpb249ZWRpdCZhbXA7cmVkbGluaz0xXCIgY2xhc3M9XCJuZXdcIiB0aXRsZT1cIlVzZXI6Sm9ud21jaW5lbnJleSAocGFnZSBkb2VzIG5vdCBleGlzdClcIj5Kb253bWNpbmVucmV5PC9hPiIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn0sIkxpY2Vuc2VTaG9ydE5hbWUiOnsidmFsdWUiOiJDQyBCWS1TQSA0LjAiLCJzb3VyY2UiOiJjb21tb25zLWRlc2MtcGFnZSIsImhpZGRlbiI6IiJ9LCJMaWNlbnNlVXJsIjp7InZhbHVlIjoiaHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LXNhLzQuMCIsInNvdXJjZSI6ImNvbW1vbnMtZGVzYy1wYWdlIn19LCJtaW1lIjoiaW1hZ2UvanBlZyIsIm1lZGlhdHlwZSI6IkJJVE1BUCJ9XSwiY29vcmRpbmF0ZXMiOlt7ImxhdCI6NDIuODUzODI3LCJsb24iOi03Mi4xMDcwODIsInByaW1hcnkiOnRydWUsImdsb2JlIjoiZWFydGgifV19XX19"
+    },
+    {
+      "kind": "wikidata_exact_p18",
+      "destinationId": "30FBA25F6A12506D101B",
+      "destinationName": "Barre des Écrins",
+      "wikidataId": "Q30480",
+      "requiredFileTitle": "File:La Barre des Écrins.jpg",
+      "request": {
+        "endpoint": "https://www.wikidata.org/w/api.php",
+        "params": {
+          "action": "wbgetclaims",
+          "format": "json",
+          "formatversion": "2",
+          "entity": "Q30480",
+          "property": "P18"
+        }
+      },
+      "responseFileName": "barre-des-ecrins-p18.json",
+      "byteLength": 298,
+      "sha256": "d5d1f6ba67b3dd2ab59268674eb9070f72749f2b14a8fbefc8e4b78f89b0762d",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjbGFpbXMiOnsiUDE4IjpbeyJtYWluc25hayI6eyJzbmFrdHlwZSI6InZhbHVlIiwicHJvcGVydHkiOiJQMTgiLCJoYXNoIjoiMDUyMzk4ODUzMzMwMGFiNjE3Mjg0ZGI5OWY4ZjBkNTE0NTMxYjE0ZCIsImRhdGF2YWx1ZSI6eyJ2YWx1ZSI6IkxhIEJhcnJlIGRlcyDDiWNyaW5zLmpwZyIsInR5cGUiOiJzdHJpbmcifSwiZGF0YXR5cGUiOiJjb21tb25zTWVkaWEifSwidHlwZSI6InN0YXRlbWVudCIsImlkIjoiUTMwNDgwJDhDMzlFRjcxLTU4ODUtNDM2Qi1CQjIxLUQ4QzNFNzg4RjYxRSIsInJhbmsiOiJub3JtYWwifV19fQ=="
+    },
+    {
+      "kind": "wikidata_exact_p18",
+      "destinationId": "6916E6CB5E5C45C02499",
+      "destinationName": "Chamechaude",
+      "wikidataId": "Q2321630",
+      "requiredFileTitle": "File:Chamechaude-depuis-la-pinea.jpg",
+      "request": {
+        "endpoint": "https://www.wikidata.org/w/api.php",
+        "params": {
+          "action": "wbgetclaims",
+          "format": "json",
+          "formatversion": "2",
+          "entity": "Q2321630",
+          "property": "P18"
+        }
+      },
+      "responseFileName": "chamechaude-p18.json",
+      "byteLength": 307,
+      "sha256": "ebb83d70eeff85719eca2be8b6c1be7e5f62d10deb0e25c7786d0f63e012adac",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjbGFpbXMiOnsiUDE4IjpbeyJtYWluc25hayI6eyJzbmFrdHlwZSI6InZhbHVlIiwicHJvcGVydHkiOiJQMTgiLCJoYXNoIjoiNjYzMGVjNGMwMTMzNTRkNWQ3MmU2OGE4ODIyMmQ0MDVmOWVkOWU4YiIsImRhdGF2YWx1ZSI6eyJ2YWx1ZSI6IkNoYW1lY2hhdWRlLWRlcHVpcy1sYS1waW5lYS5qcGciLCJ0eXBlIjoic3RyaW5nIn0sImRhdGF0eXBlIjoiY29tbW9uc01lZGlhIn0sInR5cGUiOiJzdGF0ZW1lbnQiLCJpZCI6IlEyMzIxNjMwJENBRkUyRUQ3LUNGMEYtNDcyNS05QkY1LUYwMzFFNkM4QjE3OSIsInJhbmsiOiJub3JtYWwifV19fQ=="
+    },
+    {
+      "kind": "wikidata_exact_p18",
+      "destinationId": "wDFtTKWGTP96rsoi2tNA",
+      "destinationName": "Haleakala",
+      "wikidataId": "Q515719",
+      "requiredFileTitle": "File:Haleakalā, Peak Shadow.jpg",
+      "request": {
+        "endpoint": "https://www.wikidata.org/w/api.php",
+        "params": {
+          "action": "wbgetclaims",
+          "format": "json",
+          "formatversion": "2",
+          "entity": "Q515719",
+          "property": "P18"
+        }
+      },
+      "responseFileName": "haleakala-p18.json",
+      "byteLength": 302,
+      "sha256": "0866e233730f99234b27449fe14428bdcef5cba35987970f4fc2aeebf8ca47ff",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjbGFpbXMiOnsiUDE4IjpbeyJtYWluc25hayI6eyJzbmFrdHlwZSI6InZhbHVlIiwicHJvcGVydHkiOiJQMTgiLCJoYXNoIjoiZWRmNmFmZjM2ODUyZDQ2MDQ0NWViOGYxMzA2YWY5ZTE3NTI1YzQ3ZSIsImRhdGF2YWx1ZSI6eyJ2YWx1ZSI6IkhhbGVha2FsxIEsIFBlYWsgU2hhZG93LmpwZyIsInR5cGUiOiJzdHJpbmcifSwiZGF0YXR5cGUiOiJjb21tb25zTWVkaWEifSwidHlwZSI6InN0YXRlbWVudCIsImlkIjoiUTUxNTcxOSQwOTFGRDAxRS0xNkJCLTQ0MEYtODE4OC00NkFDNTBDMTNBQzAiLCJyYW5rIjoibm9ybWFsIn1dfX0="
+    },
+    {
+      "kind": "wikidata_exact_p18",
+      "destinationId": "lTBztUOvhj79YWPEtGGV",
+      "destinationName": "Middle Teton",
+      "wikidataId": "Q2060335",
+      "requiredFileTitle": "File:Middle Teton Grand Teton NP1.jpg",
+      "request": {
+        "endpoint": "https://www.wikidata.org/w/api.php",
+        "params": {
+          "action": "wbgetclaims",
+          "format": "json",
+          "formatversion": "2",
+          "entity": "Q2060335",
+          "property": "P18"
+        }
+      },
+      "responseFileName": "middle-teton-p18.json",
+      "byteLength": 308,
+      "sha256": "c0fbbcdfceafebfa5173cb48c3afad39e42235390a06c8221978dca57c1c0ae7",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjbGFpbXMiOnsiUDE4IjpbeyJtYWluc25hayI6eyJzbmFrdHlwZSI6InZhbHVlIiwicHJvcGVydHkiOiJQMTgiLCJoYXNoIjoiYzI4ZDdmNTJkNjU0YTY2YTQ4NWZlZmM3YTI5YjM1OWFiY2FjZDM5YiIsImRhdGF2YWx1ZSI6eyJ2YWx1ZSI6Ik1pZGRsZSBUZXRvbiBHcmFuZCBUZXRvbiBOUDEuanBnIiwidHlwZSI6InN0cmluZyJ9LCJkYXRhdHlwZSI6ImNvbW1vbnNNZWRpYSJ9LCJ0eXBlIjoic3RhdGVtZW50IiwiaWQiOiJRMjA2MDMzNSRENDE5NzIxMi0zRkU4LTQ0QzItODM5Qi1ENjQzQTJEQTcxQzkiLCJyYW5rIjoibm9ybWFsIn1dfX0="
+    },
+    {
+      "kind": "wikidata_exact_p18",
+      "destinationId": "YhxmMJE5KqAsa2jMYlrs",
+      "destinationName": "Mount Monadnock",
+      "wikidataId": "Q289542",
+      "requiredFileTitle": "File:Mount Monadnock as seen from Bald Rock.jpg",
+      "request": {
+        "endpoint": "https://www.wikidata.org/w/api.php",
+        "params": {
+          "action": "wbgetclaims",
+          "format": "json",
+          "formatversion": "2",
+          "entity": "Q289542",
+          "property": "P18"
+        }
+      },
+      "responseFileName": "monadnock-p18.json",
+      "byteLength": 317,
+      "sha256": "8de4663295a115403c8e2832e4ea0487c327abba7893f278db3a8b9c03e076f2",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJjbGFpbXMiOnsiUDE4IjpbeyJtYWluc25hayI6eyJzbmFrdHlwZSI6InZhbHVlIiwicHJvcGVydHkiOiJQMTgiLCJoYXNoIjoiNzQ5ZTE3MzcwNjZkNTZiMDc3MDEzOWQwYjY3MjE2OTE5NjE3MWJlNCIsImRhdGF2YWx1ZSI6eyJ2YWx1ZSI6Ik1vdW50IE1vbmFkbm9jayBhcyBzZWVuIGZyb20gQmFsZCBSb2NrLmpwZyIsInR5cGUiOiJzdHJpbmcifSwiZGF0YXR5cGUiOiJjb21tb25zTWVkaWEifSwidHlwZSI6InN0YXRlbWVudCIsImlkIjoiUTI4OTU0MiQyOTQ4NkRDQy1FREQzLTRENDEtQjlEMy02OENCMEFFMTQ1NTciLCJyYW5rIjoibm9ybWFsIn1dfX0="
+    },
+    {
+      "kind": "commons_exact_category_membership",
+      "destinationId": "2E5FFFF77936BBE3C5D7",
+      "destinationName": "Gran Paradiso",
+      "fileTitle": "File:Cogne gruppo gran paradiso (2).jpg",
+      "requiredCategory": "Category:Gran Paradiso",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "categories",
+          "cllimit": "max",
+          "titles": "File:Cogne gruppo gran paradiso (2).jpg"
+        }
+      },
+      "responseFileName": "gran-paradiso-categories.json",
+      "byteLength": 736,
+      "sha256": "cd45c2dbbe7b993f9df3431a8bcde7ea732d6dec7e0fec6fef562fe5bed61323",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjo3Mjk5MTA5NywibnMiOjYsInRpdGxlIjoiRmlsZTpDb2duZSBncnVwcG8gZ3JhbiBwYXJhZGlzbyAoMikuanBnIiwiY2F0ZWdvcmllcyI6W3sibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkNDLUJZLVNBLTQuMCJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkN1bHR1cmFsIGhlcml0YWdlIG1vbnVtZW50cyBpbiBJdGFseSB3aXRoIGtub3duIElEcyJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkdyYW4gUGFyYWRpc28ifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpJbWFnZXMgZnJvbSBXaWtpIExvdmVzIE1vbnVtZW50cyAyMDE4In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6SW1hZ2VzIGZyb20gV2lraSBMb3ZlcyBNb251bWVudHMgMjAxOCBpbiBJdGFseSJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkltYWdlcyBmcm9tIFdpa2kgTG92ZXMgTW9udW1lbnRzIDIwMTggaW4gSXRhbHkgLSBBb3N0YSBWYWxsZXkifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpJdGFseSBwaG90b2dyYXBocyB0YWtlbiBvbiAyMDE4LTA3LTI2In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6U2VsZi1wdWJsaXNoZWQgd29yayJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OlVwbG9hZGVkIHZpYSBDYW1wYWlnbjp3bG0taXQifV19XX0sImxpbWl0cyI6eyJjYXRlZ29yaWVzIjo1MDB9fQ=="
+    },
+    {
+      "kind": "commons_exact_category_membership",
+      "destinationId": "AFD21967E06AA9D81BA1",
+      "destinationName": "Großglockner",
+      "fileTitle": "File:Großglockner (Hochgasser).jpg",
+      "requiredCategory": "Category:Großglockner",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "categories",
+          "cllimit": "max",
+          "titles": "File:Großglockner (Hochgasser).jpg"
+        }
+      },
+      "responseFileName": "grossglockner-categories.json",
+      "byteLength": 1492,
+      "sha256": "acbdb4fa3f311e8184eb6876747208f5d5b755c5e220ea3f711e83cb88161d14",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxOTc0NTc4NzMsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6R3Jvw59nbG9ja25lciAoSG9jaGdhc3NlcikuanBnIiwiY2F0ZWdvcmllcyI6W3sibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkFkZXJzcGl0emUifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpBdXN0cmlhIHBob3RvZ3JhcGhzIHRha2VuIG9uIDIwMjYtMDctMjgifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpDQy1CWS1TQS00LjAifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpFaXNrw7ZnZWxlIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6RmlsZXMgd2l0aCBjb29yZGluYXRlcyBtaXNzaW5nIFNEQyBsb2NhdGlvbiBvZiBjcmVhdGlvbiJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OkdhbXNzcGl0emUifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpHbG9ja25lcndhbmQifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpHcmFtdWwifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpHcm/Dn2VyIExhbmRlZ2drb3BmIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6R3Jvw59nbG9ja25lciJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5Okdyb8OfZ2xvY2tuZXIgaW4gSnVseSAyMDI2In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6SW1hZ2VzIHdpdGggMTArIGFubm90YXRpb25zIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6SW1hZ2VzIHdpdGggYW5ub3RhdGlvbnMifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpKdWx5IDIwMjYgaW4gQmV6aXJrIExpZW56In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6S2Fsc2VyIELDpHJlbmtvcGYifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpMYW5kc2NhcGVzIG9mIEJlemlyayBMaWVueiBpbiBKdWx5In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6TWVkaWEgZnJvbSBXaWtpRGFoZWltIDIwMjYgaW4gQXVzdHJpYS9OYXR1cmFsIGhlcml0YWdlIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6TWVkaWEgZnJvbSBXaWtpRGFoZWltIDIwMjYgaW4gQXVzdHJpYS9hbGwifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpQcsOkZ3JhdGtlZXMifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpRdWFsaXR5IGltYWdlcyJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OlF1YWxpdHkgaW1hZ2VzIG1pc3NpbmcgU0RDIENvbW1vbnMgcXVhbGl0eSBhc3Nlc3NtZW50In0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6Um9tYXJpc3dhbmRrb3BmIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6U2NobmVld2lua2Vsa29wZiJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OlNlbGYtcHVibGlzaGVkIHdvcmsifSx7Im5zIjoxNCwidGl0bGUiOiJDYXRlZ29yeTpWaWV3cyBmcm9tIEhvY2hnYXNzZXIifV19XX0sImxpbWl0cyI6eyJjYXRlZ29yaWVzIjo1MDB9fQ=="
+    },
+    {
+      "kind": "commons_exact_category_membership",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "destinationName": "Mailbox Peak",
+      "fileTitle": "File:Mailbox from Mount Teneriffe.jpg",
+      "requiredCategory": "Category:Mailbox Peak",
+      "request": {
+        "endpoint": "https://commons.wikimedia.org/w/api.php",
+        "params": {
+          "action": "query",
+          "format": "json",
+          "formatversion": "2",
+          "prop": "categories",
+          "cllimit": "max",
+          "titles": "File:Mailbox from Mount Teneriffe.jpg"
+        }
+      },
+      "responseFileName": "mailbox-categories.json",
+      "byteLength": 424,
+      "sha256": "8bea08f2bc32aa068dfeb6ea50dd8e513dddc93123a989f0d7b3db2c515279a7",
+      "encoding": "base64",
+      "rawResponseBase64": "eyJiYXRjaGNvbXBsZXRlIjp0cnVlLCJxdWVyeSI6eyJwYWdlcyI6W3sicGFnZWlkIjoxNzAzMTgyODUsIm5zIjo2LCJ0aXRsZSI6IkZpbGU6TWFpbGJveCBmcm9tIE1vdW50IFRlbmVyaWZmZS5qcGciLCJjYXRlZ29yaWVzIjpbeyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6Q0MtQlktU0EtNC4wIn0seyJucyI6MTQsInRpdGxlIjoiQ2F0ZWdvcnk6RmlsZXMgd2l0aCBjb29yZGluYXRlcyBtaXNzaW5nIFNEQyBsb2NhdGlvbiBvZiBjcmVhdGlvbiJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5Ok1haWxib3ggUGVhayJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5Ok1vdW50IFRlbmVyaWZmZSJ9LHsibnMiOjE0LCJ0aXRsZSI6IkNhdGVnb3J5OlNlbGYtcHVibGlzaGVkIHdvcmsifV19XX0sImxpbWl0cyI6eyJjYXRlZ29yaWVzIjo1MDB9fQ=="
+    }
+  ]
+}

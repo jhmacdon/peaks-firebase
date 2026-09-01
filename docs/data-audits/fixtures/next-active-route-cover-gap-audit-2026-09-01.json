@@ -1,0 +1,654 @@
+{
+    "kind": "next_active_route_cover_gap_audit",
+    "source": {
+        "writes": 0,
+        "database": "peaks",
+        "priorCandidateRefs": [
+            "origin/codex/add-two-kfs-global-covers-20260901@ae8c63390260b98ff751feead6d8067992f6535d",
+            "origin/codex/add-route-gap-cover-priority-20260901@b3218423f8832ca2474be32038f9093ca03acb55"
+        ],
+        "routeProjectionRef": "origin/codex/integrate-route-stack-main-20260831@ffcb01d0599ebab1d575eefc6c8a1e9c7f725ee4",
+        "transactionReadOnly": "on",
+        "routeCoverProjection": "inline exact replay of cloud-sql/migrations/20260830_route_cover_photos.sql",
+        "implementationBaseRef": "origin/codex/add-route-gap-cover-priority-20260901@b3218423f8832ca2474be32038f9093ca03acb55",
+        "routeCoverViewPresent": false,
+        "defaultTransactionReadOnly": "on"
+    },
+    "summary": {
+        "applyUsed": false,
+        "productionWrites": 0,
+        "activePeaksRoutes": 260,
+        "fixedMonthlyCostUsd": 0,
+        "nextBatchDestinations": 8,
+        "priorBatchDestinations": 8,
+        "activePeaksRoutesWithDerivedCover": 194,
+        "nextBatchUncoveredActiveRouteLinks": 10,
+        "priorBatchDistinctRouteGapReductionIfApproved": 9,
+        "nextBatchDistinctRouteGapReductionIfApprovedLater": 10,
+        "activePeaksRoutesMissingDerivedCoverBeforePriorBatches": 66,
+        "activePeaksRoutesMissingDerivedCoverAfterPriorBatchesIfApproved": 57,
+        "activePeaksRoutesMissingDerivedCoverAfterNextBatchIfApprovedLater": 47
+    },
+    "generatedAt": "2026-09-01T03:20:48.764608+00:00",
+    "destinations": [
+        {
+            "catalog": {
+                "id": "2E5FFFF77936BBE3C5D7",
+                "lat": 45.5178193,
+                "lng": 7.2672005,
+                "name": "Gran Paradiso",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": null,
+                "updatedAt": "2026-07-23T21:04:58.537846+00:00",
+                "elevationM": 4061,
+                "wikidataId": "Q1372",
+                "countryCode": "IT",
+                "externalIds": {
+                    "osm": "26863010",
+                    "wikidata": "Q1372"
+                },
+                "prominenceM": 1888
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 2234.699999999997,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "K7HlMn1qHI9gkPFd8kna",
+                    "distanceM": 9411,
+                    "routeName": "Gran Paradiso via Pont Normal Route",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "A17DB58D2952ED0446C3",
+                        "2E5FFFF77936BBE3C5D7"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 2234.699999999997, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"K7HlMn1qHI9gkPFd8kna\", \"distanceM\": 9411, \"routeName\": \"Gran Paradiso via Pont Normal Route\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"A17DB58D2952ED0446C3\", \"2E5FFFF77936BBE3C5D7\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 2234.699999999997,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "K7HlMn1qHI9gkPFd8kna",
+                    "distanceM": 9411,
+                    "routeName": "Gran Paradiso via Pont Normal Route",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "A17DB58D2952ED0446C3",
+                        "2E5FFFF77936BBE3C5D7"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "30FBA25F6A12506D101B",
+                "lat": 44.92216,
+                "lng": 6.359547,
+                "name": "Barre des Écrins",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": null,
+                "updatedAt": "2026-07-23T20:58:49.414472+00:00",
+                "elevationM": 4102,
+                "wikidataId": "Q30480",
+                "countryCode": "FR",
+                "externalIds": {
+                    "osm": "26862530",
+                    "wikidata": "Q30480"
+                },
+                "prominenceM": 2045
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 2534.8000000000006,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "rB04wEqY2JQXh6QggSSf",
+                    "distanceM": 12094,
+                    "routeName": "Barre des Écrins via Normal West Ridge",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "B60AD3BB339C44E7BB05",
+                        "30FBA25F6A12506D101B"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 2534.8000000000006, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"rB04wEqY2JQXh6QggSSf\", \"distanceM\": 12094, \"routeName\": \"Barre des Écrins via Normal West Ridge\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"B60AD3BB339C44E7BB05\", \"30FBA25F6A12506D101B\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 2534.8000000000006,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "rB04wEqY2JQXh6QggSSf",
+                    "distanceM": 12094,
+                    "routeName": "Barre des Écrins via Normal West Ridge",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "B60AD3BB339C44E7BB05",
+                        "30FBA25F6A12506D101B"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "5hVnUW4tmqj3A6YbU0oB",
+                "lat": 47.462465,
+                "lng": -121.63942,
+                "name": "Mailbox Peak",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": "WA",
+                "updatedAt": "2026-08-28T05:55:43.486792+00:00",
+                "elevationM": 1476,
+                "wikidataId": "Q111944228",
+                "countryCode": "US",
+                "externalIds": {
+                    "osm": "285408190",
+                    "wikidata": "Q111944228"
+                },
+                "prominenceM": 37
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 1208.75390625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "4gkUxiJyoPVyJWokOinE",
+                    "distanceM": 4018.9009517120226,
+                    "routeName": "Mailbox Peak Old Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "GHg65nKUeQhQU3D9A7ie",
+                        "5hVnUW4tmqj3A6YbU0oB"
+                    ]
+                },
+                {
+                    "gainM": 1329.16015625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "KG89JzIf3B07ppaWjLxm",
+                    "distanceM": 8251.016019616058,
+                    "routeName": "Mailbox Peak Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "GHg65nKUeQhQU3D9A7ie",
+                        "5hVnUW4tmqj3A6YbU0oB"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 1208.75390625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"4gkUxiJyoPVyJWokOinE\", \"distanceM\": 4018.9009517120226, \"routeName\": \"Mailbox Peak Old Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"GHg65nKUeQhQU3D9A7ie\", \"5hVnUW4tmqj3A6YbU0oB\"]}, {\"gainM\": 1329.16015625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"KG89JzIf3B07ppaWjLxm\", \"distanceM\": 8251.016019616058, \"routeName\": \"Mailbox Peak Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"GHg65nKUeQhQU3D9A7ie\", \"5hVnUW4tmqj3A6YbU0oB\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 1208.75390625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "4gkUxiJyoPVyJWokOinE",
+                    "distanceM": 4018.9009517120226,
+                    "routeName": "Mailbox Peak Old Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "GHg65nKUeQhQU3D9A7ie",
+                        "5hVnUW4tmqj3A6YbU0oB"
+                    ]
+                },
+                {
+                    "gainM": 1329.16015625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "KG89JzIf3B07ppaWjLxm",
+                    "distanceM": 8251.016019616058,
+                    "routeName": "Mailbox Peak Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "GHg65nKUeQhQU3D9A7ie",
+                        "5hVnUW4tmqj3A6YbU0oB"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "6916E6CB5E5C45C02499",
+                "lat": 45.2876803,
+                "lng": 5.7881527,
+                "name": "Chamechaude",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": null,
+                "updatedAt": "2026-07-23T20:58:49.414472+00:00",
+                "elevationM": 2082,
+                "wikidataId": "Q2321630",
+                "countryCode": "FR",
+                "externalIds": {
+                    "osm": "433265195",
+                    "wikidata": "Q2321630"
+                },
+                "prominenceM": 1771
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 796.1000000000004,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "8Bj0ryavUtKX4ekuNkKc",
+                    "distanceM": 4068,
+                    "routeName": "Chamechaude via Col de Porte",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "169808D1CD6E1D75D218",
+                        "6916E6CB5E5C45C02499"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 796.1000000000004, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"8Bj0ryavUtKX4ekuNkKc\", \"distanceM\": 4068, \"routeName\": \"Chamechaude via Col de Porte\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"169808D1CD6E1D75D218\", \"6916E6CB5E5C45C02499\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 796.1000000000004,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "8Bj0ryavUtKX4ekuNkKc",
+                    "distanceM": 4068,
+                    "routeName": "Chamechaude via Col de Porte",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "169808D1CD6E1D75D218",
+                        "6916E6CB5E5C45C02499"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "AFD21967E06AA9D81BA1",
+                "lat": 47.0745464,
+                "lng": 12.6938826,
+                "name": "Großglockner",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": null,
+                "updatedAt": "2026-07-23T18:33:08.740561+00:00",
+                "elevationM": 3798,
+                "wikidataId": "Q3388",
+                "countryCode": "AT",
+                "externalIds": {
+                    "osm": "26863041",
+                    "wikidata": "Q3388"
+                },
+                "prominenceM": 2428
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 1913.4999999999993,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "0x4EiGAP5HchuDuliqtd",
+                    "distanceM": 9113,
+                    "routeName": "Großglockner via Lucknerhaus Normal Route",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "9A6A7F33A62D50654883",
+                        "AFD21967E06AA9D81BA1"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 1913.4999999999993, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"0x4EiGAP5HchuDuliqtd\", \"distanceM\": 9113, \"routeName\": \"Großglockner via Lucknerhaus Normal Route\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"9A6A7F33A62D50654883\", \"AFD21967E06AA9D81BA1\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 1913.4999999999993,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "0x4EiGAP5HchuDuliqtd",
+                    "distanceM": 9113,
+                    "routeName": "Großglockner via Lucknerhaus Normal Route",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "9A6A7F33A62D50654883",
+                        "AFD21967E06AA9D81BA1"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "lTBztUOvhj79YWPEtGGV",
+                "lat": 43.729852,
+                "lng": -110.811275,
+                "name": "Middle Teton",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": "WY",
+                "updatedAt": "2026-08-28T05:55:39.204371+00:00",
+                "elevationM": 3903,
+                "wikidataId": "Q2060335",
+                "countryCode": "US",
+                "externalIds": {
+                    "osm": "356506474",
+                    "wikidata": "Q2060335"
+                },
+                "prominenceM": 343
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": "https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FlTBztUOvhj79YWPEtGGV.jpg",
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": \"https://storage.googleapis.com/donner-a8608.appspot.com/destinations%2FlTBztUOvhj79YWPEtGGV.jpg\", \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 1901.1875,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "HY5RuRNroyNoHvVhaenc",
+                    "distanceM": 10779.846286978594,
+                    "routeName": "Southwest Couloir",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "Od1xhYmqvBKHLZoYjdBV",
+                        "lTBztUOvhj79YWPEtGGV"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 1901.1875, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"HY5RuRNroyNoHvVhaenc\", \"distanceM\": 10779.846286978594, \"routeName\": \"Southwest Couloir\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"Od1xhYmqvBKHLZoYjdBV\", \"lTBztUOvhj79YWPEtGGV\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 1901.1875,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "HY5RuRNroyNoHvVhaenc",
+                    "distanceM": 10779.846286978594,
+                    "routeName": "Southwest Couloir",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "Od1xhYmqvBKHLZoYjdBV",
+                        "lTBztUOvhj79YWPEtGGV"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "wDFtTKWGTP96rsoi2tNA",
+                "lat": 20.709718,
+                "lng": -156.253331,
+                "name": "Haleakala",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": null,
+                "updatedAt": "2026-06-15T21:00:07.938089+00:00",
+                "elevationM": 3055,
+                "wikidataId": null,
+                "countryCode": null,
+                "externalIds": {
+                },
+                "prominenceM": 3055
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 6.199999999999818,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "6E3lfeLCn8p5ekOQNVT8",
+                    "distanceM": 109,
+                    "routeName": "Haleakalā via Puʻuʻulaʻula Summit Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "16A5041A156C538CEEB6",
+                        "wDFtTKWGTP96rsoi2tNA"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 6.199999999999818, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"6E3lfeLCn8p5ekOQNVT8\", \"distanceM\": 109, \"routeName\": \"Haleakalā via Puʻuʻulaʻula Summit Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"16A5041A156C538CEEB6\", \"wDFtTKWGTP96rsoi2tNA\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 6.199999999999818,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "6E3lfeLCn8p5ekOQNVT8",
+                    "distanceM": 109,
+                    "routeName": "Haleakalā via Puʻuʻulaʻula Summit Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "16A5041A156C538CEEB6",
+                        "wDFtTKWGTP96rsoi2tNA"
+                    ]
+                }
+            ]
+        },
+        {
+            "catalog": {
+                "id": "YhxmMJE5KqAsa2jMYlrs",
+                "lat": 42.861117,
+                "lng": -72.108292,
+                "name": "Mount Monadnock",
+                "owner": "peaks",
+                "features": [
+                    "summit"
+                ],
+                "stateCode": "NH",
+                "updatedAt": "2026-07-23T17:12:37.629869+00:00",
+                "elevationM": 960,
+                "wikidataId": "Q289542",
+                "countryCode": "US",
+                "externalIds": {
+                    "osm": "357724336",
+                    "wikidata": "Q289542"
+                },
+                "prominenceM": 649
+            },
+            "coverState": {
+                "focalX": 50,
+                "focalY": 50,
+                "complete": false,
+                "heroImageRaw": null,
+                "heroImageAttributionRaw": null,
+                "heroImageAttributionUrlRaw": null
+            },
+            "listMemberships": [
+            ],
+            "coverFingerprint": "{\"focalX\": 50, \"focalY\": 50, \"heroImageRaw\": null, \"heroImageAttributionRaw\": null, \"heroImageAttributionUrlRaw\": null}",
+            "activeRouteBindings": [
+                {
+                    "gainM": 564.25390625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "gZoKcidRFdBCNYMJC0xc",
+                    "distanceM": 6275.222432825526,
+                    "routeName": "Pumpelly Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "H61azRSg0ZrtzaXJ42eC",
+                        "YhxmMJE5KqAsa2jMYlrs"
+                    ]
+                },
+                {
+                    "gainM": 541.76171875,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "iufwHEWy2ZrAe7IIUAdW",
+                    "distanceM": 2772.794337361321,
+                    "routeName": "White Dot Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "P0NlbaNGLy1HN5fohVv3",
+                        "YhxmMJE5KqAsa2jMYlrs"
+                    ]
+                }
+            ],
+            "photoCandidateHistory": [
+            ],
+            "activeRouteFingerprint": "[{\"gainM\": 564.25390625, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"gZoKcidRFdBCNYMJC0xc\", \"distanceM\": 6275.222432825526, \"routeName\": \"Pumpelly Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"H61azRSg0ZrtzaXJ42eC\", \"YhxmMJE5KqAsa2jMYlrs\"]}, {\"gainM\": 541.76171875, \"owner\": \"peaks\", \"status\": \"active\", \"routeId\": \"iufwHEWy2ZrAe7IIUAdW\", \"distanceM\": 2772.794337361321, \"routeName\": \"White Dot Trail\", \"completion\": \"none\", \"destinationOrdinal\": 1, \"derivedCoverComplete\": false, \"linkedDestinationIds\": [\"P0NlbaNGLy1HN5fohVv3\", \"YhxmMJE5KqAsa2jMYlrs\"]}]",
+            "remainingUncoveredActiveRoutes": [
+                {
+                    "gainM": 564.25390625,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "gZoKcidRFdBCNYMJC0xc",
+                    "distanceM": 6275.222432825526,
+                    "routeName": "Pumpelly Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "H61azRSg0ZrtzaXJ42eC",
+                        "YhxmMJE5KqAsa2jMYlrs"
+                    ]
+                },
+                {
+                    "gainM": 541.76171875,
+                    "owner": "peaks",
+                    "status": "active",
+                    "routeId": "iufwHEWy2ZrAe7IIUAdW",
+                    "distanceM": 2772.794337361321,
+                    "routeName": "White Dot Trail",
+                    "completion": "none",
+                    "destinationOrdinal": 1,
+                    "derivedCoverComplete": false,
+                    "linkedDestinationIds": [
+                        "P0NlbaNGLy1HN5fohVv3",
+                        "YhxmMJE5KqAsa2jMYlrs"
+                    ]
+                }
+            ]
+        }
+    ],
+    "schemaVersion": 1
+}
