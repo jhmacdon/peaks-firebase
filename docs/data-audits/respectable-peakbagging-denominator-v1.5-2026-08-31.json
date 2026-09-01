@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-08-31-primary-source-lower-bound-5",
+  "created_at": "2026-08-31T17:09:12-07:00",
+  "kind": "readiness_amendment",
+  "base_registry": {
+    "version": "2026-08-31-primary-source-lower-bound-4",
+    "json_path": "docs/data-audits/respectable-peakbagging-denominator-v1.4-2026-08-31.json",
+    "json_sha256": "433b34a51e18011ee3f766fa05d3cde98bf2b8fde056b0aabe2c3243d42e3d85",
+    "markdown_sha256": "33c78c94bb4b5f1d1c5e5f54c2d7dc65dac28b8f035ce7f67ca321b562472c85"
+  },
+  "source_change": {
+    "pull_request": 180,
+    "url": "https://github.com/jhmacdon/peaks-firebase/pull/180",
+    "head_commit": "82c22f698c0646692597c58d001fcc06a4893304",
+    "status": "ready_for_review_not_merged",
+    "publication_ready": false,
+    "production_write_performed": false,
+    "fixture_path": "docs/data-audits/fixtures/keeper-list-dobih-smaller-majority-four-candidates-2026-08-31.json",
+    "fixture_sha256": "4fdc18c1b92a3cc7a54d237b1f805dd54b85368b47679eb22be1af5287c1488b",
+    "source_metadata_sha256": "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "coverage": {
+    "confirmed_lower_bound_denominator": 83,
+    "current_exact_count": 22,
+    "prior_ready_exact_count": 16,
+    "new_ready_exact_count": 4,
+    "ready_exact_count": 20,
+    "current_plus_ready_exact_count": 42,
+    "current_plus_ready_exact_percent_of_lower_bound": 50.6024,
+    "majority_threshold_for_83": 42,
+    "additional_ready_units_needed_for_registry_majority": 0,
+    "ready_stack_reaches_registry_majority": true,
+    "production_reaches_registry_majority": false,
+    "worldwide_majority_claim_supported": false,
+    "coverage_claim_supported": false,
+    "scope_warning": "The 42 of 83 result is a ready pull-request stack against one dated lower-bound registry. It is not merged or imported, and it does not prove a worldwide majority."
+  },
+  "new_ready_units": [
+    {
+      "denominator_registry_id": "welsh-3000s",
+      "source_key": "dobih-welsh-3000s",
+      "list_id": "3B0EE5F022C3E5831E6F",
+      "name": "Welsh 3000s",
+      "count": 15,
+      "selection": "Number IN (1963,1964,1965,1966,1967,1968,1969,1970,1971,1972,1973,1974,1975,1976,1977)",
+      "roster_sha256": "749fc7dda4f61e206dc62539f9e0fd3220411c9417dfeeb93789cc07fff401e2",
+      "base_state": "not_imported_permission_unknown",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "submarilyns-great-britain",
+      "source_key": "dobih-great-britain-submarilyns",
+      "list_id": "8D35EDD459B8D18E9034",
+      "name": "Great Britain Submarilyns",
+      "count": 100,
+      "selection": "sMa=1 AND Country IN (E,ES,S,W)",
+      "roster_sha256": "80a544c71e8331545620c11510eafb26b18581f8db1a1c2544db5d2bce0c29e0",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "donald-deweys",
+      "source_key": "dobih-donald-deweys",
+      "list_id": "8AEC63FDE65517E74B04",
+      "name": "Donald Deweys",
+      "count": 247,
+      "selection": "DDew=1",
+      "roster_sha256": "6fb396493ec9e7d48c36f697e7502b51e84d3318c81d87711cdb719ca997c490",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "ldwa-england-wales-2000",
+      "source_key": "dobih-england-wales-2000-foot-register",
+      "list_id": "7D21B0495C827F72D12B",
+      "name": "Hewitts of England and Wales",
+      "count": 316,
+      "selection": "Hew=1 AND Country IN (E,ES,W)",
+      "roster_sha256": "8f3b40a77804c91d6f7da955024bce0bfe49bda384a857b82c5797cdaa63bf22",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_variant_not_merged",
+      "denominator_note": "This is one accepted roster variant of the England and Wales 2000-Foot Hill Register. It does not add a second denominator unit for the Nuttalls."
+    }
+  ],
+  "source_work": {
+    "membership_count": 678,
+    "unique_identity_count": 648,
+    "prior_reviewed_identity_count": 121,
+    "new_identity_review_count": 527,
+    "publication_blocks": [
+      "dobih:2711",
+      "dobih:2713",
+      "dobih:2735",
+      "dobih:2877"
+    ]
+  },
+  "before_production": [
+    "Merge the reviewed source and identity stack.",
+    "Resolve all 648 identities and carry the four firing-range blocks to destination IDs.",
+    "Add a credited destination cover, a safe reviewed route, and a credited route cover for every member.",
+    "Run the read-only zero-gap audit and require no unblocked gap.",
+    "Obtain approval before any import, migration, merge, or production write."
+  ],
+  "cost": {
+    "infrastructure_change": false,
+    "estimated_monthly_usd": 0
+  }
+}
