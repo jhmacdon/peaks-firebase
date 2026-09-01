@@ -51,6 +51,12 @@ test("the legacy entry exports the extracted core and base-three bundle", () => 
   assert.equal(legacy.resolveKeeperList, core.resolveKeeperList);
   assert.equal(legacy.runKeeperImport, core.runKeeperImport);
   assert.equal(legacy.KEEPER_LISTS, BASE_THREE_KEEPER_LISTS);
+  assert.equal(legacy.BASE_THREE_KEEPER_LISTS, BASE_THREE_KEEPER_LISTS);
+  assert.deepEqual(
+    legacy.KEEPER_LISTS.map((list) => list.sourceKey),
+    ["dobih-corbetts", "dobih-wainwrights", "uiaa-pyrenees-main"]
+  );
+  assert.ok(!("DOBIH_OPEN_EIGHT_KEEPER_LISTS" in legacy));
 });
 
 test("the base-three lists carry explicit roster sources", () => {
