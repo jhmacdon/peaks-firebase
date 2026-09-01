@@ -1766,7 +1766,8 @@ function candidateHttpsUrl(value: unknown, label: string): string {
 export function parseStandardRouteCandidateResult(
   result: JsonObject,
   destinationName: string,
-  destinationCountryCode: string | null
+  destinationCountryCode: string | null,
+  destinationId: string | null = null
 ): JsonObject {
   const topLevelKeys = [
     "access",
@@ -1904,7 +1905,11 @@ export function parseStandardRouteCandidateResult(
   }
   const accessSourceUrl = validateRouteAccessSource(
     access.source_url,
-    identitySources
+    identitySources,
+    {
+      destinationId,
+      accessStatus: access.status,
+    }
   );
   if (
     (access.status !== "open" || identityConflicts.length > 0) &&
@@ -2135,6 +2140,7 @@ function validateTransitionPayload(
   from: JobState,
   to: JobState,
   result: JsonObject,
+  destinationId: string,
   destinationName: string,
   destinationCountryCode: string | null,
   artifactPath: string | null,
@@ -2153,7 +2159,8 @@ function validateTransitionPayload(
     validatedResult = parseStandardRouteCandidateResult(
       result,
       destinationName,
-      destinationCountryCode
+      destinationCountryCode,
+      destinationId
     );
   }
   if (to === "pending_review" && !routeId) {
@@ -2444,6 +2451,7 @@ async function transition(argv: string[]): Promise<void> {
       from,
       to,
       resultJson,
+      destinationId,
       currentJob.destination_name,
       currentJob.destination_country_code,
       artifactPath,

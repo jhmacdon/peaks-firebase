@@ -2,10 +2,17 @@ import {
   listOfficialTrailSources,
   type OfficialTrailSource,
 } from "./official-trail-sources";
+import { validateKnpsCandidateEvidence } from "./knps-route-access-audit";
 
 export type ValidatedRouteIdentitySource = {
   type: string;
   url: string;
+};
+
+export type RouteAccessValidationContext = {
+  destinationId?: string | null;
+  accessStatus?: string;
+  nowMs?: number;
 };
 
 const fixedPublisherHosts = new Map<string, readonly string[]>([
@@ -118,21 +125,39 @@ function knpsParkId(url: URL): string | null {
     : null;
 }
 
+function knpsAccessRef(url: URL): string | null {
+  const accessRefs = url.searchParams.getAll("rstId");
+  return accessRefs.length === 1 && /^\d{4}$/.test(accessRefs[0] ?? "")
+    ? accessRefs[0] ?? null
+    : null;
+}
+
+function hasExactQueryKeys(url: URL, expected: readonly string[]): boolean {
+  return (
+    [...url.searchParams.keys()].sort().join(",") === [...expected].sort().join(",")
+  );
+}
+
 function isKnpsIdentityUrl(url: URL): boolean {
   const pathname = knpsPathname(url);
   return (
     !url.hash &&
-    knpsParkId(url) !== null &&
     pathname !== null &&
-    (KNPS_COURSE_PATHS.has(pathname) || pathname === KNPS_ACCESS_PATH)
+    ((KNPS_COURSE_PATHS.has(pathname) && knpsParkId(url) !== null) ||
+      (pathname === KNPS_ACCESS_PATH &&
+        knpsAccessRef(url) !== null &&
+        url.searchParams.get("menuNo") === "8000340" &&
+        hasExactQueryKeys(url, ["menuNo", "rstId"])))
   );
 }
 
 function isKnpsAccessUrl(url: URL): boolean {
   return (
     !url.hash &&
-    knpsParkId(url) !== null &&
-    knpsPathname(url) === KNPS_ACCESS_PATH
+    knpsPathname(url) === KNPS_ACCESS_PATH &&
+    knpsAccessRef(url) !== null &&
+    url.searchParams.get("menuNo") === "8000340" &&
+    hasExactQueryKeys(url, ["menuNo", "rstId"])
   );
 }
 
@@ -195,7 +220,7 @@ export function validateRouteIdentitySource(
     }
     if (type === "knps" && !isKnpsIdentityUrl(parsedUrl)) {
       throw new Error(
-        "candidate identity source type knps requires an exact course or control-detail URL with one six-digit parkId"
+        "candidate identity source type knps requires an exact course URL with one six-digit parkId or control-detail URL with one four-digit rstId"
       );
     }
     return { type, url: parsedUrl.toString() };
@@ -220,7 +245,8 @@ export function isStrongRouteIdentitySource(type: string): boolean {
 
 export function validateRouteAccessSource(
   value: unknown,
-  identitySources: readonly ValidatedRouteIdentitySource[]
+  identitySources: readonly ValidatedRouteIdentitySource[],
+  context: RouteAccessValidationContext = {}
 ): string {
   const parsedSourceUrl = publicHttpsUrl(value, "candidate access.source_url");
   const sourceUrl = parsedSourceUrl.toString();
@@ -246,17 +272,13 @@ export function validateRouteAccessSource(
     );
   }
   if (matchingSource.type === "knps") {
-    const accessParkId = knpsParkId(parsedSourceUrl);
-    const mismatchedPark = identitySources.some(
-      (source) =>
-        source.type === "knps" &&
-        knpsParkId(new URL(source.url)) !== accessParkId
-    );
-    if (mismatchedPark) {
-      throw new Error(
-        "candidate KNPS course and access sources must use the same parkId"
-      );
-    }
+    validateKnpsCandidateEvidence({
+      destinationId: context.destinationId ?? null,
+      identitySources,
+      accessSourceUrl: sourceUrl,
+      accessStatus: context.accessStatus ?? "",
+      nowMs: context.nowMs,
+    });
   }
   return sourceUrl;
 }
