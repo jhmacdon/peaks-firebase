@@ -3,6 +3,7 @@ import { asyncRoute } from "../lib/async-route";
 import db, { createDbClient } from "../db";
 import { getUid } from "../auth";
 import { buildRouteAccessSql } from "../lib/route-access";
+import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { normalizeSearchName } from "../search-utils";
 
 const router = Router();
@@ -385,8 +386,10 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
               r.external_links, r.provenance, r.completion,
+              ${routeCoverSelectSql()},
               ${routeAreaRowsSql}${geoOutputSelect}, r.score
        FROM ranked_routes r
+       ${routeCoverJoinSql()}
        ${routeAreaJoinSql}
        ORDER BY r.score DESC`,
     values,

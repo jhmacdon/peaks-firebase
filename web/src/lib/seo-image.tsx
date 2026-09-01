@@ -1,13 +1,36 @@
+/** A route share image cannot carry a working source or license link. Only
+ * credits that clearly name a public-domain grant may be cropped into that
+ * standalone file; attributed Creative Commons photos stay on linked pages. */
+export function isPublicDomainImageAttribution(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
+  const normalized = value
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/\u00a0/g, " ")
+    .toLowerCase();
+  return (
+    /\bcc0(?:\s|\d|$)/.test(normalized) ||
+    normalized.includes("creative commons zero") ||
+    normalized.includes("public domain") ||
+    /(?:^|[\s/])pd(?:[-\s]|$)/.test(normalized)
+  );
+}
+
 /** Per-entity dynamic OG image: name + one stat line + wordmark on a flat
- * dark warm panel. Deliberately plainer than `SeoImage` — legible at
- * thumbnail size across 60k+ generated pages instead of a bespoke look
- * per page, and no external image fetches. */
+ * dark warm panel, with an optional public-domain photo. */
 export function EntityOgImage({
   name,
   stats,
+  imageUrl,
+  imageFocalX = 50,
+  imageFocalY = 50,
+  imageAttribution,
 }: {
   name: string;
   stats: string | null;
+  imageUrl?: string | null;
+  imageFocalX?: number;
+  imageFocalY?: number;
+  imageAttribution?: string | null;
 }) {
   return (
     <div
@@ -20,10 +43,39 @@ export function EntityOgImage({
         background: "#181816",
         color: "#f5f1ea",
         padding: "76px",
+        position: "relative",
+        overflow: "hidden",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       }}
     >
+      {imageUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt=""
+            width="1200"
+            height="630"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: `${imageFocalX}% ${imageFocalY}%`,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(180deg, rgba(24,24,22,0.60) 0%, rgba(24,24,22,0.22) 42%, rgba(24,24,22,0.88) 100%)",
+            }}
+          />
+        </>
+      ) : null}
       <div
         style={{
           display: "flex",
@@ -32,12 +84,20 @@ export function EntityOgImage({
           lineHeight: 1.08,
           letterSpacing: -1.6,
           maxWidth: 1040,
+          position: "relative",
         }}
       >
         {name}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 28,
+          position: "relative",
+        }}
+      >
         {stats && (
           <div
             style={{
@@ -50,25 +110,41 @@ export function EntityOgImage({
             {stats}
           </div>
         )}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            fontSize: 24,
-            fontWeight: 700,
-            letterSpacing: 0.4,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 24 }}>
           <div
             style={{
-              width: 14,
-              height: 14,
-              borderRadius: 4,
-              background: "#2dd4bf",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: 0.4,
             }}
-          />
-          Peaks
+          >
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 4,
+                background: "#2dd4bf",
+              }}
+            />
+            Peaks
+          </div>
+          {imageUrl && imageAttribution ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                maxWidth: 620,
+                fontSize: 16,
+                color: "rgba(245, 241, 234, 0.78)",
+                textAlign: "right",
+              }}
+            >
+              Photo: {imageAttribution} · cropped
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
