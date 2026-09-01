@@ -117,6 +117,23 @@ CC license, dimensions, SHA-1, source page, and camera point. A read-only run of
 the existing article path found no candidate for these seven rows, so this set
 does not duplicate the earlier strict candidates.
 
+A third review froze four more exact files:
+
+- 깃대봉: `File:Korea-Hongdo 11-02583=5.JPG`;
+- 미륵산: `File:Tongyeong Panorama.jpg`;
+- 설악산(대청봉): `File:Mountains In The Mist (187193269).jpeg`; and
+- 축령산: `File:Panoramic view from Chukryeongsan.jpg`.
+
+The four full frames show mountain terrain with room for a wide cover crop.
+The Tongyeong file description says it was taken on top of Mireuksan. The
+Chukryeongsan title, description, and category name the mountain. The Hongdo
+frame shows the island ridge around Gitdaebong. The mist frame's description
+and category identify Seoraksan without naming another peak. Each file has one
+camera point, 47 to 691 metres from the reviewed summit. The exact files keep
+their named credits, compatible CC licenses, sizes, SHA-1 values, source pages,
+and camera points. A read-only run of the current article path missed all four
+rows before the bindings were added.
+
 The same review rejected `File:삼악산 정상 3.jpg` because the strict article
 path already covers 삼악산; `File:설악산 대청봉 정상석.jpg` because the marker
 and cloud do not give a useful mountain view; `File:남이바위 축령산 2.jpg`
@@ -127,7 +144,19 @@ because its tall framing does not survive a wide cover crop; both
 marker; and `File:Mt.Taebaek Somunsubong.jpg` because it names a different
 Taebaeksan subpeak.
 
-For these twelve destination IDs, the command uses `reviewed_commons_file`
+The third review also rejected the Ulsanbawi Unsplash image as a different
+Seoraksan peak; `File:Daecheongbong.jpg` for its people and close rocks; the
+three Seoraksan fall files for forest, stream, or waterfall framing; the two
+Dinosaur Ridge files as a different ridge; both new Taebaeksan files for a
+large marker or summit structure; the Ulleungdo file because it shows a
+waterfall; Cheonmasan views because they show towns or an unlinked outward
+view; `File:Soyosan.jpg` because dark forest hides the mountain; both
+Yumyeongsan files for markers and people; the two `JM-tb` files because they
+show close rocks; and the Geumjeongsan fortress files because walls, buildings,
+or fog hide the peak. Low-resolution Cheongnyangsan and Hongdo files also
+failed the 1600 by 900 floor.
+
+For these sixteen destination IDs, the command uses `reviewed_commons_file`
 evidence instead of `wikipedia_article` evidence. It requires the exact saved
 name, South Korea country code, KFS list membership, nullable planned Wikidata
 value, and a catalog point within 25 metres of the reviewed KFS import row. It
@@ -137,7 +166,7 @@ or geosearch. The returned File page, author, license, dimensions, SHA-1, and
 single coordinate must equal the frozen review. That coordinate must stay
 within 25 metres of the reviewed file point and within 1.5 kilometres of the
 summit. Any mismatch stops that row. A pinned ID never falls through to article
-or P18 discovery. Seoraksan has no reviewed binding in this set.
+or P18 discovery.
 
 The same final guards still apply. A pending photo skips all source requests.
 An old source or SHA-1 stays final, including a denied image. The write lock
@@ -233,6 +262,13 @@ production database writes.
   absent. Each new file passed a full-size visual review and a read-only
   exact-title Commons metadata check. The current strict article path missed
   all seven rows. This follow-up made no production database write.
+- The four-file third review repeats those checks for all sixteen frozen
+  bindings. Its 50 focused tests and TypeScript build passed. The full migration
+  run passed 790 of 799 tests and skipped 9 database suites whose test URLs were
+  absent. Each new file passed a full-frame visual review and a read-only
+  exact-title Commons metadata check. The current article path missed all four
+  rows before the bindings were added. This follow-up made no production
+  database write.
 
 Monthly fixed cost impact: **$0**. The command runs only when an operator starts
 it and adds no service, timer, instance, or scheduled job.
@@ -248,3 +284,6 @@ operator-started command and add no hosted service, timer, or scheduled job.
 
 The seven-file reviewed follow-up also costs **$0/month** and adds no hosted
 service, timer, instance, or scheduled job.
+
+The four-file third review also costs **$0/month** and adds no hosted service,
+timer, instance, or scheduled job.
