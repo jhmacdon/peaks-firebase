@@ -2,26 +2,42 @@
 
 import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import type {
+  LatLng,
+  OfficialNetworkPath,
+  OfficialRouteReview,
+} from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import usgsTrailsSourceImport from "../../../../cloud-sql/migrate/src/usgs-trails-source";
+
+const {
+  haversineMeters,
+  isSimpleClosedRoute,
+  reviewLollipopRetrace,
+  reviewOfficialRouteGeometry,
+} = officialRouteGeometryImport;
+const {
+  assertExactUsgsTrailObjectIds,
+  buildUsgsTrailAttribution,
+  normalizeUsgsTrailOriginators,
+  parseUsgsTrailsQueryUrl,
+  USGS_TRAILS_LICENSE_NAME,
+  USGS_TRAILS_LICENSE_URL,
+  usgsTrailOriginatorFromProperties,
+} = usgsTrailsSourceImport;
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
     ? dbImport
     : (dbImport as unknown as { default: typeof dbImport }).default;
 
-const CORE_SAMPLE_STEP_M = 20;
-const CORE_COVERAGE_DISTANCE_M = 3;
-const CORE_MIN_COVERAGE = 0.99;
+const CORE_MIN_COVERAGE_PCT = 99;
 const CORE_MAX_OFFSET_M = 5;
 const CORE_P95_OFFSET_M = 2;
 const CONNECTOR_MAX_OFFSET_M = 125;
-const SOURCE_USAGE_DISTANCE_M = 5;
+const CONNECTOR_JOIN_MAX_OFFSET_M = 5;
+const DESTINATION_CONTACT_MAX_M = 20;
 
-type LatLng = { lat: number; lng: number };
-type SourceSegment = {
-  objectId: number;
-  start: LatLng;
-  end: LatLng;
-};
 type RouteRow = {
   id: string;
   name: string;
@@ -32,6 +48,8 @@ type RouteRow = {
     source_kind?: string;
     source_url?: string;
     license_name?: string;
+    license_url?: string;
+    attribution?: string;
     contains_osm_geometry?: boolean;
     osm_way_ids?: unknown[];
   } | null;
@@ -61,85 +79,6 @@ function usage(): never {
 function valueAfter(argv: string[], flag: string): string {
   const index = argv.indexOf(flag);
   return index < 0 ? "" : argv[index + 1] ?? "";
-}
-
-function radians(value: number): number {
-  return value * Math.PI / 180;
-}
-
-function haversineMeters(a: LatLng, b: LatLng): number {
-  const radiusM = 6_371_000;
-  const dLat = radians(b.lat - a.lat);
-  const dLng = radians(b.lng - a.lng);
-  const value =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(radians(a.lat)) *
-      Math.cos(radians(b.lat)) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * radiusM * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
-}
-
-function pointToSegmentMeters(point: LatLng, segment: SourceSegment): number {
-  const radiusM = 6_371_000;
-  const latScale = Math.PI / 180 * radiusM;
-  const lngScale = latScale * Math.cos(radians(point.lat));
-  const ax = (segment.start.lng - point.lng) * lngScale;
-  const ay = (segment.start.lat - point.lat) * latScale;
-  const bx = (segment.end.lng - point.lng) * lngScale;
-  const by = (segment.end.lat - point.lat) * latScale;
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lengthSquared = dx * dx + dy * dy;
-  const fraction =
-    lengthSquared === 0
-      ? 0
-      : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSquared));
-  return Math.hypot(ax + fraction * dx, ay + fraction * dy);
-}
-
-function nearest(point: LatLng, segments: SourceSegment[]): {
-  distance: number;
-  objectId: number;
-} {
-  let distance = Number.POSITIVE_INFINITY;
-  let objectId = -1;
-  for (const segment of segments) {
-    const candidate = pointToSegmentMeters(point, segment);
-    if (candidate < distance) {
-      distance = candidate;
-      objectId = segment.objectId;
-    }
-  }
-  return { distance, objectId };
-}
-
-function samples(points: LatLng[]): LatLng[] {
-  const output: LatLng[] = [];
-  for (let index = 1; index < points.length - 2; index += 1) {
-    const start = points[index];
-    const end = points[index + 1];
-    const count = Math.max(
-      1,
-      Math.ceil(haversineMeters(start, end) / CORE_SAMPLE_STEP_M)
-    );
-    for (let step = 0; step < count; step += 1) {
-      const fraction = step / count;
-      output.push({
-        lat: start.lat + (end.lat - start.lat) * fraction,
-        lng: start.lng + (end.lng - start.lng) * fraction,
-      });
-    }
-  }
-  if (points.length >= 2) output.push(points[points.length - 2]);
-  return output;
-}
-
-function percentile(values: number[], fraction: number): number {
-  if (values.length === 0) return Number.POSITIVE_INFINITY;
-  const sorted = [...values].sort((left, right) => left - right);
-  return sorted[
-    Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)
-  ];
 }
 
 async function loadRoute(
@@ -246,14 +185,12 @@ async function loadRoutePoints(routeId: string): Promise<LatLng[]> {
 }
 
 async function fetchSource(sourceUrl: string): Promise<{
-  segments: SourceSegment[];
+  paths: OfficialNetworkPath[];
   objectIds: number[];
+  attribution: string;
 }> {
+  const expectedObjectIds = parseUsgsTrailsQueryUrl(sourceUrl);
   const url = new URL(sourceUrl);
-  if (url.protocol !== "https:" || url.hostname !== "partnerships.nationalmap.gov") {
-    throw new Error("USGS source URL is not a National Map HTTPS URL");
-  }
-  url.searchParams.set("f", "geojson");
   const response = await fetch(url, {
     headers: {
       "user-agent":
@@ -265,14 +202,25 @@ async function fetchSource(sourceUrl: string): Promise<{
     throw new Error(`USGS National Map returned HTTP ${response.status}`);
   }
   const payload = (await response.json()) as {
+    error?: { code?: unknown; message?: unknown };
     features?: Array<{
       properties?: Record<string, unknown>;
       geometry?: { type?: string; coordinates?: unknown };
     }>;
   };
-  const segments: SourceSegment[] = [];
-  const objectIds: number[] = [];
-  for (const feature of payload.features ?? []) {
+  if (payload.error) {
+    throw new Error(
+      `USGS National Map returned ArcGIS error ${String(
+        payload.error.code ?? "unknown"
+      )}: ${String(payload.error.message ?? "unknown")}`
+    );
+  }
+  if (!Array.isArray(payload.features)) {
+    throw new Error("USGS source returned no feature array");
+  }
+  const paths: OfficialNetworkPath[] = [];
+  const returnedObjectIds: number[] = [];
+  for (const feature of payload.features) {
     const properties = feature.properties ?? {};
     const objectId = Number(
       properties.objectid ?? properties.OBJECTID ?? properties.ObjectID
@@ -280,7 +228,10 @@ async function fetchSource(sourceUrl: string): Promise<{
     if (!Number.isSafeInteger(objectId) || objectId <= 0) {
       throw new Error("USGS source returned an invalid object ID");
     }
-    objectIds.push(objectId);
+    if (!expectedObjectIds.includes(objectId)) {
+      throw new Error(`USGS source returned unexpected object ID ${objectId}`);
+    }
+    returnedObjectIds.push(objectId);
     const rawLines =
       feature.geometry?.type === "LineString" &&
       Array.isArray(feature.geometry.coordinates)
@@ -295,23 +246,61 @@ async function fetchSource(sourceUrl: string): Promise<{
         if (
           !Array.isArray(coordinate) ||
           !Number.isFinite(coordinate[0]) ||
-          !Number.isFinite(coordinate[1])
+          !Number.isFinite(coordinate[1]) ||
+          Number(coordinate[0]) < -180 ||
+          Number(coordinate[0]) > 180 ||
+          Number(coordinate[1]) < -90 ||
+          Number(coordinate[1]) > 90
         ) {
           throw new Error("USGS source returned invalid coordinates");
         }
-        return { lng: Number(coordinate[0]), lat: Number(coordinate[1]) };
+        return [Number(coordinate[0]), Number(coordinate[1])] as [
+          number,
+          number,
+        ];
       });
-      for (let index = 1; index < line.length; index += 1) {
-        segments.push({
-          objectId,
-          start: line[index - 1],
-          end: line[index],
-        });
+      if (line.length < 2) {
+        throw new Error(`USGS object ${objectId} returned a short line`);
       }
+      paths.push({
+        featureId: String(objectId),
+        properties,
+        coordinates: line,
+        names: [],
+        access: [],
+      });
     }
   }
-  if (segments.length === 0) throw new Error("USGS source returned no lines");
-  return { segments, objectIds: [...new Set(objectIds)] };
+  assertExactUsgsTrailObjectIds(expectedObjectIds, returnedObjectIds);
+  if (paths.length === 0) throw new Error("USGS source returned no lines");
+  const originators = normalizeUsgsTrailOriginators(
+    paths.map(({ properties }) =>
+      usgsTrailOriginatorFromProperties(properties)
+    )
+  );
+  return {
+    paths,
+    objectIds: expectedObjectIds,
+    attribution: buildUsgsTrailAttribution(originators),
+  };
+}
+
+function failedReview(): OfficialRouteReview {
+  return {
+    startConnectorM: Number.POSITIVE_INFINITY,
+    endConnectorM: Number.POSITIVE_INFINITY,
+    startConnectorJoinOffsetM: Number.POSITIVE_INFINITY,
+    endConnectorJoinOffsetM: Number.POSITIVE_INFINITY,
+    internalConnectorMaxM: Number.POSITIVE_INFINITY,
+    internalConnectorJoinMaxOffsetM: Number.POSITIVE_INFINITY,
+    coreMaxOffsetM: Number.POSITIVE_INFINITY,
+    coreP95OffsetM: Number.POSITIVE_INFINITY,
+    coreCoveragePct: 0,
+    coreSampleCount: 0,
+    sourceTopologyValid: false,
+    usedFeatureIds: [],
+    unusedFeatureIds: [],
+  };
 }
 
 const argv = process.argv.slice(2);
@@ -346,7 +335,13 @@ try {
   if (!route.replacement_route_valid) {
     errors.push("named active replacement route is not eligible");
   }
-  if (!route.is_simple) errors.push("stored route geometry is not simple");
+  if (
+    route.shape !== "out_and_back" &&
+    route.shape !== "loop" &&
+    route.shape !== "lollipop"
+  ) {
+    errors.push("route shape is not supported for a standard hiking route");
+  }
   if (route.segment_count < 1 || !route.segment_provenance_matches) {
     errors.push("route and segment provenance do not agree");
   }
@@ -362,7 +357,8 @@ try {
   const provenance = route.provenance;
   if (
     provenance?.source_kind !== "usgs-national-map" ||
-    provenance.license_name !== "Public domain" ||
+    provenance.license_name !== USGS_TRAILS_LICENSE_NAME ||
+    provenance.license_url !== USGS_TRAILS_LICENSE_URL ||
     provenance.contains_osm_geometry !== false ||
     (provenance.osm_way_ids?.length ?? 0) !== 0
   ) {
@@ -371,65 +367,134 @@ try {
 
   const points = await loadRoutePoints(routeId);
   if (points.length < 5) errors.push("route has fewer than five points");
+  const loopLike = route.shape === "loop" || route.shape === "lollipop";
+  if (route.shape === "loop") {
+    if (!isSimpleClosedRoute(points)) {
+      errors.push("stored loop is not a simple closed route");
+    }
+  } else if (route.shape === "lollipop") {
+    const retrace = reviewLollipopRetrace(points);
+    if (!retrace.valid) {
+      errors.push(
+        "stored lollipop lacks one safe retraced stem and a non-retraced loop"
+      );
+    }
+  } else if (!route.is_simple) {
+    errors.push("stored route geometry is not simple");
+  }
+  let summitIndex = points.length - 1;
+  let summitContactM = Number.POSITIVE_INFINITY;
+  if (summit && points.length > 0) {
+    points.forEach((point, index) => {
+      const distance = haversineMeters(point, summit);
+      if (distance < summitContactM) {
+        summitContactM = distance;
+        summitIndex = index;
+      }
+    });
+  }
+  const internalSummitValid =
+    loopLike &&
+    summitIndex > 0 &&
+    summitIndex < points.length - 1 &&
+    summitContactM <= DESTINATION_CONTACT_MAX_M;
+  if (loopLike && !internalSummitValid) {
+    errors.push(
+      `loop summit is ${summitContactM.toFixed(1)} m from stored geometry`
+    );
+  }
   const source = provenance?.source_url
     ? await fetchSource(provenance.source_url)
-    : { segments: [], objectIds: [] };
-  const startConnectorM =
-    points[0] && source.segments.length > 0
-      ? nearest(points[0], source.segments).distance
-      : Number.POSITIVE_INFINITY;
-  const endConnectorM =
-    points.at(-1) && source.segments.length > 0
-      ? nearest(points.at(-1)!, source.segments).distance
-      : Number.POSITIVE_INFINITY;
-  if (startConnectorM > CONNECTOR_MAX_OFFSET_M) {
-    errors.push(`trailhead connector is ${startConnectorM.toFixed(1)} m`);
+    : { paths: [], objectIds: [], attribution: "" };
+  if (provenance?.attribution !== source.attribution) {
+    errors.push("USGS attribution does not match the fetched source originators");
   }
-  if (endConnectorM > CONNECTOR_MAX_OFFSET_M) {
-    errors.push(`summit connector is ${endConnectorM.toFixed(1)} m`);
+  const review =
+    source.paths.length > 0 && source.objectIds.length > 0
+      ? reviewOfficialRouteGeometry(
+          points,
+          source.paths,
+          source.objectIds.map(String),
+          {
+            internalConnectorSegmentIndexes: internalSummitValid
+              ? [summitIndex - 1, summitIndex]
+              : [],
+          }
+        )
+      : failedReview();
+  const gatedEndConnectorM = loopLike
+    ? Math.max(review.endConnectorM, review.internalConnectorMaxM)
+    : review.endConnectorM;
+  if (review.startConnectorM > CONNECTOR_MAX_OFFSET_M) {
+    errors.push(
+      `trailhead connector length is ${review.startConnectorM.toFixed(1)} m`
+    );
+  }
+  if (review.startConnectorJoinOffsetM > CONNECTOR_JOIN_MAX_OFFSET_M) {
+    errors.push(
+      `trailhead connector joins USGS geometry ` +
+        `${review.startConnectorJoinOffsetM.toFixed(1)} m away`
+    );
+  }
+  if (review.endConnectorM > CONNECTOR_MAX_OFFSET_M) {
+    errors.push(
+      `${loopLike ? "return trailhead" : "summit"} connector length is ` +
+        `${review.endConnectorM.toFixed(1)} m`
+    );
+  }
+  if (review.endConnectorJoinOffsetM > CONNECTOR_JOIN_MAX_OFFSET_M) {
+    errors.push(
+      `${loopLike ? "return trailhead" : "summit"} connector joins USGS ` +
+        `geometry ${review.endConnectorJoinOffsetM.toFixed(1)} m away`
+    );
+  }
+  if (loopLike && review.internalConnectorMaxM > CONNECTOR_MAX_OFFSET_M) {
+    errors.push(
+      `summit connector leg is ${review.internalConnectorMaxM.toFixed(1)} m`
+    );
+  }
+  if (
+    loopLike &&
+    review.internalConnectorJoinMaxOffsetM > CONNECTOR_JOIN_MAX_OFFSET_M
+  ) {
+    errors.push(
+      `summit connector joins USGS geometry ` +
+        `${review.internalConnectorJoinMaxOffsetM.toFixed(1)} m away`
+    );
   }
   if (
     points[0] &&
     trailhead &&
-    haversineMeters(points[0], trailhead) > 20
+    haversineMeters(points[0], trailhead) > DESTINATION_CONTACT_MAX_M
   ) {
     errors.push("stored route start does not match the trailhead");
   }
+  const routeEndTarget = loopLike ? trailhead : summit;
   if (
     points.at(-1) &&
-    summit &&
-    haversineMeters(points.at(-1)!, summit) > 20
+    routeEndTarget &&
+    haversineMeters(points.at(-1)!, routeEndTarget) >
+      DESTINATION_CONTACT_MAX_M
   ) {
-    errors.push("stored route end does not match the summit");
-  }
-
-  const core = samples(points);
-  const offsets = core.map((point) => nearest(point, source.segments).distance);
-  const coreMaxOffsetM = offsets.length > 0 ? Math.max(...offsets) : Infinity;
-  const coreP95OffsetM = percentile(offsets, 0.95);
-  const coreCoveragePct =
-    offsets.length === 0
-      ? 0
-      : 100 *
-        offsets.filter((offset) => offset <= CORE_COVERAGE_DISTANCE_M).length /
-        offsets.length;
-  if (coreMaxOffsetM > CORE_MAX_OFFSET_M) {
-    errors.push(`maximum core offset is ${coreMaxOffsetM.toFixed(2)} m`);
-  }
-  if (coreP95OffsetM > CORE_P95_OFFSET_M) {
-    errors.push(`p95 core offset is ${coreP95OffsetM.toFixed(2)} m`);
-  }
-  if (coreCoveragePct < CORE_MIN_COVERAGE * 100) {
-    errors.push(`core coverage is ${coreCoveragePct.toFixed(2)}%`);
-  }
-  const usedObjectIds = source.objectIds.filter((objectId) => {
-    const objectSegments = source.segments.filter(
-      (segment) => segment.objectId === objectId
+    errors.push(
+      `stored route end does not match the ${loopLike ? "trailhead" : "summit"}`
     );
-    return core.some(
-      (point) => nearest(point, objectSegments).distance <= SOURCE_USAGE_DISTANCE_M
+  }
+  if (review.coreMaxOffsetM > CORE_MAX_OFFSET_M) {
+    errors.push(`maximum core offset is ${review.coreMaxOffsetM.toFixed(2)} m`);
+  }
+  if (review.coreP95OffsetM > CORE_P95_OFFSET_M) {
+    errors.push(`p95 core offset is ${review.coreP95OffsetM.toFixed(2)} m`);
+  }
+  if (review.coreCoveragePct < CORE_MIN_COVERAGE_PCT) {
+    errors.push(`core coverage is ${review.coreCoveragePct.toFixed(2)}%`);
+  }
+  if (!review.sourceTopologyValid) {
+    errors.push(
+      "route changes USGS source lines outside reviewed endpoint joins"
     );
-  });
+  }
+  const usedObjectIds = review.usedFeatureIds.map(Number);
   const unusedObjectIds = source.objectIds.filter(
     (objectId) => !usedObjectIds.includes(objectId)
   );
@@ -444,12 +509,22 @@ try {
     errors,
     metrics: {
       route_points: points.length,
-      core_samples: core.length,
-      start_connector_m: startConnectorM,
-      end_connector_m: endConnectorM,
-      core_max_offset_m: coreMaxOffsetM,
-      core_p95_offset_m: coreP95OffsetM,
-      core_coverage_pct: coreCoveragePct,
+      core_samples: review.coreSampleCount,
+      start_connector_m: review.startConnectorM,
+      end_connector_m: gatedEndConnectorM,
+      return_connector_m: loopLike ? review.endConnectorM : null,
+      summit_connector_m: loopLike
+        ? review.internalConnectorMaxM
+        : review.endConnectorM,
+      start_connector_join_offset_m: review.startConnectorJoinOffsetM,
+      end_connector_join_offset_m: review.endConnectorJoinOffsetM,
+      summit_connector_join_offset_m: loopLike
+        ? review.internalConnectorJoinMaxOffsetM
+        : review.endConnectorJoinOffsetM,
+      core_max_offset_m: review.coreMaxOffsetM,
+      core_p95_offset_m: review.coreP95OffsetM,
+      core_coverage_pct: review.coreCoveragePct,
+      source_topology_valid: review.sourceTopologyValid,
       cited_object_count: source.objectIds.length,
       used_object_count: usedObjectIds.length,
     },
@@ -468,11 +543,11 @@ try {
       `${result.passed ? "PASS" : "FAIL"} ${route.name} (${route.id})`
     );
     console.log(
-      `  connectors: ${startConnectorM.toFixed(1)} m / ` +
-        `${endConnectorM.toFixed(1)} m; core max ` +
-        `${coreMaxOffsetM.toFixed(2)} m, p95 ` +
-        `${coreP95OffsetM.toFixed(2)} m, coverage ` +
-        `${coreCoveragePct.toFixed(2)}%`
+      `  connectors: ${review.startConnectorM.toFixed(1)} m / ` +
+        `${gatedEndConnectorM.toFixed(1)} m; core max ` +
+        `${review.coreMaxOffsetM.toFixed(2)} m, p95 ` +
+        `${review.coreP95OffsetM.toFixed(2)} m, coverage ` +
+        `${review.coreCoveragePct.toFixed(2)}%`
     );
     for (const error of errors) console.log(`  ERROR: ${error}`);
   }

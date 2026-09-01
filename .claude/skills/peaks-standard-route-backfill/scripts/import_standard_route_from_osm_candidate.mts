@@ -5,8 +5,30 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
+import type { PoolClient } from "pg";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
+import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
+import officialTrailSourcesImport from "../../../../cloud-sql/migrate/src/official-trail-sources";
+import candidateBindingImport from "../../../../cloud-sql/migrate/src/standard-route-candidate-binding";
+import officialSourceAttemptsImport from "../../../../cloud-sql/migrate/src/standard-route-official-source-attempts";
 import routeConflictHelpers from "../../../../cloud-sql/migrate/src/standard-route-import-conflicts";
+import standardRouteJobStateImport from "../../../../cloud-sql/migrate/src/standard-route-job-state";
+import usgsTrailsSourceImport from "../../../../cloud-sql/migrate/src/usgs-trails-source";
+import worldGeometryImport from "../../../../cloud-sql/migrate/src/route-world-geometry";
+
+const { parseOfficialFeatureIdsFromSourceUrl } = officialRouteGeometryImport;
+const { getPublishableArcgisTrailSource } = officialTrailSourcesImport;
+const {
+  buildUsgsTrailAttribution,
+  parseUsgsTrailsQueryUrl,
+  USGS_TRAILS_LICENSE_NAME,
+  USGS_TRAILS_LICENSE_URL,
+} = usgsTrailsSourceImport;
+const { worldTilePixel } = worldGeometryImport;
+const { assertPendingRouteMatchesCandidate, buildPendingRouteBinding } =
+  candidateBindingImport;
+const { assertOfficialSourceCountryBinding } = officialSourceAttemptsImport;
+const { canonicalJson } = standardRouteJobStateImport;
 
 const db =
   typeof (dbImport as { query?: unknown }).query === "function"
@@ -27,9 +49,7 @@ const OSM_LICENSE_NAME =
 const OSM_LICENSE_URL =
   "https://opendatacommons.org/licenses/odbl/1-0/";
 const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
-const USGS_LICENSE_NAME = "Public domain";
-const USGS_LICENSE_URL =
-  "https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map";
+const ENDPOINT_CONNECTOR_MAX_M = 125;
 const USGS_3DEP_SAMPLES_URL =
   "https://elevation.nationalmap.gov/arcgis/rest/services/" +
   "3DEPElevation/ImageServer/getSamples";
@@ -133,6 +153,7 @@ function generateId(): string {
 type Args = {
   candidatePath: string;
   destinationId: string;
+  leaseToken: string;
   trailheadId: string;
   name: string;
   sourceLinks: SourceLink[];
@@ -160,6 +181,25 @@ type Candidate = {
   coordinates: Array<[number, number]>;
   trailheadSnapM: number;
   summitSnapM: number;
+};
+
+type JsonObject = Record<string, unknown>;
+
+type FactoryImportJob = {
+  candidate: JsonObject;
+  candidate_artifact: JsonObject | null;
+  candidate_path: string | null;
+  candidate_sha256: string | null;
+  trailhead_id: string | null;
+  published_route_id: string | null;
+  replacement_route_id: string | null;
+  destination_country_code: string | null;
+};
+
+type FactoryImportContext = {
+  job: FactoryImportJob;
+  replaceActiveRouteId: string;
+  replacePendingRouteIds: string[];
 };
 
 type RouteElevationLineage = {
@@ -293,22 +333,18 @@ const HELP = `Usage:
   tsx import_standard_route_from_osm_candidate.mts \\
     --candidate /path/to/candidate.geojson \\
     --destination-id ID \\
+    --lease-token TOKEN \\
     --trailhead-id ID \\
     --name "Peak via Standard Route" \\
     --source-url type=https://direct/route/page \\
     [--route-shape out_and_back|loop|lollipop] \\
     [--elevation-profile terrain|monotonic_ascent] \\
-    [--replace-pending-route ID ...] \\
-    [--replace-active-route ID] \\
-    [--upgrade-active-route ID] \\
     [--result-file /path/to/result.json] \\
     [--apply --acknowledge-geometry-license --acknowledge-map-review]
 
 Dry-run is the default. Apply creates a Peaks-owned pending route and segment.
---replace-active-route permits a reviewed pending replacement to coexist with
-one named active route until publication. It never activates a new route.
---upgrade-active-route repairs one existing active Peaks route in place after
-independent review. OSM and USGS National Map candidates are supported.
+The leased queue job supplies any active or pending replacement binding. Apply
+also binds the pending route to that job and enters review in the same commit.
 `;
 
 function valuesAfter(argv: string[], flag: string): string[] {
@@ -357,6 +393,7 @@ function parseArgs(argv: string[]): Args {
   const args: Args = {
     candidatePath: valueAfter(argv, "--candidate"),
     destinationId: valueAfter(argv, "--destination-id"),
+    leaseToken: valueAfter(argv, "--lease-token"),
     trailheadId: valueAfter(argv, "--trailhead-id"),
     name: valueAfter(argv, "--name"),
     sourceLinks: valuesAfter(argv, "--source-url").map(parseSourceLink),
@@ -379,6 +416,7 @@ function parseArgs(argv: string[]): Args {
   if (
     !args.candidatePath ||
     !args.destinationId ||
+    !args.leaseToken ||
     !args.trailheadId ||
     !args.name
   ) {
@@ -386,6 +424,12 @@ function parseArgs(argv: string[]): Args {
   }
   if (args.sourceLinks.length === 0) {
     throw new Error("At least one direct --source-url is required");
+  }
+  if (args.sourceLinks.length > 4) {
+    throw new Error("No more than four direct --source-url values are allowed");
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(args.leaseToken)) {
+    throw new Error("--lease-token contains unsupported characters");
   }
   if (!["out_and_back", "loop", "lollipop"].includes(args.routeShape)) {
     throw new Error(
@@ -542,6 +586,10 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
     raw.peaks_attribution,
     "peaks_attribution"
   );
+  let officialFeatureIds: string[] = [];
+  let officialSource: ReturnType<
+    typeof getPublishableArcgisTrailSource
+  > | null = null;
   if (sourceKind === "openstreetmap") {
     if (!source.hostname.endsWith("openstreetmap.org")) {
       throw new Error("OpenStreetMap source must use openstreetmap.org");
@@ -554,19 +602,29 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
       throw new Error("OpenStreetMap license metadata is invalid");
     }
   } else if (sourceKind === "usgs-national-map") {
-    if (source.hostname !== "partnerships.nationalmap.gov") {
-      throw new Error(
-        "USGS National Map source must use partnerships.nationalmap.gov"
-      );
-    }
+    parseUsgsTrailsQueryUrl(sourceUrl);
     if (
-      licenseName !== USGS_LICENSE_NAME ||
-      licenseUrl !== USGS_LICENSE_URL
+      licenseName !== USGS_TRAILS_LICENSE_NAME ||
+      licenseUrl !== USGS_TRAILS_LICENSE_URL
     ) {
       throw new Error("USGS National Map license metadata is invalid");
     }
   } else {
-    throw new Error(`Unsupported peaks_source_kind: ${sourceKind}`);
+    officialSource = getPublishableArcgisTrailSource(sourceKind);
+    if (!officialSource) {
+      throw new Error(`Unsupported peaks_source_kind: ${sourceKind}`);
+    }
+    if (
+      licenseName !== officialSource.license.name ||
+      licenseUrl !== officialSource.license.url ||
+      attribution !== officialSource.license.attribution
+    ) {
+      throw new Error("Official source license metadata is invalid");
+    }
+    officialFeatureIds = parseOfficialFeatureIdsFromSourceUrl(
+      officialSource.service,
+      sourceUrl
+    );
   }
   const parsedLicenseUrl = new URL(licenseUrl);
   if (parsedLicenseUrl.protocol !== "https:") {
@@ -585,6 +643,35 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
   const feature = objectValue(raw.features[0], "feature");
   const properties = objectValue(feature.properties, "feature.properties");
   const geometry = objectValue(feature.geometry, "feature.geometry");
+  if (sourceKind === "usgs-national-map") {
+    const originators = stringArray(
+      properties.usgs_originators,
+      "usgs_originators"
+    );
+    if (
+      originators.length === 0 ||
+      attribution !== buildUsgsTrailAttribution(originators)
+    ) {
+      throw new Error(
+        "USGS National Map attribution does not match its source originators"
+      );
+    }
+    const sourceObjectIds = parseUsgsTrailsQueryUrl(sourceUrl);
+    const candidateObjectIds = positiveIntegerArray(
+      properties.usgs_object_ids,
+      "usgs_object_ids"
+    ).sort((left, right) => left - right);
+    if (
+      candidateObjectIds.length !== sourceObjectIds.length ||
+      candidateObjectIds.some(
+        (objectId, index) => objectId !== sourceObjectIds[index]
+      )
+    ) {
+      throw new Error(
+        "usgs_object_ids do not match the canonical source URL"
+      );
+    }
+  }
   if (geometry.type !== "LineString" || !Array.isArray(geometry.coordinates)) {
     throw new Error("Candidate feature must have a LineString geometry");
   }
@@ -624,6 +711,28 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
   if (sourceKind !== "openstreetmap" && wayIds.length > 0) {
     throw new Error("Non-OSM candidate cannot claim OpenStreetMap ways");
   }
+  if (officialSource) {
+    if (
+      stringValue(properties.official_source_id, "official_source_id") !==
+      officialSource.id
+    ) {
+      throw new Error("official_source_id does not match peaks_source_kind");
+    }
+    const candidateFeatureIds = stringArray(
+      properties.official_feature_ids,
+      "official_feature_ids"
+    ).sort();
+    if (
+      candidateFeatureIds.length !== officialFeatureIds.length ||
+      officialFeatureIds.some(
+        (featureId, index) => candidateFeatureIds[index] !== featureId
+      )
+    ) {
+      throw new Error(
+        "official_feature_ids do not match the canonical source URL"
+      );
+    }
+  }
 
   const trailheadSnapM = numberValue(
     properties.trailhead_snap_m,
@@ -633,9 +742,12 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
     properties.summit_snap_m,
     "summit_snap_m"
   );
-  if (trailheadSnapM > 300 || summitSnapM > 250) {
+  if (
+    trailheadSnapM > ENDPOINT_CONNECTOR_MAX_M ||
+    summitSnapM > ENDPOINT_CONNECTOR_MAX_M
+  ) {
     throw new Error(
-      `OSM endpoint snaps are too large: ${trailheadSnapM.toFixed(1)} m / ` +
+      `Route endpoint snaps are too large: ${trailheadSnapM.toFixed(1)} m / ` +
         `${summitSnapM.toFixed(1)} m`
     );
   }
@@ -654,6 +766,139 @@ async function loadCandidate(path: string, args: Args): Promise<Candidate> {
     trailheadSnapM,
     summitSnapM,
   };
+}
+
+async function factoryImportContext(
+  queryable: Pick<PoolClient, "query">,
+  args: Args,
+  localArtifact: JsonObject,
+  lock: boolean
+): Promise<FactoryImportContext> {
+  const result = await queryable.query<FactoryImportJob>(
+    `SELECT candidate, candidate_artifact, candidate_path, candidate_sha256,
+            trailhead_id, published_route_id, replacement_route_id,
+            d.country_code AS destination_country_code
+     FROM standard_route_backfill_jobs j
+     JOIN destinations d ON d.id = j.destination_id
+     WHERE j.destination_id = $1
+       AND j.lease_token = $2
+       AND j.lease_expires_at >= clock_timestamp()
+       AND j.state = 'candidate_ready'
+     ${lock ? "FOR UPDATE OF j" : ""}`,
+    [args.destinationId, args.leaseToken]
+  );
+  const job = result.rows[0];
+  if (
+    !job ||
+    !job.candidate_artifact ||
+    !job.candidate_path ||
+    !job.candidate_sha256 ||
+    !job.trailhead_id
+  ) {
+    throw new Error(
+      "Import requires an active candidate_ready lease with durable candidate evidence"
+    );
+  }
+  if (job.trailhead_id !== args.trailheadId) {
+    throw new Error("Importer trailhead does not match the durable job");
+  }
+  const durableJson = canonicalJson(job.candidate_artifact);
+  const durableHash = createHash("sha256").update(durableJson).digest("hex");
+  if (durableHash !== job.candidate_sha256) {
+    throw new Error("Saved candidate checksum does not match");
+  }
+  assertOfficialSourceCountryBinding(
+    job.candidate.official_source_country_code,
+    { countryCode: job.destination_country_code }
+  );
+  if (canonicalJson(localArtifact) !== durableJson) {
+    throw new Error("Local candidate does not match the durable queue artifact");
+  }
+  const binding = buildPendingRouteBinding({
+    routeId: "factory-import-preflight",
+    destinationId: args.destinationId,
+    trailheadId: job.trailhead_id,
+    candidatePath: job.candidate_path,
+    candidateSha256: job.candidate_sha256,
+    candidateResult: job.candidate,
+    candidateArtifact: job.candidate_artifact,
+    importerResult: { route_name: args.name },
+  });
+  if (binding.routeShape !== args.routeShape) {
+    throw new Error("Importer route shape does not match the durable candidate");
+  }
+  if (
+    canonicalJson(binding.identitySources) !== canonicalJson(args.sourceLinks)
+  ) {
+    throw new Error(
+      "Importer identity sources do not match the durable candidate"
+    );
+  }
+
+  let publishedStatus: string | null = null;
+  if (job.published_route_id) {
+    const published = await queryable.query<{ status: string }>(
+      `SELECT status FROM routes WHERE id = $1`,
+      [job.published_route_id]
+    );
+    publishedStatus = published.rows[0]?.status ?? null;
+    if (!publishedStatus) {
+      throw new Error("The route saved on the import job no longer exists");
+    }
+  }
+  if (job.replacement_route_id) {
+    const replacement = await queryable.query<{ status: string }>(
+      `SELECT status
+       FROM routes
+       WHERE id = $1 AND owner = 'peaks'`,
+      [job.replacement_route_id]
+    );
+    if (replacement.rows[0]?.status !== "active") {
+      throw new Error("The durable active replacement route is no longer eligible");
+    }
+  }
+  if (
+    publishedStatus === "active" &&
+    job.published_route_id !== job.replacement_route_id
+  ) {
+    throw new Error(
+      "An active route saved on the import job must be its durable replacement"
+    );
+  }
+  if (publishedStatus && publishedStatus !== "active" && publishedStatus !== "pending") {
+    throw new Error("The route saved on the import job is not importable");
+  }
+
+  const replaceActiveRouteId = job.replacement_route_id ?? "";
+  const replacePendingRouteIds =
+    publishedStatus === "pending" && job.published_route_id
+      ? [job.published_route_id]
+      : [];
+  if (
+    args.replaceActiveRouteId &&
+    args.replaceActiveRouteId !== replaceActiveRouteId
+  ) {
+    throw new Error("--replace-active-route does not match the durable job");
+  }
+  if (
+    args.replacePendingRouteIds.length > 0 &&
+    canonicalJson(args.replacePendingRouteIds) !==
+      canonicalJson(replacePendingRouteIds)
+  ) {
+    throw new Error("--replace-pending-route does not match the durable job");
+  }
+  if (args.upgradeActiveRouteId) {
+    throw new Error("--upgrade-active-route is forbidden for a leased factory import");
+  }
+  return { job, replaceActiveRouteId, replacePendingRouteIds };
+}
+
+function useDurableReplacementBinding(
+  args: Args,
+  context: FactoryImportContext
+): void {
+  args.replaceActiveRouteId = context.replaceActiveRouteId;
+  args.replacePendingRouteIds = context.replacePendingRouteIds;
 }
 
 async function loadPlaces(args: Args): Promise<{
@@ -812,29 +1057,11 @@ function terrainTilePixel(point: ElevationPoint): {
   pixelX: number;
   pixelY: number;
 } {
-  const n = 2 ** TERRAIN_TILE_ZOOM;
-  const latitude = Math.max(
-    -85.05112878,
-    Math.min(85.05112878, point.lat)
+  return worldTilePixel(
+    [point.lng, point.lat],
+    TERRAIN_TILE_ZOOM,
+    TERRAIN_TILE_SIZE
   );
-  const latitudeRadians = latitude * Math.PI / 180;
-  const xFloat = ((point.lng + 180) / 360) * n;
-  const yFloat =
-    (1 -
-      Math.log(
-        Math.tan(latitudeRadians) + 1 / Math.cos(latitudeRadians)
-      ) /
-        Math.PI) /
-    2 *
-    n;
-  const x = Math.floor(xFloat);
-  const y = Math.floor(yFloat);
-  return {
-    x,
-    y,
-    pixelX: Math.floor((xFloat - x) * TERRAIN_TILE_SIZE),
-    pixelY: Math.floor((yFloat - y) * TERRAIN_TILE_SIZE),
-  };
 }
 
 async function fetchCachedTerrainElevations(
@@ -1377,10 +1604,73 @@ function provenance(candidate: Candidate, args: Args) {
   };
 }
 
+function importerApplyResult(
+  args: Args,
+  routeId: string
+): Record<string, string | null> {
+  return {
+    mode: "apply",
+    status: "pending",
+    route_id: routeId,
+    replacement_route_id: args.replaceActiveRouteId || null,
+    route_name: args.name,
+  };
+}
+
+async function bindFactoryPendingRoute(
+  client: PoolClient,
+  args: Args,
+  context: FactoryImportContext,
+  routeId: string
+): Promise<void> {
+  const importerResult = importerApplyResult(args, routeId);
+  await assertPendingRouteMatchesCandidate(client, {
+    routeId,
+    destinationId: args.destinationId,
+    trailheadId: context.job.trailhead_id,
+    candidatePath: context.job.candidate_path,
+    candidateSha256: context.job.candidate_sha256,
+    candidateResult: context.job.candidate,
+    candidateArtifact: context.job.candidate_artifact,
+    importerResult,
+  });
+  const updated = await client.query<{ destination_id: string }>(
+    `UPDATE standard_route_backfill_jobs
+     SET state = 'pending_review',
+         evidence = evidence || $3::jsonb || jsonb_build_object(
+           'factory_import_bound_at', clock_timestamp()
+         ),
+         published_route_id = $4,
+         blocker_code = NULL,
+         blocker_message = NULL,
+         last_error = NULL,
+         next_attempt_at = now(),
+         lease_owner = NULL,
+         lease_token = NULL,
+         lease_expires_at = NULL,
+         updated_at = now()
+     WHERE destination_id = $1
+       AND lease_token = $2
+       AND lease_expires_at >= clock_timestamp()
+       AND state = 'candidate_ready'
+     RETURNING destination_id`,
+    [
+      args.destinationId,
+      args.leaseToken,
+      JSON.stringify(importerResult),
+      routeId,
+    ]
+  );
+  if (updated.rows.length !== 1) {
+    throw new Error("The candidate_ready import lease changed before binding");
+  }
+}
+
 async function createPendingRoute(
   args: Args,
   candidate: Candidate,
-  points: TrackPoint[]
+  points: TrackPoint[],
+  localArtifact: JsonObject
 ): Promise<string> {
   const routeId = generateId();
   const segmentId = generateId();
@@ -1393,6 +1683,13 @@ async function createPendingRoute(
 
   try {
     await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    const factoryContext = await factoryImportContext(
+      client,
+      args,
+      localArtifact,
+      true
+    );
+    useDurableReplacementBinding(args, factoryContext);
     const canonicalStatsResult = await client.query<{
       gain: number | null;
       loss: number | null;
@@ -1505,6 +1802,12 @@ async function createPendingRoute(
       ]
     );
     if (exactExisting.rows[0]?.status === "pending") {
+      await bindFactoryPendingRoute(
+        client,
+        args,
+        factoryContext,
+        exactExisting.rows[0].id
+      );
       await client.query("COMMIT");
       console.log(
         `Reused exact pending route ${exactExisting.rows[0].id} after restart`
@@ -1644,6 +1947,12 @@ async function createPendingRoute(
         );
       }
     }
+    await bindFactoryPendingRoute(
+      client,
+      args,
+      factoryContext,
+      routeId
+    );
     await client.query("COMMIT");
     return routeId;
   } catch (error) {
@@ -1845,9 +2154,52 @@ async function upgradeActiveRoute(
   }
 }
 
+async function writeImporterResult(
+  resultPathInput: string,
+  result: Record<string, string | null>
+): Promise<void> {
+  if (!resultPathInput) return;
+  const resultPath = path.resolve(resultPathInput);
+  await mkdir(path.dirname(resultPath), { recursive: true });
+  const contents = `${JSON.stringify(result)}\n`;
+  try {
+    await writeFile(resultPath, contents, { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    const existing = objectValue(
+      JSON.parse(await readFile(resultPath, "utf8")) as unknown,
+      "existing importer result"
+    );
+    if (canonicalJson(existing) !== canonicalJson(result)) {
+      throw new Error("Existing importer result belongs to a different import");
+    }
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const localArtifact = objectValue(
+    JSON.parse(await readFile(args.candidatePath, "utf8")) as unknown,
+    "candidate"
+  );
+  const preflightContext = await factoryImportContext(
+    db,
+    args,
+    localArtifact,
+    false
+  );
+  useDurableReplacementBinding(args, preflightContext);
   const candidate = await loadCandidate(args.candidatePath, args);
+  if (
+    args.upgradeActiveRouteId &&
+    candidate.sourceKind !== "openstreetmap" &&
+    candidate.sourceKind !== "usgs-national-map"
+  ) {
+    throw new Error(
+      "Official candidates cannot upgrade an active route in place; " +
+        "use --replace-active-route so the pending route receives an independent source check"
+    );
+  }
   const { destination, trailhead } = await loadPlaces(args);
   if (
     !routeNameReferencesDestination(
@@ -1958,11 +2310,7 @@ async function main() {
       replacement_route_id: args.replaceActiveRouteId || null,
       route_name: args.name,
     };
-    if (args.resultPath) {
-      const resultPath = path.resolve(args.resultPath);
-      await mkdir(path.dirname(resultPath), { recursive: true });
-      await writeFile(resultPath, `${JSON.stringify(result)}\n`);
-    }
+    await writeImporterResult(args.resultPath, result);
     console.log(JSON.stringify(result));
     return;
   }
@@ -1985,22 +2333,13 @@ async function main() {
     const routeId = await createPendingRoute(
       args,
       candidate,
-      points
+      points,
+      localArtifact
     );
     console.log(`Pending route ready ${routeId}`);
-    result = {
-      mode: "apply",
-      status: "pending",
-      route_id: routeId,
-      replacement_route_id: args.replaceActiveRouteId || null,
-      route_name: args.name,
-    };
+    result = importerApplyResult(args, routeId);
   }
-  if (args.resultPath) {
-    const resultPath = path.resolve(args.resultPath);
-    await mkdir(path.dirname(resultPath), { recursive: true });
-    await writeFile(resultPath, `${JSON.stringify(result)}\n`);
-  }
+  await writeImporterResult(args.resultPath, result);
   console.log(JSON.stringify(result));
 }
 

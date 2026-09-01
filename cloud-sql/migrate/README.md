@@ -28,7 +28,9 @@ by hand (with plain `npm test`) switches only its suites on.
 
 | Variable | Suites |
 |---|---|
-| `ROUTE_JOB_TEST_DATABASE_URL` | standard-route-claim, standard-route-requeue |
+| `ROUTE_JOB_TEST_DATABASE_URL` | standard-route-claim, standard-route-requeue, standard-route-worker-dml operator setup |
+| `ROUTE_JOB_FACTORY_TEST_DATABASE_URL` | standard-route-claim and standard-route-worker-dml factory checks; the runner builds this from the disposable factory login |
+| `ROUTE_JOB_REVIEWER_TEST_DATABASE_URL` | standard-route-claim and standard-route-worker-dml reviewer checks; the runner builds this from the disposable reviewer login |
 | `ROUTE_AUDIT_JOB_TEST_DATABASE_URL` | route-catalog-audit-jobs |
 | `ROUTE_ELEVATION_JOB_TEST_DATABASE_URL` | route-elevation-jobs |
 | `ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL` | route-integrity-repairs |

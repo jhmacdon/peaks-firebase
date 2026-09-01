@@ -25,6 +25,26 @@ if [[ "$db_path" != *_test ]]; then
 fi
 
 export ROUTE_JOB_TEST_DATABASE_URL="${ROUTE_JOB_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
+route_worker_test_url() {
+  node -e '
+    const url = new URL(process.argv[1]);
+    url.username = process.argv[2];
+    url.password = process.argv[3];
+    process.stdout.write(url.toString());
+  ' "$TEST_DATABASE_URL" "$1" "$2"
+}
+if [[ "${ROUTE_WORKER_TEST_LOGINS_AVAILABLE:-0}" == "1" ]]; then
+  export ROUTE_JOB_FACTORY_TEST_DATABASE_URL="${ROUTE_JOB_FACTORY_TEST_DATABASE_URL:-$(
+    route_worker_test_url \
+      "${ROUTE_FACTORY_TEST_DB_ROLE:-peaks-route-factory-test}" \
+      "${ROUTE_FACTORY_TEST_DB_PASSWORD:-peaks_route_factory_test}"
+  )}"
+  export ROUTE_JOB_REVIEWER_TEST_DATABASE_URL="${ROUTE_JOB_REVIEWER_TEST_DATABASE_URL:-$(
+    route_worker_test_url \
+      "${ROUTE_REVIEWER_TEST_DB_ROLE:-peaks-route-reviewer-test}" \
+      "${ROUTE_REVIEWER_TEST_DB_PASSWORD:-peaks_route_reviewer_test}"
+  )}"
+fi
 export ROUTE_AUDIT_JOB_TEST_DATABASE_URL="${ROUTE_AUDIT_JOB_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
 export ROUTE_ELEVATION_JOB_TEST_DATABASE_URL="${ROUTE_ELEVATION_JOB_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"
 export ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL="${ROUTE_INTEGRITY_REPAIR_TEST_DATABASE_URL:-$TEST_DATABASE_URL}"

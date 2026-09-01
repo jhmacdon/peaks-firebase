@@ -274,7 +274,7 @@ export async function verifyStandardRoute(
               ORDER BY final_rd.ordinal DESC
               LIMIT 1
             ) AS final_destination_features,
-            peaks_route_passes_publish_integrity(r.id, NULL, 'active')
+            peaks_route_passes_publish_integrity(r.id, $2, 'active')
               AS publish_integrity_valid,
             (
               SELECT ARRAY_AGG(rd.destination_id ORDER BY rd.ordinal)
@@ -290,17 +290,18 @@ export async function verifyStandardRoute(
      FROM routes r
      CROSS JOIN LATERAL route_elevation_stats(r.path) elevation_stats
      WHERE r.id = $1`,
-    [input.routeId]
+    [input.routeId, input.destinationId]
   );
   const route = result.rows[0];
   const destinationIds = route?.destination_ids ?? [];
   const features = route?.destination_features ?? [];
+  const requiredDestinationIndex = destinationIds.indexOf(input.destinationId);
   const destinationOrder =
     destinationIds.length >= 2 &&
     destinationIds[0] === input.trailheadId &&
-    destinationIds[destinationIds.length - 1] === input.destinationId &&
     features[0]?.includes("trailhead") &&
-    features[features.length - 1]?.includes("summit");
+    requiredDestinationIndex > 0 &&
+    features[requiredDestinationIndex]?.includes("summit");
   const segments =
     (route?.segment_count ?? 0) >= 1 &&
     route?.matching_segment_count === route?.segment_count &&

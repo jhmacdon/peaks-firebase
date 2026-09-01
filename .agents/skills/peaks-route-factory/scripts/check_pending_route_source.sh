@@ -1,5 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
 set -euo pipefail
+
+initial_script_dir="${BASH_SOURCE[0]%/*}"
+if [[ "$initial_script_dir" == "${BASH_SOURCE[0]}" ]]; then
+  initial_script_dir="$PWD"
+elif [[ "$initial_script_dir" != /* ]]; then
+  initial_script_dir="$PWD/$initial_script_dir"
+fi
+builtin source "$initial_script_dir/route_worker_environment.sh"
+sanitize_route_worker_environment
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../../../.." && pwd)"
@@ -8,6 +17,7 @@ source_kind=""
 destination_id=""
 route_id=""
 replacement_route_id=""
+lease_token=""
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -23,6 +33,10 @@ while [[ "$#" -gt 0 ]]; do
       route_id="${2:-}"
       shift 2
       ;;
+    --lease-token)
+      lease_token="${2:-}"
+      shift 2
+      ;;
     --replace-active-route)
       replacement_route_id="${2:-}"
       shift 2
@@ -34,7 +48,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-for required_id in "$destination_id" "$route_id"; do
+for required_id in "$destination_id" "$route_id" "$lease_token"; do
   if [[ ! "$required_id" =~ ^[A-Za-z0-9_-]+$ ]]; then
     printf '%s\n' "Source check requires safe destination and route IDs" >&2
     exit 2
@@ -52,16 +66,25 @@ case "$source_kind" in
   usgs)
     checker="$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_usgs_routes.mts"
     ;;
+  official)
+    checker="$repo_root/.claude/skills/peaks-osm-route-approval/scripts/check_pending_official_routes.mts"
+    ;;
   *)
-    printf '%s\n' "Source check requires --source osm or --source usgs" >&2
+    printf '%s\n' \
+      "Source check requires --source osm, --source usgs, or --source official" >&2
     exit 2
     ;;
 esac
 
-output_dir="/private/tmp/peaks-route-worker"
-output_file="$output_dir/$destination_id-source-check.json"
-temporary_file="$output_file.tmp.$$"
+output_dir="$repo_root/cloud-sql/migrate/route-candidates/luna/worker-artifacts"
+output_file="$output_dir/$destination_id-$lease_token-source-check.json"
+umask 077
 mkdir -p "$output_dir"
+if [[ -L "$output_dir" || -L "$output_file" ]]; then
+  printf '%s\n' "Source-check output paths must not use symlinks" >&2
+  exit 1
+fi
+temporary_file="$(mktemp "$output_dir/.${destination_id}-${lease_token}-source-check.XXXXXX")"
 trap 'rm -f "$temporary_file"' EXIT
 
 checker_args=(--route-id "$route_id" --format json)
@@ -85,7 +108,6 @@ if [[ ! -s "$temporary_file" ]]; then
   exit 1
 fi
 
-chmod 600 "$temporary_file"
 mv "$temporary_file" "$output_file"
 trap - EXIT
 printf '{"status":"%s","result_file":"%s"}\n' \

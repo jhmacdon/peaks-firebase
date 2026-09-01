@@ -48,6 +48,22 @@ Its per-suite variables are listed in `cloud-sql/migrate/README.md`.
 | Role `peaks_test` | same instance | holds exactly what `peaks-api` holds in production |
 | Password | Secret Manager `peaks-test-db-password` | |
 
+CI's throwaway Postgres cluster also has `peaks-route-factory-test` and
+`peaks-route-reviewer-test`. `provision.sh` creates them only when
+`CREATE_ROUTE_WORKER_TEST_LOGINS=1`, and refuses when the cluster contains a
+database named `peaks`. PostgreSQL role membership spans the whole cluster, so
+these test logins must never inherit production marker roles on the shared
+Cloud SQL instance.
+
+With `ROUTE_WORKER_TEST_LOGINS_AVAILABLE=1`,
+`cloud-sql/migrate/scripts/test-db.sh` builds the two worker connection URLs
+from `TEST_DATABASE_URL`. Set `ROUTE_FACTORY_TEST_DB_ROLE`,
+`ROUTE_FACTORY_TEST_DB_PASSWORD`, `ROUTE_REVIEWER_TEST_DB_ROLE`, and
+`ROUTE_REVIEWER_TEST_DB_PASSWORD` on both commands when a private throwaway
+cluster needs different names or passwords. On the shared Cloud SQL test
+database, leave the flag unset and supply no worker-role URLs; those focused
+tests skip there.
+
 The instance is shared; the data is not. `peaks_test` has no privileges on any
 `peaks` table, and the only thing `PUBLIC` can read there is PostGIS metadata
 (`geometry_columns`, `geography_columns`, `spatial_ref_sys`).
@@ -120,9 +136,9 @@ Tests connect as `peaks_test`, holding the same rights `peaks-api` holds in
 production, which is what lets a missing `INSERT` privilege on a new table fail
 in a test rather than in production.
 
-Five migrations are skipped, each named in `provision.sh` with its reason. Four
-create something `schema.sql` already contains; the fifth is a data fixup that
-needs the real Mount Rainier row. **A new migration that fails provisioning is a
+Seven migrations are skipped, each named in `provision.sh` with its reason. Four
+create something `schema.sql` already contains; three are data fixups that need
+real production catalog rows. **A new migration that fails provisioning is a
 real conflict** between it and `schema.sql`. Reconcile the two rather than adding
 a sixth entry to that list.
 
