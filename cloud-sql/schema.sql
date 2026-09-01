@@ -2236,6 +2236,59 @@ ORDER BY
     d.name ASC NULLS LAST,
     d.id ASC;
 
+-- A route-cover audit catches old gaps. This deferred gate also stops a new
+-- pending Peaks route from becoming active without one fully credited derived
+-- cover. Deferral lets an importer assemble all route links first.
+CREATE OR REPLACE FUNCTION enforce_peaks_route_cover_activation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.routes current_route
+    WHERE current_route.id = NEW.id
+      AND current_route.owner = 'peaks'
+      AND current_route.status = 'active'
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.route_destinations linked
+    JOIN public.destinations destination
+      ON destination.id = linked.destination_id
+    WHERE linked.route_id = NEW.id
+      AND NULLIF(btrim(destination.hero_image), '') IS NOT NULL
+      AND NULLIF(btrim(destination.hero_image_attribution), '') IS NOT NULL
+      AND NULLIF(btrim(destination.hero_image_attribution_url), '') IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION
+      'active Peaks route % requires a fully credited derived cover',
+      NEW.id;
+  END IF;
+
+  RETURN NULL;
+END
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_peaks_route_cover_activation ON routes;
+CREATE CONSTRAINT TRIGGER trg_enforce_peaks_route_cover_activation
+AFTER UPDATE ON routes
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+WHEN (
+  NEW.owner = 'peaks'
+  AND NEW.status = 'active'
+  AND (
+    OLD.owner IS DISTINCT FROM 'peaks'
+    OR OLD.status IS DISTINCT FROM 'active'
+  )
+)
+EXECUTE FUNCTION enforce_peaks_route_cover_activation();
+
 -- One row per source that has ever run: the latest finished_at of a
 -- successful, non-dry-run 'import' or 'normalize' run, how many days old
 -- that is, and whether it has gone stale (no such run in the last 90 days).
