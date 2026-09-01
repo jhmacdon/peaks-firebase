@@ -1,0 +1,453 @@
+{
+  "schema_version": 1,
+  "packet_kind": "source_only_next_route_batch",
+  "route_coverage_base": {
+    "pull_request": 191,
+    "commit": "848fabe210b98c8ed4aeeb2e48906a212ef1a1fa",
+    "branch": "codex/maintain-active-route-cover-invariant-20260901"
+  },
+  "source_packet_context": {
+    "pull_request": 198,
+    "commit": "5ce1931c2589be04a915e75e7325908142caff62",
+    "branch": "codex/add-pilchuck-grays-torreys-route-source-packets-20260901"
+  },
+  "head_plan": {
+    "current_branch": "codex/add-abercrombie-teneriffe-bierstadt-route-packets-20260901",
+    "current_base_commit": "5ce1931c2589be04a915e75e7325908142caff62",
+    "later_mutating_branch": "codex/import-abercrombie-teneriffe-bierstadt-standard-routes-20260901",
+    "later_base_rule": "Create a fresh worktree from the latest origin/main only after both source-packet changes are merged; rerun every current-access and guarded import/review gate there."
+  },
+  "mutation_guard": {
+    "source_only": true,
+    "ready_for_import": false,
+    "has_executable_apply_path": false,
+    "writes_database": false,
+    "queues_jobs": false,
+    "runs_route_workers": false,
+    "imports_routes": false,
+    "requeues_routes": false,
+    "reviews_routes": false,
+    "approves_routes": false,
+    "activates_routes": false,
+    "current_listed_destination_gain": 0,
+    "later_independent_review_and_activation_required": true
+  },
+  "coverage": {
+    "current_read_only_capture": {
+      "listed_destinations": 1596,
+      "publish_valid_listed_destinations": 67,
+      "missing_publish_valid_route": 1529
+    },
+    "pull_request_198_conditional_after_independent_activation": {
+      "listed_destination_gain": 3,
+      "publish_valid_listed_destinations": 70,
+      "missing_publish_valid_route": 1526
+    },
+    "this_source_only_batch": {
+      "current_listed_destination_gain": 0,
+      "target_count": 3,
+      "list_membership_count": 4
+    },
+    "combined_conditional_after_all_six_independent_activations": {
+      "listed_destination_gain_from_current": 6,
+      "publish_valid_listed_destinations": 73,
+      "missing_publish_valid_route": 1523
+    }
+  },
+  "coverage_capture": {
+    "query_path": "abercrombie-teneriffe-bierstadt-route-coverage-capture-2026-09-01.sql",
+    "query_bytes": 8689,
+    "query_sha256": "02dfa5791559ee42bdd0001133c9f89546ffb9edfcf3bc41cce1f48e2f84db7a",
+    "output_replay_id": "catalog-job-candidate-capture"
+  },
+  "replay_bundle": {
+    "path": "abercrombie-teneriffe-bierstadt-route-source-replays-2026-09-01.json",
+    "bytes": 74580,
+    "sha256": "b6878e6f162958366dd94c92f7f14f84809ae47f7f1c49d37977a282afe0e1d1"
+  },
+  "packets": [
+    {
+      "packet_id": "abercrombie",
+      "packet_state": "candidate_ready_source_only",
+      "ready_for_import": false,
+      "destination_id": "8x6A3Evw9623TYnj9CGa",
+      "destination_name": "Abercrombie Mountain",
+      "trailhead_id": "N9e3dSIHH2FyniDO7cbZ",
+      "trailhead_name": "Abercrombie Trailhead",
+      "job_id": "8x6A3Evw9623TYnj9CGa",
+      "job_state": "candidate_ready",
+      "job_blocker_code": null,
+      "job_blocker_message": null,
+      "job_last_error": "stale_replacement_route_superseded",
+      "pending_route_id": null,
+      "published_route_id": "osm-route-3718820-1c24abfcc0",
+      "replacement_route_id": "osm-route-3718820-1c24abfcc0",
+      "route_name": "Abercrombie Mountain via Abercrombie Mountain Trail",
+      "route_shape": "out_and_back",
+      "candidate_sha256": "099f6500c6d296814e706cb1186b580b9900063937f9afb7a3b35dfa4cf3e274",
+      "candidate_point_count": 173,
+      "candidate_distance_m": 5790.5403641444045,
+      "osm_way_ids": [1135479102, 820116379, 6212103, 721776686],
+      "osm_way_names": [
+        "Hartbauer Creek Road",
+        "Abercrombie Mountain Trail",
+        "Flume Creek Trail"
+      ],
+      "source_replay_ids": [
+        "abercrombie-osm-way-1135479102",
+        "abercrombie-osm-way-820116379",
+        "abercrombie-osm-way-6212103",
+        "abercrombie-osm-way-721776686"
+      ],
+      "geometry_expectation": {
+        "source_segment_count": 315,
+        "source_topology_valid": true,
+        "start_connector_m": 18.396169211061274,
+        "end_connector_m": 23.70682004224745,
+        "start_connector_join_offset_m": 0,
+        "end_connector_join_offset_m": 0,
+        "core_sample_count": 464,
+        "core_max_offset_m": 1.1016259367058464e-8,
+        "core_p95_offset_m": 5.536953928952653e-9,
+        "core_coverage_pct": 100,
+        "used_way_ids": [1135479102, 820116379, 6212103, 721776686]
+      },
+      "current_blockers": [
+        "The recorded replacement is already superseded and fails publish integrity.",
+        "No new pending route exists; a fresh guarded import and independent review are required."
+      ],
+      "access_plan": {
+        "status": "open",
+        "source_replay_ids": [
+          "abercrombie-usfs-trail",
+          "abercrombie-usfs-trailhead",
+          "abercrombie-wta"
+        ],
+        "required_access_source_url": "https://www.fs.usda.gov/r06/colville/recreation/abercrombie-trailhead"
+      },
+      "cover": {
+        "attribution": "James Jacobson / Attribution",
+        "attribution_url": "https://commons.wikimedia.org/wiki/File:Abercrombie_Mountain_WA.jpg"
+      },
+      "list_memberships": [
+        {
+          "list_id": "9zsS3gPZhQCiPMl0DRMf",
+          "list_name": "Ultras of the Contiguous United States",
+          "ordinal": 52
+        }
+      ]
+    },
+    {
+      "packet_id": "teneriffe",
+      "packet_state": "waiting_access_source_only",
+      "ready_for_import": false,
+      "destination_id": "LAG3Glmi6mUYNr64ixDz",
+      "destination_name": "Mount Teneriffe",
+      "trailhead_id": "QyRZnRksI3wwOoqroNgn",
+      "trailhead_name": "Mount Teneriffe Trailhead",
+      "job_id": "LAG3Glmi6mUYNr64ixDz",
+      "job_state": "waiting_access",
+      "job_blocker_code": "official_access_evidence_missing",
+      "job_blocker_message": "The cited DNR page was fetched successfully but does not state that Mount Teneriffe access is open; provide current official access or permit evidence that supports the route's open-access claim.",
+      "job_last_error": null,
+      "pending_route_id": "AtBCTS3AImwhrnQh3HNK",
+      "published_route_id": "AtBCTS3AImwhrnQh3HNK",
+      "replacement_route_id": "Q4tbKTNo2sNe6Dz3SDr9",
+      "route_name": "Mount Teneriffe via Mount Teneriffe Trail",
+      "route_shape": "out_and_back",
+      "candidate_sha256": "90db27563c1590bcb2104316325c39b41b6d5bcdf6b0a0a399e6bbb519eb0767",
+      "candidate_point_count": 407,
+      "candidate_distance_m": 10343.41531034275,
+      "osm_way_ids": [
+        503602859,
+        902148139,
+        1315866433,
+        902148138,
+        666063556,
+        1081090531,
+        1081090530,
+        1081094830,
+        1081094829,
+        317707137
+      ],
+      "osm_way_names": ["Mount Teneriffe Trail"],
+      "source_replay_ids": [
+        "teneriffe-osm-way-503602859",
+        "teneriffe-osm-way-902148139",
+        "teneriffe-osm-way-1315866433",
+        "teneriffe-osm-way-902148138",
+        "teneriffe-osm-way-666063556",
+        "teneriffe-osm-way-1081090531",
+        "teneriffe-osm-way-1081090530",
+        "teneriffe-osm-way-1081094830",
+        "teneriffe-osm-way-1081094829",
+        "teneriffe-osm-way-317707137"
+      ],
+      "geometry_expectation": {
+        "source_segment_count": 404,
+        "source_topology_valid": true,
+        "start_connector_m": 9.685855101342643,
+        "end_connector_m": 7.263729385109055,
+        "start_connector_join_offset_m": 0,
+        "end_connector_join_offset_m": 0,
+        "core_sample_count": 904,
+        "core_max_offset_m": 8.503572336936459e-9,
+        "core_p95_offset_m": 3.804780189692651e-9,
+        "core_coverage_pct": 100,
+        "used_way_ids": [
+          503602859,
+          902148139,
+          1315866433,
+          902148138,
+          666063556,
+          1081090531,
+          1081090530,
+          1081094830,
+          1081094829,
+          317707137
+        ]
+      },
+      "current_blockers": [
+        "The saved access citation did not state that the trail was open at review time.",
+        "The current DNR page must be bound as exact access evidence in a fresh guarded review."
+      ],
+      "access_plan": {
+        "status": "open",
+        "source_replay_ids": ["teneriffe-dnr"],
+        "required_access_source_url": "https://dnr.wa.gov/natural-areas/natural-resources-conservation-areas/mount-si-natural-resources-conservation-area"
+      },
+      "cover": {
+        "attribution": "Ron Clausen / CC BY-SA 4.0",
+        "attribution_url": "https://commons.wikimedia.org/wiki/File:Mount_Teneriffe_from_Middle_Fork_Snoqualmie_River.jpg"
+      },
+      "list_memberships": [
+        {
+          "list_id": "grDJmpZ6mtpgtFY8X7i1",
+          "list_name": "Washington Home Court 100",
+          "ordinal": 97
+        }
+      ]
+    },
+    {
+      "packet_id": "bierstadt",
+      "packet_state": "waiting_access_source_only",
+      "ready_for_import": false,
+      "destination_id": "BM4y2gvTbqY6R9bGJjUl",
+      "destination_name": "Mount Bierstadt",
+      "trailhead_id": "tTqrcXqhwyekaL5tHVvd",
+      "trailhead_name": "West Slopes Trailhead",
+      "job_id": "BM4y2gvTbqY6R9bGJjUl",
+      "job_state": "waiting_access",
+      "job_blocker_code": "access-evidence",
+      "job_blocker_message": "The prior review failed the access gate: the supplied CMC page does not state or otherwise support that a permit is required. Current access cannot be established without source-backed evidence.",
+      "job_last_error": null,
+      "pending_route_id": "i4PcVk0K1pOsBJMLWOCG",
+      "published_route_id": "i4PcVk0K1pOsBJMLWOCG",
+      "replacement_route_id": "4jhHhNidClxMk1MfVDHo",
+      "route_name": "Mount Bierstadt via West Slopes",
+      "route_shape": "out_and_back",
+      "candidate_sha256": "2f00bb3aa7b113256e18bc1eae5ccacefd29638cc7dd385f6176b7cb604dd8ae",
+      "candidate_point_count": 312,
+      "candidate_distance_m": 5849.628643729725,
+      "osm_way_ids": [218153569, 831383625, 831383624],
+      "osm_way_names": ["Mount Bierstadt Trail"],
+      "source_replay_ids": [
+        "bierstadt-osm-way-218153569",
+        "bierstadt-osm-way-831383625",
+        "bierstadt-osm-way-831383624"
+      ],
+      "geometry_expectation": {
+        "source_segment_count": 309,
+        "source_topology_valid": true,
+        "start_connector_m": 49.317835479655066,
+        "end_connector_m": 0,
+        "start_connector_join_offset_m": 0,
+        "end_connector_join_offset_m": 0.48850171294367256,
+        "core_sample_count": 652,
+        "core_max_offset_m": 0.48850171294367256,
+        "core_p95_offset_m": 3.836307563159201e-9,
+        "core_coverage_pct": 100,
+        "used_way_ids": [218153569, 831383625, 831383624]
+      },
+      "current_blockers": [
+        "The saved candidate claims permit_required, but its cited CMC page does not support that claim.",
+        "A fresh guarded review must change the access status to seasonal and bind the current county access page."
+      ],
+      "access_plan": {
+        "status": "seasonal",
+        "source_replay_ids": ["bierstadt-cotrex", "bierstadt-clear-creek"],
+        "required_access_source_url": "https://clearcreekcounty.us/689/Guanella-Pass-Information"
+      },
+      "cover": {
+        "attribution": "David Herrera from Albuquerque, NM, Bernalillo / CC BY 2.0",
+        "attribution_url": "https://commons.wikimedia.org/wiki/File:Mount_Bierstadt,_Sawtooth,_Mount_Evans_(10579983656).jpg"
+      },
+      "list_memberships": [
+        {
+          "list_id": "82746E80A10CB7C0FBA5",
+          "list_name": "Traditional Colorado Centennials",
+          "ordinal": 37
+        },
+        {
+          "list_id": "LAZcIKjluO0oT3o9g6MC",
+          "list_name": "Colorado 14ers",
+          "ordinal": 36
+        }
+      ]
+    }
+  ],
+  "official_sources": [
+    {
+      "id": "abercrombie-usfs-trail",
+      "url": "https://www.fs.usda.gov/r06/colville/recreation/trails/abercrombie-mountain-117",
+      "supported_facts": [
+        {
+          "fact_id": "trail_length",
+          "paraphrase": "The Forest Service describes the trail as 3.2 miles long."
+        },
+        {
+          "fact_id": "off_trail_navigation",
+          "paraphrase": "The Forest Service advises carrying a contour map for travel away from the trail."
+        }
+      ]
+    },
+    {
+      "id": "abercrombie-usfs-trailhead",
+      "url": "https://www.fs.usda.gov/r06/colville/recreation/abercrombie-trailhead",
+      "supported_facts": [
+        {
+          "fact_id": "operating_hours",
+          "paraphrase": "The trailhead page lists round-the-clock operating hours."
+        },
+        {
+          "fact_id": "trail_length",
+          "paraphrase": "The trailhead page gives the Abercrombie trail length as 3.2 miles."
+        },
+        {
+          "fact_id": "trail_identity",
+          "paraphrase": "The trailhead page identifies the route as Abercrombie Trail number 117."
+        }
+      ]
+    },
+    {
+      "id": "abercrombie-wta",
+      "url": "https://www.wta.org/go-hiking/hikes/abercrombie",
+      "supported_facts": [
+        {
+          "fact_id": "standard_route_identity",
+          "paraphrase": "WTA identifies the namesake trail as the usual scenic summit route."
+        },
+        {
+          "fact_id": "summit_finish",
+          "paraphrase": "WTA describes a short final push to the rocky summit."
+        }
+      ]
+    },
+    {
+      "id": "teneriffe-dnr",
+      "url": "https://dnr.wa.gov/natural-areas/natural-resources-conservation-areas/mount-si-natural-resources-conservation-area",
+      "supported_facts": [
+        {
+          "fact_id": "trail_reopened",
+          "paraphrase": "DNR says the Mount Teneriffe trail reopened to the public on June 18, 2026."
+        },
+        {
+          "fact_id": "parking_pass",
+          "paraphrase": "DNR requires a Discover Pass for the named conservation-area parking."
+        }
+      ]
+    },
+    {
+      "id": "bierstadt-cotrex",
+      "url": "https://trails.colorado.gov/routes/164726",
+      "supported_facts": [
+        {
+          "fact_id": "standard_route_identity",
+          "paraphrase": "COTREX identifies the West Slope from Guanella Pass as the standard route."
+        },
+        {
+          "fact_id": "route_grade",
+          "paraphrase": "COTREX grades the route class 2."
+        },
+        {
+          "fact_id": "seasonal_road",
+          "paraphrase": "COTREX says road access to Guanella Pass is seasonal."
+        }
+      ]
+    },
+    {
+      "id": "bierstadt-clear-creek",
+      "url": "https://clearcreekcounty.us/689/Guanella-Pass-Information",
+      "supported_facts": [
+        {
+          "fact_id": "current_opening",
+          "paraphrase": "Clear Creek County reports that Guanella Pass is open for the summer season."
+        },
+        {
+          "fact_id": "weather_closures",
+          "paraphrase": "The county warns that snow can cause a temporary closure."
+        },
+        {
+          "fact_id": "seasonal_schedule",
+          "paraphrase": "The county describes the usual winter closure and Memorial Day reopening window."
+        }
+      ]
+    },
+    {
+      "id": "mount-angeles-wta",
+      "url": "https://www.wta.org/go-hiking/hikes/mount-angeles",
+      "supported_facts": [
+        {
+          "fact_id": "scramble_identity",
+          "paraphrase": "WTA describes the Mount Angeles summit as a scramble."
+        },
+        {
+          "fact_id": "required_experience",
+          "paraphrase": "WTA limits the summit line to experienced class-3 scramblers."
+        },
+        {
+          "fact_id": "fall_hazard",
+          "paraphrase": "WTA warns that a fall on the line would be severe."
+        }
+      ]
+    }
+  ],
+  "hard_exclusions": [
+    {
+      "destination_id": "7nJmKhZy74iFjKUJqtkx",
+      "route_id": "jCNuGRP8FNyO8h4QuGIg",
+      "name": "Mount Angeles via Switchback Trail",
+      "reason": "The cited WTA page says the summit requires an experienced class 3 scramble and warns of a rough fall."
+    },
+    {
+      "destination_id": null,
+      "route_id": null,
+      "name": "High Knott",
+      "reason": "Inherited hard exclusion."
+    },
+    {
+      "destination_id": null,
+      "route_id": null,
+      "name": "Williamson's Monument",
+      "reason": "Inherited hard exclusion."
+    },
+    {
+      "destination_id": null,
+      "route_id": null,
+      "name": "Pillar Rock exposed climb",
+      "reason": "Inherited hard exclusion."
+    },
+    {
+      "destination_id": null,
+      "route_id": null,
+      "name": "DoBIH firing-range hills 2711, 2713, 2735, and 2877",
+      "reason": "Inherited hard exclusion."
+    },
+    {
+      "destination_id": null,
+      "route_id": null,
+      "name": "Any technical or exposed line",
+      "reason": "Inherited hard exclusion."
+    }
+  ]
+}
