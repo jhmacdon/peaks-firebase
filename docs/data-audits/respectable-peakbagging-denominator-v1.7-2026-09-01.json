@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-09-01-primary-source-lower-bound-7",
+  "created_at": "2026-09-01T03:04:52Z",
+  "kind": "readiness_amendment",
+  "base_registry": {
+    "version": "2026-09-01-primary-source-lower-bound-6",
+    "json_path": "docs/data-audits/respectable-peakbagging-denominator-v1.6-2026-09-01.json",
+    "json_sha256": "832bb68a1641240783173ff76fa165f59ef6f4e83f1e066092ea3d682291fbeb",
+    "markdown_sha256": "385515e7eac8d287b231d8adf73492ea88c15112366f9020cdb4eda177cec2fc"
+  },
+  "stack_base": {
+    "pull_request": 194,
+    "url": "https://github.com/jhmacdon/peaks-firebase/pull/194",
+    "head_commit": "02a960fe880d1170e41a851c4b31e94b6c0ddd02",
+    "status": "ready_for_review_not_merged"
+  },
+  "source_change": {
+    "status": "source_only_not_merged",
+    "publication_ready": false,
+    "production_write_performed": false,
+    "fixture_path": "docs/data-audits/fixtures/keeper-list-dobih-birketts-synges-candidates-2026-09-01.json",
+    "fixture_sha256": "7400d0c105e469e4f0791a47bfa870aae5b8b7b18991c4bb4f97b7e95c33f6b5",
+    "source_metadata_sha256": "54ed97ccc6c4e5e831910ab3b4552360f980ca34249630755ad853e8d68c2402",
+    "source_csv_sha256": "d27bc69dbb6d30a6f171ef277408831fe8763fc9043422f4e375e63f4cc190ea",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "coverage": {
+    "confirmed_lower_bound_denominator": 83,
+    "current_exact_count": 22,
+    "prior_ready_exact_count": 21,
+    "new_ready_exact_count": 2,
+    "ready_exact_count": 23,
+    "current_plus_ready_exact_count": 45,
+    "current_plus_ready_exact_percent_of_lower_bound": 54.2169,
+    "majority_threshold_for_83": 42,
+    "additional_ready_units_needed_for_registry_majority": 0,
+    "ready_stack_reaches_registry_majority": true,
+    "production_reaches_registry_majority": false,
+    "worldwide_majority_claim_supported": false,
+    "coverage_claim_supported": false,
+    "scope_warning": "The 45 of 83 result is a ready review stack against one dated lower-bound registry. It is not merged or imported, and it does not prove a worldwide majority."
+  },
+  "new_ready_units": [
+    {
+      "denominator_registry_id": "birketts",
+      "source_key": "dobih-birketts",
+      "list_id": "045A11A6033DC6178CD2",
+      "name": "Birketts",
+      "count": 541,
+      "selection": "B=1",
+      "roster_sha256": "970e671250616e38c0f9767acf26f058c7d2ebecd69568457512cfc25f9918d7",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    },
+    {
+      "denominator_registry_id": "synges",
+      "source_key": "dobih-synges",
+      "list_id": "C28C4F0D933C73F79AC4",
+      "name": "Synges",
+      "count": 670,
+      "selection": "Sy=1",
+      "roster_sha256": "8d9bb012fea4f2c5135ff972c83d354b43f8706add77f125649527beb67acaff",
+      "base_state": "not_imported_open",
+      "ready_state": "ready_exact_open_roster_not_merged"
+    }
+  ],
+  "source_work": {
+    "membership_count": 1211,
+    "unique_identity_count": 723,
+    "shared_identity_count": 488,
+    "prior_reviewed_identity_count": 323,
+    "new_identity_review_count": 400,
+    "country_split": {
+      "E": 1211
+    },
+    "alias_bearing_identity_count": 79,
+    "duplicate_primary_name_group_count": 19,
+    "duplicate_primary_name_row_count": 41,
+    "distinct_source_pair_count_within_150m": 6,
+    "route_publication_blocks": [
+      "dobih:2390"
+    ],
+    "named_completion_exceptions": [
+      "dobih:2390"
+    ]
+  },
+  "before_production": [
+    "Merge the reviewed source and identity stack.",
+    "Resolve all 723 identities and preserve all six reviewed close-pair distinctions.",
+    "Keep dobih:2390 blocked from summit-route publication in both lists.",
+    "Model the named Pillar Rock completion exception; do not replace it with a numeric any-member omission.",
+    "Add a credited destination cover, a safe reviewed route, and a credited route cover for every unblocked member.",
+    "Run the read-only zero-gap audit and require no unblocked gap.",
+    "Add any import or apply path only in a separate reviewed change with approval."
+  ],
+  "cost": {
+    "infrastructure_change": false,
+    "estimated_monthly_usd": 0
+  }
+}
