@@ -35,9 +35,16 @@ const resolutionsPath = path.resolve(
 );
 const resolutions = JSON.parse(readFileSync(resolutionsPath, "utf8")) as KeeperResolutionFixture;
 
+const testSourceDescriptor = {
+  fixtureSource: "test",
+  keeperRosterSource: "test-source",
+  assertMemberIdentity(_sourceKey: string): void {},
+};
+
 const onePeakList: KeeperListDefinition = {
   listId: "test-list",
   sourceKey: "test-source",
+  sourceDescriptor: testSourceDescriptor,
   name: "Test List",
   description: "Test",
   expectedCount: 1,
@@ -305,7 +312,7 @@ test("normalizes accents and punctuation without joining words", () => {
 });
 
 test("pins the exact keeper fixture counts and durable identities", () => {
-  validateKeeperFixture(fixture);
+  validateKeeperFixture(fixture, KEEPER_LISTS);
   assert.equal(fixture.lists["dobih-corbetts"].rows.length, 222);
   assert.equal(fixture.lists["dobih-wainwrights"].rows.length, 214);
   assert.equal(fixture.lists["uiaa-pyrenees-main"].rows.length, 129);
@@ -370,40 +377,52 @@ test("production keeper fixture rejects changed source metadata and list selecto
       Object.fromEntries(Object.entries(value as Record<string, unknown>).reverse()),
     ])
   );
-  assert.doesNotThrow(() => validateKeeperFixture(reorderedSourceKeys));
+  assert.doesNotThrow(() => validateKeeperFixture(reorderedSourceKeys, KEEPER_LISTS));
 
   const changedDate = cloneKeeperFixture();
   changedDate.generatedAt = "2026-08-31";
-  assert.throws(() => validateKeeperFixture(changedDate), /generated date/i);
+  assert.throws(() => validateKeeperFixture(changedDate, KEEPER_LISTS), /generated date/i);
 
   const changedSources = cloneKeeperFixture();
   const dobihSource = changedSources.sources["dobih-v18.5"] as Record<string, unknown>;
   dobihSource.csvSha256 = "f".repeat(64);
-  assert.throws(() => validateKeeperFixture(changedSources), /source metadata.*checksum/i);
+  assert.throws(
+    () => validateKeeperFixture(changedSources, KEEPER_LISTS),
+    /source metadata.*checksum/i
+  );
 
   const changedSourceKey = cloneKeeperFixture();
   changedSourceKey.lists["dobih-corbetts"].source = "fabricated-source";
-  assert.throws(() => validateKeeperFixture(changedSourceKey), /source selector/i);
+  assert.throws(
+    () => validateKeeperFixture(changedSourceKey, KEEPER_LISTS),
+    /source selector/i
+  );
 
   const changedSelection = cloneKeeperFixture();
   changedSelection.lists["dobih-wainwrights"].selection = "W=maybe";
-  assert.throws(() => validateKeeperFixture(changedSelection), /selection/i);
+  assert.throws(() => validateKeeperFixture(changedSelection, KEEPER_LISTS), /selection/i);
 });
 
 test("production keeper fixture rejects reordered and source-inconsistent roster rows", () => {
   const reordered = cloneKeeperFixture();
   [reordered.lists["dobih-corbetts"].rows[0], reordered.lists["dobih-corbetts"].rows[1]] =
     [reordered.lists["dobih-corbetts"].rows[1], reordered.lists["dobih-corbetts"].rows[0]];
-  assert.throws(() => validateKeeperFixture(reordered), /ordered roster.*checksum/i);
+  assert.throws(
+    () => validateKeeperFixture(reordered, KEEPER_LISTS),
+    /ordered roster.*checksum/i
+  );
 
   const wrongDobihIdentity = cloneKeeperFixture();
   wrongDobihIdentity.lists["dobih-corbetts"].rows[0].dobihNumber! += 1;
-  assert.throws(() => validateKeeperFixture(wrongDobihIdentity), /DoBIH.*source member ID/i);
+  assert.throws(
+    () => validateKeeperFixture(wrongDobihIdentity, KEEPER_LISTS),
+    /DoBIH.*source member ID/i
+  );
 
   const wrongUiaaIdentity = cloneKeeperFixture();
   wrongUiaaIdentity.lists["uiaa-pyrenees-main"].rows[0].buyseMainNumber! += 1;
   assert.throws(
-    () => validateKeeperFixture(wrongUiaaIdentity),
+    () => validateKeeperFixture(wrongUiaaIdentity, KEEPER_LISTS),
     /UIAA.*ordinal.*source member ID/i
   );
 });
@@ -427,7 +446,7 @@ test("credits the licensed data source while naming each British list keeper", (
 });
 
 test("the reviewed identity fixture is complete, bounded, and tied to the source roster", () => {
-  validateKeeperResolutionFixture(fixture, resolutions);
+  validateKeeperResolutionFixture(fixture, resolutions, KEEPER_LISTS);
 
   const reviewedRows = Object.values(resolutions.lists).flatMap((list) => list.rows);
   assert.equal(
@@ -522,7 +541,8 @@ test("the full reviewed keeper import is idempotent after its first catalog plan
   const first = catalogWithReviewedKeeperDestinations(
     fullFixtureCatalogBeforeReview(),
     fixture,
-    resolutions
+    resolutions,
+    KEEPER_LISTS
   );
   assert.equal(first.destinationsToAdd.length, 62);
   assert.equal(first.destinationsToRepair.length, 13);
@@ -532,7 +552,8 @@ test("the full reviewed keeper import is idempotent after its first catalog plan
     resolutions,
     first.catalog,
     [],
-    false
+    false,
+    KEEPER_LISTS
   );
   assert.equal(second.report.complete, true);
   assert.equal(second.destinationsToAdd.length, 0);
@@ -730,7 +751,7 @@ test("reviewed new destinations are stable, unique, and cannot hide a catalog du
     dataSourceName: reviewedDestination.dataSourceName,
     dataSourceUrl: reviewedDestination.dataSourceUrl,
     dataLicense: reviewedDestination.dataLicense,
-    keeperRosterSource: "uiaa-bulletin-152",
+    keeperRosterSource: reviewedDestination.keeperRosterSource,
     metadataDisplayName: reviewedDestination.name,
   });
   assert.throws(
@@ -823,7 +844,7 @@ test("post-conflict destination verification requires the exact reviewed fingerp
     metadata_source: destination.dataSourceName,
     metadata_source_url: destination.dataSourceUrl,
     metadata_source_license: destination.dataLicense,
-    keeper_roster_source: "uiaa-bulletin-152",
+    keeper_roster_source: destination.keeperRosterSource,
     metadata_display_name: destination.name,
   };
   await assert.rejects(
@@ -927,14 +948,14 @@ test("all keeper fixture coordinates are bounded before distance checks", () => 
   const invalidAuxiliaryBefore = cloneKeeperResolutions();
   invalidAuxiliaryBefore.catalogRepairs![0].before.lat = 91;
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryBefore),
+    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryBefore, KEEPER_LISTS),
     /auxiliary.*before coordinates.*bounds/i
   );
 
   const invalidAuxiliaryAfter = cloneKeeperResolutions();
   invalidAuxiliaryAfter.catalogRepairs![0].after.lng = 181;
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryAfter),
+    () => validateKeeperResolutionFixture(fixture, invalidAuxiliaryAfter, KEEPER_LISTS),
     /auxiliary.*after coordinates.*bounds/i
   );
 
@@ -944,7 +965,7 @@ test("all keeper fixture coordinates are bounded before distance checks", () => 
     .find((row) => row.resolution === "catalog_repair")!;
   catalogRepair.catalogBefore!.lat = 91;
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, invalidCatalogBefore),
+    () => validateKeeperResolutionFixture(fixture, invalidCatalogBefore, KEEPER_LISTS),
     /catalog-before coordinates.*bounds/i
   );
 });
@@ -955,7 +976,7 @@ test("malformed resolution strings and external IDs fail with keeper validation 
     osm: 123 as unknown as string,
   };
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, numericAuxiliaryExternalId),
+    () => validateKeeperResolutionFixture(fixture, numericAuxiliaryExternalId, KEEPER_LISTS),
     /invalid external-ID record/i
   );
 
@@ -965,7 +986,11 @@ test("malformed resolution strings and external IDs fail with keeper validation 
     .find((row) => row.resolution === "catalog_repair")!;
   catalogRepair.catalogBefore!.externalIds = { osm: 123 as unknown as string };
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, numericCatalogBeforeExternalId),
+    () => validateKeeperResolutionFixture(
+      fixture,
+      numericCatalogBeforeExternalId,
+      KEEPER_LISTS
+    ),
     /invalid external-ID record/i
   );
 
@@ -973,7 +998,7 @@ test("malformed resolution strings and external IDs fail with keeper validation 
   numericDestinationName.lists["dobih-corbetts"].rows[0].destinationName =
     123 as unknown as string;
   assert.throws(
-    () => validateKeeperResolutionFixture(fixture, numericDestinationName),
+    () => validateKeeperResolutionFixture(fixture, numericDestinationName, KEEPER_LISTS),
     /incomplete destination fingerprint/i
   );
 });
@@ -1544,7 +1569,10 @@ test("reports an incomplete plan and never relabels it as valid", () => {
 });
 
 test("the keeper importer does not write keeper IDs into destination external IDs", () => {
-  const source = readFileSync(path.resolve(__dirname, "../import-keeper-lists.ts"), "utf8");
+  const source = readFileSync(path.resolve(
+    __dirname,
+    "../keeper-list-import/core.ts"
+  ), "utf8");
   assert.doesNotMatch(source, /jsonb_build_object\(['"]peakbagger/);
   assert.doesNotMatch(source, /destinationPeakbaggerId/);
   assert.match(
@@ -1554,6 +1582,9 @@ test("the keeper importer does not write keeper IDs into destination external ID
   assert.match(source, /assertReviewedKeeperDestinations/);
   assert.match(source, /did not persist with its exact reviewed fingerprint/);
   assert.match(source, /keeper_roster_source/);
+  assert.match(source, /'keeper_roster_source', incoming\.keeper_roster_source/);
+  assert.doesNotMatch(source, /sourceKey\.startsWith\("dobih-"\)/);
+  assert.doesNotMatch(source, /CASE WHEN incoming\.source_key LIKE 'dobih-%'/);
   assert.match(source, /COALESCE\(metadata->'names', '\{\}'::jsonb\)/);
   assert.match(source, /jsonb_build_object\('display', \$2\)/);
   assert.deepEqual(KEEPER_LISTS.map((list) => list.expectedCount), [222, 214, 129]);
@@ -1567,6 +1598,20 @@ test("the keeper importer does not write keeper IDs into destination external ID
 });
 
 test("fixture validation rejects missing, duplicate, and partial source records", () => {
+  assert.throws(
+    () => validateKeeperFixture(onePeakFixture, [
+      onePeakList,
+      { ...onePeakList, listId: "other-list" },
+    ]),
+    /repeated source key/i
+  );
+  assert.throws(
+    () => validateKeeperFixture(onePeakFixture, [
+      onePeakList,
+      { ...onePeakList, sourceKey: "other-source" },
+    ]),
+    /repeated list ID/i
+  );
   assert.throws(
     () => validateKeeperFixture(
       { ...onePeakFixture, schemaVersion: 2 },
