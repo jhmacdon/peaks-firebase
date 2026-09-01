@@ -374,6 +374,15 @@ test(
         [summitId, trailheadId]
       );
       await pool.query(
+        `UPDATE destinations
+         SET hero_image = 'https://upload.wikimedia.org/route-target.jpg',
+             hero_image_attribution = 'Route Target Photographer',
+             hero_image_attribution_url =
+               'https://commons.wikimedia.org/wiki/File:Route_target.jpg'
+         WHERE id = $1`,
+        [summitId]
+      );
+      await pool.query(
         `INSERT INTO lists (id, name, owner)
          VALUES ($1, 'Promotion test list', 'peaks')`,
         [listId]
@@ -408,7 +417,7 @@ test(
            id, name, owner, status, shape, path, provenance,
            elevation_string, gain, gain_loss
          ) VALUES (
-           $1, 'Promotion test route', 'peaks', 'active', 'point_to_point',
+           $1, 'Promotion test route', 'peaks', 'pending', 'point_to_point',
            ST_GeogFromText($2), $3::jsonb,
            encode_route_elevation_profile(ST_GeogFromText($2)),
            (SELECT gain FROM route_elevation_stats(ST_GeogFromText($2))),
@@ -435,6 +444,10 @@ test(
         `INSERT INTO route_segments (route_id, segment_id, ordinal, direction)
          VALUES ($1, $2, 0, 'forward')`,
         [routeId, segmentId]
+      );
+      await pool.query(
+        `UPDATE routes SET status = 'active' WHERE id = $1`,
+        [routeId]
       );
       assert.equal(
         (
