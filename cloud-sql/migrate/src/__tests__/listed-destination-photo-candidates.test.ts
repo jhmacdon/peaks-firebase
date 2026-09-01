@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,17 +9,22 @@ import {
   mediaWikiApiErrorMessage,
   parseListedPhotoArgs,
   parseWikidataArticleIdentity,
+  parseWikidataLeadImage,
   parseWikipediaArticle,
   parseWikipediaSearchHits,
   parseWikimediaImageMetadata,
   plainMetadataText,
   prepareAuditOutput,
   publishAuditOutput,
+  reviewedCommonsFileApiUrl,
   stageAuditOutput,
 } from "../backfill-listed-destination-photo-candidates";
 import {
+  LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS,
   LISTED_PHOTO_GAPS_SQL,
+  LISTED_PHOTO_REVIEWED_COMMONS_FILES,
   canonicalWikimediaLicenseUrl,
+  distanceMeters,
   fileTitleNamesDestination,
   hasCompatibleLicenseRecord,
   imageMetadataRejection,
@@ -29,14 +35,181 @@ import {
   rankedArticlePhotoTitles,
   serializeListedPhotoGapRow,
   sourcePageKey,
+  wikipediaLanguageForCountry,
   type ListedPhotoClient,
   type ListedPhotoGapRow,
   type Queryable,
+  type ReviewedCommonsFilePhoto,
   type WikimediaImageMetadata,
   type WikipediaArticle,
 } from "../listed-destination-photo-candidates";
 
 const RAINIER_MEDIA_SHA1 = "7a1f2627e0f702e514290f1c06aa76e838dd845f";
+
+type KfsPhotoZeroAcceptAudit = {
+  schemaVersion: number;
+  reviewedAt: string;
+  base: {
+    branch: string;
+    commit: string;
+  };
+  scan: {
+    source: string;
+    sourceSha256: string;
+    sourceByteLength: number;
+    commonsNamespace: number;
+    summitRadiusMeters: number;
+    rowOrdinals: number[];
+  };
+  strictCount: {
+    before: number;
+    after: number;
+  };
+  summary: {
+    rowsWithNoNearbyFiles: number;
+    rowsWithNearbyFiles: number;
+    nearbyFileCount: number;
+    acceptedFileCount: number;
+    rejectedFileCount: number;
+  };
+  rows: Array<{
+    ordinal: number;
+    destinationId: string;
+    name: string;
+    nearbyFileCount: number;
+  }>;
+  acceptedFiles: unknown[];
+  rejectedFiles: Array<{
+    rowOrdinal: number;
+    destinationId: string;
+    destinationName: string;
+    fileTitle: string;
+    width: number;
+    height: number;
+    distanceMeters: number;
+    mediaSha1: string;
+    rejectionReason: string;
+  }>;
+  productionWrites: boolean;
+  apply: boolean;
+  fixedMonthlyCostUsd: number;
+};
+
+type KfsPhotoGlobalStrictAudit = {
+  schemaVersion: number;
+  reviewedAt: string;
+  sourceReport: {
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+    schemaVersion: number;
+  };
+  packageManifest: {
+    path: string;
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+  };
+  acceptedLiveReplay: {
+    path: string;
+    sourcePath: string;
+    sha256: string;
+    byteLength: number;
+    rawResponseSha256: string;
+  };
+  artifactIntegrity: {
+    requestCache: { requestCount: number; canonicalSha256: string };
+    cacheTree: { fileCount: number; canonicalSha256: string };
+    thumbnailTree: { fileCount: number; canonicalSha256: string };
+    originalTree: { fileCount: number; canonicalSha256: string };
+    thumbnailManifestVerified: boolean;
+    originalCommonsSha1Verified: boolean;
+  };
+  summary: {
+    searchedPeaks: number;
+    searchedPeaksWithAccept: number;
+    searchedPeaksWithoutAccept: number;
+    uniqueCommonsFiles: number;
+    peakFileEvaluations: number;
+    acceptedPeakFileBindings: number;
+    rejectedPeakFileEvaluations: number;
+    automatedRejectedPeakFileEvaluations: number;
+    fullFrameReviewedPeakFileEvaluations: number;
+    fullFrameRejectedPeakFileEvaluations: number;
+    strictCoveredBefore: number;
+    strictAcceptedThisPass: number;
+    strictCoveredIfIntegrated: number;
+  };
+  rows: Array<{
+    ordinal: number;
+    destinationId: string;
+    name: string;
+    uniqueFiles: number;
+    automaticRejects: number;
+    fullFrameReviews: number;
+    fullFrameRejects: number;
+    accepts: number;
+  }>;
+  acceptedBindings: Array<{
+    ordinal: number;
+    destinationId: string;
+    destinationName: string;
+    catalog: { lat: number; lng: number; wikidataId: string | null };
+    reviewedWikidataId: string;
+    fileTitle: string;
+    sourcePageUrl: string;
+    imageUrl: string;
+    width: number;
+    height: number;
+    mediaSha1: string;
+    metadataSha256: string;
+    photographer: string;
+    licenseName: string;
+    licenseUrl: string;
+    identityEvidence: {
+      exactCoordinate: boolean;
+      exactCategory: boolean;
+      exactP18: boolean;
+      namesPeak: boolean;
+    };
+    coordinateAudit: {
+      rawCoordinates: unknown[];
+      normalizedCoordinateCount: number;
+      normalizedCoordinates: null;
+    };
+    evidence: Array<{
+      channel: string;
+      wikidataId?: string;
+      category?: string;
+    }>;
+    visualReview: {
+      fullFrameReviewed: boolean;
+      fullResolutionReviewed: boolean;
+    };
+    originalArtifact: {
+      path: string;
+      byteLength: number;
+      sha256: string;
+    };
+    identityReview: string;
+  }>;
+  rejectionReasons: Array<{ reason: string; count: number }>;
+  rejectedEvaluationFields: string[];
+  rejectedEvaluations: Array<[
+    "automatic" | "full_frame",
+    number,
+    string,
+    string,
+    number | null,
+    number | null,
+    string | null,
+    string | null,
+    string,
+  ]>;
+  productionWrites: boolean;
+  apply: boolean;
+  fixedMonthlyCostUsd: number;
+};
 
 function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
   return {
@@ -44,6 +217,7 @@ function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
     name: "Mount Rainier",
     lat: 46.8523,
     lng: -121.7603,
+    country_code: "US",
     wikidata_id: "Q194057",
     list_ids: ["state-high-points"],
     list_names: ["US State High Points"],
@@ -58,6 +232,7 @@ function row(overrides: Partial<ListedPhotoGapRow> = {}): ListedPhotoGapRow {
 function article(overrides: Partial<WikipediaArticle> = {}): WikipediaArticle {
   return {
     title: "Mount Rainier",
+    language: "en",
     wikidataId: "Q194057",
     coordinates: { lat: 46.8523, lng: -121.7603 },
     leadImageTitle: "File:Mount Rainier from Paradise.jpg",
@@ -74,6 +249,8 @@ function image(overrides: Partial<WikimediaImageMetadata> = {}): WikimediaImageM
   return {
     fileTitle: "File:Mount Rainier from Paradise.jpg",
     fileTitleAliases: [],
+    coordinates: null,
+    coordinateCount: 0,
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/a/aa/Mount_Rainier_from_Paradise.jpg",
     sourcePageUrl:
@@ -96,20 +273,70 @@ function client(overrides: Partial<ListedPhotoClient> = {}): ListedPhotoClient {
       return {
         wikidataId,
         articleTitle: "Mount Rainier",
+        articleLanguage: "en",
         coordinates: { lat: 46.8523, lng: -121.7603 },
       };
     },
     async searchWikipediaArticles() {
-      return [{ title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } }];
+      return [{
+        title: "Mount Rainier",
+        language: "en",
+        coordinates: { lat: 46.8523, lng: -121.7603 },
+      }];
     },
     async fetchWikipediaArticle() {
       return article();
+    },
+    async fetchWikidataLeadImage() {
+      return null;
+    },
+    async fetchReviewedCommonsFile(fileTitle) {
+      return image({ fileTitle });
     },
     async fetchImageMetadata(titles) {
       return titles.map((fileTitle) => image({ fileTitle }));
     },
     ...overrides,
   };
+}
+
+function reviewedRow(
+  audit: Readonly<ReviewedCommonsFilePhoto>,
+  overrides: Partial<ListedPhotoGapRow> = {}
+): ListedPhotoGapRow {
+  return row({
+    id: audit.destinationId,
+    name: audit.destinationName,
+    lat: audit.catalogCoordinates.lat,
+    lng: audit.catalogCoordinates.lng,
+    country_code: audit.countryCode,
+    wikidata_id: audit.catalogWikidataId,
+    list_ids: [audit.requiredListId],
+    list_names: ["Korea Forest Service 100 Famous Mountains"],
+    ...overrides,
+  });
+}
+
+function reviewedImage(
+  audit: Readonly<ReviewedCommonsFilePhoto>,
+  overrides: Partial<WikimediaImageMetadata> = {}
+): WikimediaImageMetadata {
+  return image({
+    fileTitle: audit.fileTitle,
+    fileTitleAliases: [],
+    coordinates: audit.fileCoordinates,
+    coordinateCount: audit.fileCoordinates === null ? 0 : 1,
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/a/aa/reviewed-file.jpg",
+    sourcePageUrl:
+      `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle)}`,
+    photographer: audit.photographer,
+    licenseName: audit.licenseName,
+    licenseUrl: audit.licenseUrl,
+    width: audit.width,
+    height: audit.height,
+    mediaSha1: audit.mediaSha1,
+    ...overrides,
+  });
 }
 
 async function planCode(
@@ -166,6 +393,7 @@ test("gap query targets every Peaks-owned list member with incomplete cover cred
   );
   assert.match(LISTED_PHOTO_GAPS_SQL, /existing_source_page_urls/);
   assert.match(LISTED_PHOTO_GAPS_SQL, /has_pending_candidate/);
+  assert.match(LISTED_PHOTO_GAPS_SQL, /country_code/);
   assert.doesNotMatch(LISTED_PHOTO_GAPS_SQL, /LIMIT|list_id = \$/);
 });
 
@@ -176,6 +404,7 @@ test("gap rows preserve full list and review history for the audit", () => {
       name: "Peak",
       lat: "1.25",
       lng: "-2.5",
+      country_code: "KR",
       wikidata_id: "Q1",
       list_ids: ["b", "a"],
       list_names: ["B", "A"],
@@ -191,6 +420,7 @@ test("gap rows preserve full list and review history for the audit", () => {
       name: "Peak",
       lat: 1.25,
       lng: -2.5,
+      country_code: "KR",
       wikidata_id: "Q1",
       list_ids: ["b", "a"],
       list_names: ["B", "A"],
@@ -212,23 +442,186 @@ test("gap coordinates reject null, blanks, and booleans instead of becoming zero
   }
 });
 
-test("Wikidata parser requires an English sitelink and reads P625 coordinates", () => {
+test("Wikidata parser prefers the country wiki, falls back to English, and reads P625", () => {
   const parsed = parseWikidataArticleIdentity({
+    entities: {
+      Q194057: {
+        sitelinks: {
+          enwiki: { title: "Mount Rainier" },
+          kowiki: { title: "레이니어산" },
+        },
+        claims: {
+          P625: [{
+            rank: "normal",
+            mainsnak: {
+              snaktype: "value",
+              datavalue: {
+                value: {
+                  latitude: 46.8523,
+                  longitude: -121.7603,
+                  globe: "http://www.wikidata.org/entity/Q2",
+                },
+              },
+            },
+          }],
+        },
+      },
+    },
+  }, "Q194057", "ko");
+  assert.deepEqual(parsed, {
+    wikidataId: "Q194057",
+    articleTitle: "레이니어산",
+    articleLanguage: "ko",
+    coordinates: { lat: 46.8523, lng: -121.7603 },
+  });
+  assert.deepEqual(parseWikidataArticleIdentity({
     entities: {
       Q194057: {
         sitelinks: { enwiki: { title: "Mount Rainier" } },
         claims: {
-          P625: [{ mainsnak: { datavalue: { value: { latitude: 46.8523, longitude: -121.7603 } } } }],
+          P625: [{
+            rank: "normal",
+            mainsnak: {
+              snaktype: "value",
+              datavalue: {
+                value: {
+                  latitude: 46.8523,
+                  longitude: -121.7603,
+                  globe: "https://www.wikidata.org/entity/Q2",
+                },
+              },
+            },
+          }],
         },
       },
     },
-  }, "Q194057");
-  assert.deepEqual(parsed, {
+  }, "Q194057", "ko"), {
     wikidataId: "Q194057",
     articleTitle: "Mount Rainier",
+    articleLanguage: "en",
     coordinates: { lat: 46.8523, lng: -121.7603 },
   });
   assert.equal(parseWikidataArticleIdentity({ entities: { Q194057: {} } }, "Q194057"), null);
+});
+
+test("Wikidata P625 parsing requires one ranked Earth coordinate", () => {
+  const claim = (
+    latitude: number,
+    longitude: number,
+    rank: "normal" | "preferred" | "deprecated" = "normal",
+    globe = "http://www.wikidata.org/entity/Q2"
+  ) => ({
+    rank,
+    mainsnak: {
+      snaktype: "value",
+      datavalue: { value: { latitude, longitude, globe } },
+    },
+  });
+  const parse = (claims: unknown[]) => parseWikidataArticleIdentity({
+    entities: {
+      Q1: {
+        sitelinks: { enwiki: { title: "Peak" } },
+        claims: { P625: claims },
+      },
+    },
+  }, "Q1")?.coordinates;
+
+  assert.equal(parse([claim(1, 2, "deprecated")]), null);
+  assert.equal(
+    parse([claim(1, 2, "normal", "http://www.wikidata.org/entity/Q111")]),
+    null
+  );
+  assert.equal(parse([claim(1, 2), claim(3, 4)]), null);
+  assert.deepEqual(parse([claim(1, 2), claim(3, 4, "preferred")]), { lat: 3, lng: 4 });
+  assert.equal(
+    parse([
+      claim(1, 2),
+      claim(3, 4, "preferred", "http://www.wikidata.org/entity/Q111"),
+    ]),
+    null
+  );
+  assert.deepEqual(parse([claim(1, 2), claim(1, 2)]), { lat: 1, lng: 2 });
+});
+
+test("Wikidata P18 parsing requires one highest-rank Commons file on the exact item", () => {
+  const claim = (
+    value: string,
+    rank: "normal" | "preferred" | "deprecated" = "normal",
+    datatype = "commonsMedia"
+  ) => ({
+    rank,
+    mainsnak: {
+      snaktype: "value",
+      property: "P18",
+      datatype,
+      datavalue: { value, type: "string" },
+    },
+  });
+  const response = (id: string, claims: unknown[]) => ({
+    entities: {
+      Q5208179: {
+        id,
+        type: "item",
+        claims: { P18: claims },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Chilseongbong at Daedunsan.jpg")]),
+      "Q5208179"
+    ),
+    {
+      wikidataId: "Q5208179",
+      fileTitle: "File:Chilseongbong at Daedunsan.jpg",
+    }
+  );
+  assert.deepEqual(
+    parseWikidataLeadImage(
+      response("Q5208179", [
+        claim("Old.jpg"),
+        claim("Chilseongbong at Daedunsan.jpg", "preferred"),
+      ]),
+      "Q5208179"
+    )?.fileTitle,
+    "File:Chilseongbong at Daedunsan.jpg"
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("One.jpg"), claim("Two.jpg")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Old.jpg", "deprecated")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q999", [claim("Chilseongbong at Daedunsan.jpg")]),
+      "Q5208179"
+    ),
+    null
+  );
+  assert.equal(
+    parseWikidataLeadImage(
+      response("Q5208179", [claim("Chilseongbong at Daedunsan.jpg", "normal", "string")]),
+      "Q5208179"
+    ),
+    null
+  );
+});
+
+test("South Korean destinations use Korean Wikipedia while other countries keep English", () => {
+  assert.equal(wikipediaLanguageForCountry("KR"), "ko");
+  assert.equal(wikipediaLanguageForCountry("kr"), "ko");
+  assert.equal(wikipediaLanguageForCountry("US"), "en");
+  assert.equal(wikipediaLanguageForCountry(null), "en");
 });
 
 test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and article images", () => {
@@ -239,9 +632,13 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
         { title: "Broken", lat: "46", lon: -121 },
       ],
     },
-  });
+  }, "ko");
   assert.deepEqual(hits, [
-    { title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } },
+    {
+      title: "Mount Rainier",
+      language: "ko",
+      coordinates: { lat: 46.8523, lng: -121.7603 },
+    },
   ]);
 
   const parsed = parseWikipediaArticle({
@@ -259,9 +656,10 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
         ],
       }],
     },
-  });
+  }, "ko");
   assert.deepEqual(parsed, {
     title: "Mount Rainier",
+    language: "ko",
     wikidataId: "Q194057",
     coordinates: { lat: 46.8523, lng: -121.7603 },
     leadImageTitle: "File:Mount Rainier lead.jpg",
@@ -278,12 +676,38 @@ test("Wikipedia parsers retain exact title, Q-id, coordinates, lead image, and a
   }), null);
 });
 
+test("Korean Wikipedia file namespaces normalize to canonical File titles", () => {
+  const parsed = parseWikipediaArticle({
+    query: {
+      pages: [{
+        ns: 0,
+        title: "관악산",
+        pageprops: { wikibase_item: "Q626275" },
+        pageimage: "관악산.jpg",
+        images: [
+          { title: "파일:관악산.jpg" },
+          { title: "파일:관악산 설경.jpg" },
+        ],
+      }],
+    },
+  }, "ko");
+  assert.deepEqual(parsed, {
+    title: "관악산",
+    language: "ko",
+    wikidataId: "Q626275",
+    coordinates: null,
+    leadImageTitle: "File:관악산.jpg",
+    imageTitles: ["File:관악산.jpg", "File:관악산 설경.jpg"],
+  });
+});
+
 test("imageinfo parser keeps exact URL, artist, license URL, dimensions, and format", () => {
   const parsed = parseWikimediaImageMetadata({
     query: {
       pages: [{
         ns: 6,
         title: "File:Mount Rainier.jpg",
+        coordinates: [{ lat: 46.8523, lon: -121.7603 }],
         imageinfo: [{
           url: "https://upload.wikimedia.org/rainier.jpg?utm_source=en.wikipedia.org",
           descriptionurl: "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg",
@@ -304,6 +728,8 @@ test("imageinfo parser keeps exact URL, artist, license URL, dimensions, and for
   assert.deepEqual(parsed, [{
     fileTitle: "File:Mount Rainier.jpg",
     fileTitleAliases: [],
+    coordinates: { lat: 46.8523, lng: -121.7603 },
+    coordinateCount: 1,
     imageUrl: "https://upload.wikimedia.org/rainier.jpg",
     sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg",
     photographer: "Jane & Joe",
@@ -353,6 +779,53 @@ test("imageinfo parser maps normalized and redirected File aliases to canonical 
     "File:Old_Rainier_name.jpg",
     "File:Old Rainier name.jpg",
   ]);
+});
+
+test("imageinfo parser and source identity canonicalize the Korean File namespace", () => {
+  const parsed = parseWikimediaImageMetadata({
+    query: {
+      normalized: [{
+        from: "File:관악산_옛이름.jpg",
+        to: "파일:관악산 옛이름.jpg",
+      }],
+      redirects: [{
+        from: "파일:관악산 옛이름.jpg",
+        to: "파일:관악산.jpg",
+      }],
+      pages: [{
+        ns: 6,
+        title: "파일:관악산.jpg",
+        imageinfo: [{
+          url: "https://upload.wikimedia.org/wikipedia/ko/a/aa/Gwanaksan.jpg",
+          descriptionurl: "https://ko.wikipedia.org/wiki/파일:관악산.jpg",
+          width: 2_000,
+          height: 1_500,
+          mime: "image/jpeg",
+          mediatype: "BITMAP",
+          sha1: RAINIER_MEDIA_SHA1,
+          extmetadata: {
+            Artist: { value: "홍길동" },
+            LicenseShortName: { value: "CC BY-SA 4.0" },
+            LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/4.0/" },
+          },
+        }],
+      }],
+    },
+  });
+  assert.equal(parsed[0].fileTitle, "File:관악산.jpg");
+  assert.deepEqual(parsed[0].fileTitleAliases, [
+    "File:관악산_옛이름.jpg",
+    "File:관악산 옛이름.jpg",
+  ]);
+  assert.equal(imageMetadataRejection(parsed[0]), null);
+  assert.equal(
+    sourcePageKey("https://ko.wikipedia.org/wiki/%ED%8C%8C%EC%9D%BC:%EA%B4%80%EC%95%85%EC%82%B0.jpg"),
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:관악산.jpg")
+  );
+  assert.notEqual(
+    sourcePageKey("https://ko.wikipedia.org/wiki/관악산"),
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:관악산")
+  );
 });
 
 test("only internally consistent Creative Commons and public-domain records pass", () => {
@@ -442,6 +915,11 @@ test("metadata validation fails closed on host, source, artist, license, size, a
     "Uploader",
     "Unidentified artist",
     "Various authors",
+    "미상",
+    "알 수 없음",
+    "촬영자 미상",
+    "본인 촬영",
+    "업로더",
   ]) {
     assert.match(imageMetadataRejection(image({ photographer }))!, /photographer/);
   }
@@ -473,6 +951,634 @@ test("article photo order keeps the lead then exact named alternatives and drops
     }), "Mount Rainier"),
     ["File:Rainier lead.jpg", "File:Mount Rainier winter.jpg"]
   );
+  assert.deepEqual(
+    rankedArticlePhotoTitles(article({
+      title: "관악산",
+      language: "ko",
+      leadImageTitle: "파일:관악산.jpg",
+      imageTitles: [
+        "파일:관악산 설경.jpg",
+        "파일:관악산 위치 지도.png",
+        "파일:북한산.jpg",
+      ],
+    }), "관악산"),
+    ["File:관악산.jpg", "File:관악산 설경.jpg"]
+  );
+});
+
+test("the reviewed Commons allowlist contains only the eighteen accepted KFS files", () => {
+  assert.deepEqual(Object.keys(LISTED_PHOTO_REVIEWED_COMMONS_FILES).sort(), [
+    "0164CE419EF8A8BBB87B",
+    "09DC0597070CF98C1FD9",
+    "1CE83A8BF630D0A07E9A",
+    "33463BA61321FCD7F079",
+    "3BDE883C882EB9065D76",
+    "47D2EFD1234631730AE4",
+    "4F5CA1B51FE2938C6E87",
+    "75AF4150F340FE16701D",
+    "862F189C5B9F1EB85918",
+    "8E2DBAEC5DB4481221F2",
+    "93A9A878F282DA759D1D",
+    "958AD1411BC49B469BE1",
+    "9676E99C140134852220",
+    "9E946D54AC315445CFF9",
+    "9F7C04F02A37514A13AD",
+    "A6B289B963FB542E24ED",
+    "BAFDCE06CE474E7C0E10",
+    "D319B2B83A218D9A2C81",
+  ]);
+  for (const [destinationId, audit] of Object.entries(
+    LISTED_PHOTO_REVIEWED_COMMONS_FILES
+  )) {
+    assert.equal(audit.evidenceType, "reviewed_commons_file");
+    assert.equal(audit.destinationId, destinationId);
+    assert.equal(audit.requiredListId, "39F59B1A26E9B0818EBE");
+    assert.equal(audit.countryCode, "KR");
+    assert.ok(audit.fileTitle.startsWith("File:"));
+    assert.match(audit.mediaSha1, /^[0-9a-f]{40}$/);
+    if (audit.fileCoordinates === null) {
+      assert.ok(audit.exactPeakIdentity, destinationId);
+      assert.match(audit.exactPeakIdentity.wikidataId, /^Q\d+$/, destinationId);
+      assert.match(audit.exactPeakIdentity.commonsCategory, /^Category:/, destinationId);
+      assert.match(audit.exactPeakIdentity.metadataSha256, /^[0-9a-f]{64}$/, destinationId);
+      assert.ok(audit.exactPeakIdentity.review.length > 0, destinationId);
+    } else {
+      assert.ok(
+        distanceMeters(
+          audit.catalogCoordinates.lat,
+          audit.catalogCoordinates.lng,
+          audit.fileCoordinates.lat,
+          audit.fileCoordinates.lng
+        ) <= 1_500,
+        `${destinationId} reviewed file must stay within 1.5 km of its summit`
+      );
+    }
+  }
+  for (const rejectedFile of [
+    "File:삼악산 정상 3.jpg",
+    "File:설악산 대청봉 정상석.jpg",
+    "File:남이바위 축령산 2.jpg",
+    "File:Maisan - panoramio.jpg",
+    "File:Geumjeong Mountain - panoramio (1).jpg",
+    "File:釜山-金井山-姑堂峰.jpg",
+    "File:Mt.Taebaek Somunsubong.jpg",
+    "File:Seoraksan, Inje-gun, South Korea (Unsplash).jpg",
+    "File:Daecheongbong.jpg",
+    "File:Seoraksan in the Fall 1- 설악산 단풍.jpg",
+    "File:Janggunbong at Taebaeksan.jpg",
+    "File:P20170829 135357766 CF79A71D-FBBE-4D67-992A-9044CDEA4E61.jpg",
+    "File:Ulleungdo, Ulleung-gun, South Korea (11177344706).jpg",
+    "File:Panoramic View of Pyeongnae, Hopyeong, and Onam (2025).jpg",
+    "File:Soyosan.jpg",
+    "File:Peak of Yumyeong Mountain.JPG",
+    "File:Panoramic View at Peak of Yumyeong Mountain 20090110.jpg",
+    "File:JM-tb1.jpg",
+    "File:Geumjeong Fortress.jpg",
+  ]) {
+    assert.equal(
+      Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+        .some((audit) => audit.fileTitle === rejectedFile),
+      false,
+      rejectedFile
+    );
+  }
+});
+
+test("the fourth KFS review freezes its zero-accept slice and every rejected file", async () => {
+  const fixturePath = path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/kfs-photo-batch-four-zero-accept-2026-08-31.json"
+  );
+  const audit = JSON.parse(await readFile(fixturePath, "utf8")) as KfsPhotoZeroAcceptAudit;
+
+  assert.equal(audit.schemaVersion, 1);
+  assert.equal(audit.reviewedAt, "2026-08-31");
+  assert.deepEqual(audit.base, {
+    branch: "codex/kfs-reviewed-photo-batch-three-20260831",
+    commit: "56b8d0ce83bcb3e153046b9d1fc4aec0c16f63d1",
+  });
+  assert.equal(
+    audit.scan.source,
+    "/private/tmp/kfs-photo-audit.aaKsbO/kfs-commons-file-geosearch-2026-08-31.json"
+  );
+  assert.equal(
+    audit.scan.sourceSha256,
+    "e42fd1033afb15afa4e5ab1cce591c917321391da3f2bb08bd17198addec4cde"
+  );
+  assert.equal(audit.scan.sourceByteLength, 101_027);
+  assert.equal(audit.scan.commonsNamespace, 6);
+  assert.equal(audit.scan.summitRadiusMeters, 1_500);
+  assert.deepEqual(audit.scan.rowOrdinals, [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 18, 19, 21, 22, 24, 25,
+    26, 28, 29, 30, 32, 33, 34, 36, 39, 40, 41, 42, 43, 44, 45, 46, 50, 51,
+    57, 58, 60, 61, 62, 63, 64, 65, 66, 69, 71, 73, 74, 75, 76, 78, 79, 81,
+    82, 84, 87, 89, 91, 92, 94, 95, 97, 98, 99, 100,
+  ]);
+  assert.equal(audit.rows.length, 67);
+  assert.deepEqual(audit.rows.map(({ ordinal }) => ordinal), audit.scan.rowOrdinals);
+  assert.equal(audit.rows.filter(({ nearbyFileCount }) => nearbyFileCount === 0).length, 52);
+  assert.equal(audit.rows.filter(({ nearbyFileCount }) => nearbyFileCount > 0).length, 15);
+  assert.equal(
+    audit.rows.reduce((count, { nearbyFileCount }) => count + nearbyFileCount, 0),
+    29
+  );
+  assert.deepEqual(audit.summary, {
+    rowsWithNoNearbyFiles: 52,
+    rowsWithNearbyFiles: 15,
+    nearbyFileCount: 29,
+    acceptedFileCount: 0,
+    rejectedFileCount: 29,
+  });
+  assert.deepEqual(audit.acceptedFiles, []);
+  assert.deepEqual(audit.strictCount, { before: 25, after: 25 });
+  assert.equal(audit.rejectedFiles.length, 29);
+  assert.equal(new Set(audit.rejectedFiles.map(({ fileTitle }) => fileTitle)).size, 29);
+  for (const rejected of audit.rejectedFiles) {
+    const auditedRow = audit.rows.find(({ ordinal }) => ordinal === rejected.rowOrdinal);
+    assert.ok(auditedRow, rejected.fileTitle);
+    assert.equal(rejected.destinationId, auditedRow.destinationId, rejected.fileTitle);
+    assert.equal(rejected.destinationName, auditedRow.name, rejected.fileTitle);
+    assert.ok(rejected.fileTitle.startsWith("File:"), rejected.fileTitle);
+    assert.ok(Number.isInteger(rejected.width) && rejected.width > 0, rejected.fileTitle);
+    assert.ok(Number.isInteger(rejected.height) && rejected.height > 0, rejected.fileTitle);
+    assert.ok(rejected.distanceMeters >= 0 && rejected.distanceMeters <= 1_500, rejected.fileTitle);
+    assert.match(rejected.mediaSha1, /^[0-9a-f]{40}$/, rejected.fileTitle);
+    assert.ok(rejected.rejectionReason.length > 0, rejected.fileTitle);
+    assert.equal(
+      Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)
+        .some(({ fileTitle }) => fileTitle === rejected.fileTitle),
+      false,
+      rejected.fileTitle
+    );
+  }
+  for (const auditedRow of audit.rows) {
+    assert.equal(
+      audit.rejectedFiles.filter(({ rowOrdinal }) => rowOrdinal === auditedRow.ordinal).length,
+      auditedRow.nearbyFileCount,
+      auditedRow.name
+    );
+  }
+  assert.equal(audit.productionWrites, false);
+  assert.equal(audit.apply, false);
+  assert.equal(audit.fixedMonthlyCostUsd, 0);
+});
+
+test("the global KFS review freezes all 75 gaps, 1,238 rejects, and two accepts", async () => {
+  const fixturePath = path.resolve(
+    __dirname,
+    "../../../../docs/data-audits/fixtures/kfs-photo-global-strict-review-2026-09-01.json"
+  );
+  const audit = JSON.parse(await readFile(fixturePath, "utf8")) as KfsPhotoGlobalStrictAudit;
+
+  assert.equal(audit.schemaVersion, 1);
+  assert.equal(audit.reviewedAt, "2026-09-01");
+  assert.deepEqual(audit.sourceReport, {
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/kfs-global-strict-discovery-report.json",
+    sha256: "42fe2317e08a3bf56fa6217ab70fcc3098afbbb0fa1995b3bfa09a3c42a2ed68",
+    byteLength: 3_326_878,
+    schemaVersion: 2,
+  });
+  assert.deepEqual(audit.packageManifest, {
+    path: "docs/data-audits/fixtures/kfs-photo-global-strict-package-manifest-2026-09-01.json",
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/kfs-global-strict-discovery-package-manifest.json",
+    sha256: "a3e22e4e66815db06bf9ecb0164778aea26149c08a26193ef6a0d32fe247c0f1",
+    byteLength: 5_499,
+  });
+  assert.deepEqual(audit.acceptedLiveReplay, {
+    path: "docs/data-audits/fixtures/kfs-photo-global-strict-accepted-live-replay-2026-09-01.json",
+    sourcePath: "/private/tmp/kfs-global-discovery.G6KgLe/accepted-live-replay.json",
+    sha256: "e6d20e0342fd2611afbc70db41428cd9f2e171ce3556f45b901eb0be3013a749",
+    byteLength: 8_090,
+    rawResponseSha256: "5abf57d953198800b42bc220fae6c9fc82d66e7e6b106d648450b5f65becdd22",
+  });
+  const fixtureDirectory = path.dirname(fixturePath);
+  const packageManifestBytes = await readFile(path.join(
+    fixtureDirectory,
+    "kfs-photo-global-strict-package-manifest-2026-09-01.json"
+  ));
+  assert.equal(packageManifestBytes.byteLength, audit.packageManifest.byteLength);
+  assert.equal(
+    createHash("sha256").update(packageManifestBytes).digest("hex"),
+    audit.packageManifest.sha256
+  );
+  const liveReplayBytes = await readFile(path.join(
+    fixtureDirectory,
+    "kfs-photo-global-strict-accepted-live-replay-2026-09-01.json"
+  ));
+  assert.equal(liveReplayBytes.byteLength, audit.acceptedLiveReplay.byteLength);
+  assert.equal(
+    createHash("sha256").update(liveReplayBytes).digest("hex"),
+    audit.acceptedLiveReplay.sha256
+  );
+  const liveReplay = JSON.parse(liveReplayBytes.toString("utf8")) as {
+    schemaVersion: number;
+    count: number;
+    rawResponseSha256: string;
+    allPinnedFieldsMatch: boolean;
+    results: Array<{ allPinnedFieldsMatch: boolean }>;
+  };
+  assert.equal(liveReplay.schemaVersion, 1);
+  assert.equal(liveReplay.count, 2);
+  assert.equal(liveReplay.rawResponseSha256, audit.acceptedLiveReplay.rawResponseSha256);
+  assert.equal(liveReplay.allPinnedFieldsMatch, true);
+  assert.deepEqual(liveReplay.results.map(({ allPinnedFieldsMatch }) => allPinnedFieldsMatch), [
+    true,
+    true,
+  ]);
+  assert.deepEqual(audit.summary, {
+    searchedPeaks: 75,
+    searchedPeaksWithAccept: 2,
+    searchedPeaksWithoutAccept: 73,
+    uniqueCommonsFiles: 1_222,
+    peakFileEvaluations: 1_240,
+    acceptedPeakFileBindings: 2,
+    rejectedPeakFileEvaluations: 1_238,
+    automatedRejectedPeakFileEvaluations: 1_111,
+    fullFrameReviewedPeakFileEvaluations: 129,
+    fullFrameRejectedPeakFileEvaluations: 127,
+    strictCoveredBefore: 25,
+    strictAcceptedThisPass: 2,
+    strictCoveredIfIntegrated: 27,
+  });
+  assert.equal(audit.rows.length, 75);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.uniqueFiles, 0), 1_240);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.automaticRejects, 0), 1_111);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.fullFrameReviews, 0), 129);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.fullFrameRejects, 0), 127);
+  assert.equal(audit.rows.reduce((sum, row) => sum + row.accepts, 0), 2);
+  assert.deepEqual(
+    audit.rows.filter(({ accepts }) => accepts === 1).map(({ ordinal }) => ordinal),
+    [66, 75]
+  );
+  assert.equal(new Set(audit.rows.map(({ ordinal }) => ordinal)).size, 75);
+  assert.equal(new Set(audit.rows.map(({ destinationId }) => destinationId)).size, 75);
+  assert.equal(
+    audit.rejectionReasons.reduce((sum, reason) => sum + reason.count, 0),
+    1_238
+  );
+  assert.deepEqual(audit.rejectedEvaluationFields, [
+    "stage",
+    "rowOrdinal",
+    "destinationId",
+    "fileTitle",
+    "width",
+    "height",
+    "mediaSha1",
+    "metadataSha256",
+    "reason",
+  ]);
+  assert.equal(audit.rejectedEvaluations.length, 1_238);
+  assert.equal(
+    new Set(audit.rejectedEvaluations.map((entry) => `${entry[1]}\0${entry[3]}`)).size,
+    1_238
+  );
+  assert.equal(new Set(audit.rejectedEvaluations.map((entry) => entry[3])).size, 1_220);
+  assert.equal(
+    audit.rejectedEvaluations.filter(([stage]) => stage === "automatic").length,
+    1_111
+  );
+  assert.equal(
+    audit.rejectedEvaluations.filter(([stage]) => stage === "full_frame").length,
+    127
+  );
+  for (const row of audit.rows) {
+    const rejected = audit.rejectedEvaluations.filter((entry) => entry[1] === row.ordinal);
+    assert.equal(
+      rejected.filter(([stage]) => stage === "automatic").length,
+      row.automaticRejects,
+      row.name
+    );
+    assert.equal(
+      rejected.filter(([stage]) => stage === "full_frame").length,
+      row.fullFrameRejects,
+      row.name
+    );
+    assert.equal(row.fullFrameReviews, row.fullFrameRejects + row.accepts, row.name);
+    assert.equal(rejected.length + row.accepts, row.uniqueFiles, row.name);
+  }
+  for (const [, rowOrdinal, destinationId, fileTitle, width, height, mediaSha1,
+    metadataSha256, reason] of audit.rejectedEvaluations) {
+    const auditedRow = audit.rows.find(({ ordinal }) => ordinal === rowOrdinal);
+    assert.equal(auditedRow?.destinationId, destinationId, fileTitle);
+    assert.ok(fileTitle.startsWith("File:"), fileTitle);
+    assert.ok(width === null || width > 0, fileTitle);
+    assert.ok(height === null || height > 0, fileTitle);
+    assert.ok(mediaSha1 === null || /^[0-9a-f]{40}$/.test(mediaSha1), fileTitle);
+    assert.ok(metadataSha256 === null || /^[0-9a-f]{64}$/.test(metadataSha256), fileTitle);
+    assert.ok(reason.length > 0, fileTitle);
+    assert.notEqual(
+      LISTED_PHOTO_REVIEWED_COMMONS_FILES[destinationId]?.fileTitle,
+      fileTitle,
+      `${destinationId} must not bind a rejected file`
+    );
+  }
+  assert.deepEqual(
+    audit.acceptedBindings.map(({ destinationId, fileTitle, mediaSha1, originalArtifact }) => ({
+      destinationId,
+      fileTitle,
+      mediaSha1,
+      originalArtifact,
+    })),
+    [
+      {
+        destinationId: "47D2EFD1234631730AE4",
+        fileTitle: "File:Mount Worak Korea 242.jpg",
+        mediaSha1: "2d0291eac9bfd76217592ce9e0fd95565f3f1279",
+        originalArtifact: {
+          path: "review-originals/074.jpg",
+          byteLength: 2_524_431,
+          sha256: "1bc9bb148c55d89f0c321ce54e1099211c943975a4adf9c655cb86aa9ee5e1cc",
+        },
+      },
+      {
+        destinationId: "9E946D54AC315445CFF9",
+        fileTitle: "File:주왕산 ( 8 ).jpg",
+        mediaSha1: "aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d",
+        originalArtifact: {
+          path: "review-originals/101.jpg",
+          byteLength: 14_706_748,
+          sha256: "57369efd12d4993eb5cd2b422d87da1dd81e20466993fcf6b2b0db3fdf12137d",
+        },
+      },
+    ]
+  );
+  for (const accepted of audit.acceptedBindings) {
+    const binding = LISTED_PHOTO_REVIEWED_COMMONS_FILES[accepted.destinationId];
+    assert.ok(binding, accepted.destinationId);
+    assert.equal(binding.destinationName, accepted.destinationName);
+    assert.equal(binding.fileTitle, accepted.fileTitle);
+    assert.equal(binding.width, accepted.width);
+    assert.equal(binding.height, accepted.height);
+    assert.equal(binding.mediaSha1, accepted.mediaSha1);
+    assert.equal(binding.photographer, accepted.photographer);
+    assert.equal(binding.licenseName, accepted.licenseName);
+    assert.equal(binding.licenseUrl, `${accepted.licenseUrl}/`);
+    assert.deepEqual(binding.catalogCoordinates, {
+      lat: accepted.catalog.lat,
+      lng: accepted.catalog.lng,
+    });
+    assert.equal(binding.catalogWikidataId, accepted.catalog.wikidataId);
+    assert.equal(binding.fileCoordinates, null);
+    assert.equal(binding.exactPeakIdentity?.metadataSha256, accepted.metadataSha256);
+    assert.equal(
+      binding.exactPeakIdentity?.wikidataId,
+      accepted.reviewedWikidataId
+    );
+    assert.equal(
+      binding.exactPeakIdentity?.commonsCategory,
+      accepted.evidence.find(({ channel }) => channel === "commons_category")?.category
+    );
+    assert.equal(accepted.identityEvidence.exactCoordinate, false);
+    assert.equal(accepted.identityEvidence.exactCategory, true);
+    assert.equal(accepted.identityEvidence.namesPeak, true);
+    assert.deepEqual(accepted.coordinateAudit, {
+      rawCoordinates: [],
+      normalizedCoordinateCount: 0,
+      normalizedCoordinates: null,
+    });
+    assert.equal(accepted.visualReview.fullFrameReviewed, true);
+    assert.equal(accepted.visualReview.fullResolutionReviewed, true);
+    assert.match(accepted.sourcePageUrl, /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    assert.match(accepted.imageUrl, /^https:\/\/upload\.wikimedia\.org\//);
+    assert.match(accepted.originalArtifact.sha256, /^[0-9a-f]{64}$/);
+    assert.ok(accepted.originalArtifact.byteLength > 0);
+    assert.ok(accepted.identityReview.length > 0);
+  }
+  assert.deepEqual(audit.artifactIntegrity, {
+    requestCache: {
+      requestCount: 808,
+      canonicalSha256: "c7bb23222ef06c2340ea09ffa633319dde7a8be73a5379d6c534d3e1a98c39b8",
+    },
+    cacheTree: {
+      fileCount: 860,
+      canonicalSha256: "7817a14be0a73c8f1e6abe8442bc3a084eff33b87c9223c442c214c70d6e190a",
+    },
+    thumbnailTree: {
+      fileCount: 129,
+      canonicalSha256: "c3956df14e2da07e47727daf37fa401f46cbf0ef346e58c9347772644e76b62d",
+    },
+    originalTree: {
+      fileCount: 24,
+      canonicalSha256: "0f784201fde3ab2983fecf57ca7bba537ea13ea0490762ab36a9267a30d625cd",
+    },
+    thumbnailManifestVerified: true,
+    originalCommonsSha1Verified: true,
+  });
+  assert.equal(audit.productionWrites, false);
+  assert.equal(audit.apply, false);
+  assert.equal(audit.fixedMonthlyCostUsd, 0);
+});
+
+test("reviewed Commons requests use one exact title and no discovery mechanism", () => {
+  const title = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"].fileTitle;
+  const url = reviewedCommonsFileApiUrl(title);
+  assert.equal(url.hostname, "commons.wikimedia.org");
+  assert.equal(url.searchParams.get("titles"), title);
+  assert.equal(url.searchParams.get("prop"), "imageinfo|coordinates");
+  for (const forbidden of [
+    "redirects",
+    "generator",
+    "list",
+    "gscoord",
+    "gsradius",
+    "gslimit",
+    "clcategories",
+    "clshow",
+  ]) {
+    assert.equal(url.searchParams.has(forbidden), false, forbidden);
+  }
+  assert.doesNotMatch(url.toString(), /P373|geosearch|categor/iu);
+  assert.throws(
+    () => reviewedCommonsFileApiUrl(title.replace("File:", "")),
+    /not canonical/
+  );
+});
+
+test("all eighteen exact reviewed Commons bindings yield pending-review evidence", async () => {
+  for (const audit of Object.values(LISTED_PHOTO_REVIEWED_COMMONS_FILES)) {
+    const calls: string[] = [];
+    const unexpected = async (): Promise<never> => {
+      assert.fail("a pinned reviewed Commons row must not enter article discovery");
+    };
+    const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+      resolveWikidataArticle: unexpected,
+      searchWikipediaArticles: unexpected,
+      fetchWikipediaArticle: unexpected,
+      fetchWikidataLeadImage: unexpected,
+      async fetchReviewedCommonsFile(fileTitle) {
+        calls.push(fileTitle);
+        assert.equal(fileTitle, audit.fileTitle);
+        return reviewedImage(audit);
+      },
+      fetchImageMetadata: unexpected,
+    }));
+
+    assert.equal(plan.kind, "candidate");
+    if (plan.kind !== "candidate") assert.fail("expected reviewed Commons candidate");
+    assert.deepEqual(calls, [audit.fileTitle]);
+    assert.equal(plan.candidate.destinationId, audit.destinationId);
+    assert.equal(plan.candidate.matchedArticleTitle, null);
+    assert.equal(plan.candidate.matchedWikidataId, audit.catalogWikidataId);
+    assert.equal(plan.candidate.catalogWikidataId, audit.catalogWikidataId);
+    assert.equal(plan.candidate.mediaSha1, audit.mediaSha1);
+    assert.equal(plan.candidate.sourceKind, "wikimedia_commons");
+    assert.equal(plan.candidate.evidence.type, "reviewed_commons_file");
+    if (plan.candidate.evidence.type !== "reviewed_commons_file") {
+      assert.fail("expected reviewed Commons evidence");
+    }
+    assert.equal(plan.candidate.evidence.destinationId, audit.destinationId);
+    assert.equal(plan.candidate.evidence.requiredListId, audit.requiredListId);
+    assert.equal(plan.candidate.evidence.fileTitle, audit.fileTitle);
+    assert.deepEqual(
+      plan.candidate.evidence.catalogCoordinates,
+      audit.catalogCoordinates
+    );
+    assert.equal(
+      plan.candidate.evidence.identityBasis,
+      audit.fileCoordinates === null ? "audited_exact_peak" : "camera_coordinate"
+    );
+    assert.deepEqual(
+      plan.candidate.evidence.exactPeakIdentity,
+      audit.exactPeakIdentity ?? null
+    );
+    if (audit.fileCoordinates === null) {
+      assert.ok(audit.exactPeakIdentity);
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.wikidataId));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.commonsCategory));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.metadataSha256));
+      assert.ok(plan.candidate.notes?.includes(audit.exactPeakIdentity.review));
+    }
+    assert.match(plan.candidate.notes ?? "", /Human-reviewed exact Commons file/);
+    assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
+    assert.equal("heroImage" in plan.candidate, false);
+  }
+});
+
+test("reviewed Commons bindings fail closed when the frozen catalog identity changes", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["8E2DBAEC5DB4481221F2"];
+  const cases: Array<[string, Partial<ListedPhotoGapRow>]> = [
+    ["name", { name: "덕숭산" }],
+    ["country", { country_code: "KP" }],
+    ["list", { list_ids: ["another-list"] }],
+    ["Wikidata", { wikidata_id: "Q123" }],
+    ["catalog coordinate", { lat: audit.catalogCoordinates.lat + 0.001 }],
+  ];
+
+  for (const [label, override] of cases) {
+    let calls = 0;
+    const plan = await planListedPhotoCandidate(reviewedRow(audit, override), client({
+      async fetchReviewedCommonsFile() {
+        calls += 1;
+        return reviewedImage(audit);
+      },
+    }));
+    assert.equal(plan.kind, "miss", label);
+    if (plan.kind !== "miss") assert.fail(`expected ${label} to fail`);
+    assert.equal(plan.code, "reviewed_commons_catalog_changed", label);
+    assert.equal(calls, 0, `${label} drift must fail before a Commons request`);
+  }
+});
+
+test("reviewed Commons bindings reject every frozen file-metadata change", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9F7C04F02A37514A13AD"];
+  const fileCoordinates = audit.fileCoordinates;
+  assert.ok(fileCoordinates);
+  const cases: Array<[string, Partial<WikimediaImageMetadata>]> = [
+    ["title", { fileTitle: "File:Different mountain.jpg" }],
+    ["redirect", { fileTitleAliases: [audit.fileTitle] }],
+    ["source", { sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Different.jpg" }],
+    [
+      "source title case",
+      {
+        sourcePageUrl:
+          `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle.toUpperCase())}`,
+      },
+    ],
+    ["author", { photographer: "Another photographer" }],
+    ["license", { licenseName: "CC BY-SA 3.0" }],
+    ["width", { width: audit.width + 1 }],
+    ["height", { height: audit.height + 1 }],
+    ["SHA-1", { mediaSha1: "0123456789abcdef0123456789abcdef01234567" }],
+    ["missing coordinate", { coordinates: null }],
+    ["duplicate coordinate", { coordinateCount: 2 }],
+    [
+      "moved coordinate",
+      { coordinates: { lat: fileCoordinates.lat + 0.001, lng: fileCoordinates.lng } },
+    ],
+  ];
+
+  for (const [label, override] of cases) {
+    const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+      async fetchReviewedCommonsFile() {
+        return reviewedImage(audit, override);
+      },
+    }));
+    assert.equal(plan.kind, "miss", label);
+    if (plan.kind !== "miss") assert.fail(`expected ${label} to fail`);
+    assert.equal(plan.code, "reviewed_commons_file_changed", label);
+    assert.equal(plan.rejectedImages?.length, 1, label);
+  }
+});
+
+test("reviewed exact-peak bindings pin the absence of a camera coordinate", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["47D2EFD1234631730AE4"];
+  assert.equal(audit.fileCoordinates, null);
+  assert.ok(audit.exactPeakIdentity);
+
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit, {
+        coordinates: audit.catalogCoordinates,
+        coordinateCount: 1,
+      });
+    },
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected changed coordinate state to fail");
+  assert.equal(plan.code, "reviewed_commons_file_changed");
+  assert.match(plan.reason, /coordinate state changed/);
+});
+
+test("a pinned reviewed Commons row never falls through after an exact-file miss", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["9676E99C140134852220"];
+  let articleCalls = 0;
+  const unexpectedArticleCall = async (): Promise<never> => {
+    articleCalls += 1;
+    assert.fail("pinned rows must not fall through to article discovery");
+  };
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    resolveWikidataArticle: unexpectedArticleCall,
+    searchWikipediaArticles: unexpectedArticleCall,
+    fetchWikipediaArticle: unexpectedArticleCall,
+    fetchWikidataLeadImage: unexpectedArticleCall,
+    async fetchReviewedCommonsFile() {
+      return null;
+    },
+    fetchImageMetadata: unexpectedArticleCall,
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected exact-file miss");
+  assert.equal(plan.code, "reviewed_commons_file_unresolved");
+  assert.equal(articleCalls, 0);
+});
+
+test("a pinned row resolves SHA-less review history with exact Commons requests", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES.D319B2B83A218D9A2C81;
+  const historicalSource = "https://commons.wikimedia.org/wiki/File:Old_Hwangmaesan.jpg";
+  const calls: string[] = [];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit, {
+    existing_source_page_urls: [historicalSource],
+    existing_source_page_urls_without_sha: [historicalSource],
+  }), client({
+    async fetchReviewedCommonsFile(fileTitle) {
+      calls.push(fileTitle);
+      return null;
+    },
+  }));
+  assert.equal(plan.kind, "miss");
+  if (plan.kind !== "miss") assert.fail("expected unresolved history miss");
+  assert.equal(plan.code, "historical_source_identity_unresolved");
+  assert.deepEqual(calls, ["File:Old Hwangmaesan.jpg"]);
 });
 
 test("stored Wikidata identity yields a pending candidate, never a hero-image write", async () => {
@@ -481,11 +1587,353 @@ test("stored Wikidata identity yields a pending candidate, never a hero-image wr
   if (plan.kind !== "candidate") assert.fail("expected a candidate");
   assert.equal(plan.candidate.destinationId, "dest-rainier");
   assert.equal(plan.candidate.matchedWikidataId, "Q194057");
+  assert.equal(plan.candidate.evidence.type, "wikipedia_article");
   assert.equal(plan.candidate.sourceKind, "wikimedia_commons");
   assert.equal(plan.candidate.imageWidth, 4_000);
   assert.equal(plan.candidate.mediaSha1, RAINIER_MEDIA_SHA1);
   assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
   assert.equal("heroImage" in plan.candidate, false);
+});
+
+test("a stored Wikidata point anchors a matching Korean article without article coordinates", async () => {
+  const calls: string[] = [];
+  const koreanRow = row({
+    id: "dest-gwanaksan",
+    name: "관악산",
+    country_code: "KR",
+    lat: 37.4451398,
+    lng: 126.9642379,
+    wikidata_id: "Q626275",
+  });
+  const plan = await planListedPhotoCandidate(koreanRow, client({
+    async resolveWikidataArticle(wikidataId, language) {
+      calls.push(`identity:${language}`);
+      return {
+        wikidataId,
+        articleTitle: "관악산",
+        articleLanguage: "ko",
+        coordinates: { lat: 37.4451398, lng: 126.9642379 },
+      };
+    },
+    async fetchWikipediaArticle(title, language) {
+      calls.push(`article:${language}:${title}`);
+      return article({
+        title: "관악산",
+        language: "ko",
+        wikidataId: "Q626275",
+        coordinates: null,
+        leadImageTitle: "File:Gwanaksan.jpg",
+        imageTitles: ["File:Gwanaksan.jpg"],
+      });
+    },
+    async fetchImageMetadata(titles, language) {
+      calls.push(`images:${language}`);
+      return titles.map((fileTitle) => image({ fileTitle }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected Korean candidate");
+  assert.deepEqual(calls, ["identity:ko", "article:ko:관악산", "images:ko"]);
+  assert.match(plan.candidate.notes ?? "", /Korean Wikipedia article 관악산/);
+});
+
+test("a stored Korean Wikidata identity can fall back to its English sitelink", async () => {
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-korean-peak",
+    name: "한국봉",
+    country_code: "KR",
+    lat: 37.0,
+    lng: 127.0,
+    wikidata_id: "Q123",
+  }), client({
+    async resolveWikidataArticle(wikidataId, language) {
+      assert.equal(language, "ko");
+      return {
+        wikidataId,
+        articleTitle: "Hangukbong",
+        articleLanguage: "en",
+        coordinates: { lat: 37.0, lng: 127.0 },
+      };
+    },
+    async fetchWikipediaArticle(title, language) {
+      assert.equal(title, "Hangukbong");
+      assert.equal(language, "en");
+      return article({
+        title,
+        language,
+        wikidataId: "Q123",
+        coordinates: null,
+        leadImageTitle: "File:Hangukbong.jpg",
+        imageTitles: ["File:Hangukbong.jpg"],
+      });
+    },
+    async fetchImageMetadata(titles) {
+      return titles.map((fileTitle) => image({
+        fileTitle,
+        sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Hangukbong.jpg",
+      }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected English fallback candidate");
+  assert.match(plan.candidate.notes ?? "", /English Wikipedia article Hangukbong/);
+});
+
+test("only the two frozen Korean P18 audits can add pending candidates", async () => {
+  assert.deepEqual(
+    Object.keys(LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS).sort(),
+    ["Q5208179", "Q8533668"]
+  );
+  const cases = [
+    {
+      wikidataId: "Q5208179",
+      destinationId: "dest-daedunsan",
+      destinationName: "Daedunsan",
+      articleTitle: "대둔산 (충남/전북)",
+      articleLanguage: "ko" as const,
+      lat: 36.124594,
+      lng: 127.3204771,
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/a/a8/Chilseongbong_at_Daedunsan.jpg",
+      sourcePageUrl:
+        "https://commons.wikimedia.org/wiki/File:Chilseongbong_at_Daedunsan.jpg",
+    },
+    {
+      wikidataId: "Q8533668",
+      destinationId: "dest-minjujisan",
+      destinationName: "민주지산",
+      articleTitle: "민주지산",
+      articleLanguage: "ko" as const,
+      lat: 36.0397937,
+      lng: 127.8492728,
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/3/35/Minjujisan_Muju.jpg",
+      sourcePageUrl:
+        "https://commons.wikimedia.org/wiki/File:Minjujisan_Muju.jpg",
+    },
+  ];
+
+  for (const fixture of cases) {
+    const audited = LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS[fixture.wikidataId];
+    const calls: string[] = [];
+    const plan = await planListedPhotoCandidate(row({
+      id: fixture.destinationId,
+      name: fixture.destinationName,
+      lat: fixture.lat,
+      lng: fixture.lng,
+      country_code: "KR",
+      wikidata_id: fixture.wikidataId,
+    }), client({
+      async resolveWikidataArticle(wikidataId, language) {
+        calls.push(`identity:${language}`);
+        return {
+          wikidataId,
+          articleTitle: fixture.articleTitle,
+          articleLanguage: fixture.articleLanguage,
+          coordinates: { lat: fixture.lat, lng: fixture.lng },
+        };
+      },
+      async fetchWikipediaArticle(title, language) {
+        calls.push(`article:${language}:${title}`);
+        return article({
+          title,
+          language,
+          wikidataId: fixture.wikidataId,
+          coordinates: null,
+          leadImageTitle: null,
+          imageTitles: [],
+        });
+      },
+      async fetchWikidataLeadImage(wikidataId) {
+        calls.push(`p18:${wikidataId}`);
+        return { wikidataId, fileTitle: audited.fileTitle };
+      },
+      async fetchImageMetadata(titles, language) {
+        calls.push(`images:${language}`);
+        assert.deepEqual(titles, [audited.fileTitle]);
+        return [image({
+          fileTitle: audited.fileTitle,
+          imageUrl: fixture.imageUrl,
+          sourcePageUrl: fixture.sourcePageUrl,
+          photographer: audited.photographer,
+          licenseName: audited.licenseName,
+          licenseUrl: audited.licenseUrl,
+          width: audited.width,
+          height: audited.height,
+          mediaSha1: audited.mediaSha1,
+        })];
+      },
+    }));
+
+    assert.equal(plan.kind, "candidate");
+    if (plan.kind !== "candidate") assert.fail("expected an audited P18 candidate");
+    assert.equal(plan.candidate.destinationId, fixture.destinationId);
+    assert.equal(plan.candidate.matchedWikidataId, fixture.wikidataId);
+    assert.equal(plan.candidate.sourcePageUrl, fixture.sourcePageUrl);
+    assert.equal(plan.candidate.photographer, audited.photographer);
+    assert.equal(plan.candidate.licenseName, "CC BY-SA 3.0");
+    assert.equal(plan.candidate.mediaSha1, audited.mediaSha1);
+    assert.equal(plan.candidate.evidence.type, "wikipedia_article");
+    if (plan.candidate.evidence.type !== "wikipedia_article") {
+      assert.fail("expected article-anchored P18 evidence");
+    }
+    assert.equal(plan.candidate.evidence.discovery, "audited_wikidata_p18");
+    assert.match(plan.candidate.notes ?? "", /human-audited same-entity Wikidata P18/);
+    assert.match(plan.candidate.notes ?? "", /Framing requires human review/);
+    assert.equal("heroImage" in plan.candidate, false);
+    assert.deepEqual(calls, [
+      "identity:ko",
+      `article:${fixture.articleLanguage}:${fixture.articleTitle}`,
+      `p18:${fixture.wikidataId}`,
+      `images:${fixture.articleLanguage}`,
+    ]);
+  }
+});
+
+test("article images stay ahead of the audited Wikidata P18 fallback", async () => {
+  let p18Called = false;
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-daedunsan",
+    name: "Daedunsan",
+    country_code: "KR",
+    lat: 36.124594,
+    lng: 127.3204771,
+    wikidata_id: "Q5208179",
+  }), client({
+    async resolveWikidataArticle(wikidataId) {
+      return {
+        wikidataId,
+        articleTitle: "Daedunsan",
+        articleLanguage: "en",
+        coordinates: { lat: 36.124594, lng: 127.3204771 },
+      };
+    },
+    async fetchWikipediaArticle() {
+      return article({
+        title: "Daedunsan",
+        language: "en",
+        wikidataId: "Q5208179",
+        coordinates: null,
+        leadImageTitle: "File:Daedunsan autumn.jpg",
+        imageTitles: ["File:Daedunsan autumn.jpg"],
+      });
+    },
+    async fetchWikidataLeadImage() {
+      p18Called = true;
+      return null;
+    },
+    async fetchImageMetadata(titles) {
+      return titles.map((fileTitle) => image({
+        fileTitle,
+        sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Daedunsan_autumn.jpg",
+      }));
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected the article image candidate");
+  assert.equal(p18Called, false);
+  assert.match(plan.candidate.notes ?? "", /article lead image/);
+  assert.doesNotMatch(plan.candidate.notes ?? "", /Wikidata P18/);
+});
+
+test("P18 discovery stays closed to every Wikidata item outside the frozen audits", async () => {
+  let p18Called = false;
+  assert.equal(
+    await planCode(row(), client({
+      async fetchWikipediaArticle() {
+        return article({ leadImageTitle: null, imageTitles: [] });
+      },
+      async fetchWikidataLeadImage() {
+        p18Called = true;
+        return {
+          wikidataId: "Q194057",
+          fileTitle: "File:Mount Rainier from Paradise.jpg",
+        };
+      },
+    })),
+    "no_named_article_photo"
+  );
+  assert.equal(p18Called, false);
+});
+
+test("an audited P18 file must keep its frozen image identity and credit", async () => {
+  const audited = LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS.Q5208179;
+  const plan = await planListedPhotoCandidate(row({
+    id: "dest-daedunsan",
+    name: "Daedunsan",
+    country_code: "KR",
+    lat: 36.124594,
+    lng: 127.3204771,
+    wikidata_id: audited.wikidataId,
+  }), client({
+    async resolveWikidataArticle(wikidataId) {
+      return {
+        wikidataId,
+        articleTitle: "Daedunsan",
+        articleLanguage: "en",
+        coordinates: { lat: 36.124594, lng: 127.3204771 },
+      };
+    },
+    async fetchWikipediaArticle() {
+      return article({
+        title: "Daedunsan",
+        language: "en",
+        wikidataId: audited.wikidataId,
+        coordinates: null,
+        leadImageTitle: null,
+        imageTitles: [],
+      });
+    },
+    async fetchWikidataLeadImage(wikidataId) {
+      return { wikidataId, fileTitle: audited.fileTitle };
+    },
+    async fetchImageMetadata() {
+      return [image({
+        fileTitle: audited.fileTitle,
+        sourcePageUrl:
+          "https://commons.wikimedia.org/wiki/File:Chilseongbong_at_Daedunsan.jpg",
+        photographer: audited.photographer,
+        licenseName: audited.licenseName,
+        licenseUrl: audited.licenseUrl,
+        width: audited.width,
+        height: audited.height,
+        mediaSha1: RAINIER_MEDIA_SHA1,
+      })];
+    },
+  }));
+  if (plan.kind !== "miss") assert.fail("changed media must not enter review");
+  assert.equal(plan.code, "no_usable_new_source");
+  assert.match(plan.rejectedImages?.[0] ?? "", /SHA-1 changed from the human-audited/);
+});
+
+test("stored Wikidata does not excuse conflicting Korean article coordinates", async () => {
+  assert.equal(
+    await planCode(row({
+      name: "관악산",
+      country_code: "KR",
+      lat: 37.4451398,
+      lng: 126.9642379,
+      wikidata_id: "Q626275",
+    }), client({
+      async resolveWikidataArticle(wikidataId) {
+        return {
+          wikidataId,
+          articleTitle: "관악산",
+          articleLanguage: "ko",
+          coordinates: { lat: 37.4451398, lng: 126.9642379 },
+        };
+      },
+      async fetchWikipediaArticle() {
+        return article({
+          title: "관악산",
+          language: "ko",
+          wikidataId: "Q626275",
+          coordinates: { lat: 35.0, lng: 129.0 },
+        });
+      },
+    })),
+    "wikipedia_identity_too_far"
+  );
 });
 
 test("a redirected article File title keeps its canonical image metadata", async () => {
@@ -527,7 +1975,12 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
   assert.equal(
     await planCode(row(), client({
       async resolveWikidataArticle(wikidataId) {
-        return { wikidataId, articleTitle: "Mount Rainier", coordinates: { lat: 40, lng: -105 } };
+        return {
+          wikidataId,
+          articleTitle: "Mount Rainier",
+          articleLanguage: "en",
+          coordinates: { lat: 40, lng: -105 },
+        };
       },
     })),
     "wikidata_identity_too_far"
@@ -535,7 +1988,12 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
   assert.equal(
     await planCode(row(), client({
       async resolveWikidataArticle(wikidataId) {
-        return { wikidataId, articleTitle: "Mount Rainier", coordinates: null };
+        return {
+          wikidataId,
+          articleTitle: "Mount Rainier",
+          articleLanguage: "en",
+          coordinates: null,
+        };
       },
     })),
     "wikidata_identity_incomplete"
@@ -549,11 +2007,27 @@ test("identity checks reject bad IDs, distance, missing coordinates, mismatch, a
     "wikipedia_identity_mismatch"
   );
   assert.equal(
+    await planCode(row(), client({
+      async fetchWikipediaArticle() {
+        return article({ wikidataId: "Q999", coordinates: null });
+      },
+    })),
+    "wikipedia_identity_mismatch"
+  );
+  assert.equal(
     await planCode(row({ wikidata_id: null }), client({
       async searchWikipediaArticles() {
         return [
-          { title: "Mount Rainier", coordinates: { lat: 46.8523, lng: -121.7603 } },
-          { title: "Mount Rainier (duplicate)", coordinates: { lat: 46.8524, lng: -121.7604 } },
+          {
+            title: "Mount Rainier",
+            language: "en",
+            coordinates: { lat: 46.8523, lng: -121.7603 },
+          },
+          {
+            title: "Mount Rainier (duplicate)",
+            language: "en",
+            coordinates: { lat: 46.8524, lng: -121.7604 },
+          },
         ];
       },
     })),
@@ -567,10 +2041,22 @@ test("a destination without stored Wikidata still needs one unique exact anchore
   assert.equal(
     await planCode(row({ wikidata_id: null }), client({
       async searchWikipediaArticles() {
-        return [{ title: "Mount Adams", coordinates: { lat: 46.8523, lng: -121.7603 } }];
+        return [{
+          title: "Mount Adams",
+          language: "en",
+          coordinates: { lat: 46.8523, lng: -121.7603 },
+        }];
       },
     })),
     "no_exact_article"
+  );
+  assert.equal(
+    await planCode(row({ wikidata_id: null }), client({
+      async fetchWikipediaArticle() {
+        return article({ coordinates: null });
+      },
+    })),
+    "wikipedia_identity_incomplete"
   );
 });
 
@@ -649,6 +2135,10 @@ test("source identity treats percent escapes, spaces, and underscores as the sam
     sourcePageKey("https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg"),
     sourcePageKey("https://en.wikipedia.org/wiki/File:Mount_Rainier.jpg")
   );
+  assert.equal(
+    sourcePageKey("https://commons.wikimedia.org/wiki/File:Mount_Rainier.jpg"),
+    sourcePageKey("https://ko.wikipedia.org/wiki/File:Mount_Rainier.jpg")
+  );
 });
 
 class QueryStub implements Queryable {
@@ -669,7 +2159,9 @@ function currentState(overrides: Record<string, unknown> = {}): Record<string, u
     name: "Mount Rainier",
     lat: 46.8523,
     lng: -121.7603,
+    country_code: "US",
     wikidata_id: "Q194057",
+    list_ids: ["state-high-points"],
     has_usable_cover: false,
     has_pending_candidate: false,
     ...overrides,
@@ -695,6 +2187,42 @@ test("queue inserts only a pending review row and never writes hero_image", asyn
   assert.match(stub.calls[2].text, /ON CONFLICT[\s\S]*DO NOTHING/);
   assert.match(stub.calls[2].text, /media_sha1/);
   assert.doesNotMatch(stub.calls[2].text, /UPDATE destinations|hero_image\s*=/);
+});
+
+test("queue keeps exact-peak proof in the pending review note", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["47D2EFD1234631730AE4"];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit);
+    },
+  }));
+  assert.equal(plan.kind, "candidate");
+  if (plan.kind !== "candidate") assert.fail("expected reviewed candidate");
+
+  const stub = new QueryStub([
+    {
+      rows: [currentState({
+        name: audit.destinationName,
+        lat: audit.catalogCoordinates.lat,
+        lng: audit.catalogCoordinates.lng,
+        country_code: audit.countryCode,
+        wikidata_id: audit.catalogWikidataId,
+        list_ids: [audit.requiredListId],
+      })],
+    },
+    { rows: [] },
+    { rows: [], rowCount: 1 },
+  ]);
+  assert.equal(await queueListedPhotoCandidate(stub, plan.candidate), "inserted");
+  const storedNote = stub.calls[2].values?.[12];
+  assert.equal(storedNote, plan.candidate.notes);
+  assert.equal(typeof storedNote, "string");
+  if (typeof storedNote !== "string") assert.fail("expected durable review note");
+  assert.ok(audit.exactPeakIdentity);
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.wikidataId));
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.commonsCategory));
+  assert.ok(storedNote.includes(audit.exactPeakIdentity.metadataSha256));
+  assert.doesNotMatch(storedNote, /\.\. Framing/);
 });
 
 test("queue rechecks current cover, pending state, and normalized source history", async () => {
@@ -802,6 +2330,45 @@ test("queue refuses a destination identity that changed after research", async (
   const relinked = new QueryStub([{ rows: [currentState({ wikidata_id: "Q999" })] }]);
   assert.equal(await queueListedPhotoCandidate(relinked, await candidate()), "identity_changed");
   assert.equal(relinked.calls.length, 1);
+
+  const countryChanged = new QueryStub([{ rows: [currentState({ country_code: "CA" })] }]);
+  assert.equal(await queueListedPhotoCandidate(countryChanged, await candidate()), "identity_changed");
+  assert.equal(countryChanged.calls.length, 1);
+});
+
+test("queue rechecks the exact KFS list and nullable Wikidata binding", async () => {
+  const audit = LISTED_PHOTO_REVIEWED_COMMONS_FILES["958AD1411BC49B469BE1"];
+  const plan = await planListedPhotoCandidate(reviewedRow(audit), client({
+    async fetchReviewedCommonsFile() {
+      return reviewedImage(audit);
+    },
+  }));
+  if (plan.kind !== "candidate") assert.fail("expected reviewed Commons candidate");
+  const state = {
+    name: audit.destinationName,
+    lat: audit.catalogCoordinates.lat,
+    lng: audit.catalogCoordinates.lng,
+    country_code: audit.countryCode,
+    wikidata_id: audit.catalogWikidataId,
+    list_ids: [audit.requiredListId],
+    has_usable_cover: false,
+    has_pending_candidate: false,
+  };
+
+  const leftList = new QueryStub([{ rows: [{ ...state, list_ids: ["other-list"] }] }]);
+  assert.equal(
+    await queueListedPhotoCandidate(leftList, plan.candidate),
+    "identity_changed"
+  );
+  assert.equal(leftList.calls.length, 1);
+  assert.match(leftList.calls[0].text, /ARRAY\([\s\S]*list_destinations/);
+
+  const gainedWikidata = new QueryStub([{ rows: [{ ...state, wikidata_id: "Q123" }] }]);
+  assert.equal(
+    await queueListedPhotoCandidate(gainedWikidata, plan.candidate),
+    "identity_changed"
+  );
+  assert.equal(gainedWikidata.calls.length, 1);
 });
 
 test("audit reports the whole gap set, limit deferrals, pending review, and $0 fixed cost", async () => {

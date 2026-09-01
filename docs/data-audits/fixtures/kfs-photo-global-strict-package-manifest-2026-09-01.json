@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-01T01:13:28.332Z",
+  "root": "/private/tmp/kfs-global-discovery.G6KgLe",
+  "productionWrites": false,
+  "fixedMonthlyCostUsd": 0,
+  "directoryTrees": {
+    "cache": {
+      "manifest": "cache-tree-manifest.json",
+      "fileCount": 860,
+      "canonicalSha256": "7817a14be0a73c8f1e6abe8442bc3a084eff33b87c9223c442c214c70d6e190a"
+    },
+    "reviewThumbnails": {
+      "manifest": "review-thumbnails-tree-manifest.json",
+      "fileCount": 129,
+      "canonicalSha256": "c3956df14e2da07e47727daf37fa401f46cbf0ef346e58c9347772644e76b62d"
+    },
+    "reviewOriginals": {
+      "manifest": "review-originals-tree-manifest.json",
+      "fileCount": 24,
+      "canonicalSha256": "0f784201fde3ab2983fecf57ca7bba537ea13ea0490762ab36a9267a30d625cd"
+    }
+  },
+  "files": [
+    {
+      "path": "discover.mjs",
+      "byteLength": 30572,
+      "sha256": "3113c34dbb760194a8707064d65619550db22aac64fd6372f7e4a08ff7d76245"
+    },
+    {
+      "path": "download-review-thumbnails.mjs",
+      "byteLength": 2284,
+      "sha256": "37691e6f7c79283ee23560765e04b741f54da4f69e4076065409d378e24c9ba0"
+    },
+    {
+      "path": "download-review-originals.mjs",
+      "byteLength": 2566,
+      "sha256": "1e29e899565f8260e7cd65cec25163102eba828ef039ce3fa8c4ea23fc3778a9"
+    },
+    {
+      "path": "build-final-report.mjs",
+      "byteLength": 28936,
+      "sha256": "ea6862bb3c5099b1daf8c2b7e103e26f01be9089257c21df96f099a859ed7ebc"
+    },
+    {
+      "path": "replay-accepted.mjs",
+      "byteLength": 3231,
+      "sha256": "55d92f5487f5e9427b41649075440060b6f9581b4c0a28a885a907db3e71b2bc"
+    },
+    {
+      "path": "identities.json",
+      "byteLength": 90659,
+      "sha256": "d20b8564547f8247c686c0fc899ea9ca3064fc8ed26fdb830d83f4b1c9c10828"
+    },
+    {
+      "path": "request-manifest.json",
+      "byteLength": 300730,
+      "sha256": "b3f9d0847c6134a3fbca0d2307c281a4fafe26615c195cd3a8925cbdc26a47b8"
+    },
+    {
+      "path": "request-cache-manifest.json",
+      "byteLength": 472774,
+      "sha256": "07e6c4ee646c19e08e3d37af4757a634777209b91d55b7d940377c73f9d6b3d6"
+    },
+    {
+      "path": "cache-tree-manifest.json",
+      "byteLength": 184043,
+      "sha256": "fbfee7b98bc30053fe56d853e3662f2e49ced0d72518154a5e8b656723d0c503"
+    },
+    {
+      "path": "discovery-raw.json",
+      "byteLength": 2930396,
+      "sha256": "495b6c0ad48b1a9a9b5b1d65d738b6aef1103cae497b5f82c6719a3bb897324e"
+    },
+    {
+      "path": "manual-review-shortlist.json",
+      "byteLength": 292002,
+      "sha256": "77ea61cc011c880513ada1105402187e1fb82b54e5646f6a4f91b5e243dbc793"
+    },
+    {
+      "path": "review-thumbnail-manifest.json",
+      "byteLength": 70005,
+      "sha256": "49caebc8bfbd1a7cbc77923b3f9fd9e7091222af697bfdade46a0f1902e6122b"
+    },
+    {
+      "path": "review-thumbnails-tree-manifest.json",
+      "byteLength": 21703,
+      "sha256": "b1b187d99d27348006fc6fd109e2a8d06ce744eca960c635c1c8dc25a2c5a135"
+    },
+    {
+      "path": "review-original-manifest.json",
+      "byteLength": 9273,
+      "sha256": "1d02c36e566183c24a6cb40477b3275834bf25a2acb29663b4fef45a09ee0140"
+    },
+    {
+      "path": "review-originals-tree-manifest.json",
+      "byteLength": 4176,
+      "sha256": "5a2a231efec98068592ce74482fd47dc692c6cf95f00a2b6c707ea823172c314"
+    },
+    {
+      "path": "manual-decisions.json",
+      "byteLength": 84949,
+      "sha256": "c84608a0a9d72f450dfb239d1bbb390d2381a00f7f5470f97cfec1ec5e17c57e"
+    },
+    {
+      "path": "kfs-global-strict-discovery-report.json",
+      "byteLength": 3326878,
+      "sha256": "42fe2317e08a3bf56fa6217ab70fcc3098afbbb0fa1995b3bfa09a3c42a2ed68"
+    },
+    {
+      "path": "kfs-global-strict-discovery-report.sha256",
+      "byteLength": 106,
+      "sha256": "99a28cec24c74c797eada03f1321b215446936e5092758b660e1df71c1542ae4"
+    },
+    {
+      "path": "accepted-live-replay.json",
+      "byteLength": 8090,
+      "sha256": "e6d20e0342fd2611afbc70db41428cd9f2e171ce3556f45b901eb0be3013a749"
+    },
+    {
+      "path": "accepted-live-replay.sha256",
+      "byteLength": 92,
+      "sha256": "7ef8e1d711dec04158e18c7c9a033d146b2c54df8aeb0f164a25ff5044e797f0"
+    },
+    {
+      "path": "sheets-01-gajisan.jpg",
+      "byteLength": 296989,
+      "sha256": "06049e7e19f30b767063bd3f4a0c968afc19c656cd988b6e48d68c08ea384d7e"
+    },
+    {
+      "path": "sheets-02-naejangsan.jpg",
+      "byteLength": 980683,
+      "sha256": "082f176aa476db2995490b2b8e1c3c9df4da2aad6482311dbd0cc58503d3bd7f"
+    },
+    {
+      "path": "sheets-03-maisan.jpg",
+      "byteLength": 611346,
+      "sha256": "27c4730357a2e46747342fd0f4cbeeeec7a8e0290cca917e415c73119c02d70c"
+    },
+    {
+      "path": "sheets-04-byeon-obong-yongmun.jpg",
+      "byteLength": 370216,
+      "sha256": "1918ae2ddb6755bb29da59a2831681e5a2dc6a8b19540dc1aacdef04d3c005b2"
+    },
+    {
+      "path": "sheets-05-woraksan.jpg",
+      "byteLength": 504976,
+      "sha256": "80b96e7059d25f345b1ad8dc8e9ae6f11ac08e96410091488d13dd35a7bb8727"
+    },
+    {
+      "path": "sheets-06-juwangsan.jpg",
+      "byteLength": 678983,
+      "sha256": "4bbd073422255c05f189230adcecf30296ebed11b2ab142f0b84af3d9ac1ce2b"
+    },
+    {
+      "path": "sheets-07-cheonmasan.jpg",
+      "byteLength": 440486,
+      "sha256": "7be5518d8845906ced40ff4c5dfee7ab21908f7741db95ced0993995e08a1c35"
+    },
+    {
+      "path": "sheets-08-cheongnyang-others.jpg",
+      "byteLength": 384922,
+      "sha256": "c039a166fdd502fe987dc7ee03ad796121733fc336666aacd19699d32e76efc2"
+    }
+  ]
+}
