@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "fetchedAt": "2026-09-01T01:12:55.406Z",
+  "requestUrl": "https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo%7Ccategories&titles=File%3AMount+Worak+Korea+242.jpg%7CFile%3A%EC%A3%BC%EC%99%95%EC%82%B0+%28+8+%29.jpg&iiprop=url%7Csize%7Csha1%7Cextmetadata%7Cmime%7Cmediatype&cllimit=max&origin=*",
+  "rawResponseSha256": "5abf57d953198800b42bc220fae6c9fc82d66e7e6b106d648450b5f65becdd22",
+  "count": 2,
+  "allPinnedFieldsMatch": true,
+  "results": [
+    {
+      "binding": {
+        "ordinal": 66,
+        "destinationId": "47D2EFD1234631730AE4",
+        "destinationName": "월악산",
+        "fileTitle": "File:Mount Worak Korea 242.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Worak_Korea_242.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/07/Mount_Worak_Korea_242.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "width": 3264,
+        "height": 2448,
+        "mediaSha1": "2d0291eac9bfd76217592ce9e0fd95565f3f1279",
+        "metadataSha256": "3cf1635da712108af3fd1c7d0738f29609dae49c16a42e3644b15e379971abd1",
+        "photographer": "Rhythm",
+        "credit": "Own work",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "identityEvidence": {
+          "exactDepicts": false,
+          "exactCoordinate": false,
+          "exactCategory": true,
+          "exactP18": true,
+          "namesPeak": true,
+          "coordinateDistancesMeters": []
+        },
+        "evidence": [
+          {
+            "channel": "wikidata_p18",
+            "wikidataId": "Q482709"
+          },
+          {
+            "channel": "name_search",
+            "term": "월악산"
+          },
+          {
+            "channel": "name_search",
+            "term": "Woraksan"
+          },
+          {
+            "channel": "name_search",
+            "term": "Worak Mountain"
+          },
+          {
+            "channel": "name_search",
+            "term": "월악산국립공원"
+          },
+          {
+            "channel": "commons_category",
+            "category": "Category:Woraksan",
+            "categorySource": "wikidata_or_commons_sitelink"
+          }
+        ],
+        "visualReview": {
+          "fullFrameReviewed": true,
+          "thumbnailFile": "review-thumbnails/074.jpg",
+          "fullResolutionReviewed": true,
+          "fullResolutionFile": "review-originals/074.jpg",
+          "notes": "Clear wide view of Woraksan rock summits with safe crop and no people or buildings as the subject."
+        },
+        "identityReview": "Exact Wikidata P18 Q482709, exact Category:Woraksan, exact title/description, and the distinct rocky summit profile agree."
+      },
+      "live": {
+        "fileTitle": "File:Mount Worak Korea 242.jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Worak_Korea_242.jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/07/Mount_Worak_Korea_242.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "width": 3264,
+        "height": 2448,
+        "sha1": "2d0291eac9bfd76217592ce9e0fd95565f3f1279",
+        "mime": "image/jpeg",
+        "mediaType": "BITMAP",
+        "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:Rhythm\" title=\"User:Rhythm\">Rhythm</a>",
+        "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+        "descriptionHtml": "<a href=\"https://en.wikipedia.org/wiki/Woraksan\" class=\"extiw\" title=\"w:Woraksan\">Mt. Worak</a>",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "categories": [
+          "Category:CC-BY-SA-3.0",
+          "Category:GFDL",
+          "Category:License migration redundant",
+          "Category:Mountains of Chungcheongbuk-do",
+          "Category:Mountains of Gyeongsangbuk-do",
+          "Category:Rocks in South Korea",
+          "Category:Self-published work",
+          "Category:Taken with Sony DSC-W90",
+          "Category:Woraksan"
+        ]
+      },
+      "comparisons": {
+        "title": true,
+        "width": true,
+        "height": true,
+        "mediaSha1": true,
+        "licenseName": true,
+        "licenseUrl": true
+      },
+      "allPinnedFieldsMatch": true
+    },
+    {
+      "binding": {
+        "ordinal": 75,
+        "destinationId": "9E946D54AC315445CFF9",
+        "destinationName": "주왕산",
+        "fileTitle": "File:주왕산 ( 8 ).jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:%EC%A3%BC%EC%99%95%EC%82%B0_(_8_).jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/85/%EC%A3%BC%EC%99%95%EC%82%B0_%28_8_%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "width": 5184,
+        "height": 3456,
+        "mediaSha1": "aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d",
+        "metadataSha256": "ac2ff60e1e326dfe67a2f1b0bbf2b4de8b17642de569870dce6485cadf4b0555",
+        "photographer": "최옥석",
+        "credit": "Own work",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "identityEvidence": {
+          "exactDepicts": false,
+          "exactCoordinate": false,
+          "exactCategory": true,
+          "exactP18": false,
+          "namesPeak": true,
+          "coordinateDistancesMeters": []
+        },
+        "evidence": [
+          {
+            "channel": "name_search",
+            "term": "주왕산"
+          },
+          {
+            "channel": "name_search",
+            "term": "Juwangsan"
+          },
+          {
+            "channel": "commons_category",
+            "category": "Category:Juwangsan",
+            "categorySource": "wikidata_or_commons_sitelink"
+          }
+        ],
+        "visualReview": {
+          "fullFrameReviewed": true,
+          "thumbnailFile": "review-thumbnails/101.jpg",
+          "fullResolutionReviewed": true,
+          "fullResolutionFile": "review-originals/101.jpg",
+          "notes": "Clear, wide, centered Juwangsan rock-mountain profile with a safe crop and no people or buildings as the subject."
+        },
+        "identityReview": "Exact Korean title, exact Category:Juwangsan, exact description, and the distinctive rock profile agree."
+      },
+      "live": {
+        "fileTitle": "File:주왕산 ( 8 ).jpg",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:%EC%A3%BC%EC%99%95%EC%82%B0_(_8_).jpg",
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/85/%EC%A3%BC%EC%99%95%EC%82%B0_%28_8_%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "width": 5184,
+        "height": 3456,
+        "sha1": "aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d",
+        "mime": "image/jpeg",
+        "mediaType": "BITMAP",
+        "artistHtml": "<a href=\"//commons.wikimedia.org/wiki/User:%EC%B5%9C%EC%98%A5%EC%84%9D\" title=\"User:최옥석\">최옥석</a>",
+        "creditHtml": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+        "descriptionHtml": "주왕산은 기암의모습들이 장관이다",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "categories": [
+          "Category:CC-BY-SA-4.0",
+          "Category:Images from Wiki Loves Earth 2017",
+          "Category:Images from Wiki Loves Earth 2017 in South Korea",
+          "Category:Images from Wiki Loves Earth missing SDC depicts",
+          "Category:Images from Wiki Loves Earth missing SDC location of creation",
+          "Category:Juwangsan",
+          "Category:Self-published work",
+          "Category:Uploaded via Campaign:wle-kr"
+        ]
+      },
+      "comparisons": {
+        "title": true,
+        "width": true,
+        "height": true,
+        "mediaSha1": true,
+        "licenseName": true,
+        "licenseUrl": true
+      },
+      "allPinnedFieldsMatch": true
+    }
+  ]
+}

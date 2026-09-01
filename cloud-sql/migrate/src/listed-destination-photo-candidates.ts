@@ -153,6 +153,22 @@ export const LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS: Readonly<
   }),
 });
 
+type ReviewedCommonsFileIdentity =
+  | {
+      fileCoordinates: WikimediaCoordinates;
+      exactPeakIdentity?: never;
+    }
+  | {
+      fileCoordinates: null;
+      exactPeakIdentity: {
+        wikidataId: string;
+        commonsCategory: string;
+        wikidataP18: boolean;
+        metadataSha256: string;
+        review: string;
+      };
+    };
+
 export type ReviewedCommonsFilePhoto = {
   evidenceType: "reviewed_commons_file";
   destinationId: string;
@@ -162,14 +178,13 @@ export type ReviewedCommonsFilePhoto = {
   catalogWikidataId: string | null;
   catalogCoordinates: WikimediaCoordinates;
   fileTitle: string;
-  fileCoordinates: WikimediaCoordinates;
   photographer: string;
   licenseName: string;
   licenseUrl: string;
   width: number;
   height: number;
   mediaSha1: string;
-};
+} & ReviewedCommonsFileIdentity;
 
 const KFS_100_FAMOUS_MOUNTAINS_LIST_ID = "39F59B1A26E9B0818EBE";
 
@@ -454,6 +469,56 @@ export const LISTED_PHOTO_REVIEWED_COMMONS_FILES: Readonly<
     height: 3_648,
     mediaSha1: "201dd4896149561c7572ae2160e1850d16c06e04",
   }),
+  "47D2EFD1234631730AE4": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "47D2EFD1234631730AE4",
+    destinationName: "월악산",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 36.8860792, lng: 128.1058367 },
+    fileTitle: "File:Mount Worak Korea 242.jpg",
+    fileCoordinates: null,
+    exactPeakIdentity: {
+      wikidataId: "Q482709",
+      commonsCategory: "Category:Woraksan",
+      wikidataP18: true,
+      metadataSha256: "3cf1635da712108af3fd1c7d0738f29609dae49c16a42e3644b15e379971abd1",
+      review:
+        "Exact Wikidata P18, Commons category, title, description, and summit profile agree.",
+    },
+    photographer: "Rhythm",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 3_264,
+    height: 2_448,
+    mediaSha1: "2d0291eac9bfd76217592ce9e0fd95565f3f1279",
+  }),
+  "9E946D54AC315445CFF9": Object.freeze({
+    evidenceType: "reviewed_commons_file",
+    destinationId: "9E946D54AC315445CFF9",
+    destinationName: "주왕산",
+    requiredListId: KFS_100_FAMOUS_MOUNTAINS_LIST_ID,
+    countryCode: "KR",
+    catalogWikidataId: null,
+    catalogCoordinates: { lat: 36.3893554, lng: 129.1623858 },
+    fileTitle: "File:주왕산 ( 8 ).jpg",
+    fileCoordinates: null,
+    exactPeakIdentity: {
+      wikidataId: "Q6319107",
+      commonsCategory: "Category:Juwangsan",
+      wikidataP18: false,
+      metadataSha256: "ac2ff60e1e326dfe67a2f1b0bbf2b4de8b17642de569870dce6485cadf4b0555",
+      review:
+        "Exact Korean title, Commons category, description, and summit profile agree.",
+    },
+    photographer: "최옥석",
+    licenseName: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+    width: 5_184,
+    height: 3_456,
+    mediaSha1: "aa4ab8e32aa4bdba02dfa67c60aa9015072c1b8d",
+  }),
 });
 
 export type ListedPhotoEvidence =
@@ -470,7 +535,9 @@ export type ListedPhotoEvidence =
       requiredListId: string;
       fileTitle: string;
       catalogCoordinates: WikimediaCoordinates;
-      fileCoordinates: WikimediaCoordinates;
+      fileCoordinates: WikimediaCoordinates | null;
+      identityBasis: "camera_coordinate" | "audited_exact_peak";
+      exactPeakIdentity: Readonly<NonNullable<ReviewedCommonsFilePhoto["exactPeakIdentity"]>> | null;
     };
 
 export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
@@ -1054,26 +1121,32 @@ function reviewedCommonsFileMetadataRejection(
   if (normalizedWikimediaSha1(image.mediaSha1) !== audit.mediaSha1) {
     return "media SHA-1 changed from the human-reviewed Commons file";
   }
-  if (image.coordinateCount !== 1 || !image.coordinates) {
-    return "human-reviewed Commons file no longer has exactly one coordinate";
-  }
-  const fileCoordinateDrift = distanceMeters(
-    image.coordinates.lat,
-    image.coordinates.lng,
-    audit.fileCoordinates.lat,
-    audit.fileCoordinates.lng
-  );
-  if (fileCoordinateDrift > LISTED_PHOTO_REVIEWED_FILE_RADIUS_METERS) {
-    return `Commons file coordinate moved ${fileCoordinateDrift.toFixed(1)} m from review`;
-  }
-  const summitFileDistance = distanceMeters(
-    row.lat!,
-    row.lng!,
-    image.coordinates.lat,
-    image.coordinates.lng
-  );
-  if (summitFileDistance > LISTED_PHOTO_REVIEWED_SUMMIT_FILE_RADIUS_METERS) {
-    return `Commons file coordinate is ${summitFileDistance.toFixed(1)} m from the summit`;
+  if (audit.fileCoordinates === null) {
+    if (image.coordinateCount !== 0 || image.coordinates !== null) {
+      return "human-reviewed exact-peak file coordinate state changed from review";
+    }
+  } else {
+    if (image.coordinateCount !== 1 || !image.coordinates) {
+      return "human-reviewed Commons file no longer has exactly one coordinate";
+    }
+    const fileCoordinateDrift = distanceMeters(
+      image.coordinates.lat,
+      image.coordinates.lng,
+      audit.fileCoordinates.lat,
+      audit.fileCoordinates.lng
+    );
+    if (fileCoordinateDrift > LISTED_PHOTO_REVIEWED_FILE_RADIUS_METERS) {
+      return `Commons file coordinate moved ${fileCoordinateDrift.toFixed(1)} m from review`;
+    }
+    const summitFileDistance = distanceMeters(
+      row.lat!,
+      row.lng!,
+      image.coordinates.lat,
+      image.coordinates.lng
+    );
+    if (summitFileDistance > LISTED_PHOTO_REVIEWED_SUMMIT_FILE_RADIUS_METERS) {
+      return `Commons file coordinate is ${summitFileDistance.toFixed(1)} m from the summit`;
+    }
   }
   return null;
 }
@@ -1158,12 +1231,27 @@ async function planReviewedCommonsFileCandidate(
     };
   }
 
-  const summitFileDistance = distanceMeters(
-    row.lat!,
-    row.lng!,
-    image.coordinates!.lat,
-    image.coordinates!.lng
-  );
+  const summitFileDistance = image.coordinates
+    ? distanceMeters(
+        row.lat!,
+        row.lng!,
+        image.coordinates.lat,
+        image.coordinates.lng
+      )
+    : null;
+  const exactPeakIdentity = audit.fileCoordinates === null
+    ? audit.exactPeakIdentity
+    : null;
+  const identityNote = exactPeakIdentity
+    ? (
+        `its immutable image SHA-1 and frozen exact-peak evidence bind it to the KFS row: ` +
+        `reviewed Wikidata ${exactPeakIdentity.wikidataId}` +
+        `${exactPeakIdentity.wikidataP18 ? " P18" : ""}, ` +
+        `${exactPeakIdentity.commonsCategory}, metadata SHA-256 ` +
+        `${exactPeakIdentity.metadataSha256}; ` +
+        exactPeakIdentity.review.replace(/\.+$/u, "")
+      )
+    : `its saved file coordinate is ${summitFileDistance!.toFixed(1)} m from the KFS summit`;
   return {
     kind: "candidate",
     candidate: {
@@ -1181,8 +1269,7 @@ async function planReviewedCommonsFileCandidate(
       focalX: 50,
       focalY: 50,
       notes:
-        `Human-reviewed exact Commons file ${audit.fileTitle}; its saved file ` +
-        `coordinate is ${summitFileDistance.toFixed(1)} m from the KFS summit. ` +
+        `Human-reviewed exact Commons file ${audit.fileTitle}; ${identityNote}. ` +
         "Framing requires human review.",
       evidence: {
         type: "reviewed_commons_file",
@@ -1190,7 +1277,11 @@ async function planReviewedCommonsFileCandidate(
         requiredListId: audit.requiredListId,
         fileTitle: audit.fileTitle,
         catalogCoordinates: audit.catalogCoordinates,
-        fileCoordinates: image.coordinates!,
+        fileCoordinates: image.coordinates,
+        identityBasis: audit.fileCoordinates === null
+          ? "audited_exact_peak"
+          : "camera_coordinate",
+        exactPeakIdentity: audit.exactPeakIdentity ?? null,
       },
       matchedArticleTitle: null,
       matchedWikidataId: audit.catalogWikidataId,
