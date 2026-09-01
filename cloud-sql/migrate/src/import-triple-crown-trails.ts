@@ -526,6 +526,7 @@ export function buildSourceSections(
   }, []);
   const total = ordered.reduce((sum, line) => sum + lineLengthMeters(line.points), 0);
   let along = 0;
+  const sectionIdOccurrences = new Map<string, number>();
 
   return ordered.map((line, index) => {
     const start = along;
@@ -534,8 +535,11 @@ export function buildSourceSections(
       const rawName = String(line.properties.Name ?? `Section ${index + 1}`);
       const clubCode = String(line.properties.Trail_Club ?? "");
       const regionCode = String(line.properties.Region ?? "");
+      const baseId = `at-${slug(rawName)}`;
+      const occurrence = (sectionIdOccurrences.get(baseId) ?? 0) + 1;
+      sectionIdOccurrences.set(baseId, occurrence);
       return {
-        id: `at-${slug(rawName)}`,
+        id: occurrence === 1 ? baseId : `${baseId}-${occurrence}`,
         label: AT_TRAIL_CLUBS[clubCode] ?? rawName.replace(/ AT Treadway$/, ""),
         region: AT_REGIONS[regionCode] ?? null,
         detail: "Official A.T. trail-club section",
