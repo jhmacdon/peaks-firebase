@@ -50,6 +50,15 @@ export default function ListCard({ list, compact = false }: ListCardProps) {
           {list.destination_count.toLocaleString("en-US")}
         </span>{" "}
         destination{list.destination_count === 1 ? "" : "s"}
+        {list.completion_target < list.destination_count ? (
+          <>
+            {" · "}
+            <span className="font-mono-num tabular-nums">
+              {list.completion_target.toLocaleString("en-US")}
+            </span>{" "}
+            required
+          </>
+        ) : null}
       </div>
       {!compact && paragraphs.length > 0 && (
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-2">

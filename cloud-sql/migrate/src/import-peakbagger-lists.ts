@@ -17,6 +17,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import { PoolClient } from "pg";
 import db from "./db";
+import { normalizeStoredListCompletionTarget } from "./list-completion-target";
 
 export interface ImportArgs {
   input: string;
@@ -66,6 +67,8 @@ export interface CuratedList {
   name: string;
   description: string;
   expectedCount: number;
+  /** NULL/omitted means every roster member is required. */
+  completionTarget?: number | null;
   /**
    * A list that takes only part of one Peakbagger page names the peaks it
    * takes. Set it with `sourceRowCount`, never alone: the selection says which
@@ -94,6 +97,7 @@ export interface ListUpsertParams {
   listId: string;
   name: string;
   description: string;
+  completionTarget: number | null;
   yearEstablished: number | null;
   organization: string | null;
   sourceName: string;
@@ -102,10 +106,21 @@ export interface ListUpsertParams {
 }
 
 export function buildListUpsertParams(list: CuratedList): ListUpsertParams {
+  const completionTarget = normalizeStoredListCompletionTarget(
+    list.completionTarget,
+    list.expectedCount
+  );
+  if (list.completionTarget != null && completionTarget == null) {
+    throw new Error(
+      `Peakbagger list ${list.sourceListId} completion target must be between 1 and ` +
+      `${list.expectedCount}`
+    );
+  }
   return {
     listId: list.listId,
     name: list.name,
     description: list.description,
+    completionTarget,
     yearEstablished: list.yearEstablished,
     organization: list.organization,
     sourceName: list.sourceName,
@@ -806,6 +821,15 @@ export function validateSourceList(list: CuratedList, source: PeakbaggerSourceLi
       `expected ${expectedRows}`
     );
   }
+  if (
+    list.completionTarget != null &&
+    normalizeStoredListCompletionTarget(list.completionTarget, list.expectedCount) == null
+  ) {
+    throw new Error(
+      `Peakbagger list ${list.sourceListId} completion target must be between 1 and ` +
+      `${list.expectedCount}`
+    );
+  }
   const peakIds = new Set<number>();
   for (const row of source.rows) {
     if (!Number.isInteger(row.peakbaggerPeakId) || row.peakbaggerPeakId <= 0) {
@@ -1218,9 +1242,10 @@ async function applyPlans(
       await client.query(
         `INSERT INTO lists (
            id, name, description, owner,
-           year_established, organization, source_name, source_url, region
+           year_established, organization, source_name, source_url, region,
+           completion_target
          )
-         VALUES ($1, $2, $3, 'peaks', $4, $5, $6, $7, $8)
+         VALUES ($1, $2, $3, 'peaks', $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name,
            description = EXCLUDED.description,
@@ -1230,6 +1255,7 @@ async function applyPlans(
            source_name = EXCLUDED.source_name,
            source_url = EXCLUDED.source_url,
            region = EXCLUDED.region,
+           completion_target = EXCLUDED.completion_target,
            updated_at = now()`,
         [
           params.listId,
@@ -1240,6 +1266,7 @@ async function applyPlans(
           params.sourceName,
           params.sourceUrl,
           params.region,
+          params.completionTarget,
         ]
       );
       const desiredIds = plan.members.map((member) => member.destinationId);
@@ -1323,6 +1350,7 @@ async function main(): Promise<void> {
         sourceName: plan.list.sourceName,
         sourceUrl: plan.list.sourceUrl,
         region: plan.list.region,
+        completionTarget: buildListUpsertParams(plan.list).completionTarget,
         destinationCount: plan.members.length,
         added: plan.addedDestinationIds.map((id) => ({ id, name: nameById.get(id) })),
         removed: plan.removedDestinationIds.map((id) => ({ id, name: nameById.get(id) })),

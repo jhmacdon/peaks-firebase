@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ListDestination } from "../../lib/actions/lists";
 import { formatFeetValue, formatShortDate, titleize } from "../../lib/destination-detail";
+import { effectiveListCompletionTarget } from "../../lib/list-completion";
 import { satelliteThumbnailUrl } from "../../lib/satellite-thumbnail";
 import { TrophyGlyph } from "../session/activity-glyph";
 import ProgressBar from "../progress-bar";
@@ -41,12 +42,17 @@ function MountainPlaceholder() {
  * render with no marks and no progress bar; empty-list copy is unchanged. */
 export function ListRoster({
   destinations,
+  completionTarget,
   className = "",
 }: {
   destinations: ListDestination[];
+  completionTarget: number;
   className?: string;
 }) {
   const { entries } = useListCompletion();
+  const memberCount = destinations.length;
+  const effectiveTarget = effectiveListCompletionTarget(completionTarget, memberCount);
+  const completedCount = entries ? Object.keys(entries).length : 0;
   const usesSatelliteImagery = destinations.some(
     (destination) =>
       !destination.hero_image &&
@@ -62,11 +68,18 @@ export function ListRoster({
       </SectionHeading>
 
       {entries && destinations.length > 0 ? (
-        <ProgressBar
-          completed={Object.keys(entries).length}
-          total={destinations.length}
-          className="mt-4 max-w-sm"
-        />
+        <div className="mt-4 max-w-sm">
+          <ProgressBar completed={completedCount} total={effectiveTarget} />
+          {effectiveTarget < memberCount ? (
+            <p className="mt-2 text-[12px] text-muted">
+              Reach any {effectiveTarget.toLocaleString("en-US")} of the{" "}
+              {memberCount.toLocaleString("en-US")} destinations to complete this list.
+              {completedCount > effectiveTarget
+                ? ` ${completedCount.toLocaleString("en-US")} reached.`
+                : ""}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {destinations.length === 0 ? (

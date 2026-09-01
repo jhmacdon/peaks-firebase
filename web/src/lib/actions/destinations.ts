@@ -92,6 +92,7 @@ export interface DestinationList {
   name: string | null;
   description: string | null;
   destination_count: number;
+  completion_target: number;
 }
 
 export interface DestinationUserActivity {
@@ -287,9 +288,17 @@ export async function getDestinationLists(
 ): Promise<DestinationList[]> {
   const result = await db.query(
     `SELECT l.id, l.name, l.description,
-            (SELECT COUNT(*) FROM list_destinations ld2 WHERE ld2.list_id = l.id) as destination_count
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target
      FROM list_destinations ld
      JOIN lists l ON l.id = ld.list_id
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations ld2
+       WHERE ld2.list_id = l.id
+     ) list_counts
      WHERE ld.destination_id = $1
      ORDER BY l.name ASC`,
     [destinationId]
@@ -298,6 +307,7 @@ export async function getDestinationLists(
   return result.rows.map((r: any) => ({
     ...r,
     destination_count: Number(r.destination_count),
+    completion_target: Number(r.completion_target),
   }));
 }
 

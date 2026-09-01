@@ -3,6 +3,10 @@
 
 import db from "../db";
 import { verifyToken } from "../auth-actions";
+import {
+  buildListProgress,
+  type ListProgressCounts,
+} from "../list-completion";
 
 /** pg may return custom enum arrays as "{a,b}" strings instead of JS arrays */
 function parseArray(val: unknown): string[] {
@@ -23,7 +27,10 @@ export interface ListRow {
   source_name: string | null;
   source_url: string | null;
   region: string | null;
+  /** Current roster size, regardless of the keeper's completion rule. */
   destination_count: number;
+  /** Effective bounded target. Equals destination_count when the stored value is NULL or invalid. */
+  completion_target: number;
   thumbnails: ListThumbnail[];
 }
 
@@ -54,10 +61,7 @@ export interface ListDestination {
   country_code: string | null;
 }
 
-export interface ListProgress {
-  total: number;
-  completed: number;
-}
+export type ListProgress = ListProgressCounts;
 
 export interface ListCompletionEntry {
   reached_at: string | null;
@@ -80,7 +84,7 @@ function parseThumbnails(value: unknown): ListThumbnail[] {
 
 /**
  * Paginated list browse with optional name search.
- * Includes a destination_count subquery for each list.
+ * Includes the current member count and bounded completion target for each list.
  */
 export async function getLists(
   search?: string,
@@ -107,7 +111,10 @@ export async function getLists(
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
             COALESCE((
               SELECT json_agg(json_build_object(
                 'url', photo.hero_image,
@@ -123,6 +130,11 @@ export async function getLists(
               ) photo
             ), '[]'::json) AS thumbnails
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations ld
+       WHERE ld.list_id = l.id
+     ) list_counts
      ${where}
      ORDER BY l.name ASC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -141,6 +153,7 @@ export async function getLists(
       source_url: r.source_url,
       region: r.region,
       destination_count: Number(r.destination_count),
+      completion_target: Number(r.completion_target),
       thumbnails: parseThumbnails(r.thumbnails),
     })),
     total: Number(countResult.rows[0].count),
@@ -154,7 +167,10 @@ export async function getList(id: string): Promise<ListDetail | null> {
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
-            (SELECT COUNT(*) FROM list_destinations ld WHERE ld.list_id = l.id) AS destination_count,
+            list_counts.destination_count,
+            effective_list_completion_target(
+              l.completion_target, list_counts.destination_count
+            ) AS completion_target,
             COALESCE((
               SELECT json_agg(json_build_object(
                 'url', photo.hero_image,
@@ -171,6 +187,11 @@ export async function getList(id: string): Promise<ListDetail | null> {
             ), '[]'::json) AS thumbnails,
             l.created_at, l.updated_at
      FROM lists l
+     CROSS JOIN LATERAL (
+       SELECT COUNT(*)::int AS destination_count
+       FROM list_destinations ld
+       WHERE ld.list_id = l.id
+     ) list_counts
      WHERE l.id = $1`,
     [id]
   );
@@ -189,6 +210,7 @@ export async function getList(id: string): Promise<ListDetail | null> {
     source_url: r.source_url,
     region: r.region,
     destination_count: Number(r.destination_count),
+    completion_target: Number(r.completion_target),
     thumbnails: parseThumbnails(r.thumbnails),
     created_at: r.created_at.toISOString(),
     updated_at: r.updated_at.toISOString(),
@@ -248,26 +270,35 @@ export async function getListProgress(
   const user = await verifyToken(token);
   if (!user) throw new Error("Unauthorized");
 
-  const totalResult = await db.query(
-    `SELECT COUNT(*) FROM list_destinations WHERE list_id = $1`,
-    [listId]
-  );
-
-  const completedResult = await db.query(
-    `SELECT COUNT(DISTINCT ld.destination_id) AS completed
-     FROM list_destinations ld
-     JOIN session_destinations sd ON sd.destination_id = ld.destination_id
-     JOIN tracking_sessions ts ON ts.id = sd.session_id
-     WHERE ld.list_id = $1
-       AND ts.user_id = $2
-       AND sd.relation = 'reached'`,
+  const result = await db.query(
+    `SELECT COUNT(DISTINCT ld.destination_id)::int AS member_count,
+            effective_list_completion_target(
+              l.completion_target,
+              COUNT(DISTINCT ld.destination_id)::int
+            ) AS completion_target,
+            COUNT(DISTINCT CASE
+              WHEN ts.id IS NOT NULL THEN ld.destination_id
+            END)::int AS completed
+     FROM lists l
+     LEFT JOIN list_destinations ld ON ld.list_id = l.id
+     LEFT JOIN session_destinations sd
+       ON sd.destination_id = ld.destination_id AND sd.relation = 'reached'
+     LEFT JOIN tracking_sessions ts
+       ON ts.id = sd.session_id AND ts.user_id = $2
+     WHERE l.id = $1
+     GROUP BY l.id, l.completion_target`,
     [listId, user.uid]
   );
 
-  return {
-    total: Number(totalResult.rows[0].count),
-    completed: Number(completedResult.rows[0].completed),
-  };
+  if (result.rows.length === 0) {
+    return buildListProgress(0, 0, 0);
+  }
+
+  const memberCount = Number(result.rows[0].member_count);
+  const completionTarget = Number(result.rows[0].completion_target);
+  const completed = Number(result.rows[0].completed);
+
+  return buildListProgress(memberCount, completionTarget, completed);
 }
 
 /**

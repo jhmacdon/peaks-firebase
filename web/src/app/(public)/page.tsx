@@ -256,6 +256,9 @@ export default async function LandingPage() {
                     {list.destination_count.toLocaleString("en-US")}
                   </span>{" "}
                   peaks
+                  {list.completion_target < list.destination_count
+                    ? ` · ${list.completion_target.toLocaleString("en-US")} required`
+                    : ""}
                 </span>
               </Link>
             ))}

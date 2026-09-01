@@ -539,6 +539,9 @@ function DestinationDetailContent() {
                             {list.destination_count.toLocaleString()}
                           </span>{" "}
                           dest.
+                          {list.completion_target < list.destination_count
+                            ? ` · ${list.completion_target.toLocaleString()} required`
+                            : ""}
                         </span>
                       </Link>
                     </li>
