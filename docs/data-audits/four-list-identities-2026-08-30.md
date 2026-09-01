@@ -1,19 +1,25 @@
 # Four list identity audit — 2026-08-30
 
-A read-only production dry run checked each saved source row against the Peaks summit catalog. It made no database changes. The importer requires one exact name-and-elevation match inside each list's country or state bounds, unless a reviewed override pins the catalog row.
+A first read-only production dry run checked each saved source row against the Peaks summit catalog. It made no database changes. The importer requires one exact name-and-elevation match inside each list's country or state bounds, unless a reviewed override pins the catalog row.
 
-| List | Members | Resolved | Unresolved |
-| --- | ---: | ---: | ---: |
-| Classic 8000-Meter Peaks | 14 | 14 | 0 |
-| UIAA Alpine 4000ers | 82 | 52 | 30 |
-| Munros | 282 | 213 | 69 |
-| New Hampshire 52 With a View | 54 | 16 | 38 |
+| List | Members | First pass | Fail-closed rows | Final dry run |
+| --- | ---: | ---: | ---: | ---: |
+| Classic 8000-Meter Peaks | 14 | 14 | 0 | 14 / 14 |
+| UIAA Alpine 4000ers | 82 | 52 | 30 | 82 / 82 |
+| Munros | 282 | 213 | 69 | 282 / 282 |
+| New Hampshire 52 With a View | 54 | 16 | 38 | 54 / 54 |
 
 The Classic 8000-Meter Peaks list now resolves all fourteen members. Ten old catalog rows lacked country codes, so the importer pins those exact-name identities and keeps the geographic bound strict.
 
-The other three lists remain fail-closed. A zero means no exact scoped match. A value above zero means that many catalog rows matched and need a reviewed identity choice.
+The other three lists first failed closed. A zero below means no exact scoped match existed at the time. A value above zero means that many catalog rows matched and needed a reviewed identity choice.
+
+The completed review pins all 137 rows in [the resolution fixture](./fixtures/four-list-identity-resolutions-2026-08-30.json). It reuses 85 catalog destinations and adds 52 named OSM summits: four UIAA peaks, ten Munros, and 38 New Hampshire peaks. Clearing those rows exposed two distinct Munros named Carn Liath that had shared one catalog destination. The final plan pins both and adds the separate 975-meter OSM summit, bringing the total to 53 new destinations.
+
+The final command ran against production through a transaction-level read-only connection and omitted `--apply`. It returned 82, 282, and 54 unique destinations for the three lists. No production rows changed.
 
 ## UIAA Alpine 4000ers
+
+All 30 initial failures are resolved: 26 reviewed aliases point to existing destinations and four Aiguilles du Diable summits use new OSM nodes. The official UIAA list supplies their identities and heights. Peakbagger currently places Pointe Carmen and Pointe Médiane in the opposite spatial order; the mapping follows the same-name OSM nodes, UIAA heights, and the documented ridge order.
 
 - 10043 — Monte Rosa (0 candidates)
 - 10041 — Nordend (0 candidates)
@@ -47,6 +53,8 @@ The other three lists remain fail-closed. A zero means no exact scoped match. A 
 - 88873 — Barre des Écrins - Dôme de Neige (0 candidates)
 
 ## Munros
+
+All 69 initial failures are resolved: 59 reviewed aliases point to existing destinations and ten use new OSM nodes. The Scottish Mountaineering Club list supplies the names and heights. Two extra overrides keep the 1,006-meter and 975-meter Carn Liath rows distinct; the lower summit adds OSM node `304798882`.
 
 - 9215 — Beinn a' Bhuird (0 candidates)
 - 9205 — Ben Avon (0 candidates)
@@ -120,6 +128,8 @@ The other three lists remain fail-closed. A zero means no exact scoped match. A 
 
 ## New Hampshire 52 With a View
 
+All 38 initial failures use new OSM nodes. The official 2025 keeper list supplies the identities and heights, including both summits in the Doublehead and Welch–Dickey pairs. The keeper says those heights come from the 2019 statewide LiDAR survey, with added data from NH GRANIT.
+
 - 18307 — Sugarloaf (0 candidates)
 - 6890 — Mount Success (0 candidates)
 - 12517 — Jennings Peak (0 candidates)
@@ -158,3 +168,13 @@ The other three lists remain fail-closed. A zero means no exact scoped match. A 
 - 6949 — Pine Mountain (0 candidates)
 - 12555 — Mount Percival (0 candidates)
 - 12549 — Mount Morgan (0 candidates)
+
+## Evidence and cost
+
+- UIAA identities and heights: [UIAA Alpine 4000ers](https://www.theuiaa.org/4000-alps/) and its [official summit PDF](https://www.theuiaa.org/documents/mountaineering/UIAA_MOUNTAINEERING_4000ERS.pdf).
+- Munro identities and heights: [Scottish Mountaineering Club hills list](https://www.smc.org.uk/hills/).
+- New Hampshire identities and heights: [Over the Hill Hikers official 2025 list](https://overthehillhikers.blogspot.com/p/official-52-with-view-list.html).
+- Source coordinates: each public Peakbagger peak page, recorded by Peakbagger ID in the resolution fixture.
+- Destination coordinates and OSM identities: each linked OpenStreetMap node in the resolution fixture.
+
+This is importer data and reviewed mapping logic only. It adds no service, job, timer, or always-on resource. Run-rate change: **$0/month**.

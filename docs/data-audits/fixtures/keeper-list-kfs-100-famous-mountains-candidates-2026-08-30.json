@@ -1,0 +1,1049 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30",
+  "sources": {
+    "kfs-100-famous-mountains-2022-01-01": {
+      "keeper": "Korea Forest Service",
+      "list": "100 Famous Mountains",
+      "effectiveDate": "2022-01-01",
+      "sourceKeyRule": "kfs:<mntnId>",
+      "joinRule": "NFC, trim whitespace, remove one trailing parenthetical qualifier for base-name comparison, then require exact elevation in metres",
+      "officialListUrl": "https://www.forest.go.kr/kfsweb/kfi/kfs/foreston/main/contents/FmmntSrch/selectFmmntSrchList.do?mn=AR02_02_05_01&orgId=fon&mntIndex=1&mntUnit=100",
+      "officialDownloadUrl": "https://www.forest.go.kr/images/data/fonDown/100_mountain.zip",
+      "dataRightsUrl": "https://www.data.go.kr/data/15058662/openapi.do",
+      "dataRights": "No restriction on use",
+      "dataRightsCheckedAt": "2026-08-31",
+      "dataRightsPageSha256": "a47c620cd929e92f4ea747f1f9cb2573c93fa0049b51a36b9b1284ff691fadb8",
+      "dataRightsEvidenceSha256": "8cb839b56ad7804a4b49c47f5ade3b7f2c65428b4e4915cfda5089c549c7d79a",
+      "archiveSha256": "0785a8fd37ae0bb671c774dd833c9e0849ee453c531211efdc51f92173f5d38a",
+      "workbookSha256": "6edeed758c174580b8152cf0c74b1b5b8b29735314f1d3e8139f7bf160339c60",
+      "livePageCheckedAt": "2026-08-30",
+      "livePageSha256": "e4fddd46b6e3330dc01d0f621ddca8d5703e626bd4fcf19337a2b30d89a5a1f4",
+      "sourceCrosswalkSha256": "b113780ebec8206cae3ca24022af7a9d77c2b718a258b000666a940f6ebd4735",
+      "normalizedOrderedRosterSha256": "b26e7aca4881529e65b41ad29626eba4d0b370426b6db9dc6edce0bbbfd903a2",
+      "photoRightsNote": "Do not use KFS roster-page images as cover photos."
+    }
+  },
+  "lists": {
+    "kfs-100-famous-mountains": {
+      "source": "kfs-100-famous-mountains-2022-01-01",
+      "selection": "KFS official 100 Famous Mountains roster, 2022-01-01",
+      "rows": [
+        {
+          "sourceMemberId": "kfs:20000004",
+          "ordinal": 1,
+          "name": "가리산",
+          "aliases": [
+            "加里山"
+          ],
+          "elevationM": 1050.9,
+          "kfsMntnId": "20000004"
+        },
+        {
+          "sourceMemberId": "kfs:20000006",
+          "ordinal": 2,
+          "name": "가리왕산",
+          "aliases": [
+            "加里王山"
+          ],
+          "elevationM": 1561.8,
+          "kfsMntnId": "20000006"
+        },
+        {
+          "sourceMemberId": "kfs:20000009",
+          "ordinal": 3,
+          "name": "가야산",
+          "aliases": [
+            "伽倻山"
+          ],
+          "elevationM": 1432.6,
+          "kfsMntnId": "20000009"
+        },
+        {
+          "sourceMemberId": "kfs:20000012",
+          "ordinal": 4,
+          "name": "가지산",
+          "aliases": [
+            "加智山"
+          ],
+          "elevationM": 1240.9,
+          "kfsMntnId": "20000012"
+        },
+        {
+          "sourceMemberId": "kfs:20000024",
+          "ordinal": 5,
+          "name": "감악산",
+          "aliases": [
+            "紺岳山"
+          ],
+          "elevationM": 674.9,
+          "kfsMntnId": "20000024"
+        },
+        {
+          "sourceMemberId": "kfs:20000028",
+          "ordinal": 6,
+          "name": "강천산",
+          "aliases": [
+            "剛泉山"
+          ],
+          "elevationM": 585.8,
+          "kfsMntnId": "20000028"
+        },
+        {
+          "sourceMemberId": "kfs:20000040",
+          "ordinal": 7,
+          "name": "계룡산",
+          "aliases": [
+            "鷄龍山"
+          ],
+          "elevationM": 846.5,
+          "kfsMntnId": "20000040"
+        },
+        {
+          "sourceMemberId": "kfs:20000043",
+          "ordinal": 8,
+          "name": "계방산",
+          "aliases": [
+            "桂芳山"
+          ],
+          "elevationM": 1579.1,
+          "kfsMntnId": "20000043"
+        },
+        {
+          "sourceMemberId": "kfs:20000058",
+          "ordinal": 9,
+          "name": "공작산",
+          "aliases": [
+            "孔雀山"
+          ],
+          "elevationM": 887.4,
+          "kfsMntnId": "20000058"
+        },
+        {
+          "sourceMemberId": "kfs:20000059",
+          "ordinal": 10,
+          "name": "관악산",
+          "aliases": [
+            "冠岳山"
+          ],
+          "elevationM": 632.2,
+          "kfsMntnId": "20000059"
+        },
+        {
+          "sourceMemberId": "kfs:20000073",
+          "ordinal": 11,
+          "name": "구병산",
+          "aliases": [
+            "九屛山"
+          ],
+          "elevationM": 876.3,
+          "kfsMntnId": "20000073"
+        },
+        {
+          "sourceMemberId": "kfs:20000934",
+          "ordinal": 12,
+          "name": "금산",
+          "aliases": [
+            "錦山"
+          ],
+          "elevationM": 704.9,
+          "kfsMntnId": "20000934"
+        },
+        {
+          "sourceMemberId": "kfs:20000091",
+          "ordinal": 13,
+          "name": "금수산",
+          "aliases": [
+            "錦繡山"
+          ],
+          "elevationM": 1015.8,
+          "kfsMntnId": "20000091"
+        },
+        {
+          "sourceMemberId": "kfs:20000092",
+          "ordinal": 14,
+          "name": "금오산",
+          "aliases": [
+            "金烏山"
+          ],
+          "elevationM": 976.5,
+          "kfsMntnId": "20000092"
+        },
+        {
+          "sourceMemberId": "kfs:20000094",
+          "ordinal": 15,
+          "name": "금정산",
+          "aliases": [
+            "金井山"
+          ],
+          "elevationM": 800.8,
+          "kfsMntnId": "20000094"
+        },
+        {
+          "sourceMemberId": "kfs:20001254",
+          "ordinal": 16,
+          "name": "깃대봉",
+          "aliases": [
+            "旗臺峰"
+          ],
+          "elevationM": 367.8,
+          "kfsMntnId": "20001254"
+        },
+        {
+          "sourceMemberId": "kfs:20000108",
+          "ordinal": 17,
+          "name": "남산(금오산)",
+          "aliases": [
+            "남산",
+            "南山"
+          ],
+          "elevationM": 495.1,
+          "kfsMntnId": "20000108"
+        },
+        {
+          "sourceMemberId": "kfs:20000111",
+          "ordinal": 18,
+          "name": "내연산",
+          "aliases": [
+            "內延山"
+          ],
+          "elevationM": 711.3,
+          "kfsMntnId": "20000111"
+        },
+        {
+          "sourceMemberId": "kfs:20000112",
+          "ordinal": 19,
+          "name": "내장산(신선봉)",
+          "aliases": [
+            "내장산",
+            "內藏山"
+          ],
+          "elevationM": 763.5,
+          "kfsMntnId": "20000112"
+        },
+        {
+          "sourceMemberId": "kfs:20000131",
+          "ordinal": 20,
+          "name": "대둔산",
+          "aliases": [
+            "大芚山"
+          ],
+          "elevationM": 879.1,
+          "kfsMntnId": "20000131"
+        },
+        {
+          "sourceMemberId": "kfs:20001321",
+          "ordinal": 21,
+          "name": "대암산",
+          "aliases": [
+            "大岩山"
+          ],
+          "elevationM": 1312.6,
+          "kfsMntnId": "20001321"
+        },
+        {
+          "sourceMemberId": "kfs:20000138",
+          "ordinal": 22,
+          "name": "대야산",
+          "aliases": [
+            "大耶山"
+          ],
+          "elevationM": 931,
+          "kfsMntnId": "20000138"
+        },
+        {
+          "sourceMemberId": "kfs:20000143",
+          "ordinal": 23,
+          "name": "덕숭산(수덕산)",
+          "aliases": [
+            "德崇山"
+          ],
+          "elevationM": 495.2,
+          "kfsMntnId": "20000143"
+        },
+        {
+          "sourceMemberId": "kfs:20000144",
+          "ordinal": 24,
+          "name": "덕유산(향적봉)",
+          "aliases": [
+            "德裕山"
+          ],
+          "elevationM": 1614.2,
+          "kfsMntnId": "20000144"
+        },
+        {
+          "sourceMemberId": "kfs:20000149",
+          "ordinal": 25,
+          "name": "덕항산",
+          "aliases": [
+            "德項山"
+          ],
+          "elevationM": 1072.9,
+          "kfsMntnId": "20000149"
+        },
+        {
+          "sourceMemberId": "kfs:20000152",
+          "ordinal": 26,
+          "name": "도락산",
+          "aliases": [
+            "道樂山"
+          ],
+          "elevationM": 965.3,
+          "kfsMntnId": "20000152"
+        },
+        {
+          "sourceMemberId": "kfs:20000155",
+          "ordinal": 27,
+          "name": "도봉산(자운봉)",
+          "aliases": [
+            "道峰山"
+          ],
+          "elevationM": 740.2,
+          "kfsMntnId": "20000155"
+        },
+        {
+          "sourceMemberId": "kfs:20000165",
+          "ordinal": 28,
+          "name": "두륜산",
+          "aliases": [
+            "頭輪山"
+          ],
+          "elevationM": 700,
+          "kfsMntnId": "20000165"
+        },
+        {
+          "sourceMemberId": "kfs:20000167",
+          "ordinal": 29,
+          "name": "두타산",
+          "aliases": [
+            "頭陀山"
+          ],
+          "elevationM": 1357,
+          "kfsMntnId": "20000167"
+        },
+        {
+          "sourceMemberId": "kfs:20000171",
+          "ordinal": 30,
+          "name": "마니산",
+          "aliases": [
+            "摩尼山"
+          ],
+          "elevationM": 472.1,
+          "kfsMntnId": "20000171"
+        },
+        {
+          "sourceMemberId": "kfs:20000176",
+          "ordinal": 31,
+          "name": "마이산(암마이산)",
+          "aliases": [
+            "마이산",
+            "馬耳山"
+          ],
+          "elevationM": 687.4,
+          "kfsMntnId": "20000176"
+        },
+        {
+          "sourceMemberId": "kfs:20000217",
+          "ordinal": 32,
+          "name": "명성산",
+          "aliases": [
+            "鳴聲山"
+          ],
+          "elevationM": 922,
+          "kfsMntnId": "20000217"
+        },
+        {
+          "sourceMemberId": "kfs:20000218",
+          "ordinal": 33,
+          "name": "명지산",
+          "aliases": [
+            "明智山"
+          ],
+          "elevationM": 1252.3,
+          "kfsMntnId": "20000218"
+        },
+        {
+          "sourceMemberId": "kfs:20000219",
+          "ordinal": 34,
+          "name": "모악산",
+          "aliases": [
+            "母岳山"
+          ],
+          "elevationM": 795.2,
+          "kfsMntnId": "20000219"
+        },
+        {
+          "sourceMemberId": "kfs:20000225",
+          "ordinal": 35,
+          "name": "무등산",
+          "aliases": [
+            "無等山"
+          ],
+          "elevationM": 1186.8,
+          "kfsMntnId": "20000225"
+        },
+        {
+          "sourceMemberId": "kfs:20000227",
+          "ordinal": 36,
+          "name": "무학산",
+          "aliases": [
+            "舞鶴山"
+          ],
+          "elevationM": 761.4,
+          "kfsMntnId": "20000227"
+        },
+        {
+          "sourceMemberId": "kfs:20000242",
+          "ordinal": 37,
+          "name": "미륵산",
+          "aliases": [
+            "彌勒山"
+          ],
+          "elevationM": 458.4,
+          "kfsMntnId": "20000242"
+        },
+        {
+          "sourceMemberId": "kfs:20000247",
+          "ordinal": 38,
+          "name": "민주지산",
+          "aliases": [
+            "眠周之山"
+          ],
+          "elevationM": 1241.7,
+          "kfsMntnId": "20000247"
+        },
+        {
+          "sourceMemberId": "kfs:20000261",
+          "ordinal": 39,
+          "name": "방장산",
+          "aliases": [
+            "方丈山"
+          ],
+          "elevationM": 733.6,
+          "kfsMntnId": "20000261"
+        },
+        {
+          "sourceMemberId": "kfs:20000262",
+          "ordinal": 40,
+          "name": "방태산(주억봉)",
+          "aliases": [
+            "방태산",
+            "芳台山"
+          ],
+          "elevationM": 1445.7,
+          "kfsMntnId": "20000262"
+        },
+        {
+          "sourceMemberId": "kfs:20000263",
+          "ordinal": 41,
+          "name": "백덕산",
+          "aliases": [
+            "白德山"
+          ],
+          "elevationM": 1350.1,
+          "kfsMntnId": "20000263"
+        },
+        {
+          "sourceMemberId": "kfs:20000276",
+          "ordinal": 42,
+          "name": "백암산",
+          "aliases": [
+            "白巖山"
+          ],
+          "elevationM": 741.2,
+          "kfsMntnId": "20000276"
+        },
+        {
+          "sourceMemberId": "kfs:20000279",
+          "ordinal": 43,
+          "name": "백운산(포천)",
+          "aliases": [
+            "白雲山"
+          ],
+          "elevationM": 903,
+          "kfsMntnId": "20000279"
+        },
+        {
+          "sourceMemberId": "kfs:20000281",
+          "ordinal": 44,
+          "name": "백운산(광양)",
+          "aliases": [
+            "白雲山"
+          ],
+          "elevationM": 1222.2,
+          "kfsMntnId": "20000281"
+        },
+        {
+          "sourceMemberId": "kfs:20001076",
+          "ordinal": 45,
+          "name": "백운산(정선)",
+          "aliases": [
+            "白雲山"
+          ],
+          "elevationM": 883.5,
+          "kfsMntnId": "20001076"
+        },
+        {
+          "sourceMemberId": "kfs:20000775",
+          "ordinal": 46,
+          "name": "변산(의상봉)",
+          "aliases": [
+            "변산",
+            "邊山"
+          ],
+          "elevationM": 459,
+          "kfsMntnId": "20000775"
+        },
+        {
+          "sourceMemberId": "kfs:20000317",
+          "ordinal": 47,
+          "name": "북한산(백운대)",
+          "aliases": [
+            "북한산",
+            "北漢山"
+          ],
+          "elevationM": 835.6,
+          "kfsMntnId": "20000317"
+        },
+        {
+          "sourceMemberId": "kfs:20000329",
+          "ordinal": 48,
+          "name": "비슬산(천왕봉)",
+          "aliases": [
+            "비슬산",
+            "琵瑟山"
+          ],
+          "elevationM": 1083.4,
+          "kfsMntnId": "20000329"
+        },
+        {
+          "sourceMemberId": "kfs:20000702",
+          "ordinal": 49,
+          "name": "삼악산",
+          "aliases": [
+            "三岳山"
+          ],
+          "elevationM": 655.8,
+          "kfsMntnId": "20000702"
+        },
+        {
+          "sourceMemberId": "kfs:20000370",
+          "ordinal": 50,
+          "name": "서대산",
+          "aliases": [
+            "西臺山"
+          ],
+          "elevationM": 905.3,
+          "kfsMntnId": "20000370"
+        },
+        {
+          "sourceMemberId": "kfs:20000383",
+          "ordinal": 51,
+          "name": "선운산",
+          "aliases": [
+            "禪雲山"
+          ],
+          "elevationM": 334.7,
+          "kfsMntnId": "20000383"
+        },
+        {
+          "sourceMemberId": "kfs:20000386",
+          "ordinal": 52,
+          "name": "설악산(대청봉)",
+          "aliases": [
+            "설악산",
+            "雪岳山"
+          ],
+          "elevationM": 1708.1,
+          "kfsMntnId": "20000386"
+        },
+        {
+          "sourceMemberId": "kfs:20000389",
+          "ordinal": 53,
+          "name": "성인봉",
+          "aliases": [
+            "聖人峰"
+          ],
+          "elevationM": 986.5,
+          "kfsMntnId": "20000389"
+        },
+        {
+          "sourceMemberId": "kfs:20000397",
+          "ordinal": 54,
+          "name": "소백산",
+          "aliases": [
+            "小白山"
+          ],
+          "elevationM": 1439.7,
+          "kfsMntnId": "20000397"
+        },
+        {
+          "sourceMemberId": "kfs:20000398",
+          "ordinal": 55,
+          "name": "소요산",
+          "aliases": [
+            "逍遙山"
+          ],
+          "elevationM": 587.5,
+          "kfsMntnId": "20000398"
+        },
+        {
+          "sourceMemberId": "kfs:20000399",
+          "ordinal": 56,
+          "name": "속리산",
+          "aliases": [
+            "俗離山"
+          ],
+          "elevationM": 1058.4,
+          "kfsMntnId": "20000399"
+        },
+        {
+          "sourceMemberId": "kfs:20000422",
+          "ordinal": 57,
+          "name": "신불산",
+          "aliases": [
+            "神佛山"
+          ],
+          "elevationM": 1159.3,
+          "kfsMntnId": "20000422"
+        },
+        {
+          "sourceMemberId": "kfs:20000451",
+          "ordinal": 58,
+          "name": "연화산",
+          "aliases": [
+            "蓮花山"
+          ],
+          "elevationM": 524,
+          "kfsMntnId": "20000451"
+        },
+        {
+          "sourceMemberId": "kfs:20000455",
+          "ordinal": 59,
+          "name": "오대산(비로봉)",
+          "aliases": [
+            "오대산",
+            "五臺山"
+          ],
+          "elevationM": 1565.4,
+          "kfsMntnId": "20000455"
+        },
+        {
+          "sourceMemberId": "kfs:20000456",
+          "ordinal": 60,
+          "name": "오봉산",
+          "aliases": [
+            "五峰山"
+          ],
+          "elevationM": 777.9,
+          "kfsMntnId": "20000456"
+        },
+        {
+          "sourceMemberId": "kfs:20000476",
+          "ordinal": 61,
+          "name": "용문산",
+          "aliases": [
+            "龍門山"
+          ],
+          "elevationM": 1157.1,
+          "kfsMntnId": "20000476"
+        },
+        {
+          "sourceMemberId": "kfs:20000484",
+          "ordinal": 62,
+          "name": "용화산",
+          "aliases": [
+            "龍華山"
+          ],
+          "elevationM": 877.8,
+          "kfsMntnId": "20000484"
+        },
+        {
+          "sourceMemberId": "kfs:20000492",
+          "ordinal": 63,
+          "name": "운문산",
+          "aliases": [
+            "雲門山"
+          ],
+          "elevationM": 1195.1,
+          "kfsMntnId": "20000492"
+        },
+        {
+          "sourceMemberId": "kfs:20000493",
+          "ordinal": 64,
+          "name": "운악산(현등산)",
+          "aliases": [
+            "운악산",
+            "雲岳山"
+          ],
+          "elevationM": 934.7,
+          "kfsMntnId": "20000493"
+        },
+        {
+          "sourceMemberId": "kfs:20000495",
+          "ordinal": 65,
+          "name": "운장산",
+          "aliases": [
+            "雲長山"
+          ],
+          "elevationM": 1125.8,
+          "kfsMntnId": "20000495"
+        },
+        {
+          "sourceMemberId": "kfs:20000505",
+          "ordinal": 66,
+          "name": "월악산",
+          "aliases": [
+            "月岳山"
+          ],
+          "elevationM": 1095.3,
+          "kfsMntnId": "20000505"
+        },
+        {
+          "sourceMemberId": "kfs:20000507",
+          "ordinal": 67,
+          "name": "월출산",
+          "aliases": [
+            "月出山"
+          ],
+          "elevationM": 810.7,
+          "kfsMntnId": "20000507"
+        },
+        {
+          "sourceMemberId": "kfs:20000514",
+          "ordinal": 68,
+          "name": "유명산",
+          "aliases": [
+            "有明山"
+          ],
+          "elevationM": 864,
+          "kfsMntnId": "20000514"
+        },
+        {
+          "sourceMemberId": "kfs:20000522",
+          "ordinal": 69,
+          "name": "응봉산(매봉산)",
+          "aliases": [
+            "응봉산",
+            "鷹峰山"
+          ],
+          "elevationM": 999.7,
+          "kfsMntnId": "20000522"
+        },
+        {
+          "sourceMemberId": "kfs:20000543",
+          "ordinal": 70,
+          "name": "장안산",
+          "aliases": [
+            "長安山"
+          ],
+          "elevationM": 1237.4,
+          "kfsMntnId": "20000543"
+        },
+        {
+          "sourceMemberId": "kfs:20000545",
+          "ordinal": 71,
+          "name": "재약산",
+          "aliases": [
+            "載藥山"
+          ],
+          "elevationM": 1119.1,
+          "kfsMntnId": "20000545"
+        },
+        {
+          "sourceMemberId": "kfs:20000548",
+          "ordinal": 72,
+          "name": "적상산",
+          "aliases": [
+            "赤裳山"
+          ],
+          "elevationM": 1030.6,
+          "kfsMntnId": "20000548"
+        },
+        {
+          "sourceMemberId": "kfs:20000553",
+          "ordinal": 73,
+          "name": "점봉산",
+          "aliases": [
+            "點鳳山"
+          ],
+          "elevationM": 1426,
+          "kfsMntnId": "20000553"
+        },
+        {
+          "sourceMemberId": "kfs:20000559",
+          "ordinal": 74,
+          "name": "조계산",
+          "aliases": [
+            "曹溪山"
+          ],
+          "elevationM": 887.3,
+          "kfsMntnId": "20000559"
+        },
+        {
+          "sourceMemberId": "kfs:20000573",
+          "ordinal": 75,
+          "name": "주왕산",
+          "aliases": [
+            "周王山"
+          ],
+          "elevationM": 722.1,
+          "kfsMntnId": "20000573"
+        },
+        {
+          "sourceMemberId": "kfs:20000575",
+          "ordinal": 76,
+          "name": "주흘산",
+          "aliases": [
+            "主屹山"
+          ],
+          "elevationM": 1108.4,
+          "kfsMntnId": "20000575"
+        },
+        {
+          "sourceMemberId": "kfs:20000946",
+          "ordinal": 77,
+          "name": "지리산(천왕봉)",
+          "aliases": [
+            "지리산",
+            "智異山"
+          ],
+          "elevationM": 1915.4,
+          "kfsMntnId": "20000946"
+        },
+        {
+          "sourceMemberId": "kfs:20001322",
+          "ordinal": 78,
+          "name": "지리산",
+          "aliases": [
+            "지리산(통영)",
+            "智異山"
+          ],
+          "elevationM": 399.3,
+          "kfsMntnId": "20001322"
+        },
+        {
+          "sourceMemberId": "kfs:20000591",
+          "ordinal": 79,
+          "name": "천관산",
+          "aliases": [
+            "天冠山"
+          ],
+          "elevationM": 724.3,
+          "kfsMntnId": "20000591"
+        },
+        {
+          "sourceMemberId": "kfs:20000597",
+          "ordinal": 80,
+          "name": "천마산",
+          "aliases": [
+            "天摩山"
+          ],
+          "elevationM": 810.3,
+          "kfsMntnId": "20000597"
+        },
+        {
+          "sourceMemberId": "kfs:20000601",
+          "ordinal": 81,
+          "name": "천성산",
+          "aliases": [
+            "千聖山"
+          ],
+          "elevationM": 920.2,
+          "kfsMntnId": "20000601"
+        },
+        {
+          "sourceMemberId": "kfs:20000606",
+          "ordinal": 82,
+          "name": "천태산",
+          "aliases": [
+            "天台山"
+          ],
+          "elevationM": 714.3,
+          "kfsMntnId": "20000606"
+        },
+        {
+          "sourceMemberId": "kfs:20000613",
+          "ordinal": 83,
+          "name": "청량산",
+          "aliases": [
+            "淸凉山"
+          ],
+          "elevationM": 869.7,
+          "kfsMntnId": "20000613"
+        },
+        {
+          "sourceMemberId": "kfs:20000622",
+          "ordinal": 84,
+          "name": "추월산",
+          "aliases": [
+            "秋月山"
+          ],
+          "elevationM": 731.2,
+          "kfsMntnId": "20000622"
+        },
+        {
+          "sourceMemberId": "kfs:20000623",
+          "ordinal": 85,
+          "name": "축령산",
+          "aliases": [
+            "祝靈山"
+          ],
+          "elevationM": 887.1,
+          "kfsMntnId": "20000623"
+        },
+        {
+          "sourceMemberId": "kfs:20000628",
+          "ordinal": 86,
+          "name": "치악산",
+          "aliases": [
+            "雉岳山"
+          ],
+          "elevationM": 1282,
+          "kfsMntnId": "20000628"
+        },
+        {
+          "sourceMemberId": "kfs:20000629",
+          "ordinal": 87,
+          "name": "칠갑산",
+          "aliases": [
+            "七甲山"
+          ],
+          "elevationM": 559.7,
+          "kfsMntnId": "20000629"
+        },
+        {
+          "sourceMemberId": "kfs:20000638",
+          "ordinal": 88,
+          "name": "태백산",
+          "aliases": [
+            "太白山"
+          ],
+          "elevationM": 1566.7,
+          "kfsMntnId": "20000638"
+        },
+        {
+          "sourceMemberId": "kfs:20000803",
+          "ordinal": 89,
+          "name": "태화산",
+          "aliases": [
+            "太華山"
+          ],
+          "elevationM": 1027.5,
+          "kfsMntnId": "20000803"
+        },
+        {
+          "sourceMemberId": "kfs:20000651",
+          "ordinal": 90,
+          "name": "팔공산",
+          "aliases": [
+            "八公山"
+          ],
+          "elevationM": 1192.3,
+          "kfsMntnId": "20000651"
+        },
+        {
+          "sourceMemberId": "kfs:20000652",
+          "ordinal": 91,
+          "name": "팔봉산",
+          "aliases": [
+            "八峰山"
+          ],
+          "elevationM": 328.2,
+          "kfsMntnId": "20000652"
+        },
+        {
+          "sourceMemberId": "kfs:20000654",
+          "ordinal": 92,
+          "name": "팔영산",
+          "aliases": [
+            "八影山"
+          ],
+          "elevationM": 606.9,
+          "kfsMntnId": "20000654"
+        },
+        {
+          "sourceMemberId": "kfs:20000661",
+          "ordinal": 93,
+          "name": "한라산",
+          "aliases": [
+            "漢拏山"
+          ],
+          "elevationM": 1947.3,
+          "kfsMntnId": "20000661"
+        },
+        {
+          "sourceMemberId": "kfs:20000679",
+          "ordinal": 94,
+          "name": "화악산",
+          "aliases": [
+            "화악산(중봉)",
+            "華岳山"
+          ],
+          "elevationM": 1468.3,
+          "kfsMntnId": "20000679"
+        },
+        {
+          "sourceMemberId": "kfs:20000681",
+          "ordinal": 95,
+          "name": "화왕산",
+          "aliases": [
+            "火旺山"
+          ],
+          "elevationM": 757.7,
+          "kfsMntnId": "20000681"
+        },
+        {
+          "sourceMemberId": "kfs:20000684",
+          "ordinal": 96,
+          "name": "황매산",
+          "aliases": [
+            "黃梅山"
+          ],
+          "elevationM": 1113.1,
+          "kfsMntnId": "20000684"
+        },
+        {
+          "sourceMemberId": "kfs:20000686",
+          "ordinal": 97,
+          "name": "황석산",
+          "aliases": [
+            "黃石山"
+          ],
+          "elevationM": 1192.5,
+          "kfsMntnId": "20000686"
+        },
+        {
+          "sourceMemberId": "kfs:20000687",
+          "ordinal": 98,
+          "name": "황악산",
+          "aliases": [
+            "黃岳山"
+          ],
+          "elevationM": 1111.4,
+          "kfsMntnId": "20000687"
+        },
+        {
+          "sourceMemberId": "kfs:20000688",
+          "ordinal": 99,
+          "name": "황장산",
+          "aliases": [
+            "黃腸山"
+          ],
+          "elevationM": 1078.9,
+          "kfsMntnId": "20000688"
+        },
+        {
+          "sourceMemberId": "kfs:20000699",
+          "ordinal": 100,
+          "name": "희양산",
+          "aliases": [
+            "曦陽山"
+          ],
+          "elevationM": 996.4,
+          "kfsMntnId": "20000699"
+        }
+      ]
+    }
+  }
+}
