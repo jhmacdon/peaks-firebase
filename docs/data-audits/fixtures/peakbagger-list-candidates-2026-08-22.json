@@ -16888,7 +16888,8 @@
    "fetchedAt": "2026-08-22",
    "id": 5170,
    "name": "New Hampshire 52 with a View",
-   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5170"
+   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5170",
+   "reviewedCoordinateSource": "https://www.peakbagger.com/peak.aspx?pid=<peakbaggerPeakId> (audited unresolved rows, read 2026-08-30)"
   },
   "rows": [
    {
@@ -16929,6 +16930,8 @@
    },
    {
     "elevationFt": 3702.4,
+    "lat": 44.74417,
+    "lng": -71.46789,
     "name": "Sugarloaf",
     "ordinal": 5,
     "peakbaggerPeakId": 18307,
@@ -16947,6 +16950,8 @@
    },
    {
     "elevationFt": 3591.6,
+    "lat": 44.47153,
+    "lng": -71.03923,
     "name": "Mount Success",
     "ordinal": 7,
     "peakbaggerPeakId": 6890,
@@ -16965,6 +16970,8 @@
    },
    {
     "elevationFt": 3492.7,
+    "lat": 43.91105,
+    "lng": -71.5106,
     "name": "Jennings Peak",
     "ordinal": 9,
     "peakbaggerPeakId": 12517,
@@ -16983,6 +16990,8 @@
    },
    {
     "elevationFt": 3469,
+    "lat": 44.15553,
+    "lng": -71.31933,
     "name": "Stairs Mountain",
     "ordinal": 11,
     "peakbaggerPeakId": 12612,
@@ -17001,6 +17010,8 @@
    },
    {
     "elevationFt": 3414.7,
+    "lat": 44.66308,
+    "lng": -71.43513,
     "name": "Percy Peaks - North Peak",
     "ordinal": 13,
     "peakbaggerPeakId": 18308,
@@ -17010,6 +17021,8 @@
    },
    {
     "elevationFt": 3400,
+    "lat": 44.145985,
+    "lng": -71.315861,
     "name": "Mount Resolution - Southwest Summit",
     "ordinal": 14,
     "peakbaggerPeakId": 136676,
@@ -17019,6 +17032,8 @@
    },
    {
     "elevationFt": 3384.7,
+    "lat": 45.0634,
+    "lng": -71.16241,
     "name": "Magalloway Mountain",
     "ordinal": 15,
     "peakbaggerPeakId": 12524,
@@ -17028,6 +17043,8 @@
    },
    {
     "elevationFt": 3384,
+    "lat": 44.05334,
+    "lng": -71.35696,
     "name": "Mount Tremont",
     "ordinal": 16,
     "peakbaggerPeakId": 12565,
@@ -17037,6 +17054,8 @@
    },
    {
     "elevationFt": 3337.9,
+    "lat": 43.96473,
+    "lng": -71.27012,
     "name": "Three Sisters - Middle Sister",
     "ordinal": 17,
     "peakbaggerPeakId": 12621,
@@ -17055,6 +17074,8 @@
    },
    {
     "elevationFt": 3257.3,
+    "lat": 44.33861,
+    "lng": -71.49232,
     "name": "Cherry Mountain - Owlshead",
     "ordinal": 19,
     "peakbaggerPeakId": 12480,
@@ -17073,6 +17094,8 @@
    },
    {
     "elevationFt": 3202.2,
+    "lat": 44.04314,
+    "lng": -71.21461,
     "name": "North Moat Mountain",
     "ordinal": 21,
     "peakbaggerPeakId": 6946,
@@ -17091,6 +17114,8 @@
    },
    {
     "elevationFt": 3165,
+    "lat": 44.321627,
+    "lng": -71.18815,
     "name": "Imp Face",
     "ordinal": 23,
     "peakbaggerPeakId": 12515,
@@ -17109,6 +17134,8 @@
    },
    {
     "elevationFt": 3127.6,
+    "lat": 44.13663,
+    "lng": -71.33242,
     "name": "Mount Crawford",
     "ordinal": 25,
     "peakbaggerPeakId": 12533,
@@ -17118,6 +17145,8 @@
    },
    {
     "elevationFt": 3080,
+    "lat": 43.9463,
+    "lng": -71.328049,
     "name": "Mount Paugus - South Peak",
     "ordinal": 26,
     "peakbaggerPeakId": 32002,
@@ -17127,6 +17156,8 @@
    },
    {
     "elevationFt": 3050.6,
+    "lat": 44.16783,
+    "lng": -71.13005,
     "name": "North Doublehead",
     "ordinal": 27,
     "peakbaggerPeakId": 12573,
@@ -17136,6 +17167,8 @@
    },
    {
     "elevationFt": 3020,
+    "lat": 44.253624,
+    "lng": -71.071577,
     "name": "Eagle Crag",
     "ordinal": 28,
     "peakbaggerPeakId": 23548,
@@ -17145,6 +17178,8 @@
    },
    {
     "elevationFt": 3013.5,
+    "lat": 44.12353,
+    "lng": -71.29851,
     "name": "Mount Parker",
     "ordinal": 29,
     "peakbaggerPeakId": 12552,
@@ -17163,6 +17198,8 @@
    },
    {
     "elevationFt": 2952.4,
+    "lat": 44.55004,
+    "lng": -71.36174,
     "name": "Rogers Ledge",
     "ordinal": 31,
     "peakbaggerPeakId": 28966,
@@ -17190,6 +17227,8 @@
    },
    {
     "elevationFt": 2915,
+    "lat": 43.88586,
+    "lng": -72.02284,
     "name": "Mount Cube",
     "ordinal": 34,
     "peakbaggerPeakId": 6733,
@@ -17199,6 +17238,8 @@
    },
    {
     "elevationFt": 2889.6,
+    "lat": 43.83469,
+    "lng": -71.7792,
     "name": "Stinson Mountain",
     "ordinal": 35,
     "peakbaggerPeakId": 12614,
@@ -17208,6 +17249,8 @@
    },
    {
     "elevationFt": 2850.2,
+    "lat": 44.20394,
+    "lng": -71.41328,
     "name": "Mount Willard",
     "ordinal": 36,
     "peakbaggerPeakId": 6929,
@@ -17217,6 +17260,8 @@
    },
    {
     "elevationFt": 2829.2,
+    "lat": 44.07469,
+    "lng": -71.9218,
     "name": "Black Mountain",
     "ordinal": 37,
     "peakbaggerPeakId": 12462,
@@ -17226,6 +17271,8 @@
    },
    {
     "elevationFt": 2760,
+    "lat": 44.017516,
+    "lng": -71.193578,
     "name": "South Moat Mountain",
     "ordinal": 38,
     "peakbaggerPeakId": 12605,
@@ -17235,6 +17282,8 @@
    },
    {
     "elevationFt": 2722.6,
+    "lat": 44.1341,
+    "lng": -71.23896,
     "name": "Iron Mountain",
     "ordinal": 39,
     "peakbaggerPeakId": 12516,
@@ -17244,6 +17293,8 @@
    },
    {
     "elevationFt": 2722,
+    "lat": 43.92298,
+    "lng": -71.57859,
     "name": "Dickey Mountain",
     "ordinal": 40,
     "peakbaggerPeakId": 12491,
@@ -17253,6 +17304,8 @@
    },
    {
     "elevationFt": 2691.3,
+    "lat": 43.98199,
+    "lng": -71.3908,
     "name": "Potash Mountain",
     "ordinal": 41,
     "peakbaggerPeakId": 12584,
@@ -17262,6 +17315,8 @@
    },
    {
     "elevationFt": 2669.3,
+    "lat": 44.03183,
+    "lng": -71.26258,
     "name": "Table Mountain",
     "ordinal": 42,
     "peakbaggerPeakId": 42616,
@@ -17271,6 +17326,8 @@
    },
    {
     "elevationFt": 2636.5,
+    "lat": 43.8456,
+    "lng": -71.47185,
     "name": "Mount Israel",
     "ordinal": 43,
     "peakbaggerPeakId": 23550,
@@ -17289,6 +17346,8 @@
    },
    {
     "elevationFt": 2573,
+    "lat": 44.41773,
+    "lng": -71.15737,
     "name": "Mount Hayes",
     "ordinal": 45,
     "peakbaggerPeakId": 6893,
@@ -17298,6 +17357,8 @@
    },
    {
     "elevationFt": 2552.4,
+    "lat": 44.09782,
+    "lng": -71.69903,
     "name": "Mount Pemigewasset",
     "ordinal": 46,
     "peakbaggerPeakId": 12554,
@@ -17307,6 +17368,8 @@
    },
    {
     "elevationFt": 2542.5,
+    "lat": 43.97362,
+    "lng": -71.36717,
     "name": "Hedgehog Mountain",
     "ordinal": 47,
     "peakbaggerPeakId": 12508,
@@ -17316,6 +17379,8 @@
    },
    {
     "elevationFt": 2537.4,
+    "lat": 44.25153,
+    "lng": -71.5175,
     "name": "Middle Sugarloaf",
     "ordinal": 48,
     "peakbaggerPeakId": 12526,
@@ -17325,6 +17390,8 @@
    },
    {
     "elevationFt": 2460,
+    "lat": 44.14801,
+    "lng": -71.751787,
     "name": "Bald Peak",
     "ordinal": 49,
     "peakbaggerPeakId": 25448,
@@ -17334,6 +17401,8 @@
    },
    {
     "elevationFt": 2404.3,
+    "lat": 44.36626,
+    "lng": -71.21472,
     "name": "Pine Mountain",
     "ordinal": 50,
     "peakbaggerPeakId": 6949,
@@ -17343,6 +17412,8 @@
    },
    {
     "elevationFt": 2212,
+    "lat": 43.809688,
+    "lng": -71.557202,
     "name": "Mount Percival",
     "ordinal": 51,
     "peakbaggerPeakId": 12555,
@@ -17352,6 +17423,8 @@
    },
    {
     "elevationFt": 2200,
+    "lat": 43.803825,
+    "lng": -71.566283,
     "name": "Mount Morgan",
     "ordinal": 52,
     "peakbaggerPeakId": 12549,
@@ -17779,7 +17852,8 @@
    "fetchedAt": "2026-08-22",
    "id": 5410,
    "name": "UIAA Alpine 4000-meter Peaks",
-   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5410"
+   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5410",
+   "reviewedCoordinateSource": "https://www.peakbagger.com/peak.aspx?pid=<peakbaggerPeakId> (audited unresolved rows, read 2026-08-30)"
   },
   "rows": [
    {
@@ -17802,6 +17876,8 @@
    },
    {
     "elevationFt": 15198.9,
+    "lat": 45.93691,
+    "lng": 7.86677,
     "name": "Monte Rosa",
     "ordinal": 3,
     "peakbaggerPeakId": 10043,
@@ -17811,6 +17887,8 @@
    },
    {
     "elevationFt": 15112.3,
+    "lat": 45.94204,
+    "lng": 7.86992,
     "name": "Nordend",
     "ordinal": 4,
     "peakbaggerPeakId": 10041,
@@ -17829,6 +17907,8 @@
    },
    {
     "elevationFt": 14952.5,
+    "lat": 45.92705,
+    "lng": 7.87695,
     "name": "Signalkuppe",
     "ordinal": 6,
     "peakbaggerPeakId": 10045,
@@ -17847,6 +17927,8 @@
    },
    {
     "elevationFt": 14864.4,
+    "lat": 45.9225,
+    "lng": 7.83555,
     "name": "Liskamm",
     "ordinal": 8,
     "peakbaggerPeakId": 10038,
@@ -17874,6 +17956,8 @@
    },
    {
     "elevationFt": 14690.7,
+    "lat": 45.92656,
+    "lng": 7.82324,
     "name": "Liskamm - West Summit",
     "ordinal": 11,
     "peakbaggerPeakId": 10037,
@@ -17892,6 +17976,8 @@
    },
    {
     "elevationFt": 14662,
+    "lat": 45.821984,
+    "lng": 6.865025,
     "name": "Pic Luigi Amadeo",
     "ordinal": 13,
     "peakbaggerPeakId": 9944,
@@ -17910,6 +17996,8 @@
    },
    {
     "elevationFt": 14549.7,
+    "lat": 45.91976,
+    "lng": 7.87101,
     "name": "Parrotspitze",
     "ordinal": 15,
     "peakbaggerPeakId": 10046,
@@ -17955,6 +18043,8 @@
    },
    {
     "elevationFt": 14149.2,
+    "lat": 45.93758,
+    "lng": 7.29923,
     "name": "Grand Combin",
     "ordinal": 20,
     "peakbaggerPeakId": 10023,
@@ -17964,6 +18054,8 @@
    },
    {
     "elevationFt": 14122.4,
+    "lat": 45.84274,
+    "lng": 6.84339,
     "name": "Dôme du Goûter",
     "ordinal": 21,
     "peakbaggerPeakId": 9939,
@@ -18063,6 +18155,8 @@
    },
    {
     "elevationFt": 13795.1,
+    "lat": 45.86815,
+    "lng": 6.98899,
     "name": "Grandes Jorasses",
     "ordinal": 32,
     "peakbaggerPeakId": 9932,
@@ -18099,6 +18193,8 @@
    },
    {
     "elevationFt": 13733.9,
+    "lat": 45.93806,
+    "lng": 7.2902,
     "name": "Grand Combin de Valsorey",
     "ordinal": 36,
     "peakbaggerPeakId": 18883,
@@ -18108,6 +18204,8 @@
    },
    {
     "elevationFt": 13723.2,
+    "lat": 45.86878,
+    "lng": 6.98501,
     "name": "Grandes Jorasses - Pointe Whymper",
     "ordinal": 37,
     "peakbaggerPeakId": 19102,
@@ -18126,6 +18224,8 @@
    },
    {
     "elevationFt": 13689.3,
+    "lat": 45.9409,
+    "lng": 7.74763,
     "name": "Breithorn",
     "ordinal": 39,
     "peakbaggerPeakId": 10034,
@@ -18144,6 +18244,8 @@
    },
    {
     "elevationFt": 13638.4,
+    "lat": 45.93889,
+    "lng": 7.75648,
     "name": "Breithorn - Central Summit",
     "ordinal": 41,
     "peakbaggerPeakId": 10035,
@@ -18162,6 +18264,8 @@
    },
    {
     "elevationFt": 13573.2,
+    "lat": 45.93751,
+    "lng": 7.7671,
     "name": "Breithorn - Eastern Summit",
     "ordinal": 43,
     "peakbaggerPeakId": 88874,
@@ -18171,6 +18275,8 @@
    },
    {
     "elevationFt": 13564.2,
+    "lat": 45.94293,
+    "lng": 7.31112,
     "name": "Grand Combin de la Tsessette",
     "ordinal": 44,
     "peakbaggerPeakId": 18884,
@@ -18189,6 +18295,8 @@
    },
    {
     "elevationFt": 13515,
+    "lat": 45.85459,
+    "lng": 6.8908,
     "name": "Aiguilles du Diable - L'Isolée",
     "ordinal": 46,
     "peakbaggerPeakId": 88779,
@@ -18198,6 +18306,8 @@
    },
    {
     "elevationFt": 13491,
+    "lat": 45.823827,
+    "lng": 6.881133,
     "name": "Aiguille Blanche",
     "ordinal": 47,
     "peakbaggerPeakId": 9943,
@@ -18207,6 +18317,8 @@
    },
    {
     "elevationFt": 13484,
+    "lat": 45.869282,
+    "lng": 6.982019,
     "name": "Pointe Croz",
     "ordinal": 48,
     "peakbaggerPeakId": 35251,
@@ -18225,6 +18337,8 @@
    },
    {
     "elevationFt": 13472.4,
+    "lat": 45.93582,
+    "lng": 7.77036,
     "name": "Breithorn - East Gendarme",
     "ordinal": 50,
     "peakbaggerPeakId": 88806,
@@ -18252,6 +18366,8 @@
    },
    {
     "elevationFt": 13445.7,
+    "lat": 45.85453,
+    "lng": 6.89172,
     "name": "Aiguilles du Diable - Pointe Médiane",
     "ordinal": 53,
     "peakbaggerPeakId": 88778,
@@ -18261,6 +18377,8 @@
    },
    {
     "elevationFt": 13444.5,
+    "lat": 45.854526,
+    "lng": 6.892086,
     "name": "Aiguilles du Diable - Pointe Carmen",
     "ordinal": 54,
     "peakbaggerPeakId": 88780,
@@ -18288,6 +18406,8 @@
    },
    {
     "elevationFt": 13368.2,
+    "lat": 45.8543,
+    "lng": 6.89277,
     "name": "Aiguilles du Diable - Pointe Chaubert",
     "ordinal": 57,
     "peakbaggerPeakId": 88781,
@@ -18315,6 +18435,8 @@
    },
    {
     "elevationFt": 13340.3,
+    "lat": 45.86856,
+    "lng": 6.97784,
     "name": "Pointe Marguerite",
     "ordinal": 60,
     "peakbaggerPeakId": 35253,
@@ -18378,6 +18500,8 @@
    },
    {
     "elevationFt": 13273.2,
+    "lat": 45.836,
+    "lng": 6.81833,
     "name": "Aiguille de Bionassay",
     "ordinal": 67,
     "peakbaggerPeakId": 9940,
@@ -18387,6 +18511,8 @@
    },
    {
     "elevationFt": 13271,
+    "lat": 45.868847,
+    "lng": 6.978789,
     "name": "Pointe Elena",
     "ordinal": 68,
     "peakbaggerPeakId": 35252,
@@ -18396,6 +18522,8 @@
    },
    {
     "elevationFt": 13264.3,
+    "lat": 46.53198,
+    "lng": 8.07774,
     "name": "Grosses Grünhorn",
     "ordinal": 69,
     "peakbaggerPeakId": 9968,
@@ -18423,6 +18551,8 @@
    },
    {
     "elevationFt": 13236,
+    "lat": 46.11967,
+    "lng": 7.84815,
     "name": "Dürrenhorn",
     "ordinal": 72,
     "peakbaggerPeakId": 10051,
@@ -18459,6 +18589,8 @@
    },
    {
     "elevationFt": 13166,
+    "lat": 45.814594,
+    "lng": 6.863502,
     "name": "Punta Baretti",
     "ordinal": 76,
     "peakbaggerPeakId": 9946,
@@ -18468,6 +18600,8 @@
    },
    {
     "elevationFt": 13163.1,
+    "lat": 44.92429,
+    "lng": 6.35356,
     "name": "Barre des Écrins - Dôme de Neige",
     "ordinal": 77,
     "peakbaggerPeakId": 88873,
@@ -18528,7 +18662,8 @@
    "fetchedAt": "2026-08-22",
    "id": 5521,
    "name": "Munros",
-   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5521"
+   "sourceUrl": "https://www.peakbagger.com/list.aspx?lid=5521",
+   "reviewedCoordinateSource": "https://www.peakbagger.com/peak.aspx?pid=<peakbaggerPeakId> (audited unresolved rows, read 2026-08-30)"
   },
   "rows": [
    {
@@ -18623,6 +18758,8 @@
    },
    {
     "elevationFt": 3924,
+    "lat": 57.087385,
+    "lng": -3.498776,
     "name": "Beinn a' Bhuird",
     "ordinal": 11,
     "peakbaggerPeakId": 9215,
@@ -18677,6 +18814,8 @@
    },
    {
     "elevationFt": 3845,
+    "lat": 57.099365,
+    "lng": -3.434439,
     "name": "Ben Avon",
     "ordinal": 17,
     "peakbaggerPeakId": 9205,
@@ -18704,6 +18843,8 @@
    },
    {
     "elevationFt": 3793,
+    "lat": 56.960263,
+    "lng": -3.245244,
     "name": "Lochnagar",
     "ordinal": 20,
     "peakbaggerPeakId": 9239,
@@ -18758,6 +18899,8 @@
    },
    {
     "elevationFt": 3714,
+    "lat": 56.837835,
+    "lng": -4.509743,
     "name": "Geal - Charn",
     "ordinal": 26,
     "peakbaggerPeakId": 9249,
@@ -18830,6 +18973,8 @@
    },
    {
     "elevationFt": 3675,
+    "lat": 57.18424,
+    "lng": -5.154842,
     "name": "A' Chralaig",
     "ordinal": 34,
     "peakbaggerPeakId": 9193,
@@ -18866,6 +19011,8 @@
    },
    {
     "elevationFt": 3658,
+    "lat": 56.81812,
+    "lng": -4.77379,
     "name": "Stob Coire Easain",
     "ordinal": 38,
     "peakbaggerPeakId": 9259,
@@ -18875,6 +19022,8 @@
    },
    {
     "elevationFt": 3658,
+    "lat": 56.833496,
+    "lng": -4.529181,
     "name": "Aonach Beag",
     "ordinal": 39,
     "peakbaggerPeakId": 9252,
@@ -18884,6 +19033,8 @@
    },
    {
     "elevationFt": 3652,
+    "lat": 57.299392,
+    "lng": -5.04915,
     "name": "Tom a' Choinich",
     "ordinal": 40,
     "peakbaggerPeakId": 9180,
@@ -18902,6 +19053,8 @@
    },
    {
     "elevationFt": 3642,
+    "lat": 56.945773,
+    "lng": -3.272724,
     "name": "Carn a' Choire Boidheach",
     "ordinal": 42,
     "peakbaggerPeakId": 9242,
@@ -19046,6 +19199,8 @@
    },
    {
     "elevationFt": 3556,
+    "lat": 57.78634,
+    "lng": -4.929573,
     "name": "Beinn Dearg",
     "ordinal": 58,
     "peakbaggerPeakId": 9168,
@@ -19064,6 +19219,8 @@
    },
    {
     "elevationFt": 3553,
+    "lat": 57.093326,
+    "lng": -3.577436,
     "name": "Beinn a' Chaorainn",
     "ordinal": 60,
     "peakbaggerPeakId": 15249,
@@ -19118,6 +19275,8 @@
    },
    {
     "elevationFt": 3510,
+    "lat": 56.83113,
+    "lng": -3.72957,
     "name": "Braigh Coire Chruinn-bhalgain",
     "ordinal": 66,
     "peakbaggerPeakId": 15296,
@@ -19163,6 +19322,8 @@
    },
    {
     "elevationFt": 3488,
+    "lat": 57.807098,
+    "lng": -5.25175,
     "name": "An Teallach",
     "ordinal": 71,
     "peakbaggerPeakId": 9167,
@@ -19181,6 +19342,8 @@
    },
    {
     "elevationFt": 3474,
+    "lat": 57.800717,
+    "lng": -5.259425,
     "name": "An Teallach-Sgurr Fiona",
     "ordinal": 73,
     "peakbaggerPeakId": 20990,
@@ -19199,6 +19362,8 @@
    },
    {
     "elevationFt": 3461,
+    "lat": 57.564189,
+    "lng": -5.463575,
     "name": "Liathach",
     "ordinal": 75,
     "peakbaggerPeakId": 9173,
@@ -19244,6 +19409,8 @@
    },
    {
     "elevationFt": 3445,
+    "lat": 56.89783,
+    "lng": -4.45731,
     "name": "Geal Charn",
     "ordinal": 80,
     "peakbaggerPeakId": 6489,
@@ -19253,6 +19420,8 @@
    },
    {
     "elevationFt": 3442,
+    "lat": 56.928625,
+    "lng": -4.653627,
     "name": "Beinn a' Chaorainn",
     "ordinal": 81,
     "peakbaggerPeakId": 20373,
@@ -19262,6 +19431,8 @@
    },
    {
     "elevationFt": 3442,
+    "lat": 57.44968,
+    "lng": -4.94178,
     "name": "Sgurr Fhuar-thuill",
     "ordinal": 82,
     "peakbaggerPeakId": 21182,
@@ -19406,6 +19577,8 @@
    },
    {
     "elevationFt": 3392,
+    "lat": 56.855241,
+    "lng": -4.454725,
     "name": "Carn Dearg",
     "ordinal": 98,
     "peakbaggerPeakId": 19454,
@@ -19415,6 +19588,8 @@
    },
    {
     "elevationFt": 3386,
+    "lat": 57.220993,
+    "lng": -5.283518,
     "name": "Ben Attow",
     "ordinal": 99,
     "peakbaggerPeakId": 9191,
@@ -19478,6 +19653,8 @@
    },
    {
     "elevationFt": 3363,
+    "lat": 56.454555,
+    "lng": -4.619199,
     "name": "Ben Challum",
     "ordinal": 106,
     "peakbaggerPeakId": 14302,
@@ -19487,6 +19664,8 @@
    },
    {
     "elevationFt": 3360,
+    "lat": 56.65401,
+    "lng": -5.17149,
     "name": "Beinn a' Bheithir - Sgorr Dhearg",
     "ordinal": 107,
     "peakbaggerPeakId": 14061,
@@ -19496,6 +19675,8 @@
    },
    {
     "elevationFt": 3360,
+    "lat": 57.560891,
+    "lng": -5.492566,
     "name": "Liathach-Mullach an Rathain",
     "ordinal": 108,
     "peakbaggerPeakId": 21131,
@@ -19505,6 +19686,8 @@
    },
    {
     "elevationFt": 3350,
+    "lat": 56.646229,
+    "lng": -4.900336,
     "name": "Buachaille Etive Mor",
     "ordinal": 109,
     "peakbaggerPeakId": 9279,
@@ -19541,6 +19724,8 @@
    },
    {
     "elevationFt": 3343,
+    "lat": 57.01187,
+    "lng": -3.841287,
     "name": "Mullach Clach a' Bhlair",
     "ordinal": 113,
     "peakbaggerPeakId": 21040,
@@ -19550,6 +19735,8 @@
    },
    {
     "elevationFt": 3343,
+    "lat": 56.908283,
+    "lng": -3.357125,
     "name": "Carn an Tuirc",
     "ordinal": 114,
     "peakbaggerPeakId": 21073,
@@ -19604,6 +19791,8 @@
    },
    {
     "elevationFt": 3314,
+    "lat": 57.593726,
+    "lng": -5.429453,
     "name": "Beinn Eighe - Ruadh-stac Mor",
     "ordinal": 120,
     "peakbaggerPeakId": 14056,
@@ -19640,6 +19829,8 @@
    },
    {
     "elevationFt": 3310,
+    "lat": 56.87721,
+    "lng": -3.88381,
     "name": "Beinn Dearg",
     "ordinal": 124,
     "peakbaggerPeakId": 9245,
@@ -19657,7 +19848,9 @@
     "sourceRank": 125
    },
    {
-    "elevationFt": 3301,
+   "elevationFt": 3301,
+    "lat": 56.978775,
+    "lng": -4.515321,
     "name": "Carn Liath",
     "ordinal": 126,
     "peakbaggerPeakId": 21247,
@@ -19667,6 +19860,8 @@
    },
    {
     "elevationFt": 3297,
+    "lat": 57.305995,
+    "lng": -5.129911,
     "name": "Beinn Fhionnlaidh",
     "ordinal": 127,
     "peakbaggerPeakId": 19361,
@@ -19712,6 +19907,8 @@
    },
    {
     "elevationFt": 3291,
+    "lat": 57.028437,
+    "lng": -5.354205,
     "name": "Sgurr Mor",
     "ordinal": 132,
     "peakbaggerPeakId": 14614,
@@ -19721,6 +19918,8 @@
    },
    {
     "elevationFt": 3287,
+    "lat": 56.650499,
+    "lng": -5.197757,
     "name": "Beinn a' Bheithir-Sgorr Dhonuill",
     "ordinal": 133,
     "peakbaggerPeakId": 14994,
@@ -19775,6 +19974,8 @@
    },
    {
     "elevationFt": 3281,
+    "lat": 56.743652,
+    "lng": -5.030336,
     "name": "Stob Bàn",
     "ordinal": 139,
     "peakbaggerPeakId": 15058,
@@ -19784,6 +19985,8 @@
    },
    {
     "elevationFt": 3278,
+    "lat": 57.693782,
+    "lng": -5.12873,
     "name": "A' Chailleach",
     "ordinal": 140,
     "peakbaggerPeakId": 15673,
@@ -19856,6 +20059,8 @@
    },
    {
     "elevationFt": 3261,
+    "lat": 56.619822,
+    "lng": -5.080078,
     "name": "Sgor na h-Ulaidh",
     "ordinal": 148,
     "peakbaggerPeakId": 14497,
@@ -19883,6 +20088,8 @@
    },
    {
     "elevationFt": 3258,
+    "lat": 57.582098,
+    "lng": -5.403706,
     "name": "Beinn Eighe-Spidean Coire nan Clach",
     "ordinal": 151,
     "peakbaggerPeakId": 19288,
@@ -19901,6 +20108,8 @@
    },
    {
     "elevationFt": 3255,
+    "lat": 57.363365,
+    "lng": -5.024459,
     "name": "Carn nan Gobhar",
     "ordinal": 153,
     "peakbaggerPeakId": 15664,
@@ -19910,6 +20119,8 @@
    },
    {
     "elevationFt": 3255,
+    "lat": 57.452469,
+    "lng": -4.880017,
     "name": "Carn nan Gobhar",
     "ordinal": 154,
     "peakbaggerPeakId": 21183,
@@ -19946,6 +20157,8 @@
    },
    {
     "elevationFt": 3238,
+    "lat": 56.936184,
+    "lng": -5.284525,
     "name": "Gaor Bheinn",
     "ordinal": 158,
     "peakbaggerPeakId": 9243,
@@ -19982,6 +20195,8 @@
    },
    {
     "elevationFt": 3235,
+    "lat": 57.59082,
+    "lng": -5.572781,
     "name": "Beinn Alligin - Sgurr Mhor",
     "ordinal": 162,
     "peakbaggerPeakId": 14086,
@@ -19991,6 +20206,8 @@
    },
    {
     "elevationFt": 3235,
+    "lat": 57.213185,
+    "lng": -6.234741,
     "name": "Inaccessible Pinnacle",
     "ordinal": 163,
     "peakbaggerPeakId": 19160,
@@ -20000,6 +20217,8 @@
    },
    {
     "elevationFt": 3232,
+    "lat": 56.342671,
+    "lng": -4.21948,
     "name": "Ben Vorlich",
     "ordinal": 164,
     "peakbaggerPeakId": 9300,
@@ -20054,6 +20273,8 @@
    },
    {
     "elevationFt": 3219,
+    "lat": 56.619985,
+    "lng": -4.129957,
     "name": "Meall na Aighean",
     "ordinal": 170,
     "peakbaggerPeakId": 21005,
@@ -20117,6 +20338,8 @@
    },
    {
     "elevationFt": 3205,
+    "lat": 56.810647,
+    "lng": -4.840892,
     "name": "Stob Ban",
     "ordinal": 177,
     "peakbaggerPeakId": 19168,
@@ -20144,6 +20367,8 @@
    },
    {
     "elevationFt": 3202,
+    "lat": 56.80777,
+    "lng": -3.744106,
     "name": "Carn Liath",
     "ordinal": 180,
     "peakbaggerPeakId": 15373,
@@ -20198,6 +20423,8 @@
    },
    {
     "elevationFt": 3176,
+    "lat": 56.679387,
+    "lng": -5.037143,
     "name": "Aonach Eagach - Sgor nam Fiannaidh",
     "ordinal": 186,
     "peakbaggerPeakId": 9274,
@@ -20243,6 +20470,8 @@
    },
    {
     "elevationFt": 3166,
+    "lat": 57.220895,
+    "lng": -6.241561,
     "name": "Sgurr na Banachdich",
     "ordinal": 191,
     "peakbaggerPeakId": 21215,
@@ -20261,6 +20490,8 @@
    },
    {
     "elevationFt": 3159,
+    "lat": 56.937055,
+    "lng": -5.38924,
     "name": "Sgurr Thuilm",
     "ordinal": 193,
     "peakbaggerPeakId": 14065,
@@ -20270,6 +20501,8 @@
    },
    {
     "elevationFt": 3156,
+    "lat": 58.235202,
+    "lng": -4.41113,
     "name": "Ben Klibreck - Meall nan Con",
     "ordinal": 194,
     "peakbaggerPeakId": 9159,
@@ -20306,6 +20539,8 @@
    },
    {
     "elevationFt": 3146,
+    "lat": 56.60101,
+    "lng": -5.104914,
     "name": "Beinn Fhionnlaidh",
     "ordinal": 198,
     "peakbaggerPeakId": 14327,
@@ -20333,6 +20568,8 @@
    },
    {
     "elevationFt": 3143,
+    "lat": 56.63812,
+    "lng": -4.97081,
     "name": "Buachaille Etive Beag - Stob Dubh",
     "ordinal": 201,
     "peakbaggerPeakId": 14429,
@@ -20369,6 +20606,8 @@
    },
    {
     "elevationFt": 3136,
+    "lat": 56.935728,
+    "lng": -5.448568,
     "name": "Sgurr nan Coireachan",
     "ordinal": 205,
     "peakbaggerPeakId": 15330,
@@ -20396,6 +20635,8 @@
    },
    {
     "elevationFt": 3130,
+    "lat": 57.007158,
+    "lng": -5.40544,
     "name": "Sgurr nan Coireachan",
     "ordinal": 208,
     "peakbaggerPeakId": 15464,
@@ -20432,6 +20673,8 @@
    },
    {
     "elevationFt": 3127,
+    "lat": 56.629843,
+    "lng": -4.951175,
     "name": "Buachaille Etive Mor - Stob na Broige",
     "ordinal": 212,
     "peakbaggerPeakId": 21196,
@@ -20468,6 +20711,8 @@
    },
    {
     "elevationFt": 3114,
+    "lat": 56.326662,
+    "lng": -4.906722,
     "name": "Beinn Bhuidhe",
     "ordinal": 216,
     "peakbaggerPeakId": 14076,
@@ -20495,6 +20740,8 @@
    },
    {
     "elevationFt": 3104,
+    "lat": 57.09227,
+    "lng": -4.25323,
     "name": "Carn Dearg",
     "ordinal": 219,
     "peakbaggerPeakId": 9210,
@@ -20504,6 +20751,8 @@
    },
    {
     "elevationFt": 3104,
+    "lat": 57.031553,
+    "lng": -5.546318,
     "name": "Meall Buidhe",
     "ordinal": 220,
     "peakbaggerPeakId": 14346,
@@ -20567,6 +20816,8 @@
    },
    {
     "elevationFt": 3097,
+    "lat": 56.901249,
+    "lng": -3.513748,
     "name": "An Socach",
     "ordinal": 227,
     "peakbaggerPeakId": 15637,
@@ -20585,6 +20836,8 @@
    },
    {
     "elevationFt": 3094,
+    "lat": 56.27403,
+    "lng": -4.755047,
     "name": "Ben Vorlich",
     "ordinal": 229,
     "peakbaggerPeakId": 14068,
@@ -20612,6 +20865,8 @@
    },
    {
     "elevationFt": 3087,
+    "lat": 56.759931,
+    "lng": -4.589888,
     "name": "Carn Dearg",
     "ordinal": 232,
     "peakbaggerPeakId": 15410,
@@ -20747,6 +21002,8 @@
    },
    {
     "elevationFt": 3058,
+    "lat": 56.61724,
+    "lng": -4.448625,
     "name": "Meall Buidhe",
     "ordinal": 247,
     "peakbaggerPeakId": 14540,
@@ -20765,6 +21022,8 @@
    },
    {
     "elevationFt": 3054,
+    "lat": 57.055054,
+    "lng": -3.553471,
     "name": "Beinn Bhreac",
     "ordinal": 249,
     "peakbaggerPeakId": 21057,
@@ -20783,6 +21042,8 @@
    },
    {
     "elevationFt": 3048,
+    "lat": 57.21957,
+    "lng": -6.09321,
     "name": "Blabheinn",
     "ordinal": 251,
     "peakbaggerPeakId": 9136,
@@ -20801,6 +21062,8 @@
    },
    {
     "elevationFt": 3048,
+    "lat": 57.109554,
+    "lng": -4.179301,
     "name": "A' Chailleach",
     "ordinal": 253,
     "peakbaggerPeakId": 21230,
@@ -20891,6 +21154,8 @@
    },
    {
     "elevationFt": 3038,
+    "lat": 57.057427,
+    "lng": -4.373589,
     "name": "Geal Charn",
     "ordinal": 263,
     "peakbaggerPeakId": 21085,
@@ -20900,6 +21165,8 @@
    },
    {
     "elevationFt": 3035,
+    "lat": 56.64999,
+    "lng": -4.95168,
     "name": "Buachaille Etive Beag - Stob Coire Raineach",
     "ordinal": 264,
     "peakbaggerPeakId": 19156,
@@ -20936,6 +21203,8 @@
    },
    {
     "elevationFt": 3025,
+    "lat": 57.580528,
+    "lng": -5.581913,
     "name": "Beinn Alligin-Tom na Gruagaich",
     "ordinal": 268,
     "peakbaggerPeakId": 21064,
@@ -20954,6 +21223,8 @@
    },
    {
     "elevationFt": 3018,
+    "lat": 57.257533,
+    "lng": -5.171293,
     "name": "An Socach",
     "ordinal": 270,
     "peakbaggerPeakId": 21022,
@@ -20963,6 +21234,8 @@
    },
    {
     "elevationFt": 3018,
+    "lat": 57.124371,
+    "lng": -4.176986,
     "name": "Carn Sgulain",
     "ordinal": 271,
     "peakbaggerPeakId": 21249,
@@ -20981,6 +21254,8 @@
    },
    {
     "elevationFt": 3015,
+    "lat": 57.726781,
+    "lng": -5.329288,
     "name": "Ruadh Stac Mor",
     "ordinal": 273,
     "peakbaggerPeakId": 19285,
@@ -21026,6 +21301,8 @@
    },
    {
     "elevationFt": 3009,
+    "lat": 56.874432,
+    "lng": -4.304515,
     "name": "Geal-charn",
     "ordinal": 278,
     "peakbaggerPeakId": 19261,
@@ -32759,11 +33036,12 @@
  },
  "__fixture": {
   "file": "peakbagger-list-candidates-2026-08-22.json",
-  "note": "Peakbagger rows for every curated Peaks list. All rows from the 2026-08-21b fixture are carried across unchanged. Four new public list tables (200, 5170, 5410 and 5521) were read on 2026-08-22. The new rows carry names, page order, rank, elevation and peak ID. Their map marker feed was unavailable, so the importer uses reviewed ISO country and state scopes to prevent cross-region name matches.",
+  "note": "Peakbagger rows for every curated Peaks list. All rows from the 2026-08-21b fixture are carried across unchanged. Four public list tables (200, 5170, 5410 and 5521) were read on 2026-08-22. On 2026-08-30, the 135 fail-closed fixture rows in lists 5170, 5410 and 5521 plus two same-name Carn Liath rows gained coordinates from their public Peakbagger peak pages for identity review. The importer stores coordinates for the two 52 With a View companion summits beside their supplemental source rows.",
   "fetchedAt": {
    "2026-08-18": "all lists except 511, 5130, 5165, 5167, 5051, 5052, 5053, 5055, 5180, 21330",
    "2026-08-21": "511, 5130, 5165, 5167, 5051, 5052, 5053, 5055, 5180, 21330",
-   "2026-08-22": "200, 5170, 5410, 5521"
+   "2026-08-22": "200, 5170, 5410, 5521",
+   "2026-08-30": "coordinates for 135 audited fixture rows plus two Carn Liath rows in 5170, 5410 and 5521"
   }
  }
 }
