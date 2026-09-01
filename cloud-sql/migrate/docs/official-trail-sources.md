@@ -32,6 +32,8 @@ The USFS code allowlist records every distinct `allowed_terra_use` value that in
 
 These checks prove that the source record is suitable for a hiking route; they do not prove that it is open today. Seasonal limits, emergency closures, permits, and local orders still need a current land-manager check.
 
+For a route inside a South Korean national park, `knps` is a named identity and access publisher, not a geometry source. The queue accepts only exact KNPS course pages and control-detail pages with one six-digit `parkId`. Only the control-detail page may support `access.source_url`; it publishes the current state, reason, effective time, and affected sections. The course page, KFS archive, and KFS seasonal raster map cannot prove current access. Do not copy route geometry from any of these pages.
+
 ## Catalog coverage
 
 The JSON file is the source of truth for exact discovery, service, download, and license URLs. It also records coverage and source-specific limits.
