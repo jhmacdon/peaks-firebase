@@ -15,6 +15,11 @@ The follow-up [identity analysis](./keeper-list-dobih-smaller-majority-four-iden
 checks all 121 prior overlaps and finds 168 safe new catalog matches. It leaves
 359 identities open and still adds no importer.
 
+The next [checked resolution fixture](./keeper-list-dobih-smaller-majority-four-identity-resolutions-2026-08-31.md)
+closes all 359 identity rows with 10 existing destinations, 2 catalog repairs,
+and 347 deterministic curated destinations. It still adds no import or
+publication path.
+
 The change adds no service, timer, job, or other running resource. Run-rate
 change: **$0/month**.
 

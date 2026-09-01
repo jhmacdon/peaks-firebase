@@ -11,6 +11,10 @@ The four lists remain unpublished. Identity review still has 359 open rows. A
 later change must resolve them, then pass the destination-cover, safe-route, and
 route-cover gates.
 
+The [checked resolution follow-up](./keeper-list-dobih-smaller-majority-four-identity-resolutions-2026-08-31.md)
+resolves all 359 rows without adding an import or publication path. This file
+remains the pinned before-state analysis.
+
 This change adds no service, timer, job, or running resource. Run-rate change:
 **$0/month**.
 
