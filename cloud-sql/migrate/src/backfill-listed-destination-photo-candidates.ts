@@ -4,9 +4,10 @@
  *
  * This command never writes destinations.hero_image. It resolves a stable
  * Wikipedia/Wikidata identity, accepts only exact Wikimedia source and license
- * metadata, and inserts a new pending destination_photo_candidates row. A
- * source already present in that table stays final whether pending, approved,
- * or denied.
+ * metadata, and inserts a new pending destination_photo_candidates row. Two
+ * reviewed Korean Wikidata P18 files may run only after article photos fail.
+ * A source already present in that table stays final whether pending,
+ * approved, or denied.
  *
  * Dry-run is the default:
  *   npm run backfill:listed-photo-candidates
@@ -36,6 +37,7 @@ import {
   type WikimediaCoordinates,
   type WikimediaImageMetadata,
   type WikidataArticleIdentity,
+  type WikidataLeadImage,
   type WikipediaArticle,
   type WikipediaLanguage,
   type WikipediaSearchHit,
@@ -247,6 +249,63 @@ export function parseWikidataArticleIdentity(
     ? [...uniquePoints.values()][0]
     : null;
   return { wikidataId, articleTitle, articleLanguage, coordinates: point };
+}
+
+export function parseWikidataLeadImage(
+  json: unknown,
+  wikidataId: string
+): WikidataLeadImage | null {
+  const root = objectRecord(json);
+  const entities = objectRecord(root?.entities);
+  const entity = objectRecord(entities?.[wikidataId]);
+  if (
+    !entity ||
+    entity.missing !== undefined ||
+    text(entity.id) !== wikidataId ||
+    text(entity.type) !== "item"
+  ) return null;
+
+  const claims = objectRecord(entity.claims);
+  const rawClaims = claims?.P18;
+  const nonDeprecatedClaims = Array.isArray(rawClaims)
+    ? rawClaims
+        .map(objectRecord)
+        .filter((claim): claim is Record<string, unknown> =>
+          claim !== null && text(claim.rank) !== "deprecated"
+        )
+    : [];
+  if (
+    nonDeprecatedClaims.length === 0 ||
+    !nonDeprecatedClaims.every((claim) =>
+      ["normal", "preferred"].includes(text(claim.rank) ?? "")
+    )
+  ) return null;
+
+  const preferredClaims = nonDeprecatedClaims.filter(
+    (claim) => text(claim.rank) === "preferred"
+  );
+  const highestRankClaims = preferredClaims.length > 0
+    ? preferredClaims
+    : nonDeprecatedClaims;
+  const fileTitles = highestRankClaims.map((claim) => {
+    const mainsnak = objectRecord(claim.mainsnak);
+    if (
+      text(mainsnak?.snaktype) !== "value" ||
+      text(mainsnak?.property) !== "P18" ||
+      text(mainsnak?.datatype) !== "commonsMedia"
+    ) return null;
+    const dataValue = objectRecord(mainsnak?.datavalue);
+    if (text(dataValue?.type) !== "string") return null;
+    return normalizedWikimediaFileTitle(text(dataValue?.value));
+  });
+  if (fileTitles.some((title) => title === null)) return null;
+  const uniqueTitles = new Map(
+    fileTitles.flatMap((title) => title
+      ? [[title.normalize("NFC").replace(/_/g, " ").toLocaleLowerCase(), title]]
+      : [])
+  );
+  if (uniqueTitles.size !== 1) return null;
+  return { wikidataId, fileTitle: [...uniqueTitles.values()][0] };
 }
 
 export function parseWikipediaSearchHits(
@@ -469,6 +528,15 @@ export const wikimediaListedPhotoClient: ListedPhotoClient = {
       titles: title,
     });
     return parseWikipediaArticle(await requestJson(url), language);
+  },
+
+  async fetchWikidataLeadImage(wikidataId) {
+    const url = actionApiUrl("www.wikidata.org", {
+      action: "wbgetentities",
+      ids: wikidataId,
+      props: "claims",
+    });
+    return parseWikidataLeadImage(await requestJson(url), wikidataId);
   },
 
   async fetchImageMetadata(fileTitles, language) {

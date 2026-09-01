@@ -44,6 +44,11 @@ export type WikidataArticleIdentity = {
   coordinates: WikimediaCoordinates | null;
 };
 
+export type WikidataLeadImage = {
+  wikidataId: string;
+  fileTitle: string;
+};
+
 export type WikipediaLanguage = "en" | "ko";
 
 export type WikipediaSearchHit = {
@@ -91,11 +96,54 @@ export type ListedPhotoClient = {
     title: string,
     language: WikipediaLanguage
   ): Promise<WikipediaArticle | null>;
+  fetchWikidataLeadImage(
+    wikidataId: string
+  ): Promise<WikidataLeadImage | null>;
   fetchImageMetadata(
     fileTitles: string[],
     language: WikipediaLanguage
   ): Promise<WikimediaImageMetadata[]>;
 };
+
+export type AuditedWikidataP18Photo = {
+  wikidataId: string;
+  fileTitle: string;
+  photographer: string;
+  licenseName: string;
+  licenseUrl: string;
+  width: number;
+  height: number;
+  mediaSha1: string;
+};
+
+/**
+ * Human-audited P18 files that may extend article-image discovery. Keep this
+ * list closed: a Wikidata P18 claim alone is not enough to enter review.
+ */
+export const LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS: Readonly<
+  Record<string, Readonly<AuditedWikidataP18Photo>>
+> = Object.freeze({
+  Q5208179: Object.freeze({
+    wikidataId: "Q5208179",
+    fileTitle: "File:Chilseongbong at Daedunsan.jpg",
+    photographer: "Yoo Chung",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 5_483,
+    height: 2_050,
+    mediaSha1: "0632cdaca83add61f33ebfde6f541b870469ff98",
+  }),
+  Q8533668: Object.freeze({
+    wikidataId: "Q8533668",
+    fileTitle: "File:Minjujisan Muju.jpg",
+    photographer: "Ha98574 (Min's)",
+    licenseName: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    width: 1_600,
+    height: 1_200,
+    mediaSha1: "551de49c173c77197d9ad0ce091470cccf367e16",
+  }),
+});
 
 export type ListedPhotoCandidate = DestinationPhotoManifestCandidate & {
   id: string;
@@ -564,9 +612,54 @@ export function imageMetadataRejection(
   return null;
 }
 
+function wikimediaFileTitleKey(value: string | null): string | null {
+  return normalizedWikimediaFileTitle(value)
+    ?.normalize("NFC")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase() ?? null;
+}
+
+function auditedWikidataP18MetadataRejection(
+  image: WikimediaImageMetadata,
+  audit: Readonly<AuditedWikidataP18Photo>
+): string | null {
+  if (wikimediaFileTitleKey(image.fileTitle) !== wikimediaFileTitleKey(audit.fileTitle)) {
+    return "canonical File title changed from the human-audited P18 file";
+  }
+  const expectedSourceKey = sourcePageKey(
+    `https://commons.wikimedia.org/wiki/${encodeURIComponent(audit.fileTitle)}`
+  );
+  if (sourcePageKey(image.sourcePageUrl ?? "") !== expectedSourceKey) {
+    return "source page changed from the human-audited P18 file";
+  }
+  if (normalizedWikimediaSha1(image.mediaSha1) !== audit.mediaSha1) {
+    return "media SHA-1 changed from the human-audited P18 file";
+  }
+  if (image.photographer?.trim() !== audit.photographer) {
+    return "photographer changed from the human-audited P18 record";
+  }
+  if (
+    image.licenseName?.trim() !== audit.licenseName ||
+    canonicalWikimediaLicenseUrl(image.licenseUrl) !== audit.licenseUrl
+  ) {
+    return "license changed from the human-audited P18 record";
+  }
+  if (image.width !== audit.width || image.height !== audit.height) {
+    return "dimensions changed from the human-audited P18 file";
+  }
+  return null;
+}
+
 type StableArticleOutcome =
   | { kind: "article"; article: WikipediaArticle }
-  | { kind: "miss"; code: string; reason: string };
+  | {
+      kind: "miss";
+      code: string;
+      reason: string;
+      sameEntityArticleForAuditedP18?: WikipediaArticle;
+    };
 
 async function resolveStableArticle(
   row: ListedPhotoGapRow,
@@ -623,11 +716,22 @@ async function resolveStableArticle(
     if (
       !article ||
       article.language !== identity.articleLanguage ||
-      article.wikidataId !== row.wikidata_id ||
-      (
-        article.language === preferredLanguage &&
-        !localizedWikipediaNamesMatch(name, article.title, article.language)
-      )
+      article.wikidataId !== row.wikidata_id
+    ) {
+      return {
+        kind: "miss",
+        code: "wikipedia_identity_mismatch",
+        reason:
+          `${wikipediaLanguageLabel(identity.articleLanguage)} article does not ` +
+          "confirm the stored Wikidata identity and name",
+      };
+    }
+    const localizedNameMismatch =
+      article.language === preferredLanguage &&
+      !localizedWikipediaNamesMatch(name, article.title, article.language);
+    if (
+      localizedNameMismatch &&
+      !LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS[row.wikidata_id]
     ) {
       return {
         kind: "miss",
@@ -655,6 +759,16 @@ async function resolveStableArticle(
         reason:
           `${wikipediaLanguageLabel(article.language)} article is ` +
           `${(articleDistance / 1_000).toFixed(1)} km away`,
+      };
+    }
+    if (localizedNameMismatch) {
+      return {
+        kind: "miss",
+        code: "wikipedia_identity_mismatch",
+        reason:
+          `${wikipediaLanguageLabel(identity.articleLanguage)} article does not ` +
+          "confirm the stored Wikidata identity and name",
+        sameEntityArticleForAuditedP18: article,
       };
     }
     return { kind: "article", article };
@@ -731,11 +845,27 @@ export async function planListedPhotoCandidate(
     };
   }
 
+  const auditedP18ForRow = row.wikidata_id
+    ? LISTED_PHOTO_AUDITED_WIKIDATA_P18_PHOTOS[row.wikidata_id]
+    : undefined;
   const stable = await resolveStableArticle(row, client);
-  if (stable.kind === "miss") return stable;
-  const article = stable.article;
-  const fileTitles = rankedArticlePhotoTitles(article, row.name ?? "");
-  if (fileTitles.length === 0) {
+  if (
+    stable.kind === "miss" &&
+    (!auditedP18ForRow || !stable.sameEntityArticleForAuditedP18)
+  ) return stable;
+  const article = stable.kind === "article"
+    ? stable.article
+    : stable.sameEntityArticleForAuditedP18!;
+  const matchedWikidataId = article.wikidataId!;
+  const articleFileTitles = stable.kind === "article"
+    ? rankedArticlePhotoTitles(article, row.name ?? "")
+    : [];
+  const auditedP18 =
+    row.wikidata_id === matchedWikidataId &&
+    auditedP18ForRow?.wikidataId === matchedWikidataId
+      ? auditedP18ForRow
+    : undefined;
+  if (articleFileTitles.length === 0 && !auditedP18) {
     return {
       kind: "miss",
       code: "no_named_article_photo",
@@ -783,74 +913,124 @@ export async function planListedPhotoCandidate(
     }
   }
   const leadKey = article.leadImageTitle ? normalizedWords(article.leadImageTitle) : null;
-  const metadata = await client.fetchImageMetadata(fileTitles, article.language);
-  const metadataByTitle = new Map<string, WikimediaImageMetadata>();
-  for (const image of metadata) {
-    for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
-      metadataByTitle.set(normalizedWords(title), image);
-    }
-  }
   const rejectedImages: string[] = [];
 
-  for (const fileTitle of fileTitles) {
-    const image = metadataByTitle.get(normalizedWords(fileTitle));
-    if (!image) {
-      rejectedImages.push(`${fileTitle}: no image metadata`);
-      continue;
-    }
-    const rejection = imageMetadataRejection(image);
-    if (rejection) {
-      rejectedImages.push(`${fileTitle}: ${rejection}`);
-      continue;
-    }
-    const sourceKey = sourcePageKey(image.sourcePageUrl!);
-    const mediaSha1 = normalizedWikimediaSha1(image.mediaSha1);
-    if (!sourceKey || !mediaSha1 || existingKeys.has(sourceKey) || existingMediaSha1s.has(mediaSha1)) {
-      rejectedImages.push(`${fileTitle}: source already reviewed or pending`);
-      continue;
+  const candidateFromTitles = async (
+    fileTitles: string[],
+    sourceDescription: (fileTitle: string) => string,
+    frozenAudit?: Readonly<AuditedWikidataP18Photo>
+  ): Promise<ListedPhotoCandidate | null> => {
+    if (fileTitles.length === 0) return null;
+    const metadata = await client.fetchImageMetadata(fileTitles, article.language);
+    const metadataByTitle = new Map<string, WikimediaImageMetadata>();
+    for (const image of metadata) {
+      for (const title of [image.fileTitle, ...image.fileTitleAliases]) {
+        metadataByTitle.set(normalizedWords(title), image);
+      }
     }
 
-    const isLead = leadKey !== null && normalizedWords(fileTitle) === leadKey;
-    const matchedWikidataId = article.wikidataId!;
-    const sourcePageUrl = image.sourcePageUrl!;
-    const candidate: ListedPhotoCandidate = {
-      id: deterministicPhotoCandidateId(row.id, sourcePageUrl),
-      destinationId: row.id,
-      destinationName: row.name!,
-      imageUrl: image.imageUrl!,
-      sourcePageUrl,
-      sourceKind: sourceKind(sourcePageUrl)!,
-      photographer: image.photographer!,
-      licenseName: image.licenseName!,
-      licenseUrl: image.licenseUrl!,
-      imageWidth: image.width!,
-      imageHeight: image.height!,
-      focalX: 50,
-      focalY: 50,
-      notes:
-        `Identity checked against ${wikipediaLanguageLabel(article.language)} ` +
-        `Wikipedia article ${article.title} ` +
-        `(${matchedWikidataId}); ${isLead ? "article lead image" : "file title names the destination"}. ` +
-        "Framing requires human review.",
-      matchedArticleTitle: article.title,
-      matchedWikidataId,
-      catalogWikidataId: row.wikidata_id,
-      catalogCountryCode: row.country_code,
-      catalogLat: row.lat!,
-      catalogLng: row.lng!,
-      mediaSha1,
-      reviewHistoryFingerprint: listedPhotoReviewHistoryFingerprint(
-        row.existing_source_page_urls,
-        row.existing_media_sha1s
-      ),
-    };
-    return { kind: "candidate", candidate, rejectedImages };
+    for (const fileTitle of fileTitles) {
+      const image = metadataByTitle.get(normalizedWords(fileTitle));
+      if (!image) {
+        rejectedImages.push(`${fileTitle}: no image metadata`);
+        continue;
+      }
+      const rejection = imageMetadataRejection(image) ?? (
+        frozenAudit ? auditedWikidataP18MetadataRejection(image, frozenAudit) : null
+      );
+      if (rejection) {
+        rejectedImages.push(`${fileTitle}: ${rejection}`);
+        continue;
+      }
+      const sourceKey = sourcePageKey(image.sourcePageUrl!);
+      const mediaSha1 = normalizedWikimediaSha1(image.mediaSha1);
+      if (
+        !sourceKey ||
+        !mediaSha1 ||
+        existingKeys.has(sourceKey) ||
+        existingMediaSha1s.has(mediaSha1)
+      ) {
+        rejectedImages.push(`${fileTitle}: source already reviewed or pending`);
+        continue;
+      }
+
+      const sourcePageUrl = image.sourcePageUrl!;
+      return {
+        id: deterministicPhotoCandidateId(row.id, sourcePageUrl),
+        destinationId: row.id,
+        destinationName: row.name!,
+        imageUrl: image.imageUrl!,
+        sourcePageUrl,
+        sourceKind: sourceKind(sourcePageUrl)!,
+        photographer: image.photographer!,
+        licenseName: image.licenseName!,
+        licenseUrl: image.licenseUrl!,
+        imageWidth: image.width!,
+        imageHeight: image.height!,
+        focalX: 50,
+        focalY: 50,
+        notes:
+          `Identity checked against ${wikipediaLanguageLabel(article.language)} ` +
+          `Wikipedia article ${article.title} ` +
+          `(${matchedWikidataId}); ${sourceDescription(fileTitle)}. ` +
+          "Framing requires human review.",
+        matchedArticleTitle: article.title,
+        matchedWikidataId,
+        catalogWikidataId: row.wikidata_id,
+        catalogCountryCode: row.country_code,
+        catalogLat: row.lat!,
+        catalogLng: row.lng!,
+        mediaSha1,
+        reviewHistoryFingerprint: listedPhotoReviewHistoryFingerprint(
+          row.existing_source_page_urls,
+          row.existing_media_sha1s
+        ),
+      };
+    }
+    return null;
+  };
+
+  const articleCandidate = await candidateFromTitles(
+    articleFileTitles,
+    (fileTitle) =>
+      leadKey !== null && normalizedWords(fileTitle) === leadKey
+        ? "article lead image"
+        : "file title names the destination"
+  );
+  if (articleCandidate) {
+    return { kind: "candidate", candidate: articleCandidate, rejectedImages };
+  }
+
+  if (auditedP18) {
+    const leadImage = await client.fetchWikidataLeadImage(matchedWikidataId);
+    if (
+      !leadImage ||
+      leadImage.wikidataId !== matchedWikidataId ||
+      wikimediaFileTitleKey(leadImage.fileTitle) !==
+        wikimediaFileTitleKey(auditedP18.fileTitle)
+    ) {
+      rejectedImages.push(
+        `${auditedP18.fileTitle}: Wikidata ${matchedWikidataId} P18 no longer ` +
+        "matches the human-audited file"
+      );
+    } else {
+      const p18Candidate = await candidateFromTitles(
+        [leadImage.fileTitle],
+        () => "human-audited same-entity Wikidata P18 lead image",
+        auditedP18
+      );
+      if (p18Candidate) {
+        return { kind: "candidate", candidate: p18Candidate, rejectedImages };
+      }
+    }
   }
 
   return {
     kind: "miss",
     code: "no_usable_new_source",
-    reason: "article photos were already reviewed or failed source, credit, license, or size checks",
+    reason:
+      "article photos and any audited P18 fallback were already reviewed or failed " +
+      "source, credit, license, size, or frozen-audit checks",
     rejectedImages,
   };
 }
