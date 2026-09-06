@@ -25,7 +25,7 @@ npm run lint         # eslint
 
 Requires Cloud SQL Auth Proxy running locally for database access (`DB_HOST=127.0.0.1:5432`).
 
-**Always run `npm run build && npm run lint` after making changes.** Both must pass with zero errors before considering work complete.
+For web code or build-configuration changes, run `npm run build && npm run lint` and fix errors caused by the change. For prose-only edits, check the diff and links.
 
 ## Project Structure
 

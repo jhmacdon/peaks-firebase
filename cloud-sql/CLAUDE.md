@@ -161,7 +161,7 @@ gcloud run deploy peaks-api --source=. --region=us-central1
 
 Cost-relevant flags (`--min-instances`, `--cpu-throttling`, memory/CPU) are pinned in
 `.github/workflows/deploy.yml` and governed by the **"Infrastructure cost discipline"**
-section of the repo-root `CLAUDE.md` — read it before changing any of them, and never
+section of the `docs/agent-operations.md` — read it before changing any of them, and never
 add background work that relies on an in-process timer (use the Cloud Scheduler →
 `/internal/sweep` pattern instead).
 

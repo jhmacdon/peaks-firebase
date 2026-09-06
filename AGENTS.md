@@ -1,70 +1,49 @@
-# Peaks Firebase
+# Peaks backend
 
-## Project Structure
-- `functions/` — Firebase Cloud Functions (TypeScript, compiled to `functions/lib/`)
-- `functions/src/` — Source files
-- `firestore.rules` — Firestore security rules
-- `firebase.json` — Firebase project configuration
+`functions/` contains Firebase functions; `cloud-sql/api/` contains the Cloud Run
+API; `cloud-sql/migrate/` contains data migrations; `web/` contains the Next.js app.
+`functions/functions/` is legacy and must not receive new work.
 
-## Build & Lint
-After making changes, always verify the affected project compiles and lints cleanly before finishing:
+## Task workflow
 
-**Functions:**
-```bash
-cd functions && npm run build && npm run lint
-```
-- **Build**: `npm run build` (runs `tsc`)
-- **Lint**: `npm run lint` (runs `eslint --ext .js,.ts .`)
-- Lint must pass with zero errors. Warnings for unused `context` params in Firebase function signatures are acceptable.
+Scope the requested change with focused reads. Fetch the remote default branch and
+create a fresh task branch and worktree before editing. Keep the saved checkout
+read-only. Continue through implementation, relevant checks, fixes, a pushed commit,
+and a ready-for-review PR without asking again for those steps. Then remove only the
+clean task worktree and its build output; delete the local branch after confirming
+it is fully pushed and the PR exists. Preserve dirty or unrelated work.
 
-**Web:**
-```bash
-cd web && npm run build && npm run lint
-```
-- **Build**: `npm run build` (runs `next build`)
-- **Lint**: `npm run lint` (runs `eslint`)
-- Both must pass with zero errors before considering work complete. Pre-existing warnings (e.g. `<img>` vs `<Image />`) are acceptable.
+Read linked guidance when its subject applies. For prose-only changes, check the
+diff, links, and instruction consistency; app builds and screenshots add no evidence.
+For code, run affected checks and fix failures caused by the change. Repeat or broaden
+checks only when new edits, failures, or unresolved risks warrant it. Use existing
+authorization; ask only for missing decisions or actions outside the request. If a
+required step cannot be completed safely, report the blocker and ask for direction.
+A development PR does not authorize an app release or production data changes.
 
-## Deployment
-- **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — deploys on push to `main`
-  - `deploy-functions` job: builds + deploys Cloud Functions and Firestore rules
-  - `deploy-api` job: builds + deploys Cloud Run API (`cloud-sql/api`) via multi-stage Dockerfile
-- Deploy uses `--force` to auto-delete stale functions removed from source
-- Service account credentials: stored as `FIREBASE_SERVICE_ACCOUNT` GitHub secret
-- `firebase.ts` uses application default credentials in CI (falls back when `admin-service-account.json` is absent)
+## Data and infrastructure
 
-**After every `git push`**: monitor the triggered workflow run with `gh run list --limit 1` and `gh run watch <id>`. If a job fails, check logs with `gh run view <id> --log-failed`, fix the issue, and push again. Do not consider a push complete until CI is green.
+- Keep the backend near $10–15/month. Price recurring infrastructure changes in
+  the PR and prefer the cheaper option when user value is equal. Cloud Run stays
+  scale-to-zero and CPU-throttled; periodic work uses authenticated requests,
+  not in-process timers. See [operations](docs/agent-operations.md#infrastructure-cost-discipline).
+- Never add a legacy datastore fallback after migration. Repair missing rows,
+  relationships, and current writers; verify counts and missing-ID/join queries.
+- DB-backed tests must use `TEST_DATABASE_URL` with a database ending in `_test`.
+  Read [test isolation](cloud-sql/CLAUDE.md#testing-do-not-regress) before running them.
+  Once configured, local fixture tests and fixes within the task need no new approval.
+- Keep the BIGINT parser before pool creation in `cloud-sql/api/src/db.ts`.
+  Verify numeric wire formats across clients when changing numeric columns.
+- Keep Cloud Run secrets and environment in `deploy.yml`. Do not use replacing
+  `--set-secrets` / `--set-env-vars` updates or bypass the pinned deployment config.
+- Never commit secrets. Production writes and deployments require task authorization.
 
-**Cloud Run secrets/env vars**: All required env vars and secrets for the Cloud Run API are pinned in `deploy.yml`. **NEVER use `gcloud run services update --set-secrets` or `--set-env-vars`** — these flags REPLACE all existing values, silently dropping any not listed. Instead, update the `env_vars` and `secrets` fields in `deploy.yml` and redeploy via CI. The post-deploy verification step will catch DB connectivity failures.
+## Task references
 
-## Adding Destinations
-When looking up coordinates for a new destination (shelter, summit, trailhead, etc.):
-- **Primary source: OpenStreetMap** — use the OSM API (`https://nominatim.openstreetmap.org/search?q=<name>&format=json`) or OSM-derived sources (Gaia GPS, Mapbox). OSM is crowd-sourced and GPS-surveyed, giving accurate placement of physical structures.
-- **Avoid GNIS-based sources** (TopoZone, some AllTrails entries) — GNIS coordinates are digitized from old paper topo maps and can be 100–200m off for backcountry features like shelters and huts.
-- If the user has GPS tracks near the location, cross-check: query the centroid of tracking points within 300m and snap to it if sessions fall within a close radius.
-
-## GPX Files
-When downloading GPX files for the project (e.g. from Hiking Project, Wikiloc, AllTrails), **always verify the files are legitimate GPX** before considering the task complete. Many sources return HTML login pages instead of actual GPX data. Check that files start with `<?xml` and contain `<trkpt>` or `<rtept>` elements. Delete any invalid files immediately.
-
-## React useEffect Rules
-When writing or modifying `useEffect` hooks in the web app:
-- **NEVER use objects or arrays as dependencies** — they create new references every render, causing infinite re-render loops. Use primitive values (strings, numbers, booleans) instead. For example, use `[userLat, userLng]` not `[userLocation]`.
-- **NEVER set state inside an effect that re-triggers that same effect** — e.g. setting `locationStatus` inside an effect that depends on `[locationStatus]`.
-- After modifying any page with useEffect, **verify the page doesn't infinite-loop** by loading it in the browser and confirming network requests stop after initial load.
-
-## Owner
-- **Josiah's Firebase UID**: `QzmvJRt5E5eTV4fAsuyLDrc4PEq1`
-  - Use this when querying sessions, destinations, or any user-scoped data to identify Josiah's records
-  - Sessions/data prefixed with `deleted_QzmvJRt5E5eTV4fAsuyLDrc4PEq1` are from a prior account migration — the live records use the bare UID
-
-## Postgres → wire type policy (cloud-sql API)
-`node-postgres` has surprising defaults for `BIGINT` and `NUMERIC` — both come over the wire as JS strings by default to preserve precision. That silently zeroed every tracking point's `time` on iOS once already (`d["time"] as? Int` fails on a numeric string). The API now registers a global `types.setTypeParser(20, parseInt)` in `cloud-sql/api/src/db.ts`. Do not remove it, do not move it below the `new Pool(...)` call, and do not convert more columns to `BIGINT` / `NUMERIC` without verifying that every client handles the wire format or that you've added a column-specific parser / `::text` cast. See `cloud-sql/CLAUDE.md` "Postgres → wire type policy" for the full contract + the regression test at `cloud-sql/api/src/__tests__/bigint-parser.test.ts`.
-
-## Key Details
-- Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11
-- Node 20 runtime
-- Secrets stored via `functions.config()` (not hardcoded) — never commit secrets
-- `functions/functions/` is a legacy nested directory — do not use it
+- Functions build/lint, deployment, cost, destination sourcing, GPX checks, owner
+  lookup, or React effects: [operations](docs/agent-operations.md).
+- Database roles, schema, API, migrations, and catalog imports: [cloud-sql/CLAUDE.md](cloud-sql/CLAUDE.md).
+- Web code, auth, and server actions: [web/CLAUDE.md](web/CLAUDE.md).
 
 ## List External References
 
