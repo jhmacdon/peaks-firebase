@@ -1,0 +1,21 @@
+{
+  "collection": "Half Dome cover",
+  "researchedAt": "2026-09-06",
+  "candidates": [
+    {
+      "destinationId": "OummFegY7fGoN2X7RdCz",
+      "destinationName": "Half Dome",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Half_Dome_from_Glacier_Point%2C_Yosemite_NP_-_Diliff.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Half_Dome_from_Glacier_Point,_Yosemite_NP_-_Diliff.jpg",
+      "sourceKind": "wikimedia_commons",
+      "photographer": "DAVID ILIFF",
+      "licenseName": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "imageWidth": 4752,
+      "imageHeight": 2988,
+      "focalX": 55,
+      "focalY": 40,
+      "notes": "Source identifies Half Dome from Glacier Point. Visually checked the dome and summit framing. Use photographer credit, license URL, and a resize/crop notice with the cover."
+    }
+  ]
+}
