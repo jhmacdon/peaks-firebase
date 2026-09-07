@@ -1,0 +1,73 @@
+{
+  "verifiedOn": "2026-09-07",
+  "indexUrl": "https://firelookout.org/lookouts/us/",
+  "definitionUrl": "https://firelookout.org/lookouts/",
+  "linkedStateInventories": 31,
+  "statesWithNoLinkedInventory": [
+    "Alabama",
+    "Alaska",
+    "Arkansas",
+    "Connecticut",
+    "Florida",
+    "Georgia",
+    "Hawaii",
+    "Kentucky",
+    "Louisiana",
+    "Massachusetts",
+    "Michigan",
+    "Mississippi",
+    "Missouri",
+    "New Jersey",
+    "North Carolina",
+    "Oklahoma",
+    "Pennsylvania",
+    "South Carolina",
+    "Tennessee"
+  ],
+  "statesWithNoStandingLookouts": [
+    "Delaware",
+    "Kansas"
+  ],
+  "statesCollectedByRoot": [
+    "Oregon"
+  ],
+  "statesInThisData": 28,
+  "standingOriginalStructuresWithCoordinates": 1163,
+  "supplementalPositiveStructures": 4,
+  "allCoordinateRecords": 4900,
+  "exactStandingPolicy": "Only original Lookout Structures section and exact Standing status. Excludes non-wildland structures, relocated/replica museums, sites without structures, partial remains and ruins. Supplemental positives and conflict decisions are separate.",
+  "missingCoordinateCaveat": "One original exact Standing row in Texas (Onalaska Loc 2) has private coordinates and cannot be matched. Unknown/private coordinates for relocated or non-wildland records are also excluded.",
+  "coverageCaveat": "Inventories are works in progress, not proof of global or national completeness. No mark means not verified by these sources, not known absent. Oregon collection and global OpenStreetMap belong to the root audit.",
+  "extraction": "Public FFLA tables read live in Chrome and cross-checked with paged web extracts. Every source line is present in raw chunks for the 28 states. Indiana table cells were exported from live browser DOM because the web extract flattened that table. Parser and source facts remain in this directory.",
+  "nonUSInventoryCheck": [
+    {
+      "region": "Canada",
+      "url": "https://firelookout.org/lookouts/ca/",
+      "result": "FFLA province inventory is under construction; no structured standing tables. Linked firelookout.ca has 205 historical archive records and no standing-status table in its public index; not used."
+    },
+    {
+      "region": "Australia",
+      "url": "https://firelookout.org/lookouts/au/",
+      "result": "FFLA state inventory is under construction and only gives total-site counts with no standing coordinates.",
+      "linkedSource": "https://www.firelookoutsdownunder.com/",
+      "linkedSourceCaveat": "Regional volunteer history site. Homepage says all coordinates use AMG 66 datum unless noted, so coordinates need datum conversion before precise matching. No bulk current standing dataset established in this pass."
+    }
+  ],
+  "oregonStandingStructures": 151,
+  "oregonSourceUrl": "https://firelookout.org/lookouts/us/or/",
+  "oregonValidation": "All 955 web source lines retrieved. All151 exactStanding original-structure rows match live DOM names and coordinates. Prairie City Firefinder excluded as a non-lookout structure.",
+  "finalPositiveSourceRecords": 2891,
+  "catalogRowsScanned": 83450,
+  "peakRowsScanned": 42019,
+  "matchedDestinations": 258,
+  "newPeakTags": 250,
+  "correctedLegacyTags": 7,
+  "finalLookoutPeaks": 251,
+  "finalStandaloneLookouts": 10,
+  "verification": {
+    "targetRows": 268,
+    "featuresAndUnrelatedMetadataPreserved": true,
+    "namesAndCoordinatesPreserved": true,
+    "reviewDigest": "ad62953747a5450fc765b2d3ca74c5edb7e2de8e546e02740e086c202408652e"
+  }
+}

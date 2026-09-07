@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { decodePolyline6 } from "../lib/polyline";
+import { FIRE_LOOKOUT_PATH } from "./fire-lookout-badge";
 import { formatDistanceMeters, formatElevationMeters } from "../lib/route-guide";
 import {
   DEFAULT_MAP_VIEW,
@@ -111,6 +112,30 @@ function markerRadius(elevation: number | null): number {
   return 4.5;
 }
 
+function fireLookoutMarkerIcon(): L.DivIcon {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.65");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", FIRE_LOOKOUT_PATH);
+  svg.append(path);
+  const symbol = document.createElement("span");
+  symbol.className = "map-fire-lookout-symbol";
+  symbol.append(svg);
+  return L.divIcon({
+    className: "map-fire-lookout",
+    html: symbol,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+  });
+}
+
 // Every string that reaches the map goes through a text node. Names,
 // features and route titles are imported and admin-edited content, and the
 // popups used to be HTML built by interpolation — one destination named
@@ -178,11 +203,12 @@ function routePopup(route: MapRoute): HTMLElement {
 function hoverLabel(dest: MapDestination): HTMLElement {
   const elevation =
     dest.elevation != null ? ` · ${formatElevationMeters(dest.elevation)}` : "";
-  return textNode(`${dest.name || "Unnamed"}${elevation}`);
+  const lookout = dest.features.includes("fire-lookout") ? " · Fire lookout" : "";
+  return textNode(`${dest.name || "Unnamed"}${lookout}${elevation}`);
 }
 
 interface DestMarkerEntry {
-  marker: L.CircleMarker;
+  marker: L.CircleMarker | L.Marker;
   baseRadius: number;
   dest: MapDestination;
   permanentLabel: boolean;
@@ -248,6 +274,11 @@ export default function ExploreMap({
     for (const [id, entry] of destMarkersRef.current) {
       const selected = id === selectedDestIdRef.current;
       const hovered = id === hoveredDestIdRef.current;
+      if (entry.marker instanceof L.Marker) {
+        entry.marker.getElement()?.classList.toggle("is-emphasized", selected || hovered);
+        entry.marker.setZIndexOffset(selected ? 1200 : hovered ? 1100 : 100);
+        continue;
+      }
       entry.marker.setStyle({
         fillColor: ACCENT,
         color: selected ? PALE_EDGE : MARKER_EDGE,
@@ -317,13 +348,19 @@ export default function ExploreMap({
 
     for (const dest of destinationsRef.current) {
       const baseRadius = markerRadius(dest.elevation);
-      const marker = L.circleMarker([dest.lat, dest.lng], {
-        radius: baseRadius,
-        fillColor: ACCENT,
-        fillOpacity: 0.95,
-        color: MARKER_EDGE,
-        weight: 1.5,
-      });
+      const marker = dest.features.includes("fire-lookout")
+        ? L.marker([dest.lat, dest.lng], {
+            icon: fireLookoutMarkerIcon(),
+            title: `${dest.name || "Unnamed"} · Fire lookout`,
+            alt: `${dest.name || "Unnamed"} · Fire lookout`,
+          })
+        : L.circleMarker([dest.lat, dest.lng], {
+            radius: baseRadius,
+            fillColor: ACCENT,
+            fillOpacity: 0.95,
+            color: MARKER_EDGE,
+            weight: 1.5,
+          });
 
       marker.bindTooltip(hoverLabel(dest), {
         direction: "top",
@@ -343,7 +380,12 @@ export default function ExploreMap({
       });
       marker.on("mouseover", () => {
         if (dest.id !== selectedDestIdRef.current) {
-          marker.setRadius(baseRadius + 2);
+          if (marker instanceof L.Marker) {
+            marker.getElement()?.classList.add("is-emphasized");
+            marker.setZIndexOffset(1100);
+          } else {
+            marker.setRadius(baseRadius + 2);
+          }
         }
       });
       marker.on("mouseout", () => applyDestinationEmphasis());

@@ -1,0 +1,1212 @@
+{
+  "reviewedOn": "2026-09-07",
+  "scope": "1475 unmatched OSM sources compared to all catalog summit records; 31 have a summit within 2km. Reviewed strongest named-place associations. No radius or source coordinate changed. No production writes.",
+  "reviewedCount": 8,
+  "sources": [
+    {
+      "source": "osm",
+      "sourceId": "node/8328754660",
+      "name": "Dickson Fire Lookout",
+      "lat": 38.0267794,
+      "lng": -122.7164183,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/8328754660",
+      "reviewedMatches": [
+        {
+          "destinationId": "gUJjwOFzJqgB1gmxTzwe",
+          "evidenceUrl": "https://www.marincounty.gov/news-releases/countys-outstanding-volunteers-and-student-interns-receive-ovation",
+          "note": "Marin County May 2026 says volunteers staff and maintain lookout towers on Mount Barnabe. The county community plan identifies Dickson Lookout on Mount Barnabe. OSM Dickson Fire Lookout is 173.1 m from the sole nearby catalog summit, Barnabe Mountain."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "way/464610215",
+      "name": "Heybrook Lookout",
+      "lat": 47.8106266,
+      "lng": -121.525396,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/464610215",
+      "reviewedMatches": [
+        {
+          "destinationId": "QYAIG7RWiRXrVo5iOBWz",
+          "evidenceUrl": "https://www.recreation.gov/camping/campgrounds/269838",
+          "note": "Recreation.gov identifies Heybrook Lookout as a surviving fire lookout atop its namesake ridge. Link it to catalog Heybrook Ridge; the OSM structure is 248.2 m from the catalog summit coordinate. Keep the original tower coordinates."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "way/83326231",
+      "name": "Mount Brown Fire Lookout",
+      "lat": 48.6288093,
+      "lng": -113.8337508,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/83326231",
+      "reviewedMatches": [
+        {
+          "destinationId": "9420B4D58710CF50757D",
+          "evidenceUrl": "https://www.nps.gov/glac/learn/news/glacier-national-park-hosts-2023-mount-brown-hawk-watch.htm",
+          "note": "NPS confirms Mount Brown fire lookout and its refurbishment on the Mount Brown hiking route. This is a mountain association: the lookout is below the true summit, 1572.4 m from the catalog peak. The feature does not assert that the lookout stands on the highest summit or that its trail summits the peak."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "way/372628985",
+      "name": "Sourdough Mountain Lookout",
+      "lat": 48.7427115,
+      "lng": -121.1095486,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/372628985",
+      "reviewedMatches": [
+        {
+          "destinationId": "B304E3BDB251F6FA0A46",
+          "evidenceUrl": "https://home.nps.gov/noca/planyourvisit/sourdough-mountain-trail.htm",
+          "note": "NPS March 2026 names the historic lookout on Sourdough Mountain and describes approaches from Diablo and Pierce Mountain. Its trail/lookout summit differs from the catalog mountain high point by 1717.4 m. This is an explicit named-mountain association, not a general larger-radius match."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "node/469791845",
+      "name": "Fire lookout",
+      "lat": 53.5515343,
+      "lng": 19.9409551,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/469791845",
+      "reviewedMatches": [
+        {
+          "destinationId": "E63AD0474108C931DDA2",
+          "evidenceUrl": "https://bip2.lasy.gov.pl/pl/bip/px_dg~rdlp_olsztyn~nadl_ilawa~plan_urzadzenia_lasu_elaborat.pdf",
+          "note": "The Polish State Forests Ilawa forest management plan lists Dylewska Gora, Olsztynek district, in its neighboring fire-observation tower table (page 157; the table includes national-grid coordinates). The explicitly tagged OSM fire lookout is 135.1 m from the catalog Dylewska Gora summit. The generic OSM name caused the original miss."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "node/7539440130",
+      "name": "Posto de Vigia Jarmelo",
+      "lat": 40.5896524,
+      "lng": -7.1324963,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/7539440130",
+      "reviewedMatches": [
+        {
+          "destinationId": "8904E5BB8F4DD98EAF01",
+          "evidenceUrl": "https://cdn.mun-guarda.pt/WS/1733823622-92898",
+          "note": "Guarda municipal plan, October 2024, page 130, identifies the Jarmelo Sao Pedro lookout within the wildfire lookout network. The OSM named Jarmelo tower is 172.0 m from the catalog Jarmelo peak. This association uses the same named place and close source location; the original name normalizer did not remove Portuguese Posto de Vigia."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "node/7537447416",
+      "name": "Posto de Vigia Pedra Alçada",
+      "lat": 41.8310036,
+      "lng": -8.7488247,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/7537447416",
+      "reviewedMatches": [
+        {
+          "destinationId": "6E22257283ACB9D13772",
+          "evidenceUrl": "https://www.cm-caminha.pt/cmcaminha/uploads/writer_file/document/1106/02_pme_caminha_parte_ii_v05r.pdf",
+          "note": "Caminha emergency plan, December 2025, section 3.1.1.11.2, page 66, places its forest-fire observation post at Pedra Alcada in Serra da Arga. OSM names the same tower 318.8 m from catalog Pedra Alcada. ICNF also lists the named post, height and operational status."
+        }
+      ]
+    },
+    {
+      "source": "osm",
+      "sourceId": "node/8981967092",
+      "name": "Mahyadağ Yangın Gözetleme Kulesi",
+      "lat": 41.7826112,
+      "lng": 27.6187361,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/8981967092",
+      "reviewedMatches": [
+        {
+          "destinationId": "E9F650F2C7C0AB58DD06",
+          "evidenceUrl": "https://cdn.tbmm.gov.tr/KKBSPublicFile/D24/Y3/T7/WebOnergeMetni/394ff60c-969c-4315-add7-e3feda2de9f1.pdf",
+          "note": "The Turkish Parliament-hosted Istanbul Regional Forestry communications inventory lists MAHYADAG as a relay/tower under Pinarhisar, Kirklareli. A first-hand university project report title also identifies a forestry fire lookout at Mahya Dagi. The explicitly named OSM fire lookout is 115.9 m from the catalog Mahya Dagi summit; the Turkish tower words caused the original miss."
+        }
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "destinationId": "gUJjwOFzJqgB1gmxTzwe",
+      "destinationName": "Barnabe Mountain",
+      "destinationLat": 38.028324,
+      "destinationLng": -122.716664,
+      "distanceMeters": 173.1,
+      "sourceId": "node/8328754660",
+      "sourceLat": 38.0267794,
+      "sourceLng": -122.7164183,
+      "evidenceUrl": "https://www.marincounty.gov/news-releases/countys-outstanding-volunteers-and-student-interns-receive-ovation",
+      "corroboratingEvidenceUrls": [
+        "https://assets.marincounty.gov/marincounty-prod/public/2024-03/san_geronimo_community_plan_1997.pdf"
+      ],
+      "note": "Marin County May 2026 says volunteers staff and maintain lookout towers on Mount Barnabe. The county community plan identifies Dickson Lookout on Mount Barnabe. OSM Dickson Fire Lookout is 173.1 m from the sole nearby catalog summit, Barnabe Mountain."
+    },
+    {
+      "destinationId": "QYAIG7RWiRXrVo5iOBWz",
+      "destinationName": "Heybrook Ridge",
+      "destinationLat": 47.811703,
+      "destinationLng": -121.522484,
+      "distanceMeters": 248.2,
+      "sourceId": "way/464610215",
+      "sourceLat": 47.8106266,
+      "sourceLng": -121.525396,
+      "evidenceUrl": "https://www.recreation.gov/camping/campgrounds/269838",
+      "corroboratingEvidenceUrls": [],
+      "note": "Recreation.gov identifies Heybrook Lookout as a surviving fire lookout atop its namesake ridge. Link it to catalog Heybrook Ridge; the OSM structure is 248.2 m from the catalog summit coordinate. Keep the original tower coordinates."
+    },
+    {
+      "destinationId": "9420B4D58710CF50757D",
+      "destinationName": "Mount Brown",
+      "destinationLat": 48.638305,
+      "destinationLng": -113.8178947,
+      "distanceMeters": 1572.4,
+      "sourceId": "way/83326231",
+      "sourceLat": 48.6288093,
+      "sourceLng": -113.8337508,
+      "evidenceUrl": "https://www.nps.gov/glac/learn/news/glacier-national-park-hosts-2023-mount-brown-hawk-watch.htm",
+      "corroboratingEvidenceUrls": [],
+      "note": "NPS confirms Mount Brown fire lookout and its refurbishment on the Mount Brown hiking route. This is a mountain association: the lookout is below the true summit, 1572.4 m from the catalog peak. The feature does not assert that the lookout stands on the highest summit or that its trail summits the peak."
+    },
+    {
+      "destinationId": "B304E3BDB251F6FA0A46",
+      "destinationName": "Sourdough Mountain",
+      "destinationLat": 48.7520734,
+      "destinationLng": -121.128178,
+      "distanceMeters": 1717.4,
+      "sourceId": "way/372628985",
+      "sourceLat": 48.7427115,
+      "sourceLng": -121.1095486,
+      "evidenceUrl": "https://home.nps.gov/noca/planyourvisit/sourdough-mountain-trail.htm",
+      "corroboratingEvidenceUrls": [
+        "https://www.nps.gov/places/sourdough-mountain.htm"
+      ],
+      "note": "NPS March 2026 names the historic lookout on Sourdough Mountain and describes approaches from Diablo and Pierce Mountain. Its trail/lookout summit differs from the catalog mountain high point by 1717.4 m. This is an explicit named-mountain association, not a general larger-radius match."
+    },
+    {
+      "destinationId": "E63AD0474108C931DDA2",
+      "destinationName": "Dylewska Góra",
+      "destinationLat": 53.5504937,
+      "destinationLng": 19.9399006,
+      "distanceMeters": 135.1,
+      "sourceId": "node/469791845",
+      "sourceLat": 53.5515343,
+      "sourceLng": 19.9409551,
+      "evidenceUrl": "https://bip2.lasy.gov.pl/pl/bip/px_dg~rdlp_olsztyn~nadl_ilawa~plan_urzadzenia_lasu_elaborat.pdf",
+      "corroboratingEvidenceUrls": [],
+      "note": "The Polish State Forests Ilawa forest management plan lists Dylewska Gora, Olsztynek district, in its neighboring fire-observation tower table (page 157; the table includes national-grid coordinates). The explicitly tagged OSM fire lookout is 135.1 m from the catalog Dylewska Gora summit. The generic OSM name caused the original miss."
+    },
+    {
+      "destinationId": "8904E5BB8F4DD98EAF01",
+      "destinationName": "Jarmelo",
+      "destinationLat": 40.5911832,
+      "destinationLng": -7.1327857,
+      "distanceMeters": 172.0,
+      "sourceId": "node/7539440130",
+      "sourceLat": 40.5896524,
+      "sourceLng": -7.1324963,
+      "evidenceUrl": "https://cdn.mun-guarda.pt/WS/1733823622-92898",
+      "corroboratingEvidenceUrls": [],
+      "note": "Guarda municipal plan, October 2024, page 130, identifies the Jarmelo Sao Pedro lookout within the wildfire lookout network. The OSM named Jarmelo tower is 172.0 m from the catalog Jarmelo peak. This association uses the same named place and close source location; the original name normalizer did not remove Portuguese Posto de Vigia."
+    },
+    {
+      "destinationId": "6E22257283ACB9D13772",
+      "destinationName": "Pedra Alçada",
+      "destinationLat": 41.8296442,
+      "destinationLng": -8.745437,
+      "distanceMeters": 318.8,
+      "sourceId": "node/7537447416",
+      "sourceLat": 41.8310036,
+      "sourceLng": -8.7488247,
+      "evidenceUrl": "https://www.cm-caminha.pt/cmcaminha/uploads/writer_file/document/1106/02_pme_caminha_parte_ii_v05r.pdf",
+      "corroboratingEvidenceUrls": [
+        "https://fogos.icnf.pt/pmdfci/03_Braga/0306/1G/Caderno_I/PMDFCI_Esposende_Caderno_I.pdf"
+      ],
+      "note": "Caminha emergency plan, December 2025, section 3.1.1.11.2, page 66, places its forest-fire observation post at Pedra Alcada in Serra da Arga. OSM names the same tower 318.8 m from catalog Pedra Alcada. ICNF also lists the named post, height and operational status."
+    },
+    {
+      "destinationId": "E9F650F2C7C0AB58DD06",
+      "destinationName": "Mahya Dağı",
+      "destinationLat": 41.7830556,
+      "destinationLng": 27.62,
+      "distanceMeters": 115.9,
+      "sourceId": "node/8981967092",
+      "sourceLat": 41.7826112,
+      "sourceLng": 27.6187361,
+      "evidenceUrl": "https://cdn.tbmm.gov.tr/KKBSPublicFile/D24/Y3/T7/WebOnergeMetni/394ff60c-969c-4315-add7-e3feda2de9f1.pdf",
+      "corroboratingEvidenceUrls": [
+        "https://uskudar.edu.tr/assets/uploads/cv/file/en/1103-osman-cerezci.pdf"
+      ],
+      "note": "The Turkish Parliament-hosted Istanbul Regional Forestry communications inventory lists MAHYADAG as a relay/tower under Pinarhisar, Kirklareli. A first-hand university project report title also identifies a forestry fire lookout at Mahya Dagi. The explicitly named OSM fire lookout is 115.9 m from the catalog Mahya Dagi summit; the Turkish tower words caused the original miss."
+    }
+  ],
+  "remainingLeads": [
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1488482355",
+        "name": "Fire lookout",
+        "lat": 47.8131244,
+        "lng": -117.5113296,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1488482355"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 145.0,
+          "destination": {
+            "id": "xEoyXUdeLfW9xatLxd6S",
+            "name": "Lookout Mountain",
+            "lat": 47.813072,
+            "lng": -117.509389,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "WA",
+            "external_ids": {
+              "osm": "356542193"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "Lookout Point is a strong alias lead for catalog Lookout Mountain: FFLA standing register gives matching tower coordinates (47.81315,-117.51120); independent field photos identify Lookout Point on Lookout Mountain. Registry detail page timed out. No reviewed override added because the explicit alias source was not government/registry text.",
+      "evidenceUrls": [
+        "https://firelookout.org/lookouts/us/wa/wa-st/",
+        "https://nhlr.org/lookouts/us/wa/lookout-point-lookout/",
+        "https://willhiteweb.com/washington_fire_lookouts/lookout_point/spokane_340.htm"
+      ]
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1142002917",
+        "name": "Fire lookout",
+        "lat": 36.7460718,
+        "lng": -119.2821055,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1142002917"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 156.8,
+          "destination": {
+            "id": "F5D1DEB24F00C99076BB",
+            "name": "Bear Mountain",
+            "lat": 36.746893,
+            "lng": -119.280675,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "CA",
+            "external_ids": {
+              "osm": "358796807",
+              "wikidata": "Q35726580"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "Bear Mountain Fresno has historical official fire-lookout evidence, but CAL FIRE planned communications-tower replacement and removal of former staff buildings in 2006. OSM still explicitly maps a disused fire-lookout building. Let named FFLA standing inventory resolve structure status; do not infer demolition or current standing from the CEQA notice alone.",
+      "evidenceUrls": [
+        "https://ceqanet.lci.ca.gov/2006098024",
+        "https://www.fresnocountyfire.org/files/4963aca57/14.-FKU-Facility-History.pdf"
+      ]
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1381859461",
+        "name": "Fire lookout",
+        "lat": 41.8002657,
+        "lng": -123.4934528,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1381859461"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 499.8,
+          "destination": {
+            "id": "belqPcgoKP2SXSpQlJev",
+            "name": "Baldy Mountain",
+            "lat": 41.802541,
+            "lng": -123.498653,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "CA",
+            "external_ids": {
+              "osm": "358796732",
+              "wikidata": "Q49010398"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "FFLA standing inventory explicitly lists Baldy Mountain, Siskiyou at 41.80023,-123.49347. Its named source should match the existing same-name 500m rule; no manual override needed.",
+      "evidenceUrls": [
+        "https://firelookout.org/lookouts/us/ca/ca-st/"
+      ]
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1490955276",
+        "name": "Fire lookout",
+        "lat": 39.4794042,
+        "lng": 9.1239123,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1490955276"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 558.0,
+          "destination": {
+            "id": "392FB487384FA78C4648",
+            "name": "Monte Uda",
+            "lat": 39.484102,
+            "lng": 9.1216269,
+            "features": [
+              "summit"
+            ],
+            "country_code": "IT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "4962686757",
+              "wikidata": "Q3862097"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1106356723",
+        "name": "Charlie",
+        "lat": 41.4661196,
+        "lng": 2.2027596,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1106356723"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 561.8,
+          "destination": {
+            "id": "44C924E2ECF9319A11E3",
+            "name": "Puig Castellar",
+            "lat": 41.4702938,
+            "lng": 2.2065591,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "5125963734",
+              "wikidata": "Q17481609"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 1139.5,
+          "destination": {
+            "id": "425D5A3BD76EAE2732FF",
+            "name": "Turó de Can Devesa",
+            "lat": 41.4760751,
+            "lng": 2.2060033,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "5968288782",
+              "wikidata": "Q17481484"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 1816.4,
+          "destination": {
+            "id": "5DC03EF27A98D6C90905",
+            "name": "Turó d'en Tort",
+            "lat": 41.4824538,
+            "lng": 2.2029571,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "10046714249",
+              "wikidata": "Q11953465"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1246269407",
+        "name": "Vedetta di Binzale de Lavru",
+        "lat": 40.1433855,
+        "lng": 8.6153588,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1246269407"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 649.8,
+          "destination": {
+            "id": "E4808A8BB6854A3449A3",
+            "name": "Monte Urtigu",
+            "lat": 40.1438499,
+            "lng": 8.6077381,
+            "features": [
+              "summit"
+            ],
+            "country_code": "IT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1788764558",
+              "wikidata": "Q16579704"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 1234.2,
+          "destination": {
+            "id": "1016A21BD3DA26E0C39E",
+            "name": "Monte Entu",
+            "lat": 40.1430851,
+            "lng": 8.6008442,
+            "features": [
+              "summit"
+            ],
+            "country_code": "IT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1801574254",
+              "wikidata": "Q24934838"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "OSM status=abandoned. That does not prove demolition, but there is no reviewed source associating Binzale de Lavru with nearby Monte Urtigu or Monte Entu.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/12215345769",
+        "name": "Dennis Fire Tower",
+        "lat": 41.7340617,
+        "lng": -70.1831732,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/12215345769"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 669.8,
+          "destination": {
+            "id": "AC631BAFC56DB2D5653F",
+            "name": "Scargo Hill",
+            "lat": 41.7398315,
+            "lng": -70.180853,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "MA",
+            "external_ids": {
+              "osm": "358274838",
+              "wikidata": "Q56280427"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 736.6,
+          "destination": {
+            "id": "7374DB68B5B7EBF9CC98",
+            "name": "Black Ball Hill",
+            "lat": 41.7301095,
+            "lng": -70.1902975,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "MA",
+            "external_ids": {
+              "osm": "358274828",
+              "wikidata": "Q56280424"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/1982851961",
+        "name": "Vigie des Aviateurs",
+        "lat": 42.6826467,
+        "lng": 2.4473125,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/1982851961"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 830.2,
+          "destination": {
+            "id": "B1FA8DBEEC67E79ADA57",
+            "name": "Roca Gelera",
+            "lat": 42.6848966,
+            "lng": 2.4376278,
+            "features": [
+              "summit"
+            ],
+            "country_code": "FR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "3877114004",
+              "wikidata": "Q50818200"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 1589.7,
+          "destination": {
+            "id": "89CC7DFCDB3939E80420",
+            "name": "Pic de Bau",
+            "lat": 42.671952,
+            "lng": 2.4602182,
+            "features": [
+              "summit"
+            ],
+            "country_code": "FR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "11646993864",
+              "wikidata": "Q47165856"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1208412145",
+        "name": "China Peak Lookout",
+        "lat": 41.8362828,
+        "lng": -123.276296,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1208412145"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 858.5,
+          "destination": {
+            "id": "98032E30AC04EB86FF31",
+            "name": "Evans Mountain",
+            "lat": 41.8330422,
+            "lng": -123.2668908,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "CA",
+            "external_ids": {
+              "osm": "358802741",
+              "wikidata": "Q49028304"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/252789020",
+        "name": "Fire lookout",
+        "lat": 42.1276833,
+        "lng": -8.6987046,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/252789020"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 904.6,
+          "destination": {
+            "id": "9C1E59613D17628B5AF0",
+            "name": "Galiñeiro",
+            "lat": 42.1355671,
+            "lng": -8.7014095,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "4423449883",
+              "wikidata": "Q18585200"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/8981916353",
+        "name": "Aydos Yangın Gözetleme Kulesi",
+        "lat": 40.9397765,
+        "lng": 29.2523861,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/8981916353"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 935.9,
+          "destination": {
+            "id": "8F4B8B4804EC5F2F728E",
+            "name": "Aydos Dağı",
+            "lat": 40.931519,
+            "lng": 29.2545437,
+            "features": [
+              "summit"
+            ],
+            "country_code": "TR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "2622398377",
+              "wikidata": "Q4817974"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "Aydos is a strong same-name lead, 935.9 m from catalog Aydos Dagi. Istanbul University research photographs the named Aydos fire tower, and the forestry communications table lists AYDOS; neither reviewed official source precisely relates this tower location to the catalog mountain high point. Left unpromoted in this bounded review.",
+      "evidenceUrls": [
+        "https://nek.istanbul.edu.tr/ekos/TEZ/50017.pdf",
+        "https://cdn.tbmm.gov.tr/KKBSPublicFile/D24/Y3/T7/WebOnergeMetni/394ff60c-969c-4315-add7-e3feda2de9f1.pdf"
+      ]
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/554270241",
+        "name": "Σταθμός πυρασφάλειας",
+        "lat": 38.1475427,
+        "lng": 23.6538773,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/554270241"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 944.4,
+          "destination": {
+            "id": "E3998377DCBE89B1C630",
+            "name": "Βουνό Φυλής",
+            "lat": 38.1506661,
+            "lng": 23.6438347,
+            "features": [
+              "summit"
+            ],
+            "country_code": "GR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1172711902",
+              "wikidata": "Q12874714"
+            },
+            "description": null,
+            "metadata": null
+          }
+        },
+        {
+          "distanceMeters": 1000.4,
+          "destination": {
+            "id": "BFCA801352BEEB2F5E45",
+            "name": "Άρμα",
+            "lat": 38.1412878,
+            "lng": 23.6621007,
+            "features": [
+              "summit"
+            ],
+            "country_code": "GR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1172710184",
+              "wikidata": "Q60790872"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "OSM note says the structure is under construction (Greek: Υπό κατασκευή). Do not promote as a completed standing lookout without current evidence; nearby catalog mountains also have different names.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1463428258",
+        "name": "Fire lookout",
+        "lat": 42.4517883,
+        "lng": 2.7659845,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1463428258"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 977.8,
+          "destination": {
+            "id": "2AE348E7EC9260746914",
+            "name": "Pic de Fontfrède",
+            "lat": 42.447206,
+            "lng": 2.7558126,
+            "features": [
+              "summit"
+            ],
+            "country_code": "FR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "11646993853",
+              "wikidata": "Q3382365"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/1766965431",
+        "name": "Brewster Fire Tower",
+        "lat": 41.7580971,
+        "lng": -70.0353663,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/1766965431"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1129.1,
+          "destination": {
+            "id": "AB7CD69A03E9F5064619",
+            "name": "Grassy Nook",
+            "lat": 41.7546802,
+            "lng": -70.0225476,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "MA",
+            "external_ids": {
+              "osm": "358268793",
+              "wikidata": "Q56281789"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/302654491",
+        "name": "Vedetta",
+        "lat": 40.5220388,
+        "lng": 9.0700631,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/302654491"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1173.2,
+          "destination": {
+            "id": "89D700F2A2D56A2DE7F0",
+            "name": "Monte Abba 'Idorzu",
+            "lat": 40.5158627,
+            "lng": 9.081316,
+            "features": [
+              "summit"
+            ],
+            "country_code": "IT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "4949589584",
+              "wikidata": "Q21183688"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/7549052957",
+        "name": "Posto de Vigia Cabreiro",
+        "lat": 41.422932,
+        "lng": -7.6464613,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/7549052957"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1315.2,
+          "destination": {
+            "id": "574B91742FAA3397ECE1",
+            "name": "Cabreiro",
+            "lat": 41.4153623,
+            "lng": -7.634342,
+            "features": [
+              "summit"
+            ],
+            "country_code": "PT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "5584340722",
+              "wikidata": "Q10370346"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "ICNF municipal forest-fire plan confirms PV 18-02 Cabreiro in the fire-observation network. OSM tower is 1315.2 m from catalog Cabreiro; no reviewed primary source directly ties the structure to that mountain high point. Left as a lead, without broadening the radius.",
+      "evidenceUrls": [
+        "https://fogos.icnf.pt/pmdfci/17_VILA_REAL/1713/3G/Caderno_II/PMDFCI_1713_VPoucaAguiar_Caderno_II.pdf"
+      ]
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1179586072",
+        "name": "Fire lookout",
+        "lat": 39.6909588,
+        "lng": -0.4004129,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1179586072"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1510.2,
+          "destination": {
+            "id": "2B69F855BE1136C3F9A2",
+            "name": "Puntal de l'Abella",
+            "lat": 39.6916946,
+            "lng": -0.3827892,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1243396920",
+              "wikidata": "Q18006052"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/2822030404",
+        "name": "Bald Mountain Fire Tower",
+        "lat": 43.7386768,
+        "lng": -74.9125629,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/2822030404"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1526.8,
+          "destination": {
+            "id": "2DE9EA7EA6228AACE755",
+            "name": "Sugarloaf Mountain",
+            "lat": 43.7389559,
+            "lng": -74.9315635,
+            "features": [
+              "summit"
+            ],
+            "country_code": "US",
+            "state_code": "NY",
+            "external_ids": {
+              "osm": "357591748",
+              "wikidata": "Q34843046"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/7539402280",
+        "name": "Posto de Vigia Madrinha",
+        "lat": 37.3086951,
+        "lng": -8.61348,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/7539402280"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1691.6,
+          "destination": {
+            "id": "9846CD2EDF00779307DF",
+            "name": "Fóia",
+            "lat": 37.3156013,
+            "lng": -8.5964369,
+            "features": [
+              "summit"
+            ],
+            "country_code": "PT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "5584331346",
+              "wikidata": "Q913368"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/171225370",
+        "name": "Observatori Forestal Mariola",
+        "lat": 38.7712272,
+        "lng": -0.4985245,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/171225370"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1752.6,
+          "destination": {
+            "id": "F2F2C504AE280C09B078",
+            "name": "Montcabrer",
+            "lat": 38.7578464,
+            "lng": -0.4878421,
+            "features": [
+              "summit"
+            ],
+            "country_code": "ES",
+            "state_code": null,
+            "external_ids": {
+              "osm": "1836094628",
+              "wikidata": "Q8538196"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/7744442008",
+        "name": "Feuerwachturm",
+        "lat": 52.1460217,
+        "lng": 12.4940176,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/7744442008"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1777.0,
+          "destination": {
+            "id": "30E00AB65EC67A6519E4",
+            "name": "Hagelberg",
+            "lat": 52.1386191,
+            "lng": 12.5170949,
+            "features": [
+              "summit"
+            ],
+            "country_code": "DE",
+            "state_code": null,
+            "external_ids": {
+              "osm": "4885121584",
+              "wikidata": "Q314672"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "node/8981916354",
+        "name": "Taşdelen Yangın Gözetleme Kulesi",
+        "lat": 41.0499995,
+        "lng": 29.2080599,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/node/8981916354"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1837.7,
+          "destination": {
+            "id": "28A163357F5886A0413C",
+            "name": "Alem Dağı",
+            "lat": 41.0664971,
+            "lng": 29.2093575,
+            "features": [
+              "summit"
+            ],
+            "country_code": "TR",
+            "state_code": null,
+            "external_ids": {
+              "osm": "2622458156",
+              "wikidata": "Q6035755"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "No reviewed primary-source association to the nearby catalog summit; proximity alone does not qualify.",
+      "evidenceUrls": []
+    },
+    {
+      "source": {
+        "source": "osm",
+        "sourceId": "way/1490954673",
+        "name": "Fire lookout",
+        "lat": 39.4720602,
+        "lng": 9.1368429,
+        "status": "Standing",
+        "url": "https://www.openstreetmap.org/way/1490954673"
+      },
+      "candidates": [
+        {
+          "distanceMeters": 1870.4,
+          "destination": {
+            "id": "392FB487384FA78C4648",
+            "name": "Monte Uda",
+            "lat": 39.484102,
+            "lng": 9.1216269,
+            "features": [
+              "summit"
+            ],
+            "country_code": "IT",
+            "state_code": null,
+            "external_ids": {
+              "osm": "4962686757",
+              "wikidata": "Q3862097"
+            },
+            "description": null,
+            "metadata": null
+          }
+        }
+      ],
+      "status": "not-promoted",
+      "note": "OSM status=abandoned. No reviewed same-peak association to Monte Uda; 1870 m proximity is insufficient.",
+      "evidenceUrls": []
+    }
+  ]
+}

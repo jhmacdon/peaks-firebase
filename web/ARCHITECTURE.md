@@ -58,6 +58,14 @@ Next.js route groups (parenthesized directory names) organize layouts without af
 
 ## Data Layer
 
+### Fire lookouts
+
+The existing `destinations.features` value `fire-lookout` drives a shared tower
+icon on destination cards, detail pages, and map results. It takes priority over
+other features in compact cards and result rows. The map uses tower markers for
+these places and has a Fire lookouts filter, shared as `/map?types=fire-lookouts`.
+The badge does not imply that a tower is open, staffed, or available to rent.
+
 ### Two databases, one app
 
 | Store | Used for | Access pattern |

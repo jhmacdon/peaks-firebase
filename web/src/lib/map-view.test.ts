@@ -136,7 +136,7 @@ test("toggling a chip adds and removes it, but never empties the map", () => {
 test("all-selected is what the All chip reads from", () => {
   assert.equal(allTypesSelected(["peaks", "routes"]), false);
   assert.equal(
-    allTypesSelected(["peaks", "routes", "lakes", "waterfalls"]),
+    allTypesSelected(["peaks", "routes", "fire-lookouts", "lakes", "waterfalls"]),
     true
   );
 });
@@ -151,9 +151,9 @@ test("the feature filter follows the destination chips", () => {
     "waterfall",
   ]);
   // Every destination chip on means "everything", including the trailheads
-  // and huts that carry none of the three named features.
+  // and huts that carry none of the named features.
   assert.equal(
-    destinationFeatureFilter(["peaks", "routes", "lakes", "waterfalls"]),
+    destinationFeatureFilter(["peaks", "routes", "fire-lookouts", "lakes", "waterfalls"]),
     null
   );
   // Routes only: no destination query at all.
@@ -161,6 +161,14 @@ test("the feature filter follows the destination chips", () => {
   assert.deepEqual(destinationTypesSelected(["routes"]), []);
   assert.equal(routesSelected(["peaks"]), false);
   assert.equal(routesSelected(["peaks", "routes"]), true);
+});
+
+test("fire lookouts can be shared and filtered without other peak features", () => {
+  const href = mapExploreHref({ view: DEFAULT_MAP_VIEW, types: ["fire-lookouts"] });
+  assert.deepEqual(parseMapExploreUrl(href.slice(href.indexOf("?"))).types, ["fire-lookouts"]);
+  assert.deepEqual(destinationFeatureFilter(["fire-lookouts"]), ["fire-lookout"]);
+  assert.equal(routesSelected(["fire-lookouts"]), false);
+  assert.deepEqual(destinationFeatureFilter(["peaks", "fire-lookouts"]), ["summit", "volcano", "fire-lookout"]);
 });
 
 test("a whole-world viewport is narrowed to a span PostGIS can answer", () => {
@@ -210,13 +218,15 @@ test("same-name rows on top of each other collapse to the first", () => {
 test("a place is named by its most specific feature", () => {
   assert.equal(destinationTypeWord(["summit", "volcano"]), "Volcano");
   assert.equal(destinationTypeWord(["summit"]), "Peak");
-  assert.equal(destinationTypeWord(["summit", "fire-lookout"]), "Lookout");
+  assert.equal(destinationTypeWord(["summit", "fire-lookout"]), "Fire lookout");
+  assert.equal(destinationTypeWord(["volcano", "summit", "fire-lookout"]), "Fire lookout");
+  assert.equal(destinationTypeWord(["lookout"]), "Lookout");
   assert.equal(destinationTypeWord(["lake"]), "Lake");
   assert.equal(destinationTypeWord([]), "Place");
 });
 
 test("every chip id round-trips through parse and serialize", () => {
-  const ids: MapTypeId[] = ["peaks", "routes", "lakes", "waterfalls"];
+  const ids: MapTypeId[] = ["peaks", "routes", "fire-lookouts", "lakes", "waterfalls"];
   for (const id of ids) {
     const serialized = serializeMapTypes([id]);
     assert.ok(serialized, `${id} should serialize`);

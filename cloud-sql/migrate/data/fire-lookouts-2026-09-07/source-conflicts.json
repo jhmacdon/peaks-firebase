@@ -1,0 +1,172 @@
+[
+  {
+    "destinationId": "1A471A3D16BF42D0BBE6",
+    "destinationName": "Keller Peak",
+    "sourceId": "node/3683225484",
+    "source": {
+      "source": "osm",
+      "sourceId": "node/3683225484",
+      "name": "Keller Peak Fire Lookout",
+      "lat": 34.1959367,
+      "lng": -117.0495089,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/3683225484"
+    },
+    "verifiedOn": "2026-09-07",
+    "decision": "exclude",
+    "currentStatus": "Destroyed; steel supports remain",
+    "sourceStatus": "Standing*",
+    "eventDate": "2024-09",
+    "evidence": [
+      {
+        "url": "https://firelookout.org/lookouts/us/ca/",
+        "publisher": "Forest Fire Lookout Association",
+        "asOf": "2026-09-07",
+        "fact": "Lists Keller Peak as Standing*, meaning the tower support remains without its cab."
+      },
+      {
+        "url": "https://abc7.com/post/oldest-fire-lookout-tower-southern-california-mountains-is-destroyed-massive-line/15316432/",
+        "publisher": "ABC7; direct statement from lookout manager and Southern California Mountains Foundation",
+        "publishedOn": "2024-09-18",
+        "fact": "Confirms the Line Fire destroyed the lookout; only steel supports remain."
+      }
+    ]
+  },
+  {
+    "destinationId": "LqwbHIe4MocFTVQb77nM",
+    "destinationName": "Aeneas Mountain",
+    "sourceId": "way/987023831",
+    "source": {
+      "source": "osm",
+      "sourceId": "way/987023831",
+      "name": "Aeneas Lookout",
+      "lat": 48.7431296,
+      "lng": -119.6223016,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/987023831"
+    },
+    "verifiedOn": "2026-09-07",
+    "decision": "exclude",
+    "currentStatus": "Removed",
+    "sourceStatus": "Gone",
+    "eventDate": "2024-11",
+    "evidence": [
+      {
+        "url": "https://firelookout.org/lookouts/us/wa/",
+        "publisher": "Forest Fire Lookout Association",
+        "asOf": "2026-09-07",
+        "fact": "Lists Aeneas Mountain lookout as Gone."
+      },
+      {
+        "url": "https://www.trailchick.com/wa-state-fire-lookouts/aeneas-mountain-lookout/",
+        "publisher": "TrailChick; first-hand lookout visitor and preservation advocate",
+        "fact": "Records the tower removal in November 2024. Use FFLA coordinates; this page displays an unrelated coordinate in its header."
+      }
+    ]
+  },
+  {
+    "destinationId": "sbx6oMiSNd1MnteqsLTr",
+    "destinationName": "Slate Peak",
+    "sourceId": "way/987018127",
+    "source": {
+      "source": "osm",
+      "sourceId": "way/987018127",
+      "name": "Slate Peak Fire Tower",
+      "lat": 48.7417064,
+      "lng": -120.6806845,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/987018127"
+    },
+    "verifiedOn": "2026-09-07",
+    "decision": "exclude",
+    "currentStatus": "Collapsed",
+    "sourceStatus": "Ruins",
+    "eventDate": "winter 2025-2026; reported March 2026",
+    "evidence": [
+      {
+        "url": "https://firelookout.org/lookouts/us/wa/",
+        "publisher": "Forest Fire Lookout Association",
+        "asOf": "2026-09-07",
+        "fact": "Lists Slate Peak as Ruins."
+      },
+      {
+        "url": "https://www.wta.org/go-hiking/hikes/harts-pass-and-slate-peak",
+        "publisher": "Washington Trails Association",
+        "asOf": "2026-09-07",
+        "fact": "Current guide says the tower collapsed in late 2025 and describes the old lookout site."
+      },
+      {
+        "url": "https://www.trailchick.com/wa-state-fire-lookouts/slate-peak-lookout/",
+        "publisher": "TrailChick; first-hand lookout visitor and preservation advocate",
+        "fact": "Records the March 2026 report that the structure collapsed. Exact collapse date is unknown."
+      }
+    ]
+  },
+  {
+    "destinationId": "OPWICbMNlEUrQAZlz2Za",
+    "destinationName": "High Rock",
+    "sourceId": "way/982930085",
+    "source": {
+      "source": "osm",
+      "sourceId": "way/982930085",
+      "name": "High Rock Fire Lookout",
+      "lat": 46.6844298,
+      "lng": -121.9013729,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/way/982930085"
+    },
+    "verifiedOn": "2026-09-07",
+    "decision": "retain",
+    "currentStatus": "Standing; restoration and access closure",
+    "sourceStatus": "Temp*",
+    "eventDate": "2025-11-01",
+    "note": "The fire lookout badge describes the structure and does not imply public access. The lookout and surrounding 150 feet remain closed through October 31, 2026.",
+    "evidence": [
+      {
+        "url": "https://sandmountain.org/projects/high-rock-lookout/",
+        "publisher": "Sand Mountain Society; restoration lead",
+        "asOf": "2026-09-07",
+        "fact": "The reconstruction lead reports the cabin was made weather-tight before the trail reopened November 1, 2025."
+      },
+      {
+        "url": "https://whitepassbyway.com/high-rock-lookout-closure-extended-for-restoration-project/",
+        "publisher": "White Pass Scenic Byway",
+        "publishedOn": "2026-08-29",
+        "fact": "Reports the trail is open and the lookout with its surrounding 150-foot area stays closed through October 31, 2026 while volunteers finish ceiling, windows, and other work."
+      }
+    ]
+  },
+  {
+    "destinationId": "8A62D65219A1786D1F63",
+    "destinationName": "Mount Kineo",
+    "sourceId": "node/3557379138",
+    "source": {
+      "source": "osm",
+      "sourceId": "node/3557379138",
+      "name": "Mt Kineo Fire Tower",
+      "lat": 45.6998219,
+      "lng": -69.7342805,
+      "status": "Standing",
+      "url": "https://www.openstreetmap.org/node/3557379138"
+    },
+    "verifiedOn": "2026-09-07",
+    "decision": "retain",
+    "currentStatus": "Restored visitor fire-tower platform",
+    "sourceStatus": "Standing*",
+    "note": "The historic fire tower now has an open viewing platform. This is a restored usable tower, not bare ruined supports; an enclosed cab is not required for this catalog tag.",
+    "evidence": [
+      {
+        "url": "https://www.maine.gov/sos/maineatlas/explore-the-atlas/fire-towers",
+        "publisher": "State of Maine Atlas Project",
+        "asOf": "2026-09-07",
+        "fact": "Identifies Mount Kineo among restored fire towers open to the public."
+      },
+      {
+        "url": "https://www.maine.gov/dacf/parks/get_involved/planning_and_acquisition/management_plans/docs/Moosehead_Plan_1997.pdf",
+        "publisher": "Maine Bureau of Parks and Lands",
+        "publishedOn": "1997",
+        "fact": "Explains that the tower was refurbished in the early 1990s by removing two sections, replacing bolts, painting, and adding a viewing platform."
+      }
+    ]
+  }
+]

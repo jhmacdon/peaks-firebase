@@ -27,7 +27,7 @@ export const GEOLOCATED_ZOOM = 10;
 /** Shortest text the explorer will search on. */
 export const MIN_SEARCH_LENGTH = 2;
 
-export type MapTypeId = "peaks" | "routes" | "lakes" | "waterfalls";
+export type MapTypeId = "peaks" | "routes" | "fire-lookouts" | "lakes" | "waterfalls";
 
 /**
  * The filter chips over the map, in display order.
@@ -45,6 +45,7 @@ export const MAP_TYPES: {
 }[] = [
   { id: "peaks", label: "Peaks", features: ["summit", "volcano"] },
   { id: "routes", label: "Routes", features: [] },
+  { id: "fire-lookouts", label: "Fire lookouts", features: ["fire-lookout"] },
   { id: "lakes", label: "Lakes", features: ["lake"] },
   { id: "waterfalls", label: "Waterfalls", features: ["waterfall"] },
 ];
@@ -120,8 +121,7 @@ export function routesSelected(types: MapTypeId[]): boolean {
  *
  * Null when every destination chip is on: that reads as "everything", so
  * the trailheads, huts, viewpoints and campsites that carry none of the
- * three named features come along too, rather than the union of three
- * features quietly hiding a third of the catalog.
+ * named features come along too.
  */
 export function destinationFeatureFilter(types: MapTypeId[]): string[] | null {
   const selected = destinationTypesSelected(types);
@@ -316,8 +316,8 @@ export function dedupeByNameAndProximity<
 // Feature → the one word a result row calls this place, most specific
 // first: a volcano is a summit too, and every fire lookout is a lookout.
 const FEATURE_WORDS: [string, string][] = [
+  ["fire-lookout", "Fire lookout"],
   ["volcano", "Volcano"],
-  ["fire-lookout", "Lookout"],
   ["lookout", "Lookout"],
   ["summit", "Peak"],
   ["waterfall", "Waterfall"],
