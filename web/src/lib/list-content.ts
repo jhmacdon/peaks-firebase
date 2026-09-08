@@ -34,7 +34,7 @@ export interface ParsedListDescription {
   paragraphs: string[];
   /** The cited source URL, if the description ends in a "Source: <url>" line. */
   sourceUrl: string | null;
-  /** Host name for the source link, e.g. "peakbagger.com". */
+  /** Host name for the source link, e.g. "example.com". */
   sourceLabel: string | null;
 }
 

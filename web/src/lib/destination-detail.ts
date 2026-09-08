@@ -215,9 +215,8 @@ export const MONTH_ABBREVIATIONS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ] as const;
 
-// Every spelling of a month key seen in the averages JSONB across sources
-// (Peakbagger imports, the iOS app, the ascent backfill) folded onto one
-// slot each.
+// Every spelling of a month key seen in the averages JSONB across imports,
+// the iOS app, and the ascent backfill folded onto one slot each.
 const MONTH_KEYS: string[][] = [
   ["jan", "january", "1", "01"],
   ["feb", "february", "2", "02"],

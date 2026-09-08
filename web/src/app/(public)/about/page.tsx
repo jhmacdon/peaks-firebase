@@ -61,9 +61,9 @@ export default async function AboutPage() {
           account.
         </p>
         <p>
-          The catalog draws on public sources — OpenStreetMap, USGS, and
-          Peakbagger — plus routes and corrections from people who climb
-          them. You’ll find source credits on place and route pages.
+          The catalog draws on public sources, plus routes and corrections
+          from people who climb them. You’ll find source credits on place
+          and route pages.
         </p>
       </div>
 
