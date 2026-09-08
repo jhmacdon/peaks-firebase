@@ -8,7 +8,16 @@
 // destination, route, area and activity toplines print — one rounding rule
 // for the whole site, not a second copy for plans.
 import { formatFeetValue, formatMilesValue } from "./destination-detail";
+import { getRouteTraversalMetrics } from "./route-guide";
 import type { ToplineStat } from "../components/ui/topline";
+
+export function sumPlanRouteMetrics(requestedIds: string[], routes: Array<{ id: string; distance: number | null; gain: number | null; gain_loss: number | null; shape: string | null }>) {
+  const byId = new Map(routes.map((route) => [route.id, route]));
+  if (requestedIds.length === 0 || requestedIds.some((id) => !byId.has(id))) return { distance: null, gain: null };
+  const metrics = requestedIds.map((id) => getRouteTraversalMetrics(byId.get(id)!));
+  const sum = (values: (number | null)[]) => values.every((value) => value != null && Number.isFinite(value)) ? values.reduce<number>((total, value) => total + value!, 0) : null;
+  return { distance: sum(metrics.map((route) => route.distanceMeters)), gain: sum(metrics.map((route) => route.gainMeters)) };
+}
 
 /** The subset of a catalog destination row the plan page reads. Structural
  * rather than the full `DestinationDetail` shape so the helpers stay
@@ -54,26 +63,11 @@ export interface PlanProcessing {
   path: GeoJSON.LineString | GeoJSON.MultiLineString | null;
 }
 
-/** Resolve `promise`, falling back to `fallback` (and reporting to
- * `onError`) if it rejects, rather than letting the rejection propagate.
- * `getPlanBundle` uses this on each of its four independent Cloud SQL
- * queries so a failure in one of the rarer ones (the processing row, the
- * reached-destinations join) degrades that one section to empty instead of
- * taking down the whole bundle — including the reliable Firestore-backed
- * core (identity, ownership, the destination/route lists) that has nothing
- * to do with the query that failed. The `getPlan` Firestore fetch itself
- * deliberately does NOT go through this: an auth/identity failure should
- * still fail the whole load. */
-export async function withFallback<T>(
-  promise: Promise<T>,
-  fallback: T,
-  onError?: (error: unknown) => void
-): Promise<T> {
-  try {
-    return await promise;
-  } catch (error) {
-    onError?.(error);
-    return fallback;
+/** Required chosen links must resolve before a trip can render as complete. */
+export function assertPlanLinks(ids: string[], rows: { id: string }[], kind: "places" | "routes"): void {
+  const found = new Set(rows.map((row) => row.id));
+  if (ids.some((id) => !found.has(id))) {
+    throw new Error(`This trip has ${kind} that are missing from the catalog.`);
   }
 }
 

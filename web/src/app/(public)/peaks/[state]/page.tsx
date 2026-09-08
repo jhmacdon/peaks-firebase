@@ -146,18 +146,19 @@ export default async function StateLandingPage({
           <ContourArt className="h-auto w-full" seed={seed} />
         </div>
 
-        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-40 md:pt-28 lg:pb-20">
+        <div className="relative mx-auto max-w-[1200px] px-6 pt-10 pb-12 md:pt-16 md:pb-16">
           <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
             {h1}
           </h1>
           <p className="mt-6 max-w-[36ch] text-[18px] leading-[1.6] text-ink-2 sm:max-w-[52ch]">
             {data.paragraph}
           </p>
+          <Button className="mt-6" href={`/discover?state=${stateCode}`}>Explore {data.stateName}</Button>
         </div>
       </section>
 
       {data.top.destinations.length > 0 ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <SectionHeading eyebrow={data.stateName} size="lg">
             {data.top.isFallback ? "Worth a look" : "Popular destinations"}
           </SectionHeading>
@@ -169,6 +170,8 @@ export default async function StateLandingPage({
                 name={destination.name}
                 elevation={destination.elevation}
                 features={destination.features}
+                lat={destination.lat} lng={destination.lng}
+                imageAttribution={destination.hero_image_attribution} imageAttributionUrl={destination.hero_image_attribution_url}
                 imageUrl={destination.hero_image}
                 imageFocalX={destination.hero_image_focal_x}
                 imageFocalY={destination.hero_image_focal_y}
@@ -179,7 +182,7 @@ export default async function StateLandingPage({
       ) : null}
 
       {data.areas.length > 0 ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <SectionHeading eyebrow="Protected areas" size="lg">
             Where these peaks sit
           </SectionHeading>
@@ -201,11 +204,11 @@ export default async function StateLandingPage({
         </section>
       ) : null}
 
-      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+      <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
         <FaqSection items={faqs} />
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+      <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
         <SectionHeading eyebrow="Keep browsing" size="lg">
           Find a route in {data.stateName}
         </SectionHeading>
@@ -238,7 +241,7 @@ export default async function StateLandingPage({
             Protected areas →
           </Link>
           <Link
-            href={`/discover?q=${encodeURIComponent(data.stateName)}`}
+            href={`/discover?state=${encodeURIComponent(stateCode)}`}
             className="text-sm font-medium text-accent-text hover:underline"
           >
             Search {data.stateName} →
@@ -246,7 +249,7 @@ export default async function StateLandingPage({
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+      <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
         <div className="rounded-media bg-surface px-6 py-16 text-center md:px-12">
           <p className="font-display mx-auto max-w-[30ch] text-[32px] leading-[1.1] font-[620] tracking-[-0.015em] text-ink">
             Take Peaks up the mountain.

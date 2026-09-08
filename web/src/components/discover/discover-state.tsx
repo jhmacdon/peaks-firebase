@@ -3,7 +3,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -41,26 +40,11 @@ export function useDiscoverState(): DiscoverState {
 }
 
 export function DiscoverStateProvider({ children }: { children: ReactNode }) {
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
+  const lat = null;
+  const lng = null;
   const [searching, setSearching] = useState(false);
 
-  // Asked for once on mount. No status is tracked for denial or timeout —
-  // the Nearby section simply stays absent when there is no location,
-  // rather than showing a permanent "location is off" failure card.
-  useEffect(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
-      },
-      () => {
-        // Denied or unavailable — nothing to do.
-      },
-      { timeout: 10000, maximumAge: 600000 }
-    );
-  }, []);
+  // Location is requested only from the explicit control and kept in the URL.
 
   const value = useMemo(
     () => ({ lat, lng, searching, setSearching }),

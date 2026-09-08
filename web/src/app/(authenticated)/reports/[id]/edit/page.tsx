@@ -1,348 +1,65 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../../../lib/auth-context";
-import {
-  deleteTripReport,
-  getTripReportForEdit,
-  updateTripReport,
-  type TripReportBlock,
-} from "../../../../../lib/actions/trip-reports";
-import {
-  getDestination,
-  type DestinationDetail,
-} from "../../../../../lib/actions/destinations";
-import { LOADING_LABEL } from "../../../../../lib/constants";
-import BlockEditor from "../../../../../components/block-editor";
-import DestinationPicker from "../../../../../components/destination-picker";
+import { deleteTripReport, getTripReportForEdit, updateTripReport, type TripReport, type TripReportBlock } from "../../../../../lib/actions/trip-reports";
+import ReportEditor from "../../../../../components/report-editor";
 import { Button } from "../../../../../components/ui/button";
-import { Input, Label } from "../../../../../components/ui/field";
-
-interface SelectedDestination {
-  id: string;
-  name: string;
-}
-
-type LoadState = "loading" | "ready" | "not-found" | "unavailable";
-
-function dateInputValue(value: string): string {
-  return value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
-}
+import { EmptyState } from "../../../../../components/ui/empty-state";
 
 export default function EditTripReportPage() {
-  const params = useParams();
-  const reportId = params.id as string;
+  const reportId = useParams().id as string;
   const router = useRouter();
   const { user, getIdToken } = useAuth();
-
-  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [report, setReport] = useState<TripReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<TripReportBlock[]>([]);
-  const [destinationIds, setDestinationIds] = useState<string[]>([]);
-  const [selectedDestinations, setSelectedDestinations] = useState<
-    SelectedDestination[]
-  >([]);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadReport() {
-      try {
-        const token = await getIdToken();
-        if (!token) {
-          if (!cancelled) setLoadState("unavailable");
-          return;
-        }
-
-        const report = await getTripReportForEdit(token, reportId);
-        if (!report) {
-          if (!cancelled) setLoadState("not-found");
-          return;
-        }
-
-        const destinationResults = await Promise.all(
-          report.destinations.map(async (destinationId) => {
-            try {
-              return await getDestination(destinationId);
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        if (cancelled) return;
-
-        setTitle(report.title);
-        setDate(dateInputValue(report.date));
-        setSessionId(report.sessionId);
-        setBlocks(
-          report.blocks.length > 0
-            ? report.blocks.map((block) => ({ ...block }))
-            : [{ type: "text", content: "" }]
-        );
-        setDestinationIds([...report.destinations]);
-        setSelectedDestinations(
-          report.destinations.map((destinationId, index) => {
-            const destination = destinationResults[index] as
-              | DestinationDetail
-              | null;
-            return {
-              id: destinationId,
-              name: destination?.name || destinationId.slice(0, 8),
-            };
-          })
-        );
-        setLoadState("ready");
-      } catch {
-        if (!cancelled) setLoadState("unavailable");
-      }
-    }
-
-    loadReport();
-    return () => {
-      cancelled = true;
-    };
+  const load = useCallback(async () => {
+    setLoading(true); setLoadError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again to edit your report.");
+      const result = await getTripReportForEdit(token, reportId);
+      setReport(result);
+      if (result) { setTitle(result.title); setBlocks(result.blocks.length > 0 ? result.blocks : [{ type: "text", content: "" }]); }
+    } catch { setLoadError("Couldn’t load your report."); }
+    finally { setLoading(false); }
   }, [getIdToken, reportId]);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setSaveError(null);
-
-    if (!title.trim()) {
-      setSaveError("Title is required.");
-      return;
-    }
-    if (!date) {
-      setSaveError("Date is required.");
-      return;
-    }
-    if (destinationIds.length === 0) {
-      setSaveError("Select at least one destination.");
-      return;
-    }
-
-    const nonEmptyBlocks = blocks.filter((block) => block.content.trim());
-    if (nonEmptyBlocks.length === 0) {
-      setSaveError("Add at least one content block.");
-      return;
-    }
-
-    setSaving(true);
+  useEffect(() => { void load(); }, [load]);
+  async function remove() {
+    setDeleting(true); setDeleteError(null);
     try {
       const token = await getIdToken();
-      if (!token) throw new Error("Please sign in again.");
-
-      await updateTripReport(token, reportId, {
-        title: title.trim(),
-        date,
-        destinations: destinationIds,
-        blocks: nonEmptyBlocks,
-      });
-
-      router.replace(`/reports/${reportId}`);
-      router.refresh();
-    } catch (error) {
-      setSaveError(
-        error instanceof Error ? error.message : "Failed to save report."
-      );
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    setDeleting(true);
-    setDeleteError(null);
-
-    try {
-      const token = await getIdToken();
-      if (!token) throw new Error("Please sign in again.");
-
+      if (!token) throw new Error("Sign in again to delete your report.");
       await deleteTripReport(token, reportId);
-      router.replace("/discover");
-      router.refresh();
-    } catch (error) {
-      setDeleteError(
-        error instanceof Error ? error.message : "Failed to delete report."
-      );
-      setDeleting(false);
-    }
+      router.replace("/log"); router.refresh();
+    } catch (caught) { setDeleteError(caught instanceof Error ? caught.message : "Couldn’t delete your report."); }
+    finally { setDeleting(false); }
   }
-
-  if (loadState === "loading") {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="text-muted py-12 text-center">{LOADING_LABEL}</div>
-      </div>
-    );
-  }
-
-  if (loadState !== "ready") {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="rounded-media border border-border bg-surface p-8 text-center">
-          <h1 className="text-xl font-semibold mb-2 text-ink">
-            {loadState === "not-found"
-              ? "Trip report not found"
-              : "This report cannot be edited"}
-          </h1>
-          <p className="text-sm text-muted mb-5">
-            {loadState === "not-found"
-              ? "The report may have been removed."
-              : "Only the report owner can open this page."}
-          </p>
-          <Link
-            href={`/reports/${reportId}`}
-            className="text-sm font-medium text-accent-text hover:underline"
-          >
-            Back to trip report
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-2 text-sm text-muted mb-4">
-        <Link href="/discover" className="hover:text-ink hover:underline">
-          Discover
-        </Link>
-        <span>/</span>
-        <Link
-          href={`/reports/${reportId}`}
-          className="hover:text-ink hover:underline truncate"
-        >
-          {title || "Trip Report"}
-        </Link>
-        <span>/</span>
-        <span className="text-ink-2">Edit</span>
-      </div>
-
-      <h1 className="text-2xl font-semibold mb-8 text-ink">Edit Trip Report</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="date">Date</Label>
-          <Input
-            id="date"
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-          />
-        </div>
-
-        <div>
-          <Label>Destinations</Label>
-          <DestinationPicker
-            selectedIds={destinationIds}
-            selectedDestinations={selectedDestinations}
-            onChange={setDestinationIds}
-          />
-        </div>
-
-        <BlockEditor
-          blocks={blocks}
-          onChange={setBlocks}
-          userId={user?.uid ?? ""}
-          sessionId={sessionId}
-        />
-
-        {saveError && (
-          <div
-            role="alert"
-            className="p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert"
-          >
-            {saveError}
-          </div>
-        )}
-
-        <div className="flex items-center gap-4 pt-4">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Save Changes"}
-          </Button>
-          <Link
-            href={`/reports/${reportId}`}
-            className="text-sm text-muted hover:text-ink-2 hover:underline"
-          >
-            Cancel
-          </Link>
-        </div>
-      </form>
-
-      <section className="mt-12 pt-8 border-t border-alert/30">
-        <h2 className="font-semibold text-alert mb-2">Delete Trip Report</h2>
-        <p className="text-sm text-muted mb-4">
-          This removes the report for everyone and cannot be undone.
-        </p>
-
-        {!confirmDelete ? (
-          <Button
-            type="button"
-            variant="danger"
-            onClick={() => {
-              setConfirmDelete(true);
-              setDeleteError(null);
-            }}
-          >
-            Delete Report
-          </Button>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-ink">
-              Are you sure you want to delete “{title}”?
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="danger"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? "Deleting…" : "Yes, Delete Report"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setConfirmDelete(false);
-                  setDeleteError(null);
-                }}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {deleteError && (
-          <div
-            role="alert"
-            className="mt-4 p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert"
-          >
-            {deleteError}
-          </div>
-        )}
-      </section>
-    </div>
-  );
+  return <div className="mx-auto max-w-3xl px-6 py-10">
+    <Button href={`/reports/${reportId}`} variant="quiet">← Back to report</Button>
+    <h1 className="mt-5 font-display text-[32px] font-[680] text-ink sm:text-[40px]">Edit trip report</h1>
+    {loading ? <EmptyState>Loading report…</EmptyState> : loadError ? <EmptyState><p role="alert">{loadError}</p><Button onClick={load} className="mt-4">Try again</Button></EmptyState> : !report ? <EmptyState title="Report unavailable" description="Only the report owner can edit it. It may also have been removed." /> : <>
+      <ReportEditor title={title} setTitle={setTitle} blocks={blocks} setBlocks={setBlocks} userId={user?.uid ?? ""} sessionId={report.sessionId} busy={saving} disabled={deleting} submitLabel="Save changes" cancelHref={`/reports/${reportId}`} onUploadBusy={setUploading}
+        context={<div><p className="text-sm font-medium text-ink">Activity on {new Date(report.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p><p className="mt-1 text-sm text-muted">The date and linked places come from the original activity.</p></div>}
+        onSubmit={async (draft) => {
+          setSaving(true);
+          try {
+            const token = await getIdToken();
+            if (!token) throw new Error("Sign in again to save your report.");
+            await updateTripReport(token, reportId, draft);
+            router.replace(`/reports/${reportId}`); router.refresh();
+          } finally { setSaving(false); }
+        }} />
+      <details className="mt-12"><summary className="w-fit cursor-pointer text-sm font-medium text-muted hover:text-ink">Report settings</summary><div className="mt-5"><h2 className="text-lg font-medium text-alert">Delete report</h2><p className="mt-2 text-sm text-muted">This removes your report for everyone and cannot be undone.</p>{!confirmDelete ? <Button className="mt-4" variant="danger" disabled={uploading || saving} onClick={() => setConfirmDelete(true)}>Delete report</Button> : <div className="mt-4"><p className="text-sm text-ink">Delete “{title}”?</p><div className="mt-3 flex gap-3"><Button variant="danger" onClick={remove} disabled={deleting || uploading || saving}>{deleting ? "Deleting…" : "Yes, delete report"}</Button><Button variant="secondary" onClick={() => setConfirmDelete(false)} disabled={deleting}>Keep report</Button></div></div>}{deleteError && <p role="alert" className="mt-4 text-sm text-alert">{deleteError}</p>}</div></details>
+    </>}
+  </div>;
 }

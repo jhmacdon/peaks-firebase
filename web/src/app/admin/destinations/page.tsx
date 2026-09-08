@@ -39,6 +39,8 @@ function DestinationsContent() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const request = useRef({ value: 0 });
   const [filterType, setFilterType] = useState("");
   const [filterFeature, setFilterFeature] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
@@ -48,15 +50,17 @@ function DestinationsContent() {
   // Import state
   const [showImport, setShowImport] = useState(false);
   const [importWaypoints, setImportWaypoints] = useState<(GPXWaypoint & { feature: string; include: boolean })[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const handleImportFile = (file: File) => {
+    setImportError(null);
     file.text().then((text) => {
       const parsed = parseGPX(text);
       if (parsed.waypoints.length === 0) {
-        alert("No waypoints found in this GPX file. Only <wpt> elements are supported for destination import.");
+        setImportError("No waypoints found. Choose a GPX file with named waypoints.");
         return;
       }
       setImportWaypoints(
@@ -68,7 +72,7 @@ function DestinationsContent() {
       );
       setImportResult(null);
       setShowImport(true);
-    });
+    }).catch(() => setImportError("Couldn’t read this GPX file. Choose it again."));
   };
 
   const handleImportDrop = (e: React.DragEvent) => {
@@ -97,7 +101,7 @@ function DestinationsContent() {
       setImportResult(result);
       if (result.imported > 0) fetchDestinations();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Import failed");
+      setImportError(err instanceof Error ? err.message : "Import failed. Try again.");
     } finally {
       setImporting(false);
     }
@@ -114,20 +118,30 @@ function DestinationsContent() {
   };
 
   const fetchDestinations = useCallback(async () => {
+    const ticket = ++request.current.value;
     setLoading(true);
-    const filters: { type?: string; feature?: string } = {};
-    if (filterType) filters.type = filterType;
-    if (filterFeature) filters.feature = filterFeature;
-    const result = await getDestinations(
-      search, pageSize, page * pageSize, filters, { field: sortField, dir: sortDir }
-    );
-    setDestinations(result.destinations);
-    setTotal(result.total);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const filters: { type?: string; feature?: string } = {};
+      if (filterType) filters.type = filterType;
+      if (filterFeature) filters.feature = filterFeature;
+      const result = await getDestinations(
+        search, pageSize, page * pageSize, filters, { field: sortField, dir: sortDir }
+      );
+      if (ticket !== request.current.value) return;
+      setDestinations(result.destinations);
+      setTotal(result.total);
+    } catch {
+      if (ticket === request.current.value) setLoadError("Couldn’t load destinations. Try again.");
+    } finally {
+      if (ticket === request.current.value) setLoading(false);
+    }
   }, [search, page, filterType, filterFeature, sortField, sortDir]);
 
   useEffect(() => {
-    fetchDestinations();
+    const generation = request.current;
+    void fetchDestinations();
+    return () => { generation.value++; };
   }, [fetchDestinations]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -170,6 +184,7 @@ function DestinationsContent() {
         }
       />
 
+      {importError && <p role="alert" className="text-sm text-alert">{importError}</p>}
       <StatCluster
         value={total.toLocaleString()}
         label="Destinations"
@@ -441,6 +456,7 @@ function DestinationsContent() {
           </div>
         </div>
 
+        {loadError && <div className="mt-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-alert">{loadError}</p><Button variant="secondary" size="sm" onClick={fetchDestinations}>Try again</Button></div>}
         {loading ? (
           <div className="py-14 text-center text-sm text-muted">{LOADING_LABEL}</div>
         ) : destinations.length === 0 ? (

@@ -1,5 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { filterListRoster } from "../../lib/list-roster-filter";
+import { Input, Label, Select } from "../ui/field";
+import { Button } from "../ui/button";
 import Link from "next/link";
 import type { ListDestination } from "../../lib/actions/lists";
 import { formatFeetValue, formatShortDate, titleize } from "../../lib/destination-detail";
@@ -49,7 +53,12 @@ export function ListRoster({
   completionTarget: number;
   className?: string;
 }) {
-  const { entries } = useListCompletion();
+  const { entries, signedIn, error, retry } = useListCompletion();
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"all" | "reached" | "remaining">("all");
+  const [sort, setSort] = useState<"list" | "name" | "elevation">("list");
+  const [shown, setShown] = useState(50);
+  const matching = useMemo(() => filterListRoster(destinations, { query, status, sort, entries }), [destinations, query, status, sort, entries]);
   const memberCount = destinations.length;
   const effectiveTarget = effectiveListCompletionTarget(completionTarget, memberCount);
   const completedCount = entries ? Object.keys(entries).length : 0;
@@ -71,7 +80,7 @@ export function ListRoster({
         <div className="mt-4 max-w-sm">
           <ProgressBar completed={completedCount} total={effectiveTarget} />
           {effectiveTarget < memberCount ? (
-            <p className="mt-2 text-[12px] text-muted">
+            <p className="mt-2 text-sm text-muted">
               Reach any {effectiveTarget.toLocaleString("en-US")} of the{" "}
               {memberCount.toLocaleString("en-US")} destinations to complete this list.
               {completedCount > effectiveTarget
@@ -82,11 +91,19 @@ export function ListRoster({
         </div>
       ) : null}
 
+      {error && <div className="mt-4 flex flex-wrap items-center gap-3"><p role="status" className="text-sm text-alert">Couldn’t load your list progress.</p><Button variant="secondary" size="sm" onClick={retry}>Try again</Button></div>}
+      <div className="mt-6 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
+        <div><Label htmlFor="roster-search">Find a place on this list</Label><Input id="roster-search" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setShown(50); }} placeholder="Search names or regions" /></div>
+        <div><Label htmlFor="roster-status">Your progress</Label><Select id="roster-status" value={status} disabled={!entries} onChange={(event) => { setStatus(event.target.value as typeof status); setShown(50); }}><option value="all">All places</option><option value="remaining">Not yet reached</option><option value="reached">Reached</option></Select></div>
+        <div><Label htmlFor="roster-sort">Sort by</Label><Select id="roster-sort" value={sort} onChange={(event) => { setSort(event.target.value as typeof sort); setShown(50); }}><option value="list">List order</option><option value="name">Name</option><option value="elevation">Highest first</option></Select></div>
+      </div>
+      {!signedIn && <p className="mt-2 text-sm text-muted">Sign in to filter by the places you’ve reached.</p>}
+      <p role="status" className="mt-4 text-sm text-muted">{matching.length.toLocaleString("en-US")} matching places</p>
       {destinations.length === 0 ? (
         <p className="mt-4 text-sm text-muted">This list has no destinations yet.</p>
       ) : (
         <ul className="mt-4 space-y-4">
-          {destinations.map((destination) => {
+          {matching.slice(0, shown).map((destination) => {
             const elevation = formatFeetValue(destination.elevation);
             const featureWord = destination.features[0] ? titleize(destination.features[0]) : null;
             const completion = entries?.[destination.id] ?? null;
@@ -101,7 +118,7 @@ export function ListRoster({
                   href={`/destinations/${destination.id}`}
                   className="group flex items-center gap-3"
                 >
-                  <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fill">
+                  <span className="relative flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-ctl bg-fill">
                     <MountainPlaceholder />
                     {thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -127,9 +144,9 @@ export function ListRoster({
                       {destination.name || "Unnamed"}
                     </span>
                     {elevation || featureWord ? (
-                      <span className="mt-0.5 block text-[12px] text-muted">
+                      <span className="mt-0.5 block text-sm text-muted">
                         {elevation ? (
-                          <span className="font-mono-num tabular-nums">{elevation} ft</span>
+                          <span className="tabular-nums">{elevation} ft</span>
                         ) : null}
                         {elevation && featureWord ? " · " : null}
                         {featureWord}
@@ -150,8 +167,10 @@ export function ListRoster({
         </ul>
       )}
 
+      {destinations.length > 0 && matching.length === 0 && <p className="mt-6 text-muted">No places match. Try another name or change the progress filter.</p>}
+      {matching.length > shown && <Button variant="secondary" onClick={() => setShown((count) => count + 50)} className="mt-6">Show 50 more places</Button>}
       {usesSatelliteImagery ? (
-        <p className="mt-5 text-[10px] text-muted">
+        <p className="mt-5 text-xs text-muted">
           Satellite imagery ©{" "}
           <a
             href="https://www.esri.com/"

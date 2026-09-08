@@ -196,7 +196,9 @@ export default function LogPage() {
       ) : (
         <>
           <div className="mt-6 space-y-3">
-            {sessions.map((session) => (
+            {sessions.map((session, index) => (
+              <div key={session.id}>
+              {index === 0 || new Date(session.start_time).getMonth() !== new Date(sessions[index - 1].start_time).getMonth() || new Date(session.start_time).getFullYear() !== new Date(sessions[index - 1].start_time).getFullYear() ? <h2 className="pt-5 pb-2 text-lg font-semibold text-ink">{new Date(session.start_time).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h2> : null}
               <SessionCard
                 key={session.id}
                 id={session.id}
@@ -207,7 +209,9 @@ export default function LogPage() {
                 gain={session.gain}
                 total_time={session.total_time}
                 activity_type={session.activity_type}
+                thumbnail_url={session.thumbnail_url}
               />
+              </div>
             ))}
           </div>
 

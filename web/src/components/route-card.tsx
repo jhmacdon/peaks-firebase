@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card } from "./ui/card";
+import { CatalogMedia } from "./catalog-media";
 import { Badge } from "./ui/badge";
 import type { SearchRouteResult } from "../lib/actions/search";
 import {
@@ -13,6 +13,9 @@ import { formatSessionCount } from "../lib/format";
 
 interface RouteCardProps {
   route: SearchRouteResult;
+  locationLabel?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 // Same shape as DestinationCard: title, one muted meta line, one badge row.
@@ -24,7 +27,7 @@ interface RouteCardProps {
 // The numbers themselves come from getRouteTraversalMetrics, the same helper
 // the route page uses — so an out-and-back route quotes its round trip here
 // and on its own page, rather than one-way here and round-trip there.
-export default function RouteCard({ route }: RouteCardProps) {
+export default function RouteCard({ route, locationLabel, lat, lng }: RouteCardProps) {
   const summary = summarizeRouteGuide(route);
   const traversal = getRouteTraversalMetrics(route);
   const shapeLabel = describeRouteShape(route.shape);
@@ -43,9 +46,10 @@ export default function RouteCard({ route }: RouteCardProps) {
 
   const content = (
     <>
-      <div className="text-base font-medium leading-tight text-ink">
+      <div className="text-lg font-semibold leading-snug text-ink">
         {route.name || "Unnamed route"}
       </div>
+      {locationLabel && <p className="mt-1 text-sm text-muted">{locationLabel}</p>}
       <div className="mt-1 text-sm text-muted">{meta}</div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {summary.difficultyLabel ? <Badge>{summary.difficultyLabel}</Badge> : null}
@@ -62,38 +66,17 @@ export default function RouteCard({ route }: RouteCardProps) {
     route.cover_image_attribution &&
     route.cover_image_attribution_url;
 
-  if (!hasCreditedCover) {
-    return (
-      <Card href={`/routes/${route.id}`} className="h-full">
-        {content}
-      </Card>
-    );
-  }
-
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-media border border-border bg-surface transition-colors hover:bg-fill">
+    <article className="flex h-full flex-col overflow-hidden rounded-media border border-border bg-page transition-colors hover:bg-fill">
       <Link
         href={`/routes/${route.id}`}
         prefetch={false}
         className="group block flex-1"
       >
-        <div className="aspect-[16/9] overflow-hidden bg-fill">
-          {/* The title below already names the link, so the image is decorative. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={route.cover_image!}
-            alt=""
-            className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-            style={{
-              objectPosition: `${route.cover_image_focal_x ?? 50}% ${
-                route.cover_image_focal_y ?? 50
-              }%`,
-            }}
-          />
-        </div>
+        <CatalogMedia src={hasCreditedCover ? route.cover_image : null} focalX={route.cover_image_focal_x} focalY={route.cover_image_focal_y} kind="Route guide" lat={lat} lng={lng} />
         <div className="p-4">{content}</div>
       </Link>
-      <div className="px-4 pb-3 text-[11px] leading-snug text-muted">
+      {hasCreditedCover && <div className="px-4 pb-3 text-xs leading-snug text-muted">
         Photo:{" "}
         <a
           href={route.cover_image_attribution_url!}
@@ -104,7 +87,7 @@ export default function RouteCard({ route }: RouteCardProps) {
           {route.cover_image_attribution}
         </a>{" "}
         · cropped
-      </div>
+      </div>}
     </article>
   );
 }

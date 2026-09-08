@@ -32,6 +32,10 @@ export function formatDurationRangeFriendly(
   ) {
     return "—";
   }
+  if (highHours >= 24) {
+    // These are moving days at eight hours per day, not a trip-duration promise.
+    return `${Math.max(1, Math.round(lowHours / 8))}–${Math.max(1, Math.round(highHours / 8))} days at 8 hr/day`;
+  }
   return `${formatHoursFriendly(lowHours)}–${formatHoursFriendly(highHours)} hr`;
 }
 

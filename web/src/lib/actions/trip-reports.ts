@@ -7,6 +7,7 @@ import { verifyToken } from "../auth-actions";
 import db from "../db";
 import { buildPhotoSyncPlan, photoRowToBlock } from "../trip-report-photo-sync";
 import { routeDoneCoverageSql } from "../route-coverage";
+import { resolveProfileName } from "../user-profile-shape";
 
 export interface TripReportCondition {
   code: string;
@@ -215,14 +216,15 @@ async function syncTripReportPhotos(
 
 export async function getTripReportsForDestination(
   destinationId: string,
-  requestedLimit = 10
+  requestedLimit = 10,
+  requestedOffset = 0
 ): Promise<TripReport[]> {
   const result = await db.query(
     `${REPORT_SELECT}
      JOIN trip_report_destinations rd_scope ON rd_scope.report_id = tr.id
      WHERE rd_scope.destination_id = $1 AND tr.moderation_state = 'published'
-     ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $2`,
-    [destinationId, limit(requestedLimit, 10, 10)]
+     ORDER BY tr.activity_date DESC, tr.id DESC LIMIT $2 OFFSET $3`,
+    [destinationId, limit(requestedLimit, 10, 20), Number.isFinite(requestedOffset) ? Math.min(1_000_000, Math.max(0, Math.trunc(requestedOffset))) : 0]
   );
   return result.rows.map((row) => mapReport(row as ReportRow));
 }
@@ -286,10 +288,14 @@ export async function getTripReportForEdit(
 }
 
 export async function getTripReportEligibleSessions(
-  token: string
+  token: string,
+  options: { destinationId?: string; sessionId?: string } = {}
 ): Promise<TripReportEligibleSession[]> {
   const user = await verifyToken(token);
   if (!user) throw new Error("Unauthorized");
+  for (const id of [options.destinationId, options.sessionId]) {
+    if (id !== undefined && (!id || id.length > 1_500)) throw new Error("This activity or place link is invalid.");
+  }
   const result = await db.query(
     `SELECT s.id, COALESCE(NULLIF(s.name, ''), 'Activity') AS name, s.start_time
      FROM tracking_sessions s
@@ -297,8 +303,13 @@ export async function getTripReportEligibleSessions(
      WHERE s.user_id = $1 AND s.ended = true
        AND s.processing_state = 'completed' AND s.processed_at IS NOT NULL
        AND tr.id IS NULL
+       AND ($2::text IS NULL OR EXISTS (
+         SELECT 1 FROM session_destinations sd
+         WHERE sd.session_id = s.id AND sd.destination_id = $2 AND sd.relation = 'reached'
+       ))
+       AND ($3::text IS NULL OR s.id = $3)
      ORDER BY s.start_time DESC LIMIT 50`,
-    [user.uid]
+    [user.uid, options.destinationId ?? null, options.sessionId ?? null]
   );
   return result.rows.map((row) => ({
     id: String(row.id),
@@ -342,8 +353,7 @@ export async function createTripReport(
     let userName = "Peaks member";
     try {
       const profile = await adminDb.collection("users").doc(user.uid).get();
-      const name = profile.data()?.name;
-      if (typeof name === "string" && name.trim()) userName = name.trim();
+      userName = resolveProfileName(profile.data() ?? {}).displayName || userName;
     } catch {
       // A missing profile must not block publishing.
     }

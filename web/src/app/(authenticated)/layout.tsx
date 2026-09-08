@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { AuthProvider } from "../../lib/auth-context";
+import { SavedPlacesProvider } from "../../lib/saved-places-context";
 import AppNav from "../../components/app-nav";
 import { SiteFooter } from "../../components/site-footer";
 import UserAuthGuard from "../../components/user-auth-guard";
@@ -10,6 +11,7 @@ import { LOADING_LABEL } from "../../lib/constants";
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
+      <SavedPlacesProvider>
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center text-muted">
@@ -25,6 +27,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           </div>
         </UserAuthGuard>
       </Suspense>
+    </SavedPlacesProvider>
     </AuthProvider>
   );
 }

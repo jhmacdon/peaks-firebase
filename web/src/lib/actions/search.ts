@@ -45,10 +45,14 @@ export interface SearchDestination {
   features: string[];
   lat: number | null;
   lng: number | null;
+  state_code?: string | null;
+  country_code?: string | null;
   score?: number;
   distance_m?: number;
   /** Selected by the image-led browse surfaces and nearby rails. */
   hero_image?: string | null;
+  hero_image_attribution?: string | null;
+  hero_image_attribution_url?: string | null;
   hero_image_focal_x?: number;
   hero_image_focal_y?: number;
 }
@@ -59,12 +63,19 @@ export interface ViewportRoute {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  gain_loss?: number | null;
+  shape?: string | null;
+  cover_image?: string | null;
+  cover_image_attribution?: string | null;
+  cover_image_attribution_url?: string | null;
   provenance: RouteProvenance | null;
 }
 
 export interface SearchRouteResult {
   id: string;
   name: string | null;
+  state_code?: string | null;
+  country_code?: string | null;
   distance: number | null;
   gain: number | null;
   /** Selected so a route card can run the same round-trip traversal maths
@@ -154,7 +165,7 @@ export async function searchDestinations(
   if (hasGeo) {
     const result = await db.query(
       `SELECT id, name, elevation, prominence, type,
-              activities, features,
+              activities, features, state_code, country_code, hero_image, hero_image_focal_x, hero_image_focal_y,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               ST_Distance(location, ST_MakePoint($3, $2)::geography) AS distance_m,
@@ -185,11 +196,16 @@ export async function searchDestinations(
       lng: r.lng != null ? Number(r.lng) : null,
       score: Number(r.score),
       distance_m: r.distance_m ? Number(r.distance_m) : undefined,
+      state_code: r.state_code,
+      country_code: r.country_code,
+      hero_image: r.hero_image,
+      hero_image_focal_x: Number(r.hero_image_focal_x ?? 50),
+      hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
     }));
   } else {
     const result = await db.query(
       `SELECT id, name, elevation, prominence, type,
-              activities, features,
+              activities, features, state_code, country_code, hero_image, hero_image_focal_x, hero_image_focal_y,
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng,
               (
@@ -217,6 +233,11 @@ export async function searchDestinations(
       lat: r.lat != null ? Number(r.lat) : null,
       lng: r.lng != null ? Number(r.lng) : null,
       score: Number(r.score),
+      state_code: r.state_code,
+      country_code: r.country_code,
+      hero_image: r.hero_image,
+      hero_image_focal_x: Number(r.hero_image_focal_x ?? 50),
+      hero_image_focal_y: Number(r.hero_image_focal_y ?? 50),
     }));
   }
 }
@@ -823,11 +844,13 @@ export async function getDestinationsInViewport(
   const features = query.features?.length ? query.features : null;
   const result = await db.query(
     `SELECT id, name, elevation, prominence, type,
-            activities, features,
+            activities, features, state_code, country_code,
+            hero_image, hero_image_attribution, hero_image_attribution_url,
             ST_Y(location::geometry) AS lat,
             ST_X(location::geometry) AS lng
      FROM destinations
-     WHERE location && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
+     WHERE owner = 'peaks'
+       AND location && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
        AND ($7::destination_feature[] IS NULL
             OR features && $7::destination_feature[])
      ORDER BY location <-> ST_MakePoint($6, $5)::geography
@@ -854,6 +877,11 @@ export async function getDestinationsInViewport(
     features: parseArray(r.features),
     lat: r.lat != null ? Number(r.lat) : null,
     lng: r.lng != null ? Number(r.lng) : null,
+    state_code: r.state_code,
+    country_code: r.country_code,
+    hero_image: r.hero_image,
+    hero_image_attribution: r.hero_image_attribution,
+    hero_image_attribution_url: r.hero_image_attribution_url,
   }));
 }
 
@@ -872,14 +900,17 @@ export async function getRoutesInViewport(
   query: ViewportQuery
 ): Promise<ViewportRoute[]> {
   const result = await db.query(
-    `SELECT id, name, polyline6, distance, gain, provenance
+    `WITH ranked AS (SELECT id, name, polyline6, distance, gain, gain_loss, shape, provenance
      FROM routes
      WHERE path IS NOT NULL
        AND owner = 'peaks'
        AND status = 'active'
        AND path && ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography
      ORDER BY path <-> ST_MakePoint($6, $5)::geography
-     LIMIT $7`,
+     LIMIT $7)
+     SELECT ranked.*, cover.image_url cover_image, cover.attribution cover_image_attribution,
+       cover.attribution_url cover_image_attribution_url
+     FROM ranked LEFT JOIN route_cover_photos cover ON cover.route_id=ranked.id`,
     [
       query.minLng,
       query.minLat,
@@ -897,6 +928,11 @@ export async function getRoutesInViewport(
     polyline6: r.polyline6 ?? null,
     distance: r.distance ? Number(r.distance) : null,
     gain: r.gain != null ? Number(r.gain) : null,
+    gain_loss: r.gain_loss != null ? Number(r.gain_loss) : null,
+    shape: r.shape,
+    cover_image: r.cover_image,
+    cover_image_attribution: r.cover_image_attribution,
+    cover_image_attribution_url: r.cover_image_attribution_url,
     provenance: parseRouteProvenance(r.provenance),
   }));
 }

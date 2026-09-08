@@ -3,6 +3,7 @@ import type {
   PlanReachedDestinationRow,
   PlanRouteRow,
 } from "./plan-detail";
+import { getRouteTraversalMetrics } from "./route-guide";
 
 export interface PublicPlan {
   id: string;
@@ -136,6 +137,8 @@ export function buildPublicPlanBundleQuery(planId: string): {
                'polyline6', r.polyline6,
                'distance', r.distance,
                'gain', r.gain,
+               'gain_loss', r.gain_loss,
+               'shape', r.shape,
                'status', r.status,
                'isCatalog', r.owner = 'peaks'
              ) ORDER BY pr.ordinal)
@@ -192,15 +195,22 @@ export function mapPublicPlanBundleRow(
       isPublic: true,
     },
     destinations: rows(row.destinations).map(destination),
-    routes: rows(row.routes).map((route) => ({
+    routes: rows(row.routes).map((route) => {
+      const traversal = getRouteTraversalMetrics({
+        distance: numberOrNull(route.distance),
+        gain: numberOrNull(route.gain),
+        gain_loss: numberOrNull(route.gain_loss),
+        shape: route.shape == null ? null : String(route.shape),
+      });
+      return {
       id: String(route.id),
       name: route.name == null ? null : String(route.name),
       polyline6: route.polyline6 == null ? null : String(route.polyline6),
-      distance: numberOrNull(route.distance),
-      gain: numberOrNull(route.gain),
+      distance: traversal.distanceMeters,
+      gain: traversal.gainMeters,
       status: route.status == null ? "" : String(route.status),
       isCatalog: route.isCatalog === true,
-    })),
+    }; }),
     reachedDestinations: rows(row.reached_destinations).map((reached) => ({
       ...destination(reached),
       ordinal: Number(reached.ordinal),

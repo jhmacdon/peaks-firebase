@@ -16,6 +16,7 @@ const LINKS = [
     label: "Profile",
     description: "Your name and avatar",
   },
+  { href: "/my-routes", label: "Trips", description: "Upcoming plans, routes, and your party" },
   {
     href: "/saved",
     label: "Saved",
@@ -42,6 +43,8 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -61,7 +64,7 @@ export default function AccountPage() {
       }
     }
     load();
-  }, [getIdToken]);
+  }, [getIdToken, attempt]);
 
   const name = profile?.name || user?.displayName || "No name set";
   const email = profile?.email || user?.email || "";
@@ -73,9 +76,7 @@ export default function AccountPage() {
       {loading ? (
         <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
       ) : error ? (
-        <p role="alert" className="mt-6 text-sm text-alert">
-          {error}
-        </p>
+        <div className="mt-6"><p role="alert" className="text-sm text-alert">{error}</p><Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Try again</Button></div>
       ) : (
         <>
           <div className="mt-8 flex items-center gap-4">

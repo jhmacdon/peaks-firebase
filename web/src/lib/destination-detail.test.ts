@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   amenityRows,
   buildDestinationGuide,
+  buildDestinationPlanningNotes,
   describeDestinationType,
   describeSessionNoun,
   formatDistanceAway,
@@ -15,6 +16,32 @@ import {
   reportPreview,
   titleize,
 } from "./destination-detail";
+
+test("planning uses real route and road context and leaves current restrictions unknown", () => {
+  const notes = buildDestinationPlanningNotes({
+    routeCount: 2,
+    isTrailhead: true,
+    accessFacts: [{ label: "Road", value: "High-clearance gravel" }],
+    sources: [{ name: "US Forest Service", url: "https://www.fs.usda.gov/example" }],
+  });
+  assert.equal(notes[0].link?.href, "#destination-routes");
+  assert.match(notes[1].text, /High-clearance gravel/);
+  assert.match(notes[2].text, /permit.*seasonal-closure updates are not available/);
+  assert.equal(notes[2].link?.label, "Read US Forest Service");
+  assert.doesNotMatch(notes.map((note) => note.text).join(" "), /volcano|Traffic peaks|Most of the activity/);
+});
+
+test("planning does not invent an approach, road access, or an unsafe source link", () => {
+  const notes = buildDestinationPlanningNotes({
+    routeCount: 0,
+    isTrailhead: true,
+    accessFacts: [],
+    sources: [{ name: "Bad link", url: "javascript:alert(1)" }],
+  });
+  assert.match(notes[0].text, /No onward route is linked/);
+  assert.match(notes[1].text, /Road access details are not available/);
+  assert.ok(notes.every((note) => note.link == null));
+});
 
 test("describeDestinationType prefers the primary feature, titleized", () => {
   assert.equal(describeDestinationType("point", ["summit"]), "Summit");

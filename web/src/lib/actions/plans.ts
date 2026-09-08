@@ -4,9 +4,11 @@ import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
 import { FieldValue } from "firebase-admin/firestore";
 import db from "../db";
+import { getRouteTraversalMetrics } from "../route-guide";
 import {
   orderByIds,
-  withFallback,
+  assertPlanLinks,
+  sumPlanRouteMetrics,
   type PlanDestinationRow,
   type PlanProcessing,
   type PlanReachedDestinationRow,
@@ -17,6 +19,17 @@ import {
   buildPlanRouteAccessQuery,
   normalizePlanRouteIds,
 } from "../plan-route-access";
+
+export interface PlanPreview {
+  imageUrl: string | null;
+  imageAttribution: string | null;
+  imageAttributionUrl: string | null;
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  distance: number | null;
+  gain: number | null;
+}
 
 export interface Plan {
   id: string;
@@ -30,6 +43,7 @@ export interface Plan {
   date: string | null;
   createdAt: string;
   updatedAt: string;
+  preview?: PlanPreview;
 }
 
 function docToPlan(id: string, data: FirebaseFirestore.DocumentData): Plan {
@@ -177,7 +191,42 @@ export async function getUserPlans(token: string): Promise<Plan[]> {
 
   const plans = Array.from(plansMap.values());
   plans.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  return plans;
+  const destinationIds = [...new Set(plans.flatMap((plan) => plan.destinations))];
+  const routeIds = [...new Set(plans.flatMap((plan) => plan.routes))];
+  const [places, routes] = await Promise.all([
+    destinationIds.length ? db.query(
+      `SELECT id, name, hero_image, hero_image_attribution, hero_image_attribution_url, state_code, country_code,
+              ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+       FROM destinations WHERE id = ANY($1::text[])`, [destinationIds]) : Promise.resolve({ rows: [] }),
+    routeIds.length ? db.query(
+      `SELECT r.id, r.owner, r.distance, r.gain, r.gain_loss, r.shape, r.completion, cover.image_url, cover.attribution, cover.attribution_url
+       FROM routes r LEFT JOIN route_cover_photos cover ON cover.route_id = r.id
+       WHERE r.id = ANY($1::text[]) AND r.status IN ('active', 'superseded')`, [routeIds]) : Promise.resolve({ rows: [] }),
+  ]);
+  const placeById = new Map(places.rows.map((row) => [String(row.id), row]));
+  const routeById = new Map(routes.rows.map((row) => [String(row.id), row]));
+  return plans.map((plan) => {
+    const place = plan.destinations.map((id) => placeById.get(id)).find(Boolean);
+    const linkedRoutes = plan.routes.map((id) => routeById.get(id))
+      .filter((route) => route && (route.owner === "peaks" || route.owner === plan.userId));
+    const metrics = sumPlanRouteMetrics(plan.routes, linkedRoutes.map((route) => ({
+      id: String(route.id),
+      distance: route.distance == null ? null : Number(route.distance),
+      gain: route.gain == null ? null : Number(route.gain),
+      gain_loss: route.gain_loss == null ? null : Number(route.gain_loss),
+      shape: route.shape == null ? null : String(route.shape),
+    })));
+    return { ...plan, preview: {
+      imageUrl: place?.hero_image ?? linkedRoutes.find((route) => route.image_url)?.image_url ?? null,
+      imageAttribution: place?.hero_image ? place.hero_image_attribution : linkedRoutes.find((route) => route.image_url)?.attribution ?? null,
+      imageAttributionUrl: place?.hero_image ? place.hero_image_attribution_url : linkedRoutes.find((route) => route.image_url)?.attribution_url ?? null,
+      location: place ? [place.name, place.state_code, place.country_code].filter(Boolean).join(", ") : null,
+      lat: place?.lat == null ? null : Number(place.lat),
+      lng: place?.lng == null ? null : Number(place.lng),
+      distance: metrics.distance,
+      gain: metrics.gain,
+    } };
+  });
 }
 
 /**
@@ -231,6 +280,8 @@ interface RouteQueryRow {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  gain_loss: number | null;
+  shape: string | null;
   status: string;
   is_catalog: boolean;
 }
@@ -254,12 +305,18 @@ function shapeDestinationRow(row: DestinationQueryRow): PlanDestinationRow {
 }
 
 function shapeRouteRow(row: RouteQueryRow): PlanRouteRow {
+  const traversal = getRouteTraversalMetrics({
+    distance: row.distance != null ? Number(row.distance) : null,
+    gain: row.gain != null ? Number(row.gain) : null,
+    gain_loss: row.gain_loss != null ? Number(row.gain_loss) : null,
+    shape: row.shape,
+  });
   return {
     id: String(row.id),
     name: row.name ?? null,
     polyline6: row.polyline6 ?? null,
-    distance: row.distance != null ? Number(row.distance) : null,
-    gain: row.gain != null ? Number(row.gain) : null,
+    distance: traversal.distanceMeters,
+    gain: traversal.gainMeters,
     status: row.status,
     isCatalog: row.is_catalog === true,
   };
@@ -273,34 +330,8 @@ export interface PlanBundle {
   processing: PlanProcessing | null;
 }
 
-/**
- * Everything the plan detail page needs, in one call: the Firestore plan
- * (source of truth for identity, ownership, and the chosen destination/route
- * id lists) plus one batched Cloud SQL query per data type for their catalog
- * details — replacing the page's previous N getDestination()/getRoute()
- * server-action round trips (one per destination, one per route).
- *
- * The processed fields (`processing`, `reachedDestinations`) come from the
- * Cloud SQL plan-processing pipeline (`processPlan`), which only runs
- * against client-supplied path geometry — today that's iOS's GPX-import
- * flow (see schema.sql's comment on `plans.path`). A plan built or edited
- * purely on the web never supplies a path, so these come back null/empty
- * for the large majority of plans in production (measured: 8 of 1,214,
- * 2026-08-20) — callers must treat them as "not processed," never as "still
- * loading."
- *
- * Destination/route identity and ordering always come from the Firestore
- * plan (reliable — every save writes it synchronously); their catalog
- * details come from Cloud SQL's `destinations`/`routes` tables, which are
- * the live catalog itself, not the fire-and-forget plan-processing mirror.
- *
- * The four Cloud SQL queries below are independent: `getPlan` (Firestore
- * auth + identity) is the only fatal step — each SQL query falls back to
- * an empty result via `withFallback` on its own failure, logged
- * server-side, rather than letting one bad query (most likely the rarer
- * processing/reached-destinations ones) take down the reliable
- * Firestore-backed core along with it.
- */
+/** Read the trip and its catalog details together. Missing links and failed
+ * required reads stay visible instead of looking like an empty itinerary. */
 export async function getPlanBundle(
   token: string,
   planId: string
@@ -308,81 +339,38 @@ export async function getPlanBundle(
   const plan = await getPlan(token, planId);
   if (!plan) return null;
 
-  // Every query is normalized to Promise<Row[]> (via .then((r) => r.rows))
-  // BEFORE withFallback, so its fallback value is a plain, uniform T[] (`[]`)
-  // rather than a pg QueryResult<T> — QueryResult carries required
-  // metadata (command/rowCount/oid/fields) that a literal fallback can't
-  // supply, and only some of these four queries had a pre-existing ternary
-  // branch that happened to produce a compatible shape.
   const [destinationRows, routeRows, reachedRows, processingRows] = await Promise.all([
-    withFallback(
-      (plan.destinations.length > 0
-        ? db.query<DestinationQueryRow>(
-            `SELECT id, name, elevation, features,
-                    ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
-             FROM destinations
-             WHERE id = ANY($1::text[])`,
-            [plan.destinations]
-          )
-        : Promise.resolve({ rows: [] as DestinationQueryRow[] })
-      ).then((result) => result.rows),
-      [] as DestinationQueryRow[],
-      (error) => console.error(`getPlanBundle(${planId}): destinations query failed`, error)
-    ),
-    withFallback(
-      (plan.routes.length > 0
-        ? db.query<RouteQueryRow>(
-            `SELECT id, name, polyline6, distance, gain, status,
-                    owner = 'peaks' AS is_catalog
-             FROM routes
-             WHERE id = ANY($1::text[])
-               AND status IN ('active', 'superseded')
-               AND (owner = 'peaks' OR owner = $2)`,
-            [plan.routes, plan.userId]
-          )
-        : Promise.resolve({ rows: [] as RouteQueryRow[] })
-      ).then((result) => result.rows),
-      [] as RouteQueryRow[],
-      (error) => console.error(`getPlanBundle(${planId}): routes query failed`, error)
-    ),
-    withFallback(
-      db
-        .query<ReachedDestinationQueryRow>(
-          `SELECT d.id, d.name, d.elevation, d.features,
-                  ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng,
-                  prd.ordinal
-           FROM destinations d
-           JOIN plan_reached_destinations prd ON prd.destination_id = d.id
-           WHERE prd.plan_id = $1
-           ORDER BY prd.ordinal`,
-          [planId]
-        )
-        .then((result) => result.rows),
-      [] as ReachedDestinationQueryRow[],
-      (error) => console.error(`getPlanBundle(${planId}): reached-destinations query failed`, error)
-    ),
-    withFallback(
-      db
-        .query<ProcessingQueryRow>(
-          `SELECT distance, gain, processing_state,
-                  CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
-           FROM plans p
-           WHERE p.id = $1
-             AND NOT EXISTS (
-               SELECT 1
-               FROM plan_routes invalid_pr
-               JOIN routes invalid_route ON invalid_route.id = invalid_pr.route_id
-               WHERE invalid_pr.plan_id = p.id
-                 AND invalid_route.owner IS DISTINCT FROM 'peaks'
-                 AND invalid_route.owner IS DISTINCT FROM p.user_id
-             )`,
-          [planId]
-        )
-        .then((result) => result.rows),
-      [] as ProcessingQueryRow[],
-      (error) => console.error(`getPlanBundle(${planId}): processing query failed`, error)
-    ),
+    (plan.destinations.length > 0
+      ? db.query<DestinationQueryRow>(
+          `SELECT id, name, elevation, features,
+                  ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
+           FROM destinations WHERE id = ANY($1::text[])`, [plan.destinations])
+      : Promise.resolve({ rows: [] as DestinationQueryRow[] })).then((result) => result.rows),
+    (plan.routes.length > 0
+      ? db.query<RouteQueryRow>(
+          `SELECT id, name, polyline6, distance, gain, gain_loss, shape, status, owner = 'peaks' AS is_catalog
+           FROM routes WHERE id = ANY($1::text[]) AND status IN ('active', 'superseded')
+             AND (owner = 'peaks' OR owner = $2)`, [plan.routes, plan.userId])
+      : Promise.resolve({ rows: [] as RouteQueryRow[] })).then((result) => result.rows),
+    db.query<ReachedDestinationQueryRow>(
+      `SELECT d.id, d.name, d.elevation, d.features,
+              ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng, prd.ordinal
+       FROM destinations d JOIN plan_reached_destinations prd ON prd.destination_id = d.id
+       WHERE prd.plan_id = $1 ORDER BY prd.ordinal`, [planId]).then((result) => result.rows),
+    db.query<ProcessingQueryRow>(
+      `SELECT distance, gain, processing_state,
+              CASE WHEN path IS NOT NULL THEN ST_AsGeoJSON(path)::json END AS path
+       FROM plans p WHERE p.id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM plan_routes invalid_pr
+           JOIN routes invalid_route ON invalid_route.id = invalid_pr.route_id
+           WHERE invalid_pr.plan_id = p.id
+             AND invalid_route.owner IS DISTINCT FROM 'peaks'
+             AND invalid_route.owner IS DISTINCT FROM p.user_id
+         )`, [planId]).then((result) => result.rows),
   ]);
+  assertPlanLinks(plan.destinations, destinationRows, "places");
+  assertPlanLinks(plan.routes, routeRows, "routes");
 
   const processingRow = processingRows[0];
 
@@ -464,7 +452,7 @@ export async function updatePlan(
     description?: string;
     destinations?: string[];
     routes?: string[];
-    date?: string;
+    date?: string | null;
     isPublic?: boolean;
   }
 ): Promise<void> {
@@ -499,7 +487,7 @@ export async function updatePlan(
     await syncPlanToSql(planId, auth.uid, {
       name: updates.name ?? data.name ?? "",
       description: updates.description ?? data.description,
-      date: updates.date ?? data.date,
+      date: updates.date !== undefined ? updates.date : data.date,
       isPublic: updates.isPublic ?? (data.isPublic === true),
       destinations: updates.destinations ?? data.destinations,
       routes: routeIds ?? data.routes,
@@ -609,6 +597,12 @@ export async function inviteToPlan(
   const data = doc.data()!;
   if (data.userId !== auth.uid) throw new Error("Forbidden");
 
+  if (friendId === auth.uid) throw new Error("You already own this trip");
+  const friendships = await adminDb.collection("friends").where("users", "array-contains", auth.uid).get();
+  if (!friendships.docs.some((friendship) => (friendship.data().users ?? []).includes(friendId))) {
+    throw new Error("Add this person as a friend before inviting them");
+  }
+
   await adminDb
     .collection("plans")
     .doc(planId)
@@ -618,8 +612,8 @@ export async function inviteToPlan(
     });
 
   // Dual-write to Cloud SQL
-  db.query(
+  await db.query(
     `INSERT INTO plan_party (plan_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
     [planId, friendId]
-  ).catch((err) => console.error("Cloud SQL party sync failed:", err));
+  );
 }

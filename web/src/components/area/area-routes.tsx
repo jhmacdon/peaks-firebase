@@ -1,22 +1,38 @@
+"use client";
+
+import { useState } from "react";
+import { getAreaRoutePage } from "../../lib/actions/areas";
+import { Button } from "../ui/button";
 import Link from "next/link";
 import type { AreaRoute } from "../../lib/actions/areas";
 import { formatDurationRangeFriendly, formatSessionCount } from "../../lib/format";
 import { formatFeet, formatMiles } from "../../lib/destination-detail";
-import { summarizeRouteGuide } from "../../lib/route-guide";
+import { getRouteTraversalMetrics, summarizeRouteGuide } from "../../lib/route-guide";
 import { SectionHeading } from "../ui/section-heading";
 
 /** Routes that pass through the area — quiet rows, same shape as
  * DestinationRoutes (components/destination/destination-routes.tsx).
  * Difficulty is a plain word in the meta line rather than a colored pill. */
 export function AreaRoutes({
-  routes,
+  areaId,
+  routes: initialRoutes,
   totalCount,
   className = "",
 }: {
+  areaId: string;
   routes: AreaRoute[];
   totalCount: number;
   className?: string;
 }) {
+  const [routes, setRoutes] = useState(initialRoutes);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  async function loadMore() {
+    setLoading(true); setError(false);
+    try { const next = await getAreaRoutePage(areaId, routes.length); setRoutes((current) => [...current, ...next]); }
+    catch { setError(true); }
+    finally { setLoading(false); }
+  }
   return (
     <section className={className} aria-labelledby="area-routes">
       <div className="flex items-baseline justify-between gap-4">
@@ -39,19 +55,22 @@ export function AreaRoutes({
               ? summarizeRouteGuide({
                   distance: route.distance,
                   gain: route.gain,
-                  gain_loss: null,
+                  gain_loss: route.gain_loss,
                   shape: route.shape,
-                  completion: "none",
+                  completion: route.completion,
                   destination_count: route.destination_count,
                 })
               : null;
 
+            const traversal = getRouteTraversalMetrics({ ...route, gain_loss: route.gain_loss });
+            const isLongTrail = (traversal.distanceMeters ?? 0) > 80000;
+            const distanceScope = route.shape === "out_and_back" ? "round trip" : route.shape === "point_to_point" ? "one way" : "full route";
             const metaParts = [
-              summary?.difficultyLabel ?? null,
-              route.distance != null ? formatMiles(route.distance) : null,
-              route.gain != null ? `${formatFeet(route.gain)} gain` : null,
+              !isLongTrail ? summary?.difficultyLabel ?? null : "Long-distance trail",
+              traversal.distanceMeters != null ? `${formatMiles(traversal.distanceMeters)} ${distanceScope}` : null,
+              traversal.gainMeters != null ? `${formatFeet(traversal.gainMeters)} gain` : null,
               route.session_count > 0 ? formatSessionCount(route.session_count) : null,
-              summary?.estimatedHoursLow != null
+              !isLongTrail && summary?.estimatedHoursLow != null
                 ? `Est. ${formatDurationRangeFriendly(summary.estimatedHoursLow, summary.estimatedHoursHigh)}`
                 : null,
             ].filter((part): part is string => Boolean(part));
@@ -68,11 +87,14 @@ export function AreaRoutes({
                     </span>
                   ) : null}
                 </Link>
+                {isLongTrail ? <p className="mt-1 text-sm text-muted">This trail crosses the area. These facts cover the whole trail; an in-area segment is not available.</p> : null}
               </li>
             );
           })}
         </ul>
       )}
+      {error ? <p role="alert" className="mt-4 text-sm text-alert">More routes could not load. Try again.</p> : null}
+      {routes.length < totalCount ? <Button variant="secondary" className="mt-5" disabled={loading} onClick={loadMore}>{loading ? "Loading routes…" : error ? "Retry" : "Show more routes"}</Button> : null}
     </section>
   );
 }

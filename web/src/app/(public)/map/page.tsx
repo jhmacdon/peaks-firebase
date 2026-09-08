@@ -1,600 +1,200 @@
 "use client";
 
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
-import {
-  getDestinationsInViewport,
-  getRoutesInViewport,
-  searchDestinations,
-  type SearchDestination,
-  type ViewportRoute,
-} from "../../../lib/actions/search";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getDestinationsInViewport, getRoutesInViewport, type SearchDestination, type ViewportRoute } from "../../../lib/actions/search";
+import { getCatalogSelection, searchCatalog } from "../../../lib/actions/catalog-search";
+import { catalogHref, hasCatalogSelection, parseCatalogFilters, parseCatalogSelection } from "../../../lib/catalog-search";
+import { catalogHitHref, type CatalogHit, type CatalogPage } from "../../../lib/catalog-results";
+import { buildExploreResults, catalogHitToExploreResult, type ExploreResult } from "../../../lib/explore-results";
+import { DEFAULT_MAP_VIEW, MAP_TYPES, ROUTE_MIN_ZOOM, VIEWPORT_DESTINATION_LIMIT, VIEWPORT_ROUTE_LIMIT, clampViewportBounds, destinationFeatureFilter, destinationTypesSelected, mapExploreHref, parseMapExploreUrl, routesSelected, toggleMapType, type MapTypeId } from "../../../lib/map-view";
+import { getRouteTraversalMetrics } from "../../../lib/route-guide";
 import { ExploreChips } from "../../../components/explore/explore-chips";
 import { ExploreControls } from "../../../components/explore/explore-controls";
 import { ExplorePanel } from "../../../components/explore/explore-panel";
-import { SearchIcon } from "../../../components/explore/explore-icons";
-import {
-  buildExploreResults,
-  describeDestination,
-  type ExploreResult,
-} from "../../../lib/explore-results";
-import {
-  DEFAULT_MAP_VIEW,
-  MAP_TYPES,
-  MIN_SEARCH_LENGTH,
-  ROUTE_MIN_ZOOM,
-  VIEWPORT_DESTINATION_LIMIT,
-  VIEWPORT_ROUTE_LIMIT,
-  clampViewportBounds,
-  destinationFeatureFilter,
-  destinationTypesSelected,
-  mapExploreHref,
-  parseMapExploreUrl,
-  routesSelected,
-  shouldAutoLocate,
-  toggleMapType,
-  type MapTypeId,
-} from "../../../lib/map-view";
-import type {
-  ExploreMapHandle,
-  MapDestination,
-  MapRoute,
-  MapViewport,
-} from "../../../components/explore-map";
+import type { ExploreMapHandle, MapDestination, MapRoute, MapViewport } from "../../../components/explore-map";
 
-const ExploreMap = dynamic(() => import("../../../components/explore-map"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-fill">
-      <span className="text-sm text-muted">Loading map…</span>
-    </div>
-  ),
-});
+const ExploreMap = dynamic(()=>import("../../../components/explore-map"),{ssr:false,loading:()=> <div className="flex h-full items-center justify-center bg-fill text-sm text-muted">Loading map…</div>});
+const filterQuery=(search:string)=>catalogHref("/discover",search).split("?")[1]??"";
+const resultSelection=(result:ExploreResult)=>`${result.kind==="destination"?"destinations":result.kind==="route"?"routes":result.kind==="area"?"areas":"lists"}:${result.id}`;
 
-/** How long the map has to sit still before the viewport is read again. */
-const VIEWPORT_DEBOUNCE_MS = 300;
-const SEARCH_DEBOUNCE_MS = 250;
-const SEARCH_RESULT_LIMIT = 12;
-
-/**
- * The explorer reads the URL, and the URL says where to look, what to show,
- * and what to search for — so nothing above it can be rendered on the
- * server. The Suspense boundary is what makes that legal: /map prerenders
- * as the shell below, and the explorer itself renders in the browser, where
- * the query string exists. Without it the server would render an empty
- * search and the browser a full one, and hydration would tear.
- */
 export default function MapPage() {
-  return (
-    <div className="relative h-[calc(100dvh-var(--chrome-top-h)-var(--chrome-bottom-h))] overflow-hidden bg-fill md:h-[calc(100dvh-var(--chrome-h))]">
-      <Suspense
-        fallback={
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-sm text-muted">Loading map…</span>
-          </div>
-        }
-      >
-        <MapExplorer />
-      </Suspense>
-    </div>
-  );
+  return <div className="relative h-[calc(100dvh-var(--chrome-top-h)-var(--chrome-bottom-h))] overflow-hidden bg-fill md:h-[calc(100dvh-var(--chrome-h))]"><Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Loading map…</div>}><MapExplorer/></Suspense></div>;
 }
 
 function MapExplorer() {
-  // Snapshot the URL once: a shared link opens exactly where it was saved,
-  // and `?q=` handed over from Discover runs as a search. A snapshot, not a
-  // subscription — from here on the map drives the URL, not the other way
-  // round, and re-reading it on every pan would fight the reader.
-  const searchParams = useSearchParams();
-  const [initial] = useState(() => parseMapExploreUrl(searchParams.toString()));
+  const params=useSearchParams();
+  const router=useRouter();
+  const [initial]=useState(()=>({map:parseMapExploreUrl(params.toString()),filters:filterQuery(params.toString()),selected:params.get("selected")}));
+  const [filterSearch,setFilterSearch]=useState(initial.filters);
+  const filters=useMemo(()=>parseCatalogFilters(filterSearch),[filterSearch]);
+  const catalogActive=hasCatalogSelection(filters);
+  const [query,setQuery]=useState(filters.query);
+  const [types,setTypes]=useState<MapTypeId[]>(initial.map.types);
+  const [viewport,setViewport]=useState<MapViewport|null>(null);
+  const [destinations,setDestinations]=useState<SearchDestination[]>([]);
+  const [routes,setRoutes]=useState<ViewportRoute[]>([]);
+  const [catalog,setCatalog]=useState<{key:string;page:CatalogPage}|null>(null);
+  const [viewportLoading,setViewportLoading]=useState(false);
+  const [catalogLoading,setCatalogLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [tileError,setTileError]=useState(false);
+  const [retry,setRetry]=useState(0);
+  const [selected,setSelected]=useState<string|null>(initial.selected);
+  const [selection,setSelection]=useState<CatalogHit|null>(null);
+  const [focusRequest,setFocusRequest]=useState(0);
+  const [hovered,setHovered]=useState<ExploreResult|null>(null);
+  const [basemap,setBasemap]=useState<"topo"|"satellite">("topo");
+  const [sheetOpen,setSheetOpen]=useState(false);
+  const [locating,setLocating]=useState(false);
+  const [ready,setReady]=useState(false);
+  const mapRef=useRef<ExploreMapHandle|null>(null);
+  const lastFocus=useRef("");
+  const followSearch=useRef(!initial.map.view&&!initial.selected);
+  const latitude=viewport?.centerLat??initial.map.view?.lat??DEFAULT_MAP_VIEW.lat;
+  const longitude=viewport?.centerLng??initial.map.view?.lng??DEFAULT_MAP_VIEW.lng;
+  const typesKey=types.join(",");
+  const viewportKey=viewport?[viewport.minLat,viewport.maxLat,viewport.minLng,viewport.maxLng,viewport.zoom].map(n=>n.toFixed(3)).join(","):"";
+  const viewportRef=useRef(viewport);
+  viewportRef.current=viewport;
+  const typesRef=useRef(types);
+  typesRef.current=types;
 
-  const [types, setTypes] = useState<MapTypeId[]>(initial.types);
-  const [query, setQuery] = useState(initial.query);
+  const changeFilters=useCallback((changes:Record<string,string|number|null>)=>{
+    setFilterSearch(current=>filterQuery(catalogHref("/discover",current,changes)));
+    if(changes.q!==undefined)setQuery(String(changes.q??""));
+    if(Object.keys(changes).some(key=>key!=="page")) {
+      setSelected(null);
+      followSearch.current=true;
+    }
+  },[]);
+  useEffect(()=>{
+    if(query.trim()===filters.query)return;
+    const timer=setTimeout(()=>changeFilters({q:query}),300);
+    return ()=>clearTimeout(timer);
+  },[query,filters.query,changeFilters]);
 
-  const [destinations, setDestinations] = useState<SearchDestination[]>([]);
-  const [routes, setRoutes] = useState<ViewportRoute[]>([]);
-  const [loading, setLoading] = useState(false);
+  useEffect(()=>{
+    if(!catalogActive)return;
+    let cancelled=false;
+    setCatalogLoading(true);
+    setError("");
+    searchCatalog(filterSearch).then(page=>{
+      if(cancelled)return;
+      setCatalog({key:filterSearch,page});
+      if(followSearch.current) {
+        const first=page.hits.find(hit=>hit.lat!==null&&hit.lng!==null);
+        if(first){followSearch.current=false;setSelected(`${first.kind}:${first.id}`);}
+      }
+    }).catch(()=>{if(!cancelled)setError("We couldn't load these results. Your filters are saved; try again.");}).finally(()=>{if(!cancelled)setCatalogLoading(false);});
+    return ()=>{cancelled=true;};
+  },[catalogActive,filterSearch,retry]);
 
-  const [searchResults, setSearchResults] = useState<SearchDestination[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  const [centerLat, setCenterLat] = useState(
-    initial.view?.lat ?? DEFAULT_MAP_VIEW.lat
-  );
-  const [centerLng, setCenterLng] = useState(
-    initial.view?.lng ?? DEFAULT_MAP_VIEW.lng
-  );
-  const [zoom, setZoom] = useState(initial.view?.zoom ?? DEFAULT_MAP_VIEW.zoom);
-  const [viewportKey, setViewportKey] = useState("");
-
-  const [selectedDestinationId, setSelectedDestinationId] = useState<
-    string | null
-  >(null);
-  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-  const [hoveredDestinationId, setHoveredDestinationId] = useState<
-    string | null
-  >(null);
-  const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
-
-  const [basemap, setBasemap] = useState<"topo" | "satellite">("topo");
-  const [locating, setLocating] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  const mapHandleRef = useRef<ExploreMapHandle | null>(null);
-  const viewportRef = useRef<MapViewport | null>(null);
-  const viewportSeqRef = useRef(0);
-  const searchSeqRef = useRef(0);
-  /** A destination picked before its marker existed (a search hit outside
-   * the loaded viewport). The popup opens once the marker arrives. */
-  const pendingPopupRef = useRef<string | null>(null);
-  /** A result picked before the map finished loading — a `?q=` link can
-   * resolve its search well before the Leaflet chunk lands. */
-  const pendingFocusRef = useRef<ExploreResult | null>(null);
-  /** A `?q=` handed over from Discover flies to its best match once — after
-   * that the reader is driving. Only when the link pinned no view of its
-   * own, which would have said where to look. */
-  const followUrlQueryRef = useRef(
-    initial.query.length >= MIN_SEARCH_LENGTH && initial.view === null
-  );
-
-  // Read during render (not in an effect) so the effects below, which run
-  // after the render that changed them, always see the current values
-  // without listing an array in their dependencies.
-  const typesRef = useRef(types);
-  typesRef.current = types;
-  const centerRef = useRef({ lat: centerLat, lng: centerLng });
-  centerRef.current = { lat: centerLat, lng: centerLng };
-
-  const typesKey = types.join(",");
-  const searchActive = query.trim().length >= MIN_SEARCH_LENGTH;
-
-  const handleViewportChange = useCallback((viewport: MapViewport) => {
-    viewportRef.current = viewport;
-    setCenterLat(viewport.centerLat);
-    setCenterLng(viewport.centerLng);
-    setZoom(viewport.zoom);
-    // Rounded to ~100m so a sub-pixel nudge doesn't re-query the database.
-    setViewportKey(
-      [
-        viewport.minLat.toFixed(3),
-        viewport.maxLat.toFixed(3),
-        viewport.minLng.toFixed(3),
-        viewport.maxLng.toFixed(3),
-        viewport.zoom,
-      ].join(",")
-    );
-  }, []);
-
-  // Viewport reads. Debounced, sequence-guarded, and skipped entirely for a
-  // layer nothing has asked for — routes below ROUTE_MIN_ZOOM cost seconds
-  // on a continent-sized box and wouldn't be drawn anyway.
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    const timer = setTimeout(() => {
-      const selectedTypes = typesRef.current;
-      const bounds = clampViewportBounds(viewport);
-      const center = {
-        centerLat: viewport.centerLat,
-        centerLng: viewport.centerLng,
-      };
-      const wantDestinations =
-        destinationTypesSelected(selectedTypes).length > 0;
-      const wantRoutes =
-        routesSelected(selectedTypes) && viewport.zoom >= ROUTE_MIN_ZOOM;
-
-      const seq = ++viewportSeqRef.current;
-      setLoading(true);
+  useEffect(()=>{
+    const bounds=viewportRef.current;
+    if(!bounds||catalogActive)return;
+    let cancelled=false;
+    const timer=setTimeout(()=>{
+      setViewportLoading(true);
+      setError("");
+      const selectedTypes=typesRef.current;
+      const read={...clampViewportBounds(bounds),centerLat:bounds.centerLat,centerLng:bounds.centerLng};
       Promise.all([
-        wantDestinations
-          ? getDestinationsInViewport({
-              ...bounds,
-              ...center,
-              features: destinationFeatureFilter(selectedTypes),
-            })
-          : Promise.resolve<SearchDestination[]>([]),
-        wantRoutes
-          ? getRoutesInViewport({ ...bounds, ...center })
-          : Promise.resolve<ViewportRoute[]>([]),
-      ])
-        .then(([nextDestinations, nextRoutes]) => {
-          if (seq !== viewportSeqRef.current) return;
-          setDestinations(nextDestinations);
-          setRoutes(nextRoutes);
-        })
-        .catch(() => {
-          // Keep whatever was already loaded; the next pan retries.
-        })
-        .finally(() => {
-          if (seq === viewportSeqRef.current) setLoading(false);
-        });
-    }, VIEWPORT_DEBOUNCE_MS);
+        destinationTypesSelected(selectedTypes).length?getDestinationsInViewport({...read,features:destinationFeatureFilter(selectedTypes)}):Promise.resolve([]),
+        routesSelected(selectedTypes)&&bounds.zoom>=ROUTE_MIN_ZOOM?getRoutesInViewport(read):Promise.resolve([]),
+      ]).then(([nextDestinations,nextRoutes])=>{if(!cancelled){setDestinations(nextDestinations);setRoutes(nextRoutes);}})
+        .catch(()=>{if(!cancelled){setDestinations([]);setRoutes([]);setError("We couldn't load this part of the map. Try again.");}})
+        .finally(()=>{if(!cancelled)setViewportLoading(false);});
+    },300);
+    return ()=>{cancelled=true;clearTimeout(timer);};
+  },[viewportKey,typesKey,catalogActive,retry]);
 
-    return () => clearTimeout(timer);
-  }, [viewportKey, typesKey]);
+  useEffect(()=>{
+    if(!selected){setSelection(null);return;}
+    let cancelled=false;
+    setSelection(null);
+    getCatalogSelection(selected).then(hit=>{if(!cancelled)setSelection(hit);})
+      .catch(()=>{if(!cancelled)setError("We couldn't open this guide on the map. Try again.");});
+    return ()=>{cancelled=true;};
+  },[selected,retry]);
 
-  // The URL is the view: pan, zoom, filter or search and the address bar
-  // follows, so any view can be shared or bookmarked. replaceState, not a
-  // router push — a pan is not a page in the reader's history. Nothing is
-  // written until the map has reported a real viewport, so a link that
-  // pinned no view never gets one invented for it.
-  useEffect(() => {
-    if (viewportKey === "") return;
-    window.history.replaceState(
-      null,
-      "",
-      mapExploreHref({
-        view: { lat: centerLat, lng: centerLng, zoom },
-        types: typesRef.current,
-        query,
-      })
-    );
-  }, [viewportKey, centerLat, centerLng, zoom, typesKey, query]);
-
-  const focusResult = useCallback((result: ExploreResult) => {
-    if (result.kind === "route") {
-      setSelectedRouteId(result.id);
-      setSelectedDestinationId(null);
-    } else {
-      setSelectedDestinationId(result.id);
-      setSelectedRouteId(null);
+  const hits=catalog?.key===filterSearch?catalog.page.hits:[];
+  const selectedHits=selection?[...hits.filter(hit=>hit.id!==selection.id||hit.kind!==selection.kind),selection]:hits;
+  const mapDestinations=useMemo<MapDestination[]>(()=>{
+    const source=catalogActive?selectedHits.flatMap(hit=>hit.destination?[hit.destination]:[]):destinations;
+    const result:MapDestination[]=source.filter(d=>d.lat!==null&&d.lng!==null).map(d=>({id:d.id,name:d.name,elevation:d.elevation,lat:d.lat!,lng:d.lng!,features:d.features}));
+    for (const area of selectedHits.filter(hit=>hit.area&&hit.lat!==null&&hit.lng!==null)) {
+      result.push({id:area.id,name:area.name,elevation:null,lat:area.lat!,lng:area.lng!,features:[],catalogKind:"areas"});
     }
-
-    const handle = mapHandleRef.current;
-    if (!handle) {
-      // The map is still loading — hold the pick and run it on ready.
-      pendingFocusRef.current = result;
-      return;
+    if(!catalogActive&&selection?.destination&&selection.lat!==null&&selection.lng!==null&&!result.some(d=>d.id===selection.id))result.push({...selection.destination,lat:selection.lat,lng:selection.lng});
+    return result;
+  // selectedHits is built from these two stable sources.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[catalogActive,catalog,filterSearch,destinations,selection]);
+  const mapRoutes=useMemo<MapRoute[]>(()=>{
+    const result:MapRoute[]=catalogActive?selectedHits.flatMap(hit=>{
+      if(!hit.route)return [];
+      const metrics=getRouteTraversalMetrics(hit.route);
+      return [{id:hit.id,name:hit.name,polyline6:hit.polyline6??null,distance:metrics.distanceMeters,gain:metrics.gainMeters}];
+    }):routes.map(route=>{const metrics=getRouteTraversalMetrics({...route,gain_loss:route.gain_loss??null,shape:route.shape??null});return {...route,distance:metrics.distanceMeters,gain:metrics.gainMeters};});
+    if(!catalogActive&&selection?.route&&!result.some(r=>r.id===selection.id)) {
+      const metrics=getRouteTraversalMetrics(selection.route);
+      return [...result,{id:selection.id,name:selection.name,polyline6:selection.polyline6??null,distance:metrics.distanceMeters,gain:metrics.gainMeters}];
     }
+    return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[catalogActive,catalog,filterSearch,routes,selection]);
 
-    if (result.kind === "route") {
-      handle.focusRoute(result.id);
-      return;
-    }
-    // A false answer means no marker yet — a search hit from outside the
-    // loaded viewport. The map is already flying there; the popup opens
-    // when the marker arrives.
-    const opened = handle.openDestination(result.id, result.lat, result.lng);
-    pendingPopupRef.current = opened ? null : result.id;
-  }, []);
+  useEffect(()=>{
+    if(!ready||!selection||!mapRef.current)return;
+    const focusKey=`${selected}:${focusRequest}`;
+    if(lastFocus.current===focusKey)return;
+    lastFocus.current=focusKey;
+    if(selection.bounds)mapRef.current.focusBounds(selection.bounds);
+    else if(selection.route&&selection.polyline6)mapRef.current.focusRoute(selection.id);
+    else if(selection.lat!==null&&selection.lng!==null)mapRef.current.openDestination(selection.id,selection.lat,selection.lng);
+  },[ready,selection,selected,focusRequest,mapRoutes]);
 
-  const handleMapReady = useCallback(
-    (handle: ExploreMapHandle) => {
-      mapHandleRef.current = handle;
-      const pending = pendingFocusRef.current;
-      if (!pending) return;
-      pendingFocusRef.current = null;
-      focusResult(pending);
-    },
-    [focusResult]
-  );
+  useEffect(()=>{
+    if(!viewport)return;
+    window.history.replaceState(null,"",mapExploreHref({view:{lat:viewport.centerLat,lng:viewport.centerLng,zoom:viewport.zoom},types,query:filters.query,search:filterSearch,selected}));
+  },[viewport,types,filters.query,filterSearch,selected]);
 
-  // Destination search, proximity-biased toward the map centre.
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < MIN_SEARCH_LENGTH) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-
-    setSearching(true);
-    const seq = ++searchSeqRef.current;
-    const timer = setTimeout(() => {
-      const center = centerRef.current;
-      searchDestinations(q, center.lat, center.lng, SEARCH_RESULT_LIMIT)
-        .then((results) => {
-          if (seq !== searchSeqRef.current) return;
-          const located = results.filter((r) => r.lat != null && r.lng != null);
-          setSearchResults(located);
-          if (followUrlQueryRef.current && located.length > 0) {
-            followUrlQueryRef.current = false;
-            const first = describeDestination(located[0], center.lat, center.lng);
-            if (first) focusResult(first);
-          }
-        })
-        .catch(() => {
-          // Leave prior results in place; typing again retries.
-        })
-        .finally(() => {
-          if (seq === searchSeqRef.current) setSearching(false);
-        });
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [query, focusResult]);
-
-  const mapDestinations = useMemo<MapDestination[]>(
-    () =>
-      destinations
-        .filter((d) => d.lat != null && d.lng != null)
-        .map((d) => ({
-          id: d.id,
-          name: d.name,
-          elevation: d.elevation,
-          lat: d.lat as number,
-          lng: d.lng as number,
-          features: d.features,
-        })),
-    [destinations]
-  );
-
-  const mapRoutes = useMemo<MapRoute[]>(
-    () =>
-      routes.map((r) => ({
-        id: r.id,
-        name: r.name,
-        polyline6: r.polyline6,
-        distance: r.distance,
-        gain: r.gain,
-      })),
-    [routes]
-  );
-
-  const viewportResults = useMemo(
-    () =>
-      buildExploreResults({
-        destinations: mapDestinations,
-        routes: mapRoutes,
-        centerLat,
-        centerLng,
-      }),
-    [mapDestinations, mapRoutes, centerLat, centerLng]
-  );
-
-  const searchRows = useMemo(
-    () =>
-      searchResults
-        .map((result) => describeDestination(result, centerLat, centerLng))
-        .filter((result): result is ExploreResult => result !== null),
-    [searchResults, centerLat, centerLng]
-  );
-
-  const results = searchActive ? searchRows : viewportResults;
-
-  const hasOsmRouteGeometry = useMemo(
-    () => routes.some((r) => r.provenance?.contains_osm_geometry),
-    [routes]
-  );
-
-  // A capped query should not turn its implementation limit into page copy.
-  // The rows remain distance-ranked; the reader only needs to know that the
-  // panel holds the closest useful choices in this view.
-  const capped =
-    destinations.length >= VIEWPORT_DESTINATION_LIMIT ||
-    routes.length >= VIEWPORT_ROUTE_LIMIT;
-  const countLine = searchActive
-    ? searching
-      ? "Searching…"
-      : `${results.length} ${results.length === 1 ? "match" : "matches"}`
-    : (loading || viewportKey === "") && results.length === 0
-      ? // A read in flight — or a map that hasn't reported its first
-        // viewport — is not the same fact as an empty viewport.
-        "Loading results…"
-      : capped
-      ? "Closest places in view"
-      : `${results.length.toLocaleString()} ${
-          results.length === 1 ? "result" : "results"
-        } in view`;
-
-  const hint =
-    !searchActive && routesSelected(types) && zoom < ROUTE_MIN_ZOOM
-      ? "Routes appear once you zoom in."
-      : null;
-
-  // Re-open a popup for a destination picked before its marker existed.
-  useEffect(() => {
-    const pending = pendingPopupRef.current;
-    if (!pending) return;
-    const match = mapDestinations.find((d) => d.id === pending);
-    if (!match) return;
-    if (mapHandleRef.current?.openDestination(match.id, match.lat, match.lng)) {
-      pendingPopupRef.current = null;
-    }
-  }, [mapDestinations]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setSelectedDestinationId(null);
-      setSelectedRouteId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const handleSelectDestination = useCallback((destination: MapDestination) => {
-    setSelectedDestinationId(destination.id);
-    setSelectedRouteId(null);
-  }, []);
-
-  const handleSelectRoute = useCallback((route: MapRoute) => {
-    setSelectedRouteId(route.id);
-    setSelectedDestinationId(null);
-  }, []);
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedDestinationId(null);
-    setSelectedRouteId(null);
-  }, []);
-
-  const handlePick = useCallback(
-    (result: ExploreResult) => {
-      setSheetOpen(false);
-      focusResult(result);
-    },
-    [focusResult]
-  );
-
-  const handleHover = useCallback((result: ExploreResult | null) => {
-    setHoveredDestinationId(
-      result && result.kind === "destination" ? result.id : null
-    );
-    setHoveredRouteId(result && result.kind === "route" ? result.id : null);
-  }, []);
-
-  const handleToggleType = useCallback((id: MapTypeId) => {
-    setTypes((current) => toggleMapType(current, id));
-  }, []);
-
-  const handleSelectAllTypes = useCallback(() => {
-    setTypes(MAP_TYPES.map((type) => type.id));
-  }, []);
-
-  const locateMe = useCallback(() => {
-    if (!navigator.geolocation || locating) return;
+  const onReady=useCallback((handle:ExploreMapHandle)=>{mapRef.current=handle;setReady(true);},[]);
+  const onViewport=useCallback((next:MapViewport)=>setViewport(next),[]);
+  const clearSelection=useCallback(()=>setSelected(null),[]);
+  const onDestination=useCallback((destination:MapDestination)=>setSelected(`${destination.catalogKind??"destinations"}:${destination.id}`),[]);
+  const onRoute=useCallback((route:MapRoute)=>setSelected(`routes:${route.id}`),[]);
+  const pick=useCallback((result:ExploreResult)=>{
+    if(result.kind==="list"){router.push(result.href??`/lists/${encodeURIComponent(result.id)}`);return;}
+    setSelected(resultSelection(result));setFocusRequest(n=>n+1);setSheetOpen(false);
+  },[router]);
+  const locate=useCallback(()=>{
+    if(!navigator.geolocation){setError("Location is unavailable. Choose a state in the location controls.");return;}
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        mapHandleRef.current?.showUserLocation(
-          pos.coords.latitude,
-          pos.coords.longitude
-        );
-      },
-      () => setLocating(false),
-      { timeout: 8000, maximumAge: 60000 }
-    );
-  }, [locating]);
+    navigator.geolocation.getCurrentPosition(position=>{setLocating(false);setError("");changeFilters({nearLat:position.coords.latitude.toFixed(5),nearLng:position.coords.longitude.toFixed(5),state:null,area:null,sort:"nearest"});mapRef.current?.showUserLocation(position.coords.latitude,position.coords.longitude);},()=>{setLocating(false);setError("Couldn't find your location. Choose a state or try again.");},{timeout:10000,maximumAge:600000});
+  },[changeFilters]);
 
-  const panel = (withHeading: boolean) => (
-    <ExplorePanel
-      showHeading={withHeading}
-      countLine={countLine}
-      hint={hint}
-      loading={loading}
-      query={query}
-      onQueryChange={setQuery}
-      searching={searching}
-      searchActive={searchActive}
-      results={results}
-      selectedId={selectedDestinationId ?? selectedRouteId}
-      onPick={handlePick}
-      onHover={handleHover}
-    />
-  );
+  const results=catalogActive?hits.map(hit=>catalogHitToExploreResult(hit,latitude,longitude)):buildExploreResults({destinations,routes,centerLat:latitude,centerLng:longitude});
+  const loading=!error&&(catalogActive?catalogLoading||catalog?.key!==filterSearch:viewportLoading||!viewport);
+  const page=catalog?.key===filterSearch?catalog.page:null;
+  const capped=!catalogActive&&(destinations.length>=VIEWPORT_DESTINATION_LIMIT||routes.length>=VIEWPORT_ROUTE_LIMIT);
+  const countLine=error?"Results unavailable":loading?"Finding places…":catalogActive&&page?`${page.total.toLocaleString("en-US")} results · page ${page.page} of ${Math.max(1,Math.ceil(page.total/page.pageSize))}`:capped?"Closest places in view":`${results.length} results in view`;
+  const selectedKind=parseCatalogSelection(selected)?.kind;
+  const hint=!catalogActive&&routesSelected(types)&&(viewport?.zoom??0)<ROUTE_MIN_ZOOM?"Zoom in to see route lines.":catalogActive?"The map shows this page of results. Use Next to see more.":null;
+  const footer=<div className="border-t border-hairline p-4"><Link href={catalogHref("/discover",filterSearch)} className="inline-flex min-h-11 items-center text-sm font-semibold text-accent-text">List view →</Link>{page&&page.page>1&&page.hits.length===0?<button onClick={()=>changeFilters({page:1})} className="block min-h-11 text-sm font-medium text-accent-text underline">Back to first page</button>:null}{page&&page.total>page.pageSize?<nav aria-label="Map result pages" className="mt-2 flex justify-between gap-3"><button disabled={page.page<=1} onClick={()=>changeFilters({page:page.page-1})} className="min-h-11 rounded-full border border-border px-4 text-sm disabled:opacity-40">Previous</button><button disabled={page.page*page.pageSize>=page.total} onClick={()=>changeFilters({page:page.page+1})} className="min-h-11 rounded-full border border-border px-4 text-sm disabled:opacity-40">Next</button></nav>:null}</div>;
+  const selectionPreview=selection?<div className="m-4 rounded-media border border-accent/40 bg-accent/5 p-4"><div className="flex items-start justify-between gap-3"><span className="text-xs font-medium text-accent-text">Selected {selectedKind==="areas"?"area":selectedKind==="routes"?"route":"place"}</span><button onClick={clearSelection} aria-label="Clear selected guide" className="-mr-2 -mt-2 h-11 w-11 text-lg text-muted">×</button></div><Link href={catalogHitHref(selection)} className="block text-base font-semibold text-ink">{selection.name}</Link>{selection.locationLabel?<p className="mt-1 text-sm text-muted">{selection.locationLabel}</p>:null}<Link href={catalogHitHref(selection)} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-accent-text">Open guide →</Link></div>:null;
+  const panel=(showHeading:boolean)=><ExplorePanel showHeading={showHeading} countLine={countLine} hint={hint} loading={loading} query={query} onQueryChange={setQuery} searching={catalogLoading} searchActive={catalogActive} results={results} selectedId={selection?.id??null} onPick={pick} onHover={setHovered} filterSearch={filterSearch} onFiltersChange={changeFilters} error={error} onRetry={()=>setRetry(n=>n+1)} footer={footer} selection={selectionPreview}/>;
 
-  // Full-bleed: the map fills whatever the nav leaves — the wrapper in
-  // MapPage sizes itself off the --chrome-* variables in globals.css rather
-  // than hardcoded pixels, and `(public)/layout.tsx` withholds the footer
-  // and the tab-bar gutter from this segment for the same reason.
-  //
-  // Every piece of chrome below is its own absolutely-positioned element
-  // sized to its own content. Nothing spans the viewport: an overlay
-  // wrapper with pointer-events across the whole page used to swallow drags
-  // and clicks meant for the map.
-  return (
-    <>
-      <div className="absolute inset-0 z-0">
-        <ExploreMap
-          destinations={mapDestinations}
-          routes={mapRoutes}
-          basemap={basemap}
-          selectedDestinationId={selectedDestinationId}
-          selectedRouteId={selectedRouteId}
-          hoveredDestinationId={hoveredDestinationId}
-          hoveredRouteId={hoveredRouteId}
-          showRouteAttribution={hasOsmRouteGeometry}
-          initialView={initial.view}
-          autoLocate={shouldAutoLocate(initial)}
-          onReady={handleMapReady}
-          onViewportChange={handleViewportChange}
-          onSelectDestination={handleSelectDestination}
-          onSelectRoute={handleSelectRoute}
-          onClearSelection={handleClearSelection}
-        />
-      </div>
-
-      {/* Desktop: the floating panel, 400px against the left edge. */}
-      <aside
-        aria-label="Map results"
-        className="absolute bottom-6 left-6 top-6 z-20 hidden w-[400px] flex-col overflow-hidden rounded-media border border-border bg-page shadow-float md:flex"
-      >
-        {panel(true)}
-      </aside>
-
-      {/* The panel's heading is the page's h1, and the panel is desktop-only.
-          Below md the sheet's handle names the view instead, so the heading
-          survives for a screen reader without printing twice. */}
-      <h1 className="sr-only md:hidden">Explore the map</h1>
-
-      {/* Filters float over the map: clear of the panel on desktop, across
-          the top on mobile, where they scroll sideways. */}
-      <ExploreChips
-        types={types}
-        onToggle={handleToggleType}
-        onSelectAll={handleSelectAllTypes}
-        className="absolute left-3 right-3 top-3 z-20 md:left-[28rem] md:right-24 md:top-6"
-      />
-
-      <ExploreControls
-        onZoomIn={() => mapHandleRef.current?.zoomIn()}
-        onZoomOut={() => mapHandleRef.current?.zoomOut()}
-        onLocate={locateMe}
-        locating={locating}
-        basemap={basemap}
-        onToggleBasemap={() =>
-          setBasemap((current) => (current === "topo" ? "satellite" : "topo"))
-        }
-        className="absolute right-3 top-14 z-20 md:right-6 md:top-6"
-      />
-
-      {/* Mobile: the same panel as a bottom sheet. Collapsed it is a handle
-          and the count; the wrapper takes no pointer events so the map
-          underneath stays draggable right up to the sheet itself. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 md:hidden">
-        {sheetOpen ? (
-          <div className="pointer-events-auto flex h-[60dvh] flex-col overflow-hidden rounded-t-media border-x border-t border-border bg-page shadow-float">
-            {/* Open, the handle is only a handle — the panel under it
-                carries the count, and printing it twice reads as a bug. */}
-            <button
-              type="button"
-              onClick={() => setSheetOpen(false)}
-              aria-expanded="true"
-              aria-label="Collapse results"
-              className="flex w-full shrink-0 flex-col items-center py-3"
-            >
-              <span className="h-1 w-9 rounded-full bg-border" />
-            </button>
-            {panel(false)}
-          </div>
-        ) : (
-          <div className="p-3">
-            <button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              aria-expanded="false"
-              className="pointer-events-auto flex w-full flex-col items-center gap-2 rounded-media border border-border bg-page px-4 py-2.5 shadow-float"
-            >
-              <span className="h-1 w-9 rounded-full bg-border" />
-              <span className="flex w-full items-center gap-2 text-left">
-                <span className="text-faint">
-                  <SearchIcon />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-ink-2">
-                  {query || "Search peaks and places"}
-                </span>
-                <span className="shrink-0 text-[12px] text-muted">
-                  {searchActive
-                    ? results.length.toLocaleString()
-                    : capped
-                      ? "Nearby"
-                      : results.length.toLocaleString()}
-                </span>
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
-    </>
-  );
+  return <>
+    <div className="absolute inset-0 z-0"><ExploreMap destinations={mapDestinations} routes={mapRoutes} areaBoundary={selection?.boundary} basemap={basemap} selectedDestinationId={selectedKind==="destinations"||selectedKind==="areas"?selection?.id??null:null} selectedRouteId={selectedKind==="routes"?selection?.id??null:null} hoveredDestinationId={hovered?.kind==="destination"||hovered?.kind==="area"?hovered.id:null} hoveredRouteId={hovered?.kind==="route"?hovered.id:null} showRouteAttribution={routes.some(route=>route.provenance?.contains_osm_geometry)||hits.some(hit=>hit.route?.provenance?.contains_osm_geometry)||Boolean(selection?.route?.provenance?.contains_osm_geometry)} initialView={initial.map.view} autoLocate={false} onTileStatus={setTileError} onReady={onReady} onViewportChange={onViewport} onSelectDestination={onDestination} onSelectRoute={onRoute} onClearSelection={clearSelection}/></div>
+    {tileError?<div role="alert" className="absolute left-3 right-16 top-28 z-20 rounded-media border border-border bg-page p-3 text-sm shadow-float md:left-[26rem] md:right-24 md:top-20"><p>Some map tiles could not load.</p><button type="button" onClick={()=>mapRef.current?.retryTiles()} className="min-h-11 font-medium text-accent-text underline">Retry map</button><span className="mx-2 text-muted">or switch map style.</span></div>:null}
+    <aside aria-label="Map results" className="absolute bottom-5 left-5 top-5 z-20 hidden w-[380px] flex-col overflow-hidden rounded-media border border-border bg-page shadow-float md:flex">{panel(true)}</aside>
+    <h1 className="sr-only md:hidden">Explore the map</h1>
+    {!catalogActive?<ExploreChips types={types} onToggle={id=>setTypes(current=>toggleMapType(current,id))} onSelectAll={()=>setTypes(MAP_TYPES.map(type=>type.id))} className="absolute left-3 right-3 top-3 z-20 md:left-[26rem] md:right-24 md:top-5"/>:<Link href={catalogHref("/discover",filterSearch)} className="absolute left-3 top-3 z-20 inline-flex min-h-11 items-center rounded-full border border-border bg-page px-4 text-sm font-semibold text-accent-text shadow-float md:left-[26rem] md:top-5">List view</Link>}
+    <ExploreControls onZoomIn={()=>mapRef.current?.zoomIn()} onZoomOut={()=>mapRef.current?.zoomOut()} onLocate={locate} locating={locating} basemap={basemap} onToggleBasemap={()=>setBasemap(current=>current==="topo"?"satellite":"topo")} className="absolute right-3 top-16 z-20 md:right-5 md:top-5"/>
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 md:hidden">{sheetOpen?<div className="pointer-events-auto flex h-[min(65dvh,calc(100dvh-160px))] flex-col overflow-hidden rounded-t-media border-x border-t border-border bg-page shadow-float"><button type="button" onClick={()=>setSheetOpen(false)} aria-expanded="true" aria-label="Collapse results" className="flex min-h-11 w-full shrink-0 items-center justify-center"><span className="h-1 w-9 rounded-full bg-border"/></button>{panel(false)}</div>:<div className="p-3"><button type="button" onClick={()=>setSheetOpen(true)} aria-expanded="false" className="pointer-events-auto flex min-h-16 w-full flex-col items-center gap-2 rounded-media border border-border bg-page px-4 py-3 text-left shadow-float"><span className="h-1 w-9 rounded-full bg-border"/><span className="flex w-full items-center justify-between gap-3"><span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{selection?.name||query||"Search peaks, parks, and routes"}</span><span className="text-xs text-muted">{error?"Try again":loading?"Loading…":`${results.length} shown`}</span></span></button></div>}</div>
+  </>;
 }

@@ -95,7 +95,18 @@ export interface DestinationList {
   completion_target: number;
 }
 
+export interface DestinationRecentSession {
+  id: string;
+  name: string | null;
+  start_time: string;
+  distance: number | null;
+  gain: number | null;
+  total_time: number | null;
+  activity_type: "outdoor-trek" | "outdoor-moto" | "ski" | null;
+}
+
 export interface DestinationUserActivity {
+  sessions: DestinationRecentSession[];
   visit_count: number;
   latest_visit: string | null;
   total_distance: number;
@@ -332,7 +343,7 @@ export async function getUserDestinationActivity(
 
   const result = await db.query(
     `WITH matching_sessions AS (
-       SELECT DISTINCT ts.id, ts.start_time, ts.distance, ts.gain, ts.total_time
+       SELECT DISTINCT ts.id, ts.name, ts.start_time, ts.distance, ts.gain, ts.total_time, ts.activity_type
        FROM tracking_sessions ts
        JOIN session_destinations sd ON sd.session_id = ts.id
        WHERE ts.user_id = $1
@@ -343,13 +354,18 @@ export async function getUserDestinationActivity(
             MAX(start_time) AS latest_visit,
             COALESCE(SUM(distance), 0) AS total_distance,
             COALESCE(SUM(gain), 0) AS total_gain,
-            COALESCE(SUM(total_time), 0) AS total_time
+            COALESCE(SUM(total_time), 0) AS total_time,
+            (SELECT COALESCE(json_agg(recent), '[]'::json) FROM (
+              SELECT id, name, start_time, distance, gain, total_time, activity_type
+              FROM matching_sessions ORDER BY start_time DESC, id LIMIT 5
+            ) recent) AS sessions
      FROM matching_sessions`,
     [user.uid, destinationId]
   );
 
   const row = result.rows[0];
   return {
+    sessions: row?.sessions ?? [],
     visit_count: Number(row?.visit_count ?? 0),
     latest_visit:
       row?.latest_visit instanceof Date

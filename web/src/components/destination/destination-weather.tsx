@@ -43,10 +43,14 @@ function PrecipGlyph({ kind }: { kind: DestinationWeatherDay["precipKind"] }) {
 export function DestinationWeather({
   days,
   forecastUrl,
+  locationName,
+  elevationFeet,
   className = "",
 }: {
   days: DestinationWeatherDay[];
   forecastUrl: string | null;
+  locationName?: string;
+  elevationFeet?: string | null;
   className?: string;
 }) {
   if (days.length === 0) return null;
@@ -57,12 +61,13 @@ export function DestinationWeather({
         <span id="destination-weather">Weather</span>
       </SectionHeading>
 
+      {locationName ? <p className="mt-2 text-sm text-muted">Forecast near {locationName}{elevationFeet ? ` · destination elevation ${elevationFeet} ft` : ""}. Conditions can vary with elevation.</p> : null}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {days.map((day, index) => (
           <div key={`${day.label}-${index}`} className="rounded-ctl bg-fill px-3 py-3">
             <div className="text-[12px] text-muted">{day.label}</div>
             <div className="font-mono-num mt-2 text-[15px] text-ink">
-              {day.highF}°<span className="text-ink-2">/{day.lowF}°</span>
+              {day.highF}°F<span className="text-ink-2"> / {day.lowF}°F</span>
             </div>
             <div className="mt-2 flex items-center gap-1 text-[12px] text-ink-2">
               <PrecipGlyph kind={day.precipKind} />

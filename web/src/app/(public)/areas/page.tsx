@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { CatalogPagination } from "../../../components/catalog-pagination";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getAreasIndex } from "../../../lib/actions/areas";
@@ -55,7 +57,7 @@ export const metadata: Metadata = {
 export default async function AreasIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string; state?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; state?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const search = params.q?.trim() ?? "";
@@ -63,15 +65,23 @@ export default async function AreasIndexPage({
   const requestedState = (params.state ?? "").trim().toUpperCase();
   const stateName = subdivisionName("US", requestedState);
   const stateCode = stateName ? requestedState : "";
+  const page = Math.max(1, Math.min(10000, Number.parseInt(params.page ?? "1", 10) || 1));
   const isFiltered = Boolean(search || designation || stateCode);
 
-  const { areas, states, totalMatching, totalAreas } = await getAreasIndex({
+  const { areas, states, totalMatching, totalAreas, totalStates } = await getAreasIndex({
     search,
     designation,
     stateCode,
-    statesLimit: stateCode ? 1 : isFiltered ? 12 : 8,
-    perStateLimit: stateCode ? 24 : isFiltered ? 6 : 3,
+    statesLimit: stateCode ? 1 : 8,
+    statesOffset: stateCode ? 0 : (page - 1) * 8,
+    perStateOffset: stateCode ? (page - 1) * 24 : 0,
+    perStateLimit: stateCode ? 24 : 3,
   });
+
+  const pageCount = Math.max(1, Math.ceil(stateCode ? totalMatching / 24 : totalStates / 8));
+  const pageHref = (value: number) => `/areas?${new URLSearchParams({ ...(search ? { q: search } : {}), ...(designation ? { type: designation } : {}), ...(stateCode ? { state: stateCode } : {}), page: String(value) })}`;
+
+  if (page > pageCount) redirect(pageHref(pageCount));
 
   const areasByState = new Map<string, typeof areas>();
   for (const area of areas) {
@@ -177,9 +187,7 @@ export default async function AreasIndexPage({
                     </div>
                     {!stateCode && stateAreas.length < state.count ? (
                       <Link
-                        href={`/areas?state=${encodeURIComponent(state.code)}${
-                          designation ? `&type=${encodeURIComponent(designation)}` : ""
-                        }`}
+                        href={`/areas?${new URLSearchParams({ state: state.code, ...(designation ? { type: designation } : {}), ...(search ? { q: search } : {}) })}`}
                         className="shrink-0 text-sm font-medium text-accent-text hover:underline"
                       >
                         View {stateLabel} →
@@ -211,6 +219,9 @@ export default async function AreasIndexPage({
             })}
           </div>
         )}
+
+        <CatalogPagination page={page} pageCount={pageCount} href={pageHref} />
+        <Link href="/discover?type=areas" className="mt-6 inline-flex min-h-11 items-center text-sm text-accent-text underline">Search all areas, including places outside these state guides →</Link>
 
         {faqs.length > 0 ? (
           <div className="mt-20 pb-16">

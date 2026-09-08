@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDestination, type DestinationDetail } from "../../../../lib/actions/destinations";
@@ -212,23 +211,12 @@ export default async function TripReportDetailPage({
           if (block.type === "photo") {
             return (
               <figure key={index}>
-                {/* `fill` rather than literal width/height: trip photos
-                    have no stored dimensions, and declaring a guessed
-                    width/height pair would stretch a portrait phone photo
-                    to whatever aspect that guess implied. A fixed-ratio
-                    container with `object-cover` gets the same next/image
-                    wins (responsive, lazy, no CLS) without distorting the
-                    source photo. */}
-                <div className="rounded-media bg-fill relative aspect-[4/3] w-full overflow-hidden">
-                  <Image
-                    src={block.content}
-                    alt={block.caption || `${photoContext} trip photo`}
-                    fill
-                    sizes="(min-width: 760px) 700px, 100vw"
-                    className="object-cover"
-                    loading="lazy"
-                  />
-                </div>
+                <a href={block.content} target="_blank" rel="noopener noreferrer" className="group block rounded-media bg-fill" aria-label={`Open full-size photo: ${block.caption || photoContext}`}>
+                  {/* The stored image has no dimensions. Preserve its aspect ratio and let readers open the full image. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={block.content} alt={block.caption || `${photoContext} trip photo`} loading="lazy" className="max-h-[760px] w-full rounded-media object-contain" />
+                  <span className="block px-4 py-3 text-sm text-accent-text group-hover:underline">Open full-size photo ↗</span>
+                </a>
                 {block.caption ? (
                   <figcaption className="mt-2 text-center text-sm text-muted">
                     {block.caption}

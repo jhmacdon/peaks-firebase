@@ -6,6 +6,8 @@
 // cache()-wrapped version in cached-landing.ts, so a request only pays for
 // it once (same pattern as cached-search.ts / cached-lists.ts).
 
+import { searchCatalog } from "./catalog-search";
+import type { SearchRouteResult } from "./search";
 import type { AreaIndexRow } from "./areas";
 import { getTopAreasForState } from "./areas";
 import { getList } from "./lists";
@@ -13,7 +15,6 @@ import {
   getActivityLandingCount,
   getStateCatalogFacts,
   getTopDestinationsForState,
-  getTopHikingDestinations,
   getTopSummitDestinations,
   type PopularDestinationsResult,
 } from "./search";
@@ -47,6 +48,7 @@ export interface ActivityLandingData {
    * about summits. Empty elsewhere rather than repeating an unrelated list
    * on every activity page. */
   lists: ActivityLandingClassicList[];
+  routes?: SearchRouteResult[];
 }
 
 /** hiking/peak-bagging: the live count + top-12 + (peak-bagging only) the
@@ -74,7 +76,7 @@ export async function getActivityLandingData(
     getActivityLandingCount(countType),
     type === "peak-bagging"
       ? getTopSummitDestinations(TOP_DESTINATION_COUNT)
-      : getTopHikingDestinations(TOP_DESTINATION_COUNT),
+      : Promise.resolve({ destinations: [], isFallback: false }),
     type === "peak-bagging"
       ? Promise.all(CURATED_CLASSIC_LISTS.map((entry) => getList(entry.id)))
       : Promise.resolve([]),
@@ -95,6 +97,7 @@ export async function getActivityLandingData(
     paragraph: config.paragraph({ count }),
     top,
     lists,
+    routes: type === "hiking" ? (await searchCatalog("type=routes&activity=hiking&maxDistance=10&maxGain=2000")).hits.flatMap((hit) => hit.route ? [hit.route] : []) : [],
   };
 }
 
