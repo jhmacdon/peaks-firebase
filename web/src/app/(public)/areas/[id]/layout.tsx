@@ -1,3 +1,4 @@
+import { guideForArea } from "../../../../lib/guides";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { JsonLdScript } from "../../../../components/json-ld-script";
@@ -74,7 +75,8 @@ export async function generateMetadata({
       };
     }
 
-    const description = describeArea({
+    const guide = guideForArea(area.name, area.country_code, area.state_codes);
+    const description = guide?.description ?? describeArea({
       name: area.name,
       designationLabel: describeDesignation(area.designation, area.kind),
       region: formatRegionList(area.state_codes, area.country_code),
@@ -85,7 +87,7 @@ export async function generateMetadata({
     const canonicalPath = `/areas/${encodeURIComponent(id)}`;
 
     return {
-      title: area.name,
+      title: guide?.title ?? area.name,
       description,
       alternates: {
         canonical: absoluteUrl(canonicalPath),
@@ -95,7 +97,7 @@ export async function generateMetadata({
       // cache-busted URL Next.js generates for it — a hand-built URL can't
       // reproduce that hash.
       openGraph: {
-        title: area.name,
+        title: guide?.title ?? area.name,
         description,
         url: absoluteUrl(canonicalPath),
         siteName: siteConfig.name,
@@ -103,7 +105,7 @@ export async function generateMetadata({
       },
       twitter: {
         card: "summary_large_image",
-        title: area.name,
+        title: guide?.title ?? area.name,
         description,
       },
     };

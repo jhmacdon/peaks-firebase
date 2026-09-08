@@ -1,3 +1,5 @@
+import { guideForList } from "../../../../lib/guides";
+import { GuideReading } from "../../../../components/guide-reading";
 import { notFound } from "next/navigation";
 import { getCachedList, getCachedListDestinations } from "../../../../lib/actions/cached-lists";
 import { listOwnerLabel, parseListDescription } from "../../../../lib/list-content";
@@ -25,10 +27,13 @@ export default async function ListDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const guide = guideForList(id);
   const list = await getCachedList(id);
   if (!list) notFound();
 
-  const destinations = await settled(getCachedListDestinations(id), []);
+  const destinations = guide
+    ? await getCachedListDestinations(id)
+    : await settled(getCachedListDestinations(id), []);
   const {
     paragraphs,
     sourceUrl: parsedSourceUrl,
@@ -99,6 +104,8 @@ export default async function ListDetailPage({
         }
       />
 
+      {guide ? <p className="mt-6 max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p> : null}
+
       {/* One provider around every section that needs a signed-in reader's
           completion — the map hero and the roster — rather than around the
           whole page shell above. Topline and the about copy sit between
@@ -110,8 +117,8 @@ export default async function ListDetailPage({
 
           <Topline stats={toplineStats} />
 
-          {paragraphs.length > 0 ? (
-            <section aria-labelledby="list-about">
+          {!guide && paragraphs.length > 0 ? (
+            <section aria-label="About this list">
               <div className="max-w-[68ch] space-y-3 text-base leading-[1.7] text-ink-2">
                 {paragraphs.map((paragraph, index) => (
                   <p key={`${index}-${paragraph}`}>{paragraph}</p>
@@ -119,6 +126,8 @@ export default async function ListDetailPage({
               </div>
             </section>
           ) : null}
+
+          {guide ? <GuideReading guide={guide} /> : null}
 
           <ListRoster
             destinations={destinations}

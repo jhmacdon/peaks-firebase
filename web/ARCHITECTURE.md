@@ -304,3 +304,9 @@ The web reads both its `blocks` representation and the iOS `content` plus `heade
 
 ### Session naming strategy
 The iOS app rarely sets explicit session names. Instead, sessions are identified by their destinations — "Mount Rainier, Camp Muir" is more meaningful than a timestamp. The web app derives names from `session_destinations` sorted by elevation, matching the Strava upload naming pattern in the Cloud Functions.
+
+### Reading guides
+
+`src/lib/guides.ts` holds reviewed, sourced copy for five search topics. `/guides` links to three existing list pages, a waterfall map, and the Alpine Lakes area page (ID checked on the public site on 2026-09-08). List and area pages keep their canonical URLs and draw their introductions and search descriptions from the same guide record. The waterfall page renders every named catalog match as an HTML link; only its map needs client JavaScript. Unknown guide slugs return 404, while missing catalog data remains an error. Database-backed routes use one-hour ISR with no build-time reads. No new infrastructure or fixed monthly cost.
+
+Before adding a guide, check its roster and route coverage, read primary sources, and write about the choices specific to that place. Link sources beside the relevant section. Do not infer trail access, difficulty, or waterfall height from a destination pin or elevation.

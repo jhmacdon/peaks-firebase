@@ -1,3 +1,4 @@
+import { guideForList } from "../../../../lib/guides";
 import type { Metadata } from "next";
 import {
   getCachedList,
@@ -79,8 +80,9 @@ export async function generateMetadata({
       };
     }
 
-    const title = list.name;
-    const description =
+    const guide = guideForList(id);
+    const title = guide?.title ?? list.name;
+    const description = guide?.description ??
       summarizeText([
         describeList({
           name: title,
