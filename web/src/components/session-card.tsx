@@ -14,6 +14,7 @@ interface SessionCardProps {
   gain: number | null;
   total_time: number | null;
   activity_type?: SessionActivityType | null;
+  thumbnail_url?: string | null;
 }
 
 /** Derive a display name: explicit name > destinations reached > fallback */
@@ -25,11 +26,7 @@ function deriveSessionName(name: string | null, destinationNames?: string[]): st
   return "Untitled Session";
 }
 
-/** One row of the session log. The catalog stores no map thumbnail or
- * polyline for a recorded activity — only the raw points, which are far too
- * heavy to load twenty at a time — so the card leads with the activity glyph
- * instead of the audit's map tile. Title at 17/500, a mono stat row beneath,
- * the date muted. */
+/** Activity rows reuse a published report photo without fetching GPS tracks. */
 export default function SessionCard({
   id,
   name,
@@ -39,6 +36,7 @@ export default function SessionCard({
   gain,
   total_time,
   activity_type,
+  thumbnail_url,
 }: SessionCardProps) {
   const date = new Date(start_time);
   const displayName = deriveSessionName(name, destinationNames);
@@ -53,10 +51,15 @@ export default function SessionCard({
   return (
     <Card href={`/log/${id}`}>
       <div className="flex items-start gap-3">
-        <ActivityGlyph
+        {thumbnail_url ? (
+          <span className="relative h-20 w-24 shrink-0 overflow-hidden rounded-media bg-fill">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumbnail_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          </span>
+        ) : <ActivityGlyph
           activityType={activity_type ?? null}
           className="mt-0.5 h-5 w-5 shrink-0 text-muted"
-        />
+        />}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             {/* A plain div, not a heading — the same call every other card
@@ -82,7 +85,7 @@ export default function SessionCard({
             {stats.map((stat) => (
               <span
                 key={stat.key}
-                className="font-mono-num text-[15px] tabular-nums text-ink-2"
+                className="text-[15px] tabular-nums text-ink-2"
               >
                 {stat.value}
                 {stat.unit ? (

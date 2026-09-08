@@ -16,7 +16,8 @@ function fixedCoordinate(value: number): string {
  * coordinates return null so the caller can keep a local placeholder. */
 export function satelliteThumbnailUrl(
   lat: number | null,
-  lng: number | null
+  lng: number | null,
+  size: number = 96
 ): string | null {
   if (
     lat == null ||
@@ -45,7 +46,7 @@ export function satelliteThumbnailUrl(
   const params = new URLSearchParams({
     bbox,
     bboxSR: "4326",
-    size: "96,96",
+    size: `${Math.min(640, Math.max(96, Math.round(size)))},${Math.min(640, Math.max(96, Math.round(size)))}`,
     format: "jpg",
     f: "image",
   });

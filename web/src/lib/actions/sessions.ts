@@ -27,6 +27,7 @@ function parseArray(val: unknown): string[] {
 }
 
 export interface SessionRow {
+  thumbnail_url?: string | null;
   id: string;
   name: string | null;
   destinationNames: string[];
@@ -123,7 +124,10 @@ export async function getUserSessions(
 
   const result = await db.query(
     `SELECT id, name, start_time, end_time, distance, total_time,
-            pace, gain, highest_point, ended, activity_type
+            pace, gain, highest_point, ended, activity_type,
+            (SELECT p.download_url FROM trip_reports tr JOIN trip_report_photos p ON p.report_id = tr.id
+             WHERE tr.source_session_id = tracking_sessions.id AND tr.moderation_state = 'published'
+             ORDER BY p.ordinal, p.id LIMIT 1) AS thumbnail_url
      FROM tracking_sessions
      WHERE user_id = $1
        AND (
@@ -160,6 +164,7 @@ export async function getUserSessions(
       id: r.id,
       name: r.name,
       destinationNames: destNameMap[r.id] || [],
+      thumbnail_url: r.thumbnail_url ?? null,
       start_time: r.start_time instanceof Date ? r.start_time.toISOString() : r.start_time,
       end_time: r.end_time instanceof Date ? r.end_time.toISOString() : r.end_time,
       distance: r.distance != null ? Number(r.distance) : null,

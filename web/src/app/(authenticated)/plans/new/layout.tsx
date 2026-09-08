@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
-export default function DeprecatedNewPlanLayout() {
-  redirect("/my-routes/new");
+/** Keep legacy links and their route/place query intact through sign-in. */
+export default function LegacyNewTripLayout({ children }: { children: ReactNode }) {
+  return children;
 }

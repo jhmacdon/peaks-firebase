@@ -23,12 +23,12 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  md: "h-10 px-4 text-sm",
-  sm: "h-8 px-3 text-[13px]",
+  md: "min-h-12 px-5 py-2.5 text-base",
+  sm: "min-h-11 px-4 py-2 text-sm",
 };
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-ctl font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none";
 
 function buttonClassName(variant: ButtonVariant, size: ButtonSize, className: string): string {
   return `${BASE} ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`.trim();

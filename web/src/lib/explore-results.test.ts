@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildExploreResults } from "./explore-results";
+import { buildExploreResults, catalogHitToExploreResult } from "./explore-results";
 
 const CENTER = { centerLat: 47.5, centerLng: -121.5 };
 
@@ -138,3 +138,34 @@ function encodeTwoPoints(a: [number, number], b: [number, number]): string {
   }
   return out;
 }
+
+test("viewport result media and location survive the map adapter", () => {
+  const [result] = buildExploreResults({ ...CENTER, routes:[], destinations:[{
+    ...destination("rainier", "Mount Rainier", 46.8, -121.7), state_code:"WA", country_code:"US",
+    hero_image:"https://example.org/rainier.jpg", hero_image_attribution:"Photographer", hero_image_attribution_url:"https://example.org/source",
+  }] });
+  assert.equal(result.imageUrl, "https://example.org/rainier.jpg");
+  assert.equal(result.imageAttribution, "Photographer");
+  assert.equal(result.imageAttributionUrl, "https://example.org/source");
+  assert.ok(result.locationLabel?.includes("Washington"));
+});
+
+test("viewport out-and-back routes use the same round-trip distance and gain as their guide", () => {
+  const [result] = buildExploreResults({ ...CENTER, destinations:[], routes:[{
+    id:"muir",name:"Camp Muir",polyline6:encodeTwoPoints([46.78,-121.73],[46.83,-121.73]),
+    shape:"out_and_back",distance:6600,gain:1300,gain_loss:50,
+  }] });
+  assert.equal(result.routeDistance, 13200);
+  assert.equal(result.routeGain, 1350);
+});
+
+test("selected areas and lists keep their own guide type in map rows", () => {
+  const area = catalogHitToExploreResult({kind:"areas",id:"park/one",name:"A park",lat:47,lng:-121,imageUrl:null,locationLabel:"Washington"},47,-121);
+  assert.equal(area.kind,"area");
+  assert.equal(area.href,"/areas/park%2Fone");
+  assert.equal(area.typeWord,"Protected area");
+  const list = catalogHitToExploreResult({kind:"lists",id:"list-one",name:"A list",lat:null,lng:null,imageUrl:null,locationLabel:"Cascades"},47,-121);
+  assert.equal(list.kind,"list");
+  assert.equal(list.href,"/lists/list-one");
+  assert.equal(list.locationLabel,"Cascades");
+});

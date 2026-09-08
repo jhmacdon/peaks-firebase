@@ -26,7 +26,8 @@ const COLUMNS: Array<{
     heading: "Activity",
     links: [
       { label: "Log", href: "/log" },
-      { label: "My routes", href: "/my-routes" },
+      { label: "Trips", href: "/my-routes" },
+      { label: "Saved places", href: "/saved" },
       { label: "Trip reports", href: "/discover#recent-reports" },
     ],
   },
@@ -56,7 +57,7 @@ const DATA_SOURCES = [
   { label: "Peakbagger", href: "https://www.peakbagger.com/" },
 ];
 
-const LINK_CLASSES = "text-sm text-ink-2 no-underline hover:underline";
+const LINK_CLASSES = "inline-flex min-h-11 items-center text-sm text-ink-2 no-underline hover:underline";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -67,10 +68,10 @@ export function SiteFooter() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           {COLUMNS.map((column) => (
             <div key={column.heading}>
-              <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted">
+              <p className="mb-3 text-sm font-semibold text-muted">
                 {column.heading}
               </p>
-              <ul className="space-y-2.5">
+              <ul className="space-y-0">
                 {column.links.map((link) => (
                   <li key={link.label}>
                     {link.external ? (

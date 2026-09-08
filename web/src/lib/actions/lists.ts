@@ -36,6 +36,8 @@ export interface ListRow {
 
 export interface ListThumbnail {
   url: string;
+  attribution?: string | null;
+  attributionUrl?: string | null;
   focalX: number;
   focalY: number;
 }
@@ -76,6 +78,8 @@ function parseThumbnails(value: unknown): ListThumbnail[] {
     if (typeof row.url !== "string" || !row.url) return [];
     return [{
       url: row.url,
+      attribution: typeof row.attribution === "string" ? row.attribution : null,
+      attributionUrl: typeof row.attributionUrl === "string" ? row.attributionUrl : null,
       focalX: Number(row.focalX ?? 50),
       focalY: Number(row.focalY ?? 50),
     }];
@@ -118,11 +122,13 @@ export async function getLists(
             COALESCE((
               SELECT json_agg(json_build_object(
                 'url', photo.hero_image,
+                'attribution', photo.hero_image_attribution,
+                'attributionUrl', photo.hero_image_attribution_url,
                 'focalX', photo.hero_image_focal_x,
                 'focalY', photo.hero_image_focal_y
               ) ORDER BY photo.elevation DESC NULLS LAST)
               FROM (
-                SELECT d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
+                SELECT d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
                 FROM list_destinations ld2
                 JOIN destinations d ON d.id = ld2.destination_id
                 WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL
@@ -174,11 +180,13 @@ export async function getList(id: string): Promise<ListDetail | null> {
             COALESCE((
               SELECT json_agg(json_build_object(
                 'url', photo.hero_image,
+                'attribution', photo.hero_image_attribution,
+                'attributionUrl', photo.hero_image_attribution_url,
                 'focalX', photo.hero_image_focal_x,
                 'focalY', photo.hero_image_focal_y
               ) ORDER BY photo.elevation DESC NULLS LAST)
               FROM (
-                SELECT d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
+                SELECT d.hero_image, d.hero_image_attribution, d.hero_image_attribution_url, d.hero_image_focal_x, d.hero_image_focal_y, d.elevation
                 FROM list_destinations ld2
                 JOIN destinations d ON d.id = ld2.destination_id
                 WHERE ld2.list_id = l.id AND d.hero_image IS NOT NULL

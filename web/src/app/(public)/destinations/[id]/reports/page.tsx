@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getTripReportsForDestination } from "../../../../../lib/actions/trip-reports";
+import { getTripReportCountForDestination, getTripReportsForDestination } from "../../../../../lib/actions/trip-reports";
 import { getDestination, type DestinationDetail } from "../../../../../lib/actions/destinations";
 import { formatShortDate, reportPreview } from "../../../../../lib/destination-detail";
 import type { TripReport } from "../../../../../lib/actions/trip-reports";
@@ -13,28 +13,54 @@ import { Breadcrumb } from "../../../../../components/detail-sections";
 import { PageHeader } from "../../../../../components/ui/page-header";
 import { Button } from "../../../../../components/ui/button";
 import { EmptyState } from "../../../../../components/ui/empty-state";
+import { CatalogPagination } from "../../../../../components/catalog-pagination";
+
+const PAGE_SIZE = 20;
 
 export default function DestinationReportsPage() {
+  return <Suspense fallback={<EmptyState>{LOADING_LABEL}</EmptyState>}><DestinationReportsContent /></Suspense>;
+}
+
+function DestinationReportsContent() {
   const params = useParams();
+  const search = useSearchParams();
+  const requestedPage = Number(search.get("page") || 1);
+  const page = Number.isFinite(requestedPage) ? Math.min(50_001, Math.max(1, Math.trunc(requestedPage))) : 1;
   const id = params.id as string;
   const { user } = useAuth();
 
   const [dest, setDest] = useState<DestinationDetail | null>(null);
   const [reports, setReports] = useState<TripReport[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const [d, r] = await Promise.all([
-        getDestination(id),
-        getTripReportsForDestination(id),
-      ]);
-      setDest(d);
-      setReports(r);
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const [d, r, count] = await Promise.all([
+          getDestination(id),
+          getTripReportsForDestination(id, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+          getTripReportCountForDestination(id),
+        ]);
+        if (!cancelled) {
+          setDest(d);
+          setReports(r);
+          setTotalCount(count);
+        }
+      } catch {
+        if (!cancelled) setError("Couldn’t load trip reports. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    load();
-  }, [id]);
+    void load();
+    return () => { cancelled = true; };
+  }, [id, page, retry]);
 
   if (loading) {
     return (
@@ -42,6 +68,10 @@ export default function DestinationReportsPage() {
         <div className="py-12 text-center text-muted">{LOADING_LABEL}</div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="mx-auto max-w-[1200px] px-6 py-8"><EmptyState title="Trip reports are unavailable"><p role="alert">{error}</p><div className="mt-5 flex flex-wrap justify-center gap-3"><Button onClick={() => setRetry((value) => value + 1)}>Try again</Button><Button href={`/destinations/${id}`} variant="secondary">Back to place</Button></div></EmptyState></div>;
   }
 
   if (!dest) {
@@ -70,9 +100,9 @@ export default function DestinationReportsPage() {
           }
           title="Trip reports"
           meta={
-            reports.length > 0 ? (
+            totalCount > 0 ? (
               <span>
-                {reports.length} trip report{reports.length === 1 ? "" : "s"}
+                {totalCount.toLocaleString("en-US")} trip report{totalCount === 1 ? "" : "s"}
               </span>
             ) : undefined
           }
@@ -91,9 +121,9 @@ export default function DestinationReportsPage() {
       {reports.length === 0 ? (
         <EmptyState
           className="mt-10"
-          title="No trip reports yet"
-          description={user ? "Been here? Write the first one." : undefined}
-        />
+          title={totalCount > 0 ? "No reports on this page" : "No trip reports yet"}
+          description={totalCount > 0 ? "Return to the first page to read the latest reports." : user ? "Been here? Write the first one." : undefined}
+        >{totalCount > 0 && <Button href={`/destinations/${id}/reports`} className="mt-4">First page</Button>}</EmptyState>
       ) : (
         // Quiet rows, not cards — the same shape as the flagship page's own
         // trip-reports section (components/destination/destination-reports.tsx),
@@ -129,6 +159,7 @@ export default function DestinationReportsPage() {
           })}
         </ul>
       )}
+      <CatalogPagination page={page} pageCount={Math.max(1, Math.ceil(totalCount / PAGE_SIZE))} href={(nextPage) => `/destinations/${encodeURIComponent(id)}/reports?page=${nextPage}`} />
     </div>
   );
 }

@@ -36,7 +36,8 @@ const BROWSE_LINKS: NavLink[] = [
 /** A signed-in user's own records. Right group on desktop, tabs on mobile. */
 const ACTIVITY_LINKS: NavLink[] = [
   { href: "/log", label: "Log" },
-  { href: "/my-routes", label: "Routes" },
+  { href: "/my-routes", label: "Trips" },
+  { href: "/saved", label: "Saved" },
 ];
 
 // Areas has no tab of its own — five is the most a 375px bar seats
@@ -45,6 +46,7 @@ const MOBILE_BROWSE_TABS = BROWSE_LINKS.filter((link) => link.href !== "/areas")
 
 const ACCOUNT_MENU_LINKS: NavLink[] = [
   { href: "/account", label: "Account" },
+  { href: "/my-routes", label: "Trips" },
   { href: "/saved", label: "Saved" },
   { href: "/account/friends", label: "Friends" },
 ];
@@ -108,7 +110,7 @@ function SearchLink() {
     <Link
       href="/discover"
       aria-label="Search"
-      className="flex h-8 w-8 items-center justify-center text-ink-2 transition-colors hover:text-ink"
+      className="flex h-11 w-11 items-center justify-center text-ink-2 transition-colors hover:text-ink"
     >
       <svg
         width="18"
@@ -154,7 +156,7 @@ export default function AppNav() {
   // tab bar spends its fifth slot on Routes rather than a second route to
   // Account — and Lists stops disappearing the moment a user signs in.
   const tabs: NavLink[] = signedIn
-    ? [...MOBILE_BROWSE_TABS, ...ACTIVITY_LINKS]
+    ? [...MOBILE_BROWSE_TABS, { href: "/saved", label: "Saved" }, { href: "/log", label: "Log" }]
     : [...MOBILE_BROWSE_TABS, { href: "/login", label: "Log in" }];
 
   return (
@@ -169,17 +171,7 @@ export default function AppNav() {
         <div className="flex h-12 items-center justify-between px-4">
           <Wordmark />
           {signedIn ? (
-            <Link
-              href="/account"
-              aria-label="Account"
-              className="flex items-center rounded-full"
-            >
-              <Avatar
-                name={user.displayName || user.email}
-                avatarUrl={user.photoURL}
-                size="sm"
-              />
-            </Link>
+            <AccountMenu />
           ) : (
             <Button href={APP_STORE_URL} variant="primary" size="sm" external>
               Get the app
@@ -192,10 +184,10 @@ export default function AppNav() {
       <header
         className={`sticky top-0 z-50 hidden border-b border-hairline bg-page md:block ${shadow}`}
       >
-        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-8 px-6">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-4 lg:gap-8 px-6">
           <Wordmark />
 
-          <nav aria-label="Browse" className="flex items-center gap-6">
+          <nav aria-label="Browse" className="flex items-center gap-3 lg:gap-6">
             {BROWSE_LINKS.map((link) => (
               <Link
                 key={link.href}
@@ -208,10 +200,10 @@ export default function AppNav() {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-5">
+          <div className="ml-auto flex items-center gap-2 lg:gap-5">
             {signedIn ? (
               <>
-                <nav aria-label="Your activity" className="flex items-center gap-6">
+                <nav aria-label="Your activity" className="flex items-center gap-3 lg:gap-6">
                   {ACTIVITY_LINKS.map((link) => (
                     <Link
                       key={link.href}
@@ -346,7 +338,7 @@ function AccountMenu() {
         aria-label="Account menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center rounded-full"
+        className="flex h-11 w-11 items-center justify-center rounded-full"
       >
         <Avatar name={name} avatarUrl={user.photoURL} size="sm" />
       </button>
@@ -362,7 +354,7 @@ function AccountMenu() {
             <Link
               key={link.href}
               href={link.href}
-              className="block px-3 py-2 text-sm text-ink-2 hover:bg-fill hover:text-ink"
+              className="block px-3 py-3 text-sm text-ink-2 hover:bg-fill hover:text-ink"
             >
               {link.label}
             </Link>
@@ -371,7 +363,7 @@ function AccountMenu() {
           <button
             type="button"
             onClick={handleSignOut}
-            className="block w-full px-3 py-2 text-left text-sm text-ink-2 hover:bg-fill hover:text-ink"
+            className="block w-full px-3 py-3 text-left text-sm text-ink-2 hover:bg-fill hover:text-ink"
           >
             Sign out
           </button>
@@ -422,13 +414,15 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
           <path d="M3 18h.01" />
         </svg>
       );
+    case "Saved":
+      return <svg {...props}><path d="M6 3h12v18l-6-4-6 4V3Z" /></svg>;
     case "Log":
       return (
         <svg {...props}>
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       );
-    case "Routes":
+    case "Trips":
       return (
         <svg {...props}>
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />

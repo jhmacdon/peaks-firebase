@@ -53,6 +53,9 @@ function RouteDetailContent() {
   const [segments, setSegments] = useState<RouteSegment[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editCompletion, setEditCompletion] = useState("");
@@ -61,82 +64,112 @@ function RouteDetailContent() {
   const [decomposition, setDecomposition] = useState<RouteDecomposition | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const token = await getIdToken();
-      if (!token) throw new Error("Missing admin token");
-      const [r, dests, segs, sessions] = await Promise.all([
-        getAdminRoute(token, id),
-        getAdminRouteDestinations(token, id),
-        getAdminRouteSegments(token, id),
-        getAdminRouteSessionCount(token, id),
-      ]);
-      setRoute(r);
-      setDestinations(dests);
-      setSegments(segs);
-      setSessionCount(sessions);
-      if (r) {
-        setEditName(r.name || "");
-        setEditCompletion(r.completion);
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await getIdToken();
+        if (!token) throw new Error("Missing admin token");
+        const [r, dests, segs, sessions] = await Promise.all([
+          getAdminRoute(token, id),
+          getAdminRouteDestinations(token, id),
+          getAdminRouteSegments(token, id),
+          getAdminRouteSessionCount(token, id),
+        ]);
+        if (cancelled) return;
+        setRoute(r);
+        setDestinations(dests);
+        setSegments(segs);
+        setSessionCount(sessions);
+        if (r) {
+          setEditName(r.name || "");
+          setEditCompletion(r.completion);
 
-        // Auto-analyze pending routes
-        if (r.status === "pending") {
-          setReviewAction("analyzing");
-          try {
-            const result = await analyzePendingRoute(token, id);
-            setDecomposition(result.decomposition);
-          } catch (err) {
-            console.error("Segment analysis failed:", err);
+          // Auto-analyze pending routes
+          if (r.status === "pending") {
+            setReviewAction("analyzing");
+            try {
+              const result = await analyzePendingRoute(token, id);
+              setDecomposition(result.decomposition);
+            } catch {
+              setError("Couldn’t analyze route segments. Reload the page to try again.");
+            }
+            setReviewAction(null);
           }
-          setReviewAction(null);
         }
+      } catch {
+        if (!cancelled) setError("Couldn’t load this route. Try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     }
-    load();
-  }, [getIdToken, id]);
+    void load();
+    return () => { cancelled = true; };
+  }, [getIdToken, id, attempt]);
 
   const handleSave = async () => {
-    setSaving(true);
-    const token = await getIdToken();
-    if (!token) {
+    setError(null);
+    try {
+      setSaving(true);
+      const token = await getIdToken();
+      if (!token) {
+        setSaving(false);
+        throw new Error("Sign-in expired. Sign in again.");
+      }
+      await updateRoute(token, id, { name: editName, completion: editCompletion });
+      setRoute((prev) =>
+        prev ? { ...prev, name: editName, completion: editCompletion } : prev
+      );
+      setEditing(false);
       setSaving(false);
-      return;
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
+      setSaving(false);
     }
-    await updateRoute(token, id, { name: editName, completion: editCompletion });
-    setRoute((prev) =>
-      prev ? { ...prev, name: editName, completion: editCompletion } : prev
-    );
-    setEditing(false);
-    setSaving(false);
   };
 
   const handleAccept = async () => {
-    if (!decomposition) return;
-    setReviewAction("accepting");
-    const token = await getIdToken();
-    if (!token) {
+    setError(null);
+    try {
+      if (!decomposition) return;
+      setReviewAction("accepting");
+      const token = await getIdToken();
+      if (!token) {
+        setReviewAction(null);
+        return;
+      }
+      // Server re-analyzes with full point data — client decomposition is just for preview
+      await acceptRouteWithSegments(token, id);
+      setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
+      setDecomposition(null);
       setReviewAction(null);
-      return;
+      const segs = await getAdminRouteSegments(token, id);
+      setSegments(segs);
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
+      setReviewAction(null);
     }
-    // Server re-analyzes with full point data — client decomposition is just for preview
-    await acceptRouteWithSegments(token, id);
-    setRoute((prev) => prev ? { ...prev, status: "active" } : prev);
-    setDecomposition(null);
-    setReviewAction(null);
-    const segs = await getAdminRouteSegments(token, id);
-    setSegments(segs);
   };
 
   const handleReject = async () => {
-    if (!confirm("Delete this pending route? This cannot be undone.")) return;
-    setReviewAction("rejecting");
-    const token = await getIdToken();
-    if (!token) {
+    setError(null);
+    try {
+      setReviewAction("rejecting");
+      const token = await getIdToken();
+      if (!token) {
+        setReviewAction(null);
+        throw new Error("Sign-in expired. Sign in again.");
+      }
+      await rejectRoute(token, id);
+      window.location.href = "/admin/routes";
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
       setReviewAction(null);
-      return;
     }
-    await rejectRoute(token, id);
-    window.location.href = "/admin/routes";
   };
 
   if (loading) {
@@ -146,6 +179,8 @@ function RouteDetailContent() {
       </AdminPage>
     );
   }
+
+  if (error && !route) return <AdminPage><p role="alert" className="text-alert">{error}</p><Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Try again</Button></AdminPage>;
 
   if (!route) {
     return (
@@ -157,6 +192,7 @@ function RouteDetailContent() {
 
   return (
     <AdminPage className="space-y-12">
+      {error && <p role="alert" className="text-sm text-alert">{error}</p>}
       <AdminPageHeader
         breadcrumb={
           <Breadcrumb
@@ -198,6 +234,8 @@ function RouteDetailContent() {
         }
       />
 
+      {confirmDelete && <div role="group" aria-label="Confirm route deletion" className="rounded-ctl border border-alert p-4"><p>Delete {route.name || "this pending route"}? This cannot be undone.</p><div className="mt-3 flex gap-3"><Button variant="danger" onClick={handleReject} disabled={reviewAction !== null}>Delete route</Button><Button variant="secondary" onClick={() => setConfirmDelete(false)}>Keep route</Button></div></div>}
+
       {route.status === "pending" && (
         <section className="rounded-media border border-border bg-surface p-5" aria-labelledby="pending-review">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -217,7 +255,7 @@ function RouteDetailContent() {
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button
                 variant="danger"
-                onClick={handleReject}
+                onClick={() => setConfirmDelete(true)}
                 disabled={reviewAction !== null}
               >
                 {reviewAction === "rejecting" ? "Rejecting..." : "Reject"}

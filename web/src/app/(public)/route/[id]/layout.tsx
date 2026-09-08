@@ -19,7 +19,7 @@ function describeSharedRoute(input: {
   return (
     summarizeText([
       `${input.name}:`,
-      input.description || (facts ? `${facts}.` : "a shared route on Peaks."),
+      input.description || (facts ? `${facts}.` : "a shared trip on Peaks."),
     ]) ?? `${input.name} on Peaks.`
   );
 }
@@ -38,12 +38,12 @@ export async function generateMetadata({
   const bundle = await getPublicRouteBundle(id);
   if (!bundle) {
     return {
-      title: "Route not found",
+      title: "Trip not found",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = bundle.plan.name || "Shared route";
+  const title = bundle.plan.name || "Shared trip";
   const description = describeSharedRoute({
     name: title,
     description: bundle.plan.description,

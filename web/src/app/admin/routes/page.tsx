@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import AdminGuard from "../../../components/admin-guard";
 import {
@@ -27,49 +27,41 @@ export default function RoutesPage() {
 }
 
 function RoutesContent() {
-  const { getIdToken, user } = useAuth();
+  const { getIdToken } = useAuth();
   const [routes, setRoutes] = useState<RouteRow[]>([]);
   const [total, setTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const request = useRef({ value: 0 });
   const [tab, setTab] = useState<"active" | "pending">("active");
   const pageSize = 50;
 
   const fetchRoutes = useCallback(async () => {
+    const ticket = ++request.current.value;
     setLoading(true);
-    const token = await getIdToken();
-    if (!token) throw new Error("Missing admin token");
-    const [result, pending] = await Promise.all([
-      getRoutes(token, search, pageSize, page * pageSize, tab),
-      getPendingRouteCount(token),
-    ]);
-    setRoutes(result.routes);
-    setTotal(result.total);
-    setPendingCount(pending);
-    setLoading(false);
-  }, [getIdToken, search, page, tab]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
+    setLoadError(null);
+    try {
       const token = await getIdToken();
       if (!token) throw new Error("Missing admin token");
       const [result, pending] = await Promise.all([
         getRoutes(token, search, pageSize, page * pageSize, tab),
         getPendingRouteCount(token),
       ]);
-      if (!cancelled) {
-        setRoutes(result.routes);
-        setTotal(result.total);
-        setPendingCount(pending);
-        setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [getIdToken, user?.uid, search, page, tab]);
+      if (ticket !== request.current.value) return;
+      setRoutes(result.routes);
+      setTotal(result.total);
+      setPendingCount(pending);
+    } catch {
+      if (ticket === request.current.value) setLoadError("Couldn’t load routes. Try again.");
+    } finally {
+      if (ticket === request.current.value) setLoading(false);
+    }
+  }, [getIdToken, search, page, tab]);
+
+  useEffect(() => { const generation = request.current; void fetchRoutes(); return () => { generation.value++; }; }, [fetchRoutes]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +129,7 @@ function RoutesContent() {
           />
         </form>
 
+        {loadError && <div className="mt-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-alert">{loadError}</p><Button variant="secondary" size="sm" onClick={fetchRoutes}>Try again</Button></div>}
         {loading ? (
           <EmptyState className="mt-6">{LOADING_LABEL}</EmptyState>
         ) : routes.length === 0 ? (

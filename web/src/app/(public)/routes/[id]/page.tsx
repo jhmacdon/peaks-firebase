@@ -1,3 +1,4 @@
+import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import { notFound } from "next/navigation";
 import {
   getRouteElevation,
@@ -91,7 +92,13 @@ export default async function RouteDetailPage({
       ? `https://www.google.com/maps/dir/?api=1&destination=${start.lat},${start.lng}`
       : null;
 
-  const aboutParagraphs = buildRouteAbout(route);
+  const finish = destinations[destinations.length - 1];
+  const aboutParagraphs = [
+    start?.name && finish?.name && start.id !== finish.id
+      ? `${route.shape === "out_and_back" ? "An out-and-back route" : "A mapped route"} from ${start.name} to ${finish.name}${route.shape === "out_and_back" ? " and back to the start" : ""}.`
+      : route.shape === "loop" ? "A loop returning to its starting point." : "A written route description is not available yet. Use the map, waypoints, and linked sources to review the route.",
+    ...buildRouteAbout(route),
+  ];
 
   const toplineStats: ToplineStat[] = [
     traversal.distanceMeters != null
@@ -99,7 +106,7 @@ export default async function RouteDetailPage({
           key: "distance",
           value: formatMilesValue(traversal.distanceMeters) ?? "—",
           unit: "mi",
-          label: "Distance",
+          label: route.shape === "out_and_back" ? "Round-trip distance" : route.shape === "point_to_point" ? "One-way distance" : "Full-route distance",
         }
       : null,
     traversal.gainMeters != null
@@ -122,7 +129,7 @@ export default async function RouteDetailPage({
       ? {
           key: "time",
           value: formatDurationRangeFriendly(guide.estimatedHoursLow, guide.estimatedHoursHigh),
-          label: "Est. time",
+          label: route.shape === "out_and_back" ? "Est. round-trip moving time" : "Est. moving time",
         }
       : null,
     sessionCount > 0
@@ -139,31 +146,33 @@ export default async function RouteDetailPage({
   );
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-8">
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-6">
       <PageHeader
         breadcrumb={<Breadcrumb current={name} />}
         title={name}
         meta={<DestinationMetaRow alert={null} parts={metaParts} />}
       />
 
+      <RouteHistorySummary routeId={id} className="mt-6" />
       <AreaChips areas={route.areas} className="mt-4" />
-
-      <RouteHero
-        name={name}
-        polyline6={route.polyline6}
-        cover={cover}
-        className="mt-8"
-      />
-
-      <RouteActions routeId={id} name={name} directionsUrl={directionsUrl} className="mt-8" />
-
-      <Topline stats={toplineStats} className="mt-10" />
-
-      <RouteHistorySummary routeId={id} className="mt-4" />
-
+      <RouteActions routeId={id} name={name} directionsUrl={directionsUrl} className="mt-5" />
+      <DetailSectionNav sections={[
+        { id: "route-about", label: "Overview" },
+        { id: "route-map", label: "Map" },
+        ...(profilePoints.length >= 2 ? [{ id: "route-elevation-profile", label: "Elevation" }] : []),
+        { id: "route-waypoints", label: "Waypoints" },
+      ]} />
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">
           <RouteAbout name={name} paragraphs={aboutParagraphs} />
+          <RouteSource provenance={route.provenance} externalLinks={externalLinks} />
+          <div>
+            <Topline stats={toplineStats} />
+            {guide.estimatedHoursLow != null ? <p className="mt-4 max-w-[68ch] text-sm text-muted">Time is a rough hiking estimate from distance and gain. It excludes breaks and does not account for snow, scrambling, or technical climbing.</p> : null}
+          </div>
+          <section id="route-map" aria-label="Route map" className="scroll-mt-24">
+            <RouteHero name={name} polyline6={route.polyline6} cover={cover} />
+          </section>
 
           {profilePoints.length >= 2 ? (
             <section aria-labelledby="route-elevation-profile">
@@ -185,9 +194,10 @@ export default async function RouteDetailPage({
 
           <RouteWaypoints destinations={destinations} />
 
-          <RouteSegments segments={segments} />
-
-          <RouteSource provenance={route.provenance} externalLinks={externalLinks} />
+          <details className="border-t border-hairline pt-5">
+            <summary className="min-h-11 cursor-pointer text-sm font-medium text-ink-2">Route segments</summary>
+            <RouteSegments segments={segments} />
+          </details>
         </div>
 
         <aside className="space-y-12">

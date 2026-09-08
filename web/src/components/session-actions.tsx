@@ -26,16 +26,7 @@ function safeFilename(name: string): string {
   return cleaned || "peaks-activity";
 }
 
-/** The owner's tools, in one quiet row at the foot of the activity page
- * (audit §2b puts them beside the title; a page whose whole job is reading
- * an activity is better served with the editing tools last).
- *
- * Neutral `secondary` fills rather than the `quiet` accent-text variant:
- * three accent labels in a row would spend the whole accent budget on
- * chrome (design-tokens.md, "Accent budget"). The page's one filled primary
- * is Save, and it only exists while the editor is open. Delete keeps its
- * two-step confirm.
- */
+/** Sharing stays near the title; editing and export remain owner-only. */
 export default function SessionActions({
   session,
   displayName,

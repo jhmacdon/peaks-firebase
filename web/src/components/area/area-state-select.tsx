@@ -18,6 +18,7 @@ export function AreaStateSelect() {
 
   function select(stateCode: string) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (stateCode) {
       params.set("state", stateCode);
     } else {
@@ -33,7 +34,7 @@ export function AreaStateSelect() {
       <select
         value={STATE_OPTIONS.some((state) => state.code === current) ? current : ""}
         onChange={(event) => select(event.target.value)}
-        className="h-10 min-w-0 rounded-full border border-border bg-page px-4 pr-9 text-sm text-ink"
+        className="h-12 min-w-0 rounded-full border border-border bg-page px-4 pr-9 text-base text-ink"
       >
         <option value="">All states</option>
         {STATE_OPTIONS.map((state) => (

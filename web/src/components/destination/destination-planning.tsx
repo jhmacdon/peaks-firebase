@@ -1,4 +1,5 @@
 import { SectionHeading } from "../ui/section-heading";
+import { buildDestinationPlanningNotes, type DestinationPlanningContext } from "../../lib/destination-detail";
 
 /** Before you go: the notes the catalog can honestly derive, the facilities
  * on record, and the outbound forecast link.
@@ -12,17 +13,17 @@ import { SectionHeading } from "../ui/section-heading";
  * mono numerals). No cell backgrounds, no rules between them.
  */
 export function DestinationPlanning({
-  notes,
+  context,
   facilities,
   forecastUrl,
   className = "",
 }: {
-  notes: string[];
+  context: DestinationPlanningContext;
   facilities: Array<{ label: string; value: string }>;
   forecastUrl: string | null;
   className?: string;
 }) {
-  if (notes.length === 0 && facilities.length === 0 && !forecastUrl) return null;
+  const notes = buildDestinationPlanningNotes(context);
 
   return (
     <section className={className} aria-labelledby="destination-planning">
@@ -33,7 +34,12 @@ export function DestinationPlanning({
       {notes.length > 0 ? (
         <div className="mt-4 max-w-[68ch] space-y-3 text-base leading-[1.7] text-ink-2">
           {notes.map((note, index) => (
-            <p key={`${index}-${note}`}>{note}</p>
+            <p key={index}>
+              {note.text}
+              {note.link ? (
+                <>{" "}<a href={note.link.href} target={note.link.href.startsWith("#") ? undefined : "_blank"} rel={note.link.href.startsWith("#") ? undefined : "noopener noreferrer"} className="font-medium text-accent-text underline underline-offset-2">{note.link.label}</a></>
+              ) : null}
+            </p>
           ))}
         </div>
       ) : null}

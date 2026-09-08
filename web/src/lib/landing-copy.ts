@@ -136,7 +136,7 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
     label: "Skiing",
     hasLiveContent: false,
     paragraph: () =>
-      "Peaks doesn't track ski touring as its own activity yet — a trip on skis logs the same way a trip on foot does. There's no separate ski catalog to browse yet, but the trailheads and summits below are the same ones skiers use.",
+      "Find places tagged for skiing in the Peaks catalog, save a destination, and plan a trip. Open each guide for its routes and source details.",
     faqs: () => [],
   },
   "trail-running": {
@@ -145,7 +145,7 @@ const ACTIVITY_LANDING_CONFIG: Record<ActivityLandingType, ActivityLandingConfig
     label: "Trail running",
     hasLiveContent: false,
     paragraph: () =>
-      "Peaks logs a run the same way it logs a hike: one trek, with distance and gain, no separate tag for pace. Until that split exists, the hiking catalog is the fastest way to find good trail.",
+      "Peaks keeps trail runs and hikes in its outdoor activity records. Compare trail routes, record distance and gain, and keep the places you reach in your log.",
     faqs: () => [],
   },
 };

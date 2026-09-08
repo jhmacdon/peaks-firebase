@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import AdminGuard from "../../../components/admin-guard";
@@ -59,6 +59,8 @@ function SessionsContent() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const request = useRef({ value: 0 });
   const [sortField, setSortField] = useState<AdminSessionSort>("start_time");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [destinationName, setDestinationName] = useState<string | null>(null);
@@ -75,20 +77,28 @@ function SessionsContent() {
   };
 
   const fetchSessions = useCallback(async () => {
+    const ticket = ++request.current.value;
     setLoading(true);
-    const token = await getIdToken();
-    if (!token) return;
-    const result = await getAdminSessions(
-      token,
-      search,
-      pageSize,
-      page * pageSize,
-      { field: sortField, dir: sortDir },
-      destinationId ? { destination_id: destinationId } : undefined
-    );
-    setSessions(result.sessions);
-    setTotal(result.total);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign-in expired");
+      const result = await getAdminSessions(
+        token,
+        search,
+        pageSize,
+        page * pageSize,
+        { field: sortField, dir: sortDir },
+        destinationId ? { destination_id: destinationId } : undefined
+      );
+      if (ticket !== request.current.value) return;
+      setSessions(result.sessions);
+      setTotal(result.total);
+    } catch {
+      if (ticket === request.current.value) setLoadError("Couldn’t load sessions. Try again.");
+    } finally {
+      if (ticket === request.current.value) setLoading(false);
+    }
   }, [getIdToken, search, page, sortField, sortDir, destinationId]);
 
   useEffect(() => {
@@ -99,7 +109,7 @@ function SessionsContent() {
     let cancelled = false;
     getDestination(destinationId).then((d) => {
       if (!cancelled) setDestinationName(d?.name || "Unnamed");
-    });
+    }).catch(() => { if (!cancelled) setDestinationName("Selected destination"); });
     return () => {
       cancelled = true;
     };
@@ -114,7 +124,9 @@ function SessionsContent() {
   };
 
   useEffect(() => {
-    fetchSessions();
+    const generation = request.current;
+    void fetchSessions();
+    return () => { generation.value++; };
   }, [fetchSessions]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -164,6 +176,7 @@ function SessionsContent() {
           />
         </form>
 
+        {loadError && <div className="mt-4 flex flex-wrap items-center gap-3"><p role="alert" className="text-sm text-alert">{loadError}</p><Button variant="secondary" size="sm" onClick={fetchSessions}>Try again</Button></div>}
         {loading ? (
           <div className="py-14 text-center text-sm text-muted">{LOADING_LABEL}</div>
         ) : sessions.length === 0 ? (

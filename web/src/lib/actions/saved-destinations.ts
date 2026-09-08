@@ -11,6 +11,14 @@ export interface SavedDestination {
   elevation: number | null;
   features: string[];
   savedAt: string;
+  imageUrl?: string | null;
+  imageAttribution?: string | null;
+  imageAttributionUrl?: string | null;
+  imageFocalX?: number;
+  imageFocalY?: number;
+  location?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface SavedDestinationsResult {
@@ -191,7 +199,8 @@ export async function getSavedDestinations(
   }
 
   const result = await db.query(
-    `SELECT id, name, elevation, features
+    `SELECT id, name, elevation, features, hero_image, hero_image_attribution, hero_image_attribution_url, hero_image_focal_x, hero_image_focal_y, state_code, country_code,
+            ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng
      FROM destinations
      WHERE id = ANY($1::text[])`,
     [ids]
@@ -199,7 +208,7 @@ export async function getSavedDestinations(
 
   const destinationsById = new Map<
     string,
-    { id: string; name: string | null; elevation: number | null; features: string[] }
+    Omit<SavedDestination, "savedAt">
   >(
     result.rows.map((row) => [
       String(row.id),
@@ -208,6 +217,14 @@ export async function getSavedDestinations(
         name: row.name ?? null,
         elevation: row.elevation == null ? null : Number(row.elevation),
         features: parseArray(row.features),
+        lat: row.lat == null ? null : Number(row.lat),
+        lng: row.lng == null ? null : Number(row.lng),
+        imageUrl: row.hero_image ?? null,
+        imageAttribution: row.hero_image_attribution ?? null,
+        imageAttributionUrl: row.hero_image_attribution_url ?? null,
+        imageFocalX: Number(row.hero_image_focal_x ?? 50),
+        imageFocalY: Number(row.hero_image_focal_y ?? 50),
+        location: [row.state_code, row.country_code].filter(Boolean).join(", "),
       },
     ])
   );
@@ -229,4 +246,18 @@ export async function getSavedDestinations(
   }
 
   return { destinations, missingDestinationIds };
+}
+
+/** Active IDs only, for shared save-button state. Tombstones stay in the sync set. */
+export async function getSavedDestinationIds(token: string): Promise<string[]> {
+  const auth = await requireUser(token);
+  const snapshot = await adminDb.collection("users").doc(auth.uid)
+    .collection("savedDestinations").limit(MAX_SAVED_DESTINATION_DOCUMENTS + 1).get();
+  if (snapshot.size > MAX_SAVED_DESTINATION_DOCUMENTS) {
+    throw new Error("Saved destination sync exceeds the record limit");
+  }
+  return snapshot.docs.filter((doc) => {
+    const data = doc.data();
+    return asTimestamp(data.savedAt) !== null && data.deleted !== true;
+  }).map((doc) => doc.id);
 }

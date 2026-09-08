@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { getDiscoverStats } from "../../../lib/actions/search";
 import { absoluteUrl, siteConfig } from "../../../lib/seo";
 import { PageHeader } from "../../../components/ui/page-header";
-import { StatCluster } from "../../../components/ui/stat";
+import { AppScreenshots } from "../../../components/app-screenshots";
+import { settled } from "../../../lib/settled";
 import { Button } from "../../../components/ui/button";
 
 const APP_STORE_URL =
@@ -16,7 +17,7 @@ const DESCRIPTION =
 // catalog counts at build time — "live catalog stat row" (task brief) means
 // per-request, same as sitemap.ts's own use of force-dynamic for its
 // DB-backed routes.
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "About",
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutPage() {
-  const stats = await getDiscoverStats();
+  const stats = await settled(getDiscoverStats(), null);
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-12">
@@ -62,32 +63,15 @@ export default async function AboutPage() {
         <p>
           The catalog draws on public sources — OpenStreetMap, USGS, and
           Peakbagger — plus routes and corrections from people who climb
-          them. It grows every week.
+          them. You’ll find source credits on place and route pages.
         </p>
       </div>
 
-      <div className="mt-10 flex flex-wrap gap-x-10 gap-y-6">
-        <StatCluster
-          scale="page"
-          value={stats.destinationCount.toLocaleString("en-US")}
-          label="Destination guides"
-        />
-        <StatCluster
-          scale="page"
-          value={stats.areaCount.toLocaleString("en-US")}
-          label="Protected areas"
-        />
-        <StatCluster
-          scale="page"
-          value={stats.routeCount.toLocaleString("en-US")}
-          label="Published routes"
-        />
-        <StatCluster
-          scale="page"
-          value={stats.listCount.toLocaleString("en-US")}
-          label="Curated lists"
-        />
-      </div>
+      {stats && <p className="mt-6 text-sm text-muted">Explore {stats.destinationCount.toLocaleString("en-US")} places, {stats.routeCount.toLocaleString("en-US")} routes, and {stats.listCount.toLocaleString("en-US")} peak lists.</p>}
+      <section className="mt-10 grid items-center gap-10 lg:grid-cols-2">
+        <div><h2 className="text-2xl font-semibold">A record of your time outside</h2><p className="mt-4 max-w-[48ch] text-lg leading-relaxed text-ink-2">Use Peaks to choose where to go and remember the places you’ve been. Your activity, photos, and plans belong together.</p><Button className="mt-6" href="/discover" variant="secondary">Explore the catalog</Button></div>
+        <AppScreenshots />
+      </section>
 
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Button href={APP_STORE_URL} variant="primary">

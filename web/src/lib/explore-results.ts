@@ -9,6 +9,9 @@ import {
   haversineMeters,
 } from "./map-view";
 import { polylineMidpoint } from "./polyline";
+import { catalogHitHref, type CatalogHit } from "./catalog-results";
+import { getRouteTraversalMetrics } from "./route-guide";
+import { formatRegion } from "./regions";
 
 export interface ExploreDestinationInput {
   id: string;
@@ -17,6 +20,11 @@ export interface ExploreDestinationInput {
   lat: number | null;
   lng: number | null;
   features: string[];
+  hero_image?: string | null;
+  hero_image_attribution?: string | null;
+  hero_image_attribution_url?: string | null;
+  state_code?: string | null;
+  country_code?: string | null;
 }
 
 export interface ExploreRouteInput {
@@ -25,10 +33,15 @@ export interface ExploreRouteInput {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  gain_loss?: number | null;
+  shape?: string | null;
+  cover_image?: string | null;
+  cover_image_attribution?: string | null;
+  cover_image_attribution_url?: string | null;
 }
 
 export interface ExploreResult {
-  kind: "destination" | "route";
+  kind: "destination" | "route" | "area" | "list";
   id: string;
   name: string | null;
   /** The one word the row calls this: Peak, Lake, Route… */
@@ -41,6 +54,25 @@ export interface ExploreResult {
   /** Routes only. */
   routeDistance: number | null;
   routeGain: number | null;
+  imageUrl?: string | null;
+  imageAttribution?: string | null;
+  imageAttributionUrl?: string | null;
+  locationLabel?: string | null;
+  href?: string;
+}
+
+export function catalogHitToExploreResult(hit: CatalogHit, centerLat: number, centerLng: number): ExploreResult {
+  const metrics = hit.route ? getRouteTraversalMetrics(hit.route) : null;
+  const lat=hit.lat??centerLat;
+  const lng=hit.lng??centerLng;
+  return {
+    kind:hit.kind==="destinations"?"destination":hit.kind==="routes"?"route":hit.kind==="areas"?"area":"list",
+    id:hit.id,name:hit.name,typeWord:hit.destination?destinationTypeWord(hit.destination.features):hit.kind==="areas"?"Protected area":hit.kind==="lists"?"List":"Route",
+    lat,lng,metersFromCenter:haversineMeters(centerLat,centerLng,lat,lng),elevation:hit.destination?.elevation??null,
+    routeDistance:metrics?.distanceMeters??null,routeGain:metrics?.gainMeters??null,imageUrl:hit.imageUrl,locationLabel:hit.locationLabel,href:catalogHitHref(hit),
+    imageAttribution:hit.destination?.hero_image_attribution??hit.route?.cover_image_attribution??hit.area?.cover_photo?.attribution,
+    imageAttributionUrl:hit.destination?.hero_image_attribution_url??hit.route?.cover_image_attribution_url??hit.area?.cover_photo?.attributionUrl,
+  };
 }
 
 /**
@@ -76,6 +108,10 @@ export function describeDestination(
     elevation: destination.elevation,
     routeDistance: null,
     routeGain: null,
+    imageUrl: destination.hero_image,
+    imageAttribution: destination.hero_image_attribution,
+    imageAttributionUrl: destination.hero_image_attribution_url,
+    locationLabel: formatRegion(destination.state_code, destination.country_code),
   };
 }
 
@@ -98,6 +134,7 @@ export function buildExploreResults(input: {
     .map((route): ExploreResult | null => {
       const midpoint = polylineMidpoint(route.polyline6);
       if (!midpoint) return null;
+      const metrics = getRouteTraversalMetrics({...route,shape:route.shape??null,gain_loss:route.gain_loss??null});
       return {
         kind: "route" as const,
         id: route.id,
@@ -112,8 +149,11 @@ export function buildExploreResults(input: {
           midpoint.lng
         ),
         elevation: null,
-        routeDistance: route.distance,
-        routeGain: route.gain,
+        routeDistance: metrics.distanceMeters,
+        routeGain: metrics.gainMeters,
+        imageUrl: route.cover_image,
+        imageAttribution: route.cover_image_attribution,
+        imageAttributionUrl: route.cover_image_attribution_url,
       };
     })
     .filter((route): route is ExploreResult => route !== null);

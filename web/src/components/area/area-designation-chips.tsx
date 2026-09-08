@@ -18,6 +18,7 @@ export function AreaDesignationChips() {
 
   function select(code: string) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (code) {
       params.set("type", code);
     } else {

@@ -54,6 +54,7 @@ export default function ImportRoutesPage() {
 }
 
 function ImportContent() {
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -86,6 +87,7 @@ function ImportContent() {
   };
 
   const handleImport = async () => {
+    setValidationError(null);
     const hasProvenance = Boolean(
       sourceUrl.trim() ||
         licenseName.trim() ||
@@ -97,11 +99,11 @@ function ImportContent() {
       hasProvenance &&
       (!sourceUrl.trim() || !licenseName.trim() || !licenseUrl.trim() || !attribution.trim())
     ) {
-      alert("Route provenance needs a source URL, license name, license URL, and attribution.");
+      setValidationError("Route provenance needs a source URL, license name, license URL, and attribution.");
       return;
     }
     if (containsOsmGeometry && !osmWayIds.trim()) {
-      alert("OpenStreetMap geometry needs every contributing OSM way ID.");
+      setValidationError("OpenStreetMap geometry needs every contributing OSM way ID.");
       return;
     }
 
@@ -168,6 +170,7 @@ function ImportContent() {
 
   return (
     <AdminPage width="form">
+      {validationError && <p role="alert" className="text-sm text-alert">{validationError}</p>}
       <AdminPageHeader
         title="Import GPX routes"
         description="Upload GPX files as pending routes. Peaks adds elevation and destination matches, then sends each route to review without changing existing routes or segments."

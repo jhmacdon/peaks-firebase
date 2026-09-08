@@ -2,6 +2,7 @@
 
 import { useSelectedLayoutSegment } from "next/navigation";
 import { AuthProvider } from "../../lib/auth-context";
+import { SavedPlacesProvider } from "../../lib/saved-places-context";
 import AppNav from "../../components/app-nav";
 import { SiteFooter } from "../../components/site-footer";
 
@@ -22,6 +23,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
   return (
     <AuthProvider>
+      <SavedPlacesProvider>
       <div
         className={`flex min-h-screen flex-col ${
           fullBleed ? "" : "pb-[var(--chrome-bottom-h)] md:pb-0"
@@ -31,6 +33,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <main className="flex-1">{children}</main>
         {fullBleed ? null : <SiteFooter />}
       </div>
+    </SavedPlacesProvider>
     </AuthProvider>
   );
 }

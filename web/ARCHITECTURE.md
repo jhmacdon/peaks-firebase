@@ -278,9 +278,8 @@ The homepage also publishes `MobileApplication` JSON-LD with the App Store URL,
 iOS platform, and free download price. This uses the current App Store listing;
 update the offer if the base download price changes.
 
-The web Postgres pool keeps its five-connection cap and adds a five-second
-connection wait plus a 30-second statement limit, matching the API's safety
-bounds. This changes no Cloud Run or Cloud SQL capacity and adds $0/month.
+The web Postgres pool uses a two-connection cap, a five-second connection
+wait, and a 15-second statement limit. This changes no Cloud Run or Cloud SQL capacity and adds $0/month.
 
 ## Key Design Decisions
 
@@ -300,7 +299,11 @@ Most pages use `"use client"` because they need interactive state (auth context,
 Saved destinations stay in `users/{uid}/savedDestinations/{destinationId}` so iOS and web use one source. A live document requires `savedAt`; only `deleted === true` is a tombstone. The web writes full documents for both save and unsave and warns when an ID has not reached the PostgreSQL destination catalog.
 
 ### Trip report compatibility
-The web reads both its `blocks` representation and the iOS `content` plus `headerPhotos` representation. Web creates and edits write both forms, preserve iOS photo IDs and dates, and store the trip date as a Firestore `Timestamp`. Firestore rules require the signed-in owner for report writes and saved-destination reads or writes.
+The web reads and writes reports in Cloud SQL. Server actions require the report
+owner for edits and preserve photo IDs while applying captions and order. A new
+report comes from a completed activity; its date, reached destinations, and
+completed catalog routes come from that activity. Uploaded photo files remain in
+Cloud Storage. No report read falls back to Firestore.
 
 ### Session naming strategy
 The iOS app rarely sets explicit session names. Instead, sessions are identified by their destinations — "Mount Rainier, Camp Muir" is more meaningful than a timestamp. The web app derives names from `session_destinations` sorted by elevation, matching the Strava upload naming pattern in the Cloud Functions.
@@ -310,3 +313,47 @@ The iOS app rarely sets explicit session names. Instead, sessions are identified
 `src/lib/guides.ts` holds reviewed, sourced copy for five search topics. `/guides` links to three existing list pages, a waterfall map, and the Alpine Lakes area page (ID checked on the public site on 2026-09-08). List and area pages keep their canonical URLs and draw their introductions and search descriptions from the same guide record. The waterfall page renders every named catalog match as an HTML link; only its map needs client JavaScript. Unknown guide slugs return 404, while missing catalog data remains an error. Database-backed routes use one-hour ISR with no build-time reads. No new infrastructure or fixed monthly cost.
 
 Before adding a guide, check its roster and route coverage, read primary sources, and write about the choices specific to that place. Link sources beside the relevant section. Do not infer trail access, difficulty, or waterfall height from a destination pin or elevation.
+
+### Member trips and reports
+The web calls saved plan objects Trips. Existing `/my-routes`, `/plans`, and
+public `/route/:id` URLs remain compatible. New-trip links accept `route` or
+`routeId`, and `destination` or `destinationId`; sign-in preserves these queries.
+A `fromTrip` link reloads the visibility-filtered public trip, then selects only
+its catalog routes and chosen places. It copies no custom tracks, date, notes,
+party, health data, or photos. Nothing writes until the member submits the form.
+Required itinerary reads and missing catalog links show an error with a retry.
+
+Trip and Saved cards read existing catalog covers, credits, and location data.
+Trip cards batch the catalog reads. `getSavedDestinationIds` reads the existing
+saved timestamp and tombstone fields without joining the catalog. These changes
+add no infrastructure or always-on service.
+
+New and edited reports share `ReportEditor`: a text body followed by ordered
+photos, captions, and a preview in the order the server persists. Uploads block
+submission until they finish. The selected completed activity supplies the date
+and reached places. Incoming activity or place links filter eligible activities;
+missing or unfinished activities offer recovery steps. Reports remain public
+under the existing datastore contract. Destination report lists expose failures
+and let the reader retry.
+
+### Shared discovery and saved state
+Discover and Map use `searchCatalog` with one typed URL contract for query,
+object type, state/area, activity, route effort, distance/gain limits, sort, page,
+and optional location. A count-and-ID query runs before bounded per-kind detail
+reads. Both views retain selections by kind and ID. Area selections load the
+actual boundary; route selections retain the route geometry. Location permission
+starts with an explicit button. Paged area and list views keep stable ordering.
+
+`SavedPlacesProvider` reads the existing saved-document IDs once per signed-in
+layout and shares status across cards. It scopes state and responses by user.
+An explicit guest Save click stores a ten-minute intent in that tab, preserves
+its filtered return URL, and resumes the save after sign-in. Incoming URL
+parameters alone cannot trigger a save. Auth content remounts on UID changes so
+old form and collection state cannot survive an account switch.
+
+Public detail photos use only existing published report photos, grouped by
+outing. Activity-list thumbnails select one public report photo without reading
+GPS points. The implementation adds no datastore fallback, schema, migration,
+background worker, or always-on resource. Fixed infrastructure cost change is
+$0/month. Responsive photo sizing uses the existing Next image service; missing
+place photos use the existing Esri satellite export when coordinates exist.

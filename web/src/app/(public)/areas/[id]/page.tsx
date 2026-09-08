@@ -1,5 +1,8 @@
 import { guideForArea } from "../../../../lib/guides";
 import { GuideReading } from "../../../../components/guide-reading";
+import { ActivityPhotoGroups } from "../../../../components/activity-photo-groups";
+import { getActivityPhotoGroups } from "../../../../lib/actions/activity-photos";
+import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArea } from "../../../../lib/actions/areas";
@@ -35,6 +38,7 @@ export default async function AreaDetailPage({
   const { id } = await params;
   const area = await getArea(id);
   if (!area) notFound();
+  const photoGroups = await getActivityPhotoGroups({ areaId: id });
 
   const guide = guideForArea(area.name, area.country_code, area.state_codes);
   const managerLabel = describeManager(area.manager);
@@ -64,7 +68,7 @@ export default async function AreaDetailPage({
   const facts = managerLabel ? [{ label: "Manager", value: managerLabel }] : [];
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-8">
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-6">
       <PageHeader
         breadcrumb={
           <Breadcrumb current={area.name} parentHref="/areas" parentLabel="Protected areas" />
@@ -97,9 +101,13 @@ export default async function AreaDetailPage({
         <div className="mt-8 space-y-12">
           <AreaActivity destinationCount={area.destination_count} />
 
-          {guide ? <>
-            <p className="max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p>
-          </> : <AreaAbout
+          <DetailSectionNav sections={[
+            { id: "area-about", label: "Overview" },
+            { id: "area-destinations", label: "Places" },
+            ...(photoGroups.length ? [{ id: "area-photos", label: "Photos" }] : []),
+            { id: "area-routes", label: "Routes" },
+          ]} />
+          {guide ? <p id="area-about" className="max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p> : <AreaAbout
             name={area.name}
             description={area.description}
             sourceName={area.description_source_name}
@@ -116,15 +124,17 @@ export default async function AreaDetailPage({
           <AreaHero area={area} />
 
           {guide ? <GuideReading guide={guide} /> : null}
+          <ActivityPhotoGroups groups={photoGroups} id="area-photos" />
 
           <AreaDestinations
+            areaId={id}
             destinations={area.destinations}
             totalCount={area.destination_count}
           />
 
           <AreaSessions />
 
-          <AreaRoutes routes={area.routes} totalCount={area.route_count} />
+          <AreaRoutes areaId={id} routes={area.routes} totalCount={area.route_count} />
         </div>
       </AreaPersonalizationProvider>
     </div>

@@ -18,12 +18,16 @@ interface AreaPersonalizationState {
   activity: AreaPersonalActivity | null;
   loading: boolean;
   signedIn: boolean;
+  error: boolean;
+  retry: () => void;
 }
 
 const AreaPersonalizationContext = createContext<AreaPersonalizationState>({
   activity: null,
   loading: false,
   signedIn: false,
+  error: false,
+  retry: () => {},
 });
 
 /** Loads one signed-in reader's area visits and reached destinations once,
@@ -41,11 +45,14 @@ export function AreaPersonalizationProvider({
   const userId = user?.uid ?? null;
   const [activity, setActivity] = useState<AreaPersonalActivity | null>(null);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     if (authLoading) return;
+    setError(false);
     if (!userId) {
       setActivity(null);
       setActivityLoading(false);
@@ -61,7 +68,7 @@ export function AreaPersonalizationProvider({
         if (!cancelled) setActivity(result);
       })
       .catch(() => {
-        if (!cancelled) setActivity(null);
+        if (!cancelled) { setActivity(null); setError(true); }
       })
       .finally(() => {
         if (!cancelled) setActivityLoading(false);
@@ -70,15 +77,17 @@ export function AreaPersonalizationProvider({
     return () => {
       cancelled = true;
     };
-  }, [areaId, authLoading, getIdToken, userId]);
+  }, [areaId, authLoading, getIdToken, userId, attempt]);
 
   const value = useMemo(
     () => ({
       activity,
       loading: authLoading || activityLoading,
       signedIn: userId != null,
+      error,
+      retry: () => setAttempt((value) => value + 1),
     }),
-    [activity, activityLoading, authLoading, userId]
+    [activity, activityLoading, authLoading, userId, error]
   );
 
   return (

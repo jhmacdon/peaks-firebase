@@ -10,7 +10,7 @@ export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let name = "Shared route";
+  let name = "Shared trip";
   let stats: string | null = null;
 
   try {

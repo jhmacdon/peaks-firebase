@@ -11,6 +11,7 @@ import {
   AdminPageHeader,
 } from "../../../../components/admin/admin-page";
 import { Breadcrumb } from "../../../../components/detail-sections";
+import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
 import { SectionHeading } from "../../../../components/ui/section-heading";
 import { StatCluster } from "../../../../components/ui/stat";
@@ -80,23 +81,35 @@ function SessionDetailContent() {
     []
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const token = await getIdToken();
-      if (!token) return;
-      const [s, p, d] = await Promise.all([
-        getAdminSession(token, id),
-        getAdminSessionPoints(token, id),
-        getAdminSessionDestinations(token, id),
-      ]);
-      setSession(s);
-      setPoints(p);
-      setDestinations(d);
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const token = await getIdToken();
+        if (!token) throw new Error("Sign-in expired");
+        const [s, p, d] = await Promise.all([
+          getAdminSession(token, id),
+          getAdminSessionPoints(token, id),
+          getAdminSessionDestinations(token, id),
+        ]);
+        if (cancelled) return;
+        setSession(s);
+        setPoints(p);
+        setDestinations(d);
+      } catch {
+        if (!cancelled) setError("Couldn’t load this session. Try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    load();
-  }, [getIdToken, id]);
+    void load();
+    return () => { cancelled = true; };
+  }, [getIdToken, id, attempt]);
 
   if (loading) {
     return (
@@ -105,6 +118,8 @@ function SessionDetailContent() {
       </AdminPage>
     );
   }
+
+  if (error && !session) return <AdminPage><p role="alert" className="text-alert">{error}</p><Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Try again</Button></AdminPage>;
 
   if (!session) {
     return (

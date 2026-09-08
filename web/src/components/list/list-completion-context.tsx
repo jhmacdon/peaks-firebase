@@ -7,11 +7,15 @@ import { useAuth } from "../../lib/auth-context";
 interface ListCompletionState {
   entries: Record<string, ListCompletionEntry> | null;
   signedIn: boolean;
+  error: boolean;
+  retry: () => void;
 }
 
 const ListCompletionContext = createContext<ListCompletionState>({
   entries: null,
   signedIn: false,
+  error: false,
+  retry: () => {},
 });
 
 /** One fetch of a signed-in reader's per-destination completion on this
@@ -34,7 +38,13 @@ export function ListCompletionProvider({
   children: ReactNode;
 }) {
   const { user, loading: authLoading, getIdToken } = useAuth();
-  const [entries, setEntries] = useState<Record<string, ListCompletionEntry> | null>(null);
+  const [result, setResult] = useState<{
+    userId: string;
+    listId: string;
+    entries: Record<string, ListCompletionEntry> | null;
+    error: boolean;
+  } | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   // getListCompletion reads whose completion to fetch off the verified
   // token, not off a uid the client hands it — so the provider sends the ID
@@ -44,29 +54,34 @@ export function ListCompletionProvider({
   useEffect(() => {
     let cancelled = false;
 
-    if (authLoading) return;
-    if (!userId) {
-      setEntries(null);
+    if (authLoading || !userId) {
+      setResult(null);
       return;
     }
 
+    const scope = { userId, listId };
+    setResult({ ...scope, entries: null, error: false });
     async function load() {
       const token = await getIdToken();
-      if (!token) return;
-      const result = await getListCompletion(token, listId);
-      if (!cancelled) setEntries(result);
+      if (!token) throw new Error("Sign in again to load your list progress");
+      const entries = await getListCompletion(token, listId);
+      if (!cancelled) setResult({ ...scope, entries, error: false });
     }
 
     load().catch(() => {
-      if (!cancelled) setEntries(null);
+      if (!cancelled) setResult({ ...scope, entries: null, error: true });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [authLoading, listId, userId, getIdToken]);
+  }, [authLoading, listId, userId, getIdToken, attempt]);
 
-  const value = useMemo(() => ({ entries, signedIn: !!user }), [entries, user]);
+  // Hide an old result during the render before effect cleanup runs, too.
+  const current = !authLoading && result?.userId === userId && result?.listId === listId;
+  const entries = current ? result.entries : null;
+  const error = current ? result.error : false;
+  const value = useMemo(() => ({ entries, signedIn: !!userId, error, retry: () => setAttempt((value) => value + 1) }), [entries, userId, error]);
 
   return (
     <ListCompletionContext.Provider value={value}>

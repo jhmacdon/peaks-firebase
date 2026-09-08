@@ -74,6 +74,7 @@ export interface AreaRoute {
   polyline6: string | null;
   distance: number | null;
   gain: number | null;
+  gain_loss: number | null;
   completion: string;
   shape: string | null;
   destination_count: number;
@@ -171,6 +172,7 @@ interface RawRouteRow extends QueryResultRow {
   polyline6: unknown;
   distance: unknown;
   gain: unknown;
+  gain_loss: unknown;
   completion: unknown;
   shape: unknown;
   destination_count: unknown;
@@ -322,7 +324,7 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
       [id]
     ),
     db.query<RawRouteRow>(
-      `SELECT r.id, r.name, r.polyline6, r.distance, r.gain,
+      `SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.gain_loss,
               r.completion, r.shape, r.provenance,
               (
                 SELECT count(*)::int
@@ -340,9 +342,7 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
        WHERE ra.area_id = $1
          AND r.owner = 'peaks'
          AND r.status = 'active'
-       ORDER BY r.gain DESC NULLS LAST,
-                r.distance DESC NULLS LAST,
-                r.name ASC NULLS LAST
+       ORDER BY r.distance ASC NULLS LAST, r.name ASC NULLS LAST, r.id
        LIMIT 15`,
       [id]
     ),
@@ -353,6 +353,42 @@ export async function getArea(id: string): Promise<AreaDetail | null> {
     destinations: destinationResult.rows.map(mapDestination),
     routes: routeResult.rows.map(mapRoute),
   };
+}
+
+export async function getAreaDestinationPage(areaId: string, options: {
+  offset?: number; sort?: "name" | "elevation" | "prominence"; query?: string;
+  completion?: "all" | "reached" | "open"; token?: string;
+} = {}): Promise<{ destinations: AreaDestination[]; total: number }> {
+  const offset = Number.isFinite(options.offset) ? Math.max(0, Math.trunc(options.offset ?? 0)) : 0;
+  const user = options.completion && options.completion !== "all"
+    ? await verifyToken(options.token ?? "") : null;
+  if (options.completion && options.completion !== "all" && !user) throw new Error("Sign in to filter your visits");
+  const completion = options.completion === "reached" ? "AND EXISTS" : options.completion === "open" ? "AND NOT EXISTS" : "";
+  const where = `da.area_id = $1 AND d.owner = 'peaks' AND ($2 = '' OR d.name ILIKE $2)
+    ${completion ? `${completion} (SELECT 1 FROM session_destinations sd JOIN tracking_sessions s ON s.id = sd.session_id
+      WHERE sd.destination_id = d.id AND sd.relation = 'reached' AND s.user_id = $3)` : "AND $3::text IS NULL"}`;
+  const sort = options.sort === "name" ? "d.name ASC NULLS LAST" : options.sort === "elevation" ? "d.elevation DESC NULLS LAST" : "d.prominence DESC NULLS LAST, d.elevation DESC NULLS LAST";
+  const values = [areaId, options.query?.trim() ? `%${escapeLikePattern(options.query.trim())}%` : "", user?.uid ?? null];
+  const [rows, count] = await Promise.all([
+    db.query<RawDestinationRow>(`SELECT d.id, d.name, d.elevation, d.prominence, d.type, d.activities, d.features,
+      d.country_code, d.state_code, d.hero_image, d.hero_image_focal_x, d.hero_image_focal_y,
+      d.hero_image_attribution, d.hero_image_attribution_url, ST_Y(d.location::geometry) AS lat, ST_X(d.location::geometry) AS lng
+      FROM destination_areas da JOIN destinations d ON d.id = da.destination_id WHERE ${where}
+      ORDER BY ${sort}, d.id LIMIT 24 OFFSET $4`, [...values, offset]),
+    db.query(`SELECT count(*)::int AS total FROM destination_areas da JOIN destinations d ON d.id = da.destination_id WHERE ${where}`, values),
+  ]);
+  return { destinations: rows.rows.map(mapDestination), total: Number(count.rows[0].total) };
+}
+
+export async function getAreaRoutePage(areaId: string, offset = 0): Promise<AreaRoute[]> {
+  const result = await db.query<RawRouteRow>(`SELECT r.id, r.name, r.polyline6, r.distance, r.gain, r.gain_loss,
+    r.completion, r.shape, r.provenance,
+    (SELECT count(*)::int FROM route_destinations rd WHERE rd.route_id = r.id) AS destination_count,
+    (SELECT count(*)::int FROM session_routes sr WHERE sr.route_id = r.id AND ${routeDoneCoverageSql("sr")}) AS session_count
+    FROM route_areas ra JOIN routes r ON r.id = ra.route_id
+    WHERE ra.area_id = $1 AND r.owner = 'peaks' AND r.status = 'active'
+    ORDER BY r.distance ASC NULLS LAST, r.name ASC NULLS LAST, r.id LIMIT 15 OFFSET $2`, [areaId, Math.max(0, Math.trunc(offset))]);
+  return result.rows.map(mapRoute);
 }
 
 export async function getAreaPersonalActivity(
@@ -483,6 +519,7 @@ function mapRoute(row: RawRouteRow): AreaRoute {
     polyline6: textValue(row.polyline6),
     distance: numberValue(row.distance),
     gain: numberValue(row.gain),
+    gain_loss: numberValue(row.gain_loss),
     completion: textValue(row.completion) ?? "none",
     shape: textValue(row.shape),
     destination_count: integerValue(row.destination_count),
@@ -573,6 +610,7 @@ export interface AreasIndexResult {
   /** The whole catalog's area count, unfiltered — the "of 3,869" side of
    * that same honest line. */
   totalAreas: number;
+  totalStates: number;
 }
 
 function escapeLikePattern(value: string): string {
@@ -609,7 +647,7 @@ function areaIndexFilter(
 
   if (stateCode) {
     params.push(stateCode);
-    clauses.push(`a.state_codes[1] = $${params.length}`);
+    clauses.push(`$${params.length} = ANY(a.state_codes)`);
   }
 
   return { clause: clauses.join(" AND "), params };
@@ -643,6 +681,8 @@ export async function getAreasIndex(
     stateCode?: string;
     statesLimit?: number;
     perStateLimit?: number;
+    statesOffset?: number;
+    perStateOffset?: number;
   } = {}
 ): Promise<AreasIndexResult> {
   const search = (options.search ?? "").trim().slice(0, 120);
@@ -652,6 +692,9 @@ export async function getAreasIndex(
     : "";
   const statesLimit = Math.min(Math.max(Math.trunc(options.statesLimit ?? 12), 1), 30);
   const perStateLimit = Math.min(Math.max(Math.trunc(options.perStateLimit ?? 25), 1), 100);
+
+  const statesOffset = Math.max(0, Math.min(10000, Math.trunc(options.statesOffset ?? 0) || 0));
+  const perStateOffset = Math.max(0, Math.min(100000, Math.trunc(options.perStateOffset ?? 0) || 0));
 
   const totalAreasResult = await db.query<{ count: number }>(
     `SELECT COUNT(*)::int AS count FROM areas`
@@ -697,6 +740,8 @@ export async function getAreasIndex(
       stateCode,
       statesLimit,
       perStateLimit,
+      statesOffset,
+      perStateOffset,
     });
     const rowsById = new Map(
       candidateResult.rows.map((row) => [textValue(row.id) ?? "", row])
@@ -725,14 +770,17 @@ export async function getAreasIndex(
   );
   const totalMatching = Number(totalMatchingResult.rows[0]?.count ?? 0);
 
+  const bucket = stateCode ? `$${params.length}::text` : "a.state_codes[1]";
+  const stateCountResult = await db.query<{ count: number }>(`SELECT COUNT(DISTINCT ${bucket})::int AS count FROM areas a WHERE ${clause}`, params);
+  const totalStates = Number(stateCountResult.rows[0]?.count ?? 0);
   const statesResult = await db.query<{ code: string; count: number }>(
-    `SELECT a.state_codes[1] AS code, COUNT(*)::int AS count
+    `SELECT ${bucket} AS code, COUNT(*)::int AS count
      FROM areas a
      WHERE ${clause}
      GROUP BY 1
      ORDER BY count DESC, code ASC
-     LIMIT $${params.length + 1}`,
-    [...params, statesLimit]
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, statesLimit, statesOffset]
   );
   const states = statesResult.rows.map((row) => ({
     code: String(row.code),
@@ -740,7 +788,7 @@ export async function getAreasIndex(
   }));
 
   if (states.length === 0) {
-    return { areas: [], states: [], totalMatching, totalAreas };
+    return { areas: [], states: [], totalMatching, totalAreas, totalStates };
   }
 
   const stateCodes = states.map((state) => state.code);
@@ -754,22 +802,22 @@ export async function getAreasIndex(
     rn: unknown;
   }>(
     `WITH ranked AS (
-       SELECT a.id, a.name, a.kind, a.designation, a.state_codes[1] AS state_code,
+       SELECT a.id, a.name, a.kind, a.designation, ${bucket} AS state_code,
               ${DESTINATION_COUNT_COLUMN} AS destination_count,
               ROW_NUMBER() OVER (
-                PARTITION BY a.state_codes[1]
-                ORDER BY ${DESTINATION_COUNT_COLUMN} DESC, a.name ASC
+                PARTITION BY ${bucket}
+                ORDER BY ${DESTINATION_COUNT_COLUMN} DESC, a.name ASC, a.id ASC
               ) AS rn
        FROM areas a
        ${DESTINATION_COUNTS_JOIN}
-       WHERE ${clause} AND a.state_codes[1] = ANY($${params.length + 1}::text[])
+       WHERE ${clause} AND ${bucket} = ANY($${params.length + 1}::text[])
      )
      SELECT ranked.id, ranked.name, ranked.kind, ranked.designation,
             ranked.state_code, ranked.destination_count, ranked.rn,
             ${areaCoverPhotoSql()}
-     WHERE ranked.rn <= $${params.length + 2}
+     WHERE ranked.rn > $${params.length + 3} AND ranked.rn <= $${params.length + 2} + $${params.length + 3}
      ORDER BY ranked.state_code ASC, ranked.rn ASC`,
-    [...params, stateCodes, perStateLimit]
+    [...params, stateCodes, perStateLimit, perStateOffset]
   );
 
   // Re-sort into the same most-areas-first state order as `states` — the
@@ -798,7 +846,7 @@ export async function getAreasIndex(
     return { ...area, coverPhoto: coverPhotos[index] };
   });
 
-  return { areas, states, totalMatching, totalAreas };
+  return { areas, states, totalMatching, totalAreas, totalStates };
 }
 
 /**
