@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { TripReportBlock } from "../lib/actions/trip-reports";
 import { maybeDownscaleImage } from "../lib/image-downscale";
 import { REPORT_PHOTO_UPLOAD_LIMITS, validateImageFile } from "../lib/image-upload";
@@ -8,383 +8,96 @@ import { uploadReportPhoto, type ImageUploadHandle } from "../lib/storage";
 import { Button } from "./ui/button";
 import { Label, Input, Textarea } from "./ui/field";
 
-const REPORT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
-const REPORT_PHOTO_MAX_MB = REPORT_PHOTO_UPLOAD_LIMITS.maxBytes / (1024 * 1024);
-
-interface PhotoBlockFieldsProps {
-  content: string;
-  caption: string;
+function PhotoFields({ block, userId, sessionId, onChange, onBusy }: {
+  block: TripReportBlock;
   userId: string;
   sessionId: string | null;
-  onChange: (updates: Partial<TripReportBlock>) => void;
-}
-
-/** The photo half of a block: upload control (with progress + inline
- * error), preview, and caption. Upload state (uploading/progress/error) is
- * local to one block, not lifted to BlockEditor, since each photo block
- * uploads independently. */
-function PhotoBlockFields({
-  content,
-  caption,
-  userId,
-  sessionId,
-  onChange,
-}: PhotoBlockFieldsProps) {
-  const [uploading, setUploading] = useState(false);
+  onChange: (patch: Partial<TripReportBlock>) => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const upload = useRef<ImageUploadHandle | null>(null);
+  const mounted = useRef(true);
+  const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // Guards every setState after an `await` — a mid-upload navigation away
-  // from this report (or a drag-reorder remount, since blocks are keyed by
-  // index) must not call setState on an unmounted PhotoBlockFields.
-  const mountedRef = useRef(true);
-  const activeUploadRef = useRef<ImageUploadHandle | null>(null);
-
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      // Actually abort the transfer too, not just ignore its result —
-      // otherwise an unmounted upload keeps consuming bandwidth/quota.
-      activeUploadRef.current?.cancel();
-    };
+    mounted.current = true;
+    return () => { mounted.current = false; upload.current?.cancel(); };
   }, []);
-
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = ""; // allow re-selecting the same file after an error
-      if (!file) return;
-
-      const validation = validateImageFile(file, REPORT_PHOTO_UPLOAD_LIMITS);
-      if (!validation.ok) {
-        setError(validation.error);
-        return;
-      }
-
-      setError(null);
-      setUploading(true);
-      setProgress(0);
-      try {
-        const { blob, contentType } = await maybeDownscaleImage(file);
-        if (!mountedRef.current) return;
-
-        const upload = uploadReportPhoto(userId, sessionId, blob, contentType, (fraction) => {
-          if (mountedRef.current) setProgress(Math.round(fraction * 100));
-        });
-        activeUploadRef.current = upload;
-        const url = await upload.promise;
-        activeUploadRef.current = null;
-        if (!mountedRef.current) return;
-
-        onChange({ content: url });
-      } catch {
-        activeUploadRef.current = null;
-        if (mountedRef.current) setError("Upload failed. Try again.");
-      } finally {
-        if (mountedRef.current) setUploading(false);
-      }
-    },
-    [onChange, userId, sessionId]
-  );
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading
-            ? `Uploading… ${progress}%`
-            : content
-              ? "Replace photo"
-              : "Choose photo"}
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={REPORT_PHOTO_ACCEPT}
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <span className="text-xs text-faint">
-          {REPORT_PHOTO_UPLOAD_LIMITS.label}. Up to {REPORT_PHOTO_MAX_MB}MB.
-        </span>
-      </div>
-
-      {error && (
-        <p role="alert" className="text-sm text-alert">
-          {error}
-        </p>
-      )}
-
-      {content && (
-        <div className="rounded-ctl overflow-hidden border border-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={content}
-            alt={caption || "Photo"}
-            className="max-h-48 w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        </div>
-      )}
-
-      <Input
-        type="text"
-        value={caption}
-        onChange={(e) => onChange({ caption: e.target.value })}
-        placeholder="Caption (optional)"
-      />
-    </div>
-  );
+  async function choose(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const validation = validateImageFile(file, REPORT_PHOTO_UPLOAD_LIMITS);
+    if (!validation.ok) { setError(validation.error); return; }
+    setBusy(true); onBusy(true); setError(null); setProgress(0);
+    try {
+      const { blob, contentType } = await maybeDownscaleImage(file);
+      if (!mounted.current) return;
+      const handle = uploadReportPhoto(userId, sessionId, blob, contentType, (fraction) => {
+        if (mounted.current) setProgress(Math.round(fraction * 100));
+      });
+      upload.current = handle;
+      const url = await handle.promise;
+      if (mounted.current) { setFailedImage(null); onChange({ content: url }); }
+    } catch { if (mounted.current) setError("Photo upload failed. Choose the photo again to retry."); }
+    finally { upload.current = null; if (mounted.current) { setBusy(false); onBusy(false); } }
+  }
+  return <div>
+    {block.content && failedImage !== block.content && <div className="mb-4 overflow-hidden rounded-media bg-fill">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={block.content} alt={block.caption || "Report photo preview"} className="max-h-72 w-full object-contain" onError={() => setFailedImage(block.content)} />
+    </div>}
+    {failedImage === block.content && block.content && <p role="alert" className="mb-4 text-sm text-alert">This photo could not be displayed. Replace it or try opening the original.</p>}
+    <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="secondary" onClick={() => input.current?.click()} disabled={busy || !sessionId}>{busy ? `Uploading… ${progress}%` : block.content ? "Replace photo" : "Choose photo"}</Button>{block.content && <a href={block.content} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-text hover:underline">Open original</a>}</div>
+    <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={choose} aria-label="Choose a report photo" className="hidden" />
+    <p role="status" className="mt-2 text-xs text-muted">{busy ? `Photo upload ${progress}%` : `${REPORT_PHOTO_UPLOAD_LIMITS.label}. Up to ${REPORT_PHOTO_UPLOAD_LIMITS.maxBytes / 1024 / 1024} MB.`}</p>
+    {!sessionId && <p className="mt-2 text-sm text-muted">This older report has no linked activity, so new photos cannot be attached.</p>}
+    {error && <p role="alert" className="mt-3 text-sm text-alert">{error}</p>}
+    <Label htmlFor={`${id}-caption`} className="mt-4">Caption (optional)</Label>
+    <Input id={`${id}-caption`} value={block.caption || ""} onChange={(event) => onChange({ caption: event.target.value })} placeholder="What does this photo show?" />
+  </div>;
 }
 
-interface BlockEditorProps {
+export default function BlockEditor({ blocks, onChange, userId, sessionId, onBusyChange }: {
   blocks: TripReportBlock[];
   onChange: (blocks: TripReportBlock[]) => void;
-  /** Needed to scope uploaded photos under `trip-reports/{userId}/{sessionId}/…`
-   * per storage.rules. */
   userId: string;
   sessionId: string | null;
-}
-
-export default function BlockEditor({
-  blocks,
-  onChange,
-  userId,
-  sessionId,
-}: BlockEditorProps) {
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-
-  const addTextBlock = useCallback(() => {
-    onChange([...blocks, { type: "text", content: "" }]);
-  }, [blocks, onChange]);
-
-  const addPhotoBlock = useCallback(() => {
-    onChange([...blocks, { type: "photo", content: "", caption: "" }]);
-  }, [blocks, onChange]);
-
-  const updateBlock = useCallback(
-    (index: number, updates: Partial<TripReportBlock>) => {
-      const updated = blocks.map((block, i) =>
-        i === index ? { ...block, ...updates } : block
-      );
-      onChange(updated);
-    },
-    [blocks, onChange]
-  );
-
-  const deleteBlock = useCallback(
-    (index: number) => {
-      onChange(blocks.filter((_, i) => i !== index));
-    },
-    [blocks, onChange]
-  );
-
-  const moveBlock = useCallback(
-    (index: number, direction: "up" | "down") => {
-      const newIndex = direction === "up" ? index - 1 : index + 1;
-      if (newIndex < 0 || newIndex >= blocks.length) return;
-
-      const updated = [...blocks];
-      const [moved] = updated.splice(index, 1);
-      updated.splice(newIndex, 0, moved);
-      onChange(updated);
-    },
-    [blocks, onChange]
-  );
-
-  return (
-    <div className="space-y-4">
-      <Label>Content Blocks</Label>
-
-      {blocks.length === 0 && (
-        <div className="text-sm text-muted py-6 text-center rounded-media border border-border bg-surface">
-          No blocks yet. Add a text or photo block to get started.
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {blocks.map((block, index) => (
-          <div
-            key={index}
-            className={`rounded-media border border-border bg-surface p-4 ${
-              dragIndex === index ? "opacity-50" : ""
-            }`}
-            draggable
-            onDragStart={() => setDragIndex(index)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => {
-              if (dragIndex !== null && dragIndex !== index) {
-                const updated = [...blocks];
-                const [moved] = updated.splice(dragIndex, 1);
-                updated.splice(index, 0, moved);
-                onChange(updated);
-              }
-              setDragIndex(null);
-            }}
-            onDragEnd={() => setDragIndex(null)}
-          >
-            {/* Block header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="cursor-grab text-faint hover:text-ink-2">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="9" cy="6" r="1" fill="currentColor" />
-                    <circle cx="15" cy="6" r="1" fill="currentColor" />
-                    <circle cx="9" cy="12" r="1" fill="currentColor" />
-                    <circle cx="15" cy="12" r="1" fill="currentColor" />
-                    <circle cx="9" cy="18" r="1" fill="currentColor" />
-                    <circle cx="15" cy="18" r="1" fill="currentColor" />
-                  </svg>
-                </span>
-                <span className="text-xs font-medium text-muted uppercase tracking-wide">
-                  {block.type === "text"
-                    ? "Text"
-                    : block.placement === "header"
-                      ? "Header photo"
-                      : "Photo"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => moveBlock(index, "up")}
-                  disabled={index === 0}
-                  className="p-1 text-faint hover:text-ink-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Move up"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="18 15 12 9 6 15" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveBlock(index, "down")}
-                  disabled={index === blocks.length - 1}
-                  className="p-1 text-faint hover:text-ink-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Move down"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteBlock(index)}
-                  className="p-1 text-alert/70 hover:text-alert"
-                  title="Delete block"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Block content */}
-            {block.type === "text" ? (
-              <Textarea
-                value={block.content}
-                onChange={(e) =>
-                  updateBlock(index, { content: e.target.value })
-                }
-                placeholder="Write your text here..."
-                rows={4}
-                className="resize-y"
-              />
-            ) : (
-              <PhotoBlockFields
-                content={block.content}
-                caption={block.caption || ""}
-                userId={userId}
-                sessionId={sessionId}
-                onChange={(updates) => updateBlock(index, updates)}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Add block buttons */}
-      <div className="flex gap-2">
-        <Button type="button" variant="secondary" onClick={addTextBlock}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Add Text
-        </Button>
-        <Button type="button" variant="secondary" onClick={addPhotoBlock}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Add Photo
-        </Button>
-      </div>
-    </div>
-  );
+  onBusyChange?: (busy: boolean) => void;
+}) {
+  const id = useId();
+  const current = useRef(blocks);
+  current.current = blocks;
+  const [busyPhotos, setBusyPhotos] = useState<Set<string>>(new Set());
+  const busy = busyPhotos.size > 0;
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+  const busyChanged = useCallback((key: string, active: boolean) => setBusyPhotos((previous) => {
+    const next = new Set(previous); if (active) next.add(key); else next.delete(key); return next;
+  }), []);
+  const photos = blocks.filter((block) => block.type === "photo");
+  const body = blocks.filter((block) => block.type === "text").map((block) => block.content).join("\n\n");
+  const updatePhoto = (key: string, patch: Partial<TripReportBlock>) => onChange(current.current.map((block, index) => (block.sourceId || `photo-${index}`) === key ? { ...block, ...patch } : block));
+  const reorder = (index: number, step: number) => {
+    const reordered = [...photos];
+    const [photo] = reordered.splice(index, 1); reordered.splice(index + step, 0, photo);
+    onChange([...blocks.filter((block) => block.type === "text"), ...reordered]);
+  };
+  return <div className="space-y-8">
+    <div><Label htmlFor={`${id}-body`}>Your trip report</Label><Textarea id={`${id}-body`} value={body} onChange={(event) => onChange([{ type: "text", content: event.target.value }, ...current.current.filter((block) => block.type === "photo")])} rows={9} maxLength={20000} placeholder="Conditions, highlights, and what the next person should know" required /><p className="mt-2 text-xs text-muted">Share what you saw, including the date and any changes to the route.</p></div>
+    <section aria-labelledby={`${id}-photos`}><h2 id={`${id}-photos`} className="text-lg font-medium text-ink">Photos</h2><p className="mt-2 text-sm text-muted">Your photos appear after the report, in this order.</p>
+      <div className="mt-5 space-y-8">{photos.map((photo, index) => {
+        const blockIndex = blocks.indexOf(photo);
+        const key = photo.sourceId || `photo-${blockIndex}`;
+        return <div key={key}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium text-ink">Photo {index + 1}</p><div className="flex gap-2"><Button type="button" variant="quiet" aria-label={`Move photo ${index + 1} earlier`} disabled={busy || index === 0} onClick={() => reorder(index, -1)}>Move up</Button><Button type="button" variant="quiet" aria-label={`Move photo ${index + 1} later`} disabled={busy || index === photos.length - 1} onClick={() => reorder(index, 1)}>Move down</Button><Button type="button" variant="quiet" disabled={busy} onClick={() => onChange(blocks.filter((block) => block !== photo))}>Remove photo</Button></div></div>
+          <PhotoFields block={photo} userId={userId} sessionId={sessionId} onChange={(patch) => updatePhoto(key, patch)} onBusy={(active) => busyChanged(key, active)} />
+        </div>;
+      })}</div>
+      <Button type="button" variant="secondary" disabled={!sessionId || busy} className="mt-5" onClick={() => onChange([...blocks, { type: "photo", content: "", caption: "", sourceId: `draft-${crypto.randomUUID()}` }])}>Add a photo</Button>
+    </section>
+  </div>;
 }

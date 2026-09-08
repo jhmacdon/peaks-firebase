@@ -2,8 +2,7 @@ import { Button } from "../ui/button";
 import { ShareLinkButton } from "../share-link-button";
 import { catalogRoutePath } from "../route-paths";
 
-/** Directions to the start — the route page's one filled action
- * (design-tokens.md law 4). */
+/** Keep the catalog route selected through sign-in and trip creation. */
 export function RouteActions({
   routeId,
   name,
@@ -17,8 +16,11 @@ export function RouteActions({
 }) {
   return (
     <div className={`flex flex-wrap items-start gap-3 ${className}`.trim()}>
+      <Button href={`/my-routes/new?route=${encodeURIComponent(routeId)}&name=${encodeURIComponent(name)}`}>
+        Plan a trip
+      </Button>
       {directionsUrl ? (
-        <Button href={directionsUrl} external>
+        <Button href={directionsUrl} variant="secondary" external>
           Directions to start
         </Button>
       ) : null}

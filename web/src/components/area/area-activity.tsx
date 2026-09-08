@@ -6,6 +6,7 @@ import {
   formatMilesValue,
   formatShortDate,
 } from "../../lib/destination-detail";
+import { Button } from "../ui/button";
 import ProgressBar from "../progress-bar";
 import { StatCluster } from "../ui/stat";
 import { useAreaPersonalization } from "./area-personalization";
@@ -19,7 +20,7 @@ export function AreaActivity({
   destinationCount: number;
   className?: string;
 }) {
-  const { activity, loading, signedIn } = useAreaPersonalization();
+  const { activity, loading, signedIn, error, retry } = useAreaPersonalization();
 
   if (!signedIn) return null;
 
@@ -32,7 +33,7 @@ export function AreaActivity({
       >
         <p
           id="area-personal-activity"
-          className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase"
+          className="text-sm text-muted"
         >
           Your activity
         </p>
@@ -41,6 +42,7 @@ export function AreaActivity({
     );
   }
 
+  if (error) return <p role="status" className="text-sm text-muted">Your area activity could not load. <Button variant="quiet" onClick={retry}>Retry</Button></p>;
   if (!activity) return null;
 
   const reachedCount = Object.keys(activity.reached_destinations).length;
@@ -55,7 +57,7 @@ export function AreaActivity({
     >
       <p
         id="area-personal-activity"
-        className="text-[11px] font-medium tracking-[0.1em] text-muted uppercase"
+        className="text-sm text-muted"
       >
         Your activity
       </p>
@@ -80,24 +82,12 @@ export function AreaActivity({
         />
       ) : null}
 
-      <div className="mt-6 flex flex-wrap gap-x-10 gap-y-5">
-        <StatCluster
-          scale="card"
-          value={activity.visit_count.toLocaleString("en-US")}
-          label={activity.visit_count === 1 ? "Visit" : "Visits"}
-        />
-        {distance ? (
-          <StatCluster scale="card" value={distance} unit="mi" label="Distance" />
-        ) : null}
-        {gain ? <StatCluster scale="card" value={gain} unit="ft" label="Gain" /> : null}
-        {activity.total_time > 0 ? (
-          <StatCluster
-            scale="card"
-            value={formatElapsed(activity.total_time)}
-            label="Moving time"
-          />
-        ) : null}
-      </div>
+      <p className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-2">
+        <span>{activity.visit_count.toLocaleString()} {activity.visit_count === 1 ? "visit" : "visits"}</span>
+        {distance ? <span>{distance} mi</span> : null}
+        {gain ? <span>{gain} ft gained</span> : null}
+        {activity.total_time > 0 ? <span>{formatElapsed(activity.total_time)} moving</span> : null}
+      </p>
     </section>
   );
 }

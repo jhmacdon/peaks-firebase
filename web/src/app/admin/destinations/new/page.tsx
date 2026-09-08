@@ -151,6 +151,7 @@ function NewDestinationContent() {
   // Confirm state
   const [confirm, setConfirm] = useState<ConfirmData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [lookingUpElevation, setLookingUpElevation] = useState(false);
   const [boundary, setBoundary] = useState<GeoJSON.Polygon | null>(null);
   const [showBoundaryEditor, setShowBoundaryEditor] = useState(false);
@@ -310,6 +311,7 @@ function NewDestinationContent() {
   const handleSave = async () => {
     if (!confirm || !confirm.name.trim() || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const result = await createDestination({
         name: confirm.name.trim(),
@@ -360,7 +362,7 @@ function NewDestinationContent() {
       setCoordinateError("");
       setStep("pick");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to create destination");
+      setSaveError(err instanceof Error ? err.message : "Failed to create destination. Try again.");
     } finally {
       setSaving(false);
     }
@@ -627,6 +629,7 @@ function NewDestinationContent() {
             </div>
           </form>
         </AdminPage>
+        {saveError && <p role="alert" className="fixed inset-x-4 bottom-4 z-50 rounded-ctl border border-alert bg-page p-4 text-sm text-alert">{saveError}</p>}
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
       </>
     );

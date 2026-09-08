@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import {
   AuthCredential,
   OAuthCredential,
@@ -332,10 +332,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   };
 
-  const getIdToken = async (): Promise<string | null> => {
+  const getIdToken = useCallback(async (): Promise<string | null> => {
     if (!auth.currentUser) return null;
     return auth.currentUser.getIdToken();
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -354,7 +354,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getIdToken,
       }}
     >
-      {children}
+      <Fragment key={user?.uid ?? "signed-out"}>{children}</Fragment>
     </AuthContext.Provider>
   );
 }

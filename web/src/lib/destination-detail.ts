@@ -419,6 +419,56 @@ export function amenityCredits(rows: AmenityRow[]): AmenityCredit[] {
   return dedupeCredits(rows.flatMap((row) => row.credits ?? []));
 }
 
+export interface DestinationPlanningContext {
+  routeCount: number;
+  isTrailhead: boolean;
+  accessFacts: AmenityRow[];
+  sources: AmenityCredit[];
+}
+
+export interface DestinationPlanningNote {
+  text: string;
+  link?: { label: string; href: string };
+}
+
+/** Describe the next planning step from known records, never from summit type or visit totals. */
+export function buildDestinationPlanningNotes(context: DestinationPlanningContext): DestinationPlanningNote[] {
+  const notes: DestinationPlanningNote[] = [];
+  if (context.routeCount > 0) {
+    notes.push({
+      text: "Choose an approach from the linked routes, then check its distance, gain, and starting point.",
+      link: { label: context.routeCount === 1 ? "View route" : "Compare routes", href: "#destination-routes" },
+    });
+  } else {
+    notes.push({
+      text: context.isTrailhead
+        ? "This place is listed as a trailhead. No onward route is linked yet."
+        : "An approach route and its starting point are not available on this page.",
+    });
+  }
+
+  const road = context.accessFacts.find((fact) => fact.label === "Road");
+  if (road) {
+    notes.push({
+      text: `Road access on record: ${road.value}. Check the source for current road conditions.`,
+      link: { label: "Trailhead access", href: "#destination-trailhead" },
+    });
+  } else if (context.isTrailhead) {
+    notes.push({ text: "Road access details are not available for this trailhead." });
+  }
+
+  const source = context.sources.find((credit) => {
+    if (!credit.name.trim() || !credit.url) return false;
+    try { return ["http:", "https:"].includes(new URL(credit.url).protocol); }
+    catch { return false; }
+  });
+  notes.push({
+    text: "Current access, permit, and seasonal-closure updates are not available here. Confirm those details with the land manager before your trip.",
+    ...(source?.url ? { link: { label: `Read ${source.name}`, href: source.url } } : {}),
+  });
+  return notes;
+}
+
 /** The first paragraph of a trip report, clipped for a list row. Structural
  * block shape rather than the TripReport type, so this stays a plain module
  * and doesn't pull a "use server" file into the client bundle. */

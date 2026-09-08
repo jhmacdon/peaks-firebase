@@ -39,12 +39,30 @@ test("each web read carries its own predicate call", () => {
     "actions/routes.ts": 3,
     "actions/sessions.ts": 1,
     "actions/search.ts": 3,
-    "actions/areas.ts": 1,
+    "actions/areas.ts": 2, // Initial area routes and subsequent route pages.
     "actions/trip-reports.ts": 1,
     "public-session-routes.ts": 1,
   };
   for (const [file, expected] of Object.entries(counts)) {
     const uses = read(file).match(/routeDoneCoverageSql\(/g) ?? [];
     assert.equal(uses.length, expected, `${file} should call the predicate ${expected} time(s)`);
+  }
+});
+
+test("area route totals and both page queries share the active catalog boundary", () => {
+  const source = read("actions/areas.ts");
+  const queries = [
+    source.slice(source.indexOf("const AREA_BASE_SELECT"), source.indexOf("async function loadAreaBase")),
+    source.slice(source.indexOf("export async function getArea(id"), source.indexOf("export async function getAreaDestinationPage")),
+    source.slice(source.indexOf("export async function getAreaRoutePage"), source.indexOf("export async function getAreaPersonalActivity")),
+  ];
+
+  for (const query of queries) {
+    assert.match(query, /FROM route_areas ra\s+JOIN routes r ON r\.id = ra\.route_id/);
+    assert.match(query, /r\.owner = 'peaks'/);
+    assert.match(query, /r\.status = 'active'/);
+  }
+  for (const query of queries.slice(1)) {
+    assert.match(query, /sr\.route_id = r\.id\s+AND \$\{routeDoneCoverageSql\("sr"\)\}/);
   }
 });

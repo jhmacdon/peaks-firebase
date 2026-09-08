@@ -12,6 +12,11 @@ import {
   roundToQuarterHour,
 } from "./format";
 
+test("long route estimates state moving days and their daily-hour assumption", () => {
+  assert.equal(formatDurationRangeFriendly(1075.25, 1518), "134–190 days at 8 hr/day");
+  assert.equal(formatDurationRangeFriendly(20, 28), "3–4 days at 8 hr/day");
+});
+
 test("roundToQuarterHour snaps to the nearest quarter hour", () => {
   assert.equal(roundToQuarterHour(3.1), 3);
   assert.equal(roundToQuarterHour(3.13), 3.25);

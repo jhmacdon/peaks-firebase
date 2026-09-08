@@ -14,6 +14,7 @@ import { Breadcrumb } from "../../../../components/detail-sections";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { SectionHeading } from "../../../../components/ui/section-heading";
 import { Topline } from "../../../../components/ui/topline";
+import { Button } from "../../../../components/ui/button";
 import {
   catalogRoutePath,
   publicSavedRoutePath,
@@ -33,7 +34,8 @@ export default async function PublicSavedRoutePage({
   if (!bundle) notFound();
 
   const { plan } = bundle;
-  const name = plan.name || "Untitled Route";
+  const name = plan.name || "Untitled trip";
+  const canStartTrip = bundle.destinations.length > 0 || bundle.routes.some((route) => route.isCatalog);
   const mapRoutes = buildPlanMapRoutes(bundle.routes);
   const mapMarkers = buildPlanMapMarkers(bundle.destinations, bundle.reachedDestinations);
   const hasMapContent = mapRoutes.length > 0 || mapMarkers.length > 0 || Boolean(plan.path);
@@ -55,16 +57,19 @@ export default async function PublicSavedRoutePage({
         title={name}
         meta={
           <p>
-            {[tripDate ? `Trip Date: ${tripDate}` : null, "Public route"]
+            {[tripDate, "Public trip"]
               .filter(Boolean)
               .join(" · ")}
           </p>
         }
         actions={
+          <div className="flex flex-wrap gap-3">
+          {canStartTrip && <Button href={`/my-routes/new?fromTrip=${encodeURIComponent(id)}`}>Plan a similar trip</Button>}
           <ShareLinkButton
             url={publicSavedRoutePath(id)}
             title={name}
           />
+          </div>
         }
       />
 
@@ -111,7 +116,7 @@ export default async function PublicSavedRoutePage({
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {bundle.destinations.length > 0 ? (
           <section className="rounded-media border border-border bg-surface p-6">
-            <SectionHeading>Destinations ({bundle.destinations.length})</SectionHeading>
+            <SectionHeading>Places to visit ({bundle.destinations.length})</SectionHeading>
             <ul className="mt-4 divide-y divide-hairline">
               {bundle.destinations.map((destination) => (
                 <li key={destination.id}>
@@ -134,7 +139,7 @@ export default async function PublicSavedRoutePage({
 
         {bundle.routes.length > 0 ? (
           <section className="rounded-media border border-border bg-surface p-6">
-            <SectionHeading>Routes ({bundle.routes.length})</SectionHeading>
+            <SectionHeading>Routes to follow ({bundle.routes.length})</SectionHeading>
             <ul className="mt-4 divide-y divide-hairline">
               {bundle.routes.map((route) => {
                 const facts = [
@@ -173,9 +178,11 @@ export default async function PublicSavedRoutePage({
         ) : null}
       </div>
 
-      <p className="mt-8 text-xs leading-5 text-muted">
-        Shared route pages do not include photos, health data, or party details.
-      </p>
+      <section className="mt-10 border-t border-hairline pt-8">
+        <h2 className="text-xl font-medium text-ink">Make your next trip</h2>
+        <p className="mt-2 max-w-[68ch] text-sm text-muted">{canStartTrip ? "Start with these places and catalog routes, then choose your own date, notes, and friends." : "Explore nearby places and catalog routes to build your own itinerary."}</p>
+        <Button className="mt-4" href={canStartTrip ? `/my-routes/new?fromTrip=${encodeURIComponent(id)}` : "/discover"}>{canStartTrip ? "Plan a similar trip" : "Explore places"}</Button>
+      </section>
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { ActivityPhotoGroups } from "../../../../components/activity-photo-groups";
+import { getActivityPhotoGroups } from "../../../../lib/actions/activity-photos";
+import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import {
@@ -32,7 +35,7 @@ import { AreaChips } from "../../../../components/area-chip";
 import { PageHeader } from "../../../../components/ui/page-header";
 import { DestinationAbout } from "../../../../components/destination/destination-about";
 import { DestinationActions } from "../../../../components/destination/destination-actions";
-import { DestinationActivity } from "../../../../components/destination/destination-activity";
+import { DestinationActivity, DestinationActivityProvider, DestinationSessions } from "../../../../components/destination/destination-activity";
 import { DestinationHero } from "../../../../components/destination/destination-hero";
 import { DestinationLists } from "../../../../components/destination/destination-lists";
 import { DestinationMapLinks } from "../../../../components/destination/destination-map-links";
@@ -94,7 +97,7 @@ export default async function DestinationDetailPage({
 
   const hasCoords = dest.lat != null && dest.lng != null;
 
-  const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw, weather] =
+  const [routes, lists, sessionCount, tripReportCount, tripReports, nearbyRaw, weather, photoGroups] =
     await Promise.all([
       settled(getDestinationRoutes(id, { publicOnly: true }), []),
       settled(getDestinationLists(id), []),
@@ -105,6 +108,7 @@ export default async function DestinationDetailPage({
         ? settled(getNearbyDestinations(dest.lat!, dest.lng!, 15000, 7), [])
         : Promise.resolve([]),
       settled(getDestinationWeatherCached(id), null),
+      getActivityPhotoGroups({ destinationId: id }),
     ]);
 
   const nearby = nearbyRaw.filter((n) => n.id !== id).slice(0, 6);
@@ -181,7 +185,8 @@ export default async function DestinationDetailPage({
   ].filter((stat): stat is ToplineStat => stat !== null);
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-8">
+    <DestinationActivityProvider destinationId={id}>
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-6">
       <PageHeader
         breadcrumb={<Breadcrumb current={name} />}
         title={name}
@@ -195,35 +200,20 @@ export default async function DestinationDetailPage({
         }
       />
 
+      <DestinationActivity className="mt-6" />
+
       <AreaChips areas={dest.areas} className="mt-4" />
 
-      <DestinationHero
-        name={name}
-        photos={photos}
-        lat={dest.lat}
-        lng={dest.lng}
-        boundary={dest.boundary}
-        elevationValue={elevationInHero ? elevationValue : null}
-        className="mt-8"
-      />
-
-      {mapIsHero ? (
-        <DestinationMapLinks lat={dest.lat!} lng={dest.lng!} className="mt-3" />
-      ) : null}
-
-      <DestinationActions
-        destinationId={id}
-        name={dest.name}
-        directionsUrl={directionsUrl}
-        className="mt-8"
-      />
-
-      <Topline stats={toplineStats} className="mt-10" />
-
+      <DestinationActions destinationId={id} name={dest.name} directionsUrl={directionsUrl} className="mt-5" />
+      <DetailSectionNav sections={[
+        { id: "destination-about", label: "Overview" },
+        { id: "destination-facts", label: "Facts" },
+        ...(photoGroups.length ? [{ id: "destination-photos", label: "Photos" }] : []),
+        { id: "destination-routes", label: "Routes" },
+        ...(tripReportCount ? [{ id: "destination-reports", label: "Trip reports" }] : []),
+      ]} />
       <div className="mt-12 grid gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-12">
-          <DestinationActivity destinationId={id} />
-
           <DestinationAbout
             name={name}
             body={dest.description || guide.headline}
@@ -232,35 +222,40 @@ export default async function DestinationDetailPage({
             sourceLicense={dest.description ? dest.description_source_license : null}
           />
 
-          <DestinationRecreationGov link={destinationLinks.recreationGov} />
-
-          <DestinationExternalLinks links={destinationLinks.other} />
-
+          <section id="destination-facts" className="scroll-mt-24" aria-label="Catalog facts">
+            <Topline stats={toplineStats} />
+          </section>
           <DestinationPlanning
-            notes={guide.paragraphs}
+            context={{
+              routeCount: routes.length,
+              isTrailhead: dest.features.includes("trailhead"),
+              accessFacts: trailheadFacts,
+              sources: [
+                ...externalLinks.filter((link) => link.type === "nps" || link.type === "usfs").map((link) => ({ name: link.type === "nps" ? "National Park Service" : "US Forest Service", url: link.href })),
+                ...trailheadCredits,
+                ...(dest.description_source_name && dest.description_source_url ? [{ name: dest.description_source_name, url: dest.description_source_url }] : []),
+                ...externalLinks.filter((link) => ["wta", "mountaineers", "alltrails", "summitpost"].includes(link.type)).map((link) => ({ name: link.label.replace(/^View on /, ""), url: link.href })),
+              ],
+            }}
             facilities={facilities}
             forecastUrl={forecastUrl}
           />
-
+          <DestinationRecreationGov link={destinationLinks.recreationGov} />
+          <DestinationExternalLinks links={destinationLinks.other} />
           <DestinationTrailheads rows={trailheadFacts} credits={trailheadCredits} />
 
           {weather ? (
-            <DestinationWeather days={weather.days} forecastUrl={forecastUrl} />
+            <DestinationWeather days={weather.days} forecastUrl={forecastUrl} locationName={name} elevationFeet={elevationValue} />
           ) : null}
 
           {months ? <DestinationSeasonality counts={months} /> : null}
 
-          {/* Skipped only when the hero already IS the live map — see
-              DestinationHero. Without coordinates the section still renders
-              and says so, rather than the page quietly losing a heading. */}
-          {mapIsHero ? null : (
-            <DestinationMapSection
-              name={dest.name}
-              lat={dest.lat}
-              lng={dest.lng}
-              boundary={dest.boundary}
-            />
+          <DestinationHero name={name} photos={photos} lat={dest.lat} lng={dest.lng} boundary={dest.boundary} elevationValue={elevationInHero ? elevationValue : null} />
+          {mapIsHero ? <DestinationMapLinks lat={dest.lat!} lng={dest.lng!} /> : (
+            <DestinationMapSection name={dest.name} lat={dest.lat} lng={dest.lng} boundary={dest.boundary} />
           )}
+          <ActivityPhotoGroups groups={photoGroups} id="destination-photos" />
+          <DestinationSessions />
 
           <DestinationRoutes routes={routes} />
 
@@ -277,5 +272,6 @@ export default async function DestinationDetailPage({
         </aside>
       </div>
     </div>
+    </DestinationActivityProvider>
   );
 }

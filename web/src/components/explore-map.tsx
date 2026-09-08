@@ -20,6 +20,7 @@ export interface MapDestination {
   lat: number;
   lng: number;
   features: string[];
+  catalogKind?: "destinations" | "areas";
 }
 
 export interface MapRoute {
@@ -48,15 +49,18 @@ export interface ExploreMapHandle {
    * caller can open the popup once the marker arrives. */
   openDestination: (id: string, lat: number, lng: number) => boolean;
   focusRoute: (id: string) => void;
+  focusBounds: (bounds: { minLat: number; minLng: number; maxLat: number; maxLng: number }) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   zoomTo: (zoom: number) => void;
   showUserLocation: (lat: number, lng: number) => void;
+  retryTiles: () => void;
 }
 
 interface ExploreMapProps {
   destinations: MapDestination[];
   routes: MapRoute[];
+  areaBoundary?: GeoJSON.GeoJsonObject | null;
   basemap: "topo" | "satellite";
   selectedDestinationId: string | null;
   selectedRouteId: string | null;
@@ -67,6 +71,7 @@ interface ExploreMapProps {
   /** Ask the browser where the reader is once the map is up. False when the
    * URL already said where to look — see shouldAutoLocate in map-view.ts. */
   autoLocate: boolean;
+  onTileStatus?: (failed: boolean) => void;
   onReady: (handle: ExploreMapHandle) => void;
   onViewportChange: (viewport: MapViewport) => void;
   onSelectDestination: (destination: MapDestination) => void;
@@ -149,6 +154,9 @@ function popupNode(title: string, detail: string, href: string, cta: string) {
 }
 
 function destinationPopup(dest: MapDestination): HTMLElement {
+  if (dest.catalogKind === "areas") {
+    return popupNode(dest.name || "Unnamed area", "Protected area", `/areas/${encodeURIComponent(dest.id)}`, "View area guide");
+  }
   const detail = [
     destinationTypeWord(dest.features),
     dest.elevation != null ? formatElevationMeters(dest.elevation) : null,
@@ -191,6 +199,7 @@ interface DestMarkerEntry {
 export default function ExploreMap({
   destinations,
   routes,
+  areaBoundary,
   basemap,
   selectedDestinationId,
   selectedRouteId,
@@ -199,6 +208,7 @@ export default function ExploreMap({
   showRouteAttribution,
   initialView,
   autoLocate,
+  onTileStatus,
   onReady,
   onViewportChange,
   onSelectDestination,
@@ -235,6 +245,7 @@ export default function ExploreMap({
   const onSelectDestinationRef = useRef(onSelectDestination);
   const onSelectRouteRef = useRef(onSelectRoute);
   const onClearSelectionRef = useRef(onClearSelection);
+  const onTileStatusRef = useRef(onTileStatus);
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -242,7 +253,8 @@ export default function ExploreMap({
     onSelectDestinationRef.current = onSelectDestination;
     onSelectRouteRef.current = onSelectRoute;
     onClearSelectionRef.current = onClearSelection;
-  }, [onReady, onViewportChange, onSelectDestination, onSelectRoute, onClearSelection]);
+    onTileStatusRef.current = onTileStatus;
+  }, [onReady, onViewportChange, onSelectDestination, onSelectRoute, onClearSelection, onTileStatus]);
 
   const applyDestinationEmphasis = useCallback(() => {
     for (const [id, entry] of destMarkersRef.current) {
@@ -372,9 +384,8 @@ export default function ExploreMap({
     layer.clearLayers();
     routeLinesRef.current.clear();
 
-    if (map.getZoom() < ROUTE_MIN_ZOOM) return;
-
     for (const route of routesRef.current) {
+      if (map.getZoom() < ROUTE_MIN_ZOOM && route.id !== selectedRouteIdRef.current) continue;
       if (!route.polyline6) continue;
       const coords = decodePolyline6(route.polyline6);
       if (coords.length < 2) continue;
@@ -440,6 +451,14 @@ export default function ExploreMap({
       maxZoom: 18,
       detectRetina: true,
     });
+    for (const layer of [topoLayerRef.current, satLayerRef.current]) {
+      let failed = false;
+      layer.on("loading", () => { failed = false; });
+      layer.on("tileerror", () => { failed = true; });
+      layer.on("load", () => {
+        if (map.hasLayer(layer)) onTileStatusRef.current?.(failed);
+      });
+    }
     topoLayerRef.current.addTo(map);
 
     markersLayerRef.current = L.layerGroup().addTo(map);
@@ -528,6 +547,15 @@ export default function ExploreMap({
     }
 
     const handle: ExploreMapHandle = {
+      retryTiles: () => {
+        for (const layer of [topoLayerRef.current, satLayerRef.current]) {
+          if (layer && map.hasLayer(layer)) layer.redraw();
+        }
+      },
+      focusBounds: (bounds) => {
+        markDirected();
+        map.flyToBounds([[bounds.minLat, bounds.minLng], [bounds.maxLat, bounds.maxLng]], {padding: [48,48], maxZoom:14, duration:0.8});
+      },
       openDestination: (id, lat, lng) => {
         markDirected();
         const entry = destMarkersRef.current.get(id);
@@ -622,6 +650,16 @@ export default function ExploreMap({
   }, [routes, rebuildRouteLines]);
 
   useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !areaBoundary) return;
+    const edge = L.geoJSON(areaBoundary, {interactive:false,style:{color:PALE_EDGE,weight:4,fill:false}}).addTo(map);
+    const fill = L.geoJSON(areaBoundary, {interactive:false,style:{color:ACCENT,weight:2,fillColor:ACCENT,fillOpacity:0.12}}).addTo(map);
+    edge.bringToBack();
+    fill.bringToBack();
+    return ()=>{edge.remove();fill.remove();};
+  }, [areaBoundary]);
+
+  useEffect(() => {
     selectedDestIdRef.current = selectedDestinationId;
     hoveredDestIdRef.current = hoveredDestinationId;
     selectedRouteIdRef.current = selectedRouteId;
@@ -636,6 +674,10 @@ export default function ExploreMap({
     applyDestinationEmphasis,
     applyRouteEmphasis,
   ]);
+
+  useEffect(() => {
+    rebuildRouteLines();
+  }, [selectedRouteId, rebuildRouteLines]);
 
   useEffect(() => {
     const map = mapInstance.current;

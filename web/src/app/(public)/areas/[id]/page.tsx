@@ -1,3 +1,6 @@
+import { ActivityPhotoGroups } from "../../../../components/activity-photo-groups";
+import { getActivityPhotoGroups } from "../../../../lib/actions/activity-photos";
+import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArea } from "../../../../lib/actions/areas";
@@ -33,6 +36,7 @@ export default async function AreaDetailPage({
   const { id } = await params;
   const area = await getArea(id);
   if (!area) notFound();
+  const photoGroups = await getActivityPhotoGroups({ areaId: id });
 
   const managerLabel = describeManager(area.manager);
   const regionLabel = formatRegionList(area.state_codes, area.country_code);
@@ -61,7 +65,7 @@ export default async function AreaDetailPage({
   const facts = managerLabel ? [{ label: "Manager", value: managerLabel }] : [];
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-8">
+    <div className="mx-auto max-w-[1200px] px-5 py-8 sm:px-6">
       <PageHeader
         breadcrumb={
           <Breadcrumb current={area.name} parentHref="/areas" parentLabel="Protected areas" />
@@ -94,6 +98,12 @@ export default async function AreaDetailPage({
         <div className="mt-8 space-y-12">
           <AreaActivity destinationCount={area.destination_count} />
 
+          <DetailSectionNav sections={[
+            { id: "area-about", label: "Overview" },
+            { id: "area-destinations", label: "Places" },
+            ...(photoGroups.length ? [{ id: "area-photos", label: "Photos" }] : []),
+            { id: "area-routes", label: "Routes" },
+          ]} />
           <AreaAbout
             name={area.name}
             description={area.description}
@@ -110,14 +120,17 @@ export default async function AreaDetailPage({
 
           <AreaHero area={area} />
 
+          <ActivityPhotoGroups groups={photoGroups} id="area-photos" />
+
           <AreaDestinations
+            areaId={id}
             destinations={area.destinations}
             totalCount={area.destination_count}
           />
 
           <AreaSessions />
 
-          <AreaRoutes routes={area.routes} totalCount={area.route_count} />
+          <AreaRoutes areaId={id} routes={area.routes} totalCount={area.route_count} />
         </div>
       </AreaPersonalizationProvider>
     </div>

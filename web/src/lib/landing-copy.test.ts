@@ -82,8 +82,9 @@ test("peak-bagging's paragraph cites the live count when present", () => {
 test("skiing and trail-running paragraphs are static — no count to invent", () => {
   const skiing = activityLandingConfig("skiing").paragraph({ count: null });
   const running = activityLandingConfig("trail-running").paragraph({ count: null });
-  assert.match(skiing, /doesn't track ski touring/);
-  assert.match(running, /same way it logs a hike/);
+  assert.equal(skiing, activityLandingConfig("skiing").paragraph({ count: 12345 }));
+  assert.equal(running, activityLandingConfig("trail-running").paragraph({ count: 12345 }));
+  assert.doesNotMatch(skiing + running, /12,345/);
 });
 
 test("buildStateEditorialParagraph includes every fact that's present", () => {

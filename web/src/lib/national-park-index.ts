@@ -106,6 +106,7 @@ export interface NationalParkIndexResult {
   areas: NationalParkIndexRow[];
   states: NationalParkIndexState[];
   totalMatching: number;
+  totalStates: number;
 }
 
 // Must match cloud-sql/migrate/src/padus-area-utils.ts. The general web
@@ -153,6 +154,8 @@ export function buildNationalParkIndex(
     stateCode?: string;
     statesLimit: number;
     perStateLimit: number;
+    statesOffset?: number;
+    perStateOffset?: number;
   }
 ): NationalParkIndexResult {
   const candidatesByName = new Map<string, NationalParkAreaCandidate[]>();
@@ -191,11 +194,11 @@ export function buildNationalParkIndex(
       stateCounts.set(stateCode, (stateCounts.get(stateCode) ?? 0) + 1);
     }
   }
-  const states = [...stateCounts]
+  const matchingStates = [...stateCounts]
     .map(([code, count]) => ({ code, count }))
     .sort((left, right) => right.count - left.count || left.code.localeCompare(right.code))
-    .filter((state) => !options.stateCode || state.code === options.stateCode)
-    .slice(0, options.statesLimit);
+    .filter((state) => !options.stateCode || state.code === options.stateCode);
+  const states = matchingStates.slice(options.statesOffset ?? 0, (options.statesOffset ?? 0) + options.statesLimit);
   const areas = states.flatMap((state) =>
     matching
       .filter(({ park }) => park.stateCodes.includes(state.code))
@@ -204,7 +207,7 @@ export function buildNationalParkIndex(
           right.candidate.destinationCount - left.candidate.destinationCount ||
           left.park.name.localeCompare(right.park.name)
       )
-      .slice(0, options.perStateLimit)
+      .slice(options.perStateOffset ?? 0, (options.perStateOffset ?? 0) + options.perStateLimit)
       .map(({ park, candidate }) => ({
         id: candidate.id,
         name: park.name,
@@ -216,5 +219,5 @@ export function buildNationalParkIndex(
       }))
   );
 
-  return { areas, states, totalMatching: matching.length };
+  return { areas, states, totalMatching: matching.length, totalStates: matchingStates.length };
 }

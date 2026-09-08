@@ -7,10 +7,22 @@ import {
   buildPlanTopline,
   orderByIds,
   pickerNames,
-  withFallback,
+  assertPlanLinks,
+  sumPlanRouteMetrics,
   type PlanDestinationRow,
   type PlanRouteRow,
 } from "./plan-detail";
+
+test("trip route totals use round-trip values and require every chosen route", () => {
+  const routes = [
+    { id: "return", distance: 5000, gain: 800, gain_loss: 100, shape: "out_and_back" },
+    { id: "loop", distance: 2000, gain: 200, gain_loss: 200, shape: "loop" },
+  ];
+  assert.deepEqual(sumPlanRouteMetrics(["return", "loop"], routes), { distance: 12000, gain: 1100 });
+  assert.deepEqual(sumPlanRouteMetrics(["return", "missing"], routes), { distance: null, gain: null });
+  assert.deepEqual(sumPlanRouteMetrics([], routes), { distance: null, gain: null });
+  assert.deepEqual(sumPlanRouteMetrics(["loop"], [{ ...routes[1], distance: null }]), { distance: null, gain: 200 });
+});
 
 function destination(overrides: Partial<PlanDestinationRow> = {}): PlanDestinationRow {
   return {
@@ -100,43 +112,8 @@ test("pickerNames falls back to Unnamed, matching the rest of the site's convent
   ]);
 });
 
-test("withFallback resolves to the value when the promise succeeds", async () => {
-  const result = await withFallback(Promise.resolve("ok"), "fallback");
-  assert.equal(result, "ok");
-});
-
-test("withFallback returns the fallback and reports the error when the promise rejects", async () => {
-  const errors: unknown[] = [];
-  const result = await withFallback(Promise.reject(new Error("boom")), "fallback", (error) =>
-    errors.push(error)
-  );
-  assert.equal(result, "fallback");
-  assert.equal(errors.length, 1);
-  assert.equal((errors[0] as Error).message, "boom");
-});
-
-test("withFallback is safe to call without an onError handler", async () => {
-  const result = await withFallback(Promise.reject(new Error("boom")), "fallback");
-  assert.equal(result, "fallback");
-});
-
-test("a Promise.all of withFallback-wrapped queries survives one query rejecting (getPlanBundle's shape)", async () => {
-  // Mirrors getPlanBundle's four independent Cloud SQL queries: one
-  // (reached destinations) rejects, and the reliable ones (destinations,
-  // routes) must still come back with their real rows, not get swept into
-  // the same failure by a shared Promise.all.
-  const [destResult, routeResult, reachedResult, processingResult] = await Promise.all([
-    withFallback(Promise.resolve({ rows: [{ id: "a" }] }), { rows: [] as { id: string }[] }),
-    withFallback(Promise.resolve({ rows: [{ id: "b" }] }), { rows: [] as { id: string }[] }),
-    withFallback(Promise.reject(new Error("reached-destinations query failed")), {
-      rows: [] as { id: string }[],
-    }),
-    withFallback(Promise.resolve({ rows: [{ distance: 100 }] }), {
-      rows: [] as { distance: number }[],
-    }),
-  ]);
-  assert.deepEqual(destResult, { rows: [{ id: "a" }] });
-  assert.deepEqual(routeResult, { rows: [{ id: "b" }] });
-  assert.deepEqual(reachedResult, { rows: [] });
-  assert.deepEqual(processingResult, { rows: [{ distance: 100 }] });
+test("trip validation rejects missing chosen links instead of rendering an incomplete itinerary", () => {
+  assert.doesNotThrow(() => assertPlanLinks(["a", "a"], [{ id: "a" }], "places"));
+  assert.throws(() => assertPlanLinks(["a", "missing"], [{ id: "a" }], "places"), /places that are missing/);
+  assert.throws(() => assertPlanLinks(["private"], [], "routes"), /routes that are missing/);
 });

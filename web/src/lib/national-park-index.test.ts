@@ -105,3 +105,15 @@ test("missing source rows fail the audit", () => {
     /Missing PAD-US rows for national parks: Acadia National Park/
   );
 });
+
+test("state and place pagination reaches the whole roster without overlap", () => {
+  const candidates = allCandidates();
+  const first = buildNationalParkIndex(candidates, { statesLimit: 2, perStateLimit: 100 });
+  const next = buildNationalParkIndex(candidates, { statesLimit: 2, statesOffset: 2, perStateLimit: 100 });
+  assert.equal(first.totalStates, next.totalStates);
+  assert.ok(first.states.every((state) => !next.states.some((other) => state.code === other.code)));
+  const ca = buildNationalParkIndex(candidates, { stateCode: "CA", statesLimit: 1, perStateLimit: 2 });
+  const caNext = buildNationalParkIndex(candidates, { stateCode: "CA", statesLimit: 1, perStateLimit: 2, perStateOffset: 2 });
+  assert.ok(ca.areas.every((area) => !caNext.areas.some((other) => area.id === other.id)));
+  assert.equal(ca.totalMatching, caNext.totalMatching);
+});

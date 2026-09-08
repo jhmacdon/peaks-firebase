@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import RouteCard from "../../../../components/route-card";
 import DestinationCard from "../../../../components/destination-card";
 import { ContourArt } from "../../../../components/contour-art";
 import { FaqSection } from "../../../../components/faq-section";
@@ -155,28 +156,36 @@ export default async function ActivityLandingPage({
           <ContourArt className="h-auto w-full" seed={seed} />
         </div>
 
-        <div className="relative mx-auto max-w-[1200px] px-6 pt-20 pb-40 md:pt-28 lg:pb-20">
+        <div className="relative mx-auto max-w-[1200px] px-6 pt-10 pb-12 md:pt-16 md:pb-16">
           <h1 className="font-display max-w-[16ch] text-[32px] leading-[1.05] font-[680] tracking-[-0.015em] text-ink sm:text-[40px] md:text-[52px] lg:text-[64px]">
             {config.h1}
           </h1>
           <p className="mt-6 max-w-[36ch] text-[18px] leading-[1.6] text-ink-2 sm:max-w-[52ch]">
             {data.paragraph}
           </p>
+          <Button className="mt-6" href={type === "skiing" ? "/discover?activity=skiing" : type === "peak-bagging" ? "/discover?type=destinations" : "/discover?activity=hiking&type=routes"}>Explore {config.label.toLowerCase()}</Button>
           {!config.hasLiveContent ? (
             <Link
-              href="/activities/hiking"
+              href={type === "skiing" ? "/discover?activity=skiing" : "/activities/hiking"}
               className="mt-6 inline-block text-sm font-medium text-accent-text hover:underline"
             >
-              Browse hiking destinations →
+              Browse activity guides →
             </Link>
           ) : null}
         </div>
       </section>
 
+      {data.routes && data.routes.length > 0 && <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
+        <SectionHeading size="lg">Shorter hiking routes</SectionHeading>
+        <p className="mt-3 text-muted">Up to 10 miles and 2,000 feet of gain. Open a guide for its terrain, access, and route details.</p>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{data.routes.map((route) => <RouteCard key={route.id} route={route} />)}</div>
+        <Button className="mt-6" href="/discover?type=routes&activity=hiking" variant="secondary">Find a hiking route</Button>
+      </section>}
+
       {data.top.destinations.length > 0 ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <SectionHeading eyebrow={config.label} size="lg">
-            {data.top.isFallback ? "Worth a look" : "Popular destinations"}
+            {type === "peak-bagging" ? "Mountain guides — from walks to technical climbs" : "Places to explore"}
           </SectionHeading>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.top.destinations.map((destination) => (
@@ -186,6 +195,8 @@ export default async function ActivityLandingPage({
                 name={destination.name}
                 elevation={destination.elevation}
                 features={destination.features}
+                lat={destination.lat} lng={destination.lng}
+                imageAttribution={destination.hero_image_attribution} imageAttributionUrl={destination.hero_image_attribution_url}
                 imageUrl={destination.hero_image}
                 imageFocalX={destination.hero_image_focal_x}
                 imageFocalY={destination.hero_image_focal_y}
@@ -196,7 +207,7 @@ export default async function ActivityLandingPage({
       ) : null}
 
       {data.lists.length > 0 ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <SectionHeading eyebrow="Peak-bagging" size="lg">
             The classic lists
           </SectionHeading>
@@ -222,13 +233,13 @@ export default async function ActivityLandingPage({
       ) : null}
 
       {config.hasLiveContent ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <FaqSection items={faqs} />
         </section>
       ) : null}
 
       {config.hasLiveContent ? (
-        <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+        <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
           <SectionHeading eyebrow="State guides" size="lg">
             Browse mountain destinations by state
           </SectionHeading>
@@ -253,7 +264,7 @@ export default async function ActivityLandingPage({
         </section>
       ) : null}
 
-      <section className="mx-auto max-w-[1200px] px-6 pb-24 md:pb-28">
+      <section className="mx-auto max-w-[1200px] px-6 pb-12 md:pb-16">
         <div className="rounded-media bg-surface px-6 py-16 text-center md:px-12">
           <p className="font-display mx-auto max-w-[30ch] text-[32px] leading-[1.1] font-[620] tracking-[-0.015em] text-ink">
             Take Peaks up the mountain.

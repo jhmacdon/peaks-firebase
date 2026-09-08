@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { AreaDestination } from "../../lib/actions/areas";
+import { getAreaDestinationPage, type AreaDestination } from "../../lib/actions/areas";
+import { useAuth } from "../../lib/auth-context";
 import {
-  sortAreaDestinations,
   type AreaDestinationSort,
 } from "../../lib/area-destination-sort";
 import {
@@ -21,30 +21,46 @@ import { useAreaPersonalization } from "./area-personalization";
 
 type CompletionFilter = "all" | "reached" | "open";
 
-const INITIAL_VISIBLE_COUNT = 12;
-
 export function AreaDestinations({
-  destinations,
+  areaId,
+  destinations: initialDestinations,
   totalCount,
   className = "",
 }: {
+  areaId: string;
   destinations: AreaDestination[];
   totalCount: number;
   className?: string;
 }) {
   const { activity, signedIn } = useAreaPersonalization();
+  const { getIdToken } = useAuth();
   const [sort, setSort] = useState<AreaDestinationSort>("prominence");
   const [filter, setFilter] = useState<CompletionFilter>("all");
-  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState("");
+  const [destinations, setDestinations] = useState(initialDestinations.slice(0, 24));
+  const [total, setTotal] = useState(totalCount);
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const completions = activity?.reached_destinations ?? null;
-
-  const sorted = sortAreaDestinations(destinations, sort);
-  const filtered = sorted.filter((destination) => {
-    if (!completions || filter === "all") return true;
-    const reached = completions[destination.id] != null;
-    return filter === "reached" ? reached : !reached;
-  });
-  const visible = expanded ? filtered : filtered.slice(0, INITIAL_VISIBLE_COUNT);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError(false);
+      try {
+        const token = filter === "all" ? undefined : await getIdToken() ?? undefined;
+        const page = await getAreaDestinationPage(areaId, { offset, sort, query, completion: filter, token });
+        if (!cancelled) { setDestinations(page.destinations); setTotal(page.total); }
+      } catch { if (!cancelled) setError(true); }
+      finally { if (!cancelled) setLoading(false); }
+    }, query ? 250 : 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [areaId, offset, sort, query, filter, getIdToken, attempt]);
+  const sorted = destinations;
+  const filtered = sorted;
+  const visible = filtered;
   const usesSatelliteImagery = visible.some(
     (destination) =>
       !destination.hero_image &&
@@ -59,7 +75,7 @@ export function AreaDestinations({
             <span id="area-destinations">Peaks and destinations</span>
           </SectionHeading>
           <p className="mt-2 max-w-[68ch] text-sm text-muted">
-            {sortDescription(sort, destinations.length, totalCount)}
+            {total.toLocaleString()} catalog places. Search, sort, and filter the full area.
           </p>
         </div>
         <label className="flex items-center gap-2 text-[13px] text-muted">
@@ -68,9 +84,9 @@ export function AreaDestinations({
             value={sort}
             onChange={(event) => {
               setSort(event.target.value as AreaDestinationSort);
-              setExpanded(false);
+              setOffset(0);
             }}
-            className="h-9 rounded-ctl border border-border bg-page px-3 text-[13px] text-ink"
+            className="h-11 rounded-ctl border border-border bg-page px-3 text-[13px] text-ink"
           >
             <option value="prominence">Prominence</option>
             <option value="elevation">Elevation</option>
@@ -79,48 +95,54 @@ export function AreaDestinations({
         </label>
       </div>
 
+      <label className="mt-5 block text-sm text-muted">
+        Search this area
+        <input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder="Peak or place name" className="mt-2 h-11 w-full rounded-ctl border border-border bg-page px-3 text-base text-ink" />
+      </label>
+      {error ? <p role="alert" className="mt-4 text-sm text-alert">Places could not load. <Button variant="quiet" onClick={() => setAttempt((value) => value + 1)}>Retry</Button></p> : null}
+      {loading ? <p role="status" className="mt-4 text-sm text-muted">Loading places…</p> : null}
       {signedIn && completions ? (
         <div className="mt-5 flex flex-wrap gap-2" aria-label="Filter destinations">
           <Chip
             selected={filter === "all"}
             onClick={() => {
               setFilter("all");
-              setExpanded(false);
+              setOffset(0);
             }}
           >
-            All {destinations.length}
+            All
           </Chip>
           <Chip
             selected={filter === "reached"}
             onClick={() => {
               setFilter("reached");
-              setExpanded(false);
+              setOffset(0);
             }}
           >
-            Reached {countReached(destinations, completions)}
+            Reached
           </Chip>
           <Chip
             selected={filter === "open"}
             onClick={() => {
               setFilter("open");
-              setExpanded(false);
+              setOffset(0);
             }}
           >
-            Not yet {destinations.length - countReached(destinations, completions)}
+            Not yet
           </Chip>
         </div>
       ) : null}
 
       {destinations.length === 0 ? (
         <p className="mt-4 text-sm text-muted">
-          No catalog destinations are linked to this area yet.
+          No places match your search. Try a shorter name or another filter.
         </p>
       ) : filtered.length === 0 ? (
         <p className="mt-5 text-sm text-muted">No destinations match this filter.</p>
       ) : (
         <ol className="mt-6 grid gap-x-10 gap-y-5 md:grid-cols-2">
           {visible.map((destination) => {
-            const rank = sorted.findIndex((item) => item.id === destination.id) + 1;
+            const rank = offset + sorted.findIndex((item) => item.id === destination.id) + 1;
             const elevation = formatFeetValue(destination.elevation);
             const prominence = formatFeetValue(destination.prominence);
             const typeLabel = describeDestinationType(
@@ -190,16 +212,11 @@ export function AreaDestinations({
         </ol>
       )}
 
-      {filtered.length > INITIAL_VISIBLE_COUNT ? (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="mt-7"
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? "Show fewer" : `Show all ${filtered.length}`}
-        </Button>
-      ) : null}
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <Button variant="secondary" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - 24))}>Previous</Button>
+        <span className="text-sm text-muted">{total ? `${offset + 1}–${Math.min(offset + destinations.length, total)} of ${total.toLocaleString()}` : "0 places"}</span>
+        <Button variant="secondary" disabled={loading || offset + 24 >= total} onClick={() => setOffset(offset + 24)}>Next</Button>
+      </div>
 
       {usesSatelliteImagery ? (
         <p className="mt-5 text-[10px] text-muted">
@@ -219,27 +236,6 @@ export function AreaDestinations({
   );
 }
 
-function sortDescription(
-  sort: AreaDestinationSort,
-  loadedCount: number,
-  totalCount: number
-): string {
-  const hasPartialRoster = loadedCount < totalCount;
-  const count = loadedCount.toLocaleString("en-US");
-  const total = totalCount.toLocaleString("en-US");
-  if (sort === "prominence") {
-    const scope = hasPartialRoster
-      ? `The ${count} most prominent of ${total} catalog places`
-      : `All ${total} catalog places`;
-    return `${scope}, ranked by how far each summit rises above nearby terrain.`;
-  }
-  const scope = hasPartialRoster
-    ? `The ${count} most prominent catalog places`
-    : `All ${total} catalog places`;
-  if (sort === "elevation") return `${scope}, reordered from highest to lowest.`;
-  return `${scope}, reordered by name.`;
-}
-
 function destinationMeta(
   sort: AreaDestinationSort,
   elevation: string | null,
@@ -251,16 +247,6 @@ function destinationMeta(
       ? [prominence ? `${prominence} ft prominence` : null, elevation ? `${elevation} ft` : null]
       : [elevation ? `${elevation} ft` : null, prominence ? `${prominence} ft prominence` : null];
   return [...values, typeLabel].filter(Boolean).join(" · ");
-}
-
-function countReached(
-  destinations: AreaDestination[],
-  completions: NonNullable<ReturnType<typeof useAreaPersonalization>["activity"]>["reached_destinations"]
-): number {
-  return destinations.reduce(
-    (count, destination) => count + (completions[destination.id] ? 1 : 0),
-    0
-  );
 }
 
 function MountainPlaceholder() {

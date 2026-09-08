@@ -10,7 +10,7 @@ import type {
 // :focus-visible accent ring (globals.css); the border darkening to accent
 // on focus is an extra, non-load-bearing affordance.
 const CONTROL_BASE =
-  "w-full rounded-ctl border border-border bg-page px-3 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-ctl border border-border bg-page px-3 text-base text-ink placeholder:text-faint transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Label({
   className = "",
@@ -28,7 +28,7 @@ export function Input({
   className = "",
   ...props
 }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`h-10 ${CONTROL_BASE} ${className}`.trim()} {...props} />;
+  return <input className={`h-12 ${CONTROL_BASE} ${className}`.trim()} {...props} />;
 }
 
 export function Select({
@@ -37,7 +37,7 @@ export function Select({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select className={`h-10 ${CONTROL_BASE} ${className}`.trim()} {...props}>
+    <select className={`h-12 ${CONTROL_BASE} ${className}`.trim()} {...props}>
       {children}
     </select>
   );

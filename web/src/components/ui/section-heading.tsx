@@ -13,8 +13,8 @@
 export type SectionHeadingSize = "md" | "lg";
 
 const SIZE_CLASSES: Record<SectionHeadingSize, string> = {
-  md: "text-lg",
-  lg: "text-[24px]",
+  md: "text-xl",
+  lg: "text-[26px]",
 };
 
 // `level` is the outline rank, and it is independent of `size` above. Almost
@@ -44,7 +44,7 @@ export function SectionHeading({
   return (
     <div className={className}>
       {eyebrow ? (
-        <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-muted">
+        <p className="mb-1 text-sm font-medium text-muted">
           {eyebrow}
         </p>
       ) : null}

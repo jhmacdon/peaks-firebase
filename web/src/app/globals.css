@@ -25,7 +25,7 @@
   --color-ink: #21211f;
   --color-ink-2: #43423f;
   --color-muted: #64635e;
-  --color-faint: #8b8880;
+  --color-faint: #6e6b64;
 
   /* Structure (borders, fills, backgrounds) */
   --color-border: #e0e0de;
@@ -40,9 +40,9 @@
   --color-alert: #ba4c21;
   --color-success: #2c6e49;
 
-  /* Radius — 6px controls/inputs, 16px media/containers. Chips use the
+  /* Radius — 12px controls/inputs, 16px media/containers. Chips use the
      stock `rounded-full` utility (9999px); no separate token needed. */
-  --radius-ctl: 6px;
+  --radius-ctl: 12px;
   --radius-media: 16px;
 
   /* Shadow — floating chrome only (sticky bars, dropdowns, map controls).
@@ -81,11 +81,9 @@
   --font-mono-num: var(--font-geist-mono);
 }
 
-/* Display type sits at the wide end of Archivo's width axis (brief: `wdth`
-   125). Paired with the `font-display` utility above so one className gets
-   both the family and the axis setting. */
+/* Archivo has a modest width setting; keep long titles readable on phones. */
 .font-display {
-  font-variation-settings: "wdth" 125;
+  font-variation-settings: "wdth" 110;
 }
 
 /* Progressive enhancement: wider-gamut accent on P3-capable displays.
@@ -105,12 +103,8 @@
     --color-ink: #eceae6;
     --color-ink-2: #c6c3bc;
     --color-muted: #96938a;
-    /* Not specified in the plan's dark list; interpolated at the same
-       proportional position between --muted and --border as light-mode
-       --faint sits between --muted and --border. Sub-AA by design (3.97:1
-       page / 3.67:1 surface) — lowest-emphasis decorative text only, never
-       information a user must read. */
-    --color-faint: #797770;
+    /* Credits and secondary text retain readable contrast. */
+    --color-faint: #a19d93;
 
     --color-border: #3a3936;
     --color-hairline: #2e2d29;
@@ -266,7 +260,7 @@ a {
 .map-embed.leaflet-container .leaflet-control-attribution {
   background: color-mix(in srgb, var(--color-page) 82%, transparent);
   padding: 1px 5px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--color-muted);
 }
@@ -395,4 +389,9 @@ a {
   box-shadow:
     0 0 0 6px rgb(70 173 188 / 0.25),
     0 1px 4px rgb(0 0 0 / 0.4);
+}
+
+[id] { scroll-margin-top: calc(var(--chrome-h) + 24px); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
 }

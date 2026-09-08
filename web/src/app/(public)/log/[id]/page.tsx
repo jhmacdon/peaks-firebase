@@ -14,6 +14,11 @@
 // never depend on hydration. Nothing here is cached: activities are
 // per-user, and a private one must never survive in a shared cache.
 
+import { ActivityPhotoGroups } from "../../../../components/activity-photo-groups";
+import { getActivityPhotoGroups } from "../../../../lib/actions/activity-photos";
+import type { ActivityPhotoGroup } from "../../../../lib/activity-photos";
+import { Button } from "../../../../components/ui/button";
+import { DetailSectionNav } from "../../../../components/detail-section-nav";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "../../../../lib/auth-context";
@@ -71,6 +76,9 @@ export default function SessionDetailPage() {
   const [routes, setRoutes] = useState<SessionRoute[]>([]);
   const [areas, setAreas] = useState<ProtectedArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [photoGroups, setPhotoGroups] = useState<ActivityPhotoGroup[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +90,8 @@ export default function SessionDetailPage() {
 
     async function load() {
       setLoading(true);
+      setError(false);
+      setPhotoGroups([]);
       try {
         if (!userId) {
           const bundle = await getPublicSessionBundle(id);
@@ -92,6 +102,10 @@ export default function SessionDetailPage() {
           setDestinations(bundle?.destinations ?? []);
           setRoutes(bundle?.routes ?? []);
           setAreas(bundle?.areas ?? []);
+          if (bundle) {
+            const photos = await getActivityPhotoGroups({ sessionId: id });
+            if (!cancelled) setPhotoGroups(photos);
+          }
           return;
         }
 
@@ -113,8 +127,10 @@ export default function SessionDetailPage() {
         setDestinations(nextDestinations);
         setRoutes(nextRoutes);
         setAreas(nextAreas);
+        if (nextSession) { const photos = await getActivityPhotoGroups({ sessionId: id }); if (!cancelled) setPhotoGroups(photos); }
       } catch {
         if (!cancelled) {
+          setError(true);
           setSession(null);
           setPoints([]);
           setDestinations([]);
@@ -129,7 +145,7 @@ export default function SessionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, getIdToken, id, userId]);
+  }, [authLoading, getIdToken, id, userId, attempt]);
 
   const achievements = useMemo(
     () => buildSessionAchievements(destinations, points),
@@ -151,6 +167,8 @@ export default function SessionDetailPage() {
       </div>
     );
   }
+
+  if (error) return <div className="mx-auto max-w-[1200px] px-6 py-8"><EmptyState title="Activity could not load" description="Try again to load the activity and its photos." action={<Button onClick={() => setAttempt((value) => value + 1)}>Retry</Button>} /></div>;
 
   if (!session) {
     return (
@@ -216,14 +234,28 @@ export default function SessionDetailPage() {
         }
       />
 
+      <div className="mt-5">
+        <SessionActions
+          session={session}
+          displayName={displayName}
+          onUpdated={(updates) =>
+            setSession((current) =>
+              current ? { ...current, ...updates } : current
+            )
+          }
+        />
+      </div>
+      <DetailSectionNav sections={[
+        ...(points.length ? [{ id: "session-track", label: "Track" }] : []),
+        ...(photoGroups.length ? [{ id: "session-photos", label: "Photos" }] : []),
+        { id: "session-details", label: "Activity details" },
+      ]} />
       <Topline stats={toplineStats} className="mt-10" />
-
-      <SessionSecondaryStats stats={secondaryStats} className="mt-10" />
 
       <SessionAchievements achievements={achievements} className="mt-10" />
 
       {points.length > 0 ? (
-        <div className="mt-12">
+        <div id="session-track" className="mt-8 scroll-mt-24">
           <SessionPlayback
             points={points}
             healthData={session.health_data}
@@ -234,7 +266,12 @@ export default function SessionDetailPage() {
         </div>
       ) : null}
 
-      <SessionSplits splits={splits} className="mt-12" />
+      <div className="mt-10"><ActivityPhotoGroups groups={photoGroups} id="session-photos" /></div>
+      <details id="session-details" className="mt-8 scroll-mt-24 border-y border-hairline py-4">
+        <summary className="min-h-11 cursor-pointer font-medium text-ink">Activity details and splits</summary>
+        <SessionSecondaryStats stats={secondaryStats} className="mt-5" />
+        <SessionSplits splits={splits} className="mt-8" />
+      </details>
 
       <SessionRelated
         areas={areas}
@@ -256,20 +293,6 @@ export default function SessionDetailPage() {
         />
       ) : null}
 
-      {/* Rendered for signed-out readers too — a public activity's Share
-          button is theirs to use; the component gates edit, export and
-          delete on who is asking. */}
-      <div className="mt-12">
-        <SessionActions
-          session={session}
-          displayName={displayName}
-          onUpdated={(updates) =>
-            setSession((current) =>
-              current ? { ...current, ...updates } : current
-            )
-          }
-        />
-      </div>
     </div>
   );
 }

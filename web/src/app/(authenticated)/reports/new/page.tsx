@@ -1,171 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../../lib/auth-context";
-import {
-  createTripReport,
-  getTripReportEligibleSessions,
-  type TripReportEligibleSession,
-} from "../../../../lib/actions/trip-reports";
+import { createTripReport, getTripReportEligibleSessions, type TripReportEligibleSession, type TripReportBlock } from "../../../../lib/actions/trip-reports";
+import ReportEditor from "../../../../components/report-editor";
 import { Button } from "../../../../components/ui/button";
-import { Label, Select, Input, Textarea } from "../../../../components/ui/field";
+import { Label, Select } from "../../../../components/ui/field";
+import { EmptyState } from "../../../../components/ui/empty-state";
 
 export default function NewReportPage() {
+  return <Suspense fallback={<EmptyState>Opening report editor…</EmptyState>}><NewReportForm /></Suspense>;
+}
+
+function NewReportForm() {
   const router = useRouter();
-  const { getIdToken } = useAuth();
+  const params = useSearchParams();
+  const destinationId = params.get("dest") || params.get("destinationId") || undefined;
+  const requestedSessionId = params.get("sessionId") || params.get("session") || undefined;
+  const { user, getIdToken } = useAuth();
   const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [blocks, setBlocks] = useState<TripReportBlock[]>([{ type: "text", content: "" }]);
   const [sessions, setSessions] = useState<TripReportEligibleSession[]>([]);
   const [sessionId, setSessionId] = useState("");
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSessions() {
-      try {
-        const token = await getIdToken();
-        if (!token) return;
-        const result = await getTripReportEligibleSessions(token);
-        if (!cancelled) {
-          setSessions(result);
-          setSessionId(result[0]?.id ?? "");
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Could not load completed activities"
-          );
-        }
-      } finally {
-        if (!cancelled) setSessionsLoading(false);
-      }
-    }
-    void loadSessions();
-    return () => {
-      cancelled = true;
-    };
-  }, [getIdToken]);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-    if (!sessionId) {
-      setError("Choose a completed activity");
-      return;
-    }
-    if (!title.trim()) {
-      setError("Title is required");
-      return;
-    }
-    if (!body.trim()) {
-      setError("Add a short condition update");
-      return;
-    }
-    setSubmitting(true);
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
     try {
       const token = await getIdToken();
-      if (!token) throw new Error("Sign in again to publish");
-      const result = await createTripReport(token, {
-        sessionId,
-        title: title.trim(),
-        blocks: [{ type: "text", content: body.trim() }],
-      });
-      router.push(`/reports/${result.id}`);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Could not publish this Trip Report"
-      );
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex items-center gap-2 text-sm text-muted mb-4">
-        <Link href="/discover" className="hover:text-ink hover:underline">
-          Discover
-        </Link>
-        <span>/</span>
-        <span className="text-ink-2">New Trip Report</span>
-      </div>
-
-      <h1 className="text-2xl font-semibold mb-2 text-ink">New Trip Report</h1>
-      <p className="text-sm text-muted mb-8">
-        Trip Reports are public. Peaks links the destinations and route from your
-        activity but does not share its GPS track.
-      </p>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <Label htmlFor="activity">Completed activity</Label>
-          <Select
-            id="activity"
-            value={sessionId}
-            onChange={(event) => setSessionId(event.target.value)}
-            disabled={sessionsLoading || sessions.length === 0}
-          >
-            {sessions.length === 0 && (
-              <option value="">
-                {sessionsLoading ? "Loading activities…" : "No ready activities"}
-              </option>
-            )}
-            {sessions.map((session) => (
-              <option key={session.id} value={session.id}>
-                {session.name} · {new Date(session.date).toLocaleDateString()}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div>
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            maxLength={180}
-            placeholder="Snow above the lake"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="report">Conditions</Label>
-          <Textarea
-            id="report"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            maxLength={20_000}
-            rows={8}
-            placeholder="What should the next person know?"
-          />
-          <p className="mt-1 text-xs text-muted">
-            Add photos and structured hazards from the Peaks app.
-          </p>
-        </div>
-
-        {error && (
-          <div role="alert" className="p-3 bg-alert/10 border border-alert/30 rounded-ctl text-sm text-alert">
-            {error}
-          </div>
-        )}
-
-        <div className="flex items-center gap-4 pt-4">
-          <Button type="submit" disabled={submitting || sessionsLoading || sessions.length === 0}>
-            {submitting ? "Publishing…" : "Publish Report"}
-          </Button>
-          <Link href="/discover" className="text-sm text-muted hover:text-ink-2 hover:underline">
-            Cancel
-          </Link>
-        </div>
-      </form>
-    </div>
-  );
+      if (!token) throw new Error("Sign in again to choose an activity.");
+      const result = await getTripReportEligibleSessions(token, { destinationId, sessionId: requestedSessionId });
+      setSessions(result); setSessionId((current) => result.some((session) => session.id === current) ? current : result[0]?.id ?? "");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Couldn’t load your activities."); }
+    finally { setLoading(false); }
+  }, [getIdToken, destinationId, requestedSessionId]);
+  useEffect(() => { void load(); }, [load]);
+  return <div className="mx-auto max-w-3xl px-6 py-10">
+    <Button href="/log" variant="quiet">← Your activities</Button>
+    <h1 className="mt-5 font-display text-[32px] font-[680] text-ink sm:text-[40px]">Write a trip report</h1>
+    <p className="mt-3 text-muted">Share the conditions, photos, and details that will help the next person.</p>
+    {destinationId && <p className="mt-3 text-sm text-muted">Choose a completed activity that reached this place.</p>}
+    {loading ? <EmptyState>Loading completed activities…</EmptyState> : error ? <EmptyState><p role="alert">{error}</p><Button className="mt-4" onClick={load}>Try again</Button></EmptyState> : sessions.length === 0 ? <EmptyState title={requestedSessionId ? "This activity isn’t ready for a report" : destinationId ? "No completed visits are ready" : "Choose an outing first"} description="Reports start from a completed activity after Peaks finishes processing it. Each activity can have one report."><div className="mt-5 flex flex-wrap justify-center gap-3"><Button href="/log/import">Import an activity</Button><Button href={requestedSessionId ? `/log/${encodeURIComponent(requestedSessionId)}` : "/log"} variant="secondary">Open your activities</Button>{(destinationId || requestedSessionId) && <Button href="/reports/new" variant="secondary">Choose another activity</Button>}<Button onClick={load} variant="quiet">Check again</Button></div></EmptyState> : <ReportEditor
+      title={title} setTitle={setTitle} blocks={blocks} setBlocks={setBlocks} userId={user?.uid ?? ""} sessionId={sessionId} busy={submitting} submitLabel="Publish report" cancelHref="/log" onUploadBusy={setUploading}
+      context={<div><Label htmlFor="report-activity">Completed activity</Label><Select id="report-activity" value={sessionId} disabled={submitting || uploading || blocks.some((block) => block.type === "photo")} onChange={(event) => setSessionId(event.target.value)}>{sessions.map((session) => <option key={session.id} value={session.id}>{session.name} · {new Date(session.date).toLocaleDateString()}</option>)}</Select>{blocks.some((block) => block.type === "photo") && <p className="mt-2 text-sm text-muted">Remove the photos before choosing a different activity.</p>}</div>}
+      onSubmit={async (draft) => {
+        setSubmitting(true);
+        try {
+          const token = await getIdToken();
+          if (!token) throw new Error("Sign in again to publish your report.");
+          const result = await createTripReport(token, { sessionId, ...draft });
+          router.push(`/reports/${result.id}`);
+        } finally { setSubmitting(false); }
+      }}
+    />}
+  </div>;
 }

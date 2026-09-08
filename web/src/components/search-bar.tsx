@@ -14,7 +14,7 @@ interface SearchBarProps {
 // `:focus-visible` outline from globals.css — the field adds no second
 // focus treatment of its own.
 const FIELD_CLASSES =
-  "h-12 w-full rounded-full bg-fill py-2.5 pl-11 pr-11 text-[15px] text-ink placeholder:text-faint";
+  "h-12 w-full rounded-full bg-fill py-2.5 pl-11 pr-11 text-base text-ink placeholder:text-faint";
 
 function SearchGlyph() {
   return (
@@ -83,6 +83,7 @@ export default function SearchBar({
     const { pathname: nextPathname, paramName: nextParamName, searchParamString } =
       searchStateRef.current;
     const params = new URLSearchParams(searchParamString);
+    params.delete("page");
     const trimmed = newValue.trim();
 
     if (trimmed) {
@@ -106,6 +107,7 @@ export default function SearchBar({
       const { pathname: nextPathname, paramName: nextParamName, searchParamString } =
         searchStateRef.current;
       const params = new URLSearchParams(searchParamString);
+    params.delete("page");
       const trimmed = value.trim();
 
       if (trimmed) {
@@ -141,7 +143,7 @@ export default function SearchBar({
             setValue("");
             updateSearch("");
           }}
-          className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-faint transition-colors hover:text-ink-2"
+          className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-faint transition-colors hover:text-ink-2"
           aria-label="Clear search"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

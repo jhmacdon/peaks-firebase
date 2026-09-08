@@ -46,7 +46,7 @@ test("route detail and credited cards use the derived photo", () => {
   assert.match(page, /<RouteHero/);
   assert.match(hero, /src=\{cover\.url\}/);
   assert.match(hero, /href=\{cover\.attributionUrl\}/);
-  assert.match(card, /src=\{route\.cover_image!?\}/);
+  assert.match(card, /src=\{hasCreditedCover \? route\.cover_image : null\}/);
   assert.match(layout, /image: route\.cover_image/);
   assert.match(shareImage, /isPublicDomainImageAttribution/);
   assert.match(shareImage, /imageUrl = route\.cover_image/);

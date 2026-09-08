@@ -40,13 +40,13 @@ export function Chip({
     <span
       className={`inline-flex items-center gap-1 rounded-full border ${
         onRemove ? "py-1 pl-3 pr-1.5" : ""
-      } text-[13px] font-medium transition-colors ${tone} ${className}`.trim()}
+      } text-sm font-medium transition-colors ${tone} ${className}`.trim()}
     >
       <button
         type="button"
         aria-pressed={selected}
         className={`appearance-none rounded-full border-0 bg-transparent text-current ${
-          onRemove ? "p-0" : "px-3 py-1.5"
+          onRemove ? "min-h-9 p-0" : "min-h-11 px-4 py-2"
         }`}
         {...rest}
       >
@@ -57,7 +57,7 @@ export function Chip({
           type="button"
           onClick={onRemove}
           aria-label={removeLabel}
-          className="appearance-none border-0 bg-transparent p-0 text-faint hover:text-ink-2"
+          className="min-h-9 min-w-9 appearance-none border-0 bg-transparent p-0 text-faint hover:text-ink-2"
         >
           ×
         </button>

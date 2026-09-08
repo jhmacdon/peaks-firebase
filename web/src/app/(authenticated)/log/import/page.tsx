@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { sessionActivityLabel } from "../../../../lib/session-track";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../../../lib/auth-context";
@@ -17,6 +19,8 @@ import type { SessionActivityType } from "../../../../lib/actions/sessions";
 import { Button } from "../../../../components/ui/button";
 import { Input, Label, Select } from "../../../../components/ui/field";
 import { StatCluster } from "../../../../components/ui/stat";
+
+const ImportTrackMap = dynamic(() => import("../../../../components/session-map"), { ssr: false });
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -156,17 +160,11 @@ export default function ImportGPXPage() {
         {preview && (
           <>
             <section className="rounded-media border border-border bg-surface p-5">
-              <StatCluster
-                value={preview.points.length.toLocaleString()}
-                label={`timed track points · ${new Date(
-                  preview.startTime * 1000
-                ).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}`}
-                scale="page"
-              />
+              <h2 className="text-xl font-semibold text-ink">{name || preview.name}</h2>
+              <p className="mt-2 text-sm text-muted">{sessionActivityLabel(activityType)} · {new Date(preview.startTime * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+              <div className="mt-5 overflow-hidden rounded-media">
+                <ImportTrackMap key={fileName} points={preview.points} className="h-64 sm:h-80" />
+              </div>
               <div className="mt-5 grid grid-cols-3 gap-4 border-t border-hairline pt-4">
                 <StatCluster
                   value={(preview.stats.distance / 1609.34).toFixed(1)}
@@ -179,7 +177,7 @@ export default function ImportGPXPage() {
                     preview.stats.gain * 3.28084
                   ).toLocaleString()}
                   unit="ft"
-                  label="Elevation"
+                  label="Elevation gain"
                   scale="card"
                 />
                 <StatCluster
@@ -188,12 +186,11 @@ export default function ImportGPXPage() {
                   scale="card"
                 />
               </div>
-              {preview.ignoredPointCount > 0 && (
-                <p className="mt-4 text-xs text-muted">
-                  {preview.ignoredPointCount.toLocaleString()} invalid or
-                  duplicate points will be skipped.
-                </p>
-              )}
+              <details className="mt-4 text-sm text-muted">
+                <summary className="min-h-11 cursor-pointer py-3">Import details</summary>
+                <p>{preview.points.length.toLocaleString()} timed track points · {fileName}</p>
+                {preview.ignoredPointCount > 0 ? <p className="mt-2">{preview.ignoredPointCount.toLocaleString()} invalid or duplicate points will be skipped.</p> : null}
+              </details>
             </section>
 
             <div>

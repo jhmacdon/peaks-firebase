@@ -182,15 +182,21 @@ export function mapExploreHref(state: {
   view: MapViewState;
   types: MapTypeId[];
   query?: string;
+  search?: string;
+  selected?: string | null;
 }): string {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams(state.search);
   params.set("lat", state.view.lat.toFixed(5));
   params.set("lng", state.view.lng.toFixed(5));
   params.set("z", String(Math.round(state.view.zoom)));
   const types = serializeMapTypes(state.types);
   if (types) params.set("types", types);
+  else params.delete("types");
   const query = state.query?.trim();
   if (query) params.set("q", query);
+  else params.delete("q");
+  if (state.selected) params.set("selected",state.selected);
+  else params.delete("selected");
   return `/map?${params.toString()}`;
 }
 

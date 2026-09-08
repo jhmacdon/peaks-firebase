@@ -38,7 +38,7 @@ test("public saved-route mapper strips the owner and keeps ordered public rows",
     }],
     routes: [{
       id: "route-1", name: "Old Trail", polyline6: "abc",
-      distance: "12000", gain: "1200", status: "active", isCatalog: true,
+      distance: "6000", gain: "1100", gain_loss: "100", shape: "out_and_back", status: "active", isCatalog: true,
     }],
     reached_destinations: [{
       id: "peak-1", name: "Mailbox Peak", elevation: 1476,
@@ -52,6 +52,8 @@ test("public saved-route mapper strips the owner and keeps ordered public rows",
   assert.equal(bundle.destinations[0].features[0], "summit");
   assert.equal(bundle.routes[0].status, "active");
   assert.equal(bundle.routes[0].isCatalog, true);
+  assert.equal(bundle.routes[0].distance, 12000);
+  assert.equal(bundle.routes[0].gain, 1200);
   assert.equal(bundle.reachedDestinations[0].ordinal, 0);
   assert.equal("userId" in bundle.plan, false);
   assert.equal("party" in bundle.plan, false);

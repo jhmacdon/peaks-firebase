@@ -10,7 +10,6 @@ import {
   updatePlan,
   setPlanVisibility,
   deletePlan,
-  inviteToPlan,
   type PlanBundle,
 } from "../../../../lib/actions/plans";
 import { getPlanAirQuality, type PlanAirQuality } from "../../../../lib/actions/air-quality";
@@ -21,7 +20,7 @@ import {
   pickerNames,
 } from "../../../../lib/plan-detail";
 import { formatFeet, formatMiles } from "../../../../lib/destination-detail";
-import PartyList from "../../../../components/party-list";
+import TripParty from "../../../../components/trip-party";
 import DestinationPicker from "../../../../components/destination-picker";
 import RoutePicker from "../../../../components/route-picker";
 import PlanAirQualityCard from "../../../../components/plan-air-quality-card";
@@ -61,11 +60,6 @@ export default function PlanDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Invite state
-  const [inviteUid, setInviteUid] = useState("");
-  const [inviting, setInviting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
   // Delete state
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -102,7 +96,7 @@ export default function PlanDetailPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        setLoadError("Sign in again to view this route.");
+        setLoadError("Sign in again to view this trip.");
         return;
       }
 
@@ -114,8 +108,8 @@ export default function PlanDetailPage() {
         // hiccuped (docs/superpowers/specs/2026-08-06-plan-air-quality-design.md).
         getPlanAirQuality(token, planId).then(setAirQuality).catch(() => {});
       }
-    } catch {
-      setLoadError("Couldn’t load this route. Try again.");
+    } catch (caught) {
+      setLoadError(caught instanceof Error ? caught.message : "Couldn’t load this trip. Try again.");
     } finally {
       setLoading(false);
     }
@@ -145,6 +139,7 @@ export default function PlanDetailPage() {
 
   const saveChanges = async () => {
     if (!plan) return;
+    if (!editName.trim()) { setSaveError("Give your trip a name."); return; }
     setSaving(true);
     setSaveError(null);
     try {
@@ -159,7 +154,7 @@ export default function PlanDetailPage() {
         description: editDescription.trim(),
         destinations: editDestinations,
         routes: editRoutes,
-        date: editDate || undefined,
+        date: editDate || null,
         isPublic: editIsPublic,
       });
 
@@ -174,18 +169,18 @@ export default function PlanDetailPage() {
   };
 
   const sharePublicRoute = async (): Promise<"shared" | "copied"> => {
-    if (!plan) throw new Error("Route not found");
+    if (!plan) throw new Error("Trip not found");
     const url = resolveShareUrl(publicSavedRoutePath(planId));
     if (navigator.share) {
       await navigator.share({
-        title: plan.name || "Shared route",
-        text: `${plan.name || "A route"} on Peaks`,
+        title: plan.name || "Shared trip",
+        text: `${plan.name || "A trip"} on Peaks`,
         url,
       });
       return "shared";
     } else {
       await navigator.clipboard.writeText(url);
-      setShareMessage("Route link copied");
+      setShareMessage("Trip link copied");
       return "copied";
     }
   };
@@ -198,7 +193,7 @@ export default function PlanDetailPage() {
       if (isOwner) {
         setConfirmPublishToShare(true);
       } else {
-        setShareError("Only the route owner can make this route public.");
+        setShareError("Only the trip owner can make this trip public.");
       }
       return;
     }
@@ -207,7 +202,7 @@ export default function PlanDetailPage() {
       await sharePublicRoute();
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
-      setShareError("Couldn’t share this route.");
+      setShareError("Couldn’t share this trip.");
     }
   };
 
@@ -218,7 +213,7 @@ export default function PlanDetailPage() {
     setShareMessage(null);
     try {
       const token = await getIdToken();
-      if (!token) throw new Error("Sign in again to share this route.");
+      if (!token) throw new Error("Sign in again to share this trip.");
       await setPlanVisibility(token, planId, true);
       setBundle((current) =>
         current
@@ -230,7 +225,7 @@ export default function PlanDetailPage() {
       setReadyToShare(true);
     } catch (caught) {
       setShareError(
-        caught instanceof Error ? caught.message : "Couldn’t share this route."
+        caught instanceof Error ? caught.message : "Couldn’t share this trip."
       );
     } finally {
       setSharing(false);
@@ -242,30 +237,10 @@ export default function PlanDetailPage() {
     try {
       const outcome = await sharePublicRoute();
       setReadyToShare(false);
-      if (outcome === "shared") setShareMessage("Route shared");
+      if (outcome === "shared") setShareMessage("Trip shared");
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
-      setShareError("The route is public, but its link could not be shared.");
-    }
-  };
-
-  const handleInvite = async () => {
-    if (!inviteUid.trim()) return;
-    setInviting(true);
-    setInviteError(null);
-    try {
-      const token = await getIdToken();
-      if (!token) {
-        setInviteError("Sign in again to invite someone.");
-        return;
-      }
-      await inviteToPlan(token, planId, inviteUid.trim());
-      setInviteUid("");
-      await loadBundle();
-    } catch (err) {
-      setInviteError(err instanceof Error ? err.message : "Couldn’t send that invite. Try again.");
-    } finally {
-      setInviting(false);
+      setShareError("The trip is public, but its link could not be shared.");
     }
   };
 
@@ -275,13 +250,13 @@ export default function PlanDetailPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        setDeleteError("Sign in again to delete this route.");
+        setDeleteError("Sign in again to delete this trip.");
         return;
       }
       await deletePlan(token, planId);
       router.push("/my-routes");
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Couldn’t delete this route. Try again.");
+      setDeleteError(err instanceof Error ? err.message : "Couldn’t delete this trip. Try again.");
     } finally {
       setDeleting(false);
     }
@@ -314,8 +289,8 @@ export default function PlanDetailPage() {
     return (
       <div className="mx-auto max-w-[1200px] px-6 py-8">
         <EmptyState
-          title="Route not found"
-          description="This route may have been removed, or you may not have access to it."
+          title="Trip not found"
+          description="This trip may have been removed, or you may not have access to it."
         />
       </div>
     );
@@ -329,7 +304,7 @@ export default function PlanDetailPage() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
-      <Breadcrumb current={plan.name || "Untitled Route"} parentHref="/my-routes" parentLabel="Routes" />
+      <Breadcrumb current={plan.name || "Untitled trip"} parentHref="/my-routes" parentLabel="Trips" />
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -338,12 +313,12 @@ export default function PlanDetailPage() {
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              aria-label="Route name"
+              aria-label="Trip name"
               className="w-full border-b-2 border-accent bg-transparent font-display text-[28px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink focus:outline-none sm:text-[32px]"
             />
           ) : (
             <h1 className="font-display text-[32px] font-[680] leading-[1.1] tracking-[-0.015em] text-ink sm:text-[40px]">
-              {plan.name || "Untitled Route"}
+              {plan.name || "Untitled trip"}
             </h1>
           )}
           {!editing && (plan.date || isOwner) && (
@@ -357,7 +332,7 @@ export default function PlanDetailPage() {
                       year: "numeric",
                     })}`
                   : null,
-                isOwner ? (plan.isPublic ? "Public route" : "Private route") : null,
+                isOwner ? (plan.isPublic ? "Public trip" : "Private trip") : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -419,7 +394,7 @@ export default function PlanDetailPage() {
       {readyToShare ? (
         <div role="status" className="mt-4 rounded-media border border-success/40 bg-surface p-4">
           <p className="text-sm text-ink-2">
-            The route is public. Tap below to open the share sheet or copy its link.
+            The trip is public. Tap below to open the share sheet or copy its link.
           </p>
           <Button className="mt-3" onClick={shareAfterPublishing}>
             Share public link
@@ -429,16 +404,16 @@ export default function PlanDetailPage() {
 
       {confirmPublishToShare && isOwner ? (
         <div
-          role="alertdialog"
+          role="region"
           aria-labelledby="publish-route-title"
           aria-describedby="publish-route-description"
           className="mt-4 rounded-media border border-border bg-surface p-4"
         >
           <p id="publish-route-title" className="text-sm font-medium text-ink">
-            Make this route public and share it?
+            Make this trip public and share it?
           </p>
           <p id="publish-route-description" className="mt-1 text-sm leading-6 text-ink-2">
-            Anyone with the link can view the route details, destinations, and map, including any
+            Anyone with the link can view the trip details, destinations, and map, including any
             saved track. Photos and party details are not included.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -468,7 +443,7 @@ export default function PlanDetailPage() {
             onChange={(e) => setEditDescription(e.target.value)}
             rows={3}
             placeholder="Trip notes…"
-            aria-label="Route description"
+            aria-label="Trip notes"
           />
           <label className="flex items-start gap-3 rounded-media border border-border p-4">
             <input
@@ -478,9 +453,9 @@ export default function PlanDetailPage() {
               className="mt-0.5 h-4 w-4 accent-accent"
             />
             <span>
-              <span className="block text-sm font-medium text-ink">Public route</span>
+              <span className="block text-sm font-medium text-ink">Public trip</span>
               <span className="mt-0.5 block text-xs leading-5 text-muted">
-                Anyone with the link can view the route details, destinations, and map, including
+                Anyone with the link can view the trip details, destinations, and map, including
                 any saved track. Photos and party details are not included.
               </span>
             </span>
@@ -537,11 +512,11 @@ export default function PlanDetailPage() {
         </section>
       )}
 
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
         {/* Destinations */}
-        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-destinations-heading">
+        <div className="min-w-0" aria-labelledby="plan-destinations-heading">
           <SectionHeading>
-            <span id="plan-destinations-heading">Destinations ({bundle.destinations.length})</span>
+            <span id="plan-destinations-heading">Places to visit ({bundle.destinations.length})</span>
           </SectionHeading>
           <div className="mt-4">
             {editing ? (
@@ -575,9 +550,9 @@ export default function PlanDetailPage() {
         </div>
 
         {/* Routes */}
-        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-routes-heading">
+        <div className="min-w-0" aria-labelledby="plan-routes-heading">
           <SectionHeading>
-            <span id="plan-routes-heading">Routes ({bundle.routes.length})</span>
+            <span id="plan-routes-heading">Routes to follow ({bundle.routes.length})</span>
           </SectionHeading>
           <div className="mt-4">
             {editing ? (
@@ -627,89 +602,20 @@ export default function PlanDetailPage() {
           </div>
         </div>
 
-        {/* Party */}
-        <div className="rounded-media border border-border bg-surface p-6" aria-labelledby="plan-party-heading">
-          <SectionHeading>
-            <span id="plan-party-heading">Party ({plan.party.length + 1})</span>
-          </SectionHeading>
-
-          <div className="mt-4">
-            {/* Owner */}
-            <div className="mb-3 rounded-ctl bg-fill p-3">
-              <p className="text-sm font-medium text-ink">
-                {user?.displayName || user?.email || "You"}{" "}
-                <span className="text-xs text-muted">(owner)</span>
-              </p>
-            </div>
-
-            <PartyList partyIds={plan.party} />
-
-            {/* Invite */}
-            {isOwner && (
-              <div className="mt-4 flex gap-2">
-                <Input
-                  type="text"
-                  value={inviteUid}
-                  onChange={(e) => setInviteUid(e.target.value)}
-                  placeholder="User ID to invite"
-                  className="flex-1"
-                />
-                <Button onClick={handleInvite} disabled={inviting || !inviteUid.trim()}>
-                  {inviting ? "…" : "Invite"}
-                </Button>
-              </div>
-            )}
-            {inviteError && (
-              <p role="alert" className="mt-2 text-sm text-alert">
-                {inviteError}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Danger Zone */}
-        {isOwner && !editing && (
-          <div
-            className="rounded-media border border-alert/30 bg-surface p-6"
-            aria-labelledby="plan-danger-heading"
-          >
-            <h2 id="plan-danger-heading" className="text-lg font-medium text-alert">
-              Danger Zone
-            </h2>
-            <div className="mt-4">
-              {!confirmDelete ? (
-                <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-                  Delete Route
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-ink-2">Are you sure? This cannot be undone.</p>
-                  <div className="flex gap-2">
-                    <Button variant="danger" onClick={handleDelete} disabled={deleting}>
-                      {deleting ? "Deleting…" : "Yes, Delete"}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setConfirmDelete(false);
-                        setDeleteError(null);
-                      }}
-                      disabled={deleting}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {deleteError && (
-                <p role="alert" className="mt-4 text-sm text-alert">
-                  {deleteError}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
+      <TripParty planId={planId} ownerId={plan.userId} partyIds={plan.party} onChanged={loadBundle} />
+      {isOwner && !editing && <details className="mt-12">
+        <summary className="w-fit cursor-pointer text-sm font-medium text-muted hover:text-ink">Trip settings</summary>
+        <div className="mt-5 max-w-xl">
+          <h2 className="text-lg font-medium text-alert">Delete trip</h2>
+          <p className="mt-2 text-sm text-muted">This removes the trip for everyone in the group.</p>
+          {!confirmDelete ? <Button className="mt-4" variant="danger" onClick={() => setConfirmDelete(true)}>Delete trip</Button> : <div className="mt-4 space-y-3">
+            <p className="text-sm text-ink-2">Delete “{plan.name}”? This cannot be undone.</p>
+            <div className="flex gap-2"><Button variant="danger" onClick={handleDelete} disabled={deleting}>{deleting ? "Deleting…" : "Yes, delete trip"}</Button><Button variant="secondary" onClick={() => { setConfirmDelete(false); setDeleteError(null); }} disabled={deleting}>Cancel</Button></div>
+          </div>}
+          {deleteError && <p role="alert" className="mt-4 text-sm text-alert">{deleteError}</p>}
+        </div>
+      </details>}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { adminDb } from "../firebase-admin";
 import { verifyToken } from "../auth-actions";
+import { resolveProfileName, resolveAvatarUrl } from "../user-profile-shape";
 
 export interface UserProfile {
   name: string;
@@ -30,9 +31,9 @@ export async function getProfile(
 
   const data = doc.data()!;
   return {
-    name: data.name || "",
+    name: resolveProfileName(data).displayName || "",
     email: data.email || "",
-    avatarUrl: data.avatarUrl || null,
+    avatarUrl: resolveAvatarUrl(data),
     createdAt: data.createdAt || "",
   };
 }
@@ -78,9 +79,9 @@ export async function getFriends(token: string): Promise<Friend[]> {
     friends.push({
       id: doc.id,
       friendUserId: otherUid,
-      friendName: userData?.name || "",
+      friendName: resolveProfileName(userData ?? {}).displayName || "Peaks member",
       friendEmail: userData?.email || "",
-      friendAvatarUrl: userData?.avatarUrl || null,
+      friendAvatarUrl: resolveAvatarUrl(userData ?? {}),
       since: data.createdAt
         ? typeof data.createdAt === "string"
           ? data.createdAt

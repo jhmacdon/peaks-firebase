@@ -1,91 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../../lib/auth-context";
 import { getUserPlans, type Plan } from "../../../lib/actions/plans";
-import { LOADING_LABEL } from "../../../lib/constants";
 import PlanCard from "../../../components/plan-card";
 import { Button } from "../../../components/ui/button";
 import { EmptyState } from "../../../components/ui/empty-state";
+import { Input, Label } from "../../../components/ui/field";
+import { tripGroup } from "../../../lib/member-collections";
 
 export default function MyRoutesPage() {
   const { getIdToken } = useAuth();
-  const [routes, setRoutes] = useState<Plan[]>([]);
+  const [trips, setTrips] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const token = await getIdToken();
-        if (!token) {
-          setError("Sign in to see your saved routes.");
-          return;
-        }
-        const data = await getUserPlans(token);
-        setRoutes(data);
-      } catch {
-        setError("Couldn’t load your saved routes. Try again.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+  const [query, setQuery] = useState("");
+  const [today] = useState(() => new Date().toLocaleDateString("en-CA"));
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error("Sign in again.");
+      setTrips(await getUserPlans(token));
+    } catch { setError("Couldn’t load your trips."); }
+    finally { setLoading(false); }
   }, [getIdToken]);
-
-  return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-ink">My Routes</h1>
-        <Button href="/my-routes/new" variant="secondary">
-          New Route
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="py-12 text-center text-muted">{LOADING_LABEL}</div>
-      ) : error ? (
-        <EmptyState className="py-16">
-          <p role="alert" className="text-alert">
-            {error}
-          </p>
-        </EmptyState>
-      ) : routes.length === 0 ? (
-        <div className="py-16 text-center">
-          <div className="mb-4 text-faint">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="mx-auto"
-              aria-hidden="true"
-            >
-              <path d="M4 19c4-6 6-9 9-9 2 0 3 2 7 5" />
-              <circle cx="7" cy="7" r="2" />
-            </svg>
-          </div>
-          <p className="mb-4 text-muted">No saved routes yet</p>
-          <Button href="/my-routes/new">Create Your First Route</Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {routes.map((route) => (
-            <PlanCard
-              key={route.id}
-              id={route.id}
-              name={route.name}
-              date={route.date}
-              destinationCount={route.destinations.length}
-              partySize={route.party.length}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  useEffect(() => { void load(); }, [load]);
+  const visible = trips.filter((trip) => `${trip.name} ${trip.description}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  return <div className="mx-auto max-w-[1200px] px-6 py-10">
+    <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div><h1 className="font-display text-[32px] font-[680] text-ink sm:text-[40px]">Your trips</h1><p className="mt-2 text-muted">Places, routes, and the people going with you.</p></div>
+      <Button href="/my-routes/new">Plan a trip</Button>
+    </header>
+    {loading ? <EmptyState>Loading your trips…</EmptyState> : error ? <EmptyState><p role="alert">{error}</p><Button className="mt-4" onClick={load}>Try again</Button></EmptyState> : trips.length === 0 ? (
+      <EmptyState title="Where will you go next?" description="Choose a place or route, add a date, and invite your friends."><Button href="/discover" className="mt-4" variant="secondary">Explore places</Button></EmptyState>
+    ) : <>
+      <div className="mb-8 max-w-xl"><Label htmlFor="trip-search">Find a trip</Label><Input id="trip-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your trips" /></div>
+      {visible.length === 0 ? <EmptyState title="No matching trips"><Button variant="secondary" onClick={() => setQuery("")}>Clear search</Button></EmptyState> : ["Upcoming", "Ideas", "Past"].map((group) => {
+        const items = visible.filter((trip) => tripGroup(trip.date, today) === group).sort((a, b) => group === "Upcoming" ? (a.date ?? "").localeCompare(b.date ?? "") : (b.date ?? b.updatedAt).localeCompare(a.date ?? a.updatedAt));
+        return items.length > 0 && <section key={group} className="mt-10"><h2 className="mb-5 text-xl font-medium text-ink">{group}</h2><div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map((trip) => <PlanCard key={trip.id} id={trip.id} name={trip.name} date={trip.date} destinationCount={trip.destinations.length} partySize={trip.party.length} isPublic={trip.isPublic} description={trip.description} preview={trip.preview} />)}</div></section>;
+      })}
+    </>}
+  </div>;
 }

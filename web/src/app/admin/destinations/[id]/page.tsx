@@ -66,6 +66,8 @@ function DestinationDetailContent() {
   const [lists, setLists] = useState<DestinationList[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState("");
@@ -77,40 +79,57 @@ function DestinationDetailContent() {
   const [savingBoundary, setSavingBoundary] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const [d, r, l, s] = await Promise.all([
-        getDestination(id),
-        getDestinationRoutes(id),
-        getDestinationLists(id),
-        getDestinationSessionCount(id),
-      ]);
-      setDest(d);
-      setRoutes(r);
-      setLists(l);
-      setSessionCount(s);
-      if (d) {
-        setEditName(d.name || "");
-        setEditType(d.type);
-        setEditFeatures(Array.isArray(d.features) ? [...d.features] : []);
+      setLoading(true);
+      setError(null);
+      try {
+        const [d, r, l, s] = await Promise.all([
+          getDestination(id),
+          getDestinationRoutes(id),
+          getDestinationLists(id),
+          getDestinationSessionCount(id),
+        ]);
+        if (cancelled) return;
+        setDest(d);
+        setRoutes(r);
+        setLists(l);
+        setSessionCount(s);
+        if (d) {
+          setEditName(d.name || "");
+          setEditType(d.type);
+          setEditFeatures(Array.isArray(d.features) ? [...d.features] : []);
+        }
+      } catch {
+        if (!cancelled) setError("Couldn’t load this destination. Try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     }
-    load();
-  }, [id]);
+    void load();
+    return () => { cancelled = true; };
+  }, [id, attempt]);
 
   const handleSave = async () => {
-    setSaving(true);
-    const token = await getIdToken();
-    if (!token) {
+    setError(null);
+    try {
+      setSaving(true);
+      const token = await getIdToken();
+      if (!token) {
+        setSaving(false);
+        throw new Error("Sign-in expired. Sign in again.");
+      }
+      await updateDestination(token, id, { name: editName, type: editType, features: editFeatures });
+      setDest((prev) =>
+        prev ? { ...prev, name: editName, type: editType, features: editFeatures } : prev
+      );
+      setEditing(false);
       setSaving(false);
-      return;
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
+      setSaving(false);
     }
-    await updateDestination(token, id, { name: editName, type: editType, features: editFeatures });
-    setDest((prev) =>
-      prev ? { ...prev, name: editName, type: editType, features: editFeatures } : prev
-    );
-    setEditing(false);
-    setSaving(false);
   };
 
   const handleGeocode = async () => {
@@ -126,30 +145,44 @@ function DestinationDetailContent() {
             }
           : prev
       );
-    } catch (err: unknown) {
-      console.error("Geocoding failed:", err);
+    } catch {
+      setError("Couldn’t find this location’s region. Try again.");
     } finally {
       setGeocoding(false);
     }
   };
 
   const handleSaveBoundary = async () => {
-    if (!pendingBoundary) return;
-    setSavingBoundary(true);
-    await updateDestinationBoundary(id, pendingBoundary);
-    setDest((prev) => prev ? { ...prev, boundary: pendingBoundary } : prev);
-    setEditingBoundary(false);
-    setPendingBoundary(null);
-    setSavingBoundary(false);
+    setError(null);
+    try {
+      if (!pendingBoundary) return;
+      setSavingBoundary(true);
+      await updateDestinationBoundary(id, pendingBoundary);
+      setDest((prev) => prev ? { ...prev, boundary: pendingBoundary } : prev);
+      setEditingBoundary(false);
+      setPendingBoundary(null);
+      setSavingBoundary(false);
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
+      setSavingBoundary(false);
+    }
   };
 
   const handleDeleteBoundary = async () => {
-    setSavingBoundary(true);
-    await deleteDestinationBoundary(id);
-    setDest((prev) => prev ? { ...prev, boundary: null } : prev);
-    setEditingBoundary(false);
-    setPendingBoundary(null);
-    setSavingBoundary(false);
+    setError(null);
+    try {
+      setSavingBoundary(true);
+      await deleteDestinationBoundary(id);
+      setDest((prev) => prev ? { ...prev, boundary: null } : prev);
+      setEditingBoundary(false);
+      setPendingBoundary(null);
+      setSavingBoundary(false);
+    } catch {
+      setError("Couldn’t complete that change. Your edits are still here; try again.");
+    } finally {
+      setSavingBoundary(false);
+    }
   };
 
   if (loading) {
@@ -159,6 +192,8 @@ function DestinationDetailContent() {
       </AdminPage>
     );
   }
+
+  if (error && !dest) return <AdminPage><p role="alert" className="text-alert">{error}</p><Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Try again</Button></AdminPage>;
 
   if (!dest) {
     return (
@@ -170,6 +205,7 @@ function DestinationDetailContent() {
 
   return (
     <AdminPage className="space-y-12">
+      {error && <p role="alert" className="text-sm text-alert">{error}</p>}
       <AdminPageHeader
         breadcrumb={
           <Breadcrumb

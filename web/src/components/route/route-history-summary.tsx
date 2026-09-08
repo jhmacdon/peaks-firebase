@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "../ui/button";
 import { useAuth } from "../../lib/auth-context";
 import { getUserRouteHistory } from "../../lib/actions/routes";
 import {
@@ -28,11 +29,15 @@ export function RouteHistorySummary({
   const { user, loading: authLoading, getIdToken } = useAuth();
   const userId = user?.uid ?? null;
   const [attempts, setAttempts] = useState<RouteAttempt[] | null>(null);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     if (authLoading) return;
+    setError(false);
+    setAttempts(null);
     if (!userId) {
       setAttempts(null);
       return;
@@ -44,14 +49,15 @@ export function RouteHistorySummary({
         if (!cancelled) setAttempts(result ?? []);
       })
       .catch(() => {
-        if (!cancelled) setAttempts(null);
+        if (!cancelled) { setAttempts(null); setError(true); }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [authLoading, getIdToken, routeId, userId]);
+  }, [authLoading, getIdToken, routeId, userId, retry]);
 
+  if (error) return <p role="status" className={`text-sm text-muted ${className}`}>Your route history could not load. <Button variant="quiet" onClick={() => setRetry((value) => value + 1)}>Retry</Button></p>;
   if (!attempts || attempts.length === 0) return null;
 
   const parts = buildRouteHistoryHeadlineParts(
@@ -62,20 +68,22 @@ export function RouteHistorySummary({
   if (!parts || !latest) return null;
 
   return (
-    <p className={`text-sm text-ink-2 ${className}`.trim()}>
+    <section aria-label="Your route history" className={`rounded-media border border-border bg-surface p-5 text-sm text-ink-2 ${className}`.trim()}>
+      <p className="mb-2 text-sm text-muted">Your activity</p>
+      <p>
       {/* Words stay plain text; only the numerals (count, best time) get
           their own font-mono-num span — design-tokens.md's "every stat
           value is Geist Mono" law, applied mid-sentence rather than to a
           pre-baked string. */}
       {"You've done this route "}
-      <span className="font-mono-num tabular-nums">
+      <span className="font-semibold tabular-nums">
         {parts.count.toLocaleString("en-US")}
       </span>
       {` ${parts.timesWord}`}
       {parts.bestLabel ? (
         <>
           {" · Best: "}
-          <span className="font-mono-num tabular-nums">{parts.bestLabel}</span>
+          <span className="font-semibold tabular-nums">{parts.bestLabel}</span>
         </>
       ) : null}
       {" — "}
@@ -86,6 +94,7 @@ export function RouteHistorySummary({
         {"latest "}
         {formatShortDate(latest.startTime)}
       </Link>
-    </p>
+      </p>
+    </section>
   );
 }
