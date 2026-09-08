@@ -216,6 +216,11 @@ export default async function StateLandingPage({
           <Link href="/guides" className="text-sm font-medium text-accent-text hover:underline">
             Maps and hiking guides →
           </Link>
+          {stateCode === "WA" ? (
+            <Link href="/fire-lookouts/washington" className="text-sm font-medium text-accent-text hover:underline">
+              Washington fire lookouts map →
+            </Link>
+          ) : null}
           <Link
             href="/peaks"
             className="text-sm font-medium text-accent-text hover:underline"
