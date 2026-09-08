@@ -55,7 +55,6 @@ const DATA_SOURCES = [
     label: "USGS PAD-US",
     href: "https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview",
   },
-  { label: "Peakbagger", href: "https://www.peakbagger.com/" },
 ];
 
 const LINK_CLASSES = "inline-flex min-h-11 items-center text-sm text-ink-2 no-underline hover:underline";
