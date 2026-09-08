@@ -6,6 +6,7 @@ import {
   formatElevationMeters,
 } from "../../lib/route-guide";
 import { EmptyState } from "../ui/empty-state";
+import { FireLookoutIcon } from "../fire-lookout-badge";
 import { CloseIcon, SearchIcon, Spinner } from "./explore-icons";
 
 /**
@@ -190,7 +191,12 @@ function ResultDetail({ result }: { result: ExploreResult }) {
 
   return (
     <>
-      {result.typeWord}
+      {result.typeWord === "Fire lookout" ? (
+        <span className="inline-flex items-center gap-1 align-bottom text-ink-2">
+          <FireLookoutIcon className="h-4 w-4 text-accent-text" />
+          {result.typeWord}
+        </span>
+      ) : result.typeWord}
       {result.elevation != null ? (
         <>
           {" · "}

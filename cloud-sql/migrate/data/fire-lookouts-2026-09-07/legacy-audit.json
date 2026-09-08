@@ -1,0 +1,122 @@
+{
+  "reviewedOn": "2026-09-07",
+  "scope": "Read-only audit of the 14 existing fire-lookout tags not matched by the OSM inventory. No database changes made by this audit.",
+  "records": [
+    {
+      "destinationId": "1sghoCTFbyhh8lwPRy0a",
+      "name": "Mebee Pass Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Mebee Pass", "sourceStatus": "Standing", "structureType": "Ground", "lat": 48.63729, "lng": -120.77396}],
+      "note": "FFLA confirms the cabin. The catalog coordinates are about 790 m southwest of the FFLA point and need separate location review. Do not widen all matching thresholds to handle this record."
+    },
+    {
+      "destinationId": "6GvnI4ZnvRuQqjL6PKAu",
+      "name": "Mount Adams Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Adams, Mount", "sourceStatus": "Standing", "structureType": "Ground", "lat": 46.20241, "lng": -121.49089}]
+    },
+    {
+      "destinationId": "aJDkf7zrTpiSaClhu4AV",
+      "name": "Okanogan Post Office Lookout Site",
+      "action": "remove_fire_lookout",
+      "status": "former-site",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Okanogan P.O.", "sourceStatus": "Abandoned", "structureType": "Rooftop", "lat": 48.36330, "lng": -119.58173}],
+      "note": "FFLA lists this rooftop observation site under Lookout Sites / Non-lookout Structures."
+    },
+    {
+      "destinationId": "ax4fNVxy1RoBMrf4PnW3",
+      "name": "Nordrum Lookout Site",
+      "action": "remove_fire_lookout",
+      "status": "gone",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Nordrum Mountain", "sourceStatus": "Gone", "structureType": "Tower", "lat": 47.55553, "lng": -121.54462}]
+    },
+    {
+      "destinationId": "EP3biLgflpEj4m4MEjZh",
+      "name": "Weaver Bally Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/ca/", "sourceName": "Weaver Bally", "sourceStatus": "Standing", "structureType": "Tower", "lat": 40.79763, "lng": -123.00392}]
+    },
+    {
+      "destinationId": "i3n2xt8Pjf81YJyzKSdz",
+      "name": "Cobble Lookout",
+      "action": "replace_fire_lookout_with_viewpoint",
+      "status": "non-fire-viewpoint",
+      "sources": [{"url": "https://dec.ny.gov/places/wilmington-wild-forest", "sourceName": "NYSDEC Wilmington Wild Forest", "sourceStatus": "Rocky ledge viewpoint"}],
+      "note": "The land manager describes the Cobble Lookout trail ending at a rocky ledge with mountain views; the name denotes a natural viewpoint. This classification is an inference from that official trail description, not an explicit statement that no fire lookout ever existed."
+    },
+    {
+      "destinationId": "K80lCgMxRnaKHvkXk5Zg",
+      "name": "Clearwater Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Clearwater", "sourceStatus": "Standing", "structureType": "Tower", "lat": 46.20297, "lng": -117.57517}],
+      "note": "Garfield County record. Do not confuse it with the gone Clearwater tower in Jefferson County."
+    },
+    {
+      "destinationId": "m5GwvROIzYZXF7KAFMKr",
+      "name": "Beacon Rock Lookout Site",
+      "action": "remove_fire_lookout",
+      "status": "former-site",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Beacon Rock", "sourceStatus": "Abandoned", "structureType": "Camp", "lat": 45.62601, "lng": -122.04887}],
+      "note": "FFLA places the former observation camp under Lookout Sites / Non-lookout Structures."
+    },
+    {
+      "destinationId": "o32USpz46pzJ2amXvdGP",
+      "name": "Darrington Ranger Station Lookout Site",
+      "action": "remove_fire_lookout",
+      "status": "gone",
+      "sources": [
+        {"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Darrington R.S.", "sourceStatus": "Abandoned", "structureType": "Rooftop", "lat": 48.26000, "lng": -121.60490},
+        {"url": "https://www.discoverdarrington.com/history-2/fire-lookouts-of-darrington/", "sourceName": "Discover Darrington local history", "sourceStatus": "Tower removed in the 1940s"}
+      ],
+      "note": "The historic livery barn remains. The fire lookout added to its roof in 1932 does not."
+    },
+    {
+      "destinationId": "OAKYQ2Lh5cREni7s8g0C",
+      "name": "Lorena Butte Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing-relocated",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Lefever (Relocated Lorena Butte)", "sourceStatus": "Standing", "structureType": "Ground", "lat": 45.79973, "lng": -120.79823}],
+      "note": "The database points to the relocated cabin at Lefever, within 3 m of FFLA coordinates. The original Lorena Butte site at 45.80072,-120.79420 is Gone; that status must not be applied to the relocated cabin."
+    },
+    {
+      "destinationId": "qNPSLlpUZWSsSAsg777M",
+      "name": "Leecher Crow's Nest Lookout Site",
+      "action": "keep_fire_lookout",
+      "status": "standing-historic-tree-platform",
+      "sources": [
+        {"url": "https://www.trailchick.com/?p=20578", "sourceName": "Mount Leecher Crows Nest, firsthand account by seasonal fire lookout Christine Estrada", "sourceStatus": "Standing tree-top lookout; visited 2018-07-29", "structureType": "Crows nest", "lat": 48.247253, "lng": -119.999132},
+        {"url": "https://willhiteweb.com/washington_fire_lookouts/leecher_crows_nest_tree/pictures_014.htm", "sourceName": "Willhite Web firsthand photos and history", "sourceStatus": "Historic tree and platform remain"}
+      ],
+      "note": "A separate historic 1918 tree-platform lookout southeast of the current Leecher tower, not the current enclosed tower. Both accounts document survival after the 2014 fire. No evidence supports removing this existing tag; the source observation is older than the audit date."
+    },
+    {
+      "destinationId": "RfC5IjdmAxmBsfcdw84G",
+      "name": "Harriets Peak Lookout",
+      "action": "remove_fire_lookout",
+      "status": "destroyed",
+      "sources": [
+        {"url": "https://www.willhiteweb.com/washington_fire_lookouts/harriets_peak/lookout_site_303.htm", "sourceName": "Willhite Web firsthand photos and history", "sourceStatus": "Tower toppled by 2008; remains on the ground"},
+        {"url": "https://octopup.org/2008/colockum-pass", "sourceName": "Independent July 2008 visit and photos", "sourceStatus": "Destroyed", "lat": 47.2763, "lng": -120.2890}
+      ],
+      "note": "The first account dates roof loss to winter 2006/07 and collapse discovery to 2008. The second confirms the fallen tower in July 2008. FFLA has no matching named row; this finding rests on independent firsthand photographic reports."
+    },
+    {
+      "destinationId": "YyR2xGHDwD72RGpeMFlH",
+      "name": "Red Ridge Lookout Site",
+      "action": "remove_fire_lookout",
+      "status": "gone",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Red Ridge", "sourceStatus": "Gone", "structureType": "Ground", "lat": 48.05669, "lng": -121.28006}]
+    },
+    {
+      "destinationId": "Z0lje0mdzbvNAvLC66Ch",
+      "name": "Salmo Mountain Lookout",
+      "action": "keep_fire_lookout",
+      "status": "standing",
+      "sources": [{"url": "https://firelookout.org/lookouts/us/wa/", "sourceName": "Salmo Mountain", "sourceStatus": "Standing", "structureType": "Tower", "lat": 48.96836, "lng": -117.10309}]
+    }
+  ]
+}

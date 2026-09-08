@@ -59,7 +59,8 @@
     "routes:audit-jobs": "./scripts/run-tsx.sh src/route-catalog-audit-jobs.ts",
     "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts",
     "roads:import": "tsx src/roads/import-road-network.ts",
-    "roads:derive": "tsx src/roads/derive-trailhead-approaches.ts"
+    "roads:derive": "tsx src/roads/derive-trailhead-approaches.ts",
+    "backfill:fire-lookouts": "tsx src/backfill-fire-lookouts.ts"
   },
   "dependencies": {
     "@duckdb/node-api": "^1.5.5-r.4",

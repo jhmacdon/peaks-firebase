@@ -30,6 +30,7 @@ import { formatRegion } from "../../../../lib/regions";
 import { Breadcrumb } from "../../../../components/detail-sections";
 import { AreaChips } from "../../../../components/area-chip";
 import { PageHeader } from "../../../../components/ui/page-header";
+import { FireLookoutBadge } from "../../../../components/fire-lookout-badge";
 import { DestinationAbout } from "../../../../components/destination/destination-about";
 import { DestinationActions } from "../../../../components/destination/destination-actions";
 import { DestinationActivity } from "../../../../components/destination/destination-activity";
@@ -112,6 +113,7 @@ export default async function DestinationDetailPage({
   const name = dest.name || "Unnamed";
   const regionLabel = formatRegion(dest.state_code, dest.country_code);
   const typeLabel = describeDestinationType(dest.type, dest.features);
+  const hasFireLookout = dest.features.includes("fire-lookout");
   const guide = buildDestinationGuide(dest, regionLabel, sessionCount);
   const elevationValue = formatFeetValue(dest.elevation);
   const prominenceValue = formatFeetValue(dest.prominence);
@@ -186,12 +188,18 @@ export default async function DestinationDetailPage({
         breadcrumb={<Breadcrumb current={name} />}
         title={name}
         meta={
-          <DestinationMetaRow
-            // Closures and seasonal alerts belong in this slot when Peaks
-            // has that data. It has none today, so nothing renders.
-            alert={null}
-            parts={[typeLabel, regionLabel]}
-          />
+          <>
+            {hasFireLookout ? <FireLookoutBadge /> : null}
+            <DestinationMetaRow
+              // Closures and seasonal alerts belong in this slot when Peaks
+              // has that data. It has none today, so nothing renders.
+              alert={null}
+              parts={[
+                hasFireLookout && typeLabel === "Fire lookout" ? null : typeLabel,
+                regionLabel,
+              ]}
+            />
+          </>
         }
       />
 

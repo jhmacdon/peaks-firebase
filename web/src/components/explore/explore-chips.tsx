@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "../ui/chip";
+import { FireLookoutIcon } from "../fire-lookout-badge";
 import {
   MAP_TYPES,
   allTypesSelected,
@@ -43,7 +44,12 @@ export function ExploreChips({
           onClick={() => onToggle(type.id)}
           className="shrink-0 bg-page shadow-float"
         >
-          {type.label}
+          {type.id === "fire-lookouts" ? (
+            <span className="inline-flex items-center gap-1.5">
+              <FireLookoutIcon />
+              {type.label}
+            </span>
+          ) : type.label}
         </Chip>
       ))}
       <Chip

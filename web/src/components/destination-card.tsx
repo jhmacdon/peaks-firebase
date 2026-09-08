@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { FireLookoutBadge } from "./fire-lookout-badge";
 import { formatDistanceAway, formatFeetValue } from "../lib/destination-detail";
 
 interface DestinationCardProps {
@@ -25,7 +26,7 @@ export default function DestinationCard({
   imageFocalY = 50,
 }: DestinationCardProps) {
   // One primary chip plus an overflow count — never two rows of chips.
-  const primaryFeature = features[0] ?? null;
+  const primaryFeature = features.includes("fire-lookout") ? "fire-lookout" : features[0] ?? null;
   const overflowFeatureCount = primaryFeature ? features.length - 1 : 0;
   // formatFeetValue pins its own "en-US" locale (a bare .toLocaleString()
   // seeds from the runtime locale, which can differ between the server
@@ -46,7 +47,11 @@ export default function DestinationCard({
       {meta ? <div className="mt-1 text-sm text-muted">{meta}</div> : null}
       {primaryFeature && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          <Badge tone="emerald">{primaryFeature}</Badge>
+          {primaryFeature === "fire-lookout" ? (
+            <FireLookoutBadge />
+          ) : (
+            <Badge tone="emerald">{primaryFeature}</Badge>
+          )}
           {overflowFeatureCount > 0 && <Badge tone="gray">+{overflowFeatureCount}</Badge>}
         </div>
       )}

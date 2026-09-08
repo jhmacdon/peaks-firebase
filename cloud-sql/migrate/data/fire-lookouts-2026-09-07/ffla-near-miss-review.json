@@ -1,0 +1,121 @@
+{
+  "reviewedOn": "2026-09-07",
+  "scope": "Evidence-backed same-mountain associations within 2 km; source coordinates remain the actual lookout location. This review does not assert public access or current staffing.",
+  "sources": [
+    {
+      "source": "ffla",
+      "sourceId": "wa:47.81315,-117.51120:Lookout Point",
+      "name": "Lookout Point",
+      "lat": 47.81315,
+      "lng": -117.5112,
+      "status": "Standing",
+      "url": "https://firelookout.org/lookouts/us/wa/",
+      "structureType": "Tower",
+      "state": "WA",
+      "reviewedMatches": [
+        {
+          "destinationId": "xEoyXUdeLfW9xatLxd6S",
+          "evidenceUrl": "https://willhiteweb.com/washington_fire_lookouts/lookout_point/spokane_340.htm",
+          "note": "Lookout Point is the tower on Lookout Mountain north of Spokane, 136 m from the catalog summit. The firsthand illustrated site history explicitly places the current tower on Lookout Mountain after its 1976 move from Mica Peak; FFLA lists this location as Standing. Keep the actual tower coordinates."
+        }
+      ]
+    },
+    {
+      "source": "ffla",
+      "sourceId": "ca:41.80023,-123.49347:Baldy Mountain",
+      "name": "Baldy Mountain",
+      "lat": 41.80023,
+      "lng": -123.49347,
+      "status": "Standing",
+      "url": "https://firelookout.org/lookouts/us/ca/",
+      "structureType": "Encl. Tower",
+      "state": "CA",
+      "reviewedMatches": [
+        {
+          "destinationId": "belqPcgoKP2SXSpQlJev",
+          "evidenceUrl": "https://californialookouts.weebly.com/baldy-mountain-happy-camp-baldy.html",
+          "note": "Happy Camp Baldy's lookout stands on the mountain's east-southeast shoulder, 501 m from the catalog high point. This archive reproduces a 1952 Coast and Geodetic Survey station description locating the lookout east-southeast of Baldy Mountain's highest point and station BALDY MTN. FFLA confirms the current structure is Standing. Keep the actual tower coordinates."
+        }
+      ]
+    },
+    {
+      "source": "ffla",
+      "sourceId": "ca:41.72813,-123.79548:Ship Mountain",
+      "name": "Ship Mountain",
+      "lat": 41.72813,
+      "lng": -123.79548,
+      "status": "Standing",
+      "url": "https://firelookout.org/lookouts/us/ca/",
+      "structureType": "2-StoryCab",
+      "state": "CA",
+      "reviewedMatches": [
+        {
+          "destinationId": "mOMDHg1qMSiISYEJx7zV",
+          "evidenceUrl": "https://www.fs.usda.gov/Internet/FSE_DOCUMENTS/fseprd776582.pdf",
+          "note": "The USFS Smith River NRA Map and Guide, page 19, includes a firsthand history by Ship Mountain lookout John Dean. It identifies Ship Mountain as the four peaks called the Four Brothers and describes the present two-story lookout built on one of those peaks in 2006. Associate it with the named mountain, 872 m from the catalog high point; the lookout is on another summit of that same mountain. Keep the actual tower coordinates."
+        }
+      ]
+    },
+    {
+      "source": "ffla",
+      "sourceId": "az:32.43486,-110.78939:Lemmon Rock",
+      "name": "Lemmon Rock",
+      "lat": 32.43486,
+      "lng": -110.78939,
+      "status": "Standing",
+      "url": "https://firelookout.org/lookouts/us/az/",
+      "structureType": "Ground",
+      "state": "AZ",
+      "reviewedMatches": [
+        {
+          "destinationId": "CJwKO6Takf7FBKct07qa",
+          "evidenceUrl": "https://www.fs.usda.gov/sites/nfs/files/legacy-media/coronado/Mt%20Lemmon%20ROG.pdf",
+          "note": "The USFS Mount Lemmon and Catalina Highway Recreation Guide maps Lemmon Rock Fire Lookout on Mount Lemmon's south shoulder, reached from the summit day-use area via Mount Lemmon Trail and Lemmon Lookout Trail. It is 910 m from the catalog summit. The USFS historical marker photographed at https://www.hmdb.org/m.asp?m=55554 independently identifies this as a 1928 fire lookout; FFLA lists it as Standing. Keep the actual lookout coordinates."
+        }
+      ]
+    }
+  ],
+  "notLinked": [
+    {
+      "sourceId": "az:33.94733,-109.12169:Escudilla",
+      "destinationId": "79DFA30F8D978B1912EE",
+      "reason": "Hold for structure-status review. This is on Escudilla Mountain, but the 2011 Wallow Fire caused structural damage. The official BAER report, pages 7 and 17, calls for fencing the tower until removal or replacement. Later firsthand trip accounts still report a burned-out floor and tower remnants. FFLA's unqualified Standing status alone does not establish a surviving intact lookout. No manual match added.",
+      "evidenceUrls": [
+        "https://forest.moscowfsl.wsu.edu/BAERTOOLS/baer-db/2500-8/2500-8_Wallow%20Fire_Apache-Sitgreaves.pdf",
+        "https://hikearizona.com/x.php?I=4&UID=0&ZTN=311",
+        "https://www.surgent.net/highpoints/az/range/escudilla.html"
+      ]
+    },
+    {
+      "sourceId": "ca:36.61914,-121.06874:Call Mountain",
+      "destinationId": "T2PsBlCYLCiMLDrm1fPF",
+      "reason": "No clear source ties Call Benchmark to the lookout knoll 1,143 m north. CAL FIRE's May 2022 property-exchange notice confirms a dilapidated lookout tower on its Call Mountain parcel but does not establish the benchmark as the same mountain destination. Proximity and a partial name match are insufficient; no manual match added.",
+      "evidenceUrls": ["https://ceqanet.lci.ca.gov/2022050348"]
+    },
+    {
+      "sourceId": "ny:42.45104,-74.35289:Leonard Hill",
+      "destinationId": "CF665135C6B8FB1720D3",
+      "reason": "Do not associate Leonard Hill's tower with nearby Hubbard Hill from distance alone. No same-mountain evidence supports this link."
+    },
+    {
+      "sourceId": "or/43.58578/-122.65324/Fairview Peak",
+      "destinationId": "KtHc553FsS3WdzIu5kSt",
+      "reason": "Do not associate Fairview Peak's tower with neighboring Bohemia Mountain."
+    },
+    {
+      "sourceId": "ny:43.73859,-74.91289:Rondaxe Mountain (Bald)",
+      "destinationId": "2DE9EA7EA6228AACE755",
+      "reason": "Do not associate Rondaxe/Bald Mountain's tower with nearby Sugarloaf Mountain."
+    },
+    {
+      "sourceId": "nm:35.25129,-107.59621:La Mosca",
+      "destinationId": "MHfbTeas4wQe7uY2MkCo",
+      "reason": "No evidence establishes the lookout on La Mosca as a lookout on the separate Mount Taylor summit destination. Distance alone does not support a link."
+    },
+    {
+      "sourceId": "az:33.29317,-110.83597:Signal Peak",
+      "destinationId": "MMnPk1OYdzW7b5hB0tS7",
+      "reason": "Do not associate Signal Peak's tower with neighboring Pinal Peak."
+    }
+  ]
+}
