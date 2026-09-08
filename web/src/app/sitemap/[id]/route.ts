@@ -29,6 +29,7 @@ const STATIC_URLS = [
   "/guides/washington-waterfalls",
   "/features",
   "/peaks",
+  "/fire-lookouts/washington",
   "/areas",
   "/lists",
   "/about",

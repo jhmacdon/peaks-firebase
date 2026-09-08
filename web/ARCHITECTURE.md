@@ -357,3 +357,7 @@ GPS points. The implementation adds no datastore fallback, schema, migration,
 background worker, or always-on resource. Fixed infrastructure cost change is
 $0/month. Responsive photo sizing uses the existing Next image service; missing
 place photos use the existing Esri satellite export when coordinates exist.
+
+### Search-focused place guides
+
+`/fire-lookouts/washington` pairs the live Washington fire-lookout catalog with a map, server-rendered links and elevations, and sourced visitor guidance. It uses the exact `fire-lookout` feature with US/WA filters, rather than matching place names. The page caches for one hour and keeps data failures visible as errors. The state guide, footer, and static sitemap link to it. New guides should serve a clear search need with real catalog coverage and specific copy before joining this set. No new infrastructure or fixed monthly cost.
