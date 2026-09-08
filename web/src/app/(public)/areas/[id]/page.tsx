@@ -1,3 +1,5 @@
+import { guideForArea } from "../../../../lib/guides";
+import { GuideReading } from "../../../../components/guide-reading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArea } from "../../../../lib/actions/areas";
@@ -34,6 +36,7 @@ export default async function AreaDetailPage({
   const area = await getArea(id);
   if (!area) notFound();
 
+  const guide = guideForArea(area.name, area.country_code, area.state_codes);
   const managerLabel = describeManager(area.manager);
   const regionLabel = formatRegionList(area.state_codes, area.country_code);
   const designationLabel = describeDesignation(area.designation, area.kind);
@@ -94,14 +97,16 @@ export default async function AreaDetailPage({
         <div className="mt-8 space-y-12">
           <AreaActivity destinationCount={area.destination_count} />
 
-          <AreaAbout
+          {guide ? <>
+            <p className="max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p>
+          </> : <AreaAbout
             name={area.name}
             description={area.description}
             sourceName={area.description_source_name}
             sourceUrl={area.description_source_url}
             sourceLicense={area.description_source_license}
             fallbackCredit={catalogSource}
-          />
+          />}
 
           <div>
             <AreaFacts facts={facts} />
@@ -109,6 +114,8 @@ export default async function AreaDetailPage({
           </div>
 
           <AreaHero area={area} />
+
+          {guide ? <GuideReading guide={guide} /> : null}
 
           <AreaDestinations
             destinations={area.destinations}

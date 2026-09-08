@@ -15,6 +15,7 @@ const COLUMNS: Array<{
     heading: "Explore",
     links: [
       { label: "Discover", href: "/discover" },
+      { label: "Hiking guides", href: "/guides" },
       { label: "Map", href: "/map" },
       { label: "Lists", href: "/lists" },
       { label: "Areas", href: "/areas" },

@@ -210,6 +210,9 @@ export default async function StateLandingPage({
           Find a route in {data.stateName}
         </SectionHeading>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          <Link href="/guides" className="text-sm font-medium text-accent-text hover:underline">
+            Maps and hiking guides →
+          </Link>
           <Link
             href="/peaks"
             className="text-sm font-medium text-accent-text hover:underline"

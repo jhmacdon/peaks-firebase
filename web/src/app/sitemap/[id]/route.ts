@@ -25,6 +25,8 @@ type SitemapRow = {
 const STATIC_URLS = [
   "/",
   "/discover",
+  "/guides",
+  "/guides/washington-waterfalls",
   "/features",
   "/peaks",
   "/areas",
