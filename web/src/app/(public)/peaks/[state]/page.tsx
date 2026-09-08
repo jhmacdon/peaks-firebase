@@ -210,6 +210,11 @@ export default async function StateLandingPage({
           Find a route in {data.stateName}
         </SectionHeading>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+          {stateCode === "WA" ? (
+            <Link href="/fire-lookouts/washington" className="text-sm font-medium text-accent-text hover:underline">
+              Washington fire lookouts map →
+            </Link>
+          ) : null}
           <Link
             href="/peaks"
             className="text-sm font-medium text-accent-text hover:underline"

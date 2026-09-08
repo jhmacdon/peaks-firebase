@@ -19,6 +19,7 @@ const COLUMNS: Array<{
       { label: "Lists", href: "/lists" },
       { label: "Areas", href: "/areas" },
       { label: "Peaks by state", href: "/peaks" },
+      { label: "Washington fire lookouts", href: "/fire-lookouts/washington" },
     ],
   },
   {

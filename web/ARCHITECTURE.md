@@ -304,3 +304,7 @@ The web reads both its `blocks` representation and the iOS `content` plus `heade
 
 ### Session naming strategy
 The iOS app rarely sets explicit session names. Instead, sessions are identified by their destinations — "Mount Rainier, Camp Muir" is more meaningful than a timestamp. The web app derives names from `session_destinations` sorted by elevation, matching the Strava upload naming pattern in the Cloud Functions.
+
+### Search-focused place guides
+
+`/fire-lookouts/washington` pairs the live Washington fire-lookout catalog with a map, server-rendered links and elevations, and sourced visitor guidance. It uses the exact `fire-lookout` feature with US/WA filters, rather than matching place names. The page caches for one hour and keeps data failures visible as errors. The state guide, footer, and static sitemap link to it. New guides should serve a clear search need with real catalog coverage and specific copy before joining this set. No new infrastructure or fixed monthly cost.

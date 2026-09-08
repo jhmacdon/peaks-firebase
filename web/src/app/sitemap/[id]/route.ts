@@ -27,6 +27,7 @@ const STATIC_URLS = [
   "/discover",
   "/features",
   "/peaks",
+  "/fire-lookouts/washington",
   "/areas",
   "/lists",
   "/about",
