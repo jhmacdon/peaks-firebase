@@ -180,3 +180,35 @@ test("A.T. and CDT section order comes from their official source features", () 
     "New Mexico", "Colorado", "Wyoming", "Montana & Idaho",
   ]);
 });
+
+test("non-adjacent A.T. sections managed by the same club get stable unique ids", () => {
+  const officialProperties = {
+    Region: "2", Trail_Club: "23", Status: "Official A.T. Route", Publish: "Yes",
+  };
+  const sections = buildSourceSections(TRAIL_SOURCES[1], {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[0, 0], [0, 0.01]] },
+        properties: { ...officialProperties, Name: "RATC AT Treadway" },
+      },
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[0, 0.01], [0, 0.02]] },
+        properties: { ...officialProperties, Name: "OCVT AT Treadway", Trail_Club: "22" },
+      },
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [[0, 0.02], [0, 0.03]] },
+        properties: { ...officialProperties, Name: "RATC AT Treadway" },
+      },
+    ],
+  } as any);
+
+  assert.deepEqual(sections.map((section) => section.id), [
+    "at-ratc-at-treadway",
+    "at-ocvt-at-treadway",
+    "at-ratc-at-treadway-2",
+  ]);
+});
