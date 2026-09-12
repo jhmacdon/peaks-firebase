@@ -1,5 +1,5 @@
 import { guideForList } from "../../../../lib/guides";
-import { GuideReading } from "../../../../components/guide-reading";
+import { GuideOpening, GuideReading } from "../../../../components/guide-reading";
 import { notFound } from "next/navigation";
 import { getCachedList, getCachedListDestinations } from "../../../../lib/actions/cached-lists";
 import { listOwnerLabel, parseListDescription } from "../../../../lib/list-content";
@@ -92,7 +92,13 @@ export default async function ListDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8">
-      <PageHeader
+      {guide ? <article className="pt-4 sm:pt-8">
+        <GuideOpening guide={guide}>
+          <a href="#guide-map" className="inline-flex min-h-11 items-center text-accent-text hover:underline">Map & checklist ↓</a>
+          <ShareLinkButton url={guide.href} title={guide.title} />
+        </GuideOpening>
+        <div className="mt-10"><GuideReading guide={guide} /></div>
+      </article> : <PageHeader
         breadcrumb={<Breadcrumb current={list.name} parentHref="/lists" parentLabel="Lists" />}
         title={list.name}
         meta={<p>{metaLine}</p>}
@@ -102,9 +108,7 @@ export default async function ListDetailPage({
             title={list.name}
           />
         }
-      />
-
-      {guide ? <p className="mt-6 max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p> : null}
+      />}
 
       {/* One provider around every section that needs a signed-in reader's
           completion — the map hero and the roster — rather than around the
@@ -112,7 +116,7 @@ export default async function ListDetailPage({
           them in page order and ride along inside the same block; neither
           reads the context. */}
       <ListCompletionProvider listId={list.id}>
-        <div className="mt-10 space-y-12">
+        <div id="guide-map" className="mt-10 scroll-mt-24 space-y-12">
           <ListHero destinations={destinations} />
 
           <Topline stats={toplineStats} />
@@ -126,8 +130,6 @@ export default async function ListDetailPage({
               </div>
             </section>
           ) : null}
-
-          {guide ? <GuideReading guide={guide} /> : null}
 
           <ListRoster
             destinations={destinations}

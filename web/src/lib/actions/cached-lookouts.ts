@@ -2,11 +2,11 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import db from "../db";
-import { WASHINGTON_LOOKOUT_QUERY, type WashingtonLookout } from "../washington-lookouts";
+import { FIRE_LOOKOUT_QUERY, type FireLookout } from "../fire-lookouts";
 
-export const getWashingtonLookouts = cache(unstable_cache(async (): Promise<WashingtonLookout[]> => {
-  const result = await db.query<WashingtonLookout>(WASHINGTON_LOOKOUT_QUERY, ["US", "WA"]);
+export const getStateLookouts = cache(unstable_cache(async (stateCode: "WA" | "CA"): Promise<FireLookout[]> => {
+  const result = await db.query<FireLookout>(FIRE_LOOKOUT_QUERY, ["US", stateCode]);
   // A missing catalog must remain an error, not an indexable empty guide.
-  if (result.rows.length === 0) throw new Error("Washington fire lookout catalog is empty");
+  if (result.rows.length === 0) throw new Error(`${stateCode} fire lookout catalog is empty`);
   return result.rows;
-}, ["washington-fire-lookouts"], { revalidate: 3600 }));
+}, ["state-fire-lookouts"], { revalidate: 3600 }));

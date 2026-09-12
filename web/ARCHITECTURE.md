@@ -308,12 +308,6 @@ Cloud Storage. No report read falls back to Firestore.
 ### Session naming strategy
 The iOS app rarely sets explicit session names. Instead, sessions are identified by their destinations — "Mount Rainier, Camp Muir" is more meaningful than a timestamp. The web app derives names from `session_destinations` sorted by elevation, matching the Strava upload naming pattern in the Cloud Functions.
 
-### Reading guides
-
-`src/lib/guides.ts` holds reviewed, sourced copy for five search topics. `/guides` links to three existing list pages, a waterfall map, and the Alpine Lakes area page (ID checked on the public site on 2026-09-08). List and area pages keep their canonical URLs and draw their introductions and search descriptions from the same guide record. The waterfall page renders every named catalog match as an HTML link; only its map needs client JavaScript. Unknown guide slugs return 404, while missing catalog data remains an error. Database-backed routes use one-hour ISR with no build-time reads. No new infrastructure or fixed monthly cost.
-
-Before adding a guide, check its roster and route coverage, read primary sources, and write about the choices specific to that place. Link sources beside the relevant section. Do not infer trail access, difficulty, or waterfall height from a destination pin or elevation.
-
 ### Member trips and reports
 The web calls saved plan objects Trips. Existing `/my-routes`, `/plans`, and
 public `/route/:id` URLs remain compatible. New-trip links accept `route` or
@@ -358,6 +352,23 @@ background worker, or always-on resource. Fixed infrastructure cost change is
 $0/month. Responsive photo sizing uses the existing Next image service; missing
 place photos use the existing Esri satellite export when coordinates exist.
 
-### Search-focused place guides
+### Field guide chapters
 
-`/fire-lookouts/washington` pairs the live Washington fire-lookout catalog with a map, server-rendered links and elevations, and sourced visitor guidance. It uses the exact `fire-lookout` feature with US/WA filters, rather than matching place names. The page caches for one hour and keeps data failures visible as errors. The state guide, footer, and static sitemap link to it. New guides should serve a clear search need with real catalog coverage and specific copy before joining this set. No new infrastructure or fixed monthly cost.
+`src/lib/guides.ts` holds the reviewed chapters for the web and native iOS reader.
+The static public `/api/guides` response exposes that same catalog as `{ guides }`,
+with a one-hour cache and no database or authentication dependency. Each guide has
+a stable slug, title, subtitle, summary, canonical relative `href`, opening paragraph,
+and sections with paragraphs and source links. Keep this contract compatible with
+released iOS readers.
+
+The guide shelf links to each existing list, area, or guide URL. `GuideOpening` and
+`GuideReading` keep prose in one serif reading column before the map; area pages
+keep personal activity first. California and Washington use the same lookout page
+and parameterized query, scoped by country, state, and the exact fire-lookout feature.
+Missing catalogs remain errors. No infrastructure changes or added fixed monthly cost.
+
+Before adding a chapter, check catalog and route coverage and read primary sources.
+Write about the place and the people who know it, using concrete details and plain
+prose. Put sources after the chapter. Do not infer access, difficulty, or waterfall
+height from a destination pin or elevation. Unknown guide slugs return 404;
+missing catalog data remains an error.

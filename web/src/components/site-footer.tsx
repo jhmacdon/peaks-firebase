@@ -15,11 +15,12 @@ const COLUMNS: Array<{
     heading: "Explore",
     links: [
       { label: "Discover", href: "/discover" },
-      { label: "Hiking guides", href: "/guides" },
+      { label: "Field guides", href: "/guides" },
       { label: "Map", href: "/map" },
       { label: "Lists", href: "/lists" },
       { label: "Areas", href: "/areas" },
       { label: "Peaks by state", href: "/peaks" },
+      { label: "California fire lookouts", href: "/fire-lookouts/california" },
       { label: "Washington fire lookouts", href: "/fire-lookouts/washington" },
     ],
   },

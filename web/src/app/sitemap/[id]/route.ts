@@ -30,6 +30,7 @@ const STATIC_URLS = [
   "/features",
   "/peaks",
   "/fire-lookouts/washington",
+  "/fire-lookouts/california",
   "/areas",
   "/lists",
   "/about",
