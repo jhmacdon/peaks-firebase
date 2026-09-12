@@ -5,7 +5,7 @@ import { absoluteUrl } from "../../../../lib/seo";
 
 export const dynamic = "force-dynamic";
 
-const guide = GUIDES.find((entry) => entry.slug === "washington-fire-lookouts")!;
+const guide = GUIDES.find((entry) => entry.slug === "california-fire-lookouts")!;
 export const metadata: Metadata = {
   title: guide.title,
   description: guide.description,
@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function LookoutsPage() {
-  return <FireLookoutGuide state="washington" />;
+  return <FireLookoutGuide state="california" />;
 }

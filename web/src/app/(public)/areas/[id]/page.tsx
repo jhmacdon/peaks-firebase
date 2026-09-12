@@ -1,5 +1,5 @@
 import { guideForArea } from "../../../../lib/guides";
-import { GuideReading } from "../../../../components/guide-reading";
+import { GuideIntro, GuideReading } from "../../../../components/guide-reading";
 import { ActivityPhotoGroups } from "../../../../components/activity-photo-groups";
 import { getActivityPhotoGroups } from "../../../../lib/actions/activity-photos";
 import { DetailSectionNav } from "../../../../components/detail-section-nav";
@@ -107,7 +107,12 @@ export default async function AreaDetailPage({
             ...(photoGroups.length ? [{ id: "area-photos", label: "Photos" }] : []),
             { id: "area-routes", label: "Routes" },
           ]} />
-          {guide ? <p id="area-about" className="max-w-[68ch] text-lg leading-[1.8] text-ink-2">{guide.intro}</p> : <AreaAbout
+          {guide ? <article id="area-about" className="mx-auto max-w-[720px] scroll-mt-24">
+            <p className="mb-4 text-sm text-accent-text">Peaks field guides</p>
+            <p className="mb-6 font-serif text-2xl italic leading-relaxed text-muted">{guide.subtitle}</p>
+            <GuideIntro guide={guide} />
+            <div className="mt-10"><GuideReading guide={guide} /></div>
+          </article> : <AreaAbout
             name={area.name}
             description={area.description}
             sourceName={area.description_source_name}
@@ -123,7 +128,6 @@ export default async function AreaDetailPage({
 
           <AreaHero area={area} />
 
-          {guide ? <GuideReading guide={guide} /> : null}
           <ActivityPhotoGroups groups={photoGroups} id="area-photos" />
 
           <AreaDestinations

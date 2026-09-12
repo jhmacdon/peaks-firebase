@@ -56,6 +56,9 @@ Retain map attribution. Do not let a selection obscure the terrain.
 ## Type and controls
 
 - Archivo at width 110 for page titles; Geist for body text and stats.
+- Field guides use the system serif stack for titles and prose, with a 720px
+  reading column and 19–23px body text. Keep the chapter ahead of its map,
+  with a map link near the title and source notes after the prose.
 - Body and inputs: 16px. Supporting text: 14px. Credits: at least 12px.
 - Use 500–600 weights for controls and card titles. Keep numerical values in
   normal sans text with tabular figures. Reserve monospace for technical data.

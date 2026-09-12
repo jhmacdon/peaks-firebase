@@ -1,6 +1,7 @@
 export interface Guide {
   slug: string;
   title: string;
+  subtitle: string;
   description: string;
   href: string;
   intro: string;
@@ -9,53 +10,241 @@ export interface Guide {
 
 export const GUIDES: Guide[] = [
   {
-    slug: "colorado-14ers", title: "Colorado 14ers: map and peak list",
+    slug: "california-fire-lookouts",
+    title: "California fire lookouts",
+    subtitle: "Small rooms, long views, and a working life above the forest.",
+    href: "/fire-lookouts/california",
+    description: "Meet California’s fire lookouts through their mountain settings, the people who keep watch, and the paths and stairs that reach them.",
+    intro: "At Buck Rock, a staircase climbs the side of a granite dome to a small room above the trees. There is space to stand outside and look a very long way. It is an appealing place to end a walk, but someone also comes here to work. That shared purpose gives California’s fire lookouts their particular charm: a visitor’s few minutes taking in the view may overlap with another person’s whole day of watching it.",
+    sections: [
+      {
+        title: "A room built around a view",
+        paragraphs: [
+          "The earliest lookout stations could be little more than a platform in a tree or a tent on a high point. Permanent cabins followed. California’s network grew during the Civilian Conservation Corps years; the Forest Service records roughly 250 lookout towers built in the state between 1933 and 1942. Each one needed a useful view of the surrounding country.",
+          "That practical choice still shapes a visit. Notice how little building there is beside all that open space, and how much of the country lies below the windows. The room had to serve a person who would stay after the hikers left. A lookout becomes more interesting when you give the building as much attention as the distant peaks.",
+        ],
+        source: { label: "Forest Service · California lookout history", url: "https://www.fs.usda.gov/media/121933" },
+      },
+      {
+        title: "Above Idyllwild",
+        paragraphs: [
+          "Tahquitz Peak gives the story a southern California setting. Its lookout stands above Idyllwild in the San Jacinto Mountains, with views toward the Desert Divide and the country beyond. The South Ridge approach climbs toward it through a landscape where the forest and the drier slopes meet. The Forest Service describes summer mornings as the better time for this hot, dry walk.",
+          "Let the approach be part of the attraction. A tower can catch your eye from a distance, then disappear behind the next turn. Reaching it on foot gives you time to notice the ground beneath it, the shape of the ridge, and why this particular high point made a useful place to watch for smoke.",
+        ],
+        source: { label: "Forest Service · San Jacinto hiking trails", url: "https://www.fs.usda.gov/media/132292" },
+      },
+      {
+        title: "The people who keep them going",
+        paragraphs: [
+          "Buck Rock’s current building first housed a lookout in 1923. After years of closure, local volunteers worked with the Forest Service to repair it and bring it back into regular service in 2000. The Buck Rock Foundation still helps care for the place. The stairs, windows, and small living space survive because people continue to put time into them.",
+          "At a staffed tower, you are visiting both a workplace and someone’s temporary home. Follow the host’s lead, leave room for the work, and check the lookout’s own visiting information before the drive. When a conversation is welcome, the person beside those windows may give you a much closer understanding of the view than a photograph can.",
+        ],
+        source: { label: "Buck Rock Foundation · The lookout and its history", url: "https://buckrock.org/buck-rock-lookout/" },
+      },
+    ],
+  },
+  {
+    slug: "washington-fire-lookouts",
+    title: "Washington fire lookouts",
+    subtitle: "Ridge walks and the people who watched the Cascades.",
+    href: "/fire-lookouts/washington",
+    description: "Spend time with Washington’s fire lookouts, from Sun Top’s view of Rainier to the long approach and literary history of Desolation Peak.",
+    intro: "A small building on a Washington ridge can change the way you look at the mountains around it. The summits become places a person had to learn well enough to spot a thin column of smoke among them. Walk up to a lookout and there are two things to get to know: the country outside, and the human life that once filled, or still fills, the room.",
+    sections: [
+      {
+        title: "Rainier from Sun Top",
+        paragraphs: [
+          "Sun Top’s small cabin dates to the 1930s. It measures just fourteen feet on each side, with windows facing the surrounding country. Volunteers still spend the fire season here, and welcome visitors when the lookout is staffed. Rainier is the familiar presence in the view, but the room itself gives a closer sense of life on the summit.",
+          "A road only reached the top in 1956. Before that, people brought supplies up by backpack or mule. Even an ordinary day of work depended on that uphill effort. The road makes a visit simpler now, though the gate may close when the lookout is unstaffed or parking is full. The volunteer association keeps the current visiting details.",
+        ],
+        source: { label: "Snoqualmie Fire Lookouts · Suntop Lookout", url: "https://www.snoqualmielookouts.org/suntop-lookout" },
+      },
+      {
+        title: "Out along the ridge",
+        paragraphs: [
+          "Mount Fremont offers a different arrival. From Sunrise in Mount Rainier National Park, the route crosses meadows and follows rocky ridges toward a lookout built in the 1930s. Near Frozen Lake, the path turns toward the final ridge. Grand Park’s broad meadows lie north of the building; Rainier, the Cascades, and, in clear weather, the Olympics fill out the view.",
+          "The Park Service lists the walk as 5.6 miles round trip. Much of its pleasure comes from staying high, where the terrain remains in sight as you move through it. The meadow plants grow slowly here, so keep to the trail and enjoy their small details from its edge. The lookout is a day destination; camping at or around it is prohibited.",
+        ],
+        source: { label: "National Park Service · Mount Fremont Lookout Trail", url: "https://www.nps.gov/mora/planyourvisit/mount-fremont-lookout.htm" },
+      },
+      {
+        title: "A summer on Desolation",
+        paragraphs: [
+          "In 1956, Jack Kerouac worked as a fire lookout on Desolation Peak. His time there later appeared in Desolation Angels. The view includes the twin summits of Hozomeen, a striking neighbor to a small room in which a person might spend many hours alone. That history adds something to the visit whether or not you have read the book.",
+          "Getting there takes more commitment than the name on a list might suggest. The steep trail rises above Ross Lake, with approaches involving the lake or a long walk along the East Bank Trail. Read the park’s route details before making plans. It is a place to allow time for: the climb, the open meadows, and a quiet pause beside the building.",
+        ],
+        source: { label: "National Park Service · Desolation Peak Trail", url: "https://www.nps.gov/noca/planyourvisit/desolation-peak-trail.htm" },
+      },
+    ],
+  },
+  {
+    slug: "colorado-14ers",
+    title: "Colorado 14ers",
+    subtitle: "Beyond the last trees, a closer look at the high country.",
     href: "/lists/LAZcIKjluO0oT3o9g6MC",
-    description: "Find Colorado’s 14ers on a map, compare summit elevations, and understand the difference between ranked and unranked peaks.",
-    intro: "A list of Colorado’s 14ers is a good way to learn the state’s mountain ranges. Nearby summits often share an approach, while peaks that look close on a map can sit across a long drive. Start with the map, pick a part of the state, then look at the route to each summit.",
+    description: "Get to know Colorado’s fourteeners through the ground above treeline, the differences between routes, and the small details around a summit day.",
+    intro: "There is a point on a Colorado mountain walk when the trees stop being the tallest things nearby. The sky takes up more of the view, the wind has less in its way, and even a small flower is worth a second look. Fourteen thousand feet gives these mountains a shared name. The interest lies in everything that makes a day on one different from a day on the next.",
     sections: [
-      { title: "Why do some lists say 53 and others 58?", paragraphs: ["The difference is prominence: how far a summit rises above the saddle that connects it to higher ground. The ranked list uses a 300-foot cutoff. The longer list also includes named summits that fall short of that cutoff. Both appear in climbing guides, so compare the actual names before comparing your total with someone else’s.", "Use the roster below to see which peaks this list includes. A count on its own does not tell you which convention a list follows."], source: { label: "14ers.com’s explanation of peak rankings", url: "https://www.14ers.com/info_peak.php" } },
-      { title: "Choose a route, then a summit", paragraphs: ["Two peaks above 14,000 feet can call for very different days. Read the route description before choosing by elevation or proximity. Look at the starting point, total ascent, terrain, and descent—not just the summit pin.", "A route map also helps with the less memorable parts of planning: which road reaches the trailhead, where the walk begins, and whether the return follows the same path. Keep those details with the peak you intend to climb."], source: { label: "Colorado 14er route descriptions", url: "https://www.14ers.com/routes.php" } },
+      {
+        title: "The number that starts the conversation",
+        paragraphs: [
+          "You will hear both 53 and 58 when people talk about Colorado’s fourteeners. The ranked list uses a 300-foot prominence rule: a summit must rise that far above the connecting saddle to higher ground. The longer list includes five named summits that do not meet that rule. It is a difference in how the peaks are counted, rather than a dispute about whether there is a mountain there.",
+          "The names are more useful than the total when you begin to know the country. Two summits can share a ridge yet ask for quite different climbs. Keep the list as a way to find places that interest you, and give yourself room to return to a favorite. A second visit can tell you something the first one did not.",
+        ],
+        source: { label: "14ers.com · Peak rankings", url: "https://www.14ers.com/info_peak.php" },
+      },
+      {
+        title: "Look down as well as out",
+        paragraphs: [
+          "In Rocky Mountain National Park, alpine tundra begins around 11,000 to 11,500 feet, depending on the slope’s exposure. Plants stay close to the ground, where they can shelter from the wind. Some take more than a year to form a flower bud before opening it during the short summer. A patch of flowers beside the trail deserves more than a passing glance.",
+          "Some cushion plants resemble small clumps of moss. Others have fine hairs on their leaves and stems that help protect them from wind. Up close, the apparently bare ground becomes a place of varied shapes and colors. These plants are vulnerable to repeated footsteps, so the established trail is the place to see them from.",
+        ],
+        source: { label: "National Park Service · Alpine tundra", url: "https://www.nps.gov/romo/learn/nature/alpine_tundra_ecosystem.htm" },
+      },
+      {
+        title: "Get to know one route",
+        paragraphs: [
+          "Longs Peak makes the limits of the shared label clear. Its Keyhole Route crosses narrow ledges, loose rock, and steep faces; the Park Service describes it as a climb. That is a very different undertaking from following a walking trail to a broad summit. Elevation alone tells you little about the skills, exposure, or time a route will demand.",
+          "Choose a mountain you want to understand, then read the full route and current conditions, including the descent. Leave enough room in the day to turn around when the weather or your energy asks for it. The walk back is part of the outing, and a mountain can remain interesting long before, and long after, you stand on its highest rock.",
+        ],
+        source: { label: "National Park Service · Longs Peak’s Keyhole Route", url: "https://www.nps.gov/romo/planyourvisit/longspeak.htm" },
+      },
     ],
   },
   {
-    slug: "us-state-high-points", title: "US state high points: map and checklist",
+    slug: "us-state-high-points",
+    title: "US state high points",
+    subtitle: "Fifty reasons to take a different road.",
     href: "/lists/dR9aHGKw3VwBhfsHSwlB",
-    description: "Explore the US state high points, from short walks to major climbs. Use the map and checklist to plan visits and track your progress.",
-    intro: "Visiting each state’s highest point gives you a reason to stop in places you might otherwise drive past. Some visits fit into an afternoon. Others need a trip of their own. The same checklist can take you to roadside markers and remote summits.",
+    description: "An introduction to the varied places at the top of each state, from modest rises to mountain summits and the trips that connect them.",
+    intro: "A state high point can give a familiar trip an unfamiliar turn. You leave the main road, pass through a town you would otherwise have missed, and arrive at a place whose claim is simply that everything else in the state lies lower. Sometimes the height is obvious. Sometimes a marker has to explain it. That variety is a large part of the pleasure.",
     sections: [
-      { title: "Start with the states you already visit", paragraphs: ["Look for high points near a trip you already have planned. Grouping visits by region can make more sense than working down a list by elevation. Open each place before adding it to the itinerary: the highest ground in a state is not always a public park with an open gate.", "The Highpointers Club’s guide separates access and difficulty from elevation. That distinction matters here, where one checklist covers both short visits and mountaineering trips."], source: { label: "Highpointers Club’s US highpoint guide", url: "https://highpointers.org/us-highpoint-guide/" } },
-      { title: "Check access for the day you plan to go", paragraphs: ["Some high points have restricted visiting dates or require permission. Public land can also have opening hours, permits, or quotas. Check the current arrangement before setting out, especially when a high point means a long detour.", "Keep a record of the places you visit, but let each trip stand on its own. Finishing the list need not be the reason to enjoy the next one."], source: { label: "Highpointers Club access restrictions", url: "https://highpointers.org/access-restrictions/" } },
+      {
+        title: "Give the small rises their due",
+        paragraphs: [
+          "Florida’s Britton Hill stands 345 feet above sea level. Delaware’s Ebright Azimuth is another modest high point, while Connecticut’s highest ground lies on the south slope of Mount Frissell. A summit list can make you expect a sharp top and a wide view, but state boundaries and the shape of the land produce a much less tidy set of places.",
+          "Let each visit be the size it wants to be. A short stop can still make you curious about the surrounding country: where the land rises next, why a road follows a particular line, or what grows on the slope. The less imposing high points offer a good excuse to pay attention to places that rarely appear in mountain photographs.",
+        ],
+        source: { label: "Highpointers Club · State highpoint guide", url: "https://highpointers.org/us-highpoint-guide/" },
+      },
+      {
+        title: "An afternoon in the Black Mountains",
+        paragraphs: [
+          "North Carolina’s Mount Mitchell shows how much a single high point can hold. At 6,684 feet, it is the highest mountain east of the Mississippi. An observation deck gives a wide view when the weather is clear, and the surrounding state park offers trails for a longer visit. Clouds may shorten the view considerably; the cooler air still makes the height apparent.",
+          "The observation deck and the trails offer different ways to spend an afternoon on the same mountain. One gives a quick sense of the surrounding country; the others let the visit unfold a little at a time. There is room in highpointing for both kinds of day, and for the towns and roads that connect them.",
+        ],
+        source: { label: "North Carolina State Parks · Mount Mitchell", url: "https://www.ncparks.gov/state-parks/mount-mitchell-state-park" },
+      },
+      {
+        title: "A visit depends on a welcome",
+        paragraphs: [
+          "Several state high points sit on private land. Others fall within parks or forests with their own visiting arrangements. The Highpointers Club keeps access notes because permission, opening dates, and the way in matter as much as a point’s position on the map. A small hill can require more advance thought than its elevation suggests.",
+          "Read those arrangements before adding a detour, and follow the landowner’s or land manager’s current instructions. Then keep a few notes of your own: who came along, what the weather did, and what caught your attention. Over time, those details make a much richer record than a row of completed states. There is no need to hurry the next one.",
+        ],
+        source: { label: "Highpointers Club · Access notes", url: "https://highpointers.org/access-restrictions/" },
+      },
     ],
   },
   {
-    slug: "cascade-volcanoes", title: "Cascade volcanoes: map and summit list",
+    slug: "cascade-volcanoes",
+    title: "Cascade volcanoes",
+    subtitle: "Snow, ice, and the ground that grew beneath them.",
     href: "/lists/ULCGhLnsWcYYRqXQ3aOo",
-    description: "Locate the Cascade volcanoes, compare their summits, and follow links to place and route guides across the range.",
-    intro: "The Cascade volcanoes run from northern California into British Columbia. Seeing them together on a map makes the geography clearer: these are separate mountains spread along a long range, not one compact group of climbs. Use this list to get your bearings and choose a mountain to read about next.",
+    description: "Look more closely at the Cascade volcanoes, from their long geographic reach to Rainier’s glaciers and the lakes inside Newberry.",
+    intro: "A Cascade volcano can be familiar long before you set foot on it. You recognize its outline from a road, notice when fresh snow reaches lower on its slopes, and look for it again when the clouds lift. A closer visit adds details to that distant shape. The ice, loose stone, forests, and lakes belong to mountains with long histories that are still unfolding.",
     sections: [
-      { title: "A climbing list is only part of the volcanic range", paragraphs: ["The familiar high summits are not the whole story. USGS describes thousands of volcanic features in the Cascades, including smaller cones and broad volcanic fields. A summit checklist selects particular mountains; it is not a complete inventory of the region’s volcanoes.", "The roster below defines this Peaks list. For the wider geography, compare it with the USGS map of the Cascade volcanic arc."], source: { label: "USGS map of the Cascade volcanic arc", url: "https://www.usgs.gov/media/images/map-cascade-volcano-arc" } },
-      { title: "Plan one mountain at a time", paragraphs: ["Sharing a volcanic origin does not make these mountains interchangeable. Pick a specific route and season before deciding what a trip involves. A summit marker tells you where the mountain is; it does not tell you how to climb it.", "USGS volcano information answers a different question from a climbing guide. Use it to understand the mountain’s volcanic setting, then consult the land manager and a route source for access and trip planning."], source: { label: "USGS: why study Cascade volcanoes?", url: "https://www.usgs.gov/observatories/cascades-volcano-observatory/why-study-cascade-volcanoes" } },
+      {
+        title: "A long stretch of volcanic country",
+        paragraphs: [
+          "The volcanic arc extends about 800 miles from northern California into southern British Columbia. Beneath it, oceanic crust moves below North America, helping generate the magma that feeds the volcanoes. The familiar large mountains share the region with thousands of smaller volcanic features. There is more volcanic country between the famous summits than a short climbing list can show.",
+          "That wide spread makes it rewarding to get to know one part of the range at a time. Notice the smaller hills and old flows as well as the tallest peak. A view from a neighboring ridge can reveal the mountain’s shape more clearly than a climb on its own slopes, where the next bend may hide almost everything above you.",
+        ],
+        source: { label: "USGS · The Cascade volcanic arc", url: "https://www.usgs.gov/observatories/cascades-volcano-observatory/why-study-cascade-volcanoes" },
+      },
+      {
+        title: "Rainier’s ice has names",
+        paragraphs: [
+          "The white on Mount Rainier resolves into separate glaciers when you look closely. Carbon, Emmons, Nisqually, and the others occupy different sides of the mountain and have their own shapes and histories. The Park Service’s glacier guide describes where to see them. Learning just one name gives you something specific to look for on the next clear day.",
+          "Seasonal snow can hide the boundaries between ice and rock, then reveal them again as it melts. A familiar view becomes easier to read with each return: a dark ridge between glaciers, a valley below, a section of ice that was less apparent last time. The mountain’s many sides give even a distant observer plenty to get to know.",
+        ],
+        source: { label: "National Park Service · Mount Rainier’s glaciers", url: "https://www.nps.gov/mora/learn/nature/mount-rainier-glaciers.htm" },
+      },
+      {
+        title: "A volcano with lakes inside",
+        paragraphs: [
+          "Newberry, in central Oregon, invites a different sort of attention. Paulina Lake and East Lake occupy a caldera, a broad depression formed when the summit collapsed during an eruption. From Paulina Peak, the lakes sit below the rim alongside younger volcanic features. The mostly bare Big Obsidian Flow stands out against the surrounding forest.",
+          "Here, a lake visit can also be a way to get to know a volcano. Water, trees, and old lava belong to the same place; the quiet appearance does not mean its volcanic history has ended. Use the land manager’s current information for walks and access, and USGS for the geology. Following that curiosity can lead well beyond the few high summits that first caught your eye.",
+        ],
+        source: { label: "USGS · Features of Newberry Caldera", url: "https://www.usgs.gov/volcanoes/newberry/science/features-newberry-caldera" },
+      },
     ],
   },
   {
-    slug: "washington-waterfalls", title: "Washington waterfalls map",
+    slug: "washington-waterfalls",
+    title: "Washington waterfalls",
+    subtitle: "Forest paths, river noise, and falls in open canyon country.",
     href: "/guides/washington-waterfalls",
-    description: "Find Washington waterfalls on a map, browse named falls, and choose between a viewpoint stop and a longer walk.",
-    intro: "A waterfall trip can be a short stop at a viewing platform or the reason for a full day on foot. Decide which sort of day you want before picking the falls. The map below helps you find places in the same area; each place guide is the next step toward working out how to reach them.",
+    description: "Follow Washington’s water through the forest at Wallace Falls, the living history of Snoqualmie Falls, and the basalt canyon at Palouse Falls.",
+    intro: "You can plan a walk around a waterfall, but it helps to leave time for the river on either side of it. Watch the water gather above the drop and find its course again below. The falls may be the reason you came; the banks, trees, and rock explain more about the place. Across Washington, those surroundings change as much as the waterfalls themselves.",
     sections: [
-      { title: "A viewpoint stop or a day on the trail?", paragraphs: ["Snoqualmie Falls has viewing platforms in a small park. Wallace Falls offers a different kind of visit, with viewpoints along the trail and views across the Skykomish valley from the Middle Falls. These are useful starting points when deciding whether the waterfall is a stop along the way or the main purpose of the day.", "For other falls, check the approach before drawing up an itinerary. A mapped waterfall may have no public trail to its base. The closest road on the map is not necessarily the way in."], source: { label: "Washington DNR’s Wallace Falls guide", url: "https://wa100.dnr.wa.gov/north-cascades/wallace-falls" } },
-      { title: "Water changes the view", paragraphs: ["At Snoqualmie Falls, DNR records much higher flows during rainy periods and spring snowmelt than in late summer. That is one reason photographs of the same falls can look so different. Check when a photograph or trip report was made before using it to picture your visit.", "The map shows waterfall locations in Peaks, not a complete inventory or a list of open trails. Elevation, where shown in a place guide, refers to the location above sea level—not the waterfall’s drop."], source: { label: "Washington DNR’s Snoqualmie Falls guide", url: "https://wa100.dnr.wa.gov/north-cascades/snoqualmie-falls" } },
+      {
+        title: "Follow the river at Wallace Falls",
+        paragraphs: [
+          "At Wallace Falls, near Gold Bar, the trail follows the Wallace River through forest toward a series of viewpoints. Lower, middle, and upper stops break up the climb. From the middle viewpoint, the view opens across the Skykomish River Valley, so there is good reason to pause even when you intend to keep walking uphill.",
+          "Choose your stopping place by the kind of day you want. One viewpoint and an unhurried return can be enough. The river gives the walk a steady point of interest, while the trees make the occasional open view feel more distinct. Washington State Parks publishes trail and parking information; a look before leaving helps keep the start of the day as pleasant as the walk.",
+        ],
+        source: { label: "Washington State Parks · Wallace Falls", url: "https://parks.wa.gov/find-parks/state-parks/wallace-falls-state-park" },
+      },
+      {
+        title: "Listen at Snoqualmie Falls",
+        paragraphs: [
+          "Snoqualmie Falls has a meaning that reaches far beyond its familiar photograph. The Snoqualmie Tribe identifies the falls as the birthplace of its people and describes an enduring connection to the site and to its ancestors. This is a living relationship. Reading the Tribe’s own account adds something essential to a visit that a measurement of the drop cannot provide.",
+          "The Tribe describes itself as the spiritual steward of the falls and continues to work for their protection. The people in that account are part of the place today. Beside the sound and movement of the water, their words give a visitor something else to remember: the long care that a familiar view can depend on.",
+        ],
+        source: { label: "Snoqualmie Indian Tribe · Sacred Snoqualmie Falls", url: "https://snoqualmietribe.us/history-shared-sacred-snoqualmie-falls/" },
+      },
+      {
+        title: "Water through basalt",
+        paragraphs: [
+          "Palouse Falls introduces another Washington landscape. The river drops into a deep canyon cut through layers of basalt, then continues toward the Snake River. Ice Age floods shaped this country on a scale far larger than the river visible today. From the overlooks, the falls give you a place to begin tracing the cliffs and the winding canyon beyond.",
+          "The canyon’s width makes the present river seem small. Its dark rock layers continue beyond the immediate drop, so the waterfall is only one part of the view from the designated overlooks. The park’s interpretive signs explain how the floods cut this country. A few minutes with that history can make the scale much easier to grasp.",
+        ],
+        source: { label: "Washington State Parks · The Ice Age floods", url: "https://parks.wa.gov/about/news-center/field-guide-blog/how-ice-age-floods-shaped-washington-state" },
+      },
     ],
   },
   {
-    slug: "alpine-lakes-wilderness", title: "Alpine Lakes Wilderness: hikes, lakes, and map",
+    slug: "alpine-lakes-wilderness",
+    title: "Alpine Lakes Wilderness",
+    subtitle: "A lake for the afternoon, and more country beyond the ridge.",
     href: "/areas/padus-24a96d99fe35fa744ba1",
-    description: "Get your bearings in Alpine Lakes Wilderness. Compare destinations and routes, choose an approach, and find the right permit information.",
-    intro: "Start an Alpine Lakes trip with the trailhead, not just the lake. A ridge between two places can change the approach completely. Use the map to see which valley a route follows, then decide how far into the wilderness you want to go and whether you will return the same way.",
+    description: "Get to know Alpine Lakes through its valleys, varied approaches, and the pleasure of spending more time at one lake.",
+    intro: "The first glimpse of a lake through the trees can settle the question of how far to walk that day. You find the shore, look up at the ridge above it, and realize there is plenty to take in right here. Alpine Lakes Wilderness holds enough lakes and high country for many returns. A good first visit can be as simple as getting to know one approach and one stretch of water.",
     sections: [
-      { title: "Choose an approach before a destination", paragraphs: ["The wilderness has several entry points. The Pacific Crest Trail provides access from Stevens Pass; the Middle Fork Snoqualmie reaches a different part of the area. On the east side, Stuart Lake, Eightmile, and Snow Lakes are among the trailheads serving the Enchantments area.", "Compare routes from their actual starting points. A lake that sits close to another lake on the map may require a different trailhead or a crossing that is not part of a walking trail."], source: { label: "Forest Service study of the Enchantments trailheads", url: "https://research.fs.usda.gov/treesearch/80472" } },
-      { title: "Do not treat the Enchantments as the whole wilderness", paragraphs: ["The Enchantments have their own permit arrangements. A plan to camp there needs a separate check from a day walk elsewhere in Alpine Lakes. Read the rules for the place you intend to visit, rather than applying advice for one lake to the whole area.", "The Forest Service’s wilderness leaflet brings together the different rules, including where to find permit information. Check the managing forest’s current notices as well: a saved map or an older trip report will not tell you about a new closure."], source: { label: "Forest Service Alpine Lakes Wilderness visitor leaflet", url: "https://www.fs.usda.gov/Internet/FSE_DOCUMENTS/stelprdb5407053.pdf" } },
+      {
+        title: "The way in shapes the day",
+        paragraphs: [
+          "At the northern edge of the wilderness, the Pacific Crest Trail heads south from Stevens Pass toward Lake Susan Jane. The walk begins among the slopes and lifts of a ski area before reaching the lake. It is a useful reminder that the approach has its own character: the first mile and the last do not have to look alike.",
+          "Choose a trailhead as carefully as a destination. Follow the actual trail across the map, including each climb and descent, rather than judging the trip by the distance between two lakes. A ridge can put nearby water in a different valley altogether. Familiarity with one approach is valuable; returning on it lets you notice more and spend less of the day wondering what comes next.",
+        ],
+        source: { label: "Pacific Crest Trail Association · Lake Susan Jane", url: "https://explore.pcta.org/trips/stevens-pass-to-lake-susan-jane" },
+      },
+      {
+        title: "Leave room around the Enchantments",
+        paragraphs: [
+          "The Enchantments draw many visitors into the eastern part of Alpine Lakes. Stuart Lake, Eightmile, and Snow Lakes are among the busy trailheads off Icicle Road. The Forest Service has studied these approaches because crowds affect both the experience and the ground people come to see. A famous lake exists within a much larger area, with other valleys and other reasons to return.",
+          "If the Enchantments are the place you want to know, give the trip the time and planning it needs. If you mainly want a day beside a mountain lake, let that simpler wish guide the choice. There is pleasure in learning an ordinary bend in the trail, finding the same ridge in a new light, and remembering where the water first came into view.",
+        ],
+        source: { label: "Forest Service · Enchantments visitor study", url: "https://research.fs.usda.gov/treesearch/80472" },
+      },
+      {
+        title: "Make a small visit",
+        paragraphs: [
+          "The Forest Service asks visitors to protect water quality, avoid restoration areas, and leave natural features as they find them. Permit arrangements distinguish the Enchantments from the rest of the wilderness, so check the rules for your actual destination before leaving. Once those details are settled, the day can be about the walk and the place itself.",
+          "From an established stopping place, the same stretch of shore offers a changing view. A breeze roughens the water; a passing cloud darkens the ridge and its reflection. The path back has details that went unnoticed on the way in. By the end of the day, one lake and its approach can feel like a place you have begun to know.",
+        ],
+        source: { label: "Forest Service · Alpine Lakes visitor leaflet", url: "https://www.fs.usda.gov/media/176886" },
+      },
     ],
   },
 ];
