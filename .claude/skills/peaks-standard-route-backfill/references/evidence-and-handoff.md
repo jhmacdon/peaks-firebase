@@ -11,10 +11,10 @@ Do not raise a grade because a GPX is easy to download. Geometry availability an
 
 ## Source order
 
-1. NPS, USFS, state land manager, or a climbing-ranger report
-2. The Mountaineers route/place page
-3. Washington Trails Association for trailhead and approach
-4. Established guide pages, SummitPost, Peakbagger, or detailed trip reports
+1. Public AllTrails and Peakbagger pages (route identity; record in `discovery_checks`)
+2. Land manager or climbing-ranger report
+3. Regional route bodies (e.g. The Mountaineers, WTA in Washington)
+4. Established guides, SummitPost, or detailed trip reports
 
 Use a direct page, not a search result. Note the date when road, permit, closure, glacier, or snow details can change.
 

@@ -230,7 +230,7 @@ Never activate a route merely because it looks close.
 
 ## Finish every run
 
-Release or clear the lease, run `routes:jobs stats`, and report:
+Release or clear the lease, run `.agents/skills/peaks-route-factory/scripts/route_jobs.sh stats`, and report:
 
 - destination and stage;
 - sources checked;

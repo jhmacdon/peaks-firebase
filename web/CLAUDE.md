@@ -4,7 +4,7 @@ Public-facing web app + admin dashboard for Peaks, a peak-bagging tracker. See *
 
 ## Stack
 
-- **Framework**: Next.js 16 (App Router, server actions)
+- **Framework**: Next.js 15 (App Router, server actions)
 - **React**: 19, TypeScript 5
 - **Styling**: Tailwind CSS v4 (dark mode via OS `prefers-color-scheme`)
 - **Database**: PostgreSQL 15+ with PostGIS + pg_trgm (via `pg` pool in `src/lib/db.ts`)
@@ -17,7 +17,7 @@ Public-facing web app + admin dashboard for Peaks, a peak-bagging tracker. See *
 ## Dev
 
 ```bash
-cd /Users/josiahm/projects/peaks/firebase/web
+cd web               # from the repo or worktree root
 npm run dev          # http://localhost:3000
 npm run build        # production build
 npm run lint         # eslint
@@ -30,6 +30,7 @@ For web code or build-configuration changes, run `npm run build && npm run lint`
 ## Project Structure
 
 ```
+# Partial map; list src/app for current routes.
 src/
   app/
     layout.tsx                        # Root layout (fonts, metadata)
@@ -47,10 +48,10 @@ src/
       lists/[id]/page.tsx             # List detail + progress
       map/page.tsx                    # Full-screen map explorer
       reports/[id]/page.tsx           # Trip report detail
+      log/[id]/page.tsx               # Session detail with GPS track
     (authenticated)/                  # Route group: auth-required (AppNav + UserAuthGuard)
       layout.tsx
       log/page.tsx                    # Session log + lifetime stats
-      log/[id]/page.tsx               # Session detail with GPS track
       plans/page.tsx                  # Trip plans list
       plans/new/page.tsx              # Create plan
       plans/[id]/page.tsx             # Plan detail
@@ -97,7 +98,7 @@ src/
     party-list.tsx                    # Party member display
     user-popover.tsx                  # User info popover (admin)
   lib/
-    db.ts                             # pg Pool (max 5 connections)
+    db.ts                             # pg Pool (max DB_POOL_MAX, default 2; see db-config.ts)
     firebase.ts                       # Client SDK init (auth, firestore)
     firebase-admin.ts                 # Admin SDK init (adminAuth, adminDb)
     auth-context.tsx                  # useAuth() hook + AuthProvider
@@ -123,7 +124,7 @@ src/
 
 ## Database
 
-PostgreSQL with PostGIS. Schema at `../cloud-sql/schema.sql`.
+PostgreSQL with PostGIS. Baseline DDL at `../cloud-sql/schema.sql`; later changes live only in `../cloud-sql/migrations/`.
 
 ### Custom enums
 - `destination_type`: point, region
