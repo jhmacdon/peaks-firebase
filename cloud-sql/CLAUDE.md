@@ -250,16 +250,10 @@ are the case: Peakbagger has no Idaho 12,000-foot list, so those nine are named
 out of its 138-row 11,000-foot list, and a page that gains or loses a row fails
 the import rather than publishing a stale selection.
 
-The reviewed 2026-08-18 scope and held lists are in
-`docs/data-audits/peakbagger-lists-2026-08-18.md`. Everything since is in
-`docs/data-audits/peakbagger-lists-2026-08-21.md`: a first pass that released all
-four held lists — including the eight Oregon and Colorado summits OpenStreetMap
-has never mapped — a second that added the four Northeast classics and cleared
-four list-data debts, and a third that added the Desert Peaks Section, the Tahoe
-Ogul Peaks, South Beyond 6000 and the Idaho 12ers. The third pass **holds** the
-Sierra Peaks Section (83 missing destinations) and the Hundred Peaks Section
-(237), and records why the statewide OSM expander cannot release either. Munros
-and other non-US classics stay deferred; the second pass says why.
+Reviewed scope and held lists: `docs/data-audits/peakbagger-lists-2026-08-18.md`
+and `docs/data-audits/peakbagger-lists-2026-08-21.md`. The Sierra Peaks Section
+(83 missing destinations) and Hundred Peaks Section (237) stay held; Munros and
+other non-US classics stay deferred.
 
 ## Named viewpoint audit/import
 
@@ -671,8 +665,7 @@ same way a missing one does** — `assertNotEmpty`, one test per file. Zero rows
 means the command that writes it did not run, ran against nothing, or was
 truncated; importing that as a source with nothing to say logs the run as a
 success and leaves `check:data-freshness` green on the failure it exists to
-catch. The guard started on the raw pull, spread to the two derived files with
-the NPS import, and now covers the three extraction files too.
+catch.
 
 The raw pull covers recreation **sites** only. The 1,243 fee rows from the
 recreation-**opportunities** dataset have no raw counterpart, so their no-fee
@@ -707,15 +700,10 @@ this importer that no agency dataset publishes anywhere**, which is why a
 web page is worth reading at all.
 
 **Every row carries the page's own coordinates and goes through the same two
-gates as a fee row.** It did not always. The registry has no coordinates, so a
-page used to borrow the point of the same-named EDW trailhead, guarded by
-Forest Service region equality. That mechanism located 710 pages, imported one
-fact between them, and a cross-check against the extracted coordinates found
-**all 98 of its far-outlier borrows to be wrong attaches**. It is gone, and so
-are its four skip reasons (`no_edw_name_location`, `region_unknown`,
-`region_mismatch`, `ambiguous_name_location`) and the region field that fed
-them. A page with no coordinate of its own is counted under `no_coordinates`
-and dropped — nothing infers one.
+gates as a fee row.** Never borrow a same-named EDW trailhead's point: a
+cross-check found all 98 far-outlier borrows were wrong attaches. A page with
+no coordinate of its own is counted under `no_coordinates` and dropped —
+nothing infers one.
 
 The rest of the row is read and none of it is imported. `fee_text`,
 `restroom_text` and `road_text` are prose about facts the EDW, MVUM and
@@ -931,21 +919,19 @@ It exits non-zero when a required source — `usfs_fees`, `usfs_bathrooms`,
 past its last successful import or has never run. The NPS pair covers fewer
 trailheads than anything else on that list and is required anyway: a spatial
 join with no name behind it is true only while both ends stay put, and it
-covers the busiest trailheads Peaks has. `usfs_pages` is required again after
-one release outside the list — the single-leaf yield that demoted it was the
-old borrowing mechanism's, not the pages'; with each page's own coordinates the
-source carries real coverage, and a rewritten agency page goes stale without
-saying so. Quarterly cadence and the full refresh sequence:
+covers the busiest trailheads Peaks has. `usfs_pages` is required because a
+rewritten agency page goes stale without saying so. Quarterly cadence and the
+full refresh sequence:
 `migrate/docs/trailhead-data-refresh.md`.
 
 ## Access-road processing store
 
-Phase 2 of the trailhead work: USFS RoadCore, USFS MVUM and BLM GTLF, loaded
-and normalized so a later task can derive each trailhead's access vehicle,
-surface and gate window. **Road segments never enter the `peaks` database** —
-only the derived per-trailhead facts will. Processing happens in a local DuckDB
-file, by default `<data-dir>/processing/roads.duckdb` (about 4.5 GB, beside the
-raw downloads in the `peaks` checkout).
+USFS RoadCore, USFS MVUM and BLM GTLF, loaded and normalized so `roads:derive`
+can derive each trailhead's access vehicle, surface and gate window. **Road
+segments never enter the `peaks` database** — only the derived facts do.
+Processing happens in a local DuckDB file, by default
+`<data-dir>/processing/roads.duckdb` (about 4.5 GB, beside the raw downloads
+in the `peaks` checkout).
 
 ```bash
 cd migrate
@@ -1091,8 +1077,7 @@ start welding together. For 194 of those 240 the nearest level 4/5 road is over
 
 ## Route coverage and partial history
 
-A `session_routes` row used to mean "did this route": nothing was written
-below 0.70 vertex coverage. Since 2026-08 a row is also written when the
+A `session_routes` row is written at 0.70 vertex coverage or when the
 recording covered at least **500 m** of the route, so an approach hike of a
 long trail gets an honest answer instead of nothing, and `covered_intervals`
 records which stretch — `[[start, end]]` fractions of the route linestring,

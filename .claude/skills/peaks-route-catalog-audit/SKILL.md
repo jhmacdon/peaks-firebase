@@ -81,7 +81,8 @@ In one-off mode, use `audit_catalog_routes.sh` and
 `fetch_destination_identity.mjs` directly because the approved worker checkout
 and queue do not apply.
 
-Run the catalog checker with the command tool's `yield_time_ms` set to 30000.
+In recurring mode, run the catalog checker with the command tool's
+`yield_time_ms` set to 30000.
 The read-only query often takes longer than that on a large legacy route. If
 the command returns a live `session_id`, call `write_stdin` on that same session
 with empty input and `yield_time_ms` 30000 until the process exits. Do not read
@@ -99,7 +100,7 @@ pages into chat. Every `ERROR` blocks PASS. Research every `WARN` and `REVIEW`.
 Render route pairs behind crossing, overlap, duplicate, or start-spread
 findings.
 
-All four Luna workers must also confirm that every linked summit is within 5 m
+Every audit, recurring or one-off, must also confirm that every linked summit is within 5 m
 of the stored path, that out-and-back and point-to-point routes end within 5 m
 of their final summit, and that the canonical elevation profile matches the
 path. A route failure is `needs_repair`; a public HTTP 200 or a plausible

@@ -45,7 +45,7 @@ Baseline: the entire backend should run at **~$10–15/month** (Cloud SQL `db-f1
 
 **Cloud Run rules (peaks-api and every service):**
 - Stay scale-to-zero and CPU-throttled: `--min-instances=0 --cpu-throttling` (request-based billing). These are pinned in `deploy.yml`.
-- **Never** set `--no-cpu-throttling` or `min-instances>0` without pricing it first. The math: one always-allocated vCPU ≈ **$47/mo**, 512Mi always-on ≈ $2.6/mo — an idle min instance with always-on CPU costs **~$50/mo before serving a single request**. This exact mistake shipped in July 2026: an in-process sweep `setInterval` "needed" background CPU, and the $10/mo forecast silently became $70/mo.
+- **Never** set `--no-cpu-throttling` or `min-instances>0` without pricing it first. The math: one always-allocated vCPU ≈ **$47/mo**, 512Mi always-on ≈ $2.6/mo — an idle min instance with always-on CPU costs **~$50/mo before serving a single request**.
 - Background/periodic work must run **inside a request**, never on an in-process timer. Cloud Run timers either silently starve (throttled CPU between requests) or force always-on CPU (expensive) — both are wrong. The pattern that replaced the timer: Cloud Scheduler job (`peaks-api-sweep`, free tier covers 3 jobs) → OIDC-authenticated `POST /internal/sweep`; the scheduler request itself provides the CPU window.
 - Prefer free-tier managed primitives (Cloud Scheduler, Cloud Tasks, Pub/Sub at this scale) over resident compute; prefer piggybacking work on existing request handlers over new infrastructure.
 - Fire-and-forget async work after `res.json()` (e.g. Slack notifies) is best-effort under throttling — anything that must reliably complete belongs in the request path or the sweep.
@@ -65,8 +65,6 @@ When downloading GPX files for the project (e.g. from Hiking Project, Wikiloc, A
 
 ## React useEffect Rules
 When writing or modifying `useEffect` hooks in the web app:
-- **Keep effect dependencies stable.** Fresh objects or arrays created each render can retrigger effects. Prefer primitive dependencies such as `[userLat, userLng]`, or stable object references when the effect needs the object.
-- **NEVER set state inside an effect that re-triggers that same effect** — e.g. setting `locationStatus` inside an effect that depends on `[locationStatus]`.
 - After modifying any page with useEffect, **verify the page doesn't infinite-loop** by loading it in the browser and confirming network requests stop after initial load.
 
 ## Owner
@@ -78,7 +76,6 @@ When writing or modifying `useEffect` hooks in the web app:
 `node-postgres` has surprising defaults for `BIGINT` and `NUMERIC` — both come over the wire as JS strings by default to preserve precision. That silently zeroed every tracking point's `time` on iOS once already (`d["time"] as? Int` fails on a numeric string). The API now registers a global `types.setTypeParser(20, parseInt)` in `cloud-sql/api/src/db.ts`. Do not remove it, do not move it below the `new Pool(...)` call, and do not convert more columns to `BIGINT` / `NUMERIC` without verifying that every client handles the wire format or that you've added a column-specific parser / `::text` cast. See `cloud-sql/CLAUDE.md` "Postgres → wire type policy" for the full contract + the regression test at `cloud-sql/api/src/__tests__/bigint-parser.test.ts`.
 
 ## Key Details
-- Uses `firebase-functions` v4 (v1 API) and `firebase-admin` v11
-- Node 20 runtime
-- Secrets stored via `functions.config()` (not hardcoded) — never commit secrets
+- Node 20 runtime; check `functions/package.json` for `firebase-functions` / `firebase-admin` versions
+- Secrets are declared with `defineSecret` from `firebase-functions/params` — never commit secrets
 - `functions/functions/` is a legacy nested directory — do not use it
