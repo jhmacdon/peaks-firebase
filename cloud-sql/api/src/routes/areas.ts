@@ -5,6 +5,7 @@ import { buildAreaDescription } from "../area-description";
 import db from "../db";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverJsonFieldsSql } from "../lib/route-cover";
+import { publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 
 const router = Router();
 
@@ -27,7 +28,7 @@ export function buildAreaDetailQuery(
                     a.centroid, a.bbox_min_lat, a.bbox_max_lat,
                     a.bbox_min_lng, a.bbox_max_lng, a.boundary_display
              FROM areas a
-             WHERE a.id = $1
+             WHERE a.id = $1 AND ${publicAreaSql("a", !uid)}
            ),
            area_sessions AS MATERIALIZED (
              -- The full session row contains the high-resolution track. Area
@@ -42,7 +43,7 @@ export function buildAreaDetailQuery(
              FROM session_areas sa
              JOIN tracking_sessions s ON s.id = sa.session_id
              WHERE sa.area_id = $1
-               AND s.user_id = $2
+               AND s.user_id = $2 AND $2 <> ''
            ),
            ranked_sessions AS MATERIALIZED (
              SELECT *
@@ -54,7 +55,7 @@ export function buildAreaDetailQuery(
      SELECT a.id, a.name, a.kind, a.description,
             a.description_source_name, a.description_source_url, a.description_source_license,
             a.designation, a.manager, a.owner,
-            a.parent_area_id AS parent_id,
+            parent.id AS parent_id,
             parent.name AS parent_name,
             parent.kind AS parent_kind,
             a.country_code, a.state_codes,
@@ -129,10 +130,13 @@ export function buildAreaDetailQuery(
             ), '[]'::json) AS sessions
      FROM requested_area a
      LEFT JOIN areas parent ON parent.id = a.parent_area_id
+       AND ${publicAreaSql("parent", !uid)}
      LEFT JOIN LATERAL (
        SELECT count(DISTINCT da.destination_id) AS destination_count
        FROM destination_areas da
+       JOIN destinations d ON d.id = da.destination_id
        WHERE da.area_id = a.id
+           AND ${publicCatalogSql("d", !uid)}
      ) destination_counts ON true
      LEFT JOIN LATERAL (
        SELECT count(DISTINCT ra.route_id) AS route_count
@@ -165,6 +169,7 @@ export function buildAreaDetailQuery(
          FROM destination_areas da
          JOIN destinations d ON d.id = da.destination_id
          WHERE da.area_id = a.id
+           AND ${publicCatalogSql("d", !uid)}
          ORDER BY d.prominence DESC NULLS LAST, d.elevation DESC NULLS LAST, d.name
          LIMIT 30
        ) ranked_destinations
@@ -190,7 +195,7 @@ export function buildAreaDetailQuery(
                 ) AS route_obj
          FROM route_areas ra
          JOIN routes r ON r.id = ra.route_id
-         ${routeCoverJoinSql()}
+         ${routeCoverJoinSql("r", "cover", "id", !uid)}
          WHERE ra.area_id = a.id
            AND r.status = 'active'
            AND ${buildRouteAccessSql("r", "$2")}

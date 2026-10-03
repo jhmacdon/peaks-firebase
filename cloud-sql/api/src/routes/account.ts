@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { Router, Response } from "express";
 import admin from "firebase-admin";
-import { FieldValue, type DocumentData, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import type { Pool, PoolClient } from "pg";
 import { AuthRequest } from "../auth";
@@ -12,6 +13,35 @@ const router = Router();
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "donner-a8608.appspot.com";
 const STORAGE_ROOTS = ["trip-reports", "profiles"] as const;
 const MAX_ID_TOKEN_LENGTH = 16_384;
+
+const SQL_OWNERS = [
+  ["plans", "user_id", "plans"],
+  ["session_groups", "user_id", "sessionGroups"],
+  ["session_attempt_groups", "user_id", "sessionAttemptGroups"],
+  ["tracking_sessions", "user_id", "trackingSessions"],
+  ["trip_reports", "user_id", "tripReports"],
+  ["session_comparisons", "user_id", "sessionComparisons"],
+  ["session_markers", "created_by", "sessionMarkers"],
+  ["routes", "owner", "routes"],
+  ["lists", "owner", "lists"],
+  ["destinations", "owner", "destinations"],
+  ["areas", "owner", "areas"],
+] as const;
+
+const FIRESTORE_OWNERS = [
+  ["sessions", "userId"],
+  ["plans", "userId"],
+  ["routes", "owner"],
+  ["lists", "owner"],
+  ["destinations", "owner"],
+  ["invites", "userId"],
+  ["tripReports", "userId"],
+  ["feedback", "userId"],
+] as const;
+
+const FIRESTORE_DELETION_OWNERS = [...FIRESTORE_OWNERS, ["codes", "userId"]] as const;
+// Retained references have no Auth owner and never become public catalog rows.
+const DELETED_CATALOG_OWNER = "deleted-user";
 
 type MergeCounts = Record<string, number>;
 
@@ -175,20 +205,7 @@ export async function transferSqlOwnership(
       WHERE photos.report_id = reports.id AND reports.user_id = $5`,
     [oldTripPrefix, newTripPrefix, oldEncodedPrefix, newEncodedPrefix, oldUid]);
 
-    const directUpdates: Array<[string, string, string]> = [
-      ["plans", "user_id", "plans"],
-      ["session_groups", "user_id", "sessionGroups"],
-      ["session_attempt_groups", "user_id", "sessionAttemptGroups"],
-      ["tracking_sessions", "user_id", "trackingSessions"],
-      ["trip_reports", "user_id", "tripReports"],
-      ["session_comparisons", "user_id", "sessionComparisons"],
-      ["session_markers", "created_by", "sessionMarkers"],
-      ["routes", "owner", "routes"],
-      ["lists", "owner", "lists"],
-      ["destinations", "owner", "destinations"],
-      ["areas", "owner", "areas"],
-    ];
-    for (const [table, column, key] of directUpdates) {
+    for (const [table, column, key] of SQL_OWNERS) {
       await runCounted(client, counts, key,
         `UPDATE ${table} SET ${column} = $2 WHERE ${column} = $1`, [oldUid, newUid]);
     }
@@ -239,17 +256,7 @@ export async function transferFirestoreOwnership(
   const counts: MergeCounts = {};
   const writer = firestore.bulkWriter();
 
-  const scalarOwners: Array<[string, string]> = [
-    ["sessions", "userId"],
-    ["plans", "userId"],
-    ["routes", "owner"],
-    ["lists", "owner"],
-    ["destinations", "owner"],
-    ["invites", "userId"],
-    ["tripReports", "userId"],
-    ["feedback", "userId"],
-  ];
-  for (const [collection, field] of scalarOwners) {
+  for (const [collection, field] of FIRESTORE_OWNERS) {
     const snapshot = await firestore.collection(collection).where(field, "==", oldUid).get();
     counts[collection] = snapshot.size;
     for (const document of snapshot.docs) {
@@ -330,7 +337,10 @@ export async function transferFirestoreOwnership(
 async function mergeAnonymousAccount(oldToken: DecodedIdToken, newToken: DecodedIdToken) {
   const firestore = admin.firestore();
   const claim = await claimMerge(firestore, oldToken.uid, newToken.uid);
-  if (claim === "complete") return { alreadyMerged: true };
+  if (claim === "complete") {
+    await deleteAuthUser(oldToken.uid);
+    return { alreadyMerged: true };
+  }
 
   const storageCopied = await copyStorageObjects(oldToken.uid, newToken.uid);
   const sql = await transferSqlOwnership(db, oldToken.uid, newToken.uid);
@@ -343,6 +353,8 @@ async function mergeAnonymousAccount(oldToken: DecodedIdToken, newToken: Decoded
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
+  await deleteAuthUser(oldToken.uid);
+
   return {
     alreadyMerged: false,
     storageCopied,
@@ -351,6 +363,177 @@ async function mergeAnonymousAccount(oldToken: DecodedIdToken, newToken: Decoded
     firestore: firestoreCounts,
   };
 }
+
+async function deleteAuthUser(uid: string): Promise<void> {
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    if ((error as { code?: string }).code !== "auth/user-not-found") throw error;
+  }
+}
+
+export async function deleteSqlOwnership(pool: Pool, uid: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // Keep other people's session, plan and report links intact. Lock the
+    // owned rows first so a concurrent FK insert cannot race this decision.
+    for (const [table, column, links] of [
+      ["destinations", "destination_id", ["session_destinations", "plan_destinations", "trip_report_destinations"]],
+      ["routes", "route_id", ["session_routes", "plan_routes", "trip_report_routes"]],
+    ] as const) {
+      await client.query(`SELECT id FROM ${table} WHERE owner = $1 FOR UPDATE`, [uid]);
+      await client.query(`UPDATE ${table} owned SET owner = $2
+        WHERE owned.owner = $1 AND (
+          EXISTS (SELECT 1 FROM ${links[0]} link
+            JOIN tracking_sessions parent ON parent.id = link.session_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+          OR EXISTS (SELECT 1 FROM ${links[1]} link
+            JOIN plans parent ON parent.id = link.plan_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+          OR EXISTS (SELECT 1 FROM ${links[2]} link
+            JOIN trip_reports parent ON parent.id = link.report_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+        )`, [uid, DELETED_CATALOG_OWNER]);
+    }
+    await client.query("SELECT id FROM areas WHERE owner = $1 FOR UPDATE", [uid]);
+    await client.query(`UPDATE areas child SET parent_area_id = NULL
+      FROM areas parent
+      WHERE child.parent_area_id = parent.id AND parent.owner = $1`, [uid]);
+    // Segments have no owner column. Remove geometry used only by this user's
+    // deleted routes, keeping segments used by retained routes too.
+    await client.query(`DELETE FROM segments s
+      WHERE EXISTS (
+        SELECT 1 FROM route_segments rs JOIN routes r ON r.id = rs.route_id
+        WHERE rs.segment_id = s.id AND r.owner = $1
+      ) AND NOT EXISTS (
+        SELECT 1 FROM route_segments rs JOIN routes r ON r.id = rs.route_id
+        WHERE rs.segment_id = s.id AND r.owner <> $1
+      )`, [uid]);
+    for (const [table, column] of SQL_OWNERS) {
+      // Foreign-key cascades remove points, photos, conditions and child joins.
+      await client.query(`DELETE FROM ${table} WHERE ${column} = $1`, [uid]);
+    }
+    for (const table of ["plan_party", "trip_report_flags", "session_tombstones"]) {
+      await client.query(`DELETE FROM ${table} WHERE user_id = $1`, [uid]);
+    }
+    // Compare a literal prefix: Firebase UIDs may contain SQL LIKE wildcards.
+    await client.query(`DELETE FROM trip_report_photo_deletions
+      WHERE left(storage_path, length($1)) = $1`, [`trip-reports/${uid}/`]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteFirestoreDocument(firestore: Firestore, ref: DocumentReference): Promise<void> {
+  // Keep the owner field until every child is gone. recursiveDelete(ref) may
+  // remove the parent before failing on a child, which would hide that child
+  // from the next ownership query and leave it behind on retry.
+  for (const collection of await ref.listCollections()) {
+    await firestore.recursiveDelete(collection);
+  }
+  await ref.delete();
+}
+
+export async function deleteFirestoreOwnership(firestore: Firestore, uid: string): Promise<void> {
+  for (const [collection, field] of FIRESTORE_DELETION_OWNERS) {
+    // Bounded reads, with the parent deleted only after its subcollections.
+    for (;;) {
+      const snapshot = await firestore.collection(collection).where(field, "==", uid).limit(100).get();
+      if (snapshot.empty) break;
+      for (const document of snapshot.docs) await deleteFirestoreDocument(firestore, document.ref);
+    }
+  }
+  const partyPlans = await firestore.collection("plans").where("party", "array-contains", uid).get();
+  for (const plan of partyPlans.docs) {
+    await plan.ref.update({ party: FieldValue.arrayRemove(uid) });
+  }
+  // Friendship documents represent pairs; a one-user pair breaks listFriends.
+  for (const collection of ["friends", "friendRequests"]) {
+    const snapshot = await firestore.collection(collection).where("users", "array-contains", uid).get();
+    for (const document of snapshot.docs) {
+      await deleteFirestoreDocument(firestore, document.ref);
+    }
+  }
+  // Includes savedDestinations, savedPlaces, and any nested profile data.
+  await deleteFirestoreDocument(firestore, firestore.collection("users").doc(uid));
+}
+
+async function deauthorizeStrava(firestore: Firestore, uid: string): Promise<void> {
+  // functions/src/strava.ts stores tokens on users/{uid}.strava.
+  const profile = await firestore.collection("users").doc(uid).get();
+  const token = profile.data()?.strava?.access_token;
+  if (typeof token !== "string" || !token) return;
+  try {
+    const response = await fetch("https://www.strava.com/oauth/deauthorize", {
+      method: "POST",
+      body: new URLSearchParams({ access_token: token }),
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) console.warn("[account] Strava deauthorization failed:", response.status);
+    // The response may contain the revoked token; never log it.
+    await response.body?.cancel();
+  } catch {
+    console.warn("[account] Strava deauthorization failed");
+  }
+}
+
+const DELETION_LEASE_MS = 15 * 60_000;
+
+router.delete("/", asyncRoute(async (request, res: Response) => {
+  const { uid } = request as AuthRequest;
+  const firestore = admin.firestore();
+  const ref = firestore.collection("_accountDeletions").doc(uid);
+  const attemptId = randomUUID();
+  const claim = await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.data();
+    if (data?.status === "complete") return "complete";
+    if (data?.status === "processing" && data.leaseUntil > Date.now()) return "busy";
+    transaction.set(ref, {
+      status: "processing", attemptId, leaseUntil: Date.now() + DELETION_LEASE_MS,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return "claimed";
+  });
+  if (claim === "busy") {
+    res.set("Retry-After", "5").status(409).json({ error: "Account deletion is already running" });
+    return;
+  }
+  if (claim === "complete") {
+    res.json({ status: "deleted" });
+    return;
+  }
+
+  try {
+    await deauthorizeStrava(firestore, uid);
+    await deleteSqlOwnership(db, uid);
+    await deleteSourceStorageObjects(uid);
+    await deleteFirestoreOwnership(firestore, uid);
+    await deleteAuthUser(uid);
+    await ref.set({
+      status: "complete", leaseUntil: 0,
+      completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    res.json({ status: "deleted" });
+  } catch (error) {
+    // Release this attempt for an immediate retry. A crashed request's lease
+    // expires without a worker, scheduler or resident service.
+    await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (snapshot.data()?.attemptId === attemptId && snapshot.data()?.status !== "complete") {
+        transaction.set(ref, {
+          status: "failed", leaseUntil: 0, updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    });
+    throw error;
+  }
+}));
 
 router.post("/merge-anonymous", asyncRoute(async (request, res: Response) => {
   const req = request as AuthRequest;
@@ -367,7 +550,9 @@ router.post("/merge-anonymous", asyncRoute(async (request, res: Response) => {
 
   let oldToken: DecodedIdToken;
   try {
-    oldToken = await admin.auth().verifyIdToken(anonymousIdToken, true);
+    // Verify signature and expiry even on retries. A completed claim permits
+    // a retry after deleteUser; unfinished merges still check revocation.
+    oldToken = await admin.auth().verifyIdToken(anonymousIdToken);
   } catch {
     res.status(401).json({ error: "The anonymous session has expired; sign in again and retry" });
     return;
@@ -382,6 +567,15 @@ router.post("/merge-anonymous", asyncRoute(async (request, res: Response) => {
   }
 
   try {
+    const claim = await admin.firestore().collection("_accountMerges").doc(oldToken.uid).get();
+    if (claim.data()?.status !== "complete") {
+      try {
+        oldToken = await admin.auth().verifyIdToken(anonymousIdToken, true);
+      } catch {
+        res.status(401).json({ error: "The anonymous session has expired; sign in again and retry" });
+        return;
+      }
+    }
     const result = await mergeAnonymousAccount(oldToken, req.authToken);
     res.json(result);
   } catch (error) {

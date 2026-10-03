@@ -5,6 +5,8 @@ import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
+import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
+import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
 
 const router = Router();
 
@@ -58,8 +60,12 @@ export function mergeAverages(
 // data). Replaces the legacy Firestore "averages" collection lookup on iOS.
 // Must precede /:id so the literal "averages" segment isn't captured as an id.
 router.get("/averages", asyncRoute(async (req, res: Response) => {
-  const idsParam = (req.query.ids as string) || "";
+  const idsParam = typeof req.query.ids === "string" ? req.query.ids : "";
   const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!getUid(req) && ids.length > CATALOG_LIMITS.signedOutIds) {
+    res.status(400).json({ error: `Signed-out requests accept at most ${CATALOG_LIMITS.signedOutIds} destination IDs` });
+    return;
+  }
   if (ids.length === 0) {
     res.json({});
     return;
@@ -77,12 +83,16 @@ router.get("/averages", asyncRoute(async (req, res: Response) => {
      WHERE sd.destination_id = ANY($1::text[])
        AND sd.relation = 'reached'
        AND ts.start_time IS NOT NULL
+       AND (${getUid(req) ? "TRUE" : "ts.is_public"})
+       AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = sd.destination_id
+         AND ${publicCatalogSql("d", !getUid(req))})
      GROUP BY sd.destination_id, month, dow`,
     [ids]
   );
 
   const offsetResult = await db.query(
-    `SELECT id, averages_offset FROM destinations WHERE id = ANY($1::text[])`,
+    `SELECT id, averages_offset FROM destinations WHERE id = ANY($1::text[])
+       AND ${publicCatalogSql("destinations", !getUid(req))}`,
     [ids]
   );
 
@@ -147,6 +157,7 @@ type NearbyDestinationsQueryOptions = {
   radius: number;
   limit: number;
   eye?: number;
+  publicOnly?: boolean;
 };
 
 /** Build the nearby query with explicit PostgreSQL types for optional values. */
@@ -165,6 +176,7 @@ export function buildNearbyDestinationsQuery(
                ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
         FROM destinations
         WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+          AND ${publicCatalogSql("destinations", options.publicOnly)}
           AND elevation IS NOT NULL
       ) c
       WHERE c.distance_m <= 4123 * (
@@ -186,6 +198,7 @@ export function buildNearbyDestinationsQuery(
              ST_Distance(location, ST_MakePoint($2, $1)::geography) AS distance_m
       FROM destinations
       WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+          AND ${publicCatalogSql("destinations", options.publicOnly)}
       ORDER BY distance_m
       LIMIT $4`,
     values: [lat, lng, radius, limit],
@@ -201,8 +214,8 @@ export function buildNearbyDestinationsQuery(
 router.get("/nearby", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
-  const radius = parseFloat(req.query.radius as string) || 10000; // meters
-  const limit = parseInt(req.query.limit as string) || 50;
+  const radius = clampCatalogRadius(req.query.radius, 10000, CATALOG_LIMITS.nearbyDestinationRadius);
+  const limit = clampCatalogLimit(req.query.limit, 50, CATALOG_LIMITS.nearbyDestinations);
   // Ranking. Default "distance" (nearest first) keeps the map's local-peak lists unchanged. The
   // viewfinder passes sort=apparent + eye=<viewer elevation, m> to fill the horizon with the peaks
   // a person actually sees from a high vantage over a curved Earth.
@@ -237,6 +250,7 @@ router.get("/nearby", asyncRoute(async (req, res: Response) => {
     radius,
     limit,
     eye: useApparent ? eye : undefined,
+    publicOnly: !getUid(req),
   });
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
@@ -248,7 +262,7 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
   const maxLat = parseFloat(req.query.maxLat as string);
   const minLng = parseFloat(req.query.minLng as string);
   const maxLng = parseFloat(req.query.maxLng as string);
-  const limit = parseInt(req.query.limit as string) || 200;
+  const limit = clampCatalogLimit(req.query.limit, 200, CATALOG_LIMITS.viewport);
 
   if ([minLat, maxLat, minLng, maxLng].some(isNaN)) {
     res.status(400).json({ error: "minLat, maxLat, minLng, maxLng are required" });
@@ -263,13 +277,14 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
      FROM destinations
      WHERE ST_Intersects(location,
        ST_MakeEnvelope($1, $2, $3, $4, 4326)::geography)
+       AND ${publicCatalogSql("destinations", !getUid(req))}
      LIMIT $5`,
     [minLng, minLat, maxLng, maxLat, limit]
   );
   res.json(result.rows);
 }));
 
-export function buildDestinationDetailQuery(id: string): { text: string; values: unknown[] } {
+export function buildDestinationDetailQuery(id: string, publicOnly = false): { text: string; values: unknown[] } {
   return {
     text: `SELECT d.id, d.name, d.elevation, d.prominence, d.type,
             d.activities, d.features, d.owner,
@@ -318,17 +333,18 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
-                  'parent_id', a.parent_area_id,
+                  'parent_id', ${publicAreaParentSql("a", publicOnly)},
                   'relation', da.relation,
                   'source', da.source
                 ) AS area_obj
          FROM destination_areas da
          JOIN areas a ON a.id = da.area_id
          WHERE da.destination_id = d.id
+           AND ${publicAreaSql("a", publicOnly)}
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
-     WHERE d.id = $1`,
+     WHERE d.id = $1 AND ${publicCatalogSql("d", publicOnly)}`,
     values: [id],
   };
 }
@@ -401,7 +417,7 @@ export function mapDestinationDetailRow(row: any): any {
 // GET /api/destinations/:id
 router.get("/:id", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
-  const query = buildDestinationDetailQuery(id);
+  const query = buildDestinationDetailQuery(id, !getUid(req));
   const result = await db.query(query.text, query.values);
   if (result.rows.length === 0) {
     res.status(404).json({ error: "Destination not found" });
@@ -425,7 +441,7 @@ export function buildDestinationRoutesQuery(
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id
-     ${routeCoverJoinSql()}
+     ${routeCoverJoinSql("r", "cover", "id", !uid)}
      LEFT JOIN LATERAL (
        -- Same areas exposure as buildRouteDetailQuery: dedup PAD-US fragments
        -- by (kind,name), preferring the primary designation, never select
@@ -440,18 +456,21 @@ export function buildDestinationRoutesQuery(
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
-                  'parent_id', a.parent_area_id,
+                  'parent_id', ${publicAreaParentSql("a", !uid)},
                   'relation', ra.relation,
                   'source', ra.source
                 ) AS area_obj
          FROM route_areas ra
          JOIN areas a ON a.id = ra.area_id
          WHERE ra.route_id = r.id
+           AND ${publicAreaSql("a", !uid)}
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
      WHERE rd.destination_id = $1 AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$2")}
+       AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = rd.destination_id
+         AND ${publicCatalogSql("d", !uid)})
      ORDER BY r.name`,
     values: [id, uid],
   };
@@ -482,11 +501,16 @@ router.get("/:id/lists", asyncRoute(async (req, res: Response) => {
      FROM lists l
      CROSS JOIN LATERAL (
        SELECT COUNT(*)::int AS destination_count
-       FROM list_destinations
-       WHERE list_id = l.id
+       FROM list_destinations counted_ld
+       JOIN destinations counted_d ON counted_d.id = counted_ld.destination_id
+       WHERE counted_ld.list_id = l.id
+         AND ${publicCatalogSql("counted_d", !getUid(req))}
      ) list_counts
      JOIN list_destinations ld ON ld.list_id = l.id
      WHERE ld.destination_id = $1
+       AND ${publicCatalogSql("l", !getUid(req))}
+       AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = ld.destination_id
+         AND ${publicCatalogSql("d", !getUid(req))})
      ORDER BY l.name`,
     [id]
   );
