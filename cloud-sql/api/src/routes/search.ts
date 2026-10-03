@@ -35,7 +35,7 @@ const destinationAreaJoinSql = (publicOnly = false) => `LEFT JOIN LATERAL (
          ) deduped
        ) area_rows ON true`;
 const routeAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
-const routeAreaJoinSql = `LEFT JOIN LATERAL (
+const routeAreaJoinSql = (publicOnly = false) => `LEFT JOIN LATERAL (
          SELECT json_agg(area_obj ORDER BY kind, name) AS areas
          FROM (
            SELECT DISTINCT ON (a.kind, a.name)
@@ -46,13 +46,14 @@ const routeAreaJoinSql = `LEFT JOIN LATERAL (
                     'kind', a.kind,
                     'designation', a.designation,
                     'manager', a.manager,
-                    'parent_id', a.parent_area_id,
+                    'parent_id', ${publicAreaParentSql("a", publicOnly)},
                     'relation', ra.relation,
                     'source', ra.source
                   ) AS area_obj
            FROM route_areas ra
            JOIN areas a ON a.id = ra.area_id
            WHERE ra.route_id = r.id
+             AND ${publicAreaSql("a", publicOnly)}
            ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
          ) deduped
        ) area_rows ON true`;
@@ -351,6 +352,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          SELECT candidate_d.id
          FROM destinations candidate_d
          WHERE ${indexedDestinationCandidateWhere}
+           AND ${publicCatalogSql("candidate_d", input.publicOnly)}
        ),
        candidate_route_ids AS MATERIALIZED (
          SELECT candidate_r.id
@@ -384,6 +386,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
            FROM route_destinations rd
            JOIN destinations d ON d.id = rd.destination_id
            WHERE rd.route_id = r.id
+             AND ${publicCatalogSql("d", input.publicOnly)}
          ) route_dest_names ON true
          WHERE r.status = 'active'
            AND ${buildRouteAccessSql("r", uidParam)}
@@ -396,8 +399,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
               ${routeCoverSelectSql()},
               ${routeAreaRowsSql}${geoOutputSelect}, r.score
        FROM ranked_routes r
-       ${routeCoverJoinSql()}
-       ${routeAreaJoinSql}
+       ${routeCoverJoinSql("r", "cover", "id", input.publicOnly)}
+       ${routeAreaJoinSql(input.publicOnly)}
        ORDER BY r.score DESC`,
     values,
   };
@@ -414,7 +417,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
   if (q.length === 2 && !/^[a-z0-9]+$/.test(q)) {
     return {
       text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
-              a.parent_area_id AS parent_id,
+              ${publicAreaParentSql("a", input.publicOnly)} AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
@@ -453,7 +456,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
 
   return {
     text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
-              a.parent_area_id AS parent_id,
+              ${publicAreaParentSql("a", input.publicOnly)} AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
@@ -470,14 +473,20 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
        LEFT JOIN LATERAL (
          SELECT count(DISTINCT da.destination_id) AS destination_count
          FROM destination_areas da
+         JOIN destinations d ON d.id = da.destination_id
          WHERE da.area_id = a.id
+           AND ${publicCatalogSql("d", input.publicOnly)}
        ) destination_counts ON true
        LEFT JOIN LATERAL (
          SELECT count(DISTINCT ra.route_id) AS route_count
          FROM route_areas ra
+         JOIN routes r ON r.id = ra.route_id
          WHERE ra.area_id = a.id
+           AND ${publicCatalogSql("r", input.publicOnly)}
+           AND ${input.publicOnly ? "r.status = 'active'" : "TRUE"}
        ) route_counts ON true
        WHERE ${whereClause}
+         AND ${publicAreaSql("a", input.publicOnly)}
        ORDER BY score DESC
        LIMIT ${limitParam}`,
     values,
@@ -737,6 +746,7 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
       lng: requestGeo ? lng : undefined,
       limit,
       uid: getUid(req),
+      publicOnly: !getUid(req),
     });
 
     const results = await runMixedSearchQueries(res, queries);

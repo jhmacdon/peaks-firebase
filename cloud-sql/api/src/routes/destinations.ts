@@ -436,7 +436,7 @@ export function buildDestinationRoutesQuery(
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
      JOIN route_destinations rd ON rd.route_id = r.id
-     ${routeCoverJoinSql()}
+     ${routeCoverJoinSql("r", "cover", "id", !uid)}
      LEFT JOIN LATERAL (
        -- Same areas exposure as buildRouteDetailQuery: dedup PAD-US fragments
        -- by (kind,name), preferring the primary designation, never select
@@ -451,18 +451,21 @@ export function buildDestinationRoutesQuery(
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
-                  'parent_id', a.parent_area_id,
+                  'parent_id', ${publicAreaParentSql("a", !uid)},
                   'relation', ra.relation,
                   'source', ra.source
                 ) AS area_obj
          FROM route_areas ra
          JOIN areas a ON a.id = ra.area_id
          WHERE ra.route_id = r.id
+           AND ${publicAreaSql("a", !uid)}
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
      WHERE rd.destination_id = $1 AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$2")}
+       AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = rd.destination_id
+         AND ${publicCatalogSql("d", !uid)})
      ORDER BY r.name`,
     values: [id, uid],
   };

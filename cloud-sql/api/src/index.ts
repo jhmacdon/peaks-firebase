@@ -130,9 +130,9 @@ app.post("/internal/weather-refresh", asyncRoute(async (req, res) => {
 // Exact GET allowlist. New endpoints and all other methods require auth.
 export const signedOutCatalogPaths = [
   "/destinations/nearby", "/destinations/viewport", "/destinations/averages",
-  "/destinations/:id", "/destinations/:id/lists",
+  "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
-  "/search", "/search/features",
+  "/search", "/search/all", "/search/features",
   "/routes/near", "/routes/:id", "/routes/:id/destinations",
   "/routes/:id/sections", "/routes/:id/elevation",
   "/areas/:id",

@@ -8,9 +8,9 @@ import { appRequest } from "./helpers/app-request";
 
 const allowed = [
   "/destinations/nearby", "/destinations/viewport", "/destinations/averages",
-  "/destinations/:id", "/destinations/:id/lists",
+  "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
   "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
-  "/search", "/search/features", "/routes/near", "/routes/:id",
+  "/search", "/search/all", "/search/features", "/routes/near", "/routes/:id",
   "/routes/:id/destinations", "/routes/:id/sections", "/routes/:id/elevation", "/areas/:id",
 ];
 afterEach(() => mock.restoreAll());
@@ -52,6 +52,60 @@ test("each allowlisted handler accepts no uid and logs once without query text",
   }
   assert.equal(logs.mock.callCount(), allowed.length);
   assert.equal((await appRequest(app, "GET", "/api/lists/popular", { Authorization: "Bearer invalid" })).status, 401);
+});
+
+test("mixed search and destination routes apply catalog filters only when signed out", async () => {
+  mock.method(console, "log", () => undefined);
+  const queries: { text: string; values?: unknown[] }[] = [];
+  const query = async (text: string, values?: unknown[]) => {
+    if (text === "SELECT pg_backend_pid() AS pid") return { rows: [{ pid: 123 }] };
+    queries.push({ text, values });
+    return { rows: [{ id: "public" }] };
+  };
+  mock.method(db, "query", query);
+  mock.method(db, "connect", async () => ({ query, release() {} }));
+
+  for (const uid of ["", "member"]) {
+    const headers: Record<string, string> = { "X-Forwarded-For": "192.0.2.3" };
+    if (uid) headers["X-Test-User"] = uid;
+    const assertVisibility = uid ? assert.doesNotMatch : assert.match;
+    for (const params of ["q=peak", "q=pe", "q=peak&lat=47&lng=-122", "q=pe&lat=47&lng=-122"]) {
+      queries.length = 0;
+      const response = await appRequest(app, "GET", `/api/search/all?${params}`, headers);
+      assert.equal(response.status, 200);
+      assert.deepEqual(response.body, {
+        destinations: [{ id: "public" }], routes: [{ id: "public" }], areas: [{ id: "public" }],
+      });
+      assert.equal(queries.length, 3);
+      const [destinations, routes, areas] = queries;
+      assertVisibility(destinations.text, /destinations\.owner = 'peaks'/);
+      // Private linked destination names must not affect discovery or ranking.
+      assertVisibility(routes.text, /candidate_d\.owner = 'peaks'/);
+      assertVisibility(routes.text, /\bd\.owner = 'peaks'/);
+      assertVisibility(routes.text, /cover_destination\.owner = 'peaks'/);
+      assert.equal(routes.values?.at(-1), uid);
+      assert.match(routes.text, /\$\d <> '' AND r\.owner = \$\d/);
+      for (const sql of [destinations.text, routes.text, areas.text]) {
+        assertVisibility(sql, /a\.source = 'padus' OR a\.owner = 'peaks'/);
+        assertVisibility(sql, /catalog_parent\.source = 'padus'/);
+      }
+      assertVisibility(areas.text, /\bd\.owner = 'peaks'/);
+      assertVisibility(areas.text, /\br\.owner = 'peaks'/);
+      assertVisibility(areas.text, /r\.status = 'active'/);
+    }
+
+    queries.length = 0;
+    const response = await appRequest(app, "GET", "/api/destinations/public/routes", headers);
+    assert.equal(response.status, 200);
+    assert.equal(queries.length, 1);
+    assert.deepEqual(queries[0].values, ["public", uid]);
+    assert.match(queries[0].text, /d\.id = rd\.destination_id/);
+    assertVisibility(queries[0].text, /\bd\.owner = 'peaks'/);
+    assertVisibility(queries[0].text, /cover_destination\.owner = 'peaks'/);
+    assertVisibility(queries[0].text, /a\.source = 'padus' OR a\.owner = 'peaks'/);
+    assertVisibility(queries[0].text, /catalog_parent\.source = 'padus'/);
+    assert.match(queries[0].text, /\$2 <> '' AND r\.owner = \$2/);
+  }
 });
 
 test("signed-out IPs get 120 requests per minute, Retry-After, and signed-in callers bypass it", async () => {

@@ -175,10 +175,11 @@ reads accept a missing header. The shim refuses to run in Cloud Run.
 Only these catalog GETs use `optionalAuth` (paths are under `/api`):
 
 - Destinations: `/destinations/nearby`, `/destinations/viewport`,
-  `/destinations/averages`, `/destinations/:id`, `/destinations/:id/lists`.
+  `/destinations/averages`, `/destinations/:id`, `/destinations/:id/lists`,
+  `/destinations/:id/routes`.
 - Lists: `/lists/popular`, `/lists/by-destinations`, `/lists/:id`,
   `/lists/:id/destinations`.
-- Search: `/search` and `/search/features`.
+- Search: `/search`, `/search/all`, `/search/features`.
 - Routes: `/routes/near`, `/routes/:id`, `/routes/:id/destinations`,
   `/routes/:id/sections`, `/routes/:id/elevation`.
 - Areas: `/areas/:id`.
@@ -188,8 +189,8 @@ Signed-out reads return catalog rows owned by `peaks` and public PAD-US areas
 keeps its existing owner and plan-party checks for signed-in callers. Area
 history is empty without a uid. Nested catalog rows and cover photos also
 follow the signed-out filter. Personal routes, sessions, plans, trip reports,
-account actions, `/lists`, `/search/all`, and `/destinations/:id/routes` still
-require auth, as do all other paths and methods (including HEAD).
+account actions, and `/lists` still require auth, as do all other paths and
+methods (including HEAD).
 
 `index.ts` holds the explicit allowlist and trusts one Cloud Run proxy hop.
 Signed-out catalog traffic uses an in-memory per-IP limit of 120 requests per

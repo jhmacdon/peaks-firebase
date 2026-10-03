@@ -310,7 +310,7 @@ test("mixed search route returns typed result buckets", async (t) => {
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
-      if (/JOIN routes r/.test(text)) {
+      if (/FROM ranked_routes r/.test(text)) {
         return { rows: [{ id: "disappointment-cleaver", name: "Disappointment Cleaver", areas: [] }] };
       }
       if (/FROM destinations/.test(text)) {
@@ -352,7 +352,7 @@ test("mixed search degrades secondary buckets to empty on failure instead of 500
       if (text === "SELECT pg_backend_pid() AS pid") {
         return { rows: [{ pid: 246 }] };
       }
-      if (/JOIN routes r/.test(text)) {
+      if (/FROM ranked_routes r/.test(text)) {
         throw Object.assign(new Error("argument of OR must be type boolean, not type text"), { code: "42804" });
       }
       if (/FROM destinations/.test(text)) {
