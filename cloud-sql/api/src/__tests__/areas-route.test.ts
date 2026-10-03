@@ -11,7 +11,8 @@ test("area detail query returns a boundary and indexed, paged user sessions", ()
   assert.match(query.text, /session_count/);
   assert.match(query.text, /description_source_url/);
   // Sub-area detail exposes its containing national park.
-  assert.match(query.text, /a\.parent_area_id AS parent_id/);
+  // Read the joined parent so a signed-out privacy filter also hides its ID.
+  assert.match(query.text, /parent\.id AS parent_id/);
   assert.match(query.text, /parent\.name AS parent_name/);
   assert.match(query.text, /LEFT JOIN areas parent ON parent\.id = a\.parent_area_id/);
   assert.match(query.text, /json_agg\(destination_obj/);

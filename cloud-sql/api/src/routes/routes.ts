@@ -5,6 +5,7 @@ import db from "../db";
 import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
+import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
 
 const router = Router();
 
@@ -24,7 +25,7 @@ export function buildRouteDetailQuery(
             COALESCE(area_rows.areas, '[]'::json) AS areas,
             COALESCE(section_rows.sections, '[]'::json) AS sections
      FROM routes r
-     ${routeCoverJoinSql()}
+     ${routeCoverJoinSql("r", "cover", "id", !uid)}
      LEFT JOIN LATERAL (
        -- Collapse PAD-US fragments: a park can exist as several areas rows with
        -- the same kind+name (e.g. Olympic NP, split into 'NP' and 'MPA'
@@ -43,13 +44,14 @@ export function buildRouteDetailQuery(
                   'kind', a.kind,
                   'designation', a.designation,
                   'manager', a.manager,
-                  'parent_id', a.parent_area_id,
+                  'parent_id', ${publicAreaParentSql("a", !uid)},
                   'relation', ra.relation,
                   'source', ra.source
                 ) AS area_obj
          FROM route_areas ra
          JOIN areas a ON a.id = ra.area_id
          WHERE ra.route_id = r.id
+           AND ${publicAreaSql("a", !uid)}
          ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
        ) deduped
      ) area_rows ON true
@@ -92,6 +94,7 @@ export function buildRouteDestinationsQuery(
      JOIN route_destinations rd ON rd.destination_id = d.id
      JOIN routes r ON r.id = rd.route_id
      WHERE rd.route_id = $1
+       AND ${publicCatalogSql("d", !uid)}
        AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$2")}
      ORDER BY rd.ordinal`,
@@ -149,7 +152,7 @@ export function buildNearbyRoutesQuery(
             ${routeCoverSelectSql()},
             ST_Distance(r.path, ST_MakePoint($2, $1)::geography) AS distance_to_point
      FROM routes r
-     ${routeCoverJoinSql()}
+     ${routeCoverJoinSql("r", "cover", "id", !uid)}
      WHERE ST_DWithin(r.path, ST_MakePoint($2, $1)::geography, $3)
        AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$5")}

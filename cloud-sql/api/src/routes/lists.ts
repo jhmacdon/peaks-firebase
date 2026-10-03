@@ -3,6 +3,8 @@ import { asyncRoute } from "../lib/async-route";
 import db from "../db";
 import { routeDoneCoverageSql } from "../route-coverage";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
+import { publicCatalogSql } from "../lib/catalog-visibility";
+import { getUid } from "../auth";
 
 const router = Router();
 
@@ -22,9 +24,12 @@ router.get("/popular", asyncRoute(async (req, res: Response) => {
      FROM lists l
      CROSS JOIN LATERAL (
        SELECT COUNT(*)::int AS destination_count
-       FROM list_destinations
-       WHERE list_id = l.id
+       FROM list_destinations counted_ld
+       JOIN destinations counted_d ON counted_d.id = counted_ld.destination_id
+       WHERE counted_ld.list_id = l.id
+         AND ${publicCatalogSql("counted_d", !getUid(req))}
      ) list_counts
+     WHERE ${publicCatalogSql("l", !getUid(req))}
      ORDER BY destination_count DESC NULLS LAST, l.name ASC
      LIMIT $1`,
     [limit]
@@ -54,11 +59,16 @@ router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
      FROM lists l
      CROSS JOIN LATERAL (
        SELECT COUNT(*)::int AS destination_count
-       FROM list_destinations
-       WHERE list_id = l.id
+       FROM list_destinations counted_ld
+       JOIN destinations counted_d ON counted_d.id = counted_ld.destination_id
+       WHERE counted_ld.list_id = l.id
+         AND ${publicCatalogSql("counted_d", !getUid(req))}
      ) list_counts
      JOIN list_destinations ld ON ld.list_id = l.id
      WHERE ld.destination_id = ANY($1::text[])
+       AND ${publicCatalogSql("l", !getUid(req))}
+       AND EXISTS (SELECT 1 FROM destinations d WHERE d.id = ld.destination_id
+         AND ${publicCatalogSql("d", !getUid(req))})
      ORDER BY l.name`,
     [ids]
   );
@@ -79,10 +89,12 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
      FROM lists l
      CROSS JOIN LATERAL (
        SELECT COUNT(*)::int AS destination_count
-       FROM list_destinations
-       WHERE list_id = l.id
+       FROM list_destinations counted_ld
+       JOIN destinations counted_d ON counted_d.id = counted_ld.destination_id
+       WHERE counted_ld.list_id = l.id
+         AND ${publicCatalogSql("counted_d", !getUid(req))}
      ) list_counts
-     WHERE l.id = $1`,
+     WHERE l.id = $1 AND ${publicCatalogSql("l", !getUid(req))}`,
     [id]
   );
   if (result.rows.length === 0) {
@@ -98,12 +110,12 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
 // screen can enrich unclimbed peaks in a single fetch.
 router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
-  const query = buildListDestinationsQuery(id);
+  const query = buildListDestinationsQuery(id, !getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows.map(mapListDestinationRow));
 }));
 
-export function buildListDestinationsQuery(listId: string) {
+export function buildListDestinationsQuery(listId: string, publicOnly = false) {
   return {
     text: `SELECT d.id, d.name, d.elevation, d.prominence, d.features,
             ST_Y(d.location::geometry) AS lat,
@@ -130,8 +142,11 @@ export function buildListDestinationsQuery(listId: string) {
        ORDER BY session_count DESC NULLS LAST, r.distance ASC NULLS LAST, r.id ASC
        LIMIT 1
      ) br ON true
-     ${routeCoverJoinSql("br", "cover", "route_id")}
+     ${routeCoverJoinSql("br", "cover", "route_id", publicOnly)}
      WHERE ld.list_id = $1
+       AND ${publicCatalogSql("d", publicOnly)}
+       AND EXISTS (SELECT 1 FROM lists l WHERE l.id = ld.list_id
+         AND ${publicCatalogSql("l", publicOnly)})
      ORDER BY ld.ordinal`,
     values: [listId],
   };
@@ -276,8 +291,10 @@ router.get("/", asyncRoute(async (req, res: Response) => {
      FROM lists l
      CROSS JOIN LATERAL (
        SELECT COUNT(*)::int AS destination_count
-       FROM list_destinations
-       WHERE list_id = l.id
+       FROM list_destinations counted_ld
+       JOIN destinations counted_d ON counted_d.id = counted_ld.destination_id
+       WHERE counted_ld.list_id = l.id
+         AND ${publicCatalogSql("counted_d", !getUid(req))}
      ) list_counts
      ORDER BY l.name
      LIMIT $1 OFFSET $2`,

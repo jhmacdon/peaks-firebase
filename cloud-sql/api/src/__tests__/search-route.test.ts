@@ -80,7 +80,7 @@ test("destination search keeps its filter on the indexed search_name", () => {
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$2/);
+  assert.match(query.text, /WHERE \(search_name % \$1\s+OR search_name LIKE \$2\)/);
   assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
   assert.match(query.text, /destination_areas da/);
   assert.match(query.text, /JOIN areas a ON a\.id = da\.area_id/);
@@ -99,7 +99,7 @@ test("geo destination search keeps its filter on the indexed search_name", () =>
   });
 
   assertSelectsDestinationDisplayLocation(query.text);
-  assert.match(query.text, /WHERE search_name % \$1\s+OR search_name LIKE \$4/);
+  assert.match(query.text, /WHERE \(search_name % \$1\s+OR search_name LIKE \$4\)/);
   assert.doesNotMatch(query.text, /OR lower\(name\) (?:I?LIKE|%)/);
   assert.match(query.text, /LIMIT \$5/);
   assert.deepEqual(query.values, ["south sis", 44.103, -121.769, "south sis%", 20]);

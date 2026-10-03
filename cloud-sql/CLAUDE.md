@@ -166,7 +166,45 @@ add background work that relies on an in-process timer (use the Cloud Scheduler 
 `/internal/sweep` pattern instead).
 
 ### Auth pattern
-All `/api/*` routes go through `requireAuth` middleware. Clients send `Authorization: Bearer <firebase-id-token>`. The middleware calls `admin.auth().verifyIdToken()` and sets `req.uid`.
+Clients send `Authorization: Bearer <firebase-id-token>`. `requireAuth` verifies
+that token and sets `req.uid` and `req.authToken`. `optionalAuth` does the same
+when a token is present; no token means a signed-out request, and a bad token
+still returns 401. In local test mode, both use `X-Test-User`; only optional
+reads accept a missing header. The shim refuses to run in Cloud Run.
+
+Only these catalog GETs use `optionalAuth` (paths are under `/api`):
+
+- Destinations: `/destinations/nearby`, `/destinations/viewport`,
+  `/destinations/averages`, `/destinations/:id`, `/destinations/:id/lists`.
+- Lists: `/lists/popular`, `/lists/by-destinations`, `/lists/:id`,
+  `/lists/:id/destinations`.
+- Search: `/search` and `/search/features`.
+- Routes: `/routes/near`, `/routes/:id`, `/routes/:id/destinations`,
+  `/routes/:id/sections`, `/routes/:id/elevation`.
+- Areas: `/areas/:id`.
+
+Signed-out reads return catalog rows owned by `peaks` and public PAD-US areas
+(whose `owner` names the land agency); route geometry
+keeps its existing owner and plan-party checks for signed-in callers. Area
+history is empty without a uid. Nested catalog rows and cover photos also
+follow the signed-out filter. Personal routes, sessions, plans, trip reports,
+account actions, `/lists`, `/search/all`, and `/destinations/:id/routes` still
+require auth, as do all other paths and methods (including HEAD).
+
+`index.ts` holds the explicit allowlist and trusts one Cloud Run proxy hop.
+Signed-out catalog traffic uses an in-memory per-IP limit of 120 requests per
+minute per instance; excess requests get 429 with `Retry-After`. Signed-in
+requests bypass this limit. Each signed-out API request logs one JSON line
+with `event: "signed_out_request"` and its path, without query text or tokens.
+This adds no service, resident work, or fixed monthly cost.
+
+`DELETE /api/account` requires auth and returns `{ "status": "deleted" }`.
+It uses `_accountDeletions/{uid}` to claim work and resume failures. It removes
+owned SQL rows and their children, Firestore documents and subcollections,
+Storage objects, and shared party/friend references, then deletes the Auth
+user. Strava deauthorization is best effort. A completed anonymous merge also
+deletes the source Auth user; its completed claim permits a retry with the
+still-valid signed guest token after that user no longer exists.
 
 ### Connection
 - **Cloud Run**: connects via Unix socket at `/cloudsql/INSTANCE_CONNECTION_NAME`

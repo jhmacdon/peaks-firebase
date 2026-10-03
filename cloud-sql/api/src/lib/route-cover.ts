@@ -18,9 +18,13 @@ export function routeCoverSelectSql(coverAlias = "cover"): string {
 export function routeCoverJoinSql(
   routeAlias = "r",
   coverAlias = "cover",
-  routeIdColumn = "id"
+  routeIdColumn = "id",
+  publicOnly = false
 ): string {
-  return `LEFT JOIN route_cover_photos ${coverAlias} ON ${coverAlias}.route_id = ${routeAlias}.${routeIdColumn}`;
+  return `LEFT JOIN route_cover_photos ${coverAlias} ON ${coverAlias}.route_id = ${routeAlias}.${routeIdColumn}${publicOnly ? `
+    AND EXISTS (SELECT 1 FROM destinations cover_destination
+      WHERE cover_destination.id = ${coverAlias}.destination_id
+        AND cover_destination.owner = 'peaks')` : ""}`;
 }
 
 /** Cover fields for route objects built inside PostgreSQL JSON aggregates. */
