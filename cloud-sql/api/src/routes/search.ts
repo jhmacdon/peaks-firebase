@@ -6,6 +6,7 @@ import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { normalizeSearchName } from "../search-utils";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
+import { CATALOG_LIMITS, clampCatalogLimit } from "../lib/catalog-limits";
 
 const router = Router();
 
@@ -771,7 +772,7 @@ router.get("/features", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
   const radius = parseFloat(req.query.radius as string) || 50000;
-  const limit = parseInt(req.query.limit as string) || 50;
+  const limit = clampCatalogLimit(req.query.limit, 50, CATALOG_LIMITS.features);
 
   const conditions: string[] = [];
   const params: any[] = [];

@@ -39,6 +39,10 @@ const FIRESTORE_OWNERS = [
   ["feedback", "userId"],
 ] as const;
 
+const FIRESTORE_DELETION_OWNERS = [...FIRESTORE_OWNERS, ["codes", "userId"]] as const;
+// Retained references have no Auth owner and never become public catalog rows.
+const DELETED_CATALOG_OWNER = "deleted-user";
+
 type MergeCounts = Record<string, number>;
 
 class AccountMergeConflict extends Error {}
@@ -372,8 +376,32 @@ export async function deleteSqlOwnership(pool: Pool, uid: string): Promise<void>
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Keep other people's session, plan and report links intact. Lock the
+    // owned rows first so a concurrent FK insert cannot race this decision.
+    for (const [table, column, links] of [
+      ["destinations", "destination_id", ["session_destinations", "plan_destinations", "trip_report_destinations"]],
+      ["routes", "route_id", ["session_routes", "plan_routes", "trip_report_routes"]],
+    ] as const) {
+      await client.query(`SELECT id FROM ${table} WHERE owner = $1 FOR UPDATE`, [uid]);
+      await client.query(`UPDATE ${table} owned SET owner = $2
+        WHERE owned.owner = $1 AND (
+          EXISTS (SELECT 1 FROM ${links[0]} link
+            JOIN tracking_sessions parent ON parent.id = link.session_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+          OR EXISTS (SELECT 1 FROM ${links[1]} link
+            JOIN plans parent ON parent.id = link.plan_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+          OR EXISTS (SELECT 1 FROM ${links[2]} link
+            JOIN trip_reports parent ON parent.id = link.report_id
+            WHERE link.${column} = owned.id AND parent.user_id <> $1)
+        )`, [uid, DELETED_CATALOG_OWNER]);
+    }
+    await client.query("SELECT id FROM areas WHERE owner = $1 FOR UPDATE", [uid]);
+    await client.query(`UPDATE areas child SET parent_area_id = NULL
+      FROM areas parent
+      WHERE child.parent_area_id = parent.id AND parent.owner = $1`, [uid]);
     // Segments have no owner column. Remove geometry used only by this user's
-    // routes, while retaining any segment another route still uses.
+    // deleted routes, keeping segments used by retained routes too.
     await client.query(`DELETE FROM segments s
       WHERE EXISTS (
         SELECT 1 FROM route_segments rs JOIN routes r ON r.id = rs.route_id
@@ -412,7 +440,7 @@ async function deleteFirestoreDocument(firestore: Firestore, ref: DocumentRefere
 }
 
 export async function deleteFirestoreOwnership(firestore: Firestore, uid: string): Promise<void> {
-  for (const [collection, field] of FIRESTORE_OWNERS) {
+  for (const [collection, field] of FIRESTORE_DELETION_OWNERS) {
     // Bounded reads, with the parent deleted only after its subcollections.
     for (;;) {
       const snapshot = await firestore.collection(collection).where(field, "==", uid).limit(100).get();
@@ -420,16 +448,15 @@ export async function deleteFirestoreOwnership(firestore: Firestore, uid: string
       for (const document of snapshot.docs) await deleteFirestoreDocument(firestore, document.ref);
     }
   }
-  for (const [collection, field] of [
-    ["plans", "party"], ["friends", "users"], ["friendRequests", "users"],
-  ]) {
-    const snapshot = await firestore.collection(collection).where(field, "array-contains", uid).get();
+  const partyPlans = await firestore.collection("plans").where("party", "array-contains", uid).get();
+  for (const plan of partyPlans.docs) {
+    await plan.ref.update({ party: FieldValue.arrayRemove(uid) });
+  }
+  // Friendship documents represent pairs; a one-user pair breaks listFriends.
+  for (const collection of ["friends", "friendRequests"]) {
+    const snapshot = await firestore.collection(collection).where("users", "array-contains", uid).get();
     for (const document of snapshot.docs) {
-      await document.ref.update({
-        [field]: FieldValue.arrayRemove(uid),
-        ...(collection === "friendRequests" && document.data().requestedBy === uid
-          ? { requestedBy: FieldValue.delete() } : {}),
-      });
+      await deleteFirestoreDocument(firestore, document.ref);
     }
   }
   // Includes savedDestinations, savedPlaces, and any nested profile data.

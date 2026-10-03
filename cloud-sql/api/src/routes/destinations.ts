@@ -6,6 +6,7 @@ import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
+import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
 
 const router = Router();
 
@@ -59,8 +60,12 @@ export function mergeAverages(
 // data). Replaces the legacy Firestore "averages" collection lookup on iOS.
 // Must precede /:id so the literal "averages" segment isn't captured as an id.
 router.get("/averages", asyncRoute(async (req, res: Response) => {
-  const idsParam = (req.query.ids as string) || "";
+  const idsParam = typeof req.query.ids === "string" ? req.query.ids : "";
   const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!getUid(req) && ids.length > CATALOG_LIMITS.signedOutIds) {
+    res.status(400).json({ error: `Signed-out requests accept at most ${CATALOG_LIMITS.signedOutIds} destination IDs` });
+    return;
+  }
   if (ids.length === 0) {
     res.json({});
     return;
@@ -209,8 +214,8 @@ export function buildNearbyDestinationsQuery(
 router.get("/nearby", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
-  const radius = parseFloat(req.query.radius as string) || 10000; // meters
-  const limit = parseInt(req.query.limit as string) || 50;
+  const radius = clampCatalogRadius(req.query.radius, 10000, CATALOG_LIMITS.nearbyDestinationRadius);
+  const limit = clampCatalogLimit(req.query.limit, 50, CATALOG_LIMITS.nearbyDestinations);
   // Ranking. Default "distance" (nearest first) keeps the map's local-peak lists unchanged. The
   // viewfinder passes sort=apparent + eye=<viewer elevation, m> to fill the horizon with the peaks
   // a person actually sees from a high vantage over a curved Earth.
@@ -257,7 +262,7 @@ router.get("/viewport", asyncRoute(async (req, res: Response) => {
   const maxLat = parseFloat(req.query.maxLat as string);
   const minLng = parseFloat(req.query.minLng as string);
   const maxLng = parseFloat(req.query.maxLng as string);
-  const limit = parseInt(req.query.limit as string) || 200;
+  const limit = clampCatalogLimit(req.query.limit, 200, CATALOG_LIMITS.viewport);
 
   if ([minLat, maxLat, minLng, maxLng].some(isNaN)) {
     res.status(400).json({ error: "minLat, maxLat, minLng, maxLng are required" });

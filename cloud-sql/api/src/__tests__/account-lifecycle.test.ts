@@ -34,14 +34,19 @@ function seed(firestore: AccountFirestore, storage: AccountStorage) {
   for (const [name, field] of [
     ["sessions", "userId"], ["plans", "userId"], ["routes", "owner"], ["lists", "owner"],
     ["destinations", "owner"], ["invites", "userId"], ["tripReports", "userId"], ["feedback", "userId"],
+    ["codes", "userId"],
   ]) {
     firestore.documents.set(`${name}/owned`, { [field]: uid });
     firestore.documents.set(`${name}/owned/children/nested`, { private: true });
     firestore.documents.set(`${name}/other`, { [field]: other });
   }
   firestore.documents.set("plans/other", { userId: other, party: [uid, other], name: "Keep this plan" });
-  firestore.documents.set("friends/shared", { users: [other, uid], note: "Keep this friendship record" });
+  firestore.documents.set("codes/owned", { userId: uid, reason: "strava" });
+  firestore.documents.set("friends/shared", { users: [other, uid] });
   firestore.documents.set("friendRequests/shared", { users: [uid, other], requestedBy: uid, status: "pending" });
+  firestore.documents.set("friendRequests/incoming", { users: [other, uid], requestedBy: other, status: "pending" });
+  firestore.documents.set("friends/other", { users: [other, "third-user"] });
+  firestore.documents.set("friendRequests/other", { users: [other, "third-user"], requestedBy: other });
   firestore.documents.set(`users/${uid}`, { strava: { access_token: "test-strava-token" } });
   firestore.documents.set(`users/${uid}/savedDestinations/peak`, { name: "saved" });
   firestore.documents.set(`users/${uid}/savedPlaces/place/children/nested`, { name: "orphan child" });
@@ -56,8 +61,13 @@ function seed(firestore: AccountFirestore, storage: AccountStorage) {
 function assertDeleted(firestore: AccountFirestore, storage: AccountStorage) {
   assert.equal([...firestore.documents.keys()].some((path) => path.includes("/owned") || path.startsWith(`users/${uid}`)), false);
   assert.deepEqual(firestore.documents.get("plans/other"), { userId: other, party: [other], name: "Keep this plan" });
-  assert.deepEqual(firestore.documents.get("friends/shared"), { users: [other], note: "Keep this friendship record" });
-  assert.deepEqual(firestore.documents.get("friendRequests/shared"), { users: [other], status: "pending" });
+  assert.equal(firestore.documents.has("friends/shared"), false);
+  assert.equal(firestore.documents.has("friendRequests/shared"), false);
+  assert.equal(firestore.documents.has("friendRequests/incoming"), false);
+  assert.deepEqual(firestore.documents.get("friends/other"), { users: [other, "third-user"] });
+  assert.deepEqual(firestore.documents.get("friendRequests/other"), { users: [other, "third-user"], requestedBy: other });
+  assert.equal(firestore.documents.has("codes/owned"), false);
+  assert.deepEqual(firestore.documents.get("codes/other"), { userId: other });
   assert.ok(firestore.documents.has(`users/${other}`));
   assert.equal(storage.files.size, 4);
   assert.equal([...storage.files].some((path) => path.includes(`/${uid}/`)), false);

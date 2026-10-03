@@ -5,6 +5,7 @@ import { routeDoneCoverageSql } from "../route-coverage";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicCatalogSql } from "../lib/catalog-visibility";
 import { getUid } from "../auth";
+import { CATALOG_LIMITS, clampCatalogLimit } from "../lib/catalog-limits";
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
 // Lists ordered by destination count desc (proxy for "substantive" / popular).
 // Must precede /:id so "popular" isn't captured as an id.
 router.get("/popular", asyncRoute(async (req, res: Response) => {
-  const limit = parseInt(req.query.limit as string) || 10;
+  const limit = clampCatalogLimit(req.query.limit, 10, CATALOG_LIMITS.popularLists);
   const result = await db.query(
     `SELECT l.id, l.name, l.description, l.owner,
             l.year_established, l.organization, l.source_name, l.source_url, l.region,
@@ -42,8 +43,12 @@ router.get("/popular", asyncRoute(async (req, res: Response) => {
 // Replaces Firestore arrayContainsAny on iOS.
 // Must precede /:id so the literal segment isn't captured as an id.
 router.get("/by-destinations", asyncRoute(async (req, res: Response) => {
-  const idsParam = (req.query.ids as string) || "";
+  const idsParam = typeof req.query.ids === "string" ? req.query.ids : "";
   const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!getUid(req) && ids.length > CATALOG_LIMITS.signedOutIds) {
+    res.status(400).json({ error: `Signed-out requests accept at most ${CATALOG_LIMITS.signedOutIds} destination IDs` });
+    return;
+  }
   if (ids.length === 0) {
     res.json([]);
     return;

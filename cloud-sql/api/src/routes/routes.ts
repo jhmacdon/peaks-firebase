@@ -6,6 +6,7 @@ import { normalizeExternalLinks } from "../lib/external-links";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
+import { CATALOG_LIMITS, clampCatalogLimit, clampCatalogRadius } from "../lib/catalog-limits";
 
 const router = Router();
 
@@ -177,8 +178,8 @@ export function mapRouteDetailRow(row: any, destinations: any[] = []): any {
 router.get("/near", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
-  const radius = parseFloat(req.query.radius as string) || 5000;
-  const limit = parseInt(req.query.limit as string) || 20;
+  const radius = clampCatalogRadius(req.query.radius, 5000, CATALOG_LIMITS.nearbyRouteRadius);
+  const limit = clampCatalogLimit(req.query.limit, 20, CATALOG_LIMITS.nearbyRoutes);
 
   if (isNaN(lat) || isNaN(lng)) {
     res.status(400).json({ error: "lat and lng are required" });

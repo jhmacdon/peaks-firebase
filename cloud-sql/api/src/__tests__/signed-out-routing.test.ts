@@ -16,7 +16,7 @@ const allowed = [
 afterEach(() => mock.restoreAll());
 
 test("every registered non-allowlisted API route and every non-GET method requires auth", async () => {
-  mock.method(console, "log", () => undefined);
+  const logs = mock.method(console, "log", () => undefined);
   assert.deepEqual([...signedOutCatalogPaths].sort(), [...allowed].sort());
   const directory = join(__dirname, "../routes");
   let checked = 0;
@@ -37,6 +37,7 @@ test("every registered non-allowlisted API route and every non-GET method requir
   }
   assert.ok(checked > 300, "the route inventory must include every API router");
   assert.equal((await appRequest(app, "GET", "/api/not-a-catalog-route")).status, 401);
+  assert.equal(logs.mock.callCount(), 0, "401s must not count as signed-out catalog traffic");
 });
 
 test("each allowlisted handler accepts no uid and logs once without query text", async () => {
@@ -52,6 +53,41 @@ test("each allowlisted handler accepts no uid and logs once without query text",
   }
   assert.equal(logs.mock.callCount(), allowed.length);
   assert.equal((await appRequest(app, "GET", "/api/lists/popular", { Authorization: "Bearer invalid" })).status, 401);
+  assert.equal(logs.mock.callCount(), allowed.length, "invalid tokens must not log");
+});
+
+test("allowlist edge paths follow Express matching without opening private handlers", async () => {
+  const logs = mock.method(console, "log", () => undefined);
+  const queries: { text: string; values?: unknown[] }[] = [];
+  const query = async (text: string, values?: unknown[]) => {
+    if (text === "SELECT pg_backend_pid() AS pid") return { rows: [{ pid: 123 }] };
+    queries.push({ text, values });
+    return { rows: [{ id: "public", owner: "peaks" }] };
+  };
+  mock.method(db, "query", query);
+  mock.method(db, "connect", async () => ({ query, release() {} }));
+  const headers = { "X-Forwarded-For": "192.0.2.4" };
+  for (const path of [
+    "/api/lists/", "/api/routes/x/sessions/mine", "/api",
+    "/api/", "/api/search/%61ll", "/api/%73earch/all",
+  ]) {
+    assert.equal((await appRequest(app, "GET", path, headers)).status, 401, path);
+  }
+  assert.equal(queries.length, 0);
+  assert.equal(logs.mock.callCount(), 0);
+  for (const path of ["/api/search/all/?q=peak", "/API/SEARCH/ALL?q=peak"]) {
+    const response = await appRequest(app, "GET", path, headers);
+    assert.equal(response.status, 200, path);
+    assert.equal(response.body.destinations[0].id, "public");
+  }
+  // Express decodes parameter values, not literal route segments: this is a
+  // public destination ID lookup, never the /nearby handler.
+  queries.length = 0;
+  const encoded = await appRequest(app, "GET", "/api/destinations/%6eearby", headers);
+  assert.equal(encoded.status, 200);
+  assert.deepEqual(queries[0].values, ["nearby"]);
+  assert.match(queries[0].text, /d\.owner = 'peaks'/);
+  assert.equal(logs.mock.callCount(), 3);
 });
 
 test("mixed search and destination routes apply catalog filters only when signed out", async () => {
@@ -118,10 +154,10 @@ test("signed-out IPs get 120 requests per minute, Retry-After, and signed-in cal
   const blocked = await appRequest(app, "GET", path, { "X-Forwarded-For": "198.51.100.8, 192.0.2.30" });
   assert.equal(blocked.status, 429);
   assert.ok(Number(blocked.headers["retry-after"]) > 0);
-  assert.equal(logs.mock.callCount(), 121);
+  assert.equal(logs.mock.callCount(), 120, "429s must not log signed_out_request");
   assert.equal((await appRequest(app, "GET", path, { "X-Forwarded-For": "192.0.2.31" })).status, 200);
   for (let i = 0; i < 121; i++) {
     assert.equal((await appRequest(app, "GET", path, { "X-Forwarded-For": "192.0.2.30", "X-Test-User": "member" })).status, 200);
   }
-  assert.equal(logs.mock.callCount(), 122);
+  assert.equal(logs.mock.callCount(), 121);
 });

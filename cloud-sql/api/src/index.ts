@@ -20,7 +20,7 @@ import { sweepStuckSessions } from "./processing";
 import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
-// Cloud Run appends the client address at the trusted proxy hop.
+// Direct run.app traffic: Cloud Run appends the client at the trusted hop.
 app.set("trust proxy", 1);
 // 5mb covers the iOS chunked points uploader (3000 pts/chunk ≈ 150KB) with
 // generous headroom. Default express.json() limit is 100kb, which silently
@@ -151,16 +151,15 @@ const signedOutRateLimit = rateLimit({
 app.use("/api", (req, res, next) => {
   const isCatalog = req.method === "GET" && catalogPatterns.some((path) => path.test(req.path));
   if (!isCatalog) {
-    const hasTestUser = process.env.NODE_ENV === "test" && req.headers["x-test-user"];
-    if (req.headers.authorization === undefined && !hasTestUser) {
-      console.log(JSON.stringify({ event: "signed_out_request", path: req.baseUrl + req.path }));
-    }
     return requireAuth(req, res, next);
   }
   return optionalAuth(req, res, () => {
     if (getUid(req)) return next();
-    console.log(JSON.stringify({ event: "signed_out_request", path: req.baseUrl + req.path }));
-    return signedOutRateLimit(req, res, next);
+    return signedOutRateLimit(req, res, (error) => {
+      if (error) return next(error);
+      console.log(JSON.stringify({ event: "signed_out_request", path: req.baseUrl + req.path }));
+      next();
+    });
   });
 });
 
