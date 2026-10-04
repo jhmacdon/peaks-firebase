@@ -1035,7 +1035,6 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
 // sweep runs across the whole Cloud Run fleet at a time, so the sweep can never
 // add more than ~1-2 connections on top of the web pool (db-f1-micro budget).
 export const SWEEP_ADVISORY_LOCK_KEY = 4927301;
-export const REMATCH_ADVISORY_LOCK_KEY = 4927302;
 
 // All ended sessions with points stuck at pending/failed or a stale 'processing'
 // claim, across EVERY user, oldest first. Parameterless so callers append LIMIT.
@@ -1096,13 +1095,20 @@ export async function sweepStuckSessions(
 }
 
 /**
- * The oldest queued sessions with their owners.
+ * Claim the oldest queued session: delete its row and return it with its
+ * owner, in one statement. SKIP LOCKED gives concurrent drains different rows.
  */
-export function buildRematchQueueSql(): string {
-  return `SELECT q.session_id AS id, s.user_id, q.queued_at
-     FROM session_rematch_queue q
-     JOIN tracking_sessions s ON s.id = q.session_id
-     ORDER BY q.queued_at ASC, q.session_id ASC`;
+export function buildClaimRematchSql(): string {
+  return `DELETE FROM session_rematch_queue q
+     USING tracking_sessions s
+     WHERE q.session_id = (
+         SELECT session_id FROM session_rematch_queue
+         ORDER BY queued_at ASC, session_id ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED
+       )
+       AND s.id = q.session_id
+     RETURNING q.session_id AS id, s.user_id`;
 }
 
 /**
@@ -1113,10 +1119,17 @@ export function buildRematchQueueSql(): string {
  * drops auto rows that no longer match, and honors rejections.
  *
  * Called from the sweep, after sweepStuckSessions; at most `limit` sessions
- * and `budgetMs` of starts per call. Fleet-wide singleton via
- * its own advisory lock, like the sweep. A row is deleted only if nobody
- * re-queued it meanwhile (queued_at unchanged), so an edit made during the
- * re-run is not lost.
+ * and `budgetMs` of starts per call.
+ *
+ * Rows are claimed one at a time, and nothing holds a connection between
+ * statements: processSession needs one connection for its transaction and the
+ * second for its post-commit steps, and the processing pool has two. (A held
+ * advisory-lock connection starved it in production.) A claimed row is gone
+ * from the queue, so:
+ *  - an edit made during the re-run queues the session again;
+ *  - a re-run that fails marks the session 'failed', and one that dies leaves
+ *    a stale 'processing' claim — sweepStuckSessions retries both;
+ *  - a session a live run owns is queued again for the next sweep.
  */
 export async function drainSessionRematchQueue(
   pool: Pool,
@@ -1126,50 +1139,37 @@ export async function drainSessionRematchQueue(
     now?: () => number;
     processFn?: typeof processSession;
   } = {}
-): Promise<{ rematched: number; locked: boolean }> {
+): Promise<{ rematched: number }> {
   const limit = opts.limit ?? 25;
   // The scheduler gives the whole sweep 180 s. Start no new re-match after
   // this much time, so a slow batch cannot push the request past it.
   const budgetMs = opts.budgetMs ?? 90_000;
   const now = opts.now ?? Date.now;
-  const startedAt = now();
   const process = opts.processFn ?? processSession;
-  const lockClient = await pool.connect();
-  let locked = false;
-  try {
-    const lock = await lockClient.query(
-      "SELECT pg_try_advisory_lock($1) AS ok",
-      [REMATCH_ADVISORY_LOCK_KEY]
-    );
-    locked = lock.rows[0]?.ok === true;
-    if (!locked) return { rematched: 0, locked: false };
+  const startedAt = now();
+  let rematched = 0;
 
-    const { rows } = await pool.query(`${buildRematchQueueSql()} LIMIT $1`, [limit]);
-    let rematched = 0;
-    for (const row of rows as Array<{ id: string; user_id: string; queued_at: Date }>) {
-      if (now() - startedAt >= budgetMs) break;
-      try {
-        await process(row.id, row.user_id, { force: true, pool });
-        rematched++;
-      } catch (err) {
-        // A live run owns the session. Keep the row; the next sweep confirms.
-        if (err instanceof Error && err.message === "already_processing") continue;
-        // processSession recorded the failure on the session, and the stuck
-        // sweep retries 'failed' sessions, so the queue can let go.
-        console.error(`[rematch] failed for ${row.id}:`, err);
+  for (let i = 0; i < limit && now() - startedAt < budgetMs; i++) {
+    const { rows } = await pool.query(buildClaimRematchSql());
+    const row = rows[0] as { id: string; user_id: string } | undefined;
+    if (!row) break;
+    try {
+      await process(row.id, row.user_id, { force: true, pool });
+      rematched++;
+    } catch (err) {
+      if (err instanceof Error && err.message === "already_processing") {
+        await pool.query(
+          `INSERT INTO session_rematch_queue (session_id, reason)
+           VALUES ($1, 'retry:already_processing')
+           ON CONFLICT (session_id) DO NOTHING`,
+          [row.id]
+        );
+        continue;
       }
-      await pool.query(
-        `DELETE FROM session_rematch_queue WHERE session_id = $1 AND queued_at = $2`,
-        [row.id, row.queued_at]
-      );
+      console.error(`[rematch] failed for ${row.id}:`, err);
     }
-    return { rematched, locked: true };
-  } finally {
-    if (locked) {
-      await lockClient.query("SELECT pg_advisory_unlock($1)", [REMATCH_ADVISORY_LOCK_KEY]);
-    }
-    lockClient.release();
   }
+  return { rematched };
 }
 
 /**
