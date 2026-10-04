@@ -332,31 +332,40 @@ test("catalog postflight requires all 115 jobs queued, current, and evidence-fre
 
 test("apply requires the marked XY-only session trigger and session hashes stay fixed", () => {
   assert.match(DESTINATION_UPDATE_TRIGGER_GUARD_SQL, /pg_get_functiondef/);
-  assert.match(DESTINATION_UPDATE_TRIGGER_GUARD_SQL, /trg_destination_update_link_sessions/);
+  assert.match(DESTINATION_UPDATE_TRIGGER_GUARD_SQL, /trg_destination_queue_rematch/);
   assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM session_destinations/);
   assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM tracking_sessions/);
   assert.match(SESSION_TRACKING_INVARIANT_SQL, /FROM tracking_points/);
   const guard = destinationUpdateTriggerGuard({
     function_exists: true,
-    function_comment: "peaks:destination-session-link-update:xy-only-with-rejection-v1",
+    function_comment: "peaks:destination-rematch-queue:xy-only-v1",
     function_definition: `
-      -- peaks_destination_session_link_xy_guard_v1
+      -- peaks_destination_rematch_xy_guard_v1
       (OLD.location IS NULL) IS DISTINCT FROM (NEW.location IS NULL)
       ST_X(OLD.location::geometry) IS DISTINCT FROM ST_X(NEW.location::geometry)
       ST_Y(OLD.location::geometry) IS DISTINCT FROM ST_Y(NEW.location::geometry)
-      FROM session_destination_rejections r
-      r.session_id = tp.session_id AND r.destination_id = NEW.id
-      FROM session_destination_rejections r
+      PERFORM queue_sessions_near(NEW.location, 200, 'destination:' || NEW.id);
     `,
     function_definition_md5: "a".repeat(32),
     trigger_count: 1,
     enabled_trigger_count: 1,
-    trigger_definition: "CREATE TRIGGER trg_destination_update_link_sessions AFTER UPDATE OF boundary, location ON public.destinations FOR EACH ROW EXECUTE FUNCTION link_sessions_on_destination_update()",
+    trigger_definition: "CREATE TRIGGER trg_destination_queue_rematch AFTER UPDATE OF location, boundary, features, owner ON public.destinations FOR EACH ROW EXECUTE FUNCTION queue_rematch_on_destination_change()",
   });
   assertDestinationUpdateTriggerGuard(guard);
+  // A trigger that writes reached rows itself is the old, unsafe shape.
+  assert.equal(destinationUpdateTriggerGuard({
+    function_exists: true,
+    function_comment: "peaks:destination-rematch-queue:xy-only-v1",
+    function_definition: `-- peaks_destination_rematch_xy_guard_v1
+      INSERT INTO session_destinations SELECT 1; PERFORM queue_sessions_near(NULL, 0, '');`,
+    function_definition_md5: "a".repeat(32),
+    trigger_count: 1,
+    enabled_trigger_count: 1,
+    trigger_definition: "",
+  }).safe, false);
   assert.throws(
     () => assertDestinationUpdateTriggerGuard({ ...guard, safe: false }),
-    /lacks the reviewed XY-only/
+    /lacks the reviewed XY-only guard/
   );
 
   const invariant = sessionTrackingInvariant({
