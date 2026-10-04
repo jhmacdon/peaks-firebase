@@ -24,7 +24,7 @@
 # Why schema.sql is not enough on its own: it is a partially-maintained
 # baseline. It carries most of the current schema but is missing everything
 # added by later migrations that were never folded back in — the
-# `link_sessions_on_destination_update` trigger, `areas_refresh_boundary_display`,
+# re-match queue triggers, `areas_refresh_boundary_display`,
 # destination place-copy and hero-credit columns, `areas.parent_area_id`, and the
 # destination search vector. Applying schema.sql AND migrations/ reproduces the
 # live schema exactly; applying either one alone does not.

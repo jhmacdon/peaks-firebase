@@ -116,7 +116,7 @@ never reach production. Full detail in `test-db/README.md`; the rules:
   database instead.
 - **`schema.sql` is a baseline, not the current schema.** It is missing
   everything later migrations added and never folded back —
-  `link_sessions_on_destination_update`, `areas_refresh_boundary_display`,
+  the destination and route re-match queue triggers, `areas_refresh_boundary_display`,
   destination place-copy and hero-credit columns, `areas.parent_area_id`, the
   destination search vector — and it carries no `GRANT`s. Provisioning applies
   `schema.sql` + `migrations/` + `grants.sql`, which together reproduce live
@@ -365,13 +365,13 @@ and its reviewed job pre-state. It also snapshots counts and hashes for linked
 sessions, explicit rejections, destination-area links, nearby tracking
 sessions, and their points.
 
-Before data apply, deploy
-`20260810_session_link_update_xy_guard.sql`. It patches the old destination
-update function only when its body matches the reviewed production function,
-keeps the rejection anti-join, and marks the new XY-only guard. It refuses
-unknown drift. A PointZ change in Z alone must not rerun historical session
-matching. The guarded data command checks the function body, marker, and exact
-enabled trigger before its first update.
+Before data apply, deploy `20261004_session_rematch_queue.sql`. It replaces
+the old destination update function (and with it the reviewed
+`20260810_session_link_update_xy_guard.sql` patch) with a trigger that only
+queues sessions, and only for an XY, boundary, feature or owner change. A
+PointZ change in Z alone must not rerun historical session matching. The
+guarded data command checks the function body, marker, and exact enabled
+trigger before its first update.
 
 Apply requires `--apply` plus exact database, Cloud SQL instance, and
 instance-named Unix socket flags. It takes one serializable transaction and an
@@ -1106,6 +1106,27 @@ A route whose materialized geometry is recomputed leaves stale intervals
 behind, so `rematerializeRoute` (web admin route builder) queues that route's
 `auto`-matched recordings back to `pending` and the existing Cloud Scheduler
 sweep rematches them. No timer, no new service.
+
+## Catalog changes re-match sessions
+
+`processSession` is the one definition of what a session reached and which
+routes it did. Catalog changes reach old sessions through it, never through
+their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
+
+- **New destination**: `trg_destination_link_sessions` tags old sessions at
+  once, owner-scoped, with the rejection veto.
+- **Destination moved, retyped, or re-owned**: `trg_destination_queue_rematch`
+  queues the sessions within 200 m (10 m of a boundary) of the old and the new
+  place. An elevation-only edit queues nothing.
+- **Route added, activated, reshaped, re-owned, or retired**:
+  `trg_route_queue_rematch_insert` / `_update` queue the sessions within 600 m
+  of the old and the new path, whenever either side is `active`.
+
+Queued sessions sit in `session_rematch_queue`. Each `/internal/sweep` re-runs
+`processSession(force)` on up to 25 of them under advisory lock 4927302
+(`drainSessionRematchQueue`), which adds new matches and drops stale `auto`
+rows. Deletion is keyed on `queued_at`, so an edit during a re-run is kept. No
+new service or schedule.
 
 Historical rows are filled by `npm run backfill:route-coverage` in
 `cloud-sql/api` — dry-run by default, batched, resumable, never run as part of

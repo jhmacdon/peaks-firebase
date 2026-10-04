@@ -15,7 +15,7 @@ import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-report
 import account from "./routes/account";
 import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
-import { sweepStuckSessions } from "./processing";
+import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
 import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
@@ -87,6 +87,9 @@ app.post("/internal/sweep", asyncRoute(async (req, res) => {
   isSweeping = true;
   try {
     await sweepStuckSessions(processingPool);
+    // Catalog changes (destination moved/retyped, route added/changed) queue
+    // the sessions near them; re-match a batch each sweep.
+    await drainSessionRematchQueue(processingPool);
     await drainTripReportPhotoDeletions(processingPool);
     res.json({ status: "ok" });
   } catch (err) {

@@ -224,11 +224,11 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
  * Rejections: a (session, destination) pair recorded in
  * session_destination_rejections is anti-joined out. The user said they did not
  * reach that destination; re-processing must not overrule them. The same
- * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql),
- * link_sessions_on_destination_update (patched by
- * cloud-sql/migrations/20260725_session_destination_rejections.sql) and
- * backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
- * scripts/check-cross-refs.sh fails CI if any of the four drops it.
+ * anti-join lives in link_sessions_on_destination_insert (cloud-sql/schema.sql)
+ * and backfillDestinationToSessions (web/src/lib/destination-backfill.ts) —
+ * scripts/check-cross-refs.sh fails CI if any of them drops it. Destination
+ * edits and route changes do not match on their own: they queue the nearby
+ * sessions for processSession (see drainSessionRematchQueue).
  */
 export function buildSessionDestinationMatchSql(
   sessionId: string
@@ -1035,6 +1035,7 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
 // sweep runs across the whole Cloud Run fleet at a time, so the sweep can never
 // add more than ~1-2 connections on top of the web pool (db-f1-micro budget).
 export const SWEEP_ADVISORY_LOCK_KEY = 4927301;
+export const REMATCH_ADVISORY_LOCK_KEY = 4927302;
 
 // All ended sessions with points stuck at pending/failed or a stale 'processing'
 // claim, across EVERY user, oldest first. Parameterless so callers append LIMIT.
@@ -1089,6 +1090,83 @@ export async function sweepStuckSessions(
   } finally {
     if (locked) {
       await lockClient.query("SELECT pg_advisory_unlock($1)", [SWEEP_ADVISORY_LOCK_KEY]);
+    }
+    lockClient.release();
+  }
+}
+
+/**
+ * The oldest queued sessions with their owners.
+ */
+export function buildRematchQueueSql(): string {
+  return `SELECT q.session_id AS id, s.user_id, q.queued_at
+     FROM session_rematch_queue q
+     JOIN tracking_sessions s ON s.id = q.session_id
+     ORDER BY q.queued_at ASC, q.session_id ASC`;
+}
+
+/**
+ * Re-run processSession on sessions a catalog change queued: a destination
+ * moved, changed type or owner, or a route was added, activated, reshaped or
+ * retired (triggers in migrations/20261004_session_rematch_queue.sql). The
+ * re-run is the whole update — it adds new reached destinations and routes,
+ * drops auto rows that no longer match, and honors rejections.
+ *
+ * Called from the sweep, after sweepStuckSessions; at most `limit` sessions
+ * and `budgetMs` of starts per call. Fleet-wide singleton via
+ * its own advisory lock, like the sweep. A row is deleted only if nobody
+ * re-queued it meanwhile (queued_at unchanged), so an edit made during the
+ * re-run is not lost.
+ */
+export async function drainSessionRematchQueue(
+  pool: Pool,
+  opts: {
+    limit?: number;
+    budgetMs?: number;
+    now?: () => number;
+    processFn?: typeof processSession;
+  } = {}
+): Promise<{ rematched: number; locked: boolean }> {
+  const limit = opts.limit ?? 25;
+  // The scheduler gives the whole sweep 180 s. Start no new re-match after
+  // this much time, so a slow batch cannot push the request past it.
+  const budgetMs = opts.budgetMs ?? 90_000;
+  const now = opts.now ?? Date.now;
+  const startedAt = now();
+  const process = opts.processFn ?? processSession;
+  const lockClient = await pool.connect();
+  let locked = false;
+  try {
+    const lock = await lockClient.query(
+      "SELECT pg_try_advisory_lock($1) AS ok",
+      [REMATCH_ADVISORY_LOCK_KEY]
+    );
+    locked = lock.rows[0]?.ok === true;
+    if (!locked) return { rematched: 0, locked: false };
+
+    const { rows } = await pool.query(`${buildRematchQueueSql()} LIMIT $1`, [limit]);
+    let rematched = 0;
+    for (const row of rows as Array<{ id: string; user_id: string; queued_at: Date }>) {
+      if (now() - startedAt >= budgetMs) break;
+      try {
+        await process(row.id, row.user_id, { force: true, pool });
+        rematched++;
+      } catch (err) {
+        // A live run owns the session. Keep the row; the next sweep confirms.
+        if (err instanceof Error && err.message === "already_processing") continue;
+        // processSession recorded the failure on the session, and the stuck
+        // sweep retries 'failed' sessions, so the queue can let go.
+        console.error(`[rematch] failed for ${row.id}:`, err);
+      }
+      await pool.query(
+        `DELETE FROM session_rematch_queue WHERE session_id = $1 AND queued_at = $2`,
+        [row.id, row.queued_at]
+      );
+    }
+    return { rematched, locked: true };
+  } finally {
+    if (locked) {
+      await lockClient.query("SELECT pg_advisory_unlock($1)", [REMATCH_ADVISORY_LOCK_KEY]);
     }
     lockClient.release();
   }

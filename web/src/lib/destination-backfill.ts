@@ -19,10 +19,10 @@ import db from "./db";
  * Rejections: a (session, destination) pair in session_destination_rejections
  * is skipped. The user vetoed that ascent; creating a destination must not
  * overrule them. Same anti-join as buildSessionDestinationMatchSql
- * (cloud-sql/api/src/processing.ts), link_sessions_on_destination_insert
- * (cloud-sql/schema.sql) and link_sessions_on_destination_update (patched by
- * cloud-sql/migrations/20260725_session_destination_rejections.sql) —
- * scripts/check-cross-refs.sh fails CI if one of the four drifts.
+ * (cloud-sql/api/src/processing.ts) and link_sessions_on_destination_insert
+ * (cloud-sql/schema.sql) — scripts/check-cross-refs.sh fails CI if one of them
+ * drifts. Later edits to the destination re-match through session_rematch_queue
+ * (cloud-sql/migrations/20261004_session_rematch_queue.sql).
  *
  * Returns the number of rows inserted (sessions newly tagged).
  */
