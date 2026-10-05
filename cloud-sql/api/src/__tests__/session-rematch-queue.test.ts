@@ -8,66 +8,37 @@
 import { strict as assert } from "node:assert";
 import { test, describe, before, after } from "node:test";
 import db from "../db";
-import {
-  buildRematchQueueSql,
-  drainSessionRematchQueue,
-  processSession,
-  REMATCH_ADVISORY_LOCK_KEY,
-  SWEEP_ADVISORY_LOCK_KEY,
-} from "../processing";
+import { buildClaimRematchSql, drainSessionRematchQueue, processSession } from "../processing";
 import { dbSkipReason as skipReason } from "./helpers/test-db";
 
-type Row = { id: string; user_id: string; queued_at: Date };
-
-function fakePool(lockOk: boolean, rows: Row[]) {
+// Fake pool: each claim hands out the next queued row. It has no connect(),
+// so a drain that tried to hold a lock connection would throw.
+function fakePool(queue: Array<{ id: string; user_id: string }>) {
   const calls: Array<{ sql: string; values?: unknown[] }> = [];
-  const client = {
-    query: async (sql: string) => {
-      calls.push({ sql });
-      if (sql.includes("pg_try_advisory_lock")) return { rows: [{ ok: lockOk }] };
-      return { rows: [] };
-    },
-    release: () => calls.push({ sql: "RELEASE" }),
-  };
   const pool = {
-    connect: async () => client,
     query: async (sql: string, values?: unknown[]) => {
       calls.push({ sql, values });
-      return sql.includes("FROM session_rematch_queue q") ? { rows } : { rows: [] };
+      if (sql.includes("DELETE FROM session_rematch_queue")) {
+        const next = queue.shift();
+        return { rows: next ? [next] : [] };
+      }
+      return { rows: [] };
     },
   } as unknown as import("pg").Pool;
   return { pool, calls };
 }
 
-test("buildRematchQueueSql: oldest first, with the owner", () => {
-  const sql = buildRematchQueueSql();
-  assert.match(sql, /FROM session_rematch_queue q/);
-  assert.match(sql, /JOIN tracking_sessions s ON s\.id = q\.session_id/);
-  assert.match(sql, /s\.user_id/);
-  assert.match(sql, /ORDER BY q\.queued_at ASC/);
+test("buildClaimRematchSql: claims the oldest row, skipping rows another drain holds", () => {
+  const sql = buildClaimRematchSql();
+  assert.match(sql, /DELETE FROM session_rematch_queue q/);
+  assert.match(sql, /ORDER BY queued_at ASC/);
+  assert.match(sql, /LIMIT 1/);
+  assert.match(sql, /FOR UPDATE SKIP LOCKED/);
+  assert.match(sql, /RETURNING q\.session_id AS id, s\.user_id/);
 });
 
-test("the drain has its own advisory lock", () => {
-  assert.notEqual(REMATCH_ADVISORY_LOCK_KEY, SWEEP_ADVISORY_LOCK_KEY);
-});
-
-test("drain: no-op without the lock", async () => {
-  const { pool, calls } = fakePool(false, [{ id: "a", user_id: "u", queued_at: new Date() }]);
-  let processed = 0;
-  const res = await drainSessionRematchQueue(pool, {
-    processFn: (async () => { processed++; return {} as never; }) as never,
-  });
-  assert.deepEqual(res, { rematched: 0, locked: false });
-  assert.equal(processed, 0);
-  assert.ok(!calls.some((c) => c.sql.includes("pg_advisory_unlock")));
-});
-
-test("drain: forces a re-process and deletes only the row it read", async () => {
-  const queuedAt = new Date("2026-10-04T12:00:00Z");
-  const { pool, calls } = fakePool(true, [
-    { id: "a", user_id: "u1", queued_at: queuedAt },
-    { id: "b", user_id: "u2", queued_at: queuedAt },
-  ]);
+test("drain: forces a re-process of each claimed session, until the queue is empty", async () => {
+  const { pool } = fakePool([{ id: "a", user_id: "u1" }, { id: "b", user_id: "u2" }]);
   const seen: Array<[string, string, boolean | undefined]> = [];
   const res = await drainSessionRematchQueue(pool, {
     processFn: (async (id: string, user: string, opts: { force?: boolean }) => {
@@ -75,20 +46,21 @@ test("drain: forces a re-process and deletes only the row it read", async () => 
       return {} as never;
     }) as never,
   });
-  assert.deepEqual(res, { rematched: 2, locked: true });
+  assert.deepEqual(res, { rematched: 2 });
   assert.deepEqual(seen, [["a", "u1", true], ["b", "u2", true]]);
-  const deletes = calls.filter((c) => c.sql.includes("DELETE FROM session_rematch_queue"));
-  assert.equal(deletes.length, 2);
-  assert.match(deletes[0].sql, /queued_at = \$2/, "a re-queue during the run must survive");
-  assert.deepEqual(deletes[0].values, ["a", queuedAt]);
-  assert.ok(calls.some((c) => c.sql.includes("pg_advisory_unlock")));
+});
+
+test("drain: stops at its limit", async () => {
+  const { pool } = fakePool([{ id: "a", user_id: "u" }, { id: "b", user_id: "u" }]);
+  const res = await drainSessionRematchQueue(pool, {
+    limit: 1,
+    processFn: (async () => ({}) as never) as never,
+  });
+  assert.equal(res.rematched, 1);
 });
 
 test("drain: starts no new re-match once its time budget is spent", async () => {
-  const { pool } = fakePool(true, [
-    { id: "a", user_id: "u", queued_at: new Date() },
-    { id: "b", user_id: "u", queued_at: new Date() },
-  ]);
+  const { pool } = fakePool([{ id: "a", user_id: "u" }, { id: "b", user_id: "u" }]);
   let clock = 0;
   const seen: string[] = [];
   const res = await drainSessionRematchQueue(pool, {
@@ -100,10 +72,10 @@ test("drain: starts no new re-match once its time budget is spent", async () => 
   assert.equal(res.rematched, 1);
 });
 
-test("drain: keeps a row a live run owns, drops one that failed", async () => {
-  const { pool, calls } = fakePool(true, [
-    { id: "busy", user_id: "u", queued_at: new Date() },
-    { id: "broken", user_id: "u", queued_at: new Date() },
+test("drain: re-queues a session a live run owns; lets a failed one go to the stuck sweep", async () => {
+  const { pool, calls } = fakePool([
+    { id: "busy", user_id: "u" },
+    { id: "broken", user_id: "u" },
   ]);
   const res = await drainSessionRematchQueue(pool, {
     processFn: (async (id: string) => {
@@ -111,10 +83,10 @@ test("drain: keeps a row a live run owns, drops one that failed", async () => {
     }) as never,
   });
   assert.equal(res.rematched, 0);
-  const deleted = calls
-    .filter((c) => c.sql.includes("DELETE FROM session_rematch_queue"))
+  const requeued = calls
+    .filter((c) => c.sql.includes("INSERT INTO session_rematch_queue"))
     .map((c) => (c.values as unknown[])[0]);
-  assert.deepEqual(deleted, ["broken"]);
+  assert.deepEqual(requeued, ["busy"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -295,6 +267,41 @@ describe("catalog changes re-match nearby sessions", { skip: skipReason ?? undef
     await db.query(`UPDATE destinations SET features = '{waterfall}' WHERE id = $1`, [spot]);
     await drainOurs();
     assert.ok(!(await reached(sid)).includes(spot));
+  });
+
+  test("the drain completes through a two-connection pool, like production's", async () => {
+    // processSession takes one connection for its transaction and one for its
+    // post-commit steps. A drain that also held a lock connection starved it.
+    const sid = `${runPrefix}-s-pool`;
+    const spot = `${runPrefix}-pool`;
+    await createSession(sid);
+    await createDestination(spot, FAR_LNG, "{viewpoint}");
+    await db.query(`DELETE FROM session_rematch_queue`);
+    await db.query(
+      `UPDATE destinations SET location = ST_SetSRID(ST_MakePoint($2, $3, 100), 4326)::geography WHERE id = $1`,
+      [spot, LNG, LAT]
+    );
+    assert.ok(await queued(sid));
+
+    const { Pool } = await import("pg");
+    const twoConnections = new Pool({
+      connectionString: process.env.TEST_DATABASE_URL,
+      max: 2,
+      connectionTimeoutMillis: 5_000,
+    });
+    const errors: unknown[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args); };
+    try {
+      await drainSessionRematchQueue(twoConnections);
+    } finally {
+      console.error = originalError;
+      await twoConnections.end();
+    }
+
+    assert.ok(!(await queued(sid)), "the claimed row leaves the queue");
+    assert.ok((await reached(sid)).includes(spot));
+    assert.deepEqual(errors, [], "no step may time out waiting for a connection");
   });
 
   test("an active route queues the sessions along it; a pending one does not", async () => {

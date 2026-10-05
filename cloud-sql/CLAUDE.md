@@ -1123,10 +1123,12 @@ their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
   of the old and the new path, whenever either side is `active`.
 
 Queued sessions sit in `session_rematch_queue`. Each `/internal/sweep` re-runs
-`processSession(force)` on up to 25 of them under advisory lock 4927302
+`processSession(force)` on up to 25 of them within 90 s
 (`drainSessionRematchQueue`), which adds new matches and drops stale `auto`
-rows. Deletion is keyed on `queued_at`, so an edit during a re-run is kept. No
-new service or schedule.
+rows. Rows are claimed one at a time with `DELETE … FOR UPDATE SKIP LOCKED`,
+never under a held lock connection: the processing pool has two connections and
+`processSession` needs both. An edit during a re-run queues the session again.
+No new service or schedule.
 
 Historical rows are filled by `npm run backfill:route-coverage` in
 `cloud-sql/api` — dry-run by default, batched, resumable, never run as part of
