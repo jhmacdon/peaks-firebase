@@ -34,7 +34,17 @@ test("buildSessionDestinationMatchSql keeps the exact per-feature radius", () =>
 test("buildSessionDestinationMatchSql uses boundary 10m match for polygon destinations", () => {
   const { text } = buildSessionDestinationMatchSql("sess1");
   assert.match(text, /d\.boundary IS NOT NULL/);
-  assert.match(text, /ST_DWithin\(d\.boundary, s\.path, 10\)/);
+  assert.match(text, /ST_DWithin\(bp\.boundary_part, s\.path, 10\)/);
+});
+
+// A lake outline can hold 475k points. A distance check against the whole
+// polygon took a 16-point session over 150 s in production; the indexed
+// pieces in destination_boundary_parts take under a second.
+test("buildSessionDestinationMatchSql never measures distance to a whole boundary", () => {
+  const { text } = buildSessionDestinationMatchSql("sess1");
+  assert.match(text, /FROM destination_boundary_parts bp/);
+  assert.doesNotMatch(text, /ST_DWithin\(d\.boundary/);
+  assert.doesNotMatch(text, /ST_Distance\(d\.boundary/);
 });
 
 // The regression guard: without a CONSTANT-distance ST_DWithin, the GIST index

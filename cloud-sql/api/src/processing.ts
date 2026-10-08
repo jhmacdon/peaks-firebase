@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from "pg";
 import crypto from "crypto";
-import db from "./db";
+import db, { createDbClient } from "./db";
 import { matchComparisons } from "./comparisons";
 import {
   ROUTE_VERTEX_TOLERANCE_M,
@@ -195,6 +195,27 @@ export async function linkSessionToAreas(
 export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
 
 /**
+ * Destinations a path reaches, as one `id` column: point destinations within
+ * their per-feature radius, and boundary destinations whose indexed boundary
+ * pieces lie within 10 m. Owner-scoped. Shared by session and plan matching.
+ */
+function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): string {
+  return `SELECT d.id
+       FROM destinations d
+       WHERE d.boundary IS NULL
+         AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
+         AND ST_DWithin(d.location, ${pathExpr}, ${MAX_DESTINATION_MATCH_RADIUS_M})
+         AND ST_DWithin(d.location, ${pathExpr}, destination_match_radius(d.features))
+       UNION
+       SELECT d.id
+       FROM destination_boundary_parts bp
+       JOIN destinations d ON d.id = bp.destination_id
+       WHERE d.boundary IS NOT NULL
+         AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
+         AND ST_DWithin(bp.boundary_part, ${pathExpr}, 10)`;
+}
+
+/**
  * Build the destination-match INSERT for a session.
  *
  * Reads the materialized linestring from tracking_sessions.path (set by
@@ -210,10 +231,15 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
  * sessions at 'failed'/'processing'. The constant-distance
  * `ST_DWithin(d.location, s.path, MAX_DESTINATION_MATCH_RADIUS_M)` is
  * index-usable and prunes first; the exact per-feature ST_DWithin then runs on
- * just the near rows. Boundary and point branches are split as index-usable
- * ORs (BitmapOr over idx_destinations_location + idx_destinations_boundary).
- * Results are identical to the old CASE — the constant is a superset of every
- * per-feature radius, and the point branch stays gated on `boundary IS NULL`.
+ * just the near rows. Results are identical to the old CASE — the constant is a
+ * superset of every per-feature radius, and the point branch stays gated on
+ * `boundary IS NULL`.
+ *
+ * Boundary destinations match against destination_boundary_parts, never the
+ * whole polygon (migrations/20261008_destination_boundary_parts.sql). A lake
+ * outline can hold 475k points; checking one whole cost a 16-point session
+ * over 150 s. The two branches are a UNION inside a LATERAL so each one is
+ * driven by its own GIST index.
  *
  * Owner scope: a destination owned by 'peaks' is system-global; a
  * user-owned destination only matches that user's own sessions.
@@ -237,17 +263,9 @@ export function buildSessionDestinationMatchSql(
     text: `INSERT INTO session_destinations (session_id, destination_id, relation, source)
      SELECT s.id, d.id, 'reached', 'auto'
      FROM tracking_sessions s
-     JOIN destinations d ON (d.owner = 'peaks' OR d.owner = s.user_id)
+     CROSS JOIN LATERAL (${destinationMatchCandidatesSql("s.path", "s.user_id")}) d
      WHERE s.id = $1
        AND s.path IS NOT NULL
-       AND (
-         (d.boundary IS NOT NULL AND ST_DWithin(d.boundary, s.path, 10))
-         OR (
-           d.boundary IS NULL
-           AND ST_DWithin(d.location, s.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
-           AND ST_DWithin(d.location, s.path, destination_match_radius(d.features))
-         )
-       )
        AND NOT EXISTS (
          SELECT 1 FROM session_destination_rejections r
          WHERE r.session_id = s.id AND r.destination_id = d.id
@@ -864,7 +882,8 @@ export async function processSession(
     `UPDATE tracking_sessions
      SET processing_state = 'processing',
          processing_error = NULL,
-         processing_started_at = now()
+         processing_started_at = now(),
+         processing_attempts = processing_attempts + 1
      WHERE id = $1 AND user_id = $2
        AND (processing_state IS DISTINCT FROM 'processing'
             OR processing_started_at IS NULL
@@ -930,7 +949,8 @@ export async function processSession(
       `UPDATE tracking_sessions
        SET processed_at = NOW(),
            processing_state = 'completed',
-           processing_error = NULL
+           processing_error = NULL,
+           processing_attempts = 0
        WHERE id = $1`,
       [sessionId]
     );
@@ -1014,16 +1034,8 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
               CASE WHEN ST_GeometryType(ST_LineMerge(p.path::geometry)) = 'ST_LineString'
                    THEN ST_LineLocatePoint(ST_LineMerge(p.path::geometry), d.location::geometry)
                    ELSE 0 END AS frac
-       FROM destinations d
-       WHERE (d.owner = 'peaks' OR d.owner = p.user_id)
-         AND (
-           (d.boundary IS NOT NULL AND ST_DWithin(d.boundary, p.path, 10))
-           OR (
-             d.boundary IS NULL
-             AND ST_DWithin(d.location, p.path, ${MAX_DESTINATION_MATCH_RADIUS_M})
-             AND ST_DWithin(d.location, p.path, destination_match_radius(d.features))
-           )
-         )
+       FROM (${destinationMatchCandidatesSql("p.path", "p.user_id")}) c
+       JOIN destinations d ON d.id = c.id
      ) m ON true
      WHERE p.id = $1 AND p.path IS NOT NULL
      ON CONFLICT (plan_id, destination_id) DO NOTHING`,
@@ -1036,6 +1048,24 @@ export function buildPlanDestinationMatchSql(planId: string): { text: string; va
 // add more than ~1-2 connections on top of the web pool (db-f1-micro budget).
 export const SWEEP_ADVISORY_LOCK_KEY = 4927301;
 
+export interface SweepLockClient {
+  query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
+  close(): Promise<void>;
+}
+
+async function connectSweepLockClient(): Promise<SweepLockClient> {
+  const client = createDbClient();
+  await client.connect();
+  return {
+    query: (text, values) => client.query(text, values),
+    close: () => client.end(),
+  };
+}
+
+// The sweep gives up on a session after this many claims without success. An
+// upload or a forced re-run still processes it, and success resets the count.
+export const MAX_SWEEP_ATTEMPTS = 5;
+
 // All ended sessions with points stuck at pending/failed or a stale 'processing'
 // claim, across EVERY user, oldest first. Parameterless so callers append LIMIT.
 export function buildStuckSessionsSql(): string {
@@ -1047,6 +1077,7 @@ export function buildStuckSessionsSql(): string {
              AND (s.processing_started_at IS NULL
                   OR s.processing_started_at < now() - make_interval(mins => ${STALE_PROCESSING_MINUTES})))
        )
+       AND s.processing_attempts < ${MAX_SWEEP_ATTEMPTS}
        AND EXISTS (SELECT 1 FROM tracking_points tp WHERE tp.session_id = s.id)
      ORDER BY s.server_updated_at ASC, s.id ASC`;
 }
@@ -1056,14 +1087,24 @@ export function buildStuckSessionsSql(): string {
  * serially. Fleet-wide-singleton via a Postgres advisory lock: an instance that
  * does not get the lock returns immediately. processSession is idempotent, so a
  * row a live inline run owns throws `already_processing` and is skipped.
+ *
+ * The lock lives on its own connection, outside `pool`. processSession needs
+ * both of the processing pool's two connections: one for its transaction and
+ * one to record the outcome. Holding the lock on a pool connection left none
+ * to record a timeout, so the session stayed 'processing' and the sweep
+ * re-ran it every ten minutes (production, 2026-10-08).
  */
 export async function sweepStuckSessions(
   pool: Pool,
-  opts: { limit?: number; processFn?: typeof processSession } = {}
+  opts: {
+    limit?: number;
+    processFn?: typeof processSession;
+    connectLock?: () => Promise<SweepLockClient>;
+  } = {}
 ): Promise<{ swept: number; locked: boolean }> {
   const limit = opts.limit ?? 50;
   const process = opts.processFn ?? processSession;
-  const lockClient = await pool.connect();
+  const lockClient = await (opts.connectLock ?? connectSweepLockClient)();
   let locked = false;
   try {
     const lock = await lockClient.query(
@@ -1087,10 +1128,13 @@ export async function sweepStuckSessions(
     }
     return { swept, locked: true };
   } finally {
-    if (locked) {
-      await lockClient.query("SELECT pg_advisory_unlock($1)", [SWEEP_ADVISORY_LOCK_KEY]);
+    try {
+      if (locked) {
+        await lockClient.query("SELECT pg_advisory_unlock($1)", [SWEEP_ADVISORY_LOCK_KEY]);
+      }
+    } finally {
+      await lockClient.close();
     }
-    lockClient.release();
   }
 }
 
