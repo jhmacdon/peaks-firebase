@@ -32,7 +32,17 @@ test("buildPlanDestinationMatchSql scopes destinations to system + plan owner", 
 test("buildPlanDestinationMatchSql uses boundary 10m match for polygon destinations", () => {
   const { text } = buildPlanDestinationMatchSql("plan1");
   assert.match(text, /d\.boundary IS NOT NULL/);
-  assert.match(text, /ST_DWithin\(d\.boundary, p\.path, 10\)/);
+  assert.match(text, /ST_DWithin\(bp\.boundary_part, p\.path, 10\)/);
+});
+
+// A lake outline can hold 475k points. A distance check against the whole
+// polygon took a 16-point session over 150 s in production; the indexed
+// pieces in destination_boundary_parts take under a second.
+test("buildPlanDestinationMatchSql never measures distance to a whole boundary", () => {
+  const { text } = buildPlanDestinationMatchSql("plan1");
+  assert.match(text, /FROM destination_boundary_parts bp/);
+  assert.doesNotMatch(text, /ST_DWithin\(d\.boundary/);
+  assert.doesNotMatch(text, /ST_Distance\(d\.boundary/);
 });
 
 // Same 30s-timeout fix as the session match: a constant-distance ST_DWithin
