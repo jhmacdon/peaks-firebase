@@ -37,7 +37,12 @@ export async function backfillDestinationToSessions(
      WHERE d.id = $1
        AND s.path IS NOT NULL
        AND CASE WHEN d.boundary IS NOT NULL
-             THEN ST_DWithin(s.path, d.boundary, 10)
+             -- Indexed boundary pieces: a lake outline can hold 475k points.
+             THEN EXISTS (
+               SELECT 1 FROM destination_boundary_parts bp
+               WHERE bp.destination_id = d.id
+                 AND ST_DWithin(s.path, bp.boundary_part, 10)
+             )
              ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
        AND NOT EXISTS (

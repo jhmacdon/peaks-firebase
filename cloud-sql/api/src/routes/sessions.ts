@@ -144,7 +144,7 @@ const DESTINATIONS_REACHED_SQL = `COALESCE(
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
     'boundary', CASE WHEN d.boundary IS NOT NULL
-                     THEN ST_AsGeoJSON(d.boundary)::json END,
+                     THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
@@ -160,7 +160,7 @@ const DESTINATION_GOALS_SQL = `COALESCE(
     'lat', ST_Y(d.location::geometry),
     'lng', ST_X(d.location::geometry),
     'boundary', CASE WHEN d.boundary IS NOT NULL
-                     THEN ST_AsGeoJSON(d.boundary)::json END,
+                     THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END,
     'source', sd.source
   ) ORDER BY d.name, d.id)
   FROM session_destinations sd
@@ -1041,7 +1041,7 @@ router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
             ST_Y(d.location::geometry) AS lat,
             ST_X(d.location::geometry) AS lng,
             CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+                 THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END AS boundary,
             sd.relation, sd.source
      FROM destinations d
      JOIN session_destinations sd ON sd.destination_id = d.id
