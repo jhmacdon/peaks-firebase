@@ -734,6 +734,21 @@ function buildPointInsertQuery(sessionId: string, points: any[]) {
   return { values, placeholders };
 }
 
+/**
+ * Whether the caller asked to leave heart-rate and calorie series out of a
+ * session list (`?omit=health_data`). They are most of the payload (up to
+ * 1 MB per session; 14 MB of a 14.7 MB sync page on 2026-10-09) and only the
+ * session detail screen shows them, which reads GET /api/sessions/:id. The
+ * key is left out entirely rather than sent as null, so a client keeps its
+ * local copy. Clients that do not ask keep getting the series.
+ */
+export function omitsHealthData(value: unknown): boolean {
+  const values = Array.isArray(value) ? value : [value];
+  return values.some((v) =>
+    typeof v === "string" && v.split(",").map((s) => s.trim()).includes("health_data")
+  );
+}
+
 // GET /api/sessions — current user's sessions with inline destinations
 router.get("/", asyncRoute(async (req, res: Response) => {
   const uid = getUid(req);
@@ -753,7 +768,7 @@ router.get("/", asyncRoute(async (req, res: Response) => {
             s.distance, s.total_time, s.pace, s.gain, s.highest_point,
             s.ascent_time, s.descent_time, s.still_time,
             s.activity_type, s.source, s.external_id,
-            s.health_data, s.source_contributions,
+            ${omitsHealthData(req.query.omit) ? "" : "s.health_data,"} s.source_contributions,
             s.group_id, s.attempt_group_id,
             s.processed_at, s.processing_state, s.processing_error,
             s.ended, s.is_public,
@@ -792,6 +807,7 @@ router.get("/changes", asyncRoute(async (req, res: Response) => {
     res.status(400).json({ error: "after_id requires updated_since" });
     return;
   }
+  const omitHealth = omitsHealthData(req.query.omit);
 
   const result = await db.query(
     `WITH changed_sessions AS (
@@ -817,7 +833,7 @@ router.get("/changes", asyncRoute(async (req, res: Response) => {
             'activity_type', s.activity_type,
             'source', s.source,
             'external_id', s.external_id,
-            'health_data', s.health_data,
+            ${omitHealth ? "" : "'health_data', s.health_data,"}
             'source_contributions', s.source_contributions,
             'group_id', s.group_id,
             'attempt_group_id', s.attempt_group_id,
