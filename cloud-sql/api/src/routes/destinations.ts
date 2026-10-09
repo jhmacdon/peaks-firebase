@@ -285,7 +285,7 @@ export function buildDestinationDetailQuery(id: string): { text: string; values:
             d.description, d.description_source_name,
             d.description_source_url, d.description_source_license,
             CASE WHEN d.boundary IS NOT NULL
-                 THEN ST_AsGeoJSON(d.boundary)::json END AS boundary,
+                 THEN ST_AsGeoJSON(COALESCE(d.boundary_display, d.boundary), 6)::json END AS boundary,
             CASE WHEN d.massif_boundary IS NOT NULL
                  THEN ST_AsGeoJSON(d.massif_boundary)::json END AS massif_boundary,
             d.bbox_min_lat, d.bbox_max_lat, d.bbox_min_lng, d.bbox_max_lng,
