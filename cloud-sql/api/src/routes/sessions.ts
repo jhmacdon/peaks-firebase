@@ -499,15 +499,31 @@ export async function reconcileClientDestinations(
   sessionId: string,
   reached: string[] | undefined,
   goals: string[] | undefined
-): Promise<void> {
+): Promise<boolean> {
+  // Change only the rows that differ. The app resends its whole list on every
+  // PUT, and each written row bumps the session's sync timestamp through
+  // trg_session_destinations_touch_session, so rewriting an unchanged list
+  // made the next sync download the session again (2026-10-09: 100+ sessions,
+  // 15 MB, per app launch). Returns whether any row changed.
+  let changed = false;
+
   if (Array.isArray(reached)) {
-    await client.query(
-      `DELETE FROM session_destinations
-       WHERE session_id = $1 AND source = 'manual' AND relation = 'reached'`,
-      [sessionId]
+    const ids = cleanDestinationIds(reached);
+    const removed = await client.query(
+      `DELETE FROM session_destinations sd
+       WHERE sd.session_id = $1 AND sd.source = 'manual' AND sd.relation = 'reached'
+         AND (
+           NOT (sd.destination_id = ANY($2::text[]))
+           OR EXISTS (
+             SELECT 1 FROM session_destination_rejections r
+             WHERE r.session_id = sd.session_id AND r.destination_id = sd.destination_id
+           )
+         )`,
+      [sessionId, ids]
     );
-    for (const destId of cleanDestinationIds(reached)) {
-      await client.query(
+    changed = changed || (removed.rowCount ?? 0) > 0;
+    for (const destId of ids) {
+      const added = await client.query(
         `INSERT INTO session_destinations (session_id, destination_id, relation, source)
          SELECT $1, $2, 'reached', 'manual'
          WHERE NOT EXISTS (
@@ -517,23 +533,30 @@ export async function reconcileClientDestinations(
          ON CONFLICT DO NOTHING`,
         [sessionId, destId]
       );
+      changed = changed || (added.rowCount ?? 0) > 0;
     }
   }
 
   if (Array.isArray(goals)) {
-    await client.query(
+    const ids = cleanDestinationIds(goals);
+    const removed = await client.query(
       `DELETE FROM session_destinations
-       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'`,
-      [sessionId]
+       WHERE session_id = $1 AND source = 'manual' AND relation = 'goal'
+         AND NOT (destination_id = ANY($2::text[]))`,
+      [sessionId, ids]
     );
-    for (const destId of cleanDestinationIds(goals)) {
-      await client.query(
+    changed = changed || (removed.rowCount ?? 0) > 0;
+    for (const destId of ids) {
+      const added = await client.query(
         `INSERT INTO session_destinations (session_id, destination_id, relation, source)
          VALUES ($1, $2, 'goal', 'manual') ON CONFLICT DO NOTHING`,
         [sessionId, destId]
       );
+      changed = changed || (added.rowCount ?? 0) > 0;
     }
   }
+
+  return changed;
 }
 
 /**
@@ -1734,11 +1757,13 @@ router.post("/", heavyWriteGuard, asyncRoute(async (req, res: Response) => {
     // nothing at all.
     if (destinations_reached || destination_goals) {
       const priorReached = await reachedDestinationIds(client, id);
-      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
-      await recomputeDestinationAverages(
-        client,
-        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
-      );
+      // An unchanged list moves no bucket; skip the recompute.
+      if (await reconcileClientDestinations(client, id, destinations_reached, destination_goals)) {
+        await recomputeDestinationAverages(
+          client,
+          Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+        );
+      }
     }
 
     // Set routes
@@ -1865,11 +1890,13 @@ router.put("/:id", asyncRoute(async (req, res: Response) => {
     // will ever recompute. See the same block in the POST upsert above.
     if (destinations_reached || destination_goals) {
       const priorReached = await reachedDestinationIds(client, id);
-      await reconcileClientDestinations(client, id, destinations_reached, destination_goals);
-      await recomputeDestinationAverages(
-        client,
-        Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
-      );
+      // An unchanged list moves no bucket; skip the recompute.
+      if (await reconcileClientDestinations(client, id, destinations_reached, destination_goals)) {
+        await recomputeDestinationAverages(
+          client,
+          Array.from(new Set([...priorReached, ...cleanDestinationIds(destinations_reached)]))
+        );
+      }
     }
 
     // Update routes if provided
