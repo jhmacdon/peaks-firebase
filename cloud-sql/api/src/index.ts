@@ -1,9 +1,10 @@
 import express, { NextFunction, Request, Response } from "express";
 import { OAuth2Client } from "google-auth-library";
 import admin from "firebase-admin";
+import { rateLimit } from "express-rate-limit";
 import { asyncRoute } from "./lib/async-route";
 import { isTransientDatabaseError } from "./lib/database-error";
-import { requireAuth } from "./auth";
+import { getUid, optionalAuth, requireAuth } from "./auth";
 import destinations from "./routes/destinations";
 import routes from "./routes/routes";
 import areas from "./routes/areas";
@@ -19,6 +20,8 @@ import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
 import { refreshDestinationWeather } from "./weather-refresh";
 
 export const app = express();
+// Direct run.app traffic: Cloud Run appends the client at the trusted hop.
+app.set("trust proxy", 1);
 // 5mb covers the iOS chunked points uploader (3000 pts/chunk ≈ 150KB) with
 // generous headroom. Default express.json() limit is 100kb, which silently
 // 413s real sessions before they reach the handler.
@@ -127,8 +130,41 @@ app.post("/internal/weather-refresh", asyncRoute(async (req, res) => {
   }
 }));
 
-// All API routes require Firebase Auth
-app.use("/api", requireAuth);
+// Exact GET allowlist. New endpoints and all other methods require auth.
+export const signedOutCatalogPaths = [
+  "/destinations/nearby", "/destinations/viewport", "/destinations/averages",
+  "/destinations/:id", "/destinations/:id/lists", "/destinations/:id/routes",
+  "/lists/popular", "/lists/by-destinations", "/lists/:id", "/lists/:id/destinations",
+  "/search", "/search/all", "/search/features",
+  "/routes/near", "/routes/:id", "/routes/:id/destinations",
+  "/routes/:id/sections", "/routes/:id/elevation",
+  "/areas/:id",
+] as const;
+const catalogPatterns = signedOutCatalogPaths.map((path) =>
+  new RegExp(`^${path.replace(":id", "[^/]+")}/?$`, "i")
+);
+const signedOutRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 120,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many signed-out requests" },
+});
+
+app.use("/api", (req, res, next) => {
+  const isCatalog = req.method === "GET" && catalogPatterns.some((path) => path.test(req.path));
+  if (!isCatalog) {
+    return requireAuth(req, res, next);
+  }
+  return optionalAuth(req, res, () => {
+    if (getUid(req)) return next();
+    return signedOutRateLimit(req, res, (error) => {
+      if (error) return next(error);
+      console.log(JSON.stringify({ event: "signed_out_request", path: req.baseUrl + req.path }));
+      next();
+    });
+  });
+});
 
 app.use("/api/destinations", destinations);
 app.use("/api/routes", routes);

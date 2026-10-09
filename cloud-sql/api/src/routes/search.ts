@@ -5,13 +5,15 @@ import { getUid } from "../auth";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { normalizeSearchName } from "../search-utils";
+import { publicAreaParentSql, publicAreaSql, publicCatalogSql } from "../lib/catalog-visibility";
+import { CATALOG_LIMITS, clampCatalogLimit } from "../lib/catalog-limits";
 
 const router = Router();
 
 const destinationSearchText = "search_name";
 const destinationSearchVector = "to_tsvector('simple', COALESCE(NULLIF(search_name, ''), lower(name)))";
 const destinationAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
-const destinationAreaJoinSql = `LEFT JOIN LATERAL (
+const destinationAreaJoinSql = (publicOnly = false) => `LEFT JOIN LATERAL (
          SELECT json_agg(area_obj ORDER BY kind, name) AS areas
          FROM (
            SELECT DISTINCT ON (a.kind, a.name)
@@ -22,18 +24,19 @@ const destinationAreaJoinSql = `LEFT JOIN LATERAL (
                     'kind', a.kind,
                     'designation', a.designation,
                     'manager', a.manager,
-                    'parent_id', a.parent_area_id,
+                    'parent_id', ${publicAreaParentSql("a", publicOnly)},
                     'relation', da.relation,
                     'source', da.source
                   ) AS area_obj
            FROM destination_areas da
            JOIN areas a ON a.id = da.area_id
            WHERE da.destination_id = destinations.id
+             AND ${publicAreaSql("a", publicOnly)}
            ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
          ) deduped
        ) area_rows ON true`;
 const routeAreaRowsSql = `COALESCE(area_rows.areas, '[]'::json) AS areas`;
-const routeAreaJoinSql = `LEFT JOIN LATERAL (
+const routeAreaJoinSql = (publicOnly = false) => `LEFT JOIN LATERAL (
          SELECT json_agg(area_obj ORDER BY kind, name) AS areas
          FROM (
            SELECT DISTINCT ON (a.kind, a.name)
@@ -44,13 +47,14 @@ const routeAreaJoinSql = `LEFT JOIN LATERAL (
                     'kind', a.kind,
                     'designation', a.designation,
                     'manager', a.manager,
-                    'parent_id', a.parent_area_id,
+                    'parent_id', ${publicAreaParentSql("a", publicOnly)},
                     'relation', ra.relation,
                     'source', ra.source
                   ) AS area_obj
            FROM route_areas ra
            JOIN areas a ON a.id = ra.area_id
            WHERE ra.route_id = r.id
+             AND ${publicAreaSql("a", publicOnly)}
            ORDER BY a.kind, a.name, a.designation DESC NULLS LAST, a.id
          ) deduped
        ) area_rows ON true`;
@@ -62,6 +66,7 @@ export interface DestinationSearchQueryInput {
   lng?: number;
   limit: number;
   uid?: string;
+  publicOnly?: boolean;
 }
 
 interface SearchSqlQuery {
@@ -163,7 +168,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ST_Y(location::geometry) AS lat,
               ST_X(location::geometry) AS lng
        FROM destinations
-       ${destinationAreaJoinSql}
+       ${destinationAreaJoinSql(input.publicOnly)}
        WHERE false
        LIMIT $1`,
       values: [shortLimit],
@@ -187,6 +192,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
                 ) AS score
          FROM destinations
          WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+           AND ${publicCatalogSql("destinations", input.publicOnly)}
          ORDER BY score DESC
          LIMIT $8
        )
@@ -198,7 +204,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ST_X(destinations.location::geometry) AS lng,
               destinations.text_score, destinations.distance_m, destinations.score
        FROM ranked_destinations destinations
-       ${destinationAreaJoinSql}
+       ${destinationAreaJoinSql(input.publicOnly)}
        ORDER BY destinations.score DESC`,
       values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, input.lat, input.lng, shortLimit],
     };
@@ -218,6 +224,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
                 ) AS score
          FROM destinations
          WHERE ${destinationSearchVector} @@ to_tsquery('simple', $1)
+           AND ${publicCatalogSql("destinations", input.publicOnly)}
          ORDER BY score DESC
          LIMIT $6
        )
@@ -229,7 +236,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ST_X(destinations.location::geometry) AS lng,
               destinations.text_score, destinations.score
        FROM ranked_destinations destinations
-       ${destinationAreaJoinSql}
+       ${destinationAreaJoinSql(input.publicOnly)}
        ORDER BY destinations.score DESC`,
     values: [tsQuery, normalizedPrefix, rawPrefix, q, raw, shortLimit],
   };
@@ -259,8 +266,9 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
                   + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.05
                 ) AS score
          FROM destinations
-         WHERE ${destinationSearchText} % $1
-            OR ${destinationSearchText} LIKE $4
+         WHERE (${destinationSearchText} % $1
+            OR ${destinationSearchText} LIKE $4)
+           AND ${publicCatalogSql("destinations", input.publicOnly)}
          ORDER BY score DESC
          LIMIT $5
        )
@@ -272,7 +280,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
               ST_X(destinations.location::geometry) AS lng,
               destinations.text_score, destinations.distance_m, destinations.score
        FROM ranked_destinations destinations
-       ${destinationAreaJoinSql}
+       ${destinationAreaJoinSql(input.publicOnly)}
        ORDER BY destinations.score DESC`,
       values: [q, input.lat, input.lng, normalizedPrefix, input.limit],
     };
@@ -290,8 +298,9 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
                   + LEAST(COALESCE(prominence, 0), 9000.0) / 9000.0 * 0.10
                 ) AS score
          FROM destinations
-         WHERE ${destinationSearchText} % $1
-            OR ${destinationSearchText} LIKE $2
+         WHERE (${destinationSearchText} % $1
+            OR ${destinationSearchText} LIKE $2)
+           AND ${publicCatalogSql("destinations", input.publicOnly)}
          ORDER BY score DESC
          LIMIT $3
        )
@@ -303,7 +312,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
               ST_X(destinations.location::geometry) AS lng,
               destinations.text_score, destinations.score
        FROM ranked_destinations destinations
-       ${destinationAreaJoinSql}
+       ${destinationAreaJoinSql(input.publicOnly)}
        ORDER BY destinations.score DESC`,
     values: [q, normalizedPrefix, input.limit],
   };
@@ -344,6 +353,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          SELECT candidate_d.id
          FROM destinations candidate_d
          WHERE ${indexedDestinationCandidateWhere}
+           AND ${publicCatalogSql("candidate_d", input.publicOnly)}
        ),
        candidate_route_ids AS MATERIALIZED (
          SELECT candidate_r.id
@@ -377,6 +387,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
            FROM route_destinations rd
            JOIN destinations d ON d.id = rd.destination_id
            WHERE rd.route_id = r.id
+             AND ${publicCatalogSql("d", input.publicOnly)}
          ) route_dest_names ON true
          WHERE r.status = 'active'
            AND ${buildRouteAccessSql("r", uidParam)}
@@ -389,8 +400,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
               ${routeCoverSelectSql()},
               ${routeAreaRowsSql}${geoOutputSelect}, r.score
        FROM ranked_routes r
-       ${routeCoverJoinSql()}
-       ${routeAreaJoinSql}
+       ${routeCoverJoinSql("r", "cover", "id", input.publicOnly)}
+       ${routeAreaJoinSql(input.publicOnly)}
        ORDER BY r.score DESC`,
     values,
   };
@@ -407,7 +418,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
   if (q.length === 2 && !/^[a-z0-9]+$/.test(q)) {
     return {
       text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
-              a.parent_area_id AS parent_id,
+              ${publicAreaParentSql("a", input.publicOnly)} AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
@@ -446,7 +457,7 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
 
   return {
     text: `SELECT a.id, a.name, a.kind, a.designation, a.manager,
-              a.parent_area_id AS parent_id,
+              ${publicAreaParentSql("a", input.publicOnly)} AS parent_id,
               ST_Y(a.centroid) AS lat,
               ST_X(a.centroid) AS lng,
               a.bbox_min_lat, a.bbox_max_lat, a.bbox_min_lng, a.bbox_max_lng,
@@ -463,14 +474,20 @@ export function buildAreaSearchQuery(input: DestinationSearchQueryInput): Search
        LEFT JOIN LATERAL (
          SELECT count(DISTINCT da.destination_id) AS destination_count
          FROM destination_areas da
+         JOIN destinations d ON d.id = da.destination_id
          WHERE da.area_id = a.id
+           AND ${publicCatalogSql("d", input.publicOnly)}
        ) destination_counts ON true
        LEFT JOIN LATERAL (
          SELECT count(DISTINCT ra.route_id) AS route_count
          FROM route_areas ra
+         JOIN routes r ON r.id = ra.route_id
          WHERE ra.area_id = a.id
+           AND ${publicCatalogSql("r", input.publicOnly)}
+           AND ${input.publicOnly ? "r.status = 'active'" : "TRUE"}
        ) route_counts ON true
        WHERE ${whereClause}
+         AND ${publicAreaSql("a", input.publicOnly)}
        ORDER BY score DESC
        LIMIT ${limitParam}`,
     values,
@@ -694,6 +711,7 @@ router.get("/", asyncRoute(async (req: Request, res: Response) => {
       lat: requestGeo ? lat : undefined,
       lng: requestGeo ? lng : undefined,
       limit,
+      publicOnly: !getUid(req),
     });
     await runSearchQuery(req, res, query);
   } finally {
@@ -729,6 +747,7 @@ router.get("/all", asyncRoute(async (req: Request, res: Response) => {
       lng: requestGeo ? lng : undefined,
       limit,
       uid: getUid(req),
+      publicOnly: !getUid(req),
     });
 
     const results = await runMixedSearchQueries(res, queries);
@@ -753,7 +772,7 @@ router.get("/features", asyncRoute(async (req, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
   const radius = parseFloat(req.query.radius as string) || 50000;
-  const limit = parseInt(req.query.limit as string) || 50;
+  const limit = clampCatalogLimit(req.query.limit, 50, CATALOG_LIMITS.features);
 
   const conditions: string[] = [];
   const params: any[] = [];
@@ -782,6 +801,7 @@ router.get("/features", asyncRoute(async (req, res: Response) => {
     return;
   }
 
+  conditions.push(publicCatalogSql("destinations", !getUid(req)));
   params.push(limit);
 
   const result = await db.query(

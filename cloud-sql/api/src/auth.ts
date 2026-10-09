@@ -14,7 +14,7 @@ export interface AuthRequest extends Request {
 
 /** Helper to extract uid from an auth-verified request */
 export function getUid(req: Request): string {
-  return (req as any).uid;
+  return (req as Partial<AuthRequest>).uid ?? "";
 }
 
 /**
@@ -25,7 +25,7 @@ export function getUid(req: Request): string {
  * instead — lets the API integration test suite inject identities without
  * minting Firebase tokens.
  */
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+async function authenticate(req: Request, res: Response, next: NextFunction, optional: boolean) {
   if (process.env.NODE_ENV === "test") {
     // Defense-in-depth: refuse to bypass auth if we're running inside Cloud
     // Run, even if NODE_ENV is somehow set to "test". K_SERVICE / K_REVISION
@@ -44,11 +44,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       next();
       return;
     }
+    if (optional && req.headers.authorization === undefined) {
+      next();
+      return;
+    }
     res.status(401).json({ error: "Test mode requires X-Test-User header" });
     return;
   }
 
   const header = req.headers.authorization;
+  if (optional && header === undefined) {
+    next();
+    return;
+  }
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid Authorization header" });
     return;
@@ -63,4 +71,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
   }
+}
+
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, false);
+}
+
+/** Catalog reads accept no token, but never accept a bad token. */
+export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, true);
 }

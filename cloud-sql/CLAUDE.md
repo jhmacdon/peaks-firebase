@@ -167,7 +167,71 @@ add background work that relies on an in-process timer (use the Cloud Scheduler 
 `/internal/sweep` pattern instead).
 
 ### Auth pattern
-All `/api/*` routes go through `requireAuth` middleware. Clients send `Authorization: Bearer <firebase-id-token>`. The middleware calls `admin.auth().verifyIdToken()` and sets `req.uid`.
+Clients send `Authorization: Bearer <firebase-id-token>`. `requireAuth` verifies
+that token and sets `req.uid` and `req.authToken`. `optionalAuth` does the same
+when a token is present; no token means a signed-out request, and a bad token
+still returns 401. In local test mode, both use `X-Test-User`; only optional
+reads accept a missing header. The shim refuses to run in Cloud Run.
+
+Only these catalog GETs use `optionalAuth` (paths are under `/api`):
+
+- Destinations: `/destinations/nearby`, `/destinations/viewport`,
+  `/destinations/averages`, `/destinations/:id`, `/destinations/:id/lists`,
+  `/destinations/:id/routes`.
+- Lists: `/lists/popular`, `/lists/by-destinations`, `/lists/:id`,
+  `/lists/:id/destinations`.
+- Search: `/search`, `/search/all`, `/search/features`.
+- Routes: `/routes/near`, `/routes/:id`, `/routes/:id/destinations`,
+  `/routes/:id/sections`, `/routes/:id/elevation`.
+- Areas: `/areas/:id`.
+
+Signed-out reads return catalog rows owned by `peaks` and public PAD-US areas
+(whose `owner` names the land agency); route geometry
+keeps its existing owner and plan-party checks for signed-in callers. Area
+history is empty without a uid. Nested catalog rows and cover photos also
+follow the signed-out filter. Personal routes, sessions, plans, trip reports,
+account actions, and `/lists` still require auth, as do all other paths and
+methods (including HEAD).
+
+`index.ts` holds the explicit allowlist and trusts one Cloud Run proxy hop.
+This assumes clients call the `run.app` URL directly. A load balancer in front
+would put all clients in its IP's rate-limit bucket; review proxy trust before
+changing that network path.
+Signed-out catalog traffic uses an in-memory per-IP limit of 120 requests per
+minute per instance; excess requests get 429 with `Retry-After`. Signed-in
+requests bypass this limit. Only signed-out allowlisted requests that pass
+the limiter log `event: "signed_out_request"` and their path, without query
+text or tokens. Rejected tokens, other 401s, and 429s do not log that event.
+This adds no service, resident work, or fixed monthly cost.
+
+Catalog limits apply to every caller. The caps cover current iOS map,
+viewfinder, and flyover requests:
+
+| GET path under `/api` | Maximum |
+| --- | --- |
+| `/destinations/viewport` | 200 results |
+| `/destinations/nearby` | 2,000 results; 260,000 m radius |
+| `/routes/near` | 20 results; 5,000 m radius (current defaults; no iOS caller) |
+| `/search/features` | 180 results |
+| `/lists/popular` | 10 results |
+
+`/destinations/averages` and `/lists/by-destinations` reject signed-out batches
+over 2,000 IDs with a clear 400 response, before any SQL. Signed-in ID batches
+have no cap. Invalid or non-positive limits and radii use the existing defaults.
+
+`DELETE /api/account` requires auth and returns `{ "status": "deleted" }`.
+It uses `_accountDeletions/{uid}` to claim work and resume failures. It removes
+owned SQL rows and their children. Destinations and routes referenced by
+another user's session, plan, or trip report keep their links with owner
+`deleted-user`; this sentinel is not a public catalog owner or an Auth user.
+Area children lose their parent link before an owned parent is deleted.
+Deletion also removes Firestore documents (including Strava `codes`) and
+subcollections, Storage objects, and friendship/request pairs; shared plans
+keep their other party members. It then deletes the Auth user. Strava
+deauthorization is best effort. A completed anonymous merge also deletes the
+source Auth user. Merge and DELETE retries after that user is gone work only
+while the old ID token is unexpired (about one hour from issue); it cannot be
+refreshed after deletion. The merge's completed claim allows that retry.
 
 ### Connection
 - **Cloud Run**: connects via Unix socket at `/cloudsql/INSTANCE_CONNECTION_NAME`
