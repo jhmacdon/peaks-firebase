@@ -9,9 +9,11 @@
 --
 -- An UPDATE that leaves every other column as it was now keeps both
 -- timestamps. Rows compare as jsonb so geography and json-typed columns
--- compare exactly. An UPDATE that sets server_updated_at itself
--- (touch_related_tracking_session, after a session_destinations change)
--- still bumps both, as before.
+-- compare exactly. Generated columns (path_preview) are left out: Postgres
+-- fills them in after BEFORE triggers, so NEW holds null for them here, and
+-- they derive from columns that are compared anyway. An UPDATE that sets
+-- server_updated_at itself (touch_related_tracking_session, after a
+-- session_destinations change) still bumps both, as before.
 --
 -- Cost: none. One jsonb comparison per session UPDATE.
 
@@ -19,10 +21,16 @@ BEGIN;
 
 CREATE OR REPLACE FUNCTION update_tracking_session_timestamps()
 RETURNS TRIGGER AS $$
+DECLARE
+    ignored text[];
 BEGIN
+    SELECT ARRAY['updated_at', 'server_updated_at'] || COALESCE(array_agg(attname::text), '{}')
+    INTO ignored
+    FROM pg_attribute
+    WHERE attrelid = TG_RELID AND attgenerated <> '' AND NOT attisdropped;
+
     IF NEW.server_updated_at IS NOT DISTINCT FROM OLD.server_updated_at
-       AND (to_jsonb(NEW) - ARRAY['updated_at', 'server_updated_at'])
-         = (to_jsonb(OLD) - ARRAY['updated_at', 'server_updated_at']) THEN
+       AND (to_jsonb(NEW) - ignored) = (to_jsonb(OLD) - ignored) THEN
         RETURN NEW;
     END IF;
     NEW.updated_at = now();
