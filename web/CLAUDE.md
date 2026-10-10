@@ -97,11 +97,14 @@ src/
     route-picker.tsx                  # Search-and-select routes
     party-list.tsx                    # Party member display
     user-popover.tsx                  # User info popover (admin)
+    petrics-page-views.tsx            # Sends Page Viewed on route change (root layout)
   lib/
     db.ts                             # pg Pool (max DB_POOL_MAX, default 2; see db-config.ts)
     firebase.ts                       # Client SDK init (auth, firestore)
     firebase-admin.ts                 # Admin SDK init (adminAuth, adminDb)
     auth-context.tsx                  # useAuth() hook + AuthProvider
+    analytics.ts                      # Petrics client: track, identify, reset, pageView (browser only)
+    analytics-core.ts                 # Testable analytics logic and helpers
     auth-actions.ts                   # verifyToken() server action
     storage.ts                        # Firebase Storage upload/download
     gpx.ts                            # GPX parser
