@@ -137,6 +137,16 @@ elevation, name, and ID. Route detail, search cards, nearby API rows, and share
 images all read that same row, so a destination cover edit takes effect on every
 route surface without a repair job.
 
+## Analytics
+
+Petrics, our own analytics service, is the site's only analytics. It runs in the browser only.
+
+- `src/lib/analytics.ts` starts the client on first use and exports `track`, `identify`, `reset` and `pageView`. It stays off on the server, under `navigator.webdriver`, in tests, and when `NEXT_PUBLIC_PETRICS_SOURCE_KEY` is empty. Pure helpers live in `analytics-core.ts` so `npm test` can load them.
+- `PetricsPageViews` in the root layout sends `Page Viewed` on each route change with `path` (no query string or fragment), `title`, and `referrer_host` (host only).
+- `auth-context.tsx` identifies the Firebase UID on every signed-in auth state, sends `Signed In` (`method`, `new_user`) and `Signed Out`, and resets on sign-out. Email and name never go to Petrics.
+- The client is vendored in `vendor/petrics-client` from the petrics repo (`sdk/scripts/vendor-ts.sh`); don't edit the copy. `predev`, `prebuild` and `pretest` compile it to `dist/`.
+- Keys are public write keys. `apphosting.yaml` holds the production key; `.env.local` holds the development key, whose events land as test traffic.
+
 ## Auth Architecture
 
 ```

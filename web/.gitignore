@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/vendor/petrics-client/node_modules
+/vendor/petrics-client/dist
 /.pnp
 .pnp.*
 .yarn/*
