@@ -11,8 +11,8 @@ import db from "./db";
  * that user's sessions.
  *
  * Per-feature radius is delegated to the SQL function destination_match_radius()
- * (see cloud-sql/schema.sql). Boundary destinations use a 10m polygon match
- * regardless of feature.
+ * (see cloud-sql/schema.sql). Boundary destinations use
+ * destination_boundary_match_radius(): 50 m for lakes, 10 m otherwise.
  *
  * Idempotent via ON CONFLICT — safe to call repeatedly.
  *
@@ -41,7 +41,8 @@ export async function backfillDestinationToSessions(
              THEN EXISTS (
                SELECT 1 FROM destination_boundary_parts bp
                WHERE bp.destination_id = d.id
-                 AND ST_DWithin(s.path, bp.boundary_part, 10)
+                 AND ST_DWithin(s.path, bp.boundary_part, 50)
+                 AND ST_DWithin(s.path, bp.boundary_part, destination_boundary_match_radius(d.features))
              )
              ELSE ST_DWithin(s.path, d.location, destination_match_radius(d.features))
            END
