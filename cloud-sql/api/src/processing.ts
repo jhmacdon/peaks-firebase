@@ -217,12 +217,13 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
          AND ST_DWithin(d.location, ${pathExpr}, destination_match_radius(d.features))
        UNION
        SELECT d.id
-       FROM destination_boundary_parts bp
+       FROM (SELECT ST_Subdivide(${pathExpr}::geometry, 32)::geography AS piece) track
+       JOIN destination_boundary_parts bp
+         ON ST_DWithin(bp.boundary_part, track.piece, ${MAX_BOUNDARY_MATCH_RADIUS_M})
        JOIN destinations d ON d.id = bp.destination_id
        WHERE d.boundary IS NOT NULL
          AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
-         AND ST_DWithin(bp.boundary_part, ${pathExpr}, ${MAX_BOUNDARY_MATCH_RADIUS_M})
-         AND ST_DWithin(bp.boundary_part, ${pathExpr}, destination_boundary_match_radius(d.features))`;
+         AND ST_DWithin(bp.boundary_part, track.piece, destination_boundary_match_radius(d.features))`;
 }
 
 /**
@@ -250,8 +251,14 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
  * Boundary destinations match against destination_boundary_parts, never the
  * whole polygon (migrations/20261008_destination_boundary_parts.sql). A lake
  * outline can hold 475k points; checking one whole cost a 16-point session
- * over 150 s. The two branches are a UNION inside a LATERAL so each one is
- * driven by its own GIST index.
+ * over 150 s. The track is split the same way: ST_Subdivide cuts the path
+ * into pieces of at most 32 points, so each outline piece is measured against
+ * a short stretch rather than the whole hike. Measured whole, a 103 km,
+ * 4,441-point track cost about 0.5 s per nearby outline piece and passed the
+ * 120 s processing limit (2026-10-11); in pieces it takes 4 s. Distance to the
+ * path is the least distance to any of its pieces, so matches are unchanged.
+ * The two branches are a UNION inside a LATERAL so each one is driven by its
+ * own GIST index.
  *
  * Owner scope: a destination owned by 'peaks' is system-global; a
  * user-owned destination only matches that user's own sessions.
