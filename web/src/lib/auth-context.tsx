@@ -17,13 +17,16 @@ import {
   updateProfile,
   linkWithCredential,
   fetchSignInMethodsForEmail,
+  getAdditionalUserInfo,
   User,
+  UserCredential,
   IdTokenResult,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { accountLinkMessage } from "./auth-linking";
+import { identify, reset, resetIfIdentified, track } from "./analytics";
 
 interface AuthState {
   user: User | null;
@@ -199,6 +202,23 @@ async function completeAuthenticatedUser(user: User): Promise<void> {
   await ensureUserProfile(user);
 }
 
+/** Names the sign-in method for analytics: "email", "google", "apple", or the raw provider ID. */
+function signInMethod(providerId: string | null | undefined): string {
+  if (providerId === "google.com") return "google";
+  if (providerId === "apple.com") return "apple";
+  if (!providerId || providerId === "password") return "email";
+  return providerId;
+}
+
+/** Identifies the user first, so the event carries the user ID. Never sends email or name. */
+function trackSignedIn(result: UserCredential, method: string): void {
+  identify(result.user.uid);
+  track("Signed In", {
+    method,
+    new_user: getAdditionalUserInfo(result)?.isNewUser ?? false,
+  });
+}
+
 export function authErrorMessage(caught: unknown, fallback: string): string {
   const error = caught as { code?: string; message?: string };
   return caught instanceof AccountLinkRequiredError || error?.code === "auth/account-link-required"
@@ -230,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(async (result) => {
         if (result?.user) {
           await completeAuthenticatedUser(result.user);
+          trackSignedIn(result, signInMethod(result.providerId));
           if (mounted.current) setAuthNotice(null);
         }
       })
@@ -245,10 +266,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        identify(firebaseUser.uid);
         const tokenResult: IdTokenResult = await firebaseUser.getIdTokenResult();
         setUser(firebaseUser);
         setIsAdmin(tokenResult.claims.admin === true);
       } else {
+        resetIfIdentified();
         setUser(null);
         setIsAdmin(false);
       }
@@ -265,6 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       await completeAuthenticatedUser(result.user);
+      trackSignedIn(result, "email");
       setAuthNotice(null);
     } finally {
       setOperationBusy(false);
@@ -274,7 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignInWithGoogle = async () => {
     setOperationBusy(true);
     try {
-      await signInWithProvider(googleProvider);
+      await signInWithProvider(googleProvider, "google");
       setAuthNotice(null);
     } catch (caught) {
       const linkError = await captureAccountConflict(caught, googleProvider);
@@ -288,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignInWithApple = async () => {
     setOperationBusy(true);
     try {
-      await signInWithProvider(appleProvider);
+      await signInWithProvider(appleProvider, "apple");
       setAuthNotice(null);
     } catch (caught) {
       const linkError = await captureAccountConflict(caught, appleProvider);
@@ -311,6 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(result.user, { displayName });
       await completeAuthenticatedUser(result.user);
+      trackSignedIn(result, "email");
       await setDoc(doc(db, "users", result.user.uid), {
         name: displayName,
         email,
@@ -329,7 +354,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     writePendingLinks(null);
     setAuthNotice(null);
-    await firebaseSignOut(auth);
+    // Track before the reset so the event still carries the user ID.
+    track("Signed Out");
+    reset();
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      if (auth.currentUser) identify(auth.currentUser.uid);
+      throw error;
+    }
   };
 
   const getIdToken = useCallback(async (): Promise<string | null> => {
@@ -373,10 +406,11 @@ async function ensureUserProfile(user: User) {
   }
 }
 
-async function signInWithProvider(provider: GoogleAuthProvider | OAuthProvider) {
+async function signInWithProvider(provider: GoogleAuthProvider | OAuthProvider, method: string) {
   try {
     const result = await signInWithPopup(auth, provider);
     await completeAuthenticatedUser(result.user);
+    trackSignedIn(result, method);
   } catch (error) {
     const firebaseError = error as { code?: string };
     if (
