@@ -95,13 +95,13 @@ test("buildSessionDestinationMatchSql anti-joins session_destination_rejections"
 
 // A long track measured whole against each nearby outline piece cost about
 // 0.5 s per piece: a 103 km, 4,441-point hike took 95 s at 10 m and passed the
-// 120 s processing limit at 50 m (2026-10-11). Short track pieces take 4 s.
+// 120 s processing limit at 50 m (2026-10-11). Short track pieces take under 6 s.
 test("buildSessionDestinationMatchSql measures outlines against short track pieces", () => {
   const { text } = buildSessionDestinationMatchSql("sess1");
   assert.match(text, /ST_Dump\(s\.path::geometry\) line/);
   assert.match(text, /GROUP BY pt\.line, grp\.g/);
   assert.match(text, /ST_MakeLine\(pt\.geom ORDER BY pt\.i\)::geography AS piece/);
-  // ST_Subdivide hung on a track that doubles back, and its cut points leave
+  // ST_Subdivide took two minutes on a track that doubles back, and its cut points leave
   // the geodesic on long segments.
   assert.doesNotMatch(text, /ST_Subdivide\(s\.path/);
   assert.doesNotMatch(text, /ST_DWithin\(bp\.boundary_part, s\.path/);

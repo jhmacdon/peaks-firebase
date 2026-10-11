@@ -229,7 +229,7 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
          FROM (SELECT line.path AS line, (dp).path[1] AS i, (dp).geom
                FROM ST_Dump(${pathExpr}::geometry) line
                CROSS JOIN LATERAL ST_DumpPoints(line.geom) dp
-               WHERE GeometryType(line.geom) = 'LINESTRING') pt
+               WHERE ST_Dimension(line.geom) = 1) pt
          CROSS JOIN LATERAL (
            SELECT (pt.i - 1) / ${TRACK_PIECE_SEGMENTS}
            UNION ALL
@@ -276,7 +276,7 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
  * recorded segments, so each outline piece is measured against a short
  * stretch rather than the whole hike. Measured whole, a 103 km, 4,441-point
  * track cost about 0.5 s per nearby outline piece and passed the 120 s
- * processing limit (2026-10-11); in pieces it takes 6 s. The pieces are the
+ * processing limit (2026-10-11); in pieces it takes under 6 s. The pieces are the
  * track's own segments, so distances and matches are unchanged. A plan path
  * can be a MultiLineString (disjoint routes merged), so each line is split
  * on its own and no piece joins the end of one line to the start of the next.

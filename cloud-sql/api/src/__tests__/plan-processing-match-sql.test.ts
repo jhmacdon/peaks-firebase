@@ -76,13 +76,13 @@ test("buildPlanDestinationMatchSql has a constant-distance index pre-filter", ()
 
 // A long track measured whole against each nearby outline piece cost about
 // 0.5 s per piece: a 103 km, 4,441-point hike took 95 s at 10 m and passed the
-// 120 s processing limit at 50 m (2026-10-11). Short track pieces take 4 s.
+// 120 s processing limit at 50 m (2026-10-11). Short track pieces take under 6 s.
 test("buildPlanDestinationMatchSql measures outlines against short track pieces", () => {
   const { text } = buildPlanDestinationMatchSql("plan1");
   assert.match(text, /ST_Dump\(p\.path::geometry\) line/);
   assert.match(text, /GROUP BY pt\.line, grp\.g/);
   assert.match(text, /ST_MakeLine\(pt\.geom ORDER BY pt\.i\)::geography AS piece/);
-  // ST_Subdivide hung on a track that doubles back, and its cut points leave
+  // ST_Subdivide took two minutes on a track that doubles back, and its cut points leave
   // the geodesic on long segments.
   assert.doesNotMatch(text, /ST_Subdivide\(p\.path/);
   assert.doesNotMatch(text, /ST_DWithin\(bp\.boundary_part, p\.path/);
