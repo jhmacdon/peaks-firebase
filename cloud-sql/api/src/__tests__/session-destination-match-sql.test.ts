@@ -40,7 +40,7 @@ test("buildSessionDestinationMatchSql uses the per-feature boundary distance", (
   assert.match(text, /d\.boundary IS NOT NULL/);
   assert.match(
     text,
-    /ST_DWithin\(bp\.boundary_part, s\.path, destination_boundary_match_radius\(d\.features\)\)/
+    /ST_DWithin\(bp\.boundary_part, track\.piece, destination_boundary_match_radius\(d\.features\)\)/
   );
 });
 
@@ -51,7 +51,7 @@ test("buildSessionDestinationMatchSql prunes boundary pieces by a constant dista
   assert.equal(MAX_BOUNDARY_MATCH_RADIUS_M, 50, "must cover the widest boundary distance");
   assert.match(
     text,
-    new RegExp(`ST_DWithin\\(bp\\.boundary_part, s\\.path, ${MAX_BOUNDARY_MATCH_RADIUS_M}\\)`)
+    new RegExp(`ST_DWithin\\(bp\\.boundary_part, track\\.piece, ${MAX_BOUNDARY_MATCH_RADIUS_M}\\)`)
   );
 });
 
@@ -60,7 +60,7 @@ test("buildSessionDestinationMatchSql prunes boundary pieces by a constant dista
 // pieces in destination_boundary_parts take under a second.
 test("buildSessionDestinationMatchSql never measures distance to a whole boundary", () => {
   const { text } = buildSessionDestinationMatchSql("sess1");
-  assert.match(text, /FROM destination_boundary_parts bp/);
+  assert.match(text, /JOIN destination_boundary_parts bp/);
   assert.doesNotMatch(text, /ST_DWithin\(d\.boundary/);
   assert.doesNotMatch(text, /ST_Distance\(d\.boundary/);
 });
@@ -91,4 +91,13 @@ test("buildSessionDestinationMatchSql anti-joins session_destination_rejections"
   assert.match(text, /NOT EXISTS/);
   assert.match(text, /session_destination_rejections/);
   assert.match(text, /r\.session_id = s\.id AND r\.destination_id = d\.id/);
+});
+
+// A long track measured whole against each nearby outline piece cost about
+// 0.5 s per piece: a 103 km, 4,441-point hike took 95 s at 10 m and passed the
+// 120 s processing limit at 50 m (2026-10-11). Short track pieces take 4 s.
+test("buildSessionDestinationMatchSql measures outlines against short track pieces", () => {
+  const { text } = buildSessionDestinationMatchSql("sess1");
+  assert.match(text, /ST_Subdivide\(s\.path::geometry, 32\)::geography AS piece/);
+  assert.doesNotMatch(text, /ST_DWithin\(bp\.boundary_part, s\.path/);
 });
