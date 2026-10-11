@@ -54,7 +54,7 @@ migrate/            # One-time Firestore → PostGIS backfill
 - **Segment direction**: `route_segments.direction` is `forward` or `reverse` (CHECK constraint, not enum)
 - **Areas are separate from destinations**: official protected-area and land-management units live in `areas` with `geometry(MultiPolygon, 4326)` boundaries; `destination_areas` links summits to every containing area.
 - **Session areas come from track segments**: `session_areas` stores protected areas crossed by each saved tracking-point segment. `area_boundary_parts` keeps exact, indexed polygon subdivisions so matching stays within the session-processing budget. A changed PAD-US import refreshes existing PostGIS session links in small batches.
-- **Destination boundaries match through pieces**: `destination_boundary_parts` holds each boundary split into indexed pieces of at most 256 points (trigger-maintained). Session and plan matching and both session triggers check the pieces, never the whole polygon: a Great Lakes outline holds up to 475k points, and one whole-polygon check cost a 16-point session over 150 s (2026-10-08). The API serves `COALESCE(boundary_display, boundary)`; `boundary_display` is a simplified copy kept for outlines over 2,000 points (Lake Huron: 475k points to 5,371, 120 kB of GeoJSON).
+- **Destination boundaries match through pieces**: `destination_boundary_parts` holds each boundary split into indexed pieces of at most 256 points (trigger-maintained). Session and plan matching and both session triggers check the pieces, never the whole polygon: a Great Lakes outline holds up to 475k points, and one whole-polygon check cost a 16-point session over 150 s (2026-10-08). A track reaches an outline within `destination_boundary_match_radius()`: 50 m for lakes, whose shores a hiker stops at rather than enters, and 10 m for other outlines. The API serves `COALESCE(boundary_display, boundary)`; `boundary_display` is a simplified copy kept for outlines over 2,000 points (Lake Huron: 475k points to 5,371, 120 kB of GeoJSON).
 - **Text IDs**: all PKs are `TEXT` (20-char alphanumeric, matching Firebase document ID style)
 - **`search_name`**: lowercased/normalized copy of `name` for trigram search (indexed with `gin_trgm_ops`)
 - **`updated_at` triggers**: automatic on destinations, areas, lists, routes, tracking_sessions
@@ -1117,7 +1117,7 @@ their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
 - **New destination**: `trg_destination_link_sessions` tags old sessions at
   once, owner-scoped, with the rejection veto.
 - **Destination moved, retyped, or re-owned**: `trg_destination_queue_rematch`
-  queues the sessions within 200 m (10 m of a boundary) of the old and the new
+  queues the sessions within 200 m (50 m of a boundary) of the old and the new
   place. An elevation-only edit queues nothing.
 - **Route added, activated, reshaped, re-owned, or retired**:
   `trg_route_queue_rematch_insert` / `_update` queue the sessions within 600 m
