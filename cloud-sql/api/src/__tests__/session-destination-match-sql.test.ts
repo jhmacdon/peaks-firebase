@@ -98,6 +98,10 @@ test("buildSessionDestinationMatchSql anti-joins session_destination_rejections"
 // 120 s processing limit at 50 m (2026-10-11). Short track pieces take 4 s.
 test("buildSessionDestinationMatchSql measures outlines against short track pieces", () => {
   const { text } = buildSessionDestinationMatchSql("sess1");
-  assert.match(text, /ST_Subdivide\(s\.path::geometry, 32\)::geography AS piece/);
+  assert.match(text, /ST_DumpPoints\(s\.path::geometry\)/);
+  assert.match(text, /ST_MakeLine\(pt\.geom ORDER BY pt\.i\)::geography AS piece/);
+  // ST_Subdivide hung on a track that doubles back, and its cut points leave
+  // the geodesic on long segments.
+  assert.doesNotMatch(text, /ST_Subdivide\(s\.path/);
   assert.doesNotMatch(text, /ST_DWithin\(bp\.boundary_part, s\.path/);
 });

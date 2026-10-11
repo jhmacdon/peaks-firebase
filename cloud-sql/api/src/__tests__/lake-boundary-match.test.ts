@@ -100,6 +100,31 @@ describe("lake boundary match distance", { skip: skipReason ?? undefined }, () =
     assert.equal(await reached(nearCamp, camp), false, "other outlines keep 10 m");
   });
 
+  // Matching splits the track into runs of 31 segments that share end points.
+  // Here only the segment between points 31 and 32, where two runs meet,
+  // passes the lake: 31 points well north of it, then 32 well south, so the
+  // straight line between them runs 36 m east of the shore.
+  test("session processing sees the segment where two track pieces meet", async () => {
+    const lake = `${runPrefix}-lake-seam`;
+    const lng = -31.4;
+    await createOutlined(lake, lng, "{lake}");
+    const x = lng + HALF + 36 / M_PER_DEG_LNG;
+    const points = [
+      ...Array.from({ length: 31 }, (_, k) => `${x} ${LAT + 0.01 + k * 0.0001} 1000`),
+      ...Array.from({ length: 32 }, (_, k) => `${x} ${LAT - 0.01 - k * 0.0001} 1000`),
+    ];
+    const session = `${runPrefix}-s-seam`;
+    await db.query(
+      `INSERT INTO tracking_sessions (id, user_id, start_time, end_time, ended, path)
+       VALUES ($1, $2, now() - interval '1 hour', now(), true,
+               ST_GeomFromText($3, 4326)::geography)`,
+      [session, userId, `LINESTRING Z(${points.join(", ")})`]
+    );
+    const { text, values } = buildSessionDestinationMatchSql(session);
+    await db.query(text, values);
+    assert.equal(await reached(session, lake), true);
+  });
+
   test("a newly added lake links past sessions within 50 m", async () => {
     const session = `${runPrefix}-s-before`;
     const lake = `${runPrefix}-lake-new`;
