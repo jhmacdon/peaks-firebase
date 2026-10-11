@@ -79,7 +79,8 @@ test("buildPlanDestinationMatchSql has a constant-distance index pre-filter", ()
 // 120 s processing limit at 50 m (2026-10-11). Short track pieces take 4 s.
 test("buildPlanDestinationMatchSql measures outlines against short track pieces", () => {
   const { text } = buildPlanDestinationMatchSql("plan1");
-  assert.match(text, /ST_DumpPoints\(p\.path::geometry\)/);
+  assert.match(text, /ST_Dump\(p\.path::geometry\) line/);
+  assert.match(text, /GROUP BY pt\.line, grp\.g/);
   assert.match(text, /ST_MakeLine\(pt\.geom ORDER BY pt\.i\)::geography AS piece/);
   // ST_Subdivide hung on a track that doubles back, and its cut points leave
   // the geodesic on long segments.

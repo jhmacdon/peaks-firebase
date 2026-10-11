@@ -226,15 +226,17 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
        SELECT d.id
        FROM (
          SELECT ST_MakeLine(pt.geom ORDER BY pt.i)::geography AS piece
-         FROM (SELECT (dp).path[1] AS i, (dp).geom
-               FROM ST_DumpPoints(${pathExpr}::geometry) dp) pt
+         FROM (SELECT line.path AS line, (dp).path[1] AS i, (dp).geom
+               FROM ST_Dump(${pathExpr}::geometry) line
+               CROSS JOIN LATERAL ST_DumpPoints(line.geom) dp
+               WHERE GeometryType(line.geom) = 'LINESTRING') pt
          CROSS JOIN LATERAL (
            SELECT (pt.i - 1) / ${TRACK_PIECE_SEGMENTS}
            UNION ALL
            SELECT (pt.i - 2) / ${TRACK_PIECE_SEGMENTS}
            WHERE pt.i > 1 AND (pt.i - 1) % ${TRACK_PIECE_SEGMENTS} = 0
          ) grp(g)
-         GROUP BY grp.g
+         GROUP BY pt.line, grp.g
          HAVING count(*) > 1
        ) track
        JOIN destination_boundary_parts bp
@@ -275,7 +277,9 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
  * stretch rather than the whole hike. Measured whole, a 103 km, 4,441-point
  * track cost about 0.5 s per nearby outline piece and passed the 120 s
  * processing limit (2026-10-11); in pieces it takes 6 s. The pieces are the
- * track's own segments, so distances and matches are unchanged.
+ * track's own segments, so distances and matches are unchanged. A plan path
+ * can be a MultiLineString (disjoint routes merged), so each line is split
+ * on its own and no piece joins the end of one line to the start of the next.
  *
  * Do not split with ST_Subdivide. It took nearly two minutes on a dense
  * 5,001-point track that doubles back on itself, and it cuts long segments
