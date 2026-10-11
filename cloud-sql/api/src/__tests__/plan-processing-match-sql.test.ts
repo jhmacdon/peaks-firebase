@@ -5,7 +5,11 @@
 
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildPlanDestinationMatchSql, MAX_DESTINATION_MATCH_RADIUS_M } from "../processing";
+import {
+  buildPlanDestinationMatchSql,
+  MAX_BOUNDARY_MATCH_RADIUS_M,
+  MAX_DESTINATION_MATCH_RADIUS_M,
+} from "../processing";
 
 test("buildPlanDestinationMatchSql matches against plans.path with feature radius", () => {
   const { text, values } = buildPlanDestinationMatchSql("plan1");
@@ -29,10 +33,27 @@ test("buildPlanDestinationMatchSql scopes destinations to system + plan owner", 
   assert.match(text, /d\.owner = 'peaks' OR d\.owner = p\.user_id/);
 });
 
-test("buildPlanDestinationMatchSql uses boundary 10m match for polygon destinations", () => {
+// Outlined places match on a per-feature distance from the outline: 50 m for
+// lakes, 10 m otherwise. A hiker stops at a lake's shore, often on slabs or
+// cliffs above the water, and never walks into it.
+test("buildPlanDestinationMatchSql uses the per-feature boundary distance", () => {
   const { text } = buildPlanDestinationMatchSql("plan1");
   assert.match(text, /d\.boundary IS NOT NULL/);
-  assert.match(text, /ST_DWithin\(bp\.boundary_part, p\.path, 10\)/);
+  assert.match(
+    text,
+    /ST_DWithin\(bp\.boundary_part, p\.path, destination_boundary_match_radius\(d\.features\)\)/
+  );
+});
+
+// Same index rule as the point branch: the per-row distance cannot use the
+// GIST index on the pieces, so a constant at least as wide prunes first.
+test("buildPlanDestinationMatchSql prunes boundary pieces by a constant distance", () => {
+  const { text } = buildPlanDestinationMatchSql("plan1");
+  assert.equal(MAX_BOUNDARY_MATCH_RADIUS_M, 50, "must cover the widest boundary distance");
+  assert.match(
+    text,
+    new RegExp(`ST_DWithin\\(bp\\.boundary_part, p\\.path, ${MAX_BOUNDARY_MATCH_RADIUS_M}\\)`)
+  );
 });
 
 // A lake outline can hold 475k points. A distance check against the whole

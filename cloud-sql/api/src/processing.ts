@@ -195,9 +195,18 @@ export async function linkSessionToAreas(
 export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
 
 /**
+ * The widest distance destination_boundary_match_radius() can return (lake =
+ * 50 m). Same role as MAX_DESTINATION_MATCH_RADIUS_M for outlined places: a
+ * constant the GIST index on destination_boundary_parts can prune with before
+ * the per-feature distance applies. Bump both together.
+ */
+export const MAX_BOUNDARY_MATCH_RADIUS_M = 50;
+
+/**
  * Destinations a path reaches, as one `id` column: point destinations within
  * their per-feature radius, and boundary destinations whose indexed boundary
- * pieces lie within 10 m. Owner-scoped. Shared by session and plan matching.
+ * pieces lie within their per-feature distance (50 m for lakes, 10 m
+ * otherwise). Owner-scoped. Shared by session and plan matching.
  */
 function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): string {
   return `SELECT d.id
@@ -212,7 +221,8 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
        JOIN destinations d ON d.id = bp.destination_id
        WHERE d.boundary IS NOT NULL
          AND (d.owner = 'peaks' OR d.owner = ${ownerExpr})
-         AND ST_DWithin(bp.boundary_part, ${pathExpr}, 10)`;
+         AND ST_DWithin(bp.boundary_part, ${pathExpr}, ${MAX_BOUNDARY_MATCH_RADIUS_M})
+         AND ST_DWithin(bp.boundary_part, ${pathExpr}, destination_boundary_match_radius(d.features))`;
 }
 
 /**
@@ -221,7 +231,9 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
  * Reads the materialized linestring from tracking_sessions.path (set by
  * processSession Step 0). Per-feature thresholds live in the SQL function
  * destination_match_radius() (see cloud-sql/schema.sql). Boundary destinations
- * use a 10m polygon match regardless of feature.
+ * use destination_boundary_match_radius(): 50 m for lakes, whose shores a
+ * hiker stops at rather than enters, and 10 m for other outlines
+ * (migrations/20261010_forgiving_lake_match.sql).
  *
  * Performance (the 30s-timeout regression): the per-feature
  * `destination_match_radius(d.features)` distance is computed per row, so the
