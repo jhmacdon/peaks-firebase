@@ -203,6 +203,13 @@ export const MAX_DESTINATION_MATCH_RADIUS_M = 200;
 export const MAX_BOUNDARY_MATCH_RADIUS_M = 50;
 
 /**
+ * Segments per track piece when matching outlines. Each piece holds this many
+ * consecutive segments of the recorded track, sharing its end point with the
+ * next, so the pieces together are exactly the track.
+ */
+export const TRACK_PIECE_SEGMENTS = 31;
+
+/**
  * Destinations a path reaches, as one `id` column: point destinations within
  * their per-feature radius, and boundary destinations whose indexed boundary
  * pieces lie within their per-feature distance (50 m for lakes, 10 m
@@ -217,7 +224,21 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
          AND ST_DWithin(d.location, ${pathExpr}, destination_match_radius(d.features))
        UNION
        SELECT d.id
-       FROM (SELECT ST_Subdivide(${pathExpr}::geometry, 32)::geography AS piece) track
+       FROM (
+         SELECT ST_MakeLine(pt.geom ORDER BY pt.i)::geography AS piece
+         FROM (SELECT line.path AS line, (dp).path[1] AS i, (dp).geom
+               FROM ST_Dump(${pathExpr}::geometry) line
+               CROSS JOIN LATERAL ST_DumpPoints(line.geom) dp
+               WHERE GeometryType(line.geom) = 'LINESTRING') pt
+         CROSS JOIN LATERAL (
+           SELECT (pt.i - 1) / ${TRACK_PIECE_SEGMENTS}
+           UNION ALL
+           SELECT (pt.i - 2) / ${TRACK_PIECE_SEGMENTS}
+           WHERE pt.i > 1 AND (pt.i - 1) % ${TRACK_PIECE_SEGMENTS} = 0
+         ) grp(g)
+         GROUP BY pt.line, grp.g
+         HAVING count(*) > 1
+       ) track
        JOIN destination_boundary_parts bp
          ON ST_DWithin(bp.boundary_part, track.piece, ${MAX_BOUNDARY_MATCH_RADIUS_M})
        JOIN destinations d ON d.id = bp.destination_id
@@ -251,12 +272,19 @@ function destinationMatchCandidatesSql(pathExpr: string, ownerExpr: string): str
  * Boundary destinations match against destination_boundary_parts, never the
  * whole polygon (migrations/20261008_destination_boundary_parts.sql). A lake
  * outline can hold 475k points; checking one whole cost a 16-point session
- * over 150 s. The track is split the same way: ST_Subdivide cuts the path
- * into pieces of at most 32 points, so each outline piece is measured against
- * a short stretch rather than the whole hike. Measured whole, a 103 km,
- * 4,441-point track cost about 0.5 s per nearby outline piece and passed the
- * 120 s processing limit (2026-10-11); in pieces it takes 4 s. Distance to the
- * path is the least distance to any of its pieces, so matches are unchanged.
+ * over 150 s. The track is split too, into runs of TRACK_PIECE_SEGMENTS
+ * recorded segments, so each outline piece is measured against a short
+ * stretch rather than the whole hike. Measured whole, a 103 km, 4,441-point
+ * track cost about 0.5 s per nearby outline piece and passed the 120 s
+ * processing limit (2026-10-11); in pieces it takes 6 s. The pieces are the
+ * track's own segments, so distances and matches are unchanged. A plan path
+ * can be a MultiLineString (disjoint routes merged), so each line is split
+ * on its own and no piece joins the end of one line to the start of the next.
+ *
+ * Do not split with ST_Subdivide. It took nearly two minutes on a dense
+ * 5,001-point track that doubles back on itself, and it cuts long segments
+ * at points on the straight degree-space line, which drift off the geodesic:
+ * a track with a GPS gap matched Echo Lake, which is 95 m away.
  * The two branches are a UNION inside a LATERAL so each one is driven by its
  * own GIST index.
  *
