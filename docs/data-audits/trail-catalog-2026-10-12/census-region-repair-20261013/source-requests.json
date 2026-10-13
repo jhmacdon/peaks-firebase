@@ -1,0 +1,139 @@
+[
+  {
+    "file": "layer-0.json",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0?f=pjson",
+    "retrievedAt": "2026-10-13T06:35:57.065062+00:00",
+    "sha256": "eb955e5bc73a565ca5249c6b7401aa003a87c4578b12169619c3d1a62c7205d2",
+    "bytes": 7696,
+    "headers": {
+      "ETag": "\"1289e918\"",
+      "Content-Type": "text/plain;charset=UTF-8",
+      "Content-Length": "7696",
+      "Date": "Tue, 13 Oct 2026 06:35:57 GMT"
+    }
+  },
+  {
+    "file": "washington-state.geojson",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?where=STATE%3D%2753%27&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=true&outSR=4326&f=geojson",
+    "retrievedAt": "2026-10-13T06:35:58.455589+00:00",
+    "sha256": "7161f9e4892e8bdb1c0e86808e93438a4ba0ea4af5bb8317d139b7edcb76fc91",
+    "bytes": 324191,
+    "headers": {
+      "ETag": "\"1784720347\"",
+      "Content-Type": "application/geo+json;charset=UTF-8",
+      "Date": "Tue, 13 Oct 2026 06:35:57 GMT"
+    }
+  },
+  {
+    "file": "point-Ndsk2Ad2F6r9sXR8cK0m.json",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-122.183655%2C%22y%22%3A46.146241%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+    "retrievedAt": "2026-10-13T06:37:23.172764+00:00",
+    "sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+    "bytes": 507,
+    "headers": {
+      "ETag": "\"1784720347\"",
+      "Content-Type": "application/json;charset=UTF-8",
+      "Content-Length": "507",
+      "Date": "Tue, 13 Oct 2026 06:37:23 GMT"
+    },
+    "destination": {
+      "id": "Ndsk2Ad2F6r9sXR8cK0m",
+      "lat": 46.146241,
+      "lng": -122.183655,
+      "name": "Climbers Bivouac Trailhead",
+      "ordinal": 0,
+      "features": [
+        "trailhead"
+      ],
+      "state_code": null,
+      "country_code": null,
+      "external_ids": {},
+      "route_id": "8To4Xn3jQ1GJXQWMuj0m"
+    }
+  },
+  {
+    "file": "point-6PxfQ1g48SrbplzGd6UH.json",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-122.195606%2C%22y%22%3A46.1914178%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+    "retrievedAt": "2026-10-13T06:37:23.261851+00:00",
+    "sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+    "bytes": 507,
+    "headers": {
+      "ETag": "\"1784720347\"",
+      "Content-Type": "application/json;charset=UTF-8",
+      "Content-Length": "507",
+      "Date": "Tue, 13 Oct 2026 06:37:23 GMT"
+    },
+    "destination": {
+      "id": "6PxfQ1g48SrbplzGd6UH",
+      "lat": 46.1914178,
+      "lng": -122.195606,
+      "name": "Mount Saint Helens",
+      "ordinal": 1,
+      "features": [
+        "volcano",
+        "summit"
+      ],
+      "state_code": null,
+      "country_code": null,
+      "external_ids": {
+        "peakbagger": "2353",
+        "listsofjohn": "16737"
+      },
+      "route_id": "8To4Xn3jQ1GJXQWMuj0m"
+    }
+  },
+  {
+    "file": "point-YtzjvQqup3gqmAYnz0l4.json",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-121.075696%2C%22y%22%3A48.47542%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+    "retrievedAt": "2026-10-13T06:37:23.249113+00:00",
+    "sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+    "bytes": 507,
+    "headers": {
+      "ETag": "\"1784720347\"",
+      "Content-Type": "application/json;charset=UTF-8",
+      "Content-Length": "507",
+      "Date": "Tue, 13 Oct 2026 06:37:23 GMT"
+    },
+    "destination": {
+      "id": "YtzjvQqup3gqmAYnz0l4",
+      "lat": 48.47542,
+      "lng": -121.075696,
+      "name": "Cascade Pass Trailhead",
+      "ordinal": 0,
+      "features": [
+        "trailhead"
+      ],
+      "state_code": null,
+      "country_code": null,
+      "external_ids": {},
+      "route_id": "adeCrmBWh2nHbbSH9btr"
+    }
+  },
+  {
+    "file": "point-APWWTYFkwvuUFc3TP1m9.json",
+    "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-121.038632%2C%22y%22%3A48.491113%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+    "retrievedAt": "2026-10-13T06:37:23.249194+00:00",
+    "sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+    "bytes": 507,
+    "headers": {
+      "ETag": "\"1784720347\"",
+      "Content-Type": "application/json;charset=UTF-8",
+      "Content-Length": "507",
+      "Date": "Tue, 13 Oct 2026 06:37:23 GMT"
+    },
+    "destination": {
+      "id": "APWWTYFkwvuUFc3TP1m9",
+      "lat": 48.491113,
+      "lng": -121.038632,
+      "name": "Sahale Peak",
+      "ordinal": 1,
+      "features": [
+        "summit"
+      ],
+      "state_code": null,
+      "country_code": null,
+      "external_ids": {},
+      "route_id": "adeCrmBWh2nHbbSH9btr"
+    }
+  }
+]

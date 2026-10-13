@@ -1,0 +1,2221 @@
+{
+  "version": 1,
+  "mode": "read_only_saved_evidence_review",
+  "input_hashes": {
+    "metadata-dry-run.json.rejections.jsonl": "a4274e12d01c2e458c0c900cbd3d104616b82d57b788bff929f7d414e00cc663",
+    "metadata-apply.json.rejections.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "preflight.rejected.jsonl": "7047e8fdfbc590948c889308ae5dc3e7c490ad57609394d74cb23fed19cd23ca",
+    "path-estimate-diagnostics.txt": "6263e96abcf9850cf1aaddc8936888c5a178a806d588f55be970739ff7c0c34a"
+  },
+  "count": 190,
+  "counts": {
+    "region_only": 38,
+    "zero_distance_elevation_jump": 15,
+    "missing_first_trailhead": 14,
+    "legacy_no_segments_or_shape": 120,
+    "long_distance_routes": 3
+  },
+  "metadata_only_repair": {
+    "linked_region_values_available": 0,
+    "census_verified_destination_proposals": 4,
+    "routes_whose_region_blocker_can_be_resolved": 2,
+    "route_ids": [
+      "8To4Xn3jQ1GJXQWMuj0m",
+      "adeCrmBWh2nHbbSH9btr"
+    ],
+    "proposal": "census-region-repair-20261013/proposal.json",
+    "applied": false,
+    "remaining_gates": "Fresh unchanged metadata plans required; previous region-only rejection skipped path timing."
+  },
+  "findings": {
+    "region_only": "38 routes have exactly two destination links and all 76 places lack state. No direct catalog-link fallback remains. Four existing Washington destinations now have hashed Census evidence. The 72 places on the other 36 routes remain outside the US repair scope.",
+    "zero_distance_elevation_jump": "All 15 are 3D and finite; each has exactly one same-XY/different-Z edge. Removing or averaging that vertex would invent an elevation decision. Inspect source and ordered segment elevations, then use a reviewed exact-XY reprofile only if independent source evidence supports it.",
+    "elevation_job_limitation": "Existing route-elevation-jobs.ts candidates test missing/encoded profile, real elevation range, gain/loss mismatch, and segment profiles. Existing finite ranged profiles can be reused without detecting same-XY/different-Z edges; blindly rerunning it is not a demonstrated repair. No elevation worker change is proposed here.",
+    "missing_first_trailhead": "All 14 have one destination and one segment. This is missing identity/access evidence, not a harmless ordinal renumbering. Bind an existing real source-supported trailhead at the actual start within the unchanged limit or rebuild through the source graph.",
+    "legacy_no_segments_or_shape": "All 120 have zero segment links and no shape; preserve route identity and require real source geometry/shared matcher before new links. Do not infer shape or fabricate segments from route names. Two missing summit identities (Rattlesnake Ledge and Camp Muir) need kind/objective review rather than invented summit links.",
+    "long_distance_routes": "AT/CDT/PCT have no destination joins, missing gain/loss, old non-OSM source kinds, and multi-region extent. Keep a separate reviewed traverse task; no metadata-only repair clears their blockers."
+  },
+  "groups": {
+    "region_only": [
+      {
+        "route_id": "0x4EiGAP5HchuDuliqtd",
+        "name": "Großglockner via Lucknerhaus Normal Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "AFD21967E06AA9D81BA1",
+        "trailhead_id": "9A6A7F33A62D50654883"
+      },
+      {
+        "route_id": "1BlUsDSyYVgTrFfe8bkU",
+        "name": "Gunung Agung via Besakih",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "rDewl9rzLJCn3OFqqefi",
+        "trailhead_id": "36D61C3CB8C94CB0DEF5"
+      },
+      {
+        "route_id": "2xoPbzgxN9qADWruqqff",
+        "name": "Cap de la Pala de Montferri via Aguiró",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "150D6CD3C632787134B5",
+        "trailhead_id": "648A2C09ABD6B624DAE6"
+      },
+      {
+        "route_id": "5HeC6oXic3y1k0XaPbXq",
+        "name": "Pico Duarte via La Ciénaga",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "ixsWw1fEt9y9HL7Ind5Q",
+        "trailhead_id": "D3AD9873F15B412F85D9"
+      },
+      {
+        "route_id": "8Bj0ryavUtKX4ekuNkKc",
+        "name": "Chamechaude via Col de Porte",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "6916E6CB5E5C45C02499",
+        "trailhead_id": "169808D1CD6E1D75D218"
+      },
+      {
+        "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+        "name": "Mount Saint Helens via Monitor Ridge",
+        "reasons": [
+          "state_missing",
+          "country_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "6PxfQ1g48SrbplzGd6UH",
+        "trailhead_id": "Ndsk2Ad2F6r9sXR8cK0m"
+      },
+      {
+        "route_id": "95yXW3tJARmUe12NfOo6",
+        "name": "Blue Mountain Peak via Whitfield Hall",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "49FDCFD09E5245350B50",
+        "trailhead_id": "8E6B8DD8AF59D25E6C4A"
+      },
+      {
+        "route_id": "adeCrmBWh2nHbbSH9btr",
+        "name": "Sahale Peak via Cascade Pass and Sahale Glacier",
+        "reasons": [
+          "state_missing",
+          "country_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "APWWTYFkwvuUFc3TP1m9",
+        "trailhead_id": "YtzjvQqup3gqmAYnz0l4"
+      },
+      {
+        "route_id": "bdbSRKQdb7VeYd8a5SIL",
+        "name": "Mount Ararat via South Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "DhPNvjb5FeG85XuFWLkW",
+        "trailhead_id": "45A42543142CAD2DA995"
+      },
+      {
+        "route_id": "BtWXVibEMVrSWz9jJNXy",
+        "name": "Col Nudo via Pieve d'Alpago",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "144BC5ECD52DC039FADA",
+        "trailhead_id": "DF80CDAA92247B907408"
+      },
+      {
+        "route_id": "c4sdMzSqAhK7evZvOTSQ",
+        "name": "Mount Stanley via the Central Circuit",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "sYJrDZqm11M4CSUPhpuD",
+        "trailhead_id": "C2E119BEE6AF1DE83769"
+      },
+      {
+        "route_id": "eWPuOSoE2uk6KM1vziGf",
+        "name": "Damavand via South Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "8RtxmvglalqMYeuCTLvS",
+        "trailhead_id": "4D7B93615A5D4EFBB62A"
+      },
+      {
+        "route_id": "GAOZrKhPoHkvON17jKXa",
+        "name": "Galdhøpiggen via Spiterstulen",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "m4uY4lFUvGzD98G1lhfN",
+        "trailhead_id": "EF52874C9D0B345F2AD4"
+      },
+      {
+        "route_id": "HSrouR4E0ybnz37hLNGq",
+        "name": "Gunung Tambora via Pancasila",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "EE823F72482FCF46BEE8",
+        "trailhead_id": "C6A2F96D1A04D339E9F1"
+      },
+      {
+        "route_id": "hTTfNKdZgl3jRGmF24nj",
+        "name": "Gunung Mulu via Summit Trail",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "F05DDBC67BB98513312A",
+        "trailhead_id": "E14AC375D3BAA8196F20"
+      },
+      {
+        "route_id": "IcW2zYZB7eUCb6ZLR4zC",
+        "name": "Cerro El Pital via Rio Chiquito",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "F7683C7595CC8D9D29D0",
+        "trailhead_id": "8806E9ABC713551D1D54"
+      },
+      {
+        "route_id": "K7HlMn1qHI9gkPFd8kna",
+        "name": "Gran Paradiso via Pont Normal Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "2E5FFFF77936BBE3C5D7",
+        "trailhead_id": "A17DB58D2952ED0446C3"
+      },
+      {
+        "route_id": "KLc1i8Y7VFEndWxECEqw",
+        "name": "Vinson Massif via Branscomb Glacier",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "ZuM8euuEHwaMw580RZxQ",
+        "trailhead_id": "AC104C1E48DAA30F8B7B"
+      },
+      {
+        "route_id": "KzdPpPKF472koaNoLlRx",
+        "name": "Ojos del Salado via Chilean Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "nJSKqdQBa1xYcHDUQIEl",
+        "trailhead_id": "E596F194581523774022"
+      },
+      {
+        "route_id": "LhCaP1sd03avvuKOPBG1",
+        "name": "Grande Tête de l'Obiou via Voie Normale",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "1829DB119FADE67F6223",
+        "trailhead_id": "A95EDB5947FF6F5A9940"
+      },
+      {
+        "route_id": "odFgVT1h4nIuXmDL9EJp",
+        "name": "Cima Presanella via Southeast Normal Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "3801FA71EE036A954BED",
+        "trailhead_id": "177BFA89F62675D89243"
+      },
+      {
+        "route_id": "Pj2fzFgQ3W9Xar43i2SM",
+        "name": "Hvannadalshnúkur via Sandfellsleið",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "0DBABC022BE0C28EC0A2",
+        "trailhead_id": "0504EA4C0CB9E07CA37B"
+      },
+      {
+        "route_id": "ps0eeiGOwnjAsKbpd13C",
+        "name": "Kaçkar Dağı via Olgunlar",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "0B0D31ACF975E37AA8BA",
+        "trailhead_id": "B784FCE13C6832C3F0D1"
+      },
+      {
+        "route_id": "QgUrWxy8QDdexp26ONSl",
+        "name": "Fansipan via Tram Ton Pass",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "5BEF4058E29D86131779",
+        "trailhead_id": "D4B4A310CC2A021EDFB0"
+      },
+      {
+        "route_id": "rB04wEqY2JQXh6QggSSf",
+        "name": "Barre des Écrins via Normal West Ridge",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "30FBA25F6A12506D101B",
+        "trailhead_id": "B60AD3BB339C44E7BB05"
+      },
+      {
+        "route_id": "si7LOlsDIJmQUAKqcKqG",
+        "name": "Birnhorn via Passauer Hütte",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "23FA59371BF7F4527E53",
+        "trailhead_id": "AF3E95C2D8B74106E219"
+      },
+      {
+        "route_id": "sKHsjjrI0k195fO7f7HL",
+        "name": "Bazardüzü via South Ridge",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "E76B57745511A983B759",
+        "trailhead_id": "B0A9F84A795CC32DC321"
+      },
+      {
+        "route_id": "SnFF3CM0lwsWLT4D6hVQ",
+        "name": "Hikurangi via Te Ara ki Hikurangi",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "AB15EC56DCD8C13EF7B0",
+        "trailhead_id": "19923BB8275BD9BBC83B"
+      },
+      {
+        "route_id": "Vl8R91V52VKHEgrzvLHA",
+        "name": "Alam Kuh via Hesarchal South Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "l8vfhxIz6oIUdqQxDDUA",
+        "trailhead_id": "0AFD34ECA465755224F1"
+      },
+      {
+        "route_id": "vPcJckNZfljNtZzHyfca",
+        "name": "Antelao via Rifugio Scotter-Palatini",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "FD2AFAD0E92F8F2B0181",
+        "trailhead_id": "BBF6ABB37744B902E07B"
+      },
+      {
+        "route_id": "w34UW6V1DrA70VCCSigz",
+        "name": "Kilimanjaro via Rongai Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "BTBfbfEUzMayfHi5PUcZ"
+      },
+      {
+        "route_id": "wliEOmF55aYTx3RIGd9m",
+        "name": "Mount Meru via Momella Route",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "t1OWpDACiQTxHuy25sFB",
+        "trailhead_id": "9D354DE69E6518EF93B8"
+      },
+      {
+        "route_id": "wU15lSZQWfACxX6FPqet",
+        "name": "Jebel M'Goun via Arousse and Tarkeddit",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "0FEDD2B9EC2B88DF3DC8",
+        "trailhead_id": "7140073B00C6B9DFB290"
+      },
+      {
+        "route_id": "xiyZaCIUToP5JvKYfqEZ",
+        "name": "Volcán Tajumulco via San Sebastián",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "7FqoDdqPnf090rhSpRhA",
+        "trailhead_id": "1C68030FEE25B8A740BD"
+      },
+      {
+        "route_id": "XlsKKOg6hDxloaBLqbMG",
+        "name": "Gunung Kerinci via Pintu Rimba",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "ACyWTKuB03iS0A1FPdQG",
+        "trailhead_id": "C78E40E05CED9B8311F2"
+      },
+      {
+        "route_id": "YbMq1nu24C0rxlB60tWE",
+        "name": "Cerro Chirripó via San Gerardo de Rivas",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "oc7lq28ODgtcO9MbnA6k",
+        "trailhead_id": "5AF0564414D833661C54"
+      },
+      {
+        "route_id": "Ygc9ypnZdiCflEG2AEiD",
+        "name": "Gerlachovský štít via Velická and Batizovská Próba",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "91A3B223635D9D35116E",
+        "trailhead_id": "B56797F14E6217570842"
+      },
+      {
+        "route_id": "ziXbllonHZvmDMGghMV8",
+        "name": "Imarivolanitra via Pic Boby Base Camp",
+        "reasons": [
+          "state_missing"
+        ],
+        "source_kind": "openstreetmap",
+        "objective_id": "57A3C9C3D3091A48A558",
+        "trailhead_id": "DA84BCB70D20490C1FB6"
+      }
+    ],
+    "zero_distance_elevation_jump": [
+      {
+        "route_id": "1LZT1kDgrLW9pDwrf8zT",
+        "name": "Cerro Las Minas via Celaque",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "3D2EE484CD00B4F67473",
+        "trailhead_id": "D84E4BDE2C2221FC54F6",
+        "timing_diagnostics": {
+          "name": "Cerro Las Minas via Celaque",
+          "dimensions": 3,
+          "points": 200,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "3Aitt1ERk5KyJPuq9Mou",
+        "name": "Denali via West Buttress",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "dLAIe934cvPFKnjhB0hW",
+        "trailhead_id": "2417E1F0DAE3CAD17FF3",
+        "timing_diagnostics": {
+          "name": "Denali via West Buttress",
+          "dimensions": 3,
+          "points": 241,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "3Qu7jUpuf2s8Rppie5xY",
+        "name": "Aconcagua via the Normal Route",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "i6txA8Zm2g849hxUyogx",
+        "trailhead_id": "C5A6710FC6BA42003B7E",
+        "timing_diagnostics": {
+          "name": "Aconcagua via the Normal Route",
+          "dimensions": 3,
+          "points": 1004,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "6ecb9lItJZFoUvnLgdrM",
+        "name": "Diamond Peak via East Ridge",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "qpHrtElXFEnpBS0N4K2q",
+        "trailhead_id": "DD26116C08C972637917",
+        "timing_diagnostics": {
+          "name": "Diamond Peak via East Ridge",
+          "dimensions": 3,
+          "points": 158,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "9eZAzBxuftciiNHgebgF",
+        "name": "Pico da Bandeira via Tronqueira",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "fdkdpS00x35N0JRNyJGy",
+        "trailhead_id": "49927E3C6A1608479E4D",
+        "timing_diagnostics": {
+          "name": "Pico da Bandeira via Tronqueira",
+          "dimensions": 3,
+          "points": 2396,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "9mf0SZW7vTEnbwiRbeSD",
+        "name": "Marmolejo via West Slope",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "R2x4iZi5tF4wfI4dntHz",
+        "trailhead_id": "42D2AE5216434133E5BF",
+        "timing_diagnostics": {
+          "name": "Marmolejo via West Slope",
+          "dimensions": 3,
+          "points": 142,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "ECoZC4aNYJuYAnlxyYis",
+        "name": "Mount Kosciuszko via Summit Walk",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "MsFlUhY0bBEZd8GiPJg1",
+        "trailhead_id": "E1A6D492E12025800989",
+        "timing_diagnostics": {
+          "name": "Mount Kosciuszko via Summit Walk",
+          "dimensions": 3,
+          "points": 183,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "heKA3OjpBv1DHw95Q5s7",
+        "name": "Gannett Peak via Glacier Trail and Gooseneck Glacier",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "IPE6mR4ooQVc0xWYrqbT",
+        "trailhead_id": "E9A02E2B7C07149458E9",
+        "timing_diagnostics": {
+          "name": "Gannett Peak via Glacier Trail and Gooseneck Glacier",
+          "dimensions": 3,
+          "points": 1764,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "M0u52NOjI9qfOcr9v6Md",
+        "name": "Wheeler Peak via Summit Trail",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "hWFWni7L3jiYB87CgRpP",
+        "trailhead_id": "F2D5A981A175CDAF83EB",
+        "timing_diagnostics": {
+          "name": "Wheeler Peak via Summit Trail",
+          "dimensions": 3,
+          "points": 269,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "PHtpA6ChUirkEE3dQavK",
+        "name": "Mount Elbrus via the South Route",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "JtHzkU6Z7baLiNgBc4Jj",
+        "trailhead_id": "DA5D2D4E9168255FA397",
+        "timing_diagnostics": {
+          "name": "Mount Elbrus via the South Route",
+          "dimensions": 3,
+          "points": 154,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "qLWVNWfLqYcZwG95AT11",
+        "name": "Bashful Peak via West Ridge",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "190E73FC2E4B3E4FD1D1",
+        "trailhead_id": "136548F626ECB807F628",
+        "timing_diagnostics": {
+          "name": "Bashful Peak via West Ridge",
+          "dimensions": 3,
+          "points": 283,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "SRszsmv5DNY3u4B9Ggkg",
+        "name": "Borah Peak via Southwest Ridge",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "H5NfTgDpK52oHTw28Xwc",
+        "trailhead_id": "F3394CA0F3F5C87EEB47",
+        "timing_diagnostics": {
+          "name": "Borah Peak via Southwest Ridge",
+          "dimensions": 3,
+          "points": 591,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "Te2d51z8LaVTt41S19Ub",
+        "name": "Sacajawea Peak via Hurricane Creek",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "NUCpKoRs3Taz8l3YcesF",
+        "trailhead_id": "C7D44D604E17425EAE3F",
+        "timing_diagnostics": {
+          "name": "Sacajawea Peak via Hurricane Creek",
+          "dimensions": 3,
+          "points": 463,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "wH0piwu9SEQnVCuAFQGX",
+        "name": "Mount Arvon via Summit Trail",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "wFCH3a5ICakJST9TckbG",
+        "trailhead_id": "35CC2D02AAC7D0193EA4",
+        "timing_diagnostics": {
+          "name": "Mount Arvon via Summit Trail",
+          "dimensions": 3,
+          "points": 8,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      },
+      {
+        "route_id": "YTiaxb3yLlJyiumhC5at",
+        "name": "Star Peak via Eldorado Canyon Road",
+        "reasons": [
+          "path_estimate_unavailable"
+        ],
+        "source_kind": null,
+        "objective_id": "DDH0uhu1VqPd6l63QJp4",
+        "trailhead_id": "FDA8BF0A64D326FFE64C",
+        "timing_diagnostics": {
+          "name": "Star Peak via Eldorado Canyon Road",
+          "dimensions": 3,
+          "points": 940,
+          "nonfinite_vertices": 0,
+          "zero_distance_z_jumps": 1
+        }
+      }
+    ],
+    "missing_first_trailhead": [
+      {
+        "route_id": "AOCSvgvnhW5nd8dPei6J",
+        "name": "Grays Peak Kelso Ridge",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "29XhN18XdxRgJrDN3ORu",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "csnl5dNWecRG6SM1FszM",
+        "name": "Pikes Peak via Barr Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Ln1hCCowUcCWHwzEx5ug",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "D3fevwtILCSZnm1ruYO8",
+        "name": "Mount Columbia Mt. Harvard Columbia Traverse",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "hkLgY0UDdEq26w2abBjO",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "FypOCrHlmOuQfPISTYkX",
+        "name": "Missouri Mountain Missouri Mountain Northwest Ridge",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "X6uF7xDeu7tJoKzmNIVE",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "G0PNxk1RMFfl72jLkaem",
+        "name": "Mount Elbert via Black Cloud Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xJywSSofd1SVJkJaGwBe",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "jRmVvhLaNdjkU5cSG8NE",
+        "name": "Culebra Peak Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "KWfYUSq87ozVQKjKZErn",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "kOcxdqiystGwdXXqp2Rf",
+        "name": "Mount Blue Sky Mount Blue Sky Ridge Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PaeawK81bgByWN53rffv",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "M24BEW9Kw5gJHKJQojZ2",
+        "name": "Mount Columbia Mount Columbia West Slopes",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "3gQ89KZ3iOsxSFnE6MCc",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "Mlt50cwbdUFdvzS1YyOY",
+        "name": "Maroon Peak Maroon Peak Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "AKaXhpV8IzSe7KQYXtzp",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "NH46EXVm9toZRrWqpzOb",
+        "name": "Missouri Mountain Mount Belford Missouri Gulch Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "JXBcEeWtDF6eKwxP2ss7",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "TrLvh38SE4YRQWocUeDh",
+        "name": "Mount Harvard Mount Harvard Horn Fork Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "hkLgY0UDdEq26w2abBjO",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "UTCZwOG9gpxVh6AkBCwk",
+        "name": "Mount Elbert North Mount Elbert Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xJywSSofd1SVJkJaGwBe",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "yZjqoBCUFjRnrHjC0qZY",
+        "name": "La Plata Peak La Plata Peak Northwest Ridge Standard",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vUXv7h8FNFFx7fWO32St",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "Z3d05cJB4w5iWQoUrZFJ",
+        "name": "Mount Elbert South Mount Elbert Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xJywSSofd1SVJkJaGwBe",
+        "trailhead_id": null
+      }
+    ],
+    "legacy_no_segments_or_shape": [
+      {
+        "route_id": "090SSFjydzTy6N7iEKNW",
+        "name": "South Side - Old Chutes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "24oH6YsreFZywhPtDA7i",
+        "name": "West Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "bJIAN1DEBZE1H9xlB2Yx",
+        "trailhead_id": "kWtlphLvqKCvat0jNxNT"
+      },
+      {
+        "route_id": "27R5TffdY2vw4iHnmIJj",
+        "name": "Emmons Glacier Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Tg5URBHkVwPA1gGKKB4Q",
+        "trailhead_id": "tZnYCho7ZqhUE7QUr4QS"
+      },
+      {
+        "route_id": "3dFRIqoC3X4TxdzL4FJX",
+        "name": "Casaval Ridge Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_id": "IndH9uszgfS7eybmL1r0"
+      },
+      {
+        "route_id": "3FxSjw4T7YCEK6WadIc9",
+        "name": "Southwest Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "jut1CGdCI1gbQaL5f4Ai",
+        "trailhead_id": "4QQ4f6N57qrDcTdJaaxQ"
+      },
+      {
+        "route_id": "4gkUxiJyoPVyJWokOinE",
+        "name": "Mailbox Peak Old Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "5hVnUW4tmqj3A6YbU0oB",
+        "trailhead_id": "GHg65nKUeQhQU3D9A7ie"
+      },
+      {
+        "route_id": "4jhHhNidClxMk1MfVDHo",
+        "name": "West Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "BM4y2gvTbqY6R9bGJjUl",
+        "trailhead_id": "tTqrcXqhwyekaL5tHVvd"
+      },
+      {
+        "route_id": "4qEvfKAzYWoVQLDN5GtS",
+        "name": "West Ridge from Summit Lake",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PaeawK81bgByWN53rffv",
+        "trailhead_id": "ZbDGgLmmE7AlheUZUMNj"
+      },
+      {
+        "route_id": "5Jocjpur9FKaXqTbA1ys",
+        "name": "Dirty Harry's Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "cFnuEO4sNQpGb6iyUw9i",
+        "trailhead_id": "Gy1CiHPkQB3hNun2aGo1"
+      },
+      {
+        "route_id": "5Ne2w5fr0m6q4C3CUtie",
+        "name": "Rattlesnake Ledge Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": null,
+        "trailhead_id": "mYvmhUZcU6cRzWNzy9Pi"
+      },
+      {
+        "route_id": "78PrHiPheauIk0Phmcg5",
+        "name": "Mt. Pugh Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "75ilB65EBMzsJvS47GBk",
+        "trailhead_id": "uar3cs7pkI4T1SAyL70A"
+      },
+      {
+        "route_id": "7FSLrL4MNjYbuHTixoCx",
+        "name": "Northeast Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "zdctkXXuU98V7Z81J7l2",
+        "trailhead_id": "wTLX0XBMLP1BmAqRkKqk"
+      },
+      {
+        "route_id": "9hwfh3TJNKqvKFH5zcmv",
+        "name": "Newton Clark Headwall",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "9ndYlvIF0ILMi5cVXSgo",
+        "name": "Coleman Deming Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_id": "fUknbXzLC4TcmnfrV7b1"
+      },
+      {
+        "route_id": "ahOj3zL8oO4fpV47OFyk",
+        "name": "Garfield Ridge Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "first_trailhead_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "wpCvAQphggswkLWJQiKQ",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "alnBkdLIQWoxpHrq3j0v",
+        "name": "East Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "4a8eYUyZT4EeA3ZWG7ZE",
+        "trailhead_id": "z78H0XsldDLIVRbDgzyw"
+      },
+      {
+        "route_id": "bC9tNlO9h6Ppe1ks6NYi",
+        "name": "Southeast Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "7eBGBJ5P4dSxFVFpdWAs",
+        "trailhead_id": "gYQlhWgzZMUPsbvALvDF"
+      },
+      {
+        "route_id": "cR0AvyqveuMQu6B2jcZy",
+        "name": "Summer Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PgzctH47O0uNNnY0TXvK",
+        "trailhead_id": "tY5YGI51hoU6Lraqte6E"
+      },
+      {
+        "route_id": "D55uJL7Ws5zbDAhOB26B",
+        "name": "Standard",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sIPZMiglQ111c8X0HzVL",
+        "trailhead_id": "iUYWPDvIKR2bWqOuJg62"
+      },
+      {
+        "route_id": "Doy2zxkxrBmlzasLBSdV",
+        "name": "Box Creek Couloirs",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xJywSSofd1SVJkJaGwBe",
+        "trailhead_id": "ToRaXD1iiOCstY8ThSdx"
+      },
+      {
+        "route_id": "DYHF6hF7BqX5VkK2Knrn",
+        "name": "Devils Backbone",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sIPZMiglQ111c8X0HzVL",
+        "trailhead_id": "iUYWPDvIKR2bWqOuJg62"
+      },
+      {
+        "route_id": "E0jNYqvOc97UfHnGaOqd",
+        "name": "North Face",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "9tbSlX3kPZbs5hq1xEBl"
+      },
+      {
+        "route_id": "EiQIO3e5pExNCrMglg9D",
+        "name": "Coe Glacier",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "9tbSlX3kPZbs5hq1xEBl"
+      },
+      {
+        "route_id": "eKeVhuI16gnaJlS90nc4",
+        "name": "North Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "bRE1ayiwpfQlXiLJkLLI",
+        "trailhead_id": "lWuZlk7s093GiwO9yVxU"
+      },
+      {
+        "route_id": "esOhCTEvfGNOCVOR73jg",
+        "name": "Chirico Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Yfu5QdaOWeuxpSXiN5rK",
+        "trailhead_id": "rQKXSjXerrmfQpTLAWbM"
+      },
+      {
+        "route_id": "F3BEVgZxLiTuVeOFe9mX",
+        "name": "Clear Creek Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_id": "guOCWQuCtoVoBv4FVEGh"
+      },
+      {
+        "route_id": "fbKUB9o08Hf5Xs4EeK5E",
+        "name": "West Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "3gQ89KZ3iOsxSFnE6MCc",
+        "trailhead_id": "my4kybOapAUSwl8OSpIq"
+      },
+      {
+        "route_id": "FcUIKOWVkSyQsqTGDEGY",
+        "name": "Cooper Spur",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "fGPC2NSLAnznhxs8LOMP",
+        "name": "Northwest Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "JXBcEeWtDF6eKwxP2ss7",
+        "trailhead_id": "QmDaq30n9eVcj0sss8uD"
+      },
+      {
+        "route_id": "fmuDoQ9D58YDqT0sIs2w",
+        "name": "South Climb",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Metyj9Oty2TnImkGhPsE",
+        "trailhead_id": "jXA6aSVbxBSw2YfdwI4Q"
+      },
+      {
+        "route_id": "fSHZk8ioXWIjUNPnTgMU",
+        "name": "Dead Dog Couloir",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "29XhN18XdxRgJrDN3ORu",
+        "trailhead_id": "lWuZlk7s093GiwO9yVxU"
+      },
+      {
+        "route_id": "Fui7wRpiC0hubCukJxeS",
+        "name": "Park Glacier Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_id": "YrY4pASUl5BnnFOW81yW"
+      },
+      {
+        "route_id": "fWKMFjqNt3ujDfr8Avz2",
+        "name": "Sandy Headwall",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "gCscJF593nTsMdp1Z6EE",
+        "name": "Kelso Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "29XhN18XdxRgJrDN3ORu",
+        "trailhead_id": "lWuZlk7s093GiwO9yVxU"
+      },
+      {
+        "route_id": "GhtrDufnJaapbafZI0zQ",
+        "name": "Sunrise Mine Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nPBQThQOcpJz8nyeWbR9",
+        "trailhead_id": "XLa1zJkp509hptdzHZ0A"
+      },
+      {
+        "route_id": "GvvlRD5GY4QoPyDzunNd",
+        "name": "Navaho Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "7V7jrtV7CHpLqxH8QAno",
+        "trailhead_id": "r4cD3dhtRsAEdmmXmlOT"
+      },
+      {
+        "route_id": "gZoKcidRFdBCNYMJC0xc",
+        "name": "Pumpelly Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "YhxmMJE5KqAsa2jMYlrs",
+        "trailhead_id": "H61azRSg0ZrtzaXJ42eC"
+      },
+      {
+        "route_id": "hHwSD16aZo4SLHgrRQ0x",
+        "name": "South Col Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "3Q1lVpAXWZFx146E6NUF",
+        "trailhead_id": "2Xoi9JKVAd0tydzWHtVl"
+      },
+      {
+        "route_id": "hJwT8jB4nBaRg7ZwhGKv",
+        "name": "Sulphide Glacier",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "dg1agFR89EivHNOiFvbp",
+        "trailhead_id": "C7DIt5NTV75ZcFXoaGvY"
+      },
+      {
+        "route_id": "HOusfQaJKREXQiAoJukY",
+        "name": "Mt. Dickerman Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "6bEVoR1JeyKOSESucTr6",
+        "trailhead_id": "jFY1nQyccADIShzUBq4s"
+      },
+      {
+        "route_id": "HTYI4BoN79TWTA5GgDHX",
+        "name": "Steel Cliffs",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "hwSq44gVJUIavkKqPIzZ",
+        "name": "Grays and Torreys",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "29XhN18XdxRgJrDN3ORu",
+        "trailhead_id": "lWuZlk7s093GiwO9yVxU"
+      },
+      {
+        "route_id": "HY5RuRNroyNoHvVhaenc",
+        "name": "Southwest Couloir",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "lTBztUOvhj79YWPEtGGV",
+        "trailhead_id": "Od1xhYmqvBKHLZoYjdBV"
+      },
+      {
+        "route_id": "i6R8ahGmHljrm4nGmLp1",
+        "name": "Disappointment Cleaver Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Tg5URBHkVwPA1gGKKB4Q",
+        "trailhead_id": "xaMGyHut8CoGCSkCPKh6"
+      },
+      {
+        "route_id": "INRBmN9IOw444hd4A4OD",
+        "name": "Mount Washington Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "r9HjMIl6XlEO1N1ygPAZ",
+        "trailhead_id": "fNTpKo4Yb4J9RTfi2VAr"
+      },
+      {
+        "route_id": "iufwHEWy2ZrAe7IIUAdW",
+        "name": "White Dot Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "YhxmMJE5KqAsa2jMYlrs",
+        "trailhead_id": "P0NlbaNGLy1HN5fohVv3"
+      },
+      {
+        "route_id": "ixoEIxqMl64fp4Bn5spL",
+        "name": "Northwest Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vUXv7h8FNFFx7fWO32St",
+        "trailhead_id": "WZEM37t8nT6ZQB7GYmyh"
+      },
+      {
+        "route_id": "JCkyLyIdh7ncU9TJX7qS",
+        "name": "Upper Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "WE1VnyDBS7ZCvRNN9IIk",
+        "trailhead_id": "ePbOQ47zGB2ZGH1pvZIb"
+      },
+      {
+        "route_id": "jEE8nUHR4pLO1u9SXXIy",
+        "name": "Northeast Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xJywSSofd1SVJkJaGwBe",
+        "trailhead_id": "Kjq3kauKVWWpAlA3jGJH"
+      },
+      {
+        "route_id": "jeQxxmW42VYZPNkWib2F",
+        "name": "North Face Couloirs",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "X6uF7xDeu7tJoKzmNIVE",
+        "trailhead_id": "QmDaq30n9eVcj0sss8uD"
+      },
+      {
+        "route_id": "jHr2TQqtxvrwSzjUdoWN",
+        "name": "South Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "29XhN18XdxRgJrDN3ORu",
+        "trailhead_id": "lWuZlk7s093GiwO9yVxU"
+      },
+      {
+        "route_id": "jkqllU29OWYwUfUB3IqZ",
+        "name": "Standard Approach",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "21Qvbk4eOYlIluGZ8SVi",
+        "trailhead_id": "540cgEeyvHgwrX2XzC0R"
+      },
+      {
+        "route_id": "jmknzzFJ3PWDfTZukeJE",
+        "name": "Bean Creek Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "S6bomi07ir2hUp5cdiA4",
+        "trailhead_id": "xj5AH92QVWeI9CqWwhr9"
+      },
+      {
+        "route_id": "kFgJ51lgLSgZVJ0gQwwe",
+        "name": "Northwest Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "X6uF7xDeu7tJoKzmNIVE",
+        "trailhead_id": "QmDaq30n9eVcj0sss8uD"
+      },
+      {
+        "route_id": "KG89JzIf3B07ppaWjLxm",
+        "name": "Mailbox Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "5hVnUW4tmqj3A6YbU0oB",
+        "trailhead_id": "GHg65nKUeQhQU3D9A7ie"
+      },
+      {
+        "route_id": "Kj8HDm0QRzXmKVAUUe3K",
+        "name": "West Ridge from Guanella Pass",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PaeawK81bgByWN53rffv",
+        "trailhead_id": "tTqrcXqhwyekaL5tHVvd"
+      },
+      {
+        "route_id": "kxm6AFbOE49XkukJzCJa",
+        "name": "Register Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sIPZMiglQ111c8X0HzVL",
+        "trailhead_id": "iUYWPDvIKR2bWqOuJg62"
+      },
+      {
+        "route_id": "L7fJG5VMQHQZFPb1zaqb",
+        "name": "Southwest Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "4a8eYUyZT4EeA3ZWG7ZE",
+        "trailhead_id": "hCSZSUu8Q2UUAQ2yynKR"
+      },
+      {
+        "route_id": "LCP7d9cOBv8NlQMtR59S",
+        "name": "North Face",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vUXv7h8FNFFx7fWO32St",
+        "trailhead_id": "WZEM37t8nT6ZQB7GYmyh"
+      },
+      {
+        "route_id": "LNG6r2mbOqpr9PVGvJQp",
+        "name": "Bean Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "elREhc1iUNtsZdCqEsNW",
+        "trailhead_id": "xj5AH92QVWeI9CqWwhr9"
+      },
+      {
+        "route_id": "LQM43utM8EHQvKMyRZSW",
+        "name": "West Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vzLIxWvpCNt5NRMZCn7y",
+        "trailhead_id": "kWtlphLvqKCvat0jNxNT"
+      },
+      {
+        "route_id": "lX3ud1QVMmGB7mCLYv6a",
+        "name": "Squak Glacier Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_id": "4MarMwXWVeKiBvTZmJBU"
+      },
+      {
+        "route_id": "MEm3hzs3qh5AF2NiMYZx",
+        "name": "Reid Headwall",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "mjFQmrA2gM5DthtRN47h",
+        "name": "East Slope",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "uD3KLNLtafSljo4iN9SY",
+        "trailhead_id": "kWtlphLvqKCvat0jNxNT"
+      },
+      {
+        "route_id": "MOLH6dqJjDQPykIZCot0",
+        "name": "South Slope",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "uD3KLNLtafSljo4iN9SY",
+        "trailhead_id": "kWtlphLvqKCvat0jNxNT"
+      },
+      {
+        "route_id": "niODuNfcgkqSSFrspiMK",
+        "name": "East Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "S5Joo6Fgtjk6f59gxcMT",
+        "trailhead_id": "kAMkpZCVZ840WdzrJWsV"
+      },
+      {
+        "route_id": "nktpfoy5dV052KmdJTkX",
+        "name": "McClellan Butte Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PdjbLWGT2PbND3gLblcf",
+        "trailhead_id": "uAcBmvvrmEJHrZCawUEn"
+      },
+      {
+        "route_id": "nss4ieEq1f3D8aMf8BAT",
+        "name": "South Face",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "hkLgY0UDdEq26w2abBjO",
+        "trailhead_id": "my4kybOapAUSwl8OSpIq"
+      },
+      {
+        "route_id": "nUeKo8AEX3arbSb9T7Lv",
+        "name": "Northeast Ridge Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "3Q1lVpAXWZFx146E6NUF",
+        "trailhead_id": "W17P4boD63wBNH0iXuNK"
+      },
+      {
+        "route_id": "o0kz32DXQ0VnPiXrDRsH",
+        "name": "Northeast Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sFbELsbcmKZkRLRjOz7v",
+        "trailhead_id": "wTLX0XBMLP1BmAqRkKqk"
+      },
+      {
+        "route_id": "OMEcWgBWjgx2RVqu8gj6",
+        "name": "Easton Glacier Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_id": "4MarMwXWVeKiBvTZmJBU"
+      },
+      {
+        "route_id": "pfc6sQxGlVLjgtuLIRME",
+        "name": "East Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ACZ7LK1ylzviRjAnqGXI",
+        "trailhead_id": "X7ptHdjrMh3Z8MXoccnX"
+      },
+      {
+        "route_id": "PH5GxeqMMnmjS0TZQsd5",
+        "name": "West Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "APrX6gPjcEvBlXRYv177",
+        "trailhead_id": "kWtlphLvqKCvat0jNxNT"
+      },
+      {
+        "route_id": "PlrSkPA9MbXsSMCxyar4",
+        "name": "Hotlum Bolam Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_id": "YiIUJK8U8M5ac0J62xrO"
+      },
+      {
+        "route_id": "PSCsw31oloqFVNspzsuO",
+        "name": "Rongai",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "BTBfbfEUzMayfHi5PUcZ"
+      },
+      {
+        "route_id": "Puao5A4TjowesY05CpSK",
+        "name": "Cathedral Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "iZu4SObhJbd10nF7ZxsA"
+      },
+      {
+        "route_id": "Q4tbKTNo2sNe6Dz3SDr9",
+        "name": "Mount Teneriffe Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "LAG3Glmi6mUYNr64ixDz",
+        "trailhead_id": "QyRZnRksI3wwOoqroNgn"
+      },
+      {
+        "route_id": "qdn32HnzkeMaXkoNe9wN",
+        "name": "Standard Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "WE1VnyDBS7ZCvRNN9IIk",
+        "trailhead_id": "iO8whOkbbpYqwQPnx1tP"
+      },
+      {
+        "route_id": "qDTw77gRBuVYGtr563td",
+        "name": "Angel of Shavano",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vrIu213OXo4Q5NZ8HWDS",
+        "trailhead_id": "miBFkPPb387DmlUDo3ms"
+      },
+      {
+        "route_id": "qojql4CaD3IF6GZfW0TE",
+        "name": "Worm Flows Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "6PxfQ1g48SrbplzGd6UH",
+        "trailhead_id": "QXyzmy0wOkGE4vrrTCU2"
+      },
+      {
+        "route_id": "qugwKJ8fnh7aypkLzmV2",
+        "name": "Mount Si Teneriffe Connector",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "first_trailhead_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "LAG3Glmi6mUYNr64ixDz",
+        "trailhead_id": null
+      },
+      {
+        "route_id": "QwtCZfQKywhMVYKIlpWa",
+        "name": "South Side - Pearly Gates",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "QZdoMV62KialSnOGgL91",
+        "name": "Marangu",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "I0kkoNIUCVyK7gJcxETX"
+      },
+      {
+        "route_id": "Raae0D46LF3rTkRgcYtT",
+        "name": "Southwest Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "S5Joo6Fgtjk6f59gxcMT",
+        "trailhead_id": "kGO1bWGkIa5PbwyrrhlV"
+      },
+      {
+        "route_id": "RVzkbi2H0IQpgb8V3iOS",
+        "name": "Leuthold Couloir",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "rwAq7mL75z1UUUhCGCD3",
+        "name": "West Crater Rim",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "s9dU4zerroFKqlaa366l",
+        "name": "Miller Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "QTSVKhJkL13weNH53TEc",
+        "trailhead_id": "AoqSPtTMpekCtavH8R3Y"
+      },
+      {
+        "route_id": "sqAWGByVi99NFtSshmZ4",
+        "name": "South Ridge",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "AKaXhpV8IzSe7KQYXtzp",
+        "trailhead_id": "wTLX0XBMLP1BmAqRkKqk"
+      },
+      {
+        "route_id": "SqsZA07zm6JRpb4mkiLp",
+        "name": "Fisher Chimneys",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "dg1agFR89EivHNOiFvbp",
+        "trailhead_id": "hCcII1TjyZiQ31g2Wn99"
+      },
+      {
+        "route_id": "t5sFELKwD7vRjGaNrmOk",
+        "name": "Appalachian Trail - 13 NH",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "C6quyfEJeKDny4s7i9mC",
+        "trailhead_id": "cwOTuTjTJiIE8iDAhkLT"
+      },
+      {
+        "route_id": "T6Z7E2LK5tvkI7d4BxBF",
+        "name": "West Face Gully Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_id": "IndH9uszgfS7eybmL1r0"
+      },
+      {
+        "route_id": "t7GxkDEDF0HYXsyYwm99",
+        "name": "Mount Pilchuck Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "iAD3EhqmkKVKXBjJjprj",
+        "trailhead_id": "E65jXwR5gzXhiQc4ak6l"
+      },
+      {
+        "route_id": "TiLsS9IZaJLQYzFcDrfr",
+        "name": "East Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "dpuQzdyZiRvdFgpqrx3b",
+        "trailhead_id": "811yh819k9q83K0wHztu"
+      },
+      {
+        "route_id": "TOI6GVr0RCXSvnadNV4G",
+        "name": "West Gully",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PaeawK81bgByWN53rffv",
+        "trailhead_id": "ZbDGgLmmE7AlheUZUMNj"
+      },
+      {
+        "route_id": "TwtcjNrZPobYjAIh45Ns",
+        "name": "Standard Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "uqOvTNvOs0Wa70ydHSI3",
+        "trailhead_id": "iKvu3gxIwug5V3XnKfDl"
+      },
+      {
+        "route_id": "UCoP0AYisQpoPE0s8KnU",
+        "name": "Wy'east",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "mLxwInopoaT8JEsKeLxY"
+      },
+      {
+        "route_id": "udVIF1p2hT3Qx3LtTzbG",
+        "name": "Machame",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "nPqF6QjKmu9UWWCnKiZw"
+      },
+      {
+        "route_id": "uiZrDE6PqOeFxcJlaWmS",
+        "name": "Sunshine",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "ERm0v7h6iCoEW5lLUUqF",
+        "trailhead_id": "9tbSlX3kPZbs5hq1xEBl"
+      },
+      {
+        "route_id": "uQGqLlMDI0qbJC5Q9C1h",
+        "name": "Mountaineer's Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Ta8deqYutGWWgheXfg4q",
+        "trailhead_id": "RDpU7khIbnt748zmPxrI"
+      },
+      {
+        "route_id": "V10xAATa0q84iW1mwF2X",
+        "name": "Standard Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xj2uKeFee6rtlrs5Gicf",
+        "trailhead_id": "kik4rV48qHWDLNCVVqVJ"
+      },
+      {
+        "route_id": "vCSQtpXtZXZEBDhdxKOR",
+        "name": "West Ridge from Echo Lake",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PaeawK81bgByWN53rffv",
+        "trailhead_id": "DRdTQesmLINMLP4d7qYN"
+      },
+      {
+        "route_id": "vKaEy0fIXHppin0CNOg7",
+        "name": "Lemosho",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "iqHKxU6FMIvgE57JIIn1"
+      },
+      {
+        "route_id": "vKC7TJ80pwvojfeZYVWj",
+        "name": "East Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "jUTeZ9y4WuZSj3KdlR7n",
+        "trailhead_id": "cgAWI8ErXy8KfhIwk000"
+      },
+      {
+        "route_id": "vqUg8SLRsay3Cotb6zmk",
+        "name": "Kamikaze Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "LAG3Glmi6mUYNr64ixDz",
+        "trailhead_id": "QyRZnRksI3wwOoqroNgn"
+      },
+      {
+        "route_id": "vRcRBFdHpY30bkipKCvk",
+        "name": "Northern Circuit",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG",
+        "trailhead_id": "iqHKxU6FMIvgE57JIIn1"
+      },
+      {
+        "route_id": "vWhrqkXERoN0nC86vKyR",
+        "name": "Northwest Gully",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "JXBcEeWtDF6eKwxP2ss7",
+        "trailhead_id": "QmDaq30n9eVcj0sss8uD"
+      },
+      {
+        "route_id": "W4eSRaFSoVnnThbPNggO",
+        "name": "North Ridge Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_id": "fUknbXzLC4TcmnfrV7b1"
+      },
+      {
+        "route_id": "whvKZyztqB1ncVabFFtR",
+        "name": "Mount Si Old Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nSf6z4vL0zjdG2sXibBM",
+        "trailhead_id": "7etiVGkvGugHxmFja3xK"
+      },
+      {
+        "route_id": "WnPn3ExI3l2QjJTgnDUM",
+        "name": "Mount Oxford - Via Mount Belford",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vPnR2QLCTiB37K3I2xf2",
+        "trailhead_id": "QmDaq30n9eVcj0sss8uD"
+      },
+      {
+        "route_id": "WY4XqyuQ1K6NvR95GUPB",
+        "name": "South Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "hkLgY0UDdEq26w2abBjO",
+        "trailhead_id": "my4kybOapAUSwl8OSpIq"
+      },
+      {
+        "route_id": "XAuGRMujBSdcuAmQzYPB",
+        "name": "Camp Muir Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": null,
+        "trailhead_id": "xaMGyHut8CoGCSkCPKh6"
+      },
+      {
+        "route_id": "xrcPH1bzGIhsel7sxhKa",
+        "name": "South Sister Climber Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "hE6VofcenDylHFMiq5H9",
+        "trailhead_id": "FpjtGOajWyhzVW3r40gv"
+      },
+      {
+        "route_id": "yCf5BuBuc6Z2bNxgShuA",
+        "name": "Winter Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "PgzctH47O0uNNnY0TXvK",
+        "trailhead_id": "GpIy58YjN1lJRg14OypO"
+      },
+      {
+        "route_id": "YnPSmAcjI5depNfbhvSl",
+        "name": "Avalanche Gulch Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_id": "IndH9uszgfS7eybmL1r0"
+      },
+      {
+        "route_id": "yRwq5XUUWNMicEr7KKsM",
+        "name": "Tabeguache Peak - Via Mount Shavano",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "tf3NMg4AL534BpudTsGJ",
+        "trailhead_id": "miBFkPPb387DmlUDo3ms"
+      },
+      {
+        "route_id": "YYQag1GLA2Q1lnu0aTsy",
+        "name": "Little Si",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "xHaYBgzoxgfAZNLTfWid",
+        "trailhead_id": "7etiVGkvGugHxmFja3xK"
+      },
+      {
+        "route_id": "z2gHia5Sc7SJuq1Ub24G",
+        "name": "Tolmie Peak Trail",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "htqW9lCp974x1tEWD8t7",
+        "trailhead_id": "9ofuJq1VreK93jZgCjcF"
+      },
+      {
+        "route_id": "ZeI7xmy2uVHmRCUqjtYO",
+        "name": "Northwest Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "jut1CGdCI1gbQaL5f4Ai",
+        "trailhead_id": "4QQ4f6N57qrDcTdJaaxQ"
+      },
+      {
+        "route_id": "zmOynqSip5YHIBJG1DdK",
+        "name": "East Slopes",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "vrIu213OXo4Q5NZ8HWDS",
+        "trailhead_id": "miBFkPPb387DmlUDo3ms"
+      },
+      {
+        "route_id": "zpMvIjzNzPjQCcBbz1ht",
+        "name": "Liberty Ridge Route",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ],
+        "source_kind": null,
+        "objective_id": "Tg5URBHkVwPA1gGKKB4Q",
+        "trailhead_id": "tZnYCho7ZqhUE7QUr4QS"
+      }
+    ],
+    "long_distance_routes": [
+      {
+        "route_id": "triple-crown-at",
+        "name": "Appalachian Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ],
+        "source_kind": "nps-atc",
+        "objective_id": null,
+        "trailhead_id": null
+      },
+      {
+        "route_id": "triple-crown-cdt",
+        "name": "Continental Divide Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ],
+        "source_kind": "cdtc",
+        "objective_id": null,
+        "trailhead_id": null
+      },
+      {
+        "route_id": "triple-crown-pct",
+        "name": "Pacific Crest Trail",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ],
+        "source_kind": "pcta",
+        "objective_id": null,
+        "trailhead_id": null
+      }
+    ]
+  }
+}
