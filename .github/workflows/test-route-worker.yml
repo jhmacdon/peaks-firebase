@@ -84,6 +84,7 @@ jobs:
 
       - name: Check route activation
         run: |
+          npm run build:petrics
           npx tsc --noEmit --pretty false
           npm run lint -- --max-warnings=0
         working-directory: web

@@ -1,0 +1,150 @@
+import { strict as assert } from "node:assert";
+import { randomUUID } from "node:crypto";
+import { after, test } from "node:test";
+import db from "../db";
+import { buildMixedSearchQueries } from "../routes/search";
+import { rankSearchResults, SearchBuckets } from "../lib/search-ranking";
+import { normalizeSearchName } from "../search-utils";
+import { dbSkipReason } from "./helpers/test-db";
+
+after(async () => { await db.end(); });
+
+// These small, rolled-back fixtures test search signals and ordering only.
+// Their names are the product design's golden queries, not imported trail data.
+test("golden trail queries execute against real PostgreSQL names, aliases, objectives, and shared segments", {
+  skip: dbSkipReason ?? undefined,
+}, async (t) => {
+  const client = await db.connect();
+  const prefix = `search-golden-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  const user = id("viewer");
+  await client.query("BEGIN");
+  try {
+    const destinations = [
+      ["mount-si", "Mount Si", "summit"],
+      ["little-si", "Little Si", "summit"],
+      ["ingalls-peak", "Ingalls Peak", "summit"],
+      ["ingalls-lake", "Ingalls Lake", "lake"],
+      ["lake-serene", "Lake Serene", "lake"],
+      ["trailhead", "Golden Fixture Trailhead", "trailhead"],
+    ];
+    for (const [key, name, feature] of destinations) {
+      await client.query(
+        `INSERT INTO destinations (id, name, search_name, features, state_code, country_code)
+         VALUES ($1, $2, $3, ARRAY[$4::destination_feature], 'WA', 'US')`,
+        [id(key), name, normalizeSearchName(name), feature]
+      );
+    }
+    const routes = [
+      { key: "si-trail", name: "Mount Si Trail", kind: "summit", objective: "mount-si", aliases: ["Si Trail"], popularity: 1000 },
+      { key: "little-trail", name: "Little Si", kind: "summit", objective: "little-si", aliases: ["Little Si Trail"], popularity: 0 },
+      { key: "lake-trail", name: "Ingalls Lake via Ingalls Way", kind: "destination", objective: "ingalls-lake", aliases: ["Ingalls Lake Trail"], popularity: 0 },
+      { key: "peak-trail", name: "Ingalls Peak South Ridge", kind: "summit", objective: "ingalls-peak", aliases: [], popularity: 0 },
+      { key: "serene-trail", name: "Lake Serene Trail", kind: "destination", objective: "lake-serene", aliases: ["First alias", ...Array.from({ length: 12 }, (_, n) => `Unrelated approach alternative ${n}`), "Bridal Veil Lake Hike"], popularity: 0 },
+      { key: "objective-only", name: "A Hidden Approach", kind: "destination", objective: "lake-serene", aliases: [], popularity: 0 },
+    ];
+    for (const route of routes) {
+      await client.query(
+        `INSERT INTO routes (id, name, owner, status, kind, objective_destination_id,
+          trailhead_destination_id, aliases, popularity, state_code, country_code)
+         VALUES ($1, $2, $3, 'active', $4, $5, $6, $7::text[], $8, 'WA', 'US')`,
+        [id(route.key), route.name, user, route.kind, id(route.objective), id("trailhead"), route.aliases, route.popularity]
+      );
+    }
+    // Only the named hikes appear in the four product ordering checks. The
+    // objective-only row is held pending until its separate matching check.
+    await client.query("UPDATE routes SET status = 'pending' WHERE id = $1", [id("objective-only")]);
+    for (const [key, names] of [
+      ["ingalls-shared", ["Trail 1390", "Ingalls Way", "Esmeralda Connector"]],
+      ["si-shared", ["Mount Si Trail"]],
+    ] as const) {
+      await client.query("INSERT INTO segments (id, trail_names) VALUES ($1, $2::text[])", [id(key), names]);
+    }
+    for (const [route, segment] of [["lake-trail", "ingalls-shared"], ["peak-trail", "ingalls-shared"], ["si-trail", "si-shared"], ["little-trail", "si-shared"]]) {
+      await client.query("INSERT INTO route_segments (route_id, segment_id) VALUES ($1, $2)", [id(route), id(segment)]);
+    }
+
+    const search = async (query: string, geo = false, viewer = user) => {
+      const queries = buildMixedSearchQueries({
+        normalizedQuery: normalizeSearchName(query), rawQuery: query, limit: 20, uid: viewer,
+        ...(geo ? { lat: 47.5, lng: -121.5 } : {}),
+      });
+      const buckets: SearchBuckets = { destinations: [], routes: [], areas: [], lists: [] };
+      for (const key of ["destinations", "routes", "areas", "lists"] as const) {
+        buckets[key] = (await client.query(queries[key].text, queries[key].values)).rows
+          .filter((row) => row.id.startsWith(prefix));
+      }
+      return { buckets, results: rankSearchResults(buckets, queries.limit) };
+    };
+
+    await t.test("mount si ranks the peak before its popular trail, then Little Si", async () => {
+      const { results } = await search("mount si");
+      assert.deepEqual(results.slice(0, 3).map((r) => r.id), [id("mount-si"), id("si-trail"), id("little-trail")]);
+      assert.equal((await search("Mount Si Trail")).results[0].id, id("si-trail"));
+    });
+
+    await t.test("ingalls ranks the lake hike, peak, then lake", async () => {
+      const { results } = await search("ingalls");
+      assert.deepEqual(results.slice(0, 3).map((r) => r.id), [id("lake-trail"), id("ingalls-peak"), id("ingalls-lake")]);
+    });
+
+    await t.test("ingalls way finds both routes through their one shared segment", async () => {
+      const { buckets, results } = await search("ingalls way");
+      assert.deepEqual(results.slice(0, 2).map((r) => r.id), [id("lake-trail"), id("peak-trail")]);
+      assert.ok(buckets.routes.some((r) => r.id === id("peak-trail")), "the peak route has no Ingalls Way name or alias");
+      const shared = await client.query("SELECT count(DISTINCT route_id)::int AS count FROM route_segments WHERE segment_id = $1", [id("ingalls-shared")]);
+      assert.equal(shared.rows[0].count, 2);
+    });
+
+    await t.test("lake serene ranks its hike above its objective, including null geometry with geo ranking", async () => {
+      for (const geo of [false, true]) {
+        const { results } = await search("lake serene", geo);
+        assert.deepEqual(results.slice(0, 2).map((r) => r.id), [id("serene-trail"), id("lake-serene")]);
+        assert.ok(results.every((r) => Number.isFinite(r.score)));
+      }
+    });
+
+    await t.test("later aliases and trail names match short token prefixes", async () => {
+      await client.query(
+        `INSERT INTO routes (id, name, owner, status)
+         SELECT $1 || '-private-' || n, 'Esmeralda Private ' || n, $2, 'active'
+         FROM generate_series(1, 250) n`,
+        [prefix, id("other-viewer")]
+      );
+      assert.ok((await search("br")).buckets.routes.some((r) => r.id === id("serene-trail")));
+      assert.ok((await search("es")).buckets.routes.some((r) => r.id === id("peak-trail")), "only a later shared trail name starts with es");
+      assert.equal((await search("Bridal Veil Lake Hike")).results[0].id, id("serene-trail"));
+    });
+
+    await t.test("typos match one later alias or trail name without whole-array dilution", async () => {
+      assert.equal((await search("Bridal Veil Lake Hikf")).results[0].id, id("serene-trail"));
+      assert.ok((await search("ingallz way")).buckets.routes.some((r) => r.id === id("peak-trail")));
+    });
+
+    await t.test("an explicit objective matches without a route_destinations link", async () => {
+      await client.query("UPDATE routes SET status = 'active' WHERE id = $1", [id("objective-only")]);
+      assert.ok((await search("lake serene")).buckets.routes.some((r) => r.id === id("objective-only")));
+    });
+
+    await t.test("pending and private routes stay out of results", async () => {
+      assert.equal((await search("ingalls", false, id("other-viewer"))).buckets.routes.length, 0);
+      await client.query("UPDATE routes SET status = 'pending' WHERE id = $1", [id("lake-trail")]);
+      assert.ok(!(await search("ingalls way")).buckets.routes.some((r) => r.id === id("lake-trail")));
+    });
+
+    await t.test("lists join the ranked results and retain destination and trail counts", async () => {
+      await client.query("INSERT INTO lists (id, name, owner) VALUES ($1, 'Ingalls Hikes', $2), ($3, 'Ingalls Private', $4)", [id("list"), user, id("private-list"), id("other-viewer")]);
+      await client.query("INSERT INTO list_destinations (list_id, destination_id) VALUES ($1, $2)", [id("list"), id("ingalls-lake")]);
+      await client.query("INSERT INTO list_routes (list_id, route_id) VALUES ($1, $2)", [id("list"), id("peak-trail")]);
+      const { buckets, results } = await search("Ingalls Hikes");
+      assert.equal(results[0].type, "list");
+      assert.equal(results[0].id, id("list"));
+      assert.equal(buckets.lists[0].destination_count, 1);
+      assert.equal(buckets.lists[0].route_count, 1);
+      assert.ok(!(await search("Ingalls Private")).buckets.lists.some((l) => l.id === id("private-list")));
+    });
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+});
