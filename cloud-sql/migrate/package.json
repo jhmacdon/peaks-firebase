@@ -55,6 +55,7 @@
     "audit:kfs-trail-archive": "tsx src/find-kfs-trail-geometry.ts",
     "render:osm-route-candidate": "tsx src/render-osm-route-candidate.ts",
     "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",
+    "routes:pilot": "./scripts/run-tsx.sh src/trail-catalog-pilot.ts",
     "routes:integrity-repairs": "./scripts/run-tsx.sh src/route-integrity-repairs.ts",
     "routes:audit-jobs": "./scripts/run-tsx.sh src/route-catalog-audit-jobs.ts",
     "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts",

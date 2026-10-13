@@ -76,7 +76,7 @@ test("keeps an exact compatible shared segment", async () => {
   });
   assert.equal(materialized, false);
   assert.equal(queries.length, 2);
-  assert.match(queries[1].text, /candidate\.provenance IS NOT DISTINCT FROM \$4::jsonb/);
+  assert.match(queries[1].text, /route_segment_provenance_compatible\(candidate\.provenance, \$4::jsonb\)/);
   assert.match(queries[1].text, /abs\(ST_X\(segment_points\.geom\) - ST_X\(slice_points\.geom\)\) <= 1e-9/);
   assert.match(queries[1].text, /abs\(ST_Z\(segment_points\.geom\) - ST_Z\(slice_points\.geom\)\) <= 0\.01/);
   assert.match(queries[1].text, /candidate\.stored_gain IS NOT DISTINCT FROM candidate\.computed_gain/);
@@ -214,4 +214,15 @@ test("does not hide a failed reuse check", async () => {
     }),
     /reuse check unavailable/
   );
+});
+
+test("automatic imports reject unsafe reuse without making a duplicate segment", async () => {
+  const { client } = clientReturning(false);
+  let created = false;
+  await assert.rejects(chooseActivationSegmentReference({
+    client, existingSegmentId: "shared", points, direction: "forward", routeProvenance: null,
+    requireReuse: true,
+    createRouteSpecificSegment: async () => { created = true; return "duplicate"; },
+  }), /existing_segment_reuse_rejected:shared/);
+  assert.equal(created, false);
 });

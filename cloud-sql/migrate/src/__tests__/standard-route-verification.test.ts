@@ -10,6 +10,11 @@ const route = {
   owner: "peaks",
   status: "active",
   provenance_valid: true,
+  kind: null,
+  objective_destination_id: null,
+  trailhead_destination_id: null,
+  kind_contact_valid: true,
+  source_coverage_valid: true,
   point_count: 20,
   elevation_string: Buffer.from(
     Array.from({ length: 20 }, (_, index) => String(1_000 + index)).join("|")
@@ -549,4 +554,36 @@ test("public route query serializes final destination features as JSON", () => {
     api,
     /SELECT\s+to_jsonb\(final_destination\.features\)[\s\S]+?AS final_destination_features/
   );
+});
+
+
+test("named destination, traverse, and loop verification uses kind contact and exact public parity", async (t) => {
+  for (const kind of ["destination", "traverse", "loop"]) {
+    await t.test(kind, async () => {
+      const sample = { ...route, kind, objective_destination_id: kind === "loop" ? null : "objective-1",
+        trailhead_destination_id: "trailhead-1", summit_count: 0, summit_fault_count: 0,
+        summit_max_gap_meters: null, endpoint_gap_meters: 100,
+        shape: kind === "loop" ? "loop" : kind === "traverse" ? "point_to_point" : "out_and_back",
+        final_destination_features: kind === "destination" ? ["lake"] : ["trailhead"],
+        destination_ids: kind === "loop" ? ["trailhead-1"] : kind === "traverse"
+          ? ["trailhead-1", "objective-1", "end-trailhead"] : ["trailhead-1", "objective-1"],
+        destination_features: kind === "loop" ? [["trailhead"]] : kind === "traverse"
+          ? [["trailhead"], ["lake"], ["trailhead"]] : [["trailhead"], ["lake"]] };
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => new Response(JSON.stringify(sample), { status: 200 });
+      const source = { async query<T extends Record<string, unknown>>() { return { rows: [sample as unknown as T] }; } };
+      const input = { routeId: "route-1", destinationId: kind === "loop" ? "trailhead-1" : "objective-1",
+        trailheadId: "trailhead-1", publicBaseUrl: "https://example.test" };
+      try {
+        assert.equal((await verifyStandardRoute(source, input)).verdict, "PASS");
+        sample.kind_contact_valid = false;
+        const blocked = await verifyStandardRoute(source, input);
+        assert.equal(blocked.gates.objective_contact, false);
+        assert.equal(blocked.verdict, "FAIL");
+        sample.kind_contact_valid = true;
+        sample.source_coverage_valid = false;
+        assert.equal((await verifyStandardRoute(source, input)).gates.provenance, false);
+      } finally { globalThis.fetch = originalFetch; }
+    });
+  }
 });

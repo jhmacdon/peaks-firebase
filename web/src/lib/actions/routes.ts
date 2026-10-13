@@ -12,7 +12,7 @@ import {
   type RouteProvenance,
   type RouteProvenanceInput,
 } from "../route-provenance";
-import { extractSubPoints } from "../segment-geometry";
+import { splitSegmentAtVertices, splitSegmentPieceIndices } from "../segment-geometry";
 import { routeDoneCoverageSql } from "../route-coverage";
 import {
   chooseActivationSegmentReference,
@@ -1105,10 +1105,10 @@ async function acceptRouteWithSegmentsUnchecked(
 
     for (const split of decomposition.splits) {
       const segResult = await client.query(
-        `SELECT ST_AsGeoJSON(path::geometry) AS geojson, name, provenance FROM segments WHERE id = $1`,
+        `SELECT ST_AsGeoJSON(path::geometry, 15) AS geojson, name, provenance FROM segments WHERE id = $1 FOR UPDATE`,
         [split.originalSegmentId]
       );
-      if (segResult.rows.length === 0) continue;
+      if (segResult.rows.length !== 1) throw new Error(`segment_split_missing:${split.originalSegmentId}`);
 
       const geo = JSON.parse(segResult.rows[0].geojson);
       const origPoints = (geo.coordinates as number[][]).map(
@@ -1119,21 +1119,12 @@ async function acceptRouteWithSegmentsUnchecked(
               d += haversineDistance(arr[j-1][1], arr[j-1][0], arr[j][1], arr[j][0]);
             }
           }
-          return { lat: c[1], lng: c[0], ele: c[2] || 0, dist: d };
+          return { lat: c[1], lng: c[0], ele: c[2], dist: d };
         }
       );
 
-      const totalDist = origPoints[origPoints.length - 1].dist;
-      const cuts = [0, ...split.fractions, 1];
       const subSegIds: string[] = [];
-
-      for (let i = 0; i < cuts.length - 1; i++) {
-        const startDist = cuts[i] * totalDist;
-        const endDist = cuts[i + 1] * totalDist;
-
-        const subPoints = extractSubPoints(origPoints, startDist, endDist);
-        if (subPoints.length < 2) continue;
-
+      for (const subPoints of splitSegmentAtVertices(origPoints, split)) {
         const subId = generateId();
         subSegIds.push(subId);
         const subWkt = pointsToLineStringZ(subPoints);
@@ -1208,17 +1199,13 @@ async function acceptRouteWithSegmentsUnchecked(
         );
       } else if (seg.type === "split") {
         const subIds = splitResults.get(seg.parentSegmentId!);
-        if (subIds) {
-          const split = decomposition.splits.find(s => s.originalSegmentId === seg.parentSegmentId);
-          if (split) {
-            const cuts = [0, ...split.fractions, 1];
-            for (let i = 0; i < cuts.length - 1; i++) {
-              if (seg.startFraction! >= cuts[i] - 0.01 && seg.endFraction! <= cuts[i + 1] + 0.01 && i < subIds.length) {
-                routeSegRefs.push({ segmentId: subIds[i], direction: seg.direction || "forward" });
-                break;
-              }
-            }
-          }
+        const split = decomposition.splits.find(item => item.originalSegmentId === seg.parentSegmentId);
+        if (!subIds || !split || subIds.length !== split.vertexIndices.length + 1) {
+          throw new Error(`segment_split_result_missing:${seg.parentSegmentId}`);
+        }
+        const direction = seg.direction || "forward";
+        for (const index of splitSegmentPieceIndices(split, seg.segmentStartIndex, seg.segmentEndIndex, direction)) {
+          routeSegRefs.push({ segmentId: subIds[index], direction });
         }
       } else {
         const newId = await insertRouteSpecificActivationSegment({

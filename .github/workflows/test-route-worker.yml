@@ -56,6 +56,10 @@ jobs:
         run: npm ci
         working-directory: cloud-sql/migrate
 
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
       - name: Provision disposable route database
         run: ./cloud-sql/test-db/provision.sh
         env:
@@ -77,10 +81,6 @@ jobs:
         run: |
           .agents/skills/peaks-route-factory/scripts/test_worker_checkout_resolution.sh
           node --test .claude/skills/peaks-route-catalog-audit/scripts/route_audit_tools.test.mjs
-
-      - name: Install web dependencies
-        run: npm ci
-        working-directory: web
 
       - name: Check route activation
         run: |

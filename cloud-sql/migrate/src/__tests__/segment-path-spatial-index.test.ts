@@ -9,7 +9,7 @@ const migration = readFileSync(
 );
 const schema = readFileSync(resolve(__dirname, "../../../schema.sql"), "utf8");
 const matcher = readFileSync(
-  resolve(__dirname, "../../../../web/src/lib/actions/segment-matcher.ts"),
+  resolve(__dirname, "../../../../web/src/lib/segment-matcher-core.ts"),
   "utf8"
 );
 

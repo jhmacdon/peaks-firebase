@@ -29,6 +29,8 @@ type ExistingSegmentReuseInput = {
   direction: "forward" | "reverse";
   routeProvenance: string | null;
   forceRouteSpecific?: boolean;
+  /** Importers must report an unsafe proposed reuse, not create a duplicate. */
+  requireReuse?: boolean;
   createRouteSpecificSegment: () => Promise<string>;
 };
 
@@ -93,7 +95,7 @@ COALESCE((
 ), false) AS stats_match,
 COALESCE((
   SELECT is_valid_route_provenance(candidate.provenance)
-    AND candidate.provenance IS NOT DISTINCT FROM $4::jsonb
+    AND route_segment_provenance_compatible(candidate.provenance, $4::jsonb)
   FROM candidate
 ), false) AS provenance_matches,
 point_checks.segment_points,
@@ -217,6 +219,10 @@ export async function chooseActivationSegmentReference(
       segmentId: input.existingSegmentId,
       direction: input.direction,
     };
+  }
+
+  if (input.requireReuse) {
+    throw new Error(`existing_segment_reuse_rejected:${input.existingSegmentId}`);
   }
 
   return {
