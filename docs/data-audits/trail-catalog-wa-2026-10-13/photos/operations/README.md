@@ -1,5 +1,12 @@
 # Photo queue import
 
+Production audit 115 rolled back all 15 proposed inserts. Audit 116 committed
+those same 15 pending candidates with the reviewed hash. Audit 117 found all
+15 already queued and planned zero changes. Every run verified unchanged
+destination hero fields; none approved a photo or activated a route. See the
+[dry report](production-dry-1.jsonl), [apply report](production-apply-1.jsonl),
+[replay](production-replay-1.jsonl), and [database receipts](production-receipts.json).
+
 Run from the Firebase task checkout with the operator database profile already
 loaded. This command adds licensed photo proposals to the existing admin queue.
 Human review still decides whether to approve each photo. It never writes

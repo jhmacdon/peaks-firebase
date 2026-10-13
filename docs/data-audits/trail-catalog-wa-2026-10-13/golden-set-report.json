@@ -40,6 +40,13 @@
         "newSegmentCount": 13,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "1755CBB232F3FCC6A437",
+        "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -77,6 +84,13 @@
         "newSegmentCount": 0,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "4EDA7A56C36153040635",
+        "candidateId": "vNACg3f2NioMeR2qdBjX",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -114,6 +128,13 @@
         "newSegmentCount": 4,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "4F56621F3FF823F6A480",
+        "candidateId": "goxoEUevbtTLEgWOBQ2T",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -207,7 +228,14 @@
         "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "RedSHjLLfieFAySd8gFZ",
+        "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:4152034",
@@ -241,7 +269,14 @@
         "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "3F941B9F4262007D704D",
+        "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:4829792",
@@ -303,7 +338,14 @@
         "detail": "research_source_gap: Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann.",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+        "candidateId": "ITkoNEc-0dHINLIDz6gG",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5553769",
@@ -351,7 +393,14 @@
         "detail": "terrain_review_required: way 162157943: alpine_hiking ",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "nSf6z4vL0zjdG2sXibBM",
+        "candidateId": "xxoCzbZ6wudjscAe788b",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:6106367",
@@ -393,7 +442,14 @@
         "detail": "objective_source_gap",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "xHaYBgzoxgfAZNLTfWid",
+        "candidateId": "sLF3JFQL61nB2nK78F2f",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5588030",
@@ -441,6 +497,13 @@
         "newSegmentCount": 3,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "7F9130E5AAEC9213E123",
+        "candidateId": "NtXYecChVsFWyawb22Q0",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -478,6 +541,13 @@
         "newSegmentCount": 20,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "C21AD354B7FEA99C277F",
+        "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -555,7 +625,14 @@
         "detail": "objective_source_gap",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+        "candidateId": "RuNcafBQAXNpAfNZMuCb",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:7147738",
@@ -597,11 +674,18 @@
         "detail": "terrain_review_required: way 312552541: demanding_mountain_hiking intermediate",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+        "candidateId": "RuNcafBQAXNpAfNZMuCb",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:6632394",
-      "name": "Heather\u2013Maple Pass Loop",
+      "name": "Heather–Maple Pass Loop",
       "kind": "loop",
       "sourceCandidate": {
         "distanceM": null,
@@ -612,7 +696,7 @@
         "difficultyReason": "No complete source profile is available for a valid estimate.",
         "lossM": null,
         "estMovingSeconds": null,
-        "proposedName": "Heather\u2013Maple Pass Loop"
+        "proposedName": "Heather–Maple Pass Loop"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Heather Maple Pass Loop",
@@ -659,7 +743,14 @@
         "detail": "access_closed: WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence.",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "9B40DE76DC0878A92331",
+        "candidateId": "3QHwUgURE8ts4_kWO639",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5537770",
@@ -696,6 +787,13 @@
         "newSegmentCount": 4,
         "reusedSegmentIds": [],
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "FF006293EBCD1BBDA398",
+        "candidateId": "fw-ML4vsorEL5j7sl4im",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
       }
     },
     {
@@ -738,7 +836,14 @@
         "detail": "research_source_gap: Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists.",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+        "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5194384",
@@ -780,7 +885,14 @@
         "detail": "access_closed: NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open.",
         "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
-      "segmentPlan": null
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "htqW9lCp974x1tEWD8t7",
+        "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+        "coverGateCleared": false
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5537775",
@@ -831,7 +943,9 @@
     "databaseDryRun": "production-dry-run-a4ac8e38b23c-pending-plan.jsonl",
     "candidateEstimates": "candidate-estimates-a4ac8e38b23c.json",
     "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
-    "search": "production-search.json"
+    "search": "production-search.json",
+    "photos": "photos/README.md",
+    "photoQueue": "photos/operations/production-replay-1.jsonl"
   },
   "summary": {
     "candidates": 21,
@@ -844,6 +958,10 @@
     "routesActivated": 0,
     "goldenPass": false,
     "pendingImportReady": 4,
-    "sourceOverlapBlocked": 1
+    "sourceOverlapBlocked": 1,
+    "pendingPhotoCandidates": 15,
+    "routesWithPendingPhoto": 16,
+    "unresolvedPhotoRoutes": 3,
+    "photosApproved": 0
   }
 }

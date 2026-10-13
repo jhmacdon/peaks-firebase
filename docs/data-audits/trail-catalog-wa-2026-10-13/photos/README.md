@@ -1,8 +1,8 @@
 # Washington trail cover review — 2026-10-13
 
-15 licensed place photos are ready for the existing pending review queue. They could cover 16 of 19 current cover gaps after human approval. Three trailheads remain unresolved: northern Tipsoo Lake, Rainy Pass, and Stuart Lake. All routes stay pending.
+15 licensed place photos are now in the existing production review queue, all pending. They could cover 16 of 19 current cover gaps after human approval. Three trailheads remain unresolved: northern Tipsoo Lake, Rainy Pass, and Stuart Lake. No route was inserted or activated.
 
-The input is `cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json`. `photos/review.json` binds each File page, image SHA-1, raw metadata SHA-256, catalog place, and golden route. Public request receipts and raw replies live under `photos/sources/`; every inspected file outcome and missing place appears in `outcomes.jsonl`. This work made no database writes and adds $0/month in fixed cost.
+The input is `cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json`. `photos/review.json` binds each File page, image SHA-1, raw metadata SHA-256, catalog place, and golden route. Public request receipts and raw replies live under `photos/sources/`; every inspected file outcome and missing place appears in `outcomes.jsonl`. Source research made no database writes. The [queue import](operations/README.md) then added 15 pending proposals after a rollback preview; replay planned zero changes. All destination hero fields stayed unchanged. Added fixed cost is $0/month.
 
 Each full frame below was checked in the Commons browser preview. Framing points are proposals. Keep the author, File-page credit, and license link. If the app crops a photo, show “cropped from original.” Preserve share-alike terms for any CC BY-SA adaptation. Camera points describe the camera, not the depicted summit; no missing point was inferred.
 

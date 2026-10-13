@@ -8,6 +8,8 @@ A separate bounded Lake Serene discovery read 10 catalog places and reported all
 
 The [schema rollout](schema-rollout-20261013/README.md) records seven applied migrations and two source-backed trailheads. The [factory login preview](factory-login-setup/production-preview.json) passed and rolled back; permanent setup awaits Josiah’s approval under the worker contract. The approved cover fallback is licensed, credited place photos, queued for review before any cover gate passes.
 
+The [photo review gallery](photos/README.md) now has 15 licensed place photos for 16 of the 19 cover gaps. Production audit 116 added all 15 to the pending photo queue after a rollback preview; audit 117 confirmed an unchanged replay. Destination hero fields stayed unchanged, so the route cover gates remain blocked. Exact photos for the northern Tipsoo Lake, Rainy Pass, and Stuart Lake trailheads remain unresolved.
+
 This review includes all 21 requested routes. The latest offline replay admits nine source graphs and rejects twelve. Six of the nine pass the saved elevation checks. Colchuck Lake and Lake Stuart still lack a stated gain basis in the official comparison source; Naches Peak Loop exceeds the official gain by 72.46%. **The offline replay alone does not establish readiness for pending insertion or publication.** No database connection, route write, audit-row write, or activation ran in this replay.
 
 The earlier [production dry run](production-dry-run.jsonl) found four candidates
