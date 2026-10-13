@@ -1,0 +1,539 @@
+{
+  "scope": "read_only_repair_design_no_database_writes",
+  "generatedAt": "2026-10-13T06:04:08.670891+00:00",
+  "gateToleranceM": 5,
+  "summary": "All five source identities match. Nine current catalog routes are affected. Moving Mount Si breaks one active route; moving Pilchuck breaks one pending route endpoint. Other current route gaps and one Mailbox user-owned route require separate review. No coordinate write is ready.",
+  "proposals": [
+    {
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "identityConfidence": "strong_same_existing_osm_peak_id",
+      "sourceNodeId": 356546426,
+      "sourceNodeVersion": 12,
+      "sourceNodeTimestamp": "2026-09-16T06:31:32Z",
+      "sourceNodeTags": {
+        "alt_name": "q\u0313\u0259lbc\u0313",
+        "ele": "1254",
+        "gnis:feature_id": "1525731",
+        "name": "Mount Si / q\u0313\u0259lbc\u0313",
+        "name:en": "Mount Si",
+        "name:lut": "q\u0313\u0259lbc\u0313",
+        "natural": "peak",
+        "source": "USGS",
+        "wikidata": "Q6923639",
+        "wikipedia": "en:Mount Si"
+      },
+      "sourceReceipt": {
+        "path": "sources/osm-relation-5553769-full.json",
+        "sha256": "dd454818c2a7ce98b3d046f86eeecf386ed67c704a4c3f5135274b7f00c80082",
+        "url": "https://api.openstreetmap.org/api/0.6/relation/5553769/full.json",
+        "retrievedAt": "2026-10-13T05:07:06.779101+00:00"
+      },
+      "oldLocation": {
+        "lat": 47.506807,
+        "lng": -121.739039,
+        "elevation": 1274
+      },
+      "proposedLocation": {
+        "lat": 47.5068935,
+        "lng": -121.739022,
+        "elevation": 1274
+      },
+      "elevationPolicy": "Preserve existing elevation and identical location Z. OSM ele differs for some peaks and is separate evidence, not authorization to replace elevation.",
+      "pilotCandidates": [
+        {
+          "sourceKey": "wa:osm-relation:5553769",
+          "name": "Mount Si Trail",
+          "endpointNodeId": 356546426,
+          "sourceEndpointGapToProposedPeakM": 0.0,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        }
+      ],
+      "affectedCurrentCatalogRoutes": [
+        {
+          "kind": "summit",
+          "name": "Mount Si via Mount Si Trail",
+          "shape": "out_and_back",
+          "status": "active",
+          "route_id": "40oJLRsV6f8hgVLXqkB7",
+          "updated_at": "2026-10-13T05:42:29.025944+00:00",
+          "is_objective": true,
+          "new_end_gap_m": 9.70202881,
+          "old_end_gap_m": 0,
+          "destination_id": "nSf6z4vL0zjdG2sXibBM",
+          "new_path_gap_m": 9.70202881,
+          "old_path_gap_m": 0,
+          "reference_kinds": [
+            "objective_destination_id",
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": true
+        },
+        {
+          "kind": null,
+          "name": "Mount Si Teneriffe Connector",
+          "shape": null,
+          "status": "active",
+          "route_id": "qugwKJ8fnh7aypkLzmV2",
+          "updated_at": "2026-10-13T05:33:30.230782+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 3297.84483562,
+          "old_end_gap_m": 3299.80555485,
+          "destination_id": "nSf6z4vL0zjdG2sXibBM",
+          "new_path_gap_m": 23.20965273,
+          "old_path_gap_m": 31.87295823,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": false
+        },
+        {
+          "kind": null,
+          "name": "Mount Si Old Trail",
+          "shape": null,
+          "status": "active",
+          "route_id": "whvKZyztqB1ncVabFFtR",
+          "updated_at": "2026-10-13T05:34:18.753092+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 22.8346924,
+          "old_end_gap_m": 31.03363199,
+          "destination_id": "nSf6z4vL0zjdG2sXibBM",
+          "new_path_gap_m": 22.50846519,
+          "old_path_gap_m": 31.03363199,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": false
+        }
+      ],
+      "currentRouteImpactStatus": "Read-only live query complete; coordinate write remains blocked pending reviewed route repair/disposition.",
+      "sourceComparisonHaversineM": 9.702750771603688,
+      "coordinateMoveM": 9.70202881,
+      "catalogUpdatedAt": "2026-10-09 15:01:06.870908+00",
+      "otherOwnerCurrentRouteCount": 0,
+      "retiredCatalogRouteCount": 1,
+      "currentRouteBlockers": [
+        {
+          "routeId": "40oJLRsV6f8hgVLXqkB7",
+          "reason": "previously_passing_summit_path_contact_would_fail",
+          "oldGapM": 0,
+          "newGapM": 9.70202881
+        },
+        {
+          "routeId": "40oJLRsV6f8hgVLXqkB7",
+          "reason": "previously_passing_summit_endpoint_would_fail",
+          "oldGapM": 0,
+          "newGapM": 9.70202881
+        },
+        {
+          "routeId": "40oJLRsV6f8hgVLXqkB7",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 9.70202881
+        },
+        {
+          "routeId": "qugwKJ8fnh7aypkLzmV2",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 23.20965273
+        },
+        {
+          "routeId": "whvKZyztqB1ncVabFFtR",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 22.50846519
+        }
+      ]
+    },
+    {
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "identityConfidence": "strong_same_existing_osm_peak_id",
+      "sourceNodeId": 356545680,
+      "sourceNodeVersion": 9,
+      "sourceNodeTimestamp": "2026-06-07T23:31:12Z",
+      "sourceNodeTags": {
+        "ele": "462",
+        "gnis:feature_id": "1522302",
+        "name": "Little Si",
+        "natural": "peak",
+        "source": "USGS",
+        "summit:register": "no",
+        "tourism": "viewpoint",
+        "wikidata": "Q6651911",
+        "wikipedia": "en:Little Si"
+      },
+      "sourceReceipt": {
+        "path": "sources/osm-relation-6106367-full.json",
+        "sha256": "0aa5ebba2ac06013f92d344a603d7b5c42a53070eb8b17dabea49e4413743b54",
+        "url": "https://api.openstreetmap.org/api/0.6/relation/6106367/full.json",
+        "retrievedAt": "2026-10-13T05:07:06.779359+00:00"
+      },
+      "oldLocation": {
+        "lat": 47.49867,
+        "lng": -121.756228,
+        "elevation": 476
+      },
+      "proposedLocation": {
+        "lat": 47.4986861,
+        "lng": -121.7560032,
+        "elevation": 476
+      },
+      "elevationPolicy": "Preserve existing elevation and identical location Z. OSM ele differs for some peaks and is separate evidence, not authorization to replace elevation.",
+      "pilotCandidates": [
+        {
+          "sourceKey": "wa:osm-relation:6106367",
+          "name": "Little Si",
+          "endpointNodeId": 356545680,
+          "sourceEndpointGapToProposedPeakM": 0.0,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        }
+      ],
+      "affectedCurrentCatalogRoutes": [
+        {
+          "kind": null,
+          "name": "Little Si",
+          "shape": null,
+          "status": "active",
+          "route_id": "YYQag1GLA2Q1lnu0aTsy",
+          "updated_at": "2026-10-13T05:34:49.258167+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 5.49503879,
+          "old_end_gap_m": 22.02362774,
+          "destination_id": "xHaYBgzoxgfAZNLTfWid",
+          "new_path_gap_m": 1.82431183,
+          "old_path_gap_m": 13.75546327,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": true,
+          "old_path_contact": false
+        }
+      ],
+      "currentRouteImpactStatus": "Read-only live query complete; coordinate write remains blocked pending reviewed route repair/disposition.",
+      "sourceComparisonHaversineM": 16.982520538346407,
+      "coordinateMoveM": 17.03198228,
+      "catalogUpdatedAt": "2026-10-09 15:01:14.859451+00",
+      "otherOwnerCurrentRouteCount": 0,
+      "retiredCatalogRouteCount": 0,
+      "currentRouteBlockers": [
+        {
+          "routeId": "YYQag1GLA2Q1lnu0aTsy",
+          "reason": "legacy_shape_unset_and_endpoint_exceeds_5m",
+          "gapM": 5.49503879
+        }
+      ]
+    },
+    {
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "identityConfidence": "strong_same_existing_osm_peak_id",
+      "sourceNodeId": 285408190,
+      "sourceNodeVersion": 14,
+      "sourceNodeTimestamp": "2024-10-14T21:34:11Z",
+      "sourceNodeTags": {
+        "ele": "1476",
+        "name": "Mailbox Peak",
+        "natural": "peak",
+        "wikidata": "Q111944228",
+        "wikipedia": "en:Mailbox Peak"
+      },
+      "sourceReceipt": {
+        "path": "sources/osm-relation-5426108-full.json",
+        "sha256": "bc1d25f576fa138f019eeec83c020bbee7cc78c5d8fe5201d7eaf15e12f5c232",
+        "url": "https://api.openstreetmap.org/api/0.6/relation/5426108/full.json",
+        "retrievedAt": "2026-10-13T05:07:07.694827+00:00"
+      },
+      "oldLocation": {
+        "lat": 47.462465,
+        "lng": -121.63942,
+        "elevation": 1476
+      },
+      "proposedLocation": {
+        "lat": 47.4624091,
+        "lng": -121.6392795,
+        "elevation": 1476
+      },
+      "elevationPolicy": "Preserve existing elevation and identical location Z. OSM ele differs for some peaks and is separate evidence, not authorization to replace elevation.",
+      "pilotCandidates": [
+        {
+          "sourceKey": "wa:osm-relation:5426108",
+          "name": "Mailbox Peak (new trail)",
+          "endpointNodeId": 285408190,
+          "sourceEndpointGapToProposedPeakM": 0.0,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        },
+        {
+          "sourceKey": "wa:osm-relation:7147738",
+          "name": "Mailbox Peak (old trail)",
+          "endpointNodeId": 285408190,
+          "sourceEndpointGapToProposedPeakM": 0.0,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        }
+      ],
+      "affectedCurrentCatalogRoutes": [
+        {
+          "kind": null,
+          "name": "Mailbox Peak Old Trail",
+          "shape": null,
+          "status": "active",
+          "route_id": "4gkUxiJyoPVyJWokOinE",
+          "updated_at": "2026-10-13T05:26:16.891569+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 38.23702713,
+          "old_end_gap_m": 26.37825503,
+          "destination_id": "5hVnUW4tmqj3A6YbU0oB",
+          "new_path_gap_m": 38.23702713,
+          "old_path_gap_m": 26.37825503,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": false
+        },
+        {
+          "kind": null,
+          "name": "Mailbox Peak Trail",
+          "shape": null,
+          "status": "active",
+          "route_id": "KG89JzIf3B07ppaWjLxm",
+          "updated_at": "2026-10-13T05:32:18.156007+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 38.23702713,
+          "old_end_gap_m": 26.37825503,
+          "destination_id": "5hVnUW4tmqj3A6YbU0oB",
+          "new_path_gap_m": 38.23702713,
+          "old_path_gap_m": 26.37825503,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": false
+        }
+      ],
+      "currentRouteImpactStatus": "Read-only live query complete; coordinate write remains blocked pending reviewed route repair/disposition.",
+      "sourceComparisonHaversineM": 12.255471844221804,
+      "coordinateMoveM": 12.28185933,
+      "catalogUpdatedAt": "2026-10-09 15:01:07.859577+00",
+      "otherOwnerCurrentRouteCount": 1,
+      "retiredCatalogRouteCount": 0,
+      "currentRouteBlockers": [
+        {
+          "routeId": "4gkUxiJyoPVyJWokOinE",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 38.23702713
+        },
+        {
+          "routeId": "KG89JzIf3B07ppaWjLxm",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 38.23702713
+        },
+        {
+          "reason": "other_owner_current_route_impact_not_yet_examined",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "identityConfidence": "strong_same_existing_osm_peak_id",
+      "sourceNodeId": 348178753,
+      "sourceNodeVersion": 5,
+      "sourceNodeTimestamp": "2024-08-21T17:17:34Z",
+      "sourceNodeTags": {
+        "ele": "1790",
+        "gnis:feature_id": "1527284",
+        "name": "Tolmie Peak",
+        "natural": "peak",
+        "source": "USGS",
+        "wikidata": "Q7814451",
+        "wikipedia": "en:Tolmie Peak"
+      },
+      "sourceReceipt": {
+        "path": "sources/osm-relation-5194384-full.json",
+        "sha256": "c5571094e5671eaad48a131cf777ecc3fb95200c4ac656f735312f36affb30cf",
+        "url": "https://api.openstreetmap.org/api/0.6/relation/5194384/full.json",
+        "retrievedAt": "2026-10-13T05:07:09.456189+00:00"
+      },
+      "oldLocation": {
+        "lat": 46.958036,
+        "lng": -121.877344,
+        "elevation": 1804
+      },
+      "proposedLocation": {
+        "lat": 46.958141,
+        "lng": -121.8773099,
+        "elevation": 1804
+      },
+      "elevationPolicy": "Preserve existing elevation and identical location Z. OSM ele differs for some peaks and is separate evidence, not authorization to replace elevation.",
+      "pilotCandidates": [
+        {
+          "sourceKey": "wa:osm-relation:5194384",
+          "name": "Tolmie Peak",
+          "endpointNodeId": 348178753,
+          "sourceEndpointGapToProposedPeakM": 0.0,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        }
+      ],
+      "affectedCurrentCatalogRoutes": [
+        {
+          "kind": null,
+          "name": "Tolmie Peak Trail",
+          "shape": null,
+          "status": "active",
+          "route_id": "z2gHia5Sc7SJuq1Ub24G",
+          "updated_at": "2026-10-13T05:34:51.123129+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 8.86273896,
+          "old_end_gap_m": 8.03609081,
+          "destination_id": "htqW9lCp974x1tEWD8t7",
+          "new_path_gap_m": 8.86273896,
+          "old_path_gap_m": 8.03609081,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": false,
+          "old_path_contact": false
+        }
+      ],
+      "currentRouteImpactStatus": "Read-only live query complete; coordinate write remains blocked pending reviewed route repair/disposition.",
+      "sourceComparisonHaversineM": 11.958856327943954,
+      "coordinateMoveM": 11.95793869,
+      "catalogUpdatedAt": "2026-09-07 22:04:10.349655+00",
+      "otherOwnerCurrentRouteCount": 0,
+      "retiredCatalogRouteCount": 0,
+      "currentRouteBlockers": [
+        {
+          "routeId": "z2gHia5Sc7SJuq1Ub24G",
+          "reason": "current_route_still_misses_proposed_summit",
+          "gapM": 8.86273896
+        }
+      ]
+    },
+    {
+      "destinationId": "iAD3EhqmkKVKXBjJjprj",
+      "name": "Mount Pilchuck",
+      "identityConfidence": "strong_same_existing_osm_peak_id",
+      "sourceNodeId": 348999742,
+      "sourceNodeVersion": 6,
+      "sourceNodeTimestamp": "2024-08-19T15:58:04Z",
+      "sourceNodeTags": {
+        "ele": "1584",
+        "gnis:feature_id": "1524420",
+        "name": "Mount Pilchuck",
+        "natural": "peak",
+        "source": "USGS",
+        "wikidata": "Q6922752",
+        "wikipedia": "en:Mount Pilchuck"
+      },
+      "sourceReceipt": {
+        "path": "sources/osm-pilchuck-objective-map.json",
+        "sha256": "8e875ddf8878ba418fe506f8185649c5a7296c9c22e48d9e277a8b21a8a19a7a",
+        "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.80474000000001,48.050920000000005,-121.79074,48.06492",
+        "retrievedAt": "2026-10-13T05:08:45.829168+00:00"
+      },
+      "oldLocation": {
+        "lat": 48.057974,
+        "lng": -121.797918,
+        "elevation": 1628
+      },
+      "proposedLocation": {
+        "lat": 48.0579162,
+        "lng": -121.7977487,
+        "elevation": 1628
+      },
+      "elevationPolicy": "Preserve existing elevation and identical location Z. OSM ele differs for some peaks and is separate evidence, not authorization to replace elevation.",
+      "pilotCandidates": [
+        {
+          "sourceKey": "wa:osm-relation:5537775",
+          "name": "Mount Pilchuck",
+          "endpointNodeId": 2362708368,
+          "sourceEndpointGapToProposedPeakM": 0.878549179699461,
+          "remainingGates": "Terrain, access, DEM, covers, source-span proof, exact segment reuse and all publication checks remain required."
+        }
+      ],
+      "affectedCurrentCatalogRoutes": [
+        {
+          "kind": null,
+          "name": "Mount Pilchuck Trail",
+          "shape": null,
+          "status": "active",
+          "route_id": "t7GxkDEDF0HYXsyYwm99",
+          "updated_at": "2026-10-13T05:33:56.072181+00:00",
+          "is_objective": null,
+          "new_end_gap_m": 0.83989627,
+          "old_end_gap_m": 14.51827913,
+          "destination_id": "iAD3EhqmkKVKXBjJjprj",
+          "new_path_gap_m": 0.83989627,
+          "old_path_gap_m": 14.51827913,
+          "reference_kinds": [
+            "route_destinations"
+          ],
+          "new_path_contact": true,
+          "old_path_contact": false
+        },
+        {
+          "kind": "summit",
+          "name": "Mount Pilchuck via Mount Pilchuck Trail #700",
+          "shape": "out_and_back",
+          "status": "pending",
+          "route_id": "ekqRguipqw8GERL7Yvet",
+          "updated_at": "2026-10-13T05:43:26.782397+00:00",
+          "is_objective": true,
+          "new_end_gap_m": 14.16216556,
+          "old_end_gap_m": 0,
+          "destination_id": "iAD3EhqmkKVKXBjJjprj",
+          "new_path_gap_m": 0.7965135,
+          "old_path_gap_m": 0,
+          "reference_kinds": [
+            "objective_destination_id",
+            "route_destinations"
+          ],
+          "new_path_contact": true,
+          "old_path_contact": true
+        }
+      ],
+      "currentRouteImpactStatus": "Read-only live query complete; coordinate write remains blocked pending reviewed route repair/disposition.",
+      "sourceComparisonHaversineM": 14.128861855547429,
+      "coordinateMoveM": 14.16216556,
+      "catalogUpdatedAt": "2026-10-09 16:17:40.780317+00",
+      "otherOwnerCurrentRouteCount": 0,
+      "retiredCatalogRouteCount": 0,
+      "currentRouteBlockers": [
+        {
+          "routeId": "ekqRguipqw8GERL7Yvet",
+          "reason": "previously_passing_summit_endpoint_would_fail",
+          "oldGapM": 0,
+          "newGapM": 14.16216556
+        }
+      ]
+    }
+  ],
+  "safeApplyRequirements": [
+    "Save exact old/new point, elevation, geohash, metadata and row timestamp plus source snapshot hashes. Never change catalog IDs, names, joins, route paths, segment points or statistics to make a route pass.",
+    "Review the current live source ID and peak name again. Reject a changed ID, missing summit feature, changed coordinates or stale receipt. Pilchuck must bind peak node348999742, not route endpoint node2362708368.",
+    "In one bounded operator transaction, lock the destination rows and all affected current routes; reread complete route references and reject concurrent drift. Verify every current route against the proposed 5m path/endpoint rules before updating. An old passing route must not become invalid; an already invalid route remains an explicit blocker requiring separate disposition.",
+    "Keep elevation unchanged and write PointZ with the same elevation. Recompute an existing geohash at its current precision, or preserve NULL; confirm area links and region still match the new point. Merge coordinate source metadata without erasing existing provenance.",
+    "Leave destination update triggers enabled. The existing queue_rematch_on_destination_change function queues sessions near both old and new XY; verify the queue and follow-up processing. No new infrastructure or timer is needed.",
+    "Run the full existing route publication checks and missing-reference checks after the move, save before/after receipts, and roll back on any regression. Do not activate pending routes as part of coordinate repair."
+  ],
+  "excluded": [
+    {
+      "name": "Poo Poo Point",
+      "reason": "The selected source ends at a viewpoint/launch distinct from the summit; moving the summit to that endpoint would change identity."
+    },
+    {
+      "name": "Ingalls Peak",
+      "reason": "Mapped summit approach has an actual 118.7m source gap; coordinate drift is not the fix."
+    }
+  ],
+  "liveImpactEvidence": {
+    "path": "summit-coordinate-impact.txt",
+    "sha256": "961c8682bcc6051a02929273d806b768f139bb1cd078f99e48b832384e3aa213",
+    "currentCatalogRoutes": 9,
+    "otherOwnerCurrentRoutes": 1,
+    "gateToleranceM": 5,
+    "databaseWrites": 0
+  }
+}

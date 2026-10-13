@@ -1,0 +1,678 @@
+{
+  "version": 1,
+  "mode": "reviewed_proposal_no_database_writes",
+  "linked_preflight_sha256": "c3e20a6bdd51c3ac364a9ee233d3f7ca88b15d402d07dc29874e8a83cc00d1fc",
+  "scope": {
+    "region_only_routes": 38,
+    "linked_places": 76,
+    "proposed_destinations": 4,
+    "affected_rejected_routes": 2,
+    "outside_us_scope_places": 72,
+    "outside_us_scope_routes": 36
+  },
+  "proposals": [
+    {
+      "destination_id": "Ndsk2Ad2F6r9sXR8cK0m",
+      "name": "Climbers Bivouac Trailhead",
+      "expected_lat": 46.146241,
+      "expected_lng": -122.183655,
+      "expected_external_ids": {},
+      "expected_features": [
+        "trailhead"
+      ],
+      "before": {
+        "country_code": null,
+        "state_code": null
+      },
+      "after": {
+        "country_code": "US",
+        "state_code": "WA"
+      },
+      "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+      "region_source": {
+        "source_name": "U.S. Census Bureau TIGERweb States",
+        "source_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-122.183655%2C%22y%22%3A46.146241%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+        "source_layer_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+        "source_vintage": "2026-01-01",
+        "retrieved_at": "2026-10-13T06:37:23.172764+00:00",
+        "point_response_sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+        "boundary_sha256": "7161f9e4892e8bdb1c0e86808e93438a4ba0ea4af5bb8317d139b7edcb76fc91",
+        "state_geoid": "53",
+        "method": "unique Census state polygon intersection at unchanged catalog XY; saved polygon interior cross-check",
+        "coordinate": {
+          "lat": 46.146241,
+          "lng": -122.183655
+        },
+        "approx_boundary_distance_m": 52749.132,
+        "near_boundary_reject_threshold_m": 5000,
+        "attribution": "Source: U.S. Census Bureau"
+      }
+    },
+    {
+      "destination_id": "6PxfQ1g48SrbplzGd6UH",
+      "name": "Mount Saint Helens",
+      "expected_lat": 46.1914178,
+      "expected_lng": -122.195606,
+      "expected_external_ids": {
+        "peakbagger": "2353",
+        "listsofjohn": "16737"
+      },
+      "expected_features": [
+        "volcano",
+        "summit"
+      ],
+      "before": {
+        "country_code": null,
+        "state_code": null
+      },
+      "after": {
+        "country_code": "US",
+        "state_code": "WA"
+      },
+      "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+      "region_source": {
+        "source_name": "U.S. Census Bureau TIGERweb States",
+        "source_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-122.195606%2C%22y%22%3A46.1914178%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+        "source_layer_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+        "source_vintage": "2026-01-01",
+        "retrieved_at": "2026-10-13T06:37:23.261851+00:00",
+        "point_response_sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+        "boundary_sha256": "7161f9e4892e8bdb1c0e86808e93438a4ba0ea4af5bb8317d139b7edcb76fc91",
+        "state_geoid": "53",
+        "method": "unique Census state polygon intersection at unchanged catalog XY; saved polygon interior cross-check",
+        "coordinate": {
+          "lat": 46.1914178,
+          "lng": -122.195606
+        },
+        "approx_boundary_distance_m": 54058.983,
+        "near_boundary_reject_threshold_m": 5000,
+        "attribution": "Source: U.S. Census Bureau"
+      }
+    },
+    {
+      "destination_id": "YtzjvQqup3gqmAYnz0l4",
+      "name": "Cascade Pass Trailhead",
+      "expected_lat": 48.47542,
+      "expected_lng": -121.075696,
+      "expected_external_ids": {},
+      "expected_features": [
+        "trailhead"
+      ],
+      "before": {
+        "country_code": null,
+        "state_code": null
+      },
+      "after": {
+        "country_code": "US",
+        "state_code": "WA"
+      },
+      "route_id": "adeCrmBWh2nHbbSH9btr",
+      "region_source": {
+        "source_name": "U.S. Census Bureau TIGERweb States",
+        "source_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-121.075696%2C%22y%22%3A48.47542%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+        "source_layer_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+        "source_vintage": "2026-01-01",
+        "retrieved_at": "2026-10-13T06:37:23.249113+00:00",
+        "point_response_sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+        "boundary_sha256": "7161f9e4892e8bdb1c0e86808e93438a4ba0ea4af5bb8317d139b7edcb76fc91",
+        "state_geoid": "53",
+        "method": "unique Census state polygon intersection at unchanged catalog XY; saved polygon interior cross-check",
+        "coordinate": {
+          "lat": 48.47542,
+          "lng": -121.075696
+        },
+        "approx_boundary_distance_m": 58354.986,
+        "near_boundary_reject_threshold_m": 5000,
+        "attribution": "Source: U.S. Census Bureau"
+      }
+    },
+    {
+      "destination_id": "APWWTYFkwvuUFc3TP1m9",
+      "name": "Sahale Peak",
+      "expected_lat": 48.491113,
+      "expected_lng": -121.038632,
+      "expected_external_ids": {},
+      "expected_features": [
+        "summit"
+      ],
+      "before": {
+        "country_code": null,
+        "state_code": null
+      },
+      "after": {
+        "country_code": "US",
+        "state_code": "WA"
+      },
+      "route_id": "adeCrmBWh2nHbbSH9btr",
+      "region_source": {
+        "source_name": "U.S. Census Bureau TIGERweb States",
+        "source_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query?geometry=%7B%22x%22%3A-121.038632%2C%22y%22%3A48.491113%2C%22spatialReference%22%3A%7B%22wkid%22%3A4326%7D%7D&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=GEOID%2CSTATE%2CNAME%2CSTUSAB&returnGeometry=false&f=json",
+        "source_layer_url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+        "source_vintage": "2026-01-01",
+        "retrieved_at": "2026-10-13T06:37:23.249194+00:00",
+        "point_response_sha256": "dc74f523ed66d2bb1459cddc2df6c03c3e94880c7c8c863ca3123f67cf4cf8d8",
+        "boundary_sha256": "7161f9e4892e8bdb1c0e86808e93438a4ba0ea4af5bb8317d139b7edcb76fc91",
+        "state_geoid": "53",
+        "method": "unique Census state polygon intersection at unchanged catalog XY; saved polygon interior cross-check",
+        "coordinate": {
+          "lat": 48.491113,
+          "lng": -121.038632
+        },
+        "approx_boundary_distance_m": 56612.819,
+        "near_boundary_reject_threshold_m": 5000,
+        "attribution": "Source: U.S. Census Bureau"
+      }
+    }
+  ],
+  "blocked": [
+    {
+      "destination_id": "9A6A7F33A62D50654883",
+      "name": "Lucknerhaus Trailhead",
+      "route_id": "0x4EiGAP5HchuDuliqtd",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AT"
+    },
+    {
+      "destination_id": "AFD21967E06AA9D81BA1",
+      "name": "Großglockner",
+      "route_id": "0x4EiGAP5HchuDuliqtd",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AT"
+    },
+    {
+      "destination_id": "36D61C3CB8C94CB0DEF5",
+      "name": "Pura Besakih Trailhead",
+      "route_id": "1BlUsDSyYVgTrFfe8bkU",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ID"
+    },
+    {
+      "destination_id": "rDewl9rzLJCn3OFqqefi",
+      "name": "Gunung Agung",
+      "route_id": "1BlUsDSyYVgTrFfe8bkU",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ID"
+    },
+    {
+      "destination_id": "648A2C09ABD6B624DAE6",
+      "name": "Aguiró Trailhead",
+      "route_id": "2xoPbzgxN9qADWruqqff",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ES"
+    },
+    {
+      "destination_id": "150D6CD3C632787134B5",
+      "name": "Cap de la Pala de Montferri",
+      "route_id": "2xoPbzgxN9qADWruqqff",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ES"
+    },
+    {
+      "destination_id": "D3AD9873F15B412F85D9",
+      "name": "La Ciénaga Trailhead",
+      "route_id": "5HeC6oXic3y1k0XaPbXq",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "DO"
+    },
+    {
+      "destination_id": "ixsWw1fEt9y9HL7Ind5Q",
+      "name": "Pico Duarte",
+      "route_id": "5HeC6oXic3y1k0XaPbXq",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "DO"
+    },
+    {
+      "destination_id": "169808D1CD6E1D75D218",
+      "name": "Col de Porte Trailhead",
+      "route_id": "8Bj0ryavUtKX4ekuNkKc",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "6916E6CB5E5C45C02499",
+      "name": "Chamechaude",
+      "route_id": "8Bj0ryavUtKX4ekuNkKc",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "8E6B8DD8AF59D25E6C4A",
+      "name": "Whitfield Hall Trailhead",
+      "route_id": "95yXW3tJARmUe12NfOo6",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "JM"
+    },
+    {
+      "destination_id": "49FDCFD09E5245350B50",
+      "name": "Blue Mountain Peak",
+      "route_id": "95yXW3tJARmUe12NfOo6",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "JM"
+    },
+    {
+      "destination_id": "45A42543142CAD2DA995",
+      "name": "Mount Ararat South Route Trailhead",
+      "route_id": "bdbSRKQdb7VeYd8a5SIL",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "TR"
+    },
+    {
+      "destination_id": "DhPNvjb5FeG85XuFWLkW",
+      "name": "Mount Ararat",
+      "route_id": "bdbSRKQdb7VeYd8a5SIL",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "DF80CDAA92247B907408",
+      "name": "Località Carota Trailhead",
+      "route_id": "BtWXVibEMVrSWz9jJNXy",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "144BC5ECD52DC039FADA",
+      "name": "Col Nudo",
+      "route_id": "BtWXVibEMVrSWz9jJNXy",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "C2E119BEE6AF1DE83769",
+      "name": "Rwenzori Central Circuit Trailhead",
+      "route_id": "c4sdMzSqAhK7evZvOTSQ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "UG"
+    },
+    {
+      "destination_id": "sYJrDZqm11M4CSUPhpuD",
+      "name": "Mount Stanley",
+      "route_id": "c4sdMzSqAhK7evZvOTSQ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "4D7B93615A5D4EFBB62A",
+      "name": "Goosfand Sara Trailhead",
+      "route_id": "eWPuOSoE2uk6KM1vziGf",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IR"
+    },
+    {
+      "destination_id": "8RtxmvglalqMYeuCTLvS",
+      "name": "Damavand",
+      "route_id": "eWPuOSoE2uk6KM1vziGf",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "EF52874C9D0B345F2AD4",
+      "name": "Spiterstulen",
+      "route_id": "GAOZrKhPoHkvON17jKXa",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "NO"
+    },
+    {
+      "destination_id": "m4uY4lFUvGzD98G1lhfN",
+      "name": "Galdhøpiggen",
+      "route_id": "GAOZrKhPoHkvON17jKXa",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "NO"
+    },
+    {
+      "destination_id": "C6A2F96D1A04D339E9F1",
+      "name": "Pancasila Tambora Trailhead",
+      "route_id": "HSrouR4E0ybnz37hLNGq",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ID"
+    },
+    {
+      "destination_id": "EE823F72482FCF46BEE8",
+      "name": "Gunung Tambora",
+      "route_id": "HSrouR4E0ybnz37hLNGq",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ID"
+    },
+    {
+      "destination_id": "E14AC375D3BAA8196F20",
+      "name": "Gunung Mulu National Park Headquarters",
+      "route_id": "hTTfNKdZgl3jRGmF24nj",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MY"
+    },
+    {
+      "destination_id": "F05DDBC67BB98513312A",
+      "name": "Gunung Mulu",
+      "route_id": "hTTfNKdZgl3jRGmF24nj",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MY"
+    },
+    {
+      "destination_id": "8806E9ABC713551D1D54",
+      "name": "Rio Chiquito Trailhead",
+      "route_id": "IcW2zYZB7eUCb6ZLR4zC",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "SV"
+    },
+    {
+      "destination_id": "F7683C7595CC8D9D29D0",
+      "name": "Cerro El Pital",
+      "route_id": "IcW2zYZB7eUCb6ZLR4zC",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "SV"
+    },
+    {
+      "destination_id": "A17DB58D2952ED0446C3",
+      "name": "Pont Valsavarenche Trailhead",
+      "route_id": "K7HlMn1qHI9gkPFd8kna",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "2E5FFFF77936BBE3C5D7",
+      "name": "Gran Paradiso",
+      "route_id": "K7HlMn1qHI9gkPFd8kna",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "AC104C1E48DAA30F8B7B",
+      "name": "Vinson Base Camp",
+      "route_id": "KLc1i8Y7VFEndWxECEqw",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AQ"
+    },
+    {
+      "destination_id": "ZuM8euuEHwaMw580RZxQ",
+      "name": "Vinson Massif",
+      "route_id": "KLc1i8Y7VFEndWxECEqw",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AQ"
+    },
+    {
+      "destination_id": "E596F194581523774022",
+      "name": "Refugio Murray",
+      "route_id": "KzdPpPKF472koaNoLlRx",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "CL"
+    },
+    {
+      "destination_id": "nJSKqdQBa1xYcHDUQIEl",
+      "name": "Ojos del Salado",
+      "route_id": "KzdPpPKF472koaNoLlRx",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "A95EDB5947FF6F5A9940",
+      "name": "Chalet des Baumes Parking",
+      "route_id": "LhCaP1sd03avvuKOPBG1",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "1829DB119FADE67F6223",
+      "name": "Grande Tête de l'Obiou",
+      "route_id": "LhCaP1sd03avvuKOPBG1",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "177BFA89F62675D89243",
+      "name": "Rifugio Segantini",
+      "route_id": "odFgVT1h4nIuXmDL9EJp",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "3801FA71EE036A954BED",
+      "name": "Cima Presanella",
+      "route_id": "odFgVT1h4nIuXmDL9EJp",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "0504EA4C0CB9E07CA37B",
+      "name": "Sandfell Trailhead",
+      "route_id": "Pj2fzFgQ3W9Xar43i2SM",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IS"
+    },
+    {
+      "destination_id": "0DBABC022BE0C28EC0A2",
+      "name": "Hvannadalshnúkur",
+      "route_id": "Pj2fzFgQ3W9Xar43i2SM",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IS"
+    },
+    {
+      "destination_id": "B784FCE13C6832C3F0D1",
+      "name": "Olgunlar (Kaçkar Pansiyon)",
+      "route_id": "ps0eeiGOwnjAsKbpd13C",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "TR"
+    },
+    {
+      "destination_id": "0B0D31ACF975E37AA8BA",
+      "name": "Kaçkar Dağı",
+      "route_id": "ps0eeiGOwnjAsKbpd13C",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "TR"
+    },
+    {
+      "destination_id": "D4B4A310CC2A021EDFB0",
+      "name": "Tram Ton Pass Trailhead",
+      "route_id": "QgUrWxy8QDdexp26ONSl",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "VN"
+    },
+    {
+      "destination_id": "5BEF4058E29D86131779",
+      "name": "Đinh Núi Phan Xi Phăng",
+      "route_id": "QgUrWxy8QDdexp26ONSl",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "VN"
+    },
+    {
+      "destination_id": "B60AD3BB339C44E7BB05",
+      "name": "Pré de Madame Carle Trailhead",
+      "route_id": "rB04wEqY2JQXh6QggSSf",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "30FBA25F6A12506D101B",
+      "name": "Barre des Écrins",
+      "route_id": "rB04wEqY2JQXh6QggSSf",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "FR"
+    },
+    {
+      "destination_id": "AF3E95C2D8B74106E219",
+      "name": "Parkplatz Ullachtal",
+      "route_id": "si7LOlsDIJmQUAKqcKqG",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AT"
+    },
+    {
+      "destination_id": "23FA59371BF7F4527E53",
+      "name": "Birnhorn",
+      "route_id": "si7LOlsDIJmQUAKqcKqG",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AT"
+    },
+    {
+      "destination_id": "B0A9F84A795CC32DC321",
+      "name": "Bazardüzü Camp 2",
+      "route_id": "sKHsjjrI0k195fO7f7HL",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "AZ"
+    },
+    {
+      "destination_id": "E76B57745511A983B759",
+      "name": "Bazardüzü",
+      "route_id": "sKHsjjrI0k195fO7f7HL",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "RU"
+    },
+    {
+      "destination_id": "19923BB8275BD9BBC83B",
+      "name": "Te Ara ki Hikurangi Car Park",
+      "route_id": "SnFF3CM0lwsWLT4D6hVQ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "NZ"
+    },
+    {
+      "destination_id": "AB15EC56DCD8C13EF7B0",
+      "name": "Hikurangi",
+      "route_id": "SnFF3CM0lwsWLT4D6hVQ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "NZ"
+    },
+    {
+      "destination_id": "0AFD34ECA465755224F1",
+      "name": "Tang-e Galu Trailhead",
+      "route_id": "Vl8R91V52VKHEgrzvLHA",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IR"
+    },
+    {
+      "destination_id": "l8vfhxIz6oIUdqQxDDUA",
+      "name": "Alam Kuh",
+      "route_id": "Vl8R91V52VKHEgrzvLHA",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IR"
+    },
+    {
+      "destination_id": "BBF6ABB37744B902E07B",
+      "name": "Rifugio Scotter-Palatini",
+      "route_id": "vPcJckNZfljNtZzHyfca",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "FD2AFAD0E92F8F2B0181",
+      "name": "Antelao",
+      "route_id": "vPcJckNZfljNtZzHyfca",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "IT"
+    },
+    {
+      "destination_id": "BTBfbfEUzMayfHi5PUcZ",
+      "name": "Rongai Trailhead",
+      "route_id": "w34UW6V1DrA70VCCSigz",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "GBHiDfeDr2AnTVDnfvTG",
+      "name": "Kilimanjaro",
+      "route_id": "w34UW6V1DrA70VCCSigz",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "TZ"
+    },
+    {
+      "destination_id": "9D354DE69E6518EF93B8",
+      "name": "Momella Gate",
+      "route_id": "wliEOmF55aYTx3RIGd9m",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "TZ"
+    },
+    {
+      "destination_id": "t1OWpDACiQTxHuy25sFB",
+      "name": "Mount Meru",
+      "route_id": "wliEOmF55aYTx3RIGd9m",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "7140073B00C6B9DFB290",
+      "name": "Arousse South Trailhead",
+      "route_id": "wU15lSZQWfACxX6FPqet",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MA"
+    },
+    {
+      "destination_id": "0FEDD2B9EC2B88DF3DC8",
+      "name": "Jebel M'Goun جبل مكون",
+      "route_id": "wU15lSZQWfACxX6FPqet",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MA"
+    },
+    {
+      "destination_id": "1C68030FEE25B8A740BD",
+      "name": "San Sebastián Trailhead",
+      "route_id": "xiyZaCIUToP5JvKYfqEZ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "GT"
+    },
+    {
+      "destination_id": "7FqoDdqPnf090rhSpRhA",
+      "name": "Volcán Tajumulco",
+      "route_id": "xiyZaCIUToP5JvKYfqEZ",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "C78E40E05CED9B8311F2",
+      "name": "Pintu Rimba",
+      "route_id": "XlsKKOg6hDxloaBLqbMG",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "ID"
+    },
+    {
+      "destination_id": "ACyWTKuB03iS0A1FPdQG",
+      "name": "Gunung Kerinci",
+      "route_id": "XlsKKOg6hDxloaBLqbMG",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": null
+    },
+    {
+      "destination_id": "5AF0564414D833661C54",
+      "name": "San Gerardo de Rivas Trailhead",
+      "route_id": "YbMq1nu24C0rxlB60tWE",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "CR"
+    },
+    {
+      "destination_id": "oc7lq28ODgtcO9MbnA6k",
+      "name": "Cerro Chirripó",
+      "route_id": "YbMq1nu24C0rxlB60tWE",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "CR"
+    },
+    {
+      "destination_id": "B56797F14E6217570842",
+      "name": "Sliezsky Dom Trailhead",
+      "route_id": "Ygc9ypnZdiCflEG2AEiD",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "SK"
+    },
+    {
+      "destination_id": "91A3B223635D9D35116E",
+      "name": "Gerlachovský štít",
+      "route_id": "Ygc9ypnZdiCflEG2AEiD",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "SK"
+    },
+    {
+      "destination_id": "DA84BCB70D20490C1FB6",
+      "name": "Pic Boby Base Camp",
+      "route_id": "ziXbllonHZvmDMGghMV8",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MG"
+    },
+    {
+      "destination_id": "57A3C9C3D3091A48A558",
+      "name": "Imarivolanitra",
+      "route_id": "ziXbllonHZvmDMGghMV8",
+      "reason": "outside_approved_us_census_repair_scope",
+      "existing_country_code": "MG"
+    }
+  ],
+  "limitations": [
+    "The 5 km margin is a review threshold, not a stated Census accuracy bound. These four points stand far inside Washington in the saved polygon and each returns exactly one state in the Census service.",
+    "The source establishes administrative region at existing XY. It does not attest route geometry, destination identity, elevation, or route publication eligibility.",
+    "The two route metadata plans must be run again after any approved destination repair. Earlier region rejection returned before path-estimate checks; other blockers may remain."
+  ]
+}

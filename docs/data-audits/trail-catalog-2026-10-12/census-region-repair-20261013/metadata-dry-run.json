@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "source": "trail_catalog_metadata",
+  "mode": "dry_run",
+  "target": {
+    "database": "peaks",
+    "server_address": null,
+    "server_port": null
+  },
+  "generated_at": "2026-10-13T06:48:01.101Z",
+  "batch_size": 50,
+  "rows": [
+    {
+      "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+      "decision": "ready",
+      "reasons": [],
+      "plan": {
+        "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+        "kind": "summit",
+        "objective_destination_id": "6PxfQ1g48SrbplzGd6UH",
+        "trailhead_destination_id": "Ndsk2Ad2F6r9sXR8cK0m",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21866
+      },
+      "popularity": 23,
+      "fingerprint": "0341025ea122be4027b33184fbef71c41b0f10a059da8a8d3fdad0af710c6d62"
+    },
+    {
+      "route_id": "adeCrmBWh2nHbbSH9btr",
+      "decision": "ready",
+      "reasons": [],
+      "plan": {
+        "route_id": "adeCrmBWh2nHbbSH9btr",
+        "kind": "summit",
+        "objective_destination_id": "APWWTYFkwvuUFc3TP1m9",
+        "trailhead_destination_id": "YtzjvQqup3gqmAYnz0l4",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 31513
+      },
+      "popularity": 0,
+      "fingerprint": "e8af0fd6fa968b82db6b50121c21096201acd7ae7421ea2d155eb4fd2cbeec97"
+    }
+  ],
+  "counts": {
+    "candidates": 2,
+    "ready": 2,
+    "rejected": 0,
+    "applied": 0,
+    "already_applied": 0
+  }
+}

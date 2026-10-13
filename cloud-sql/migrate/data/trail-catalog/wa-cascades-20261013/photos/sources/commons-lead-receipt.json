@@ -1,0 +1,5 @@
+{
+  "url": "https://commons.wikimedia.org/w/api.php?action=query&titles=File%3ALakeSerene2.jpg%7CFile%3A20150621+SnowLake+043b.jpg%7CFile%3AVirgin+Lake+Blanca+Lake+0075.jpg%7CFile%3ALake+22+-+Flickr+-+brewbooks.jpg%7CFile%3ATolmie+Peak.jpg%7CFile%3ALittle+Si.JPG%7CFile%3AColchuck+Lake.jpg&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&iiurlwidth=640&format=json",
+  "retrievedAt": "2026-10-13T07:05:04.622995+00:00",
+  "sha256": "cc0853a306b0dfda085040c79b554e45a3f9ebf2afe14c2d9ac0cb7e0e5d8b4f"
+}

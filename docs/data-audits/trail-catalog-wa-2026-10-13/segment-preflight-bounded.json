@@ -1,0 +1,519 @@
+{
+  "generatedAt": "2026-10-13T06:13:50.417Z",
+  "mode": "read-only-shared-matcher-plan",
+  "reviewHash": "6d61400918f8933999db3a955df3e116b109e552abe186a504ba2d53babe9f97",
+  "planReports": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "373352b65f8a61d4e86077cba3c8812036b8f251510556fedc092119c189664b",
+      "sourceHashes": [
+        "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62"
+      ],
+      "distanceM": 5523.412197483577,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        33724724,
+        33724734,
+        33724738,
+        35565743,
+        35565745,
+        35649240,
+        35649242,
+        992999553,
+        992999554,
+        1185773070,
+        1314474512,
+        1315876918,
+        1419074002
+      ],
+      "requiredCutIndices": [
+        0,
+        16,
+        24,
+        27,
+        50,
+        172,
+        186,
+        187,
+        192,
+        297,
+        298,
+        299,
+        300,
+        307
+      ],
+      "pendingReady": true,
+      "gainM": 826.84765625
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "7386bc4a84a4c367955712fd2c0583bc69ad55faee5624887dde25e41e0e1e86",
+      "sourceHashes": [
+        "7885c3eb0df7a917c8ede2a18ebfad7f8704f7677fcf4e9f95fe3522bd57b986"
+      ],
+      "distanceM": 5386.955311239522,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        162620235,
+        162620236,
+        358720744
+      ],
+      "requiredCutIndices": [
+        0,
+        263,
+        438,
+        511
+      ],
+      "pendingReady": true,
+      "gainM": 554.34765625
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "bde978139abdc386dd6af0b6e119a496d7ff03c370b5c74ea84986ba7d6588d9",
+      "sourceHashes": [
+        "ee132297bb0863feab4521c4b6262e8119481b1ac6bb6f1040a826fe4832e311"
+      ],
+      "distanceM": 7107.041749059399,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        236470870,
+        236470876,
+        538410242,
+        1193241119
+      ],
+      "requiredCutIndices": [
+        0,
+        42,
+        850,
+        944,
+        1007
+      ],
+      "pendingReady": true,
+      "gainM": 907.22265625
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186:ingalls-peak",
+      "name": "Ingalls Peak via Ingalls Way and South Ridge",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Known 118.7 m unmapped final summit span; source way 1213228739 stops below the summit and has demanding terrain / bad visibility. No connector may be invented."
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "9c94d81a895ff195993738dc37b717536a18473af103e8de48e85c2b826196bb",
+      "sourceHashes": [
+        "73a72c2f14a226c40ebb4cbc628a7282ea2d50541bd5bee14436379eea889d1c"
+      ],
+      "distanceM": 5840.586452316467,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        5838047,
+        235696406,
+        310632640,
+        310632646,
+        310632679,
+        340350765,
+        844433058,
+        854796770,
+        854796771,
+        1219407738,
+        1219407739
+      ],
+      "requiredCutIndices": [
+        0,
+        11,
+        12,
+        79,
+        96,
+        105,
+        106,
+        107,
+        168,
+        176,
+        177,
+        349
+      ],
+      "pendingReady": false,
+      "pendingBlocker": "attested_gain_basis_unspecified",
+      "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "5eae1ddb24598c71bf359f5e317b6f03826a899a50c342e905cc22da1bb7e4d9",
+      "sourceHashes": [
+        "f36145d31fb0a883c767ed4c3be44371970e80c51f7d730992d8f72c949b596e"
+      ],
+      "distanceM": 6657.74526205384,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        5838047,
+        235696406,
+        235696409,
+        310632646,
+        340350765,
+        854796770,
+        854796771,
+        1219407738,
+        1219407739
+      ],
+      "requiredCutIndices": [
+        0,
+        11,
+        12,
+        79,
+        96,
+        105,
+        106,
+        107,
+        168,
+        280
+      ],
+      "pendingReady": false,
+      "pendingBlocker": "attested_gain_basis_unspecified",
+      "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4829792",
+      "name": "Enchantment Traverse",
+      "outcome": "rejected",
+      "reason": "terrain_review_required",
+      "detail": "terrain_review_required: way 235696395: demanding_mountain_hiking intermediate"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626187",
+      "name": "Esmeralda Basin Trail",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5553769",
+      "name": "Mount Si Trail",
+      "outcome": "rejected",
+      "reason": "terrain_review_required",
+      "detail": "terrain_review_required: way 162157943: alpine_hiking "
+    },
+    {
+      "sourceKey": "wa:osm-relation:6106367",
+      "name": "Little Si",
+      "outcome": "rejected",
+      "reason": "objective_source_gap",
+      "detail": "objective_source_gap"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "outcome": "rejected",
+      "reason": "disconnected_source_graph",
+      "detail": "disconnected_source_graph"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5199914",
+      "name": "Skyline Loop (Paradise)",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Paradise catalog trailhead is about 150 m from the named Skyline Trailhead (125 m gate). Relation also includes highway=steps edges unsupported by the current graph filter. Do not select a different nearby start to hide either gap."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194432",
+      "name": "Naches Peak Loop",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Nearby catalog row ZELAKQAzdxPhff3TZmTS is named American Lake Trailhead, not Tipsoo Lake Trailhead. Proximity alone does not establish identity."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5426108",
+      "name": "Mailbox Peak (new trail)",
+      "outcome": "rejected",
+      "reason": "objective_source_gap",
+      "detail": "objective_source_gap"
+    },
+    {
+      "sourceKey": "wa:osm-relation:7147738",
+      "name": "Mailbox Peak (old trail)",
+      "outcome": "rejected",
+      "reason": "terrain_review_required",
+      "detail": "terrain_review_required: way 312552541: demanding_mountain_hiking intermediate"
+    },
+    {
+      "sourceKey": "wa:osm-relation:6632394",
+      "name": "Heather–Maple Pass Loop",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Rainy Pass catalog trailhead is about 175 m from the named source trailhead (125 m gate); selected relation is an open chain with a 9.4 m end gap. No synthetic loop closure."
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "outcome": "rejected",
+      "reason": "access_closed",
+      "detail": "access_closed: WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "outcome": "admitted",
+      "reason": null,
+      "geometryHash": "1cf07bf4a0aa048ae7711195c5ff7204befeb7fc19e4037b0fd727bd3016d005",
+      "sourceHashes": [
+        "570956fac60648576367216e61d48da753ea57d263c69b36795b3392eaeecdca"
+      ],
+      "distanceM": 3949.1060793176794,
+      "mappedFraction": 1,
+      "usedWayIds": [
+        55055543,
+        55055545,
+        891132730,
+        891132731
+      ],
+      "requiredCutIndices": [
+        0,
+        48,
+        49,
+        192,
+        193
+      ],
+      "pendingReady": true,
+      "gainM": 503.7109375
+    },
+    {
+      "sourceKey": "wa:osm-relation:5519228",
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "outcome": "rejected",
+      "reason": "research_source_gap",
+      "detail": "research_source_gap: Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194384",
+      "name": "Tolmie Peak",
+      "outcome": "rejected",
+      "reason": "access_closed",
+      "detail": "access_closed: NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open."
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537775",
+      "name": "Mount Pilchuck",
+      "outcome": "rejected",
+      "reason": "objective_source_gap",
+      "detail": "objective_source_gap"
+    }
+  ],
+  "rows": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "outcome": "planned",
+      "splits": [],
+      "segments": [
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 0,
+          "routeEndIndex": 16,
+          "pointCount": 17
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 16,
+          "routeEndIndex": 24,
+          "pointCount": 9
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 24,
+          "routeEndIndex": 27,
+          "pointCount": 4
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 27,
+          "routeEndIndex": 50,
+          "pointCount": 24
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 50,
+          "routeEndIndex": 172,
+          "pointCount": 123
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 172,
+          "routeEndIndex": 186,
+          "pointCount": 15
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 186,
+          "routeEndIndex": 187,
+          "pointCount": 2
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 187,
+          "routeEndIndex": 192,
+          "pointCount": 6
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 192,
+          "routeEndIndex": 297,
+          "pointCount": 106
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 297,
+          "routeEndIndex": 298,
+          "pointCount": 2
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 298,
+          "routeEndIndex": 299,
+          "pointCount": 2
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 299,
+          "routeEndIndex": 300,
+          "pointCount": 2
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 300,
+          "routeEndIndex": 307,
+          "pointCount": 8
+        }
+      ],
+      "routeDistanceM": 5523.412197483577
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "outcome": "rejected",
+      "reason": "existing_segment_split_requires_review:L4JeIhjFWrqIGzkkZ1fk"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "outcome": "planned",
+      "splits": [],
+      "segments": [
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 0,
+          "routeEndIndex": 42,
+          "pointCount": 43
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 42,
+          "routeEndIndex": 850,
+          "pointCount": 809
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 850,
+          "routeEndIndex": 944,
+          "pointCount": 95
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 944,
+          "routeEndIndex": 1007,
+          "pointCount": 64
+        }
+      ],
+      "routeDistanceM": 7107.041749059399
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "outcome": "planned",
+      "splits": [],
+      "segments": [
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 0,
+          "routeEndIndex": 48,
+          "pointCount": 49
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 48,
+          "routeEndIndex": 49,
+          "pointCount": 2
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 49,
+          "routeEndIndex": 192,
+          "pointCount": 144
+        },
+        {
+          "type": "new",
+          "existingSegmentId": null,
+          "direction": null,
+          "routeStartIndex": 192,
+          "routeEndIndex": 193,
+          "pointCount": 2
+        }
+      ],
+      "routeDistanceM": 3949.1060793176794
+    }
+  ]
+}

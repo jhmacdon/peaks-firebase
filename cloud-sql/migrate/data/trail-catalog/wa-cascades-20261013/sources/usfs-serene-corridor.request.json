@@ -1,0 +1,4 @@
+{
+  "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=1%3D1&geometry=-121.59%2C47.78%2C-121.55%2C47.82&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true",
+  "retrievedAt": "2026-10-13T04:53:52.398458+00:00"
+}

@@ -1223,17 +1223,108 @@ names and stable slugs; checked metadata mode adds classification and estimates.
 Neither mode classifies incomplete old rows or runs a catalog-wide geometry scan.
 Never describe the metadata backfill as complete while rejected rows remain.
 
-The existing publish checks remain in force. At this stage they still require
-a summit and exact route/segment provenance equality. Those rules prevent
-non-summit trails and normal segment reuse across routes with different source
-IDs. Josiah approved kind-specific and source-coverage rules for the next phase;
-see `../docs/data-audits/trail-catalog-2026-10-12/README.md`.
+The publish checks use kind-specific contact rules. Legacy and summit routes
+still require summit contact within 5 m. Destination routes must reach the
+named objective within 250 m; polygon objectives use their boundary. Traverses
+must reach their second trailhead, and loops must close. Shared segments must
+carry their exact contributing source IDs, and their union must cover the
+route's source IDs. Source kind, rights, credit, and elevation lineage must
+agree. Josiah approved these rules; they do not waive independent source
+review or permit unmapped connectors.
 The credited-cover gate, source rights, independent source checks, exact segment
 assembly, and elevation checks must remain. OSM (with ODbL credit) and
 `usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for
 this pilot. Leave descriptions empty without reusable text and all three
 description source fields. Activate at most 500 routes per batch and verify
 that `/internal/sweep` drains the rematch queue before the next batch.
+
+### Washington candidate pilot
+
+First enumerate a bounded area from catalog trailheads and immutable source
+bundles. The discovery command reads catalog places and writes a manifest plus
+a JSONL row for every admitted or rejected attempt. It creates only an audit
+receipt in the database:
+
+```bash
+npm run routes:discover -- \
+  --config data/trail-catalog/wa-cascades-20261013/discovery-lake-serene-reviewed.json \
+  --manifest /tmp/lake-serene-candidates.json \
+  --report /tmp/lake-serene-discovery.jsonl
+```
+
+Outputs must be new files. Split an area when its place, source, cycle, or
+attempt bound is reached; an incomplete inventory produces no importable
+manifest. Discovery follows mapped `path`, `footway`, `track`, and `steps`
+edges; Josiah approved mapped pedestrian steps while retaining every other
+gate. It enumerates named objectives, hiking relations, and exact source
+cycles, then applies the same naming and prefix rules as the pilot. A common
+destination needs explicit evidence to survive prefix pruning. An objective
+without a checked DEM profile remains blocked at the next stage.
+Every candidate's checked DEM gain must stay at or below 2,000 metres, including
+named OSM relations. USFS discovery aliases come only from contributing trail
+features.
+Objective shortest-path searches enforce a 20 km path bound. The request also
+admits explicit named OSM hiking relations near a trailhead, including longer
+loops and traverses; these keep the separate 100 km source-route cap and every
+gain, access, source, review, and cover check. A relation name does not raise the
+20 km bound on the objective search itself.
+
+This command does not fetch a complete regional source network. An operator
+must save and hash each bounded OSM/USFS bundle first. Raw OSM trailheads remain
+source-bound proposals until their catalog identities and metadata are reviewed;
+the command does not insert them or enumerate raw USFS trailheads. The current
+pilot reports these limits and does not claim full regional coverage.
+
+The pilot uses the same matcher as the web route editor through
+`web/src/lib/segment-matcher-core.ts`. It accepts attributed OSM paths and
+the registered `usfs-nfs-trails` layer. Each segment credits only the source
+edges it follows; the independent checker fetches those sources again.
+Its reviewed manifest binds source snapshots and DEM samples by SHA-256,
+plus exact catalog place IDs. It records
+every candidate in JSONL, including rejected inputs and unresolved source
+gaps. Empty input fails. Run from `cloud-sql/migrate` with the documented
+production connection, using a new report path each time:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-dry.jsonl
+```
+
+Dry runs record `data_source_runs` but do not write routes or jobs. Before a
+candidate becomes pending-ready, the dry planner runs the shared exact matcher,
+source-overlap checks, and existing-segment reuse proof. The writer repeats
+these checks under its lease and locks. Review the
+report before applying its printed `reviewHash` under the `peaks-route-factory`
+database role:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-apply.jsonl \
+  --apply --review-hash <reviewed-sha256>
+```
+
+The apply path holds a durable source-key lease, locks the bound places, and
+writes pending routes with exact segment intervals. Manual web split writers also refuse any attributed segment or segment linked to a Peaks route until each child has independent proof of its exact contributing sources. Personal, unattributed segment splits still work. The database checks the
+lease, immutable input, route path, source spans, links, and completion receipt.
+Replays verify the saved route before reusing a receipt. Failed rows remain
+visible, including an interrupted apply whose receipt still needs checking.
+API logins can read candidate receipts but cannot change or remove them.
+Candidate route IDs stay fixed. This command cannot activate routes.
+
+Selection keeps one candidate per trailhead and objective, with the reviewed
+old and new Mailbox trails as distinct variants. It drops a strict prefix
+unless a source attests that its objective is a common hiking destination.
+Distinct trailheads remain separate approaches. Names and aliases retain
+attested names; dropping a "via" suffix requires a complete reviewed region
+and objective inventory, which the golden manifest alone does not provide.
+
+The runner refuses existing catalog matches, physical splits of existing
+segments, source overlaps whose XYZ samples differ, and nearby OSM/USFS
+geometry that needs a shared-source review. Those cases need reviewed repairs; never
+insert duplicate geometry or silently omit a shared segment. The Washington
+report records these limits and blocks scale-up until all golden routes pass.
 
 Cost: about $0/month added fixed cost. This uses the existing database and
 sweep. Index storage and bounded queries add variable work; there is no new

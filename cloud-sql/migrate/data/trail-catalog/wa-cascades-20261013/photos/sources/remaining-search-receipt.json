@@ -1,0 +1,5 @@
+{
+  "url": "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=intitle%3A%22Poo+Poo+Point%22+OR+intitle%3A%22Blanca+Lake%22+OR+intitle%3A%22Stuart+Lake+Trailhead%22+OR+intitle%3A%22Tipsoo+Lake+Trailhead%22+OR+intitle%3A%22Skyline+Trailhead%22+OR+intitle%3A%22Rainy+Pass+Trailhead%22+OR+intitle%3A%22Esmeralda+Trailhead%22&gsrnamespace=6&gsrlimit=50&prop=imageinfo%7Ccoordinates&iiprop=url%7Csize%7Csha1%7Cmime%7Cextmetadata&iiurlwidth=960&format=json",
+  "retrievedAt": "2026-10-13T07:12:05.828237+00:00",
+  "sha256": "ada2a601f24c7f102c6432340d6adca256996c391606174b387338725fe7cf7d"
+}

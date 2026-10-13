@@ -1,0 +1,14 @@
+BEGIN
+SET
+SET
+      source_name      |   osm_id    |          id          |                  name                  |  features   |                             external_ids                              | country_code | state_code |    match_kinds     |        lat         |         lng         | source_distance_m | proposed_id_match | source_id_match | exact_name_match 
+-----------------------+-------------+----------------------+----------------------------------------+-------------+-----------------------------------------------------------------------+--------------+------------+--------------------+--------------------+---------------------+-------------------+-------------------+-----------------+------------------
+ Skyline Trailhead     | 13122759855 | xaMGyHut8CoGCSkCPKh6 | Paradise                               | {trailhead} | {}                                                                    |              |            | {nearby_trailhead} |          46.786721 |         -121.734541 |      149.82982715 | f                 | f               | f
+ Skyline Trailhead     | 13122759855 | 4405150C6D88316257CE | Skyline Lake                           | {lake}      | {"gnis": "1525901", "osm_way": "255490931", "wikidata": "Q124035234"} | US           | WA         | {regional_name}    | 47.756739249999995 | -121.09759521249347 |   118211.88017748 | f                 | f               | f
+ Skyline Trailhead     | 13122759855 | LwSLQCr2FoX4cU9otkkH | Skyline Divide Trailhead               | {trailhead} | {}                                                                    |              |            | {regional_name}    |          48.881165 |         -121.864451 |   233105.69265031 | f                 | f               | f
+ Tipsoo Lake Trailhead | 2431576647  | ZELAKQAzdxPhff3TZmTS | American Lake Trailhead                | {trailhead} | {}                                                                    |              |            | {nearby_trailhead} |          46.870036 |         -121.519771 |       34.80925983 | f                 | f               | f
+ Tipsoo Lake Trailhead | 2431576647  | EB6543FD31B5990A2708 | Tipsoo Lake                            | {lake}      | {"wikidata": "Q7808970", "osm_relation": "6785640"}                   | US           | WA         | {regional_name}    |         46.8689387 | -121.51713245535714 |      200.47624039 | f                 | f               | f
+ Tipsoo Lake Trailhead | 2431576647  | yaMonH4d7pRRpudqZ9ra | Tipsoo Lake-Naches Peak Loop Trailhead | {trailhead} | {}                                                                    |              |            | {regional_name}    |          46.867183 |         -121.518258 |      310.31901627 | f                 | f               | f
+(6 rows)
+
+ROLLBACK

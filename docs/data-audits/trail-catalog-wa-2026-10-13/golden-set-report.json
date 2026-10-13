@@ -1,0 +1,967 @@
+{
+  "generatedAt": "2026-10-13",
+  "scope": "All 21 requested candidates plus current catalog rows; source candidates are not published routes. Nulls remain unresolved.",
+  "apiRevision": "peaks-api-00267-z6s",
+  "goldenPass": false,
+  "routesActivated": 0,
+  "rows": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 5523.412197483577,
+        "gainM": 826.84765625,
+        "difficulty": "strenuous",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 217.74609375,
+        "estMovingSeconds": 17016,
+        "proposedName": "Lake Serene Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "lake serene",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 13,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "1755CBB232F3FCC6A437",
+        "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 5386.955311239522,
+        "gainM": 554.34765625,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 229.98828125,
+        "estMovingSeconds": 14835,
+        "proposedName": "Snow Lake via Snow Lake Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Snow Lake",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "existing_segment_split_requires_review",
+        "detail": "existing_segment_split_requires_review: L4JeIhjFWrqIGzkkZ1fk",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "rejected",
+        "reason": "existing_segment_split_requires_review:L4JeIhjFWrqIGzkkZ1fk",
+        "newSegmentCount": 0,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "4EDA7A56C36153040635",
+        "candidateId": "vNACg3f2NioMeR2qdBjX",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 7107.041749059399,
+        "gainM": 907.22265625,
+        "difficulty": "strenuous",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 226.640625,
+        "estMovingSeconds": 23221,
+        "proposedName": "Lake Ingalls via Ingalls Way Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Ingalls Lake via Ingalls Way",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "existing_source_geometry_requires_review",
+        "detail": "existing_source_geometry_requires_review: vTRZQyeAZpTecyFjAGIr",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 4,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "4F56621F3FF823F6A480",
+        "candidateId": "goxoEUevbtTLEgWOBQ2T",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186:ingalls-peak",
+      "name": "Ingalls Peak via Ingalls Way and South Ridge",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "research_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Ingalls Peak via Ingalls Way and South Ridge"
+      },
+      "currentCatalogRoute": {
+        "id": "aXEHeJetvshw8lnmHEZD",
+        "kind": "summit",
+        "name": "Ingalls Peak via Ingalls Way and South Ridge",
+        "gainM": 1119.9,
+        "lossM": 93.4,
+        "status": "active",
+        "segments": [
+          {
+            "id": "vTRZQyeAZpTecyFjAGIr",
+            "ordinal": 0,
+            "direction": "forward"
+          },
+          {
+            "id": "4iSCsdGqrnhPfqGc9ame",
+            "ordinal": 1,
+            "direction": "forward"
+          },
+          {
+            "id": "QLv4kiKc94TsKGwmhSK0",
+            "ordinal": 2,
+            "direction": "forward"
+          }
+        ],
+        "distanceM": 7398,
+        "difficulty": "strenuous",
+        "estMovingSeconds": 19951
+      },
+      "commonQuery": "Ingalls Peak",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 2,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": false,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Known 118.7 m unmapped final summit span; source way 1213228739 stops below the summit and has demanding terrain / bad visibility. No connector may be invented.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 5840.586452316467,
+        "gainM": 740.6640625,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": {
+          "reason": "attested_distance_mismatch",
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+          "differenceFraction": 0.19351729616864363
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 39.96875,
+        "estMovingSeconds": 13322,
+        "proposedName": "Colchuck Lake Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Colchuck Lake",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "attested_gain_basis_unspecified",
+        "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "RedSHjLLfieFAySd8gFZ",
+        "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 6657.74526205384,
+        "gainM": 571.6015625,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": {
+          "reason": "attested_gain_basis_unspecified",
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf"
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 55.15234375,
+        "estMovingSeconds": 12619,
+        "proposedName": "Lake Stuart via Stuart Lake Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Lake Stuart",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "attested_gain_basis_unspecified",
+        "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "3F941B9F4262007D704D",
+        "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:4829792",
+      "name": "Enchantment Traverse",
+      "kind": "traverse",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "terrain_review_required",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Enchantment Traverse"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Enchantment Lakes traverse",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 235696395: demanding_mountain_hiking intermediate",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626187",
+      "name": "Esmeralda Basin Trail",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "research_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Esmeralda Basin Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Esmeralda Basin",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+        "candidateId": "ITkoNEc-0dHINLIDz6gG",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5553769",
+      "name": "Mount Si Trail",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "terrain_review_required",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mount Si Trail"
+      },
+      "currentCatalogRoute": {
+        "id": "40oJLRsV6f8hgVLXqkB7",
+        "kind": "summit",
+        "name": "Mount Si via Mount Si Trail",
+        "gainM": 1126.5,
+        "lossM": 36.70000000000002,
+        "status": "active",
+        "segments": [
+          {
+            "id": "RZMtSD9XSgoSS1HpbRjx",
+            "ordinal": 0,
+            "direction": "forward"
+          }
+        ],
+        "distanceM": 6171,
+        "difficulty": "strenuous",
+        "estMovingSeconds": 17227
+      },
+      "commonQuery": "Mount Si Trail",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 1,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 162157943: alpine_hiking ",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "nSf6z4vL0zjdG2sXibBM",
+        "candidateId": "xxoCzbZ6wudjscAe788b",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:6106367",
+      "name": "Little Si",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "objective_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Little Si"
+      },
+      "currentCatalogRoute": {
+        "id": "YYQag1GLA2Q1lnu0aTsy",
+        "kind": null,
+        "name": "Little Si",
+        "gainM": 378.28515625,
+        "lossM": 58.93359375,
+        "status": "active",
+        "segments": [],
+        "distanceM": 2965.155366334318,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Little Si",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 2,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "xHaYBgzoxgfAZNLTfWid",
+        "candidateId": "sLF3JFQL61nB2nK78F2f",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 3092.676651989121,
+        "gainM": 410.3671875,
+        "difficulty": "moderate",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 59.1484375,
+        "estMovingSeconds": 7467,
+        "proposedName": "Rattlesnake Ledge via Rattlesnake Ledge Trail"
+      },
+      "currentCatalogRoute": {
+        "id": "5Ne2w5fr0m6q4C3CUtie",
+        "kind": null,
+        "name": "Rattlesnake Ledge Trail",
+        "gainM": 395.234375,
+        "lossM": 47.23828125,
+        "status": "active",
+        "segments": [],
+        "distanceM": 3550.241987545129,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Rattlesnake Ledge",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 4,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 3,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "7F9130E5AAEC9213E123",
+        "candidateId": "NtXYecChVsFWyawb22Q0",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5199914",
+      "name": "Skyline Loop (Paradise)",
+      "kind": "loop",
+      "sourceCandidate": {
+        "distanceM": 9012.20831461764,
+        "gainM": 567.94921875,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 569.39453125,
+        "estMovingSeconds": 9945,
+        "proposedName": "Skyline Loop (Paradise)"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Skyline Loop",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 20,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "C21AD354B7FEA99C277F",
+        "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194432",
+      "name": "Naches Peak Loop",
+      "kind": "loop",
+      "sourceCandidate": {
+        "distanceM": 5633.954710189173,
+        "gainM": 262.828125,
+        "difficulty": "moderate",
+        "graphOutcome": "admitted",
+        "blocker": {
+          "reason": "attested_gain_mismatch",
+          "sourceUrl": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+          "differenceFraction": 0.724593996062992
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 293.5859375,
+        "estMovingSeconds": 6109,
+        "proposedName": "Naches Peak Loop"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Naches Peak Loop",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "attested_gain_mismatch",
+        "detail": "attested_gain_mismatch: https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null
+    },
+    {
+      "sourceKey": "wa:osm-relation:5426108",
+      "name": "Mailbox Peak (new trail)",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "objective_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mailbox Peak (new trail)"
+      },
+      "currentCatalogRoute": {
+        "id": "KG89JzIf3B07ppaWjLxm",
+        "kind": null,
+        "name": "Mailbox Peak Trail",
+        "gainM": 1329.16015625,
+        "lossM": 109.60546875,
+        "status": "active",
+        "segments": [],
+        "distanceM": 8251.016019616058,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Mailbox Peak",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 3,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+        "candidateId": "RuNcafBQAXNpAfNZMuCb",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:7147738",
+      "name": "Mailbox Peak (old trail)",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "terrain_review_required",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mailbox Peak (old trail)"
+      },
+      "currentCatalogRoute": {
+        "id": "4gkUxiJyoPVyJWokOinE",
+        "kind": null,
+        "name": "Mailbox Peak Old Trail",
+        "gainM": 1208.75390625,
+        "lossM": 0,
+        "status": "active",
+        "segments": [],
+        "distanceM": 4018.9009517120226,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Mailbox Peak",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 2,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 312552541: demanding_mountain_hiking intermediate",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+        "candidateId": "RuNcafBQAXNpAfNZMuCb",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:6632394",
+      "name": "Heather–Maple Pass Loop",
+      "kind": "loop",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "research_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Heather–Maple Pass Loop"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Heather Maple Pass Loop",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Rainy Pass catalog trailhead is about 175 m from the named source trailhead (125 m gate); selected relation is an open chain with a 9.4 m end gap. No synthetic loop closure.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "access_closed",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Blanca Lake"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Blanca Lake",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "access_closed",
+        "detail": "access_closed: WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "9B40DE76DC0878A92331",
+        "candidateId": "3QHwUgURE8ts4_kWO639",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": 3949.1060793176794,
+        "gainM": 503.7109375,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 94.484375,
+        "estMovingSeconds": 9651,
+        "proposedName": "Lake Twentytwo via Lake Twenty Two Trail"
+      },
+      "currentCatalogRoute": null,
+      "commonQuery": "Lake 22",
+      "searchStatus": 200,
+      "currentRouteSearchRank": null,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 4,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      },
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "FF006293EBCD1BBDA398",
+        "candidateId": "fw-ML4vsorEL5j7sl4im",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5519228",
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "kind": "destination",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "research_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Poo Poo Point (Chirico Trail candidate)"
+      },
+      "currentCatalogRoute": {
+        "id": "esOhCTEvfGNOCVOR73jg",
+        "kind": null,
+        "name": "Chirico Trail",
+        "gainM": 516.56640625,
+        "lossM": 9.7265625,
+        "status": "active",
+        "segments": [],
+        "distanceM": 2945.68756818613,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Poo Poo Point",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 2,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+        "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194384",
+      "name": "Tolmie Peak",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "access_closed",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Tolmie Peak"
+      },
+      "currentCatalogRoute": {
+        "id": "z2gHia5Sc7SJuq1Ub24G",
+        "kind": null,
+        "name": "Tolmie Peak Trail",
+        "gainM": 454.51953125,
+        "lossM": 138.7109375,
+        "status": "active",
+        "segments": [],
+        "distanceM": 5148.427187870381,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Tolmie Peak",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 2,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": true,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "access_closed",
+        "detail": "access_closed: NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null,
+      "photoReview": {
+        "status": "pending",
+        "destinationId": "htqW9lCp974x1tEWD8t7",
+        "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+        "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+        "coverGateCleared": false
+      }
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537775",
+      "name": "Mount Pilchuck",
+      "kind": "summit",
+      "sourceCandidate": {
+        "distanceM": null,
+        "gainM": null,
+        "difficulty": null,
+        "graphOutcome": "rejected",
+        "blocker": "objective_source_gap",
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mount Pilchuck"
+      },
+      "currentCatalogRoute": {
+        "id": "t7GxkDEDF0HYXsyYwm99",
+        "kind": null,
+        "name": "Mount Pilchuck Trail",
+        "gainM": 714.12890625,
+        "lossM": 39.49609375,
+        "status": "active",
+        "segments": [],
+        "distanceM": 4196.383179184767,
+        "difficulty": null,
+        "estMovingSeconds": null
+      },
+      "commonQuery": "Mount Pilchuck",
+      "searchStatus": 200,
+      "currentRouteSearchRank": 3,
+      "sharedSegmentsWithOtherGoldenRoutes": [],
+      "creditedCoverMissing": false,
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+      },
+      "segmentPlan": null
+    }
+  ],
+  "manifestSha256": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
+  "evidence": {
+    "offline": "graph-dry-run-a4ac8e38b23c.jsonl",
+    "databaseDryRun": "production-dry-run-a4ac8e38b23c-final.jsonl",
+    "candidateEstimates": "candidate-estimates-a4ac8e38b23c.json",
+    "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
+    "search": "production-search.json",
+    "photos": "photos/README.md",
+    "photoQueue": "photos/operations/production-replay-1.jsonl"
+  },
+  "summary": {
+    "candidates": 21,
+    "graphsAdmitted": 9,
+    "graphsRejected": 12,
+    "elevationPassed": 6,
+    "matcherPlans": 5,
+    "matcherBlocked": 1,
+    "routesInserted": 0,
+    "routesActivated": 0,
+    "goldenPass": false,
+    "pendingImportReady": 4,
+    "sourceOverlapBlocked": 1,
+    "pendingPhotoCandidates": 15,
+    "routesWithPendingPhoto": 16,
+    "unresolvedPhotoRoutes": 3,
+    "photosApproved": 0
+  }
+}

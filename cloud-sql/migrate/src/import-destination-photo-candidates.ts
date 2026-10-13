@@ -30,7 +30,7 @@ function parseArgs(argv: string[]): ImportArgs {
   return { input: inputArg.slice("--input=".length), apply: argv.includes("--apply") };
 }
 
-async function verifyDestinations(
+export async function verifyDestinations(
   client: PoolClient,
   candidates: DestinationPhotoManifestCandidate[]
 ): Promise<void> {
@@ -53,7 +53,7 @@ async function verifyDestinations(
   }
 }
 
-async function upsertCandidates(
+export async function upsertCandidates(
   client: PoolClient,
   manifest: DestinationPhotoManifest
 ): Promise<number> {

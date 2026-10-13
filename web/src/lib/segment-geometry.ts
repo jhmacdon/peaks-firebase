@@ -1,5 +1,44 @@
 import type { TrackPoint } from "./route-utils";
 
+export interface VertexSplit {
+  vertexIndices: number[];
+  originalPointCount: number;
+}
+
+function exactSplitCuts(split: VertexSplit): number[] {
+  if (!Array.isArray(split.vertexIndices) || !Number.isInteger(split.originalPointCount)
+    || split.originalPointCount < 2 || split.vertexIndices.some((index, position) =>
+      !Number.isInteger(index) || index <= 0 || index >= split.originalPointCount - 1
+      || (position > 0 && index <= split.vertexIndices[position - 1]))) {
+    throw new Error("segment_split_vertex_indices_invalid");
+  }
+  return [0, ...split.vertexIndices, split.originalPointCount - 1];
+}
+
+/** Split at actual vertices, retaining both XYZ and the shared boundary point. */
+export function splitSegmentAtVertices(points: TrackPoint[], split: VertexSplit): TrackPoint[][] {
+  const cuts = exactSplitCuts(split);
+  if (points.length !== split.originalPointCount) throw new Error("segment_split_geometry_changed");
+  if (points.some(point => ![point.lat, point.lng, point.ele].every(Number.isFinite))) {
+    throw new Error("segment_split_geometry_invalid");
+  }
+  return cuts.slice(1).map((end, index) => points.slice(cuts[index], end + 1));
+}
+
+/** Select every stored split piece in an exact, directed source interval. */
+export function splitSegmentPieceIndices(
+  split: VertexSplit, start: number | undefined, end: number | undefined,
+  direction: "forward" | "reverse"
+): number[] {
+  const cuts = exactSplitCuts(split);
+  if (start === undefined || end === undefined || start >= end
+    || !cuts.includes(start) || !cuts.includes(end)) throw new Error("segment_split_interval_invalid");
+  const pieces = cuts.slice(0, -1).flatMap((value, index) =>
+    value >= start && cuts[index + 1] <= end ? [index] : []);
+  if (!pieces.length) throw new Error("segment_split_interval_empty");
+  return direction === "reverse" ? pieces.reverse() : pieces;
+}
+
 /** Extract points between two cumulative distances, interpolating at boundaries. */
 export function extractSubPoints(
   points: TrackPoint[],

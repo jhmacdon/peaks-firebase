@@ -1,0 +1,5 @@
+{
+  "url": "https://commons.wikimedia.org/w/api.php?action=query&titles=File%3AMount-Si.jpg%7CFile%3AMount+Si+seen+from+Mill+Pond+Road+in+Washington+state.jpg%7CFile%3ALittle+Si%2C+United+States.jpg%7CFile%3ALittle+Si+%2863957%29.jpg%7CFile%3ALake+Serene+July+2025.jpg%7CFile%3ALake+Serene+Melt+-+Flickr+-+striatic.jpg%7CFile%3ALake+Stuart+-+Flickr+-+brewbooks.jpg%7CFile%3ALake+Stuart+view+-+Flickr+-+brewbooks.jpg%7CFile%3AMailbox+Peak.jpg%7CFile%3AMailbox+from+Mount+Teneriffe.jpg%7CFile%3ALake+Ingalls.jpg%7CFile%3ALake+Ingalls+%2821+October+2024%29+2.jpg%7CFile%3ARattlesnake+Ledge%2C+seen+from+Rattlesnake+Lake.jpg%7CFile%3A20150621+SnowLake+043b.jpg%7CFile%3AColchuck+Lake.jpg%7CFile%3ALake+22+-+Flickr+-+brewbooks.jpg%7CFile%3ATolmie+Peak.jpg&prop=imageinfo%7Ccoordinates&iiprop=url%7Csize%7Csha1%7Cmime%7Cextmetadata&iiurlwidth=960&format=json",
+  "retrievedAt": "2026-10-13T07:11:34.445308+00:00",
+  "sha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+}

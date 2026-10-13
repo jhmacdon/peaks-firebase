@@ -1,0 +1,109 @@
+{
+  "scope": "WTA values remain visible as research observations; no geometry, route description, ratings or difficulty copied. Gain basis is unspecified and does not inherit the distance basis.",
+  "routes": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-serene",
+          "distanceM": 11587.276800000001,
+          "distanceBasis": "round_trip",
+          "gainM": 609.6
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/snow-lake",
+          "distanceM": 11587.276800000001,
+          "distanceBasis": "round_trip",
+          "gainM": 548.64
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-ingalls",
+          "distanceM": 14484.096000000001,
+          "distanceBasis": "round_trip",
+          "gainM": 762
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/colchuck-lake",
+          "distanceM": 12874.752,
+          "distanceBasis": "round_trip",
+          "gainM": 694.9440000000001
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-stuart",
+          "distanceM": 14484.096000000001,
+          "distanceBasis": "round_trip",
+          "gainM": 507.492
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/rattlesnake-ledge",
+          "distanceM": 6437.376,
+          "distanceBasis": "round_trip",
+          "gainM": 353.56800000000004
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/blanca-lake",
+          "distanceM": 12874.752,
+          "distanceBasis": "round_trip",
+          "gainM": 1036.3200000000002
+        }
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "use": "research-only; not admitted publication-stat evidence",
+      "stats": [
+        {
+          "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-22-lake-twenty-two",
+          "distanceM": 8690.457600000002,
+          "distanceBasis": "round_trip",
+          "gainM": 411.48
+        }
+      ]
+    }
+  ]
+}

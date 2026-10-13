@@ -29,6 +29,8 @@ type ExistingSegmentReuseInput = {
   direction: "forward" | "reverse";
   routeProvenance: string | null;
   forceRouteSpecific?: boolean;
+  /** Importers must report an unsafe proposed reuse, not create a duplicate. */
+  requireReuse?: boolean;
   createRouteSpecificSegment: () => Promise<string>;
 };
 
@@ -93,7 +95,7 @@ COALESCE((
 ), false) AS stats_match,
 COALESCE((
   SELECT is_valid_route_provenance(candidate.provenance)
-    AND candidate.provenance IS NOT DISTINCT FROM $4::jsonb
+    AND route_segment_provenance_compatible(candidate.provenance, $4::jsonb)
   FROM candidate
 ), false) AS provenance_matches,
 point_checks.segment_points,
@@ -146,18 +148,21 @@ export function existingSegmentReuseCheckPasses(
   );
 }
 
-async function existingSegmentIsSafeToReuse(
+export async function existingSegmentIsSafeToReuse(
   client: PoolClient,
   segmentId: string,
   points: TrackPoint[],
   direction: "forward" | "reverse",
-  routeProvenance: string | null
+  routeProvenance: string | null,
+  lockExisting = true
 ): Promise<boolean> {
-  const locked = await client.query<{ id: string }>(
-    `SELECT id FROM segments WHERE id = $1 FOR UPDATE`,
-    [segmentId]
-  );
-  if (locked.rows.length !== 1) return false;
+  if (lockExisting) {
+    const locked = await client.query<{ id: string }>(
+      `SELECT id FROM segments WHERE id = $1 FOR UPDATE`,
+      [segmentId]
+    );
+    if (locked.rows.length !== 1) return false;
+  }
 
   const result = await client.query<ExistingSegmentReuseCheck>(
     EXISTING_SEGMENT_REUSE_SQL,
@@ -217,6 +222,10 @@ export async function chooseActivationSegmentReference(
       segmentId: input.existingSegmentId,
       direction: input.direction,
     };
+  }
+
+  if (input.requireReuse) {
+    throw new Error(`existing_segment_reuse_rejected:${input.existingSegmentId}`);
   }
 
   return {
