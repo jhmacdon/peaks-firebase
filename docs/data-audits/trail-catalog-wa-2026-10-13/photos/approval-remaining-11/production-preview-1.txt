@@ -1,0 +1,60 @@
+Pager usage is off.
+BEGIN
+SET
+SET
+SET
+SET
+SET
+DO
+DO
+SELECT 11
+          id          
+----------------------
+ 3QHwUgURE8ts4_kWO639
+ Dhv7RDXMojUW0T_jZYI4
+ goxoEUevbtTLEgWOBQ2T
+ ITkoNEc-0dHINLIDz6gG
+ jXUNh6O7X9w3ubnS2FuC
+ RuNcafBQAXNpAfNZMuCb
+ sLF3JFQL61nB2nK78F2f
+ tPvVhGEVwnGL3z5R-DEm
+ vNACg3f2NioMeR2qdBjX
+ WBxrYhLbTZWuLM7DqyAa
+ xxoCzbZ6wudjscAe788b
+(11 rows)
+
+          id          
+----------------------
+ 3F941B9F4262007D704D
+ 4EDA7A56C36153040635
+ 4F56621F3FF823F6A480
+ 5hVnUW4tmqj3A6YbU0oB
+ 9B40DE76DC0878A92331
+ htqW9lCp974x1tEWD8t7
+ nSf6z4vL0zjdG2sXibBM
+ RedSHjLLfieFAySd8gFZ
+ Vm0gOD6OdjW4lQmHn0Fj
+ xHaYBgzoxgfAZNLTfWid
+ Yfu5QdaOWeuxpSXiN5rK
+(11 rows)
+
+DO
+SELECT 11
+SELECT 11
+SELECT 1
+SELECT 1
+DO
+SET CONSTRAINTS
+SELECT 1
+DO
+                                                           validation_result                                                           
+---------------------------------------------------------------------------------------------------------------------------------------
+ {"inside_preview": "passed", "storage_tested": false, "routes_activated": 0, "preview_hero_updates": 11, "preview_queue_updates": 11}
+(1 row)
+
+ROLLBACK
+                                                      validation_result                                                      
+-----------------------------------------------------------------------------------------------------------------------------
+ {"rollback": "passed", "heroes_changed": 0, "photos_approved": 0, "routes_activated": 0, "fixed_monthly_cost_delta_usd": 0}
+(1 row)
+
