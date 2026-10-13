@@ -5,6 +5,7 @@ on:
     paths:
       - ".agents/skills/peaks-route-factory/**"
       - ".codex/agents/peaks-route-reviewer.toml"
+      - ".codex/agents/peaks-trail-reviewer.toml"
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
       - ".claude/skills/peaks-route-catalog-audit/**"
@@ -17,6 +18,7 @@ on:
     paths:
       - ".agents/skills/peaks-route-factory/**"
       - ".codex/agents/peaks-route-reviewer.toml"
+      - ".codex/agents/peaks-trail-reviewer.toml"
       - ".claude/skills/peaks-osm-route-approval/**"
       - ".claude/skills/peaks-standard-route-backfill/**"
       - ".claude/skills/peaks-route-catalog-audit/**"

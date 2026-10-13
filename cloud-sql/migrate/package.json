@@ -59,6 +59,7 @@
     "routes:jobs": "./scripts/run-tsx.sh src/standard-route-jobs.ts",
     "routes:pilot": "./scripts/run-tsx.sh src/trail-catalog-pilot.ts",
     "routes:discover": "./scripts/run-tsx.sh src/trail-catalog-discover.ts",
+    "routes:review-trails": "./scripts/run-tsx.sh src/trail-catalog-review.ts",
     "routes:integrity-repairs": "./scripts/run-tsx.sh src/route-integrity-repairs.ts",
     "routes:audit-jobs": "./scripts/run-tsx.sh src/route-catalog-audit-jobs.ts",
     "routes:elevation-jobs": "./scripts/run-tsx.sh src/route-elevation-jobs.ts",

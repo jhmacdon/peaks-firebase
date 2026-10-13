@@ -1240,6 +1240,22 @@ that `/internal/sweep` drains the rematch queue before the next batch.
 
 ### Washington candidate pilot
 
+Independent review and activation use the new supervised
+[`trail_catalog_review.sh`](../.agents/skills/peaks-route-factory/scripts/trail_catalog_review.sh)
+entrypoint and [operator guide](migrate/docs/trail-catalog-review.md), after
+`20261014_trail_catalog_review_activation.sql`. Dry runs come first; apply binds
+the exact reviewed hash and the authenticated lane. A separate fresh-context
+Sol reviewer sees only the filtered packet and its hash-bound map image. Missing
+visual/source/access/statistics evidence or a credited approved cover blocks
+approval; pending photo candidates do not count. Current source, XYZ, contact,
+all linked 5 m summit, elevation, reuse and five-point checks remain.
+The runner activates one route at a time through the owned SQL function and
+stops until the existing rematch queue drains and canonical public route/search
+verification passes. Default input size is one; the explicit cap is 500. Durable
+leases, immutable receipts and the publication barrier survive crashes. Unknown
+mutation outcomes stay unknown in audits. No repair, requeue, gate override,
+alternate public endpoint or new recurring infrastructure is provided.
+
 First enumerate a bounded area from catalog trailheads and immutable source
 bundles. The discovery command reads catalog places and writes a manifest plus
 a JSONL row for every admitted or rejected attempt. It creates only an audit
