@@ -83,6 +83,11 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     assert.equal((await worker.query("SELECT trail_catalog_pending_binding_valid($1) AS valid", [report.routeId])).rows[0].valid, true);
     assert.equal((await worker.query("SELECT status FROM routes WHERE id=$1", [report.routeId])).rows[0].status, "pending");
     assert.deepEqual(await enqueueCandidate(worker, prefix, "a".repeat(64), first), { state: "pending", routeId: report.routeId });
+    // The disposable operator mirrors API table privileges and is not a worker.
+    // A caller with route UPDATE rights still cannot skip independent review.
+    assert.equal((await operator.query("SELECT pg_has_role(session_user,'peaks-route-factory','member') AS factory")).rows[0].factory,false);
+    await assert.rejects(operator.query("UPDATE routes SET status='active' WHERE id=$1",[report.routeId]), /requires independent review; direct activation is disabled/);
+    assert.equal((await operator.query("SELECT status FROM routes WHERE id=$1",[report.routeId])).rows[0].status,"pending");
     await assert.rejects(worker.query("UPDATE routes SET status='active' WHERE id=$1", [report.routeId]), /bound activation function/);
     await assert.rejects(worker.query("SELECT activate_standard_route_factory($1,$2,$3)", [report.routeId, lake(1).id, "unreviewed"]));
     await assert.rejects(worker.query("UPDATE trail_catalog_candidate_jobs SET artifact=jsonb_set(artifact,'{candidate,input,name}','\"Forged\"') WHERE source_key=$1", [lease.sourceKey]), /immutable/);

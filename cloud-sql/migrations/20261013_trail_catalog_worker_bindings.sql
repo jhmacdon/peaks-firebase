@@ -692,4 +692,23 @@ BEGIN
 END
 $$;
 
+-- This phase creates pending candidates only. API/admin writes must not bypass
+-- the independent review lane by using an older direct-activation endpoint.
+-- A later reviewed activation migration must replace this explicit refusal.
+CREATE OR REPLACE FUNCTION guard_trail_catalog_pending_only()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NEW.status='active' AND EXISTS (
+    SELECT 1 FROM public.trail_catalog_candidate_jobs WHERE proposed_route_id=NEW.id
+  ) THEN
+    RAISE EXCEPTION 'trail catalog candidate requires independent review; direct activation is disabled';
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_guard_trail_catalog_pending_only ON routes;
+CREATE TRIGGER trg_guard_trail_catalog_pending_only
+  BEFORE INSERT OR UPDATE OF status ON routes
+  FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_pending_only();
+
 COMMIT;
