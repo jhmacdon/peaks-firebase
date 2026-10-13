@@ -102,14 +102,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "existing_segment_split_requires_review",
         "detail": "existing_segment_split_requires_review: L4JeIhjFWrqIGzkkZ1fk",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": {
         "outcome": "rejected",
@@ -119,11 +119,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "4EDA7A56C36153040635",
         "candidateId": "vNACg3f2NioMeR2qdBjX",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:08:19.813456+00:00"
       }
     },
     {
@@ -146,14 +148,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "existing_source_geometry_requires_review",
         "detail": "existing_source_geometry_requires_review: vTRZQyeAZpTecyFjAGIr",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -163,11 +165,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "4F56621F3FF823F6A480",
         "candidateId": "goxoEUevbtTLEgWOBQ2T",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:12:37.319833+00:00"
       }
     },
     {
@@ -252,22 +256,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "attested_gain_basis_unspecified",
         "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "RedSHjLLfieFAySd8gFZ",
         "candidateId": "jXUNh6O7X9w3ubnS2FuC",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:09:52.528014+00:00"
       }
     },
     {
@@ -293,22 +299,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "attested_gain_basis_unspecified",
         "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "3F941B9F4262007D704D",
         "candidateId": "tPvVhGEVwnGL3z5R-DEm",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:13:20.902979+00:00"
       }
     },
     {
@@ -362,22 +370,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "research_source_gap",
         "detail": "research_source_gap: Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann.",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
         "candidateId": "ITkoNEc-0dHINLIDz6gG",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:10:17.590381+00:00"
       }
     },
     {
@@ -417,22 +427,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 1,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "terrain_review_required",
         "detail": "terrain_review_required: way 162157943: alpine_hiking ",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "nSf6z4vL0zjdG2sXibBM",
         "candidateId": "xxoCzbZ6wudjscAe788b",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:06:38.356655+00:00"
       }
     },
     {
@@ -466,22 +478,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "objective_source_gap",
         "detail": "objective_source_gap",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "xHaYBgzoxgfAZNLTfWid",
         "candidateId": "sLF3JFQL61nB2nK78F2f",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:13:55.091662+00:00"
       }
     },
     {
@@ -712,22 +726,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 3,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "objective_source_gap",
         "detail": "objective_source_gap",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "5hVnUW4tmqj3A6YbU0oB",
         "candidateId": "RuNcafBQAXNpAfNZMuCb",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:14:51.439767+00:00"
       }
     },
     {
@@ -761,27 +777,29 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "terrain_review_required",
         "detail": "terrain_review_required: way 312552541: demanding_mountain_hiking intermediate",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "5hVnUW4tmqj3A6YbU0oB",
         "candidateId": "RuNcafBQAXNpAfNZMuCb",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:14:51.439767+00:00"
       }
     },
     {
       "sourceKey": "wa:osm-relation:6632394",
-      "name": "Heather\u2013Maple Pass Loop",
+      "name": "Heather–Maple Pass Loop",
       "kind": "loop",
       "sourceCandidate": {
         "distanceM": null,
@@ -792,7 +810,7 @@
         "difficultyReason": "No complete source profile is available for a valid estimate.",
         "lossM": null,
         "estMovingSeconds": null,
-        "proposedName": "Heather\u2013Maple Pass Loop"
+        "proposedName": "Heather–Maple Pass Loop"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Heather Maple Pass Loop",
@@ -830,22 +848,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "access_closed",
         "detail": "access_closed: WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence.",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "9B40DE76DC0878A92331",
         "candidateId": "3QHwUgURE8ts4_kWO639",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:09:38.032913+00:00"
       }
     },
     {
@@ -947,22 +967,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "research_source_gap",
         "detail": "research_source_gap: Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists.",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
         "candidateId": "Dhv7RDXMojUW0T_jZYI4",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:07:45.619847+00:00"
       }
     },
     {
@@ -996,22 +1018,24 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
         "pendingBlocker": "access_closed",
         "detail": "access_closed: NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open.",
-        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review remains required. Credited cover saved in audit 133; every reported route blocker remains."
       },
       "segmentPlan": null,
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "htqW9lCp974x1tEWD8t7",
         "candidateId": "WBxrYhLbTZWuLM7DqyAa",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 133,
+        "reviewedAt": "2026-10-13T17:08:56.024476+00:00"
       }
     },
     {
@@ -1067,7 +1091,11 @@
     "photos": "photos/README.md",
     "photoQueue": "photos/operations/production-replay-1.jsonl",
     "photoApprovals": "photos/approval-apply/production-receipt.json",
-    "publicPhotoServing": "photos/approval-apply/public-serving-1.json"
+    "publicPhotoServing": "photos/approval-apply/public-serving-1.json",
+    "remainingPhotoApprovals": "photos/approval-remaining-11/production-receipt.json",
+    "remainingPhotoReadback": "photos/approval-remaining-11/production-readback-12.json",
+    "remainingPublicPhotoServing": "photos/approval-remaining-11/public-serving-2.json",
+    "remainingSourceRenderComparison": "photos/approval-remaining-11/source-render-comparison-1.json"
   },
   "summary": {
     "candidates": 21,
@@ -1081,11 +1109,11 @@
     "goldenPass": false,
     "pendingImportReady": 4,
     "sourceOverlapBlocked": 1,
-    "pendingPhotoCandidates": 11,
-    "routesWithPendingPhoto": 12,
+    "pendingPhotoCandidates": 0,
+    "routesWithPendingPhoto": 0,
     "unresolvedPhotoRoutes": 3,
-    "photosApproved": 4,
-    "routesWithApprovedPhoto": 4
+    "photosApproved": 15,
+    "routesWithApprovedPhoto": 16
   },
   "routesImportedPending": 4,
   "pendingImportAuditId": 122,
@@ -1099,5 +1127,10 @@
     "activatedRoutes": 0
   },
   "pendingReadbackCheckedAt": "2026-10-13T15:20:14.547145+00:00",
-  "photoApprovalCheckedAt": "2026-10-13T16:17:38.362629+00:00"
+  "photoApprovalCheckedAt": "2026-10-13T17:15:00.250316+00:00",
+  "photoApprovalFinishedAt": "2026-10-13T17:19:07.020995+00:00",
+  "photoApprovalAuditIds": [
+    131,
+    133
+  ]
 }

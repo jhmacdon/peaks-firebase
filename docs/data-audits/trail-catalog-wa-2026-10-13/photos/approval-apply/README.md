@@ -1,6 +1,6 @@
 # Four photos through the existing admin action
 
-Production audit **131** finished successfully: four approved photos, four place rows and four queue rows changed. All four images serve publicly; routes and candidate jobs stayed unchanged and pending. Lake Serene’s first browser click timed out; readback 3 proved its target rows unchanged before a single retry. The existing admin queue shows all four records as approved.
+Production audit **131** finished successfully: four approved photos, four place rows and four queue rows changed. All four images serve publicly; routes and candidate jobs stayed unchanged and pending. Lake Serene’s first browser click timed out; readback 3 proved its target rows unchanged before a single retry. The existing admin queue shows all four records as approved. [Audit 133](../approval-remaining-11/production-receipt.json) later approved the remaining eleven proposals; all fifteen task covers are now approved and serve publicly. Its batch preserved these four original approvals and all route/job fingerprints.
 
 These files cover only the four exact candidate
 IDs in `manifest.json`: Lake Serene, Rattlesnake Ledge, Skyline Trailhead, and

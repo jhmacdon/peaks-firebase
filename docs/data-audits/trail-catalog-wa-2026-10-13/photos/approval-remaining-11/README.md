@@ -1,9 +1,10 @@
 # Remaining eleven place covers
 
-Prepared only; no production SQL or approvals have run from this batch. The
-four-photo scripts, manifests, and receipts remain separate and unchanged.
-Audit 116 supplies these exact pending queue IDs; audit 131's four approved
-candidates are excluded.
+Production preview **132** passed its assertions and confirmed rollback. Audit **133** then finished `success` at 2026-10-13T17:19:07.020995Z: eleven approved photos, eleven place rows and eleven queue rows changed. [Final readback 12](production-readback-12.json) and the [finished receipt](production-receipt.json) confirm unchanged routes, links, source geometry, prior covers, and candidate jobs. [Public serving 2](public-serving-2.json) and [source-render comparison 1](source-render-comparison-1.json) passed all eleven, including exact byte/hash/dimension matches. With audit 131's first four, all fifteen task proposals are now approved. Four pilot routes remain pending, 17 jobs rejected, and zero routes activated. The four-photo scripts, manifests, and receipts remain separate and unchanged.
+
+Mount Si's initial 5-second browser wait timed out, but the row left the pending queue and [readback 1](production-readback-1.json) proved approval; no click was retried. [Readback 7 failed its statement limit](production-readback-7-error.txt), produced no JSON receipt, and caused no approval retry. [Fresh readback 8](production-readback-8.json) proved seven approvals; successful readbacks 1–6 and 8–12 remain saved. The browser Approved tab pages 13 and 14 showed all fifteen task covers, and Colchuck's saved image loaded at 2400×1499 beside its source with correct credit. These are root agent UI observations; no screenshot files are claimed.
+
+The following commands describe the completed run. Do not replay start or approval against these terminal queue rows. Audit 116 supplied the exact IDs below; audit 131's first four candidates stayed excluded from this batch.
 
 | Place | Candidate ID | Saved focal X/Y |
 | --- | --- | --- |
