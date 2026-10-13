@@ -22,17 +22,21 @@ test("candidate worker extension leaves activation and review functions intact",
 const operatorUrl = process.env.ROUTE_JOB_TEST_DATABASE_URL;
 const factoryUrl = process.env.ROUTE_JOB_FACTORY_TEST_DATABASE_URL;
 const reviewerUrl = process.env.ROUTE_JOB_REVIEWER_TEST_DATABASE_URL;
+const apiUrl = process.env.ROUTE_JOB_API_TEST_DATABASE_URL;
+const adminUrl = process.env.ROUTE_JOB_ADMIN_TEST_DATABASE_URL;
 test("factory queue writes exact pending candidates, reuses spans, and cannot bypass review", {
-  skip: operatorUrl && factoryUrl && reviewerUrl ? false : "disposable operator/factory/reviewer database URLs required",
+  skip: operatorUrl && factoryUrl && reviewerUrl && apiUrl && adminUrl ? false : "disposable operator/factory/reviewer/API/admin database URLs required",
 }, async () => {
   const target = new URL(operatorUrl!);
-  for (const value of [operatorUrl!, factoryUrl!, reviewerUrl!]) {
+  for (const value of [operatorUrl!, factoryUrl!, reviewerUrl!, apiUrl!, adminUrl!]) {
     const url = new URL(value); assert.match(url.pathname, /_test$/);
     assert.equal(url.pathname, target.pathname); assert.equal(url.host, target.host);
   }
   const operator = new Pool({ connectionString: operatorUrl, max: 1 });
   const factory = new Pool({ connectionString: factoryUrl, max: 1 });
   const reviewer = new Pool({ connectionString: reviewerUrl, max: 1 });
+  const api = new Pool({ connectionString: apiUrl, max: 1 });
+  const admin = new Pool({ connectionString: adminUrl, max: 1 });
   const worker = await factory.connect();
   const prefix = `trail-worker-${process.pid}-${Date.now()}`;
   const dir = mkdtempSync(join(tmpdir(), "peaks-trail-worker-"));
@@ -83,10 +87,21 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     assert.equal((await worker.query("SELECT trail_catalog_pending_binding_valid($1) AS valid", [report.routeId])).rows[0].valid, true);
     assert.equal((await worker.query("SELECT status FROM routes WHERE id=$1", [report.routeId])).rows[0].status, "pending");
     assert.deepEqual(await enqueueCandidate(worker, prefix, "a".repeat(64), first), { state: "pending", routeId: report.routeId });
-    // The disposable operator mirrors API table privileges and is not a worker.
-    // A caller with route UPDATE rights still cannot skip independent review.
-    assert.equal((await operator.query("SELECT pg_has_role(session_user,'peaks-route-factory','member') AS factory")).rows[0].factory,false);
-    await assert.rejects(operator.query("UPDATE routes SET status='active' WHERE id=$1",[report.routeId]), /requires independent review; direct activation is disabled/);
+    // This login inherits the actual API grants, including revoked queue writes.
+    assert.equal((await api.query("SELECT pg_has_role(session_user,'peaks-api','member') AS api")).rows[0].api,true);
+    assert.equal((await api.query("SELECT state FROM trail_catalog_candidate_jobs WHERE source_key=$1",[lease.sourceKey])).rows[0].state,"pending");
+    for (const sql of [
+      "DELETE FROM trail_catalog_candidate_jobs WHERE source_key=$1",
+      "UPDATE trail_catalog_candidate_jobs SET proposed_route_id='forged' WHERE source_key=$1",
+    ]) await assert.rejects(api.query(sql,[lease.sourceKey]), /permission denied/);
+    await assert.rejects(api.query("TRUNCATE trail_catalog_candidate_jobs"), /permission denied/);
+    await assert.rejects(worker.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=$1",[lease.sourceKey]), /permission denied/);
+    // A broad fixture operator cannot erase or rekey immutable review receipts.
+    await assert.rejects(operator.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=$1",[lease.sourceKey]), /only by the table owner/);
+    await assert.rejects(operator.query("UPDATE trail_catalog_candidate_jobs SET proposed_route_id='forged' WHERE source_key=$1",[lease.sourceKey]), /immutable/);
+    await assert.rejects(api.query("UPDATE routes SET status='active' WHERE id=$1",[report.routeId]), /requires independent review; direct activation is disabled/);
+    await assert.rejects(api.query("UPDATE routes SET id=$2 WHERE id=$1",[report.routeId,`${prefix}-rekeyed`]), /route identity is immutable/);
+    await assert.rejects(api.query("UPDATE routes SET id=$2,status='active' WHERE id=$1",[report.routeId,`${prefix}-rekeyed`]), /route identity is immutable/);
     assert.equal((await operator.query("SELECT status FROM routes WHERE id=$1",[report.routeId])).rows[0].status,"pending");
     await assert.rejects(worker.query("UPDATE routes SET status='active' WHERE id=$1", [report.routeId]), /bound activation function/);
     await assert.rejects(worker.query("SELECT activate_standard_route_factory($1,$2,$3)", [report.routeId, lake(1).id, "unreviewed"]));
@@ -133,12 +148,12 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     assert.equal((await operator.query("SELECT rows_written FROM data_source_runs WHERE id=$1", [run.rows[0].id])).rows[0].rows_written, 2);
   } finally {
     await worker.query("ROLLBACK");
-    await operator.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=ANY($1::text[])", [sourceKeys]);
+    await admin.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=ANY($1::text[])", [sourceKeys]);
     await operator.query("DELETE FROM routes WHERE id=ANY($1::text[])", [routeIds]);
     await operator.query("DELETE FROM segments WHERE id=ANY($1::text[])", [[...segmentIds, `${prefix}-orphan`, `${prefix}-forged`]]);
     await operator.query("DELETE FROM destinations WHERE id=ANY($1::text[])", [places.map(p => p.id)]);
     await operator.query("DELETE FROM data_source_runs WHERE id=ANY($1::bigint[])", [runIds]);
-    worker.release(); await Promise.all([factory.end(), operator.end(), reviewer.end()]);
+    worker.release(); await Promise.all([factory.end(), operator.end(), reviewer.end(), api.end(), admin.end()]);
     rmSync(dir, { recursive: true, force: true });
   }
 });

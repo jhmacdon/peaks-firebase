@@ -25,16 +25,20 @@ const provenance = (ids: string[], extra: Record<string, unknown> = {}) => ({
 });
 
 const factoryUrl = process.env.ROUTE_JOB_FACTORY_TEST_DATABASE_URL;
+const apiUrl = process.env.ROUTE_JOB_API_TEST_DATABASE_URL;
+const adminUrl = process.env.ROUTE_JOB_ADMIN_TEST_DATABASE_URL;
 test("USFS factory writes source-specific children, reuses exact spans, and rejects padded child credit", {
-  skip: databaseUrl && factoryUrl ? false : "disposable operator/factory database URLs required",
+  skip: databaseUrl && factoryUrl && apiUrl && adminUrl ? false : "disposable operator/factory/API/admin database URLs required",
 }, async () => {
   const target = new URL(databaseUrl!);
-  for (const value of [databaseUrl!, factoryUrl!]) {
+  for (const value of [databaseUrl!, factoryUrl!, apiUrl!, adminUrl!]) {
     const url = new URL(value); assert.match(url.pathname, /_test$/);
     assert.equal(url.pathname, target.pathname); assert.equal(url.host, target.host);
   }
   const operator = new Pool({ connectionString: databaseUrl, max: 1 });
   const factory = new Pool({ connectionString: factoryUrl, max: 1 });
+  const api = new Pool({ connectionString: apiUrl, max: 1 });
+  const admin = new Pool({ connectionString: adminUrl, max: 1 });
   const worker = await factory.connect();
   const prefix = `usfs-worker-${process.pid}-${Date.now()}`;
   const dir = mkdtempSync(join(tmpdir(), "peaks-usfs-worker-"));
@@ -81,7 +85,7 @@ test("USFS factory writes source-specific children, reuses exact spans, and reje
       assert.deepEqual((await worker.query(`SELECT trail_catalog_usfs_feature_ids(s.provenance->>'source_url') AS ids
         FROM route_segments rs JOIN segments s ON s.id=rs.segment_id WHERE rs.route_id=$1 ORDER BY rs.ordinal`, [report.routeId])).rows.map(row => row.ids), [["lower"], ["upper"]]);
     }
-    await assert.rejects(operator.query("UPDATE routes SET status='active' WHERE id=$1", [routeIds[0]]), /requires independent review; direct activation is disabled/);
+    await assert.rejects(api.query("UPDATE routes SET status='active' WHERE id=$1", [routeIds[0]]), /requires independent review; direct activation is disabled/);
     const reviewed = artifact(3); await enqueueCandidate(worker, prefix, "b".repeat(64), reviewed);
     const lease = await claimCandidate(worker, reviewed.candidate.input.sourceKey, sha256(stableJson(reviewed)), "usfs-worker-test");
     assert.ok(lease); routeIds.push(lease.proposedRouteId);
@@ -93,11 +97,11 @@ test("USFS factory writes source-specific children, reuses exact spans, and reje
     assert.equal((await operator.query("SELECT count(*)::int AS n FROM segments WHERE id=$1", [`${prefix}-padded`])).rows[0].n, 0);
   } finally {
     await worker.query("ROLLBACK");
-    await operator.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=ANY($1::text[])", [sourceKeys]);
+    await admin.query("DELETE FROM trail_catalog_candidate_jobs WHERE source_key=ANY($1::text[])", [sourceKeys]);
     await operator.query("DELETE FROM routes WHERE id=ANY($1::text[])", [routeIds]);
     await operator.query("DELETE FROM segments WHERE id=ANY($1::text[])", [[...segmentIds, `${prefix}-padded`]]);
     await operator.query("DELETE FROM destinations WHERE id=ANY($1::text[])", [places.map(p => p.id)]);
-    worker.release(); await Promise.all([factory.end(), operator.end()]);
+    worker.release(); await Promise.all([factory.end(), operator.end(), api.end(), admin.end()]);
     rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -48,21 +48,27 @@ Its per-suite variables are listed in `cloud-sql/migrate/README.md`.
 | Role `peaks_test` | same instance | holds exactly what `peaks-api` holds in production |
 | Password | Secret Manager `peaks-test-db-password` | |
 
-CI's throwaway Postgres cluster also has `peaks-route-factory-test` and
-`peaks-route-reviewer-test`. `provision.sh` creates them only when
+CI's throwaway Postgres cluster also has `peaks-route-factory-test`,
+`peaks-route-reviewer-test`, and `peaks-api-test`. The API login inherits the
+actual API role, including narrow queue grants. `provision.sh` creates them only when
 `CREATE_ROUTE_WORKER_TEST_LOGINS=1`, and refuses when the cluster contains a
 database named `peaks`. PostgreSQL role membership spans the whole cluster, so
 these test logins must never inherit production marker roles on the shared
 Cloud SQL instance.
 
 With `ROUTE_WORKER_TEST_LOGINS_AVAILABLE=1`,
-`cloud-sql/migrate/scripts/test-db.sh` builds the two worker connection URLs
+`cloud-sql/migrate/scripts/test-db.sh` builds the worker and API connection URLs
 from `TEST_DATABASE_URL`. Set `ROUTE_FACTORY_TEST_DB_ROLE`,
 `ROUTE_FACTORY_TEST_DB_PASSWORD`, `ROUTE_REVIEWER_TEST_DB_ROLE`, and
 `ROUTE_REVIEWER_TEST_DB_PASSWORD` on both commands when a private throwaway
 cluster needs different names or passwords. On the shared Cloud SQL test
 database, leave the flag unset and supply no worker-role URLs; those focused
 tests skip there.
+
+Candidate receipt tests also require `ROUTE_JOB_ADMIN_TEST_DATABASE_URL` for
+owner-only fixture cleanup. Every test URL must name the same disposable
+`*_test` database and host. `ROUTE_API_TEST_DB_ROLE` and
+`ROUTE_API_TEST_DB_PASSWORD` override the disposable API login defaults.
 
 The instance is shared; the data is not. `peaks_test` has no privileges on any
 `peaks` table, and the only thing `PUBLIC` can read there is PostGIS metadata
