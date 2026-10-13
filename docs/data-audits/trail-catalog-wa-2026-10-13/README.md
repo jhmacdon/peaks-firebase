@@ -10,7 +10,7 @@ A separate bounded Lake Serene discovery read 10 catalog places and reported all
 
 The [schema rollout](schema-rollout-20261013/README.md) records seven applied migrations and two source-backed trailheads. Josiah approved the separate factory login; [audit 120](factory-login-setup/production-apply.json) created it, saved its random password in Keychain, and verified the actual login. The [first factory dry run](production-factory-dry-run.jsonl) reproduced all 21 outcomes and the same review hash through that restricted login. The approved cover fallback is licensed, credited place photos, queued for review before any cover gate passes.
 
-The [photo review gallery](photos/README.md) has 15 licensed place photos for 16 of the 19 cover gaps. Production audit 116 added all 15 to the pending photo queue after a rollback preview; audit 117 confirmed an unchanged replay. The existing admin approval step has not run, so destination hero fields and route cover gates remain unchanged. Exact photos for the northern Tipsoo Lake, Rainy Pass, and Stuart Lake trailheads remain unresolved.
+The [photo review gallery](photos/README.md) has 15 licensed place photos for 16 of the 19 cover gaps. Production audit 116 added all 15 to the pending photo queue after a rollback preview; audit 117 confirmed an unchanged replay. [Audit 131](photos/approval-apply/production-receipt.json) approved Lake Serene, Rattlesnake Ledge, Skyline, and Lake 22 through the existing admin action. Each has exact source credit and saved framing; all four images serve publicly. Eleven photo candidates remain pending. The four routes and their candidate jobs remain unchanged and pending. Exact photos for the northern Tipsoo Lake, Rainy Pass, and Stuart Lake trailheads remain unresolved.
 
 This review includes all 21 requested routes. The latest offline replay admits nine source graphs and rejects twelve. Six of the nine pass the saved elevation checks. Colchuck Lake and Lake Stuart still lack a stated gain basis in the official comparison source; Naches Peak Loop exceeds the official gain by 72.46%. **The offline replay alone does not establish readiness for pending insertion or publication.** No database connection, route write, audit-row write, or activation ran in this replay.
 
@@ -45,7 +45,7 @@ The [manifest](../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-2026101
 
 | Route | Offline result | Unresolved issue |
 | --- | --- | --- |
-| Lake Serene Trail | Graph and elevation pass | Access review, credited objective cover, endpoint review, live catalog checks |
+| Lake Serene Trail | Imported pending; credited cover saved | Independent access, identity, map and endpoint review; activation |
 | Snow Lake Trail (Alpental) | Graph and elevation pass | Access review, credited objective cover, endpoint review, live catalog checks |
 | Ingalls Lake via Ingalls Way | Graph and elevation pass | Access review, credited objective cover, endpoint review, live catalog checks |
 | Ingalls Peak via Ingalls Way and South Ridge | Reject | Mapped approach stops 118.7 m from the summit; no source connector or approved terrain review |
@@ -55,14 +55,14 @@ The [manifest](../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-2026101
 | Esmeralda Basin Trail | Reject | No verified catalog objective or common turnaround; the source continues toward Lake Ann |
 | Mount Si Trail | Reject | Haystack source tags require terrain review; catalog summit is 9.7 m from its OSM node |
 | Little Si | Reject | Catalog summit is 17.0 m from its OSM node |
-| Rattlesnake Ledge | Graph and elevation pass | Approved mapped steps now pass the shared source checks; credited objective cover, access review, and live checks remain |
-| Skyline Loop (Paradise) | Graph and elevation pass | New Skyline trailhead and approved mapped steps resolve those blockers; credited trailhead cover, access review, and live checks remain |
+| Rattlesnake Ledge | Graph and elevation pass | Imported pending with credited objective cover; independent review and activation remain |
+| Skyline Loop (Paradise) | Graph and elevation pass | Imported pending with credited trailhead cover; independent review and activation remain |
 | Naches Peak Loop | Graph passes; stats reject | New northern Tipsoo binding resolves start identity; DEM gain 262.83 m exceeds NPS 152.4 m by 72.46%; cover and access review missing |
 | Mailbox Peak (new trail) | Reject | Catalog summit is 12.3 m from its OSM node |
 | Mailbox Peak (old trail) | Reject | Terrain review missing; catalog summit is 12.3 m from its OSM node |
 | Heather–Maple Pass Loop | Reject | Rainy Pass catalog trailhead is about 175 m from the start; selected source is an open chain with a 9.4 m gap |
 | Blanca Lake | Reject | Reported road closure blocks this trailhead approach pending reopening evidence |
-| Lake 22 | Graph and elevation pass | Access review, credited objective cover, endpoint review, live catalog checks |
+| Lake 22 | Imported pending; credited cover saved | Independent access, identity, map and endpoint review; activation |
 | Poo Poo Point (Chirico Trail candidate) | Reject | Source reaches a viewpoint/launch, while the catalog objective identifies the separate summit |
 | Tolmie Peak | Reject | NPS reports usual road access closed; catalog summit also differs from its OSM node |
 | Mount Pilchuck | Reject | Source lookout endpoint is 14.5 m from the catalog summit; the same-identity OSM summit needs review |

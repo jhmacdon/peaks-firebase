@@ -25,14 +25,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
         "pendingBlocker": null,
         "detail": null,
-        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Independent review, credited cover and activation remain required."
+        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Audit 131 saved its credited cover. Independent review and activation remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -42,11 +42,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "1755CBB232F3FCC6A437",
         "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 131,
+        "reviewedAt": "2026-10-13T16:16:26.614771+00:00"
       },
       "pilotPendingRoute": {
         "kind": "destination",
@@ -513,14 +515,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": 4,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
         "pendingBlocker": null,
         "detail": null,
-        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Independent review, credited cover and activation remain required."
+        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Audit 131 saved its credited cover. Independent review and activation remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -530,11 +532,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "7F9130E5AAEC9213E123",
         "candidateId": "NtXYecChVsFWyawb22Q0",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 131,
+        "reviewedAt": "2026-10-13T16:13:57.589184+00:00"
       },
       "pilotPendingRoute": {
         "kind": "destination",
@@ -578,14 +582,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
         "pendingBlocker": null,
         "detail": null,
-        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Independent review, credited cover and activation remain required."
+        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Audit 131 saved its credited cover. Independent review and activation remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -595,11 +599,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "C21AD354B7FEA99C277F",
         "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 131,
+        "reviewedAt": "2026-10-13T16:13:13.403683+00:00"
       },
       "pilotPendingRoute": {
         "kind": "loop",
@@ -775,7 +781,7 @@
     },
     {
       "sourceKey": "wa:osm-relation:6632394",
-      "name": "Heather–Maple Pass Loop",
+      "name": "Heather\u2013Maple Pass Loop",
       "kind": "loop",
       "sourceCandidate": {
         "distanceM": null,
@@ -786,7 +792,7 @@
         "difficultyReason": "No complete source profile is available for a valid estimate.",
         "lossM": null,
         "estMovingSeconds": null,
-        "proposedName": "Heather–Maple Pass Loop"
+        "proposedName": "Heather\u2013Maple Pass Loop"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Heather Maple Pass Loop",
@@ -862,14 +868,14 @@
       "searchStatus": 200,
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
-      "creditedCoverMissing": true,
+      "creditedCoverMissing": false,
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
         "pendingBlocker": null,
         "detail": null,
-        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Independent review, credited cover and activation remain required."
+        "note": "Imported as pending in audit 122; exact binding and publish integrity passed live readback. Audit 131 saved its credited cover. Independent review and activation remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -879,11 +885,13 @@
         "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
       },
       "photoReview": {
-        "status": "pending",
+        "status": "approved",
         "destinationId": "FF006293EBCD1BBDA398",
         "candidateId": "fw-ML4vsorEL5j7sl4im",
         "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
-        "coverGateCleared": false
+        "coverGateCleared": true,
+        "approvalAuditId": 131,
+        "reviewedAt": "2026-10-13T16:17:08.361108+00:00"
       },
       "pilotPendingRoute": {
         "kind": "destination",
@@ -1057,7 +1065,9 @@
     "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
     "search": "production-search.json",
     "photos": "photos/README.md",
-    "photoQueue": "photos/operations/production-replay-1.jsonl"
+    "photoQueue": "photos/operations/production-replay-1.jsonl",
+    "photoApprovals": "photos/approval-apply/production-receipt.json",
+    "publicPhotoServing": "photos/approval-apply/public-serving-1.json"
   },
   "summary": {
     "candidates": 21,
@@ -1066,15 +1076,16 @@
     "elevationPassed": 6,
     "matcherPlans": 5,
     "matcherBlocked": 1,
-    "routesInserted": 0,
+    "routesInserted": 4,
     "routesActivated": 0,
     "goldenPass": false,
     "pendingImportReady": 4,
     "sourceOverlapBlocked": 1,
-    "pendingPhotoCandidates": 15,
-    "routesWithPendingPhoto": 16,
+    "pendingPhotoCandidates": 11,
+    "routesWithPendingPhoto": 12,
     "unresolvedPhotoRoutes": 3,
-    "photosApproved": 0
+    "photosApproved": 4,
+    "routesWithApprovedPhoto": 4
   },
   "routesImportedPending": 4,
   "pendingImportAuditId": 122,
@@ -1087,5 +1098,6 @@
     "reusedSegments": 0,
     "activatedRoutes": 0
   },
-  "pendingReadbackCheckedAt": "2026-10-13T15:20:14.547145+00:00"
+  "pendingReadbackCheckedAt": "2026-10-13T15:20:14.547145+00:00",
+  "photoApprovalCheckedAt": "2026-10-13T16:17:38.362629+00:00"
 }

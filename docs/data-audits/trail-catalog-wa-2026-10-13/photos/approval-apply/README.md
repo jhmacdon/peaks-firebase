@@ -1,6 +1,8 @@
 # Four photos through the existing admin action
 
-These prepared files have not run. They cover only the four exact candidate
+Production audit **131** finished successfully: four approved photos, four place rows and four queue rows changed. All four images serve publicly; routes and candidate jobs stayed unchanged and pending. Lake Serene’s first browser click timed out; readback 3 proved its target rows unchanged before a single retry. The existing admin queue shows all four records as approved.
+
+These files cover only the four exact candidate
 IDs in `manifest.json`: Lake Serene, Rattlesnake Ledge, Skyline Trailhead, and
 Lake Twentytwo. They never update photo candidates, heroes, routes, segments,
 links, or candidate jobs. Actual approval uses the existing verified-admin

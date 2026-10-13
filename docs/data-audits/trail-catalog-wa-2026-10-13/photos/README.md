@@ -1,8 +1,8 @@
 # Washington trail cover review — 2026-10-13
 
-15 licensed place photos are now in the existing production review queue, all pending. They could cover 16 of 19 current cover gaps after human approval. Three trailheads remain unresolved: northern Tipsoo Lake, Rainy Pass, and Stuart Lake. No route was inserted or activated.
+Of the 15 licensed place photos added to the production queue, four now have saved, credited covers: Lake Serene, Rattlesnake Ledge, Skyline Trailhead, and Lake Twentytwo. [Audit 131](approval-apply/production-receipt.json) records approval through the existing admin action; [public serving checks](approval-apply/public-serving-1.json) passed for each image. Eleven proposals remain pending. Exact photos for northern Tipsoo Lake, Rainy Pass, and Stuart Lake trailheads remain unresolved. All four imported pilot routes remain pending; none is active.
 
-The input is `cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json`. `photos/review.json` binds each File page, image SHA-1, raw metadata SHA-256, catalog place, and golden route. Public request receipts and raw replies live under `photos/sources/`; every inspected file outcome and missing place appears in `outcomes.jsonl`. Source research made no database writes. The [queue import](operations/README.md) then added 15 pending proposals after a rollback preview; replay planned zero changes. All destination hero fields stayed unchanged. Added fixed cost is $0/month.
+The input is `cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json`. `photos/review.json` binds each File page, image SHA-1, raw metadata SHA-256, catalog place, and golden route. Public request receipts and raw replies live under `photos/sources/`; every inspected file outcome and missing place appears in `outcomes.jsonl`. Source research made no database writes. The [queue import](operations/README.md) then added 15 pending proposals after a rollback preview; replay planned zero changes. That queue import left hero fields unchanged. Audit 131 later updated exactly four place heroes and four photo queue rows; route and candidate-job fingerprints stayed unchanged. Added fixed cost is $0/month.
 
 Each full frame below was checked in the Commons browser preview. Framing points are proposals. Keep the author, File-page credit, and license link. If the app crops a photo, show “cropped from original.” Preserve share-alike terms for any CC BY-SA adaptation. Camera points describe the camera, not the depicted summit; no missing point was inferred.
 
@@ -22,13 +22,13 @@ Routes: Little Si. Rocky summit viewpoint in front of the valley; the source alr
 
 Routes: Rattlesnake Ledge. Ledge visible above the forest; keep the ledge at the top of the wide crop.
 
-![Rattlesnake Ledge — pending cover review](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg/960px-Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
+![Rattlesnake Ledge — approved cover](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg/960px-Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
 
 **Lake Serene** — Spengy, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), 6000×4000. [Source File page](https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg).
 
 Routes: Lake Serene Trail. Clear lake and rocky basin; keep the water and shoreline.
 
-![Lake Serene — pending cover review](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Lake_Serene_July_2025.jpg/960px-Lake_Serene_July_2025.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
+![Lake Serene — approved cover](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Lake_Serene_July_2025.jpg/960px-Lake_Serene_July_2025.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
 
 **Snow Lake** — Danust, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), 1938×1444. [Source File page](https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg).
 
@@ -70,7 +70,7 @@ Routes: Blanca Lake. Green lake and glacier basin framed by trees; keep lake and
 
 Routes: Lake 22. Lake surface with forested slopes; keep the lake above the foreground rocks.
 
-![Lake Twentytwo — pending cover review](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Lake_22_-_Flickr_-_brewbooks.jpg/960px-Lake_22_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
+![Lake Twentytwo — approved cover](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Lake_22_-_Flickr_-_brewbooks.jpg/960px-Lake_22_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
 
 **Poo Poo Point** — Peter Stevens, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0), 3000×1624. [Source File page](https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg).
 
@@ -88,7 +88,7 @@ Routes: Tolmie Peak. Tolmie ridgeline view; this file does not show the lookout 
 
 Routes: Skyline Loop (Paradise). Entrance stone steps and John Muir quote visible; keep the entrance steps.
 
-![Skyline Trailhead — pending cover review](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg/960px-Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
+![Skyline Trailhead — approved cover](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg/960px-Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail)
 
 **Esmeralda Trailhead** — Buidhe, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), 4624×3472. [Source File page](https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg).
 
