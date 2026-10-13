@@ -10,6 +10,17 @@ function fixture(segments: Array<{ id: string; points: TrackPoint[] }>) {
   const queries: Array<{ text: string; values?: unknown[] }> = [];
   const client: SegmentMatcherClient = { async query(text, values) {
     queries.push({ text, values });
+    if (text.includes("WITH exact_candidate_ids")) {
+      const excluded = values?.[2] as string[];
+      return { rows: segments.filter(segment => !excluded.includes(segment.id)).slice(0, Number(values?.[3])).map(({ id }) => ({ id })) };
+    }
+    if (text.includes("WITH candidate_sizes")) {
+      const selected = segments.filter(segment => (values?.[0] as string[]).includes(segment.id));
+      const total = selected.reduce((sum, segment) => sum + segment.points.length, 0);
+      return { rows: selected.map(({ id, points }) => ({ id, name: id, distance: 100,
+        point_count: points.length, total_points: total,
+        geojson: total <= Number(values?.[1]) ? JSON.stringify({ type: "LineString", coordinates: xyz(points) }) : null })) };
+    }
     if (text.includes("FROM segments s")) return { rows: segments.map(({ id, points }) =>
       ({ id, name: id, distance: 100, geojson: JSON.stringify({ type: "LineString", coordinates: xyz(points) }) })) };
     if (text.includes("FROM route_segments rs")) return { rows: [] };
@@ -29,7 +40,8 @@ test("first import cuts every source seam and graph junction without changing XY
   assert.deepEqual(xyz(assembled), xyz(points));
   assert.deepEqual(result.splits, []);
   assert.equal(queries.length, 1);
-  assert.match(queries[0].text, /ST_AsGeoJSON\(s.path::geometry, 15\)/);
+  assert.match(queries[0].text, /s.path && _ST_Expand/);
+  assert.doesNotMatch(queries[0].text, /ST_AsGeoJSON|ST_DWithin/);
 });
 
 test("an exact stored span shorter than 50 m reuses in both directions", async () => {
@@ -140,11 +152,14 @@ test("web review keeps proximity proposals while short inexact spans stay new", 
   for (const step of [0.001, 0.0001]) {
     const stored = line(3, step);
     const nearby = stored.map(point => ({ ...point, lng: point.lng + 0.00005 }));
-    const { client } = fixture([{ id: "nearby", points: stored }]);
+    const { client, queries } = fixture([{ id: "nearby", points: stored }]);
     const result = await analyzeRouteSegmentsWithClient(client, nearby);
     assert.equal(result.segments.length, 1);
     assert.equal(result.segments[0].type, step === 0.001 ? "existing" : "new");
     assert.deepEqual(xyz(result.segments[0].points), xyz(nearby));
+    assert.equal(queries.length, 1);
+    assert.match(queries[0].text, /ST_DWithin/);
+    assert.doesNotMatch(queries[0].text, /LIMIT|exact_candidate_ids/);
   }
 });
 
@@ -160,4 +175,38 @@ test("invalid route geometry and cut indices fail before querying", async () => 
 test("database failures propagate instead of hiding unmatched segments", async () => {
   const client: SegmentMatcherClient = { async query() { throw new Error("database unavailable"); } };
   await assert.rejects(analyzeRouteSegmentsWithClient(client, line(3), automatic), /database unavailable/);
+});
+
+test("bounded exact scan preserves exclusions and hands all candidates to the same matcher", async () => {
+  const points = line(3);
+  const { client, queries } = fixture([{ id: "excluded", points }, { id: "shared", points }]);
+  const result = await analyzeRouteSegmentsWithClient(client, [...points].reverse(), {
+    ...automatic, excludeSegmentIds: ["excluded"],
+  });
+  assert.equal(result.segments[0].existingSegmentId, "shared");
+  assert.equal(result.segments[0].direction, "reverse");
+  assert.deepEqual(queries[0].values?.slice(1), [90, ["excluded"], 513]);
+  assert.deepEqual(queries[1].values?.[0], ["shared"]);
+  assert.match(queries[1].text, /CASE WHEN b.total_points <= \$2\s+THEN ST_AsGeoJSON/);
+});
+
+test("candidate count overflow fails before geometry loading instead of omitting shared spans", async () => {
+  const points = line(3);
+  const { client, queries } = fixture(Array.from({ length: 513 }, (_, index) => ({ id: `shared-${index}`, points })));
+  await assert.rejects(analyzeRouteSegmentsWithClient(client, points, automatic), /exact_candidate_scan_limit_exceeded:512/);
+  assert.equal(queries.length, 1);
+});
+
+test("candidate vertex overflow fails without returning a new segment", async () => {
+  const { client, queries } = fixture([{ id: "huge", points: line(200_001, 1e-8) }]);
+  await assert.rejects(analyzeRouteSegmentsWithClient(client, line(3), automatic), /exact_candidate_point_limit_exceeded:200000/);
+  assert.equal(queries.length, 2);
+});
+
+test("a disappeared bounded candidate fails the scan instead of creating duplicate geometry", async () => {
+  let count = 0;
+  const client: SegmentMatcherClient = { async query() {
+    return { rows: ++count === 1 ? [{ id: "deleted-between-statements" }] : [] };
+  } };
+  await assert.rejects(analyzeRouteSegmentsWithClient(client, line(3), automatic), /exact_candidate_scan_changed/);
 });

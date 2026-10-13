@@ -112,20 +112,72 @@ const MIN_RUN_LENGTH_M = 50;
 const GAP_BRIDGE_POINTS = 3;
 const GAP_BRIDGE_METERS = 60;
 const SNAP_FRACTION = 0.03; // snap split to endpoint if within 3%
+// Automatic imports must fail rather than call an incomplete scan “unmatched”.
+const EXACT_CANDIDATE_LIMIT = 512;
+const EXACT_CANDIDATE_POINT_LIMIT = 200_000;
 
 // ─── Phase 1: Find candidate segments ───────────────────────────────────────
 
 async function findCandidateSegments(
   client: SegmentMatcherClient,
   routePoints: TrackPoint[],
-  excludeSegmentIds: string[] = []
+  excludeSegmentIds: string[] = [],
+  exactOnly = false
 ): Promise<CandidateSegment[]> {
   if (routePoints.length < 2) return [];
 
   // Build WKT for the route
   const wkt = pointsToLineStringZ(routePoints);
 
-  const result = await client.query(
+  let result: { rows: any[] };
+  if (exactOnly) {
+    // This is the same geography index envelope that PostGIS builds for
+    // ST_DWithin, without the costly full line/line distance recheck. It is a
+    // superset: the existing XYZ matcher below still proves every reused edge.
+    // Keep the 90m envelope (including sub-millimeter XYZ tolerance), and leave
+    // the indexed path uncast. _ST_Expand expands only its cached geography box.
+    const candidates = await client.query(
+      `WITH exact_candidate_ids AS MATERIALIZED (
+         SELECT s.id FROM segments s
+         WHERE s.path && _ST_Expand(ST_GeomFromText($1, 4326)::geography, $2)
+           AND NOT (s.id = ANY($3::text[]))
+         LIMIT $4
+       ) SELECT id FROM exact_candidate_ids`,
+      [wkt, MATCH_THRESHOLD_M * 3, excludeSegmentIds, EXACT_CANDIDATE_LIMIT + 1]
+    );
+    if (candidates.rows.length > EXACT_CANDIDATE_LIMIT) {
+      throw new Error(`exact_candidate_scan_limit_exceeded:${EXACT_CANDIDATE_LIMIT}`);
+    }
+    if (candidates.rows.length === 0) return [];
+    const ids = candidates.rows.map(row => row.id as string);
+    // Count vertices before serializing, under one statement snapshot. A CASE
+    // prevents any geometry transfer when the complete set exceeds the budget.
+    result = await client.query(
+      `WITH candidate_sizes AS MATERIALIZED (
+         SELECT s.id, s.name, s.distance, s.path,
+                ST_NPoints(s.path::geometry) AS point_count
+         FROM segments s WHERE s.id = ANY($1::text[])
+       ), candidate_budget AS MATERIALIZED (
+         SELECT sum(point_count) AS total_points FROM candidate_sizes
+       )
+       SELECT s.id, s.name, s.distance, s.point_count, b.total_points,
+              CASE WHEN b.total_points <= $2
+                THEN ST_AsGeoJSON(s.path::geometry, 15) END AS geojson
+       FROM candidate_sizes s CROSS JOIN candidate_budget b ORDER BY s.id`,
+      [ids, EXACT_CANDIDATE_POINT_LIMIT]
+    );
+    if (result.rows.length !== ids.length || result.rows.some(row => !ids.includes(row.id))) {
+      throw new Error("exact_candidate_scan_changed");
+    }
+    if (result.rows.some(row => Number(row.total_points) > EXACT_CANDIDATE_POINT_LIMIT)) {
+      throw new Error(`exact_candidate_point_limit_exceeded:${EXACT_CANDIDATE_POINT_LIMIT}`);
+    }
+    if (result.rows.some(row => !Number.isInteger(Number(row.point_count)) || Number(row.point_count) < 2
+      || !Number.isInteger(Number(row.total_points)) || Number(row.total_points) < 2)) {
+      throw new Error("candidate_segment_geometry_invalid");
+    }
+  } else {
+    result = await client.query(
     `SELECT s.id, s.name, s.distance,
             ST_AsGeoJSON(s.path::geometry, 15) AS geojson
      FROM segments s
@@ -137,7 +189,8 @@ async function findCandidateSegments(
        AND NOT (s.id = ANY($3::text[]))
      ORDER BY s.id`,
     [wkt, MATCH_THRESHOLD_M * 3, excludeSegmentIds] // wider buffer for candidates
-  );
+    );
+  }
 
   return result.rows.map((r: any) => {
     const geo = JSON.parse(r.geojson);
@@ -502,7 +555,7 @@ export async function analyzeRouteSegmentsWithClient(
   if (requiredCuts.some(index => !Number.isInteger(index) || index < 0 || index >= points.length)) {
     throw new Error("required_cut_index_invalid");
   }
-  const candidates = await findCandidateSegments(client, points, options.excludeSegmentIds ?? []);
+  const candidates = await findCandidateSegments(client, points, options.excludeSegmentIds ?? [], options.exactOnly ?? false);
   const candidateMap = new Map(candidates.map(candidate => [candidate.id, candidate]));
   const allRuns = candidates.flatMap(candidate => extractRuns(
     computeMatchRibbon(points, candidate), points, candidate, options.exactOnly ?? false));
