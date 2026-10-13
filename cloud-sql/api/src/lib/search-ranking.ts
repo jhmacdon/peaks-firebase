@@ -14,11 +14,28 @@ export interface RankedSearchResult {
   data: any;
 }
 
-/** The same text weights apply to every entity, including individual aliases. */
+/**
+ * The same text weights apply to every entity, including individual aliases.
+ * Whole-string similarity keeps shorter, closer names first; word similarity
+ * and a word-start bonus keep a longer real name ("Mount Pilchuck" for
+ * "pilchuck") from being buried under a short exact namesake.
+ */
 export function searchTextScoreSql(term: string, query: string, prefix: string): string {
-  return `(similarity(${term}, ${query}) * 0.55
-    + CASE WHEN ${term} LIKE ${prefix} THEN 0.20 ELSE 0 END
+  return `(similarity(${term}, ${query}) * 0.45
+    + word_similarity(${query}, ${term}) * 0.20
+    + CASE WHEN ${term} LIKE ${prefix} OR ${term} LIKE ('% ' || ${query} || '%') THEN 0.15 ELSE 0 END
     + CASE WHEN ${term} = ${query} THEN 0.10 ELSE 0 END)`;
+}
+
+/**
+ * A bare one-word name on a campsite or trailhead ("Pilchuck") is usually a
+ * namesake of the bigger place people mean ("Mount Pilchuck"). Only that exact
+ * one-word match yields; "Camp Muir", "Heybrook Trailhead", and partial typing
+ * keep their normal score.
+ */
+export function searchMinorPlacePenaltySql(features: string, term: string, query: string): string {
+  return `(CASE WHEN ${features} <> '{}' AND ${features} <@ '{campsite,trailhead}'::destination_feature[]
+      AND ${term} = ${query} AND position(' ' in ${query}) = 0 THEN 0.35 ELSE 0 END)`;
 }
 
 /** Bounded popularity keeps a popular weak match below a strong text match. */

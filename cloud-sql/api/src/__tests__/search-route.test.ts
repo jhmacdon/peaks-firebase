@@ -253,7 +253,10 @@ test("2-character route search uses prefix candidates instead of trigram scans",
   const visibleCandidates = queries.routes.text.slice(queries.routes.text.indexOf("visible_candidate_route_ids AS MATERIALIZED"));
   assert.ok(visibleCandidates.indexOf("candidate_r.owner = 'peaks'") < visibleCandidates.indexOf("LIMIT 200"));
   assert.match(visibleCandidates, /ORDER BY \(candidate_r\.search_name = \$1\) DESC/);
-  assert.doesNotMatch(queries.routes.text, /LIKE \('% '/);
+  // Candidate selection must stay index-backed. The word-start bonus may use an
+  // infix LIKE only when scoring the bounded candidate set in ranked_routes.
+  const candidateSql = queries.routes.text.slice(0, queries.routes.text.indexOf("ranked_routes AS MATERIALIZED"));
+  assert.doesNotMatch(candidateSql, /LIKE \('% '/);
 });
 
 test("2-character area search uses contiguous prefix parameters", () => {
