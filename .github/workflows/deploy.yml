@@ -3,6 +3,13 @@ name: Deploy to Firebase
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - "cloud-sql/api/**"
+      - "cloud-sql/migrations/**"
+      - "cloud-sql/schema.sql"
+      - "cloud-sql/test-db/**"
+      - ".github/workflows/deploy.yml"
 
 jobs:
   check-cross-refs:
@@ -13,6 +20,7 @@ jobs:
         run: ./scripts/check-cross-refs.sh
 
   deploy-functions:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -109,6 +117,7 @@ jobs:
           TEST_DATABASE_URL: postgres://peaks_test:peaks_test@localhost:5432/peaks_test
 
   deploy-api:
+    if: github.event_name == 'push'
     needs: test-api
     runs-on: ubuntu-latest
 

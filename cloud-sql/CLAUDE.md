@@ -1108,6 +1108,94 @@ behind, so `rematerializeRoute` (web admin route builder) queues that route's
 `auto`-matched recordings back to `pending` and the existing Cloud Scheduler
 sweep rematches them. No timer, no new service.
 
+## Trail catalog metadata and search
+
+A catalog trail is a Peaks-owned row in `routes`. Physical trail remains in
+`segments`, shared through `route_segments`. Do not add a parallel trails table
+or a second segment matcher. The catalog fields and `list_routes` join live in
+`migrations/20261012_trail_catalog_metadata.sql`.
+
+`kind` is `summit`, `destination`, `loop`, or `traverse`. A NULL kind means the
+legacy row still needs review. `objective_destination_id` and
+`trailhead_destination_id` must come from checked destination links, never a
+name guess. Slugs keep an ID-derived suffix and remain stable on name edits;
+the unique index also covers routes without a state. Name normalization follows
+destination search. Aliases and `segments.trail_names` feed route search.
+
+`GET /api/search/all` keeps `destinations`, `routes`, and `areas`, and adds
+`lists` plus one ranked `results` array. Each result has `type`, `id`, `score`,
+and `data` (the original bucket row). This keeps a destination's geographic
+`type` inside its data. Route-query errors fail the request. The route candidate
+queries use names, aliases, objective names, linked destination names, and
+segment trail names. All types use the same text-score weights: 0.55 trigram,
+0.20 prefix, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to
+0.05. A destination hike ranks just above its matching objective. An exact
+summit-name query keeps that summit above its own route.
+
+### Difficulty and moving time
+
+Difficulty is a Peaks estimate, not a copied rating or a technical climbing
+grade. `peaks_route_difficulty` computes:
+
+```
+effort = full walking distance in km + full ascent in metres / 100
+         + 20 * maximum absolute grade
+easy: effort < 8; moderate: < 16; hard: < 28; strenuous: >= 28
+```
+
+For an out-and-back, walking distance is twice stored distance and ascent is
+`gain + gain_loss`. Other shapes use stored distance and gain. Maximum grade
+uses elevation sampled every 100 m along geodesic distance; a final interval
+shorter than 50 m joins the preceding interval. A route shorter than 100 m uses
+its full length. This avoids treating dense vertex noise as the steepest grade.
+
+`peaks_route_est_moving_seconds` sums each directed edge's horizontal distance
+divided by `max(0.5, 6 * exp(-3.5 * abs(grade + 0.05)))` km/h, then rounds up
+to seconds. The base formula comes from [Tobler (1993), Figure II](https://escholarship.org/uc/item/05r820mz).
+The 0.5 km/h floor is a Peaks choice. Out-and-back estimates add the return
+using each edge's opposite grade. Neither estimate includes breaks, snow,
+climbing, or delays. Missing shapes, bad stats, non-finite elevations, and
+vertical jumps with no horizontal distance yield NULL rather than a fake
+estimate. A route trigger refreshes search names and estimates when their
+inputs change. It leaves route names, status, and geometry alone.
+
+### Preflight and publication
+
+Run the read-only preflight before any catalog metadata backfill:
+
+```bash
+cd cloud-sql/migrate
+npm run audit:trail-catalog -- \
+  --report=../../docs/data-audits/trail-catalog-preflight.json
+```
+
+It queries only scalar metadata and joins. Exit 2 means rejected routes; exit 1
+means the audit itself failed. The JSON summary and JSONL rejection file must
+account for every Peaks-owned row, including superseded rows. Empty input fails.
+This diagnostic has no apply mode and makes no `data_source_runs` write. A
+future catalog importer must record every dry run and apply there, use durable
+leases and source-ID upserts, and retain every rejected candidate with a reason.
+
+The metadata migration fills only names and stable slugs automatically. It
+does not classify incomplete old rows or run a catalog-wide geometry scan.
+Never describe the metadata backfill as complete while rejected rows remain.
+
+The existing publish checks remain in force. At this stage they still require
+a summit and exact route/segment provenance equality. Those rules prevent
+non-summit trails and normal segment reuse across routes with different source
+IDs. The proposed kind-specific and source-coverage rules need Josiah's decision
+before implementation; see `../docs/data-audits/trail-catalog-2026-10-12/README.md`.
+The credited-cover gate, source rights, independent source checks, exact segment
+assembly, and elevation checks must remain. OSM (with ODbL credit) and
+`usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for
+this pilot. Leave descriptions empty without reusable text and all three
+description source fields. Activate at most 500 routes per batch and verify
+that `/internal/sweep` drains the rematch queue before the next batch.
+
+Cost: about $0/month added fixed cost. This uses the existing database and
+sweep. Index storage and bounded queries add variable work; there is no new
+service, timer, CPU allocation, or minimum instance.
+
 ## Catalog changes re-match sessions
 
 `processSession` is the one definition of what a session reached and which
