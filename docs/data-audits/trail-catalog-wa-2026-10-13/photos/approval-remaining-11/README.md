@@ -103,6 +103,8 @@ exports public fields and a fresh non-preview reviewer marker boolean, never
 the actual UID or private notes. Firebase authentication comes from the admin
 action. Check actual public Storage serving with `public-serving.mjs` after the
 final saved readback; all eleven must match the source-bound render hashes.
+For each exact candidate ID, the served SHA-256, width, and height must equal
+the passing preflight's `renderedSha256` and `renderedDimensions`.
 
 Only after successful readback and public serving, run `finish.sql` with the
 same SQL arguments. It repeats the checks and updates only the audit row.
