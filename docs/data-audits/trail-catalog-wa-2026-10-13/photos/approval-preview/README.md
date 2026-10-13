@@ -1,5 +1,14 @@
 # Four cover approval rollback preview
 
+Production attempt 3 passed under audit **130** with SQL hash
+`2dfe29e425d6acb5700e793c11f931840a3f97ad12594d47b5e204a68bad3c03`.
+All inside-transaction checks passed, rollback completed, and bounded readback
+matched the four full place and candidate preimages. The receipt records
+four matched rows and zero writes. No photo was approved and no hero field
+or route changed durably. See [output](production-preview-3.txt) and
+[receipt](production-receipt-3.json). Actual approval remains a separate
+verified-admin action.
+
 Production audit **125** failed before any UPDATE. Source commit `93bad14`
 generated SQL hash
 `45bbc15c3e6ef244ec7b880977297bce6a9977baffaa482b57f9a538195c9541`.
@@ -52,9 +61,10 @@ finish as `failed`; keep the error and inspected counts in the audit. If the
 rollback response is lost, inspect the database through a new connection
 before reporting the outcome. Do not retry blindly or replace earlier reports.
 
-The next attempt must use a new audit and `production-preview-3.txt`,
-`production-receipt-3.json`, and `production-audit-id-3.txt`. Check the new
-manifest hash; earlier audit hashes describe only their earlier versions.
+Attempt 3 used `production-preview-3.txt`, `production-receipt-3.json`, and
+`production-audit-id-3.txt`. Any later preview must use a new audit and unused
+numbered filenames. Check the manifest hash; earlier audit hashes describe
+only their earlier versions.
 
 The preview locks all four candidate rows before all four destination rows,
 as the existing admin action does. It requires the exact pending candidates,
