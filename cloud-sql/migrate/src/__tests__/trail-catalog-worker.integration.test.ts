@@ -103,7 +103,7 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     await assert.rejects(api.query("UPDATE routes SET id=$2 WHERE id=$1",[report.routeId,`${prefix}-rekeyed`]), /route identity is immutable/);
     await assert.rejects(api.query("UPDATE routes SET id=$2,status='active' WHERE id=$1",[report.routeId,`${prefix}-rekeyed`]), /route identity is immutable/);
     assert.equal((await operator.query("SELECT status FROM routes WHERE id=$1",[report.routeId])).rows[0].status,"pending");
-    await assert.rejects(worker.query("UPDATE routes SET status='active' WHERE id=$1", [report.routeId]), /bound activation function/);
+    await assert.rejects(worker.query("UPDATE routes SET status='active' WHERE id=$1", [report.routeId]), /bound activation function|factory catalog activation requires its owned reviewed function/);
     await assert.rejects(worker.query("SELECT activate_standard_route_factory($1,$2,$3)", [report.routeId, lake(1).id, "unreviewed"]));
     await assert.rejects(worker.query("UPDATE trail_catalog_candidate_jobs SET artifact=jsonb_set(artifact,'{candidate,input,name}','\"Forged\"') WHERE source_key=$1", [lease.sourceKey]), /immutable/);
     await assert.rejects(worker.query("UPDATE trail_catalog_candidate_jobs SET result='{}' WHERE source_key=$1", [lease.sourceKey]), /immutable/);

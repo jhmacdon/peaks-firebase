@@ -186,8 +186,11 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
     assert.equal(receipt.state,"approved"); assert.match(receipt.receiptHash,/^[a-f0-9]{64}$/);
     for (const pool of [api, factory]) {
       await assert.rejects(pool.query("UPDATE routes SET status='active' WHERE id=$1",[destination.routeId]),/owned|bound activation|direct activation/);
-      await assert.rejects(pool.query("UPDATE routes SET id=$2 WHERE id=$1",[destination.routeId,`${prefix}-rekey`]),/immutable|only route status/);
+      await assert.rejects(pool.query("UPDATE routes SET id=$2 WHERE id=$1",[destination.routeId,`${prefix}-rekey`]),
+        pool===factory ? { code: "42501" } : /immutable|only route status/);
     }
+    assert.deepEqual((await operator.query("SELECT id,status FROM routes WHERE id=ANY($1::text[])",[ [destination.routeId,`${prefix}-rekey`] ])).rows,
+      [{ id: destination.routeId, status: "pending" }],"denied writes leave the route pending under its original identity");
     await assert.rejects(api.query("UPDATE routes SET distance=distance+1 WHERE id=$1",[destination.routeId]),/immutable/);
     await assert.rejects(api.query("UPDATE segments SET gain=gain+1 WHERE id=$1",[destination.report.segmentIds![0]]),/immutable/);
     await assert.rejects(api.query("DELETE FROM route_destinations WHERE route_id=$1",[destination.routeId]),/immutable/);
