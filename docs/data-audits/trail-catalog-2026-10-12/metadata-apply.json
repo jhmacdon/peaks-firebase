@@ -1,0 +1,3173 @@
+{
+  "version": 1,
+  "source": "trail_catalog_metadata",
+  "mode": "apply",
+  "target": {
+    "database": "peaks",
+    "server_address": null,
+    "server_port": null
+  },
+  "generated_at": "2026-10-13T05:40:49.687Z",
+  "batch_size": 50,
+  "rows": [
+    {
+      "route_id": "0iWVb0IMW9RaFCErmLqh",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "0iWVb0IMW9RaFCErmLqh",
+        "kind": "summit",
+        "objective_destination_id": "yRH2UgSgZzPhpe2Ldhql",
+        "trailhead_destination_id": "0F6324C02DFB998487B1",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 30180
+      },
+      "popularity": 0,
+      "fingerprint": "3984105b65626f7843de769434860df1ea9849a253273c49457ee4302832adf8"
+    },
+    {
+      "route_id": "0n0XqniDDUOLNRzb2N4f",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "0n0XqniDDUOLNRzb2N4f",
+        "kind": "summit",
+        "objective_destination_id": "shF1iCx18JsrUfsKmy6f",
+        "trailhead_destination_id": "69B9CAB4B0E857098276",
+        "state_code": "SN",
+        "country_code": "ID",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 40760
+      },
+      "popularity": 0,
+      "fingerprint": "735b4a5b016f7025d2797f845a472610842f46299ae57d4bec8d687da512ad18"
+    },
+    {
+      "route_id": "0OPjPHcFRmhIeT1Mpde3",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "0OPjPHcFRmhIeT1Mpde3",
+        "kind": "summit",
+        "objective_destination_id": "o7SfBuXaKzqQDoXGXvqV",
+        "trailhead_destination_id": "D64EE25F1294DADD64C9",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 51421
+      },
+      "popularity": 0,
+      "fingerprint": "42d566ce138db5520c742d92e30c72351891a698efa2a6eac8c4f3cfb4d999a0"
+    },
+    {
+      "route_id": "0qZ9BEDqp9GFC83ul8n4",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "0qZ9BEDqp9GFC83ul8n4",
+        "kind": "summit",
+        "objective_destination_id": "Tg5URBHkVwPA1gGKKB4Q",
+        "trailhead_destination_id": "tZnYCho7ZqhUE7QUr4QS",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 49429
+      },
+      "popularity": 2618,
+      "fingerprint": "f0afca0bd6bceb9cd1bcefb9d14b8f10b42ab51fc3c031ec898045d18c0e7f55"
+    },
+    {
+      "route_id": "1bn9SqLxHJk7amo5AXiJ",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "1bn9SqLxHJk7amo5AXiJ",
+        "kind": "summit",
+        "objective_destination_id": "TO172EubFDAqKIsiWR5S",
+        "trailhead_destination_id": "0kwic89q2UWPLE6jGyk0",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 33594
+      },
+      "popularity": 1,
+      "fingerprint": "454181085c21e603c491d9d4f163414c25271be90eedae369ebe89d009ee702f"
+    },
+    {
+      "route_id": "1OLZhsVoYhFbYEBcbVxt",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "1OLZhsVoYhFbYEBcbVxt",
+        "kind": "summit",
+        "objective_destination_id": "ZAov0aNubZDMhTjlwkYq",
+        "trailhead_destination_id": "EC7F585E18BFDD5CF857",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 22716
+      },
+      "popularity": 0,
+      "fingerprint": "008b2867b08221cb3b65df771959a0683d744cb93ee8a1f2ae3aa45937ea81c8"
+    },
+    {
+      "route_id": "1qMRPdxMVuFEBsajvJP7",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "1qMRPdxMVuFEBsajvJP7",
+        "kind": "summit",
+        "objective_destination_id": "iShbcPxYIvbsvJ9Ax9zE",
+        "trailhead_destination_id": "B5AE9BD3E7F446C4A9B9",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 13070
+      },
+      "popularity": 0,
+      "fingerprint": "d3105f314733f988dbfdf07c900ad223a692e7543d6c3f3d370480f0a5090f6c"
+    },
+    {
+      "route_id": "1RPwjUehpoFOJrn7y1VS",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "1RPwjUehpoFOJrn7y1VS",
+        "kind": "summit",
+        "objective_destination_id": "Ta8deqYutGWWgheXfg4q",
+        "trailhead_destination_id": "RDpU7khIbnt748zmPxrI",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 51772
+      },
+      "popularity": 3101,
+      "fingerprint": "045aac0a635bbdbf80d80d2200b64216ee5b1c3213876fc6a5b9d49d60747202"
+    },
+    {
+      "route_id": "2eeIj5Cg1rJdCBXPvHqi",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "2eeIj5Cg1rJdCBXPvHqi",
+        "kind": "summit",
+        "objective_destination_id": "vu8QPH0SMY2b44orOZGL",
+        "trailhead_destination_id": "C7CAD64B8DA6FEE13EA1",
+        "state_code": "AN",
+        "country_code": "CL",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 19042
+      },
+      "popularity": 0,
+      "fingerprint": "9e280e1acdaf37214454c3b7e204f2874ff44a91fa3b8a5c6eca3fd434a92a2a"
+    },
+    {
+      "route_id": "40oJLRsV6f8hgVLXqkB7",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "40oJLRsV6f8hgVLXqkB7",
+        "kind": "summit",
+        "objective_destination_id": "nSf6z4vL0zjdG2sXibBM",
+        "trailhead_destination_id": "FLFBZ7rDLOFHPlUn9TMI",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 17227
+      },
+      "popularity": 24,
+      "fingerprint": "cb66330da768356e57c3c88e6cfdfcfcafd38cb67b3ecc87a485faadf6997846"
+    },
+    {
+      "route_id": "43cwqarPiqPVet9MK4Pe",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "43cwqarPiqPVet9MK4Pe",
+        "kind": "summit",
+        "objective_destination_id": "DJcLG4ln4RdHQ0zCEXxs",
+        "trailhead_destination_id": "QiPkmSEDvzgYwrdpays0",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 31358
+      },
+      "popularity": 9,
+      "fingerprint": "b4aa46f166cadddc110ad95ad9fbdcde7b1f868cbdf3e395c0b8f682c07bbbf0"
+    },
+    {
+      "route_id": "4PI8skIw9VEtiochZY9q",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "4PI8skIw9VEtiochZY9q",
+        "kind": "summit",
+        "objective_destination_id": "z8ngP6wuWFbOgoIsTbqO",
+        "trailhead_destination_id": "EC7F585E18BFDD5CF857",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23792
+      },
+      "popularity": 0,
+      "fingerprint": "51a1557a0d7155ef966950e7872c74306fef6e8a030653c0f1ef1b816ad4416b"
+    },
+    {
+      "route_id": "4Ua0xETd4qb2mknzP9KO",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "4Ua0xETd4qb2mknzP9KO",
+        "kind": "summit",
+        "objective_destination_id": "ACZ7LK1ylzviRjAnqGXI",
+        "trailhead_destination_id": "X7ptHdjrMh3Z8MXoccnX",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 8162
+      },
+      "popularity": 1,
+      "fingerprint": "f938aebd2e4fc216a0012848fda45e3a394858c546fe910d2620b9b72a9f6a0d"
+    },
+    {
+      "route_id": "5eVsWkZaqZJ1irIT93Tk",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "5eVsWkZaqZJ1irIT93Tk",
+        "kind": "summit",
+        "objective_destination_id": "t8cuBTzVTeDlAyS6Erfp",
+        "trailhead_destination_id": "1E736DA6B08EF71E92C9",
+        "state_code": "NV",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23577
+      },
+      "popularity": 0,
+      "fingerprint": "97918a299181709a31255134148a485d88729b3d737313ae08dcb2a3215133dd"
+    },
+    {
+      "route_id": "6E3lfeLCn8p5ekOQNVT8",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "6E3lfeLCn8p5ekOQNVT8",
+        "kind": "summit",
+        "objective_destination_id": "wDFtTKWGTP96rsoi2tNA",
+        "trailhead_destination_id": "16A5041A156C538CEEB6",
+        "state_code": "HI",
+        "country_code": "US",
+        "difficulty": "easy",
+        "est_moving_seconds": 267
+      },
+      "popularity": 781,
+      "fingerprint": "cde134cff66eede52074b1357d5513ee3647387f11b7c5c8585662c2954249c9"
+    },
+    {
+      "route_id": "7fQPvW8jGOSslUQ0hs9G",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "7fQPvW8jGOSslUQ0hs9G",
+        "kind": "summit",
+        "objective_destination_id": "gl7egY5YdxonJ72KZBmZ",
+        "trailhead_destination_id": "FXC3D7Zmk16awRtdpq4H",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 34163
+      },
+      "popularity": 0,
+      "fingerprint": "00361982920e447e08280532d0daebd32068b61901449d3068c49479035a78b5"
+    },
+    {
+      "route_id": "83JDrvOqNcho7IIphbNU",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "83JDrvOqNcho7IIphbNU",
+        "kind": "summit",
+        "objective_destination_id": "wkv6Ym0z7aan9pDCbcxO",
+        "trailhead_destination_id": "57767D3435314065A8D3",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "moderate",
+        "est_moving_seconds": 5766
+      },
+      "popularity": 0,
+      "fingerprint": "b310863e41f7b9d2284bd23d732a59c9040e022652133eaae7d9d3ee33da6e94"
+    },
+    {
+      "route_id": "aApq8w7nEp9XzmYhTnOK",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "aApq8w7nEp9XzmYhTnOK",
+        "kind": "summit",
+        "objective_destination_id": "iBWwtKxvlxZEtjTSclRt",
+        "trailhead_destination_id": "F88500755F4DE6F283C9",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 17839
+      },
+      "popularity": 0,
+      "fingerprint": "e8cd8c66d0f950abac6c544174f55308543f9035986963983e32a166cb0adafb"
+    },
+    {
+      "route_id": "AGkZ6h6xFZUS6V9W5fqX",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "AGkZ6h6xFZUS6V9W5fqX",
+        "kind": "summit",
+        "objective_destination_id": "fPuj4ypVsbHYuTyj5PII",
+        "trailhead_destination_id": "D64EE25F1294DADD64C9",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 52399
+      },
+      "popularity": 0,
+      "fingerprint": "683cbf0bfd56d941f1b348b3a9ef21a705643c72960fc86a1af51a7076089994"
+    },
+    {
+      "route_id": "AtBCTS3AImwhrnQh3HNK",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "AtBCTS3AImwhrnQh3HNK",
+        "kind": "summit",
+        "objective_destination_id": "LAG3Glmi6mUYNr64ixDz",
+        "trailhead_destination_id": "QyRZnRksI3wwOoqroNgn",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 24669
+      },
+      "popularity": 0,
+      "fingerprint": "23bb70cc7c9633e52378926311b82b1b905a85358e5e046758aaa51f9650585e"
+    },
+    {
+      "route_id": "AUqcziWk9Rd82D2zyWf1",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "AUqcziWk9Rd82D2zyWf1",
+        "kind": "summit",
+        "objective_destination_id": "6DFD00D02617F1D757AC",
+        "trailhead_destination_id": "2C4E1587D9F0A3B6C821",
+        "state_code": "X",
+        "country_code": "AR",
+        "difficulty": "moderate",
+        "est_moving_seconds": 2401
+      },
+      "popularity": 0,
+      "fingerprint": "e80a9845641889974ba263e2238621d4d16d42727bf24556d65467884ed8ced2"
+    },
+    {
+      "route_id": "aX7LBoa1jYzmRRfFX7TT",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "aX7LBoa1jYzmRRfFX7TT",
+        "kind": "summit",
+        "objective_destination_id": "UQoFhMv2O9DG6c3WkadM",
+        "trailhead_destination_id": "0kwic89q2UWPLE6jGyk0",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 30839
+      },
+      "popularity": 1,
+      "fingerprint": "9c6bdb99ec47cf5cb715e0f1dd8b4fa9242a7d5acca01c8c6f36404aee9dec8a"
+    },
+    {
+      "route_id": "aXEHeJetvshw8lnmHEZD",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "aXEHeJetvshw8lnmHEZD",
+        "kind": "summit",
+        "objective_destination_id": "8gW9WZ6tngvhNn0TIDpc",
+        "trailhead_destination_id": "Vm0gOD6OdjW4lQmHn0Fj",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 19951
+      },
+      "popularity": 1,
+      "fingerprint": "9b963da523dab17fdb95df1a7a10b9e4843b7f0f45c5b2db5e41b815371e07a3"
+    },
+    {
+      "route_id": "AZnU4Q39GxaUirrn4q00",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "AZnU4Q39GxaUirrn4q00",
+        "kind": "summit",
+        "objective_destination_id": "xIPfAyxLURtGgiUqNy0c",
+        "trailhead_destination_id": "94F0C1CE8A14286B9F99",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21809
+      },
+      "popularity": 0,
+      "fingerprint": "59b9b389e2bf4d9368fc388d276113d5c3c90c02452e02b40e940a834e3c42e3"
+    },
+    {
+      "route_id": "AZSymCh65kDH98Bdyp4Q",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "AZSymCh65kDH98Bdyp4Q",
+        "kind": "summit",
+        "objective_destination_id": "2mtqzljXaDujZT0AwIFY",
+        "trailhead_destination_id": "FXC3D7Zmk16awRtdpq4H",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 31825
+      },
+      "popularity": 0,
+      "fingerprint": "772e43d92c83024ebc1b20d55afef5f5c4c3536f6ae37b960a9f2f91ae164776"
+    },
+    {
+      "route_id": "b0XehnmTWs20b6lXkfyw",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "b0XehnmTWs20b6lXkfyw",
+        "kind": "summit",
+        "objective_destination_id": "zntKOa5F6FjN6pzYadwv",
+        "trailhead_destination_id": "7mdR4I31n8VQQdPVN5Nd",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 14897
+      },
+      "popularity": 4,
+      "fingerprint": "f5d218500b3ae23d34de5704561f7d754c7019753e77b82126874085080311ff"
+    },
+    {
+      "route_id": "bcpP6vLDV4PoJwRm5nJe",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "bcpP6vLDV4PoJwRm5nJe",
+        "kind": "summit",
+        "objective_destination_id": "eBNZkjZzZV96xo5f36bx",
+        "trailhead_destination_id": "EC7F585E18BFDD5CF857",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 29918
+      },
+      "popularity": 0,
+      "fingerprint": "a3163f0695fd8a142cb6e218b31e41cdec1684f35365e5938770d0528547b1e6"
+    },
+    {
+      "route_id": "CaG2AwFpZh7z8P6erooj",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "CaG2AwFpZh7z8P6erooj",
+        "kind": "summit",
+        "objective_destination_id": "tdccj4iVajlJRYd6dxug",
+        "trailhead_destination_id": "7AC55BF2CB3506D28244",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 9976
+      },
+      "popularity": 3,
+      "fingerprint": "cfd236be08ae9eb52882b0729e0fb1d6a46e594c56bb6549313fc0fcd30c3dfa"
+    },
+    {
+      "route_id": "CjGaciJNR2Fi2CecpjsR",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "CjGaciJNR2Fi2CecpjsR",
+        "kind": "summit",
+        "objective_destination_id": "nBdulX8qYTXUUrnuSjjW",
+        "trailhead_destination_id": "42DC0BC353D948678075",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 20893
+      },
+      "popularity": 0,
+      "fingerprint": "36d9da6890a6acefc9415aa97c11728abbd3abc85cd20001be028772114fb9ac"
+    },
+    {
+      "route_id": "cU5b1mKidL49DHx7qLzy",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "cU5b1mKidL49DHx7qLzy",
+        "kind": "summit",
+        "objective_destination_id": "t8zOBqL7Otn3fKQ9NAqB",
+        "trailhead_destination_id": "6FA871F2C3930D12AF08",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 15287
+      },
+      "popularity": 0,
+      "fingerprint": "8f9207d2c002963500579313e930437a04ee0bb0a1cbd5363ff42c1e83f54621"
+    },
+    {
+      "route_id": "D5u6tuC6yXvTLA19Yaq0",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "D5u6tuC6yXvTLA19Yaq0",
+        "kind": "summit",
+        "objective_destination_id": "2EyMjHMkNqZWAnUVoos5",
+        "trailhead_destination_id": "AD30E99774193FD02457",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23385
+      },
+      "popularity": 0,
+      "fingerprint": "89d7723b8396d4edc88943549a34beb1e577d2580541bcefe2a7ff2dfcdb35e6"
+    },
+    {
+      "route_id": "DkLxv3QyBmSq1A3HGA2t",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "DkLxv3QyBmSq1A3HGA2t",
+        "kind": "summit",
+        "objective_destination_id": "KpDdcpUXOYQPLZMXUQv1",
+        "trailhead_destination_id": "JARQEEvMkCijX26psVRr",
+        "state_code": "NH",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 30800
+      },
+      "popularity": 0,
+      "fingerprint": "c065e28d7d14c9f48100d06b1789e1456099421942992dc6fefd6498eaa7121c"
+    },
+    {
+      "route_id": "DpSKJSuIBiyhMehRTw5w",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "DpSKJSuIBiyhMehRTw5w",
+        "kind": "summit",
+        "objective_destination_id": "42aBrtB02YE3L8h4tTPo",
+        "trailhead_destination_id": "9cV3hAKedABIRy5qknHj",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 15584
+      },
+      "popularity": 3,
+      "fingerprint": "e5ed17b746535e2db518028f7b726c4405b5bf7d2c7eea08483bac7eb5911d37"
+    },
+    {
+      "route_id": "dsNZ9oNaXVRNjoU4m0f2",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "dsNZ9oNaXVRNjoU4m0f2",
+        "kind": "summit",
+        "objective_destination_id": "CT9BJvi29bKbjT6g4dxO",
+        "trailhead_destination_id": "HOeg40Q0BiNsDGQA4q3T",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 36801
+      },
+      "popularity": 0,
+      "fingerprint": "e67d4ea47d93716b73c6cc2d65754c9b75ccddb34f03ec1c403b67c829b89710"
+    },
+    {
+      "route_id": "ekqRguipqw8GERL7Yvet",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "ekqRguipqw8GERL7Yvet",
+        "kind": "summit",
+        "objective_destination_id": "iAD3EhqmkKVKXBjJjprj",
+        "trailhead_destination_id": "E65jXwR5gzXhiQc4ak6l",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 12122
+      },
+      "popularity": 0,
+      "fingerprint": "6648121c18d1d8857aab28f0a960bfadc03d9cfa75461381a0207681aaa36c68"
+    },
+    {
+      "route_id": "epgdnc8lYzgnnFClLfRd",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "epgdnc8lYzgnnFClLfRd",
+        "kind": "summit",
+        "objective_destination_id": "GKYFnmdM5xpDMShh8DUX",
+        "trailhead_destination_id": "7mdR4I31n8VQQdPVN5Nd",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 8776
+      },
+      "popularity": 1,
+      "fingerprint": "58860f37521e7829dcbc619a1ee58721f3306e84bc13f36e480ff88446261823"
+    },
+    {
+      "route_id": "ETQt5AEkpobrbyrTTcHU",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "ETQt5AEkpobrbyrTTcHU",
+        "kind": "summit",
+        "objective_destination_id": "BsIe0TmBepTXILKSAsW9",
+        "trailhead_destination_id": "9ofuJq1VreK93jZgCjcF",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 7666
+      },
+      "popularity": 0,
+      "fingerprint": "de45fb5c249053c36be01ece3f70b94f1fb5edd6e17017bb5c2220e9a97b9304"
+    },
+    {
+      "route_id": "f9AmxT2RzPT9DTlZi4Ko",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "f9AmxT2RzPT9DTlZi4Ko",
+        "kind": "summit",
+        "objective_destination_id": "5Gutf9wHcrv6nY5QSH3O",
+        "trailhead_destination_id": "BE26C53F8339934849AD",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23859
+      },
+      "popularity": 0,
+      "fingerprint": "a1a124f79a325f6d4eb5874342f7d63941044a9103d9b4da8dce447ad61e89a1"
+    },
+    {
+      "route_id": "FO5rjIvYUcNDaiyoDsTb",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "FO5rjIvYUcNDaiyoDsTb",
+        "kind": "summit",
+        "objective_destination_id": "xQ1CTVAiot62T0IOwCcg",
+        "trailhead_destination_id": "GHg65nKUeQhQU3D9A7ie",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 25289
+      },
+      "popularity": 5,
+      "fingerprint": "e13895f7fd9796ff4e420d5208bc8e0e6af3a9887939433fdb897f818fe56151"
+    },
+    {
+      "route_id": "FWB6zSIrte97NJBQZ1Kg",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "FWB6zSIrte97NJBQZ1Kg",
+        "kind": "summit",
+        "objective_destination_id": "KansQVLr6wEWz93KbaJv",
+        "trailhead_destination_id": "79A77B72222615113F64",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 34368
+      },
+      "popularity": 0,
+      "fingerprint": "21dde020df219bddcef0b0c3c0f44b619559e237f9ec952909c0b71bd4f3abe9"
+    },
+    {
+      "route_id": "GAWfNZGxDB0HULnECDm7",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "GAWfNZGxDB0HULnECDm7",
+        "kind": "summit",
+        "objective_destination_id": "eUeAYmCsnVhGDsrXnWqp",
+        "trailhead_destination_id": "0F6324C02DFB998487B1",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 34000
+      },
+      "popularity": 0,
+      "fingerprint": "81802c8ff4375335cac14acadaf2b3cd248764e365a70ecc793c17285729b227"
+    },
+    {
+      "route_id": "GIBwCGCF20nGQIDglXMP",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "GIBwCGCF20nGQIDglXMP",
+        "kind": "summit",
+        "objective_destination_id": "0RqwWZAuSxCZD7Wvvoux",
+        "trailhead_destination_id": "20662104C7EE6E9A1136",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 22858
+      },
+      "popularity": 0,
+      "fingerprint": "a614b30d92ced1b4acc3e792f12ec1c45768181f22e77553ade7b94603595937"
+    },
+    {
+      "route_id": "gidn8m2YrCsHahabsRgc",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "gidn8m2YrCsHahabsRgc",
+        "kind": "summit",
+        "objective_destination_id": "xj2uKeFee6rtlrs5Gicf",
+        "trailhead_destination_id": "kik4rV48qHWDLNCVVqVJ",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 76500
+      },
+      "popularity": 0,
+      "fingerprint": "e83b5e21d687f8513d7d3600198365d61b2a66e092bdfc4fa71c1b65630572c1"
+    },
+    {
+      "route_id": "HhmFMoytQWstdDO9KXOG",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "HhmFMoytQWstdDO9KXOG",
+        "kind": "summit",
+        "objective_destination_id": "l80J4acfizACBOfxJRxd",
+        "trailhead_destination_id": "7320611F1D58B7CF23C8",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 20717
+      },
+      "popularity": 0,
+      "fingerprint": "f97fafe8072cdd031493a5408ed710e431ead5793424199c48b7eb889bb8df4a"
+    },
+    {
+      "route_id": "i4PcVk0K1pOsBJMLWOCG",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "i4PcVk0K1pOsBJMLWOCG",
+        "kind": "summit",
+        "objective_destination_id": "BM4y2gvTbqY6R9bGJjUl",
+        "trailhead_destination_id": "tTqrcXqhwyekaL5tHVvd",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 13509
+      },
+      "popularity": 0,
+      "fingerprint": "fb76f33de3d1fdc3d3248b6dd40ea782137d8cbcc439f186381ac19ef67194bf"
+    },
+    {
+      "route_id": "ilRTqqEXD7S7nxfV8XPf",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "ilRTqqEXD7S7nxfV8XPf",
+        "kind": "summit",
+        "objective_destination_id": "Caq8WofDTWcSAHnUPrcA",
+        "trailhead_destination_id": "7mdR4I31n8VQQdPVN5Nd",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 17270
+      },
+      "popularity": 0,
+      "fingerprint": "99c9ea382f2e0e1e16dab01561048c29c0debd29e9f788fe3de1a079b615ef00"
+    },
+    {
+      "route_id": "IV1BHvYv1uefXSrbErQv",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "IV1BHvYv1uefXSrbErQv",
+        "kind": "summit",
+        "objective_destination_id": "llZTKgP4HbThNb9eHzIG",
+        "trailhead_destination_id": "E997A49D032E44DD92D1",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 31303
+      },
+      "popularity": 0,
+      "fingerprint": "40cf6ce33342e42a1b008f5a3bf7822e49d0131381aeedfbd73d7afea14dd9a3"
+    },
+    {
+      "route_id": "jCLcDb2PSJICYqmSUGgJ",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "jCLcDb2PSJICYqmSUGgJ",
+        "kind": "summit",
+        "objective_destination_id": "sgQlxlmEIcSsnKb9jyWM",
+        "trailhead_destination_id": "fUknbXzLC4TcmnfrV7b1",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 37026
+      },
+      "popularity": 4,
+      "fingerprint": "52f7451bcb5ebc2f078a2cb335fff36452e80ae7dc92246c868ae1e8e590e477"
+    },
+    {
+      "route_id": "jCNuGRP8FNyO8h4QuGIg",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "jCNuGRP8FNyO8h4QuGIg",
+        "kind": "summit",
+        "objective_destination_id": "7nJmKhZy74iFjKUJqtkx",
+        "trailhead_destination_id": "RsMNxbObuYmBgZq2UHp4",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 11980
+      },
+      "popularity": 0,
+      "fingerprint": "5f8af0b769bdeb180e3cdb2d36a79bdd3c7757abcd4c7f821501de907c43fdc1"
+    },
+    {
+      "route_id": "JHEVAQzKKkHDe6Jsm7Gq",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "JHEVAQzKKkHDe6Jsm7Gq",
+        "kind": "summit",
+        "objective_destination_id": "6iQbHB14bTe1gWzD8Rxo",
+        "trailhead_destination_id": "UoS0tSqrlbNex2XgIWNJ",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23886
+      },
+      "popularity": 1,
+      "fingerprint": "e622e0165c3711d40827af705acd131cec485307b8dfb932fb306e52a5fab16c"
+    },
+    {
+      "route_id": "K6JhVNOjOeKgmR4OadYM",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "K6JhVNOjOeKgmR4OadYM",
+        "kind": "summit",
+        "objective_destination_id": "eUeAYmCsnVhGDsrXnWqp",
+        "trailhead_destination_id": "0F6324C02DFB998487B1",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 30081
+      },
+      "popularity": 0,
+      "fingerprint": "0a00bbab2c72c53787205f036ce8eacf41b408141b336498e45124d67dbfd0ed"
+    },
+    {
+      "route_id": "kG03P8ClfUZ1AVbCOtot",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "kG03P8ClfUZ1AVbCOtot",
+        "kind": "summit",
+        "objective_destination_id": "D7VUhCziozgDuI7ODYon",
+        "trailhead_destination_id": "1i9yRPweEOaK23BUqqO1",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 40106
+      },
+      "popularity": 0,
+      "fingerprint": "452afe0fec5643c0a6fe6c98a9fc9d61f9aa12b960176c48fcc8ef1832152fbc"
+    },
+    {
+      "route_id": "kH4QvfzqJegyIujpBM91",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "kH4QvfzqJegyIujpBM91",
+        "kind": "summit",
+        "objective_destination_id": "11Dj1MXI23in2fnW4EjK",
+        "trailhead_destination_id": "noVB6iJAt5rpP6cIEARA",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21007
+      },
+      "popularity": 0,
+      "fingerprint": "0cdb87b18f3f44885823288b3495722de8428c9e4489e4c292ee12088bb71d85"
+    },
+    {
+      "route_id": "kITDGZD46PeJPvaHRdaX",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "kITDGZD46PeJPvaHRdaX",
+        "kind": "summit",
+        "objective_destination_id": "xoddbMqeMfYKTs8odJqo",
+        "trailhead_destination_id": "6PlE6b8neVA8vYM9GpN3",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 18048
+      },
+      "popularity": 0,
+      "fingerprint": "6ad87a8510a2833ebee63525b1148e77dc02c6977260de6accce58b887358356"
+    },
+    {
+      "route_id": "L70tMSK64hGOP4Se7ycC",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "L70tMSK64hGOP4Se7ycC",
+        "kind": "summit",
+        "objective_destination_id": "sIPZMiglQ111c8X0HzVL",
+        "trailhead_destination_id": "iUYWPDvIKR2bWqOuJg62",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 20605
+      },
+      "popularity": 1,
+      "fingerprint": "62d55362c8f6096bb381e2a4a54da102ce3c3b6bdad164141859a5960e631d7e"
+    },
+    {
+      "route_id": "Lr8czzLjpc2GKkulapJ3",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "Lr8czzLjpc2GKkulapJ3",
+        "kind": "summit",
+        "objective_destination_id": "bRE1ayiwpfQlXiLJkLLI",
+        "trailhead_destination_id": "lWuZlk7s093GiwO9yVxU",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 17327
+      },
+      "popularity": 0,
+      "fingerprint": "377c57b58286788e7d562a4b9dc0feb4f96e7a6e4c81f9a216c5f67b2aeb80ae"
+    },
+    {
+      "route_id": "ltCHOEQZqLHnPk01oYFM",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "ltCHOEQZqLHnPk01oYFM",
+        "kind": "summit",
+        "objective_destination_id": "C3WOpAnEHIawrZAYd2rM",
+        "trailhead_destination_id": "BE26C53F8339934849AD",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 16728
+      },
+      "popularity": 0,
+      "fingerprint": "43c25a6925cfa408df4d56daaca19cb8d293ab851c02d35f7fe281d667399578"
+    },
+    {
+      "route_id": "myxijYXcUaFAORDERHCo",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "myxijYXcUaFAORDERHCo",
+        "kind": "summit",
+        "objective_destination_id": "vxamAbvlzsEXDd9tUIPt",
+        "trailhead_destination_id": "691DE568C2AE21EC3F25",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 17707
+      },
+      "popularity": 0,
+      "fingerprint": "fec3edb71684af72a7a321e2283f845c00dc2892b5a292483f222a5941664696"
+    },
+    {
+      "route_id": "nFsTYDYLL8NwOeM6p1wo",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "nFsTYDYLL8NwOeM6p1wo",
+        "kind": "summit",
+        "objective_destination_id": "0O1nLlAchTkwWlUimyJP",
+        "trailhead_destination_id": "3B4048A3FF9EA9CAA5F2",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 18364
+      },
+      "popularity": 0,
+      "fingerprint": "4172c5bf1d7e4798eca6e2b540b6fd8dcc218c301bec134e35e5c102d86a6e78"
+    },
+    {
+      "route_id": "nQQbyezbfEmxTPIYfBDt",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "nQQbyezbfEmxTPIYfBDt",
+        "kind": "summit",
+        "objective_destination_id": "YYsIpsz0glrihuXLAc9d",
+        "trailhead_destination_id": "EFAB9A40B145B84B5DAF",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 10550
+      },
+      "popularity": 0,
+      "fingerprint": "1e6afd8393e89ee1bca5348eda4a8a42dfcd2af394d86dcc09243c9ab77c5f2b"
+    },
+    {
+      "route_id": "o1kMfPBKqor10Hnf770A",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "o1kMfPBKqor10Hnf770A",
+        "kind": "summit",
+        "objective_destination_id": "LcO62PyIyGt8UV2Fwp0T",
+        "trailhead_destination_id": "219D35913C5D0397ED95",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23760
+      },
+      "popularity": 0,
+      "fingerprint": "e18374a19ee28914cb6598658d667f3c31c409d08ad48b07c35cce2b0f49f20f"
+    },
+    {
+      "route_id": "o8kLwn8clMQzwHQPWbUk",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "o8kLwn8clMQzwHQPWbUk",
+        "kind": "summit",
+        "objective_destination_id": "w87L3l4ODUKIZbX11vBc",
+        "trailhead_destination_id": "95BE20144379E778FB78",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 26411
+      },
+      "popularity": 0,
+      "fingerprint": "a11abe5c23f93fdc43f746457932282c2d5fe5eb26c521339bc2bf65bc891e57"
+    },
+    {
+      "route_id": "oAKLPbAbyWIDYbM1QH6L",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "oAKLPbAbyWIDYbM1QH6L",
+        "kind": "summit",
+        "objective_destination_id": "dqjHZh4OABNqZ4K1JyKC",
+        "trailhead_destination_id": "AE4921E6E7C34F4589D7",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 13572
+      },
+      "popularity": 0,
+      "fingerprint": "22fade28c13bdc1148ae12c2bf4da23a451cec585fa46be5e63489d7037c3b3b"
+    },
+    {
+      "route_id": "OFldL1HewfVHncuVCXHS",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "OFldL1HewfVHncuVCXHS",
+        "kind": "summit",
+        "objective_destination_id": "ab70WN2UFWgsSODV4zMn",
+        "trailhead_destination_id": "117D943EB317D936A857",
+        "state_code": "ARA",
+        "country_code": "FR",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 39361
+      },
+      "popularity": 367,
+      "fingerprint": "448a8f351f2ee6c11041dac233186ffb7cb889b0ae168930ec2bd235ca13270a"
+    },
+    {
+      "route_id": "OHUG1HItlxWOM1xwL1ia",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "OHUG1HItlxWOM1xwL1ia",
+        "kind": "summit",
+        "objective_destination_id": "uv9GJKmydXw7SJHiqbyR",
+        "trailhead_destination_id": "0F6324C02DFB998487B1",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 28803
+      },
+      "popularity": 0,
+      "fingerprint": "7b5517661bbb1412b17f425fc572b864292625079016871997865fc505bd4b4b"
+    },
+    {
+      "route_id": "oK2MT520PGsYcrzgxS9r",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "oK2MT520PGsYcrzgxS9r",
+        "kind": "summit",
+        "objective_destination_id": "9wEfGDwlapeWhVRbdCHC",
+        "trailhead_destination_id": "D64EE25F1294DADD64C9",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 51984
+      },
+      "popularity": 0,
+      "fingerprint": "2b478f9eb69719e7e8eec27fbf9e44bc83fc67e274eedd8cf50a39d57b4fc1ff"
+    },
+    {
+      "route_id": "OLbQiCsS3cLdoAT205dY",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "OLbQiCsS3cLdoAT205dY",
+        "kind": "summit",
+        "objective_destination_id": "ROKasI5D2Q6LxibDFdqE",
+        "trailhead_destination_id": "lKqXU7ckhH3stTpj8Pv6",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 34325
+      },
+      "popularity": 0,
+      "fingerprint": "89ca523b2f5f30afb5a6402618abbeb4f32b37df49d528a64ed9eb6ffb657dbd"
+    },
+    {
+      "route_id": "osm-route-19733488-228c3782f8",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "osm-route-19733488-228c3782f8",
+        "kind": "summit",
+        "objective_destination_id": "nTJtNPdIX5emLtQtsOGQ",
+        "trailhead_destination_id": "49607B13CE71459BAB7E",
+        "state_code": "NV",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 28962
+      },
+      "popularity": 0,
+      "fingerprint": "7b1189162392f458bd26d78066a1669eacece13996e9e83c43c962d90bbb6d8a"
+    },
+    {
+      "route_id": "ot8gKLMQniMfqQpWEriQ",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "ot8gKLMQniMfqQpWEriQ",
+        "kind": "summit",
+        "objective_destination_id": "Metyj9Oty2TnImkGhPsE",
+        "trailhead_destination_id": "jXA6aSVbxBSw2YfdwI4Q",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 31131
+      },
+      "popularity": 2,
+      "fingerprint": "db7b525b556f4ca09343dedf1abcd213748a5c39e37898330afed02313c6ca05"
+    },
+    {
+      "route_id": "PDQrQEDc5gs9KFNCZ9ef",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "PDQrQEDc5gs9KFNCZ9ef",
+        "kind": "summit",
+        "objective_destination_id": "RVX3GRpiJyHwtgNDj5tt",
+        "trailhead_destination_id": "6C17577409774491B963",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 22182
+      },
+      "popularity": 0,
+      "fingerprint": "4839584df5b32430edf9b4758d98eb5cd347dae9f97353c5b3031c53e2ac551d"
+    },
+    {
+      "route_id": "PpZa6xRUa2admbhABesf",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "PpZa6xRUa2admbhABesf",
+        "kind": "summit",
+        "objective_destination_id": "nQlKFQkfcvzFYCcCen7o",
+        "trailhead_destination_id": "IndH9uszgfS7eybmL1r0",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 32968
+      },
+      "popularity": 0,
+      "fingerprint": "56b646254b75f2f19751ee52fb36d01ab16d1205b60799ae28f46370d5a03179"
+    },
+    {
+      "route_id": "pzRqWReJuBwwSzKCiBJ2",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "pzRqWReJuBwwSzKCiBJ2",
+        "kind": "summit",
+        "objective_destination_id": "kiiPgtpXG1WwLvHfncOP",
+        "trailhead_destination_id": "C410CF1FB652D72E13DF",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 8607
+      },
+      "popularity": 0,
+      "fingerprint": "30876172a0b3a6f6114017c536f845b6708da633fafee030e3a1182ed95d58b3"
+    },
+    {
+      "route_id": "qIWJoNBcZTv8wIpLDihv",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "qIWJoNBcZTv8wIpLDihv",
+        "kind": "summit",
+        "objective_destination_id": "QKmwxEF1D81VT9EhRIiw",
+        "trailhead_destination_id": "arfMb1dyITdoLNqOT59R",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 18465
+      },
+      "popularity": 2,
+      "fingerprint": "64d24b62f55f12bdddbc134e9aa3267c43ebd6aab2e2b40b149272b0cc6cf71a"
+    },
+    {
+      "route_id": "qsTl1ZUU1DO3qpbB4cZv",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "qsTl1ZUU1DO3qpbB4cZv",
+        "kind": "summit",
+        "objective_destination_id": "Kc1xj4ZbluMXJppgrA4Q",
+        "trailhead_destination_id": "D9B134B6E38774F02C8A",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23323
+      },
+      "popularity": 0,
+      "fingerprint": "4b4427950193dede94e44a36bbd4d92b84362ed71f2ce7d49406df2390287ea3"
+    },
+    {
+      "route_id": "QxyRzQDN8WOYAKGbeQii",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "QxyRzQDN8WOYAKGbeQii",
+        "kind": "summit",
+        "objective_destination_id": "gWG6bkBwWp3T5txyxW8l",
+        "trailhead_destination_id": "E6C902B0AC4C4E4F9D36",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23420
+      },
+      "popularity": 0,
+      "fingerprint": "bb720ab14f42c73445517b910c6ee12328cd2da9256ab7f91a222ddacad9247a"
+    },
+    {
+      "route_id": "RdiFCplAqgaFRMVJOyUV",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "RdiFCplAqgaFRMVJOyUV",
+        "kind": "summit",
+        "objective_destination_id": "3Q1lVpAXWZFx146E6NUF",
+        "trailhead_destination_id": "2Xoi9JKVAd0tydzWHtVl",
+        "state_code": "P1",
+        "country_code": "NP",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 57376
+      },
+      "popularity": 13724,
+      "fingerprint": "93542085cb6b123de473a134a539728b4b5083dbfcad5c3ce633ed9d6ed1288b"
+    },
+    {
+      "route_id": "rhzYmPBXv3ZlCg82YDte",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "rhzYmPBXv3ZlCg82YDte",
+        "kind": "summit",
+        "objective_destination_id": "eHPr7NAyEFjYNHJ6GWii",
+        "trailhead_destination_id": "8CBE40665E824C17A6E6",
+        "state_code": "NV",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 13548
+      },
+      "popularity": 0,
+      "fingerprint": "2c563617885d4eb3a3d75fdb84c44e4fdfd6da0a01db4f7b466b0fede610b87e"
+    },
+    {
+      "route_id": "rIobWMnEopNRi6A0F4gM",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "rIobWMnEopNRi6A0F4gM",
+        "kind": "summit",
+        "objective_destination_id": "75Za8vKu3Un5WFcg3zcK",
+        "trailhead_destination_id": "64DA46511CE2A37496A8",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 15527
+      },
+      "popularity": 0,
+      "fingerprint": "e99779bef2a626183e79ea203f16ddaf6519ff1deb6e0154bfe75539f19c6a95"
+    },
+    {
+      "route_id": "rMjx8NunD8IIM1rniz8l",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "rMjx8NunD8IIM1rniz8l",
+        "kind": "summit",
+        "objective_destination_id": "kh3mu5DVvZ677DcFCVPY",
+        "trailhead_destination_id": "FD8FCA3DB226F6D0F66F",
+        "state_code": "CT",
+        "country_code": "IT",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 19862
+      },
+      "popularity": 66,
+      "fingerprint": "39672cd13d9bbcb7beb29878f4d67de4dbdca869f39c48bf6fc079896ace8e07"
+    },
+    {
+      "route_id": "RpvfSBsEb6sLoB0LRL7u",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "RpvfSBsEb6sLoB0LRL7u",
+        "kind": "summit",
+        "objective_destination_id": "koJWwABAtWxk0Z00lXKz",
+        "trailhead_destination_id": "B8B4127B4768F95F7E4B",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 30803
+      },
+      "popularity": 0,
+      "fingerprint": "b2f161f6e62a439d6a32c196aac2495778dbce384f0cf723ab46809af80a7b75"
+    },
+    {
+      "route_id": "s29qYa95eSjIMPyWlJqj",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "s29qYa95eSjIMPyWlJqj",
+        "kind": "summit",
+        "objective_destination_id": "FnWeJhXQdetfKbONaTed",
+        "trailhead_destination_id": "B0n6dvoXcE9VYY5updyd",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21251
+      },
+      "popularity": 0,
+      "fingerprint": "5df921891201ce212c48e5083b484fde47bef0ec50f773d482243d669aa4efad"
+    },
+    {
+      "route_id": "SviDXc3ZmjsCQc6dz8zH",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "SviDXc3ZmjsCQc6dz8zH",
+        "kind": "summit",
+        "objective_destination_id": "GwLKVzkyBpklFRhl69MR",
+        "trailhead_destination_id": "949C3C8A353D7C1D0932",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 25153
+      },
+      "popularity": 0,
+      "fingerprint": "825179608420d5451acc85daa0715981ebc459cdbeaf4f00b7d0d059bd8f97ab"
+    },
+    {
+      "route_id": "TdlizCRCAfKA7tWcm5ql",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "TdlizCRCAfKA7tWcm5ql",
+        "kind": "summit",
+        "objective_destination_id": "KLeNLAdXik6q0Nc8AW54",
+        "trailhead_destination_id": "6BA4F01A240515DAFC48",
+        "state_code": "NV",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 23097
+      },
+      "popularity": 0,
+      "fingerprint": "9a99d180eb0728c41650c6d2c46b3114b60fa6c51ef15eda7fe09738e4d20742"
+    },
+    {
+      "route_id": "tEmX5o81mIYYGOv5kAOu",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "tEmX5o81mIYYGOv5kAOu",
+        "kind": "summit",
+        "objective_destination_id": "CJwKO6Takf7FBKct07qa",
+        "trailhead_destination_id": "0A0AE3B2C06A453E88D3",
+        "state_code": "AZ",
+        "country_code": "US",
+        "difficulty": "moderate",
+        "est_moving_seconds": 6011
+      },
+      "popularity": 0,
+      "fingerprint": "1d3a54bacc357cd1733984111bc29e14f7931cde259d021fc8c0f5dbf95d2b1a"
+    },
+    {
+      "route_id": "wCtFia9bHjfOnGeXeyEQ",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "wCtFia9bHjfOnGeXeyEQ",
+        "kind": "summit",
+        "objective_destination_id": "JasFS6IMlSoKE9LWIO6q",
+        "trailhead_destination_id": "Vm0gOD6OdjW4lQmHn0Fj",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 35718
+      },
+      "popularity": 0,
+      "fingerprint": "1e12f65df65a6de7ce66adcdb686f529823e20baa466deac99d6ef4b67c5d374"
+    },
+    {
+      "route_id": "wUDWxES0Cjdyqpd1ZEiE",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "wUDWxES0Cjdyqpd1ZEiE",
+        "kind": "summit",
+        "objective_destination_id": "8x778CaN63PwigSuqAYe",
+        "trailhead_destination_id": "BA20CCAF42B920FCCCF2",
+        "state_code": "MU",
+        "country_code": "MW",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 50113
+      },
+      "popularity": 28,
+      "fingerprint": "6b67dcee3b2c2a9aabcf1b5614ddb8139ec2c3f21ed4b3a89de09d913c4537d8"
+    },
+    {
+      "route_id": "x6QGPQtOOUTEYP2At6cu",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "x6QGPQtOOUTEYP2At6cu",
+        "kind": "summit",
+        "objective_destination_id": "Ro4wNZGx6cSHGcA9C7af",
+        "trailhead_destination_id": "SfHV6God2b2jdxOyVowd",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 46901
+      },
+      "popularity": 0,
+      "fingerprint": "15aceda99e23b39c2aed4ba1f4e5da5d34279943c8a69827cb2b4ad47bcf8e12"
+    },
+    {
+      "route_id": "xHrMaM1V0lj3WO5KFyDt",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "xHrMaM1V0lj3WO5KFyDt",
+        "kind": "summit",
+        "objective_destination_id": "agkhOiSeDoTx1mUJfil2",
+        "trailhead_destination_id": "A1CDE8E1D27799C8712C",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 12969
+      },
+      "popularity": 0,
+      "fingerprint": "99d8c2a11cbbd850f0169bc50be14ff66fec63636b04efba4a2e37a6d1ab503b"
+    },
+    {
+      "route_id": "XU9ezB5l8LcoNtYliMK1",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "XU9ezB5l8LcoNtYliMK1",
+        "kind": "summit",
+        "objective_destination_id": "knQFIPXtgeqmSUl7shWJ",
+        "trailhead_destination_id": "ABC87105223BE0290DE0",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "hard",
+        "est_moving_seconds": 10244
+      },
+      "popularity": 0,
+      "fingerprint": "be301d1e6e2ca2c0089297ff89bc650c47e2f1b9cc3fb9adebf74061751ab7fb"
+    },
+    {
+      "route_id": "xVCtdsgkOkREu8dLe5ga",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "xVCtdsgkOkREu8dLe5ga",
+        "kind": "summit",
+        "objective_destination_id": "vMER7Abxjt6yLXX5XuuQ",
+        "trailhead_destination_id": "194DF2D864865A0B8DFE",
+        "state_code": "JI",
+        "country_code": "ID",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 39882
+      },
+      "popularity": 0,
+      "fingerprint": "717f63574dccee7024610cf2ffc5f839cecfd2059bde43cecd565d18343d6028"
+    },
+    {
+      "route_id": "xyTzJln8AcUdgyYMk4PK",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "xyTzJln8AcUdgyYMk4PK",
+        "kind": "summit",
+        "objective_destination_id": "G5tECdcQ9YV42pG61rNH",
+        "trailhead_destination_id": "95BE20144379E778FB78",
+        "state_code": "CO",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 29493
+      },
+      "popularity": 0,
+      "fingerprint": "08ee552799603ffe754118b4f2b1ee63861535387ab42d465557a8fb5a3b00f7"
+    },
+    {
+      "route_id": "xzQ2pQpoYKA70cBi0VWF",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "xzQ2pQpoYKA70cBi0VWF",
+        "kind": "summit",
+        "objective_destination_id": "42aBrtB02YE3L8h4tTPo",
+        "trailhead_destination_id": "9cV3hAKedABIRy5qknHj",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 19716
+      },
+      "popularity": 0,
+      "fingerprint": "15817e8fbded772d5098262eaaa9193355abed892ba6db2d4eb539610d9b67fe"
+    },
+    {
+      "route_id": "YLrzveSmJdxuE8ooJfpT",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "YLrzveSmJdxuE8ooJfpT",
+        "kind": "summit",
+        "objective_destination_id": "CT9BJvi29bKbjT6g4dxO",
+        "trailhead_destination_id": "HOeg40Q0BiNsDGQA4q3T",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 37585
+      },
+      "popularity": 0,
+      "fingerprint": "0cdd1a145fd02f83ab65853fbe7b77cc7a7cf7f445811f08a76e9f264acd11c4"
+    },
+    {
+      "route_id": "zDRIhGrxRBw1H7Un1oqz",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "zDRIhGrxRBw1H7Un1oqz",
+        "kind": "summit",
+        "objective_destination_id": "YPFGHtqU09z6ujTv0n3Z",
+        "trailhead_destination_id": "39873C2AA9554A9C8C57",
+        "state_code": "CA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21947
+      },
+      "popularity": 0,
+      "fingerprint": "33a2680dd857d761fc15845f33bc3355748f3fc28292adb99689ac6335d324f5"
+    },
+    {
+      "route_id": "zfn3ISpnR1H6RtaSAXmL",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "zfn3ISpnR1H6RtaSAXmL",
+        "kind": "summit",
+        "objective_destination_id": "cwsCKDGqQxw9n7zFKNn4",
+        "trailhead_destination_id": "6951A7AEFD81D4CAE9AB",
+        "state_code": "AZ",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 21584
+      },
+      "popularity": 1,
+      "fingerprint": "12af8e71e63506b5e8f83493daf21d0b4b0418170410a772f07dc5a98d9f62fe"
+    },
+    {
+      "route_id": "zYHspkOC6KLTrYLQvQP6",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "zYHspkOC6KLTrYLQvQP6",
+        "kind": "summit",
+        "objective_destination_id": "1GWhGGVD44kQGei3I96d",
+        "trailhead_destination_id": "stNfYYZBNg6kM8dxK3q6",
+        "state_code": "WA",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 12032
+      },
+      "popularity": 0,
+      "fingerprint": "2ae8c6c5c6b0d35f3b2ce63e3a6e1ee25401a105d1877c7c49507c2d6fade741"
+    },
+    {
+      "route_id": "zyK3HP0AFeIuG2b7R9nj",
+      "decision": "applied",
+      "reasons": [],
+      "plan": {
+        "route_id": "zyK3HP0AFeIuG2b7R9nj",
+        "kind": "summit",
+        "objective_destination_id": "jyDEGmHGvJLIvaiTJVaA",
+        "trailhead_destination_id": "4E0B25216C65FCDD5727",
+        "state_code": "UT",
+        "country_code": "US",
+        "difficulty": "strenuous",
+        "est_moving_seconds": 16617
+      },
+      "popularity": 0,
+      "fingerprint": "5650f1d8ef99d102594adb381587c10d8e4dfdb46f179b2bbd07cf2fe3399d96"
+    }
+  ],
+  "counts": {
+    "candidates": 97,
+    "ready": 0,
+    "rejected": 0,
+    "applied": 97,
+    "already_applied": 0
+  },
+  "review_scope": {
+    "sha256": "25e26b600b4ad7c7d247753b3fe5db6441c94b529d9bb0951186bfb5e9242d28",
+    "total_candidates": 287,
+    "selected_candidates": 97,
+    "unselected": [
+      {
+        "route_id": "090SSFjydzTy6N7iEKNW",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "0x4EiGAP5HchuDuliqtd",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "1BlUsDSyYVgTrFfe8bkU",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "1LZT1kDgrLW9pDwrf8zT",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "24oH6YsreFZywhPtDA7i",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "27R5TffdY2vw4iHnmIJj",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "2xoPbzgxN9qADWruqqff",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "3Aitt1ERk5KyJPuq9Mou",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "3dFRIqoC3X4TxdzL4FJX",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "3FxSjw4T7YCEK6WadIc9",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "3Qu7jUpuf2s8Rppie5xY",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "4gkUxiJyoPVyJWokOinE",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "4jhHhNidClxMk1MfVDHo",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "4qEvfKAzYWoVQLDN5GtS",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "5HeC6oXic3y1k0XaPbXq",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "5Jocjpur9FKaXqTbA1ys",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "5Ne2w5fr0m6q4C3CUtie",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "6ecb9lItJZFoUvnLgdrM",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "78PrHiPheauIk0Phmcg5",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "7FSLrL4MNjYbuHTixoCx",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "8Bj0ryavUtKX4ekuNkKc",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing",
+          "country_missing"
+        ]
+      },
+      {
+        "route_id": "95yXW3tJARmUe12NfOo6",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "9eZAzBxuftciiNHgebgF",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "9hwfh3TJNKqvKFH5zcmv",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "9mf0SZW7vTEnbwiRbeSD",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "9ndYlvIF0ILMi5cVXSgo",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "adeCrmBWh2nHbbSH9btr",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing",
+          "country_missing"
+        ]
+      },
+      {
+        "route_id": "ahOj3zL8oO4fpV47OFyk",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "first_trailhead_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "alnBkdLIQWoxpHrq3j0v",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "AOCSvgvnhW5nd8dPei6J",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "bC9tNlO9h6Ppe1ks6NYi",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "bdbSRKQdb7VeYd8a5SIL",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "BtWXVibEMVrSWz9jJNXy",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "c4sdMzSqAhK7evZvOTSQ",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "cR0AvyqveuMQu6B2jcZy",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "csnl5dNWecRG6SM1FszM",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "D3fevwtILCSZnm1ruYO8",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "D55uJL7Ws5zbDAhOB26B",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Doy2zxkxrBmlzasLBSdV",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "DYHF6hF7BqX5VkK2Knrn",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "E0jNYqvOc97UfHnGaOqd",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "ECoZC4aNYJuYAnlxyYis",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "EiQIO3e5pExNCrMglg9D",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "eKeVhuI16gnaJlS90nc4",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "esOhCTEvfGNOCVOR73jg",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "eWPuOSoE2uk6KM1vziGf",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "F3BEVgZxLiTuVeOFe9mX",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "fbKUB9o08Hf5Xs4EeK5E",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "FcUIKOWVkSyQsqTGDEGY",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "fGPC2NSLAnznhxs8LOMP",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "fmuDoQ9D58YDqT0sIs2w",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "fSHZk8ioXWIjUNPnTgMU",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Fui7wRpiC0hubCukJxeS",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "fWKMFjqNt3ujDfr8Avz2",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "FypOCrHlmOuQfPISTYkX",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "G0PNxk1RMFfl72jLkaem",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "GAOZrKhPoHkvON17jKXa",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "gCscJF593nTsMdp1Z6EE",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "GhtrDufnJaapbafZI0zQ",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "GvvlRD5GY4QoPyDzunNd",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "gZoKcidRFdBCNYMJC0xc",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "heKA3OjpBv1DHw95Q5s7",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "hHwSD16aZo4SLHgrRQ0x",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "hJwT8jB4nBaRg7ZwhGKv",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "HOusfQaJKREXQiAoJukY",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "HSrouR4E0ybnz37hLNGq",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "hTTfNKdZgl3jRGmF24nj",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "HTYI4BoN79TWTA5GgDHX",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "hwSq44gVJUIavkKqPIzZ",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "HY5RuRNroyNoHvVhaenc",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "i6R8ahGmHljrm4nGmLp1",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "IcW2zYZB7eUCb6ZLR4zC",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "INRBmN9IOw444hd4A4OD",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "iufwHEWy2ZrAe7IIUAdW",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "ixoEIxqMl64fp4Bn5spL",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "JCkyLyIdh7ncU9TJX7qS",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jEE8nUHR4pLO1u9SXXIy",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jeQxxmW42VYZPNkWib2F",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jHr2TQqtxvrwSzjUdoWN",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jkqllU29OWYwUfUB3IqZ",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jmknzzFJ3PWDfTZukeJE",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "jRmVvhLaNdjkU5cSG8NE",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "K7HlMn1qHI9gkPFd8kna",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "kFgJ51lgLSgZVJ0gQwwe",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "KG89JzIf3B07ppaWjLxm",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Kj8HDm0QRzXmKVAUUe3K",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "KLc1i8Y7VFEndWxECEqw",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "kOcxdqiystGwdXXqp2Rf",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "kxm6AFbOE49XkukJzCJa",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "KzdPpPKF472koaNoLlRx",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "L7fJG5VMQHQZFPb1zaqb",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "LCP7d9cOBv8NlQMtR59S",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "LhCaP1sd03avvuKOPBG1",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "LNG6r2mbOqpr9PVGvJQp",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "LQM43utM8EHQvKMyRZSW",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "lX3ud1QVMmGB7mCLYv6a",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "M0u52NOjI9qfOcr9v6Md",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "M24BEW9Kw5gJHKJQojZ2",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "MEm3hzs3qh5AF2NiMYZx",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "mjFQmrA2gM5DthtRN47h",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Mlt50cwbdUFdvzS1YyOY",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "MOLH6dqJjDQPykIZCot0",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "NH46EXVm9toZRrWqpzOb",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "niODuNfcgkqSSFrspiMK",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "nktpfoy5dV052KmdJTkX",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "nss4ieEq1f3D8aMf8BAT",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "nUeKo8AEX3arbSb9T7Lv",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "o0kz32DXQ0VnPiXrDRsH",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "odFgVT1h4nIuXmDL9EJp",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "OMEcWgBWjgx2RVqu8gj6",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "pfc6sQxGlVLjgtuLIRME",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "PH5GxeqMMnmjS0TZQsd5",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "PHtpA6ChUirkEE3dQavK",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "Pj2fzFgQ3W9Xar43i2SM",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "PlrSkPA9MbXsSMCxyar4",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "ps0eeiGOwnjAsKbpd13C",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "PSCsw31oloqFVNspzsuO",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Puao5A4TjowesY05CpSK",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Q4tbKTNo2sNe6Dz3SDr9",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "qdn32HnzkeMaXkoNe9wN",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "qDTw77gRBuVYGtr563td",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "QgUrWxy8QDdexp26ONSl",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "qLWVNWfLqYcZwG95AT11",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "qojql4CaD3IF6GZfW0TE",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "qugwKJ8fnh7aypkLzmV2",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "first_trailhead_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "QwtCZfQKywhMVYKIlpWa",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "QZdoMV62KialSnOGgL91",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Raae0D46LF3rTkRgcYtT",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "rB04wEqY2JQXh6QggSSf",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "RVzkbi2H0IQpgb8V3iOS",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "rwAq7mL75z1UUUhCGCD3",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "s9dU4zerroFKqlaa366l",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "si7LOlsDIJmQUAKqcKqG",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "sKHsjjrI0k195fO7f7HL",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "SnFF3CM0lwsWLT4D6hVQ",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "sqAWGByVi99NFtSshmZ4",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "SqsZA07zm6JRpb4mkiLp",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "SRszsmv5DNY3u4B9Ggkg",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "t5sFELKwD7vRjGaNrmOk",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "T6Z7E2LK5tvkI7d4BxBF",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "t7GxkDEDF0HYXsyYwm99",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Te2d51z8LaVTt41S19Ub",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "TiLsS9IZaJLQYzFcDrfr",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "TOI6GVr0RCXSvnadNV4G",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "triple-crown-at",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ]
+      },
+      {
+        "route_id": "triple-crown-cdt",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ]
+      },
+      {
+        "route_id": "triple-crown-pct",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "route_stats_missing_or_invalid"
+        ]
+      },
+      {
+        "route_id": "TrLvh38SE4YRQWocUeDh",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "TwtcjNrZPobYjAIh45Ns",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "UCoP0AYisQpoPE0s8KnU",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "udVIF1p2hT3Qx3LtTzbG",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "uiZrDE6PqOeFxcJlaWmS",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "uQGqLlMDI0qbJC5Q9C1h",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "UTCZwOG9gpxVh6AkBCwk",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "V10xAATa0q84iW1mwF2X",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "vCSQtpXtZXZEBDhdxKOR",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "vKaEy0fIXHppin0CNOg7",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "vKC7TJ80pwvojfeZYVWj",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Vl8R91V52VKHEgrzvLHA",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "vPcJckNZfljNtZzHyfca",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "vqUg8SLRsay3Cotb6zmk",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "vRcRBFdHpY30bkipKCvk",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "state_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "vWhrqkXERoN0nC86vKyR",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "w34UW6V1DrA70VCCSigz",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "W4eSRaFSoVnnThbPNggO",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "wH0piwu9SEQnVCuAFQGX",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "whvKZyztqB1ncVabFFtR",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "wliEOmF55aYTx3RIGd9m",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "WnPn3ExI3l2QjJTgnDUM",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "wU15lSZQWfACxX6FPqet",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "WY4XqyuQ1K6NvR95GUPB",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "XAuGRMujBSdcuAmQzYPB",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "summit_objective_missing",
+          "state_missing",
+          "country_missing",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "xiyZaCIUToP5JvKYfqEZ",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "XlsKKOg6hDxloaBLqbMG",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "xrcPH1bzGIhsel7sxhKa",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "YbMq1nu24C0rxlB60tWE",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "yCf5BuBuc6Z2bNxgShuA",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Ygc9ypnZdiCflEG2AEiD",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "YnPSmAcjI5depNfbhvSl",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "yRwq5XUUWNMicEr7KKsM",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "YTiaxb3yLlJyiumhC5at",
+        "decision": "rejected",
+        "reasons": [
+          "path_estimate_unavailable"
+        ]
+      },
+      {
+        "route_id": "YYQag1GLA2Q1lnu0aTsy",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "yZjqoBCUFjRnrHjC0qZY",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "z2gHia5Sc7SJuq1Ub24G",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "Z3d05cJB4w5iWQoUrZFJ",
+        "decision": "rejected",
+        "reasons": [
+          "destination_ordinals_invalid",
+          "first_trailhead_missing"
+        ]
+      },
+      {
+        "route_id": "ZeI7xmy2uVHmRCUqjtYO",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "ziXbllonHZvmDMGghMV8",
+        "decision": "rejected",
+        "reasons": [
+          "state_missing"
+        ]
+      },
+      {
+        "route_id": "zmOynqSip5YHIBJG1DdK",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      },
+      {
+        "route_id": "zpMvIjzNzPjQCcBbz1ht",
+        "decision": "rejected",
+        "reasons": [
+          "segments_missing_or_invalid",
+          "shape_missing"
+        ]
+      }
+    ]
+  }
+}

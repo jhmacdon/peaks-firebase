@@ -38,6 +38,13 @@ provenance, 120 lack shape/segments and source provenance, and three long-distan
 routes need a separate traverse review. Saved scalar evidence alone proves no
 repair safe. Empty segment sets must not be treated as a simple ordinal fix.
 
+The later [full metadata dry run](metadata-dry-run.json) checks stored paths too:
+97 routes pass and 190 fail. Its [rejection JSONL](metadata-dry-run.json.rejections.jsonl)
+keeps every rejected route. All 15 additional failures have one zero-distance
+edge whose elevation changes; the [path diagnostics](path-estimate-diagnostics.txt)
+record them. These paths need elevation repair before they can yield a walking
+estimate. No rejected row receives a partial metadata classification.
+
 The report includes observed catalog-name matches for every golden query. A name match is a
 candidate for review, not proof of the intended trail. Production search ranks
 remain unverified until deployment.
@@ -71,8 +78,8 @@ delete catalog rows. Phase 1 does not activate new routes.
 ## Validation
 
 - API lint, typecheck, and build pass.
-- API CI at `348981a`: 550 passed, 0 failed, 0 skipped, including PostGIS tests.
-- Route-worker CI at `348981a`: passed, including web typecheck and lint.
+- API CI at `aa399f4`: 551 passed, 0 failed, 0 skipped, including PostGIS tests.
+- Route-worker CI at `aa399f4`: passed, including web typecheck and lint.
 - Read-only preflight: 12 unit tests pass; migrate TypeScript build passes.
 - Cross-reference checks pass.
 - Database tests cover formula thresholds, uphill/return estimates, invalid
@@ -88,4 +95,18 @@ The first rollback-only migration trial held table locks during index creation
 and briefly blocked reads. We canceled it; production confirmed that it left
 no new schema objects and no blocked queries. The revised migration separates
 short schema DDL, bounded data writes, and concurrent index creation. Its final
-CI and production results will be recorded here before deployment.
+CI passed with 551 API tests and the route-worker checks. The short schema and
+refresh-job migrations passed rollback-only trials, then committed in production.
+The naming dry run found 505 eligible rows and no rejections: 287 current catalog
+routes and 218 active personal routes. The personal-route pass fills only search
+names and stable slugs; it does not classify those routes as catalog entries.
+Detailed reports containing personal route names remain local. The public report
+records counts and hashes only.
+All 505 reviewed naming updates succeeded. All 16 concurrent indexes are valid
+and ready; all six new constraints are validated. API grants on `list_routes`
+are present. The [rollout receipts](production-rollout.json) record counts and
+report hashes.
+The [metadata apply](metadata-apply.json) wrote all 97 selected plans with no
+rejections and no activation. It records all 190 unselected failures from the
+reviewed report. The full current-route backfill remains incomplete until those
+source, relationship, region, and elevation gaps are repaired.
