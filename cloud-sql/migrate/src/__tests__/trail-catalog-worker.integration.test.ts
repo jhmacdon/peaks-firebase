@@ -142,7 +142,8 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     await worker.query("ROLLBACK");
     const run = await worker.query("SELECT begin_trail_catalog_source_run($1) AS id", [prefix]); runIds.push(String(run.rows[0].id));
     await assert.rejects(worker.query("UPDATE data_source_runs SET status='success' WHERE id=$1", [run.rows[0].id]), /permission denied/);
-    await assert.rejects(reviewer.query("SELECT finish_trail_catalog_source_run($1,'success',2,2,2,$2)", [run.rows[0].id, prefix]), /permission denied/);
+    await assert.rejects(reviewer.query("SELECT finish_trail_catalog_source_run($1,'success',2,2,2,$2)", [run.rows[0].id, prefix]), /trail candidate receipt does not belong to this unfinished attempt/);
+    assert.equal((await operator.query("SELECT finished_at FROM data_source_runs WHERE id=$1", [run.rows[0].id])).rows[0].finished_at,null,"a reviewer cannot finish the factory's audit run");
     await worker.query("SELECT finish_trail_catalog_source_run($1,'success',2,2,2,$2)", [run.rows[0].id, prefix]);
     await assert.rejects(worker.query("SELECT finish_trail_catalog_source_run($1,'success',2,2,2,$2)", [run.rows[0].id, prefix]), /unfinished attempt/);
     assert.equal((await operator.query("SELECT rows_written FROM data_source_runs WHERE id=$1", [run.rows[0].id])).rows[0].rows_written, 2);
