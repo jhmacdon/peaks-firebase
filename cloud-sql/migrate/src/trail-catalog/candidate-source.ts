@@ -34,7 +34,7 @@ export function parseUsfsCandidatePaths(input: PilotCandidateInput, snapshots: u
   return paths;
 }
 
-export function buildCandidate(input: PilotCandidateInput, snapshots: unknown[], places: CandidatePlaces, endpoints: { endNodeIds?:number[]; endSourceVertices?:UsfsVertex[]; maxDistanceM?:number } = {}): BuiltCandidate {
+export function buildCandidate(input: PilotCandidateInput, snapshots: unknown[], places: CandidatePlaces, endpoints: { endNodeIds?:number[]; endSourceVertices?:UsfsVertex[]; maxDistanceM?:number; deriveSourceAliases?:boolean } = {}): BuiltCandidate {
   if (input.source.type === "osm") {
     if (input.source.featureIds?.length || input.startSourceVertex || input.endSourceVertex || input.loopSourcePoints) throw new CandidateRejection("mixed_source_claims_not_supported");
     return buildOsmCandidate(input,snapshots,places,endpoints);
@@ -47,13 +47,15 @@ export function buildCandidate(input: PilotCandidateInput, snapshots: unknown[],
   const paths = parseUsfsCandidatePaths(input,snapshots);
   const graph = buildUsfsSourceGraphPath(paths,{start:input.startSourceVertex,end:input.endSourceVertex,endCandidates:endpoints.endSourceVertices,loop:input.kind === "loop",loopPoints:input.loopSourcePoints,maxDistanceM:Math.min(20_000,endpoints.maxDistanceM ?? 20_000)});
   if (graph.distanceM > 20_000) throw new CandidateRejection("objective_beyond_20km");
-  const intended = [input.name,...(input.aliases ?? [])].map(normalizeRouteName);
+  // Discovery may admit a named official trail, but only names on its actual edges.
+  const namedInput=endpoints.deriveSourceAliases ? {...input,aliases:[...new Set([...(input.aliases??[]),...graph.edges.flatMap(edge=>edge.names)])]} : input;
+  const intended = [namedInput.name,...(namedInput.aliases ?? [])].map(normalizeRouteName);
   const nameDistance = graph.edges.reduce((sum,edge,i) => sum + (edge.names.some(name => intended.includes(normalizeRouteName(name))) ? osmRouteHaversineMeters(graph.points[i],graph.points[i + 1]) : 0),0);
-  if (nameDistance / graph.distanceM < 0.9 && !hasIdentity(input)) throw new CandidateRejection("route_name_attestation_missing");
+  if (nameDistance / graph.distanceM < 0.9 && !hasIdentity(namedInput)) throw new CandidateRejection("route_name_attestation_missing");
   validateCandidateContact(input,places,graph.points);
   // Independent exact feature proof runs before elevation and again on durable replay.
   const proof = proveUsfsSourceSpan(graph.points,paths,graph.usedFeatureIds);
   if (!proof.passed) throw new CandidateRejection("usfs_source_geometry_failed",proof.errors.join("; "));
-  const lastEdge=graph.edges[graph.edges.length-1], resolvedInput=input.kind === "loop" ? input : {...input,endSourceVertex:{featureId:lastEdge.featureId,part:lastEdge.part,vertex:lastEdge.endVertex}};
-  return { input:resolvedInput,trailhead:places.trailhead,objective,endTrailhead,points:graph.points,nodeIds:[],edges:graph.edges,requiredCutIndices:graph.requiredCutIndices,usedWayIds:[],usedFeatureIds:graph.usedFeatureIds,distanceM:graph.distanceM,mappedFraction:graph.mappedFraction,sourceHashes:input.source.snapshots.map(snapshot => snapshot.sha256),geometryHash:graph.geometryHash,attestation:`usfs-feature-query:${graph.sourceUrl}`,attestedRouteNames:[...new Set([...(nameDistance / graph.distanceM >= 0.9 ? graph.attestation.names : []),...(hasIdentity(input) ? [input.identity!.name] : [])])],shape:input.kind === "loop" ? "loop" : input.kind === "traverse" ? "point_to_point" : "out_and_back" };
+  const lastEdge=graph.edges[graph.edges.length-1], resolvedInput=input.kind === "loop" ? namedInput : {...namedInput,endSourceVertex:{featureId:lastEdge.featureId,part:lastEdge.part,vertex:lastEdge.endVertex}};
+  return { input:resolvedInput,trailhead:places.trailhead,objective,endTrailhead,points:graph.points,nodeIds:[],edges:graph.edges,requiredCutIndices:graph.requiredCutIndices,usedWayIds:[],usedFeatureIds:graph.usedFeatureIds,distanceM:graph.distanceM,mappedFraction:graph.mappedFraction,sourceHashes:input.source.snapshots.map(snapshot => snapshot.sha256),geometryHash:graph.geometryHash,attestation:`usfs-feature-query:${graph.sourceUrl}`,attestedRouteNames:[...new Set([...(nameDistance / graph.distanceM >= 0.9 ? graph.attestation.names : []),...(hasIdentity(namedInput) ? [namedInput.identity!.name] : [])])],shape:input.kind === "loop" ? "loop" : input.kind === "traverse" ? "point_to_point" : "out_and_back" };
 }

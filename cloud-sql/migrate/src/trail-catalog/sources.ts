@@ -58,7 +58,7 @@ export function prepareElevation(candidate: BuiltCandidate, baseDir: string): Re
   let distance = 0;
   const elevatedPoints = raw.points.map((point, i) => { if (i) distance += osmRouteHaversineMeters(raw.points[i - 1], point); return { ...point, dist: distance }; });
   const stats = computeRouteElevationStats(elevations);
-  if (!candidate.attestation.startsWith("osm-relation:") && stats.gain > 2000) throw new CandidateRejection("objective_above_2000m_gain");
+  if (stats.gain > 2000) throw new CandidateRejection("objective_above_2000m_gain");
   for (const attested of candidate.input.attestedStats ?? []) {
     const statsUrl = new URL(attested.sourceUrl);
     if (statsUrl.protocol !== "https:" || !["fs.usda.gov", "nps.gov", "usgs.gov"].some(host => statsUrl.hostname === host || statsUrl.hostname.endsWith(`.${host}`))) throw new CandidateRejection("attested_stats_source_not_allowed", attested.sourceUrl);

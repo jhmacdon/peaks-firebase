@@ -117,6 +117,18 @@ test("hash-bound sources and terrain samples reject stale bytes or fabricated ve
     assert.throws(() => prepareElevation(candidate, dir), /elevation_source_vertex_mismatch/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+test("named hiking relations cannot bypass the 2000-metre gain cap",()=>{
+  const dir=mkdtempSync(join(tmpdir(),"peaks-pilot-gain-cap-"));
+  try {
+    const candidate=build();
+    assert.equal(candidate.attestation,"osm-relation:99");
+    const elevation={points:candidate.points.map((point,i)=>({...point,ele:100+i*1000})),lineage:{source:"AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",sourceUrl:"https://registry.opendata.aws/terrain-tiles/",licenseUrl:"https://github.com/tilezen/joerd/blob/master/docs/attribution.md",attribution:TERRARIUM_REQUIRED_ATTRIBUTION,retrievedAt:"2026-10-01",profile:"terrain"}};
+    const save=()=>{const body=JSON.stringify(elevation);writeFileSync(join(dir,"elevation.json"),body);candidate.input={...candidate.input,elevation:{path:"elevation.json",sha256:sha256(body)}};};
+    save();assert.equal(prepareElevation(candidate,dir).gainM,2000);
+    elevation.points[2].ele+=1;save();
+    assert.throws(()=>prepareElevation(candidate,dir),/objective_above_2000m_gain/);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
 test("dry run is default; apply requires an explicit review hash", () => {
   assert.equal(parsePilotArgs(["--manifest", "input.json", "--report", "report.jsonl"]).apply, false);
   assert.throws(() => parsePilotArgs(["--manifest", "input.json", "--report", "report.jsonl", "--apply"]), /Usage/);

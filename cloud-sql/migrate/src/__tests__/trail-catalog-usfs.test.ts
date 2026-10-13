@@ -11,6 +11,7 @@ import { planPilot } from "../trail-catalog-pilot";
 import { buildOfficialArcgisQueryUrl } from "../official-route-geometry";
 import { getPublishableArcgisTrailSource } from "../official-trail-sources";
 import { TERRARIUM_REQUIRED_ATTRIBUTION } from "../lib/terrarium-attribution";
+import { discoverCatalogCandidates, type DiscoveryConfig } from "../trail-catalog/discovery";
 import type { CatalogPlace, ElevationLineage, PilotCandidateInput } from "../trail-catalog/types";
 
 const service = getPublishableArcgisTrailSource("usfs-nfs-trails").service;
@@ -34,6 +35,21 @@ test("USFS candidates use canonical source features, real places and unchanged p
   assert.throws(() => buildCandidate(input,[source],{trailhead:{...head,lng:-122},objective:lake}),/trailhead_source_gap/);
   assert.throws(() => buildCandidate({...input,kind:"summit"},[source],{trailhead:head,objective:{...lake,features:["summit"],lng:-120.997}}),/objective_source_gap/);
   assert.throws(() => buildCandidate({...input,source:{...input.source,wayIds:[10]}},[source],{trailhead:head,objective:lake}),/mixed_source_claims/);
+});
+test("USFS discovery derives aliases from contributing features and replays them",()=>{
+  const sourceWithOther={...source,features:[...source.features,{...source.features[0],properties:{...source.features[0].properties,globalid:"other",trail_name:"Unrelated Trail",trail_no:"9999"},geometry:{type:"LineString",coordinates:[[-121,47.01],[-120.999,47.01]]}}]};
+  const config:DiscoveryConfig={version:1,batchKey:"usfs-discovery-test",bbox:{west:-121.1,east:-120.9,south:46.9,north:47.1},bundles:[{id:"example",source:{type:"usfs-nfs-trails",featureIds:["lower","upper","other"],snapshots:[{...input.source.snapshots[0],url:buildOfficialArcgisQueryUrl(service,["lower","upper","other"]).toString()}]}}]};
+  const result=discoverCatalogCandidates(config,[{bundle:config.bundles[0],snapshots:[sourceWithOther]}],[head,lake]);
+  assert.equal(result.complete,true);assert.equal(result.manifest.candidates.length,1);
+  const candidate=result.manifest.candidates[0];
+  assert.ok(candidate.aliases!.includes("1013"));
+  assert.ok(!candidate.aliases!.includes("9999"));assert.ok(!candidate.aliases!.includes("Unrelated Trail"));
+  assert.deepEqual(buildCandidate(candidate,[sourceWithOther],{trailhead:head,objective:lake}).usedFeatureIds,["lower","upper"]);
+  const loopSource={...sourceWithOther,features:[{...source.features[0],geometry:{type:"LineString",coordinates:[[-121,47],[-120.98,47],[-120.98,47.02],[-121,47.02],[-121,47]]}},sourceWithOther.features[2]]};
+  const loopInput:PilotCandidateInput={...input,name:"Example Loop",kind:"loop",objectiveId:null,endSourceVertex:undefined,source:{...input.source,featureIds:["lower","other"],snapshots:[{...input.source.snapshots[0],url:buildOfficialArcgisQueryUrl(service,["lower","other"]).toString()}]},loopSourcePoints:loopSource.features[0].geometry.coordinates.map(([lng,lat])=>({lng,lat}))};
+  const built=buildCandidate(loopInput,[loopSource],{trailhead:head},{deriveSourceAliases:true});
+  assert.ok(!built.input.aliases!.includes("Unrelated Trail"));assert.ok(!built.input.aliases!.includes("9999"));
+  assert.deepEqual(buildCandidate(built.input,[loopSource],{trailhead:head}).points,built.points);
 });
 test("USFS dry plans bind exact source bytes and elevation to independent segment feature subsets", async () => {
   const dir = mkdtempSync(join(tmpdir(),"peaks-usfs-pilot-"));

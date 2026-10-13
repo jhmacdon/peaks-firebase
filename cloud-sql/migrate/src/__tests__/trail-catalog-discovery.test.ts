@@ -114,6 +114,19 @@ test("an isolated nearer vertex cannot mask reachable objective contact",()=>{
   const result=discover([head,peak],source);
   assert.equal(result.complete,true);assert.equal(result.manifest.candidates[0].endNodeId,3);
 });
+test("objective searches keep the 20km path bound while explicit named relations remain separate",()=>{
+  const source=snapshot();
+  // The near objective is reached only after a long mapped detour.
+  source.elements.find(element=>element.id===2)!.lon=-120.5;
+  const result=discover([head,peak],source);
+  const objective=result.records.find(row=>row.mode==="objective")!;
+  assert.equal(objective.outcome,"rejected");assert.ok(objective.detail!.includes("disconnected_source_graph"));
+  assert.equal(result.records.find(row=>row.mode==="relation")!.outcome,"admitted");
+  assert.ok(result.manifest.candidates.length===1);
+  const bound=buildCandidate(result.manifest.candidates[0],[source],{trailhead:head,objective:peak});
+  assert.ok(bound.distanceM>20_000&&bound.distanceM<100_000);
+  assert.throws(()=>buildCandidate(result.manifest.candidates[0],[source],{trailhead:head,objective:peak},{endNodeIds:[3],maxDistanceM:20_000}),/disconnected_source_graph/);
+});
 test("an independent identity does not promote an unrelated hiking relation",()=>{
   const source=snapshot();source.elements.find(element=>element.type==="relation")!.members=[{type:"way",ref:11}];
   source.elements.push({type:"node",id:4,lat:47.01,lon:-121},{type:"node",id:5,lat:47.01,lon:-120.999},

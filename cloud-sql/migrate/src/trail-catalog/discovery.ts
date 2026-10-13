@@ -26,7 +26,7 @@ export interface DiscoveryRecord {
 type Element={type:string;id:number;lat?:number;lon?:number;nodes?:number[];tags?:Record<string,string>;members?:{type:string;ref:number}[]};
 type Vertex={key:string;point:Point;nodeId?:number;sourceVertex?:UsfsVertex};
 type Relation={id:number;name:string;aliases:string[];wayIds:number[];missingWayIds:number[];vertices:Vertex[];ends:Vertex[];closed:boolean};
-type Index={vertices:Vertex[];components:Map<string,string>;wayIds:number[];relations:Relation[];loops:{key:string;vertices:Vertex[];wayIds?:number[];featureIds?:string[]}[];names:string[];rawTrailheads:Element[]};
+type Index={vertices:Vertex[];components:Map<string,string>;wayIds:number[];relations:Relation[];loops:{key:string;vertices:Vertex[];wayIds?:number[];featureIds?:string[]}[];rawTrailheads:Element[]};
 export type DiscoverySource={bundle:DiscoveryBundle;snapshots:unknown[]};
 const OBJECTIVE_FEATURES=["lake","waterfall","viewpoint","hut","summit","campsite","landform"];
 
@@ -61,7 +61,7 @@ export async function loadDiscoveryPlaces(client:Pick<PoolClient,"query">,config
 function sourceIndex(source:DiscoverySource):Index {
   const {bundle,snapshots}=source;
   const vertices=new Map<string,Vertex>(),adjacent=new Map<string,Set<string>>(),edgeSources=new Map<string,Set<string>>();
-  const names=new Set<string>(), relations:Relation[]=[],rawTrailheads:Element[]=[];
+  const relations:Relation[]=[],rawTrailheads:Element[]=[];
   const edgeKey=(a:string,b:string)=>[a,b].sort().join("|");
   const edge=(a:Vertex,b:Vertex,id:string)=>{
     if (a.key===b.key) return;
@@ -83,7 +83,6 @@ function sourceIndex(source:DiscoverySource):Index {
     const ways=[...elements.values()].filter(item=>item.type==="way" && allowedWay(item) && (!bundle.source.wayIds || bundle.source.wayIds.includes(item.id)));
     const vertex=(id:number):Vertex=>{const node=elements.get(`node/${id}`);if (!Number.isFinite(node?.lat)||!Number.isFinite(node?.lon)) throw new CandidateRejection("source_node_missing",String(id));return {key:`node:${id}`,nodeId:id,point:{lat:node!.lat!,lng:node!.lon!}};};
     for (const way of ways) {
-      for (const name of [way.tags?.name,way.tags?.ref,...(way.tags?.alt_name?.split(";")??[])]) if (name?.trim()) names.add(name);
       for (let i=1;i<(way.nodes?.length??0);i++) edge(vertex(way.nodes![i-1]),vertex(way.nodes![i]),String(way.id));
     }
     for (const relation of [...elements.values()].filter(item=>item.type==="relation" && item.tags?.type==="route" && ["hiking","foot"].includes(item.tags?.route) && item.tags?.name?.trim())) {
@@ -102,7 +101,7 @@ function sourceIndex(source:DiscoverySource):Index {
   } else {
     const paths=parseUsfsCandidatePaths({source:bundle.source} as PilotCandidateInput,snapshots),parts=new Map<string,number>();
     for (const path of paths) {
-      const part=parts.get(path.featureId)??0;parts.set(path.featureId,part+1);path.names.forEach(name=>names.add(name));
+      const part=parts.get(path.featureId)??0;parts.set(path.featureId,part+1);
       const items=path.coordinates.map(([lng,lat],vertex)=>({key:JSON.stringify([lng,lat]),point:{lng,lat},sourceVertex:{featureId:path.featureId,part,vertex}}));
       for (let i=1;i<items.length;i++) edge(items[i-1],items[i],path.featureId);
     }
@@ -119,7 +118,7 @@ function sourceIndex(source:DiscoverySource):Index {
     const ids=[...new Set(cycle.slice(1).flatMap((id,i)=>[...(edgeSources.get(edgeKey(cycle[i],id))??[])]))].sort();
     return {key:sha256(stableJson(cycle)).slice(0,16),vertices:cycle.map(id=>vertices.get(id)!),...(bundle.source.type==="osm"?{wayIds:ids.map(Number)}:{featureIds:ids})};
   });
-  return {vertices:[...vertices.values()],components,wayIds:bundle.source.type==="osm"?[...new Set([...edgeSources.values()].flatMap(ids=>[...ids].map(Number)))].sort((a,b)=>a-b):[],relations,loops,names:[...names].sort(),rawTrailheads};
+  return {vertices:[...vertices.values()],components,wayIds:bundle.source.type==="osm"?[...new Set([...edgeSources.values()].flatMap(ids=>[...ids].map(Number)))].sort((a,b)=>a-b):[],relations,loops,rawTrailheads};
 }
 
 function hasSpecialObjectiveEvidence(config:DiscoveryConfig,place:CatalogPlace):boolean {
@@ -190,8 +189,7 @@ export function discoverCatalogCandidates(config:DiscoveryConfig,sources:Discove
           if (!targets.length) throw new CandidateRejection("objective_source_gap");
           const evidence=matchingEvidence(head,objective),base=makeInput(record,head,objective,start,evidence);
           if (bundle.source.type==="usfs-nfs-trails") {
-            base.aliases=[...new Set([...(base.aliases??[]),...index.names])];
-            return searchCandidate(base,source.snapshots,{trailhead:head,objective},{endSourceVertices:targets.map(vertex=>vertex.sourceVertex!),maxDistanceM:20_000});
+            return searchCandidate(base,source.snapshots,{trailhead:head,objective},{endSourceVertices:targets.map(vertex=>vertex.sourceVertex!),maxDistanceM:20_000,deriveSourceAliases:true});
           }
           const candidates:BuiltCandidate[]=[],errors:string[]=[];
           const relations=[null,...index.relations.filter(relation=>!relation.missingWayIds.length)];
@@ -232,9 +230,9 @@ export function discoverCatalogCandidates(config:DiscoveryConfig,sources:Discove
           const relation=index.relations.find(relation=>!relation.missingWayIds.length&&loop.wayIds?.every(id=>relation.wayIds.includes(id)));
           const cycle=loop.vertices.slice(0,-1),offset=cycle.findIndex(vertex=>vertex.key===loopStart.key),ordered=[...cycle.slice(offset),...cycle.slice(0,offset),loopStart];
           if (bundle.source.type==="osm") {input.source={...bundle.source,wayIds:loop.wayIds,relationId:relation?.id};input.loopNodeIds=ordered.map(vertex=>vertex.nodeId!);input.name=evidence?.name??relation?.name??"";input.aliases=[...(input.aliases??[]),...(relation?[relation.name,...relation.aliases]:[])];}
-          else {if (!evidence) throw new CandidateRejection("loop_name_attestation_missing");input.loopSourcePoints=ordered.map(vertex=>vertex.point);input.aliases=[...(input.aliases??[]),...index.names];}
+          else {if (!evidence) throw new CandidateRejection("loop_name_attestation_missing");input.loopSourcePoints=ordered.map(vertex=>vertex.point);}
           if (!input.name) throw new CandidateRejection("hike_attestation_missing");
-          return searchCandidate(input,source.snapshots,{trailhead:head});
+          return searchCandidate(input,source.snapshots,{trailhead:head},{deriveSourceAliases:true});
         });
       }
       if (records.length===before) records.push({sourceKey:`discover:${bundle.id}:${head.id}:empty`,mode:"trailhead",bundleId:bundle.id,trailheadId:head.id,objectiveId:null,outcome:"rejected",reason:"no_objectives_or_relations_in_scope"});

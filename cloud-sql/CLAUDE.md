@@ -1260,6 +1260,20 @@ gate. It enumerates named objectives, hiking relations, and exact source
 cycles, then applies the same naming and prefix rules as the pilot. A common
 destination needs explicit evidence to survive prefix pruning. An objective
 without a checked DEM profile remains blocked at the next stage.
+Every candidate's checked DEM gain must stay at or below 2,000 metres, including
+named OSM relations. USFS discovery aliases come only from contributing trail
+features.
+Objective shortest-path searches enforce a 20 km path bound. The request also
+admits explicit named OSM hiking relations near a trailhead, including longer
+loops and traverses; these keep the separate 100 km source-route cap and every
+gain, access, source, review, and cover check. A relation name does not raise the
+20 km bound on the objective search itself.
+
+This command does not fetch a complete regional source network. An operator
+must save and hash each bounded OSM/USFS bundle first. Raw OSM trailheads remain
+source-bound proposals until their catalog identities and metadata are reviewed;
+the command does not insert them or enumerate raw USFS trailheads. The current
+pilot reports these limits and does not claim full regional coverage.
 
 The pilot uses the same matcher as the web route editor through
 `web/src/lib/segment-matcher-core.ts`. It accepts attributed OSM paths and
