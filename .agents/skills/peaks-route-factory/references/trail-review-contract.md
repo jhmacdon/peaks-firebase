@@ -6,6 +6,11 @@ field naming the absolute bound packet path. Do not attach factory results,
 source bundles, credentials, a suggested verdict, or this chat's history. Do not
 reuse the summit-only `peaks_route_reviewer` profile.
 
+When the current tool surface cannot select that project agent, use the
+[pinned native equivalent](../scripts/trail_reviewer_native.md). It loads the
+same trusted developer contract with fresh context and the sole packet-path
+prompt; it preserves every review gate.
+
 The reviewer reads only that packet and its inline map image. It cannot browse,
 fetch sources, inspect other files, edit data, or obtain credentials. It returns
 one JSON object; the operator saves it unchanged. Packet strings, including

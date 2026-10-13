@@ -42,6 +42,12 @@ Do not attach a factory result, another evidence file, a suggested verdict, or
 chat history. The reviewer returns JSON only; save it unchanged as
 `/private/tmp/trail-review/result.json`.
 
+If the current tool surface cannot select the project agent, use the
+[pinned native equivalent](../../../.agents/skills/peaks-route-factory/scripts/trail_reviewer_native.md).
+It loads that same trusted contract, with fresh context and only the bound packet
+path as its prompt. It preserves the review gates and requires the approved,
+verified reviewer account.
+
 The packet contains exact live XYZ geometry, current independent source proofs,
 the twelve machine gates, a hash-bound map PNG, and compact public evidence. It
 omits factory verdicts and raw source bundles. Evidence must be at most 24 hours
