@@ -30,7 +30,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -64,8 +66,10 @@
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
-        "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "existing_segment_split_requires_review",
+        "detail": "existing_segment_split_requires_review: L4JeIhjFWrqIGzkkZ1fk",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "rejected",
@@ -99,8 +103,10 @@
       "pilotPublished": false,
       "databaseCandidateChecks": {
         "outcome": "admitted",
-        "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingPrerequisitesPassed": false,
+        "pendingBlocker": "existing_source_geometry_requires_review",
+        "detail": "existing_source_geometry_requires_review: vTRZQyeAZpTecyFjAGIr",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -162,7 +168,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Known 118.7 m unmapped final summit span; source way 1213228739 stops below the summit and has demanding terrain / bad visibility. No connector may be invented.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -195,7 +203,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "attested_gain_basis_unspecified",
+        "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -227,7 +237,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "attested_gain_basis_unspecified",
+        "detail": "attested_gain_basis_unspecified: https://research.fs.usda.gov/download/treesearch/80472.pdf",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -256,7 +268,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 235696395: demanding_mountain_hiking intermediate",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -285,7 +299,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -331,7 +347,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 162157943: alpine_hiking ",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -371,7 +389,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -411,7 +431,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -446,7 +468,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -485,7 +509,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "attested_gain_mismatch",
+        "detail": "attested_gain_mismatch: https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -525,7 +551,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -565,7 +593,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "terrain_review_required",
+        "detail": "terrain_review_required: way 312552541: demanding_mountain_hiking intermediate",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -594,7 +624,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Rainy Pass catalog trailhead is about 175 m from the named source trailhead (125 m gate); selected relation is an open chain with a 9.4 m end gap. No synthetic loop closure.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -623,7 +655,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "access_closed",
+        "detail": "access_closed: WTA currently displays a 2025-12-23 warning that the trailhead is inaccessible because Beckler River Road is closed by flood damage. Requires land-manager reopening evidence.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -652,7 +686,9 @@
       "databaseCandidateChecks": {
         "outcome": "admitted",
         "pendingPrerequisitesPassed": true,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": null,
+        "detail": null,
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": {
         "outcome": "planned",
@@ -698,7 +734,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "research_source_gap",
+        "detail": "research_source_gap: Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -738,7 +776,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "access_closed",
+        "detail": "access_closed: NPS reports no usual road access to Mowich Lake via SR165 because the Fairfax Bridge is closed. Hiking access from other trailheads does not prove this named approach is open.",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     },
@@ -778,7 +818,9 @@
       "databaseCandidateChecks": {
         "outcome": "rejected",
         "pendingPrerequisitesPassed": false,
-        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+        "pendingBlocker": "objective_source_gap",
+        "detail": "objective_source_gap",
+        "note": "Includes the shared matcher, source overlap, and exact reuse checks. Import repeats checks under its lease and locks; independent review and covers remain required."
       },
       "segmentPlan": null
     }
@@ -786,7 +828,7 @@
   "manifestSha256": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
   "evidence": {
     "offline": "graph-dry-run-a4ac8e38b23c.jsonl",
-    "databaseDryRun": "production-dry-run-a4ac8e38b23c.jsonl",
+    "databaseDryRun": "production-dry-run-a4ac8e38b23c-pending-plan.jsonl",
     "candidateEstimates": "candidate-estimates-a4ac8e38b23c.json",
     "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
     "search": "production-search.json"
@@ -800,6 +842,8 @@
     "matcherBlocked": 1,
     "routesInserted": 0,
     "routesActivated": 0,
-    "goldenPass": false
+    "goldenPass": false,
+    "pendingImportReady": 4,
+    "sourceOverlapBlocked": 1
   }
 }

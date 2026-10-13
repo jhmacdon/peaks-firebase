@@ -1277,7 +1277,10 @@ npm run routes:pilot -- \
   --report /tmp/wa-trail-pilot-dry.jsonl
 ```
 
-Dry runs record `data_source_runs` but do not write routes or jobs. Review the
+Dry runs record `data_source_runs` but do not write routes or jobs. Before a
+candidate becomes pending-ready, the dry planner runs the shared exact matcher,
+source-overlap checks, and existing-segment reuse proof. The writer repeats
+these checks under its lease and locks. Review the
 report before applying its printed `reviewHash` under the `peaks-route-factory`
 database role:
 
