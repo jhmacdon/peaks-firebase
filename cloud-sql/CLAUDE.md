@@ -1076,6 +1076,55 @@ graph's own 10 m tolerance, and 20 only at 30 m, where parallel switchbacks
 start welding together. For 194 of those 240 the nearest level 4/5 road is over
 3 km away in a straight line, so the gap is coverage, not stitching.
 
+## Catalog trails and trip estimates
+
+Routes are first-class trail entries; segments remain their shared physical
+pieces. `segments.trail_names` stores source trail names. Route `aliases` and
+`search_name` feed search alongside linked destination and segment names.
+`peaks_normalize_search_name(text)` mirrors the geographic abbreviation map
+in `api/src/search-utils.ts`, the destination name normalizer. Keep the two in
+step; the DB suite checks their output together.
+
+`routes.distance`, `gain`, and `gain_loss` still describe the stored one-way
+line. `peaks_route_trip_metrics` matches the web's
+`getRouteTraversalMetrics`: an `out_and_back` trip uses `distance * 2` and
+`gain + gain_loss` (the outbound descent is ascent on the return). Every other
+shape uses the stored forward distance and gain. `completion` is a direction
+preference, as in the current client display; it adds no return leg and does
+not swap the forward stats. These helpers accept it for that explicit contract.
+
+- `peaks_route_difficulty(distance, gain, gain_loss, shape, completion)` uses
+  `effort_km = trip_km + trip_gain_m / 100`: easy below 8, moderate below 16,
+  hard below 26, otherwise strenuous.
+- `peaks_route_est_moving_seconds` takes the same arguments and rounds
+  `(trip_km / 4.5 + trip_gain_m / 600) * 3600` to the nearest second. This is
+  moving time; it adds no stops. Missing distance or ascent returns null. For
+  out-and-back, one known vertical value can supply ascent when the other is
+  missing, matching the client display. Negative or non-finite trip totals
+  also return null.
+
+The catalog BEFORE trigger follows the existing route elevation trigger: every
+materialized stats update refreshes effort and time. Peaks routes derive their
+objective from the last stop, their trailhead from the first trailhead stop,
+and their state/country from the objective with a trailhead fallback. Shape
+`loop` wins the kind rule; an explicit `traverse` stays a traverse; otherwise
+the last summit stop means `summit`, and all other routes mean `destination`.
+Changes to stops or destination features/regions refresh those values too.
+Factory-role imports cannot update route rows except through guarded status
+changes, so their pending route refreshes its stops when activated. The guard
+stays unchanged. Other writers refresh stops at once.
+
+Slugs start from the normalized name and add `-2`, `-3`, etc. to avoid a clash
+within the state (including routes with no known state). A name change keeps
+its slug. An advisory lock and unique index protect new slug allocation.
+
+`peaks_refresh_route_popularity()` counts distinct recording users with
+`coverage IS NULL OR coverage >= 0.7`, exactly `routeDoneCoverageSql`, plus
+0.1 per published linked trip report. It updates only changed Peaks route
+scores and returns that row count. The existing authenticated
+`POST /internal/sweep` calls it; there is no new schedule, timer, or service,
+and the expected added cost is approximately $0/month.
+
 ## Route coverage and partial history
 
 A `session_routes` row is written at 0.70 vertex coverage or when the

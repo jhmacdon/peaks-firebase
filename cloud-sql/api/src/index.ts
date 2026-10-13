@@ -91,6 +91,8 @@ app.post("/internal/sweep", asyncRoute(async (req, res) => {
     // the sessions near them; re-match a batch each sweep.
     await drainSessionRematchQueue(processingPool);
     await drainTripReportPhotoDeletions(processingPool);
+    // Reuse the scheduler's request window; unchanged scores cause no writes.
+    await processingPool.query("SELECT peaks_refresh_route_popularity()");
     res.json({ status: "ok" });
   } catch (err) {
     console.error("[sweep] failed:", err);

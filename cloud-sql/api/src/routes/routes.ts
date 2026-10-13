@@ -19,6 +19,11 @@ export function buildRouteDetailQuery(
             r.elevation_attribution, r.elevation_license_url,
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
+            r.shape, r.kind, r.slug, r.aliases,
+            r.difficulty, r.est_moving_seconds, r.state_code, r.country_code,
+            r.objective_destination_id, r.trailhead_destination_id, r.popularity,
+            r.description, r.description_source_name,
+            r.description_source_url, r.description_source_license,
             r.created_at, r.updated_at,
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas,
@@ -136,6 +141,39 @@ export function buildRouteSectionsQuery(
   };
 }
 
+/** Count each physical segment once, even if either route traverses it twice. */
+export function buildSharedRoutesQuery(
+  id: string,
+  uid: string
+): { text: string; values: unknown[] } {
+  return {
+    text: `WITH source_segments AS (
+       SELECT DISTINCT rs.segment_id
+       FROM routes source
+       JOIN route_segments rs ON rs.route_id = source.id
+       WHERE source.id = $1 AND source.status = 'active'
+         AND ${buildRouteAccessSql("source", "$2")}
+     ), shared_segments AS (
+       SELECT DISTINCT rs.route_id, rs.segment_id
+       FROM route_segments rs
+       JOIN source_segments source ON source.segment_id = rs.segment_id
+       WHERE rs.route_id <> $1
+     )
+     SELECT r.id, r.name, r.kind, r.distance, r.gain, r.difficulty,
+            SUM(COALESCE(s.distance, ST_Length(s.path), 0))::double precision AS shared_distance,
+            array_agg(s.id ORDER BY s.id) AS shared_segment_ids
+     FROM shared_segments shared
+     JOIN routes r ON r.id = shared.route_id
+     JOIN segments s ON s.id = shared.segment_id
+     WHERE r.status = 'active'
+       AND ${buildRouteAccessSql("r", "$2")}
+     GROUP BY r.id
+     ORDER BY shared_distance DESC, r.name, r.id
+     LIMIT 20`,
+    values: [id, uid],
+  };
+}
+
 export function buildNearbyRoutesQuery(
   lat: number,
   lng: number,
@@ -208,6 +246,13 @@ router.get("/:id", asyncRoute(async (req, res: Response) => {
 router.get("/:id/destinations", asyncRoute(async (req, res: Response) => {
   const { id } = req.params;
   const query = buildRouteDestinationsQuery(id, getUid(req));
+  const result = await db.query(query.text, query.values);
+  res.json(result.rows);
+}));
+
+// GET /api/routes/:id/shared — visible active routes on the same physical trail.
+router.get("/:id/shared", asyncRoute(async (req, res: Response) => {
+  const query = buildSharedRoutesQuery(req.params.id, getUid(req));
   const result = await db.query(query.text, query.values);
   res.json(result.rows);
 }));
