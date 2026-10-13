@@ -65,7 +65,8 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
   for (const value of [operatorUrl!, factoryUrl!, reviewerUrl!, apiUrl!, adminUrl!]) {
     const url = new URL(value); assert.match(url.pathname, /_test$/); assert.equal(url.host, target.host); assert.equal(url.pathname, target.pathname);
   }
-  const operator = new Pool({ connectionString: operatorUrl, max: 1 }), factory = new Pool({ connectionString: factoryUrl, max: 1 });
+  // Pending imports hold one factory connection; lane checks need another.
+  const operator = new Pool({ connectionString: operatorUrl, max: 1 }), factory = new Pool({ connectionString: factoryUrl, max: 2, connectionTimeoutMillis: 10_000 });
   const reviewer = new Pool({ connectionString: reviewerUrl, max: 1 }), api = new Pool({ connectionString: apiUrl, max: 1 });
   const admin = new Pool({ connectionString: adminUrl, max: 1 });
   const worker = await factory.connect();
@@ -153,6 +154,12 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
     assert.equal((await operator.query("SELECT source,rows_written FROM data_source_runs WHERE id=$1",[run])).rows[0].source,"trail-catalog-review");
     assert.equal((await operator.query("SELECT rows_written FROM data_source_runs WHERE id=$1",[run])).rows[0].rows_written,null);
     const destination = await candidate("destination"), review = await claimAndBind(destination);
+    const distance = (await operator.query(`SELECT distance,ST_Length(path) xyz_distance,
+      ST_Length(ST_Force2D(path::geometry)::geography) horizontal_distance FROM routes WHERE id=$1`,[destination.routeId])).rows[0];
+    assert.equal(distance.distance,distance.xyz_distance,"the importer stores PostGIS geography XYZ length");
+    assert.ok(distance.xyz_distance>distance.horizontal_distance,"non-flat geography includes each edge's height change");
+    assert.equal(review.checks.measurements.distance_m,distance.distance,"review statistics use the stored distance basis");
+    assert.equal(review.checks.gates.stats,true);
     assert.equal(review.checks.measurements.summit_count,0); assert.equal(review.checks.measurements.summit_max_gap_m,null);
     assert.deepEqual(review.checks.errors,[]);
     for (const pool of [factory, api]) {
