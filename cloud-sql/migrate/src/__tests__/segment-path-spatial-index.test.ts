@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { Pool } from "pg";
-import { analyzeRouteSegmentsWithClient } from "../../../../web/src/lib/segment-matcher-core";
-import { pointsToLineStringZ, type TrackPoint } from "../../../../web/src/lib/route-utils";
+// Runtime imports preserve migrate's rootDir; these shared TS files run via tsx.
+const { analyzeRouteSegmentsWithClient } = require("../../../../web/src/lib/segment-matcher-core");
+const { pointsToLineStringZ } = require("../../../../web/src/lib/route-utils");
+type TrackPoint = { lat: number; lng: number; ele: number; dist: number };
 
 const migration = readFileSync(
   resolve(__dirname, "../../../migrations/20260829_segment_path_spatial_index.sql"),
