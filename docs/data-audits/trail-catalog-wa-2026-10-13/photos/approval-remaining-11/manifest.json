@@ -1,0 +1,178 @@
+{
+  "mode": "rollback-only",
+  "queueAuditId": 116,
+  "fixedMonthlyCostDeltaUsd": 0,
+  "inputs": {
+    "candidates": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json",
+      "sha256": "392d64de9ad074a4f12535d5495092401332cb80f457887c8f25efd0dbff6412"
+    },
+    "review": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/review.json",
+      "sha256": "be8dbfefaca406e136cb6b66227e506eea6d702816b43601493925d0a2cc2cd6"
+    },
+    "catalog": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/catalog-places-6bb7916bb071.json",
+      "sha256": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626"
+    },
+    "uiFraming": {
+      "path": "docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-remaining-11/ui-framing-review.json",
+      "sha256": "00734561830979cd80faa724bf7be08ec1b27675d959f9717ea755cdd74522a7"
+    },
+    "approvedReadback": {
+      "path": "docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-apply/production-readback-5.json",
+      "sha256": "82b3e89597bd7f26a605cc7f7e6efe7702ac3dac80d01233f250ffd135addd38"
+    },
+    "pilotManifest": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/manifest.json",
+      "sha256": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc"
+    },
+    "queueReceipt": {
+      "path": "docs/data-audits/trail-catalog-wa-2026-10-13/photos/operations/production-apply-1.jsonl",
+      "sha256": "57e400d42f882fc95738aaf6558172ca5945d1be9e2ed64b39d48bd2caf49a05"
+    }
+  },
+  "previewSha256": "00e14bb86abc469a81cf215cfbb2b9a0d6a85665ae32e4e2801c5ebd8f4ebd03",
+  "covers": [
+    {
+      "candidateId": "xxoCzbZ6wudjscAe788b",
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "imageSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "sLF3JFQL61nB2nK78F2f",
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+      "imageSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c"
+    },
+    {
+      "candidateId": "vNACg3f2NioMeR2qdBjX",
+      "destinationId": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+      "imageSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "goxoEUevbtTLEgWOBQ2T",
+      "destinationId": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+      "imageSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+      "imageSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+      "destinationId": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "imageSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+      "imageSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "3QHwUgURE8ts4_kWO639",
+      "destinationId": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+      "imageSha1": "bf043f658538a185ba8c74413a870cb113db9af9",
+      "metadataSha256": "1bde1d27af714ad018367155a53e9ffb40a8bed0f3c650ff72044a6fd4ab9fe2"
+    },
+    {
+      "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+      "imageSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4",
+      "metadataSha256": "709e0ea9a5126e4eece22911720bd069cf9d6bf75fc96c9b3e75c2b75d40ce99"
+    },
+    {
+      "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+      "imageSha1": "02fbb9087880808fef74e6a367a5a337b3451a00",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "ITkoNEc-0dHINLIDz6gG",
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+      "imageSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c"
+    }
+  ],
+  "pilotSourceKeys": [
+    "wa:osm-relation:4807642",
+    "wa:osm-relation:4793517",
+    "wa:osm-relation:5626186",
+    "wa:osm-relation:5626186:ingalls-peak",
+    "wa:osm-relation:4152031",
+    "wa:osm-relation:4152034",
+    "wa:osm-relation:4829792",
+    "wa:osm-relation:5626187",
+    "wa:osm-relation:5553769",
+    "wa:osm-relation:6106367",
+    "wa:osm-relation:5588030",
+    "wa:osm-relation:5199914",
+    "wa:osm-relation:5194432",
+    "wa:osm-relation:5426108",
+    "wa:osm-relation:7147738",
+    "wa:osm-relation:6632394",
+    "wa:osm-relation:4807643",
+    "wa:osm-relation:5537770",
+    "wa:osm-relation:5519228",
+    "wa:osm-relation:5194384",
+    "wa:osm-relation:5537775"
+  ],
+  "importedRoutes": [
+    "trail-6391bc0f-8687-4bc8-b465-a2add6d99d58",
+    "trail-6dfd43dc-8f23-4791-ab00-570049a1c39b",
+    "trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346",
+    "trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0"
+  ],
+  "excludedCandidateIds": [
+    "5Z3MCMBjAQxs1K9yKbwc",
+    "fw-ML4vsorEL5j7sl4im",
+    "NtXYecChVsFWyawb22Q0",
+    "ZPP7hf-AtZYGdOlc7iNn"
+  ],
+  "limits": [
+    "No Storage render or upload",
+    "No durable approval",
+    "Apply only through existing verified-admin photo action"
+  ],
+  "files": {
+    "build.mjs": "500a073941a6a7367dbbd8b75439af74a699c9a21fa14c11544896c08e4ca7fb",
+    "bindings.sql": "73d1cd08c03fccc2b59bba67d61dd5968c6840a99855c6c43882b141a2b10f4c",
+    "state.sql": "bb1308c70ebd07cfaaed9cef120856a0c6e5b24b5888485dc9ca79e3eaa337ed",
+    "check.sql": "c24a20d680f2fdd10c3110b241f4b863a20f178888825074da31591f7a9b0c79",
+    "start.sql": "e81cfd1be1345e56942f73e06cf72ada9d40e6eb9176ec46cb1a4e6577936ee5",
+    "readback.sql": "ec03b0032e4e49bd2da955f8d2082ed6b0cfec36a97451e9081633c6c41e1277",
+    "finish.sql": "9353a69b24a74c64430e0f1a2ac06e0815b501575a9016b4819dc720c948ab0b",
+    "preview-start.sql": "441d283365c47f99b14328f5be34e77fcac47bc1da1714a81f55d1fb0575416c",
+    "preview-finish.sql": "e6867edb323bd23538041d7e37f54ad0de33b4adfc4562ab34f923d1b94ef5c1",
+    "rollback-preview.sql": "00e14bb86abc469a81cf215cfbb2b9a0d6a85665ae32e4e2801c5ebd8f4ebd03"
+  }
+}
