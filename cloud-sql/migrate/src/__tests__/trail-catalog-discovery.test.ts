@@ -42,6 +42,17 @@ test("review tolerance cannot shorten a point objective, while a real lake footp
   const candidate=result.manifest.candidates.find(candidate=>candidate.sourceKey===objective.sourceKey);
   assert.ok(candidate);assert.equal(candidate.endNodeId,2);
 });
+test("standalone destination evidence preserves catalog names without an optional name override",()=>{
+  const lake={...peak,id:"lake",name:"Example Lake",features:["lake"],lng:-120.999};
+  const reviewed={...config,evidence:[{bundleId:"example",trailheadId:head.id,objectiveId:lake.id,
+    commonDestinationEvidence:{objectiveId:lake.id,name:lake.name,publisher:"usfs" as const,sourceUrl:"https://www.fs.usda.gov/trail/example",checkedAt:"2026-10-01T00:00:00Z",note:"Official standalone lake hike.",attestation:"standalone_named_hike" as const}}]};
+  assert.ok(discover([head,lake,peak]).records.some(row=>row.objectiveId===lake.id&&row.reason==="strict_prefix_without_common_destination_attestation"));
+  const result=discover([head,lake,peak],snapshot(),reviewed);
+  const candidate=result.manifest.candidates.find(candidate=>candidate.objectiveId===lake.id);
+  assert.ok(candidate);assert.equal(candidate.name,"Example Lake via Example Trail");
+  assert.equal(candidate.commonDestinationEvidence?.objectiveId,lake.id);
+  assert.ok(!result.records.some(row=>row.reason==="candidate_discovery_failed"));
+});
 test("discovery keeps denied access and incomplete relation sources visible",()=>{
   const denied=snapshot();denied.elements.find(element=>element.type==="way")!.tags={highway:"path",access:"no"} as never;
   assert.equal(discover([head,peak],denied).manifest.candidates.length,0);

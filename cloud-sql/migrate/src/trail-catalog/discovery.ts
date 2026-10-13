@@ -7,7 +7,7 @@ import { sourceCycles } from "./source-cycles";
 import type { BuiltCandidate, CatalogPlace, PilotCandidateInput, PilotManifest, Point, UsfsVertex } from "./types";
 
 export interface DiscoveryBundle { id:string; source:PilotCandidateInput["source"]; terrainReviews?:PilotCandidateInput["terrainReviews"] }
-export interface DiscoveryEvidence extends Pick<PilotCandidateInput,"name"|"aliases"|"identity"|"access"|"commonDestinationEvidence"|"variant"|"elevation"|"attestedStats"> {
+export interface DiscoveryEvidence extends Partial<Pick<PilotCandidateInput,"name"|"aliases"|"identity"|"access"|"commonDestinationEvidence"|"variant"|"elevation"|"attestedStats">> {
   bundleId:string; trailheadId:string; objectiveId?:string|null; relationId?:number; loopKey?:string;
 }
 export interface DiscoveryConfig {
@@ -174,7 +174,7 @@ export function discoverCatalogCandidates(config:DiscoveryConfig,sources:Discove
     const makeInput=(record:DiscoveryRecord,head:CatalogPlace,objective:CatalogPlace|null,start:Vertex,evidence:DiscoveryEvidence|undefined):PilotCandidateInput=>({
       sourceKey:record.sourceKey,name:evidence?.name??objective?.name??"",aliases:evidence?.aliases??[],kind:objective?.features.includes("summit")?"summit":objective?"destination":"loop",
       trailheadId:head.id,objectiveId:objective?.id??null,source:{...bundle.source},...endpoint(start),terrainReviews:bundle.terrainReviews,
-      ...(evidence?{name:evidence.name,aliases:evidence.aliases,identity:evidence.identity,access:evidence.access,commonDestinationEvidence:evidence.commonDestinationEvidence,variant:evidence.variant,elevation:evidence.elevation,attestedStats:evidence.attestedStats}:{}),
+      ...(evidence?{identity:evidence.identity,access:evidence.access,commonDestinationEvidence:evidence.commonDestinationEvidence,variant:evidence.variant,elevation:evidence.elevation,attestedStats:evidence.attestedStats}:{}),
     });
     for (const head of heads) {
       const before=records.length,start=closest(index.vertices,head);
