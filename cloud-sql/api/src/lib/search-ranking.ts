@@ -54,7 +54,12 @@ export function rankSearchResults(buckets: SearchBuckets, limit: number): Ranked
     }
     if (type === "route" && data.kind === "summit") {
       const objective = destinations.get(data.objective_destination_id);
-      if (objective?.name_exact_match) score = Math.min(score, Math.max(0, boundedScore(objective.score) - 0.001));
+      // A broad place-name prefix should lead with the summit, even when a
+      // shorter shared trail name gives its route a higher text score. Exact
+      // route, alias, or trail queries still lead with the matching route.
+      if (objective?.name_exact_match || (objective?.name_prefix_match && !data.term_exact_match)) {
+        score = Math.min(score, Math.max(0, boundedScore(objective.score) - 0.001));
+      }
     }
     return { type, id: String(data.id), score, data };
   }));

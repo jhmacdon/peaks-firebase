@@ -200,6 +200,20 @@ test("mixed search builds destination, route, area, and list queries", () => {
   assert.match(queries.lists.text, /FROM list_routes lr/);
 });
 
+test("mixed search keeps two-letter abbreviation input as a token prefix", () => {
+  const queries = buildMixedSearchQueries({ normalizedQuery: "bridge", rawQuery: " Br ", limit: 20 });
+  for (const query of [queries.destinations, queries.routes, queries.areas, queries.lists]) {
+    assert.equal(query.values[0], "br");
+    assert.equal(query.values[1], "br%");
+  }
+  assert.equal(queries.routes.values[2], "br:*");
+  assert.match(queries.routes.text, /to_tsvector\('simple', peaks_search_names\(candidate_r\.aliases\)\) @@ to_tsquery/);
+  const abbreviation = buildMixedSearchQueries({ normalizedQuery: "mount", rawQuery: "Mt", limit: 20 });
+  assert.equal(abbreviation.routes.values[0], "mount", "an abbreviation with a different prefix still expands");
+  const phrase = buildMixedSearchQueries({ normalizedQuery: "mount si", rawQuery: "Mt Si", limit: 20 });
+  assert.equal(phrase.routes.values[0], "mount si", "longer phrases still expand abbreviations");
+});
+
 test("route search narrows candidate IDs before loading route geometry", () => {
   const queries = buildMixedSearchQueries({
     normalizedQuery: "silver peak",

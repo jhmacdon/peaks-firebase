@@ -335,6 +335,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
          SELECT id, name, elevation, prominence, type, activities, features,
                 country_code, state_code, location,
                 (search_name = $1) AS name_exact_match,
+                (search_name LIKE $2) AS name_prefix_match,
                 ${distance} AS distance_m,
                 (${searchTextScoreSql("search_name", "$1", "$2")}
                   + ${searchPopularityScoreSql("session_count_offset")}
@@ -350,7 +351,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
               ${destinationAreaRowsSql},
               ST_Y(destinations.location::geometry) AS lat,
               ST_X(destinations.location::geometry) AS lng,
-              destinations.distance_m, destinations.name_exact_match, destinations.score
+              destinations.distance_m, destinations.name_exact_match, destinations.name_prefix_match, destinations.score
        FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
        ORDER BY destinations.score DESC, destinations.name, destinations.id`,
@@ -431,6 +432,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
                 r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
                 r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
                 (r.search_name = $1) AS name_exact_match,
+                matched_terms.exact_match AS term_exact_match,
                 ${distance} AS distance_m,
                 (COALESCE(matched_terms.text_score, 0)
                   + ${searchPopularityScoreSql("r.popularity")}
@@ -439,7 +441,8 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
          JOIN routes r ON r.id = candidate.id
          LEFT JOIN LATERAL (
            SELECT max(${searchTextScoreSql("terms.term", "$1", "$2")}) AS text_score,
-                  bool_or(${individualTermMatch}) AS matches
+                  bool_or(${individualTermMatch}) AS matches,
+                  bool_or(terms.term = $1) AS exact_match
            FROM (
              SELECT r.search_name AS term
              UNION ALL
@@ -469,7 +472,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
               r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
               r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
               ${routeCoverSelectSql()},
-              ${routeAreaRowsSql}, r.distance_m, r.name_exact_match, r.score
+              ${routeAreaRowsSql}, r.distance_m, r.name_exact_match, r.term_exact_match, r.score
        FROM ranked_routes r
        ${routeCoverJoinSql()}
        ${routeAreaJoinSql}
@@ -550,11 +553,16 @@ export function buildListSearchQuery(input: DestinationSearchQueryInput): Search
 }
 
 export function buildMixedSearchQueries(input: DestinationSearchQueryInput): MixedSearchSqlQueries {
+  // Keep a two-letter prefix when it also covers the expanded abbreviation:
+  // "br" finds Bridal and Bridge, while "mt" still expands to Mount.
+  const raw = input.rawQuery.trim().toLowerCase();
+  const queryInput = /^[a-z0-9]{2}$/.test(raw) && input.normalizedQuery.startsWith(raw)
+    ? { ...input, normalizedQuery: raw } : input;
   return {
-    destinations: buildRankedDestinationSearchQuery(input),
-    routes: buildRouteSearchQuery(input),
-    areas: buildAreaSearchQuery(input),
-    lists: buildListSearchQuery(input),
+    destinations: buildRankedDestinationSearchQuery(queryInput),
+    routes: buildRouteSearchQuery(queryInput),
+    areas: buildAreaSearchQuery(queryInput),
+    lists: buildListSearchQuery(queryInput),
     limit: input.limit,
   };
 }

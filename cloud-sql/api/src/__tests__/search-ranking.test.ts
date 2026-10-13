@@ -50,3 +50,13 @@ test("scores stay finite and within zero to one", () => {
   }, 20);
   assert.ok(results.every((r) => Number.isFinite(r.score) && r.score >= 0 && r.score <= 1));
 });
+
+test("a broad place prefix ranks its summit before a route matching a shorter shared trail name", () => {
+  const peak = { id: "peak", name: "Ingalls Peak", features: ["summit"], score: 0.566, name_prefix_match: true };
+  const lake = { id: "lake", name: "Ingalls Lake", features: ["lake"], score: 0.566, name_prefix_match: true };
+  const hike = { id: "hike", name: "Ingalls Lake via Ingalls Way", kind: "destination", objective_destination_id: "lake", score: 0.6 };
+  const climb = { id: "climb", name: "Ingalls Peak South Ridge", kind: "summit", objective_destination_id: "peak", score: 0.6 };
+  const buckets = { destinations: [peak, lake], routes: [climb, hike], areas: [], lists: [] };
+  assert.deepEqual(rankSearchResults(buckets, 20).map((r) => r.id), ["hike", "peak", "lake", "climb"]);
+  assert.equal(rankSearchResults({ ...buckets, routes: [{ ...climb, term_exact_match: true }] }, 20)[0].id, "climb");
+});

@@ -207,6 +207,7 @@ jobs:
           echo "Database connectivity check passed (HTTP $STATUS)"
 
   deploy-smoke-job:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
