@@ -1,0 +1,502 @@
+{
+  "guards": [
+    {
+      "name": "trg_guard_trail_catalog_pending_only",
+      "owner": "postgres",
+      "table": "routes",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_pending_only BEFORE INSERT OR DELETE OR UPDATE ON public.routes FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_pending_only()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_review_delete",
+      "owner": "postgres",
+      "table": "trail_catalog_review_jobs",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_review_delete BEFORE DELETE ON public.trail_catalog_review_jobs FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_receipt_removal()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_review_job",
+      "owner": "postgres",
+      "table": "trail_catalog_review_jobs",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_review_job BEFORE INSERT OR UPDATE ON public.trail_catalog_review_jobs FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_review_job()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_review_truncate",
+      "owner": "postgres",
+      "table": "trail_catalog_review_jobs",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_review_truncate BEFORE TRUNCATE ON public.trail_catalog_review_jobs FOR EACH STATEMENT EXECUTE FUNCTION guard_trail_catalog_receipt_removal()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_reviewed_destinations",
+      "owner": "postgres",
+      "table": "route_destinations",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_reviewed_destinations BEFORE INSERT OR DELETE OR UPDATE ON public.route_destinations FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_reviewed_links()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_reviewed_segment",
+      "owner": "postgres",
+      "table": "segments",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_reviewed_segment BEFORE DELETE OR UPDATE ON public.segments FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_reviewed_links()",
+      "securityDefiner": false
+    },
+    {
+      "name": "trg_guard_trail_catalog_reviewed_segments",
+      "owner": "postgres",
+      "table": "route_segments",
+      "enabled": "O",
+      "definition": "CREATE TRIGGER trg_guard_trail_catalog_reviewed_segments BEFORE INSERT OR DELETE OR UPDATE ON public.route_segments FOR EACH ROW EXECUTE FUNCTION guard_trail_catalog_reviewed_links()",
+      "securityDefiner": false
+    }
+  ],
+  "database": "peaks",
+  "readOnly": true,
+  "checkedAt": "2026-10-13T15:59:53.527016+00:00",
+  "functions": [
+    {
+      "owner": "peaks-trail-publisher",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": false
+      },
+      "signature": "activate_trail_catalog_candidate(text,text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "139d83c7501d89fe45f3f1c45f327ee8",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": false,
+        "peaks-route-reviewer": true
+      },
+      "signature": "bind_trail_catalog_review_packet(text,text,jsonb,jsonb)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "c6062eb0beda69f31be94a70ae5012f4",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": false
+      },
+      "signature": "claim_trail_catalog_publish(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "acc302e016432827e038d5dd4d350c3c",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": false,
+        "peaks-route-reviewer": true
+      },
+      "signature": "claim_trail_catalog_review(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "99124b32ca705ea286e3302a109b78e3",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": false
+      },
+      "signature": "claim_trail_catalog_verification(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "025ea2092e0a21afdb338b4336658669",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": true
+      },
+      "signature": "finish_trail_catalog_review_run(bigint,text,integer,integer,integer,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "e03fd756711b5fa1af32c22fb599ccb8",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": false,
+        "peaks-route-reviewer": true
+      },
+      "signature": "finish_trail_catalog_review(text,text,jsonb,jsonb,jsonb)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "eac017eb514c0eb467076ce58d15c0e8",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": false
+      },
+      "signature": "finish_trail_catalog_verification(text,text,text,jsonb)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "15ddff336e9f46c90cd55d9c0cf3f85c",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": false,
+        "peaks-route-reviewer": true
+      },
+      "signature": "heartbeat_trail_catalog_review(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "4a45aa5b2addd0510a766f6d371eabda",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": false
+      },
+      "signature": "release_trail_catalog_publish(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "75f3a6f190cc1058bf0ab01fd6057a58",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": false,
+        "peaks-route-reviewer": true
+      },
+      "signature": "release_trail_catalog_review(text,text)",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "0c5ad0214251ddb038938d78abef6b68",
+      "publicExecute": false,
+      "securityDefiner": true
+    },
+    {
+      "owner": "postgres",
+      "execute": {
+        "peaks-api": false,
+        "peaks-route-factory": true,
+        "peaks-route-reviewer": true
+      },
+      "signature": "trail_catalog_rematch_drain_status()",
+      "configuration": [
+        "search_path=pg_catalog, public, pg_temp"
+      ],
+      "definitionMd5": "22e020a434cd34dc54de5d58cdc33ca6",
+      "publicExecute": false,
+      "securityDefiner": true
+    }
+  ],
+  "publisher": {
+    "name": "peaks-trail-publisher",
+    "login": false,
+    "inherit": false,
+    "createdb": false,
+    "bypassRls": false,
+    "superuser": false,
+    "createrole": false,
+    "memberships": 0,
+    "ownedTables": 0,
+    "replication": false,
+    "ownedSchemas": 0,
+    "schemaCreate": false,
+    "ownedFunctions": [
+      "activate_trail_catalog_candidate(text,text,text)"
+    ]
+  },
+  "currentUser": "postgres",
+  "pilotRoutes": [
+    {
+      "kind": "destination",
+      "name": "Lake Serene Trail",
+      "status": "pending",
+      "routeId": "trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0",
+      "sourceKey": "wa:osm-relation:4807642",
+      "storedDistanceM": 5723.426036489508,
+      "distanceGatePass": true
+    },
+    {
+      "kind": "loop",
+      "name": "Skyline Loop (Paradise)",
+      "status": "pending",
+      "routeId": "trail-6dfd43dc-8f23-4791-ab00-570049a1c39b",
+      "sourceKey": "wa:osm-relation:5199914",
+      "storedDistanceM": 9167.62653621158,
+      "distanceGatePass": true
+    },
+    {
+      "kind": "destination",
+      "name": "Lake Twentytwo via Lake Twenty Two Trail",
+      "status": "pending",
+      "routeId": "trail-6391bc0f-8687-4bc8-b465-a2add6d99d58",
+      "sourceKey": "wa:osm-relation:5537770",
+      "storedDistanceM": 4036.5662629371045,
+      "distanceGatePass": true
+    },
+    {
+      "kind": "destination",
+      "name": "Rattlesnake Ledge via Rattlesnake Ledge Trail",
+      "status": "pending",
+      "routeId": "trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346",
+      "sourceKey": "wa:osm-relation:5588030",
+      "storedDistanceM": 3164.5994145907584,
+      "distanceGatePass": true
+    }
+  ],
+  "reviewTable": {
+    "rows": 0,
+    "lanes": [
+      {
+        "role": "peaks-api",
+        "select": true,
+        "rawWrites": false
+      },
+      {
+        "role": "peaks-route-factory",
+        "select": true,
+        "rawWrites": false
+      },
+      {
+        "role": "peaks-route-reviewer",
+        "select": true,
+        "rawWrites": false
+      }
+    ],
+    "owner": "postgres",
+    "columns": [
+      {
+        "name": "source_key",
+        "type": "text",
+        "notNull": true
+      },
+      {
+        "name": "route_id",
+        "type": "text",
+        "notNull": true
+      },
+      {
+        "name": "input_hash",
+        "type": "text",
+        "notNull": true
+      },
+      {
+        "name": "pending_hash",
+        "type": "text",
+        "notNull": true
+      },
+      {
+        "name": "state",
+        "type": "text",
+        "notNull": true
+      },
+      {
+        "name": "lease_owner",
+        "type": "name",
+        "notNull": false
+      },
+      {
+        "name": "lease_token",
+        "type": "text",
+        "notNull": false
+      },
+      {
+        "name": "lease_expires_at",
+        "type": "timestamp with time zone",
+        "notNull": false
+      },
+      {
+        "name": "reviewer",
+        "type": "name",
+        "notNull": false
+      },
+      {
+        "name": "packet",
+        "type": "jsonb",
+        "notNull": false
+      },
+      {
+        "name": "source_check",
+        "type": "jsonb",
+        "notNull": false
+      },
+      {
+        "name": "review_result",
+        "type": "jsonb",
+        "notNull": false
+      },
+      {
+        "name": "receipt_hash",
+        "type": "text",
+        "notNull": false
+      },
+      {
+        "name": "verification_result",
+        "type": "jsonb",
+        "notNull": false
+      },
+      {
+        "name": "reviewed_at",
+        "type": "timestamp with time zone",
+        "notNull": false
+      },
+      {
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "notNull": false
+      },
+      {
+        "name": "verified_at",
+        "type": "timestamp with time zone",
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "notNull": true
+      }
+    ],
+    "constraints": [
+      "CHECK ((((state = ANY (ARRAY['reviewing'::text, 'publish_leased'::text, 'verify_leased'::text])) AND (lease_owner IS NOT NULL) AND (lease_token IS NOT NULL) AND (lease_expires_at IS NOT NULL)) OR ((state <> ALL (ARRAY['reviewing'::text, 'publish_leased'::text, 'verify_leased'::text])) AND (lease_owner IS NULL) AND (lease_token IS NULL) AND (lease_expires_at IS NULL))))",
+      "CHECK (((state <> ALL (ARRAY['approved'::text, 'publish_leased'::text, 'published'::text, 'verify_leased'::text, 'verified'::text])) OR ((reviewer IS NOT NULL) AND (packet IS NOT NULL) AND (source_check IS NOT NULL) AND (review_result IS NOT NULL) AND (receipt_hash IS NOT NULL) AND (reviewed_at IS NOT NULL))))",
+      "CHECK ((input_hash ~ '^[a-f0-9]{64}$'::text))",
+      "CHECK ((pending_hash ~ '^[a-f0-9]{64}$'::text))",
+      "PRIMARY KEY (source_key)",
+      "CHECK ((receipt_hash ~ '^[a-f0-9]{64}$'::text))",
+      "FOREIGN KEY (route_id) REFERENCES routes(id)",
+      "UNIQUE (route_id)",
+      "FOREIGN KEY (source_key) REFERENCES trail_catalog_candidate_jobs(source_key)",
+      "CHECK ((state = ANY (ARRAY['pending_review'::text, 'reviewing'::text, 'approved'::text, 'publish_leased'::text, 'published'::text, 'verify_leased'::text, 'verified'::text, 'rejected'::text])))"
+    ],
+    "publicPrivileges": 0
+  },
+  "sessionUser": "postgres",
+  "schemaAudits": [
+    {
+      "id": 127,
+      "rowsIn": 1,
+      "source": "trail-catalog-review-schema",
+      "status": "dry_run",
+      "startedAt": "2026-10-13T15:47:34.548779+00:00",
+      "finishedAt": "2026-10-13T15:47:57.178034+00:00",
+      "rowsMatched": 1,
+      "rowsWritten": 0
+    },
+    {
+      "id": 128,
+      "rowsIn": 1,
+      "source": "trail-catalog-review-schema",
+      "status": "success",
+      "startedAt": "2026-10-13T15:49:26.76669+00:00",
+      "finishedAt": "2026-10-13T15:49:40.067697+00:00",
+      "rowsMatched": 1,
+      "rowsWritten": 0
+    }
+  ],
+  "catalogCounts": {
+    "routes": 15481,
+    "segments": 221,
+    "reviewJobs": 0,
+    "candidateJobs": 21,
+    "routeSegments": 233,
+    "routeDestinations": 22975
+  },
+  "candidateStates": {
+    "pending": 4,
+    "rejected": 17
+  },
+  "protectedFunctions": [
+    {
+      "name": "activate_standard_route_factory",
+      "definitionMd5": "1413c32b314eb9011577e7cc7ee9ac04"
+    },
+    {
+      "name": "enforce_peaks_route_cover_activation",
+      "definitionMd5": "3eecdb46d8efaf3f9031f753e16d8fac"
+    },
+    {
+      "name": "is_valid_route_provenance",
+      "definitionMd5": "3cf6559524f325072262cfcfad47bfec"
+    },
+    {
+      "name": "peaks_route_kind_passes_contact",
+      "definitionMd5": "252b88889de3d309836356980dc00c70"
+    },
+    {
+      "name": "peaks_route_passes_publish_integrity",
+      "definitionMd5": "03a4ffbc934eaf01489f4f4ee764f9b6"
+    },
+    {
+      "name": "queue_sessions_near",
+      "definitionMd5": "9cadb87bf180f99a922df1ab2fc681bb"
+    },
+    {
+      "name": "route_segments_cover_provenance",
+      "definitionMd5": "e25718a4df50a3372824a9f0db938fcf"
+    },
+    {
+      "name": "trail_catalog_span_matches",
+      "definitionMd5": "24f75a574eddb62d98fd600196279799"
+    }
+  ],
+  "inspectionChecks": "passed"
+}
