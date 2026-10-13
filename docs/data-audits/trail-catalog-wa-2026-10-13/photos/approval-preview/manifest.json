@@ -1,0 +1,63 @@
+{
+  "mode": "rollback-only",
+  "queueAuditId": 116,
+  "fixedMonthlyCostDeltaUsd": 0,
+  "inputs": {
+    "candidates": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/candidates.json",
+      "sha256": "392d64de9ad074a4f12535d5495092401332cb80f457887c8f25efd0dbff6412"
+    },
+    "review": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/photos/review.json",
+      "sha256": "be8dbfefaca406e136cb6b66227e506eea6d702816b43601493925d0a2cc2cd6"
+    },
+    "catalog": {
+      "path": "cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/catalog-places-6bb7916bb071.json",
+      "sha256": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626"
+    },
+    "queueReceipt": {
+      "path": "docs/data-audits/trail-catalog-wa-2026-10-13/photos/operations/production-apply-1.jsonl",
+      "sha256": "57e400d42f882fc95738aaf6558172ca5945d1be9e2ed64b39d48bd2caf49a05"
+    }
+  },
+  "previewSha256": "45bbc15c3e6ef244ec7b880977297bce6a9977baffaa482b57f9a538195c9541",
+  "covers": [
+    {
+      "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
+      "destinationId": "1755CBB232F3FCC6A437",
+      "name": "Lake Serene",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+      "imageSha1": "5b32a4fc714d2dff1bf870b4fd779a2c8c37a761",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "NtXYecChVsFWyawb22Q0",
+      "destinationId": "7F9130E5AAEC9213E123",
+      "name": "Rattlesnake Ledge",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+      "imageSha1": "af118d9cbbfb3b2b82b4d954f526b7c44c449e53",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
+      "destinationId": "C21AD354B7FEA99C277F",
+      "name": "Skyline Trailhead",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "imageSha1": "77bdbf04426a5fa8a0acedea8de3472d51b45ba8",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c"
+    },
+    {
+      "candidateId": "fw-ML4vsorEL5j7sl4im",
+      "destinationId": "FF006293EBCD1BBDA398",
+      "name": "Lake Twentytwo",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+      "imageSha1": "bd223a55223506e776e4cd3f7f045107a491366b",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    }
+  ],
+  "limits": [
+    "No Storage render or upload",
+    "No durable approval",
+    "Apply only through existing verified-admin photo action"
+  ]
+}

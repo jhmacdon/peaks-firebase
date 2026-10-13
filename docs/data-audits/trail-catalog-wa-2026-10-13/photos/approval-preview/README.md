@@ -1,0 +1,62 @@
+# Four cover approval rollback preview
+
+This file tests the database update shape for the imported Lake Serene,
+Rattlesnake Ledge, Skyline, and Lake Twentytwo covers. It pins their existing
+queue IDs from production audit 116, exact source, author, license, dimensions,
+notes, and framing from the saved manifest, and public place identity from the
+catalog snapshot. The generator checks the saved Commons metadata hashes and
+the confirmed queue receipt before it writes SQL. It does not connect to a
+database or read a credential.
+
+Run the offline builder from the repository root:
+
+```sh
+node docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-preview/build.mjs
+```
+
+Inspect `manifest.json` and the generated `rollback-preview.sql` before running
+the preview. Use the existing operator connection to `127.0.0.1:5432/peaks`,
+with the password in memory. Check the SQL hash against `previewSha256`.
+Record a separate mandatory `data_source_runs` start receipt under
+`trail-catalog-photo-approval-preview` **before** starting the preview
+transaction. Include the SQL hash, four candidate IDs, mode `rollback-only`,
+and fixed monthly cost delta 0 in its notes. Use a new output filename:
+
+```sh
+psql -X -w -v ON_ERROR_STOP=1 \
+  -f docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-preview/rollback-preview.sql
+```
+
+Save the output. Finish the separate audit as `dry_run`, with `rows_in=4`,
+`rows_matched=4`, and `rows_written=0`, only after both inside-transaction
+assertions and post-rollback readback pass. Any SQL or readback error must
+finish as `failed`; keep the error and inspected counts in the audit. If the
+rollback response is lost, inspect the database through a new connection
+before reporting the outcome. Do not retry blindly or replace earlier reports.
+
+The preview locks all four candidate rows before all four destination rows,
+as the existing admin action does. It requires the exact pending candidates,
+public place identity, and no credited hero. It captures every current hero
+field under those locks, exercises the same destination and queue update
+fields as the admin action, then checks exact target values, untouched fields,
+counts, and unaffected tuple identities. It forces deferred checks, rolls back,
+and compares full target rows plus catalog tuple hashes with the preimage.
+Concurrent unrelated catalog writes can make this conservative readback fail;
+inspect that failure rather than weakening the check.
+
+The original candidate `image_url` is a **preview-only stand-in** for the future
+Firebase Storage URL. `preview-only:rollback` is a synthetic marker, never an
+admin identity. Neither value can become a real approval through this file:
+it has one unconditional rollback and no apply mode. Never turn it into an
+apply script or change its transaction boundary.
+
+This preview does **not** test image download, media SHA-1, EXIF rotation,
+rendering, Storage upload, admin authentication, or public serving. Actual
+approval must use the existing verified-admin `/admin/photos` action, with
+the exact candidate ID and saved framing. Do not substitute raw SQL, a route
+worker credential, or a fabricated admin identity. The licensed cover work
+already has task authorization; this preview adds no permission gate.
+
+Routes stay pending. This file never updates routes, segments, route links,
+or candidate jobs. No new service or timer is added. Fixed backend cost change:
+**$0/month**.
