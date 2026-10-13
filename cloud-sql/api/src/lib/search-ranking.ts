@@ -28,12 +28,14 @@ export function searchTextScoreSql(term: string, query: string, prefix: string):
 }
 
 /**
- * Places people rarely search for by name (a campsite or trailhead alone)
- * yield to the summit, lake or trail that shares the word. An exact full-name
- * query still finds them first among their namesakes.
+ * A bare one-word name on a campsite or trailhead ("Pilchuck") is usually a
+ * namesake of the bigger place people mean ("Mount Pilchuck"). Only that exact
+ * one-word match yields; "Camp Muir", "Heybrook Trailhead", and partial typing
+ * keep their normal score.
  */
-export function searchMinorPlacePenaltySql(features: string): string {
-  return `(CASE WHEN ${features} <> '{}' AND ${features} <@ '{campsite,trailhead}'::destination_feature[] THEN 0.35 ELSE 0 END)`;
+export function searchMinorPlacePenaltySql(features: string, term: string, query: string): string {
+  return `(CASE WHEN ${features} <> '{}' AND ${features} <@ '{campsite,trailhead}'::destination_feature[]
+      AND ${term} = ${query} AND position(' ' in ${query}) = 0 THEN 0.35 ELSE 0 END)`;
 }
 
 /** Bounded popularity keeps a popular weak match below a strong text match. */

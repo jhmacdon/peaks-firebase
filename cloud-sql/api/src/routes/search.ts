@@ -326,7 +326,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
   const tokenParam = `$${values.length}`;
   const candidateWhere = short
     ? tokenQuery ? `${destinationSearchVector} @@ to_tsquery('simple', ${tokenParam})` : "false"
-    : "search_name % $1 OR search_name LIKE $2 OR $1 <% search_name";
+    : "search_name % $1 OR search_name LIKE $2";
   const distance = geo ? "ST_Distance(location, ST_MakePoint($5, $4)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
@@ -340,7 +340,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
                 (${searchTextScoreSql("search_name", "$1", "$2")}
                   + ${searchPopularityScoreSql("session_count_offset")}
                   + ${proximity}
-                  - ${searchMinorPlacePenaltySql("features")}) AS score
+                  - ${searchMinorPlacePenaltySql("features", "search_name", "$1")}) AS score
          FROM destinations
          WHERE ${candidateWhere}
          ORDER BY score DESC, name, id

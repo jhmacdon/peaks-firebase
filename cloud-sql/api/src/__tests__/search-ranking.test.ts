@@ -70,10 +70,12 @@ test("ranked results carry a small summary, never the bucket row's geometry", ()
   assert.equal(route.polyline6, "abc", "the bucket row keeps its geometry");
 });
 
-test("text score rewards a whole-word match and demotes campsite- or trailhead-only places", () => {
+test("text score rewards a whole-word match and demotes only an exact one-word campsite or trailhead namesake", () => {
   const text = searchTextScoreSql("search_name", "$1", "$2");
   assert.match(text, /similarity\(search_name, \$1\) \* 0\.45/);
   assert.match(text, /word_similarity\(\$1, search_name\) \* 0\.20/);
   assert.match(text, /search_name LIKE \('% ' \|\| \$1 \|\| '%'\) THEN 0\.15/);
-  assert.match(searchMinorPlacePenaltySql("features"), /features <@ '\{campsite,trailhead\}'::destination_feature\[\] THEN 0\.35/);
+  const penalty = searchMinorPlacePenaltySql("features", "search_name", "$1");
+  assert.match(penalty, /features <@ '\{campsite,trailhead\}'::destination_feature\[\]/);
+  assert.match(penalty, /search_name = \$1 AND position\(' ' in \$1\) = 0 THEN 0\.35/, "only an exact one-word namesake yields");
 });

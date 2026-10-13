@@ -148,3 +148,42 @@ test("golden trail queries execute against real PostgreSQL names, aliases, objec
     client.release();
   }
 });
+
+// A bare one-word campsite or trailhead name must not bury the bigger place
+// people mean, while typing a trailhead's own name still finds it first.
+test("namesake queries rank the summit over a one-word campsite and keep a typed trailhead first", {
+  skip: dbSkipReason ?? undefined,
+}, async () => {
+  const client = await db.connect();
+  const prefix = `search-namesake-${randomUUID()}`;
+  const id = (key: string) => `${prefix}-${key}`;
+  await client.query("BEGIN");
+  try {
+    for (const [key, name, features] of [
+      ["summit", "Mount Zqpilchuck", "{summit,fire-lookout}"],
+      ["camp", "Zqpilchuck", "{campsite}"],
+      ["ridge", "Zqheybrook Ridge", "{summit}"],
+      ["trailhead", "Zqheybrook Trailhead", "{trailhead}"],
+    ]) {
+      await client.query(
+        `INSERT INTO destinations (id, name, search_name, features, state_code, country_code)
+         VALUES ($1, $2, $3, $4::destination_feature[], 'WA', 'US')`,
+        [id(key), name, normalizeSearchName(name), features]
+      );
+    }
+    const top = async (query: string) => {
+      const q = normalizeSearchName(query);
+      const queries = buildMixedSearchQueries({ normalizedQuery: q, rawQuery: query, limit: 20, uid: id("viewer") });
+      const destinations = (await client.query(queries.destinations.text, queries.destinations.values)).rows;
+      const buckets: SearchBuckets = { destinations, routes: [], areas: [], lists: [] };
+      return rankSearchResults(buckets, 20).map((r) => r.data.name);
+    };
+    const pilchuck = await top("zqpilchuck");
+    assert.ok(pilchuck.indexOf("Mount Zqpilchuck") < pilchuck.indexOf("Zqpilchuck"), pilchuck.join(" | "));
+    assert.equal((await top("zqheybrook tr"))[0], "Zqheybrook Trailhead");
+    assert.equal((await top("zqheybrook trailhead"))[0], "Zqheybrook Trailhead");
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+  }
+});
