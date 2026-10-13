@@ -199,7 +199,7 @@ function buildShortDestinationSearchQuery(input: DestinationSearchQueryInput): {
               ${destinationAreaRowsSql},
               ST_Y(destinations.location::geometry) AS lat,
               ST_X(destinations.location::geometry) AS lng,
-              destinations.text_score, destinations.distance_m, destinations.name_exact_match, destinations.score
+              destinations.text_score, destinations.distance_m, destinations.score
        FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
        ORDER BY destinations.score DESC`,
@@ -273,7 +273,7 @@ export function buildDestinationSearchQuery(input: DestinationSearchQueryInput):
               ${destinationAreaRowsSql},
               ST_Y(destinations.location::geometry) AS lat,
               ST_X(destinations.location::geometry) AS lng,
-              destinations.text_score, destinations.distance_m, destinations.name_exact_match, destinations.score
+              destinations.text_score, destinations.distance_m, destinations.score
        FROM ranked_destinations destinations
        ${destinationAreaJoinSql}
        ORDER BY destinations.score DESC`,
