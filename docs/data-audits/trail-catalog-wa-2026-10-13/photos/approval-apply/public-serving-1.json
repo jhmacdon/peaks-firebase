@@ -1,0 +1,74 @@
+{
+  "mode": "public-serving-check",
+  "checkedAt": "2026-10-13T16:20:14.730Z",
+  "readbackSha256": "82b3e89597bd7f26a605cc7f7e6efe7702ac3dac80d01233f250ffd135addd38",
+  "manifestSha256": "fd4dd8ef6e7decd813a670b1b31f64193f51c44b4acd14bd8174ae8c7e29c24f",
+  "helperSha256": "666aea8ebd82c69f56c5455cad642a4cd56db7b3183361f8b0e1efaaec7d77e3",
+  "sharpVersion": "0.33.5",
+  "bounds": {
+    "photos": 4,
+    "maxBytesPerPhoto": 10485760,
+    "timeoutMs": 30000,
+    "redirects": 0,
+    "maxDecodedPixels": 5760000
+  },
+  "databaseAccess": false,
+  "credentialAccess": false,
+  "imageFilesWritten": 0,
+  "passed": true,
+  "photos": [
+    {
+      "candidateId": "ZPP7hf-AtZYGdOlc7iNn",
+      "destinationId": "1755CBB232F3FCC6A437",
+      "name": "Lake Serene",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F1755CBB232F3FCC6A437%2FZPP7hf-AtZYGdOlc7iNn-62fe7d36-15c8-4b80-b5ff-dffd45682b98.jpg?alt=media&token=62fe7d36-15c8-4b80-b5ff-dffd45682b98",
+      "passed": true,
+      "httpStatus": 200,
+      "contentType": "image/jpeg",
+      "bytes": 610800,
+      "sha256": "e8cebf077d9d5af7d46593cc8033b8ebc542115e0d73261c971d733ed972eb24",
+      "width": 2400,
+      "height": 1600
+    },
+    {
+      "candidateId": "NtXYecChVsFWyawb22Q0",
+      "destinationId": "7F9130E5AAEC9213E123",
+      "name": "Rattlesnake Ledge",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F7F9130E5AAEC9213E123%2FNtXYecChVsFWyawb22Q0-698a0c1a-d3f1-4c67-88e6-8be19f322efa.jpg?alt=media&token=698a0c1a-d3f1-4c67-88e6-8be19f322efa",
+      "passed": true,
+      "httpStatus": 200,
+      "contentType": "image/jpeg",
+      "bytes": 787486,
+      "sha256": "19a46c3e1205e2c2a51cd85c73840721ca7f68882479747e901b785e97627100",
+      "width": 2272,
+      "height": 1553
+    },
+    {
+      "candidateId": "5Z3MCMBjAQxs1K9yKbwc",
+      "destinationId": "C21AD354B7FEA99C277F",
+      "name": "Skyline Trailhead",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FC21AD354B7FEA99C277F%2F5Z3MCMBjAQxs1K9yKbwc-0667bd2a-eed3-4a42-bbec-95a8bd07a7aa.jpg?alt=media&token=0667bd2a-eed3-4a42-bbec-95a8bd07a7aa",
+      "passed": true,
+      "httpStatus": 200,
+      "contentType": "image/jpeg",
+      "bytes": 592287,
+      "sha256": "99ceea3b55685dcef14839ad1e2f5fae657502551cde11d77a0d7e9b87fb6838",
+      "width": 2400,
+      "height": 1594
+    },
+    {
+      "candidateId": "fw-ML4vsorEL5j7sl4im",
+      "destinationId": "FF006293EBCD1BBDA398",
+      "name": "Lake Twentytwo",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FFF006293EBCD1BBDA398%2Ffw-ML4vsorEL5j7sl4im-ee22706d-04a6-4344-84d6-fd4c7c88f807.jpg?alt=media&token=ee22706d-04a6-4344-84d6-fd4c7c88f807",
+      "passed": true,
+      "httpStatus": 200,
+      "contentType": "image/jpeg",
+      "bytes": 683833,
+      "sha256": "757894b61c6b11942077044f4d645b75b3316d8e90ea9dfd7780fd47741bf202",
+      "width": 2400,
+      "height": 1628
+    }
+  ],
+  "finishedAt": "2026-10-13T16:20:15.758Z"
+}
