@@ -521,7 +521,7 @@
         "Skyline Trail"
       ],
       "kind": "loop",
-      "trailheadId": "xaMGyHut8CoGCSkCPKh6",
+      "trailheadId": "C21AD354B7FEA99C277F",
       "objectiveId": null,
       "source": {
         "type": "osm",
@@ -558,7 +558,7 @@
         ]
       },
       "startNodeId": 1891140697,
-      "blockedReason": "Paradise catalog trailhead is about 150 m from the named Skyline Trailhead (125 m gate). Relation also includes highway=steps edges unsupported by the current graph filter. Do not select a different nearby start to hide either gap.",
+      "blockedReason": "Relation includes highway=steps edges unsupported by the current graph filter. The source-bound Skyline Trailhead now exists; do not bypass the remaining source-class gap.",
       "access": {
         "status": "unknown",
         "sourceUrl": "https://www.openstreetmap.org/relation/5199914",
@@ -582,7 +582,7 @@
         "Naches Peak Loop Trail"
       ],
       "kind": "loop",
-      "trailheadId": null,
+      "trailheadId": "6D0E779FF39C5B648D6B",
       "objectiveId": null,
       "source": {
         "type": "osm",
@@ -611,7 +611,6 @@
         ]
       },
       "startNodeId": 2431576647,
-      "blockedReason": "Nearby catalog row ZELAKQAzdxPhff3TZmTS is named American Lake Trailhead, not Tipsoo Lake Trailhead. Proximity alone does not establish identity.",
       "access": {
         "status": "unknown",
         "sourceUrl": "https://www.openstreetmap.org/relation/5194432",
@@ -626,7 +625,11 @@
           "gainM": 152.4,
           "gainBasis": "full_trip"
         }
-      ]
+      ],
+      "elevation": {
+        "path": "elevation/wa-osm-relation-5194432.json",
+        "sha256": "c3e52fad5fa33c86c6996bd2a58659ca8ca9839ce4cd669dc81ba825e3b7b298"
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5426108",

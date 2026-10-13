@@ -12,7 +12,7 @@ const baseDir = __dirname;
 const { manifest } = loadManifest(resolve(baseDir, "manifest.json"));
 const manifestSha256 = sha256(readFileSync(resolve(baseDir,"manifest.json")));
 const evidence = JSON.parse(readFileSync(resolve(baseDir, "source-evidence.json"), "utf8"));
-const catalogBytes = readFileSync(resolve(baseDir, "catalog-places.json"));
+const catalogBytes = readFileSync(resolve(baseDir, evidence.catalogSnapshot.path));
 if (sha256(catalogBytes) !== evidence.catalogSnapshot.sha256) throw new Error("catalog_snapshot_hash_mismatch");
 const places = new Map<string, CatalogPlace & { credited_cover?: boolean }>(JSON.parse(catalogBytes.toString()).map((p: CatalogPlace) => [p.id, p]));
 const reportBase = process.argv[2] ?? `graph-dry-run-${manifestSha256.slice(0,12)}`;
@@ -65,7 +65,7 @@ const reports = manifest.candidates.map(input => {
   } catch(error) { row.reason = error instanceof CandidateRejection ? error.reason : "candidate_validation_failed"; row.detail = error instanceof Error ? error.message : String(error); }
   return row;
 });
-const summary = {type:"summary",scope:"offline_source_graph_and_saved_catalog_snapshot",candidates:reports.length,graphAdmitted:reports.filter(r => r.graphOutcome === "admitted").length,graphRejected:reports.filter(r => r.graphOutcome === "rejected").length,elevationPassed:reports.filter(r => r.elevationOutcome === "passed").length,pendingReady:0,databaseChecksRun:false,manifestSha256};
+const summary = {type:"summary",scope:"offline_source_graph_and_saved_catalog_snapshot",candidates:reports.length,graphAdmitted:reports.filter(r => r.graphOutcome === "admitted").length,graphRejected:reports.filter(r => r.graphOutcome === "rejected").length,elevationPassed:reports.filter(r => r.elevationOutcome === "passed").length,pendingReady:0,databaseChecksRun:false,manifestSha256,catalogSnapshotSha256:evidence.catalogSnapshot.sha256};
 if (reports.length !== 21) throw new Error("golden_pilot_requires_all_21_rows");
 saveEvidence(reportPath,[...reports,summary].map(r => JSON.stringify(r)).join("\n")+"\n");
 saveEvidence(reportPath.replace(/\.jsonl$/,".geojson"),JSON.stringify({type:"FeatureCollection",features})+"\n");

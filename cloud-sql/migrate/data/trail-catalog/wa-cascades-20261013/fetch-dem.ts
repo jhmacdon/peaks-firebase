@@ -1,5 +1,5 @@
 /** Fetch z14 public terrain samples at unchanged OSM vertices. No database access. */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildOsmCandidate, sha256 } from "../../../src/trail-catalog/graph";
 import { loadManifest, loadSourceSnapshots } from "../../../src/trail-catalog/sources";
@@ -7,15 +7,28 @@ import { sampleTerrariumProfile } from "../../../src/lib/terrarium-route-profile
 import { TERRARIUM_REQUIRED_ATTRIBUTION } from "../../../src/lib/terrarium-attribution";
 import type { CatalogPlace } from "../../../src/trail-catalog/types";
 
+function saveImmutable(path: string, body: string | Buffer): void {
+  if (existsSync(path)) {
+    if (!readFileSync(path).equals(Buffer.from(body))) throw new Error(`historical_evidence_conflict:${path}`);
+    return;
+  }
+  writeFileSync(path,body,{flag:"wx"});
+}
+function archiveJson(path: string): void {
+  const bytes=readFileSync(path);
+  saveImmutable(path.replace(/\.json$/,`-${sha256(bytes).slice(0,12)}.json`),bytes);
+}
+
 async function main() {
   const baseDir = __dirname, manifestPath = resolve(baseDir,"manifest.json");
   const { manifest } = loadManifest(manifestPath);
   const evidencePath = resolve(baseDir,"source-evidence.json");
   const evidence = JSON.parse(readFileSync(evidencePath,"utf8"));
-  const catalog = readFileSync(resolve(baseDir,"catalog-places.json"));
+  const catalog = readFileSync(resolve(baseDir,evidence.catalogSnapshot.path));
   if (sha256(catalog) !== evidence.catalogSnapshot.sha256) throw new Error("catalog_snapshot_hash_mismatch");
   const places = new Map<string,CatalogPlace>(JSON.parse(catalog.toString()).map((p:CatalogPlace) => [p.id,p]));
-  const receiptsPath = resolve(baseDir,"terrain-tile-receipts.json");
+  const receiptsPath = resolve(baseDir,evidence.terrainReceipts.path);
+  if (sha256(readFileSync(receiptsPath)) !== evidence.terrainReceipts.sha256) throw new Error("terrain_receipts_hash_mismatch");
   const receipts: {url:string;retrievedAt:string;sha256:string;bytes:number}[] = [];
   const nativeFetch = globalThis.fetch;
   const fetcher: typeof fetch = async (input,init) => {
@@ -46,8 +59,9 @@ async function main() {
     }
     const file = `elevation/${input.sourceKey.replaceAll(":","-")}.json`;
     const body = JSON.stringify({points,lineage:{source:"AWS Open Data Terrain Tiles (Mapzen Terrarium z14)",sourceUrl:"https://registry.opendata.aws/terrain-tiles/",licenseUrl:"https://github.com/tilezen/joerd/blob/master/docs/attribution.md",attribution:TERRARIUM_REQUIRED_ATTRIBUTION,retrievedAt:new Date().toISOString(),profile:"terrain"}})+"\n";
-    writeFileSync(resolve(baseDir,file),body);
+    saveImmutable(resolve(baseDir,file),body);
     input.elevation = {path:file,sha256:sha256(body)};
+    archiveJson(manifestPath);
     writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+"\n");
     console.log(JSON.stringify({name:input.name,dem:"saved",points:points.length,sha256:input.elevation.sha256}));
   }
@@ -56,8 +70,10 @@ async function main() {
     let previous: typeof receipts = [];
     try { previous = JSON.parse(readFileSync(receiptsPath,"utf8")).tiles; } catch(error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     const body = JSON.stringify({source:"AWS Open Data Terrain Tiles",zoom:14,tiles:[...previous,...receipts]},null,2)+"\n";
-    writeFileSync(receiptsPath,body);
-    evidence.terrainReceipts = {path:"terrain-tile-receipts.json",sha256:sha256(body)};
+    const nextReceiptsPath=`terrain-tile-receipts-${sha256(body).slice(0,12)}.json`;
+    saveImmutable(resolve(baseDir,nextReceiptsPath),body);
+    evidence.terrainReceipts = {path:nextReceiptsPath,sha256:sha256(body)};
+    archiveJson(evidencePath);
     writeFileSync(evidencePath,JSON.stringify(evidence,null,2)+"\n");
   }
 }

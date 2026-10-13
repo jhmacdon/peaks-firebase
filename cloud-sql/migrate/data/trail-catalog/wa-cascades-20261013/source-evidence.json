@@ -247,12 +247,17 @@
     }
   ],
   "catalogSnapshot": {
-    "path": "catalog-places.json",
-    "sha256": "73328f8c91a520510a36fd48dbbf060f6dd342e726809d8ea2f558541a8b9d81",
-    "source": "Prior read-only Cloud SQL exports supplied to this task; replay makes no DB request."
+    "path": "catalog-places-6bb7916bb071.json",
+    "sha256": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626",
+    "source": "Read-only bounded live Cloud SQL snapshot of all 32 catalog IDs bound by the reviewed 21-candidate manifest; no route/segment path reads or writes.",
+    "snapshotAt": "2026-10-13T06:48:37.356793+00:00",
+    "manifestSha256": "f5d01dacc488efe8bcf10a483a9afe515ba377daa2700009b00f31cf15ce10c5",
+    "queryPath": "docs/data-audits/trail-catalog-wa-2026-10-13/catalog-snapshot-preflight.sql",
+    "querySha256": "12f83dee30abeaec41b16d4e31a30de6ff2d2cb66985bb8eeda5d28e9ad5f079",
+    "rawCaptureSha256": "047bad2b294dbf60362ed4df395184df968518244b8cf4951db1ee81bf7a70ab"
   },
   "terrainReceipts": {
-    "path": "terrain-tile-receipts.json",
-    "sha256": "f261f3c4fd09419c34a331d46ee5a63d3a0e9756ece5b7cf13c7c599f029152e"
+    "path": "terrain-tile-receipts-09f5fbb31581.json",
+    "sha256": "09f5fbb31581ea578405918da83d7c16e95b48170e0d71cc4ca66780e8ee7dd6"
   }
 }
