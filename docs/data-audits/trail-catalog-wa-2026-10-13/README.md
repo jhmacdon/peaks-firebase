@@ -105,6 +105,8 @@ The re-fetch stops if any saved sample changes. `prepare-trailheads.ts` regenera
 
 [Access review](access-review.json) records current USFS trailhead status, the ended Snow Lake maintenance interval, an unresolved earlier Ingalls fire closure, and unavailable source pages. Open trailhead status alone does not complete route review. No new route has been activated.
 
+Phase 3 remains unimplemented. It needs reviewer-owned leases and immutable review receipts for these kind-aware candidates, then a factory-only activation function that rechecks the exact approved route, source spans, linked places, publish integrity, and credited cover. Existing standard-route review packets require summit fields and cannot accept these new job artifacts. Keep direct activation disabled. The next phase must test role separation and stale or changed evidence, activate at most 500 routes per batch (one first), wait for the existing rematch sweep, and verify common-name search results. Source and access repairs, photo approval, and the four pending imports remain required before those routes can complete review. Scale-up must wait for the full golden set.
+
 For the next operator-run production dry run, use the current manifest at
 `cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/manifest.json` with
 SHA-256 `a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc`.
