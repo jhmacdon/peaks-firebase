@@ -61,3 +61,10 @@ test("route search rows carry shape so clients total the same trip as est_moving
   const { routes } = buildMixedSearchQueries({ normalizedQuery: "ingalls", rawQuery: "Ingalls", limit: 20 });
   assert.equal(routes.text.split("r.shape").length - 1 >= 2, true, "shape must reach the outer route rows");
 });
+
+test("route search rows carry the credited description the trail page shows", () => {
+  const { routes } = buildMixedSearchQueries({ normalizedQuery: "ingalls", rawQuery: "Ingalls", limit: 20 });
+  for (const field of ["description", "description_source_name", "description_source_url", "description_source_license"]) {
+    assert.equal(routes.text.split(`r.${field}`).length - 1 >= 2, true, `${field} must reach the outer route rows`);
+  }
+});
