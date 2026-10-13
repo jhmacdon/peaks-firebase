@@ -1,0 +1,47 @@
+{
+  "scope": "read_only_identity_review_no_insertion",
+  "sourceReceipt": {
+    "path": "sources/osm-naches-map.json",
+    "sha256": "15652c04f51b5de25e37732e0b288d9910bd18c28ea6ecdc88d13ed18a5ffa11",
+    "url": "https://api.openstreetmap.org/api/0.6/map.json?bbox=-121.524,46.863,-121.512,46.875",
+    "retrievedAt": "2026-10-13T05:06:19.579835+00:00"
+  },
+  "catalogLookupEvidence": {
+    "path": "trailhead-identity-preflight.txt",
+    "sha256": "12a17f332cc7f3fb3b288efe7bf55d6e2ab67e77653532060643a537fd3ba8a8",
+    "result": "No exact source-ID or exact-name duplicate found. A nearby southern combined-name catalog trailhead requires separate identity review."
+  },
+  "existingCatalog": {
+    "id": "yaMonH4d7pRRpudqZ9ra",
+    "name": "Tipsoo Lake-Naches Peak Loop Trailhead",
+    "lat": 46.867183,
+    "lng": -121.518258,
+    "external_ids": {}
+  },
+  "sourceEntrances": [
+    {
+      "nodeId": 2431576647,
+      "name": "Tipsoo Lake Trailhead",
+      "lat": 46.8698645,
+      "lng": -121.519389,
+      "distanceToExistingCatalogM": 310.318255531702
+    },
+    {
+      "nodeId": 2409401190,
+      "name": "Tipsoo Lake Trail Trailhead",
+      "lat": 46.8673413,
+      "lng": -121.51855,
+      "distanceToExistingCatalogM": 28.330519635374102
+    },
+    {
+      "nodeId": 3687613641,
+      "name": "Naches Peak Loop Trailhead",
+      "lat": 46.8670056,
+      "lng": -121.517898,
+      "distanceToExistingCatalogM": 33.73634308656913
+    }
+  ],
+  "finding": "OSM maps a distinct northern Tipsoo Lake Trailhead and two southern entrances at SR410. The existing combined-name catalog point lies between the southern entrances, about 28 m and 34 m away, rather than at the northern entrance 310 m away. Name similarity alone cannot merge these access points.",
+  "proposalDisposition": "Keep the northern source-bound fixture for review; do not insert until the operator accepts the distinct-access-point identity. Preserve the southern catalog row and the separate American Lake name mismatch.",
+  "routeImplication": "The current selected loop can start at the northern mapped node 2431576647. Rebinding it to the southern catalog row would exceed 125 m and changes the intended entrance; a separate reviewed source-bound start would be needed."
+}

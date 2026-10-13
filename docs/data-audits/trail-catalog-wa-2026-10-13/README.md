@@ -1,6 +1,33 @@
 # Washington Cascades pilot source review — 2026-10-13
 
-This review includes all 21 requested routes. The offline replay admits six source graphs and rejects fifteen. Four of the six pass the saved elevation checks; Colchuck Lake and Lake Stuart still lack a stated gain basis in the official comparison source. **No route is ready for pending insertion or publication.** No database connection, route write, audit-row write, or activation ran in this replay.
+This review includes all 21 requested routes. The offline replay admits six source graphs and rejects fifteen. Four of the six pass the saved elevation checks; Colchuck Lake and Lake Stuart still lack a stated gain basis in the official comparison source. **The offline replay alone does not establish readiness for pending insertion or publication.** No database connection, route write, audit-row write, or activation ran in this replay.
+
+The later [production dry run](production-dry-run.jsonl) found four candidates
+ready for the pending-write step, with no routes written. This is not approval
+to publish. The [golden-set report](golden-set-report.json) records all 21
+names and kinds, available source metrics, current catalog metrics and segment
+IDs, common-name search ranks, missing covers, and unresolved fields. The
+golden set does not pass, and scale-up has not started.
+
+[Production search evidence](production-search.json) retains two initial
+timeouts and a successful repeat of all five slow queries. The API returned
+the existing catalog routes; it did not return missing lake or loop routes.
+A concurrent segment query hit its 30-second limit. The importer now uses a
+bounded indexed candidate scan and narrows duplicate checks to indexed place
+references. A later read-only segment plan found 13 new spans for Serene,
+four for Ingalls Lake, and four for Lake 22. Snow Lake requires a reviewed
+split of an existing segment. Zero reused spans is a plan result, not permission
+to duplicate older source geometry; the write path also checks source overlap.
+The final probe on `peaks-api-00267-z6s` returned HTTP 200 for all 23 catalog
+queries and both geographic destination-search variants. This confirms the
+deployed API works; missing golden route rows still prevent the pilot passing.
+
+[Summit impact checks](summit-coordinate-impact.txt) show that moving Mount Si
+to its matching OSM point would break the active route's 5 m summit contact.
+Moving Pilchuck would break the pending route's endpoint contact. Keep these
+repairs coupled to reviewed route geometry. [Trailhead identity checks](trailhead-identity-preflight.txt)
+also found a southern Tipsoo entrance distinct from the proposed northern
+entrance. Neither check changed production places.
 
 The [manifest](../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/manifest.json) fixes the selected OSM relation, source vertices, route kind, and catalog bindings. [Source evidence](../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/source-evidence.json) records the request URL, retrieval time, and SHA-256 for each saved source response. USFS alternatives remain in the evidence; this pilot selects OSM geometry only. WTA pages supply name and endpoint research, not geometry or publication statistics. Their reported statistics remain in [research-only-stats.json](research-only-stats.json).
 
@@ -62,3 +89,5 @@ node --import tsx data/trail-catalog/wa-cascades-20261013/fetch-dem.ts --verify-
 ```
 
 The re-fetch stops if any saved sample changes. `prepare-trailheads.ts` regenerates the review-only trailhead fixture from the fixed source nodes and public DEM tiles. Neither script opens a database. The general `routes:pilot` CLI has its own audit-write behavior; it was not used for this offline report.
+
+[Access review](access-review.json) records current USFS trailhead status, the ended Snow Lake maintenance interval, an unresolved earlier Ingalls fire closure, and unavailable source pages. Open trailhead status alone does not complete route review. No new route has been activated.
