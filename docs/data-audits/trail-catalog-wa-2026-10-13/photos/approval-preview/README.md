@@ -79,6 +79,28 @@ the exact candidate ID and saved framing. Do not substitute raw SQL, a route
 worker credential, or a fabricated admin identity. The licensed cover work
 already has task authorization; this preview adds no permission gate.
 
+## Separate public media preflight
+
+`media-preflight-2.json` passed all four exact original-image SHA-1 values,
+saved source dimensions, and cover rendering limits. The first report records
+a sandbox DNS failure; the successful run used the same public-only script
+outside that network restriction. Both reports remain intact.
+
+The script imports Sharp 0.33.5 only. Importing the existing
+`destination-photo-storage.ts` module would initialize Firebase Admin and
+select certificate or Application Default Credentials, so this check uses a
+pure Sharp equivalent of `renderDestinationPhoto()`: an 80-million-pixel input
+cap, EXIF rotation, the existing 1600×900 minimum, a 2400-pixel maximum edge
+without enlargement, and JPEG quality 86 with progressive and mozjpeg enabled.
+The report pins the renderer body and dimension-helper hashes. It does not
+test Firebase authentication, Storage, the admin action, or public serving.
+
+Downloads allow only the exact `upload.wikimedia.org` URLs, with a 40 MiB cap,
+30-second timeout, and at most five redirects on that host. Source and rendered
+bytes stay in one new `/private/tmp` directory and are removed after the run.
+The compact report contains dimensions, hashes, and byte counts. A later run
+must use a new `--report media-preflight-N.json`; reports never overwrite.
+
 Routes stay pending. This file never updates routes, segments, route links,
 or candidate jobs. No new service or timer is added. Fixed backend cost change:
 **$0/month**.
