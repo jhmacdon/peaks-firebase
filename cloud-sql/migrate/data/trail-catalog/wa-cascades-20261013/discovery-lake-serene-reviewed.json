@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "batchKey": "wa-lake-serene-reviewed-discovery-20261013",
+  "bbox": {
+    "west": -121.583107,
+    "south": 47.779185,
+    "east": -121.552917,
+    "north": 47.814221
+  },
+  "limits": {
+    "trailheads": 10,
+    "objectives": 30,
+    "attempts": 100
+  },
+  "bundles": [
+    {
+      "id": "lake-serene-osm",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ]
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "bundleId": "lake-serene-osm",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "1755CBB232F3FCC6A437",
+      "commonDestinationEvidence": {
+        "objectiveId": "1755CBB232F3FCC6A437",
+        "name": "Lake Serene",
+        "sourceUrl": "https://www.fs.usda.gov/r06/mbs/recreation/lake-serene-trailhead",
+        "publisher": "usfs",
+        "checkedAt": "2026-10-13T07:12:59.510000+00:00",
+        "note": "USFS identifies Lake Serene Trail 1068 from this trailhead, describes Lake Serene as a frequent hike and recommends weekday visits. This supports Lake Serene as a standalone objective when a mapped path continues to nearby viewpoints. It does not certify full-route access or geometry.",
+        "attestation": "standalone_named_hike"
+      }
+    }
+  ]
+}

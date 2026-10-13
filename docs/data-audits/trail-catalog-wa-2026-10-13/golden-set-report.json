@@ -12,10 +12,13 @@
       "sourceCandidate": {
         "distanceM": 5523.412197483577,
         "gainM": 826.84765625,
-        "difficulty": null,
+        "difficulty": "strenuous",
         "graphOutcome": "admitted",
         "blocker": null,
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 217.74609375,
+        "estMovingSeconds": 17016,
+        "proposedName": "Lake Serene Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "lake serene",
@@ -23,7 +26,19 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 13,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:4793517",
@@ -32,10 +47,13 @@
       "sourceCandidate": {
         "distanceM": 5386.955311239522,
         "gainM": 554.34765625,
-        "difficulty": null,
+        "difficulty": "hard",
         "graphOutcome": "admitted",
         "blocker": null,
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 229.98828125,
+        "estMovingSeconds": 14835,
+        "proposedName": "Snow Lake via Snow Lake Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Snow Lake",
@@ -43,7 +61,19 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "rejected",
+        "reason": "existing_segment_split_requires_review:L4JeIhjFWrqIGzkkZ1fk",
+        "newSegmentCount": 0,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5626186",
@@ -52,10 +82,13 @@
       "sourceCandidate": {
         "distanceM": 7107.041749059399,
         "gainM": 907.22265625,
-        "difficulty": null,
+        "difficulty": "strenuous",
         "graphOutcome": "admitted",
         "blocker": null,
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 226.640625,
+        "estMovingSeconds": 23221,
+        "proposedName": "Lake Ingalls via Ingalls Way Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Ingalls Lake via Ingalls Way",
@@ -63,7 +96,19 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 4,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5626186:ingalls-peak",
@@ -75,7 +120,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Ingalls Peak via Ingalls Way and South Ridge"
       },
       "currentCatalogRoute": {
         "id": "aXEHeJetvshw8lnmHEZD",
@@ -110,7 +158,13 @@
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": false,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:4152031",
@@ -119,10 +173,17 @@
       "sourceCandidate": {
         "distanceM": 5840.586452316467,
         "gainM": 740.6640625,
-        "difficulty": null,
+        "difficulty": "hard",
         "graphOutcome": "admitted",
-        "blocker": "attested_gain_basis_unspecified",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "blocker": {
+          "reason": "attested_distance_mismatch",
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+          "differenceFraction": 0.19351729616864363
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 39.96875,
+        "estMovingSeconds": 13322,
+        "proposedName": "Colchuck Lake Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Colchuck Lake",
@@ -130,7 +191,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:4152034",
@@ -139,10 +206,16 @@
       "sourceCandidate": {
         "distanceM": 6657.74526205384,
         "gainM": 571.6015625,
-        "difficulty": null,
+        "difficulty": "hard",
         "graphOutcome": "admitted",
-        "blocker": "attested_gain_basis_unspecified",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "blocker": {
+          "reason": "attested_gain_basis_unspecified",
+          "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf"
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 55.15234375,
+        "estMovingSeconds": 12619,
+        "proposedName": "Lake Stuart via Stuart Lake Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Lake Stuart",
@@ -150,7 +223,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:4829792",
@@ -162,7 +241,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "terrain_review_required",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Enchantment Traverse"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Enchantment Lakes traverse",
@@ -170,7 +252,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5626187",
@@ -182,7 +270,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Esmeralda Basin Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Esmeralda Basin",
@@ -190,7 +281,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5553769",
@@ -202,7 +299,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "terrain_review_required",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mount Si Trail"
       },
       "currentCatalogRoute": {
         "id": "40oJLRsV6f8hgVLXqkB7",
@@ -227,7 +327,13 @@
       "currentRouteSearchRank": 1,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:6106367",
@@ -239,7 +345,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "objective_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Little Si"
       },
       "currentCatalogRoute": {
         "id": "YYQag1GLA2Q1lnu0aTsy",
@@ -258,19 +367,28 @@
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5588030",
       "name": "Rattlesnake Ledge",
       "kind": "destination",
       "sourceCandidate": {
-        "distanceM": null,
-        "gainM": null,
-        "difficulty": null,
-        "graphOutcome": "rejected",
-        "blocker": "disconnected_source_graph",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "distanceM": 3092.676651989121,
+        "gainM": 410.3671875,
+        "difficulty": "moderate",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 59.1484375,
+        "estMovingSeconds": 7467,
+        "proposedName": "Rattlesnake Ledge via Rattlesnake Ledge Trail"
       },
       "currentCatalogRoute": {
         "id": "5Ne2w5fr0m6q4C3CUtie",
@@ -289,19 +407,34 @@
       "currentRouteSearchRank": 4,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 3,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5199914",
       "name": "Skyline Loop (Paradise)",
       "kind": "loop",
       "sourceCandidate": {
-        "distanceM": null,
-        "gainM": null,
-        "difficulty": null,
-        "graphOutcome": "rejected",
-        "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "distanceM": 9012.20831461764,
+        "gainM": 567.94921875,
+        "difficulty": "hard",
+        "graphOutcome": "admitted",
+        "blocker": null,
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 569.39453125,
+        "estMovingSeconds": 9945,
+        "proposedName": "Skyline Loop (Paradise)"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Skyline Loop",
@@ -309,19 +442,38 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 20,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5194432",
       "name": "Naches Peak Loop",
       "kind": "loop",
       "sourceCandidate": {
-        "distanceM": null,
-        "gainM": null,
-        "difficulty": null,
-        "graphOutcome": "rejected",
-        "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "distanceM": 5633.954710189173,
+        "gainM": 262.828125,
+        "difficulty": "moderate",
+        "graphOutcome": "admitted",
+        "blocker": {
+          "reason": "attested_gain_mismatch",
+          "sourceUrl": "https://www.nps.gov/mora/planyourvisit/natches-peak-loop.htm",
+          "differenceFraction": 0.724593996062992
+        },
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 293.5859375,
+        "estMovingSeconds": 6109,
+        "proposedName": "Naches Peak Loop"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Naches Peak Loop",
@@ -329,7 +481,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5426108",
@@ -341,7 +499,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "objective_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mailbox Peak (new trail)"
       },
       "currentCatalogRoute": {
         "id": "KG89JzIf3B07ppaWjLxm",
@@ -360,7 +521,13 @@
       "currentRouteSearchRank": 3,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:7147738",
@@ -372,7 +539,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "terrain_review_required",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mailbox Peak (old trail)"
       },
       "currentCatalogRoute": {
         "id": "4gkUxiJyoPVyJWokOinE",
@@ -391,7 +561,13 @@
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:6632394",
@@ -403,7 +579,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Heather\u2013Maple Pass Loop"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Heather Maple Pass Loop",
@@ -411,7 +590,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:4807643",
@@ -423,7 +608,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "access_closed",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Blanca Lake"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Blanca Lake",
@@ -431,7 +619,13 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5537770",
@@ -440,10 +634,13 @@
       "sourceCandidate": {
         "distanceM": 3949.1060793176794,
         "gainM": 503.7109375,
-        "difficulty": null,
+        "difficulty": "hard",
         "graphOutcome": "admitted",
         "blocker": null,
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "Production SQL estimate from the exact saved DEM profile; does not grant publication readiness.",
+        "lossM": 94.484375,
+        "estMovingSeconds": 9651,
+        "proposedName": "Lake Twentytwo via Lake Twenty Two Trail"
       },
       "currentCatalogRoute": null,
       "commonQuery": "Lake 22",
@@ -451,7 +648,19 @@
       "currentRouteSearchRank": null,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "admitted",
+        "pendingPrerequisitesPassed": true,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": {
+        "outcome": "planned",
+        "reason": null,
+        "newSegmentCount": 4,
+        "reusedSegmentIds": [],
+        "note": "Read-only matcher plan; source-overlap and exact pending-write guards remain required."
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5519228",
@@ -463,7 +672,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "research_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Poo Poo Point (Chirico Trail candidate)"
       },
       "currentCatalogRoute": {
         "id": "esOhCTEvfGNOCVOR73jg",
@@ -482,7 +694,13 @@
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5194384",
@@ -494,7 +712,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "access_closed",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Tolmie Peak"
       },
       "currentCatalogRoute": {
         "id": "z2gHia5Sc7SJuq1Ub24G",
@@ -513,7 +734,13 @@
       "currentRouteSearchRank": 2,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": true,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     },
     {
       "sourceKey": "wa:osm-relation:5537775",
@@ -525,7 +752,10 @@
         "difficulty": null,
         "graphOutcome": "rejected",
         "blocker": "objective_source_gap",
-        "difficultyReason": "No candidate route has been inserted or received SQL estimates."
+        "difficultyReason": "No complete source profile is available for a valid estimate.",
+        "lossM": null,
+        "estMovingSeconds": null,
+        "proposedName": "Mount Pilchuck"
       },
       "currentCatalogRoute": {
         "id": "t7GxkDEDF0HYXsyYwm99",
@@ -544,7 +774,32 @@
       "currentRouteSearchRank": 3,
       "sharedSegmentsWithOtherGoldenRoutes": [],
       "creditedCoverMissing": false,
-      "pilotPublished": false
+      "pilotPublished": false,
+      "databaseCandidateChecks": {
+        "outcome": "rejected",
+        "pendingPrerequisitesPassed": false,
+        "note": "Segment decomposition and pending-write guards run separately; this flag does not certify import or activation."
+      },
+      "segmentPlan": null
     }
-  ]
+  ],
+  "manifestSha256": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
+  "evidence": {
+    "offline": "graph-dry-run-a4ac8e38b23c.jsonl",
+    "databaseDryRun": "production-dry-run-a4ac8e38b23c.jsonl",
+    "candidateEstimates": "candidate-estimates-a4ac8e38b23c.json",
+    "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
+    "search": "production-search.json"
+  },
+  "summary": {
+    "candidates": 21,
+    "graphsAdmitted": 9,
+    "graphsRejected": 12,
+    "elevationPassed": 6,
+    "matcherPlans": 5,
+    "matcherBlocked": 1,
+    "routesInserted": 0,
+    "routesActivated": 0,
+    "goldenPass": false
+  }
 }

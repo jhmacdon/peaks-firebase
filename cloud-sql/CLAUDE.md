@@ -1240,6 +1240,27 @@ that `/internal/sweep` drains the rematch queue before the next batch.
 
 ### Washington candidate pilot
 
+First enumerate a bounded area from catalog trailheads and immutable source
+bundles. The discovery command reads catalog places and writes a manifest plus
+a JSONL row for every admitted or rejected attempt. It creates only an audit
+receipt in the database:
+
+```bash
+npm run routes:discover -- \
+  --config data/trail-catalog/wa-cascades-20261013/discovery-lake-serene-reviewed.json \
+  --manifest /tmp/lake-serene-candidates.json \
+  --report /tmp/lake-serene-discovery.jsonl
+```
+
+Outputs must be new files. Split an area when its place, source, cycle, or
+attempt bound is reached; an incomplete inventory produces no importable
+manifest. Discovery follows mapped `path`, `footway`, `track`, and `steps`
+edges; Josiah approved mapped pedestrian steps while retaining every other
+gate. It enumerates named objectives, hiking relations, and exact source
+cycles, then applies the same naming and prefix rules as the pilot. A common
+destination needs explicit evidence to survive prefix pruning. An objective
+without a checked DEM profile remains blocked at the next stage.
+
 The pilot uses the same matcher as the web route editor through
 `web/src/lib/segment-matcher-core.ts`. It accepts attributed OSM paths and
 the registered `usfs-nfs-trails` layer. Each segment credits only the source

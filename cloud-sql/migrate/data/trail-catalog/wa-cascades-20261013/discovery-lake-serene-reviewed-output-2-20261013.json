@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "batchKey": "wa-lake-serene-reviewed-discovery-20261013",
+  "candidates": [
+    {
+      "sourceKey": "discover:lake-serene-osm:3e27fa337e28ae256b6dfeba",
+      "name": "Bridal Veil Falls-Mine Cascade via Lake Serene Trail",
+      "aliases": [
+        "Bridal Veil Falls-Mine Cascade",
+        "Bridal Veil Falls Trail",
+        "Lake Serene Trail",
+        "TR 1068",
+        "TR 1068.1"
+      ],
+      "kind": "destination",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "dBvfNtyAfXyup6iauLqB",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ],
+        "relationId": 4807642,
+        "wayIds": [
+          33724724,
+          33724734,
+          33724737,
+          33724738,
+          35565707,
+          35565743,
+          35565745,
+          35649240,
+          35649242,
+          992999553,
+          992999554,
+          1185773070,
+          1314474512,
+          1315876918,
+          1419074002
+        ]
+      },
+      "startNodeId": 2328918394,
+      "endNodeId": 385614850
+    },
+    {
+      "sourceKey": "discover:lake-serene-osm:54b12ce8436a4d51492cfb1b",
+      "name": "Valley Overlook via Lake Serene Trail",
+      "aliases": [
+        "Lake Serene Trail",
+        "Lunch Rock Trail",
+        "TR 1068",
+        "Valley Overlook",
+        "Valley View Trail"
+      ],
+      "kind": "destination",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "9DAA36EDBBE003F81C88",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ],
+        "relationId": 4807642,
+        "wayIds": [
+          33724724,
+          33724734,
+          33724737,
+          33724738,
+          35565707,
+          35565743,
+          35565745,
+          35649240,
+          35649242,
+          992999553,
+          992999554,
+          1185773070,
+          1314474512,
+          1315876918,
+          1419074002
+        ]
+      },
+      "startNodeId": 2328918394,
+      "endNodeId": 416751428
+    },
+    {
+      "sourceKey": "discover:lake-serene-osm:8a87b0a7a5bad73c2b495805",
+      "name": "Lunch Rock via Lake Serene Trail",
+      "aliases": [
+        "Lake Serene Trail",
+        "Lunch Rock",
+        "Lunch Rock Trail",
+        "TR 1068"
+      ],
+      "kind": "destination",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "F99802A034D81C4F1283",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ],
+        "relationId": 4807642,
+        "wayIds": [
+          33724724,
+          33724734,
+          33724737,
+          33724738,
+          35565707,
+          35565743,
+          35565745,
+          35649240,
+          35649242,
+          992999553,
+          992999554,
+          1185773070,
+          1314474512,
+          1315876918,
+          1419074002
+        ]
+      },
+      "startNodeId": 2328918394,
+      "endNodeId": 416751343
+    },
+    {
+      "sourceKey": "discover:lake-serene-osm:b5b835f873a5d58ea0dc9a9e",
+      "name": "Lake Serene via Lake Serene Trail",
+      "aliases": [
+        "Lake Serene",
+        "Lake Serene Trail",
+        "Lunch Rock Trail",
+        "TR 1068"
+      ],
+      "kind": "destination",
+      "trailheadId": "DiZjSucepuEsfCtfKw6F",
+      "objectiveId": "1755CBB232F3FCC6A437",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ],
+        "relationId": 4807642,
+        "wayIds": [
+          33724724,
+          33724734,
+          33724737,
+          33724738,
+          35565707,
+          35565743,
+          35565745,
+          35649240,
+          35649242,
+          992999553,
+          992999554,
+          1185773070,
+          1314474512,
+          1315876918,
+          1419074002
+        ]
+      },
+      "startNodeId": 2328918394,
+      "commonDestinationEvidence": {
+        "objectiveId": "1755CBB232F3FCC6A437",
+        "name": "Lake Serene",
+        "sourceUrl": "https://www.fs.usda.gov/r06/mbs/recreation/lake-serene-trailhead",
+        "publisher": "usfs",
+        "checkedAt": "2026-10-13T07:12:59.510000+00:00",
+        "note": "USFS identifies Lake Serene Trail 1068 from this trailhead, describes Lake Serene as a frequent hike and recommends weekday visits. This supports Lake Serene as a standalone objective when a mapped path continues to nearby viewpoints. It does not certify full-route access or geometry.",
+        "attestation": "standalone_named_hike"
+      },
+      "endNodeId": 416751347
+    }
+  ]
+}

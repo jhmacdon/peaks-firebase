@@ -1,5 +1,13 @@
 # Washington Cascades pilot source review — 2026-10-13
 
+The latest [production dry run](production-dry-run-a4ac8e38b23c.jsonl) checks all 21 candidates after the two trailhead inserts and the approved steps change. Nine graphs pass and six have checked elevation. The separate [bounded matcher plan](bounded-segment-plan-a4ac8e38b23c.json) blocks Snow Lake on an existing segment split and plans 44 new segments for the other five, with no reused segments. These are read-only plans; the pending writer must still pass its exact source-overlap guards. No new route has been inserted or activated.
+
+The [current golden report](golden-set-report.json) now includes difficulty and time estimates for nine complete source profiles, computed by the deployed SQL functions. The [inputs](candidate-estimate-inputs-a4ac8e38b23c.json), [query](candidate-estimates-a4ac8e38b23c.sql), and [results](candidate-estimates-a4ac8e38b23c.json) retain the evidence. An estimate does not clear a route’s geometry, access, review, or cover blocker.
+
+A separate bounded Lake Serene discovery read 10 catalog places and reported all 11 attempts. The [reviewed run](discovery-lake-serene-reviewed-2-20261013.jsonl) keeps four named objectives, including Lake Serene with USFS evidence that it is a standalone hike. The [initial run](discovery-lake-serene-20261013.jsonl) and [failed evidence attempt](discovery-lake-serene-reviewed-20261013.jsonl) remain saved; the latter exposed a missing-name bug that the fixed run verifies. These discovery outputs have no DEM bindings and cannot import as pending routes yet.
+
+The [schema rollout](schema-rollout-20261013/README.md) records seven applied migrations and two source-backed trailheads. The [factory login preview](factory-login-setup/production-preview.json) passed and rolled back; permanent setup awaits Josiah’s approval under the worker contract. The approved cover fallback is licensed, credited place photos, queued for review before any cover gate passes.
+
 This review includes all 21 requested routes. The latest offline replay admits nine source graphs and rejects twelve. Six of the nine pass the saved elevation checks. Colchuck Lake and Lake Stuart still lack a stated gain basis in the official comparison source; Naches Peak Loop exceeds the official gain by 72.46%. **The offline replay alone does not establish readiness for pending insertion or publication.** No database connection, route write, audit-row write, or activation ran in this replay.
 
 The earlier [production dry run](production-dry-run.jsonl) found four candidates
