@@ -1265,7 +1265,7 @@ npm run routes:pilot -- \
 ```
 
 The apply path holds a durable source-key lease, locks the bound places, and
-writes pending routes with exact segment intervals. The database checks the
+writes pending routes with exact segment intervals. Manual web split writers also refuse any attributed segment or segment linked to a Peaks route until each child has independent proof of its exact contributing sources. Personal, unattributed segment splits still work. The database checks the
 lease, immutable input, route path, source spans, links, and completion receipt.
 Replays verify the saved route before reusing a receipt. Failed rows remain
 visible. This command cannot activate routes.

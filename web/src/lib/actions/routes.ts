@@ -13,6 +13,7 @@ import {
   type RouteProvenanceInput,
 } from "../route-provenance";
 import { splitSegmentAtVertices, splitSegmentPieceIndices } from "../segment-geometry";
+import { assertSegmentSplitsHaveNoCatalogSource } from "../segment-split-source";
 import { routeDoneCoverageSql } from "../route-coverage";
 import {
   chooseActivationSegmentReference,
@@ -1075,6 +1076,8 @@ async function acceptRouteWithSegmentsUnchecked(
     const routeProvenance = routeResult.rows[0].provenance
       ? JSON.stringify(routeResult.rows[0].provenance)
       : null;
+
+    await assertSegmentSplitsHaveNoCatalogSource(client, decomposition.splits);
 
     // Find the old standalone segment IDs (before deleting them)
     const oldSegs = await client.query(

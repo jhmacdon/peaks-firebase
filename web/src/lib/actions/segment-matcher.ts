@@ -11,6 +11,7 @@ import {
   generateId,
 } from "../route-utils";
 import { splitSegmentAtVertices, splitSegmentPieceIndices } from "../segment-geometry";
+import { assertSegmentSplitsHaveNoCatalogSource } from "../segment-split-source";
 import { verifyAdminToken } from "../auth-actions";
 
 export type { ProposedSegment, SegmentSplit, AffectedRoute, RouteDecomposition } from "../segment-matcher-core";
@@ -45,6 +46,7 @@ export async function saveRouteWithSegments(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
+    await assertSegmentSplitsHaveNoCatalogSource(client, decomposition.splits);
 
     // ── Step 1: Execute splits ──
     // Map: old segment id → array of new sub-segment ids (in order)
