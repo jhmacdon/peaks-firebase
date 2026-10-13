@@ -1,13 +1,24 @@
 [
-    {
-        "id": 114,
-        "source": "trail-catalog-pilot",
-        "status": "dry_run",
-        "rows_in": 21,
-        "run_kind": "import",
-        "started_at": "2026-10-13T07:27:18.394467+00:00",
-        "finished_at": "2026-10-13T07:27:36.82714+00:00",
-        "rows_matched": 9,
-        "rows_written": 0
-    }
+  {
+    "id": 114,
+    "source": "trail-catalog-pilot",
+    "status": "dry_run",
+    "rows_in": 21,
+    "run_kind": "import",
+    "started_at": "2026-10-13T07:27:18.394467+00:00",
+    "finished_at": "2026-10-13T07:27:36.82714+00:00",
+    "rows_matched": 9,
+    "rows_written": 0
+  },
+  {
+    "id": 118,
+    "source": "trail-catalog-pilot",
+    "status": "dry_run",
+    "rows_in": 21,
+    "run_kind": "import",
+    "started_at": "2026-10-13T07:52:23.436841+00:00",
+    "finished_at": "2026-10-13T07:52:34.522572+00:00",
+    "rows_matched": 9,
+    "rows_written": 0
+  }
 ]

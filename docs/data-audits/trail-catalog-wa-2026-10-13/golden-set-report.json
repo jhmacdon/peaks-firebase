@@ -940,7 +940,7 @@
   "manifestSha256": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
   "evidence": {
     "offline": "graph-dry-run-a4ac8e38b23c.jsonl",
-    "databaseDryRun": "production-dry-run-a4ac8e38b23c-pending-plan.jsonl",
+    "databaseDryRun": "production-dry-run-a4ac8e38b23c-final.jsonl",
     "candidateEstimates": "candidate-estimates-a4ac8e38b23c.json",
     "segmentPlans": "bounded-segment-plan-a4ac8e38b23c.json",
     "search": "production-search.json",
