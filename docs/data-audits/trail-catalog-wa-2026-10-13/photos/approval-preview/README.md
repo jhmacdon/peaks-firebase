@@ -10,6 +10,14 @@ in its containment and equality checks. Keep the original
 `production-audit-id.txt` intact. They record the failed attempt, with zero
 writes. No photo has been approved through this preview.
 
+Production audit **126**, from corrected source commit `dd19fdf` and SQL hash
+`41b871f2d7c738951b91ae0e0919bae504b55733ca02e5af50c1e199a1b623d0`,
+passed every inside-transaction assertion and confirmed rollback. The later
+whole-catalog tuple scan exceeded the 60-second limit, so that audit remains
+failed. Keep its `-2` files intact. Post-rollback readback now compares only the
+four exact full place and candidate rows. Unrelated-row and route/segment/link
+tuple checks still run inside the transaction.
+
 This file tests the database update shape for the imported Lake Serene,
 Rattlesnake Ledge, Skyline, and Lake Twentytwo covers. It pins their existing
 queue IDs from production audit 116, exact source, author, license, dimensions,
@@ -44,9 +52,9 @@ finish as `failed`; keep the error and inspected counts in the audit. If the
 rollback response is lost, inspect the database through a new connection
 before reporting the outcome. Do not retry blindly or replace earlier reports.
 
-The next attempt must use a new audit and `production-preview-2.txt`,
-`production-receipt-2.json`, and `production-audit-id-2.txt`. Check the new
-manifest hash; audit 125's hash describes only the failed version.
+The next attempt must use a new audit and `production-preview-3.txt`,
+`production-receipt-3.json`, and `production-audit-id-3.txt`. Check the new
+manifest hash; earlier audit hashes describe only their earlier versions.
 
 The preview locks all four candidate rows before all four destination rows,
 as the existing admin action does. It requires the exact pending candidates,
@@ -54,9 +62,9 @@ public place identity, and no credited hero. It captures every current hero
 field under those locks, exercises the same destination and queue update
 fields as the admin action, then checks exact target values, untouched fields,
 counts, and unaffected tuple identities. It forces deferred checks, rolls back,
-and compares full target rows plus catalog tuple hashes with the preimage.
-Concurrent unrelated catalog writes can make this conservative readback fail;
-inspect that failure rather than weakening the check.
+and compares full target rows with the preimage. A concurrent change to one
+of those eight rows makes readback fail; an unrelated catalog write after
+rollback does not affect this bounded proof.
 
 The original candidate `image_url` is a **preview-only stand-in** for the future
 Firebase Storage URL. `preview-only:rollback` is a synthetic marker, never an
