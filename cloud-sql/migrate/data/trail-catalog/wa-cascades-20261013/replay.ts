@@ -1,5 +1,5 @@
 /** Offline replay: no database connection, writes, or route activation. */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildOsmCandidate, CandidateRejection, sha256 } from "../../../src/trail-catalog/graph";
 import { loadManifest, loadSourceSnapshots, prepareElevation } from "../../../src/trail-catalog/sources";
@@ -10,11 +10,21 @@ import type { CatalogPlace, Point } from "../../../src/trail-catalog/types";
 
 const baseDir = __dirname;
 const { manifest } = loadManifest(resolve(baseDir, "manifest.json"));
+const manifestSha256 = sha256(readFileSync(resolve(baseDir,"manifest.json")));
 const evidence = JSON.parse(readFileSync(resolve(baseDir, "source-evidence.json"), "utf8"));
 const catalogBytes = readFileSync(resolve(baseDir, "catalog-places.json"));
 if (sha256(catalogBytes) !== evidence.catalogSnapshot.sha256) throw new Error("catalog_snapshot_hash_mismatch");
 const places = new Map<string, CatalogPlace & { credited_cover?: boolean }>(JSON.parse(catalogBytes.toString()).map((p: CatalogPlace) => [p.id, p]));
-const reportPath = resolve(baseDir, "../../../../../docs/data-audits/trail-catalog-wa-2026-10-13/graph-dry-run.jsonl");
+const reportBase = process.argv[2] ?? `graph-dry-run-${manifestSha256.slice(0,12)}`;
+if (!/^[a-z0-9_-]+$/.test(reportBase)) throw new Error("report_basename_invalid");
+const reportPath = resolve(baseDir, `../../../../../docs/data-audits/trail-catalog-wa-2026-10-13/${reportBase}.jsonl`);
+function saveEvidence(path:string,body:string):void {
+  if (existsSync(path)) {
+    if (readFileSync(path,"utf8")!==body) throw new Error(`historical_report_conflict:${path}`);
+    return;
+  }
+  writeFileSync(path,body,{flag:"wx"});
+}
 const features: unknown[] = [];
 function contactDistance(place: CatalogPlace | undefined, point: Point): number | null {
   if (!place) return null;
@@ -55,9 +65,9 @@ const reports = manifest.candidates.map(input => {
   } catch(error) { row.reason = error instanceof CandidateRejection ? error.reason : "candidate_validation_failed"; row.detail = error instanceof Error ? error.message : String(error); }
   return row;
 });
-const summary = {type:"summary",scope:"offline_source_graph_and_saved_catalog_snapshot",candidates:reports.length,graphAdmitted:reports.filter(r => r.graphOutcome === "admitted").length,graphRejected:reports.filter(r => r.graphOutcome === "rejected").length,elevationPassed:reports.filter(r => r.elevationOutcome === "passed").length,pendingReady:0,databaseChecksRun:false,manifestSha256:sha256(readFileSync(resolve(baseDir,"manifest.json")))};
+const summary = {type:"summary",scope:"offline_source_graph_and_saved_catalog_snapshot",candidates:reports.length,graphAdmitted:reports.filter(r => r.graphOutcome === "admitted").length,graphRejected:reports.filter(r => r.graphOutcome === "rejected").length,elevationPassed:reports.filter(r => r.elevationOutcome === "passed").length,pendingReady:0,databaseChecksRun:false,manifestSha256};
 if (reports.length !== 21) throw new Error("golden_pilot_requires_all_21_rows");
-writeFileSync(reportPath,[...reports,summary].map(r => JSON.stringify(r)).join("\n")+"\n");
-writeFileSync(reportPath.replace("graph-dry-run.jsonl","graph-candidates.geojson"),JSON.stringify({type:"FeatureCollection",features})+"\n");
+saveEvidence(reportPath,[...reports,summary].map(r => JSON.stringify(r)).join("\n")+"\n");
+saveEvidence(reportPath.replace(/\.jsonl$/,".geojson"),JSON.stringify({type:"FeatureCollection",features})+"\n");
 console.log(JSON.stringify(summary));
 for (const r of reports) console.log(JSON.stringify({name:r.name,graph:r.graphOutcome,reason:r.reason,distanceM:r.distanceM,elevation:r.elevationOutcome,elevationReason:r.elevationReason}));

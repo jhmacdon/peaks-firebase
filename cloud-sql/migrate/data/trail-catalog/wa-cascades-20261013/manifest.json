@@ -130,6 +130,15 @@
       "elevation": {
         "path": "elevation/wa-osm-relation-5626186.json",
         "sha256": "f1140edf7cfe239fa251d70cb79aa31cc1aeadb8d1d59169891f9c01e3f1ca35"
+      },
+      "commonDestinationEvidence": {
+        "objectiveId": "4F56621F3FF823F6A480",
+        "name": "Lake Ingalls",
+        "publisher": "wta",
+        "sourceUrl": "https://www.wta.org/go-hiking/hikes/lake-ingalls",
+        "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+        "attestation": "standalone_named_hike",
+        "note": "The WTA Lake Ingalls hike guide describes the lake as the named hike destination and the far shore as an optional continuation. The saved endpoint review preserves the southern lake-shore turnaround separately from the Ingalls Peak climb."
       }
     },
     {

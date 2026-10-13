@@ -82,7 +82,7 @@ To reproduce the local report from saved files, run from `cloud-sql/migrate`:
 node --import tsx data/trail-catalog/wa-cascades-20261013/replay.ts
 ```
 
-This uses the production graph builder and elevation checks with saved source/catalog data. It writes only this report and [graph-candidates.geojson](graph-candidates.geojson). To re-fetch the exact public terrain samples for comparison, run:
+This uses the production graph builder and elevation checks with saved source/catalog data. It writes a JSONL report and GeoJSON whose names include the manifest hash. An existing file must match exactly; otherwise the script stops. An optional final argument chooses a new report basename. The initial [graph-dry-run.jsonl](graph-dry-run.jsonl) and [graph-candidates.geojson](graph-candidates.geojson) remain tied to the exact [initial manifest](../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/manifest-initial.json). The [new replay](graph-dry-run-213a4aec8e0d.jsonl) adds explicit standalone-hike evidence for Ingalls Lake to the manifest and preserves the same six graph admissions. To re-fetch the exact public terrain samples for comparison, run:
 
 ```sh
 node --import tsx data/trail-catalog/wa-cascades-20261013/fetch-dem.ts --verify-existing
