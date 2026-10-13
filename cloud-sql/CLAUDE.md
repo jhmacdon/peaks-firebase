@@ -1130,9 +1130,15 @@ destination's geographic `type` without repeating the row; the full row,
 geometry included, stays in its bucket. Clients join a result to its row by
 `type` and `id`. Route-query errors fail the request. The route candidate
 queries use names, aliases, objective names, linked destination names, and
-segment trail names. All types use the same text-score weights: 0.55 trigram,
-0.20 prefix, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to
-0.05. A destination hike ranks just above its matching objective. An exact
+segment trail names. All types use the same text-score weights: 0.45 trigram
+similarity, 0.20 word similarity, 0.15 when the query starts any word of the
+name, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to 0.05.
+Word similarity keeps "Mount Pilchuck" above a campsite named "Pilchuck"; whole
+similarity keeps "Ingalls Peak" above "Ingalls Peak-South Peak". A destination
+whose only features are campsite or trailhead loses 0.35, since people rarely
+search those by name; an exact full-name query still finds them first among
+namesakes. The summit-over-its-route rule also fires when the query starts any
+word of the summit name ("rainier" keeps Mount Rainier above its routes). A destination hike ranks just above its matching objective. An exact
 summit-name query keeps that summit above its own route.
 
 ### Difficulty and moving time

@@ -5,7 +5,7 @@ import { getUid } from "../auth";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { normalizeSearchName } from "../search-utils";
-import { rankSearchResults, searchPopularityScoreSql, searchTextScoreSql, SearchBuckets, summarizeSearchResults } from "../lib/search-ranking";
+import { rankSearchResults, searchMinorPlacePenaltySql, searchPopularityScoreSql, searchTextScoreSql, SearchBuckets, summarizeSearchResults } from "../lib/search-ranking";
 
 const router = Router();
 
@@ -326,7 +326,7 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
   const tokenParam = `$${values.length}`;
   const candidateWhere = short
     ? tokenQuery ? `${destinationSearchVector} @@ to_tsquery('simple', ${tokenParam})` : "false"
-    : "search_name % $1 OR search_name LIKE $2";
+    : "search_name % $1 OR search_name LIKE $2 OR $1 <% search_name";
   const distance = geo ? "ST_Distance(location, ST_MakePoint($5, $4)::geography)" : "NULL::double precision";
   const proximity = geo ? `COALESCE(EXP(-1.0 * ${distance} / 500000.0) * 0.05, 0)` : "0";
 
@@ -335,11 +335,12 @@ export function buildRankedDestinationSearchQuery(input: DestinationSearchQueryI
          SELECT id, name, elevation, prominence, type, activities, features,
                 country_code, state_code, location,
                 (search_name = $1) AS name_exact_match,
-                (search_name LIKE $2) AS name_prefix_match,
+                (search_name LIKE $2 OR search_name LIKE ('% ' || $1 || '%')) AS name_prefix_match,
                 ${distance} AS distance_m,
                 (${searchTextScoreSql("search_name", "$1", "$2")}
                   + ${searchPopularityScoreSql("session_count_offset")}
-                  + ${proximity}) AS score
+                  + ${proximity}
+                  - ${searchMinorPlacePenaltySql("features")}) AS score
          FROM destinations
          WHERE ${candidateWhere}
          ORDER BY score DESC, name, id
