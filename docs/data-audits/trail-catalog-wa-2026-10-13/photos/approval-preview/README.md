@@ -1,5 +1,15 @@
 # Four cover approval rollback preview
 
+Production audit **125** failed before any UPDATE. Source commit `93bad14`
+generated SQL hash
+`45bbc15c3e6ef244ec7b880977297bce6a9977baffaa482b57f9a538195c9541`.
+PostgreSQL parsed an unparenthesized JSONB containment operand as a boolean
+followed by `->`. The corrected builder groups every extracted JSONB operand
+in its containment and equality checks. Keep the original
+`production-preview.txt`, `production-receipt.json`, and
+`production-audit-id.txt` intact. They record the failed attempt, with zero
+writes. No photo has been approved through this preview.
+
 This file tests the database update shape for the imported Lake Serene,
 Rattlesnake Ledge, Skyline, and Lake Twentytwo covers. It pins their existing
 queue IDs from production audit 116, exact source, author, license, dimensions,
@@ -33,6 +43,10 @@ assertions and post-rollback readback pass. Any SQL or readback error must
 finish as `failed`; keep the error and inspected counts in the audit. If the
 rollback response is lost, inspect the database through a new connection
 before reporting the outcome. Do not retry blindly or replace earlier reports.
+
+The next attempt must use a new audit and `production-preview-2.txt`,
+`production-receipt-2.json`, and `production-audit-id-2.txt`. Check the new
+manifest hash; audit 125's hash describes only the failed version.
 
 The preview locks all four candidate rows before all four destination rows,
 as the existing admin action does. It requires the exact pending candidates,

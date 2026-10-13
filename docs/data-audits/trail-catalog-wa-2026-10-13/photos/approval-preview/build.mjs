@@ -89,17 +89,17 @@ DO $$ DECLARE expected JSONB; c destination_photo_candidates%ROWTYPE; d destinat
   IF (SELECT count(*) FROM destination_photo_candidates WHERE id=ANY(${queue}))<>4
     OR (SELECT count(*) FROM destinations WHERE id=ANY(${destinations}))<>4 THEN RAISE EXCEPTION 'Exact four rows are missing'; END IF;
   FOR expected IN SELECT binding FROM preview_expected LOOP
-    SELECT * INTO STRICT c FROM destination_photo_candidates WHERE id=expected->>'candidateId';
-    IF NOT(to_jsonb(c) @> expected->'candidate') THEN RAISE EXCEPTION 'Pinned candidate/source/license/framing changed: %',c.id; END IF;
-    SELECT * INTO STRICT d FROM destinations WHERE id=expected#>>'{place,id}';
+    SELECT * INTO STRICT c FROM destination_photo_candidates WHERE id=(expected->>'candidateId');
+    IF NOT(to_jsonb(c) @> (expected->'candidate')) THEN RAISE EXCEPTION 'Pinned candidate/source/license/framing changed: %',c.id; END IF;
+    SELECT * INTO STRICT d FROM destinations WHERE id=(expected#>>'{place,id}');
     actual:=jsonb_build_object('id',d.id,'name',d.name,'lat',ST_Y(d.location::geometry),'lng',ST_X(d.location::geometry),
       'features',d.features::text[],'stateCode',d.state_code,'countryCode',d.country_code,'boundary',ST_AsGeoJSON(d.boundary::geometry)::jsonb,
       'externalIds',d.external_ids,'elevation',d.elevation);
-    IF d.owner<>'peaks' OR actual IS DISTINCT FROM expected->'place' THEN RAISE EXCEPTION 'Public place identity changed: %',d.id; END IF;
+    IF d.owner<>'peaks' OR actual IS DISTINCT FROM (expected->'place') THEN RAISE EXCEPTION 'Public place identity changed: %',d.id; END IF;
     IF NULLIF(btrim(d.hero_image),'') IS NOT NULL AND NULLIF(btrim(d.hero_image_attribution),'') IS NOT NULL
       AND NULLIF(btrim(d.hero_image_attribution_url),'') IS NOT NULL THEN RAISE EXCEPTION 'A credited hero now exists: %',d.id; END IF;
     IF NOT EXISTS(SELECT 1 FROM trail_catalog_candidate_jobs job JOIN routes r ON r.id=job.proposed_route_id
-      WHERE job.source_key=expected->>'routeSourceKey' AND job.state='pending' AND job.route_id=r.id AND r.status='pending' AND r.owner='peaks'
+      WHERE job.source_key=(expected->>'routeSourceKey') AND job.state='pending' AND job.route_id=r.id AND r.status='pending' AND r.owner='peaks'
         AND EXISTS(SELECT 1 FROM route_destinations rd WHERE rd.route_id=r.id AND rd.destination_id=d.id)) THEN
       RAISE EXCEPTION 'Imported pending pilot route/place binding changed: %',d.id; END IF;
   END LOOP;
@@ -141,7 +141,7 @@ DO $$ BEGIN
   IF (SELECT tuple_hashes-ARRAY['destinations','photo_candidates'] FROM preview_protected_before)
     IS DISTINCT FROM(SELECT tuple_hashes-ARRAY['destinations','photo_candidates'] FROM preview_protected_after) THEN RAISE EXCEPTION 'Preview changed an unrelated destination/photo row, route, segment, link, or candidate job'; END IF;
   IF EXISTS(SELECT 1 FROM preview_expected expected
-    JOIN destination_photo_candidates c ON c.id=expected.binding->>'candidateId'
+    JOIN destination_photo_candidates c ON c.id=(expected.binding->>'candidateId')
     JOIN destinations d ON d.id=c.destination_id
     WHERE (d.hero_image,d.hero_image_attribution,d.hero_image_attribution_url,d.hero_image_focal_x,d.hero_image_focal_y)
       IS DISTINCT FROM(c.image_url,c.photographer||' / '||c.license_name,c.source_page_url,c.focal_x,c.focal_y)
