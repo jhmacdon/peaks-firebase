@@ -215,7 +215,10 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
     await factory.query("SELECT release_trail_catalog_publish($1,$2)",[summit.sourceKey,summitLease.leaseToken]);
     for (const kind of ["loop","traverse"] as const) {
       const fixture = await candidate(kind), proof = await claimAndBind(fixture); assert.deepEqual(proof.checks.errors,[]);
-      if (kind==="traverse") assert.equal(proof.checks.gates.credited_cover,true,"a separate end trailhead's credited cover remains valid");
+      if (kind==="traverse") {
+        assert.equal(proof.checks.gates.credited_cover,true,"a separate end trailhead's credited cover remains valid");
+        assert.ok(proof.checks.measurements.objective_gap_m<0.01,"a traverse reports contact with its middle objective along the route");
+      }
       const saved = await finish(fixture,proof), lease = (await factory.query("SELECT claim_trail_catalog_publish($1,$2) lease",[fixture.sourceKey,saved.receiptHash])).rows[0].lease;
       await factory.query("SELECT activate_trail_catalog_candidate($1,$2,$3)",[fixture.sourceKey,lease.leaseToken,saved.receiptHash]);
       await verify(fixture,saved.receiptHash);

@@ -1,6 +1,6 @@
 {
   "migration": "cloud-sql/migrations/20261014_trail_catalog_review_activation.sql",
-  "migrationSha256": "c8dc3d659b52d528cfe86f36177426ea29353866f1bc29822fcdfff30b3fe495",
-  "previewSha256": "84750698f7dec90284deb88a43a711e9a724d8a3a9711e9eb1ee7b7385b2f358",
+  "migrationSha256": "be07e4dbfce648135cd1646e2692b85411b8278fba7faf593d7340aa2aed21ba",
+  "previewSha256": "ce8d17b938caeda3c292085a659ad6f5880a9d4e5779240f97ecaf09b2200089",
   "fixedMonthlyCostDeltaUsd": 0
 }

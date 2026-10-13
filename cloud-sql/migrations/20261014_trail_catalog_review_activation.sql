@@ -160,7 +160,8 @@ BEGIN
     'credited_cover',cover,'elevation',COALESCE(r.elevation_string=encode_route_elevation_profile(r.path) AND route_elevation_profile_has_real_range(r.path),false));
   measurements:=jsonb_build_object('distance_m',r.distance,'gain_m',r.gain,'loss_m',r.gain_loss,'reused_length_m',reused,'reuse_fraction',CASE WHEN r.distance>0 THEN reused/r.distance ELSE NULL END,
     'start_gap_m',(SELECT ST_Distance(ST_StartPoint(r.path::geometry)::geography,d.location) FROM destinations d WHERE d.id=r.trailhead_destination_id),
-    'objective_gap_m',(SELECT CASE WHEN d.boundary IS NOT NULL AND NOT ('summit'::destination_feature=ANY(d.features)) THEN ST_Distance(ST_EndPoint(r.path::geometry)::geography,d.boundary) ELSE ST_Distance(ST_EndPoint(r.path::geometry)::geography,d.location) END FROM destinations d WHERE d.id=r.objective_destination_id),
+    'objective_gap_m',(SELECT ST_Distance(CASE WHEN r.kind IN ('loop','traverse') THEN r.path ELSE ST_EndPoint(r.path::geometry)::geography END,
+      CASE WHEN d.boundary IS NOT NULL AND NOT ('summit'::destination_feature=ANY(d.features)) THEN d.boundary ELSE d.location END) FROM destinations d WHERE d.id=r.objective_destination_id),
     'end_trailhead_gap_m',(SELECT ST_Distance(ST_EndPoint(r.path::geometry)::geography,d.location) FROM destinations d WHERE d.id=job.artifact#>>'{candidate,endTrailhead,id}'),
     'summit_max_gap_m',summit_gap,'summit_count',summit_count);
   RETURN jsonb_build_object('gates',gates,'measurements',measurements,'errors',COALESCE((SELECT jsonb_agg(key ORDER BY key) FROM jsonb_each(gates) WHERE value<>'true'::jsonb),'[]'::jsonb));
