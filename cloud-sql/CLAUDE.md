@@ -1124,8 +1124,11 @@ destination search. Aliases and `segments.trail_names` feed route search.
 
 `GET /api/search/all` keeps `destinations`, `routes`, and `areas`, and adds
 `lists` plus one ranked `results` array. Each result has `type`, `id`, `score`,
-and `data` (the original bucket row). This keeps a destination's geographic
-`type` inside its data. Route-query errors fail the request. The route candidate
+and `data`: a small summary of its bucket row (`name`, `type`, `kind`,
+`features`, `state_code`, `country_code`, `elevation` when present). It keeps a
+destination's geographic `type` without repeating the row; the full row,
+geometry included, stays in its bucket. Clients join a result to its row by
+`type` and `id`. Route-query errors fail the request. The route candidate
 queries use names, aliases, objective names, linked destination names, and
 segment trail names. All types use the same text-score weights: 0.55 trigram,
 0.20 prefix, 0.10 exact; bounded popularity adds up to 0.10 and proximity up to
