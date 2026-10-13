@@ -24,7 +24,7 @@ RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
       AND segment_provenance->>'elevation_profile' IS NOT DISTINCT FROM route_provenance->>'elevation_profile'
       AND CASE WHEN (route_provenance->>'contains_osm_geometry')::boolean
         THEN jsonb_array_length(segment_provenance->'osm_way_ids') > 0
-          AND segment_provenance->'osm_way_ids' <@ route_provenance->'osm_way_ids'
+          AND (segment_provenance->'osm_way_ids') <@ (route_provenance->'osm_way_ids')
         ELSE segment_provenance->>'source_url' = route_provenance->>'source_url' END
     ELSE false END;
 $$;
@@ -38,7 +38,7 @@ SET search_path = pg_catalog, public, pg_temp AS $$
       SELECT 1 FROM route_segments rs LEFT JOIN segments s ON s.id=rs.segment_id
       WHERE rs.route_id=r.id AND NOT route_segment_provenance_compatible(s.provenance,r.provenance)
     )
-    AND r.provenance->'osm_way_ids' <@ COALESCE((
+    AND (r.provenance->'osm_way_ids') <@ COALESCE((
       SELECT jsonb_agg(DISTINCT way.value)
       FROM route_segments rs JOIN segments s ON s.id=rs.segment_id
       CROSS JOIN LATERAL jsonb_array_elements(CASE
