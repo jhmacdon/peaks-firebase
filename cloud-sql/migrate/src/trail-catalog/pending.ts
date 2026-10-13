@@ -2,20 +2,17 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { PoolClient } from "pg";
 import { CandidateRejection, sha256, stableJson } from "./graph";
-import { candidateProvenance, provenanceSourceIds, segmentProvenance } from "./sources";
+import { candidateProvenance } from "./sources";
+import { assertNoExistingSourceOverlap, planPendingSegments } from "./pending-plan";
 import { buildCandidate } from "./candidate-source";
 import { existingCatalogRoute, finishCandidate, lockCandidateLease, type CandidateLease } from "./jobs";
-import type { CandidateReport, ElevatedPoint, ReadyCandidate } from "./types";
+import type { CandidateReport, ElevatedPoint } from "./types";
 
-type Proposed = { type: "new" | "existing" | "split"; points: ElevatedPoint[]; routeStartIndex: number; routeEndIndex: number; existingSegmentId?: string; direction?: "forward" | "reverse" };
-// Runtime loading keeps the existing web matcher authoritative without copying it
-// into the migration compiler's src-only project. The CLI runs through tsx.
+// The CLI runs the shared web utilities through tsx.
 function sharedModules() {
   const root = resolve(__dirname, "../../../..");
-  const matcher = require(resolve(root, "web/src/lib/segment-matcher-core.ts")) as { analyzeRouteSegmentsWithClient(client: PoolClient, points: ElevatedPoint[], options: unknown): Promise<{ segments: Proposed[]; splits: unknown[] }> };
-  const reuse = require(resolve(root, "web/src/lib/route-segment-reuse.ts")) as { chooseActivationSegmentReference(input: unknown): Promise<{ segmentId: string; direction: "forward" | "reverse" }> };
   const utils = require(resolve(root, "web/src/lib/route-utils.ts")) as { pointsToLineStringZ(points: ElevatedPoint[]): string; encodePolyline6(points: ElevatedPoint[]): string };
-  return { ...matcher, ...reuse, ...utils };
+  return utils;
 }
 
 /** Atomic pending write: no route activation, segment splitting, or route renaming. */
@@ -47,28 +44,17 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
     const duplicate = await existingCatalogRoute(client, candidate);
     if (duplicate) throw new CandidateRejection("existing_catalog_route_requires_review", duplicate);
     const shared = sharedModules();
-    const decomposition = await shared.analyzeRouteSegmentsWithClient(client, candidate.elevatedPoints, { exactOnly: true, allowExistingSplits: false, requiredCutIndices: candidate.requiredCutIndices });
-    if (!decomposition.segments.length || decomposition.splits.length || decomposition.segments.some(s => s.type === "split")) throw new CandidateRejection("existing_segment_split_requires_review");
-    let expectedStart = 0, reusedLengthM = 0;
+    const plan = await planPendingSegments(client, candidate, { lockExisting: true });
     const references: { segmentId: string; direction: "forward" | "reverse"; routeStartIndex: number; routeEndIndex: number }[] = [];
-    for (const segment of decomposition.segments) {
+    for (const segment of plan.segments) {
       const start = segment.routeStartIndex, end = segment.routeEndIndex;
-      if (start !== expectedStart || end <= start || stableJson(segment.points.map(({ lat, lng, ele }) => ({ lat, lng, ele }))) !== stableJson(candidate.elevatedPoints.slice(start, end + 1).map(({ lat, lng, ele }) => ({ lat, lng, ele })))) throw new CandidateRejection("matcher_source_interval_mismatch");
-      expectedStart = end;
-      const provenance = segmentProvenance(candidate, start, end), ids = provenanceSourceIds(provenance);
+      const provenance = segment.provenance;
       const create = async () => {
         const wkt = shared.pointsToLineStringZ(segment.points);
-        // Same source geometry with different XYZ needs review; never hide it as a duplicate span.
-        const sourcePredicate = candidate.input.source.type === "usfs-nfs-trails"
-          ? "(s.provenance->>'source_kind'='usfs-nfs-trails' AND trail_catalog_usfs_feature_ids(s.provenance->>'source_url') && $2::text[])"
-          : "EXISTS (SELECT 1 FROM jsonb_array_elements_text(s.provenance->'osm_way_ids') source_id WHERE source_id=ANY($2::text[]))";
-        const overlaps = await client.query(`SELECT s.id FROM segments s WHERE (${sourcePredicate}
-          OR (s.provenance->>'source_kind' IN ('openstreetmap','usfs-nfs-trails') AND s.provenance->>'source_kind'<>$3))
-          AND ST_DWithin(s.path,ST_GeomFromText($1,4326)::geography,5)
-          AND ST_Length(ST_CollectionExtract(ST_Intersection(ST_GeomFromText($1,4326),ST_Buffer(s.path,5)::geometry),2)::geography)>GREATEST(25,ST_Length(ST_GeomFromText($1,4326)::geography)*0.2) LIMIT 1`, [wkt, ids,provenance.source_kind]);
-        if (overlaps.rows.length) throw new CandidateRejection("existing_source_geometry_requires_review", overlaps.rows[0].id);
+        // Recheck after earlier new spans in this same transaction were inserted.
+        await assertNoExistingSourceOverlap(client, candidate, segment, shared);
         const id = `trail-seg-${randomUUID()}`;
-        const names = [...new Set(candidate.edges.slice(start, end).flatMap(e => e.names))];
+        const names = segment.names;
         await client.query("SELECT set_config('peaks.trail_candidate_span_start',$1,true),set_config('peaks.trail_candidate_span_end',$2,true)", [String(start), String(end)]);
         await client.query(`INSERT INTO segments(id,name,path,polyline6,distance,gain,gain_loss,provenance,trail_names)
           SELECT $1,$2,p.path,$4,ST_Length(p.path),stats.gain,stats.loss,$5::jsonb,$6::text[]
@@ -77,14 +63,9 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
         return id;
       };
       if (segment.type === "existing") {
-        if (!segment.existingSegmentId || !segment.direction) throw new CandidateRejection("invalid_existing_segment_reference");
-        const stored = await client.query("SELECT provenance FROM segments WHERE id=$1 FOR UPDATE", [segment.existingSegmentId]);
-        if (stored.rows[0]?.provenance?.source_kind !== provenance.source_kind || stableJson(provenanceSourceIds(stored.rows[0]?.provenance ?? {})) !== stableJson(ids)) throw new CandidateRejection("existing_segment_source_interval_mismatch", segment.existingSegmentId);
-        references.push({ ...await shared.chooseActivationSegmentReference({ client, existingSegmentId: segment.existingSegmentId, points: segment.points, direction: segment.direction, routeProvenance: JSON.stringify(provenance), requireReuse: true, createRouteSpecificSegment: create }), routeStartIndex: start, routeEndIndex: end });
-        reusedLengthM += candidate.elevatedPoints[end].dist - candidate.elevatedPoints[start].dist;
+        references.push({ segmentId: segment.existingSegmentId!, direction: segment.direction!, routeStartIndex: start, routeEndIndex: end });
       } else references.push({ segmentId: await create(), direction: "forward", routeStartIndex: start, routeEndIndex: end });
     }
-    if (expectedStart !== candidate.points.length - 1) throw new CandidateRejection("matcher_incomplete_route");
     const routeId = lease.proposedRouteId, lineage = candidate.elevationLineage;
     await client.query(`INSERT INTO routes(id,name,aliases,kind,trailhead_destination_id,objective_destination_id,state_code,country_code,
       path,polyline6,owner,distance,gain,gain_loss,shape,status,completion,provenance,
@@ -98,7 +79,7 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
     for (let i = 0; i < placeIds.length; i++) await client.query("INSERT INTO route_destinations(route_id,destination_id,ordinal) VALUES($1,$2,$3)", [routeId, placeIds[i], i]);
     const checks = await client.query("SELECT peaks_route_passes_publish_integrity($1,NULL,'pending') AS valid", [routeId]);
     if (!checks.rows[0]?.valid) throw new CandidateRejection("pending_route_integrity_failed");
-    const report: CandidateReport = { sourceKey: candidate.input.sourceKey, name: candidate.input.name, outcome: "admitted", reason: null, geometryHash: candidate.geometryHash, distanceM: candidate.distanceM, gainM: candidate.gainM, mappedFraction: 1, usedWayIds: candidate.usedWayIds, usedFeatureIds: candidate.usedFeatureIds, pendingReady: true, routeId, writeAction: "created", segmentIds: references.map(r => r.segmentId), segments: references, reusedLengthM };
+    const report: CandidateReport = { sourceKey: candidate.input.sourceKey, name: candidate.input.name, outcome: "admitted", reason: null, geometryHash: candidate.geometryHash, distanceM: candidate.distanceM, gainM: candidate.gainM, mappedFraction: 1, usedWayIds: candidate.usedWayIds, usedFeatureIds: candidate.usedFeatureIds, pendingReady: true, routeId, writeAction: "created", segmentIds: references.map(r => r.segmentId), segments: references, reusedLengthM: plan.reusedLengthM };
     await finishCandidate(client, lease, routeId, report, null);
     await client.query("COMMIT");
     return report;

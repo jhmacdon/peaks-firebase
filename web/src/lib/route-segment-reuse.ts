@@ -148,18 +148,21 @@ export function existingSegmentReuseCheckPasses(
   );
 }
 
-async function existingSegmentIsSafeToReuse(
+export async function existingSegmentIsSafeToReuse(
   client: PoolClient,
   segmentId: string,
   points: TrackPoint[],
   direction: "forward" | "reverse",
-  routeProvenance: string | null
+  routeProvenance: string | null,
+  lockExisting = true
 ): Promise<boolean> {
-  const locked = await client.query<{ id: string }>(
-    `SELECT id FROM segments WHERE id = $1 FOR UPDATE`,
-    [segmentId]
-  );
-  if (locked.rows.length !== 1) return false;
+  if (lockExisting) {
+    const locked = await client.query<{ id: string }>(
+      `SELECT id FROM segments WHERE id = $1 FOR UPDATE`,
+      [segmentId]
+    );
+    if (locked.rows.length !== 1) return false;
+  }
 
   const result = await client.query<ExistingSegmentReuseCheck>(
     EXISTING_SEGMENT_REUSE_SQL,

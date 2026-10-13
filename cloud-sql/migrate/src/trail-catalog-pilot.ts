@@ -9,6 +9,7 @@ import { buildCandidate, loadCandidateSnapshots } from "./trail-catalog/candidat
 import { chooseCatalogCandidates } from "./trail-catalog/reviewed-candidates";
 import { claimCandidate, enqueueCandidate, existingCatalogRoute, finishCandidate, type CandidateArtifact } from "./trail-catalog/jobs";
 import { writePendingCandidate } from "./trail-catalog/pending";
+import { planPendingSegments } from "./trail-catalog/pending-plan";
 import { requireRouteWorkerDatabaseRole } from "./standard-route-worker-role";
 import type { BuiltCandidate, CandidateReport, CatalogPlace, PilotManifest } from "./trail-catalog/types";
 
@@ -66,6 +67,7 @@ export async function planPilot(client: Pick<PoolClient, "query">, manifest: Pil
         const states=[...new Set(bound.map(p=>p.stateCode).filter(Boolean))],countries=[...new Set(bound.map(p=>p.countryCode).filter(Boolean))];
         if (!(built.trailhead.stateCode ?? (states.length===1 ? states[0] : null)) || !(built.trailhead.countryCode ?? (countries.length===1 ? countries[0] : null))) throw new CandidateRejection("route_region_missing_or_ambiguous");
         const candidate=prepareElevation(built,baseDir);
+        await planPendingSegments(client,candidate);
         artifacts.set(input.sourceKey,{candidate,snapshots:snapshots.map((snapshot,i)=>({sha256:input.source.snapshots[i].sha256,body:snapshot.body}))});
         report.pendingReady=true; report.gainM=candidate.gainM;
       } catch (error) { report.pendingBlocker=rejection(error).reason; report.detail=rejection(error).detail; }
