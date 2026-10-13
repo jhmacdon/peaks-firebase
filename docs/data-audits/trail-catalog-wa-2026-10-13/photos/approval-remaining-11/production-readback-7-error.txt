@@ -1,0 +1,4 @@
+Read-only check exited 3 after the Esmeralda Trailhead admin approval.
+psql:docs/data-audits/trail-catalog-wa-2026-10-13/photos/approval-remaining-11/state.sql:59: ERROR: canceling statement due to statement timeout
+The attempted production-readback-7.json contained zero bytes and was removed after checking its size. No JSON receipt exists for this failed read-only check.
+No approval was retried. Audit 133 remains open with unknown final write count pending a fresh successful readback.

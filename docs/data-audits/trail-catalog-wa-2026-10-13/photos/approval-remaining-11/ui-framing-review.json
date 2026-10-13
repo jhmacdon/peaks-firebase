@@ -1,0 +1,106 @@
+{
+  "reviewedAt": "2026-10-13T16:51:03Z",
+  "method": "Root agent inspected actual admin UI crops; this record cites its observations, not saved screenshot files.",
+  "status": "framing-inspected-not-approved",
+  "variants": [
+    "16:9",
+    "3:2",
+    "square"
+  ],
+  "allElevenPending": true,
+  "approvals": 0,
+  "framingChanges": 0,
+  "observations": [
+    "Every crop retains the intended subject at the saved focal point.",
+    "Esmeralda kiosk and signs remain visible at 50/100.",
+    "Ingalls and Stuart retain lake water.",
+    "Mount Si retains peak and reflection at 50/40.",
+    "Mailbox retains the central peak.",
+    "Tolmie depicts the ridgeline, not the lookout.",
+    "Poo Poo Point depicts the north launch.",
+    "Blanca source dimensions 4032x3024 were verified in the loaded admin DOM."
+  ],
+  "photos": [
+    {
+      "candidateId": "xxoCzbZ6wudjscAe788b",
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "focalX": 50,
+      "focalY": 40
+    },
+    {
+      "candidateId": "sLF3JFQL61nB2nK78F2f",
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "focalX": 50,
+      "focalY": 50
+    },
+    {
+      "candidateId": "vNACg3f2NioMeR2qdBjX",
+      "destinationId": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "focalX": 50,
+      "focalY": 50
+    },
+    {
+      "candidateId": "goxoEUevbtTLEgWOBQ2T",
+      "destinationId": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "focalX": 50,
+      "focalY": 65
+    },
+    {
+      "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "focalX": 50,
+      "focalY": 50
+    },
+    {
+      "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+      "destinationId": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "focalX": 50,
+      "focalY": 60
+    },
+    {
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "focalX": 50,
+      "focalY": 60
+    },
+    {
+      "candidateId": "3QHwUgURE8ts4_kWO639",
+      "destinationId": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "focalX": 50,
+      "focalY": 50
+    },
+    {
+      "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "focalX": 50,
+      "focalY": 50
+    },
+    {
+      "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "focalX": 50,
+      "focalY": 60
+    },
+    {
+      "candidateId": "ITkoNEc-0dHINLIDz6gG",
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "focalX": 50,
+      "focalY": 100
+    }
+  ],
+  "limits": [
+    "Original media SHA1/dimensions/render checks remain a separate required proof.",
+    "No route or candidate-job change is authorized by this photo review."
+  ]
+}

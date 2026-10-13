@@ -1,5 +1,11 @@
 # Factory login setup plan
 
+The user approved this setup on 2026-10-13. The fresh rollback preview passed
+in audit 119; apply passed in audit 120. The helper saved the Keychain item,
+committed the login, and verified its identity and grants through a real
+connection. See [preview](production-preview-approved.json) and
+[apply](production-apply.json). These receipts cover account setup only.
+
 Read-only production checks found the `peaks-route-factory` marker role and no
 `peaks-route-factory-worker` LOGIN. The exact factory Keychain item is absent.
 This plan creates that one login. It does not reset an account or touch the

@@ -1,0 +1,372 @@
+{
+  "mode": "public-media-preflight-only",
+  "startedAt": "2026-10-13T17:01:03.557Z",
+  "manifestSha256": "3c567aee6006389178ce5e6391ee90d7d058b4b9bf077bdb4f1707a4768d2490",
+  "candidatesSha256": "392d64de9ad074a4f12535d5495092401332cb80f457887c8f25efd0dbff6412",
+  "reviewSha256": "be8dbfefaca406e136cb6b66227e506eea6d702816b43601493925d0a2cc2cd6",
+  "queueReceiptSha256": "57e400d42f882fc95738aaf6558172ca5945d1be9e2ed64b39d48bd2caf49a05",
+  "helperSha256": "34a77766619d2b475d469591eef6d6d7ea8de81c961b77d9240f84c1e00efc13",
+  "rendererBodySha256": "da3a31d4dd1c480391436ec6387e85e64ce0654889c3d66ff8a5330173c54af9",
+  "qualityHelperSha256": "ebc67dd19bd4810a98af0950a7ae0897f78735b4c5777e01eec1275f6de3918d",
+  "sharpVersion": "0.33.5",
+  "limitation": "Pure Sharp equivalent: importing destination-photo-storage.ts initializes Firebase Admin and selects cert/ADC credentials. No Firebase module was imported; authentication, Storage upload, admin action and public serving were not tested.",
+  "bounds": {
+    "candidates": 11,
+    "sourceBytes": 41943040,
+    "downloadTimeoutMs": 30000,
+    "maxRedirects": 5,
+    "maxInputPixels": 80000000,
+    "maxOutputEdge": 2400
+  },
+  "databaseAccess": false,
+  "credentialAccess": false,
+  "uploads": 0,
+  "approvals": 0,
+  "fixedMonthlyCostDeltaUsd": 0,
+  "candidates": [
+    {
+      "candidateId": "xxoCzbZ6wudjscAe788b",
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/20/Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "expectedSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+      "checkedAt": "2026-10-13T17:01:03.558Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/2/20/Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 943458,
+      "sourceSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+      "sourceSha256": "057b0c8999334194dc16d818d5be72f8ce686319200fe0e84c05fc6c84990308",
+      "sourceDimensions": {
+        "width": 2272,
+        "height": 1638,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 2272,
+        "height": 1638
+      },
+      "renderedDimensions": {
+        "width": 2272,
+        "height": 1638
+      },
+      "renderedBytes": 684667,
+      "renderedSha256": "cdaac61133074d7c3cc246c317f0db8943984140f3ef6202031a834b573728e9"
+    },
+    {
+      "candidateId": "sLF3JFQL61nB2nK78F2f",
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Little_Si_August_2026_01.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+      "expectedSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3",
+      "checkedAt": "2026-10-13T17:01:04.553Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Little_Si_August_2026_01.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3400286,
+      "sourceSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3",
+      "sourceSha256": "ebe2f75b5f4eee0d4d9acac4ac811bdf2feda5f52ff6ec46ddcadebbba06d75e",
+      "sourceDimensions": {
+        "width": 4032,
+        "height": 2268,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4032,
+        "height": 2268
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1350
+      },
+      "renderedBytes": 703837,
+      "renderedSha256": "4ceb6cf20b7f1145fb6b3a37a4d7be26f7e9a2f8bbf3bb91fa3d9690848acd29"
+    },
+    {
+      "candidateId": "vNACg3f2NioMeR2qdBjX",
+      "destinationId": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/87/20150621_SnowLake_043b.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+      "expectedSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7",
+      "checkedAt": "2026-10-13T17:01:05.395Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/87/20150621_SnowLake_043b.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 462815,
+      "sourceSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7",
+      "sourceSha256": "5c9bffa1e88d932936b1033912fe9a5640dcfdcbbcfd060fd35fcd61baed2729",
+      "sourceDimensions": {
+        "width": 1938,
+        "height": 1444,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 1938,
+        "height": 1444
+      },
+      "renderedDimensions": {
+        "width": 1938,
+        "height": 1444
+      },
+      "renderedBytes": 481960,
+      "renderedSha256": "b7ee60650102ebdfc6421441d6bb78339b7a30531a3d75bce9626a635374a763"
+    },
+    {
+      "candidateId": "goxoEUevbtTLEgWOBQ2T",
+      "destinationId": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/07/Lake_Ingalls_%2821_October_2024%29_2.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+      "expectedSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35",
+      "checkedAt": "2026-10-13T17:01:05.708Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/0/07/Lake_Ingalls_%2821_October_2024%29_2.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3608529,
+      "sourceSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35",
+      "sourceSha256": "018f7b793a45867e722b05be80df3d2e60d2506bd7261c2d7cd35a34f0cd99ae",
+      "sourceDimensions": {
+        "width": 4624,
+        "height": 3472,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4624,
+        "height": 3472
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "renderedBytes": 606914,
+      "renderedSha256": "97f507a8f9a485fa30f1ff0231e7af1c6bd0026b55adbe741a4c04982528bacd"
+    },
+    {
+      "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/88/Colchuck_Lake.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+      "expectedSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66",
+      "checkedAt": "2026-10-13T17:01:08.399Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/88/Colchuck_Lake.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 11173680,
+      "sourceSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66",
+      "sourceSha256": "336c613b24d05fa0a64036e26cb8ad9d35e8d0d71063a2a21e3e68bb141cd7ed",
+      "sourceDimensions": {
+        "width": 7333,
+        "height": 4579,
+        "orientation": null
+      },
+      "orientedDimensions": {
+        "width": 7333,
+        "height": 4579
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1499
+      },
+      "renderedBytes": 721952,
+      "renderedSha256": "380ada27d6c81db578caa90c05af58b6728b590c0f29ae1d54be0b8f1e198a08"
+    },
+    {
+      "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+      "destinationId": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/da/Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "expectedSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f",
+      "checkedAt": "2026-10-13T17:01:12.593Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/d/da/Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 2454228,
+      "sourceSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f",
+      "sourceSha256": "0fe91b4896e0e6854371a19d7c3b6a4173343d3b8c1a19e933dbe2ca3399c4e2",
+      "sourceDimensions": {
+        "width": 4128,
+        "height": 3096,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4128,
+        "height": 3096
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "renderedBytes": 725083,
+      "renderedSha256": "341ab1b31ca322202ec26ce55094dd48d058890113c91964ca49a7b8ed518bcb"
+    },
+    {
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Mailbox_from_Mount_Teneriffe.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+      "expectedSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+      "checkedAt": "2026-10-13T17:01:13.357Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Mailbox_from_Mount_Teneriffe.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3798842,
+      "sourceSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+      "sourceSha256": "fd3daaf4d788d8ed81e905a4d6fefff489f1ca0495e92021e5d78dbcfd09954a",
+      "sourceDimensions": {
+        "width": 4624,
+        "height": 3472,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4624,
+        "height": 3472
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "renderedBytes": 625580,
+      "renderedSha256": "92fe43dfe49ea665182f7d22f94009394a3b510eb88b7d99ee34def7d6347d90"
+    },
+    {
+      "candidateId": "3QHwUgURE8ts4_kWO639",
+      "destinationId": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Blanca_Lake_Hudak.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+      "expectedSha1": "bf043f658538a185ba8c74413a870cb113db9af9",
+      "checkedAt": "2026-10-13T17:01:14.359Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Blanca_Lake_Hudak.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 3834655,
+      "sourceSha1": "bf043f658538a185ba8c74413a870cb113db9af9",
+      "sourceSha256": "94da7ae3e0bdd5099a0b712e12b3be33b9d52a7eb82b95d9545766ca66ef69b7",
+      "sourceDimensions": {
+        "width": 4032,
+        "height": 3024,
+        "orientation": null
+      },
+      "orientedDimensions": {
+        "width": 4032,
+        "height": 3024
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "renderedBytes": 1030293,
+      "renderedSha256": "f57f67aaf67a1aee8e02513081fe3740d3698c9bf599ba81b660d29d87a70d1d"
+    },
+    {
+      "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Poo_Poo_Point.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+      "expectedSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4",
+      "checkedAt": "2026-10-13T17:01:15.353Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Poo_Poo_Point.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 562584,
+      "sourceSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4",
+      "sourceSha256": "d8954e6912ad364fb5fafe6ad7c2667b332def46492e2b8ba34b3d7e56a0220a",
+      "sourceDimensions": {
+        "width": 3000,
+        "height": 1624,
+        "orientation": null
+      },
+      "orientedDimensions": {
+        "width": 3000,
+        "height": 1624
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1299
+      },
+      "renderedBytes": 337609,
+      "renderedSha256": "0ab32328946d2792b998e8fd1a35940a75550b778c8b79f5cae8d3d2bfd7789e"
+    },
+    {
+      "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Tolmie_Peak.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+      "expectedSha1": "02fbb9087880808fef74e6a367a5a337b3451a00",
+      "checkedAt": "2026-10-13T17:01:15.627Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Tolmie_Peak.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 2607258,
+      "sourceSha1": "02fbb9087880808fef74e6a367a5a337b3451a00",
+      "sourceSha256": "15db9e2261bf4ab438d5150efa5fc5c3a8ca4aa20cdcf06d01ef73ebaa590936",
+      "sourceDimensions": {
+        "width": 2816,
+        "height": 2112,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 2816,
+        "height": 2112
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "renderedBytes": 702847,
+      "renderedSha256": "dfbdb51c746b9b05cf2226d0e5e06ee81d4d92e8decc5256e41b78a4aa163d54"
+    },
+    {
+      "candidateId": "ITkoNEc-0dHINLIDz6gG",
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/86/Esmeralda_Basin_-_Ingalls_Lake_Trailhead_%2821_October_2024%29.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+      "expectedSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a",
+      "checkedAt": "2026-10-13T17:01:16.310Z",
+      "passed": true,
+      "httpStatus": 200,
+      "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/86/Esmeralda_Basin_-_Ingalls_Lake_Trailhead_%2821_October_2024%29.jpg",
+      "contentType": "image/jpeg",
+      "sourceBytes": 6063582,
+      "sourceSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a",
+      "sourceSha256": "34044f80dfc2fb1d60636e020ea35d8c93ce0153b0f8ce82389892ab28395a26",
+      "sourceDimensions": {
+        "width": 4624,
+        "height": 3472,
+        "orientation": 1
+      },
+      "orientedDimensions": {
+        "width": 4624,
+        "height": 3472
+      },
+      "renderedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "renderedBytes": 1067277,
+      "renderedSha256": "0543cbe6e6edd351499130301ec74d4d46136a4ac880c140ec0e20482e666272"
+    }
+  ],
+  "finishedAt": "2026-10-13T17:01:17.758Z",
+  "cacheRetained": false,
+  "complete": true
+}
