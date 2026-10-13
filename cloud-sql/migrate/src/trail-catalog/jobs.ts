@@ -47,11 +47,16 @@ export async function existingCatalogRoute(client: Pick<PoolClient, "query">, ca
   const tables = await client.query("SELECT to_regclass('public.trail_catalog_candidate_jobs') IS NOT NULL AS exists");
   const receipt = tables.rows[0]?.exists ? await client.query("SELECT route_id FROM trail_catalog_candidate_jobs WHERE source_key=$1 AND state='pending'", [input.sourceKey]) : { rows: [] };
   // Legacy rows may predate denormalized objective/trailhead pointers.
-  const rows = await client.query(`SELECT r.id,r.name,r.provenance FROM routes r
+  const rows = await client.query(`WITH trailhead_routes AS MATERIALIZED (
+      SELECT id FROM routes WHERE trailhead_destination_id=$1
+      UNION SELECT rd.route_id FROM route_destinations rd WHERE rd.destination_id=$1 AND rd.ordinal=0
+    ), objective_routes AS MATERIALIZED (
+      SELECT id FROM routes WHERE objective_destination_id=$2
+      UNION SELECT rd.route_id FROM route_destinations rd WHERE rd.destination_id=$2 AND rd.ordinal>0
+    )
+    SELECT r.id,r.name,r.provenance FROM trailhead_routes head JOIN routes r ON r.id=head.id
     WHERE r.owner='peaks' AND r.status IN ('active','pending')
-      AND (r.trailhead_destination_id=$1 OR EXISTS (SELECT 1 FROM route_destinations rd WHERE rd.route_id=r.id AND rd.ordinal=0 AND rd.destination_id=$1))
-      AND (CASE WHEN $2::text IS NULL THEN r.kind='loop' ELSE r.objective_destination_id=$2 OR EXISTS (
-        SELECT 1 FROM route_destinations rd WHERE rd.route_id=r.id AND rd.destination_id=$2 AND rd.ordinal>0) END)
+      AND (CASE WHEN $2::text IS NULL THEN r.kind='loop' ELSE r.id IN (SELECT id FROM objective_routes) END)
       AND ($3::text IS NULL OR r.id<>$3)
     ORDER BY r.id`, [input.trailheadId, input.objectiveId, receipt.rows[0]?.route_id ?? null]);
   if (!rows.rows.length) return null;

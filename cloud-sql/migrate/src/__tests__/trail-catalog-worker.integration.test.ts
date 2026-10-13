@@ -7,7 +7,7 @@ import { Pool } from "pg";
 import { buildOsmCandidate, sha256, stableJson } from "../trail-catalog/graph";
 import { prepareElevation } from "../trail-catalog/sources";
 import { TERRARIUM_REQUIRED_ATTRIBUTION } from "../lib/terrarium-attribution";
-import { claimCandidate, enqueueCandidate, type CandidateArtifact } from "../trail-catalog/jobs";
+import { claimCandidate, enqueueCandidate, existingCatalogRoute, type CandidateArtifact } from "../trail-catalog/jobs";
 import { writePendingCandidate } from "../trail-catalog/pending";
 import type { CatalogPlace, PilotCandidateInput } from "../trail-catalog/types";
 
@@ -100,6 +100,13 @@ test("factory queue writes exact pending candidates, reuses spans, and cannot by
     assert.deepEqual(shared.segmentIds, report.segmentIds, "exact source span reuses across distinct route URLs and retrieval times");
     assert.ok((shared.reusedLengthM ?? 0) > 400);
     assert.equal((await worker.query("SELECT trail_catalog_pending_binding_valid($1) AS valid", [shared.routeId])).rows[0].valid, true);
+    assert.equal(await existingCatalogRoute(worker, first.candidate), null, "same source receipt excludes its own pending route");
+    assert.equal(await existingCatalogRoute(worker, { input: { ...first.candidate.input, sourceKey: `${prefix}:duplicate` } }), report.routeId);
+    const legacyId = `${prefix}-legacy`; routeIds.push(legacyId);
+    await operator.query("INSERT INTO routes(id,name,owner,status) VALUES($1,'Legacy lake route','peaks','pending')", [legacyId]);
+    await operator.query("INSERT INTO route_destinations(route_id,destination_id,ordinal) VALUES($1,$2,0),($1,$3,1)", [legacyId, head.id, lake(3).id]);
+    assert.equal(await existingCatalogRoute(worker, { input: { ...first.candidate.input, sourceKey: `${prefix}:legacy-check`, objectiveId: lake(3).id } }), legacyId, "legacy joins remain authoritative without metadata pointers");
+    await operator.query("DELETE FROM routes WHERE id=$1", [legacyId]);
     const third = artifact(3); await enqueueCandidate(worker, prefix, "c".repeat(64), third);
     const incomplete = await claimCandidate(worker, third.candidate.input.sourceKey, sha256(stableJson(third)), "factory-test");
     assert.ok(incomplete); routeIds.push(incomplete.proposedRouteId);
