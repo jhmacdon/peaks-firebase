@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "mode": "exact-source-render-to-public-serving-comparison",
+  "checkedAt": "2026-10-13T17:17:59.789Z",
+  "auditId": 133,
+  "inputs": {
+    "media": {
+      "path": "media-preflight-2.json",
+      "sha256": "70244b2485833c39964c49dfb54f954f4f8ff4f62222fc4e4cda21f185ad2f09"
+    },
+    "serving": {
+      "path": "public-serving-2.json",
+      "sha256": "e628a133331fc2be20c4b07cc3a7f4187d5af7780e31aa3f4fbd0b6fb605f576"
+    },
+    "readback": {
+      "path": "production-readback-12.json",
+      "sha256": "2781a57ef43703b470cb7443ae67049191655054833da9cc03a268f331f91590"
+    },
+    "manifest": {
+      "path": "manifest.json",
+      "sha256": "3c567aee6006389178ce5e6391ee90d7d058b4b9bf077bdb4f1707a4768d2490"
+    }
+  },
+  "photos": [
+    {
+      "candidateId": "xxoCzbZ6wudjscAe788b",
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "expectedSha256": "cdaac61133074d7c3cc246c317f0db8943984140f3ef6202031a834b573728e9",
+      "servedSha256": "cdaac61133074d7c3cc246c317f0db8943984140f3ef6202031a834b573728e9",
+      "expectedDimensions": {
+        "width": 2272,
+        "height": 1638
+      },
+      "servedDimensions": {
+        "width": 2272,
+        "height": 1638
+      },
+      "expectedBytes": 684667,
+      "servedBytes": 684667,
+      "originalSourceSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "sLF3JFQL61nB2nK78F2f",
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "expectedSha256": "4ceb6cf20b7f1145fb6b3a37a4d7be26f7e9a2f8bbf3bb91fa3d9690848acd29",
+      "servedSha256": "4ceb6cf20b7f1145fb6b3a37a4d7be26f7e9a2f8bbf3bb91fa3d9690848acd29",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1350
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1350
+      },
+      "expectedBytes": 703837,
+      "servedBytes": 703837,
+      "originalSourceSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "vNACg3f2NioMeR2qdBjX",
+      "destinationId": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "expectedSha256": "b7ee60650102ebdfc6421441d6bb78339b7a30531a3d75bce9626a635374a763",
+      "servedSha256": "b7ee60650102ebdfc6421441d6bb78339b7a30531a3d75bce9626a635374a763",
+      "expectedDimensions": {
+        "width": 1938,
+        "height": 1444
+      },
+      "servedDimensions": {
+        "width": 1938,
+        "height": 1444
+      },
+      "expectedBytes": 481960,
+      "servedBytes": 481960,
+      "originalSourceSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "goxoEUevbtTLEgWOBQ2T",
+      "destinationId": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "expectedSha256": "97f507a8f9a485fa30f1ff0231e7af1c6bd0026b55adbe741a4c04982528bacd",
+      "servedSha256": "97f507a8f9a485fa30f1ff0231e7af1c6bd0026b55adbe741a4c04982528bacd",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "expectedBytes": 606914,
+      "servedBytes": 606914,
+      "originalSourceSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "expectedSha256": "380ada27d6c81db578caa90c05af58b6728b590c0f29ae1d54be0b8f1e198a08",
+      "servedSha256": "380ada27d6c81db578caa90c05af58b6728b590c0f29ae1d54be0b8f1e198a08",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1499
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1499
+      },
+      "expectedBytes": 721952,
+      "servedBytes": 721952,
+      "originalSourceSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+      "destinationId": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "expectedSha256": "341ab1b31ca322202ec26ce55094dd48d058890113c91964ca49a7b8ed518bcb",
+      "servedSha256": "341ab1b31ca322202ec26ce55094dd48d058890113c91964ca49a7b8ed518bcb",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "expectedBytes": 725083,
+      "servedBytes": 725083,
+      "originalSourceSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "expectedSha256": "92fe43dfe49ea665182f7d22f94009394a3b510eb88b7d99ee34def7d6347d90",
+      "servedSha256": "92fe43dfe49ea665182f7d22f94009394a3b510eb88b7d99ee34def7d6347d90",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "expectedBytes": 625580,
+      "servedBytes": 625580,
+      "originalSourceSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "3QHwUgURE8ts4_kWO639",
+      "destinationId": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "expectedSha256": "f57f67aaf67a1aee8e02513081fe3740d3698c9bf599ba81b660d29d87a70d1d",
+      "servedSha256": "f57f67aaf67a1aee8e02513081fe3740d3698c9bf599ba81b660d29d87a70d1d",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "expectedBytes": 1030293,
+      "servedBytes": 1030293,
+      "originalSourceSha1": "bf043f658538a185ba8c74413a870cb113db9af9",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "expectedSha256": "0ab32328946d2792b998e8fd1a35940a75550b778c8b79f5cae8d3d2bfd7789e",
+      "servedSha256": "0ab32328946d2792b998e8fd1a35940a75550b778c8b79f5cae8d3d2bfd7789e",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1299
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1299
+      },
+      "expectedBytes": 337609,
+      "servedBytes": 337609,
+      "originalSourceSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "expectedSha256": "dfbdb51c746b9b05cf2226d0e5e06ee81d4d92e8decc5256e41b78a4aa163d54",
+      "servedSha256": "dfbdb51c746b9b05cf2226d0e5e06ee81d4d92e8decc5256e41b78a4aa163d54",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1800
+      },
+      "expectedBytes": 702847,
+      "servedBytes": 702847,
+      "originalSourceSha1": "02fbb9087880808fef74e6a367a5a337b3451a00",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "candidateId": "ITkoNEc-0dHINLIDz6gG",
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "expectedSha256": "0543cbe6e6edd351499130301ec74d4d46136a4ac880c140ec0e20482e666272",
+      "servedSha256": "0543cbe6e6edd351499130301ec74d4d46136a4ac880c140ec0e20482e666272",
+      "expectedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "servedDimensions": {
+        "width": 2400,
+        "height": 1802
+      },
+      "expectedBytes": 1067277,
+      "servedBytes": 1067277,
+      "originalSourceSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a",
+      "originalSourceSha1Matches": true,
+      "hashMatches": true,
+      "dimensionsMatch": true,
+      "bytesMatch": true,
+      "httpStatus": 200,
+      "passed": true
+    }
+  ],
+  "expectedPhotos": 11,
+  "checkedPhotos": 11,
+  "passed": true,
+  "databaseAccess": false,
+  "credentialAccess": false,
+  "networkRequests": 0,
+  "imageFilesWritten": 0
+}

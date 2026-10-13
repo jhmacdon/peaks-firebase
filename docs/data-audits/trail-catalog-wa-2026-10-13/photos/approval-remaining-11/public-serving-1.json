@@ -1,0 +1,110 @@
+{
+  "mode": "public-serving-check",
+  "checkedAt": "2026-10-13T17:16:40.176Z",
+  "readbackSha256": "2781a57ef43703b470cb7443ae67049191655054833da9cc03a268f331f91590",
+  "manifestSha256": "3c567aee6006389178ce5e6391ee90d7d058b4b9bf077bdb4f1707a4768d2490",
+  "helperSha256": "1a4d340ad31392a64b5f429b3059fb9b96b2d3e5d0516483469b47417e647af7",
+  "sharpVersion": "0.33.5",
+  "bounds": {
+    "photos": 11,
+    "maxBytesPerPhoto": 10485760,
+    "timeoutMs": 30000,
+    "redirects": 0,
+    "maxDecodedPixels": 5760000
+  },
+  "databaseAccess": false,
+  "credentialAccess": false,
+  "imageFilesWritten": 0,
+  "passed": false,
+  "photos": [
+    {
+      "candidateId": "xxoCzbZ6wudjscAe788b",
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FnSf6z4vL0zjdG2sXibBM%2FxxoCzbZ6wudjscAe788b-64a54c7f-9574-4fca-9864-2aeea1259ade.jpg?alt=media&token=64a54c7f-9574-4fca-9864-2aeea1259ade",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "sLF3JFQL61nB2nK78F2f",
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FxHaYBgzoxgfAZNLTfWid%2FsLF3JFQL61nB2nK78F2f-f107137a-bb9c-41b4-8f0f-98d2674517c0.jpg?alt=media&token=f107137a-bb9c-41b4-8f0f-98d2674517c0",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "vNACg3f2NioMeR2qdBjX",
+      "destinationId": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F4EDA7A56C36153040635%2FvNACg3f2NioMeR2qdBjX-a4a75f2d-708a-4e6a-8465-c51a4184dfe2.jpg?alt=media&token=a4a75f2d-708a-4e6a-8465-c51a4184dfe2",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "goxoEUevbtTLEgWOBQ2T",
+      "destinationId": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F4F56621F3FF823F6A480%2FgoxoEUevbtTLEgWOBQ2T-d091fac3-d948-4e59-9c07-aad5c99b738b.jpg?alt=media&token=d091fac3-d948-4e59-9c07-aad5c99b738b",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "jXUNh6O7X9w3ubnS2FuC",
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FRedSHjLLfieFAySd8gFZ%2FjXUNh6O7X9w3ubnS2FuC-3708873e-5a73-4b55-9c43-66d4b2a650f9.jpg?alt=media&token=3708873e-5a73-4b55-9c43-66d4b2a650f9",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "tPvVhGEVwnGL3z5R-DEm",
+      "destinationId": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F3F941B9F4262007D704D%2FtPvVhGEVwnGL3z5R-DEm-57f4f5c7-1733-40b7-a3f6-830fd4d20dd9.jpg?alt=media&token=57f4f5c7-1733-40b7-a3f6-830fd4d20dd9",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "RuNcafBQAXNpAfNZMuCb",
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F5hVnUW4tmqj3A6YbU0oB%2FRuNcafBQAXNpAfNZMuCb-a806ed64-05b7-45f8-820a-baa99e0aa7d0.jpg?alt=media&token=a806ed64-05b7-45f8-820a-baa99e0aa7d0",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "3QHwUgURE8ts4_kWO639",
+      "destinationId": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2F9B40DE76DC0878A92331%2F3QHwUgURE8ts4_kWO639-9470d1d5-3ebf-4d04-80a9-bbd68c0c882a.jpg?alt=media&token=9470d1d5-3ebf-4d04-80a9-bbd68c0c882a",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "Dhv7RDXMojUW0T_jZYI4",
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FYfu5QdaOWeuxpSXiN5rK%2FDhv7RDXMojUW0T_jZYI4-5ba02efe-4cb2-4512-83bd-e1c2d514a362.jpg?alt=media&token=5ba02efe-4cb2-4512-83bd-e1c2d514a362",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "WBxrYhLbTZWuLM7DqyAa",
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FhtqW9lCp974x1tEWD8t7%2FWBxrYhLbTZWuLM7DqyAa-a15ebfd6-afbc-4e5e-a696-9267474abc4d.jpg?alt=media&token=a15ebfd6-afbc-4e5e-a696-9267474abc4d",
+      "passed": false,
+      "error": "fetch failed"
+    },
+    {
+      "candidateId": "ITkoNEc-0dHINLIDz6gG",
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "publicUrl": "https://firebasestorage.googleapis.com/v0/b/donner-a8608.appspot.com/o/destination-covers%2FVm0gOD6OdjW4lQmHn0Fj%2FITkoNEc-0dHINLIDz6gG-cb708af4-6495-4c21-b5d5-7ffaea5e24f6.jpg?alt=media&token=cb708af4-6495-4c21-b5d5-7ffaea5e24f6",
+      "passed": false,
+      "error": "fetch failed"
+    }
+  ],
+  "finishedAt": "2026-10-13T17:16:40.212Z"
+}
