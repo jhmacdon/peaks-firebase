@@ -70,3 +70,17 @@ export function rankSearchResults(buckets: SearchBuckets, limit: number): Ranked
     || a.type.localeCompare(b.type)
     || a.id.localeCompare(b.id)).slice(0, limit);
 }
+
+// Fields a client needs to label a ranked result without its bucket row.
+// The full row stays in its bucket; repeating it here sent every route
+// polyline twice in one response.
+const SUMMARY_FIELDS = ["name", "type", "kind", "features", "state_code", "country_code", "elevation"] as const;
+
+export function summarizeSearchResults(results: RankedSearchResult[]): RankedSearchResult[] {
+  return results.map((result) => ({
+    ...result,
+    data: Object.fromEntries(SUMMARY_FIELDS
+      .filter((field) => result.data?.[field] !== undefined)
+      .map((field) => [field, result.data[field]])),
+  }));
+}

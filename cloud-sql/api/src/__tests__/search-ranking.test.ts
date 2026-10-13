@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { rankSearchResults, SearchBuckets } from "../lib/search-ranking";
+import { rankSearchResults, SearchBuckets, summarizeSearchResults } from "../lib/search-ranking";
 
 test("a destination hike ranks above its own objective without boosting summit routes", () => {
   const buckets: SearchBuckets = {
@@ -59,4 +59,13 @@ test("a broad place prefix ranks its summit before a route matching a shorter sh
   const buckets = { destinations: [peak, lake], routes: [climb, hike], areas: [], lists: [] };
   assert.deepEqual(rankSearchResults(buckets, 20).map((r) => r.id), ["hike", "peak", "lake", "climb"]);
   assert.equal(rankSearchResults({ ...buckets, routes: [{ ...climb, term_exact_match: true }] }, 20)[0].id, "climb");
+});
+
+test("ranked results carry a small summary, never the bucket row's geometry", () => {
+  const route = { id: "r", name: "Ingalls Lake", kind: "destination", polyline6: "abc", areas: [], score: 0.9 };
+  const lake = { id: "lake", name: "Ingalls Lake", type: "point", features: ["lake"], score: 0.8 };
+  const [first, second] = summarizeSearchResults(rankSearchResults({ destinations: [lake], routes: [route], areas: [], lists: [] }, 5));
+  assert.deepEqual(first.data, { name: "Ingalls Lake", kind: "destination" });
+  assert.deepEqual(second.data, { name: "Ingalls Lake", type: "point", features: ["lake"] });
+  assert.equal(route.polyline6, "abc", "the bucket row keeps its geometry");
 });

@@ -5,7 +5,7 @@ import { getUid } from "../auth";
 import { buildRouteAccessSql } from "../lib/route-access";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
 import { normalizeSearchName } from "../search-utils";
-import { rankSearchResults, searchPopularityScoreSql, searchTextScoreSql, SearchBuckets } from "../lib/search-ranking";
+import { rankSearchResults, searchPopularityScoreSql, searchTextScoreSql, SearchBuckets, summarizeSearchResults } from "../lib/search-ranking";
 
 const router = Router();
 
@@ -728,7 +728,7 @@ export async function runMixedSearchQueries(
     if (!lists) return undefined;
 
     const buckets = { destinations, routes, areas, lists };
-    return { ...buckets, results: rankSearchResults(buckets, queries.limit) };
+    return { ...buckets, results: summarizeSearchResults(rankSearchResults(buckets, queries.limit)) };
   }, pool, cancelBackendFn);
 }
 
