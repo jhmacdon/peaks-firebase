@@ -1,5 +1,10 @@
 # Reviewer login setup plan
 
+Production rollback preview **129** passed every role and grant check after
+the Phase 3 schema apply. It created no login and wrote no Keychain item.
+`production-preview.json` records the result. The seven offline failure and
+recovery tests also pass. Separate account approval remains pending.
+
 Production has the `peaks-route-reviewer` marker but no
 `peaks-route-reviewer-worker` login. This operator helper creates that one
 login and stores its random password in the exact Keychain item
