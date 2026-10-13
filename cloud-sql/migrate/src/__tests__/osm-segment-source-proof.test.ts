@@ -25,6 +25,28 @@ test("directed reverse source geometry is valid without changing provenance", ()
   const proof = proveOsmSegmentSource([...points].reverse(), edges, { strictMappedGeometry: true });
   assert.deepEqual(proof.errors, []); assert.deepEqual(proof.usedWayIds, [10, 11]);
 });
+test("strict source citations exclude parallel ways within the geometry tolerance", () => {
+  const parallel = edges.map(edge => ({ ...edge, wayId: edge.wayId + 10, startNodeId: edge.startNodeId + 10, endNodeId: edge.endNodeId + 10, start: { ...edge.start, lat: edge.start.lat + 0.000018 }, end: { ...edge.end, lat: edge.end.lat + 0.000018 } }));
+  const proof = proveOsmSegmentSource(points, [...edges, ...parallel], { strictMappedGeometry: true });
+  assert.deepEqual(proof.usedWayIds, [10, 11]);
+  assert.ok(proof.errors.some(error => error.includes("without positive geometry: 20,21")));
+  assert.deepEqual(contributingOsmWayIds(points, [...edges, ...parallel], { strictMappedGeometry: true }), [10, 11]);
+  assert.deepEqual(contributingOsmWayIds(points, [...edges, ...parallel]), [10, 11, 20, 21]);
+});
+test("strict source geometry cannot drift after one exact edge establishes contribution", () => {
+  const source = edges.map(edge => ({ ...edge, wayId: 10 }));
+  const drifted = [...points.slice(0, 2), { ...points[2], lat: points[2].lat + 0.000009 }];
+  const proof = proveOsmSegmentSource(drifted, source, { strictMappedGeometry: true });
+  assert.deepEqual(proof.usedWayIds, [10]);
+  assert.ok(proof.maxOffsetM < 2);
+  assert.equal(proof.coverage, 1);
+  assert.ok(proof.errors.some(error => error.includes("do not match exact cited source edges: 1")));
+});
+test("strict source geometry rejects a shortcut that skips a live source vertex", () => {
+  const proof = proveOsmSegmentSource([points[0], points[2]], edges, { strictMappedGeometry: true });
+  assert.deepEqual(proof.usedWayIds, []);
+  assert.ok(proof.errors.some(error => error.includes("do not match exact cited source edges")));
+});
 test("the source union cannot hide the wrong segment source IDs", () => {
   const proof = proveOsmSegmentSource(points.slice(0, 2), edges.slice(1), { strictMappedGeometry: true });
   assert.ok(proof.errors.length > 0); assert.equal(proof.topologyValid, false);

@@ -1,8 +1,28 @@
 import { nearestOsmRouteSource, osmRouteHaversineMeters, reviewOsmRouteGeometry, reviewOsmRouteTopology, type OsmRouteGraphSegment, type OsmRoutePoint } from "./osm-route-geometry";
 import { interpolateWorldPosition, normalizeLongitudeDelta, pointToSegmentMeters, projectPointToSegmentMeters } from "./route-world-geometry";
 
-/** Positive aligned overlap, not merely a shared endpoint or a crossing. */
-export function contributingOsmWayIds(points: readonly OsmRoutePoint[], sources: readonly OsmRouteGraphSegment[]): number[] {
+function exactSourceEdgeProof(points: readonly OsmRoutePoint[], sources: readonly OsmRouteGraphSegment[]): { usedWayIds: number[]; unmatchedEdgeIndices: number[] } {
+  const pointKey = (point: OsmRoutePoint) => JSON.stringify([point.lng, point.lat]);
+  const edgeKey = (a: OsmRoutePoint, b: OsmRoutePoint) => [pointKey(a), pointKey(b)].sort().join("|");
+  const sourceEdges = new Map<string, Set<number>>();
+  for (const source of sources) {
+    if (pointKey(source.start) === pointKey(source.end)) continue;
+    const key = edgeKey(source.start, source.end), ids = sourceEdges.get(key) ?? new Set<number>();
+    ids.add(source.wayId); sourceEdges.set(key, ids);
+  }
+  const used = new Set<number>(), unmatchedEdgeIndices: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    if (pointKey(points[i - 1]) === pointKey(points[i])) continue;
+    const ids = sourceEdges.get(edgeKey(points[i - 1], points[i]));
+    if (!ids) unmatchedEdgeIndices.push(i - 1);
+    else for (const id of ids) used.add(id);
+  }
+  return { usedWayIds: [...used].sort((a, b) => a - b), unmatchedEdgeIndices };
+}
+
+/** Catalog imports retain exact source edges. Legacy reviews retain their overlap tolerance. */
+export function contributingOsmWayIds(points: readonly OsmRoutePoint[], sources: readonly OsmRouteGraphSegment[], options: { strictMappedGeometry?: boolean } = {}): number[] {
+  if (options.strictMappedGeometry) return exactSourceEdgeProof(points, sources).usedWayIds;
   const used = new Set<number>();
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1], b = points[i], distance = osmRouteHaversineMeters(a, b);
@@ -49,7 +69,9 @@ export function proveOsmSegmentSource(points: OsmRoutePoint[], sources: OsmRoute
   if (maxOffsetM > 5) errors.push(`segment maximum source offset is ${maxOffsetM.toFixed(2)} m`);
   if (p95OffsetM > 2) errors.push(`segment p95 source offset is ${p95OffsetM.toFixed(2)} m`);
   if (coverage < 0.99) errors.push(`segment source coverage within3m is ${(coverage * 100).toFixed(2)}%`);
-  const usedWayIds = contributingOsmWayIds(points, sources), cited = [...new Set(sources.map(s => s.wayId))];
+  const exact = options.strictMappedGeometry ? exactSourceEdgeProof(points, sources) : null;
+  if (exact?.unmatchedEdgeIndices.length) errors.push(`segment edges do not match exact cited source edges: ${exact.unmatchedEdgeIndices.slice(0, 20).join(",")}${exact.unmatchedEdgeIndices.length > 20 ? "…" : ""}`);
+  const usedWayIds = exact?.usedWayIds ?? contributingOsmWayIds(points, sources), cited = [...new Set(sources.map(s => s.wayId))];
   const unused = cited.filter(id => !usedWayIds.includes(id));
   if (unused.length) errors.push(`segment cites ways without positive geometry: ${unused.join(",")}`);
   return { errors, usedWayIds, maxOffsetM, p95OffsetM, coverage, sampleCount: samples.length, startConnectorM, endConnectorM, topologyValid: topology.valid };

@@ -776,7 +776,7 @@ async function checkRoute(
     );
   }
 
-  const usedWayIds = contributingOsmWayIds(points, source.segments);
+  const usedWayIds = contributingOsmWayIds(points, source.segments, { strictMappedGeometry: route.kind !== null });
   result.used_way_ids = usedWayIds;
   result.metrics.used_way_count = usedWayIds.length;
   const unusedWayIds = wayIds.filter((wayId) => !usedWayIds.includes(wayId));
