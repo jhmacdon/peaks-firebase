@@ -1,0 +1,176 @@
+[
+  {
+    "id": "1755CBB232F3FCC6A437",
+    "name": "Lake Serene",
+    "lat": 47.7816864,
+    "lng": -121.57059106784223,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1525580",
+      "wikidata": "Q24884203",
+      "osm_relation": "16680239"
+    }
+  },
+  {
+    "id": "3F941B9F4262007D704D",
+    "name": "Lake Stuart",
+    "lat": 47.49625935,
+    "lng": -120.87770842152418,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1526640",
+      "wikidata": "Q124370643",
+      "osm_relation": "17100498"
+    }
+  },
+  {
+    "id": "4EDA7A56C36153040635",
+    "name": "Snow Lake",
+    "lat": 47.4666153,
+    "lng": -121.45459904362744,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1526035",
+      "wikidata": "Q20712220",
+      "osm_relation": "6446962"
+    }
+  },
+  {
+    "id": "4F56621F3FF823F6A480",
+    "name": "Lake Ingalls",
+    "lat": 47.47101515,
+    "lng": -120.93876763811147,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1521205",
+      "wikidata": "Q21196808",
+      "osm_relation": "17021362"
+    }
+  },
+  {
+    "id": "5hVnUW4tmqj3A6YbU0oB",
+    "name": "Mailbox Peak",
+    "lat": 47.462465,
+    "lng": -121.63942,
+    "features": [
+      "summit"
+    ],
+    "external_ids": {
+      "osm": "285408190",
+      "wikidata": "Q111944228"
+    }
+  },
+  {
+    "id": "7F9130E5AAEC9213E123",
+    "name": "Rattlesnake Ledge",
+    "lat": 47.4360417,
+    "lng": -121.7785009,
+    "features": [
+      "viewpoint"
+    ],
+    "external_ids": {
+      "osm_node": "534472312"
+    }
+  },
+  {
+    "id": "9B40DE76DC0878A92331",
+    "name": "Blanca Lake",
+    "lat": 47.9403596,
+    "lng": -121.34051194128975,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1516642",
+      "wikidata": "Q3214751",
+      "osm_relation": "13049031"
+    }
+  },
+  {
+    "id": "FF006293EBCD1BBDA398",
+    "name": "Lake Twentytwo",
+    "lat": 48.064133299999995,
+    "lng": -121.7642157832234,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "gnis": "1527515",
+      "wikidata": "Q49303905",
+      "osm_relation": "14862342"
+    }
+  },
+  {
+    "id": "htqW9lCp974x1tEWD8t7",
+    "name": "Tolmie Peak",
+    "lat": 46.958036,
+    "lng": -121.877344,
+    "features": [
+      "summit",
+      "fire-lookout"
+    ],
+    "external_ids": {
+      "osm": "348178753",
+      "wikidata": "Q7814451"
+    }
+  },
+  {
+    "id": "nSf6z4vL0zjdG2sXibBM",
+    "name": "Mount Si",
+    "lat": 47.506807,
+    "lng": -121.739039,
+    "features": [
+      "summit"
+    ],
+    "external_ids": {
+      "osm": "356546426"
+    }
+  },
+  {
+    "id": "RedSHjLLfieFAySd8gFZ",
+    "name": "Colchuck Lake",
+    "lat": 47.492790758578586,
+    "lng": -120.8335590362549,
+    "features": [
+      "lake"
+    ],
+    "external_ids": {
+      "osm_relation": "17094764"
+    }
+  },
+  {
+    "id": "xHaYBgzoxgfAZNLTfWid",
+    "name": "Little Si",
+    "lat": 47.49867,
+    "lng": -121.756228,
+    "features": [
+      "summit",
+      "viewpoint"
+    ],
+    "external_ids": {
+      "osm": "356545680",
+      "osm_node": "356545680",
+      "wikidata": "Q6651911"
+    }
+  },
+  {
+    "id": "Yfu5QdaOWeuxpSXiN5rK",
+    "name": "Poo Poo Point",
+    "lat": 47.499364,
+    "lng": -122.008229,
+    "features": [
+      "summit"
+    ],
+    "external_ids": {
+      "osm": "2353644455"
+    }
+  }
+]

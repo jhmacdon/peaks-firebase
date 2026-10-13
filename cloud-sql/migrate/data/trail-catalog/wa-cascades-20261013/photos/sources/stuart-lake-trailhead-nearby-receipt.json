@@ -1,0 +1,6 @@
+{
+  "url": "https://commons.wikimedia.org/w/api.php?action=query&list=geosearch&gscoord=47.528185%7C-120.820761&gsradius=150&gsnamespace=6&gslimit=20&format=json",
+  "retrievedAt": "2026-10-13T07:18:05.628277+00:00",
+  "sha256": "5b9a3e49850ea05b1a20ec8bf5d745292fb9384f6f1901c18eff7d1e7bc54e1e",
+  "destinationId": "0kwic89q2UWPLE6jGyk0"
+}

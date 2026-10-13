@@ -1,0 +1,1196 @@
+{
+  "generatedAt": "2026-10-13T07:33:29.624027+00:00",
+  "scope": "19 cover gaps among 21 golden route inputs; 13 objective places and 5 bound trailheads.",
+  "fixedMonthlyCostUsd": 0,
+  "catalogSnapshot": "../catalog-places-6bb7916bb071.json",
+  "catalogSnapshotSha256": "6bb7916bb071a10305e3b8a0a44f791f0c3cf0c7f343388184213df2a360f626",
+  "goldenManifestSha256AtResearch": "a4ac8e38b23c017b3d113f7663973f89b1a0479d99601eb76701fbcc8896b4cc",
+  "targets": [
+    {
+      "id": "1755CBB232F3FCC6A437",
+      "name": "Lake Serene",
+      "lat": 47.7816864,
+      "lng": -121.57059106784223,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "3F941B9F4262007D704D",
+      "name": "Lake Stuart",
+      "lat": 47.49625935,
+      "lng": -120.87770842152418,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "4EDA7A56C36153040635",
+      "name": "Snow Lake",
+      "lat": 47.4666153,
+      "lng": -121.45459904362744,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "4F56621F3FF823F6A480",
+      "name": "Lake Ingalls",
+      "lat": 47.47101515,
+      "lng": -120.93876763811147,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "5hVnUW4tmqj3A6YbU0oB",
+      "name": "Mailbox Peak",
+      "lat": 47.462465,
+      "lng": -121.63942,
+      "features": [
+        "summit"
+      ]
+    },
+    {
+      "id": "7F9130E5AAEC9213E123",
+      "name": "Rattlesnake Ledge",
+      "lat": 47.4360417,
+      "lng": -121.7785009,
+      "features": [
+        "viewpoint"
+      ]
+    },
+    {
+      "id": "9B40DE76DC0878A92331",
+      "name": "Blanca Lake",
+      "lat": 47.9403596,
+      "lng": -121.34051194128975,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "FF006293EBCD1BBDA398",
+      "name": "Lake Twentytwo",
+      "lat": 48.064133299999995,
+      "lng": -121.7642157832234,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "htqW9lCp974x1tEWD8t7",
+      "name": "Tolmie Peak",
+      "lat": 46.958036,
+      "lng": -121.877344,
+      "features": [
+        "summit",
+        "fire-lookout"
+      ]
+    },
+    {
+      "id": "nSf6z4vL0zjdG2sXibBM",
+      "name": "Mount Si",
+      "lat": 47.506807,
+      "lng": -121.739039,
+      "features": [
+        "summit"
+      ]
+    },
+    {
+      "id": "RedSHjLLfieFAySd8gFZ",
+      "name": "Colchuck Lake",
+      "lat": 47.492790758578586,
+      "lng": -120.8335590362549,
+      "features": [
+        "lake"
+      ]
+    },
+    {
+      "id": "xHaYBgzoxgfAZNLTfWid",
+      "name": "Little Si",
+      "lat": 47.49867,
+      "lng": -121.756228,
+      "features": [
+        "summit",
+        "viewpoint"
+      ]
+    },
+    {
+      "id": "Yfu5QdaOWeuxpSXiN5rK",
+      "name": "Poo Poo Point",
+      "lat": 47.499364,
+      "lng": -122.008229,
+      "features": [
+        "summit"
+      ]
+    },
+    {
+      "id": "C21AD354B7FEA99C277F",
+      "name": "Skyline Trailhead",
+      "lat": 46.7864184,
+      "lng": -121.7364531,
+      "features": [
+        "trailhead"
+      ]
+    },
+    {
+      "id": "6D0E779FF39C5B648D6B",
+      "name": "Tipsoo Lake Trailhead",
+      "lat": 46.8698645,
+      "lng": -121.519389,
+      "features": [
+        "trailhead"
+      ]
+    },
+    {
+      "id": "b5keGEdwDwFwkodbuwaq",
+      "name": "Rainy Pass Trailhead",
+      "lat": 48.516768,
+      "lng": -120.736405,
+      "features": [
+        "trailhead"
+      ]
+    },
+    {
+      "id": "Vm0gOD6OdjW4lQmHn0Fj",
+      "name": "Esmeralda Trailhead",
+      "lat": 47.436808,
+      "lng": -120.936916,
+      "features": [
+        "trailhead"
+      ]
+    },
+    {
+      "id": "0kwic89q2UWPLE6jGyk0",
+      "name": "Stuart Lake Trailhead",
+      "lat": 47.528185,
+      "lng": -120.820761,
+      "features": [
+        "trailhead"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "kind": "destination",
+      "coverDestinationId": "1755CBB232F3FCC6A437"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "kind": "destination",
+      "coverDestinationId": "4EDA7A56C36153040635"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "kind": "destination",
+      "coverDestinationId": "4F56621F3FF823F6A480"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "kind": "destination",
+      "coverDestinationId": "RedSHjLLfieFAySd8gFZ"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "kind": "destination",
+      "coverDestinationId": "3F941B9F4262007D704D"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4829792",
+      "name": "Enchantment Traverse",
+      "kind": "traverse",
+      "coverDestinationId": "0kwic89q2UWPLE6jGyk0"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626187",
+      "name": "Esmeralda Basin Trail",
+      "kind": "destination",
+      "coverDestinationId": "Vm0gOD6OdjW4lQmHn0Fj"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5553769",
+      "name": "Mount Si Trail",
+      "kind": "summit",
+      "coverDestinationId": "nSf6z4vL0zjdG2sXibBM"
+    },
+    {
+      "sourceKey": "wa:osm-relation:6106367",
+      "name": "Little Si",
+      "kind": "summit",
+      "coverDestinationId": "xHaYBgzoxgfAZNLTfWid"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "kind": "destination",
+      "coverDestinationId": "7F9130E5AAEC9213E123"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5199914",
+      "name": "Skyline Loop (Paradise)",
+      "kind": "loop",
+      "coverDestinationId": "C21AD354B7FEA99C277F"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194432",
+      "name": "Naches Peak Loop",
+      "kind": "loop",
+      "coverDestinationId": "6D0E779FF39C5B648D6B"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5426108",
+      "name": "Mailbox Peak (new trail)",
+      "kind": "summit",
+      "coverDestinationId": "5hVnUW4tmqj3A6YbU0oB"
+    },
+    {
+      "sourceKey": "wa:osm-relation:7147738",
+      "name": "Mailbox Peak (old trail)",
+      "kind": "summit",
+      "coverDestinationId": "5hVnUW4tmqj3A6YbU0oB"
+    },
+    {
+      "sourceKey": "wa:osm-relation:6632394",
+      "name": "Heather–Maple Pass Loop",
+      "kind": "loop",
+      "coverDestinationId": "b5keGEdwDwFwkodbuwaq"
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "kind": "destination",
+      "coverDestinationId": "9B40DE76DC0878A92331"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "kind": "destination",
+      "coverDestinationId": "FF006293EBCD1BBDA398"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5519228",
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "kind": "destination",
+      "coverDestinationId": "Yfu5QdaOWeuxpSXiN5rK"
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194384",
+      "name": "Tolmie Peak",
+      "kind": "summit",
+      "coverDestinationId": "htqW9lCp974x1tEWD8t7"
+    }
+  ],
+  "proposals": [
+    {
+      "destinationId": "nSf6z4vL0zjdG2sXibBM",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "title": "File:Mount Si seen from Mill Pond Road in Washington state.jpg",
+      "imageSha1": "66f87cbad2d06650931b77494cf90663115f9cdb",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg/960px-Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Title and description name Mount Si in Washington.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Clear Mount Si profile above the pond; keep the peak and reflection.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5553769"
+      ],
+      "candidateSha256": "2731995bacc9a0441a155a857daccff3d977299daa07fda4147de7041645aac0"
+    },
+    {
+      "destinationId": "xHaYBgzoxgfAZNLTfWid",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+      "title": "File:Little Si August 2026 01.jpg",
+      "imageSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Little_Si_August_2026_01.jpg/960px-Little_Si_August_2026_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Exact Little Si file title and Commons camera point near the stored summit/viewpoint.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.498603,
+          "lon": -121.755917,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 24.5,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Rocky summit viewpoint in front of the valley; the source already has a 16:9 frame.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:6106367"
+      ],
+      "candidateSha256": "1138be94b38d40f5a4b279e5add3707f0559a790563ea722f8c41f47e8d463a4"
+    },
+    {
+      "destinationId": "7F9130E5AAEC9213E123",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+      "title": "File:Rattlesnake Ledge, seen from Rattlesnake Lake.jpg",
+      "imageSha1": "af118d9cbbfb3b2b82b4d954f526b7c44c449e53",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg/960px-Rattlesnake_Ledge%2C_seen_from_Rattlesnake_Lake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Title and description name the ledge in King County, Washington.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Ledge visible above the forest; keep the ledge at the top of the wide crop.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5588030"
+      ],
+      "candidateSha256": "6e9a13ad286503dcd42a69ef45a4d37c4b075e1ff591e10b25e93aa8927c65e0"
+    },
+    {
+      "destinationId": "1755CBB232F3FCC6A437",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+      "title": "File:Lake Serene July 2025.jpg",
+      "imageSha1": "5b32a4fc714d2dff1bf870b4fd779a2c8c37a761",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Lake_Serene_July_2025.jpg/960px-Lake_Serene_July_2025.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Title, lake description and camera point identify the Mount Index lake; stored Wikidata P18 lead was undersized.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.784869,
+          "lon": -121.571804,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 365.3,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Clear lake and rocky basin; keep the water and shoreline.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:4807642"
+      ],
+      "candidateSha256": "154617b1250696dcda1e5f71afa64985a38a4d2f1a72a2133bb616a9704d03eb"
+    },
+    {
+      "destinationId": "4EDA7A56C36153040635",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+      "title": "File:20150621 SnowLake 043b.jpg",
+      "imageSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/20150621_SnowLake_043b.jpg/960px-20150621_SnowLake_043b.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Stored Q20712220 P18 and exact King County category identify the Snoqualmie/Alpental Snow Lake.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Lake surface and opposite rocky shoreline; keep shoreline and water.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:4793517"
+      ],
+      "candidateSha256": "f31c7a540b3220b89ac698b9a33d98a9827ae4e88b88f98efb9dce5623b038bc"
+    },
+    {
+      "destinationId": "4F56621F3FF823F6A480",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+      "title": "File:Lake Ingalls (21 October 2024) 2.jpg",
+      "imageSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Lake_Ingalls_%2821_October_2024%29_2.jpg/960px-Lake_Ingalls_%2821_October_2024%29_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Exact Lake Ingalls title/category and nearby Commons camera point.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.46893889,
+          "lon": -120.94024722,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 256.3,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Lake and shore in the lower half with Mount Stuart behind; keep water in the crop.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5626186"
+      ],
+      "candidateSha256": "600321d2da096ddcd6797580a94cc989de9feaf13a22ff237d3c79ae434eb898"
+    },
+    {
+      "destinationId": "RedSHjLLfieFAySd8gFZ",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+      "title": "File:Colchuck Lake.jpg",
+      "imageSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Colchuck_Lake.jpg/960px-Colchuck_Lake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Exact title and description name Colchuck Lake in Leavenworth, Washington.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Lake with Dragontail and Aasgard basin behind; room for a wide crop.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:4152031"
+      ],
+      "candidateSha256": "ad1a9356d38fac9d740b939b56d3fb62b6f9a371c5ebb0342ed61e9bd74da35a"
+    },
+    {
+      "destinationId": "3F941B9F4262007D704D",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "title": "File:Lake Stuart view - Flickr - brewbooks.jpg",
+      "imageSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Lake_Stuart_view_-_Flickr_-_brewbooks.jpg/960px-Lake_Stuart_view_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Description names Lake Stuart below Mount Stuart, Icicle Creek near Leavenworth; camera point sits by this lake.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.496908,
+          "lon": -120.873298,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 339.1,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Lake beneath Mount Stuart; keep the water with the peak.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:4152034"
+      ],
+      "candidateSha256": "1b2e5ea95fd77ed5c4872050baa8f06c17412a0cdb9ed72f3fbcc3401f7bce70"
+    },
+    {
+      "destinationId": "5hVnUW4tmqj3A6YbU0oB",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+      "title": "File:Mailbox from Mount Teneriffe.jpg",
+      "imageSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Mailbox_from_Mount_Teneriffe.jpg/960px-Mailbox_from_Mount_Teneriffe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Exact Mailbox title/category identifies the depicted peak; the camera is on Mount Teneriffe, not Mailbox.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.509269,
+          "lon": -121.695022,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 6674,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Mailbox profile centered beyond the foreground ridge; keep the center summit.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5426108",
+        "wa:osm-relation:7147738"
+      ],
+      "candidateSha256": "24547a31133d18d8b4bf758aa2864e30a218ba54fab544b3c2bb7378a0695a00"
+    },
+    {
+      "destinationId": "9B40DE76DC0878A92331",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+      "title": "File:Blanca Lake Hudak.jpg",
+      "imageSha1": "bf043f658538a185ba8c74413a870cb113db9af9",
+      "metadataFile": "sources/blanca-file.json",
+      "metadataSha256": "1bde1d27af714ad018367155a53e9ffb40a8bed0f3c650ff72044a6fd4ab9fe2",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Blanca_Lake_Hudak.jpg/960px-Blanca_Lake_Hudak.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Title, Washington description, glacial water and Columbia Glacier identify this Blanca Lake.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Green lake and glacier basin framed by trees; keep lake and basin.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:4807643"
+      ],
+      "candidateSha256": "b1dfcf35337fccefa8459b772f7287cd83ee9c59dd5f84a2b37e9ae40244d8a7"
+    },
+    {
+      "destinationId": "FF006293EBCD1BBDA398",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+      "title": "File:Lake 22 - Flickr - brewbooks.jpg",
+      "imageSha1": "bd223a55223506e776e4cd3f7f045107a491366b",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Lake_22_-_Flickr_-_brewbooks.jpg/960px-Lake_22_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Stored Q49303905 P18, Lake Twentytwo category, Trail 702 description and nearby camera point.",
+      "commonsCameraPoints": [
+        {
+          "lat": 48.062604,
+          "lon": -121.763409,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 180.3,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Lake surface with forested slopes; keep the lake above the foreground rocks.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5537770"
+      ],
+      "candidateSha256": "ecf4387ba6b1a887529692c133819b2e64d64bf4723e9f6ae40d43c73fc3b358"
+    },
+    {
+      "destinationId": "Yfu5QdaOWeuxpSXiN5rK",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+      "title": "File:Poo Poo Point.jpg",
+      "imageSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4",
+      "metadataFile": "sources/poopoo-file.json",
+      "metadataSha256": "709e0ea9a5126e4eece22911720bd069cf9d6bf75fc96c9b3e75c2b75d40ce99",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Poo_Poo_Point.jpg/960px-Poo_Poo_Point.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Title and description identify Poo Poo Point north paraglider takeoff on Tiger Mountain, Washington.",
+      "commonsCameraPoints": null,
+      "nearestCameraDistanceM": null,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Launch lawn and takeoff area visible with Squak Mountain behind; already wide.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5519228"
+      ],
+      "candidateSha256": "6c738921a4ea2237dc1dbd9046a8d3ecc9b33e709d0c01fa8c25597feec479fa"
+    },
+    {
+      "destinationId": "htqW9lCp974x1tEWD8t7",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+      "title": "File:Tolmie Peak.jpg",
+      "imageSha1": "02fbb9087880808fef74e6a367a5a337b3451a00",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Tolmie_Peak.jpg/960px-Tolmie_Peak.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Stored Q7814451 P18, Tolmie Peak category, summit/ridgeline description and nearby camera point.",
+      "commonsCameraPoints": [
+        {
+          "lat": 46.957702,
+          "lon": -121.880435,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 237.5,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Tolmie ridgeline view; this file does not show the lookout building.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5194384"
+      ],
+      "candidateSha256": "dfc0aa52adf0e28b2646347e9b149d733797de1022be51819f66a09515f482f5"
+    },
+    {
+      "destinationId": "C21AD354B7FEA99C277F",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "title": "File:Start of Skyline Trail - Comes Well Recommended - Flickr - brewbooks.jpg",
+      "imageSha1": "77bdbf04426a5fa8a0acedea8de3472d51b45ba8",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg/960px-Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "File title names the exact Skyline start and Commons camera point lies 27 m from the bound trailhead.",
+      "commonsCameraPoints": [
+        {
+          "lat": 46.786661,
+          "lon": -121.73639,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 27.4,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Entrance stone steps and John Muir quote visible; keep the entrance steps.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5199914"
+      ],
+      "candidateSha256": "8d4be4f4641775c8b48bebbf408728e92c70401bd4c6328f7d20de7459352693"
+    },
+    {
+      "destinationId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+      "title": "File:Esmeralda Basin - Ingalls Lake Trailhead (21 October 2024).jpg",
+      "imageSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "thumbnailUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Esmeralda_Basin_-_Ingalls_Lake_Trailhead_%2821_October_2024%29.jpg/960px-Esmeralda_Basin_-_Ingalls_Lake_Trailhead_%2821_October_2024%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "identityEvidence": "Exact trailhead title and Commons camera point 119.9 m from the bound Esmeralda entrance.",
+      "commonsCameraPoints": [
+        {
+          "lat": 47.43788056,
+          "lon": -120.937075,
+          "primary": "",
+          "globe": "earth"
+        }
+      ],
+      "nearestCameraDistanceM": 119.9,
+      "visualReview": {
+        "method": "Full-frame Commons browser preview inspected in Chrome; no image edits or downloads.",
+        "reviewedAt": "2026-10-13",
+        "finding": "Trailhead kiosk and signs visible at the foot of the mountains; keep the bottom signs. Cars appear at left.",
+        "humanApprovalRequired": true
+      },
+      "routeSourceKeys": [
+        "wa:osm-relation:5626187"
+      ],
+      "candidateSha256": "57fb81f4aeb4485eea0aabc1eb34d96423b3ecdd5e963aa58fc401c3bdf7afba"
+    }
+  ],
+  "unresolved": [
+    {
+      "destinationId": "6D0E779FF39C5B648D6B",
+      "destinationName": "Tipsoo Lake Trailhead",
+      "reason": "No exact northern Tipsoo trailhead photo verified. Nearby comfort-station, lake and flower images depict other subjects.",
+      "routeSourceKeys": [
+        "wa:osm-relation:5194432"
+      ]
+    },
+    {
+      "destinationId": "b5keGEdwDwFwkodbuwaq",
+      "destinationName": "Rainy Pass Trailhead",
+      "reason": "No exact bound Rainy Pass trailhead photo verified. Official Maple Pass/Lake Ann and north-PCT wildflower images depict other subjects.",
+      "routeSourceKeys": [
+        "wa:osm-relation:6632394"
+      ]
+    },
+    {
+      "destinationId": "0kwic89q2UWPLE6jGyk0",
+      "destinationName": "Stuart Lake Trailhead",
+      "reason": "No fully credited and dimension-verified exact Stuart Lake trailhead photo verified. Official gallery includes restroom queues and nearby landscapes; rights, author and original size remain unverified for the parking-lot hero.",
+      "routeSourceKeys": [
+        "wa:osm-relation:4829792"
+      ]
+    }
+  ],
+  "fileOutcomes": [
+    {
+      "title": "File:20150621 SnowLake 043b.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:20150621_SnowLake_043b.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "ed615aef825db682b3d5c42f92c542d41cee52d7"
+    },
+    {
+      "title": "File:Blanca Lake Hudak.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Blanca_Lake_Hudak.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/blanca-file.json",
+      "metadataSha256": "1bde1d27af714ad018367155a53e9ffb40a8bed0f3c650ff72044a6fd4ab9fe2",
+      "imageSha1": "bf043f658538a185ba8c74413a870cb113db9af9"
+    },
+    {
+      "title": "File:Colchuck Lake.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Colchuck_Lake.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "6d0714a61857bd7c80f4236bbcfdd62e9dc37a66"
+    },
+    {
+      "title": "File:Esmeralda Basin - Ingalls Lake Trailhead (21 October 2024).jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Esmeralda_Basin_-_Ingalls_Lake_Trailhead_(21_October_2024).jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "ba1a8def89e0c01d940935f8afa7d344a4a70a1a"
+    },
+    {
+      "title": "File:Lake 22 - Flickr - brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_22_-_Flickr_-_brewbooks.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "bd223a55223506e776e4cd3f7f045107a491366b"
+    },
+    {
+      "title": "File:Lake Ingalls (21 October 2024) 2.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls_(21_October_2024)_2.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "a0b450ce9d8f372601f7d5bb105046fd867f1f35"
+    },
+    {
+      "title": "File:Lake Ingalls.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ingalls.jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "8cf6ef0acd4ba9a165e1c94a6103bcf79c788086"
+    },
+    {
+      "title": "File:Lake Serene July 2025.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_July_2025.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "5b32a4fc714d2dff1bf870b4fd779a2c8c37a761"
+    },
+    {
+      "title": "File:Lake Serene Melt - Flickr - striatic.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Serene_Melt_-_Flickr_-_striatic.jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "5484f9f093b7c2c2422dd337ffdf4101522e04f1"
+    },
+    {
+      "title": "File:Lake Stuart - Flickr - brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_-_Flickr_-_brewbooks.jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "24310c1c88a515c7259814142179e904fbd3cfeb"
+    },
+    {
+      "title": "File:Lake Stuart view - Flickr - brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Stuart_view_-_Flickr_-_brewbooks.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "dc28987025cf6f56d99216811f5810d6344e8e4f"
+    },
+    {
+      "title": "File:LakeSerene2.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:LakeSerene2.jpg",
+      "outcome": "rejected",
+      "reason": "below_1600_by_900_floor",
+      "metadataFile": "sources/commons-lead-metadata.json",
+      "metadataSha256": "cc0853a306b0dfda085040c79b554e45a3f9ebf2afe14c2d9ac0cb7e0e5d8b4f",
+      "imageSha1": null
+    },
+    {
+      "title": "File:Little Si (63957).jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_(63957).jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "ba59970a8d42d7ee023763e33e423978bb509abb"
+    },
+    {
+      "title": "File:Little Si (92845).jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_(92845).jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "70bc95a441e5fb270fac5e3965de1023636bd1d2"
+    },
+    {
+      "title": "File:Little Si August 2026 01.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_01.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "2c754bff73c0581b9ae119d406a762f9fa0b31a3"
+    },
+    {
+      "title": "File:Little Si August 2026 02.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si_August_2026_02.jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "9f72df4ae1cebdb00d3b355f5f54fb3aed22ad01"
+    },
+    {
+      "title": "File:Little Si, United States.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si,_United_States.jpg",
+      "outcome": "rejected",
+      "reason": "depicted_peak_not_bound_to_Little_Si_and_camera_point_missing",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "1069de3fe887e41f8f17470befd0750c49852bf7"
+    },
+    {
+      "title": "File:Little Si.JPG",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Little_Si.JPG",
+      "outcome": "rejected",
+      "reason": "below_1600_by_900_floor",
+      "metadataFile": "sources/commons-lead-metadata.json",
+      "metadataSha256": "cc0853a306b0dfda085040c79b554e45a3f9ebf2afe14c2d9ac0cb7e0e5d8b4f",
+      "imageSha1": null
+    },
+    {
+      "title": "File:Mailbox Peak.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_Peak.jpg",
+      "outcome": "rejected",
+      "reason": "below_1600_by_900_floor",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "6045f80a5f83562523b5eee83583379b1f901c11"
+    },
+    {
+      "title": "File:Mailbox from Mount Teneriffe.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mailbox_from_Mount_Teneriffe.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "6be2a3769288dc53bf6a6d4e63dc136367503877"
+    },
+    {
+      "title": "File:Mount Si seen from Mill Pond Road in Washington state.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount_Si_seen_from_Mill_Pond_Road_in_Washington_state.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "66f87cbad2d06650931b77494cf90663115f9cdb"
+    },
+    {
+      "title": "File:Mount-Si.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mount-Si.jpg",
+      "outcome": "rejected",
+      "reason": "below_1600_by_900_floor",
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "9333d86dfb3529e9b07aab88aeab37c2838eb0d5"
+    },
+    {
+      "title": "File:Mt. Rainier and stairs with John Muir quote.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Mt._Rainier_and_stairs_with_John_Muir_quote.jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "883231fcbfec27e1e5a86b65cce5dbe69af2acaa"
+    },
+    {
+      "title": "File:Poo Poo Point.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Poo_Poo_Point.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/poopoo-file.json",
+      "metadataSha256": "709e0ea9a5126e4eece22911720bd069cf9d6bf75fc96c9b3e75c2b75d40ce99",
+      "imageSha1": "a1b8b654308d5e633aca7a7fbfe5ead7ffaf57b4"
+    },
+    {
+      "title": "File:Rattlesnake Ledge, seen from Rattlesnake Lake.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Rattlesnake_Ledge,_seen_from_Rattlesnake_Lake.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "af118d9cbbfb3b2b82b4d954f526b7c44c449e53"
+    },
+    {
+      "title": "File:Start of Skyline Trail - Comes Well Recommended - Flickr - brewbooks.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Start_of_Skyline_Trail_-_Comes_Well_Recommended_-_Flickr_-_brewbooks.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "77bdbf04426a5fa8a0acedea8de3472d51b45ba8"
+    },
+    {
+      "title": "File:Tipsoo Lake Comfort Station.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tipsoo_Lake_Comfort_Station.jpg",
+      "outcome": "rejected",
+      "reason": "different_facility_not_exact_trailhead",
+      "metadataFile": "sources/exact-trailhead-file-metadata.json",
+      "metadataSha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c",
+      "imageSha1": "2250cc1e736a1c7ebabb5f1256966b1bfb9c2c47"
+    },
+    {
+      "title": "File:Tolmie Peak.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Tolmie_Peak.jpg",
+      "outcome": "proposed_pending_review",
+      "reason": null,
+      "metadataFile": "sources/selected-file-metadata.json",
+      "metadataSha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e",
+      "imageSha1": "02fbb9087880808fef74e6a367a5a337b3451a00"
+    },
+    {
+      "title": "File:View of Squak Mountain from Poo Poo Point, Tiger Mountain, WA, 6 15 (18470392839).jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:View_of_Squak_Mountain_from_Poo_Poo_Point,_Tiger_Mountain,_WA,_6_15_(18470392839).jpg",
+      "outcome": "not_selected",
+      "reason": "alternative_not_selected_no_human_approval",
+      "metadataFile": "sources/poopoo-file.json",
+      "metadataSha256": "709e0ea9a5126e4eece22911720bd069cf9d6bf75fc96c9b3e75c2b75d40ce99",
+      "imageSha1": "c8118fac916fa11f44a8a551252c3e373094b04c"
+    },
+    {
+      "title": "File:Virgin Lake Blanca Lake 0075.jpg",
+      "sourcePageUrl": "https://commons.wikimedia.org/wiki/File:Virgin_Lake_Blanca_Lake_0075.jpg",
+      "outcome": "rejected",
+      "reason": "named_author_missing",
+      "metadataFile": "sources/commons-lead-metadata.json",
+      "metadataSha256": "cc0853a306b0dfda085040c79b554e45a3f9ebf2afe14c2d9ac0cb7e0e5d8b4f",
+      "imageSha1": null
+    }
+  ],
+  "summary": {
+    "placeTargets": 18,
+    "proposedPlacePhotos": 15,
+    "routesWithProposedPhoto": 16,
+    "unresolvedRoutes": 3,
+    "heroesApproved": 0,
+    "routesActivated": 0,
+    "databaseWrites": 0
+  },
+  "researchLimits": [
+    "This is a bounded review, not an exhaustive scan of all public photos.",
+    "One Commons category batch hit HTTP429; successful exact-file requests supply every proposal.",
+    "Photos remain pending and do not pass the credited-cover activation gate until approved and applied."
+  ],
+  "officialReviewObservation": {
+    "file": "sources/official-review-observation.json",
+    "sha256": "6e6a6601203661f3ebca276048fd567f102118c6e3b942954d4825d745c3476e"
+  },
+  "sourceFiles": [
+    {
+      "path": "sources/blanca-file-receipt.json",
+      "sha256": "c29a9304e51eb27de7b98c58b098bd60921fceeb85b781977af3dc5db91503f3"
+    },
+    {
+      "path": "sources/blanca-file.json",
+      "sha256": "1bde1d27af714ad018367155a53e9ffb40a8bed0f3c650ff72044a6fd4ab9fe2"
+    },
+    {
+      "path": "sources/commons-lead-metadata.json",
+      "sha256": "cc0853a306b0dfda085040c79b554e45a3f9ebf2afe14c2d9ac0cb7e0e5d8b4f"
+    },
+    {
+      "path": "sources/commons-lead-receipt.json",
+      "sha256": "2855d13a5834610cc400267acb358ecc3e5665bfc1597b7ce2976cae9e5ac70a"
+    },
+    {
+      "path": "sources/esmeralda-trailhead-nearby-receipt.json",
+      "sha256": "06f4e057585b8be0788d306e7677e5f76acbe54837134f994efdd56d7027405e"
+    },
+    {
+      "path": "sources/esmeralda-trailhead-nearby.json",
+      "sha256": "186c8bf8cf98283787faefb0c42a21e1219ca375adc5169c309cb7efd19eaaea"
+    },
+    {
+      "path": "sources/esmeralda-trailhead-search-receipt.json",
+      "sha256": "447b1db30e88085ea411921bcbf7dac4a52d8cac27502baec962f2b572266af7"
+    },
+    {
+      "path": "sources/esmeralda-trailhead-search.json",
+      "sha256": "688d401ed6447a04b61b8b5aea327e975f2f69ec5596d800d49a0b230236ea4b"
+    },
+    {
+      "path": "sources/exact-trailhead-file-metadata.json",
+      "sha256": "7dd44641549738323bf28ce355f4f699a3234271213eb022cecf796e85bfbb6c"
+    },
+    {
+      "path": "sources/exact-trailhead-file-receipt.json",
+      "sha256": "af2050831d284e15ff767d0ea2304f87aa38dfee44cd1f496d18184434cefcb6"
+    },
+    {
+      "path": "sources/nps-naches-gallery-receipt.json",
+      "sha256": "fe202d65e477120185a6d639143cdf1ca49f32928b2f58059988d77b4698d6bf"
+    },
+    {
+      "path": "sources/nps-naches-gallery.html",
+      "sha256": "f0991d37ed82c427f48bc7e7f79ff1906302aed7753441894803b471ca489df7"
+    },
+    {
+      "path": "sources/nps-tipsoo-receipt.json",
+      "sha256": "e077e149402f4185ce645337e36912d2bdf575bac748a6e7434465eb62f943ed"
+    },
+    {
+      "path": "sources/nps-tipsoo.html",
+      "sha256": "d2b86b5836cc2c7c61b742926216c41e6a66c56d61a754db44d963d9b5ba6667"
+    },
+    {
+      "path": "sources/official-review-observation.json",
+      "sha256": "6e6a6601203661f3ebca276048fd567f102118c6e3b942954d4825d745c3476e"
+    },
+    {
+      "path": "sources/poopoo-file-receipt.json",
+      "sha256": "a1b6622a60d94c4ed527b0711ff1a6d9635b0bb53443bd2c4ff6b1dc1c23a839"
+    },
+    {
+      "path": "sources/poopoo-file.json",
+      "sha256": "709e0ea9a5126e4eece22911720bd069cf9d6bf75fc96c9b3e75c2b75d40ce99"
+    },
+    {
+      "path": "sources/poopoo-search-receipt.json",
+      "sha256": "28495984d3923f02f85c6aedd4e148cc1589e60596a724054b770360239c89d3"
+    },
+    {
+      "path": "sources/poopoo-search.json",
+      "sha256": "97bcf8ca085914d90361327a21eb90410ddbb7180efad32afb805e0326fee602"
+    },
+    {
+      "path": "sources/rainy-pass-trailhead-nearby-receipt.json",
+      "sha256": "ec99f2e7d7d2d18f68f8b7f8ef796f9e92621fbe32c3f96fe198fc6b28cde1f6"
+    },
+    {
+      "path": "sources/rainy-pass-trailhead-nearby.json",
+      "sha256": "5b9a3e49850ea05b1a20ec8bf5d745292fb9384f6f1901c18eff7d1e7bc54e1e"
+    },
+    {
+      "path": "sources/rainy-pass-trailhead-search-receipt.json",
+      "sha256": "4b005895e9da889845f5634ffc27118e45a15749ed71bb79df7c98f824e6ceed"
+    },
+    {
+      "path": "sources/rainy-pass-trailhead-search.json",
+      "sha256": "688d401ed6447a04b61b8b5aea327e975f2f69ec5596d800d49a0b230236ea4b"
+    },
+    {
+      "path": "sources/remaining-search-metadata.json",
+      "sha256": "ada2a601f24c7f102c6432340d6adca256996c391606174b387338725fe7cf7d"
+    },
+    {
+      "path": "sources/remaining-search-receipt.json",
+      "sha256": "d0137964f0a068279e5383d7441c31d8dc0e6eb7f6326eb4c683900a07d310d9"
+    },
+    {
+      "path": "sources/selected-file-metadata.json",
+      "sha256": "ead7988794b45c91424be9902f9b47860c8a25907cc7b94f6fac025803d2321e"
+    },
+    {
+      "path": "sources/selected-file-receipt.json",
+      "sha256": "002d8a00c572fca13fd7a4e7f1258b329f0d352b14a865bd6b35c5ddce9de976"
+    },
+    {
+      "path": "sources/skyline-trailhead-nearby-receipt.json",
+      "sha256": "dd9c337fdeeae0019ddb050ed0ccd917ae72d3a067434fb82c84680e5344b5f5"
+    },
+    {
+      "path": "sources/skyline-trailhead-nearby.json",
+      "sha256": "d8b77cdcb6f0e90aba49e9aed37f859fa17eed4d857ae74be406afc926a12255"
+    },
+    {
+      "path": "sources/skyline-trailhead-search-receipt.json",
+      "sha256": "c26e5eec492514f4cf4598dcb1a14bc3c75292fb574dc8dbae2016ee833b801a"
+    },
+    {
+      "path": "sources/skyline-trailhead-search.json",
+      "sha256": "688d401ed6447a04b61b8b5aea327e975f2f69ec5596d800d49a0b230236ea4b"
+    },
+    {
+      "path": "sources/stuart-lake-trailhead-nearby-receipt.json",
+      "sha256": "798c82e429105974f33e13f14ac54b81bbb71e667950e2eaff23ddba32fd496e"
+    },
+    {
+      "path": "sources/stuart-lake-trailhead-nearby.json",
+      "sha256": "5b9a3e49850ea05b1a20ec8bf5d745292fb9384f6f1901c18eff7d1e7bc54e1e"
+    },
+    {
+      "path": "sources/stuart-lake-trailhead-search-receipt.json",
+      "sha256": "de4afc2fa745c465ea2fc0c94cf314417bdfa5bed4a187f315428369a2684144"
+    },
+    {
+      "path": "sources/stuart-lake-trailhead-search.json",
+      "sha256": "688d401ed6447a04b61b8b5aea327e975f2f69ec5596d800d49a0b230236ea4b"
+    },
+    {
+      "path": "sources/targets.json",
+      "sha256": "dc93f117691ccd72a022d53177acad17058a0f553bb0bf7ffbed5d183997127c"
+    },
+    {
+      "path": "sources/tipsoo-lake-trailhead-nearby-receipt.json",
+      "sha256": "e65594ccd36eddd726ab762a37c624eea7dae045ff70b6b4f126a75544baddab"
+    },
+    {
+      "path": "sources/tipsoo-lake-trailhead-nearby.json",
+      "sha256": "1a0d687fc62e778bcad9c8a8c748fd279b65c7799d7a81217e1988a9093e12ea"
+    },
+    {
+      "path": "sources/tipsoo-lake-trailhead-search-receipt.json",
+      "sha256": "500e320c73ea941d8de6d10a70ec4c65e98901c7eddce85e7d0b335ecbbe6938"
+    },
+    {
+      "path": "sources/tipsoo-lake-trailhead-search.json",
+      "sha256": "688d401ed6447a04b61b8b5aea327e975f2f69ec5596d800d49a0b230236ea4b"
+    },
+    {
+      "path": "sources/usfs-rainy-maple-trailhead-receipt.json",
+      "sha256": "21de1835d6db7d66f60fe9a6184ecc44e30f3a9f463e36fdcd6fcf94e53d7490"
+    },
+    {
+      "path": "sources/usfs-rainy-maple-trailhead.html",
+      "sha256": "a1b83b6dfa8196aea9251278fe5f8ba0456ac931cfe5c14cb72d579993e9bdd9"
+    },
+    {
+      "path": "sources/usfs-rainy-north-trailhead-receipt.json",
+      "sha256": "cdb5e4857841293220de2872a2f5667494cdc261f4da10aef8460e37cacd0854"
+    },
+    {
+      "path": "sources/usfs-rainy-north-trailhead.html",
+      "sha256": "31035f5a3203eafeba81217e22eeaed965b40b4ee57a1b38306c79f708292793"
+    },
+    {
+      "path": "sources/usfs-stuart-trailhead-receipt.json",
+      "sha256": "86e30f08dfa1ae7e29efa4bb453e923758d58ac53fdab07fca451787f4a90a38"
+    },
+    {
+      "path": "sources/usfs-stuart-trailhead.html",
+      "sha256": "21923325f1351317b4190f0e4e192aff25f541803599ea9779954608c2bff537"
+    },
+    {
+      "path": "sources/wikidata-receipt.json",
+      "sha256": "9493bc2f2ff3efcd013d799c377ae376ea98220f3753d91194c9103021abf300"
+    },
+    {
+      "path": "sources/wikidata-targets.json",
+      "sha256": "9474121f8d53ecc0f04b0fecb9d7959637a51439dadfaf647d74e8b5e711f23c"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "observedAt": "2026-10-13T07:36:51.149370+00:00",
+  "method": "Read rendered public pages in Chrome; inspected full-frame Commons previews for every queued proposal.",
+  "officialChecks": [
+    {
+      "destinationId": "0kwic89q2UWPLE6jGyk0",
+      "url": "https://www.fs.usda.gov/r06/okanogan-wenatchee/recreation/stuart-lake-trailhead",
+      "outcome": "blocked",
+      "reason": "The hero names a 2019 USFS parking-lot photo, but its named photographer, original dimensions and exact image rights were not verified. The gallery has restroom queues and unrelated mountain/lake subjects. None enters the queue."
+    },
+    {
+      "destinationId": "b5keGEdwDwFwkodbuwaq",
+      "url": "https://www.fs.usda.gov/r06/okanogan-wenatchee/recreation/heather-maple-pass-rainy-pass-picnic-site",
+      "outcome": "rejected",
+      "reason": "Hero filename identifies Maple Pass / Lake Ann, not this trailhead."
+    },
+    {
+      "destinationId": "b5keGEdwDwFwkodbuwaq",
+      "url": "https://www.fs.usda.gov/r06/okanogan-wenatchee/recreation/rainy-pass-north-trailhead-pct",
+      "outcome": "rejected",
+      "reason": "This is the separate north/PCT trailhead. Its hero names wildflowers along the Maple Pass hike; no exact bound-head subject verified."
+    },
+    {
+      "destinationId": "6D0E779FF39C5B648D6B",
+      "url": "https://www.nps.gov/places/tipsoo-lake.htm",
+      "outcome": "rejected",
+      "reason": "Lead photo depicts lake-side meadows and walkers, not the bound northern trail entrance."
+    },
+    {
+      "destinationId": "6D0E779FF39C5B648D6B",
+      "url": "https://www.nps.gov/media/photo/gallery.htm?pg=6729234&id=67C9F189-30B0-42CF-9B05-3BA10E3D8CB4",
+      "outcome": "rejected",
+      "reason": "All nine displayed original sizes are 640x960 or 960x640, below the 1600x900 floor; captions name other route subjects. Gallery warns that image copyright may vary."
+    }
+  ],
+  "npsGalleryDisplayedSizes": [
+    {
+      "titlePrefix": "Mount Rainier provides a fine",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Seedheads of the western anemone",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Hikers enjoy a stroll around",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Hikers use the Pacific Crest Trail",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Tipsoo Lake",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Hiker on the trail stops",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Yakima Peak rises to the north",
+      "width": 960,
+      "height": 640
+    },
+    {
+      "titlePrefix": "Signs at the junction",
+      "width": 640,
+      "height": 960
+    },
+    {
+      "titlePrefix": "Hikers at the southern end",
+      "width": 640,
+      "height": 960
+    }
+  ]
+}
