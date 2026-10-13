@@ -56,7 +56,20 @@
       "sha256": "d8d8bca6d9b3242e39a6c3ef12a257d07f5ae1c185d1e126c41875eb102819bc"
     }
   },
-  "api_deploy": "pending",
+  "api_deploy": {
+    "status": "deployed",
+    "revision": "peaks-api-00267-z6s",
+    "traffic_percent": 100,
+    "commit": "8ee392d7d9a64188858dcab8084b449ea6f5f79a",
+    "deployment_run": "https://github.com/jhmacdon/peaks-firebase/actions/runs/38355212688",
+    "final_http_checks": {
+      "total": 25,
+      "success": 25,
+      "scope": "23 catalog queries and 2 geographic destination-search variants",
+      "evidence": "../trail-catalog-wa-2026-10-13/production-search.json"
+    },
+    "golden_set_pass": false
+  },
   "api_grants_verified": true,
   "data_source_run_ids": {
     "names_dry_run": 93,
