@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "login": "peaks-route-factory-worker",
+  "sha256": {
+    "setup.sql": "8a63cbb66e993a809136cb604447ab7818218d3437ef65a759ef21c25dc6d9ca",
+    "verify.sql": "940f8788a77cfaf52f369e0bc792e2fcbfbea1fe77da45b4a84af1dde91ee09d",
+    "keychain.py": "b39219d53031cc8c741e410bfc17ed48d2bcd3ab6c09e175d606b483bce6a4b9"
+  }
+}
