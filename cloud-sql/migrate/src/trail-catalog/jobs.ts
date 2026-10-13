@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { CandidateRejection, sha256, stableJson } from "./graph";
-import type { ReadyCandidate } from "./types";
+import type { BuiltCandidate, ReadyCandidate } from "./types";
 
 export interface CandidateArtifact { candidate: ReadyCandidate; snapshots: { sha256: string; body: string }[] }
 export interface CandidateLease { sourceKey: string; token: string; inputHash: string; proposedRouteId: string; artifact: CandidateArtifact }
@@ -42,8 +42,13 @@ export async function finishCandidate(client: PoolClient, lease: CandidateLease,
   if (saved.rows.length !== 1) throw new CandidateRejection("candidate_lease_lost");
 }
 
-export async function existingCatalogRoute(client: Pick<PoolClient, "query">, candidate: ReadyCandidate | { input: ReadyCandidate["input"] }): Promise<string | null> {
+export async function existingCatalogRoute(client: Pick<PoolClient, "query">, candidate: BuiltCandidate | { input: ReadyCandidate["input"]; points?: BuiltCandidate["points"] }): Promise<string | null> {
   const input = candidate.input;
+  // Two distinct source cycles may share a trailhead. Compare their whole exact
+  // XY footprint; direction, start vertex, and elevation do not create a new hike.
+  const loop = input.kind === "loop" && input.objectiveId === null;
+  if (loop && (!candidate.points || candidate.points.length < 4)) throw new CandidateRejection("loop_duplicate_geometry_required");
+  const loopGeometry = loop ? JSON.stringify({ type: "LineString", coordinates: candidate.points!.map(point => [point.lng, point.lat]) }) : null;
   const tables = await client.query("SELECT to_regclass('public.trail_catalog_candidate_jobs') IS NOT NULL AS exists");
   const receipt = tables.rows[0]?.exists ? await client.query("SELECT route_id FROM trail_catalog_candidate_jobs WHERE source_key=$1 AND state='pending'", [input.sourceKey]) : { rows: [] };
   // Legacy rows may predate denormalized objective/trailhead pointers.
@@ -56,9 +61,11 @@ export async function existingCatalogRoute(client: Pick<PoolClient, "query">, ca
     )
     SELECT r.id,r.name,r.provenance FROM trailhead_routes head JOIN routes r ON r.id=head.id
     WHERE r.owner='peaks' AND r.status IN ('active','pending')
-      AND (CASE WHEN $2::text IS NULL THEN r.kind='loop' ELSE r.id IN (SELECT id FROM objective_routes) END)
+      AND (CASE WHEN $2::text IS NULL THEN r.kind='loop'
+        AND ST_Equals(ST_Force2D(r.path::geometry),ST_SetSRID(ST_GeomFromGeoJSON($4::text),4326))
+        ELSE r.id IN (SELECT id FROM objective_routes) END)
       AND ($3::text IS NULL OR r.id<>$3)
-    ORDER BY r.id`, [input.trailheadId, input.objectiveId, receipt.rows[0]?.route_id ?? null]);
+    ORDER BY r.id`, [input.trailheadId, input.objectiveId, receipt.rows[0]?.route_id ?? null, loopGeometry]);
   if (!rows.rows.length) return null;
   if (input.variant) {
     const expected = input.variant === "mailbox-old" ? 7147738 : 5426108;

@@ -9,7 +9,7 @@ import { applyPilot, markIncompleteApplyReports, parsePilotArgs } from "../trail
 import { TERRARIUM_REQUIRED_ATTRIBUTION } from "../lib/terrarium-attribution";
 import { claimCandidate, finishCandidate, existingCatalogRoute, type CandidateArtifact } from "../trail-catalog/jobs";
 import type { CandidateReport, CatalogPlace, PilotCandidateInput } from "../trail-catalog/types";
-import type { PoolClient } from "pg";
+import { Pool, type PoolClient } from "pg";
 
 const head: CatalogPlace = { id: "head", name: "Example Trailhead", lat: 47, lng: -121, features: ["trailhead"], stateCode: "WA", countryCode: "US" };
 const objective: CatalogPlace = { ...head, id: "peak", name: "Example Peak", lng: -120.98, features: ["summit"] };
@@ -136,6 +136,51 @@ test("legacy duplicate guard works before candidate job migration", async () => 
   assert.equal(await existingCatalogRoute(client, { input }), "legacy-route");
   assert.equal(queries.length, 2);
   assert.match(queries[1], /rd.ordinal=0/);
+});
+test("loop duplicate checks use the whole XY footprint while retaining receipt and trailhead bindings", async () => {
+  const loopInput = { ...input, sourceKey: "second-loop", kind: "loop" as const, objectiveId: null };
+  const points = [{ lat: 47, lng: -121 }, { lat: 47, lng: -120.98 }, { lat: 47.02, lng: -120.98 }, { lat: 47, lng: -121 }];
+  const queries: { sql: string; params: unknown[] }[] = [];
+  let duplicate = false;
+  const client = { query: async (sql: string, params: unknown[]) => {
+    queries.push({ sql, params });
+    if (sql.includes("to_regclass")) return { rows: [{ exists: true }] };
+    if (sql.includes("source_key=$1 AND state='pending'")) return { rows: [{ route_id: "own-pending" }] };
+    return { rows: duplicate ? [{ id: "same-loop" }] : [] };
+  } } as unknown as PoolClient;
+  await assert.rejects(() => existingCatalogRoute(client, { input: loopInput }), /loop_duplicate_geometry_required/);
+  assert.equal(queries.length, 0, "missing loop geometry must not hide duplicates");
+  assert.equal(await existingCatalogRoute(client, { input: loopInput, points }), null);
+  const query = queries[2];
+  assert.deepEqual(query.params.slice(0, 3), [head.id, null, "own-pending"]);
+  assert.deepEqual(JSON.parse(query.params[3] as string), { type: "LineString", coordinates: points.map(p => [p.lng, p.lat]) });
+  assert.match(query.sql, /r\.kind='loop'\s+AND ST_Equals\(ST_Force2D\(r\.path::geometry\),ST_SetSRID\(ST_GeomFromGeoJSON\(\$4::text\),4326\)\)/);
+  assert.match(query.sql, /ELSE r\.id IN \(SELECT id FROM objective_routes\) END/);
+  duplicate = true;
+  assert.equal(await existingCatalogRoute(client, { input: loopInput, points: [...points].reverse() }), "same-loop");
+});
+test("PostGIS keeps distinct loops and rejects reversed, rotated, or resampled duplicates", {
+  skip: process.env.TEST_DATABASE_URL ? false : "isolated TEST_DATABASE_URL required",
+}, async () => {
+  assert.match(new URL(process.env.TEST_DATABASE_URL!).pathname, /_test$/);
+  const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 1 });
+  const points = [{ lat: 47, lng: -121 }, { lat: 47, lng: -120.98 }, { lat: 47.02, lng: -120.98 }, { lat: 47, lng: -121 }];
+  const loopInput = { ...input, kind: "loop" as const, objectiveId: null };
+  const client = { query: async (sql: string, params: unknown[]) => {
+    if (sql.includes("to_regclass")) return { rows: [{ exists: false }] };
+    const fixture = `WITH routes AS (
+      SELECT 'stored-loop'::text id,'Stored loop'::text name,'{}'::jsonb provenance,'peaks'::text owner,'pending'::text status,
+        'loop'::text kind,'head'::text trailhead_destination_id,NULL::text objective_destination_id,
+        ST_GeomFromText('LINESTRING Z(-121 47 100,-120.98 47 120,-120.98 47.02 140,-121 47 100)',4326)::geography path
+      ), route_destinations AS (SELECT NULL::text route_id,NULL::text destination_id,0 ordinal WHERE false), trailhead_routes`;
+    return pool.query(sql.replace("WITH trailhead_routes", fixture), params);
+  } } as unknown as PoolClient;
+  try {
+    for (const duplicate of [points, [...points].reverse(), [points[1], points[2], points[0], points[1]], [points[0], { lat: 47, lng: -120.99 }, ...points.slice(1)]]) {
+      assert.equal(await existingCatalogRoute(client, { input: loopInput, points: duplicate }), "stored-loop");
+    }
+    assert.equal(await existingCatalogRoute(client, { input: loopInput, points: [points[0], points[1], { lat: 46.98, lng: -120.98 }, points[0]] }), null);
+  } finally { await pool.end(); }
 });
 test("an apply receipt failure preserves committed outcomes and labels every incomplete row", async () => {
   const artifact={candidate:{input:{sourceKey:"first"}}} as CandidateArtifact;

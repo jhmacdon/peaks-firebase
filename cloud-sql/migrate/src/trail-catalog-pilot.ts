@@ -58,7 +58,7 @@ export async function planPilot(client: Pick<PoolClient, "query">, manifest: Pil
     try {
       // Name/alias choices must pass the same source identity check on durable replay.
       const built=buildCandidate(input,snapshots.map(s => s.value),{trailhead:selected.trailhead,objective:selected.objective,endTrailhead:selected.endTrailhead});
-      const duplicate=await existingCatalogRoute(client,{input});
+      const duplicate=await existingCatalogRoute(client,built);
       if (duplicate) throw new CandidateRejection("existing_catalog_route_requires_review",duplicate);
       report.outcome="admitted";
       try {
