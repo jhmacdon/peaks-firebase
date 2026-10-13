@@ -26,7 +26,11 @@ async function simulate(args=[],fault='') {
         if (fault==='commit-unknown') throw new Error('commit acknowledgement lost');
         return {rows:[]};
       }
-      if (sql.startsWith('-- Operator-only')) {roleCreated=true;exists=true;events.push('create-role');return {rows:[]};}
+      if (sql.startsWith('-- Operator-only')) {
+        assert.match(sql,/SELECT rolcreaterole FROM pg_roles WHERE rolname=session_user/);
+        assert.doesNotMatch(sql,/SELECT rolsuper FROM pg_roles WHERE rolname=session_user/);
+        roleCreated=true;exists=true;events.push('create-role');return {rows:[]};
+      }
       if (sql.startsWith('-- Run first')) {
         events.push(this.worker?'worker-verify':'operator-verify');
         const row={rolname:'peaks-route-factory-worker',rolcanlogin:true,rolinherit:true,rolsuper:false,rolcreatedb:false,rolcreaterole:false,rolreplication:false,rolbypassrls:false,direct_roles:['peaks-route-factory']};
@@ -38,6 +42,14 @@ async function simulate(args=[],fault='') {
       if (sql.startsWith('INSERT INTO data_source_runs')) {events.push('audit-start');return {rows:[{id:901}]};}
       if (sql.startsWith('UPDATE data_source_runs')) {events.push('audit-'+values[1]);return {rows:[]};}
       if (sql.startsWith('SELECT source_key')) {events.push('worker-read');return {rows:[]};}
+      if (sql.startsWith("SELECT session_user='postgres'")) {
+        // Cloud SQL postgres has CREATEROLE and cloudsqlsuperuser membership,
+        // but rolsuper=false. Reject a guard that asks for true superuser.
+        assert.match(sql,/SELECT rolcreaterole FROM pg_roles WHERE rolname=session_user/);
+        assert.doesNotMatch(sql,/SELECT rolsuper FROM pg_roles WHERE rolname=session_user/);
+        const operator={session_user:'postgres',current_user:'postgres',database:'peaks',rolsuper:false,rolcreaterole:fault!=='operator-no-createrole'};
+        return {rows:[{valid:operator.session_user===operator.current_user && operator.database==='peaks' && operator.rolcreaterole}]};
+      }
       return {rows:[{valid:true}]};
     }
   }
@@ -87,4 +99,8 @@ test('existing login or exact Keychain item stops before creating or overwriting
     assert.ok(!result.events.includes('keychain-add'));assert.ok(!result.events.includes('keychain-remove-own'));
     assert.ok(!result.events.includes('commit'));
   }
+});
+test('operator without CREATEROLE stops before role or Keychain writes',async()=> {
+  const result=await simulate(['--apply'],'operator-no-createrole');assert.equal(result.exitCode,1);assert.equal(result.roleCreated,false);
+  assert.ok(!result.events.includes('keychain-add'));assert.ok(!result.events.includes('commit'));
 });

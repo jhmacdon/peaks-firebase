@@ -18,6 +18,7 @@ sec.SecKeychainItemDelete.restype = C.c_int32
 sec.SecKeychainItemFreeContent.argtypes = [C.c_void_p, C.c_void_p]
 sec.SecKeychainItemFreeContent.restype = C.c_int32
 cf.CFRelease.argtypes = [C.c_void_p]
+cf.CFRelease.restype = None
 
 def run():
     action = sys.argv[1]

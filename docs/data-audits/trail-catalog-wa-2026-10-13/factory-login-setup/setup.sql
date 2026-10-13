@@ -9,8 +9,8 @@ DO $$
 DECLARE marker RECORD;
 BEGIN
   IF session_user<>'postgres' OR current_user<>session_user OR current_database()<>'peaks'
-     OR NOT (SELECT rolsuper FROM pg_roles WHERE rolname=session_user) THEN
-    RAISE EXCEPTION 'Direct peaks postgres operator connection required'; END IF;
+     OR NOT (SELECT rolcreaterole FROM pg_roles WHERE rolname=session_user) THEN
+    RAISE EXCEPTION 'Direct peaks postgres operator connection with CREATEROLE required'; END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='peaks-route-factory-worker') THEN
     RAISE EXCEPTION 'Fixed factory LOGIN already exists; this helper never resets it'; END IF;
   SELECT * INTO STRICT marker FROM pg_roles WHERE rolname='peaks-route-factory';

@@ -45,7 +45,7 @@ async function operatorConnection() {
   if (response.status!==0 || response.error || !response.stdout.trim()) throw new Error('Operator secret lookup failed');
   const connection=new Client({...target,user:'postgres',password:response.stdout.trim(),application_name:'peaks-factory-login-setup'});
   await connection.connect();
-  const identity=await connection.query("SELECT session_user='postgres' AND current_user=session_user AND current_database()='peaks' AND (SELECT rolsuper FROM pg_roles WHERE rolname=session_user) AS valid");
+  const identity=await connection.query("SELECT session_user='postgres' AND current_user=session_user AND current_database()='peaks' AND (SELECT rolcreaterole FROM pg_roles WHERE rolname=session_user) AS valid");
   if (identity.rows[0]?.valid!==true) {await connection.end();throw new Error('Operator identity failed');}
   return connection;
 }

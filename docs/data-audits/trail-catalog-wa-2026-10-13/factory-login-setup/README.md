@@ -9,8 +9,11 @@ The [worker contract](../../../../.agents/skills/peaks-route-factory/references/
 calls login creation **Human-only setup** and says: “The scheduled worker must
 never perform these steps. An operator does them after the code reaches the
 canonical `firebase` checkout.” This helper is an operator setup tool. A
-scheduled factory or review worker must not run it. Review and merge this plan
-before running it from the clean canonical checkout at the merged commit.
+scheduled factory or review worker must not run it. The user's explicit task
+worktree rule overrides the contract's canonical-checkout instruction here.
+Review this committed plan and run it as the operator from this task worktree;
+keep the canonical checkout read-only. Obtain explicit operator approval before
+apply.
 
 The helper uses the documented operator Secret Manager item
 `peaks-db-postgres-password` in project `donner-a8608`, through the existing
@@ -38,7 +41,8 @@ After explicit operator review and approval:
 node docs/data-audits/trail-catalog-wa-2026-10-13/factory-login-setup/setup.mjs --apply
 ```
 
-The [SQL plan](setup.sql) requires a direct postgres connection to `peaks`, an
+The [SQL plan](setup.sql) requires a direct postgres connection to `peaks` with
+`CREATEROLE` authority, an
 absent fixed login, and a factory marker with no login, elevated flags, or role
 memberships. It creates `LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE
 NOREPLICATION NOBYPASSRLS`, grants exactly the factory marker without role
@@ -47,6 +51,12 @@ confirm candidate read/write access and deny receipt removal, destination DML,
 route path/name updates, queue seeding, direct audit writes, and API/review role
 membership. The helper reruns those checks through the actual new login after
 commit, including a real candidate-table read.
+
+Cloud SQL's postgres login is not a PostgreSQL superuser. The helper checks its
+exact identity and `CREATEROLE` flag, which supplies the needed login-creation
+authority. It does not require `rolsuper=true` or grant superuser rights. SQL
+errors, including a missing marker-role grant authority, roll back the preview
+or apply transaction; preview must prove these grants work on the target.
 
 The exact Keychain service is `com.jhm.peaks.route-factory-db`; the account is
 `peaks-route-factory-worker`. To avoid committing a login whose password cannot
