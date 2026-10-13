@@ -1,0 +1,34 @@
+[
+    {
+        "name": "Lake Twentytwo via Lake Twenty Two Trail",
+        "routeId": "trail-6391bc0f-8687-4bc8-b465-a2add6d99d58",
+        "sqlXYDistanceM": 3953.9936046307116,
+        "sqlXYZDistanceM": 4036.5662629371045,
+        "storedDistanceM": 4036.5662629371045,
+        "distanceGatePass": true
+    },
+    {
+        "name": "Skyline Loop (Paradise)",
+        "routeId": "trail-6dfd43dc-8f23-4791-ab00-570049a1c39b",
+        "sqlXYDistanceM": 9021.494965522375,
+        "sqlXYZDistanceM": 9167.62653621158,
+        "storedDistanceM": 9167.62653621158,
+        "distanceGatePass": true
+    },
+    {
+        "name": "Rattlesnake Ledge via Rattlesnake Ledge Trail",
+        "routeId": "trail-e7e610fd-b4be-4b67-94c5-bc7646cfb346",
+        "sqlXYDistanceM": 3097.502758179171,
+        "sqlXYZDistanceM": 3164.5994145907584,
+        "storedDistanceM": 3164.5994145907584,
+        "distanceGatePass": true
+    },
+    {
+        "name": "Lake Serene Trail",
+        "routeId": "trail-f39e1eac-83f9-4ce7-b870-e10c04f396b0",
+        "sqlXYDistanceM": 5531.838107557181,
+        "sqlXYZDistanceM": 5723.426036489508,
+        "storedDistanceM": 5723.426036489508,
+        "distanceGatePass": true
+    }
+]
