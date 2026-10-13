@@ -428,7 +428,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        ranked_routes AS MATERIALIZED (
          SELECT r.id, r.name, r.polyline6, r.owner,
                 r.distance, r.gain, r.gain_loss, r.elevation_string,
-                r.external_links, r.provenance, r.completion,
+                r.external_links, r.provenance, r.completion, r.shape,
                 r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
                 r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
                 (r.search_name = $1) AS name_exact_match,
@@ -468,7 +468,7 @@ export function buildRouteSearchQuery(input: DestinationSearchQueryInput): Searc
        )
        SELECT r.id, r.name, r.polyline6, r.owner,
               r.distance, r.gain, r.gain_loss, r.elevation_string,
-              r.external_links, r.provenance, r.completion,
+              r.external_links, r.provenance, r.completion, r.shape,
               r.kind, r.slug, r.aliases, r.objective_destination_id, r.trailhead_destination_id,
               r.difficulty, r.est_moving_seconds, r.state_code, r.country_code, r.popularity,
               ${routeCoverSelectSql()},
