@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "batchKey": "wa-lake-serene-discovery-20261013",
+  "bbox": {
+    "west": -121.583107,
+    "south": 47.779185,
+    "east": -121.552917,
+    "north": 47.814221
+  },
+  "limits": {
+    "trailheads": 10,
+    "objectives": 30,
+    "attempts": 100
+  },
+  "bundles": [
+    {
+      "id": "lake-serene-osm",
+      "source": {
+        "type": "osm",
+        "snapshots": [
+          {
+            "path": "sources/osm-relation-4807642-full.json",
+            "sha256": "215f944089218ea2c66528d0b0865efbc30f6d6441c0039a00da49c63c7d4f62",
+            "url": "https://api.openstreetmap.org/api/0.6/relation/4807642/full.json",
+            "retrievedAt": "2026-10-13T04:59:45.975720+00:00"
+          }
+        ]
+      }
+    }
+  ]
+}

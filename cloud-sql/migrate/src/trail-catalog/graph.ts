@@ -35,9 +35,15 @@ export function placeContact(place: CatalogPlace, points: Point[], metres: numbe
   }
   return points.some((point, i) => osmRouteHaversineMeters(place, point) <= metres || (i > 0 && pointToSegmentMeters(place, points[i - 1], point) <= metres));
 }
-function allowedWay(way: Element): boolean {
+/** Actual distance to a place footprint; a review tolerance is not a new turnaround point. */
+export function placePointDistance(place:CatalogPlace,point:Point):number {
+  if (placeContact(place,[point],0)) return 0;
+  if (place.boundary && !place.features.includes("summit")) return Math.min(...place.boundary.coordinates.flatMap(ring=>ring.slice(1).map((coordinate,i)=>pointToSegmentMeters(point,{lng:ring[i][0],lat:ring[i][1]},{lng:coordinate[0],lat:coordinate[1]}))));
+  return osmRouteHaversineMeters(place,point);
+}
+export function allowedWay(way: Pick<Element,"tags">): boolean {
   const t = way.tags ?? {};
-  return ["path", "footway", "track"].includes(t.highway) && !["no", "private"].includes(t.access) && !["no", "private", "discouraged"].includes(t.foot);
+  return ["path", "footway", "track", "steps"].includes(t.highway) && !["no", "private"].includes(t.access) && !["no", "private", "discouraged"].includes(t.foot);
 }
 function reviewTerrain(input: PilotCandidateInput, way: Element): void {
   const t = way.tags ?? {};
@@ -83,8 +89,10 @@ export function validateCandidateContact(input: PilotCandidateInput, places: Can
 export function normalizeRouteName(name: string): string { return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 
 /** Exact source nodes only. The shortest-path search follows the existing OSM builder's Dijkstra method. */
-export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown[], places: CandidatePlaces): BuiltCandidate {
+export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown[], places: CandidatePlaces, options: { endNodeIds?: number[]; maxDistanceM?: number } = {}): BuiltCandidate {
   if (input.source.type !== "osm") reject("osm_source_required");
+  if (input.loopNodeIds && input.kind !== "loop") reject("loop_nodes_require_loop_kind");
+  if (input.loopSourcePoints) reject("mixed_source_claims_not_supported");
   const { objective, endTrailhead } = validateCandidatePlaces(input,places);
   const elements = new Map<string, Element>();
   for (const snapshot of snapshots) {
@@ -99,7 +107,7 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
     }
   }
   const relation = input.source.relationId ? elements.get(`relation/${input.source.relationId}`) : undefined;
-  const attestedRelation = relation?.tags?.type === "route" && ["hiking", "foot"].includes(relation.tags.route) && Boolean(relation.tags.name?.trim());
+  let attestedRelation = relation?.tags?.type === "route" && ["hiking", "foot"].includes(relation.tags.route) && Boolean(relation.tags.name?.trim());
   const identity = input.identity;
   if (!attestedRelation && !hasIdentity(input)) reject("hike_attestation_missing");
   const relationNames = [relation?.tags?.name, ...(relation?.tags?.alt_name?.split(";") ?? [])].filter((s): s is string => Boolean(s));
@@ -132,10 +140,21 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
       append(b, { to: a, distance, wayId: id, startNodeId: b, endNodeId: a, names });
     }
   }
-  const start = input.startNodeId, end = input.endNodeId;
-  if (!start || !graph.has(start) || (input.kind !== "loop" && (!end || !graph.has(end)))) reject("source_endpoint_missing");
+  const start = input.startNodeId;
+  let end = input.endNodeId;
+  const endNodes = new Set((options.endNodeIds ?? (end ? [end] : [])).filter(id => graph.has(id) && id !== start));
+  if (!start || !graph.has(start) || (input.kind !== "loop" && !endNodes.size)) reject("source_endpoint_missing");
   let nodeIds: number[] = [start], routeEdges: Edge[] = [];
-  if (input.kind === "loop") {
+  if (input.kind === "loop" && input.loopNodeIds) {
+    const cycle=input.loopNodeIds;
+    if (cycle.length<4 || cycle.length>10_000 || cycle[0]!==start || cycle[cycle.length-1]!==start || new Set(cycle.slice(0,-1)).size!==cycle.length-1) reject("loop_not_simple_closed_source_chain");
+    nodeIds=[...cycle];
+    for (let i=1;i<cycle.length;i++) {
+      const choices=(graph.get(cycle[i-1])??[]).filter(edge=>edge.to===cycle[i]);
+      if (choices.length!==1) reject("loop_source_edge_missing");
+      routeEdges.push(choices[0]);
+    }
+  } else if (input.kind === "loop") {
     if ([...graph.values()].some(edges => edges.length !== 2)) reject("loop_not_simple_closed_source_chain");
     const seen = new Set<number>([start]);
     let previous = -1, cursor = start;
@@ -147,21 +166,20 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
     } while (cursor !== start && routeEdges.length <= graph.size);
     if (cursor !== start || seen.size !== graph.size) reject("disconnected_source_loop");
   } else {
-    if (start === end) reject("zero_length_candidate");
     const distances = new Map<number, number>([[start, 0]]), previous = new Map<number, { from: number; edge: Edge }>();
     const queue = [{ id: start, distance: 0 }];
     while (queue.length) {
       queue.sort((a, b) => a.distance - b.distance || a.id - b.id);
       const current = queue.shift()!;
       if (current.distance !== distances.get(current.id)) continue;
-      if (current.id === end) break;
+      if (endNodes.has(current.id)) { end=current.id; break; }
       for (const edge of [...(graph.get(current.id) ?? [])].sort((a, b) => a.wayId - b.wayId || a.to - b.to)) {
         const distance = current.distance + edge.distance;
-        if (distance >= (distances.get(edge.to) ?? Infinity)) continue;
+        if (distance > (options.maxDistanceM ?? 100_000) || distance >= (distances.get(edge.to) ?? Infinity)) continue;
         distances.set(edge.to, distance); previous.set(edge.to, { from: current.id, edge }); queue.push({ id: edge.to, distance });
       }
     }
-    if (!previous.has(end!)) reject("disconnected_source_graph");
+    if (!end || !endNodes.has(end) || !previous.has(end)) reject("disconnected_source_graph");
     const reverseEdges: Edge[] = []; let cursor = end!;
     while (cursor !== start) { const step = previous.get(cursor)!; reverseEdges.push(step.edge); cursor = step.from; }
     routeEdges = reverseEdges.reverse(); nodeIds = [start, ...routeEdges.map(e => e.to)];
@@ -169,7 +187,10 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
   const points = nodeIds.map(id => nodes.get(id)!), distanceM = routeEdges.reduce((sum, e) => sum + e.distance, 0);
   const usedWayIds = [...new Set(routeEdges.map(e => e.wayId))].sort((a, b) => a - b);
   const relationDistance = routeEdges.filter(edge => memberIds.includes(edge.wayId)).reduce((sum, edge) => sum + edge.distance, 0);
-  if (attestedRelation && relationDistance / distanceM < 0.9 && !hasIdentity(input)) reject("insufficient_relation_attestation");
+  if (attestedRelation && relationDistance / distanceM < 0.9) {
+    if (!hasIdentity(input)) reject("insufficient_relation_attestation");
+    attestedRelation=false;
+  }
   if (input.kind === "loop" && distanceM < 3000) reject("loop_shorter_than_3km");
   if (input.kind === "loop" && (points.length > 10_000 || !isSimpleClosedRoute(points))) reject("loop_geometry_not_simple");
   if (!attestedRelation && distanceM > 20_000) reject("objective_beyond_20km");
@@ -180,5 +201,6 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
   for (let i = 1; i < nodeIds.length - 1; i++) if (graph.get(nodeIds[i])!.length !== 2 || routeEdges[i - 1].wayId !== routeEdges[i].wayId) requiredCutIndices.push(i);
   requiredCutIndices.push(points.length - 1);
   const edges = routeEdges.map(({ wayId, startNodeId, endNodeId, names }) => ({ wayId, startNodeId, endNodeId, names }));
-  return { input, trailhead: places.trailhead, objective, endTrailhead, points, nodeIds, edges, requiredCutIndices, usedWayIds, distanceM, mappedFraction: 1, sourceHashes: input.source.snapshots.map(s => s.sha256), geometryHash: sha256(stableJson({ points, edges })), attestation: attestedRelation ? `osm-relation:${relation!.id}` : `${identity!.publisher}:${identity!.sourceUrl}`, attestedRouteNames: [...new Set([...(attestedRelation ? relationNames : []),...(hasIdentity(input) ? [identity!.name] : [])])], shape: input.kind === "loop" ? "loop" : input.kind === "traverse" ? "point_to_point" : "out_and_back" };
+  const resolvedInput = {...input,...(input.kind !== "loop" && end !== input.endNodeId ? {endNodeId:end} : {}),...(!attestedRelation && input.source.relationId ? {source:{...input.source,relationId:undefined}} : {})};
+  return { input:resolvedInput, trailhead: places.trailhead, objective, endTrailhead, points, nodeIds, edges, requiredCutIndices, usedWayIds, distanceM, mappedFraction: 1, sourceHashes: input.source.snapshots.map(s => s.sha256), geometryHash: sha256(stableJson({ points, edges })), attestation: attestedRelation ? `osm-relation:${relation!.id}` : `${identity!.publisher}:${identity!.sourceUrl}`, attestedRouteNames: [...new Set([...(attestedRelation ? relationNames : []),...(hasIdentity(input) ? [identity!.name] : [])])], shape: input.kind === "loop" ? "loop" : input.kind === "traverse" ? "point_to_point" : "out_and_back" };
 }

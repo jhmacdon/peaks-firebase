@@ -11,14 +11,28 @@ import { readHashedJson } from "./source-files";
 import type { BuiltCandidate, PilotManifest, ReadyCandidate, SourceSnapshot, UsfsSourceEdge } from "./types";
 export { readHashedJson } from "./source-files";
 
+export function isApprovedOsmSnapshotUrl(value:string):boolean {
+  try {
+    const url=new URL(value);
+    if (url.protocol!=="https:" || !["api.openstreetmap.org","www.openstreetmap.org"].includes(url.hostname) || url.username || url.password || url.port || url.hash) return false;
+    if (/^\/api\/0\.6\/(relation|way|node)\/\d+(\/full)?\.json$/.test(url.pathname)) return !url.search;
+    if (url.pathname!=="/api/0.6/map.json" || [...url.searchParams.keys()].length!==1 || !url.searchParams.has("bbox")) return false;
+    const values=url.searchParams.get("bbox")!.split(",");
+    if (values.length!==4 || values.some(value=>! /^-?\d+(?:\.\d+)?$/.test(value))) return false;
+    const [west,south,east,north]=values.map(Number);
+    return west>=-180&&east<=180&&south>=-90&&north<=90&&west<east&&south<north&&(east-west)*(north-south)<=0.25;
+  } catch {return false;}
+}
+
 export function loadSourceSnapshots(snapshots: SourceSnapshot[], baseDir: string): { value: unknown; body: string }[] {
   if (!Array.isArray(snapshots) || !snapshots.length || snapshots.length > 20) throw new CandidateRejection("invalid_snapshot_count");
   return snapshots.map(snapshot => {
-    const url = new URL(snapshot.url);
-    if (url.protocol !== "https:" || !["api.openstreetmap.org", "www.openstreetmap.org"].includes(url.hostname) || url.username || url.password || !/^\/api\/0\.6\/(relation|way|node)\/\d+(\/full)?\.json$/.test(url.pathname)) throw new CandidateRejection("unapproved_snapshot_url");
+    if (!isApprovedOsmSnapshotUrl(snapshot.url)) throw new CandidateRejection("unapproved_snapshot_url");
     const time = Date.parse(snapshot.retrievedAt);
     if (!Number.isFinite(time) || time > Date.now() + 300_000) throw new CandidateRejection("invalid_source_retrieval_time");
-    return readHashedJson(snapshot.path, snapshot.sha256, baseDir);
+    const data=readHashedJson(snapshot.path, snapshot.sha256, baseDir);
+    if (data.value && typeof data.value==="object" && "error" in data.value) throw new CandidateRejection("incomplete_osm_source_response");
+    return data;
   });
 }
 export function loadManifest(path: string): { manifest: PilotManifest; baseDir: string } {

@@ -34,6 +34,14 @@ test("USFS graph cannot bridge even a small missing feature connector", () => {
   const source = paths(); source[1].coordinates[0][0] += 0.00001;
   assert.throws(() => buildUsfsSourceGraphPath(source, options), /usfs_source_disconnected/);
 });
+test("USFS exact cycle coordinates exclude a spur and reject guessed connectors",()=>{
+  const source:OfficialNetworkPath[]=[{...paths()[0],coordinates:[[-121,46.99],[-121,47],[-120.98,47],[-120.98,47.02],[-121,47.02],[-121,47]]}];
+  const points=[{lng:-121,lat:47},{lng:-120.98,lat:47},{lng:-120.98,lat:47.02},{lng:-121,lat:47.02},{lng:-121,lat:47}];
+  const options={start:{featureId:"lower",part:0,vertex:1},loop:true,loopPoints:points};
+  const built=buildUsfsSourceGraphPath(source,options);
+  assert.deepEqual(built.points,points);assert.equal(proveUsfsSourceSpan(points,source,["lower"]).passed,true);
+  assert.throws(()=>buildUsfsSourceGraphPath(source,{...options,loopPoints:[points[0],points[2],points[3],points[0]]}),/usfs_loop_source_edge_missing/);
+});
 test("USFS graph preserves reverse source span bounds and rejects duplicate physical claims", () => {
   const result = buildUsfsSourceGraphPath(paths(), { start: options.end, end: options.start });
   assert.equal(result.edges[0].startVertex, 1); assert.equal(result.edges[0].endVertex, 0);

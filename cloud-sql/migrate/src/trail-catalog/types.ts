@@ -32,10 +32,14 @@ export interface PilotCandidateInput {
   /** Source nodes, not projected catalog coordinates. Required for OSM paths. */
   startNodeId?: number;
   endNodeId?: number;
+  /** A discovered cycle of exact OSM nodes, including its repeated start. */
+  loopNodeIds?: number[];
   /** Exact vertices in the registry's canonical feature/part order. */
   startSourceVertex?: UsfsVertex;
   endSourceVertex?: UsfsVertex;
-  /** For an attested loop, traverse every selected edge once from startNodeId. */
+  /** Exact USFS source coordinates; every consecutive pair must be a source edge. */
+  loopSourcePoints?: Point[];
+  /** Reviews for difficult or obscure mapped OSM ways. */
   terrainReviews?: { wayId: number; sourceUrl: string; checkedAt: string; note: string }[];
   /** Name-only evidence when no named OSM hiking relation attests to the route. */
   identity?: { name: string; sourceUrl: string; publisher: "usfs" | "wta" | "alltrails" };

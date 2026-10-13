@@ -55,6 +55,20 @@ test("pair dedupe is input-order independent and does not remove another trailhe
   assert.notEqual(first.kept[0].input.name,first.kept[1].input.name);
   assert.deepEqual(first.rejected,[{sourceKey:"b",reason:"duplicate_trailhead_objective",keptSourceKey:"a"}]);
 });
+test("discovery pair selection uses shortest distance, breaks ties by key, and keeps distinct loops",()=>{
+  const longer=candidate("a","objective",5),shorter=candidate("z","objective",3),tie=candidate("b","objective",3);
+  for (const inputs of [[longer,shorter,tie],[tie,shorter,longer]]) {
+    assert.equal(chooseCatalogCandidates(inputs,{preferShortestPath:true}).kept[0].input.sourceKey,"b");
+  }
+  assert.equal(chooseCatalogCandidates([longer,shorter,tie]).kept[0].input.sourceKey,"a");
+  const first={...shorter,objective:null,input:{...shorter.input,kind:"loop" as const,objectiveId:null},shape:"loop" as const};
+  first.points=[first.points[0],first.points[1],first.points[2],first.points[0]];
+  const second={...first,points:first.points.map((p,i)=>i===1?{...p,lng:p.lng+0.01}:p),input:{...first.input,sourceKey:"second"}};
+  assert.equal(chooseCatalogCandidates([first,second],{preferShortestPath:true}).kept.length,2);
+  assert.equal(chooseCatalogCandidates([first,second]).kept.length,2);
+  const reverse={...first,points:[...first.points].reverse(),input:{...first.input,sourceKey:"reverse"}};
+  assert.equal(chooseCatalogCandidates([first,reverse]).kept.length,1);
+});
 test("only the two explicit source-bound Mailbox variants survive one trailhead/objective pair",()=>{
   const old=candidate("old","mailbox",4,{variant:"mailbox-old",source:{type:"osm",relationId:7147738,snapshots:[]}});
   const newer=candidate("new","mailbox",5,{variant:"mailbox-new",source:{type:"osm",relationId:5426108,snapshots:[]}});

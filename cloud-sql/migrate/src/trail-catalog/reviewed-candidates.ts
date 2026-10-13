@@ -2,6 +2,8 @@ import { osmRouteHaversineMeters } from "../osm-route-geometry";
 import type { BuiltCandidate } from "./types";
 
 export interface CandidateNamingContext {
+  /** Discovery chooses the shortest attested approach for each catalog pair. */
+  preferShortestPath?: boolean;
   /** Complete reviewed inventories, not just the current batch. */
   completeRegionKeys?: string[];
   completeObjectiveIds?: string[];
@@ -78,11 +80,14 @@ function primaryTrailName(candidate: BuiltCandidate): string {
 export function chooseCatalogCandidates(candidates: BuiltCandidate[],context: CandidateNamingContext = {}): {
   kept: BuiltCandidate[]; rejected: CandidateChoiceRejection[]; names: CandidateNameDecision[];
 } {
-  const ordered=[...candidates].sort((a,b)=>compare(a.input.sourceKey,b.input.sourceKey));
+  const ordered=[...candidates].sort((a,b)=>(context.preferShortestPath ? a.distanceM-b.distanceM : 0)||compare(a.input.sourceKey,b.input.sourceKey));
   if (new Set(ordered.map(candidate=>candidate.input.sourceKey)).size!==ordered.length) throw new Error("duplicate_candidate_source_key");
   const groups=new Map<string,BuiltCandidate[]>();
   for (const candidate of ordered) {
-    const key=JSON.stringify([candidate.trailhead.id,candidate.objective?.id??null]);
+    const loopKey=candidate.input.kind==="loop"
+      ? JSON.stringify(candidate.points.slice(1).map((point,index)=>[candidate.points[index],point]
+          .map(vertex=>JSON.stringify([vertex.lng,vertex.lat])).sort().join("|")).sort()) : null;
+    const key=JSON.stringify([candidate.trailhead.id,candidate.objective?.id??null,loopKey]);
     groups.set(key,[...(groups.get(key)??[]),candidate]);
   }
   const pairWinners:BuiltCandidate[]=[], rejected:CandidateChoiceRejection[]=[];

@@ -3,8 +3,10 @@ import dbImport from "../../../../cloud-sql/migrate/src/db";
 import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
 import osmRouteGeometryImport from "../../../../cloud-sql/migrate/src/osm-route-geometry";
 import osmSegmentSourceProofImport from "../../../../cloud-sql/migrate/src/osm-segment-source-proof";
+import catalogGraphImport from "../../../../cloud-sql/migrate/src/trail-catalog/graph";
 
 const { contributingOsmWayIds, proveOsmSegmentSource } = osmSegmentSourceProofImport;
+const { allowedWay } = catalogGraphImport;
 
 const {
   isSimpleClosedRoute,
@@ -412,7 +414,7 @@ async function sourceGeometry(wayIds: number[]): Promise<{
     const access = footAccess(way);
     if (access.blocked) blockedWayIds.push(way.id);
     if (access.override) overrideWayIds.push(way.id);
-    if (!["path","footway","track"].includes(way.tags?.highway ?? "") || ["no","private"].includes(way.tags?.access ?? "") || ["no","private","discouraged"].includes(way.tags?.foot ?? "")) catalogBlockedWayIds.push(way.id);
+    if (!allowedWay(way)) catalogBlockedWayIds.push(way.id);
     const nodeIds = way.nodes ?? [];
     for (let index = 1; index < nodeIds.length; index += 1) {
       const start = nodes.get(nodeIds[index - 1]);
