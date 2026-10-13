@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "region_receipts": [
+    {
+      "mode": "preview",
+      "runId": 103,
+      "passed": true,
+      "sqlSha256": "cc98cd0d425f467ab4d9fad4fbe229b04cb493e5949c960ed9076efeb61ea603",
+      "log": "region-preview.txt",
+      "logSha256": "f922949667a60300bd444557fc727c15ed872af6f7a0055a270f7993807869be",
+      "exitCode": 0,
+      "rowsChangedInTransaction": 4,
+      "rowsReplayed": 0,
+      "rowsCommitted": 0
+    },
+    {
+      "mode": "apply",
+      "runId": 104,
+      "passed": true,
+      "sqlSha256": "cc98cd0d425f467ab4d9fad4fbe229b04cb493e5949c960ed9076efeb61ea603",
+      "log": "region-apply.txt",
+      "logSha256": "6840eb0e469b3a38c45ae3d21103dea8c7f291a3384a50a17eeab2db512ac1c1",
+      "exitCode": 0,
+      "rowsChangedInTransaction": 4,
+      "rowsReplayed": 0,
+      "rowsCommitted": 4
+    },
+    {
+      "mode": "replay",
+      "runId": 106,
+      "passed": true,
+      "sqlSha256": "cc98cd0d425f467ab4d9fad4fbe229b04cb493e5949c960ed9076efeb61ea603",
+      "log": "region-replay.txt",
+      "logSha256": "401fbdace62c0521df9442da28b06f82bcf65a5d4b303bbcc15a365d3163148c",
+      "exitCode": 0,
+      "rowsChangedInTransaction": 0,
+      "rowsReplayed": 4,
+      "rowsCommitted": 0
+    }
+  ],
+  "data_source_runs": [
+    {
+      "id": 103,
+      "source": "trail-catalog-region-repair",
+      "status": "dry_run",
+      "rows_in": 4,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:46:33.707951+00:00",
+      "finished_at": "2026-10-13T06:46:35.552918+00:00",
+      "rows_matched": 4,
+      "rows_written": 0
+    },
+    {
+      "id": 104,
+      "source": "trail-catalog-region-repair",
+      "status": "success",
+      "rows_in": 4,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:47:27.297862+00:00",
+      "finished_at": "2026-10-13T06:47:29.625087+00:00",
+      "rows_matched": 4,
+      "rows_written": 4
+    },
+    {
+      "id": 105,
+      "source": "trail_catalog_metadata",
+      "status": "dry_run",
+      "rows_in": 2,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:48:01.484727+00:00",
+      "finished_at": "2026-10-13T06:48:01.839923+00:00",
+      "rows_matched": 2,
+      "rows_written": 0
+    },
+    {
+      "id": 106,
+      "source": "trail-catalog-region-repair",
+      "status": "dry_run",
+      "rows_in": 4,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:48:08.531683+00:00",
+      "finished_at": "2026-10-13T06:48:10.652282+00:00",
+      "rows_matched": 4,
+      "rows_written": 0
+    },
+    {
+      "id": 107,
+      "source": "trail_catalog_metadata",
+      "status": "success",
+      "rows_in": 2,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:52:09.541534+00:00",
+      "finished_at": "2026-10-13T06:52:11.988885+00:00",
+      "rows_matched": 2,
+      "rows_written": 2
+    },
+    {
+      "id": 108,
+      "source": "trail_catalog_metadata",
+      "status": "success",
+      "rows_in": 2,
+      "run_kind": "import",
+      "started_at": "2026-10-13T06:52:54.794692+00:00",
+      "finished_at": "2026-10-13T06:52:55.315779+00:00",
+      "rows_matched": 2,
+      "rows_written": 0
+    }
+  ],
+  "metadata_counts": {
+    "dry-run": {
+      "candidates": 2,
+      "ready": 2,
+      "rejected": 0,
+      "applied": 0,
+      "already_applied": 0
+    },
+    "apply": {
+      "candidates": 2,
+      "ready": 0,
+      "rejected": 0,
+      "applied": 2,
+      "already_applied": 0
+    },
+    "replay": {
+      "candidates": 2,
+      "ready": 0,
+      "rejected": 0,
+      "applied": 0,
+      "already_applied": 2
+    }
+  },
+  "current_route_totals": {
+    "scope": 287,
+    "metadata_applied": 99,
+    "still_rejected": 188
+  },
+  "superseded_excluded": 14972,
+  "route_geometry_changes": 0,
+  "route_activations": 0
+}

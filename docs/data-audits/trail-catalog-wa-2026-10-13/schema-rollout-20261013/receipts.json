@@ -1,0 +1,41 @@
+{
+  "preview": {
+    "mode": "preview",
+    "runId": 99,
+    "passed": true,
+    "log": "preview.txt",
+    "logSha256": "c95595bab5688702950600e03aa7ad813aadf33022959616443acebfaa723795",
+    "exitCode": 0,
+    "postTransaction": {
+      "trailheadCount": 0,
+      "candidateTableExists": false
+    }
+  },
+  "apply": {
+    "mode": "apply",
+    "runId": 101,
+    "passed": true,
+    "log": "apply.txt",
+    "logSha256": "c1364f12991505f1f855e89d07f0d54b5f762d3dbfd27b92f32b4214dbaea671",
+    "exitCode": 0,
+    "postTransaction": {
+      "trailheadCount": 2,
+      "candidateTableExists": true
+    }
+  },
+  "trailheadAuditId": 102,
+  "initialPilotDryRunAuditId": 98,
+  "routesWritten": 0,
+  "candidateJobsWritten": 0,
+  "activated": 0,
+  "retiredRowsChanged": 0,
+  "fixedMonthlyCostDeltaUsd": 0,
+  "ci": {
+    "commit": "6dcb9797e42acc74d77546a14d1680a4e9bc2804",
+    "workerRun": "https://github.com/jhmacdon/peaks-firebase/actions/runs/38357410128",
+    "apiRun": "https://github.com/jhmacdon/peaks-firebase/actions/runs/38357410123",
+    "workerTests": 1193,
+    "workerFailed": 0,
+    "workerSkipped": 0
+  }
+}

@@ -1,4 +1,4 @@
-# Census region repair proposal
+# Census region repair
 
 Four existing destinations can receive `country_code=US` and `state_code=WA` from the [Census TIGERweb States layer](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0). The layer uses the January 1, 2026 vintage. This proposal changes administrative metadata at the saved coordinates. It does not establish route geometry or publication readiness.
 
@@ -17,6 +17,8 @@ From this directory, run `python3 verify-evidence.py > /dev/null` to verify ever
 
 [repair-plan.sql](repair-plan.sql) defaults to a rolled-back transaction. An operator must review the evidence and rollback results before passing `-v apply_region_repair=true` to psql. The plan locks the four IDs in order, requires the saved name, coordinates, features, and external IDs, and rejects changed region values or a conflicting source record. It merges one source record into existing metadata and preserves every other field. A repeat with the same result and evidence makes no updates. The existing triggers remain enabled.
 
-After an approved destination repair, run the normal reviewed metadata CLI for `8To4Xn3jQ1GJXQWMuj0m` and `adeCrmBWh2nHbbSH9btr`. The old plans stopped at the missing region before checking path timing, so a new run may expose another blocker. This proposal does not apply or bypass that step.
+The production rollback preview passed, and run 104 applied the four destination changes. A replay changed no rows. The normal metadata CLI then produced two ready plans for `8To4Xn3jQ1GJXQWMuj0m` and `adeCrmBWh2nHbbSH9btr`; run 107 applied them after checking the exact dry-run hash. Run 108 recognized both completed jobs and made no further updates. [Receipts](production-receipts.json), [metadata dry run](metadata-dry-run.json), [apply](metadata-apply.json), and [replay](metadata-replay.json) retain the evidence.
 
-The SQL has not run against production. It adds no service, job, index, or ongoing cost; expected fixed cost change is $0/month.
+Of the original 287 current routes, 99 now have the checked metadata. The remaining 188 still need source or geometry repairs. The 14,972 superseded rows remain excluded as approved. These changes moved no coordinates and changed no route geometry or activation status.
+
+This repair adds no service, index, or ongoing job; expected fixed cost change is $0/month.

@@ -54,7 +54,20 @@
       "already_applied": 1,
       "rows_written": 0,
       "sha256": "d8d8bca6d9b3242e39a6c3ef12a257d07f5ae1c185d1e126c41875eb102819bc"
-    }
+    },
+    "followup_repairs": [
+      {
+        "source": "Census TIGERweb States",
+        "evidence": "census-region-repair-20261013/production-receipts.json",
+        "destination_rows_applied": 4,
+        "route_metadata_applied": 2,
+        "replay_already_applied": 2,
+        "remaining_current_rejections": 188
+      }
+    ],
+    "total_current_routes_applied": 99,
+    "total_current_routes_rejected": 188,
+    "superseded_routes_excluded": 14972
   },
   "api_deploy": {
     "status": "deployed",
@@ -76,6 +89,12 @@
     "names_apply": 94,
     "metadata_dry_run": 95,
     "metadata_apply": 96,
-    "metadata_replay": 97
+    "metadata_replay": 97,
+    "region_preview": 103,
+    "region_apply": 104,
+    "repaired_metadata_dry_run": 105,
+    "region_replay": 106,
+    "repaired_metadata_apply": 107,
+    "repaired_metadata_replay": 108
   }
 }
