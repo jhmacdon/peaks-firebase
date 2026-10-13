@@ -11,6 +11,8 @@ import type {
 } from "../../../../cloud-sql/migrate/src/official-route-geometry";
 import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
 import officialTrailSourcesImport from "../../../../cloud-sql/migrate/src/official-trail-sources";
+import usfsSegmentSourceProofImport from "../../../../cloud-sql/migrate/src/usfs-segment-source-proof";
+const { proveUsfsSourceSpan } = usfsSegmentSourceProofImport;
 
 const { officialArcgisRequestOptions } = officialArcgisRequestImport;
 
@@ -46,6 +48,7 @@ type RouteRow = {
   owner: string;
   status: string;
   shape: string | null;
+  kind: "summit" | "destination" | "loop" | "traverse" | null;
   provenance: {
     source_kind?: string;
     source_url?: string;
@@ -69,6 +72,9 @@ type RouteRow = {
   }>;
   segment_count: number;
   segment_provenance_matches: boolean;
+  segment_source_union_valid: boolean;
+  kind_contact_valid: boolean;
+  publish_integrity_valid: boolean;
 };
 
 type RegistrySource = NonNullable<
@@ -93,8 +99,11 @@ async function loadRoute(
   replaceActiveRouteId: string
 ): Promise<RouteRow> {
   const result = await db.query<RouteRow>(
-    `SELECT r.id, r.name, r.owner, r.status, r.shape, r.provenance,
+    `SELECT r.id, r.name, r.owner, r.status, r.shape, r.kind, r.provenance,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
+            peaks_route_kind_passes_contact(r.id) AS kind_contact_valid,
+            peaks_route_passes_publish_integrity(r.id,NULL,'pending') AS publish_integrity_valid,
+            route_segments_cover_provenance(r.id) AS segment_source_union_valid,
             ST_IsSimple(r.path::geometry) AS is_simple,
             EXISTS (
               SELECT 1
@@ -105,8 +114,10 @@ async function loadRoute(
               JOIN destinations target_destination
                 ON target_destination.id = target_rd.destination_id
               WHERE target_rd.route_id = r.id
-                AND 'summit'::destination_feature =
-                    ANY(target_destination.features)
+                AND ((r.kind IS NULL AND 'summit'::destination_feature = ANY(target_destination.features))
+                  OR (r.kind IS NOT NULL AND target_rd.destination_id=r.objective_destination_id
+                    AND (lower(active_route.name)=lower(r.name) OR active_route.trailhead_destination_id=r.trailhead_destination_id
+                      OR EXISTS (SELECT 1 FROM route_destinations active_start WHERE active_start.route_id=active_route.id AND active_start.ordinal=0 AND active_start.destination_id=r.trailhead_destination_id))))
                 AND active_route.owner = 'peaks'
                 AND active_route.status = 'active'
                 AND (
@@ -129,8 +140,8 @@ async function loadRoute(
                 JOIN routes replacement_route
                   ON replacement_route.id = replacement_rd.route_id
                 WHERE target_rd.route_id = r.id
-                  AND 'summit'::destination_feature =
-                      ANY(target_destination.features)
+                  AND ((r.kind IS NULL AND 'summit'::destination_feature = ANY(target_destination.features))
+                    OR (r.kind IS NOT NULL AND target_rd.destination_id=r.objective_destination_id))
                   AND replacement_route.id = $2
                   AND replacement_route.owner = 'peaks'
                   AND replacement_route.status = 'active'
@@ -161,7 +172,7 @@ async function loadRoute(
               FROM route_segments rs
               JOIN segments s ON s.id = rs.segment_id
               WHERE rs.route_id = r.id
-                AND s.provenance IS DISTINCT FROM r.provenance
+                AND NOT route_segment_provenance_compatible(s.provenance,r.provenance)
             ) AS segment_provenance_matches
      FROM routes r
      WHERE r.id = $1`,
@@ -198,10 +209,10 @@ async function fetchOfficialPaths(
   const url = buildOfficialArcgisQueryUrl(source.service, featureIds);
   const response = await fetch(
     url,
-    officialArcgisRequestOptions(
+    { ...officialArcgisRequestOptions(
       "Peaks official route approval/1.0 " +
         "(https://github.com/jhmacdon/peaks-firebase)"
-    )
+    ), signal: AbortSignal.timeout(30_000) }
   );
   if (!response.ok) {
     throw new Error(`${source.authority} returned HTTP ${response.status}`);
@@ -211,6 +222,13 @@ async function fetchOfficialPaths(
     source.service as ArcgisTrailService,
     featureIds
   );
+}
+
+async function loadSegments(routeId: string): Promise<Array<{ id: string; ordinal: number; provenance: RouteRow["provenance"]; points: LatLng[] }>> {
+  const result = await db.query(`SELECT s.id,rs.ordinal,s.provenance,
+    ST_AsGeoJSON(CASE rs.direction WHEN 'reverse' THEN ST_Reverse(s.path::geometry) ELSE s.path::geometry END,15)::json AS geometry
+    FROM route_segments rs JOIN segments s ON s.id=rs.segment_id WHERE rs.route_id=$1 ORDER BY rs.ordinal`,[routeId]);
+  return result.rows.map(row => ({id:row.id,ordinal:row.ordinal,provenance:row.provenance,points:row.geometry.coordinates.map((coordinate:number[]) => ({lng:coordinate[0],lat:coordinate[1]}))}));
 }
 
 function failedReview(): OfficialRouteReview {
@@ -258,7 +276,7 @@ try {
     errors.push("route provenance is missing or invalid");
   }
   if (route.active_standard_exists) {
-    errors.push("an active Peaks route already covers the summit");
+    errors.push("an active Peaks route already covers this route identity");
   }
   if (!route.replacement_route_valid) {
     errors.push("named active replacement route is not eligible");
@@ -266,21 +284,25 @@ try {
   if (
     route.shape !== "out_and_back" &&
     route.shape !== "loop" &&
+    route.shape !== "point_to_point" &&
     route.shape !== "lollipop"
   ) {
     errors.push("route shape is not supported for a standard hiking route");
   }
-  if (route.segment_count < 1 || !route.segment_provenance_matches) {
+  if (route.segment_count < 1 || !route.segment_provenance_matches || !route.segment_source_union_valid) {
     errors.push("route and segment provenance do not agree");
   }
+  if (!route.kind_contact_valid) errors.push("route kind, objective, or trailhead contact is invalid");
+  if (!route.publish_integrity_valid) errors.push("pending route publish integrity fails");
 
   const places = route.linked_destinations;
   const trailhead = places[0];
   const summit = places[places.length - 1];
+  const summitRoute = (route.kind ?? "summit") === "summit";
   if (!trailhead?.features.includes("trailhead")) {
     errors.push("first linked destination is not a trailhead");
   }
-  if (!summit?.features.includes("summit")) {
+  if (summitRoute && !summit?.features.includes("summit")) {
     errors.push("last linked destination is not a summit");
   }
 
@@ -364,8 +386,8 @@ try {
     loopLike &&
     summitIndex > 0 &&
     summitIndex < points.length - 1 &&
-    summitContactM <= DESTINATION_CONTACT_MAX_M;
-  if (loopLike && !internalSummitValid) {
+    summitContactM <= 5;
+  if (loopLike && summitRoute && !internalSummitValid) {
     errors.push(
       `loop summit is ${summitContactM.toFixed(1)} m from stored geometry`
     );
@@ -385,7 +407,7 @@ try {
   const review =
     paths.length > 0 && featureIds.length > 0
       ? reviewOfficialRouteGeometry(points, paths, featureIds, {
-          internalConnectorSegmentIndexes: internalSummitValid
+          internalConnectorSegmentIndexes: summitRoute && internalSummitValid
             ? [summitIndex - 1, summitIndex]
             : [],
         })
@@ -436,16 +458,16 @@ try {
   if (
     points[0] &&
     trailhead &&
-    haversineMeters(points[0], trailhead) > DESTINATION_CONTACT_MAX_M
+    haversineMeters(points[0], trailhead) > (route.kind === null ? DESTINATION_CONTACT_MAX_M : 125)
   ) {
     errors.push("stored route start does not match the trailhead");
   }
   const routeEndTarget = loopLike ? trailhead : summit;
   if (
-    points.at(-1) &&
+    (summitRoute || loopLike || route.kind === "traverse") && points.at(-1) &&
     routeEndTarget &&
     haversineMeters(points.at(-1)!, routeEndTarget) >
-      DESTINATION_CONTACT_MAX_M
+      (loopLike || route.kind === "traverse" ? (route.kind === null ? DESTINATION_CONTACT_MAX_M : 125) : 5)
   ) {
     errors.push(
       `stored route end does not match the ${loopLike ? "trailhead" : "summit"}`
@@ -471,11 +493,32 @@ try {
     );
   }
 
+  const strictSourceReview = route.kind !== null && source?.id === "usfs-nfs-trails" && paths.length && featureIds.length
+    ? proveUsfsSourceSpan(points,paths,featureIds) : null;
+  if (strictSourceReview) errors.push(...strictSourceReview.errors);
+  const segmentSourceChecks: Array<{segment_id:string;ordinal:number;cited_feature_ids:string[];used_feature_ids:string[];passed:boolean;errors:string[]}> = [];
+  if (route.kind !== null && source) for (const segment of await loadSegments(routeId)) {
+    try {
+      if (segment.provenance?.source_kind !== "usfs-nfs-trails") throw new Error("segment source is not the same approved USFS source");
+      const ids = parseOfficialFeatureIdsFromSourceUrl(source.service,segment.provenance?.source_url ?? "");
+      if (ids.some(id => !featureIds.includes(id))) throw new Error("segment cites features outside route provenance");
+      const proof = proveUsfsSourceSpan(segment.points,paths,ids);
+      segmentSourceChecks.push({segment_id:segment.id,ordinal:segment.ordinal,cited_feature_ids:ids,used_feature_ids:proof.usedFeatureIds,passed:proof.passed,errors:proof.errors});
+      errors.push(...proof.errors.map(error => `segment ${segment.id}: ${error}`));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      segmentSourceChecks.push({segment_id:segment.id,ordinal:segment.ordinal,cited_feature_ids:[],used_feature_ids:[],passed:false,errors:[message]});
+      errors.push(`segment ${segment.id}: ${message}`);
+    }
+  }
+
   const result = {
     route_id: route.id,
     route_name: route.name,
     passed: errors.length === 0,
     errors,
+    strict_source_review: strictSourceReview,
+    segment_source_checks: segmentSourceChecks,
     metrics: {
       route_points: points.length,
       core_samples: review.coreSampleCount,
@@ -499,7 +542,7 @@ try {
       access_policy_passed: accessReview.passed,
       access_feature_count: accessReview.checkedFeatureIds.length,
     },
-    used_feature_ids: review.usedFeatureIds,
+    used_feature_ids: strictSourceReview?.usedFeatureIds ?? review.usedFeatureIds,
   };
   const sourceRegistry = source
     ? {

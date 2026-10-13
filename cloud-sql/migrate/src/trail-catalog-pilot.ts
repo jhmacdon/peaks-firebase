@@ -3,12 +3,14 @@ import { closeSync, openSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
-import { buildOsmCandidate, CandidateRejection, sha256, stableJson } from "./trail-catalog/graph";
-import { loadManifest, loadSourceSnapshots, prepareElevation } from "./trail-catalog/sources";
+import { CandidateRejection, sha256, stableJson } from "./trail-catalog/graph";
+import { loadManifest, prepareElevation } from "./trail-catalog/sources";
+import { buildCandidate, loadCandidateSnapshots } from "./trail-catalog/candidate-source";
+import { chooseCatalogCandidates } from "./trail-catalog/reviewed-candidates";
 import { claimCandidate, enqueueCandidate, existingCatalogRoute, finishCandidate, type CandidateArtifact } from "./trail-catalog/jobs";
 import { writePendingCandidate } from "./trail-catalog/pending";
 import { requireRouteWorkerDatabaseRole } from "./standard-route-worker-role";
-import type { CandidateReport, CatalogPlace, PilotManifest } from "./trail-catalog/types";
+import type { BuiltCandidate, CandidateReport, CatalogPlace, PilotManifest } from "./trail-catalog/types";
 
 type Plan = { reports: CandidateReport[]; artifacts: Map<string, CandidateArtifact>; reviewHash: string };
 export function parsePilotArgs(argv: string[]): { manifest: string; report: string; apply: boolean; reviewHash?: string } {
@@ -35,34 +37,42 @@ export async function loadCatalogPlaces(client: Pick<PoolClient, "query">, manif
 }
 export async function planPilot(client: Pick<PoolClient, "query">, manifest: PilotManifest, baseDir: string): Promise<Plan> {
   const places = await loadCatalogPlaces(client, manifest), reports: CandidateReport[] = [], artifacts = new Map<string, CandidateArtifact>();
-  const seenPairs = new Map<string, string>();
+  const builtCandidates: BuiltCandidate[] = [], sourceSnapshots = new Map<string, {value:unknown;body:string}[]>();
   for (const input of manifest.candidates) {
     const report: CandidateReport = { sourceKey: input.sourceKey, name: input.name, outcome: "rejected", reason: null };
     try {
       if (input.blockedReason) throw new CandidateRejection("research_source_gap", input.blockedReason);
-      if (input.source.type !== "osm") throw new CandidateRejection("official_feature_proof_not_implemented");
-      const pair = `${input.trailheadId}:${input.objectiveId}:${input.variant ?? "default"}`;
-      if (seenPairs.has(pair)) throw new CandidateRejection("duplicate_trailhead_objective", seenPairs.get(pair));
-      seenPairs.set(pair, input.sourceKey);
-      if (input.variant && (input.source.relationId !== (input.variant === "mailbox-old" ? 7147738 : 5426108) || !/mailbox/i.test(input.name))) throw new CandidateRejection("invalid_mailbox_variant");
-      const snapshots = loadSourceSnapshots(input.source.snapshots, baseDir);
-      const built = buildOsmCandidate(input, snapshots.map(s => s.value), { trailhead: places.get(input.trailheadId ?? "")!, objective: places.get(input.objectiveId ?? ""), endTrailhead: places.get(input.endTrailheadId ?? "") });
-      const duplicate = await existingCatalogRoute(client, { input });
-      if (duplicate) throw new CandidateRejection("existing_catalog_route_requires_review", duplicate);
-      Object.assign(report, { outcome: "admitted", geometryHash: built.geometryHash, sourceHashes: built.sourceHashes, distanceM: built.distanceM, mappedFraction: built.mappedFraction, usedWayIds: built.usedWayIds, requiredCutIndices: built.requiredCutIndices, pendingReady: false });
-      try {
-        const bound = [built.trailhead, built.objective, built.endTrailhead].filter((p): p is CatalogPlace => Boolean(p));
-        if (!bound.some(p => p.stateCode) || !bound.some(p => p.countryCode)) throw new CandidateRejection("route_region_missing_or_ambiguous");
-        const candidate = prepareElevation(built, baseDir);
-        artifacts.set(input.sourceKey, { candidate, snapshots: snapshots.map((snapshot, i) => ({ sha256: input.source.snapshots[i].sha256, body: snapshot.body })) });
-        report.pendingReady = true; report.gainM = candidate.gainM;
-      } catch (error) { report.pendingBlocker = rejection(error).reason; report.detail = rejection(error).detail; }
-    } catch (error) { Object.assign(report, rejection(error)); }
+      if (input.variant && (input.source.type !== "osm" || input.source.relationId !== (input.variant === "mailbox-old" ? 7147738 : 5426108) || !/mailbox/i.test(input.name))) throw new CandidateRejection("invalid_mailbox_variant");
+      const snapshots = loadCandidateSnapshots(input,baseDir);
+      const built = buildCandidate(input,snapshots.map(s => s.value),{trailhead:places.get(input.trailheadId ?? "")!,objective:places.get(input.objectiveId ?? ""),endTrailhead:places.get(input.endTrailheadId ?? "")});
+      builtCandidates.push(built); sourceSnapshots.set(input.sourceKey,snapshots);
+      Object.assign(report,{geometryHash:built.geometryHash,sourceHashes:built.sourceHashes,distanceM:built.distanceM,mappedFraction:built.mappedFraction,usedWayIds:built.usedWayIds,usedFeatureIds:built.usedFeatureIds,requiredCutIndices:built.requiredCutIndices,pendingReady:false});
+    } catch (error) { Object.assign(report,rejection(error)); }
     reports.push(report);
   }
-  // Includes source bytes, exact catalog bindings, DEM samples and all rejected inputs.
-  const reviewHash = sha256(stableJson({ manifest, reports, artifacts: [...artifacts.entries()] }));
-  return { reports, artifacts, reviewHash };
+  const selection = chooseCatalogCandidates(builtCandidates);
+  for (const decision of selection.names) Object.assign(reports.find(report => report.sourceKey === decision.sourceKey)!,{name:decision.name,aliases:decision.aliases,namingReason:decision.namingReason});
+  for (const drop of selection.rejected) Object.assign(reports.find(report => report.sourceKey === drop.sourceKey)!,{reason:drop.reason,keptSourceKey:drop.keptSourceKey});
+  for (const selected of selection.kept) {
+    const input=selected.input, report=reports.find(row => row.sourceKey===input.sourceKey)!, snapshots=sourceSnapshots.get(input.sourceKey)!;
+    try {
+      // Name/alias choices must pass the same source identity check on durable replay.
+      const built=buildCandidate(input,snapshots.map(s => s.value),{trailhead:selected.trailhead,objective:selected.objective,endTrailhead:selected.endTrailhead});
+      const duplicate=await existingCatalogRoute(client,{input});
+      if (duplicate) throw new CandidateRejection("existing_catalog_route_requires_review",duplicate);
+      report.outcome="admitted";
+      try {
+        const bound=[built.trailhead,built.objective,built.endTrailhead].filter((p):p is CatalogPlace=>Boolean(p));
+        const states=[...new Set(bound.map(p=>p.stateCode).filter(Boolean))],countries=[...new Set(bound.map(p=>p.countryCode).filter(Boolean))];
+        if (!(built.trailhead.stateCode ?? (states.length===1 ? states[0] : null)) || !(built.trailhead.countryCode ?? (countries.length===1 ? countries[0] : null))) throw new CandidateRejection("route_region_missing_or_ambiguous");
+        const candidate=prepareElevation(built,baseDir);
+        artifacts.set(input.sourceKey,{candidate,snapshots:snapshots.map((snapshot,i)=>({sha256:input.source.snapshots[i].sha256,body:snapshot.body}))});
+        report.pendingReady=true; report.gainM=candidate.gainM;
+      } catch (error) { report.pendingBlocker=rejection(error).reason; report.detail=rejection(error).detail; }
+    } catch (error) { Object.assign(report,rejection(error)); }
+  }
+  const reviewHash=sha256(stableJson({manifest,reports,artifacts:[...artifacts.entries()]}));
+  return {reports,artifacts,reviewHash};
 }
 
 export async function applyPilot(client: PoolClient, manifest: PilotManifest, plan: Plan, reviewHash: string, progress?: (reports: CandidateReport[]) => void): Promise<CandidateReport[]> {
@@ -101,6 +111,11 @@ export async function applyPilot(client: PoolClient, manifest: PilotManifest, pl
   return reports;
 }
 
+/** A failed write or COMMIT response requires receipt inspection before claiming an outcome. */
+export function markIncompleteApplyReports(reports: CandidateReport[], error: unknown): CandidateReport[] {
+  return reports.map(report => report.writeAction ? report : {...report,outcome:"rejected",pendingReady:false,reason:"apply_not_completed_check_receipt",detail:rejection(error).detail});
+}
+
 function pilotPool(): Pool {
   if (process.env.NODE_ENV === "test") {
     const url = process.env.TEST_DATABASE_URL;
@@ -136,7 +151,7 @@ async function main(): Promise<void> {
     summary = { ...summary, candidates: reports.length, admitted: reports.filter(r => r.outcome === "admitted").length, pendingReady: reports.filter(r => r.pendingReady && r.outcome === "admitted").length, written: reports.filter(r => r.writeAction === "created").length, existing: reports.filter(r => r.writeAction === "existing").length, blockers };
     if (Object.keys(blockers).length) process.exitCode = 2;
     console.log(JSON.stringify(summary));
-  } catch (error) { failure = error; summary = { ...summary, error: rejection(error) }; }
+  } catch (error) { failure = error; if (args.apply) reports = markIncompleteApplyReports(reports,error); summary = { ...summary, error: rejection(error) }; }
   finally {
     try {
       if (client && runId) await client.query(guardedAudit ? "SELECT finish_trail_catalog_source_run($1,$2,$3,$4,$5,$6)" : `UPDATE data_source_runs SET status=$2,finished_at=now(),rows_in=$3,rows_matched=$4,rows_written=$5,notes=$6 WHERE id=$1`,

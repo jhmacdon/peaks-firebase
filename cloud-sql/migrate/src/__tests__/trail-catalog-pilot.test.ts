@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildOsmCandidate, sha256, stableJson } from "../trail-catalog/graph";
 import { prepareElevation, segmentProvenance, loadSourceSnapshots } from "../trail-catalog/sources";
-import { parsePilotArgs } from "../trail-catalog-pilot";
+import { applyPilot, markIncompleteApplyReports, parsePilotArgs } from "../trail-catalog-pilot";
 import { TERRARIUM_REQUIRED_ATTRIBUTION } from "../lib/terrarium-attribution";
-import { claimCandidate, finishCandidate, existingCatalogRoute } from "../trail-catalog/jobs";
-import type { CatalogPlace, PilotCandidateInput } from "../trail-catalog/types";
+import { claimCandidate, finishCandidate, existingCatalogRoute, type CandidateArtifact } from "../trail-catalog/jobs";
+import type { CandidateReport, CatalogPlace, PilotCandidateInput } from "../trail-catalog/types";
 import type { PoolClient } from "pg";
 
 const head: CatalogPlace = { id: "head", name: "Example Trailhead", lat: 47, lng: -121, features: ["trailhead"], stateCode: "WA", countryCode: "US" };
@@ -66,7 +66,7 @@ test("lakes use actual boundary while source endpoints remain unchanged", () => 
 test("rejects duplicate source edges and official feature claims without proof", () => {
   const source = snapshot(); source.elements.push({ type: "way", id: 12, nodes: [1, 2], tags: { highway: "path", name: "Duplicate" } });
   assert.throws(() => build({ ...input, source: { ...input.source, wayIds: [10, 11, 12] } }, source), /ambiguous_source_edge/);
-  assert.throws(() => build({ ...input, source: { ...input.source, type: "usfs-nfs-trails" } }), /official_feature_proof_not_implemented/);
+  assert.throws(() => build({ ...input, source: { ...input.source, type: "usfs-nfs-trails" } }), /osm_source_required/);
 });
 test("a hiking relation cannot attest an unrelated display name", () => {
   assert.throws(() => build({ ...input, name: "Unrelated Hike" }), /route_name_attestation_missing/);
@@ -136,4 +136,25 @@ test("legacy duplicate guard works before candidate job migration", async () => 
   assert.equal(await existingCatalogRoute(client, { input }), "legacy-route");
   assert.equal(queries.length, 2);
   assert.match(queries[1], /rd.ordinal=0/);
+});
+test("an apply receipt failure preserves committed outcomes and labels every incomplete row", async () => {
+  const artifact={candidate:{input:{sourceKey:"first"}}} as CandidateArtifact;
+  const reports:CandidateReport[]=[{sourceKey:"first",name:"First",outcome:"admitted",reason:null,pendingReady:true},
+    {sourceKey:"second",name:"Second",outcome:"rejected",reason:"research_source_gap"},
+    {sourceKey:"third",name:"Third",outcome:"admitted",reason:null,pendingReady:true}];
+  const client={query:async (sql:string) => {
+    if (sql.includes("session_user")) return {rows:[{database_user:"factory",is_factory:true,is_reviewer:false}]};
+    if (sql.includes("RETURNING state,route_id,input_hash")) return {rows:[{state:"pending",route_id:"committed-route",input_hash:sha256(stableJson(artifact))}]};
+    if (sql.includes("trail_catalog_pending_binding_valid")) return {rows:[{valid:true}]};
+    throw new Error("rejected receipt connection lost");
+  }} as unknown as PoolClient;
+  let progress:CandidateReport[]=[];
+  const plan={reports,artifacts:new Map([["first",artifact]]),reviewHash:"a".repeat(64)};
+  await assert.rejects(()=>applyPilot(client,{version:1,batchKey:"test",candidates:[]},plan,plan.reviewHash,completed=>{progress=[...completed,...reports.slice(completed.length)];}),/receipt connection lost/);
+  const final=markIncompleteApplyReports(progress,new Error("rejected receipt connection lost"));
+  assert.equal(final[0].writeAction,"existing"); assert.equal(final[0].routeId,"committed-route");
+  assert.deepEqual(final.slice(1).map(report=>report.reason),["apply_not_completed_check_receipt","apply_not_completed_check_receipt"]);
+  assert.ok(final.slice(1).every(report=>report.outcome==="rejected" && !report.pendingReady));
+  const created={...reports[0],routeId:"newly-committed",writeAction:"created" as const};
+  assert.deepEqual(markIncompleteApplyReports([created],new Error("later COMMIT response lost")),[created]);
 });

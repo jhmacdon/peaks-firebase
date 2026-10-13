@@ -2,6 +2,7 @@
 export type TrailKind = "summit" | "destination" | "loop" | "traverse";
 export type Point = { lat: number; lng: number };
 export type ElevatedPoint = Point & { ele: number; dist: number };
+export interface UsfsVertex { featureId: string; part: number; vertex: number }
 
 export interface SourceSnapshot {
   path: string;
@@ -31,10 +32,14 @@ export interface PilotCandidateInput {
   /** Source nodes, not projected catalog coordinates. Required for OSM paths. */
   startNodeId?: number;
   endNodeId?: number;
+  /** Exact vertices in the registry's canonical feature/part order. */
+  startSourceVertex?: UsfsVertex;
+  endSourceVertex?: UsfsVertex;
   /** For an attested loop, traverse every selected edge once from startNodeId. */
   terrainReviews?: { wayId: number; sourceUrl: string; checkedAt: string; note: string }[];
   /** Name-only evidence when no named OSM hiking relation attests to the route. */
   identity?: { name: string; sourceUrl: string; publisher: "usfs" | "wta" | "alltrails" };
+  commonDestinationEvidence?: { objectiveId: string; name: string; sourceUrl: string; publisher: "usfs" | "nps" | "wta" | "alltrails"; checkedAt: string; note: string; attestation: "standalone_named_hike" };
   access?: { status: "open" | "closed" | "unknown"; sourceUrl: string; checkedAt: string; note: string };
   /** Store known research gaps as rejections, keeping all golden rows visible. */
   blockedReason?: string;
@@ -59,12 +64,14 @@ export interface CatalogPlace extends Point {
   boundary?: { type: "Polygon"; coordinates: number[][][] } | null;
 }
 
-export interface SourceEdge {
+export interface OsmSourceEdge {
   wayId: number;
   startNodeId: number;
   endNodeId: number;
   names: string[];
 }
+export interface UsfsSourceEdge { featureId: string; part: number; startVertex: number; endVertex: number; names: string[] }
+export type SourceEdge = OsmSourceEdge | UsfsSourceEdge;
 
 export interface BuiltCandidate {
   input: PilotCandidateInput;
@@ -77,11 +84,13 @@ export interface BuiltCandidate {
   edges: SourceEdge[];
   requiredCutIndices: number[];
   usedWayIds: number[];
+  usedFeatureIds?: string[];
   distanceM: number;
   mappedFraction: number;
   sourceHashes: string[];
   geometryHash: string;
   attestation: string;
+  attestedRouteNames?: string[];
   shape: "out_and_back" | "loop" | "point_to_point";
 }
 
@@ -105,6 +114,9 @@ export interface ReadyCandidate extends BuiltCandidate {
 export interface CandidateReport {
   sourceKey: string;
   name: string;
+  aliases?: string[];
+  namingReason?: string;
+  keptSourceKey?: string;
   outcome: "admitted" | "rejected";
   reason: string | null;
   detail?: string;
@@ -114,6 +126,7 @@ export interface CandidateReport {
   gainM?: number;
   mappedFraction?: number;
   usedWayIds?: number[];
+  usedFeatureIds?: string[];
   requiredCutIndices?: number[];
   pendingReady?: boolean;
   pendingBlocker?: string;

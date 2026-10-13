@@ -3,16 +3,14 @@ import { resolve, dirname } from "node:path";
 import { computeRouteElevationStats, profileIsUsable, routeProfileHasRealRange } from "../route-elevation-profile";
 import { osmRouteHaversineMeters } from "../osm-route-geometry";
 import { hasRequiredTerrariumAttribution } from "../lib/terrarium-attribution";
-import { CandidateRejection, sha256 } from "./graph";
-import type { BuiltCandidate, PilotManifest, ReadyCandidate, SourceSnapshot } from "./types";
+import { CandidateRejection } from "./graph";
+import { getPublishableArcgisTrailSource } from "../official-trail-sources";
+import { parseOfficialFeatureIdsFromSourceUrl } from "../official-route-geometry";
+import { usfsSpanSourceUrl } from "./usfs-source-graph";
+import { readHashedJson } from "./source-files";
+import type { BuiltCandidate, PilotManifest, ReadyCandidate, SourceSnapshot, UsfsSourceEdge } from "./types";
+export { readHashedJson } from "./source-files";
 
-export function readHashedJson(path: string, expectedHash: string, baseDir: string): { value: unknown; body: string } {
-  if (!/^[a-f0-9]{64}$/.test(expectedHash)) throw new CandidateRejection("invalid_snapshot_hash");
-  const bytes = readFileSync(resolve(baseDir, path));
-  if (bytes.length > 25_000_000) throw new CandidateRejection("snapshot_too_large");
-  if (sha256(bytes) !== expectedHash) throw new CandidateRejection("snapshot_hash_mismatch", path);
-  return { value: JSON.parse(bytes.toString("utf8")), body: bytes.toString("utf8") };
-}
 export function loadSourceSnapshots(snapshots: SourceSnapshot[], baseDir: string): { value: unknown; body: string }[] {
   if (!Array.isArray(snapshots) || !snapshots.length || snapshots.length > 20) throw new CandidateRejection("invalid_snapshot_count");
   return snapshots.map(snapshot => {
@@ -56,15 +54,36 @@ export function prepareElevation(candidate: BuiltCandidate, baseDir: string): Re
     if (attested.distanceM !== undefined && (!(attested.distanceM > 0) || Math.abs(comparisonDistance - attested.distanceM) / attested.distanceM > 0.15)) throw new CandidateRejection("attested_distance_mismatch", attested.sourceUrl);
     if (attested.gainM !== undefined && (!Number.isFinite(attested.gainM) || Math.abs(comparisonGain - attested.gainM) > Math.abs(attested.gainM) * 0.15)) throw new CandidateRejection("attested_gain_mismatch", attested.sourceUrl);
   }
-  const sourceUrl = candidate.input.source.relationId ? `https://www.openstreetmap.org/relation/${candidate.input.source.relationId}` : `https://www.openstreetmap.org/way/${candidate.usedWayIds[0]}`;
-  const provenance = { source_kind: "openstreetmap", source_url: sourceUrl, license_name: "Open Data Commons Open Database License (ODbL) 1.0", license_url: "https://opendatacommons.org/licenses/odbl/1-0/", attribution: "© OpenStreetMap contributors", retrieved_at: candidate.input.source.snapshots.map(s => s.retrievedAt).sort()[0], osm_way_ids: candidate.usedWayIds, osm_way_urls: candidate.usedWayIds.map(id => `https://www.openstreetmap.org/way/${id}`), contains_osm_geometry: true, elevation_source: lineage.source, elevation_profile: lineage.profile };
+  const provenance = candidateProvenance(candidate,lineage);
   return { ...candidate, elevatedPoints, elevationLineage: lineage, provenance, gainM: stats.gain, lossM: stats.loss };
+}
+
+export function candidateProvenance(candidate: BuiltCandidate, lineage: ReadyCandidate["elevationLineage"]): Record<string, unknown> {
+  const common = { retrieved_at: candidate.input.source.snapshots.map(s => s.retrievedAt).sort()[0], elevation_source: lineage.source, elevation_profile: lineage.profile };
+  if (candidate.input.source.type === "usfs-nfs-trails") {
+    const source = getPublishableArcgisTrailSource("usfs-nfs-trails");
+    if (candidate.edges.some(edge => !("featureId" in edge))) throw new CandidateRejection("mixed_source_edges_not_supported");
+    return { source_kind: source.id, source_url: usfsSpanSourceUrl(candidate.edges as UsfsSourceEdge[],0,candidate.edges.length), license_name: source.license.name, license_url: source.license.url, attribution: source.license.attribution, ...common, osm_way_ids: [], osm_way_urls: [], contains_osm_geometry: false };
+  }
+  if (candidate.input.source.type !== "osm" || candidate.edges.some(edge => !("wayId" in edge))) throw new CandidateRejection("mixed_source_edges_not_supported");
+  const sourceUrl = candidate.input.source.relationId ? `https://www.openstreetmap.org/relation/${candidate.input.source.relationId}` : `https://www.openstreetmap.org/way/${candidate.usedWayIds[0]}`;
+  return { source_kind: "openstreetmap", source_url: sourceUrl, license_name: "Open Data Commons Open Database License (ODbL) 1.0", license_url: "https://opendatacommons.org/licenses/odbl/1-0/", attribution: "© OpenStreetMap contributors", ...common, osm_way_ids: candidate.usedWayIds, osm_way_urls: candidate.usedWayIds.map(id => `https://www.openstreetmap.org/way/${id}`), contains_osm_geometry: true };
+}
+
+export function provenanceSourceIds(provenance: Record<string, unknown>): string[] {
+  if (provenance.source_kind === "usfs-nfs-trails") return parseOfficialFeatureIdsFromSourceUrl(getPublishableArcgisTrailSource("usfs-nfs-trails").service,String(provenance.source_url));
+  if (provenance.source_kind !== "openstreetmap" || !Array.isArray(provenance.osm_way_ids) || provenance.osm_way_ids.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new CandidateRejection("unsupported_source_provenance");
+  return [...new Set(provenance.osm_way_ids as number[])].sort((a,b) => a-b).map(String);
 }
 
 /** Bind each segment envelope to its actual positive-length source edges. */
 export function segmentProvenance(candidate: ReadyCandidate, start: number, end: number): Record<string, unknown> {
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end >= candidate.points.length || end <= start) throw new CandidateRejection("invalid_segment_source_interval");
-  const ids = [...new Set(candidate.edges.slice(start, end).map(edge => edge.wayId))].sort((a, b) => a - b);
+  if (candidate.input.source.type === "usfs-nfs-trails") {
+    if (candidate.edges.some(edge => !("featureId" in edge))) throw new CandidateRejection("mixed_source_edges_not_supported");
+    return { ...candidate.provenance, source_url: usfsSpanSourceUrl(candidate.edges as UsfsSourceEdge[],start,end) };
+  }
+  const ids = [...new Set(candidate.edges.slice(start, end).map(edge => { if (!("wayId" in edge)) throw new CandidateRejection("mixed_source_edges_not_supported"); return edge.wayId; }))].sort((a, b) => a - b);
   if (!ids.length) throw new CandidateRejection("empty_segment_source_interval");
   return { ...candidate.provenance, osm_way_ids: ids, osm_way_urls: ids.map(id => `https://www.openstreetmap.org/way/${id}`) };
 }

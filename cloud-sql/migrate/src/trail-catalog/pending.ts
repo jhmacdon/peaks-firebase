@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { PoolClient } from "pg";
-import { CandidateRejection, buildOsmCandidate, sha256, stableJson } from "./graph";
-import { segmentProvenance } from "./sources";
+import { CandidateRejection, sha256, stableJson } from "./graph";
+import { candidateProvenance, provenanceSourceIds, segmentProvenance } from "./sources";
+import { buildCandidate } from "./candidate-source";
 import { existingCatalogRoute, finishCandidate, lockCandidateLease, type CandidateLease } from "./jobs";
 import type { CandidateReport, ElevatedPoint, ReadyCandidate } from "./types";
 
@@ -39,9 +40,10 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
       if (sha256(snapshot.body) !== snapshot.sha256 || snapshot.sha256 !== candidate.input.source.snapshots[i].sha256) throw new CandidateRejection("durable_source_hash_mismatch");
       return JSON.parse(snapshot.body);
     });
-    const rebuilt = buildOsmCandidate(candidate.input, snapshots, { trailhead: candidate.trailhead, objective: candidate.objective, endTrailhead: candidate.endTrailhead });
+    const rebuilt = buildCandidate(candidate.input, snapshots, { trailhead: candidate.trailhead, objective: candidate.objective, endTrailhead: candidate.endTrailhead });
     if (stableJson({ points: rebuilt.points, edges: rebuilt.edges }) !== stableJson({ points: candidate.points, edges: candidate.edges }) || rebuilt.geometryHash !== candidate.geometryHash) throw new CandidateRejection("durable_source_geometry_mismatch");
     if (candidate.elevatedPoints.length !== rebuilt.points.length || candidate.elevatedPoints.some((point, i) => point.lat !== rebuilt.points[i].lat || point.lng !== rebuilt.points[i].lng || !Number.isFinite(point.ele))) throw new CandidateRejection("elevation_source_vertex_mismatch");
+    if (stableJson(candidateProvenance(rebuilt,candidate.elevationLineage)) !== stableJson(candidate.provenance)) throw new CandidateRejection("durable_source_provenance_mismatch");
     const duplicate = await existingCatalogRoute(client, candidate);
     if (duplicate) throw new CandidateRejection("existing_catalog_route_requires_review", duplicate);
     const shared = sharedModules();
@@ -53,13 +55,17 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
       const start = segment.routeStartIndex, end = segment.routeEndIndex;
       if (start !== expectedStart || end <= start || stableJson(segment.points.map(({ lat, lng, ele }) => ({ lat, lng, ele }))) !== stableJson(candidate.elevatedPoints.slice(start, end + 1).map(({ lat, lng, ele }) => ({ lat, lng, ele })))) throw new CandidateRejection("matcher_source_interval_mismatch");
       expectedStart = end;
-      const provenance = segmentProvenance(candidate, start, end), ids = provenance.osm_way_ids as number[];
+      const provenance = segmentProvenance(candidate, start, end), ids = provenanceSourceIds(provenance);
       const create = async () => {
         const wkt = shared.pointsToLineStringZ(segment.points);
         // Same source geometry with different XYZ needs review; never hide it as a duplicate span.
-        const overlaps = await client.query(`SELECT s.id FROM segments s WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(s.provenance->'osm_way_ids') source_id WHERE source_id=ANY($2::text[]))
+        const sourcePredicate = candidate.input.source.type === "usfs-nfs-trails"
+          ? "(s.provenance->>'source_kind'='usfs-nfs-trails' AND trail_catalog_usfs_feature_ids(s.provenance->>'source_url') && $2::text[])"
+          : "EXISTS (SELECT 1 FROM jsonb_array_elements_text(s.provenance->'osm_way_ids') source_id WHERE source_id=ANY($2::text[]))";
+        const overlaps = await client.query(`SELECT s.id FROM segments s WHERE (${sourcePredicate}
+          OR (s.provenance->>'source_kind' IN ('openstreetmap','usfs-nfs-trails') AND s.provenance->>'source_kind'<>$3))
           AND ST_DWithin(s.path,ST_GeomFromText($1,4326)::geography,5)
-          AND ST_Length(ST_CollectionExtract(ST_Intersection(ST_GeomFromText($1,4326),ST_Buffer(s.path,5)::geometry),2)::geography)>GREATEST(25,ST_Length(ST_GeomFromText($1,4326)::geography)*0.2) LIMIT 1`, [wkt, ids.map(String)]);
+          AND ST_Length(ST_CollectionExtract(ST_Intersection(ST_GeomFromText($1,4326),ST_Buffer(s.path,5)::geometry),2)::geography)>GREATEST(25,ST_Length(ST_GeomFromText($1,4326)::geography)*0.2) LIMIT 1`, [wkt, ids,provenance.source_kind]);
         if (overlaps.rows.length) throw new CandidateRejection("existing_source_geometry_requires_review", overlaps.rows[0].id);
         const id = `trail-seg-${randomUUID()}`;
         const names = [...new Set(candidate.edges.slice(start, end).flatMap(e => e.names))];
@@ -72,8 +78,8 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
       };
       if (segment.type === "existing") {
         if (!segment.existingSegmentId || !segment.direction) throw new CandidateRejection("invalid_existing_segment_reference");
-        const stored = await client.query("SELECT provenance->'osm_way_ids' AS ids FROM segments WHERE id=$1 FOR UPDATE", [segment.existingSegmentId]);
-        if (stableJson([...(stored.rows[0]?.ids ?? [])].sort((a,b) => a-b)) !== stableJson(ids)) throw new CandidateRejection("existing_segment_source_interval_mismatch", segment.existingSegmentId);
+        const stored = await client.query("SELECT provenance FROM segments WHERE id=$1 FOR UPDATE", [segment.existingSegmentId]);
+        if (stored.rows[0]?.provenance?.source_kind !== provenance.source_kind || stableJson(provenanceSourceIds(stored.rows[0]?.provenance ?? {})) !== stableJson(ids)) throw new CandidateRejection("existing_segment_source_interval_mismatch", segment.existingSegmentId);
         references.push({ ...await shared.chooseActivationSegmentReference({ client, existingSegmentId: segment.existingSegmentId, points: segment.points, direction: segment.direction, routeProvenance: JSON.stringify(provenance), requireReuse: true, createRouteSpecificSegment: create }), routeStartIndex: start, routeEndIndex: end });
         reusedLengthM += candidate.elevatedPoints[end].dist - candidate.elevatedPoints[start].dist;
       } else references.push({ segmentId: await create(), direction: "forward", routeStartIndex: start, routeEndIndex: end });
@@ -92,7 +98,7 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
     for (let i = 0; i < placeIds.length; i++) await client.query("INSERT INTO route_destinations(route_id,destination_id,ordinal) VALUES($1,$2,$3)", [routeId, placeIds[i], i]);
     const checks = await client.query("SELECT peaks_route_passes_publish_integrity($1,NULL,'pending') AS valid", [routeId]);
     if (!checks.rows[0]?.valid) throw new CandidateRejection("pending_route_integrity_failed");
-    const report: CandidateReport = { sourceKey: candidate.input.sourceKey, name: candidate.input.name, outcome: "admitted", reason: null, geometryHash: candidate.geometryHash, distanceM: candidate.distanceM, gainM: candidate.gainM, mappedFraction: 1, usedWayIds: candidate.usedWayIds, pendingReady: true, routeId, writeAction: "created", segmentIds: references.map(r => r.segmentId), segments: references, reusedLengthM };
+    const report: CandidateReport = { sourceKey: candidate.input.sourceKey, name: candidate.input.name, outcome: "admitted", reason: null, geometryHash: candidate.geometryHash, distanceM: candidate.distanceM, gainM: candidate.gainM, mappedFraction: 1, usedWayIds: candidate.usedWayIds, usedFeatureIds: candidate.usedFeatureIds, pendingReady: true, routeId, writeAction: "created", segmentIds: references.map(r => r.segmentId), segments: references, reusedLengthM };
     await finishCandidate(client, lease, routeId, report, null);
     await client.query("COMMIT");
     return report;
