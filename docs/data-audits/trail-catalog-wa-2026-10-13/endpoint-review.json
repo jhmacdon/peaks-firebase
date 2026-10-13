@@ -1,0 +1,1701 @@
+{
+  "generatedAt": "2026-10-13T05:38:58.362112+00:00",
+  "scope": "Research choices for graph replay; not independent publication approval",
+  "routes": [
+    {
+      "sourceKey": "wa:osm-relation:4807642",
+      "name": "Lake Serene Trail",
+      "kind": "destination",
+      "catalogTrailheadId": "DiZjSucepuEsfCtfKw6F",
+      "catalogObjectiveId": "1755CBB232F3FCC6A437",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 2322558097,
+        "url": "https://www.openstreetmap.org/node/2322558097",
+        "name": "Lake Serene Trailhead",
+        "tags": {
+          "highway": "trailhead",
+          "name": "Lake Serene Trailhead"
+        },
+        "lat": 47.8091085,
+        "lon": -121.574018
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 16680239,
+        "url": "https://www.openstreetmap.org/relation/16680239",
+        "name": "Lake Serene",
+        "tags": {
+          "ele": "768.4",
+          "gnis:feature_id": "1525580",
+          "name": "Lake Serene",
+          "natural": "water",
+          "source:geometry": "Bing imagery",
+          "type": "multipolygon",
+          "water": "lake",
+          "wikidata": "Q24884203",
+          "wikipedia": "en:Lake Serene"
+        }
+      },
+      "startNodeId": 2328918400,
+      "endNodeId": 416751343,
+      "endpointChoice": "Named Lunch Rock node on the Lake Serene relation. WTA describes the rock along the shore. Excludes Bridal Veil Falls and Valley View spurs.",
+      "researchNotes": "Relation has two degree-3 branch nodes and four terminal nodes. Select common lake shore/Lunch Rock endpoint; omit side spurs. USFS eligible features have a middle gap and cannot alone supply full route.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{21DC1407-2939-4E1A-B1F4-2BBD310A7F25}",
+          "objectid": 9803849,
+          "name": "LAKE SERENE",
+          "trail_no": "1068",
+          "eligibleByRegistryAccess": true,
+          "accessFailures": [],
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "accessibility_status": null,
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_managed": "01/01-12/31",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null,
+            "hiker_pedestrian_restricted": null
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -121.57403917415365,
+                47.80910028562209
+              ],
+              [
+                -121.57361532332297,
+                47.80595518349736
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{5D7E5032-DAE0-48AB-A713-472CBB34B7D1}",
+          "objectid": 9814423,
+          "name": "LAKE SERENE",
+          "trail_no": "1068",
+          "eligibleByRegistryAccess": true,
+          "accessFailures": [],
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "accessibility_status": null,
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_managed": "01/01-12/31",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null,
+            "hiker_pedestrian_restricted": null
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -121.57607938129333,
+                47.8000169239035
+              ],
+              [
+                -121.57036731475455,
+                47.785131264719034
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4793517",
+      "name": "Snow Lake Trail (Alpental)",
+      "kind": "destination",
+      "catalogTrailheadId": "7mdR4I31n8VQQdPVN5Nd",
+      "catalogObjectiveId": "4EDA7A56C36153040635",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 1744815110,
+        "url": "https://www.openstreetmap.org/node/1744815110",
+        "name": "Snow Lake Trailhead",
+        "tags": {
+          "highway": "trailhead",
+          "name": "Snow Lake Trailhead",
+          "operator": "US Forest Service",
+          "website": "https://www.fs.usda.gov/r06/mbs/recreation/snow-lake-trailhead"
+        },
+        "lat": 47.4454634,
+        "lon": -121.423505
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 6446962,
+        "url": "https://www.openstreetmap.org/relation/6446962",
+        "name": "Snow Lake",
+        "tags": {
+          "ele": "1225",
+          "gnis:feature_id": "1526035",
+          "intermittent": "no",
+          "name": "Snow Lake",
+          "natural": "water",
+          "source": "Bing imagery",
+          "type": "multipolygon",
+          "water": "lake",
+          "wikidata": "Q20712220",
+          "wikipedia": "en:Snow Lake (King County, Washington)"
+        }
+      },
+      "startNodeId": 2009748375,
+      "endNodeId": 1340136721,
+      "endpointChoice": "Northern source trail junction after the lake outlet. WTA describes this junction as a turnaround; retains the lake walk rather than stopping at the first view above the lake.",
+      "researchNotes": "This is Snow Lake #1013 in King County, not Snow Lakes #1553 in the Enchantments. Determine common lake stopping point; raw relation goes along lake to junction.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B69839B4-1C0C-4663-A40D-6AC363499C00}",
+          "objectid": 9800148,
+          "name": "SNOW LAKE",
+          "trail_no": "1013",
+          "eligibleByRegistryAccess": true,
+          "accessFailures": [],
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "accessibility_status": null,
+            "allowed_terra_use": "21",
+            "hiker_pedestrian_managed": "01/01-12/31",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null,
+            "hiker_pedestrian_restricted": null
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -121.44703751375326,
+                47.45978186119514
+              ],
+              [
+                -121.44806096899711,
+                47.4685751745763
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{A0581B7D-0CDE-4016-BD4A-A597F27C0DEA}",
+          "objectid": 9802926,
+          "name": "SNOW LAKE",
+          "trail_no": "1013",
+          "eligibleByRegistryAccess": true,
+          "accessFailures": [],
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "accessibility_status": null,
+            "allowed_terra_use": "21",
+            "hiker_pedestrian_managed": "01/01-12/31",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null,
+            "hiker_pedestrian_restricted": null
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -121.42351047950072,
+                47.44549140694598
+              ],
+              [
+                -121.43159792803375,
+                47.45057411035409
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{FD229C3C-02C8-4BCD-8F55-8D8569872D33}",
+          "objectid": 9816176,
+          "name": "SNOW LAKE",
+          "trail_no": "1013",
+          "eligibleByRegistryAccess": true,
+          "accessFailures": [],
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "accessibility_status": null,
+            "allowed_terra_use": "21",
+            "hiker_pedestrian_managed": "01/01-12/31",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null,
+            "hiker_pedestrian_restricted": null
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -121.43159792803375,
+                47.45057411035409
+              ],
+              [
+                -121.44703751375326,
+                47.45978186119514
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186",
+      "name": "Ingalls Lake via Ingalls Way",
+      "kind": "destination",
+      "catalogTrailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "catalogObjectiveId": "4F56621F3FF823F6A480",
+      "sourceTrailhead": {
+        "type": "way",
+        "id": 295213926,
+        "url": "https://www.openstreetmap.org/way/295213926",
+        "name": "Esmeralda Trailhead",
+        "tags": {
+          "amenity": "parking",
+          "name": "Esmeralda Trailhead",
+          "parking": "surface",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recreation/hiking/recarea/?recid=57499"
+        },
+        "bounds": {
+          "minLat": 47.4365332,
+          "maxLat": 47.4370545,
+          "minLon": -120.9374376,
+          "maxLon": -120.9368874
+        },
+        "routeStartNode": {
+          "type": "node",
+          "id": 2989196541,
+          "url": "https://www.openstreetmap.org/node/2989196541",
+          "name": null,
+          "tags": {},
+          "lat": 47.4366859,
+          "lon": -120.9369728
+        },
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-esmeralda-start-map.json"
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 17021362,
+        "url": "https://www.openstreetmap.org/relation/17021362",
+        "name": "Lake Ingalls",
+        "tags": {
+          "ele": "1970",
+          "gnis:feature_id": "1521205",
+          "name": "Lake Ingalls",
+          "natural": "water",
+          "source:geometry": "Bing imagery",
+          "type": "multipolygon",
+          "water": "lake",
+          "wikidata": "Q21196808",
+          "wikipedia": "en:Lake Ingalls"
+        }
+      },
+      "startNodeId": 2989196541,
+      "endNodeId": 2444987448,
+      "endpointChoice": "First source-way seam at the south shore of Lake Ingalls, node 2444987448. Stored lake boundary lies about 6 m away. Stops before the relation continues north toward Stuart Pass.",
+      "researchNotes": "OSM lake name is Lake Ingalls. Relation extends beyond the lake approach toward Stuart Pass; do not take its full extent as lake hike. USFS Centerline/N/A fails access gate. Shares ways with Esmeralda and Ingalls Peak approaches.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{2D2E2523-A322-4027-A78F-C1D52BE0A9EE}",
+          "objectid": 9791866,
+          "name": "INGALLS WAY",
+          "trail_no": "1390",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.93845683561129,
+                47.440556173164914
+              ],
+              [
+                -120.93742456263,
+                47.4711639640435
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{E08BAA5E-CE9D-46AB-A328-A051BE4D775F}",
+          "objectid": 9776012,
+          "name": "LOWER INGALLS WAY",
+          "trail_no": "1390.1",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.93533303149019,
+                47.45930266858517
+              ],
+              [
+                -120.93994717006937,
+                47.46698026652937
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626186:ingalls-peak",
+      "name": "Ingalls Peak via Ingalls Way and South Ridge",
+      "kind": "summit",
+      "catalogTrailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "catalogObjectiveId": "8gW9WZ6tngvhNn0TIDpc",
+      "sourceTrailhead": {
+        "type": "way",
+        "id": 295213926,
+        "url": "https://www.openstreetmap.org/way/295213926",
+        "name": "Esmeralda Trailhead",
+        "tags": {
+          "amenity": "parking",
+          "name": "Esmeralda Trailhead",
+          "parking": "surface",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recreation/hiking/recarea/?recid=57499"
+        },
+        "bounds": {
+          "minLat": 47.4365332,
+          "maxLat": 47.4370545,
+          "minLon": -120.9374376,
+          "maxLon": -120.9368874
+        },
+        "routeStartNode": {
+          "type": "node",
+          "id": 2989196541,
+          "url": "https://www.openstreetmap.org/node/2989196541",
+          "name": null,
+          "tags": {},
+          "lat": 47.4366859,
+          "lon": -120.9369728
+        },
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-esmeralda-start-map.json"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 356545306,
+        "url": "https://www.openstreetmap.org/node/356545306",
+        "name": "Ingalls Peak",
+        "tags": {
+          "climbing": "route_top",
+          "ele": "2335.4",
+          "gnis:feature_id": "1521206",
+          "name": "Ingalls Peak",
+          "natural": "peak",
+          "wikidata": "Q49038784",
+          "wikipedia": "en:Ingalls Peak"
+        },
+        "lat": 47.4723371,
+        "lon": -120.946341
+      },
+      "startNodeId": 2989196541,
+      "endNodeId": null,
+      "endpointChoice": "No valid summit endpoint is selected. The mapped climbers approach stops 118.7 m from the catalog summit; the separate Ingalls Lake shoreline endpoint is not an Ingalls Peak endpoint.",
+      "researchNotes": "Existing candidate uses ways1193241119,236470870,236470875,236470876,694942416,1213228739. Live way1213228739 is informal climbing_access with bad trail visibility and ends below summit. Existing checked-in candidate reports118.7m summit snap and fails5m gate. Do not bridge gap by straight line.",
+      "knownBlockers": [
+        "Known 118.7 m unmapped final summit span; source way 1213228739 stops below the summit and has demanding terrain / bad visibility. No connector may be invented."
+      ],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{2D2E2523-A322-4027-A78F-C1D52BE0A9EE}",
+          "objectid": 9791866,
+          "name": "INGALLS WAY",
+          "trail_no": "1390",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.93845683561129,
+                47.440556173164914
+              ],
+              [
+                -120.93742456263,
+                47.4711639640435
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{E08BAA5E-CE9D-46AB-A328-A051BE4D775F}",
+          "objectid": 9776012,
+          "name": "LOWER INGALLS WAY",
+          "trail_no": "1390.1",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.93533303149019,
+                47.45930266858517
+              ],
+              [
+                -120.93994717006937,
+                47.46698026652937
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152031",
+      "name": "Colchuck Lake Trail",
+      "kind": "destination",
+      "catalogTrailheadId": "0kwic89q2UWPLE6jGyk0",
+      "catalogObjectiveId": "RedSHjLLfieFAySd8gFZ",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 11298873822,
+        "url": "https://www.openstreetmap.org/node/11298873822",
+        "name": "Stuart Lake Trailhead",
+        "tags": {
+          "highway": "trailhead",
+          "name": "Stuart Lake Trailhead",
+          "operator": "US Forest Service",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recarea/?recid=59019"
+        },
+        "lat": 47.5277547,
+        "lon": -120.8208662
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 17094764,
+        "url": "https://www.openstreetmap.org/relation/17094764",
+        "name": "Colchuck Lake",
+        "tags": {
+          "ele": "1697.7",
+          "gnis:feature_id": "1517919",
+          "name": "Colchuck Lake",
+          "natural": "water",
+          "source:geometry": "Bing imagery",
+          "type": "multipolygon",
+          "water": "lake",
+          "wikidata": "Q105872732",
+          "wikipedia": "en:Colchuck Lake"
+        }
+      },
+      "startNodeId": 3160876212,
+      "endNodeId": 3160874701,
+      "endpointChoice": "First near-shore source vertex after arrival at the north lake overlook, node 3160874701, about 20 m from the stored boundary. WTA describes the broad granite arrival overlook; omits the farther shore and Aasgard approach. Exact spot remains a review choice, not a named OSM point.",
+      "researchNotes": "Uses Stuart Lake trailhead and shares approach ways with Stuart Lake route. OSM relation ends at south lake shore; usual first-shore stopping point needs review. USFS Centerline/N/A fails access gate.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B0BAAA6C-8EC0-4B41-8B82-9D1E097C958F}",
+          "objectid": 9774818,
+          "name": "STUART LAKE",
+          "trail_no": "1599",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.82065896936118,
+                47.527908702955415
+              ],
+              [
+                -120.87983414419563,
+                47.49767385780315
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B3AB9757-1B91-4174-95E9-420A5A4AAF43}",
+          "objectid": 9787808,
+          "name": "COLCHUCK LAKE",
+          "trail_no": "1599.1",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.84041907732231,
+                47.505142222499124
+              ],
+              [
+                -120.8344418554114,
+                47.4970570386773
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4152034",
+      "name": "Lake Stuart Trail",
+      "kind": "destination",
+      "catalogTrailheadId": "0kwic89q2UWPLE6jGyk0",
+      "catalogObjectiveId": "3F941B9F4262007D704D",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 11298873822,
+        "url": "https://www.openstreetmap.org/node/11298873822",
+        "name": "Stuart Lake Trailhead",
+        "tags": {
+          "highway": "trailhead",
+          "name": "Stuart Lake Trailhead",
+          "operator": "US Forest Service",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recarea/?recid=59019"
+        },
+        "lat": 47.5277547,
+        "lon": -120.8208662
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 17100498,
+        "url": "https://www.openstreetmap.org/relation/17100498",
+        "name": "Lake Stuart",
+        "tags": {
+          "ele": "1546",
+          "gnis:feature_id": "1526640",
+          "name": "Lake Stuart",
+          "natural": "water",
+          "source:geometry": "Bing imagery",
+          "type": "multipolygon",
+          "water": "lake",
+          "wikidata": "Q124370643"
+        }
+      },
+      "startNodeId": 3160876212,
+      "endNodeId": 4452331687,
+      "endpointChoice": "First source vertex within 30 m of the stored Lake Stuart boundary, node 4452331687. WTA describes near-shore day-use stops. Stops at lake arrival rather than farther lakeside camps; exact spot remains a review choice.",
+      "researchNotes": "OSM objective name Lake Stuart, relation name Stuart Lake Trail. USFS Centerline/N/A fails access gate.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B0BAAA6C-8EC0-4B41-8B82-9D1E097C958F}",
+          "objectid": 9774818,
+          "name": "STUART LAKE",
+          "trail_no": "1599",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.82065896936118,
+                47.527908702955415
+              ],
+              [
+                -120.87983414419563,
+                47.49767385780315
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4829792",
+      "name": "Enchantment Traverse",
+      "kind": "traverse",
+      "catalogTrailheadId": "0kwic89q2UWPLE6jGyk0",
+      "catalogObjectiveId": "kQJLnN0L4ee8fL0ig1Xb",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 11298873822,
+        "url": "https://www.openstreetmap.org/node/11298873822",
+        "name": "Stuart Lake Trailhead",
+        "tags": {
+          "highway": "trailhead",
+          "name": "Stuart Lake Trailhead",
+          "operator": "US Forest Service",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recarea/?recid=59019"
+        },
+        "lat": 47.5277547,
+        "lon": -120.8208662
+      },
+      "sourceObjective": null,
+      "startNodeId": 3160876212,
+      "endNodeId": 2116942640,
+      "endpointChoice": "Stuart Lake source approach to Snow Lakes source terminal. Five connectors are actual OSM ways present in the saved Colchuck/Snow Lakes relations. Aasgard alpine terrain remains unreviewed.",
+      "researchNotes": "Add verified bridge/connector ways310632640,1305124458,310632627,1305124456,300403957 from full Colchuck/Snow Lakes relations. Repaired total member length28.868km. Aasgard segments include alpine_hiking, maintained=no, trail_visibility=bad. Use point-to-point ends, not summit objective.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B0BAAA6C-8EC0-4B41-8B82-9D1E097C958F}",
+          "objectid": 9774818,
+          "name": "STUART LAKE",
+          "trail_no": "1599",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.82065896936118,
+                47.527908702955415
+              ],
+              [
+                -120.87983414419563,
+                47.49767385780315
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{B3AB9757-1B91-4174-95E9-420A5A4AAF43}",
+          "objectid": 9787808,
+          "name": "COLCHUCK LAKE",
+          "trail_no": "1599.1",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.84041907732231,
+                47.505142222499124
+              ],
+              [
+                -120.8344418554114,
+                47.4970570386773
+              ]
+            ]
+          ]
+        },
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{462950F8-4469-425E-9A22-F85877B840EB}",
+          "objectid": 9790683,
+          "name": "SNOW LAKES",
+          "trail_no": "1553",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            {
+              "field": "attributesubset",
+              "value": "TrailNFS_Centerline",
+              "reason": "the Forest must publish management-level access data"
+            },
+            {
+              "field": "allowed_terra_use",
+              "value": "N/A",
+              "reason": "the Forest Service use code must match a reviewed code set that includes hiker or pedestrian use"
+            }
+          ],
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "accessibility_status": "N/A",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_managed": "N/A",
+            "hiker_pedestrian_accpt": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A",
+            "hiker_pedestrian_restricted": "N/A"
+          },
+          "partCount": 1,
+          "endpoints": [
+            [
+              [
+                -120.70841003019794,
+                47.539735707788985
+              ],
+              [
+                -120.79513122255916,
+                47.48333905213095
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5626187",
+      "name": "Esmeralda Basin Trail",
+      "kind": "destination",
+      "catalogTrailheadId": "Vm0gOD6OdjW4lQmHn0Fj",
+      "catalogObjectiveId": null,
+      "sourceTrailhead": {
+        "type": "way",
+        "id": 295213926,
+        "url": "https://www.openstreetmap.org/way/295213926",
+        "name": "Esmeralda Trailhead",
+        "tags": {
+          "amenity": "parking",
+          "name": "Esmeralda Trailhead",
+          "parking": "surface",
+          "website": "https://www.fs.usda.gov/recarea/okawen/recreation/hiking/recarea/?recid=57499"
+        },
+        "bounds": {
+          "minLat": 47.4365332,
+          "maxLat": 47.4370545,
+          "minLon": -120.9374376,
+          "maxLon": -120.9368874
+        },
+        "routeStartNode": {
+          "type": "node",
+          "id": 2989196541,
+          "url": "https://www.openstreetmap.org/node/2989196541",
+          "name": null,
+          "tags": {},
+          "lat": 47.4366859,
+          "lon": -120.9369728
+        },
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-esmeralda-start-map.json"
+      },
+      "sourceObjective": null,
+      "startNodeId": 2989196541,
+      "endNodeId": null,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Relation ends beyond Fortune Creek Pass toward Lake Ann. Need named basin objective and common hike endpoint; do not invent an objective or include full trail by default. USFS spelling Esmerelda Basin; Centerline/N/A fails access gate.",
+      "knownBlockers": [
+        "Named basin objective and common turnaround are absent from the reviewed catalog/source evidence; full relation continues beyond the basin toward Lake Ann."
+      ],
+      "officialSourceDisposition": "See the exact feature access failures and gaps in source-inventory.json.",
+      "officialFeatures": [
+        {
+          "sourceId": "usfs-nfs-trails",
+          "globalid": "{1DC58C12-EEA9-4C9C-98A9-1CA310921269}",
+          "objectid": 9793495,
+          "name": "ESMERELDA BASIN",
+          "trail_no": "1394",
+          "eligibleByRegistryAccess": false,
+          "accessFailures": [
+            "attributesubset TrailNFS_Centerline; allowed_terra_use N/A"
+          ],
+          "endpoints": [
+            [
+              [
+                -120.93697836344022,
+                47.43662299009738
+              ],
+              [
+                -120.97916463568302,
+                47.45438116156288
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5553769",
+      "name": "Mount Si Trail",
+      "kind": "summit",
+      "catalogTrailheadId": "FLFBZ7rDLOFHPlUn9TMI",
+      "catalogObjectiveId": "nSf6z4vL0zjdG2sXibBM",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 532712300,
+        "name": "Mount Si Trailhead",
+        "url": "https://www.openstreetmap.org/node/532712300",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+        "lat": 47.4880076,
+        "lon": -121.7231554,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 356546426,
+        "name": "Mount Si / q̓əlbc̓",
+        "url": "https://www.openstreetmap.org/node/356546426",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5553769-full.json",
+        "lat": 47.5068935,
+        "lon": -121.739022,
+        "gnis:feature_id": "1525731",
+        "natural": "peak",
+        "alt_name": "q̓əlbc̓",
+        "name:en": "Mount Si"
+      },
+      "startNodeId": 532712300,
+      "endNodeId": 356546426,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous source to summit includes Mount Si Haystack Scramble way 162157943, sac_scale=alpine_hiking. Common hiking objective at Haystack base differs from summit; do not hide scramble or alter existing summit name.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:6106367",
+      "name": "Little Si",
+      "kind": "summit",
+      "catalogTrailheadId": "7etiVGkvGugHxmFja3xK",
+      "catalogObjectiveId": "xHaYBgzoxgfAZNLTfWid",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 4729927256,
+        "name": "Little Si Trailhead",
+        "url": "https://www.openstreetmap.org/node/4729927256",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+        "lat": 47.4867934,
+        "lon": -121.7534319,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 356545680,
+        "name": "Little Si",
+        "url": "https://www.openstreetmap.org/node/356545680",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-little-si-map.json",
+        "lat": 47.4986861,
+        "lon": -121.7560032,
+        "gnis:feature_id": "1522302",
+        "natural": "peak",
+        "tourism": "viewpoint"
+      },
+      "startNodeId": 4729927256,
+      "endNodeId": 356545680,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous named relation reaches exact mapped peak node.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5588030",
+      "name": "Rattlesnake Ledge",
+      "kind": "destination",
+      "catalogTrailheadId": "oPjIYQZRJoeTSxvofmZj",
+      "catalogObjectiveId": "7F9130E5AAEC9213E123",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 549500300,
+        "name": "Rattlesnake Ledge Trailhead",
+        "url": "https://www.openstreetmap.org/node/549500300",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+        "lat": 47.4356363,
+        "lon": -121.771648,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 534472312,
+        "name": "Rattlesnake Ledge",
+        "url": "https://www.openstreetmap.org/node/534472312",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5588030-full.json",
+        "lat": 47.4360417,
+        "lon": -121.7785009,
+        "tourism": "viewpoint"
+      },
+      "startNodeId": 549500300,
+      "endNodeId": 534472312,
+      "endpointChoice": "Exact named Rattlesnake Ledge viewpoint node; no coordinate adjustment.",
+      "researchNotes": "Continuous named relation reaches exact mapped viewpoint.",
+      "knownBlockers": [
+        "Mapped steps way 1024988821 is excluded by the requested path|footway|track graph filter; no substitute edge is added."
+      ],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5199914",
+      "name": "Skyline Loop (Paradise)",
+      "kind": "loop",
+      "catalogTrailheadId": "xaMGyHut8CoGCSkCPKh6",
+      "catalogObjectiveId": null,
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 13122759855,
+        "name": "Skyline Trailhead",
+        "url": "https://www.openstreetmap.org/node/13122759855",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-skyline-map.json",
+        "lat": 46.7864184,
+        "lon": -121.7364531,
+        "highway": "trailhead"
+      },
+      "sourceObjective": null,
+      "startNodeId": 1891140697,
+      "endNodeId": null,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "One closed source loop. NPS geometry is validation only; this source is OSM. Review High Skyline choice and all current conditions before activation.",
+      "knownBlockers": [
+        "Paradise catalog trailhead is about 150 m from the named Skyline Trailhead (125 m gate). Relation also includes highway=steps edges unsupported by the current graph filter. Do not select a different nearby start to hide either gap."
+      ],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194432",
+      "name": "Naches Peak Loop",
+      "kind": "loop",
+      "catalogTrailheadId": null,
+      "catalogObjectiveId": null,
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 2431576647,
+        "name": "Tipsoo Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/2431576647",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-naches-map.json",
+        "lat": 46.8698645,
+        "lon": -121.519389,
+        "highway": "trailhead"
+      },
+      "sourceObjective": null,
+      "startNodeId": 2431576647,
+      "endNodeId": null,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "One closed source loop from Tipsoo Lake. NPS validation only. USFS PCT:Naches Central exists but Centerline/N/A fails gate and alone is not the loop.",
+      "knownBlockers": [
+        "Nearby catalog row ZELAKQAzdxPhff3TZmTS is named American Lake Trailhead, not Tipsoo Lake Trailhead. Proximity alone does not establish identity."
+      ],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5426108",
+      "name": "Mailbox Peak (new trail)",
+      "kind": "summit",
+      "catalogTrailheadId": "GHg65nKUeQhQU3D9A7ie",
+      "catalogObjectiveId": "5hVnUW4tmqj3A6YbU0oB",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 53207063,
+        "name": "Mailbox Peak Trailhead",
+        "url": "https://www.openstreetmap.org/node/53207063",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4671809,
+        "lon": -121.672516,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 285408190,
+        "name": "Mailbox Peak",
+        "url": "https://www.openstreetmap.org/node/285408190",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4624091,
+        "lon": -121.6392795,
+        "natural": "peak"
+      },
+      "startNodeId": 53207063,
+      "endNodeId": 285408190,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous named relation to peak. Both Mailbox routes share trailhead/objective and some mapped ways; keep variants as explicitly requested.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:7147738",
+      "name": "Mailbox Peak (old trail)",
+      "kind": "summit",
+      "catalogTrailheadId": "GHg65nKUeQhQU3D9A7ie",
+      "catalogObjectiveId": "5hVnUW4tmqj3A6YbU0oB",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 53207063,
+        "name": "Mailbox Peak Trailhead",
+        "url": "https://www.openstreetmap.org/node/53207063",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4671809,
+        "lon": -121.672516,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 285408190,
+        "name": "Mailbox Peak",
+        "url": "https://www.openstreetmap.org/node/285408190",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5426108-full.json",
+        "lat": 47.4624091,
+        "lon": -121.6392795,
+        "natural": "peak"
+      },
+      "startNodeId": 53207063,
+      "endNodeId": 285408190,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous named relation; old trail ways have demanding_mountain_hiking. Exclude nearby Mailbox south trail way 160893464 (access=no, foot=discouraged).",
+      "knownBlockers": [],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:6632394",
+      "name": "Heather–Maple Pass Loop",
+      "kind": "loop",
+      "catalogTrailheadId": "b5keGEdwDwFwkodbuwaq",
+      "catalogObjectiveId": null,
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 5751012388,
+        "name": "Rainy Pass Trailhead",
+        "url": "https://www.openstreetmap.org/node/5751012388",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-maple-pass-map.json",
+        "lat": 48.5152487,
+        "lon": -120.7357846,
+        "highway": "trailhead"
+      },
+      "sourceObjective": null,
+      "startNodeId": 5751012388,
+      "endNodeId": null,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Source nearly closes at Rainy Pass trailhead; endpoint gap is recorded. USFS Centerline/N/A fails access gate.",
+      "knownBlockers": [
+        "Rainy Pass catalog trailhead is about 175 m from the named source trailhead (125 m gate); selected relation is an open chain with a 9.4 m end gap. No synthetic loop closure."
+      ],
+      "officialSourceDisposition": "matching features below",
+      "officialFeatures": [
+        {
+          "globalid": "{70391B82-AADA-4F2B-8EF9-A9795FB27D76}",
+          "objectid": 9801977,
+          "name": "MAPLE PASS",
+          "trailNumber": "740",
+          "eligibleByReviewedAccess": false,
+          "access": {
+            "attributesubset": "TrailNFS_Centerline",
+            "allowed_terra_use": "N/A",
+            "hiker_pedestrian_restricted": "N/A",
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": "N/A"
+          },
+          "endpoints": [
+            [
+              [
+                -120.73576366900457,
+                48.51521596499109
+              ],
+              [
+                -120.73472073863663,
+                48.51050346484832
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:4807643",
+      "name": "Blanca Lake",
+      "kind": "destination",
+      "catalogTrailheadId": "StXAAUitgEK1WrECejNX",
+      "catalogObjectiveId": "9B40DE76DC0878A92331",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 1249568914,
+        "name": "Blanca Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/1249568914",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-corrected-map.json",
+        "lat": 47.9152825,
+        "lon": -121.3124939,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 13049031,
+        "name": "Blanca Lake",
+        "url": "https://www.openstreetmap.org/relation/13049031",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-blanca-objective-map.json",
+        "gnis:feature_id": "1516642",
+        "natural": "water"
+      },
+      "startNodeId": 1249568914,
+      "endNodeId": 1249568900,
+      "endpointChoice": "Terminal source node at the south lake beach. WTA describes the end-of-trail driftwood beach; road access warning blocks admission.",
+      "researchNotes": "Continuous source to lake. Two eligible USFS features also join exactly. Use lake boundary contact for objective check, not lake center.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "matching features below",
+      "officialFeatures": [
+        {
+          "globalid": "{F343E4C8-D2CD-4F36-9532-83179DD59BA0}",
+          "objectid": 9803701,
+          "name": "BLANCA LAKE",
+          "trailNumber": "1052",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.31253999962009,
+                47.915460000169
+              ],
+              [
+                -121.33989334982346,
+                47.93045508098436
+              ]
+            ]
+          ]
+        },
+        {
+          "globalid": "{9F28164D-CBA8-4F08-9B4A-1BC1CDB93D9B}",
+          "objectid": 9804516,
+          "name": "BLANCA LAKE",
+          "trailNumber": "1052",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.33989334982346,
+                47.93045508098436
+              ],
+              [
+                -121.34225500022734,
+                47.93460499995206
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537770",
+      "name": "Lake 22",
+      "kind": "destination",
+      "catalogTrailheadId": "oXomNSntgwhCMyHqrFMA",
+      "catalogObjectiveId": "FF006293EBCD1BBDA398",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 12614940360,
+        "name": "Lake Twenty Two Trailhead",
+        "url": "https://www.openstreetmap.org/node/12614940360",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5537770-full.json",
+        "lat": 48.0768514,
+        "lon": -121.7459165,
+        "highway": "trailhead",
+        "alt_name": "Lake 22 Trailhead"
+      },
+      "sourceObjective": {
+        "type": "relation",
+        "id": 14862342,
+        "name": "Lake Twentytwo",
+        "url": "https://www.openstreetmap.org/relation/14862342",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-lake22-objective-map.json",
+        "gnis:feature_id": "1527515",
+        "natural": "water"
+      },
+      "startNodeId": 692525327,
+      "endNodeId": 692525452,
+      "endpointChoice": "West end of the mapped lake-outlet bridge, node 692525452. WTA places the 2.7-mile approach endpoint at that bridge. Excludes the optional lake circuit.",
+      "researchNotes": "Relation includes shoreline loop attached to approach at an interior way node; full node graph is connected. Lake name is Lake Twentytwo in OSM. Two eligible USFS features cover approach; they do not encode whole OSM lake loop.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "matching features below",
+      "officialFeatures": [
+        {
+          "globalid": "{EA8B01A6-108A-4433-BEB5-7741E04D3A06}",
+          "objectid": 9804376,
+          "name": "LAKE 22",
+          "trailNumber": "702",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.76384595634946,
+                48.07493130695936
+              ],
+              [
+                -121.76240442115139,
+                48.06698121669802
+              ]
+            ]
+          ]
+        },
+        {
+          "globalid": "{9F51B5F0-46F3-4692-9E4A-8CC9CED65162}",
+          "objectid": 9816445,
+          "name": "LAKE 22",
+          "trailNumber": "702",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.74603342491795,
+                48.07694275803996
+              ],
+              [
+                -121.76384595634946,
+                48.07493130695936
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5519228",
+      "name": "Poo Poo Point (Chirico Trail candidate)",
+      "kind": "destination",
+      "catalogTrailheadId": "rQKXSjXerrmfQpTLAWbM",
+      "catalogObjectiveId": "Yfu5QdaOWeuxpSXiN5rK",
+      "sourceTrailhead": {
+        "type": "way",
+        "id": 52524610,
+        "name": "Poo Poo Trailhead",
+        "url": "https://www.openstreetmap.org/way/52524610",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-map.json",
+        "sourceAccessPoint": {
+          "type": "node",
+          "id": 667476333,
+          "name": null,
+          "url": "https://www.openstreetmap.org/node/667476333",
+          "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-map.json",
+          "lat": 47.500572,
+          "lon": -122.022171
+        }
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 2353644455,
+        "name": "Poo Poo Point",
+        "url": "https://www.openstreetmap.org/node/2353644455",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-poo-poo-objective-map.json",
+        "lat": 47.4994236,
+        "lon": -122.008131,
+        "natural": "peak"
+      },
+      "startNodeId": 667476333,
+      "endNodeId": 11863318581,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Common Chirico approach ends at launch/viewpoint about 30 m from tagged peak. No way references the peak node. Alternate Poo Poo Point Trail relation 5519227 is also saved; choose intended trailhead or retain both named approaches. Do not silently snap to peak.",
+      "knownBlockers": [
+        "Catalog objective Poo Poo Point is a summit; Chirico source stops at a launch/viewpoint about 31 m from the OSM peak and does not reach the summit within 5 m. No separately verified named viewpoint catalog row exists."
+      ],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5194384",
+      "name": "Tolmie Peak",
+      "kind": "summit",
+      "catalogTrailheadId": "9ofuJq1VreK93jZgCjcF",
+      "catalogObjectiveId": "htqW9lCp974x1tEWD8t7",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 1429005737,
+        "name": "Mowich Lake Trailhead",
+        "url": "https://www.openstreetmap.org/node/1429005737",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-tolmie-map.json",
+        "lat": 46.9332678,
+        "lon": -121.864831,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 348178753,
+        "name": "Tolmie Peak",
+        "url": "https://www.openstreetmap.org/node/348178753",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-relation-5194384-full.json",
+        "lat": 46.958141,
+        "lon": -121.8773099,
+        "gnis:feature_id": "1527284",
+        "natural": "peak"
+      },
+      "startNodeId": 1429005737,
+      "endNodeId": 348178753,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous relation to mapped Tolmie Peak. NPS says public road access to Mowich/Carbon River is blocked by SR165 Fairfax Bridge closure; long-distance Wonderland access remains. Usual road access publication needs access review.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "No matching direct-USFS trail found in saved name query; state/NPS trails use OSM geometry only.",
+      "officialFeatures": [],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    },
+    {
+      "sourceKey": "wa:osm-relation:5537775",
+      "name": "Mount Pilchuck",
+      "kind": "summit",
+      "catalogTrailheadId": "E65jXwR5gzXhiQc4ak6l",
+      "catalogObjectiveId": "iAD3EhqmkKVKXBjJjprj",
+      "sourceTrailhead": {
+        "type": "node",
+        "id": 9922203929,
+        "name": "Mount Pilchuck Trailhead",
+        "url": "https://www.openstreetmap.org/node/9922203929",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+        "lat": 48.0702887,
+        "lon": -121.8147445,
+        "highway": "trailhead"
+      },
+      "sourceObjective": {
+        "type": "node",
+        "id": 348999742,
+        "name": "Mount Pilchuck",
+        "url": "https://www.openstreetmap.org/node/348999742",
+        "sourceFile": "../../../cloud-sql/migrate/data/trail-catalog/wa-cascades-20261013/sources/osm-pilchuck-objective-map.json",
+        "lat": 48.0579162,
+        "lon": -121.7977487,
+        "gnis:feature_id": "1524420",
+        "natural": "peak"
+      },
+      "startNodeId": 9922203929,
+      "endNodeId": 2362708368,
+      "endpointChoice": "Use the exact source terminal or named loop trailhead. Known gaps remain in the rejection report.",
+      "researchNotes": "Continuous relation reaches lookout within 1 m of mapped summit. Eligible USFS feature available; compare its end to current catalog summit before gate pass.",
+      "knownBlockers": [],
+      "officialSourceDisposition": "matching features below",
+      "officialFeatures": [
+        {
+          "globalid": "{C2D39946-7E5B-4C46-BD95-3FE97D3951D4}",
+          "objectid": 9784374,
+          "name": "PILCHUCK LOOKOUT",
+          "trailNumber": "700",
+          "eligibleByReviewedAccess": true,
+          "access": {
+            "attributesubset": "TrailNFS_MGMT",
+            "allowed_terra_use": "1",
+            "hiker_pedestrian_restricted": null,
+            "hiker_pedestrian_disc": null,
+            "hiker_pedestrian_accpt_disc": null
+          },
+          "endpoints": [
+            [
+              [
+                -121.81480750153892,
+                48.07016048705862
+              ],
+              [
+                -121.79764492470132,
+                48.05790939331327
+              ]
+            ]
+          ]
+        }
+      ],
+      "reviewRequiredBeforePublication": [
+        "current access review",
+        "independent source-span review",
+        "credited cover and live catalog duplicate checks"
+      ]
+    }
+  ]
+}

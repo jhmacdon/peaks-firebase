@@ -2,6 +2,9 @@ import process from "node:process";
 import dbImport from "../../../../cloud-sql/migrate/src/db";
 import officialRouteGeometryImport from "../../../../cloud-sql/migrate/src/official-route-geometry";
 import osmRouteGeometryImport from "../../../../cloud-sql/migrate/src/osm-route-geometry";
+import osmSegmentSourceProofImport from "../../../../cloud-sql/migrate/src/osm-segment-source-proof";
+
+const { contributingOsmWayIds, proveOsmSegmentSource } = osmSegmentSourceProofImport;
 
 const {
   isSimpleClosedRoute,
@@ -24,7 +27,6 @@ const CORE_MAX_OFFSET_M = 5;
 const CORE_P95_OFFSET_M = 2;
 const CONNECTOR_MAX_OFFSET_M = 125;
 const CONNECTOR_JOIN_MAX_OFFSET_M = 5;
-const WAY_USAGE_DISTANCE_M = 5;
 
 type Options = {
   routeIds: string[];
@@ -77,6 +79,8 @@ type RouteRow = {
   owner: string;
   status: string;
   shape: "out_and_back" | "loop" | "point_to_point" | "lollipop" | null;
+  kind: "summit" | "destination" | "loop" | "traverse" | null;
+  objective_destination_id: string | null;
   provenance: RouteProvenance | null;
   provenance_valid: boolean;
   is_simple: boolean;
@@ -92,6 +96,9 @@ type RouteRow = {
   }>;
   segment_count: number;
   segment_provenance_matches: boolean;
+  segment_source_union_valid: boolean;
+  kind_contact_valid: boolean;
+  publish_integrity_valid: boolean;
 };
 
 type CheckResult = {
@@ -115,6 +122,7 @@ type CheckResult = {
   };
   used_way_ids: number[];
   foot_access_override_way_ids: number[];
+  segment_source_checks?: Array<{ segment_id: string; ordinal: number; cited_way_ids: number[]; used_way_ids: number[]; passed: boolean; errors: string[]; max_offset_m: number; p95_offset_m: number; coverage_pct: number; samples: number; source_topology_valid: boolean }>;
 };
 
 function usage(): string {
@@ -230,8 +238,11 @@ async function loadRoute(
   replaceActiveRouteId: string
 ): Promise<RouteRow> {
   const result = await db.query<RouteRow>(
-    `SELECT r.id, r.name, r.owner, r.status, r.shape, r.provenance,
+    `SELECT r.id, r.name, r.owner, r.status, r.shape, r.kind, r.objective_destination_id, r.provenance,
             is_valid_route_provenance(r.provenance) AS provenance_valid,
+            peaks_route_kind_passes_contact(r.id) AS kind_contact_valid,
+            peaks_route_passes_publish_integrity(r.id,NULL,'pending') AS publish_integrity_valid,
+            route_segments_cover_provenance(r.id) AS segment_source_union_valid,
             ST_IsSimple(r.path::geometry) AS is_simple,
             EXISTS (
               SELECT 1
@@ -242,10 +253,15 @@ async function loadRoute(
               JOIN destinations target_destination
                 ON target_destination.id = target_rd.destination_id
               WHERE target_rd.route_id = r.id
-                AND 'summit'::destination_feature =
-                    ANY(target_destination.features)
+                AND ((r.kind IS NULL AND 'summit'::destination_feature = ANY(target_destination.features))
+                  OR (r.kind IS NOT NULL AND target_rd.destination_id=r.objective_destination_id
+                    AND (lower(active_route.name)=lower(r.name) OR active_route.trailhead_destination_id=r.trailhead_destination_id
+                      OR EXISTS (SELECT 1 FROM route_destinations active_start WHERE active_start.route_id=active_route.id AND active_start.ordinal=0 AND active_start.destination_id=r.trailhead_destination_id))))
                 AND active_route.owner = 'peaks'
                 AND active_route.status = 'active'
+                AND NOT COALESCE((r.kind IS NOT NULL AND (
+                  (r.provenance->>'source_url'='https://www.openstreetmap.org/relation/7147738' AND active_route.provenance->>'source_url'='https://www.openstreetmap.org/relation/5426108')
+                  OR (r.provenance->>'source_url'='https://www.openstreetmap.org/relation/5426108' AND active_route.provenance->>'source_url'='https://www.openstreetmap.org/relation/7147738'))),false)
                 AND (
                   $2 = ''
                   OR (
@@ -266,8 +282,8 @@ async function loadRoute(
                 JOIN routes replacement_route
                   ON replacement_route.id = replacement_rd.route_id
                 WHERE target_rd.route_id = r.id
-                  AND 'summit'::destination_feature =
-                      ANY(target_destination.features)
+                  AND ((r.kind IS NULL AND 'summit'::destination_feature = ANY(target_destination.features))
+                    OR (r.kind IS NOT NULL AND target_rd.destination_id=r.objective_destination_id))
                   AND replacement_route.id = $2
                   AND replacement_route.owner = 'peaks'
                   AND replacement_route.status = 'active'
@@ -299,7 +315,7 @@ async function loadRoute(
               FROM route_segments rs
               JOIN segments s ON s.id = rs.segment_id
               WHERE rs.route_id = r.id
-                AND s.provenance IS DISTINCT FROM r.provenance
+                AND NOT route_segment_provenance_compatible(s.provenance,r.provenance)
             ) AS segment_provenance_matches
      FROM routes r
      WHERE r.id = $1`,
@@ -330,6 +346,13 @@ async function loadRoutePoints(routeId: string): Promise<LatLng[]> {
   }));
 }
 
+async function loadSegments(routeId: string): Promise<Array<{ id: string; ordinal: number; provenance: RouteProvenance; points: LatLng[] }>> {
+  const result = await db.query(`SELECT s.id,rs.ordinal,s.provenance,
+    ST_AsGeoJSON(CASE rs.direction WHEN 'reverse' THEN ST_Reverse(s.path::geometry) ELSE s.path::geometry END,15)::json AS geometry
+    FROM route_segments rs JOIN segments s ON s.id=rs.segment_id WHERE rs.route_id=$1 ORDER BY rs.ordinal`, [routeId]);
+  return result.rows.map(row => ({ id: row.id, ordinal: row.ordinal, provenance: row.provenance, points: row.geometry.coordinates.map((coordinate: number[]) => ({ lng: coordinate[0], lat: coordinate[1] })) }));
+}
+
 const wayCache = new Map<number, Promise<{ way: OsmWay; nodes: Map<number, OsmNode> }>>();
 
 async function fetchWay(
@@ -341,6 +364,7 @@ async function fetchWay(
       const response = await fetch(
         `https://api.openstreetmap.org/api/0.6/way/${wayId}/full.json`,
         {
+          signal: AbortSignal.timeout(30_000),
           headers: {
             "user-agent":
               process.env.PEAKS_OSM_USER_AGENT ??
@@ -375,16 +399,20 @@ async function sourceGeometry(wayIds: number[]): Promise<{
   segments: SourceSegment[];
   blockedWayIds: number[];
   overrideWayIds: number[];
+  catalogBlockedWayIds: number[];
 }> {
-  const fetched = await Promise.all(wayIds.map(fetchWay));
+  const fetched: Awaited<ReturnType<typeof fetchWay>>[] = [];
+  for (let offset = 0; offset < wayIds.length; offset += 4) fetched.push(...await Promise.all(wayIds.slice(offset, offset + 4).map(fetchWay)));
   const segments: SourceSegment[] = [];
   const blockedWayIds: number[] = [];
   const overrideWayIds: number[] = [];
+  const catalogBlockedWayIds: number[] = [];
 
   for (const { way, nodes } of fetched) {
     const access = footAccess(way);
     if (access.blocked) blockedWayIds.push(way.id);
     if (access.override) overrideWayIds.push(way.id);
+    if (!["path","footway","track"].includes(way.tags?.highway ?? "") || ["no","private"].includes(way.tags?.access ?? "") || ["no","private","discouraged"].includes(way.tags?.foot ?? "")) catalogBlockedWayIds.push(way.id);
     const nodeIds = way.nodes ?? [];
     for (let index = 1; index < nodeIds.length; index += 1) {
       const start = nodes.get(nodeIds[index - 1]);
@@ -401,7 +429,7 @@ async function sourceGeometry(wayIds: number[]): Promise<{
       });
     }
   }
-  return { segments, blockedWayIds, overrideWayIds };
+  return { segments, blockedWayIds, overrideWayIds, catalogBlockedWayIds };
 }
 
 function emptyMetrics(): CheckResult["metrics"] {
@@ -446,7 +474,7 @@ async function checkRoute(
     result.errors.push("route provenance is missing or invalid");
   }
   if (route.active_standard_exists) {
-    result.errors.push("an active Peaks standard route already covers the summit");
+    result.errors.push("an active Peaks route already covers this route identity");
   }
   if (!route.replacement_route_valid) {
     result.errors.push("named active replacement route is not eligible");
@@ -454,15 +482,18 @@ async function checkRoute(
   if (
     route.shape !== "out_and_back" &&
     route.shape !== "loop" &&
+    route.shape !== "point_to_point" &&
     route.shape !== "lollipop"
   ) {
     result.errors.push(
       "route shape is not supported for a standard hiking route"
     );
   }
-  if (route.segment_count < 1 || !route.segment_provenance_matches) {
+  if (route.segment_count < 1 || !route.segment_provenance_matches || !route.segment_source_union_valid) {
     result.errors.push("route and source segment provenance do not agree");
   }
+  if (!route.kind_contact_valid) result.errors.push("route kind, objective, or trailhead contact is invalid");
+  if (!route.publish_integrity_valid) result.errors.push("pending route publish integrity fails");
 
   const destinations = route.linked_destinations;
   const first = destinations[0];
@@ -470,7 +501,8 @@ async function checkRoute(
   if (!first?.features?.includes("trailhead")) {
     result.errors.push("first linked destination is not a trailhead");
   }
-  if (!last?.features?.includes("summit")) {
+  const summitRoute = (route.kind ?? "summit") === "summit";
+  if (summitRoute && !last?.features?.includes("summit")) {
     result.errors.push("last linked destination is not a summit");
   }
 
@@ -515,7 +547,7 @@ async function checkRoute(
   }
 
   const trailhead = destinations[0];
-  const summit = destinations[destinations.length - 1];
+  const summit = destinations.find(d => d.id === route.objective_destination_id) ?? destinations[destinations.length - 1];
   const trailheadPoint = {
     lat: Number(trailhead?.lat),
     lng: Number(trailhead?.lng),
@@ -527,7 +559,7 @@ async function checkRoute(
   const loopLike = route.shape === "loop" || route.shape === "lollipop";
   let summitIndex = points.length - 1;
   let nearestSummitDistance = Number.POSITIVE_INFINITY;
-  if (loopLike) {
+  if (loopLike && summitRoute) {
     points.forEach((point, index) => {
       const distance = haversineMeters(point, summitPoint);
       if (distance < nearestSummitDistance) {
@@ -538,7 +570,7 @@ async function checkRoute(
     if (
       summitIndex === 0 ||
       summitIndex === points.length - 1 ||
-      nearestSummitDistance > 20
+      nearestSummitDistance > 5
     ) {
       result.errors.push(
         `loop summit is ${nearestSummitDistance.toFixed(1)} m from stored geometry`
@@ -546,22 +578,23 @@ async function checkRoute(
     }
   }
   const internalSummitValid =
-    loopLike &&
+    loopLike && summitRoute &&
     summitIndex > 0 &&
     summitIndex < points.length - 1 &&
-    nearestSummitDistance <= 20;
+    nearestSummitDistance <= 5;
   const trailheadStartDistance = haversineMeters(points[0], trailheadPoint);
-  const routeEndTarget = loopLike ? trailheadPoint : summitPoint;
+  const routeEndTarget = loopLike ? trailheadPoint : route.kind === "traverse" ? { lat: Number(last?.lat), lng: Number(last?.lng) } : summitPoint;
   const routeEndDistance = haversineMeters(
     points[points.length - 1],
     routeEndTarget
   );
-  if (trailheadStartDistance > 20) {
+  if (trailheadStartDistance > (route.kind === null ? 20 : 125)) {
     result.errors.push(
       `stored route starts ${trailheadStartDistance.toFixed(1)} m from its trailhead`
     );
   }
-  if (routeEndDistance > 20) {
+  // Natural objective contact uses the actual DB boundary through the kind gate.
+  if (route.kind !== "destination" && routeEndDistance > (summitRoute && !loopLike ? 5 : route.kind === null ? 20 : 125)) {
     result.errors.push(
       `stored route ends ${routeEndDistance.toFixed(1)} m from its ` +
         `${loopLike ? "trailhead" : "summit"}`
@@ -578,6 +611,7 @@ async function checkRoute(
       `pedestrian access is blocked on OSM ways ${source.blockedWayIds.join(",")}`
     );
   }
+  if (route.kind !== null && source.catalogBlockedWayIds.length) result.errors.push(`catalog source ways are not allowed pedestrian paths: ${source.catalogBlockedWayIds.join(",")}`);
   result.foot_access_override_way_ids = source.overrideWayIds;
   if (source.overrideWayIds.length > 0) {
     result.warnings.push(
@@ -678,7 +712,7 @@ async function checkRoute(
       "stored route changes cited OSM ways outside shared OSM nodes"
     );
   }
-  const summitConnectorM = loopLike
+  const summitConnectorM = internalSummitValid
     ? Math.max(inboundSummitLegM, outboundSummitLegM)
     : endConnectorM;
   result.metrics.start_connector_m = startConnectorM;
@@ -721,8 +755,8 @@ async function checkRoute(
   const maximum = Math.max(...offsets);
   const p95 = percentile(offsets, 0.95);
   const coverage =
-    offsets.filter((offset) => offset <= CORE_COVERAGE_DISTANCE_M).length /
-    offsets.length;
+    offsets.length ? offsets.filter((offset) => offset <= CORE_COVERAGE_DISTANCE_M).length /
+    offsets.length : 0;
   result.metrics.core_max_offset_m = maximum;
   result.metrics.core_p95_offset_m = p95;
   result.metrics.core_coverage_pct = coverage * 100;
@@ -742,15 +776,7 @@ async function checkRoute(
     );
   }
 
-  const usedWayIds = wayIds.filter((wayId) => {
-    const waySegments = source.segments.filter(
-      (segment) => segment.wayId === wayId
-    );
-    return samples.some(
-      (point) =>
-        nearestSource(point, waySegments).distance <= WAY_USAGE_DISTANCE_M
-    );
-  });
+  const usedWayIds = contributingOsmWayIds(points, source.segments);
   result.used_way_ids = usedWayIds;
   result.metrics.used_way_count = usedWayIds.length;
   const unusedWayIds = wayIds.filter((wayId) => !usedWayIds.includes(wayId));
@@ -759,6 +785,23 @@ async function checkRoute(
       `cited OSM ways do not contribute to the stored route: ` +
         unusedWayIds.join(",")
     );
+  }
+
+  const segments = await loadSegments(routeId);
+  result.segment_source_checks = [];
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    const ids = segment.provenance?.osm_way_ids ?? [];
+    const outside = ids.filter(id => !wayIds.includes(id));
+    const proof = proveOsmSegmentSource(segment.points, source.segments.filter(edge => ids.includes(edge.wayId)), {
+      allowStartConnector: route.kind === null && index === 0,
+      allowEndConnector: route.kind === null && index === segments.length - 1,
+      strictMappedGeometry: route.kind !== null,
+    });
+    if (outside.length) proof.errors.push(`segment cites ways outside route provenance: ${outside.join(",")}`);
+    const check = { segment_id: segment.id, ordinal: segment.ordinal, cited_way_ids: ids, used_way_ids: proof.usedWayIds, passed: proof.errors.length === 0, errors: proof.errors, max_offset_m: proof.maxOffsetM, p95_offset_m: proof.p95OffsetM, coverage_pct: proof.coverage * 100, samples: proof.sampleCount, source_topology_valid: proof.topologyValid };
+    result.segment_source_checks.push(check);
+    result.errors.push(...proof.errors.map(error => `segment ${segment.id}: ${error}`));
   }
 
   result.passed = result.errors.length === 0;

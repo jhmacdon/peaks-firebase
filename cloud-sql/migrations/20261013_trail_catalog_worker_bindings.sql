@@ -70,6 +70,25 @@ RETURNS SETOF trail_catalog_candidate_jobs LANGUAGE sql VOLATILE SET search_path
   FOR SHARE
 $$;
 
+-- Row locks need UPDATE privileges. This helper locks only the three reviewed
+-- place IDs from the live lease, without granting destination writes to workers.
+CREATE OR REPLACE FUNCTION trail_catalog_locked_places()
+RETURNS TABLE(id TEXT,name TEXT,features TEXT[],state_code TEXT,country_code TEXT,lat DOUBLE PRECISION,lng DOUBLE PRECISION,boundary JSON)
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE job trail_catalog_candidate_jobs%ROWTYPE; place_ids TEXT[];
+BEGIN
+  IF NOT pg_has_role(session_user,'peaks-route-factory','member') OR pg_has_role(session_user,'peaks-route-reviewer','member') THEN
+    RAISE EXCEPTION 'catalog place locking requires one factory database role'; END IF;
+  SELECT * INTO job FROM trail_catalog_live_context();
+  IF NOT FOUND THEN RAISE EXCEPTION 'catalog place locking requires a live candidate lease'; END IF;
+  place_ids := ARRAY[job.artifact#>>'{candidate,trailhead,id}',job.artifact#>>'{candidate,objective,id}',job.artifact#>>'{candidate,endTrailhead,id}'];
+  RETURN QUERY SELECT d.id,d.name,d.features::text[],d.state_code::text,d.country_code::text,
+    ST_Y(d.location::geometry),ST_X(d.location::geometry),ST_AsGeoJSON(d.boundary::geometry)::json
+    FROM public.destinations d WHERE d.id=ANY(place_ids) ORDER BY d.id FOR SHARE OF d;
+END $$;
+REVOKE ALL ON FUNCTION trail_catalog_locked_places() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION trail_catalog_locked_places() TO "peaks-route-factory";
+
 CREATE OR REPLACE FUNCTION trail_catalog_pending_binding_valid(candidate_route_id TEXT)
 RETURNS BOOLEAN LANGUAGE plpgsql STABLE SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE job trail_catalog_candidate_jobs%ROWTYPE; route_record routes%ROWTYPE;
@@ -81,6 +100,10 @@ BEGIN
   IF job.source_key IS NULL OR route_record.id IS NULL OR job.state<>'pending' OR job.route_id<>candidate_route_id
     OR job.lease_owner IS NOT NULL OR job.lease_token IS NOT NULL OR job.lease_expires_at IS NOT NULL
     OR job.result->>'routeId' IS DISTINCT FROM candidate_route_id
+    OR job.result->>'sourceKey' IS DISTINCT FROM job.source_key
+    OR job.result->>'name' IS DISTINCT FROM job.artifact#>>'{candidate,input,name}'
+    OR job.result->>'geometryHash' IS DISTINCT FROM job.artifact#>>'{candidate,geometryHash}'
+    OR job.result->>'outcome' IS DISTINCT FROM 'admitted'
     OR job.artifact#>>'{candidate,input,sourceKey}' IS DISTINCT FROM job.source_key
     OR NOT trail_catalog_route_matches(route_record,job.artifact) THEN RETURN false; END IF;
   SELECT array_agg(id ORDER BY first_ordinal) INTO expected_places FROM (
@@ -118,7 +141,7 @@ BEGIN
       IF NEW.attempt_count<>0 OR NOT COALESCE((
         (NEW.state='queued' AND NEW.result IS NULL AND NEW.artifact#>>'{candidate,input,sourceKey}'=NEW.source_key)
         OR (NEW.state='rejected' AND NEW.route_id IS NULL AND NULLIF(trim(NEW.rejection_reason),'') IS NOT NULL
-          AND NEW.artifact#>>'{input,sourceKey}'=NEW.source_key AND NOT NEW.artifact ? 'candidate'
+          AND NEW.artifact#>>'{input,sourceKey}'=NEW.source_key AND NOT (NEW.artifact ? 'candidate')
           AND NEW.result->>'sourceKey'=NEW.source_key AND NEW.result->>'routeId' IS NULL)
       ),false) THEN RAISE EXCEPTION 'factory must enqueue a fresh candidate or a rejected research receipt'; END IF;
     END IF;

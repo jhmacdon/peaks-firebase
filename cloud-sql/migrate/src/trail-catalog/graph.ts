@@ -18,6 +18,8 @@ export function stableJson(value: unknown): string {
 function reject(reason: string, detail?: string): never { throw new CandidateRejection(reason, detail); }
 function validPoint(point: Point): boolean { return Number.isFinite(point.lat) && Number.isFinite(point.lng) && Math.abs(point.lat) <= 90 && Math.abs(point.lng) <= 180; }
 function placeContact(place: CatalogPlace, points: Point[], metres: number): boolean {
+  if (place.boundary && place.boundary.type !== "Polygon") reject("unsupported_objective_boundary");
+  if (!place.boundary && !validPoint(place)) reject("objective_location_missing");
   if (place.boundary?.type === "Polygon" && !place.features.includes("summit")) {
     const rings = place.boundary.coordinates;
     const insideRing = (p: Point, ring: number[][]) => {
@@ -63,11 +65,13 @@ export function buildOsmCandidate(input: PilotCandidateInput, snapshots: unknown
   if (!input.name.trim() || !input.sourceKey.trim()) reject("missing_identity");
   if (input.access?.status === "closed") reject("access_closed", input.access.note);
   if (!places.trailhead || places.trailhead.id !== input.trailheadId || !places.trailhead.features.includes("trailhead")) reject("trailhead_identity_missing");
+  if (!validPoint(places.trailhead)) reject("trailhead_location_missing");
   const objective = places.objective ?? null, endTrailhead = places.endTrailhead ?? null;
   if (input.kind !== "loop" && (!objective || objective.id !== input.objectiveId)) reject("objective_identity_missing");
   if (input.kind === "summit" && !objective?.features.includes("summit")) reject("summit_objective_required");
-  if (input.kind === "destination" && (!objective?.name.trim() || !objective.features.length || objective.features.some(f => ["trailhead", "summit"].includes(f)))) reject("named_natural_objective_required");
+  if (input.kind === "destination" && (typeof objective?.name !== "string" || !objective.name.trim() || !objective.features.length || objective.features.some(f => ["trailhead", "summit"].includes(f)))) reject("named_natural_objective_required");
   if (input.kind === "traverse" && (!endTrailhead || endTrailhead.id !== input.endTrailheadId || endTrailhead.id === places.trailhead.id || !endTrailhead.features.includes("trailhead"))) reject("distinct_end_trailhead_required");
+  if (endTrailhead && !validPoint(endTrailhead)) reject("end_trailhead_location_missing");
   const elements = new Map<string, Element>();
   for (const snapshot of snapshots) {
     if (!snapshot || typeof snapshot !== "object" || !Array.isArray((snapshot as { elements?: unknown }).elements)) reject("invalid_osm_snapshot");

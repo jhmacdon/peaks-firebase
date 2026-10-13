@@ -1,0 +1,4 @@
+{
+  "retrievedAt": "2026-10-13T04:52:52.696939+00:00",
+  "url": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublishWithDataStatus_01/MapServer/0/query?f=json&where=trail_no%3D%271394%27+OR+UPPER%28trail_name%29+LIKE+%27%25ESMERELDA%25%27+OR+UPPER%28trail_name%29+LIKE+%27%25AASGARD%25%27&geometry=-122%2C47%2C-120.5%2C48.2&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=%2A&returnGeometry=true"
+}

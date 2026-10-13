@@ -1,0 +1,178 @@
+[
+    {
+        "id": "StXAAUitgEK1WrECejNX",
+        "name": "Blanca Lake Trailhead",
+        "distance_m": 48,
+        "route_name": "Blanca Lake",
+        "source_name": "Blanca Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "0kwic89q2UWPLE6jGyk0",
+        "name": "Stuart Lake Trailhead",
+        "distance_m": 48,
+        "route_name": "Colchuck Lake Trail",
+        "source_name": "Stuart Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "0kwic89q2UWPLE6jGyk0",
+        "name": "Stuart Lake Trailhead",
+        "distance_m": 48,
+        "route_name": "Enchantment Traverse",
+        "source_name": "Stuart Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "Vm0gOD6OdjW4lQmHn0Fj",
+        "name": "Esmeralda Trailhead",
+        "distance_m": 14,
+        "route_name": "Esmeralda Basin Trail",
+        "source_name": "Esmeralda Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "b5keGEdwDwFwkodbuwaq",
+        "name": "Rainy Pass Trailhead",
+        "distance_m": 175,
+        "route_name": "Heather–Maple Pass Loop",
+        "source_name": "Rainy Pass Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "Vm0gOD6OdjW4lQmHn0Fj",
+        "name": "Esmeralda Trailhead",
+        "distance_m": 14,
+        "route_name": "Ingalls Lake via Ingalls Way",
+        "source_name": "Esmeralda Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "Vm0gOD6OdjW4lQmHn0Fj",
+        "name": "Esmeralda Trailhead",
+        "distance_m": 14,
+        "route_name": "Ingalls Peak via Ingalls Way and South Ridge",
+        "source_name": "Esmeralda Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "oXomNSntgwhCMyHqrFMA",
+        "name": "Lake TwentyTwo Trailhead",
+        "distance_m": 41,
+        "route_name": "Lake 22",
+        "source_name": "Lake Twenty Two Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "DiZjSucepuEsfCtfKw6F",
+        "name": "Lake Serene Trailhead",
+        "distance_m": 10,
+        "route_name": "Lake Serene Trail",
+        "source_name": "Lake Serene Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "0kwic89q2UWPLE6jGyk0",
+        "name": "Stuart Lake Trailhead",
+        "distance_m": 48,
+        "route_name": "Lake Stuart Trail",
+        "source_name": "Stuart Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "7etiVGkvGugHxmFja3xK",
+        "name": "Little Si Trailhead",
+        "distance_m": 6,
+        "route_name": "Little Si",
+        "source_name": "Little Si Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "XhApVbDJUe2ZpEsbw6Q1",
+        "name": "Little Si Trailhead",
+        "distance_m": 49,
+        "route_name": "Little Si",
+        "source_name": "Little Si Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "GHg65nKUeQhQU3D9A7ie",
+        "name": "Mailbox Peak Trail Parking Lot",
+        "distance_m": 72,
+        "route_name": "Mailbox Peak (new trail)",
+        "source_name": "Mailbox Peak Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "GHg65nKUeQhQU3D9A7ie",
+        "name": "Mailbox Peak Trail Parking Lot",
+        "distance_m": 72,
+        "route_name": "Mailbox Peak (old trail)",
+        "source_name": "Mailbox Peak Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "E65jXwR5gzXhiQc4ak6l",
+        "name": "Mount Pilchuck Trailhead",
+        "distance_m": 29,
+        "route_name": "Mount Pilchuck",
+        "source_name": "Mount Pilchuck Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "FLFBZ7rDLOFHPlUn9TMI",
+        "name": "Mount Si Trailhead",
+        "distance_m": 26,
+        "route_name": "Mount Si Trail",
+        "source_name": "Mount Si Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "ZELAKQAzdxPhff3TZmTS",
+        "name": "American Lake Trailhead",
+        "distance_m": 35,
+        "route_name": "Naches Peak Loop",
+        "source_name": "Tipsoo Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "rQKXSjXerrmfQpTLAWbM",
+        "name": "Poo Poo Trailhead",
+        "distance_m": 9,
+        "route_name": "Poo Poo Point (Chirico Trail candidate)",
+        "source_name": "Poo Poo Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "oPjIYQZRJoeTSxvofmZj",
+        "name": "East Peak-Rattlesnake Trail Trailhead",
+        "distance_m": 32,
+        "route_name": "Rattlesnake Ledge",
+        "source_name": "Rattlesnake Ledge Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "xaMGyHut8CoGCSkCPKh6",
+        "name": "Paradise",
+        "distance_m": 150,
+        "route_name": "Skyline Loop (Paradise)",
+        "source_name": "Skyline Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "7mdR4I31n8VQQdPVN5Nd",
+        "name": "Main Lot",
+        "distance_m": 78,
+        "route_name": "Snow Lake Trail (Alpental)",
+        "source_name": "Snow Lake Trailhead",
+        "credited_cover": false
+    },
+    {
+        "id": "9ofuJq1VreK93jZgCjcF",
+        "name": "Mowich Lake Trailhead",
+        "distance_m": 42,
+        "route_name": "Tolmie Peak",
+        "source_name": "Mowich Lake Trailhead",
+        "credited_cover": false
+    }
+]

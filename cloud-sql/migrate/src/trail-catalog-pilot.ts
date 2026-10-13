@@ -28,7 +28,7 @@ function rejection(error: unknown): { reason: string; detail: string } {
 }
 export async function loadCatalogPlaces(client: Pick<PoolClient, "query">, manifest: PilotManifest): Promise<Map<string, CatalogPlace>> {
   const ids = [...new Set(manifest.candidates.flatMap(c => [c.trailheadId, c.objectiveId, c.endTrailheadId]).filter((id): id is string => Boolean(id)))];
-  const rows = await client.query(`SELECT id,name,features,state_code AS "stateCode",country_code AS "countryCode",
+  const rows = await client.query(`SELECT id,name,features::text[] AS features,state_code AS "stateCode",country_code AS "countryCode",
     ST_Y(location::geometry) AS lat,ST_X(location::geometry) AS lng,ST_AsGeoJSON(boundary::geometry)::json AS boundary
     FROM destinations WHERE id=ANY($1::text[])`, [ids]);
   return new Map(rows.rows.map(row => [row.id, row as CatalogPlace]));

@@ -29,8 +29,7 @@ export async function writePendingCandidate(client: PoolClient, lease: Candidate
     const candidate = lease.artifact.candidate;
     const boundPlaces = [candidate.trailhead, candidate.objective, candidate.endTrailhead].filter((p): p is NonNullable<typeof p> => Boolean(p));
     const currentPlaces = await client.query(`SELECT id,name,features,state_code AS "stateCode",country_code AS "countryCode",
-      ST_Y(location::geometry) AS lat,ST_X(location::geometry) AS lng,ST_AsGeoJSON(boundary::geometry)::json AS boundary
-      FROM destinations WHERE id=ANY($1::text[]) FOR SHARE`, [boundPlaces.map(p => p.id)]);
+      lat,lng,boundary FROM trail_catalog_locked_places()`);
     for (const place of boundPlaces) if (stableJson(place) !== stableJson(currentPlaces.rows.find(p => p.id === place.id))) throw new CandidateRejection("catalog_binding_changed_requires_review", place.id);
     const states = [...new Set(boundPlaces.map(p => p.stateCode).filter(Boolean))], countries = [...new Set(boundPlaces.map(p => p.countryCode).filter(Boolean))];
     const stateCode = candidate.trailhead.stateCode ?? (states.length === 1 ? states[0] : null), countryCode = candidate.trailhead.countryCode ?? (countries.length === 1 ? countries[0] : null);

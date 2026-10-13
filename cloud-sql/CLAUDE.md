@@ -1223,17 +1223,59 @@ names and stable slugs; checked metadata mode adds classification and estimates.
 Neither mode classifies incomplete old rows or runs a catalog-wide geometry scan.
 Never describe the metadata backfill as complete while rejected rows remain.
 
-The existing publish checks remain in force. At this stage they still require
-a summit and exact route/segment provenance equality. Those rules prevent
-non-summit trails and normal segment reuse across routes with different source
-IDs. Josiah approved kind-specific and source-coverage rules for the next phase;
-see `../docs/data-audits/trail-catalog-2026-10-12/README.md`.
+The publish checks use kind-specific contact rules. Legacy and summit routes
+still require summit contact within 5 m. Destination routes must reach the
+named objective within 250 m; polygon objectives use their boundary. Traverses
+must reach their second trailhead, and loops must close. Shared segments must
+carry their exact contributing source IDs, and their union must cover the
+route's source IDs. Source kind, rights, credit, and elevation lineage must
+agree. Josiah approved these rules; they do not waive independent source
+review or permit unmapped connectors.
 The credited-cover gate, source rights, independent source checks, exact segment
 assembly, and elevation checks must remain. OSM (with ODbL credit) and
 `usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for
 this pilot. Leave descriptions empty without reusable text and all three
 description source fields. Activate at most 500 routes per batch and verify
 that `/internal/sweep` drains the rematch queue before the next batch.
+
+### Washington candidate pilot
+
+The pilot uses the same matcher as the web route editor through
+`web/src/lib/segment-matcher-core.ts`. Its reviewed manifest binds source
+snapshots and DEM samples by SHA-256, plus exact catalog place IDs. It records
+every candidate in JSONL, including rejected inputs and unresolved source
+gaps. Empty input fails. Run from `cloud-sql/migrate` with the documented
+production connection, using a new report path each time:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-dry.jsonl
+```
+
+Dry runs record `data_source_runs` but do not write routes or jobs. Review the
+report before applying its printed `reviewHash` under the `peaks-route-factory`
+database role:
+
+```bash
+npm run routes:pilot -- \
+  --manifest data/trail-catalog/wa-cascades-20261013/manifest.json \
+  --report /tmp/wa-trail-pilot-apply.jsonl \
+  --apply --review-hash <reviewed-sha256>
+```
+
+The apply path holds a durable source-key lease, locks the bound places, and
+writes pending routes with exact segment intervals. The database checks the
+lease, immutable input, route path, source spans, links, and completion receipt.
+Replays verify the saved route before reusing a receipt. Failed rows remain
+visible. This command cannot activate routes.
+
+Current limits matter: the manifest runner supports OSM geometry; USFS
+feature proof and broad candidate discovery remain unfinished. It refuses
+existing catalog matches, physical splits of existing segments, and source
+overlaps whose XYZ samples differ. Those cases need reviewed repairs; never
+insert duplicate geometry or silently omit a shared segment. The Washington
+report records these limits and blocks scale-up until all golden routes pass.
 
 Cost: about $0/month added fixed cost. This uses the existing database and
 sweep. Index storage and bounded queries add variable work; there is no new

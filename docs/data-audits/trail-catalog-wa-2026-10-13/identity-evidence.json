@@ -1,0 +1,129 @@
+{
+  "sources": [
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/lake-serene",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Lake Serene",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Lake-only distance is 7.2 miles round trip; the 8.2-mile header includes Bridal Veil Falls. The guide describes a large rock along the shore. The manifest uses named Lunch Rock and omits the falls spur.",
+      "statedRoundTripMiles": 7.2,
+      "statedElevationGainFeet": 2000,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/snow-lake",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Snow Lake",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide describes passing the inlet and outlet and turning around at the northern trail junction. The saved relation ends at that junction.",
+      "statedRoundTripMiles": 7.2,
+      "statedElevationGainFeet": 1800,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/lake-ingalls",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Lake Ingalls",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide follows Ingalls Way from Esmeralda Trailhead to the lake and treats the far shore as an optional continuation. Manifest stops at a source seam beside the southern shore.",
+      "statedRoundTripMiles": 9,
+      "statedElevationGainFeet": 2500,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/colchuck-lake",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Colchuck Lake",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide distinguishes the first granite overlook from the farther shore and Aasgard approach. Manifest uses an unchanged source vertex near the first shore; the exact stopping spot needs review.",
+      "statedRoundTripMiles": 8,
+      "statedElevationGainFeet": 2280,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/lake-stuart",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Lake Stuart",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide describes lake arrival and near-shore day-use stops. Manifest uses the first unchanged source vertex within 30 m of the stored shore boundary; exact spot needs review.",
+      "statedRoundTripMiles": 9,
+      "statedElevationGainFeet": 1665,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/lake-22-lake-twenty-two",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Lake 22",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide places the approach endpoint at the outlet bridge after 2.7 miles and treats the lake circuit separately. Manifest stops at the west end of the mapped outlet bridge.",
+      "statedRoundTripMiles": 5.4,
+      "statedElevationGainFeet": 1350,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/rattlesnake-ledge",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Rattlesnake Ledge",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide ends at the lower named ledge and treats higher ledges as extensions. Source relation reaches the exact catalog viewpoint but contains one mapped steps way.",
+      "statedRoundTripMiles": 4,
+      "statedElevationGainFeet": 1160,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.wta.org/go-hiking/hikes/blanca-lake",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "Washington Trails Association",
+      "name": "Blanca Lake",
+      "use": "identity, endpoint and statistics only; no copied geometry",
+      "finding": "Guide describes a beach at the end of the trail. Its current warning says the trailhead is inaccessible because of Beckler River Road flood damage; this route is blocked pending reopening evidence.",
+      "statedRoundTripMiles": 8,
+      "statedElevationGainFeet": 3400,
+      "gainBasis": "not explicitly stated; distance label does not prove gain basis"
+    },
+    {
+      "url": "https://www.nps.gov/mora/planyourvisit/tolmie-peak.htm",
+      "checkedAt": "2026-10-13T05:45:18.945391+00:00",
+      "publisher": "National Park Service",
+      "name": "Tolmie Peak",
+      "use": "access validation only",
+      "finding": "NPS states usual access to Mowich Lake from SR165 is unavailable because of the Fairfax Bridge closure. Other hiking access does not validate this trailhead approach."
+    }
+  ],
+  "officialMetrics": [
+    {
+      "sourceUrl": "https://research.fs.usda.gov/download/treesearch/80472.pdf",
+      "title": "Alpine Lakes Wilderness: Recreation Allocation Study (2025)",
+      "page": 3,
+      "checkedAt": "2026-10-13T05:47:31.492246+00:00",
+      "metrics": [
+        {
+          "route": "Colchuck Lake",
+          "roundTripMiles": 9,
+          "gainFeet": 2342,
+          "gainBasis": "unspecified"
+        },
+        {
+          "route": "Lake Stuart",
+          "roundTripMiles": 9,
+          "gainFeet": 1840,
+          "gainBasis": "unspecified"
+        },
+        {
+          "route": "Enchantments Traverse",
+          "oneWayMiles": 18.5,
+          "gainFeet": 4845,
+          "gainBasis": "full_trip"
+        }
+      ],
+      "finding": "All three metrics are retained. Colchuck’s first-shore candidate is shorter than the paper’s stated hike; no endpoint is moved to make the values agree."
+    }
+  ]
+}
