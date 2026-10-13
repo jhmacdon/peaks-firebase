@@ -421,6 +421,11 @@ export function buildDestinationRoutesQuery(
             r.elevation_attribution, r.elevation_license_url,
             r.elevation_retrieved_at,
             r.external_links, r.provenance, r.completion,
+            r.shape, r.kind, r.slug, r.aliases,
+            r.difficulty, r.est_moving_seconds, r.state_code, r.country_code,
+            r.objective_destination_id, r.trailhead_destination_id, r.popularity,
+            r.description, r.description_source_name,
+            r.description_source_url, r.description_source_license,
             ${routeCoverSelectSql()},
             COALESCE(area_rows.areas, '[]'::json) AS areas
      FROM routes r
@@ -452,7 +457,7 @@ export function buildDestinationRoutesQuery(
      ) area_rows ON true
      WHERE rd.destination_id = $1 AND r.status = 'active'
        AND ${buildRouteAccessSql("r", "$2")}
-     ORDER BY r.name`,
+     ORDER BY r.popularity DESC, r.name`,
     values: [id, uid],
   };
 }
