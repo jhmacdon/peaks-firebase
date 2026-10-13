@@ -512,6 +512,10 @@
         "sourceUrl": "https://www.openstreetmap.org/relation/5588030",
         "checkedAt": "2026-10-13T05:38:58.362112+00:00",
         "note": "OSM source access tags inspected; a full current land-manager closure review is still required."
+      },
+      "elevation": {
+        "path": "elevation/wa-osm-relation-5588030.json",
+        "sha256": "1ed08f6e5a42beb0eb2ed4627af924e045259a0021c7f8605a8b65e3e56d0877"
       }
     },
     {
@@ -558,7 +562,6 @@
         ]
       },
       "startNodeId": 1891140697,
-      "blockedReason": "Relation includes highway=steps edges unsupported by the current graph filter. The source-bound Skyline Trailhead now exists; do not bypass the remaining source-class gap.",
       "access": {
         "status": "unknown",
         "sourceUrl": "https://www.openstreetmap.org/relation/5199914",
@@ -573,7 +576,11 @@
           "gainM": 518.1600000000001,
           "gainBasis": "full_trip"
         }
-      ]
+      ],
+      "elevation": {
+        "path": "elevation/wa-osm-relation-5199914.json",
+        "sha256": "2adebc29e3683ba004742d0d9bc1fb17a528510bd5a5c71607db7f04efb79e43"
+      }
     },
     {
       "sourceKey": "wa:osm-relation:5194432",
