@@ -48,6 +48,8 @@
     "expand:viewpoint-coverage": "tsx src/expand-viewpoint-coverage.ts",
     "expand:lake-coverage": "tsx src/expand-lake-coverage.ts",
     "audit:route-coverage": "tsx src/audit-route-coverage.ts",
+    "audit:trail-catalog": "tsx src/audit-trail-catalog.ts",
+    "refresh:trail-catalog": "tsx src/refresh-trail-catalog.ts",
     "audit:external-links": "tsx src/audit-external-links.ts",
     "backfill:external-links": "tsx src/backfill-reviewed-external-links.ts",
     "backfill:recreation-gov-campgrounds": "tsx src/backfill-recreation-gov-campgrounds.ts",

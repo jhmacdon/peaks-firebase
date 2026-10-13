@@ -1,0 +1,909 @@
+{
+  "version": 1,
+  "mode": "saved_evidence_only_no_database_access",
+  "created_at": "2026-10-13T05:06:08.999015+00:00",
+  "inputs": {
+    "preflight": "/Users/josiahm/projects/peaks/.codex-worktrees/trail-catalog-schema/docs/data-audits/trail-catalog-2026-10-12/preflight.json",
+    "rejections": "/Users/josiahm/projects/peaks/.codex-worktrees/trail-catalog-schema/docs/data-audits/trail-catalog-2026-10-12/preflight.rejected.jsonl",
+    "preflight_generated_at": "2026-10-13T04:54:51.611Z",
+    "rejections_sha256": "7047e8fdfbc590948c889308ae5dc3e7c490ad57609394d74cb23fed19cd23ca"
+  },
+  "scope": {
+    "owner": "peaks",
+    "statuses": [
+      "active",
+      "pending"
+    ],
+    "current_catalog_count": 287,
+    "scalar_ready_count": 112,
+    "rejected_count": 175,
+    "superseded_excluded_count": 14972,
+    "deep_integrity_checked": false,
+    "metrics_backfill_verified": false
+  },
+  "summary": {
+    "by_status": {
+      "active": 164,
+      "pending": 11
+    },
+    "by_source_kind": {
+      "cdtc": 1,
+      "missing": 134,
+      "nps-atc": 1,
+      "openstreetmap": 38,
+      "pcta": 1
+    },
+    "by_reason": {
+      "invalid_destination_ordinals": 3,
+      "invalid_gain": 3,
+      "invalid_gain_loss": 3,
+      "invalid_segment_ordinals": 120,
+      "missing_country_code": 8,
+      "missing_first_trailhead": 19,
+      "missing_route_shape": 120,
+      "missing_segments": 120,
+      "missing_state_code": 49,
+      "missing_summit_objective": 5
+    },
+    "deterministic_repairs_proven_from_saved_evidence": 0,
+    "region_only_needing_new_region_evidence": 38,
+    "legacy_rows_needing_geometry_source_evidence": 134,
+    "separate_long_distance_traverses": 3
+  },
+  "interpretation": [
+    "No requested write is proved safe from this scalar artifact alone. Region-only rows are the shortest repair path once official point-region evidence is available.",
+    "All 120 invalid_segment_ordinals cases mean zero segment links; none is a simple reordering repair. All three invalid_destination_ordinals cases are the zero-link long-distance routes.",
+    "There are no exported missing destination/segment foreign-key references among these 175 rows.",
+    "Missing source_kind is an observed provenance field, not proof that source geometry never existed. Recover source evidence before replacing any route.",
+    "Do not infer new names, kind, shape, region, source IDs, or trailheads from a route name. No deletions, status changes, or existing summit renames are included."
+  ],
+  "region_findings": {
+    "state_missing_count": 49,
+    "country_missing_count": 8,
+    "existing_fallback_available": false,
+    "basis": "audit-trail-catalog.ts routeRegion uses nonblank objective field, then nonblank first-trailhead field. A missing exported value therefore means neither selected source supplies a nonblank value; repeating this fallback cannot repair it.",
+    "precision": "The artifact cannot distinguish SQL NULL from blank text, or inspect region values on other linked destinations. For the 38 region-only rows both selected endpoint IDs exist.",
+    "region_only_country_counts": {
+      "AQ": 1,
+      "AT": 2,
+      "CL": 1,
+      "CR": 1,
+      "DO": 1,
+      "ES": 1,
+      "FR": 3,
+      "GT": 1,
+      "ID": 3,
+      "IR": 2,
+      "IS": 1,
+      "IT": 4,
+      "JM": 1,
+      "MA": 1,
+      "MG": 1,
+      "MY": 1,
+      "NO": 1,
+      "NZ": 1,
+      "RU": 1,
+      "SK": 1,
+      "SV": 1,
+      "TR": 2,
+      "TZ": 2,
+      "UG": 1,
+      "VN": 1,
+      "missing": 2
+    },
+    "region_only_targets": [
+      {
+        "route_id": "0x4EiGAP5HchuDuliqtd",
+        "name": "Großglockner via Lucknerhaus Normal Route",
+        "status": "active",
+        "country_code": "AT",
+        "state_code": null,
+        "trailhead_id": "9A6A7F33A62D50654883",
+        "objective_id": "AFD21967E06AA9D81BA1"
+      },
+      {
+        "route_id": "1BlUsDSyYVgTrFfe8bkU",
+        "name": "Gunung Agung via Besakih",
+        "status": "active",
+        "country_code": "ID",
+        "state_code": null,
+        "trailhead_id": "36D61C3CB8C94CB0DEF5",
+        "objective_id": "rDewl9rzLJCn3OFqqefi"
+      },
+      {
+        "route_id": "2xoPbzgxN9qADWruqqff",
+        "name": "Cap de la Pala de Montferri via Aguiró",
+        "status": "active",
+        "country_code": "ES",
+        "state_code": null,
+        "trailhead_id": "648A2C09ABD6B624DAE6",
+        "objective_id": "150D6CD3C632787134B5"
+      },
+      {
+        "route_id": "5HeC6oXic3y1k0XaPbXq",
+        "name": "Pico Duarte via La Ciénaga",
+        "status": "active",
+        "country_code": "DO",
+        "state_code": null,
+        "trailhead_id": "D3AD9873F15B412F85D9",
+        "objective_id": "ixsWw1fEt9y9HL7Ind5Q"
+      },
+      {
+        "route_id": "8Bj0ryavUtKX4ekuNkKc",
+        "name": "Chamechaude via Col de Porte",
+        "status": "active",
+        "country_code": "FR",
+        "state_code": null,
+        "trailhead_id": "169808D1CD6E1D75D218",
+        "objective_id": "6916E6CB5E5C45C02499"
+      },
+      {
+        "route_id": "8To4Xn3jQ1GJXQWMuj0m",
+        "name": "Mount Saint Helens via Monitor Ridge",
+        "status": "active",
+        "country_code": null,
+        "state_code": null,
+        "trailhead_id": "Ndsk2Ad2F6r9sXR8cK0m",
+        "objective_id": "6PxfQ1g48SrbplzGd6UH"
+      },
+      {
+        "route_id": "95yXW3tJARmUe12NfOo6",
+        "name": "Blue Mountain Peak via Whitfield Hall",
+        "status": "active",
+        "country_code": "JM",
+        "state_code": null,
+        "trailhead_id": "8E6B8DD8AF59D25E6C4A",
+        "objective_id": "49FDCFD09E5245350B50"
+      },
+      {
+        "route_id": "BtWXVibEMVrSWz9jJNXy",
+        "name": "Col Nudo via Pieve d'Alpago",
+        "status": "active",
+        "country_code": "IT",
+        "state_code": null,
+        "trailhead_id": "DF80CDAA92247B907408",
+        "objective_id": "144BC5ECD52DC039FADA"
+      },
+      {
+        "route_id": "GAOZrKhPoHkvON17jKXa",
+        "name": "Galdhøpiggen via Spiterstulen",
+        "status": "active",
+        "country_code": "NO",
+        "state_code": null,
+        "trailhead_id": "EF52874C9D0B345F2AD4",
+        "objective_id": "m4uY4lFUvGzD98G1lhfN"
+      },
+      {
+        "route_id": "HSrouR4E0ybnz37hLNGq",
+        "name": "Gunung Tambora via Pancasila",
+        "status": "active",
+        "country_code": "ID",
+        "state_code": null,
+        "trailhead_id": "C6A2F96D1A04D339E9F1",
+        "objective_id": "EE823F72482FCF46BEE8"
+      },
+      {
+        "route_id": "IcW2zYZB7eUCb6ZLR4zC",
+        "name": "Cerro El Pital via Rio Chiquito",
+        "status": "active",
+        "country_code": "SV",
+        "state_code": null,
+        "trailhead_id": "8806E9ABC713551D1D54",
+        "objective_id": "F7683C7595CC8D9D29D0"
+      },
+      {
+        "route_id": "K7HlMn1qHI9gkPFd8kna",
+        "name": "Gran Paradiso via Pont Normal Route",
+        "status": "active",
+        "country_code": "IT",
+        "state_code": null,
+        "trailhead_id": "A17DB58D2952ED0446C3",
+        "objective_id": "2E5FFFF77936BBE3C5D7"
+      },
+      {
+        "route_id": "KLc1i8Y7VFEndWxECEqw",
+        "name": "Vinson Massif via Branscomb Glacier",
+        "status": "active",
+        "country_code": "AQ",
+        "state_code": null,
+        "trailhead_id": "AC104C1E48DAA30F8B7B",
+        "objective_id": "ZuM8euuEHwaMw580RZxQ"
+      },
+      {
+        "route_id": "KzdPpPKF472koaNoLlRx",
+        "name": "Ojos del Salado via Chilean Route",
+        "status": "active",
+        "country_code": "CL",
+        "state_code": null,
+        "trailhead_id": "E596F194581523774022",
+        "objective_id": "nJSKqdQBa1xYcHDUQIEl"
+      },
+      {
+        "route_id": "LhCaP1sd03avvuKOPBG1",
+        "name": "Grande Tête de l'Obiou via Voie Normale",
+        "status": "active",
+        "country_code": "FR",
+        "state_code": null,
+        "trailhead_id": "A95EDB5947FF6F5A9940",
+        "objective_id": "1829DB119FADE67F6223"
+      },
+      {
+        "route_id": "Pj2fzFgQ3W9Xar43i2SM",
+        "name": "Hvannadalshnúkur via Sandfellsleið",
+        "status": "active",
+        "country_code": "IS",
+        "state_code": null,
+        "trailhead_id": "0504EA4C0CB9E07CA37B",
+        "objective_id": "0DBABC022BE0C28EC0A2"
+      },
+      {
+        "route_id": "QgUrWxy8QDdexp26ONSl",
+        "name": "Fansipan via Tram Ton Pass",
+        "status": "active",
+        "country_code": "VN",
+        "state_code": null,
+        "trailhead_id": "D4B4A310CC2A021EDFB0",
+        "objective_id": "5BEF4058E29D86131779"
+      },
+      {
+        "route_id": "SnFF3CM0lwsWLT4D6hVQ",
+        "name": "Hikurangi via Te Ara ki Hikurangi",
+        "status": "pending",
+        "country_code": "NZ",
+        "state_code": null,
+        "trailhead_id": "19923BB8275BD9BBC83B",
+        "objective_id": "AB15EC56DCD8C13EF7B0"
+      },
+      {
+        "route_id": "Vl8R91V52VKHEgrzvLHA",
+        "name": "Alam Kuh via Hesarchal South Route",
+        "status": "active",
+        "country_code": "IR",
+        "state_code": null,
+        "trailhead_id": "0AFD34ECA465755224F1",
+        "objective_id": "l8vfhxIz6oIUdqQxDDUA"
+      },
+      {
+        "route_id": "XlsKKOg6hDxloaBLqbMG",
+        "name": "Gunung Kerinci via Pintu Rimba",
+        "status": "active",
+        "country_code": "ID",
+        "state_code": null,
+        "trailhead_id": "C78E40E05CED9B8311F2",
+        "objective_id": "ACyWTKuB03iS0A1FPdQG"
+      },
+      {
+        "route_id": "YbMq1nu24C0rxlB60tWE",
+        "name": "Cerro Chirripó via San Gerardo de Rivas",
+        "status": "active",
+        "country_code": "CR",
+        "state_code": null,
+        "trailhead_id": "5AF0564414D833661C54",
+        "objective_id": "oc7lq28ODgtcO9MbnA6k"
+      },
+      {
+        "route_id": "Ygc9ypnZdiCflEG2AEiD",
+        "name": "Gerlachovský štít via Velická and Batizovská Próba",
+        "status": "active",
+        "country_code": "SK",
+        "state_code": null,
+        "trailhead_id": "B56797F14E6217570842",
+        "objective_id": "91A3B223635D9D35116E"
+      },
+      {
+        "route_id": "adeCrmBWh2nHbbSH9btr",
+        "name": "Sahale Peak via Cascade Pass and Sahale Glacier",
+        "status": "active",
+        "country_code": null,
+        "state_code": null,
+        "trailhead_id": "YtzjvQqup3gqmAYnz0l4",
+        "objective_id": "APWWTYFkwvuUFc3TP1m9"
+      },
+      {
+        "route_id": "bdbSRKQdb7VeYd8a5SIL",
+        "name": "Mount Ararat via South Route",
+        "status": "pending",
+        "country_code": "TR",
+        "state_code": null,
+        "trailhead_id": "45A42543142CAD2DA995",
+        "objective_id": "DhPNvjb5FeG85XuFWLkW"
+      },
+      {
+        "route_id": "c4sdMzSqAhK7evZvOTSQ",
+        "name": "Mount Stanley via the Central Circuit",
+        "status": "active",
+        "country_code": "UG",
+        "state_code": null,
+        "trailhead_id": "C2E119BEE6AF1DE83769",
+        "objective_id": "sYJrDZqm11M4CSUPhpuD"
+      },
+      {
+        "route_id": "eWPuOSoE2uk6KM1vziGf",
+        "name": "Damavand via South Route",
+        "status": "active",
+        "country_code": "IR",
+        "state_code": null,
+        "trailhead_id": "4D7B93615A5D4EFBB62A",
+        "objective_id": "8RtxmvglalqMYeuCTLvS"
+      },
+      {
+        "route_id": "hTTfNKdZgl3jRGmF24nj",
+        "name": "Gunung Mulu via Summit Trail",
+        "status": "active",
+        "country_code": "MY",
+        "state_code": null,
+        "trailhead_id": "E14AC375D3BAA8196F20",
+        "objective_id": "F05DDBC67BB98513312A"
+      },
+      {
+        "route_id": "odFgVT1h4nIuXmDL9EJp",
+        "name": "Cima Presanella via Southeast Normal Route",
+        "status": "active",
+        "country_code": "IT",
+        "state_code": null,
+        "trailhead_id": "177BFA89F62675D89243",
+        "objective_id": "3801FA71EE036A954BED"
+      },
+      {
+        "route_id": "ps0eeiGOwnjAsKbpd13C",
+        "name": "Kaçkar Dağı via Olgunlar",
+        "status": "active",
+        "country_code": "TR",
+        "state_code": null,
+        "trailhead_id": "B784FCE13C6832C3F0D1",
+        "objective_id": "0B0D31ACF975E37AA8BA"
+      },
+      {
+        "route_id": "rB04wEqY2JQXh6QggSSf",
+        "name": "Barre des Écrins via Normal West Ridge",
+        "status": "active",
+        "country_code": "FR",
+        "state_code": null,
+        "trailhead_id": "B60AD3BB339C44E7BB05",
+        "objective_id": "30FBA25F6A12506D101B"
+      },
+      {
+        "route_id": "sKHsjjrI0k195fO7f7HL",
+        "name": "Bazardüzü via South Ridge",
+        "status": "active",
+        "country_code": "RU",
+        "state_code": null,
+        "trailhead_id": "B0A9F84A795CC32DC321",
+        "objective_id": "E76B57745511A983B759"
+      },
+      {
+        "route_id": "si7LOlsDIJmQUAKqcKqG",
+        "name": "Birnhorn via Passauer Hütte",
+        "status": "active",
+        "country_code": "AT",
+        "state_code": null,
+        "trailhead_id": "AF3E95C2D8B74106E219",
+        "objective_id": "23FA59371BF7F4527E53"
+      },
+      {
+        "route_id": "vPcJckNZfljNtZzHyfca",
+        "name": "Antelao via Rifugio Scotter-Palatini",
+        "status": "active",
+        "country_code": "IT",
+        "state_code": null,
+        "trailhead_id": "BBF6ABB37744B902E07B",
+        "objective_id": "FD2AFAD0E92F8F2B0181"
+      },
+      {
+        "route_id": "w34UW6V1DrA70VCCSigz",
+        "name": "Kilimanjaro via Rongai Route",
+        "status": "pending",
+        "country_code": "TZ",
+        "state_code": null,
+        "trailhead_id": "BTBfbfEUzMayfHi5PUcZ",
+        "objective_id": "GBHiDfeDr2AnTVDnfvTG"
+      },
+      {
+        "route_id": "wU15lSZQWfACxX6FPqet",
+        "name": "Jebel M'Goun via Arousse and Tarkeddit",
+        "status": "active",
+        "country_code": "MA",
+        "state_code": null,
+        "trailhead_id": "7140073B00C6B9DFB290",
+        "objective_id": "0FEDD2B9EC2B88DF3DC8"
+      },
+      {
+        "route_id": "wliEOmF55aYTx3RIGd9m",
+        "name": "Mount Meru via Momella Route",
+        "status": "active",
+        "country_code": "TZ",
+        "state_code": null,
+        "trailhead_id": "9D354DE69E6518EF93B8",
+        "objective_id": "t1OWpDACiQTxHuy25sFB"
+      },
+      {
+        "route_id": "xiyZaCIUToP5JvKYfqEZ",
+        "name": "Volcán Tajumulco via San Sebastián",
+        "status": "active",
+        "country_code": "GT",
+        "state_code": null,
+        "trailhead_id": "1C68030FEE25B8A740BD",
+        "objective_id": "7FqoDdqPnf090rhSpRhA"
+      },
+      {
+        "route_id": "ziXbllonHZvmDMGghMV8",
+        "name": "Imarivolanitra via Pic Boby Base Camp",
+        "status": "active",
+        "country_code": "MG",
+        "state_code": null,
+        "trailhead_id": "DA84BCB70D20490C1FB6",
+        "objective_id": "57A3C9C3D3091A48A558"
+      }
+    ],
+    "non_summit_targets_needing_actual_link_inspection": [
+      {
+        "route_id": "5Ne2w5fr0m6q4C3CUtie",
+        "name": "Rattlesnake Ledge Trail",
+        "status": "active",
+        "country_code": null,
+        "state_code": null,
+        "trailhead_id": "mYvmhUZcU6cRzWNzy9Pi",
+        "objective_id": null
+      },
+      {
+        "route_id": "XAuGRMujBSdcuAmQzYPB",
+        "name": "Camp Muir Route",
+        "status": "active",
+        "country_code": null,
+        "state_code": null,
+        "trailhead_id": "xaMGyHut8CoGCSkCPKh6",
+        "objective_id": null
+      }
+    ]
+  },
+  "reason_combinations": [
+    {
+      "reasons": [
+        "invalid_segment_ordinals",
+        "missing_route_shape",
+        "missing_segments"
+      ],
+      "count": 110,
+      "by_status": {
+        "active": 110
+      },
+      "by_source_kind": {
+        "missing": 110
+      }
+    },
+    {
+      "reasons": [
+        "missing_state_code"
+      ],
+      "count": 36,
+      "by_status": {
+        "active": 33,
+        "pending": 3
+      },
+      "by_source_kind": {
+        "openstreetmap": 36
+      }
+    },
+    {
+      "reasons": [
+        "missing_first_trailhead"
+      ],
+      "count": 14,
+      "by_status": {
+        "active": 6,
+        "pending": 8
+      },
+      "by_source_kind": {
+        "missing": 14
+      }
+    },
+    {
+      "reasons": [
+        "invalid_segment_ordinals",
+        "missing_route_shape",
+        "missing_segments",
+        "missing_state_code"
+      ],
+      "count": 5,
+      "by_status": {
+        "active": 5
+      },
+      "by_source_kind": {
+        "missing": 5
+      }
+    },
+    {
+      "reasons": [
+        "invalid_destination_ordinals",
+        "invalid_gain",
+        "invalid_gain_loss",
+        "missing_country_code",
+        "missing_first_trailhead",
+        "missing_state_code",
+        "missing_summit_objective"
+      ],
+      "count": 3,
+      "by_status": {
+        "active": 3
+      },
+      "by_source_kind": {
+        "cdtc": 1,
+        "nps-atc": 1,
+        "pcta": 1
+      }
+    },
+    {
+      "reasons": [
+        "invalid_segment_ordinals",
+        "missing_country_code",
+        "missing_route_shape",
+        "missing_segments",
+        "missing_state_code",
+        "missing_summit_objective"
+      ],
+      "count": 2,
+      "by_status": {
+        "active": 2
+      },
+      "by_source_kind": {
+        "missing": 2
+      }
+    },
+    {
+      "reasons": [
+        "missing_country_code",
+        "missing_state_code"
+      ],
+      "count": 2,
+      "by_status": {
+        "active": 2
+      },
+      "by_source_kind": {
+        "openstreetmap": 2
+      }
+    },
+    {
+      "reasons": [
+        "invalid_segment_ordinals",
+        "missing_first_trailhead",
+        "missing_route_shape",
+        "missing_segments"
+      ],
+      "count": 2,
+      "by_status": {
+        "active": 2
+      },
+      "by_source_kind": {
+        "missing": 2
+      }
+    },
+    {
+      "reasons": [
+        "invalid_segment_ordinals",
+        "missing_country_code",
+        "missing_route_shape",
+        "missing_segments",
+        "missing_state_code"
+      ],
+      "count": 1,
+      "by_status": {
+        "active": 1
+      },
+      "by_source_kind": {
+        "missing": 1
+      }
+    }
+  ],
+  "repair_groups": [
+    {
+      "group": "region_only",
+      "count": 38,
+      "by_status": {
+        "active": 35,
+        "pending": 3
+      },
+      "by_source_kind": {
+        "openstreetmap": 38
+      },
+      "decision": "Metadata repair after new region evidence; no new route geometry indicated by this scalar audit.",
+      "evidence_needed": [
+        "Read the linked objective and trailhead coordinates and raw region values. The saved report has no coordinates.",
+        "Resolve missing fields against a licensed official country/subdivision boundary dataset or an explicit official place record. Record dataset/version and boundary ambiguity.",
+        "Verify existing route provenance, segment assembly, and path-derived estimates before calling the metadata refresh complete. This audit did not check them."
+      ],
+      "repair_action": [
+        "Repair destination region facts only where evidence gives an unambiguous value, then rerun the reviewed metadata refresh.",
+        "Do not fill state from country or route name. Keep no-subdivision/disputed-boundary cases unresolved until the region model has an explicit rule."
+      ],
+      "route_ids": [
+        "0x4EiGAP5HchuDuliqtd",
+        "1BlUsDSyYVgTrFfe8bkU",
+        "2xoPbzgxN9qADWruqqff",
+        "5HeC6oXic3y1k0XaPbXq",
+        "8Bj0ryavUtKX4ekuNkKc",
+        "8To4Xn3jQ1GJXQWMuj0m",
+        "95yXW3tJARmUe12NfOo6",
+        "BtWXVibEMVrSWz9jJNXy",
+        "GAOZrKhPoHkvON17jKXa",
+        "HSrouR4E0ybnz37hLNGq",
+        "IcW2zYZB7eUCb6ZLR4zC",
+        "K7HlMn1qHI9gkPFd8kna",
+        "KLc1i8Y7VFEndWxECEqw",
+        "KzdPpPKF472koaNoLlRx",
+        "LhCaP1sd03avvuKOPBG1",
+        "Pj2fzFgQ3W9Xar43i2SM",
+        "QgUrWxy8QDdexp26ONSl",
+        "SnFF3CM0lwsWLT4D6hVQ",
+        "Vl8R91V52VKHEgrzvLHA",
+        "XlsKKOg6hDxloaBLqbMG",
+        "YbMq1nu24C0rxlB60tWE",
+        "Ygc9ypnZdiCflEG2AEiD",
+        "adeCrmBWh2nHbbSH9btr",
+        "bdbSRKQdb7VeYd8a5SIL",
+        "c4sdMzSqAhK7evZvOTSQ",
+        "eWPuOSoE2uk6KM1vziGf",
+        "hTTfNKdZgl3jRGmF24nj",
+        "odFgVT1h4nIuXmDL9EJp",
+        "ps0eeiGOwnjAsKbpd13C",
+        "rB04wEqY2JQXh6QggSSf",
+        "sKHsjjrI0k195fO7f7HL",
+        "si7LOlsDIJmQUAKqcKqG",
+        "vPcJckNZfljNtZzHyfca",
+        "w34UW6V1DrA70VCCSigz",
+        "wU15lSZQWfACxX6FPqet",
+        "wliEOmF55aYTx3RIGd9m",
+        "xiyZaCIUToP5JvKYfqEZ",
+        "ziXbllonHZvmDMGghMV8"
+      ]
+    },
+    {
+      "group": "existing_segment_missing_trailhead_and_source",
+      "count": 14,
+      "by_status": {
+        "active": 6,
+        "pending": 8
+      },
+      "by_source_kind": {
+        "missing": 14
+      },
+      "decision": "Not an ordinal-only repair. Every row has one destination and one segment, but no source_kind in the exported route provenance.",
+      "evidence_needed": [
+        "Inspect original import/source records and canonical XYZ geometry. Recover valid OSM or allowlisted USFS attribution and independently prove every cited source contributes.",
+        "Find a real catalog/raw-source trailhead within the unchanged 125 m start gate. A summit-to-summit spur needs source-backed route extension or a distinct traversal decision; do not attach a distant trailhead.",
+        "Check one-way/out-and-back meaning against the source; route names alone are not proof."
+      ],
+      "repair_action": [
+        "Only a verified near-start trailhead permits a destination-link-only repair.",
+        "Otherwise rebuild the missing approach from allowed geometry and decompose through the shared matcher. Leave existing summit names unchanged."
+      ],
+      "route_ids": [
+        "AOCSvgvnhW5nd8dPei6J",
+        "D3fevwtILCSZnm1ruYO8",
+        "FypOCrHlmOuQfPISTYkX",
+        "G0PNxk1RMFfl72jLkaem",
+        "M24BEW9Kw5gJHKJQojZ2",
+        "Mlt50cwbdUFdvzS1YyOY",
+        "NH46EXVm9toZRrWqpzOb",
+        "TrLvh38SE4YRQWocUeDh",
+        "UTCZwOG9gpxVh6AkBCwk",
+        "Z3d05cJB4w5iWQoUrZFJ",
+        "csnl5dNWecRG6SM1FszM",
+        "jRmVvhLaNdjkU5cSG8NE",
+        "kOcxdqiystGwdXXqp2Rf",
+        "yZjqoBCUFjRnrHjC0qZY"
+      ]
+    },
+    {
+      "group": "legacy_path_missing_segments_shape_and_source",
+      "count": 120,
+      "by_status": {
+        "active": 120
+      },
+      "by_source_kind": {
+        "missing": 120
+      },
+      "decision": "Source geometry/provenance verification required before segment decomposition or shape assignment.",
+      "evidence_needed": [
+        "All 120 rows have zero segment links, NULL shape, and no source_kind. Stored distance/gain do not establish source rights or complete geometry.",
+        "Recover the original permitted source identity and verify exact XYZ path, endpoints, coverage, and shape. Fetch/rebuild from OSM or allowlisted USFS where recovery fails.",
+        "Two rows have no selected summit (Rattlesnake Ledge Trail and Camp Muir Route); inspect their actual linked destination features and use the approved destination-kind rule rather than inventing a summit."
+      ],
+      "repair_action": [
+        "Use the one shared matcher to create/reuse exact source-backed segments. Never fix invalid_segment_ordinals by creating a dummy link.",
+        "Repair 10 compound cases explicitly: five also lack state; one lacks country/state; two lack first trailhead; two lack summit plus country/state.",
+        "Rerun full publish integrity and cover review before activation/status changes."
+      ],
+      "route_ids": [
+        "090SSFjydzTy6N7iEKNW",
+        "24oH6YsreFZywhPtDA7i",
+        "27R5TffdY2vw4iHnmIJj",
+        "3FxSjw4T7YCEK6WadIc9",
+        "3dFRIqoC3X4TxdzL4FJX",
+        "4gkUxiJyoPVyJWokOinE",
+        "4jhHhNidClxMk1MfVDHo",
+        "4qEvfKAzYWoVQLDN5GtS",
+        "5Jocjpur9FKaXqTbA1ys",
+        "5Ne2w5fr0m6q4C3CUtie",
+        "78PrHiPheauIk0Phmcg5",
+        "7FSLrL4MNjYbuHTixoCx",
+        "9hwfh3TJNKqvKFH5zcmv",
+        "9ndYlvIF0ILMi5cVXSgo",
+        "D55uJL7Ws5zbDAhOB26B",
+        "DYHF6hF7BqX5VkK2Knrn",
+        "Doy2zxkxrBmlzasLBSdV",
+        "E0jNYqvOc97UfHnGaOqd",
+        "EiQIO3e5pExNCrMglg9D",
+        "F3BEVgZxLiTuVeOFe9mX",
+        "FcUIKOWVkSyQsqTGDEGY",
+        "Fui7wRpiC0hubCukJxeS",
+        "GhtrDufnJaapbafZI0zQ",
+        "GvvlRD5GY4QoPyDzunNd",
+        "HOusfQaJKREXQiAoJukY",
+        "HTYI4BoN79TWTA5GgDHX",
+        "HY5RuRNroyNoHvVhaenc",
+        "INRBmN9IOw444hd4A4OD",
+        "JCkyLyIdh7ncU9TJX7qS",
+        "KG89JzIf3B07ppaWjLxm",
+        "Kj8HDm0QRzXmKVAUUe3K",
+        "L7fJG5VMQHQZFPb1zaqb",
+        "LCP7d9cOBv8NlQMtR59S",
+        "LNG6r2mbOqpr9PVGvJQp",
+        "LQM43utM8EHQvKMyRZSW",
+        "MEm3hzs3qh5AF2NiMYZx",
+        "MOLH6dqJjDQPykIZCot0",
+        "OMEcWgBWjgx2RVqu8gj6",
+        "PH5GxeqMMnmjS0TZQsd5",
+        "PSCsw31oloqFVNspzsuO",
+        "PlrSkPA9MbXsSMCxyar4",
+        "Puao5A4TjowesY05CpSK",
+        "Q4tbKTNo2sNe6Dz3SDr9",
+        "QZdoMV62KialSnOGgL91",
+        "QwtCZfQKywhMVYKIlpWa",
+        "RVzkbi2H0IQpgb8V3iOS",
+        "Raae0D46LF3rTkRgcYtT",
+        "SqsZA07zm6JRpb4mkiLp",
+        "T6Z7E2LK5tvkI7d4BxBF",
+        "TOI6GVr0RCXSvnadNV4G",
+        "TiLsS9IZaJLQYzFcDrfr",
+        "TwtcjNrZPobYjAIh45Ns",
+        "UCoP0AYisQpoPE0s8KnU",
+        "V10xAATa0q84iW1mwF2X",
+        "W4eSRaFSoVnnThbPNggO",
+        "WY4XqyuQ1K6NvR95GUPB",
+        "WnPn3ExI3l2QjJTgnDUM",
+        "XAuGRMujBSdcuAmQzYPB",
+        "YYQag1GLA2Q1lnu0aTsy",
+        "YnPSmAcjI5depNfbhvSl",
+        "ZeI7xmy2uVHmRCUqjtYO",
+        "ahOj3zL8oO4fpV47OFyk",
+        "alnBkdLIQWoxpHrq3j0v",
+        "bC9tNlO9h6Ppe1ks6NYi",
+        "cR0AvyqveuMQu6B2jcZy",
+        "eKeVhuI16gnaJlS90nc4",
+        "esOhCTEvfGNOCVOR73jg",
+        "fGPC2NSLAnznhxs8LOMP",
+        "fSHZk8ioXWIjUNPnTgMU",
+        "fWKMFjqNt3ujDfr8Avz2",
+        "fbKUB9o08Hf5Xs4EeK5E",
+        "fmuDoQ9D58YDqT0sIs2w",
+        "gCscJF593nTsMdp1Z6EE",
+        "gZoKcidRFdBCNYMJC0xc",
+        "hHwSD16aZo4SLHgrRQ0x",
+        "hJwT8jB4nBaRg7ZwhGKv",
+        "hwSq44gVJUIavkKqPIzZ",
+        "i6R8ahGmHljrm4nGmLp1",
+        "iufwHEWy2ZrAe7IIUAdW",
+        "ixoEIxqMl64fp4Bn5spL",
+        "jEE8nUHR4pLO1u9SXXIy",
+        "jHr2TQqtxvrwSzjUdoWN",
+        "jeQxxmW42VYZPNkWib2F",
+        "jkqllU29OWYwUfUB3IqZ",
+        "jmknzzFJ3PWDfTZukeJE",
+        "kFgJ51lgLSgZVJ0gQwwe",
+        "kxm6AFbOE49XkukJzCJa",
+        "lX3ud1QVMmGB7mCLYv6a",
+        "mjFQmrA2gM5DthtRN47h",
+        "nUeKo8AEX3arbSb9T7Lv",
+        "niODuNfcgkqSSFrspiMK",
+        "nktpfoy5dV052KmdJTkX",
+        "nss4ieEq1f3D8aMf8BAT",
+        "o0kz32DXQ0VnPiXrDRsH",
+        "pfc6sQxGlVLjgtuLIRME",
+        "qDTw77gRBuVYGtr563td",
+        "qdn32HnzkeMaXkoNe9wN",
+        "qojql4CaD3IF6GZfW0TE",
+        "qugwKJ8fnh7aypkLzmV2",
+        "rwAq7mL75z1UUUhCGCD3",
+        "s9dU4zerroFKqlaa366l",
+        "sqAWGByVi99NFtSshmZ4",
+        "t5sFELKwD7vRjGaNrmOk",
+        "t7GxkDEDF0HYXsyYwm99",
+        "uQGqLlMDI0qbJC5Q9C1h",
+        "udVIF1p2hT3Qx3LtTzbG",
+        "uiZrDE6PqOeFxcJlaWmS",
+        "vCSQtpXtZXZEBDhdxKOR",
+        "vKC7TJ80pwvojfeZYVWj",
+        "vKaEy0fIXHppin0CNOg7",
+        "vRcRBFdHpY30bkipKCvk",
+        "vWhrqkXERoN0nC86vKyR",
+        "vqUg8SLRsay3Cotb6zmk",
+        "whvKZyztqB1ncVabFFtR",
+        "xrcPH1bzGIhsel7sxhKa",
+        "yCf5BuBuc6Z2bNxgShuA",
+        "yRwq5XUUWNMicEr7KKsM",
+        "z2gHia5Sc7SJuq1Ub24G",
+        "zmOynqSip5YHIBJG1DdK",
+        "zpMvIjzNzPjQCcBbz1ht"
+      ]
+    },
+    {
+      "group": "legacy_long_distance_traverses",
+      "count": 3,
+      "by_status": {
+        "active": 3
+      },
+      "by_source_kind": {
+        "cdtc": 1,
+        "nps-atc": 1,
+        "pcta": 1
+      },
+      "decision": "Separate source and model review; outside Washington pilot. Do not coerce to summit.",
+      "evidence_needed": [
+        "AT, CDT, and PCT have no destination links and no gain/loss; each has one segment. Their source kinds are nps-atc/cdtc/pcta, outside this task's OSM/USFS geometry allowlist.",
+        "Establish a multi-region traverse policy, actual terminal trailheads, and usable elevation geometry. Preserve existing attribution while evaluating any replacement source.",
+        "NPS is validation-only for new geometry under this task. Do not relabel existing geometry as OSM or USFS."
+      ],
+      "repair_action": [
+        "Keep reported as blocked; require a separate reviewed repair with allowed source geometry and kind-aware endpoints."
+      ],
+      "route_ids": [
+        "triple-crown-at",
+        "triple-crown-cdt",
+        "triple-crown-pct"
+      ]
+    }
+  ],
+  "washington": {
+    "recorded_WA_rejected_count": 37,
+    "recorded_WA_route_ids": [
+      "27R5TffdY2vw4iHnmIJj",
+      "4gkUxiJyoPVyJWokOinE",
+      "5Jocjpur9FKaXqTbA1ys",
+      "78PrHiPheauIk0Phmcg5",
+      "9ndYlvIF0ILMi5cVXSgo",
+      "Fui7wRpiC0hubCukJxeS",
+      "GhtrDufnJaapbafZI0zQ",
+      "GvvlRD5GY4QoPyDzunNd",
+      "HOusfQaJKREXQiAoJukY",
+      "INRBmN9IOw444hd4A4OD",
+      "KG89JzIf3B07ppaWjLxm",
+      "LNG6r2mbOqpr9PVGvJQp",
+      "OMEcWgBWjgx2RVqu8gj6",
+      "Q4tbKTNo2sNe6Dz3SDr9",
+      "SqsZA07zm6JRpb4mkiLp",
+      "TwtcjNrZPobYjAIh45Ns",
+      "V10xAATa0q84iW1mwF2X",
+      "W4eSRaFSoVnnThbPNggO",
+      "YYQag1GLA2Q1lnu0aTsy",
+      "bC9tNlO9h6Ppe1ks6NYi",
+      "cR0AvyqveuMQu6B2jcZy",
+      "esOhCTEvfGNOCVOR73jg",
+      "fmuDoQ9D58YDqT0sIs2w",
+      "hJwT8jB4nBaRg7ZwhGKv",
+      "i6R8ahGmHljrm4nGmLp1",
+      "jkqllU29OWYwUfUB3IqZ",
+      "jmknzzFJ3PWDfTZukeJE",
+      "lX3ud1QVMmGB7mCLYv6a",
+      "nktpfoy5dV052KmdJTkX",
+      "qugwKJ8fnh7aypkLzmV2",
+      "s9dU4zerroFKqlaa366l",
+      "t7GxkDEDF0HYXsyYwm99",
+      "vqUg8SLRsay3Cotb6zmk",
+      "whvKZyztqB1ncVabFFtR",
+      "yCf5BuBuc6Z2bNxgShuA",
+      "z2gHia5Sc7SJuq1Ub24G",
+      "zpMvIjzNzPjQCcBbz1ht"
+    ],
+    "warning": "This excludes rows with missing region, even when their names suggest Washington. The audit golden-name discovery has the same region filter, so absence from its golden matches is not proof that a route is absent."
+  }
+}

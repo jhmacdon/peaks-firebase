@@ -1,0 +1,676 @@
+{
+  "summary": {
+    "mode": "read_only_preflight",
+    "generated_at": "2026-10-13T04:54:51.611Z",
+    "scope": {
+      "owner": "peaks",
+      "statuses": "all"
+    },
+    "checks": "scalar metadata and destination/segment links",
+    "deep_integrity_checked": false,
+    "metrics_backfill_verified": false,
+    "catalog_routes": 15259,
+    "metadata_ready_routes": 112,
+    "rejected_routes": 15147,
+    "rejected_by_reason": {
+      "missing_route_shape": 15092,
+      "missing_segments": 15092,
+      "invalid_segment_ordinals": 15092,
+      "missing_state_code": 14401,
+      "missing_summit_objective": 5,
+      "missing_country_code": 92,
+      "missing_first_trailhead": 14985,
+      "invalid_gain": 14969,
+      "invalid_gain_loss": 14969,
+      "invalid_destination_ordinals": 12
+    },
+    "by_status": {
+      "active": 260,
+      "pending": 27,
+      "superseded": 14972
+    },
+    "rejected_by_status": {
+      "active": 164,
+      "pending": 11,
+      "superseded": 14972
+    },
+    "by_source_kind": {
+      "missing": 15112,
+      "openstreetmap": 142,
+      "usgs-national-map": 2,
+      "nps-atc": 1,
+      "cdtc": 1,
+      "pcta": 1
+    },
+    "report_path": "/Users/josiahm/projects/peaks/.codex-worktrees/trail-catalog-schema/docs/data-audits/trail-catalog-2026-10-12/preflight.json",
+    "rejections_path": "/Users/josiahm/projects/peaks/.codex-worktrees/trail-catalog-schema/docs/data-audits/trail-catalog-2026-10-12/preflight.rejected.jsonl"
+  },
+  "golden_discovery": [
+    {
+      "query": "Mount Si Trail",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "40oJLRsV6f8hgVLXqkB7",
+          "name": "Mount Si via Mount Si Trail",
+          "status": "active",
+          "shape": "out_and_back",
+          "stored_distance_m": 6171,
+          "stored_gain_m": 1126.5,
+          "stored_gain_loss_m": 36.70000000000002,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "FLFBZ7rDLOFHPlUn9TMI",
+          "trailhead_name": "Mount Si Trailhead",
+          "objective_id": "nSf6z4vL0zjdG2sXibBM",
+          "objective_name": "Mount Si",
+          "source_kind": "openstreetmap",
+          "destination_count": 2,
+          "segment_count": 1,
+          "rejection_reasons": []
+        },
+        {
+          "route_id": "Lh7u1gYpy5aTzE6QxGEy",
+          "name": "Mount Si Trail",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 6251.410490899723,
+          "stored_gain_m": 1115.5546875,
+          "stored_gain_loss_m": 37.109375,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "FLFBZ7rDLOFHPlUn9TMI",
+          "trailhead_name": "Mount Si Trailhead",
+          "objective_id": "nSf6z4vL0zjdG2sXibBM",
+          "objective_name": "Mount Si",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "qugwKJ8fnh7aypkLzmV2",
+          "name": "Mount Si Teneriffe Connector",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 5189.568846402607,
+          "stored_gain_m": 522.70703125,
+          "stored_gain_loss_m": 315.91796875,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": null,
+          "trailhead_name": null,
+          "objective_id": "LAG3Glmi6mUYNr64ixDz",
+          "objective_name": "Mount Teneriffe",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_first_trailhead",
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "whvKZyztqB1ncVabFFtR",
+          "name": "Mount Si Old Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 5163.555900799526,
+          "stored_gain_m": 1143.046875,
+          "stored_gain_loss_m": 27.39453125,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "7etiVGkvGugHxmFja3xK",
+          "trailhead_name": "Little Si Trailhead",
+          "objective_id": "nSf6z4vL0zjdG2sXibBM",
+          "objective_name": "Mount Si",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Little Si",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "whvKZyztqB1ncVabFFtR",
+          "name": "Mount Si Old Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 5163.555900799526,
+          "stored_gain_m": 1143.046875,
+          "stored_gain_loss_m": 27.39453125,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "7etiVGkvGugHxmFja3xK",
+          "trailhead_name": "Little Si Trailhead",
+          "objective_id": "nSf6z4vL0zjdG2sXibBM",
+          "objective_name": "Mount Si",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "YYQag1GLA2Q1lnu0aTsy",
+          "name": "Little Si",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 2965.155366334318,
+          "stored_gain_m": 378.28515625,
+          "stored_gain_loss_m": 58.93359375,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "7etiVGkvGugHxmFja3xK",
+          "trailhead_name": "Little Si Trailhead",
+          "objective_id": "xHaYBgzoxgfAZNLTfWid",
+          "objective_name": "Little Si",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Rattlesnake Ledge",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Lake Serene",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Snow Lake",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Ingalls Lake via Ingalls Way",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "aXEHeJetvshw8lnmHEZD",
+          "name": "Ingalls Peak via Ingalls Way and South Ridge",
+          "status": "active",
+          "shape": "out_and_back",
+          "stored_distance_m": 7398,
+          "stored_gain_m": 1119.9,
+          "stored_gain_loss_m": 93.4,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "Vm0gOD6OdjW4lQmHn0Fj",
+          "trailhead_name": "Esmeralda Trailhead",
+          "objective_id": "8gW9WZ6tngvhNn0TIDpc",
+          "objective_name": "Ingalls Peak",
+          "source_kind": "openstreetmap",
+          "destination_count": 2,
+          "segment_count": 3,
+          "rejection_reasons": []
+        },
+        {
+          "route_id": "osm-route-5626186-99cf92f618",
+          "name": "Ingalls Way Trail",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 8237,
+          "stored_gain_m": null,
+          "stored_gain_loss_m": null,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": null,
+          "trailhead_name": null,
+          "objective_id": "9K5SBi4EFt1BcuNC1KVu",
+          "objective_name": "Not Hinkhouse Peak",
+          "source_kind": null,
+          "destination_count": 1,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_first_trailhead",
+            "invalid_gain",
+            "invalid_gain_loss",
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Ingalls Peak",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "aXEHeJetvshw8lnmHEZD",
+          "name": "Ingalls Peak via Ingalls Way and South Ridge",
+          "status": "active",
+          "shape": "out_and_back",
+          "stored_distance_m": 7398,
+          "stored_gain_m": 1119.9,
+          "stored_gain_loss_m": 93.4,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "Vm0gOD6OdjW4lQmHn0Fj",
+          "trailhead_name": "Esmeralda Trailhead",
+          "objective_id": "8gW9WZ6tngvhNn0TIDpc",
+          "objective_name": "Ingalls Peak",
+          "source_kind": "openstreetmap",
+          "destination_count": 2,
+          "segment_count": 3,
+          "rejection_reasons": []
+        }
+      ]
+    },
+    {
+      "query": "Esmeralda Basin",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Colchuck Lake",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Lake Stuart",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Enchantment Lakes traverse",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Skyline Loop (Paradise)",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "BTYkMBpCSXzrB0HN6JbO",
+          "name": "Kautz Glacier Route",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 8721.418110502535,
+          "stored_gain_m": 2889.69921875,
+          "stored_gain_loss_m": 153.5234375,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "xaMGyHut8CoGCSkCPKh6",
+          "trailhead_name": "Paradise",
+          "objective_id": "Tg5URBHkVwPA1gGKKB4Q",
+          "objective_name": "Mount Rainier",
+          "source_kind": null,
+          "destination_count": 3,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "i6R8ahGmHljrm4nGmLp1",
+          "name": "Disappointment Cleaver Route",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 11609.896327115839,
+          "stored_gain_m": 2749.9453125,
+          "stored_gain_loss_m": 12.45703125,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "xaMGyHut8CoGCSkCPKh6",
+          "trailhead_name": "Paradise",
+          "objective_id": "Tg5URBHkVwPA1gGKKB4Q",
+          "objective_name": "Mount Rainier",
+          "source_kind": null,
+          "destination_count": 5,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "osm-route-12913652-53f87bc1cc",
+          "name": "Skyline loop",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 29634,
+          "stored_gain_m": null,
+          "stored_gain_loss_m": null,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": null,
+          "trailhead_name": null,
+          "objective_id": "QlyVaL7vNnWSKhiUzVJC",
+          "objective_name": "Kimta Peak",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_first_trailhead",
+            "invalid_gain",
+            "invalid_gain_loss",
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "osm-route-5199914-3b30aef145",
+          "name": "Skyline Trail",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 9012,
+          "stored_gain_m": null,
+          "stored_gain_loss_m": null,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": null,
+          "trailhead_name": null,
+          "objective_id": "jNJB5L6RkflmUdG0hyj1",
+          "objective_name": "Panorama Point",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_first_trailhead",
+            "invalid_gain",
+            "invalid_gain_loss",
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Naches Peak Loop",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "osm-route-1285818-45708f82ea",
+          "name": "PCT - Washington Section I",
+          "status": "superseded",
+          "shape": null,
+          "stored_distance_m": 3188,
+          "stored_gain_m": null,
+          "stored_gain_loss_m": null,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": null,
+          "trailhead_name": null,
+          "objective_id": "kzS5bjcQNf9f1YahZFmp",
+          "objective_name": "Naches Peak",
+          "source_kind": null,
+          "destination_count": 1,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_first_trailhead",
+            "invalid_gain",
+            "invalid_gain_loss",
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Mailbox Peak (both trails)",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "4gkUxiJyoPVyJWokOinE",
+          "name": "Mailbox Peak Old Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 4018.9009517120226,
+          "stored_gain_m": 1208.75390625,
+          "stored_gain_loss_m": 0,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "GHg65nKUeQhQU3D9A7ie",
+          "trailhead_name": "Mailbox Peak Trail Parking Lot",
+          "objective_id": "5hVnUW4tmqj3A6YbU0oB",
+          "objective_name": "Mailbox Peak",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        },
+        {
+          "route_id": "FO5rjIvYUcNDaiyoDsTb",
+          "name": "Dirtybox Peak via Mailbox Peak Old Trail",
+          "status": "active",
+          "shape": "out_and_back",
+          "stored_distance_m": 5846,
+          "stored_gain_m": 1473.2000000000003,
+          "stored_gain_loss_m": 218.00000000000034,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "GHg65nKUeQhQU3D9A7ie",
+          "trailhead_name": "Mailbox Peak Trail Parking Lot",
+          "objective_id": "xQ1CTVAiot62T0IOwCcg",
+          "objective_name": "Dirtybox Peak",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 1,
+          "rejection_reasons": []
+        },
+        {
+          "route_id": "KG89JzIf3B07ppaWjLxm",
+          "name": "Mailbox Peak Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 8251.016019616058,
+          "stored_gain_m": 1329.16015625,
+          "stored_gain_loss_m": 109.60546875,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "GHg65nKUeQhQU3D9A7ie",
+          "trailhead_name": "Mailbox Peak Trail Parking Lot",
+          "objective_id": "5hVnUW4tmqj3A6YbU0oB",
+          "objective_name": "Mailbox Peak",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Heather–Maple Pass Loop",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Blanca Lake",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Lake 22",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "no_catalog_name_match",
+      "search_rank": null,
+      "matches": []
+    },
+    {
+      "query": "Poo Poo Point",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "esOhCTEvfGNOCVOR73jg",
+          "name": "Chirico Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 2945.68756818613,
+          "stored_gain_m": 516.56640625,
+          "stored_gain_loss_m": 9.7265625,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "rQKXSjXerrmfQpTLAWbM",
+          "trailhead_name": "Poo Poo Trailhead",
+          "objective_id": "Yfu5QdaOWeuxpSXiN5rK",
+          "objective_name": "Poo Poo Point",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Tolmie Peak",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "z2gHia5Sc7SJuq1Ub24G",
+          "name": "Tolmie Peak Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 5148.427187870381,
+          "stored_gain_m": 454.51953125,
+          "stored_gain_loss_m": 138.7109375,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "9ofuJq1VreK93jZgCjcF",
+          "trailhead_name": "Mowich Lake Trailhead",
+          "objective_id": "htqW9lCp974x1tEWD8t7",
+          "objective_name": "Tolmie Peak",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    },
+    {
+      "query": "Mount Pilchuck",
+      "match_scope": "WA catalog route, objective, or trailhead names; candidates require review",
+      "result": "observed_candidates",
+      "search_rank": null,
+      "matches": [
+        {
+          "route_id": "ekqRguipqw8GERL7Yvet",
+          "name": "Mount Pilchuck via Mount Pilchuck Trail #700",
+          "status": "pending",
+          "shape": "out_and_back",
+          "stored_distance_m": 4205,
+          "stored_gain_m": 731.3000000000006,
+          "stored_gain_loss_m": 43.90000000000009,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "E65jXwR5gzXhiQc4ak6l",
+          "trailhead_name": "Mount Pilchuck Trailhead",
+          "objective_id": "iAD3EhqmkKVKXBjJjprj",
+          "objective_name": "Mount Pilchuck",
+          "source_kind": "openstreetmap",
+          "destination_count": 2,
+          "segment_count": 1,
+          "rejection_reasons": []
+        },
+        {
+          "route_id": "t7GxkDEDF0HYXsyYwm99",
+          "name": "Mount Pilchuck Trail",
+          "status": "active",
+          "shape": null,
+          "stored_distance_m": 4196.383179184767,
+          "stored_gain_m": 714.12890625,
+          "stored_gain_loss_m": 39.49609375,
+          "country_code": "US",
+          "state_code": "WA",
+          "trailhead_id": "E65jXwR5gzXhiQc4ak6l",
+          "trailhead_name": "Mount Pilchuck Trailhead",
+          "objective_id": "iAD3EhqmkKVKXBjJjprj",
+          "objective_name": "Mount Pilchuck",
+          "source_kind": null,
+          "destination_count": 2,
+          "segment_count": 0,
+          "rejection_reasons": [
+            "missing_route_shape",
+            "missing_segments",
+            "invalid_segment_ordinals"
+          ]
+        }
+      ]
+    }
+  ]
+}
