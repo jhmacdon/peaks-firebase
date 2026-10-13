@@ -5,6 +5,8 @@
 -- This migration does not change names, statuses, geometry, or publish gates.
 
 BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
 
 CREATE OR REPLACE FUNCTION peaks_search_name(value TEXT)
 RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
@@ -26,21 +28,44 @@ RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
 $$;
 
 ALTER TABLE routes
-  ADD COLUMN IF NOT EXISTS kind TEXT CHECK (kind IN ('summit', 'destination', 'loop', 'traverse')),
+  ADD COLUMN IF NOT EXISTS kind TEXT,
   ADD COLUMN IF NOT EXISTS slug TEXT,
   ADD COLUMN IF NOT EXISTS search_name TEXT,
   ADD COLUMN IF NOT EXISTS aliases TEXT[] NOT NULL DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS objective_destination_id TEXT REFERENCES destinations(id),
-  ADD COLUMN IF NOT EXISTS trailhead_destination_id TEXT REFERENCES destinations(id),
-  ADD COLUMN IF NOT EXISTS difficulty TEXT CHECK (difficulty IN ('easy', 'moderate', 'hard', 'strenuous')),
-  ADD COLUMN IF NOT EXISTS est_moving_seconds INTEGER CHECK (est_moving_seconds > 0),
+  ADD COLUMN IF NOT EXISTS objective_destination_id TEXT,
+  ADD COLUMN IF NOT EXISTS trailhead_destination_id TEXT,
+  ADD COLUMN IF NOT EXISTS difficulty TEXT,
+  ADD COLUMN IF NOT EXISTS est_moving_seconds INTEGER,
   ADD COLUMN IF NOT EXISTS state_code TEXT,
   ADD COLUMN IF NOT EXISTS country_code TEXT,
   ADD COLUMN IF NOT EXISTS description TEXT,
   ADD COLUMN IF NOT EXISTS description_source_name TEXT,
   ADD COLUMN IF NOT EXISTS description_source_url TEXT,
   ADD COLUMN IF NOT EXISTS description_source_license TEXT,
-  ADD COLUMN IF NOT EXISTS popularity INTEGER NOT NULL DEFAULT 0 CHECK (popularity >= 0);
+  ADD COLUMN IF NOT EXISTS popularity INTEGER NOT NULL DEFAULT 0;
+
+-- NOT VALID avoids scanning legacy routes under the ALTER lock. These
+-- constraints still check every new/updated row; validation can run later.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_kind_check') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_kind_check CHECK (kind IN ('summit', 'destination', 'loop', 'traverse')) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_difficulty_check') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_difficulty_check CHECK (difficulty IN ('easy', 'moderate', 'hard', 'strenuous')) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_est_moving_seconds_check') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_est_moving_seconds_check CHECK (est_moving_seconds > 0) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_popularity_check') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_popularity_check CHECK (popularity >= 0) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_objective_destination_id_fkey') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_objective_destination_id_fkey FOREIGN KEY (objective_destination_id) REFERENCES destinations(id) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'routes'::regclass AND conname = 'routes_trailhead_destination_id_fkey') THEN
+    ALTER TABLE routes ADD CONSTRAINT routes_trailhead_destination_id_fkey FOREIGN KEY (trailhead_destination_id) REFERENCES destinations(id) NOT VALID;
+  END IF;
+END; $$;
 
 ALTER TABLE segments ADD COLUMN IF NOT EXISTS trail_names TEXT[] NOT NULL DEFAULT '{}';
 
@@ -51,25 +76,6 @@ CREATE TABLE IF NOT EXISTS list_routes (
   PRIMARY KEY (list_id, route_id)
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON list_routes TO "peaks-api";
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_routes_state_slug
-  ON routes (COALESCE(state_code, ''), slug) WHERE slug IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_routes_search_name_trgm ON routes USING gin (search_name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_routes_search_name_prefix ON routes (search_name text_pattern_ops);
-CREATE INDEX IF NOT EXISTS idx_routes_aliases_trgm ON routes USING gin (peaks_search_names(aliases) gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_routes_aliases_prefix ON routes (peaks_search_names(aliases) text_pattern_ops);
-CREATE INDEX IF NOT EXISTS idx_routes_aliases_fts ON routes USING gin
-  (to_tsvector('simple', peaks_search_names(aliases))) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_segments_trail_names_trgm ON segments USING gin (peaks_search_names(trail_names) gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_segments_trail_names_prefix ON segments (peaks_search_names(trail_names) text_pattern_ops);
-CREATE INDEX IF NOT EXISTS idx_segments_trail_names_fts ON segments USING gin
-  (to_tsvector('simple', peaks_search_names(trail_names)));
-CREATE INDEX IF NOT EXISTS idx_routes_objective_destination ON routes (objective_destination_id);
-CREATE INDEX IF NOT EXISTS idx_routes_trailhead_destination ON routes (trailhead_destination_id);
-CREATE INDEX IF NOT EXISTS idx_route_segments_segment_route ON route_segments (segment_id, route_id);
-CREATE INDEX IF NOT EXISTS idx_list_routes_route_list ON list_routes (route_id, list_id);
-CREATE INDEX IF NOT EXISTS idx_lists_catalog_name_trgm ON lists USING gin (peaks_search_name(name) gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_lists_catalog_name_prefix ON lists (peaks_search_name(name) text_pattern_ops);
 
 -- A missing/non-finite Z, zero-length vertical jump, or entirely empty path
 -- returns no usable estimate. An exact duplicate XYZ vertex adds no distance.
@@ -187,13 +193,53 @@ RETURNS INTEGER LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
               THEN ceil(seconds)::integer END FROM times;
 $$;
 
+-- Stable route URLs retain an existing slug when names change.
+CREATE OR REPLACE FUNCTION peaks_route_catalog_slug(route_name TEXT, route_id TEXT)
+RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
+  SELECT CASE WHEN NULLIF(peaks_search_name(route_name), '') IS NOT NULL THEN
+    trim(both '-' FROM regexp_replace(peaks_search_name(route_name), '[^a-z0-9]+', '-', 'g'))
+      || '-' || substr(md5(route_id), 1, 12) END;
+$$;
+
+-- This scalar-only plan includes personal active routes and incomplete current
+-- catalog routes. It reads no path, joins, or estimated facts and grants no kind.
+CREATE OR REPLACE FUNCTION peaks_route_catalog_names_plan(candidate_route_id TEXT)
+RETURNS TABLE (route_id TEXT, search_name TEXT, slug TEXT, errors TEXT[])
+LANGUAGE SQL STABLE AS $$
+  SELECT candidate_route_id, NULLIF(peaks_search_name(r.name), ''),
+    COALESCE(r.slug, peaks_route_catalog_slug(r.name, r.id)),
+    CASE WHEN r.id IS NULL THEN ARRAY['route_missing']
+         WHEN NOT COALESCE(r.status = 'active' OR (r.owner = 'peaks' AND r.status = 'pending'), false)
+           THEN ARRAY['route_not_current']
+         WHEN NULLIF(peaks_search_name(r.name), '') IS NULL THEN ARRAY['route_name_missing']
+         ELSE ARRAY[]::text[] END
+  FROM (VALUES (candidate_route_id)) candidate(id) LEFT JOIN routes r ON r.id = candidate.id;
+$$;
+
+-- Names/slugs backfill runs through the reviewed, leased CLI one row at a time,
+-- after this short DDL transaction has released its table locks.
+CREATE OR REPLACE FUNCTION refresh_route_catalog_names(candidate_route_id TEXT)
+RETURNS VOID LANGUAGE plpgsql AS $$
+DECLARE planned RECORD;
+BEGIN
+  PERFORM 1 FROM routes r WHERE r.id = candidate_route_id FOR UPDATE;
+  SELECT * INTO planned FROM peaks_route_catalog_names_plan(candidate_route_id);
+  IF cardinality(planned.errors) > 0 THEN
+    RAISE EXCEPTION 'Route % naming refresh blocked: %', candidate_route_id,
+      array_to_string(planned.errors, ', ');
+  END IF;
+  UPDATE routes SET search_name = planned.search_name, slug = planned.slug
+  WHERE id = candidate_route_id
+    AND (search_name IS DISTINCT FROM planned.search_name OR slug IS DISTINCT FROM planned.slug);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION refresh_route_catalog_derived_metadata()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
   NEW.search_name := NULLIF(peaks_search_name(NEW.name), '');
   IF NEW.slug IS NULL AND NEW.search_name IS NOT NULL THEN
-    NEW.slug := trim(both '-' FROM regexp_replace(NEW.search_name, '[^a-z0-9]+', '-', 'g'))
-      || '-' || substr(md5(NEW.id), 1, 12);
+    NEW.slug := peaks_route_catalog_slug(NEW.name, NEW.id);
   END IF;
   RETURN NEW;
 END;
@@ -354,15 +400,6 @@ BEGIN
   WHERE id = candidate_route_id;
 END;
 $$;
-
--- Backfill only names and slugs here. Do not infer summit objectives, origin
--- regions, or estimates for incomplete legacy rows during a schema change.
-UPDATE routes SET search_name = NULLIF(peaks_search_name(name), ''),
-  slug = COALESCE(slug,
-    CASE WHEN NULLIF(peaks_search_name(name), '') IS NOT NULL THEN
-      trim(both '-' FROM regexp_replace(peaks_search_name(name), '[^a-z0-9]+', '-', 'g'))
-        || '-' || substr(md5(id), 1, 12) END)
-WHERE search_name IS DISTINCT FROM NULLIF(peaks_search_name(name), '') OR slug IS NULL;
 
 COMMENT ON COLUMN routes.kind IS 'NULL means catalog classification still needs review; it never grants publication.';
 COMMENT ON COLUMN routes.slug IS 'Stable name-derived slug with an ID hash suffix; unique even when state_code is missing.';

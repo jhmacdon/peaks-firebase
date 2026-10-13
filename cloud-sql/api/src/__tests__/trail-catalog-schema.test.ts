@@ -8,10 +8,20 @@ import { normalizeSearchName } from "../search-utils";
 const migration = readFileSync(join(__dirname,
   "../../../migrations/20261012_trail_catalog_metadata.sql"), "utf8");
 
+const jobsMigration = readFileSync(join(__dirname,
+  "../../../migrations/20261012_trail_catalog_refresh_jobs.sql"), "utf8");
+const indexMigration = readFileSync(join(__dirname,
+  "../../../migrations/20261012_trail_catalog_search_indexes.sql"), "utf8");
+
 test("catalog migration leaves publication gates, names, paths, and statuses intact", () => {
   assert.doesNotMatch(migration, /CREATE(?: OR REPLACE)? FUNCTION (?:peaks_route_passes_publish_integrity|is_valid_route_provenance|enforce_peaks_route_cover_activation)/);
   assert.doesNotMatch(migration, /UPDATE routes SET (?:name|path|status)\s*=/);
-  assert.match(migration, /UPDATE routes SET search_name =/);
+  assert.match(migration, /UPDATE routes SET search_name = planned.search_name, slug = planned.slug\s+WHERE id = candidate_route_id/);
+  assert.doesNotMatch(migration, /CREATE (?:UNIQUE )?INDEX|UPDATE routes SET search_name = NULLIF/);
+  assert.doesNotMatch(indexMigration, /^\s*(?:BEGIN|COMMIT);/m);
+  assert.doesNotMatch(indexMigration, /CREATE (?:UNIQUE )?INDEX (?!CONCURRENTLY)/);
+  assert.match(indexMigration, /CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_routes_state_slug/);
+  assert.match(migration, /NOT VALID/);
   assert.match(migration, /Cost:.*~\$0\/month/);
 });
 
@@ -46,6 +56,13 @@ test("SQL catalog formulas and metadata behave on real PostGIS paths", {
     `);
     const isolatedMigration = migration.replace(/^BEGIN;\s*$/m, "").replace(/^COMMIT;\s*$/m, "");
     await client.query(isolatedMigration);
+    await client.query(jobsMigration.replace(/^BEGIN;\s*$/m, "").replace(/^COMMIT;\s*$/m, ""));
+    // The provision script and refresh integration test apply these indexes
+    // concurrently. This rollback-only formula fixture uses ordinary builds.
+    await client.query(indexMigration.replace(/INDEX CONCURRENTLY/g, "INDEX"));
+    assert.equal((await client.query("SELECT search_name FROM routes WHERE id='old-a'")).rows[0].search_name, null,
+      "DDL does not scan or backfill existing routes");
+    await client.query("SELECT refresh_route_catalog_names('old-a'); SELECT refresh_route_catalog_names('old-b')");
 
     const oldRows = (await client.query(`SELECT * FROM routes ORDER BY id`)).rows;
     assert.equal(oldRows[0].name, "Mt Si Trl");

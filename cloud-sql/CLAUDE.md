@@ -1172,19 +1172,62 @@ npm run audit:trail-catalog -- \
 It queries only scalar metadata and joins. Exit 2 means rejected routes; exit 1
 means the audit itself failed. The JSON summary and JSONL rejection file must
 account for every Peaks-owned row, including superseded rows. Empty input fails.
-This diagnostic has no apply mode and makes no `data_source_runs` write. A
-future catalog importer must record every dry run and apply there, use durable
-leases and source-ID upserts, and retain every rejected candidate with a reason.
+This diagnostic has no apply mode and makes no `data_source_runs` write.
 
-The metadata migration fills only names and stable slugs automatically. It
-does not classify incomplete old rows or run a catalog-wide geometry scan.
+Apply `20261012_trail_catalog_metadata.sql` and
+`20261012_trail_catalog_refresh_jobs.sql` first. These short transactions add
+the schema without scanning or backfilling routes. Then plan a name/slug refresh:
+
+```bash
+cd cloud-sql/migrate
+npm run refresh:trail-catalog -- --mode names --report=/tmp/trail-names-dry.json
+```
+
+Names mode covers all active routes plus pending Peaks routes, so personal
+routes remain searchable. It reads no path and grants no catalog classification.
+Review and apply that report with `--mode names` and the same review flags shown
+below. Then apply `20261012_trail_catalog_search_indexes.sql` with `psql -f`,
+outside a transaction: each index builds concurrently. Confirm every index is
+valid before retrying a failed build. Apply
+`20261012_trail_catalog_validate_constraints.sql` to validate the new constraints
+without holding the schema transaction's exclusive lock.
+
+Next, plan a full metadata refresh of current active/pending Peaks routes:
+
+```bash
+npm run refresh:trail-catalog -- --report=/tmp/trail-metadata-dry.json
+```
+
+This command records each run in `data_source_runs`, including dry runs, but
+does not change routes or jobs without `--apply`. It reports every rejected
+row. Apply requires the saved report and its SHA-256; when that report contains
+rejected rows, select the reviewed ready subset with repeated `--route-id`:
+
+```bash
+npm run refresh:trail-catalog -- --apply \
+  --review-report=/tmp/trail-metadata-dry.json \
+  --expected-report-sha256=<printed-sha256> \
+  --route-id=<reviewed-ready-id> --report=/tmp/trail-metadata-apply.json
+```
+
+Use a new report path for each run. Durable per-route leases prevent concurrent
+writes. Apply checks the selected rows before writing, then rechecks each row
+under transaction locks. It saves the metadata and completion receipt together.
+An unchanged replay does not rewrite routes. Superseded rows stay outside this
+refresh; include them separately in the preflight report. Popularity counts
+completed route matches through `routeDoneCoverageSql`, the objective's ascent
+offset, and published trip reports.
+
+The metadata migration does not backfill rows. Checked names mode fills search
+names and stable slugs; checked metadata mode adds classification and estimates.
+Neither mode classifies incomplete old rows or runs a catalog-wide geometry scan.
 Never describe the metadata backfill as complete while rejected rows remain.
 
 The existing publish checks remain in force. At this stage they still require
 a summit and exact route/segment provenance equality. Those rules prevent
 non-summit trails and normal segment reuse across routes with different source
-IDs. The proposed kind-specific and source-coverage rules need Josiah's decision
-before implementation; see `../docs/data-audits/trail-catalog-2026-10-12/README.md`.
+IDs. Josiah approved kind-specific and source-coverage rules for the next phase;
+see `../docs/data-audits/trail-catalog-2026-10-12/README.md`.
 The credited-cover gate, source rights, independent source checks, exact segment
 assembly, and elevation checks must remain. OSM (with ODbL credit) and
 `usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for

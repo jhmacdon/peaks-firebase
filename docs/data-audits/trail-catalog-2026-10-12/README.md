@@ -24,8 +24,21 @@ Read-only scalar counts on 2026-10-12 (Los Angeles):
 
 The database has 15,477 routes across all owners. These counts do not prove
 valid geometry, provenance, segment assembly, covers, or complete metadata.
-The full preflight report will include a reason for every rejected row and
-observed catalog-name matches for every golden query. A name match is a
+The [preflight report](preflight.json) and [rejection JSONL](preflight.rejected.jsonl)
+account for every row. Of 287 current routes, 112 pass the scalar checks
+(96 active and 16 pending); 175 need repair. Among those rejected current rows,
+120 lack a shape and segments, 49 lack a state, 19 lack a first trailhead,
+eight lack a country, five lack a summit objective, three have invalid
+destination ordinals, and three lack elevation stats. Reasons overlap.
+All 14,972 retired rows remain outside the approved backfill scope.
+
+The [current-route repair plan](current-route-repair-plan.json) groups the 175
+current failures: 38 need region evidence, 14 lack a first trailhead and source
+provenance, 120 lack shape/segments and source provenance, and three long-distance
+routes need a separate traverse review. Saved scalar evidence alone proves no
+repair safe. Empty segment sets must not be treated as a simple ordinal fix.
+
+The report includes observed catalog-name matches for every golden query. A name match is a
 candidate for review, not proof of the intended trail. Production search ranks
 remain unverified until deployment.
 
@@ -58,7 +71,8 @@ delete catalog rows. Phase 1 does not activate new routes.
 ## Validation
 
 - API lint, typecheck, and build pass.
-- API local suite: 424 passed, 0 failed; database tests await CI.
+- API CI at `348981a`: 550 passed, 0 failed, 0 skipped, including PostGIS tests.
+- Route-worker CI at `348981a`: passed, including web typecheck and lint.
 - Read-only preflight: 12 unit tests pass; migrate TypeScript build passes.
 - Cross-reference checks pass.
 - Database tests cover formula thresholds, uphill/return estimates, invalid
@@ -67,3 +81,11 @@ delete catalog rows. Phase 1 does not activate new routes.
 
 The formula and response contract are documented in
 [`cloud-sql/CLAUDE.md`](../../../cloud-sql/CLAUDE.md).
+
+## Production rollout
+
+The first rollback-only migration trial held table locks during index creation
+and briefly blocked reads. We canceled it; production confirmed that it left
+no new schema objects and no blocked queries. The revised migration separates
+short schema DDL, bounded data writes, and concurrent index creation. Its final
+CI and production results will be recorded here before deployment.
