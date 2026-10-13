@@ -1241,8 +1241,11 @@ that `/internal/sweep` drains the rematch queue before the next batch.
 ### Washington candidate pilot
 
 The pilot uses the same matcher as the web route editor through
-`web/src/lib/segment-matcher-core.ts`. Its reviewed manifest binds source
-snapshots and DEM samples by SHA-256, plus exact catalog place IDs. It records
+`web/src/lib/segment-matcher-core.ts`. It accepts attributed OSM paths and
+the registered `usfs-nfs-trails` layer. Each segment credits only the source
+edges it follows; the independent checker fetches those sources again.
+Its reviewed manifest binds source snapshots and DEM samples by SHA-256,
+plus exact catalog place IDs. It records
 every candidate in JSONL, including rejected inputs and unresolved source
 gaps. Empty input fails. Run from `cloud-sql/migrate` with the documented
 production connection, using a new report path each time:
@@ -1268,12 +1271,20 @@ The apply path holds a durable source-key lease, locks the bound places, and
 writes pending routes with exact segment intervals. Manual web split writers also refuse any attributed segment or segment linked to a Peaks route until each child has independent proof of its exact contributing sources. Personal, unattributed segment splits still work. The database checks the
 lease, immutable input, route path, source spans, links, and completion receipt.
 Replays verify the saved route before reusing a receipt. Failed rows remain
-visible. This command cannot activate routes.
+visible, including an interrupted apply whose receipt still needs checking.
+API logins can read candidate receipts but cannot change or remove them.
+Candidate route IDs stay fixed. This command cannot activate routes.
 
-Current limits matter: the manifest runner supports OSM geometry; USFS
-feature proof and broad candidate discovery remain unfinished. It refuses
-existing catalog matches, physical splits of existing segments, and source
-overlaps whose XYZ samples differ. Those cases need reviewed repairs; never
+Selection keeps one candidate per trailhead and objective, with the reviewed
+old and new Mailbox trails as distinct variants. It drops a strict prefix
+unless a source attests that its objective is a common hiking destination.
+Distinct trailheads remain separate approaches. Names and aliases retain
+attested names; dropping a "via" suffix requires a complete reviewed region
+and objective inventory, which the golden manifest alone does not provide.
+
+The runner refuses existing catalog matches, physical splits of existing
+segments, source overlaps whose XYZ samples differ, and nearby OSM/USFS
+geometry that needs a shared-source review. Those cases need reviewed repairs; never
 insert duplicate geometry or silently omit a shared segment. The Washington
 report records these limits and blocks scale-up until all golden routes pass.
 
