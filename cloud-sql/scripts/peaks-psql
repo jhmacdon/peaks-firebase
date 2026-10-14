@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Open psql against production peaks-db as the runtime role `peaks-api`.
+#
+# The password is read from Secret Manager (`peaks-db-password`, the same
+# secret Cloud Run's peaks-api uses) on every run, so it never goes stale in a
+# local file. Starts the Cloud SQL Auth Proxy on 127.0.0.1:5432 if it is not
+# already listening. Any arguments pass through to psql:
+#
+#   cloud-sql/scripts/peaks-psql -c "SELECT count(*) FROM destinations"
+#   cloud-sql/scripts/peaks-psql -f some-query.sql
+#
+# peaks-api has DML rights only. Schema migrations must run as `postgres`
+# (see cloud-sql/CLAUDE.md "Schema ownership").
+set -euo pipefail
+
+PROJECT=donner-a8608
+INSTANCE="$PROJECT:us-central1:peaks-db"
+# System Python 3.9 crashes some gcloud commands.
+if [[ -z "${CLOUDSDK_PYTHON:-}" && -x /opt/homebrew/bin/python3.14 ]]; then
+  export CLOUDSDK_PYTHON=/opt/homebrew/bin/python3.14
+fi
+
+if ! nc -z 127.0.0.1 5432 2>/dev/null; then
+  cloud-sql-proxy "$INSTANCE" --address 127.0.0.1 --port 5432 --quiet >/dev/null 2>&1 &
+  for _ in $(seq 1 30); do nc -z 127.0.0.1 5432 2>/dev/null && break; sleep 1; done
+fi
+
+PGPASSWORD="$(gcloud secrets versions access latest --secret=peaks-db-password --project "$PROJECT")" \
+  exec psql -h 127.0.0.1 -p 5432 -U peaks-api -d peaks "$@"

@@ -43,6 +43,7 @@ A development PR does not authorize an app release or production data changes.
 - Functions build/lint, deployment, cost, destination sourcing, GPX checks, owner
   lookup, or React effects: [operations](docs/agent-operations.md).
 - Database roles, schema, API, migrations, and catalog imports: [cloud-sql/CLAUDE.md](cloud-sql/CLAUDE.md).
+- Querying production data: run `cloud-sql/scripts/peaks-psql` ([details](cloud-sql/CLAUDE.md#querying-production-data)).
 - Web code, auth, and server actions: [web/CLAUDE.md](web/CLAUDE.md).
 
 ## List External References
