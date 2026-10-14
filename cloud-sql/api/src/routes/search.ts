@@ -108,7 +108,7 @@ function areaSearchAliases(normalizedQuery: string): string[] {
 
   // PAD-US splits the current Mt. Baker-Snoqualmie National Forest into
   // historical Mt. Baker and Snoqualmie National Forest records.
-  return ["mt baker national forest", "snoqualmie national forest"];
+  return ["mount baker national forest", "snoqualmie national forest"];
 }
 
 function watchSearchRouteClose(req: Request, res: Response): { isClosed(): boolean; dispose(): void } {

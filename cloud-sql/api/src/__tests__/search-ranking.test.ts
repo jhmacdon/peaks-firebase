@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { normalizeSearchName } from "../search-utils";
 import { test } from "node:test";
 import { rankSearchResults, SearchBuckets, searchMinorPlacePenaltySql, searchTextScoreSql, summarizeSearchResults } from "../lib/search-ranking";
 
@@ -78,4 +79,21 @@ test("text score rewards a whole-word match and demotes only an exact one-word c
   const penalty = searchMinorPlacePenaltySql("features", "search_name", "$1");
   assert.match(penalty, /features <@ '\{campsite,trailhead\}'::destination_feature\[\]/);
   assert.match(penalty, /search_name = \$1 AND position\(' ' in \$1\) = 0 THEN 0\.35/, "only an exact one-word namesake yields");
+});
+
+test("a campsite never outranks a summit with the same name, even when it scores higher", () => {
+  // features arrive as node-postgres enum-array text in production.
+  const campsite = { id: "camp", name: "Mount Baker", features: "{campsite}", score: 0.93 };
+  const volcano = { id: "volcano", name: "Mount Baker", features: ["summit", "volcano"], score: 0.92 };
+  const camp2 = { id: "muir", name: "Camp Muir", features: ["campsite"], score: 0.96 };
+  const ranked = rankSearchResults({ destinations: [campsite, volcano, camp2], routes: [], areas: [], lists: [] }, 10);
+  assert.ok(ranked.findIndex((r) => r.id === "volcano") < ranked.findIndex((r) => r.id === "camp"));
+  assert.equal(ranked[0].id, "muir", "a campsite with no bigger namesake keeps its score");
+});
+
+test("search normalization treats a period-abbreviated name like the bare abbreviation", () => {
+  assert.equal(normalizeSearchName("Mt. Baker"), "mount baker");
+  assert.equal(normalizeSearchName("mt baker"), "mount baker");
+  assert.equal(normalizeSearchName("Mtn. View"), "mountain view");
+  assert.equal(normalizeSearchName("12.4 Miles Camp"), "12.4 miles camp", "a decimal keeps its point");
 });

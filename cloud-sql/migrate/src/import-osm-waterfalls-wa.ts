@@ -1,5 +1,6 @@
 import db from "./db";
 import { lookupElevation } from "./lib/terrarium-elevation";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 const buildQuery = (stateCode: string) => `[out:json][timeout:60];
@@ -97,7 +98,7 @@ export async function importOsmWaterfalls(opts: { dryRun: boolean; stateCode: st
 
   const waterfalls: Waterfall[] = [];
   for (const el of data.elements) {
-    const name = el.tags?.name?.trim();
+    const name = el.tags?.name?.trim() ? expandNameAbbreviations(el.tags.name.trim()) : undefined;
     if (!name) {
       skip("no-name");
       continue;

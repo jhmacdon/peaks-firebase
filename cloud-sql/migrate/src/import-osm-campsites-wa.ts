@@ -1,6 +1,7 @@
 import db from "./db";
 import { lookupElevation } from "./lib/terrarium-elevation";
 import { CampsiteAmenities } from "./lib/amenities";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 const QUERY = `[out:json][timeout:60];
@@ -230,7 +231,7 @@ export async function importOsmCampsitesWa(opts: { dryRun: boolean }) {
       continue;
     }
 
-    const name = el.tags?.name?.trim();
+    const name = el.tags?.name?.trim() ? expandNameAbbreviations(el.tags.name.trim()) : undefined;
     if (!name) {
       skip("no-name");
       continue;

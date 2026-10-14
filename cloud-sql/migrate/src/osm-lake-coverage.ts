@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 /** The OSM element kinds that can carry a named lake. */
 export type OsmLakeElementType = "node" | "way" | "relation";
@@ -327,7 +328,7 @@ export function parseOsmWaterLakeElement(value: unknown): LakeCandidate | null {
   if (tags.natural?.trim().toLowerCase() !== "water") return null;
   if (tags.water?.trim().toLowerCase() !== "lake") return null;
 
-  const name = tags.name?.trim() ?? "";
+  const name = expandNameAbbreviations(tags.name?.trim() ?? "");
   const normalizedName = normalizeLakeName(name);
   if (!name || !normalizedName) return null;
 

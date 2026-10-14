@@ -226,6 +226,24 @@ npm run migrate:points
 npm run import:cai-huts
 ```
 
+## Place names: never abbreviated
+
+Catalog names spell out "Mount", "Mountain" and "Peak". CHECK constraints
+(`migrations/20261014_expand_name_abbreviations.sql`) reject "Mt", "Mt.", "Mtn"
+and "Pk" in Peaks-owned destinations, all areas, and current Peaks routes;
+user-owned destinations and personal routes keep what their owner typed, and
+superseded routes stay as published. "St" is allowed: it is the official form
+in many names ("Mount St. Helens", "St Sunday Crag").
+
+Importers spell names out before writing with `expandNameAbbreviations` in
+`migrate/src/lib/place-names.ts`: "Mt" before a name is "Mount", "Mt" after a
+name and before a generic word is "Mountain" ("Chimney Mt Trail"). PAD-US
+publishes "Mt. Hood National Forest"; the importer stores "Mount Hood National
+Forest". A new importer that skips the helper fails on the constraint rather
+than publishing an abbreviation. Search drops periods before expanding
+abbreviations, so "mt. baker" and "mt baker" both find "Mount Baker", and a
+campsite or trailhead never outranks a summit or lake with the identical name.
+
 ## Peakbagger list audit/import
 
 The Peakbagger importer reads a saved browser audit, resolves each source peak
