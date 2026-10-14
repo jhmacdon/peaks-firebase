@@ -95,4 +95,5 @@ test("search normalization treats a period-abbreviated name like the bare abbrev
   assert.equal(normalizeSearchName("Mt. Baker"), "mount baker");
   assert.equal(normalizeSearchName("mt baker"), "mount baker");
   assert.equal(normalizeSearchName("Mtn. View"), "mountain view");
+  assert.equal(normalizeSearchName("12.4 Miles Camp"), "12.4 miles camp", "a decimal keeps its point");
 });

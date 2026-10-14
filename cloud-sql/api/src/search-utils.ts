@@ -37,8 +37,9 @@ const ABBREVIATIONS: Record<string, string> = {
 export function normalizeSearchName(name: string): string {
   return name
     .toLowerCase()
-    // "mt." is "mt": periods never change what a name means to search.
-    .replace(/\./g, "")
+    // "mt." is "mt": drop a period after a letter ("12.4" keeps its own).
+    // Mirrors peaks_search_name() in SQL.
+    .replace(/(\p{L})\./gu, "$1")
     .split(/\s+/)
     .map((word) => ABBREVIATIONS[word] || word)
     .join(" ")

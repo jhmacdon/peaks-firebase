@@ -305,7 +305,7 @@ test("area search expands Mt Baker Snoqualmie to PAD-US split forest records", (
     "baker snoqualmie",
     "baker snoqualmie%",
     20,
-    ["mt baker national forest", "snoqualmie national forest"],
+    ["mount baker national forest", "snoqualmie national forest"],
   ]);
 });
 

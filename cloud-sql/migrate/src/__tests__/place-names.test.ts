@@ -24,6 +24,8 @@ const cases: [string, string][] = [
   ["Annapurna East Pk.", "Annapurna East Peak"],
   ["Baltistan Pk", "Baltistan Peak"],
   ["紫雲出山 (Mt.Shiude)", "紫雲出山 (Mount Shiude)"],
+  ["紫雲出山(Mt.Shiude)", "紫雲出山(Mount Shiude)"],
+  ["Bear Mt State Park", "Bear Mountain State Park"],
   ["Eagle Creek, Oregon (Mt. Hood Nf) Wild and Scenic River", "Eagle Creek, Oregon (Mount Hood Nf) Wild and Scenic River"],
 ];
 
@@ -35,11 +37,13 @@ test("spells out Mt, Mtn and Pk the way the reviewed catalog renames did", () =>
 });
 
 test("leaves full words, St, and lookalike words alone", () => {
-  for (const name of ["Mount St. Helens", "St Sunday Crag", "Mountain Loop", "Mtxyz Ridge", "Pkwy Overlook", "Pikes Peak", "Matterhorn"]) {
+  for (const name of ["Helena, MT", "MT Hwy 200", "MT-12", "Lewis and Clark NF, MT", "Mount St. Helens", "St Sunday Crag", "Mountain Loop", "Mtxyz Ridge", "Pkwy Overlook", "Pikes Peak", "Matterhorn"]) {
     assert.equal(expandNameAbbreviations(name), name);
   }
   assert.equal(hasNameAbbreviation("Mount St. Helens"), false);
   assert.equal(hasNameAbbreviation("Mt. Hood"), true);
   assert.equal(hasNameAbbreviation("紫雲出山 (Mt.Shiude)"), true);
   assert.equal(hasNameAbbreviation("Granite Mtn"), true);
+  assert.equal(hasNameAbbreviation("Helena, MT"), false);
+  assert.equal(hasNameAbbreviation("MT. Hood"), true);
 });

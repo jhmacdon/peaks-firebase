@@ -14,7 +14,7 @@ const ABBREVIATION = /^(mtn|mt|pk)(\.?)(.*)$/i;
 const GENERIC_AFTER_MOUNTAIN = new Set([
   "trail", "trailhead", "vista", "overlook", "outlook", "view", "viewpoint", "cliffs",
   "road", "rd", "div", "division", "lake", "lookout", "fire", "summit", "ridge",
-  "range", "campground", "camp", "park", "wilderness", "area", "pass",
+  "range", "campground", "camp", "park", "wilderness", "area", "pass", "state", "forest",
 ]);
 
 // Words before "Mt" that start a new name, so "Mt" there is "Mount".
@@ -24,8 +24,12 @@ function bareWord(token: string | undefined): string {
   return (token ?? "").toLowerCase().replace(/[.,()]/g, "");
 }
 
+// Bare uppercase "MT" is the Montana state code ("Helena, MT", "MT-12"); "MT."
+// and "MTN" are abbreviations. Mirrors peaks_name_has_abbreviation() in SQL.
 export function hasNameAbbreviation(name: string): boolean {
-  return /(^|[^\p{L}\p{N}])(mt|mtn|pk)(\.|(?![\p{L}\p{N}]))/iu.test(name);
+  return /(^|[^\p{L}\p{N}])(Mt|mt|mT)(\.|(?![\p{L}\p{N}]))/u.test(name)
+    || /(^|[^\p{L}\p{N}])MT\./u.test(name)
+    || /(^|[^\p{L}\p{N}])(mtn|pk)(\.|(?![\p{L}\p{N}]))/iu.test(name);
 }
 
 export function expandNameAbbreviations(name: string): string {
@@ -33,11 +37,13 @@ export function expandNameAbbreviations(name: string): string {
   const wordIndexes = parts.flatMap((part, index) => (part.trim() ? [index] : []));
   wordIndexes.forEach((index, position) => {
     const token = parts[index];
-    // "(Mt.Shiude)" keeps its leading punctuation.
-    const lead = token.match(/^[(\[“"']*/)?.[0] ?? "";
+    // "(Mt.Shiude)" and "紫雲出山(Mt.Shiude)" keep everything up to the bracket.
+    const lead = token.match(/^.*[(\[“"']/u)?.[0] ?? "";
     const match = token.slice(lead.length).match(ABBREVIATION);
     if (!match) return;
     const [, abbreviation, period, rest] = match;
+    // Montana's state code, not an abbreviation.
+    if (abbreviation === "MT" && !period) return;
     // "Mtn", "Mt." or a bare word "Mt"; "Mtxyz" is a different word.
     if (rest && !period && /^[\p{L}\p{N}]/u.test(rest)) return;
     const kind = abbreviation.toLowerCase();

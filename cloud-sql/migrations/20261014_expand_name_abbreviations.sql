@@ -11,11 +11,18 @@
 --
 -- "Mt" before a name is "Mount"; after a name, before a generic word, it is
 -- "Mountain" ("Chimney Mt Trail"). Each row below was reviewed by hand; the OSM
--- node for "mt. SomugiYama" is 蕎麦粒山, Sobatsubu-yama.
+-- node for "mt. SomugiYama" is 蕎麦粒山 on the Gifu-Shiga border (1,297 m), read
+-- Somugi-yama (not the Okutama peak of the same kanji, Sobatsubu-yama).
 --
 -- Each update matches the saved old name, so it is a no-op where the row is
--- absent or already renamed (test databases, replays). The CHECK constraints
--- are validated last and fail the migration if any abbreviated name remains.
+-- absent or already renamed (test databases, replays).
+--
+-- Locking: the data changes take row locks only. The CHECK constraints are
+-- added NOT VALID in a second, short transaction (enforced on every new write
+-- from then on) and validated in
+-- 20261014_expand_name_abbreviations_validate.sql, which does not block reads
+-- or writes. A full scan of destinations takes ~7 s cold on prod, so adding and
+-- validating in one transaction would block the API for over a minute.
 --
 -- Cost: $0/month. Data and constraints only.
 
@@ -23,10 +30,14 @@ BEGIN;
 
 CREATE OR REPLACE FUNCTION peaks_name_has_abbreviation(value TEXT)
 RETURNS BOOLEAN LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
-  SELECT COALESCE(value, '') ~* '\m(mt|mtn|pk)(\.|\M)';
+  -- Bare uppercase "MT" is Montana ("Helena, MT"); "MT." and "MTN" are not.
+  SELECT COALESCE(value, '') ~ '\m(Mt|mt|mT)(\.|\M)'
+      OR COALESCE(value, '') ~ '\mMT\.'
+      OR COALESCE(value, '') ~* '\m(mtn|pk)(\.|\M)';
 $$;
 
--- Search treats "mt." like "mt": drop periods before expanding abbreviations.
+-- Search treats "mt." like "mt": drop a period that follows a letter before
+-- expanding abbreviations ("12.4" and "#827.1" keep theirs).
 CREATE OR REPLACE FUNCTION peaks_search_name(value TEXT)
 RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
   SELECT btrim(COALESCE(string_agg(COALESCE(
@@ -37,7 +48,7 @@ RETURNS TEXT LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
      '"trl":"trail","hwy":"highway","rd":"road","ne":"northeast",'
      '"nw":"northwest","se":"southeast","sw":"southwest"}'::jsonb)->>word,
     word), ' ' ORDER BY ordinal), ''))
-  FROM regexp_split_to_table(lower(replace(COALESCE(value, ''), '.', '')), '[[:space:]]+')
+  FROM regexp_split_to_table(lower(regexp_replace(COALESCE(value, ''), '([[:alpha:]])\.', '\1', 'g')), '[[:space:]]+')
        WITH ORDINALITY AS words(word, ordinal)
   WHERE word <> '';
 $$;
@@ -76,7 +87,7 @@ INSERT INTO name_fix VALUES
   ('E692884FE839345B0CB2', 'Mt. Scheurmann vista', 'Mount Scheurmann Vista', 'mount scheurmann vista'),
   ('6B789F4958EA35512EB5', 'Mt Shasta View Point', 'Mount Shasta View Point', 'mount shasta view point'),
   ('FFD0A0DA52D130EF9D09', 'Mt. Skatutakee Overlook', 'Mount Skatutakee Overlook', 'mount skatutakee overlook'),
-  ('E1E03FA5B8D5F92F4F6E', 'mt. SomugiYama', 'Mount Sobatsubu', 'mount sobatsubu'),
+  ('E1E03FA5B8D5F92F4F6E', 'mt. SomugiYama', 'Mount Somugi', 'mount somugi'),
   ('C4vtFBa2md8xFHpEl2VH', 'Mt. St. Helens RV Park', 'Mount St. Helens RV Park', 'mount st helens rv park'),
   ('05E3C38220479C81C918', 'Mt. Suswa', 'Mount Suswa', 'mount suswa'),
   ('BD70C66B959B5082EF57', 'Mt Thielson Viewpoint', 'Mount Thielsen Viewpoint', 'mount thielsen viewpoint'),
@@ -97,7 +108,7 @@ INSERT INTO name_fix VALUES
   ('06D1458063AB2C9A5880', '紫雲出山 (Mt.Shiude)', '紫雲出山 (Mount Shiude)', '紫雲出山 mount shiude');
 
 UPDATE destinations d
-SET name = f.new_name, search_name = f.new_search_name
+SET name = f.new_name, search_name = peaks_search_name(f.new_name)
 FROM name_fix f
 WHERE d.id = f.id AND d.name = f.old_name AND d.owner = 'peaks';
 
@@ -116,6 +127,7 @@ INSERT INTO name_fix VALUES
   ('padus-64b094f24829115bf4d9', 'Mt. Wrightson Wilderness', 'Mount Wrightson Wilderness', 'mount wrightson wilderness');
 
 UPDATE areas a
+-- Areas keep the PAD-US importer's search-name form (punctuation removed).
 SET name = f.new_name, search_name = f.new_search_name
 FROM name_fix f
 WHERE a.id = f.id AND a.name = f.old_name;
@@ -123,7 +135,7 @@ WHERE a.id = f.id AND a.name = f.old_name;
 -- The route trigger refreshes search_name and slug stays stable.
 CREATE TEMP TABLE route_name_fix (id TEXT PRIMARY KEY, old_name TEXT NOT NULL, new_name TEXT NOT NULL) ON COMMIT DROP;
 INSERT INTO route_name_fix VALUES
-  ('D3fevwtILCSZnm1ruYO8', 'Mount Columbia Mt. Harvard Columbia Traverse', 'Mount Harvard–Mount Columbia Traverse'),
+  ('D3fevwtILCSZnm1ruYO8', 'Mount Columbia Mt. Harvard Columbia Traverse', 'Mount Harvard – Mount Columbia Traverse'),
   ('HOusfQaJKREXQiAoJukY', 'Mt. Dickerman Trail', 'Mount Dickerman Trail'),
   ('78PrHiPheauIk0Phmcg5', 'Mt. Pugh Trail', 'Mount Pugh Trail');
 
@@ -177,18 +189,17 @@ WHERE d.id = m.duplicate_id
 UPDATE destinations SET search_name = peaks_search_name(search_name) WHERE search_name LIKE '%.%';
 UPDATE areas SET search_name = peaks_search_name(search_name) WHERE search_name LIKE '%.%';
 
+COMMIT;
+
 -- Never again: catalog names must spell the word out. User-owned destinations
 -- and personal routes keep whatever their owner typed; retired routes are
--- history and stay as published.
+-- history and stay as published. NOT VALID adds them without scanning.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
 ALTER TABLE destinations ADD CONSTRAINT destinations_catalog_name_unabbreviated
   CHECK (owner <> 'peaks' OR NOT peaks_name_has_abbreviation(name)) NOT VALID;
 ALTER TABLE areas ADD CONSTRAINT areas_name_unabbreviated
   CHECK (NOT peaks_name_has_abbreviation(name)) NOT VALID;
 ALTER TABLE routes ADD CONSTRAINT routes_catalog_name_unabbreviated
   CHECK (owner <> 'peaks' OR status = 'superseded' OR NOT peaks_name_has_abbreviation(name)) NOT VALID;
-
-ALTER TABLE destinations VALIDATE CONSTRAINT destinations_catalog_name_unabbreviated;
-ALTER TABLE areas VALIDATE CONSTRAINT areas_name_unabbreviated;
-ALTER TABLE routes VALIDATE CONSTRAINT routes_catalog_name_unabbreviated;
-
 COMMIT;
