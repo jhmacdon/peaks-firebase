@@ -26,6 +26,7 @@ import {
   RankedCoverageCandidate,
   ReferencePeak,
 } from "./peak-coverage";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 type OutputFormat = "summary" | "json";
 
@@ -402,7 +403,7 @@ export function parseReferencePeaks(
     const tags = element.tags ?? {};
     const localName = tags.name?.trim();
     const englishName = tags["name:en"]?.trim() || null;
-    const name = englishName || localName;
+    const name = expandNameAbbreviations(englishName || localName || "");
     if (!name || !localName || element.lat == null || element.lon == null) continue;
     if (bbox && (
       element.lon < bbox.minLng || element.lon > bbox.maxLng ||

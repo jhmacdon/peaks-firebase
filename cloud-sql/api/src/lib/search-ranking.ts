@@ -48,8 +48,24 @@ function boundedScore(value: unknown): number {
   return Number.isFinite(score) ? Math.max(0, Math.min(1, score)) : 0;
 }
 
+const MINOR_PLACE_FEATURES = new Set(["campsite", "trailhead"]);
+
+// node-postgres returns enum arrays such as destination_feature[] as the raw
+// text "{summit,lake}", not a JS array; accept both.
+function featureList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== "string") return [];
+  const inner = value.replace(/^\{|\}$/g, "");
+  return inner ? inner.split(",").map((feature) => feature.replace(/^"|"$/g, "")) : [];
+}
+
+function isMinorPlace(row: { features?: unknown }): boolean {
+  const features = featureList(row.features);
+  return features.length > 0 && features.every((feature) => MINOR_PLACE_FEATURES.has(feature));
+}
+
 function destinationTiePriority(result: RankedSearchResult): number {
-  return result.type === "destination" && result.data.features?.includes("summit") ? 1 : 0;
+  return result.type === "destination" && featureList(result.data.features).includes("summit") ? 1 : 0;
 }
 
 export function rankSearchResults(buckets: SearchBuckets, limit: number): RankedSearchResult[] {
@@ -80,6 +96,21 @@ export function rankSearchResults(buckets: SearchBuckets, limit: number): Ranked
     }
     return { type, id: String(data.id), score, data };
   }));
+
+  // A campsite or trailhead never outranks a summit, lake or other place with
+  // the same name ("Mount Baker" the campsite sits closer to Seattle than the
+  // volcano, so proximity alone would put it first).
+  const majorScoreByName = new Map<string, number>();
+  for (const result of results) {
+    if (result.type !== "destination" || isMinorPlace(result.data)) continue;
+    const key = String(result.data.name ?? "").toLowerCase();
+    majorScoreByName.set(key, Math.max(majorScoreByName.get(key) ?? 0, result.score));
+  }
+  for (const result of results) {
+    if (result.type !== "destination" || !isMinorPlace(result.data)) continue;
+    const major = majorScoreByName.get(String(result.data.name ?? "").toLowerCase());
+    if (major !== undefined) result.score = Math.min(result.score, Math.max(0, major - 0.001));
+  }
 
   return results.sort((a, b) => b.score - a.score
     || destinationTiePriority(b) - destinationTiePriority(a)

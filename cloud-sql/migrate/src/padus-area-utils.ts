@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { expandNameAbbreviations } from "./lib/place-names";
 
 export type AreaKind =
   | "national_park"
@@ -388,7 +389,8 @@ export function normalizePadusFeature(
   if (!shouldImportPadusFeature(feature)) return null;
 
   const props = feature.properties ?? {};
-  const name = text(props.Unit_Nm) ?? text(props.Name) ?? text(props.NAME);
+  const rawName = text(props.Unit_Nm) ?? text(props.Name) ?? text(props.NAME);
+  const name = rawName ? expandNameAbbreviations(rawName) : rawName;
   const kind = mapKind(props);
   if (!name || !kind || !feature.geometry) return null;
 
