@@ -23,7 +23,14 @@ fi
 if ! nc -z 127.0.0.1 5432 2>/dev/null; then
   cloud-sql-proxy "$INSTANCE" --address 127.0.0.1 --port 5432 --quiet >/dev/null 2>&1 &
   for _ in $(seq 1 30); do nc -z 127.0.0.1 5432 2>/dev/null && break; sleep 1; done
+  if ! nc -z 127.0.0.1 5432 2>/dev/null; then
+    echo "peaks-psql: Cloud SQL Auth Proxy did not start on 127.0.0.1:5432" >&2
+    exit 1
+  fi
 fi
 
-PGPASSWORD="$(gcloud secrets versions access latest --secret=peaks-db-password --project "$PROJECT")" \
-  exec psql -h 127.0.0.1 -p 5432 -U peaks-api -d peaks "$@"
+# Plain assignment so set -e stops the script if the secret fetch fails; a
+# failure inside a `VAR=$(...) cmd` prefix would be ignored.
+PGPASSWORD="$(gcloud secrets versions access latest --secret=peaks-db-password --project "$PROJECT")"
+export PGPASSWORD
+exec psql -h 127.0.0.1 -p 5432 -U peaks-api -d peaks "$@"
