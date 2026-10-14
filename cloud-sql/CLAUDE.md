@@ -100,6 +100,21 @@ All schema objects (tables, indexes, functions, triggers) **must be owned by `po
 
 This convention exists because Cloud SQL's `postgres` is `cloudsqlsuperuser`, not a true superuser, so it cannot bypass the "must be owner of object" rule for `CREATE OR REPLACE FUNCTION` or `ALTER FUNCTION`. If a function gets accidentally created as `peaks-api` (this happened once during initial bootstrap with `link_sessions_on_destination_insert`), every subsequent migration touching it must `SET ROLE peaks-api` first or the apply fails with `must be owner of function`. Fix the ownership instead — see `cloud-sql/migrations/20260503_fix_trigger_function_owner.sql` for the three-step ownership-transfer dance (Cloud SQL forbids both directions of cross-role membership at once, so direct connection as the current owner is required, not `SET ROLE`).
 
+### Querying production data
+
+Agents can read and change production data with `cloud-sql/scripts/peaks-psql`. It
+connects as `peaks-api`, reads the password from Secret Manager (`peaks-db-password`,
+the secret Cloud Run uses), and starts the Auth Proxy if needed. Extra arguments go to
+`psql`:
+
+```bash
+cloud-sql/scripts/peaks-psql -c "SELECT count(*) FROM tracking_sessions"
+```
+
+Do not copy the password into `.env` files; stored copies go stale. Take an on-demand backup
+(`gcloud sql backups create --instance=peaks-db --project donner-a8608`) before bulk
+writes. Schema changes still need `postgres`.
+
 ## Testing (do not regress)
 
 The DB-backed suites in `api/src/__tests__/` write to fifteen tables. They must
