@@ -24,21 +24,26 @@ export function parseRematchArgs(args: string[]): { apply: boolean; batchSize: n
   return { apply, batchSize, after };
 }
 
-export const REMATCH_BATCH_SQL = `SELECT s.id
-  FROM tracking_sessions s
+export const REMATCH_BATCH_SQL = `SELECT s.id FROM tracking_sessions s
   WHERE s.id > $1 AND (
     EXISTS (SELECT 1 FROM session_routes sr WHERE sr.session_id = s.id)
     OR (s.path IS NOT NULL AND EXISTS (
-      SELECT 1 FROM routes r
-      CROSS JOIN LATERAL ST_Subdivide(r.path::geometry, 512) piece(geom)
-      WHERE r.status = 'active' AND (r.owner = 'peaks' OR r.owner = s.user_id)
-        AND ST_DWithin(s.path, piece.geom::geography, 600)
-    ))
-    OR (s.path IS NOT NULL AND EXISTS (
-      SELECT 1 FROM routes r JOIN route_segments rs ON rs.route_id = r.id
-      JOIN segments seg ON seg.id = rs.segment_id
-      WHERE r.status = 'active' AND (r.owner = 'peaks' OR r.owner = s.user_id)
-        AND ST_DWithin(s.path, seg.path, 600)
+      SELECT 1 FROM routes r WHERE r.status='active' AND (r.owner='peaks' OR r.owner=s.user_id)
+      AND CASE WHEN r.id=ANY(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']) THEN EXISTS (
+        SELECT 1 FROM triple_crown_route_points p WHERE p.route_id=r.id
+          AND p.pt && session_match_bbox(s.path)
+          AND ST_DWithin(p.pt::geography,s.path,600)
+      ) ELSE EXISTS (
+        SELECT 1 FROM ST_Subdivide(r.path::geometry,512) piece(geom)
+        WHERE piece.geom && session_match_bbox(s.path)
+          AND ST_DWithin(s.path,piece.geom::geography,600)
+      ) OR EXISTS (
+        SELECT 1 FROM route_segments rs JOIN segments seg ON seg.id=rs.segment_id
+        CROSS JOIN LATERAL ST_Subdivide(seg.path::geometry,512) piece(geom)
+        WHERE rs.route_id=r.id AND seg.path && session_match_bbox(s.path)::geography
+          AND piece.geom && session_match_bbox(s.path)
+          AND ST_DWithin(s.path,piece.geom::geography,600)
+      ) END
     ))
   ) ORDER BY s.id LIMIT $2`;
 

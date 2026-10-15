@@ -62,6 +62,18 @@ export function normalizeCoveredIntervals(intervals: Array<[number, number]>): A
     .filter(([start, end]) => end > start);
 }
 
+/** Merge published spans using the same metre tolerance as SQL measurements. */
+export function mergeRouteIntervals(intervals: Array<[number, number]>, lengthM: number): Array<[number, number]> {
+  const ordered = normalizeCoveredIntervals(intervals).sort((a, b) => a[0] - b[0]);
+  const merged: Array<[number, number]> = [];
+  for (const [start, end] of ordered) {
+    const last = merged[merged.length - 1];
+    if (last && (start - last[1]) * lengthM <= gapToleranceMeters(lengthM) + 1e-5) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
+
 /**
  * Merge the distances-along-route of covered vertices into [start, end]
  * fractions of the route linestring.
@@ -122,6 +134,8 @@ export interface RouteCoverageRow {
   covered_m: number;
   covered_intervals: Array<[number, number]>;
   objective_reached?: boolean;
+  has_objective?: boolean;
+  covered_geometry?: string | null;
   kind?: string | null;
 }
 
@@ -131,6 +145,8 @@ export interface RouteMatch {
   covered_m: number;
   covered_intervals: Array<[number, number]>;
   is_primary: boolean;
+  /** Actual covered samples as EWKB hex, used only for containment. */
+  covered_geometry?: string | null;
 }
 
 function lengthCoverage(row: RouteCoverageRow): number {
@@ -139,21 +155,26 @@ function lengthCoverage(row: RouteCoverageRow): number {
   return Math.abs(1 - ratio) < 1e-9 ? 1 : ratio;
 }
 
+function objectiveReached(row: RouteCoverageRow): boolean {
+  return Boolean(row.objective_reached) || (row.has_objective === false && lengthCoverage(row) >= 0.9);
+}
+
 /** Apply the write gate and choose the primary before measuring containment. */
 export function selectRouteMatches(rows: RouteCoverageRow[]): RouteMatch[] {
   const eligible = rows.filter((row) => {
     const length = Number(row.length_m);
     return length > 0 && meetsRouteWriteGate(lengthCoverage(row), Number(row.covered_m), length);
-  }).sort((a, b) => Number(Boolean(b.objective_reached)) - Number(Boolean(a.objective_reached))
-    || lengthCoverage(b) - lengthCoverage(a)
+  }).sort((a, b) => Number(objectiveReached(b)) - Number(objectiveReached(a))
     || Number(b.covered_m) - Number(a.covered_m)
+    || lengthCoverage(b) - lengthCoverage(a)
     || a.route_id.localeCompare(b.route_id));
   const primary = eligible[0];
   return eligible.map((row) => ({
     route_id: row.route_id,
     coverage: lengthCoverage(row),
     covered_m: Number(row.covered_m),
-    covered_intervals: normalizeCoveredIntervals(row.covered_intervals),
+    covered_intervals: mergeRouteIntervals(row.covered_intervals, Number(row.length_m)),
+    ...(row.covered_geometry ? { covered_geometry: row.covered_geometry } : {}),
     is_primary: row === primary,
   }));
 }

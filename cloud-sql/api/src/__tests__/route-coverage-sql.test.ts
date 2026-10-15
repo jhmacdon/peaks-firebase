@@ -1,90 +1,94 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildRouteContainmentSql, buildRouteCoverageSql, buildSessionSegmentCoverageSql, measureSessionRouteCoverage, upsertSessionRouteCoverage } from "../processing";
+import {
+  buildRouteContainmentSql, buildRouteCoverageSql, buildSessionSegmentCoverageSql,
+  buildSessionSegmentCoverageSelectSql, measureSessionRouteCoverage, upsertSessionRouteCoverage,
+  TRIPLE_CROWN_INDEXED_ROUTE_IDS,
+} from "../processing";
 
-test("coverage SQL densifies nearby geography edges and sums lengths", () => {
-  const { text, values } = buildRouteCoverageSql("sess1", ["route-a"]);
-  assert.match(text, /ST_Segmentize\(e.geom::geography, 10\)/);
-  assert.match(text, /sum\(c.sample_m\)/);
-  assert.match(text, /ST_DWithin\(ST_LineInterpolatePoint\(p.geom, 0.5\)::geography, st.track, 30\)/);
-  assert.match(text, /e.geom && st.track_bbox/);
-  assert.match(text, /ST_Reverse\(seg.path::geometry\)/);
-  assert.doesNotMatch(text, /containment|covered_paths|ST_Collect/);
-  assert.deepEqual(values, ["sess1", ["route-a"]]);
+test("coverage uses nearby indexed neighbours for long trails and bounded parts for ordinary lines", () => {
+  const { text, values } = buildRouteCoverageSql("s", ["r", "triple-crown-pct"]);
+  assert.match(text, /indexed_near AS MATERIALIZED/);
+  assert.match(text, /rp.pt && st.track_bbox/);
+  assert.match(text, /b.idx = a.idx \+ 1/);
+  assert.match(text, /ORDER BY idx DESC LIMIT 1/);
+  assert.match(text, /NOT \(r.id = ANY\(\$3::text\[\]\)\)/);
+  assert.match(text, /power\(2, ceil\(ln\(e.edge_m \/ 10\) \/ ln\(2\)\)\)::integer ELSE 1 END AS pieces/);
+  assert.match(text, /generate_series\(0, e.pieces - 1\) AS k/);
+  assert.match(text, /ST_DWithin\(ST_LineInterpolatePoint\(e.geom_m, \(k \+ 0.5\)::float8 \/ e.pieces\), st.track_m, 30\)/);
+  assert.match(text, /ST_Transform\(ST_Force2D\(t.track::geometry\), t.srid\) AS track_m/);
+  assert.match(text, /THEN 32700 ELSE 32600 END/);
+  assert.doesNotMatch(text, /::geography, st.track, 30\)|ST_Segmentize\(e.geom/);
+  assert.match(text, /ST_Subdivide\(l.geom, 512\)/);
+  assert.match(text, /ST_Intersection\(piece.geom,st.track_bbox\)/);
+  assert.ok(text.indexOf("bounded_parts AS MATERIALIZED") < text.indexOf("ST_DumpPoints(l.geom)"));
+  assert.match(text, /ST_Length\(ST_LineSubstring/);
+  assert.match(text, /ST_LineMerge\(ST_Collect\(geom\)\)/);
+  assert.match(text, /LEAST\(1000.0, GREATEST\(100.0, ls.length_m \* 0.02\)\)/);
+  assert.deepEqual(values, ["s", ["r", "triple-crown-pct"], TRIPLE_CROWN_INDEXED_ROUTE_IDS]);
 });
 
-test("the long-route path no longer trusts the vertex index for coverage", async () => {
-  let query = 0;
-  const q = { query: async () => query++ === 0
-    ? { rows: [{ id: "triple-crown-pct" }] }
-    : { rows: [{ route_id: "triple-crown-pct", length_m: 4000000, covered_m: 1000, covered_intervals: [[0, 0.00025]] }] } };
-  assert.deepEqual(await measureSessionRouteCoverage(q as never, "sess1"), []);
+test("a missing long-trail index fails instead of erasing its route facts", async () => {
+  let count = 0;
+  const q = { query: async () => ++count === 1 ? { rows: [{ id: "triple-crown-pct" }] } : { rows: [] } };
+  await assert.rejects(() => measureSessionRouteCoverage(q as never, "s"), /triple_crown_route_points_missing/);
 });
 
-test("segment SQL uses unix-second tracking points at the covered endpoints", () => {
-  const { text } = buildSessionSegmentCoverageSql("s", ["r"]);
-  assert.match(text, /FROM tracking_points tp/);
-  assert.match(text, /ORDER BY ST_Distance\(tp.location, e.first_pt::geography\) FETCH FIRST 1 ROW WITH TIES/);
-  assert.match(text, /ORDER BY ST_Distance\(tp.location, e.last_pt::geography\) FETCH FIRST 1 ROW WITH TIES/);
-  assert.match(text, /to_timestamp\(LEAST\(first_time.time, last_time.time\)\)/);
-  assert.match(text, /cs.covered_m >= 50 OR cs.covered_m \/ cs.length_m >= 0.5/);
-  assert.match(text, /ON CONFLICT \(session_id, segment_id\) DO UPDATE/);
+test("segment SELECT spans all nearby session points and excludes the whole imported segments", () => {
+  const select = buildSessionSegmentCoverageSelectSql("s", ["r"]);
+  assert.doesNotMatch(select.text, /INSERT|UPDATE|DELETE/);
+  assert.match(select.text, /session_points AS MATERIALIZED/);
+  assert.match(select.text, /WHERE tp.session_id = \$1 AND tp.location IS NOT NULL/);
+  assert.match(select.text, /ST_Transform\(ST_Force2D\(tp.location::geometry\), st.srid\) AS pt_m/);
+  assert.match(select.text, /min\(tp.time\) AS entered, max\(tp.time\) AS exited/);
+  assert.match(select.text, /ST_Transform\(ST_Force2D\(ST_Collect\(bp.geom\)\), st.srid\) AS geom_m/);
+  assert.match(select.text, /ST_DWithin\(tp.pt_m, shape.geom_m, 30\)/);
+  assert.match(select.text, /ST_LineLocatePoint\(path::geometry, first_location\) < 0.5/);
+  assert.match(select.text, /NOT \(rs.route_id = ANY\(\$3::text\[\]\)\)/);
+  assert.match(buildSessionSegmentCoverageSql("s", ["r"]).text, /INSERT INTO session_segments/);
+  assert.ok(buildSessionSegmentCoverageSql("s", ["r"]).text.includes(select.text));
 });
 
-test("containment builds interval substrings and holds the primary constant for 50 m samples", () => {
-  const matches = [
-    { route_id: "dc", coverage: 1, covered_m: 16000, covered_intervals: [[0, 1]] as Array<[number, number]>, is_primary: true },
-    { route_id: "muir", coverage: 1, covered_m: 8000, covered_intervals: [[0, 1]] as Array<[number, number]>, is_primary: false },
-  ];
+test("containment uses actual samples as EWKB, never route substrings or whole trail paths", () => {
+  const matches = [{ route_id: "r", coverage: 1, covered_m: 8000, covered_intervals: [[0, 1]] as Array<[number, number]>,
+    is_primary: true, covered_geometry: "012345" }];
   const { text, values } = buildRouteContainmentSql(matches);
-  assert.match(text, /ST_LineSubstring/);
-  assert.match(text, /primary_covered AS MATERIALIZED/);
-  assert.match(text, /ST_Multi\(ST_Collect\(geom\)\)::geography/);
-  assert.match(text, /WHERE NOT is_primary/);
+  assert.match(text, /ST_GeomFromEWKB\(decode\(covered_geometry, 'hex'\)\)/);
+  assert.match(text, /ST_DWithin\(pt, \(SELECT path FROM primary_covered_m\), 30\)/);
+  assert.match(text, /ST_Transform\(ST_Force2D\(geom\), srid\) AS path/);
+  assert.match(text, /sample_counts AS MATERIALIZED/);
   assert.match(text, /ceil\(length_m \/ 50\)/);
-  assert.match(text, /ST_DWithin\(pt, \(SELECT path FROM primary_covered\), 30\)/);
-  assert.match(text, />= 0.9 \* sum\(sample_m\)/);
-  assert.doesNotMatch(text, /ST_DumpPoints|covered_samples/);
-  assert.deepEqual(values, [JSON.stringify(matches), ["dc", "muir"]]);
+  assert.doesNotMatch(text, /ST_LineSubstring|FROM routes|route_segments|ST_DumpPoints/);
+  assert.deepEqual(JSON.parse(values[0] as string), [{ route_id: "r", is_primary: true, covered_geometry: "012345" }]);
 });
 
-test("matching gates and picks primary before one containment query shared with processing", async () => {
+test("the shared matcher gates first, ranks covered metres before coverage, then contains once", async () => {
   const calls: Array<{ text: string; values?: unknown[] }> = [];
   const q = { query: async (text: string, values?: unknown[]) => {
     calls.push({ text, values });
     if (calls.length === 1) return { rows: [{ id: "dc" }, { id: "muir" }, { id: "clip" }] };
     if (calls.length === 2) return { rows: [
-      { route_id: "muir", length_m: 8000, covered_m: 8000, covered_intervals: [[0, 0.999999999975]], objective_reached: true },
-      { route_id: "dc", length_m: 16000, covered_m: 16000, covered_intervals: [[0, 1]], objective_reached: true },
+      { route_id: "muir", length_m: 6504, covered_m: 5925, covered_intervals: [[0, 0.911]], objective_reached: true, covered_geometry: "01" },
+      { route_id: "dc", length_m: 11529, covered_m: 9615, covered_intervals: [[0, 0.834]], objective_reached: true, covered_geometry: "02" },
       { route_id: "clip", length_m: 10000, covered_m: 500, covered_intervals: [[0, 0.05]], objective_reached: false },
     ] };
     return { rows: [{ route_id: "muir" }] };
   } };
   const matches = await measureSessionRouteCoverage(q as never, "s");
   assert.equal(calls.length, 3);
-  assert.deepEqual(calls[2].values?.[1], ["dc", "muir"]);
-  assert.deepEqual(JSON.parse(calls[2].values?.[0] as string).map((row: { route_id: string; is_primary: boolean }) =>
-    [row.route_id, row.is_primary]), [["dc", true], ["muir", false]]);
-  assert.deepEqual(matches.map((row) => [row.route_id, row.is_primary]), [["dc", true]]);
+  assert.deepEqual(JSON.parse(calls[2].values?.[0] as string).map((r: {route_id: string; is_primary: boolean}) => [r.route_id,r.is_primary]),
+    [["dc", true], ["muir", false]]);
+  assert.deepEqual(matches.map((r) => [r.route_id,r.is_primary]), [["dc",true]]);
 });
 
-test("one written route needs no containment query", async () => {
-  let count = 0;
-  const q = { query: async () => ++count === 1 ? { rows: [{ id: "r" }] } : { rows: [
-    { route_id: "r", length_m: 400, covered_m: 400, covered_intervals: [[0, 0.999999999975]] },
-  ] } };
-  const matches = await measureSessionRouteCoverage(q as never, "s");
-  assert.equal(count, 2);
-  assert.deepEqual(matches[0].covered_intervals, [[0, 1]]);
-});
-
-test("the shared coverage writer also normalizes incoming intervals", async () => {
-  let written: Array<{ covered_intervals: Array<[number, number]> }> = [];
-  const q = { query: async (text: string, values?: unknown[]) => {
-    if (text.includes("INSERT INTO session_routes")) written = JSON.parse(values?.[1] as string);
-    return { rows: [], rowCount: 1 };
-  } };
-  await upsertSessionRouteCoverage(q as never, "s", [{ route_id: "r", coverage: 1, covered_m: 400,
-    covered_intervals: [[-0.0000001, 0.999999999975]], is_primary: true }]);
-  assert.deepEqual(written[0].covered_intervals, [[0, 1]]);
+test("backfill writer removes stale auto and legacy manual rows atomically, even with no new matches", async () => {
+  const calls: Array<{ text: string; values?: unknown[] }> = [];
+  const q = { query: async (text: string, values?: unknown[]) => { calls.push({ text, values }); return { rows: [], rowCount: 0 }; } };
+  await upsertSessionRouteCoverage(q as never, "s", []);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].text, /FOR UPDATE/);
+  assert.match(calls[0].text, /DELETE FROM session_routes/);
+  assert.match(calls[0].text, /SELECT count\(\*\) AS n FROM removed/);
+  assert.doesNotMatch(calls[0].text, /source = 'auto'|source = 'manual'/);
+  assert.deepEqual(JSON.parse(calls[0].values?.[1] as string), []);
 });

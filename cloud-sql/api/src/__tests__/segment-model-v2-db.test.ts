@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { after, before, describe, test } from "node:test";
 import db, { assertTestDatabaseUrl } from "../db";
-import { buildRouteCoverageSql, buildSessionSegmentCoverageSql, processSession } from "../processing";
+import { buildRouteCoverageSql, buildRouteContainmentSql, buildSessionSegmentCoverageSql, processSession, upsertSessionRouteCoverage } from "../processing";
 import { selectRouteMatches } from "../route-coverage";
 import { dbSkipReason } from "./helpers/test-db";
 
@@ -49,6 +49,18 @@ async function measure(sid: string, routes: string[]) {
 describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurrency: 1 }, () => {
   before(clean);
   after(clean);
+
+  test("bulk catalog edits fire statement triggers with transition tables", async () => {
+    const result=await db.query(`SELECT c.relname,t.tgtype,t.tgoldtable,t.tgnewtable FROM pg_trigger t
+      JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_proc p ON p.oid=t.tgfoid
+      WHERE p.proname IN ('queue_rematch_on_route_link_change','queue_rematch_on_segment_path_change')
+        AND NOT t.tgisinternal`);
+    assert.equal(result.rowCount,7);
+    for(const row of result.rows) {
+      assert.equal(row.tgtype & 1,0,"queue triggers must run once per statement");
+      assert.ok(row.tgoldtable || row.tgnewtable);
+    }
+  });
 
   test("columns, guards, primary uniqueness, touch trigger and cascades", async () => {
     const guards = await db.query(`SELECT tgname FROM pg_trigger WHERE tgrelid = 'segments'::regclass AND NOT tgisinternal`);
@@ -144,6 +156,55 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
     assert.equal(row.exited_at.toISOString(), new Date((1800000000 + 1200) * 1000).toISOString());
   });
 
+  test("out-and-back segment visits span departure through the final return", async () => {
+    await route("outback-route",line(0,1000));
+    await segment("outback-segment",0,1000);
+    await db.query(`INSERT INTO route_segments (route_id,segment_id) VALUES ($1,$2)`,[id("outback-route"),id("outback-segment")]);
+    const sid=id("outback-session");
+    await db.query(`INSERT INTO tracking_sessions (id,user_id,start_time,ended,path)
+      VALUES ($1,$2,'2026-10-15T10:00:00Z',true,ST_GeogFromText($3))`,[sid,user,line(0,1000)]);
+    for (const [time,metres] of [["10:00",0],["12:00",1000],["13:00",1000],["15:00",0]] as const) {
+      await db.query(`INSERT INTO tracking_points (session_id,time,location) VALUES ($1,$2,ST_GeogFromText($3))`,
+        [sid,Date.parse(`2026-10-15T${time}:00Z`)/1000,`SRID=4326;POINT Z (${point(metres)})`]);
+    }
+    const query=buildSessionSegmentCoverageSql(sid,[id("outback-route")]);
+    await db.query(query.text,query.values);
+    const row=(await db.query(`SELECT * FROM session_segments WHERE session_id=$1`,[sid])).rows[0];
+    assert.equal(row.entered_at.toISOString(),"2026-10-15T10:00:00.000Z");
+    assert.equal(row.exited_at.toISOString(),"2026-10-15T15:00:00.000Z");
+    assert.equal(row.direction,"forward");
+  });
+
+  test("containment uses geodesic sample geometry on a sparse long north-south line", async () => {
+    const primaryPath="SRID=4326;LINESTRING Z (-140 -60 100,-140 40 100,-139 41 100)";
+    const covered="SRID=4326;LINESTRING Z (-140 39.9 100,-140 40 100)";
+    await route("north-south",primaryPath);
+    await route("north-south-clip",covered);
+    const sid=id("north-south-session");
+    await db.query(`INSERT INTO tracking_sessions (id,user_id,start_time,ended,path)
+      VALUES ($1,$2,'2026-10-15T10:00:00Z',true,ST_GeogFromText($3))`,[sid,user,covered]);
+    const measured=await measure(sid,["north-south","north-south-clip"]);
+    const primary=measured.rows.find(row=>row.route_id===id("north-south"));
+    const secondary=measured.rows.find(row=>row.route_id===id("north-south-clip"));
+    assert.ok(primary.covered_m>10000);
+    const shift=await db.query(`SELECT ST_Distance(ST_StartPoint(ST_GeomFromEWKB(decode($1,'hex')))::geography,
+      ST_StartPoint(ST_LineSubstring(ST_GeogFromText($2)::geometry,$3,$4))::geography) AS metres`,
+      [primary.covered_geometry,primaryPath,...primary.covered_intervals[0]]);
+    assert.ok(shift.rows[0].metres>50,"the fixture must expose the planar/geodesic fraction error");
+    const matches=[primary,secondary].map((row,index)=>({route_id:row.route_id,coverage:row.covered_m/row.length_m,
+      covered_m:row.covered_m,covered_intervals:row.covered_intervals,covered_geometry:row.covered_geometry,is_primary:index===0}));
+    const contained=buildRouteContainmentSql(matches);
+    assert.deepEqual((await db.query(contained.text,contained.values)).rows.map(row=>row.route_id),[id("north-south-clip")]);
+  });
+
+  test("the backfill writer removes stale rows when the current gate yields no routes", async () => {
+    const sid=await session("zero-match-backfill",1000);
+    await db.query(`INSERT INTO session_routes (session_id,route_id,source,coverage) VALUES
+      ($1,$2,'auto',0.1),($1,$3,'manual',NULL)`,[sid,id("muir"),id("dc")]);
+    await upsertSessionRouteCoverage(db,sid,[]);
+    assert.equal((await db.query(`SELECT 1 FROM session_routes WHERE session_id=$1`,[sid])).rowCount,0);
+  });
+
   test("link and segment edits queue nearby sessions", async () => {
     const sid = await session("queue", 8000);
     const clear = () => db.query(`DELETE FROM session_rematch_queue WHERE session_id = $1`, [sid]);
@@ -159,6 +220,27 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
     await queued(); await clear();
     await db.query(`UPDATE segments SET path = ST_GeogFromText($2) WHERE id = $1`, [id("lower"), line(0, 7999)]);
     await queued();
+  });
+
+  test("pending routes queue nothing until activation queues nearby sessions once", async () => {
+    const sid = await session("pending-queue", 3000);
+    const rid = id("pending-route");
+    const rows = () => db.query(`SELECT reason FROM session_rematch_queue WHERE session_id = $1`, [sid]);
+    await db.query(`DELETE FROM session_rematch_queue WHERE session_id = $1`, [sid]);
+    await db.query(`INSERT INTO routes (id, name, owner, path, kind, objective_destination_id, status)
+      VALUES ($1, $1, $2, ST_GeogFromText($3), 'destination', NULL, 'pending')`, [rid, user, line(0, 3000)]);
+    await segment("pending-only", 0, 3000);
+    await db.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)`, [rid, id("pending-only")]);
+    await db.query(`INSERT INTO route_destinations (route_id, destination_id) VALUES ($1, $2)`, [rid, id("muir-objective")]);
+    await db.query(`UPDATE route_segments SET direction = 'reverse' WHERE route_id = $1`, [rid]);
+    await db.query(`UPDATE segments SET path = ST_GeogFromText($2) WHERE id = $1`, [id("pending-only"), line(0, 2999)]);
+    await db.query(`UPDATE routes SET objective_destination_id = $2 WHERE id = $1`, [rid, id("muir-objective")]);
+    await db.query(`DELETE FROM route_destinations WHERE route_id = $1`, [rid]);
+    assert.equal((await rows()).rowCount, 0, "links and edits of a pending route must not queue sessions");
+    await db.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [rid]);
+    const queued = await rows();
+    assert.equal(queued.rowCount, 1);
+    assert.equal(queued.rows[0].reason, `route:${rid}`);
   });
 });
 

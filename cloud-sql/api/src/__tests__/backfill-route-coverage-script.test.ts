@@ -30,10 +30,15 @@ test("the backfill is batched, resumable and gentle on a db-f1-micro", () => {
   assert.match(script, /ORDER BY s\.start_time ASC, s\.id ASC/);
 });
 
-test("the backfill never deletes and never overwrites a manual row", () => {
+test("the backfill delegates replacement, including zero-match sessions, to the shared writer", () => {
   assert.doesNotMatch(script, /DELETE FROM session_routes/);
   assert.doesNotMatch(script, /DELETE FROM tracking_sessions/);
   assert.doesNotMatch(script, /processing_state/);
+  assert.doesNotMatch(script, /APPLY && matches.length > 0/);
+  assert.match(script, /BEGIN READ ONLY/);
+  assert.match(script, /FOR UPDATE/);
+  assert.match(script, /measureSessionRouteCoverage\(client/);
+  assert.match(script, /upsertSessionRouteCoverage\(client/);
 });
 
 test("the script says out loud that running it on prod is a separate decision", () => {

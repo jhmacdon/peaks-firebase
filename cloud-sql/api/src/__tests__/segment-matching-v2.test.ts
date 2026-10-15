@@ -31,7 +31,7 @@ test("an unreached summit objective cannot outrank a reached destination even at
   assert.deepEqual(matches.map((r) => [r.route_id, r.is_primary]), [["camp-muir", true], ["dc", false]]);
 });
 
-test("coverage then covered metres decide ties; independent routes survive", () => {
+test("covered metres then coverage decide ties; independent routes survive", () => {
   const matches = selectRouteMatches([muir({ covered_m: 7000 }), dc()]);
   assert.deepEqual(matches.map((r) => [r.route_id, r.is_primary]), [["dc", true], ["camp-muir", false]]);
   assert.equal(selectRouteMatches([muir(), dc({ covered_m: 16000 - 1e-7 })])[0].route_id, "dc");
@@ -69,5 +69,25 @@ test("migration adds columns without updating guarded segments", () => {
   assert.match(migration, /ST_AsEncodedPolyline\(ST_Force2D\(assembled\), 6\)/);
   assert.match(migration, /ON route_segments/);
   assert.match(migration, /ON route_destinations/);
-  assert.match(migration, /AFTER UPDATE OF path ON segments/);
+  assert.match(migration, /REFERENCING OLD TABLE AS old_segments NEW TABLE AS new_segments/);
+  assert.match(migration, /FOR EACH STATEMENT EXECUTE FUNCTION/);
+});
+
+test("real Rainier summit ratios choose the longer covered DC despite Muir's higher coverage", () => {
+  const matches=selectRouteMatches([dc({length_m:11529,covered_m:9615}),muir({length_m:6504,covered_m:5925})]);
+  assert.equal(matches[0].route_id,"dc");
+  assert.ok(matches[0].coverage < matches[1].coverage);
+  assert.deepEqual(dropContainedRouteMatches(matches,["camp-muir"]).map(m=>m.route_id),["dc"]);
+});
+
+test("real Muir-day ratios prefer its reached objective over DC's partial approach", () => {
+  const matches=selectRouteMatches([dc({length_m:11529,covered_m:3500,objective_reached:false}),muir({length_m:6504,covered_m:6000})]);
+  assert.equal(matches[0].route_id,"camp-muir");
+  assert.deepEqual(dropContainedRouteMatches(matches,["dc"]).map(m=>m.route_id),["camp-muir"]);
+});
+
+test("a route without any objective counts as reached at 90%, then covered metres rank it", () => {
+  const matches=selectRouteMatches([dc({covered_m:14000,has_objective:true,objective_reached:false}),
+    muir({covered_m:7200,has_objective:false,objective_reached:false})]);
+  assert.equal(matches[0].route_id,"camp-muir");
 });

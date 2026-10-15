@@ -661,12 +661,35 @@ CREATE TABLE route_segments (
     PRIMARY KEY (route_id, segment_id, ordinal)
 );
 
+-- Conservative metre-sized query box without buffering thousands of GPS
+-- vertices. Polar/dateline tracks retain PostGIS's geography buffer handling.
+CREATE OR REPLACE FUNCTION session_match_bbox(track geography, radius_m DOUBLE PRECISION DEFAULT 600)
+RETURNS geometry LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE AS $$
+DECLARE box geometry; west FLOAT8; east FLOAT8; south FLOAT8; north FLOAT8;
+  dy FLOAT8; dx FLOAT8;
+BEGIN
+  box:=ST_Envelope(track::geometry);
+  west:=ST_XMin(box); east:=ST_XMax(box); south:=ST_YMin(box); north:=ST_YMax(box);
+  -- 100 km per degree is below Earth's minimum meridional scale.
+  dy:=radius_m/100000.0;
+  IF GREATEST(abs(south),abs(north))+dy>=89.9 OR east-west>180 THEN
+    RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry);
+  END IF;
+  dx:=dy/cos(radians(GREATEST(abs(south),abs(north))+dy));
+  IF west-dx < -180 OR east+dx > 180 THEN RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry); END IF;
+  RETURN ST_MakeEnvelope(west-dx,south-dy,east+dx,north+dy,4326);
+END;
+$$;
+ALTER FUNCTION session_match_bbox(geography,DOUBLE PRECISION) OWNER TO postgres;
+
 -- Invoker rights and ordinary UPDATE preserve all catalog/worker guards.
 CREATE OR REPLACE FUNCTION rebuild_route_path(route_id TEXT)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
   assembled geometry;
   missing_segment TEXT;
+  elevation_gain DOUBLE PRECISION;
+  elevation_loss DOUBLE PRECISION;
 BEGIN
   PERFORM 1 FROM routes WHERE id = route_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Unknown route: %', route_id; END IF;
@@ -690,11 +713,15 @@ BEGIN
     SELECT *, lag(pt) OVER (ORDER BY ordinal, segment_id, idx) AS previous_pt FROM vertices
   )
   SELECT ST_MakeLine(pt ORDER BY ordinal, segment_id, idx)
-    FILTER (WHERE idx > 1 OR previous_pt IS NULL OR NOT ST_Equals(previous_pt, pt))
+    FILTER (WHERE idx > 1 OR previous_pt IS NULL OR NOT ST_DWithin(previous_pt::geography, pt::geography, 0.1))
     INTO assembled FROM joints;
+  SELECT stats.gain,stats.loss INTO elevation_gain,elevation_loss
+    FROM route_elevation_stats(assembled::geography) stats;
   UPDATE routes SET path = assembled::geography,
     polyline6 = ST_AsEncodedPolyline(ST_Force2D(assembled), 6),
-    distance = ST_Length(assembled::geography)
+    distance = ST_Length(assembled::geography),
+    elevation_string = encode_route_elevation_profile(assembled::geography),
+    gain = elevation_gain, gain_loss = elevation_loss
   WHERE id = route_id;
 END;
 $$;

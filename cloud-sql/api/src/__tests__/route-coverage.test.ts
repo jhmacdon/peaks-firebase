@@ -10,6 +10,7 @@ import {
   gapToleranceMeters,
   meetsRouteWriteGate,
   mergeCoveredIntervals,
+  mergeRouteIntervals,
   normalizeCoveredIntervals,
   dropContainedRouteMatches,
   routeDoneCoverageSql,
@@ -144,4 +145,14 @@ test("containment drops only secondary ids and keeps independent routes", () => 
   ]);
   assert.deepEqual(dropContainedRouteMatches(matches, ["primary", "contained"]).map((m) => m.route_id),
     ["primary", "independent"]);
+});
+
+test("every writer merges small gaps without increasing measured covered metres", () => {
+  assert.deepEqual(mergeRouteIntervals([[0,0.1],[0.115,0.2],[0.4,0.5]],10000), [[0,0.2],[0.4,0.5]]);
+  const row = { route_id: "r", length_m: 10000, covered_m: 7400,
+    covered_intervals: [[0,0.3],[0.315,0.7],[0.72,0.8]] as Array<[number,number]> };
+  const match = selectRouteMatches([row])[0];
+  assert.deepEqual(match.covered_intervals, [[0,0.8]]);
+  assert.equal(match.covered_m,7400);
+  assert.deepEqual(mergeRouteIntervals([[0,0.00002],[0.002,0.00202]],5000000), [[0,0.00002],[0.002,0.00202]]);
 });

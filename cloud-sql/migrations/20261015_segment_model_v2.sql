@@ -47,6 +47,8 @@ RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
   assembled geometry;
   missing_segment TEXT;
+  elevation_gain DOUBLE PRECISION;
+  elevation_loss DOUBLE PRECISION;
 BEGIN
   PERFORM 1 FROM routes WHERE id = route_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Unknown route: %', route_id; END IF;
@@ -70,86 +72,199 @@ BEGIN
     SELECT *, lag(pt) OVER (ORDER BY ordinal, segment_id, idx) AS previous_pt FROM vertices
   )
   SELECT ST_MakeLine(pt ORDER BY ordinal, segment_id, idx)
-    FILTER (WHERE idx > 1 OR previous_pt IS NULL OR NOT ST_Equals(previous_pt, pt))
+    FILTER (WHERE idx > 1 OR previous_pt IS NULL OR NOT ST_DWithin(previous_pt::geography, pt::geography, 0.1))
     INTO assembled FROM joints;
+  SELECT stats.gain,stats.loss INTO elevation_gain,elevation_loss
+    FROM route_elevation_stats(assembled::geography) stats;
   UPDATE routes SET path = assembled::geography,
     polyline6 = ST_AsEncodedPolyline(ST_Force2D(assembled), 6),
-    distance = ST_Length(assembled::geography)
+    distance = ST_Length(assembled::geography),
+    elevation_string = encode_route_elevation_profile(assembled::geography),
+    gain = elevation_gain, gain_loss = elevation_loss
   WHERE id = route_id;
 END;
 $$;
 ALTER FUNCTION rebuild_route_path(TEXT) OWNER TO postgres;
 
--- Link edits can change both route geometry and the objective. Queue old and
--- new routes on reassignment; include linked sessions even after path removal.
-CREATE OR REPLACE FUNCTION queue_rematch_on_route_link_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE rid TEXT; ids TEXT[] := ARRAY[]::text[];
+-- Conservative metre-sized query box without buffering thousands of GPS
+-- vertices. Polar/dateline tracks retain PostGIS's geography buffer handling.
+CREATE OR REPLACE FUNCTION session_match_bbox(track geography, radius_m DOUBLE PRECISION DEFAULT 600)
+RETURNS geometry LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE AS $$
+DECLARE box geometry; west FLOAT8; east FLOAT8; south FLOAT8; north FLOAT8;
+  dy FLOAT8; dx FLOAT8;
 BEGIN
-  IF TG_OP <> 'INSERT' THEN ids := array_append(ids, OLD.route_id); END IF;
-  IF TG_OP <> 'DELETE' THEN ids := array_append(ids, NEW.route_id); END IF;
-  IF TG_TABLE_NAME = 'route_segments' THEN
-    IF TG_OP <> 'INSERT' THEN
-      PERFORM queue_sessions_near_route(path, 'route-links:' || OLD.route_id) FROM segments WHERE id = OLD.segment_id;
-    END IF;
-    IF TG_OP <> 'DELETE' THEN
-      PERFORM queue_sessions_near_route(path, 'route-links:' || NEW.route_id) FROM segments WHERE id = NEW.segment_id;
-    END IF;
+  box:=ST_Envelope(track::geometry);
+  west:=ST_XMin(box); east:=ST_XMax(box); south:=ST_YMin(box); north:=ST_YMax(box);
+  -- 100 km per degree is below Earth's minimum meridional scale.
+  dy:=radius_m/100000.0;
+  IF GREATEST(abs(south),abs(north))+dy>=89.9 OR east-west>180 THEN
+    RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry);
   END IF;
-  FOR rid IN SELECT DISTINCT unnest(ids) LOOP
-    PERFORM queue_sessions_near_route(path, 'route-links:' || rid) FROM routes WHERE id = rid;
-    PERFORM queue_sessions_near_route(seg.path, 'route-links:' || rid)
-      FROM route_segments rs JOIN segments seg ON seg.id = rs.segment_id WHERE rs.route_id = rid;
+  dx:=dy/cos(radians(GREATEST(abs(south),abs(north))+dy));
+  IF west-dx < -180 OR east+dx > 180 THEN RETURN ST_Envelope(ST_Buffer(track,radius_m)::geometry); END IF;
+  RETURN ST_MakeEnvelope(west-dx,south-dy,east+dx,north+dy,4326);
+END;
+$$;
+ALTER FUNCTION session_match_bbox(geography,DOUBLE PRECISION) OWNER TO postgres;
+
+-- Queue each distinct route once. Triple Crown routes use the point index;
+-- neither their cached path nor their whole-route segments are scanned here.
+CREATE OR REPLACE FUNCTION queue_matching_routes(route_ids TEXT[], why TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE rid TEXT;
+BEGIN
+  FOR rid IN SELECT DISTINCT unnest(route_ids) LOOP
+    IF rid = ANY(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']) THEN
+      INSERT INTO session_rematch_queue (session_id, reason)
+      SELECT DISTINCT s.id, why FROM tracking_sessions s
+      JOIN triple_crown_route_points p ON p.route_id = rid
+        AND p.pt && session_match_bbox(s.path)
+        AND ST_DWithin(p.pt::geography,s.path,600)
+      WHERE s.ended AND s.path IS NOT NULL
+      ON CONFLICT (session_id) DO UPDATE SET reason=EXCLUDED.reason, queued_at=now();
+    ELSE
+      PERFORM queue_sessions_near_route(path,why) FROM routes WHERE id=rid;
+    END IF;
     INSERT INTO session_rematch_queue (session_id, reason)
-      SELECT session_id, 'route-links:' || rid FROM session_routes WHERE route_id = rid
-      ON CONFLICT (session_id) DO UPDATE SET reason = EXCLUDED.reason, queued_at = now();
+      SELECT session_id,why FROM session_routes WHERE route_id=rid
+      ON CONFLICT (session_id) DO UPDATE SET reason=EXCLUDED.reason, queued_at=now();
   END LOOP;
+END;
+$$;
+ALTER FUNCTION queue_matching_routes(TEXT[],TEXT) OWNER TO postgres;
+
+-- One invocation per INSERT/UPDATE/DELETE statement, regardless of link count.
+-- Only links of active routes queue anything: no session can match a pending
+-- or retired route, and activation queues through trg_route_queue_rematch_update.
+-- The WA catalog loader writes thousands of links for pending routes.
+CREATE OR REPLACE FUNCTION queue_rematch_on_route_link_change()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE ids TEXT[]; pieces TEXT[];
+BEGIN
+  IF TG_OP='INSERT' THEN
+    SELECT array_agg(DISTINCT l.route_id) INTO ids FROM new_links l
+      JOIN routes r ON r.id=l.route_id WHERE r.status='active';
+  ELSIF TG_OP='DELETE' THEN
+    SELECT array_agg(DISTINCT l.route_id) INTO ids FROM old_links l
+      JOIN routes r ON r.id=l.route_id WHERE r.status='active';
+  ELSE
+    SELECT array_agg(DISTINCT changed.route_id) INTO ids FROM (
+      SELECT route_id FROM old_links UNION SELECT route_id FROM new_links
+    ) changed JOIN routes r ON r.id=changed.route_id WHERE r.status='active';
+  END IF;
+  IF ids IS NULL THEN RETURN NULL; END IF;
+  PERFORM queue_matching_routes(ids,'route-links:' || TG_TABLE_NAME);
+  -- Only changed segments need extra geometry scans, never every segment of
+  -- the route for every row. Exclude the three whole-trail imported segments.
+  IF TG_TABLE_NAME='route_segments' THEN
+    IF TG_OP='INSERT' THEN
+      SELECT array_agg(DISTINCT segment_id) INTO pieces FROM new_links
+        WHERE route_id = ANY(ids) AND route_id <> ALL(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']);
+    ELSIF TG_OP='DELETE' THEN
+      SELECT array_agg(DISTINCT segment_id) INTO pieces FROM old_links
+        WHERE route_id = ANY(ids) AND route_id <> ALL(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']);
+    ELSE
+      SELECT array_agg(DISTINCT segment_id) INTO pieces FROM (
+        SELECT route_id,segment_id FROM old_links UNION SELECT route_id,segment_id FROM new_links
+      ) changed WHERE route_id = ANY(ids) AND route_id <> ALL(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']);
+    END IF;
+    PERFORM queue_sessions_near_route(s.path,'route-links:segments') FROM segments s
+      WHERE s.id=ANY(pieces) AND NOT EXISTS (
+        SELECT 1 FROM route_segments rs WHERE rs.segment_id=s.id
+          AND rs.route_id=ANY(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt'])
+      );
+  END IF;
   RETURN NULL;
 END;
 $$;
 ALTER FUNCTION queue_rematch_on_route_link_change() OWNER TO postgres;
+
 DROP TRIGGER IF EXISTS trg_route_segments_queue_rematch ON route_segments;
-CREATE TRIGGER trg_route_segments_queue_rematch AFTER INSERT OR UPDATE OR DELETE ON route_segments
-FOR EACH ROW EXECUTE FUNCTION queue_rematch_on_route_link_change();
 DROP TRIGGER IF EXISTS trg_route_destinations_queue_rematch ON route_destinations;
-CREATE TRIGGER trg_route_destinations_queue_rematch AFTER INSERT OR UPDATE OR DELETE ON route_destinations
-FOR EACH ROW EXECUTE FUNCTION queue_rematch_on_route_link_change();
+DO $$ DECLARE tbl TEXT; evt TEXT; old_ref TEXT; new_ref TEXT;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY['route_segments','route_destinations'] LOOP
+    FOREACH evt IN ARRAY ARRAY['insert','update','delete'] LOOP
+      EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I','trg_'||tbl||'_queue_'||evt,tbl);
+      old_ref:=CASE WHEN evt IN ('update','delete') THEN 'OLD TABLE AS old_links ' ELSE '' END;
+      new_ref:=CASE WHEN evt IN ('update','insert') THEN 'NEW TABLE AS new_links ' ELSE '' END;
+      EXECUTE format('CREATE TRIGGER %I AFTER %s ON %I REFERENCING %s%s FOR EACH STATEMENT EXECUTE FUNCTION queue_rematch_on_route_link_change()',
+        'trg_'||tbl||'_queue_'||evt,upper(evt),tbl,old_ref,new_ref);
+    END LOOP;
+  END LOOP;
+END $$;
 
 CREATE OR REPLACE FUNCTION queue_rematch_on_segment_path_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE rid TEXT;
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE ids TEXT[];
 BEGIN
-  IF ST_Equals(OLD.path::geometry, NEW.path::geometry) IS TRUE THEN RETURN NULL; END IF;
-  FOR rid IN SELECT DISTINCT route_id FROM route_segments WHERE segment_id = NEW.id LOOP
-    PERFORM queue_sessions_near_route(path, 'segment:' || NEW.id) FROM routes WHERE id = rid;
-    PERFORM queue_sessions_near_route(OLD.path, 'segment:' || NEW.id);
-    PERFORM queue_sessions_near_route(NEW.path, 'segment:' || NEW.id);
-    INSERT INTO session_rematch_queue (session_id, reason)
-      SELECT session_id, 'segment:' || NEW.id FROM session_routes WHERE route_id = rid
-      ON CONFLICT (session_id) DO UPDATE SET reason = EXCLUDED.reason, queued_at = now();
-  END LOOP;
+  -- Segments used only by pending or retired routes queue nothing.
+  SELECT array_agg(DISTINCT rs.route_id) INTO ids
+    FROM old_segments o JOIN new_segments n USING(id)
+    JOIN route_segments rs ON rs.segment_id=n.id
+    JOIN routes r ON r.id=rs.route_id AND r.status='active'
+    WHERE ((o.path IS NULL) IS DISTINCT FROM (n.path IS NULL) OR COALESCE(NOT ST_Equals(o.path::geometry,n.path::geometry),false));
+  IF ids IS NULL THEN RETURN NULL; END IF;
+  PERFORM queue_matching_routes(ids,'segment-path');
+  PERFORM queue_sessions_near_route(piece.path,'segment-path') FROM (
+    SELECT o.id,o.path FROM old_segments o JOIN new_segments n USING(id)
+      WHERE ((o.path IS NULL) IS DISTINCT FROM (n.path IS NULL) OR COALESCE(NOT ST_Equals(o.path::geometry,n.path::geometry),false))
+    UNION ALL
+    SELECT n.id,n.path FROM old_segments o JOIN new_segments n USING(id)
+      WHERE ((o.path IS NULL) IS DISTINCT FROM (n.path IS NULL) OR COALESCE(NOT ST_Equals(o.path::geometry,n.path::geometry),false))
+  ) piece WHERE EXISTS (
+    SELECT 1 FROM route_segments rs WHERE rs.segment_id=piece.id AND rs.route_id=ANY(ids)
+  ) AND NOT EXISTS (
+    SELECT 1 FROM route_segments rs WHERE rs.segment_id=piece.id
+      AND rs.route_id=ANY(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt'])
+  );
   RETURN NULL;
 END;
 $$;
 ALTER FUNCTION queue_rematch_on_segment_path_change() OWNER TO postgres;
 DROP TRIGGER IF EXISTS trg_segment_path_queue_rematch ON segments;
-CREATE TRIGGER trg_segment_path_queue_rematch AFTER UPDATE OF path ON segments
-FOR EACH ROW EXECUTE FUNCTION queue_rematch_on_segment_path_change();
+CREATE TRIGGER trg_segment_path_queue_rematch AFTER UPDATE ON segments
+REFERENCING OLD TABLE AS old_segments NEW TABLE AS new_segments
+FOR EACH STATEMENT EXECUTE FUNCTION queue_rematch_on_segment_path_change();
 
--- Changing an explicit objective also changes primary-route selection.
 CREATE OR REPLACE FUNCTION queue_rematch_on_route_objective_change()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  PERFORM queue_sessions_near_route(NEW.path, 'route-objective:' || NEW.id);
-  INSERT INTO session_rematch_queue (session_id, reason)
-    SELECT session_id, 'route-objective:' || NEW.id FROM session_routes WHERE route_id = NEW.id
-    ON CONFLICT (session_id) DO UPDATE SET reason = EXCLUDED.reason, queued_at = now();
+  PERFORM queue_matching_routes(ARRAY[NEW.id],'route-objective:' || NEW.id);
   RETURN NULL;
 END;
 $$;
 ALTER FUNCTION queue_rematch_on_route_objective_change() OWNER TO postgres;
 DROP TRIGGER IF EXISTS trg_route_objective_queue_rematch ON routes;
-CREATE TRIGGER trg_route_objective_queue_rematch AFTER UPDATE OF objective_destination_id, kind ON routes
-FOR EACH ROW WHEN (OLD.objective_destination_id IS DISTINCT FROM NEW.objective_destination_id OR OLD.kind IS DISTINCT FROM NEW.kind)
+CREATE TRIGGER trg_route_objective_queue_rematch AFTER UPDATE OF objective_destination_id,kind ON routes
+FOR EACH ROW WHEN (NEW.status = 'active' AND (OLD.objective_destination_id IS DISTINCT FROM NEW.objective_destination_id OR OLD.kind IS DISTINCT FROM NEW.kind))
 EXECUTE FUNCTION queue_rematch_on_route_objective_change();
+
+-- Preserve the old/new path rules for ordinary routes, and keep the imported
+-- long trails on their dedicated index for path, owner and status changes too.
+CREATE OR REPLACE FUNCTION queue_rematch_on_route_change()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF TG_OP='INSERT' THEN
+    IF NEW.status='active' THEN
+      PERFORM queue_matching_routes(ARRAY[NEW.id],'route:' || NEW.id);
+    END IF;
+    RETURN NULL;
+  END IF;
+  IF OLD.status IS DISTINCT FROM 'active' AND NEW.status IS DISTINCT FROM 'active' THEN RETURN NULL; END IF;
+  IF OLD.status IS NOT DISTINCT FROM NEW.status AND OLD.owner IS NOT DISTINCT FROM NEW.owner
+    AND ST_Equals(OLD.path::geometry,NEW.path::geometry) IS TRUE THEN RETURN NULL; END IF;
+  IF NEW.id=ANY(ARRAY['triple-crown-pct','triple-crown-at','triple-crown-cdt']) THEN
+    PERFORM queue_matching_routes(ARRAY[NEW.id],'route:' || NEW.id);
+  ELSE
+    IF OLD.status='active' THEN PERFORM queue_sessions_near_route(OLD.path,'route:' || NEW.id); END IF;
+    IF NEW.status='active' AND NOT(OLD.status='active' AND ST_Equals(OLD.path::geometry,NEW.path::geometry) IS TRUE) THEN
+      PERFORM queue_sessions_near_route(NEW.path,'route:' || NEW.id);
+    END IF;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+ALTER FUNCTION queue_rematch_on_route_change() OWNER TO postgres;
+
 COMMIT;

@@ -10,10 +10,9 @@
  * It is not part of implementing or reviewing the feature. Do a --dry-run
  * first, read the counts, and only then run it with --apply.
  *
- * Safe to interrupt and re-run: every write is an upsert keyed by
- * (session_id, route_id), so a second run recomputes the same values. It never
- * deletes a row, never touches a 'manual' row (the user's own claim), and never
- * changes a session's processing state.
+ * Safe to interrupt and re-run: the shared writer atomically replaces route
+ * facts per session, including stale auto rows and legacy manual echoes.
+ * It leaves the session's processing state unchanged.
  *
  *   # proxy in another terminal:
  *   cloud-sql-proxy donner-a8608:us-central1:peaks-db --port 5433
@@ -113,15 +112,21 @@ async function main(): Promise<void> {
   let failed = 0;
 
   for (const [index, session] of targets.entries()) {
+    const client = await db.connect();
     try {
-      const matches = await measureSessionRouteCoverage(db, session.id);
+      await client.query(APPLY ? "BEGIN" : "BEGIN READ ONLY");
+      if (APPLY) await client.query(`SELECT id FROM tracking_sessions WHERE id = $1 FOR UPDATE`, [session.id]);
+      const matches = await measureSessionRouteCoverage(client, session.id);
+      const rowsWritten = APPLY ? await upsertSessionRouteCoverage(client, session.id, matches) : 0;
+      await client.query("COMMIT");
       measured += matches.length;
-      if (APPLY && matches.length > 0) {
-        written += await upsertSessionRouteCoverage(db, session.id, matches);
-      }
+      written += rowsWritten;
     } catch (err) {
+      await client.query("ROLLBACK");
       failed++;
       console.error(`[backfill-route-coverage] ${session.id} failed:`, err);
+    } finally {
+      client.release();
     }
     if ((index + 1) % 10 === 0 || index + 1 === targets.length) {
       console.log(`[backfill-route-coverage] ${index + 1}/${targets.length} sessions`);

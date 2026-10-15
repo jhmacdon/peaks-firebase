@@ -1,4 +1,4 @@
-import { lineCoverageCtes, routeSourceLinesSql } from "./line-coverage";
+import { lineCoverageCtes, routeSourceLinesSql, sessionTrackCte, TRIPLE_CROWN_INDEXED_ROUTE_IDS, utmSridSql } from "./line-coverage";
 import { Pool, PoolClient } from "pg";
 import crypto from "crypto";
 import db, { createDbClient } from "./db";
@@ -6,7 +6,7 @@ import { matchComparisons } from "./comparisons";
 import {
   selectRouteMatches,
   dropContainedRouteMatches,
-  normalizeCoveredIntervals,
+  mergeRouteIntervals,
   type RouteCoverageRow,
   type RouteMatch,
 } from "./route-coverage";
@@ -330,62 +330,46 @@ async function matchDestinations(client: PoolClient, sessionId: string): Promise
   return result.rowCount ?? 0;
 }
 
-/**
- * Build the Phase-1 candidate-route query for a session.
- *
- * Performance (same 30s-timeout class as matchDestinations): the exact
- * GEOGRAPHY `ST_DWithin(r.path, s.path, 100)` does not reliably use the GIST
- * index when s.path comes from the join, and on a long track (e.g. a 71km /
- * 7000-point multi-day line) the planner seq-scans every route and runs an
- * exact spheroid line-to-line distance per row — 40s+ on the db-f1-micro.
- *
- * Phase 1 only needs a SUPERSET of candidates; Phase 2 (precise 30m / 70%
- * coverage) is the real gate. So select candidates with cheap PLANAR ops only:
- * a geometry bbox `&&` against an expanded envelope, then a planar
- * `ST_DWithin(::geometry, ::geometry, 0.005)`. Both are index-friendly and
- * carry no spheroid cost. 0.005° (~555m N-S, ~235m E-W at 65°N) is a safe
- * superset of the old 100m geography threshold at every realistic latitude;
- * any extra near-miss it admits is dropped by Phase 2, so matched routes are
- * unchanged. Validated: the 71km session that still timed out after the
- * matchDestinations fix drops from 60s+ to ~140ms here.
- *
- * A continent-scale route has a bounding box that covers several states, so
- * most western sessions pass its bbox test. The Triple Crown routes use their
- * importer-owned point index here. Other routes over 8,192 points are split
- * into 512-point pieces for the exact same planar test. Both point spacing and
- * the subdivision path preserve Phase 1's safe candidate superset.
- *
- * Pure builder so its shape is unit-testable without a live DB.
- */
+/** Keep the long-trail point index isolated by CASE; it must never enter
+ * segment-chain or whole-path distance tests. Other geography bbox predicates
+ * use idx_routes_path / idx_segments_path before bounded exact tests. */
+/** Candidate routes come from each route's own path. rebuild_route_path keeps a
+ * route's path equal to its chained segments, so no separate segment branch is needed;
+ * Triple Crown routes keep their indexed point path. */
 export function buildRouteCandidateSql(sessionId: string): { text: string; values: unknown[] } {
+  // idx_routes_path (GiST on geography) prunes before any route path is
+  // detoasted; the 0.01 degree box is a strict superset of the 0.005 degree
+  // planar tests below, which still decide. Without it every active route's
+  // path was read and cast (3.5 s on a db-f1-micro for one Rainier session).
   return {
-    text: `SELECT r.id FROM routes r, tracking_sessions s
-     WHERE s.id = $1 AND s.path IS NOT NULL AND r.status = 'active'
-       AND (r.owner = 'peaks' OR r.owner = s.user_id)
-       AND ((r.path::geometry && ST_Expand(s.path::geometry, 0.005)
+    text: `WITH session_track AS MATERIALIZED (
+      SELECT s.user_id, s.path::geometry AS track, ST_Expand(s.path::geometry, 0.005) AS box,
+        ST_Expand(s.path::geometry, 0.01)::geography AS index_box
+      FROM tracking_sessions s WHERE s.id = $1 AND s.path IS NOT NULL
+    )
+    SELECT r.id FROM routes r, session_track st
+     WHERE r.status = 'active'
+       AND (r.owner = 'peaks' OR r.owner = st.user_id)
+       AND r.path && st.index_box
+       AND r.path::geometry && st.box
        AND CASE
          WHEN r.id = ANY($2::text[])
            THEN EXISTS (
              SELECT 1
              FROM triple_crown_route_points tcp
              WHERE tcp.route_id = r.id
-               AND tcp.pt && ST_Expand(s.path::geometry, 0.005)
-               AND ST_DWithin(tcp.pt, s.path::geometry, 0.005)
+               AND tcp.pt && st.box
+               AND ST_DWithin(tcp.pt, st.track, 0.005)
            )
          WHEN ST_NPoints(r.path::geometry) <= 8192
-           THEN ST_DWithin(r.path::geometry, s.path::geometry, 0.005)
+           THEN ST_DWithin(r.path::geometry, st.track, 0.005)
          ELSE EXISTS (
            SELECT 1
            FROM ST_Subdivide(r.path::geometry, 512) AS route_part(geom)
-           WHERE route_part.geom && ST_Expand(s.path::geometry, 0.005)
-             AND ST_DWithin(route_part.geom, s.path::geometry, 0.005)
+           WHERE route_part.geom && st.box
+             AND ST_DWithin(route_part.geom, st.track, 0.005)
          )
-       END) OR EXISTS (
-         SELECT 1 FROM route_segments rs JOIN segments seg ON seg.id = rs.segment_id
-         WHERE rs.route_id = r.id
-           AND seg.path::geometry && ST_Expand(s.path::geometry, 0.005)
-           AND ST_DWithin(seg.path::geometry, s.path::geometry, 0.005)
-       ))`,
+       END`,
     values: [sessionId, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
@@ -396,64 +380,55 @@ export function buildRouteCoverageSql(
   routeIds: string[]
 ): { text: string; values: unknown[] } {
   return {
-    text: `WITH session_track AS (
-      SELECT s.path AS track, ST_Expand(ST_Envelope(s.path::geometry), 0.005) AS track_bbox
-      FROM tracking_sessions s WHERE s.id = $1
-    ), source_lines AS (${routeSourceLinesSql()}),
-    ${lineCoverageCtes()}
+    text: `WITH ${sessionTrackCte()}, source_lines AS (${routeSourceLinesSql()}),
+    ${lineCoverageCtes(true)}
     SELECT cs.line_id AS route_id, cs.length_m, LEAST(cs.length_m, cs.covered_m) AS covered_m,
-      cs.covered_intervals, r.kind,
-      EXISTS (SELECT 1 FROM session_destinations sd
-        WHERE sd.session_id = $1 AND sd.relation = 'reached'
-          AND sd.destination_id = COALESCE(r.objective_destination_id, (
-            SELECT rd.destination_id FROM route_destinations rd
-            WHERE rd.route_id = r.id ORDER BY rd.ordinal DESC, rd.destination_id DESC LIMIT 1
-          ))) AS objective_reached
-    FROM coverage_stats cs JOIN routes r ON r.id = cs.line_id`,
-    values: [sessionId, routeIds],
+      cs.covered_intervals, cs.covered_geometry, r.kind,
+      objective.id IS NOT NULL AS has_objective,
+      EXISTS (SELECT 1 FROM session_destinations sd WHERE sd.session_id = $1
+        AND sd.relation = 'reached' AND sd.destination_id = objective.id) AS objective_reached
+    FROM coverage_stats cs JOIN routes r ON r.id = cs.line_id
+    LEFT JOIN LATERAL (SELECT COALESCE(r.objective_destination_id, (
+      SELECT rd.destination_id FROM route_destinations rd WHERE rd.route_id = r.id
+      ORDER BY rd.ordinal DESC, rd.destination_id DESC LIMIT 1
+    )) AS id) objective ON true`,
+    values: [sessionId, routeIds, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
 
-/** Compare only written secondary candidates with the chosen primary.
- *
- * The scalar primary lookup becomes a statement-constant InitPlan parameter on
- * ST_DWithin's right side, so PostGIS can reuse its geography tree. Substrings
- * retain the source vertices; only secondary intervals receive ~50 m samples.
- */
+/** Actual covered samples are merged by coverage SQL and passed back as EWKB.
+ * Fractions are display facts; applying them to planar geometry shifts visits.
+ * The primary scalar subquery stays constant on ST_DWithin's right side, in the
+ * UTM zone at its centroid (see sessionTrackCte); sample lengths stay geodesic. */
 export function buildRouteContainmentSql(matches: RouteMatch[]): { text: string; values: unknown[] } {
   return {
     text: `WITH matches AS MATERIALIZED (
-      SELECT * FROM jsonb_to_recordset($1::jsonb)
-        AS m(route_id text, covered_intervals jsonb, is_primary boolean)
-    ), source_lines AS MATERIALIZED (${routeSourceLinesSql()}),
-    covered_portions AS MATERIALIZED (
-      SELECT m.route_id, m.is_primary,
-        ST_LineSubstring(l.path::geometry, (span.value->>0)::float8,
-          (span.value->>1)::float8) AS geom
-      FROM matches m JOIN source_lines l ON l.line_id = m.route_id
-      CROSS JOIN LATERAL jsonb_array_elements(m.covered_intervals) AS span(value)
-      WHERE (span.value->>1)::float8 > (span.value->>0)::float8
+      SELECT route_id, is_primary, ST_GeomFromEWKB(decode(covered_geometry, 'hex')) AS geom
+      FROM jsonb_to_recordset($1::jsonb)
+        AS m(route_id text, covered_geometry text, is_primary boolean)
     ), primary_covered AS MATERIALIZED (
-      SELECT ST_Multi(ST_Collect(geom))::geography AS path
-      FROM covered_portions WHERE is_primary
+      SELECT ${utmSridSql("geom")} AS srid, geom FROM matches WHERE is_primary
+    ), primary_covered_m AS MATERIALIZED (
+      SELECT srid, ST_Transform(ST_Force2D(geom), srid) AS path FROM primary_covered
     ), secondary_portions AS (
-      SELECT route_id, geom, ST_Length(geom::geography, false) AS length_m
-      FROM covered_portions WHERE NOT is_primary
-    ), sample_counts AS (
+      SELECT route_id, part.geom, ST_Length(part.geom::geography, false) AS length_m
+      FROM matches CROSS JOIN LATERAL ST_Dump(geom) part WHERE NOT is_primary
+    ), sample_counts AS MATERIALIZED (
+      -- Materialized so each portion's geodesic length is computed once, not
+      -- once per sample in the aggregate (2.4 s for 136 samples on prod).
       SELECT *, GREATEST(1, ceil(length_m / 50)::integer) AS sample_count
       FROM secondary_portions WHERE length_m > 0
     ), samples AS (
       SELECT route_id, length_m / sample_count AS sample_m,
-        ST_LineInterpolatePoint(geom, (sample.idx + 0.5) / sample_count)::geography AS pt
-      FROM sample_counts
-      CROSS JOIN LATERAL generate_series(0, sample_count - 1) AS sample(idx)
+        ST_Transform(ST_LineInterpolatePoint(geom, (sample.idx + 0.5) / sample_count),
+          (SELECT srid FROM primary_covered_m)) AS pt
+      FROM sample_counts CROSS JOIN LATERAL generate_series(0, sample_count - 1) AS sample(idx)
     )
-    SELECT route_id FROM samples
-    GROUP BY route_id
+    SELECT route_id FROM samples GROUP BY route_id
     HAVING COALESCE(sum(sample_m) FILTER (
-      WHERE ST_DWithin(pt, (SELECT path FROM primary_covered), 30)
+      WHERE ST_DWithin(pt, (SELECT path FROM primary_covered_m), 30)
     ), 0) >= 0.9 * sum(sample_m)`,
-    values: [JSON.stringify(matches), matches.map((match) => match.route_id)],
+    values: [JSON.stringify(matches.map(({ route_id, covered_geometry, is_primary }) => ({ route_id, covered_geometry, is_primary })))],
   };
 }
 
@@ -461,64 +436,70 @@ export function buildRouteContainmentSql(matches: RouteMatch[]): { text: string;
 async function measureCandidateRouteCoverage(q: RowQueryable, sessionId: string, routeIds: string[]): Promise<RouteMatch[]> {
   const coverageSql = buildRouteCoverageSql(sessionId, routeIds);
   const measured = await q.query(coverageSql.text, coverageSql.values);
-  const matches = selectRouteMatches(measured.rows as RouteCoverageRow[]);
+  const rows = measured.rows as RouteCoverageRow[];
+  for (const id of routeIds) {
+    if ((TRIPLE_CROWN_INDEXED_ROUTE_IDS as readonly string[]).includes(id) && !rows.some((row) => row.route_id === id)) {
+      throw new Error(`triple_crown_route_points_missing:${id}`);
+    }
+  }
+  const matches = selectRouteMatches(rows);
   if (matches.length < 2) return matches;
   const containmentSql = buildRouteContainmentSql(matches);
   const contained = await q.query(containmentSql.text, containmentSql.values);
   return dropContainedRouteMatches(matches, (contained.rows as Array<{ route_id: string }>).map((row) => row.route_id));
 }
 
-/** Segment facts include candidates that lose the route gate or duplicate test. */
-export function buildSessionSegmentCoverageSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
+/** Read-only segment measurement, also used by the perf script. Session points
+ * are read once through their (session_id,time) PK and projected to the
+ * track's UTM zone; each segment's 30 m visit test is planar in that zone. */
+export function buildSessionSegmentCoverageSelectSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
   return {
-    text: `WITH session_track AS (
-      SELECT path AS track, ST_Expand(ST_Envelope(path::geometry), 0.005) AS track_bbox
-      FROM tracking_sessions WHERE id = $1
-    ), source_lines AS (
+    text: `WITH ${sessionTrackCte()}, source_lines AS MATERIALIZED (
       SELECT DISTINCT seg.id AS line_id, seg.path
       FROM route_segments rs JOIN segments seg ON seg.id = rs.segment_id
-      WHERE rs.route_id = ANY($2::text[])
-    ), ${lineCoverageCtes()}, endpoints AS (
-      SELECT cs.*, first_point.pt AS first_pt, last_point.pt AS last_pt
-      FROM coverage_stats cs
-      CROSS JOIN LATERAL (SELECT ST_StartPoint(c.geom) AS pt FROM covered_samples c
-        WHERE c.line_id = cs.line_id ORDER BY c.start_m LIMIT 1) first_point
-      CROSS JOIN LATERAL (SELECT ST_EndPoint(c.geom) AS pt FROM covered_samples c
-        WHERE c.line_id = cs.line_id ORDER BY c.end_m DESC LIMIT 1) last_point
-      WHERE cs.covered_m >= 50 OR cs.covered_m / cs.length_m >= 0.5
+      WHERE rs.route_id = ANY($2::text[]) AND NOT (rs.route_id = ANY($3::text[]))
+        AND NOT EXISTS (SELECT 1 FROM route_segments tc WHERE tc.segment_id = seg.id AND tc.route_id = ANY($3::text[]))
+    ), ${lineCoverageCtes()}, session_points AS MATERIALIZED (
+      SELECT tp.time, tp.location::geometry AS location, ST_Transform(ST_Force2D(tp.location::geometry), st.srid) AS pt_m
+      FROM tracking_points tp, session_track st WHERE tp.session_id = $1 AND tp.location IS NOT NULL
+    ), segment_shapes AS MATERIALIZED (
+      SELECT line_id, geom_m, ST_Expand(ST_Envelope(geom_m), 30) AS box_m FROM (
+        SELECT bp.line_id, ST_Transform(ST_Force2D(ST_Collect(bp.geom)), st.srid) AS geom_m
+        FROM bounded_parts bp, session_track st GROUP BY bp.line_id, st.srid) shapes
+    ), visited AS (
+      SELECT cs.*, visit.entered, visit.exited, visit.first_location, l.path
+      FROM coverage_stats cs JOIN source_lines l ON l.line_id = cs.line_id
+      JOIN segment_shapes shape ON shape.line_id = cs.line_id
+      CROSS JOIN LATERAL (
+        SELECT min(tp.time) AS entered, max(tp.time) AS exited,
+          (array_agg(tp.location ORDER BY tp.time))[1] AS first_location
+        FROM session_points tp WHERE tp.pt_m && shape.box_m AND ST_DWithin(tp.pt_m, shape.geom_m, 30)
+      ) visit
+      WHERE (cs.covered_m >= 50 OR cs.covered_m / cs.length_m >= 0.5) AND visit.entered IS NOT NULL
     )
-    INSERT INTO session_segments (session_id, segment_id, covered_fraction, covered_m, entered_at, exited_at, direction)
-    SELECT $1, e.line_id, LEAST(1.0, e.covered_m / e.length_m), LEAST(e.length_m, e.covered_m),
-      to_timestamp(LEAST(first_time.time, last_time.time)),
-      to_timestamp(GREATEST(first_time.time, last_time.time)),
-      CASE WHEN first_time.time <= last_time.time THEN 'forward' ELSE 'reverse' END
-    FROM endpoints e
-    LEFT JOIN LATERAL (
-      SELECT nearest.time FROM (
-        SELECT tp.time FROM tracking_points tp
-        WHERE tp.session_id = $1 AND tp.location IS NOT NULL
-        ORDER BY ST_Distance(tp.location, e.first_pt::geography) FETCH FIRST 1 ROW WITH TIES
-      ) nearest ORDER BY nearest.time LIMIT 1
-    ) first_time ON true
-    LEFT JOIN LATERAL (
-      SELECT nearest.time FROM (
-        SELECT tp.time FROM tracking_points tp
-        WHERE tp.session_id = $1 AND tp.location IS NOT NULL
-        ORDER BY ST_Distance(tp.location, e.last_pt::geography) FETCH FIRST 1 ROW WITH TIES
-      ) nearest ORDER BY nearest.time LIMIT 1
-    ) last_time ON true
-    ON CONFLICT (session_id, segment_id) DO UPDATE SET
-      covered_fraction = EXCLUDED.covered_fraction, covered_m = EXCLUDED.covered_m,
-      entered_at = EXCLUDED.entered_at, exited_at = EXCLUDED.exited_at, direction = EXCLUDED.direction`,
-    values: [sessionId, routeIds],
+    SELECT $1::text AS session_id, line_id AS segment_id,
+      LEAST(1.0, covered_m / length_m) AS covered_fraction, LEAST(length_m, covered_m) AS covered_m,
+      to_timestamp(entered) AS entered_at, to_timestamp(exited) AS exited_at,
+      CASE WHEN ST_LineLocatePoint(path::geometry, first_location) < 0.5 THEN 'forward' ELSE 'reverse' END AS direction
+    FROM visited`,
+    values: [sessionId, routeIds, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
 
-export const TRIPLE_CROWN_INDEXED_ROUTE_IDS = [
-  "triple-crown-pct",
-  "triple-crown-at",
-  "triple-crown-cdt",
-] as const;
+/** Insert exactly the rows returned by the read-only measurement builder. */
+export function buildSessionSegmentCoverageSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
+  const query = buildSessionSegmentCoverageSelectSql(sessionId, routeIds);
+  return {
+    text: `INSERT INTO session_segments (session_id, segment_id, covered_fraction, covered_m, entered_at, exited_at, direction)
+    ${query.text}
+    ON CONFLICT (session_id, segment_id) DO UPDATE SET
+      covered_fraction = EXCLUDED.covered_fraction, covered_m = EXCLUDED.covered_m,
+      entered_at = EXCLUDED.entered_at, exited_at = EXCLUDED.exited_at, direction = EXCLUDED.direction`,
+    values: query.values,
+  };
+}
+
+export { TRIPLE_CROWN_INDEXED_ROUTE_IDS };
 
 /**
  * Measure one session against every active route near its track and return the
@@ -537,27 +518,21 @@ export async function measureSessionRouteCoverage(
   return measureCandidateRouteCoverage(q, sessionId, candidateIds);
 }
 
-/** Store measured fields. The old coverage-only audit script still preserves
- * legacy manual rows; the full processing transaction clears them first. */
-export async function upsertSessionRouteCoverage(
-  q: RowQueryable,
-  sessionId: string,
-  matches: RouteMatch[]
-): Promise<number> {
-  await q.query(`UPDATE session_routes SET is_primary = false WHERE session_id = $1 AND source = 'auto' AND is_primary`, [sessionId]);
-  if (matches.length === 0) return 0;
+/** Atomically replace all route facts, including stale auto rows and legacy
+ * manual echoes. Both processing and the coverage backfill use this writer. */
+export async function upsertSessionRouteCoverage(q: RowQueryable, sessionId: string, matches: RouteMatch[]): Promise<number> {
   const result = await q.query(
-    `INSERT INTO session_routes (session_id, route_id, source, coverage, covered_intervals, covered_m, is_primary)
-     SELECT $1::text, m.route_id, 'auto', m.coverage, m.covered_intervals, m.covered_m, m.is_primary
-     FROM jsonb_to_recordset($2::jsonb)
-       AS m(route_id text, coverage double precision, covered_intervals jsonb, covered_m double precision, is_primary boolean)
-     ON CONFLICT (session_id, route_id) DO UPDATE
-       SET coverage = EXCLUDED.coverage,
-           covered_intervals = EXCLUDED.covered_intervals,
-           covered_m = EXCLUDED.covered_m, is_primary = EXCLUDED.is_primary
-       WHERE session_routes.source = 'auto'`,
-    [sessionId, JSON.stringify(matches.map((match) => ({
-      ...match, covered_intervals: normalizeCoveredIntervals(match.covered_intervals),
+    `WITH locked AS (SELECT id FROM tracking_sessions WHERE id = $1 FOR UPDATE), removed AS (
+      DELETE FROM session_routes WHERE session_id IN (SELECT id FROM locked) RETURNING route_id
+    )
+    INSERT INTO session_routes (session_id, route_id, source, coverage, covered_intervals, covered_m, is_primary)
+    SELECT $1::text, m.route_id, 'auto', m.coverage, m.covered_intervals, m.covered_m, m.is_primary
+    FROM jsonb_to_recordset($2::jsonb)
+      AS m(route_id text, coverage double precision, covered_intervals jsonb, covered_m double precision, is_primary boolean)
+    CROSS JOIN (SELECT count(*) AS n FROM removed) barrier WHERE barrier.n >= 0`,
+    [sessionId, JSON.stringify(matches.map(({ route_id, coverage, covered_m, covered_intervals, is_primary }) => ({
+      route_id, coverage, covered_m, is_primary,
+      covered_intervals: mergeRouteIntervals(covered_intervals, coverage > 0 ? covered_m / coverage : 0),
     })))]
   );
   return result.rowCount ?? 0;
@@ -569,7 +544,7 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
   const candidates = await client.query(candidateSql.text, candidateSql.values);
   const routeIds = candidates.rows.map((row: { id: string }) => row.id);
   await client.query(`DELETE FROM session_segments WHERE session_id = $1`, [sessionId]);
-  if (routeIds.length === 0) return 0;
+  if (routeIds.length === 0) return upsertSessionRouteCoverage(client, sessionId, []);
   const segmentSql = buildSessionSegmentCoverageSql(sessionId, routeIds);
   await client.query(segmentSql.text, segmentSql.values);
   const matches = await measureCandidateRouteCoverage(client, sessionId, routeIds);
@@ -963,15 +938,10 @@ export async function processSession(
       [sessionId]
     );
 
-    // Step 1: Clear previous auto destination tags and all route facts.
-    // No client route-claim editor exists. Legacy manual route rows include
-    // echoed server results; remeasure them so NULL coverage cannot persist.
+    // Step 1: Clear previous auto destination tags. Step 3 atomically replaces
+    // route facts, including legacy manual echoes, after measuring the track.
     await client.query(
       `DELETE FROM session_destinations WHERE session_id = $1 AND source = 'auto'`,
-      [sessionId]
-    );
-    await client.query(
-      `DELETE FROM session_routes WHERE session_id = $1`,
       [sessionId]
     );
 
