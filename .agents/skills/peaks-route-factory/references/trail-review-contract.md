@@ -22,9 +22,10 @@ the eight human gates retains its meaning: exact route identity; reusable
 geometry rights; current pedestrian access; actual visual map inspection;
 current source geometry; kind-specific contacts plus all linked summits within
 5 m; attested statistics within 15% on explicit bases; and no unsafe crossing
-or retrace. Every machine gate, the existing five-point minimum, credited
-approved cover, exact XYZ assembly, elevation lineage and shared-source checks
-still apply. Missing evidence means FAIL, with an exact reason.
+or retrace. Every machine gate, the existing five-point minimum, exact
+XYZ assembly, elevation lineage and shared-source checks still apply. A photo
+is optional: `credited_cover` is a measurement, not a gate, and a photo that
+is shown must carry full credit. Missing evidence means FAIL, with an exact reason.
 
 The packet includes a fresh map PNG from the existing OSM renderer. Its image,
 renderer and exact XYZ input hashes bind the preview. The operator must not

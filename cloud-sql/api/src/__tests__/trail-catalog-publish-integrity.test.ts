@@ -137,8 +137,9 @@ test("source coverage and kind contact pass only independently valid, exactly as
       assert.equal(await pass("destination"), false, "all kinds retain the 125m start contact");
     });
     await isolatedChange(async () => {
+      // Photos are optional (20261015_route_covers.sql): no deferred cover gate.
       await client.query("UPDATE routes SET status='active' WHERE id=$1", [id("destination")]);
-      await assert.rejects(client.query("SET CONSTRAINTS ALL IMMEDIATE"), /fully credited derived cover/);
+      await client.query("SET CONSTRAINTS ALL IMMEDIATE");
     });
 
     await makeRoute("legacy", null, "out_and_back", null, ["start", "peak"]);

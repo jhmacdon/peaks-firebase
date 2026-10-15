@@ -198,10 +198,9 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
     await factory.query("SELECT set_config('peaks.trail_candidate_source_key',$1,false),set_config('peaks.trail_candidate_lease_token',$2,false)",[destination.sourceKey,publish.leaseToken]);
     await assert.rejects(factory.query("UPDATE routes SET status='active' WHERE id=$1",[destination.routeId]),/owned|bound activation|direct activation/);
     await assert.rejects(factory.query("SELECT activate_trail_catalog_candidate($1,'stolen',$2)",[destination.sourceKey,receipt.receiptHash]),/lease\/receipt lost/);
+    // Photos are optional (20261015_route_covers.sql): losing the only credited
+    // cover is not drift, and the route still activates below without one.
     await operator.query("UPDATE destinations SET hero_image_attribution=NULL WHERE id=$1",[destination.head.id]);
-    await assert.rejects(factory.query("SELECT activate_trail_catalog_candidate($1,$2,$3)",[destination.sourceKey,publish.leaseToken,receipt.receiptHash]),/cover drift/);
-    assert.equal((await operator.query("SELECT status FROM routes WHERE id=$1",[destination.routeId])).rows[0].status,"pending");
-    await operator.query("UPDATE destinations SET hero_image_attribution='Fixture photographer; CC BY' WHERE id=$1",[destination.head.id]);
     await operator.query("UPDATE destinations SET name='Changed catalog place' WHERE id=$1",[destination.head.id]);
     await assert.rejects(factory.query("SELECT activate_trail_catalog_candidate($1,$2,$3)",[destination.sourceKey,publish.leaseToken,receipt.receiptHash]),/snapshot/);
     await operator.query("UPDATE destinations SET name=$2 WHERE id=$1",[destination.head.id,destination.head.name]);
@@ -216,7 +215,7 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
     for (const kind of ["loop","traverse"] as const) {
       const fixture = await candidate(kind), proof = await claimAndBind(fixture); assert.deepEqual(proof.checks.errors,[]);
       if (kind==="traverse") {
-        assert.equal(proof.checks.gates.credited_cover,true,"a separate end trailhead's credited cover remains valid");
+        assert.equal(proof.checks.measurements.credited_cover,true,"a separate end trailhead's credited cover is still measured");
         assert.ok(proof.checks.measurements.objective_gap_m<0.01,"a traverse reports contact with its middle objective along the route");
       }
       const saved = await finish(fixture,proof), lease = (await factory.query("SELECT claim_trail_catalog_publish($1,$2) lease",[fixture.sourceKey,saved.receiptHash])).rows[0].lease;
@@ -224,12 +223,15 @@ test("disposable catalog lanes bind independent review, exact source/XYZ/place p
       await verify(fixture,saved.receiptHash);
     }
     const missingCover = await candidate("destination",false), noCoverReview = await claimAndBind(missingCover);
-    assert.equal(noCoverReview.checks.gates.credited_cover,false);
-    await assert.rejects(finish(missingCover,noCoverReview),/approval fails/);
-    const rejected = await finish(missingCover,noCoverReview,{...noCoverReview.result,verdict:"FAIL",errors:["No credited cover"]} as never);
-    assert.equal(rejected.state,"rejected"); assert.match(rejected.receiptHash,/^[a-f0-9]{64}$/);
+    assert.equal(noCoverReview.checks.measurements.credited_cover,false,"a missing cover is measured");
+    assert.equal("credited_cover" in noCoverReview.checks.gates,false,"a missing cover is not a gate");
+    assert.deepEqual(noCoverReview.checks.errors,[]);
+    const approvedWithoutCover = await finish(missingCover,noCoverReview);
+    assert.equal(approvedWithoutCover.state,"approved","a route without a photo passes review");
     const tooShort = await candidate("destination",true,4), shortReview = await claimAndBind(tooShort);
     assert.equal(shortReview.checks.gates.xyz_assembly,false); await assert.rejects(finish(tooShort,shortReview),/approval fails/);
+    const rejected = await finish(tooShort,shortReview,{...shortReview.result,verdict:"FAIL",errors:["Fewer than five points"]} as never);
+    assert.equal(rejected.state,"rejected"); assert.match(rejected.receiptHash,/^[a-f0-9]{64}$/);
     const forgedSummit = await candidate("destination");
     await operator.query("UPDATE destinations SET features=ARRAY['lake','summit']::destination_feature[],location=ST_Translate(location::geometry,0.02,0)::geography WHERE id=$1",[forgedSummit.objective!.id]);
     const checks = (await reviewer.query("SELECT trail_catalog_review_machine_checks($1) checks",[forgedSummit.sourceKey])).rows[0].checks;

@@ -1,9 +1,15 @@
 /**
  * Keep every API route object on the same flat cover-photo contract.
  *
+ * route_cover_photos prefers the route's own credited cover (routes.cover_*),
+ * then the best fully credited linked destination photo
+ * (migrations/20261015_route_covers.sql). `cover_image_origin` says which:
+ * "route" or "destination". For a route's own cover, cover_destination_id and
+ * cover_destination_name are null.
+ *
  * The view returns at most one row per route, so these joins do not change the
- * result cardinality. A route without a fully credited linked destination
- * photo gets null for every projected field.
+ * result cardinality. A route with no fully credited cover gets null for every
+ * projected field.
  */
 export function routeCoverSelectSql(coverAlias = "cover"): string {
   return `${coverAlias}.destination_id AS cover_destination_id,
@@ -12,7 +18,8 @@ export function routeCoverSelectSql(coverAlias = "cover"): string {
           ${coverAlias}.attribution AS cover_image_attribution,
           ${coverAlias}.attribution_url AS cover_image_attribution_url,
           ${coverAlias}.focal_x AS cover_image_focal_x,
-          ${coverAlias}.focal_y AS cover_image_focal_y`;
+          ${coverAlias}.focal_y AS cover_image_focal_y,
+          ${coverAlias}.origin AS cover_image_origin`;
 }
 
 export function routeCoverJoinSql(
@@ -31,5 +38,6 @@ export function routeCoverJsonFieldsSql(coverAlias = "cover"): string {
           'cover_image_attribution', ${coverAlias}.attribution,
           'cover_image_attribution_url', ${coverAlias}.attribution_url,
           'cover_image_focal_x', ${coverAlias}.focal_x,
-          'cover_image_focal_y', ${coverAlias}.focal_y`;
+          'cover_image_focal_y', ${coverAlias}.focal_y,
+          'cover_image_origin', ${coverAlias}.origin`;
 }

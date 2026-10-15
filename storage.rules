@@ -22,6 +22,22 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    // Admin cover uploads for routes and destinations. Only an ID token with
+    // the Firebase custom claim admin == true may write here. The API
+    // (PUT /api/admin/{kind}/{id}/cover) reads the original, checks it, stores a
+    // processed copy under route-covers/ or destination-covers/ (written by the
+    // Admin SDK, which these rules do not govern), then deletes the original.
+    match /covers/{kind}/{id}/{file} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.auth.token.admin == true
+        && kind in ['routes', 'destinations']
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null
+        && request.auth.token.admin == true;
+    }
+
     match /profiles/{userId}/{photoId} {
       allow read: if true;
       allow create, update: if request.auth != null
