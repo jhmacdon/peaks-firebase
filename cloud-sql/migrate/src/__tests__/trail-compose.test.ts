@@ -9,7 +9,7 @@ import { addLoopVia, composeLoop } from '../trail-graph/compose-loops';
 import { accessIndex, resolveAccessTrailhead } from '../trail-graph/compose-access';
 import { attachRoadLinks, boundedRoadLinks, readRoadAccess } from '../trail-graph/road-access';
 import { featureDistance, vertexIndex } from '../trail-graph/features';
-import { executePlan, planCounts, planRoute, type Approval } from '../trail-graph/load-catalog';
+import { executePlan, planCounts, planRoute } from '../trail-graph/load-catalog';
 import { databaseFeature, tokenMatch, trailKey } from '../trail-graph/names';
 import { TrailRouter } from '../trail-graph/router';
 import { applyCuration, assignNames, projection, reviewData, smoothNames, splitSegment, type Curation } from '../trail-graph/stretches';
@@ -188,14 +188,15 @@ test('dry-run plan counts insert only consumed segments; reviewed matches skip a
   row.existing_route_match = { id: 'reviewed', name: 'old', catalog_reviewed: true, n_sessions: 0, start_gap_m: 0, end_gap_m: 0 };
   assert.match(planRoute(row, segments).skipped!, /catalog_reviewed/);
 });
-test('activation requires a matching approval and includes atomic legacy/session moves', () => {
-  const { row, segments } = composed(); row.existing_route_match = { id: 'old', name: 'old', catalog_reviewed: false, n_sessions: 1, start_gap_m: 0, end_gap_m: 0 }; rehash(row);
-  assert.equal(planRoute(row, segments, { activate: true }).activate, false);
-  const approval: Approval = { route_id: row.route_id!, composition_hash: row.composition_hash!, status: 'approved', reviewed_by: 'Fixture reviewer', reviewed_at: time };
-  const plan = planRoute(row, segments, { activate: true, approvals: [approval] });
-  assert.equal(plan.activate, true);
-  for (const kind of ['activate', 'legacy_supersede', 'session_routes_move', 'session_routes_delete_legacy']) assert.equal(plan.statements.filter(s => s.kind === kind).length, 1);
-  assert.equal(plan.statements[0].sql, 'BEGIN'); assert.equal(plan.statements.at(-1)!.sql, 'COMMIT');
+test('activation uses the one owned function and requires elevation, without per-route approvals', () => {
+  const { row, segments } = composed();
+  assert.throws(() => planRoute(row, segments, { activate: true }), /requires --elevation/);
+  const plan = planRoute(row, segments, { activate: true, elevation: true });
+  assert.equal(plan.activate, true); assert.equal(plan.statements.find(s => s.kind === 'activate')!.sql, 'SELECT activate_wa_catalog_route($1)');
+  assert.ok(!plan.statements.some(s => /UPDATE routes SET status='active'/.test(s.sql)));
+  row.status = 'review'; rehash(row);
+  assert.match(planRoute(row, segments).skipped!, /review/);
+  assert.equal(planRoute(row, segments, { includeReview: true, activate: true, elevation: true }).activate, false);
 });
 test('elevation dry-run plans work without sampling or importing Terrarium/sharp', () => {
   const { row, segments } = composed(), plan = planRoute(row, segments, { elevation: true }), counts = planCounts([plan]);
@@ -222,24 +223,19 @@ test('an approval also binds the actual cached segment geometry and kind', () =>
   const { row, segments } = composed(), segment = segments.get(row.segments[0].id)!;
   segment.kind = 'road'; assert.throws(() => planRoute(row, segments), /manifest hash mismatch/);
 });
-test('an existing pending import activates atomically without rewriting its graph links', async () => {
-  const { row, segments } = composed(); row.existing_route_match = { id: 'old', name: 'old', catalog_reviewed: false, n_sessions: 1, start_gap_m: 0, end_gap_m: 0 }; rehash(row);
-  const approval: Approval = { route_id: row.route_id!, composition_hash: row.composition_hash!, status: 'approved', reviewed_by: 'Fixture reviewer', reviewed_at: time };
-  const plan = planRoute(row, segments, { activate: true, approvals: [approval] }), calls: string[] = [];
+test('an existing pending import activates without rewriting its graph links', async () => {
+  const { row, segments } = composed(), plan = planRoute(row, segments, { activate: true, elevation: true }), calls: string[] = [];
   const client = { query: async (sql: string) => {
-    calls.push(sql); return { rows: sql.includes('FOR UPDATE') ? [{ id: row.route_id, status: 'pending', protected: false }] : sql.includes('AS valid FROM') ? [{ valid: true }] : [], rowCount: 1 };
+    calls.push(sql); return { rows: sql.includes('FOR UPDATE') ? [{ id: row.route_id, status: 'pending', protected: false }] : sql.includes('AS valid FROM') ? [{ valid: true }] : sql.includes('AS complete') ? [{ complete: true }] : [], rowCount: 1 };
   } };
   assert.equal(await executePlan(client as any, plan, segments, '.cache'), 'applied');
-  assert.ok(calls.some(sql => sql.startsWith('INSERT INTO session_routes')));
+  assert.ok(calls.some(sql => sql.includes('activate_wa_catalog_route')));
   assert.ok(calls.every(sql => !sql.startsWith('INSERT INTO route_segments') && !sql.startsWith('INSERT INTO destinations')));
-  assert.equal(calls[calls.length - 1], 'COMMIT');
+  assert.equal(calls.at(-1), 'COMMIT');
 });
-test('a snapshot match to the same catalog ID never supersedes itself or deletes session links', () => {
-  const { row, segments } = composed();
-  row.existing_route_match = { id: row.route_id!, name: row.name, catalog_reviewed: false, n_sessions: 2, start_gap_m: 0, end_gap_m: 0 }; rehash(row);
-  const approval: Approval = { route_id: row.route_id!, composition_hash: row.composition_hash!, status: 'approved', reviewed_by: 'Fixture reviewer', reviewed_at: time };
-  const plan = planRoute(row, segments, { activate: true, approvals: [approval] });
-  assert.equal(plan.activate, true);
+test('composer legacy matches alone never produce supersedes or session moves', () => {
+  const { row, segments } = composed(); row.existing_route_match = { id: 'unverified', name: 'Wrong variant', catalog_reviewed: false, n_sessions: 2, start_gap_m: 0, end_gap_m: 0 }; rehash(row);
+  const plan = planRoute(row, segments, { activate: true, elevation: true });
   assert.ok(plan.statements.every(s => !['legacy_supersede','session_routes_move','session_routes_delete_legacy'].includes(s.kind)));
 });
 
@@ -284,7 +280,8 @@ test('curated stretches replace a shared parent in every route, link ordered poi
   assert.deepEqual(reviewData(rows, segments)[0].sn, ['Before', 'After']);
   const plan = planRoute(forward, new Map(segments.map(s => [s.id, s]))); assert.ok(!plan.skipped);
   const values = segmentValues(segments.find(s => s.display_name === 'After')!); assert.equal(values[7], 'After'); assert.equal(values[8], 'Rock step.'); assert.equal(values[9], null);
-  assert.match(String(plan.statements.find(s => s.kind === 'route_insert')!.values[10]), /Approximate route/);
+  const routeInsert = plan.statements.find(s => s.kind === 'route_insert')!;
+  assert.match(routeInsert.sql, /\$9,NULL/); assert.equal(JSON.parse(routeInsert.values[5] as string).wa_catalog.approximate, true); assert.ok(JSON.parse(routeInsert.values[5] as string).wa_catalog.notes.includes('Seasonal line.'));
   assert.ok(plan.statements.filter(s => s.kind === 'segment_insert').every(s => s.sql.includes('description_source_url') && s.sql.includes('$8')));
 });
 test('curated remapping uses old route position geometry and refuses unsupported feature values', () => {

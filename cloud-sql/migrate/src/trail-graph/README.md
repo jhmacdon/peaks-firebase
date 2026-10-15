@@ -126,15 +126,15 @@ source vertex to choose its return side.
 The default dry-run reads and validates geometry, prints counts, and opens no DB
 connection. It cannot count reviewed rows without a database. `--apply` requires
 `DATABASE_URL` and the companion `20261015_segment_model_v2.sql` migration. It
-upserts by ID, sets `state_code='WA'`, and writes geography LineStringZ with Z=0.
-It clears the stored polyline and gain/loss values on update; the elevation job
-must fill height later. Extra source and topology fields remain in the NDJSON.
+inserts by ID, sets `state_code='WA'`, and writes new geography LineStringZ with
+Z=0. On conflict it preserves path and elevation, and reports differing XY. Extra source and topology fields remain in the NDJSON.
 
-The upsert skips the exact states protected by
-`guard_trail_catalog_reviewed_links`: approved, publish_leased, published,
-verify_leased, verified, and rejected. The existing trigger also catches a
-concurrent review; the loader rolls back that row to a savepoint and reports it.
-No database run is part of the local verification.
+Existing rows receive no updates. The conflict report identifies review-protected
+segments, including approved, publish_leased, published, verify_leased, verified,
+and rejected. No database run is part of local verification.
+
+See [the catalog loader guide](LOAD-CATALOG.md) for the separate route loader,
+destination deduplication, live overlap preflight, pruning and owned activation.
 
 See [the run report](RUN-REPORT.md) for actual counts, commands, route results,
 and source gaps.

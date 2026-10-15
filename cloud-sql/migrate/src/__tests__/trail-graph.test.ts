@@ -8,7 +8,7 @@ import { haversine, length, lineIndex } from '../trail-graph/geo';
 import { decodeOpl, keepWay, parseOpl, readOsm } from '../trail-graph/opl';
 import { TrailRouter } from '../trail-graph/router';
 import { buildTopology, graphNodes, provenance, prune, refresh, resolveIdCollisions } from '../trail-graph/topology';
-import { segmentValues, UPSERT_SEGMENT } from '../trail-graph/load-segments';
+import { segmentValues, UPSERT_SEGMENT, SEGMENT_CONFLICT } from '../trail-graph/load-segments';
 import type { Coord, Segment, Tags, Way } from '../trail-graph/types';
 
 const fixture = join(__dirname, 'fixtures/trail-graph.opl'), time = '2026-10-15T00:00:00Z';
@@ -131,7 +131,7 @@ test('router reports only named features within 30 metres in walk order', () => 
 test('loader dry-run values are LineStringZ, with the exact immutable review states in SQL', () => {
   const s = segment(1, ['a', 'b'], [[-121, 47], [-120.99, 47]]);
   assert.deepEqual(JSON.parse(segmentValues(s)[4] as string).coordinates[0], [-121, 47, 0]);
-  for (const state of ['approved', 'publish_leased', 'published', 'verify_leased', 'verified', 'rejected']) assert.ok(UPSERT_SEGMENT.includes(`'${state}'`));
+  for (const state of ['approved', 'publish_leased', 'published', 'verify_leased', 'verified', 'rejected']) assert.ok(SEGMENT_CONFLICT.includes(`'${state}'`));
   assert.equal(Object.keys(s.provenance).length, 9); assert.equal(s.provenance.attribution, '© OpenStreetMap contributors');
   assert.equal(provenance([], time, 'nps', '7').license_name, 'Public domain');
   assert.equal(featureType({ natural: 'saddle', mountain_pass: 'yes' }), 'pass');

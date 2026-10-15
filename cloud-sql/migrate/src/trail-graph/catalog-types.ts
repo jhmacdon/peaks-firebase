@@ -7,10 +7,10 @@ export interface Seed {
   trails: string[]; region: string; approx_roundtrip_mi: number; approx_gain_ft: number;
   tier: number; season: string; requires_permit: string | null; wta_url: string | null; notes: string | null;
 }
-export interface PeaksDestination { id: string; name: string; features: string[]; lng: number; lat: number; elevation?: number; has_boundary?: boolean; external_links?: unknown[] }
+export interface PeaksDestination { id: string; name: string; features: string[]; lng: number; lat: number; elevation?: number; has_boundary?: boolean; external_links?: unknown[]; external_ids?: Record<string, string | number> }
 export interface PeaksRoute {
   id: string; name: string; status: string; catalog_reviewed: boolean; distance: number;
-  n_sessions: number; destinations: { id: string; ordinal: number }[];
+  objective_destination_id?: string | null; path?: { type: 'LineString'; coordinates: number[][] } | null; n_sessions: number; destinations: { id: string; ordinal: number }[];
   start: { coordinates: number[] } | null; end: { coordinates: number[] } | null;
 }
 export interface PlaceSource { kind: 'osm' | 'graph' | 'inferred_road_contact' | 'trail_end' | 'curated'; osm_id?: string; node_id?: string; provenance?: Provenance; access_name?: string; access_gap_m?: number; note?: string }

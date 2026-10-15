@@ -117,69 +117,8 @@ change route identity. `composition_hash` separately binds all report fields.
 
 ## Catalog loader
 
-Default plans include `ok` and `review` rows, both as **pending** routes. Use
-`--only-ok` to narrow them. Failed/unresolved rows and any `catalog_reviewed`
-endpoint match skip the load. A reviewed match requires the existing catalog
-supersede process. Live review guards repeat that check during apply.
-
-Each route has one transaction. It inserts new destinations with WA/US,
-`outdoor-trek`, external OSM IDs, and source credit in `metadata.provenance`.
-Destination enum values absent from this schema (glacier, ridge, pass, saddle,
-meadow, beach, other) use `landform`, retaining the precise feature in metadata.
-`camp` uses `campsite`. The Polygon destination column gets the largest part of
-a MultiPolygon; metadata keeps the full footprint. Existing destinations stay
-unchanged.
-
-Only referenced segments are inserted. Conflicts use `DO NOTHING`; reviewed
-segments never receive ordinary updates. Route links retain order and direction.
-Destination links put the trailhead first, one occurrence of each waypoint in
-fraction order, then the objective last. This respects the destination-link
-primary key even when a loop visits a place twice. The loader calls
-`rebuild_route_path(route_id)` from the companion
-`20261015_segment_model_v2.sql`. That migration is not in this worktree; apply
-checks for its function before starting route transactions.
-
-The database accepts only the canonical nine provenance keys (or eleven with
-elevation). A route's `segment_sources` list therefore lives in the composition
-artifact and, in the DB, in its ordered `route_segments → segments.provenance`
-links. Route provenance holds the union of OSM way IDs and the required ODbL
-credit. An agency-only route uses its first geometry source as the primary
-record; every segment retains its own complete source record.
-
-Default geometry has Z=0 and no sampled gain. `--elevation` wires
-`sampleTerrariumProfile` exactly as `route-elevation-jobs.ts` does, sampling source
-vertices, caching tiles under the composition output, writing segment Z/gain/loss,
-then rebuilding the route. Runtime network access and `sharp` are required.
-The guarded update skips protected segments; if any skip, route-level elevation
-source metadata also stays unset. A normal dry run never samples tiles. A dry
-run with `--elevation` only adds sampling placeholders and guarded SQL to the plan.
-
-## Activation
-
-`--activate` acts only on rows with an approval in `--reviews FILE`:
-
-```json
-[
-  {
-    "route_id": "ID_FROM_ROUTES_NDJSON",
-    "composition_hash": "HASH_FROM_ROUTES_NDJSON",
-    "status": "approved",
-    "reviewed_by": "REVIEWER_NAME",
-    "reviewed_at": "ISO_8601_TIME"
-  }
-]
-```
-
-No approval file is generated automatically. The loader rejects changed route
-or segment manifests, and checks the stored route fields, ordered links,
-source records, and ordered XY geometry before activation. An existing pending
-import can use the same flag later without rewriting its graph links. An
-already active import is a no-op. Existing database review/cover guards remain
-in force; this loader does not disable them.
-
-After activation, a matched non-reviewed legacy route becomes superseded and
-its session rows move to the new ID in the same transaction. All session fields
-survive; if the target session link already exists it wins. Geometry-dependent
-coverage/intervals may need the separate matching sweep. Reviewed catalog routes
-never use this path. All apply/activation SQL remains unexercised against a DB
-under this task's no-database rule; transaction behavior has mock-client tests.
+See [the loader guide](LOAD-CATALOG.md) for the current policy and safeguards.
+Default dry runs admit only composer `ok` rows. Review rows need `--include-review`
+and remain pending. Activation uses one owned SQL function with the existing
+publish-integrity checks, elevation and batches of at most 50, followed by a
+rematch-queue drain. There is no per-route reviewer lane for this loader.

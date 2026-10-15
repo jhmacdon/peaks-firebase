@@ -1,3 +1,4 @@
+import { displayName } from './display-names';
 import { hash, haversine, interpolate, length, pointDistance, samples, unique } from './geo';
 import { featureCompatible, placeKey } from './names';
 import { refresh } from './topology';
@@ -167,6 +168,9 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
       else r.stretches.push({ display_name: s.display_name ?? null, kind: s.kind, length_m: s.length_m, segment_ids: [s.id] });
     }
   }
+  for (const s of segments) s.display_name = displayName(s.display_name ?? null);
+  for (const row of rows) for (const stretch of row.stretches ?? []) stretch.display_name = displayName(stretch.display_name);
+  for (const c of audit.conflicts) { c.selected = displayName(c.selected); if (c.curated) c.curated = displayName(c.curated)!; }
   return audit;
 }
 export function routeLine(row: ComposedRoute, byId: Map<string, Segment>): Coord[] {

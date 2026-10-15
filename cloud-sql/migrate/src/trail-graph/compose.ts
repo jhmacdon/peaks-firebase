@@ -79,6 +79,7 @@ export class Composer {
       ...this.input.routes.filter(r => placeKey(r.name ?? '') === placeKey(seed.name) || seed.aliases.some(a => placeKey(a) === placeKey(r.name ?? ''))).map(r => ({ type: 'prod' as const, id: r.id, name: r.name })),
       ...this.input.seeds.map((s, i) => ({ s, i })).filter(x => x.i !== seedIndex && normalizeName(x.s.name) === normalizeName(seed.name)).map(x => ({ type: 'seed' as const, id: String(x.i), name: x.s.name })),
     ];
+    if (seed.name === 'Olallie Lake via Talapus Lake Trail') row.wta_url = null;
     const hint = RESOLUTION_HINTS[seed.name];
     if (hint) { row.notes = [hint.note]; seed = { ...seed, trailhead: hint.trailhead ? { ...seed.trailhead, name: hint.trailhead } : seed.trailhead, objective: hint.objective ?? seed.objective, trails: hint.trails ?? seed.trails }; }
     const finish = (reason: string) => { row.status = 'needs_geometry'; row.reasons.push(reason); return { row, walk: [] }; };

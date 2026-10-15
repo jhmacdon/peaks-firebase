@@ -37,13 +37,13 @@ volcano, fire-lookout, summit, trailhead, hut, lookout, lake, landform, viewpoin
 waterfall, campsite. Points on upper DC stretches do not extend the Camp Muir
 route. New points carry the source segment's credit and the curation note.
 
-`approximate` and the notes remain in the composed row. The loader writes them
-to the route description. License provenance keeps the exact shape required by
-`is_valid_route_provenance`. Segment inserts include display name, kind,
+`approximate` and the notes remain in the composed row. The loader keeps them in the strict `wa_catalog` provenance object added by
+`20261016_wa_catalog_activation.sql`. Route descriptions stay NULL. Canonical
+rights fields still pass `is_valid_route_provenance`. Segment inserts include display name, kind,
 description, a null description source URL, and state WA. Existing segments stay
 insert-only in the catalog loader; its binding check rejects differing stored
-metadata rather than overwriting it. The separate segment loader's upsert skips
-segments protected by catalog review.
+metadata rather than overwriting it. The separate segment loader also inserts only and reports XY conflicts; it
+never replaces existing elevation or path.
 
 Outputs include `stretch-audit.json` (votes, conflicts, remaps, splits, deferred
 points), ordered `stretches` with lengths on each route, and review `data.json`
@@ -63,3 +63,5 @@ supported by the seed notes and source geometry. Those corrections do not change
 length, preferred-name, road-share, repeat, or summit-gap thresholds. A short
 route outside the named network can use a connected preferred-trail alternative
 only when it improves preferred coverage and the length error.
+
+See [the loader guide](LOAD-CATALOG.md) for deduplication and activation rules.
