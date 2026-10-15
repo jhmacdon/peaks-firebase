@@ -1,0 +1,11 @@
+n1 v1 dV T x-121.000 y47.000
+n2 v1 dV T x-120.995 y47.000
+n3 v1 dV T x-120.990 y47.000
+n4 v1 dV T x-120.985 y47.000
+n5 v1 dV T x-120.995 y47.005
+n6 v1 dV T x-120.980 y47.000
+w10 v1 dV Thighway=path,name=River%20%Trail Nn1,n2,n3
+w11 v1 dV Thighway=path,name=River%20%Trail Nn3,n4
+w12 v1 dV Thighway=path,name=Branch Nn2,n5
+w13 v1 dV Thighway=footway Nn4,n6
+r20 v1 dV Ttype=route,route=hiking,name=River%20%Loop,ref=R,network=lwn Mw10@forward,w11@,w13@

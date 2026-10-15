@@ -1,0 +1,35 @@
+{
+  "_doc": "Curated named stretches and points for climbs whose climber names are not trail names. Segment ids refer to the 2026-10-15 graph build; the composer must resolve them by route position if ids change (each entry also gives its kind and order). Points become destinations linked in route order. 'split_at' cuts a segment at the projection of a waypoint onto it.",
+  "routes": [
+    {
+      "route": "Mount Rainier via Disappointment Cleaver",
+      "also_applies_to": ["Camp Muir via Muir Snowfield"],
+      "approximate": true,
+      "note": "Glacier line moves each season as guides reroute it; show as approximate.",
+      "stretches": [
+        { "display_name": "Skyline Trail", "kind": "trail", "segments": ["wa-osm-6d16258c6c11b50fc511", "wa-osm-1a5259c6e0106e960383", "wa-osm-81422290dc9d23395ba7", "wa-osm-033b93726216ebfcfcce", "wa-osm-77b5bba1c5e1a8d80c0d", "wa-osm-1c4d26e07112abc571f0", "wa-osm-e805f2eb0c6fcdf28566", "wa-osm-ed2ef75047f827519b9d", "wa-osm-3e4924baea131a21c623", "wa-osm-ce6e1c26b57edf94fd1a", "wa-osm-eb049df405cfceb3855d"] },
+        { "display_name": "Pebble Creek Trail", "kind": "trail", "segments": ["wa-osm-84cb566ed4045ccdcca0", "wa-osm-cb443d58465f5eb32ff8"] },
+        { "display_name": "Muir Snowfield", "kind": "snowfield", "segments": ["wa-osm-7cbf3d50ecfd466749fa", "wa-osm-27432362d3ea4c1f1ea1", "wa-osm-6808b3a2056fe99efe8c"] },
+        { "display_name": "Cowlitz Glacier", "kind": "glacier", "segments": ["wa-osm-0a302dd9f5be6ec011a1", "wa-osm-64fd7ac787956cc5a176"] },
+        { "display_name": "Cathedral Gap", "kind": "scramble", "segments": ["wa-osm-70a51b60cb5a0e9e5ace"] },
+        { "display_name": "Ingraham Glacier", "kind": "glacier", "segments": ["wa-osm-ddb7a4d05e9cac347c6f"], "split_at": "Ingraham Flats", "part": "before" },
+        { "display_name": "The Bowling Alley", "kind": "glacier", "segments": ["wa-osm-ddb7a4d05e9cac347c6f"], "split_at": "Ingraham Flats", "part": "after", "description": "Rockfall-exposed traverse from Ingraham Flats to the base of the Cleaver; move through without stopping." },
+        { "display_name": "Disappointment Cleaver", "kind": "climb", "segments": ["wa-osm-bbdca09b0b95207c8601"] },
+        { "display_name": "Upper mountain", "kind": "glacier", "segments": ["wa-osm-4da71a3fa0ca367ddf2f", "wa-osm-a7a48f78f46843ddba65", "wa-osm-fd5d08734564fe33222c"] },
+        { "display_name": "Crater rim", "kind": "climb", "segments": ["wa-osm-a825d3e5c2a9809f9999", "wa-osm-5a2ff02f7eeb35c07ac3", "wa-osm-5572a603d5fcbd6e9e0d"] }
+      ],
+      "points": [
+        { "name": "Skyline Trailhead", "feature": "trailhead", "match": "existing" },
+        { "name": "Camp Muir", "feature": "campsite", "match": "existing" },
+        { "name": "Cathedral Gap", "feature": "landform", "match": "new", "place_at": "end of stretch Cathedral Gap", "note": "Pass through Cathedral Rocks; not named in OSM." },
+        { "name": "Ingraham Flats", "feature": "campsite", "match": "existing" },
+        { "name": "Top of the Cleaver", "feature": "landform", "match": "new", "place_at": "end of stretch Disappointment Cleaver", "note": "About 12,300 ft." },
+        { "name": "Columbia Crest", "feature": "summit", "match": "existing", "note": "Use the Peaks Mount Rainier summit destination if Columbia Crest is not separate." }
+      ],
+      "deferred": [
+        "High Break (~13,500 ft): place after elevation is loaded, at the first point on 'Upper mountain' at or above 4,115 m.",
+        "The Icebox: no published source found; do not add."
+      ]
+    }
+  ]
+}
