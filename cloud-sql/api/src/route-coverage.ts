@@ -1,9 +1,9 @@
 // What a session_routes row means, and how a recording's track becomes one.
 //
 // NO database access in this file — everything operates on plain arrays, so
-// the interval merge and the write gate are unit-testable without a database
-// and are shared verbatim by processSession and the backfill script. The
-// PostGIS half (measuring which route vertices the track came within
+// the interval helpers, primary choice, and write gate need no database
+// and are shared by processSession and the backfill script. The
+// PostGIS half (measuring the length of route pieces the track came within
 // ROUTE_VERTEX_TOLERANCE_M of, and how far along the route each one sits)
 // lives in buildRouteCoverageSql in processing.ts.
 //
@@ -22,13 +22,8 @@ export const ROUTE_VERTEX_TOLERANCE_M = 30;
  */
 export const ROUTE_DONE_COVERAGE = 0.7;
 
-/**
- * A recording that covered at least this much of a route's length earns a row
- * even when the fraction is small. Mirrors the iOS corridor engine's sanity
- * floor (MountainAttribution.minimumCorridorMeters): a drive past a trailhead
- * writes nothing, an approach hike writes a partial row.
- */
-export const ROUTE_PARTIAL_MIN_COVERED_M = 500;
+/** Minimum covered length for a partial match on a route of at most 100 km. */
+export const ROUTE_PARTIAL_MIN_COVERED_M = 2_000;
 
 /** Gaps shorter than this never split an interval, however short the route. */
 export const GAP_TOLERANCE_MIN_M = 100;
@@ -57,6 +52,14 @@ function roundFraction(value: number): number {
   const clamped = Math.min(1, Math.max(0, value));
   const scale = 10 ** FRACTION_DECIMALS;
   return Math.round(clamped * scale) / scale;
+}
+
+/** Keep stored fractions stable across SQL and JavaScript floating-point sums. */
+export function normalizeCoveredIntervals(intervals: Array<[number, number]>): Array<[number, number]> {
+  return intervals
+    .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end))
+    .map(([start, end]): [number, number] => [roundFraction(start), roundFraction(end)])
+    .filter(([start, end]) => end > start);
 }
 
 /**
@@ -90,12 +93,9 @@ export function mergeCoveredIntervals(
     }
   }
 
-  return runs
-    .map(([start, end]): [number, number] => [
-      roundFraction(start / routeLengthM),
-      roundFraction(end / routeLengthM),
-    ])
-    .filter(([start, end]) => end > start);
+  return normalizeCoveredIntervals(runs.map(([start, end]) => [
+    start / routeLengthM, end / routeLengthM,
+  ]));
 }
 
 /** How much of the route's length the intervals actually cover, in metres. */
@@ -106,58 +106,69 @@ export function coveredLengthMeters(
   return intervals.reduce((sum, [start, end]) => sum + (end - start) * routeLengthM, 0);
 }
 
-/**
- * Write a session_routes row when the recording covered at least
- * ROUTE_PARTIAL_MIN_COVERED_M of the route, OR when it covered at least
- * ROUTE_DONE_COVERAGE of its vertices. The OR keeps completions of routes
- * shorter than about 700 m, which the metre floor alone would drop.
- */
-export function meetsRouteWriteGate(coverage: number, coveredM: number): boolean {
-  return coveredM >= ROUTE_PARTIAL_MIN_COVERED_M || coverage >= ROUTE_DONE_COVERAGE;
+/** All routes over 100 km use a 5 km floor; shorter routes need a useful share. */
+export function meetsRouteWriteGate(coverage: number, coveredM: number, lengthM = 0): boolean {
+  if (![coverage, coveredM, lengthM].every(Number.isFinite)
+      || coverage < 0 || coverage > 1 || coveredM < 0 || lengthM < 0) return false;
+  if (lengthM > 100_000) return coveredM >= 5_000;
+  return coverage >= ROUTE_DONE_COVERAGE
+    || (coveredM >= ROUTE_PARTIAL_MIN_COVERED_M && coverage >= 0.25);
 }
 
-/** One measured (session, route) pair, straight from buildRouteCoverageSql. */
+/** One length measurement from buildRouteCoverageSql. */
 export interface RouteCoverageRow {
   route_id: string;
-  /** Route length in metres, summed over its own vertices. */
   length_m: number | null;
-  total_points: number;
-  matched_points: number;
-  /** Distance along the route, in metres, of each covered vertex. Ascending. */
-  covered_along_m: number[] | null;
+  covered_m: number;
+  covered_intervals: Array<[number, number]>;
+  objective_reached?: boolean;
+  kind?: string | null;
 }
 
-/** One row to write to session_routes. */
 export interface RouteMatch {
   route_id: string;
   coverage: number;
+  covered_m: number;
   covered_intervals: Array<[number, number]>;
+  is_primary: boolean;
 }
 
-/** Apply the write gate to a batch of measurements and shape the rows to write. */
+function lengthCoverage(row: RouteCoverageRow): number {
+  const ratio = Number(row.covered_m) / Number(row.length_m);
+  // Summing geodesic subedges can differ from the original edge by microns.
+  return Math.abs(1 - ratio) < 1e-9 ? 1 : ratio;
+}
+
+/** Apply the write gate and choose the primary before measuring containment. */
 export function selectRouteMatches(rows: RouteCoverageRow[]): RouteMatch[] {
-  const matches: RouteMatch[] = [];
-  for (const row of rows) {
-    const total = Number(row.total_points);
-    const lengthM = Number(row.length_m ?? 0);
-    if (!Number.isFinite(total) || total <= 0) continue;
-    if (!Number.isFinite(lengthM) || lengthM <= 0) continue;
+  const eligible = rows.filter((row) => {
+    const length = Number(row.length_m);
+    return length > 0 && meetsRouteWriteGate(lengthCoverage(row), Number(row.covered_m), length);
+  }).sort((a, b) => Number(Boolean(b.objective_reached)) - Number(Boolean(a.objective_reached))
+    || lengthCoverage(b) - lengthCoverage(a)
+    || Number(b.covered_m) - Number(a.covered_m)
+    || a.route_id.localeCompare(b.route_id));
+  const primary = eligible[0];
+  return eligible.map((row) => ({
+    route_id: row.route_id,
+    coverage: lengthCoverage(row),
+    covered_m: Number(row.covered_m),
+    covered_intervals: normalizeCoveredIntervals(row.covered_intervals),
+    is_primary: row === primary,
+  }));
+}
 
-    const coverage = Number(row.matched_points) / total;
-    const intervals = mergeCoveredIntervals(row.covered_along_m ?? [], lengthM);
-    if (!meetsRouteWriteGate(coverage, coveredLengthMeters(intervals, lengthM))) continue;
-
-    matches.push({ route_id: row.route_id, coverage, covered_intervals: intervals });
-  }
-  return matches;
+/** Containment may remove secondary matches, never the chosen primary. */
+export function dropContainedRouteMatches(matches: RouteMatch[], containedIds: string[]): RouteMatch[] {
+  const contained = new Set(containedIds);
+  return matches.filter((match) => match.is_primary || !contained.has(match.route_id));
 }
 
 /**
  * SQL predicate for "this session_routes row means the user did this route".
  *
- * A NULL coverage is kept on purpose. Manually attached routes (PUT
- * /api/sessions/:id with routeIds) and every row the Firestore migration wrote
- * carry NULL, and they meant "did this route" long before coverage existed.
+ * Legacy manual routes and rows from the Firestore migration carry NULL
+ * coverage until processing measures them again; and they meant "did this route" long before coverage existed.
  * Only the new partial rows carry a non-NULL value below ROUTE_DONE_COVERAGE.
  *
  * `alias` is always a literal written in this repo's own SQL, never user input.

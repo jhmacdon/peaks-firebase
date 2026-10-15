@@ -1,0 +1,181 @@
+import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { after, before, describe, test } from "node:test";
+import db, { assertTestDatabaseUrl } from "../db";
+import { buildRouteCoverageSql, buildSessionSegmentCoverageSql, processSession } from "../processing";
+import { selectRouteMatches } from "../route-coverage";
+import { dbSkipReason } from "./helpers/test-db";
+
+const prefix = `segments-v2-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+const user = `${prefix}-user`;
+const id = (suffix: string) => `${prefix}-${suffix}`;
+// Remote South Pacific; lengths are near metres, separate from other fixtures.
+const lat = -48;
+const lng = -137;
+const point = (m: number) => `${lng} ${lat + m / 111320} 100`;
+const line = (from: number, to: number) => `SRID=4326;LINESTRING Z (${point(from)},${point(to)})`;
+async function clean() {
+  await db.query(`DELETE FROM tracking_sessions WHERE user_id = $1`, [user]);
+  await db.query(`DELETE FROM session_attempt_groups WHERE user_id = $1`, [user]);
+  await db.query(`DELETE FROM session_groups WHERE user_id = $1`, [user]);
+  await db.query(`DELETE FROM routes WHERE owner = $1`, [user]);
+  await db.query(`DELETE FROM segments WHERE id LIKE $1`, [`${prefix}-%`]);
+  await db.query(`DELETE FROM destinations WHERE owner = $1`, [user]);
+}
+async function session(suffix: string, end: number, reverse = false) {
+  const sid = id(suffix);
+  await db.query(`INSERT INTO tracking_sessions (id, user_id, start_time, ended, path)
+    VALUES ($1, $2, '2026-07-01T00:00:00Z', true, ST_GeogFromText($3))`, [sid, user, line(reverse ? end : 0, reverse ? 0 : end)]);
+  await db.query(`INSERT INTO tracking_points (session_id, time, location)
+    SELECT $1, 1800000000 + n * 60, ST_GeogFromText('SRID=4326;POINT Z (' || $2 || ' ' ||
+      ($3::float8 + (CASE WHEN $5::boolean THEN $4::float8 * (1 - n / 20.0) ELSE $4::float8 * n / 20.0 END) / 111320) || ' 100)')
+    FROM generate_series(0, 20) n`, [sid, lng, lat, end, reverse]);
+  return sid;
+}
+async function route(suffix: string, path: string, kind = "destination", objective?: string) {
+  await db.query(`INSERT INTO routes (id, name, owner, path, kind, objective_destination_id)
+    VALUES ($1, $1, $2, ST_GeogFromText($3), $4, $5)`, [id(suffix), user, path, kind, objective ?? null]);
+}
+async function segment(suffix: string, from: number, to: number) {
+  await db.query(`INSERT INTO segments (id, path, display_name, kind)
+    VALUES ($1, ST_GeogFromText($2), $1, 'snowfield')`, [id(suffix), line(from, to)]);
+}
+async function measure(sid: string, routes: string[]) {
+  const query = buildRouteCoverageSql(sid, routes.map(id));
+  return db.query(query.text, query.values);
+}
+
+describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurrency: 1 }, () => {
+  before(clean);
+  after(clean);
+
+  test("columns, guards, primary uniqueness, touch trigger and cascades", async () => {
+    const guards = await db.query(`SELECT tgname FROM pg_trigger WHERE tgrelid = 'segments'::regclass AND NOT tgisinternal`);
+    assert.ok(guards.rows.some((r) => r.tgname === "trg_guard_standard_route_factory_segment"));
+    assert.ok(guards.rows.some((r) => r.tgname === "trg_guard_trail_catalog_reviewed_segment"));
+    await segment("constraints", 0, 100);
+    await assert.rejects(db.query(`UPDATE segments SET kind = 'invalid' WHERE id = $1`, [id("constraints")]), /segments_kind_check/);
+    const sid = await session("constraints", 100);
+    await route("constraints-a", line(0, 100));
+    await route("constraints-b", line(0, 100));
+    await db.query(`INSERT INTO session_routes (session_id, route_id, is_primary) VALUES ($1, $2, true)`, [sid, id("constraints-a")]);
+    await assert.rejects(db.query(`INSERT INTO session_routes (session_id, route_id, is_primary) VALUES ($1, $2, true)`, [sid, id("constraints-b")]), /idx_session_routes_one_primary/);
+    await db.query(`UPDATE tracking_sessions SET server_updated_at = '2000-01-01' WHERE id = $1`, [sid]);
+    await db.query(`INSERT INTO session_segments (session_id, segment_id) VALUES ($1, $2)`, [sid, id("constraints")]);
+    const touched = await db.query(`SELECT server_updated_at > '2000-01-01'::timestamptz AS touched FROM tracking_sessions WHERE id = $1`, [sid]);
+    assert.equal(touched.rows[0].touched, true);
+    await db.query(`DELETE FROM segments WHERE id = $1`, [id("constraints")]);
+    assert.equal((await db.query(`SELECT 1 FROM session_segments WHERE session_id = $1`, [sid])).rowCount, 0);
+  });
+
+  test("rebuild chains ordinals, reverses edges, drops joint vertices and encodes polyline6", async () => {
+    await route("rebuild", line(0, 1));
+    await segment("first", 0, 100);
+    await segment("second", 200, 100);
+    await db.query(`INSERT INTO route_segments (route_id, segment_id, ordinal, direction)
+      VALUES ($1, $2, 0, 'forward'), ($1, $3, 1, 'reverse')`, [id("rebuild"), id("first"), id("second")]);
+    await db.query(`SELECT rebuild_route_path($1)`, [id("rebuild")]);
+    const result = await db.query(`SELECT ST_NPoints(path::geometry) AS count,
+      ST_Y(ST_EndPoint(path::geometry)) AS end_lat, distance, polyline6,
+      ST_AsEncodedPolyline(ST_Force2D(path::geometry), 6) AS expected FROM routes WHERE id = $1`, [id("rebuild")]);
+    assert.equal(result.rows[0].count, 3);
+    assert.ok(Math.abs(result.rows[0].end_lat - (lat + 200 / 111320)) < 1e-10);
+    assert.ok(result.rows[0].distance > 199 && result.rows[0].distance < 201);
+    assert.equal(result.rows[0].polyline6, result.rows[0].expected);
+    await route("empty", line(0, 1));
+    await assert.rejects(db.query(`SELECT rebuild_route_path($1)`, [id("empty")]), /has no segments/);
+  });
+
+  test("coverage is stable for dense versus sparse vertices and fractions use metres", async () => {
+    const dense = Array.from({ length: 901 }, (_, i) => point(i * 1000 / 900));
+    await route("dense", `SRID=4326;LINESTRING Z (${dense.join(",")},${point(10000)})`);
+    await route("sparse", line(0, 10000));
+    const sid = await session("density", 1000);
+    const measured = await measure(sid, ["dense", "sparse"]);
+    assert.equal(measured.rows.length, 2);
+    const fractions = measured.rows.map((r) => r.covered_m / r.length_m);
+    assert.ok(Math.abs(fractions[0] - fractions[1]) < 0.002);
+    assert.ok(fractions.every((f) => f > 0.10 && f < 0.11));
+    assert.deepEqual(selectRouteMatches(measured.rows), []);
+  });
+
+  test("Rainier shared approach, primary containment, segment times and rematch replace legacy echoes", async () => {
+    for (const [name, m] of [["muir-objective", 8000], ["summit-objective", 16000]] as const) {
+      await db.query(`INSERT INTO destinations (id, name, search_name, owner, features, location)
+        VALUES ($1, $1, $1, $2, '{summit}', ST_GeogFromText($3))`,
+      [id(name), user, `SRID=4326;POINT Z (${point(m)})`]);
+    }
+    await route("muir", line(0, 8000), "destination", id("muir-objective"));
+    await route("dc", line(0, 16000), "summit", id("summit-objective"));
+    await segment("lower", 0, 8000);
+    await segment("upper", 8000, 16000);
+    await db.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES
+      ($1, $3, 0), ($2, $3, 0), ($2, $4, 1)`, [id("muir"), id("dc"), id("lower"), id("upper")]);
+    for (const [suffix, end, primary] of [["muir-day", 8000, "muir"], ["summit-day", 16000, "dc"]] as const) {
+      const sid = await session(suffix, end);
+      await db.query(`INSERT INTO session_routes (session_id, route_id, source) VALUES ($1, $2, 'manual')`, [sid, id("dc")]);
+      await processSession(sid, user, { force: true });
+      // Other fixtures at the same spot may qualify too; assert the Rainier pair.
+      const rows = await db.query(`SELECT route_id, is_primary, covered_m, source, coverage FROM session_routes
+        WHERE session_id = $1 AND route_id = ANY($2::text[])`, [sid, [id("muir"), id("dc")]]);
+      assert.equal(rows.rowCount, 1);
+      assert.equal(rows.rows[0].route_id, id(primary));
+      assert.equal(rows.rows[0].is_primary, true);
+      assert.equal(rows.rows[0].source, "auto");
+      assert.ok(rows.rows[0].covered_m > end - 50);
+      assert.equal(rows.rows[0].coverage, 1);
+      const segments = await db.query(`SELECT segment_id, entered_at, exited_at, direction FROM session_segments WHERE session_id = $1 AND segment_id = ANY($2::text[]) AND covered_m > 50 ORDER BY entered_at`, [sid, [id("lower"), id("upper")]]);
+      assert.equal(segments.rowCount, suffix === "muir-day" ? 1 : 2);
+      assert.ok(segments.rows.every((r) => r.entered_at <= r.exited_at && r.direction === "forward"));
+      await db.query(`INSERT INTO session_segments (session_id, segment_id, covered_m) VALUES ($1, $2, 1)
+        ON CONFLICT (session_id, segment_id) DO UPDATE SET covered_m = 1`, [sid, id("second")]);
+      await processSession(sid, user, { force: true });
+      const stale = await db.query(`SELECT covered_m FROM session_segments WHERE session_id = $1 AND segment_id = $2`, [sid, id("second")]);
+      // This still-near segment is recomputed, not left at its injected value.
+      assert.ok(stale.rows.length === 0 || stale.rows[0].covered_m !== 1);
+    }
+    const reverse = await session("reverse", 8000, true);
+    const q = buildSessionSegmentCoverageSql(reverse, [id("muir")]);
+    await db.query(q.text, q.values);
+    const row = (await db.query(`SELECT * FROM session_segments WHERE session_id = $1 AND segment_id = $2`, [reverse, id("lower")])).rows[0];
+    assert.equal(row.direction, "reverse");
+    assert.equal(row.entered_at.toISOString(), new Date(1800000000 * 1000).toISOString());
+    assert.equal(row.exited_at.toISOString(), new Date((1800000000 + 1200) * 1000).toISOString());
+  });
+
+  test("link and segment edits queue nearby sessions", async () => {
+    const sid = await session("queue", 8000);
+    const clear = () => db.query(`DELETE FROM session_rematch_queue WHERE session_id = $1`, [sid]);
+    const queued = async () => assert.equal((await db.query(`SELECT 1 FROM session_rematch_queue WHERE session_id = $1`, [sid])).rowCount, 1);
+    await clear();
+    await db.query(`INSERT INTO route_destinations (route_id, destination_id) VALUES ($1, $2)`, [id("muir"), id("muir-objective")]);
+    await queued(); await clear();
+    await db.query(`UPDATE route_destinations SET ordinal = 2 WHERE route_id = $1`, [id("muir")]);
+    await queued(); await clear();
+    await db.query(`DELETE FROM route_destinations WHERE route_id = $1`, [id("muir")]);
+    await queued(); await clear();
+    await db.query(`UPDATE route_segments SET direction = 'reverse' WHERE route_id = $1`, [id("muir")]);
+    await queued(); await clear();
+    await db.query(`UPDATE segments SET path = ST_GeogFromText($2) WHERE id = $1`, [id("lower"), line(0, 7999)]);
+    await queued();
+  });
+});
+
+// Only an explicitly supplied owner connection may replay DDL. Never infer it
+// from DB_* or use the API test login for schema changes.
+test("migration can be replayed twice", { skip: dbSkipReason ?? (!process.env.ADMIN_DATABASE_URL ? "No local test owner URL" : undefined) }, async () => {
+  const url = process.env.ADMIN_DATABASE_URL!;
+  assertTestDatabaseUrl(url);
+  const admin = new URL(url);
+  const runtime = new URL(process.env.TEST_DATABASE_URL!);
+  assert.equal(admin.host, runtime.host);
+  assert.equal(admin.pathname, runtime.pathname);
+  const { Pool } = await import("pg");
+  const owner = new Pool({ connectionString: url, max: 1 });
+  try {
+    const sql = readFileSync(resolve(__dirname, "../../../migrations/20261015_segment_model_v2.sql"), "utf8");
+    await owner.query(sql);
+    await owner.query(sql);
+  } finally { await owner.end(); }
+});

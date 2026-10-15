@@ -85,42 +85,18 @@ export async function assertSessionRoutesAccessible(
 }
 
 /**
- * Replace only the routes the client owns.
- *
- * `processSession` owns rows whose source is `auto`. iOS sends its local
- * `routes` array on ordinary session updates, and that list does not include
- * partial server matches. Deleting every row here used to erase those matches
- * after processing had stored them. This mirrors destination reconciliation:
- * client writes may replace manual rows, but they must not clobber backend
- * results.
+ * Old iOS builds echo every server route on save (SessionRepo.apiBody).
+ * iOS origin/master has plan route selection, but no saved-session route claim
+ * editor. Keep accepting the field; processing owns session_routes. In
+ * particular, an id that a later rematch dropped must not return as manual.
  */
 export async function replaceSessionRoutes(
-  client: PoolClient,
-  sessionId: string,
-  uid: string,
-  routeIds: string[]
+  _client: PoolClient,
+  _sessionId: string,
+  _uid: string,
+  _routeIds: string[]
 ): Promise<void> {
-  await assertSessionRoutesAccessible(client, uid, routeIds);
-  await client.query(
-    `DELETE FROM session_routes WHERE session_id = $1 AND source = 'manual'`,
-    [sessionId]
-  );
-  for (const routeId of routeIds) {
-    const linked = await client.query(
-      `WITH allowed AS (
-         SELECT r.id FROM routes r
-         WHERE r.id = $2 AND (r.owner = 'peaks' OR r.owner = $3)
-       ), inserted AS (
-         INSERT INTO session_routes (session_id, route_id, source)
-         SELECT $1, id, 'manual' FROM allowed
-         ON CONFLICT (session_id, route_id) DO NOTHING
-         RETURNING route_id
-       )
-       SELECT id AS route_id FROM allowed`,
-      [sessionId, routeId, uid]
-    );
-    if (linked.rows.length !== 1) throw new InaccessibleSessionRouteError();
-  }
+  // Compatibility no-op for POST and PUT callers.
 }
 
 // Per-user in-flight cap on the heavy write/process endpoints (create session,
@@ -176,8 +152,9 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     'provenance', r.provenance,
     'is_catalog', r.owner = 'peaks',
     'source', sr.source, 'coverage', sr.coverage,
+    'is_primary', sr.is_primary, 'covered_m', sr.covered_m,
     ${routeCoverJsonFieldsSql()}
-  ) ORDER BY r.name, r.id)
+  ) ORDER BY sr.is_primary DESC, r.name, r.id)
   FROM session_routes sr
   JOIN routes r ON r.id = sr.route_id
   ${routeCoverJoinSql()}
@@ -187,6 +164,17 @@ export const SESSION_ROUTES_SQL = `COALESCE(
     AND (r.owner = 'peaks' OR r.owner = s.user_id)),
   '[]'::json
 )`;
+
+export const SESSION_SEGMENTS_SQL = `COALESCE((
+  SELECT json_agg(json_build_object(
+    'segment_id', seg.id, 'display_name', seg.display_name,
+    'trail_names', seg.trail_names, 'kind', seg.kind,
+    'covered_fraction', ss.covered_fraction, 'entered_at', ss.entered_at,
+    'exited_at', ss.exited_at, 'direction', ss.direction
+  ) ORDER BY ss.entered_at NULLS LAST, seg.id)
+  FROM session_segments ss JOIN segments seg ON seg.id = ss.segment_id
+  WHERE ss.session_id = s.id
+), '[]'::json)`;
 
 /** Inline protected areas crossed by one saved session track. */
 export const SESSION_AREAS_SQL = `COALESCE(
@@ -259,6 +247,7 @@ export function buildSessionDetailQuery(
             ${DESTINATIONS_REACHED_SQL} AS destinations_reached,
             ${DESTINATION_GOALS_SQL} AS destination_goals,
             ${SESSION_ROUTES_SQL} AS routes,
+            ${SESSION_SEGMENTS_SQL} AS segments,
             ${SESSION_AREAS_SQL} AS areas
      FROM tracking_sessions s
      WHERE s.id = $1 AND (s.user_id = $2 OR s.is_public = true)`,
@@ -1100,7 +1089,7 @@ export function buildSessionRoutesQuery(
     text: `SELECT r.id, r.name, r.polyline6,
             r.distance, r.gain, r.gain_loss, r.provenance,
             (r.owner = 'peaks') AS is_catalog,
-            sr.source, sr.coverage,
+            sr.source, sr.coverage, sr.is_primary, sr.covered_m,
             ${routeCoverSelectSql()}
      FROM routes r
      JOIN session_routes sr ON sr.route_id = r.id
