@@ -15,7 +15,6 @@ import CollectionReference = firAdmin.firestore.CollectionReference
 import FieldValue = firAdmin.firestore.FieldValue
 import DocumentSnapshot = firAdmin.firestore.DocumentSnapshot
 import * as turf from '@turf/turf'
-const sharp = require('sharp');
 const destinationHelpers = require('./destinationHelpers')
 
 const { buildGPX, BaseBuilder } = require('gpx-builder');
@@ -25,7 +24,6 @@ const { Track } = BaseBuilder.MODELS;
 
 import fs = require("fs");
 import os = require('os');
-import stream = require('stream')
 const path = require('path');
 
 // Secrets
@@ -811,99 +809,6 @@ export const isPremium = onCall(async (request) => {
   }
 })
 
-export const updateHeroImage = onCall(async (request) => {
-  console.log("HECK YA")
-  const uid = request.auth?.uid
-
-  const destinationId = request.data.destinationId as string
-
-  if (!uid) {
-    throw new HttpsError('failed-precondition', 'The function must be called while authenticated.')
-  }
-
-  if (!destinationId) {
-    throw new HttpsError('failed-precondition', 'destinationID is required for this function')
-  }
-
-  let imgData = request.data.imgData as string
-  const imgUrl = request.data.imgUrl as string
-
-  if (imgUrl) {
-    imgData = await toDataURL(imgUrl) as string
-  } else {
-    console.log("FUCK")
-  }
-
-  const fileBucket = "donner-a8608.appspot.com"
-  const fileName = `destinations/${destinationId}.jpg`
-  const bucket = admin.storage().bucket(fileBucket);
-
-  await uploadPicture(imgData, destinationId, bucket, fileName)
-
-  const storageRoot = 'https://storage.googleapis.com/';
-  const downloadUrl = storageRoot + fileBucket + "/" + encodeURIComponent(fileName);
-  console.log("-------")
-  console.log(downloadUrl)
-
-  const destRef = firestore.collection("destinations").doc(destinationId)
-  await destRef.set({
-    "details" : {
-      "heroImage": downloadUrl
-    }
-  }, {merge: true})
-
-  return { newUrl: downloadUrl }
-
-})
-
-async function toDataURL(url) {
-  const resp = await fetch(url)
-  if (!resp.ok) throw new Error(`Image download failed: ${resp.status}`)
-  const arrayBuf = await resp.arrayBuffer()
-  const body = Buffer.from(arrayBuf)
-
-  console.log("Original size: " + body.length)
-
-  const min = await sharp(body).jpeg({ quality: 80, progressive: true }).toBuffer()
-
-  console.log('Prev Size', Math.round(body.toString().length / 1000) + 'KB');
-  console.log('New Size', Math.round(min.toString().length / 1000) + 'KB\n');
-
-  console.log("New Size: " + min.length)
-
-  const data = min.toString('base64');
-  return data;
-}
-
-const uploadPicture = async (base64: string, _destinationId: string, bucket: any, fileName: string) => {
-  return new Promise((resolve, reject) => {
-    if (!base64) {
-      reject("news.provider#uploadPicture - Could not upload picture because at least one param is missing.");
-    }
-
-    const bufferStream = new stream.PassThrough();
-    bufferStream.end(Buffer.from(base64, 'base64'));
-
-    // Create a reference to the new image file
-    const file = bucket.file(fileName);
-
-    bufferStream.pipe(file.createWriteStream({
-      metadata: {
-        contentType: 'image/jpeg'
-      },
-      predefinedAcl: 'publicRead',
-      gzip: true,
-      public: true
-    }))
-    .on('error', error => {
-      reject(`news.provider#uploadPicture - Error while uploading picture ${JSON.stringify(error)}`);
-    })
-    .on('finish', (fileResp) => {
-      resolve(fileResp)
-    });
-  })
-};
-
 export const avyUpdate = onSchedule({ schedule: 'every 4 hours' }, async (_event) => {
   const url = `https://api.avalanche.org/v2/public/products/map-layer`
   const avyFetchResp = await fetch(url)
@@ -952,27 +857,6 @@ export const setAdminClaim = onCall(async (request) => {
   const targetUid = request.data.uid as string
   if (!targetUid) {
     throw new HttpsError('invalid-argument', 'uid is required.')
-  }
-
-  await admin.auth().setCustomUserClaims(targetUid, { admin: true })
-  return { success: true }
-})
-
-// Bootstrap: set admin claim via CLI (run once, then remove or guard)
-// Usage: firebase functions:shell → setInitialAdmin({ uid: "YOUR_UID" })
-export const setInitialAdmin = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('failed-precondition', 'Must be authenticated.')
-  }
-
-  const targetUid = request.data.uid as string
-  if (!targetUid) {
-    throw new HttpsError('invalid-argument', 'uid is required.')
-  }
-
-  // Safety: only allow setting yourself as admin
-  if (request.auth.uid !== targetUid) {
-    throw new HttpsError('permission-denied', 'Can only bootstrap yourself as admin.')
   }
 
   await admin.auth().setCustomUserClaims(targetUid, { admin: true })
