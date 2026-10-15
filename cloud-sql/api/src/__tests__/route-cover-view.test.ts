@@ -117,7 +117,10 @@ test("route cover lookup prefers the route's own credited cover, then its places
   )?.[1];
   assert.ok(fn, "expected route_cover_photo");
   const body = fn.replace(/\s+/g, " ");
-  assert.match(body, /'route'::text AS origin, 0 AS priority FROM routes r WHERE r\.id = target_route_id/);
+  assert.match(body, /'route'::text AS origin, 0 AS priority FROM routes r LEFT JOIN destinations objective ON objective\.id = r\.objective_destination_id/);
+  // Shipped iOS needs a place id on every cover, the route's own included.
+  assert.match(body, /SELECT COALESCE\(objective\.id, linked\.id\) AS destination_id, COALESCE\(objective\.name, linked\.name\) AS destination_name/);
+  assert.match(body, /WHERE r\.id = target_route_id AND NULLIF\(btrim\(r\.cover_image\), ''\) IS NOT NULL/);
   assert.match(body, /NULLIF\(btrim\(r\.cover_attribution\), ''\) IS NOT NULL/);
   assert.match(body, /NULLIF\(btrim\(r\.cover_attribution_url\), ''\) IS NOT NULL/);
   assert.match(body, /'destination'::text, 1 FROM route_destinations rd/);

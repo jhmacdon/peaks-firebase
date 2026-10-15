@@ -142,8 +142,10 @@ test(
       const own = await client.query(`SELECT * FROM route_cover_photos WHERE route_id = $1`, [route]);
       assert.deepEqual(own.rows[0], {
         route_id: route,
-        destination_id: null,
-        destination_name: null,
+        // Shipped iOS drops a cover without a place id, so the route's own
+        // cover still names its linked place.
+        destination_id: destination,
+        destination_name: "Uncovered summit",
         image_url: "https://example.org/route.jpg",
         attribution: "Route Photographer",
         attribution_url: "https://example.org/route",

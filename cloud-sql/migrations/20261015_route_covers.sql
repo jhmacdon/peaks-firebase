@@ -6,15 +6,18 @@
 --    cover_attribution_url, cover_storage_path, cover_focal_x/y, cover_source,
 --    cover_updated_at). A cover that is set must carry its full credit; the
 --    CHECK below makes that a database rule, not an API habit.
--- 2. destinations gains hero_image_source and hero_image_storage_path, so an
---    admin-set cover can be told apart from a reviewed source photo and later
---    cleared. Any other writer that replaces hero_image clears both markers
+-- 2. destinations gains hero_image_source, hero_image_storage_path and
+--    hero_image_previous, so an admin-set cover can be told apart from a
+--    reviewed source photo, and removing it restores the reviewed photo it
+--    replaced. Any other writer that replaces hero_image clears all three
 --    (trg_destinations_clear_hero_source), so a stale 'admin' marker can never
 --    let the admin DELETE endpoint remove a reviewed photo.
 -- 3. route_cover_photo(route_id) prefers the route's own cover, then falls back
 --    to the linked-destination choice from 20261009_route_cover_photo_lookup.
 --    Its seven columns keep their names, order and types; one column,
---    `origin` ('route' or 'destination'), is appended. Postgres cannot change
+--    `origin` ('route' or 'destination'), is appended. For a route's own cover
+--    destination_id/name still name a place (the objective, else the top-ranked
+--    linked place), because shipped iOS builds drop a cover without one. Postgres cannot change
 --    a function's result type in place, so the view and function are dropped
 --    and recreated in this transaction, and the view's grant is restored.
 -- 4. Photos are optional. The trg_enforce_peaks_route_cover_activation
@@ -35,7 +38,9 @@
 -- default, so ALTER TABLE does not rewrite either table. The CHECKs scan rows
 -- that are all NULL. lock_timeout bounds the brief exclusive locks.
 --
--- Apply by hand as `postgres` (CI never applies migrations).
+-- Apply by hand as `postgres` (CI never applies migrations), BEFORE the API
+-- that reads route_cover_photos.origin deploys. The current API runs unchanged
+-- on this schema: every old column keeps its name, order and type.
 -- Cost: $0/month. No service, timer, or always-on resource.
 
 BEGIN;
@@ -89,7 +94,10 @@ END $$;
 -- ---------------------------------------------------------------------------
 ALTER TABLE destinations
   ADD COLUMN IF NOT EXISTS hero_image_source TEXT,
-  ADD COLUMN IF NOT EXISTS hero_image_storage_path TEXT;
+  ADD COLUMN IF NOT EXISTS hero_image_storage_path TEXT,
+  -- The reviewed hero an admin cover replaced, so removing the admin cover
+  -- restores it: {image, attribution, attribution_url, focal_x, focal_y, source}.
+  ADD COLUMN IF NOT EXISTS hero_image_previous JSONB;
 
 DO $$
 BEGIN
@@ -112,6 +120,7 @@ BEGIN
      AND NEW.hero_image_storage_path IS NOT DISTINCT FROM OLD.hero_image_storage_path THEN
     NEW.hero_image_source := NULL;
     NEW.hero_image_storage_path := NULL;
+    NEW.hero_image_previous := NULL;
   END IF;
   RETURN NEW;
 END
@@ -148,8 +157,11 @@ AS $$
          choice.attribution, choice.attribution_url,
          choice.focal_x, choice.focal_y, choice.origin
   FROM (
-    (SELECT NULL::text AS destination_id,
-            NULL::text AS destination_name,
+    -- Shipped iOS builds drop a cover whose cover_destination_id is null
+    -- (RouteCoverPhoto.from requires it), so a route's own cover names the
+    -- route's objective, else the linked place the ranking below would pick.
+    (SELECT COALESCE(objective.id, linked.id) AS destination_id,
+            COALESCE(objective.name, linked.name) AS destination_name,
             btrim(r.cover_image) AS image_url,
             btrim(r.cover_attribution) AS attribution,
             btrim(r.cover_attribution_url) AS attribution_url,
@@ -158,6 +170,20 @@ AS $$
             'route'::text AS origin,
             0 AS priority
      FROM routes r
+     LEFT JOIN destinations objective ON objective.id = r.objective_destination_id
+     LEFT JOIN LATERAL (
+       SELECT d.id, d.name
+       FROM route_destinations rd
+       JOIN destinations d ON d.id = rd.destination_id
+       WHERE rd.route_id = r.id
+       ORDER BY ('summit'::destination_feature = ANY (d.features)) DESC,
+                rd.ordinal DESC,
+                d.prominence DESC NULLS LAST,
+                d.elevation DESC NULLS LAST,
+                d.name,
+                d.id
+       LIMIT 1
+     ) linked ON true
      WHERE r.id = target_route_id
        AND NULLIF(btrim(r.cover_image), '') IS NOT NULL
        AND NULLIF(btrim(r.cover_attribution), '') IS NOT NULL

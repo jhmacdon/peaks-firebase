@@ -5,6 +5,7 @@ import { asyncRoute } from "../lib/async-route";
 import { getUid, requireAdmin, type AuthRequest } from "../auth";
 import db from "../db";
 import { routeCoverJoinSql, routeCoverSelectSql } from "../lib/route-cover";
+import { destinationHeroOriginSql } from "./destinations";
 import {
   CoverPhotoError,
   firebaseCoverStorage,
@@ -20,7 +21,8 @@ import {
  *   PUT    /api/admin/routes/:id/cover        set a route's own cover
  *   DELETE /api/admin/routes/:id/cover        clear an admin-set route cover
  *   PUT    /api/admin/destinations/:id/cover  set a destination's hero cover
- *   DELETE /api/admin/destinations/:id/cover  clear an admin-set hero cover
+ *   DELETE /api/admin/destinations/:id/cover  remove an admin-set hero cover and
+ *                                           restore the reviewed one it replaced
  *
  * Contract for clients: docs/trails/admin-cover-api.md (peaks checkout).
  */
@@ -107,10 +109,14 @@ function sendError(res: Response, error: unknown): boolean {
   return false;
 }
 
-async function bestEffortRemove(storage: CoverStorage, objectName: string | null | undefined): Promise<void> {
+async function bestEffortRemove(
+  storage: CoverStorage,
+  objectName: string | null | undefined,
+  generation?: string | null
+): Promise<void> {
   if (!objectName) return;
   try {
-    await storage.remove(objectName);
+    await storage.remove(objectName, generation);
   } catch (error) {
     console.warn("[admin-cover] could not remove", objectName, (error as Error).message);
   }
@@ -147,7 +153,7 @@ export async function routeCoverResponse(id: string): Promise<Record<string, unk
 export async function destinationCoverResponse(id: string): Promise<Record<string, unknown> | null> {
   const result = await db.query(
     `SELECT id, hero_image, hero_image_attribution, hero_image_attribution_url,
-            hero_image_focal_x, hero_image_focal_y
+            hero_image_focal_x, hero_image_focal_y, ${destinationHeroOriginSql("destinations")} AS hero_image_origin
      FROM destinations WHERE id = $1`,
     [id]
   );
@@ -163,6 +169,7 @@ export async function destinationCoverResponse(id: string): Promise<Record<strin
     hero_image_attribution_url: credited ? text(row.hero_image_attribution_url) : null,
     hero_image_focal_x: credited ? Number(row.hero_image_focal_x ?? 50) : 50,
     hero_image_focal_y: credited ? Number(row.hero_image_focal_y ?? 50) : 50,
+    hero_image_origin: credited && text(row.hero_image) ? row.hero_image_origin : null,
   };
 }
 
@@ -228,9 +235,22 @@ function putCover(kind: CoverKind) {
             [id, stored.url, attribution, attributionUrl, body.focalX, body.focalY, stored.objectName]
           );
         } else {
+          // Keep the reviewed hero this replaces, so DELETE can restore it. A
+          // chain of admin covers keeps the reviewed one from before them.
           await client.query(
             `UPDATE destinations
-                SET hero_image = $2, hero_image_attribution = $3, hero_image_attribution_url = $4,
+                SET hero_image_previous = CASE
+                      WHEN hero_image_source = 'admin' THEN hero_image_previous
+                      WHEN NULLIF(btrim(hero_image), '') IS NULL THEN NULL
+                      ELSE jsonb_build_object(
+                        'image', hero_image,
+                        'attribution', hero_image_attribution,
+                        'attribution_url', hero_image_attribution_url,
+                        'focal_x', hero_image_focal_x,
+                        'focal_y', hero_image_focal_y,
+                        'source', hero_image_source)
+                    END,
+                    hero_image = $2, hero_image_attribution = $3, hero_image_attribution_url = $4,
                     hero_image_focal_x = $5, hero_image_focal_y = $6, hero_image_source = 'admin',
                     hero_image_storage_path = $7
               WHERE id = $1`,
@@ -251,7 +271,7 @@ function putCover(kind: CoverKind) {
 
     // The processed copy is now the record. Drop the original upload and the
     // admin cover it replaced.
-    await bestEffortRemove(storage, body.storagePath);
+    await bestEffortRemove(storage, body.storagePath, stored.uploadGeneration);
     if (previous.path && previous.path !== stored.objectName) await bestEffortRemove(storage, previous.path);
 
     const response = kind === "routes" ? await routeCoverResponse(id) : await destinationCoverResponse(id);
@@ -280,11 +300,17 @@ function deleteCover(kind: CoverKind) {
           [id]
         );
       } else {
+        // Restore the reviewed hero the admin cover replaced, if any.
         await client.query(
           `UPDATE destinations
-              SET hero_image = NULL, hero_image_attribution = NULL, hero_image_attribution_url = NULL,
-                  hero_image_focal_x = 50, hero_image_focal_y = 50, hero_image_source = NULL,
-                  hero_image_storage_path = NULL
+              SET hero_image = hero_image_previous ->> 'image',
+                  hero_image_attribution = hero_image_previous ->> 'attribution',
+                  hero_image_attribution_url = hero_image_previous ->> 'attribution_url',
+                  hero_image_focal_x = COALESCE((hero_image_previous ->> 'focal_x')::smallint, 50),
+                  hero_image_focal_y = COALESCE((hero_image_previous ->> 'focal_y')::smallint, 50),
+                  hero_image_source = hero_image_previous ->> 'source',
+                  hero_image_storage_path = NULL,
+                  hero_image_previous = NULL
             WHERE id = $1`,
           [id]
         );

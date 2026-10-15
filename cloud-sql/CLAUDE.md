@@ -212,7 +212,7 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/sessions/:id/comparisons/:otherId` | Effort curves for the race chart (owner-only) |
 | GET | `/api/lists/...` | List queries |
 | PUT/DELETE | `/api/admin/routes/:id/cover` | Admin only (`admin` custom claim, `requireAdmin`): set or clear a route's own cover from an upload under `covers/routes/{id}/` |
-| PUT/DELETE | `/api/admin/destinations/:id/cover` | Admin only: set or clear a destination's hero cover from an upload under `covers/destinations/{id}/`. Contract: `docs/trails/admin-cover-api.md` in the `peaks` checkout |
+| PUT/DELETE | `/api/admin/destinations/:id/cover` | Admin only: set a destination's hero cover from an upload under `covers/destinations/{id}/`, or remove it and restore the reviewed hero it replaced. Contract: `docs/trails/admin-cover-api.md` in the `peaks` checkout |
 
 ## Migration
 

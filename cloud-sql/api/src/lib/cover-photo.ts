@@ -29,9 +29,30 @@ export const COVER_MIN_HEIGHT = 900;
 export const COVER_MAX_INPUT_PIXELS = 50_000_000;
 export const COVER_MAX_OUTPUT_EDGE = 2_400;
 
-// One decode at a time, no cache: keeps peak memory to one image per request.
+/**
+ * Formats the prebuilt sharp can decode. Its libvips has no HEVC decoder, so
+ * HEIC/HEIF always fails; clients export JPEG.
+ */
+export const COVER_UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const DECODED_FORMATS = new Set(["jpeg", "png", "webp"]);
+
+// No cache, one libvips thread. These do not serialize requests: see
+// withCoverProcessingLock below.
 sharp.cache(false);
 sharp.concurrency(1);
+
+let processingTail: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs one cover download-and-decode at a time per process. Cloud Run sends
+ * up to four requests to an instance with 512 MiB; two 50 MP decodes at once
+ * would not fit.
+ */
+export function withCoverProcessingLock<T>(work: () => Promise<T>): Promise<T> {
+  const run = processingTail.then(work, work);
+  processingTail = run.catch(() => undefined);
+  return run;
+}
 
 /** A problem with the request or the uploaded object; `status` is the HTTP code. */
 export class CoverPhotoError extends Error {
@@ -86,10 +107,14 @@ export async function renderCoverPhoto(input: Buffer): Promise<RenderedCover> {
   const source = sharp(input, { limitInputPixels: COVER_MAX_INPUT_PIXELS, failOn: "error" });
   try {
     const metadata = await source.metadata();
+    if (!metadata.format || !DECODED_FORMATS.has(metadata.format)) {
+      throw new CoverPhotoError(415, "Covers must be JPEG, PNG or WebP");
+    }
     const swapsAxes = metadata.orientation != null && metadata.orientation >= 5;
     width = (swapsAxes ? metadata.height : metadata.width) || 0;
     height = (swapsAxes ? metadata.width : metadata.height) || 0;
-  } catch {
+  } catch (error) {
+    if (error instanceof CoverPhotoError) throw error;
     throw new CoverPhotoError(422, "Uploaded file is not a readable image");
   }
   if (width * height > COVER_MAX_INPUT_PIXELS) {
@@ -126,15 +151,18 @@ export async function renderCoverPhoto(input: Buffer): Promise<RenderedCover> {
 export interface StoredObjectInfo {
   contentType: string | null;
   size: number;
+  /** Object generation, so the download reads exactly what was checked. */
+  generation: string | null;
 }
 
 /** The Storage operations the admin cover endpoints need; swapped out in tests. */
 export interface CoverStorage {
   readonly bucketName: string;
   stat(objectName: string): Promise<StoredObjectInfo | null>;
-  download(objectName: string): Promise<Buffer>;
+  download(objectName: string, generation: string | null): Promise<Buffer>;
   save(objectName: string, data: Buffer, token: string, metadata: Record<string, string>): Promise<void>;
-  remove(objectName: string): Promise<void>;
+  /** With a generation, removes only that version (a newer upload survives). */
+  remove(objectName: string, generation?: string | null): Promise<void>;
 }
 
 export function firebaseCoverStorage(): CoverStorage {
@@ -149,15 +177,27 @@ export function firebaseCoverStorage(): CoverStorage {
         return {
           contentType: typeof metadata.contentType === "string" ? metadata.contentType : null,
           size: Number(metadata.size ?? 0),
+          generation: metadata.generation == null ? null : String(metadata.generation),
         };
       } catch (error) {
         if ((error as { code?: number }).code === 404) return null;
         throw error;
       }
     },
-    async download(objectName) {
-      const [data] = await bucket.file(objectName).download();
-      return data;
+    async download(objectName, generation) {
+      const file = generation
+        ? bucket.file(objectName, { generation: Number(generation) })
+        : bucket.file(objectName);
+      try {
+        const [data] = await file.download();
+        return data;
+      } catch (error) {
+        const code = (error as { code?: number }).code;
+        if (code === 404 || code === 412) {
+          throw new CoverPhotoError(422, "Uploaded image changed or vanished; upload it again");
+        }
+        throw error;
+      }
     },
     async save(objectName, data, token, metadata) {
       await bucket.file(objectName).save(data, {
@@ -169,45 +209,73 @@ export function firebaseCoverStorage(): CoverStorage {
         },
       });
     },
-    async remove(objectName) {
-      await bucket.file(objectName).delete({ ignoreNotFound: true });
+    async remove(objectName, generation) {
+      try {
+        await bucket.file(objectName).delete({
+          ignoreNotFound: true,
+          ...(generation ? { ifGenerationMatch: Number(generation) } : {}),
+        });
+      } catch (error) {
+        // 412: a newer upload replaced this one; leave it.
+        if ((error as { code?: number }).code !== 412) throw error;
+      }
     },
   };
 }
 
-/** Checks and processes one upload, then stores the processed copy. */
+/**
+ * Checks and processes one upload, then stores the processed copy. Returns the
+ * upload's generation so the caller removes exactly that version. A refused
+ * upload is removed here: originals can carry EXIF GPS, and nothing else
+ * would ever clean them up.
+ */
 export async function storeAdminCover(
   storage: CoverStorage,
   kind: CoverKind,
   id: string,
   uploadPath: string,
   metadata: Record<string, string>
-): Promise<{ objectName: string; url: string; width: number; height: number }> {
+): Promise<{ objectName: string; url: string; width: number; height: number; uploadGeneration: string | null }> {
   const info = await storage.stat(uploadPath);
   if (!info) throw new CoverPhotoError(422, "Uploaded image not found at storagePath");
-  if (!info.contentType || !/^image\//i.test(info.contentType)) {
-    throw new CoverPhotoError(422, "Uploaded file must have an image/* content type");
+  try {
+    const contentType = info.contentType?.toLowerCase().split(";")[0].trim() ?? "";
+    if (!(COVER_UPLOAD_TYPES as readonly string[]).includes(contentType)) {
+      throw new CoverPhotoError(415, "Covers must be JPEG, PNG or WebP (image/jpeg, image/png, image/webp)");
+    }
+    if (info.size <= 0) throw new CoverPhotoError(422, "Uploaded image is empty");
+    if (info.size > COVER_UPLOAD_MAX_BYTES) {
+      throw new CoverPhotoError(422, "Uploaded image is larger than 15 MB");
+    }
+    const rendered = await withCoverProcessingLock(async () => {
+      const input = await storage.download(uploadPath, info.generation);
+      if (input.byteLength > COVER_UPLOAD_MAX_BYTES) {
+        throw new CoverPhotoError(422, "Uploaded image is larger than 15 MB");
+      }
+      return renderCoverPhoto(input);
+    });
+    const token = randomUUID();
+    const objectName = processedCoverObjectName(kind, id, token);
+    await storage.save(objectName, rendered.data, token, {
+      ...metadata,
+      sourcePath: uploadPath,
+      cropMode: "focal-point",
+    });
+    return {
+      objectName,
+      url: coverDownloadUrl(storage.bucketName, objectName, token),
+      width: rendered.width,
+      height: rendered.height,
+      uploadGeneration: info.generation,
+    };
+  } catch (error) {
+    if (error instanceof CoverPhotoError) {
+      try {
+        await storage.remove(uploadPath, info.generation);
+      } catch (cleanup) {
+        console.warn("[admin-cover] could not remove refused upload", uploadPath, (cleanup as Error).message);
+      }
+    }
+    throw error;
   }
-  if (info.size <= 0) throw new CoverPhotoError(422, "Uploaded image is empty");
-  if (info.size > COVER_UPLOAD_MAX_BYTES) {
-    throw new CoverPhotoError(422, "Uploaded image is larger than 15 MB");
-  }
-  const input = await storage.download(uploadPath);
-  if (input.byteLength > COVER_UPLOAD_MAX_BYTES) {
-    throw new CoverPhotoError(422, "Uploaded image is larger than 15 MB");
-  }
-  const rendered = await renderCoverPhoto(input);
-  const token = randomUUID();
-  const objectName = processedCoverObjectName(kind, id, token);
-  await storage.save(objectName, rendered.data, token, {
-    ...metadata,
-    sourcePath: uploadPath,
-    cropMode: "focal-point",
-  });
-  return {
-    objectName,
-    url: coverDownloadUrl(storage.bucketName, objectName, token),
-    width: rendered.width,
-    height: rendered.height,
-  };
 }
