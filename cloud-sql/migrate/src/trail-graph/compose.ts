@@ -15,7 +15,10 @@ import { RESOLUTION_HINTS } from './resolution-hints';
 import { applyCuration, reviewData, type Curation } from './stretches';
 import { refresh, provenance } from './topology';
 import { rebaseDraft, finalizeRebases, rebasePlanHash, mergePlans, type LegacyRoute } from './rebase';
-import type { AccessPoint, CatalogInputs, ComposedRoute, DraftRoute, ExistingMatch, PeaksDestination, PeaksRoute, ResolvedPlace, Seed, Waypoint } from './catalog-types';
+import { unionProvenance } from './source-provenance';
+import { alignSummitKind, appendSummitConnector, finalizePlaceLinks } from './summit-connectors';
+import { DestinationResolver } from './load-matching';
+import type { AccessPoint, CatalogInputs, ComposedRoute, DraftRoute, ExistingMatch, PeaksDestination, PeaksRoute, PlaceRef, ResolvedPlace, Seed, Waypoint } from './catalog-types';
 import type { Coord, NamedFeature, Provenance, Segment } from './types';
 
 export const DEFAULT_COMPOSE = resolve(__dirname, '../../../../.cache/compose');
@@ -220,7 +223,7 @@ export class Composer {
         } catch (e) { if (!/Disconnected graph/.test((e as Error).message)) throw e; }
       }
       const approach = objective?.feature === 'summit' ? summitApproach(walk, this.byId) : { walk, xc: [] }; walk = approach.walk;
-      if (approach.xc.length) row.notes = [...(row.notes ?? []), 'Final xc approach follows existing OSM informal/poor-visibility path geometry; no straight-line summit connector.'];
+      if (approach.xc.length) row.notes = [...(row.notes ?? []), 'Final mapped xc approach follows existing OSM informal/poor-visibility path geometry.'];
       const route = this.router.summarize(walk, { campsite: 35, glacier: 35 });
       row.length_m = route.total_length_m;
       row.route_end = walk.length ? this.byId.get(walk[walk.length - 1].segment_id)!.coords[walk[walk.length - 1].end_vertex] : th.route_coord;
@@ -305,9 +308,7 @@ export function finalizeRows(rows: ComposedRoute[], segments: Segment[]): void {
   }
 }
 export function routeProvenance(sources: Provenance[]): Provenance {
-  const ways = [...new Set(sources.flatMap(s => s.osm_way_ids))].sort((a, b) => a - b);
-  if (ways.length) return provenance(ways, sources.map(s => s.retrieved_at).sort().slice(-1)[0]);
-  return { ...sources[0] };
+  return unionProvenance(sources);
 }
 async function readRows<T>(path: string): Promise<T[]> { const rows: T[] = []; for await (const row of ndjson<T>(path)) rows.push(row); return rows; }
 export async function composeCatalog(input: string, graph: string, out: string, indices?: number[]): Promise<void> {
@@ -324,19 +325,55 @@ export async function composeCatalog(input: string, graph: string, out: string, 
   let legacy: LegacyRoute[] = [];
   try { legacy = await readRows<LegacyRoute>(join(input, 'peaks-snapshot/wa-legacy-routes-with-paths.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   const rebases = legacy.map((r, i) => {
-    const result = rebaseDraft(r, composer.router, composer.byId, inputs.routes.find(p => p.id === r.id)); result.plan.row.seed_index = -i - 1;
+    const prior=inputs.routes.find(p=>p.id===r.id),key=(n:string)=>normalizeName(cleanTrail(n)).replace(/\s+(?:trail|route)$/,'');
+    const names=inputs.seeds.filter(s=>[s.name,...s.aliases].some(n=>key(n)===key(r.name)));
+    const points=(prior?.destinations??[]).map(link=>inputs.destinations.find(d=>d.id===link.id)).filter((d):d is PeaksDestination=>!!d);
+    const objective=inputs.destinations.find(d=>d.id===(r.objective_destination_id??[...(prior?.destinations??[])].sort((a,b)=>b.ordinal-a.ordinal)[0]?.id));
+    const result = rebaseDraft(r, composer.router, composer.byId, prior,{
+      trailNames:names.length===1?names[0].trails.map(cleanTrail):[],
+      summits:points.filter(d=>d.features.includes('summit')).map(d=>({id:d.id,name:d.name,coord:[d.lng,d.lat]})),objectiveFeatures:objective?.features,places:points
+    }); result.plan.row.seed_index = -i - 1;
     console.log(`Rebase ${i + 1}/${legacy.length} ${result.plan.status}: ${r.name}`); return result;
   });
   const allDrafts = [...drafts, ...rebases.map(r => r.draft)], segments = materialize(allDrafts, composer.byId), rows = drafts.map(d => d.row), allRows = allDrafts.map(d => d.row);
+  const byId = new Map(segments.map(s => [s.id, s])), peaks = new Map(inputs.destinations.map(d => [d.id, d]));
+  const resolver = new DestinationResolver(inputs.destinations);
+  const resolvePlace = (ref: PlaceRef) => resolver.resolve(ref.peaks_id ? { peaks_id: ref.peaks_id } : { new: ref.new });
+  for (const row of allRows) {
+    for (const key of ['trailhead', 'objective', 'end_trailhead'] as const) if (row[key]) row[key] = resolvePlace(row[key]!);
+    row.waypoints = row.waypoints.map(w => { const { peaks_id, new: candidate, ...point } = w; return { ...point, ...resolvePlace(w) }; });
+    const destination = peaks.get(row.objective?.peaks_id ?? ''); alignSummitKind(row, destination);
+    const connector = appendSummitConnector(row, byId, destination);
+    if (connector && !segments.some(s => s.id === connector.id)) segments.push(connector);
+  }
   let previous: Segment[] = [];
   try { previous = await readRows<Segment>(join(out, 'segments.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   let curation: Curation = { routes: [] };
   try { curation = JSON.parse(await readFile(join(input, 'seed/curated-stretches.json'), 'utf8')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   const audit = applyCuration(allRows, segments, curation, inputs.destinations, inputs.features, new Map(previous.map(s => [s.id, s])));
+  const finalSegments = new Map(segments.map(s => [s.id, s]));
+  for (const row of allRows) {
+    const legacyId = rebases.find(r => r.plan.row === row)?.plan.legacy.id;
+    const prior = inputs.routes.find(r => r.id === legacyId);
+    const oldPlaces = (prior?.destinations ?? []).map(p => peaks.get(p.id)).filter((d): d is PeaksDestination => !!d);
+    finalizePlaceLinks(row, finalSegments, peaks, oldPlaces, inputs.features);
+    if (row.seed_index >= 0 && row.segments.length) {
+      const checked = validateRoute(row.kind, row.length_m, row.expected_length_m, row.preferred_fraction, row.road_fraction, true);
+      if (row.status === 'ok' && checked.status !== 'ok' || row.status === 'review' && checked.status === 'failed') row.status = checked.status;
+      row.reasons = unique([...row.reasons, ...checked.reasons]); row.deviation_fraction = checked.deviation;
+    }
+  }
   finalizeRebases(rebases.map(r => r.plan), segments);
   finalizeRows(allRows, segments);
   for (const { plan } of rebases) plan.plan_hash = rebasePlanHash(plan);
-  const merges = mergePlans(rows, rebases.map(r => r.plan), segments);
+  let merges = mergePlans(rows, rebases.map(r => r.plan), segments);
+  // A merge uses the catalog manifest, not the legacy places. Record omitted
+  // old links against that actual final geometry, including off-path summits.
+  for (const merge of merges) {
+    const row = rows.find(r => r.seed_index === merge.seed_index)!, prior = inputs.routes.find(r => r.id === merge.legacy_id);
+    finalizePlaceLinks(row, finalSegments, peaks, (prior?.destinations ?? []).map(p => peaks.get(p.id)).filter((d): d is PeaksDestination => !!d), inputs.features);
+  }
+  finalizeRows(rows, segments); merges = mergePlans(rows, rebases.map(r => r.plan), segments);
   await writeNdjson(join(out, 'rebase-plans.ndjson'), rebases.map(r => r.plan));
   await writeNdjson(join(out, 'merge-plans.ndjson'), merges);
   const rebaseSummary = { total: rebases.length, by_status: rebases.reduce((n, r) => { n[r.plan.status]++; return n; }, { ok: 0, review: 0, failed: 0 }), frozen: rebases.filter(r => r.plan.frozen).length,

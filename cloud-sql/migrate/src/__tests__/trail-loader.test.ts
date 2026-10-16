@@ -107,7 +107,7 @@ test('live preflight is read-only and refuses the old cover trigger before any m
 test('activation migration retains canonical integrity, elevation/contact gate and exclusive owned activation', () => {
   const sql = readFileSync(resolve(__dirname, '../../../migrations/20261016_wa_catalog_activation.sql'), 'utf8');
   for (const gate of ['peaks_route_passes_publish_integrity(r.id,NULL,r.status)', "'{wa_catalog,compose_status}' IS DISTINCT FROM 'ok'", 'ST_Z((p).geom)=0', 'route_elevation_profile_has_real_range', 'r.gain IS NULL', 'SECURITY DEFINER', 'NOLOGIN', 'REVOKE ALL ON FUNCTION activate_wa_catalog_route', 'current_user<>\'peaks-wa-catalog-publisher\'']) assert.ok(sql.includes(gate), gate);
-  assert.ok(!sql.includes('DROP TRIGGER IF EXISTS trg_enforce_peaks_route_cover_activation')); assert.match(sql, /wa_catalog_valid_source_provenance\(value-'wa_catalog'\)/);
+  assert.ok(!sql.includes('DROP TRIGGER IF EXISTS trg_enforce_peaks_route_cover_activation')); assert.match(sql, /wa_catalog_valid_source_provenance\(\$1-'wa_catalog'\)/);
   assert.match(sql, /GRANT UPDATE\(route_id\) ON route_segments,route_destinations/);
   assert.match(sql, /GRANT UPDATE\(id\) ON segments,destinations/);
   const grant = sql.indexOf('GRANT CREATE ON SCHEMA public'), transfer = sql.indexOf('ALTER FUNCTION activate_wa_catalog_route'), revoke = sql.indexOf('REVOKE CREATE ON SCHEMA public');

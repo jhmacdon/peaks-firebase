@@ -6,7 +6,7 @@ It keeps legacy identities and session links instead of creating duplicates.
 The default command makes a local dry-run plan. It opens no database connection:
 
 ```sh
-TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts --prune-pending
+TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts
 ```
 
 Only composer `ok` rows enter the default plan. `--include-review` may stage review
@@ -15,11 +15,12 @@ file or reviewer lane for this loader. The older trail-catalog factory keeps its
 own review path and protected rows.
 
 `load-plan.json` records SQL counts, skipped routes, destination matches, every
-legacy-match decision and optional prune statements. Counts are insert attempts;
+legacy-match decision. The exclusive prune mode writes `prune-plan.json`.
+Counts are insert attempts;
 shared destination/segment IDs may occur in several route transactions. The
 report also gives distinct IDs. No affected-row or live-overlap count is known
-from the supplied snapshots, which omit legacy paths, segment geometry and
-`external_ids`.
+from the supplied snapshots; live segment geometry and complete destination
+`external_ids` still need the read-only preflight.
 
 Before any apply writes, the same process completes a `BEGIN READ ONLY`
 preflight. Apply requires an operator connection: the existing standard factory
@@ -47,11 +48,22 @@ without its destination. Uncurated pass, saddle and glacier waypoints stay as
 names in provenance. A new objective of those types needs an existing or curated
 place; otherwise skip the route.
 
-The new `20261016_wa_catalog_activation.sql` migration keeps canonical rights
+The `20261016_wa_catalog_activation.sql` migration keeps canonical rights
 validation and adds one strict `wa_catalog` provenance object. It holds the
-loader marker, composer status/hash, notes, approximate flag and waypoint names.
+loader marker, composer status/hash, notes, approximate flag, waypoint names and dropped legacy links.
 Route descriptions stay NULL. Source provenance still carries its exact credit
-and contributing OSM IDs. Slugs use `peaks_route_catalog_slug(name,id)`.
+and contributing OSM IDs. `20261017_wa_catalog_source_bundles.sql` adds strict
+source bundles for mixed graph/Peaks tails and completed-rebase receipts; see
+[the rebase guide](REBASE.md). Both migrations must precede a future apply. Slugs use `peaks_route_catalog_slug(name,id)`.
+
+The composed destination manifest is authoritative for both rebases and merges.
+The composer resolves destination IDs before connector/contact checks. The loader
+rechecks resolved summit contact before writes, so live dedupe cannot introduce a
+false summit claim. Only contacted summit waypoints remain (<=5 m); omitted old places appear in
+`wa_catalog.dropped_links`. Summit objectives can receive a Peaks-derived xc
+endpoint connector over 5 m and at most 75 m, with null segment display name and
+Z filled by elevation. This does not authorize spurs to intermediate summits or
+connectors on non-summit kinds. See the rebase guide for the exact limits.
 
 Each admitted route has its own transaction and rollback. A failure is recorded
 and the run continues. Source geometry and manifest hashes must still match.
@@ -88,12 +100,18 @@ links use `source='auto'`, NULL coverage/intervals and `is_primary=false`; an
 existing new-route PK wins. All affected sessions enter the rematch queue before
 the old rows are deleted. `processSession` computes the new facts.
 
-`--prune-pending` adds a separate transaction to remove stale `wa-*` rows with
-this loader's provenance marker. It keeps current composition IDs, all activated
+`--prune-pending` is an exclusive mode: it runs only a prune transaction and
+never loads or merges catalog routes. It removes stale `wa-*` rows with this
+loader's provenance marker. It keeps current composition IDs, all activated
 receipts/assets, reviewed rows, and rows with user/foreign-key references. It
 never deletes active routes or unmarked earlier imports. The latter cannot be
 safely identified from an ID prefix alone. The flag stays dry-run unless apply
-is explicitly requested.
+is explicitly requested. `--rebase` is also exclusive. The required order is compose,
+prune, rebase with elevation, then catalog with elevation. A catalog merge requires
+a matching completed-rebase receipt and the expected rebased geometry/links;
+it refuses the original snapshot even if that source still matches. Each option
+must be a separate shell argument. Unknown, joined and incompatible flags fail
+before input reads or a database connection.
 
 Local checkout limits: the companion segment-model migration, PR #235's cover
 trigger removal, and PR #236's added link-rematch triggers are not present here.

@@ -96,6 +96,7 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
       const old = [...previous.values()].filter(s => s.id === id || s.source_segment_ids?.includes(id));
       if (!found.length && old.length) found = primary.segments.filter(r => {
         const s = byId.get(r.id)!; let total = 0, matched = 0;
+        if (s.summit_connector) return false;
         for (const sample of samples(s.coords, 25)) { total += sample.weight; if (old.some(line => line.coords.slice(1).some((b, i) => pointDistance(sample.point, line.coords[i], b) <= 15))) matched += sample.weight; }
         return matched / total >= 0.8;
       }).map(r => r.id);
@@ -164,7 +165,7 @@ export function applyCuration(rows: ComposedRoute[], segments: Segment[], curati
   for (const r of rows) {
     r.stretches = [];
     for (const ref of r.segments) { const s = byId.get(ref.id)!, last = r.stretches[r.stretches.length - 1];
-      if (last && last.display_name === s.display_name && last.kind === s.kind) { last.length_m += s.length_m; last.segment_ids.push(s.id); }
+      if (last && (s.summit_connector || last.display_name === s.display_name && last.kind === s.kind)) { last.length_m += s.length_m; last.segment_ids.push(s.id); }
       else r.stretches.push({ display_name: s.display_name ?? null, kind: s.kind, length_m: s.length_m, segment_ids: [s.id] });
     }
   }

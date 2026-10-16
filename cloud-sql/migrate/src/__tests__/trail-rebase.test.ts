@@ -31,7 +31,7 @@ test('legacy matching shares graph segments and retains a summit tail with sourc
   assert.deepEqual(a.coords[first.direction === 'forward' ? 0 : a.coords.length-1], old.coords[0]);
   assert.deepEqual(b.coords[last.direction === 'forward' ? b.coords.length-1 : 0], old.coords.at(-1));
   const tails = [...segments.values()].filter(s => s.legacy_tail); assert.ok(tails.length); assert.ok(tails.every(s => s.legacy_tail!.route_id === old.id));
-  assert.ok(tails.every(s => s.provenance.source_kind === 'legacy_unverified')); assert.ok(plan.hausdorff_m! <= 50);
+  assert.ok(tails.every(s => s.provenance.source_kind === 'peaks-legacy')); assert.ok(plan.hausdorff_m! <= 50);
 });
 test('trimmed symmetric Hausdorff and length checks do not accept a distant detour', () => {
   const a: Coord[] = [[-121,47],[-120.99,47]], b: Coord[] = [[-121,47],[-120.995,47.002],[-120.99,47]];
@@ -74,7 +74,7 @@ test('rebase SQL preserves identity/status/session facts, locks jobs, and delete
   assert.ok(p.statements.some(s=>s.kind==='factory_lock')); assert.ok(p.statements.some(s=>s.kind==='active_integrity'));
   assert.ok(!p.statements.some(s=>/session_routes/.test(s.sql) || /SET status=/.test(s.sql)));
   assert.match(p.statements.find(s=>s.kind==='delete_unused_legacy_segments')!.sql,/NOT EXISTS\(SELECT 1 FROM route_segments/);
-  const tail=p.statements.find(s=>s.kind==='legacy_tail_insert')!; assert.match(tail.sql,/FROM routes WHERE id=\$11 AND is_valid_route_provenance/);
+  const tail=p.statements.find(s=>s.kind==='legacy_tail_insert')!; assert.match(tail.sql,/FROM routes WHERE id=\$11 AND owner='peaks'/);assert.match(tail.sql,/created_at AT TIME ZONE/);
 });
 test('competing catalog aliases are suppressed instead of falling back to duplicate creation', () => {
   const {plan,segments}=setup(), a={...structuredClone(plan.row),seed_index:1},b={...structuredClone(plan.row),seed_index:2,name:'River alias'};

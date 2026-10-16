@@ -194,7 +194,7 @@ function projection(p: Coord, a: Coord, b: Coord): number {
   const cos = Math.cos(p[1] * Math.PI / 180), dx = (b[0] - a[0]) * cos, dy = b[1] - a[1];
   return Math.max(0, Math.min(1, (((p[0] - a[0]) * cos) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
 }
-function segmentDistance(a: Coord, b: Coord, c: Coord, d: Coord): number {
+export function segmentDistance(a: Coord, b: Coord, c: Coord, d: Coord): number {
   const cross = (p: Coord, q: Coord, r: Coord) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
   const abC = cross(a, b, c), abD = cross(a, b, d), cdA = cross(c, d, a), cdB = cross(c, d, b);
   if (abC * abD < 0 && cdA * cdB < 0) return 0;

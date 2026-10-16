@@ -7,6 +7,7 @@ export interface Provenance {
   source_kind: string; source_url: string; license_name: string; license_url: string;
   attribution: string; retrieved_at: string; osm_way_ids: number[];
   osm_way_urls: string[]; contains_osm_geometry: boolean;
+  sources?: Provenance[];
 }
 export interface AltSource { source: string; id: string; name: string | null; number: string | null }
 export interface Segment {
@@ -18,6 +19,7 @@ export interface Segment {
   coords: Coord[]; node_ids: string[]; osm_edge_way_ids: number[]; length_m: number; provenance: Provenance;
   alt_sources: AltSource[];
   legacy_tail?: { route_id: string; source_hash: string; attachment_gap_m: number };
+  summit_connector?: { destination_id: string; destination_coord: Coord; from: Coord; gap_m: number; note: 'summit connector' };
 }
 export interface GraphNode { id: string; lon: number; lat: number; degree: number }
 export interface NamedFeature {

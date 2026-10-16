@@ -1,7 +1,8 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Client } from 'pg';
-import { args, ndjson, option, DEFAULT_INPUT } from './io';
+import { ndjson, option, DEFAULT_INPUT } from './io';
+import { loaderArgs, loaderMode } from './loader-cli';
 import { DEFAULT_COMPOSE, catalogRouteId, digest, routeProvenance, segmentManifestHash } from './compose';
 import { databaseFeature } from './names';
 import { haversine } from './geo';
@@ -9,11 +10,11 @@ import { assertDisplayName } from './display-names';
 import { segmentValues } from './load-segments';
 import { DestinationResolver, IMPORT_MARKER, checkSupersede, claimSupersedes, forbiddenPlace, osmExternalIds, placeIdentity, type SupersedeDecision } from './load-matching';
 import { bindExistingSegments, readPreflight, type ExistingOverlap } from './load-preflight';
-import { prunePlan } from './load-prune';
-import { DESTINATION_FEATURES, routeLine } from './stretches';
+import { pruneOnly } from './load-prune';
+import { DESTINATION_FEATURES, routeLine, projection } from './stretches';
 import type { ComposedRoute, NewPlace, PeaksDestination, PeaksRoute, PlaceRef } from './catalog-types';
 import type { Coord, Provenance, Segment } from './types';
-import { replacementPlan, rebaseLoad } from './load-rebase';
+import { replacementPlan, rebaseLoad, SOURCE_SCHEMA_PREFLIGHT } from './load-rebase';
 import type { MergePlan, RebasePlan } from './rebase';
 
 export interface LoadOptions { activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
@@ -55,7 +56,25 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const refs = binding.refs, segments = binding.segments, resolver = options.resolver ?? new DestinationResolver([]);
   const th = resolver.resolve(row.trailhead), goal = row.objective ? resolver.resolve(row.objective) : null, end = row.end_trailhead ? resolver.resolve(row.end_trailhead) : null;
   if (goal && forbiddenPlace(goal)) return skip('uncurated pass/glacier/saddle objective requires an existing or curated destination');
-  const waypoints = [...row.waypoints].sort((a, b) => a.fraction - b.fraction).filter(w => w.new?.source.kind === 'curated' || w.osm_id.startsWith('curated/') || !['pass', 'saddle', 'glacier'].includes(w.feature)).map(w => resolver.resolve(w)).filter(ref => !forbiddenPlace(ref));
+  const path = routeLine({ ...row, segments: refs }, segments), resolvedDrops = [...(row.dropped_links ?? [])];
+  for (const [ref, point] of [[th, path[0]], [end, path.at(-1)!]] as const) {
+    const d = ref?.peaks_id ? resolver.get(ref.peaks_id) : undefined;
+    if (d && (!d.features.includes('trailhead') || haversine([d.lng, d.lat], point) > 125)) return skip(`resolved trailhead ${d.name} does not contact route endpoint within 125 m; recompose before loading`);
+  }
+  const goalPlace = goal?.peaks_id ? resolver.get(goal.peaks_id) : undefined;
+  if (goalPlace?.features.includes('summit')) {
+    const point: Coord = [goalPlace.lng, goalPlace.lat], gap = row.kind === 'summit' ? haversine(path.at(-1)!, point) : projection(point, path).distance;
+    if (gap > 5) return skip(`resolved summit objective ${goalPlace.name} misses path by ${gap.toFixed(1)} m; recompose before loading`);
+    if (row.kind === 'destination') return skip('resolved summit objective requires summit route kind; recompose before loading');
+  }
+  const waypoints = [...row.waypoints].sort((a, b) => a.fraction - b.fraction).filter(w => w.new?.source.kind === 'curated' || w.osm_id.startsWith('curated/') || !['pass', 'saddle', 'glacier'].includes(w.feature)).map(w => resolver.resolve(w)).filter(ref => {
+    if (forbiddenPlace(ref)) return false;
+    const d = ref.peaks_id ? resolver.get(ref.peaks_id) : undefined;
+    if (d?.features.includes('summit')) { const gap = projection([d.lng, d.lat], path).distance; if (gap > 5) {
+      resolvedDrops.push({ id: d.id, name: d.name, gap_m: gap, reason: 'resolved destination misses summit contact within 5 m' }); return false;
+    } }
+    return true;
+  });
   const places = new Map<string, PlaceRef>(); for (const ref of [th, ...waypoints, end, goal].filter((p): p is PlaceRef => !!p)) places.set(placeId(ref), ref);
   let cursor: Coord | null = null, measured = 0;
   for (const ref of refs) {
@@ -76,7 +95,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new));
   plan.segment_ids = [...new Set(refs.map(s => s.id))];
   for (const id of plan.segment_ids.filter(id => !binding.reused.includes(id))) {
-    const values = segmentValues(segments.get(id)!); values[6] = JSON.stringify(importedProvenance(segments.get(id)!.provenance, {}));
+    const segment = segments.get(id)!, values = segmentValues(segment); values[6] = JSON.stringify(importedProvenance(segment.provenance, segment.summit_connector ? { notes: ['summit connector'] } : {}));
     add('segment_insert', `INSERT INTO segments(id,name,display_name,kind,state_code,trail_names,path,distance,provenance,description,description_source_url)
       VALUES($1,$2,$8,$3,'WA',$4,ST_SetSRID(ST_GeomFromGeoJSON($5),4326)::geography,$6,$7::jsonb,$9,$10) ON CONFLICT(id) DO NOTHING`, values);
   }
@@ -85,6 +104,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   const sourceProvenance: any = { ...routeProvenance(plan.segment_ids.map(id => segments.get(id)!.provenance)) };
   delete sourceProvenance.elevation_source; delete sourceProvenance.elevation_profile; delete sourceProvenance.wa_catalog;
   const metadata = { compose_status: row.status, composition_hash: row.composition_hash, approximate: !!row.approximate, notes: row.notes ?? [],
+    dropped_links: resolvedDrops.filter((d, i) => !ordered.includes(d.id) && resolvedDrops.findIndex(other => other.id === d.id) === i),
     waypoint_names: row.waypoints.map(w => ({ name: w.name, feature: w.feature, fraction: w.fraction })), loaded_binding_hash: digest(refs) };
   const provenance = importedProvenance(sourceProvenance, metadata);
   if (row.wta_url && !/^https:\/\/(?:www\.)?wta\.org\/go-hiking\/hikes\/[a-z0-9.-]+\/?$/.test(row.wta_url)) throw new Error(`Invalid WTA URL ${row.wta_url}`);
@@ -95,13 +115,13 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   ordered.forEach((id, ordinal) => add('route_destination_insert', 'INSERT INTO route_destinations(route_id,destination_id,ordinal) VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [row.route_id, id, ordinal]));
   add('binding_guard', `SELECT jsonb_build_object('name',r.name,'owner',r.owner,'kind',r.kind,'aliases',r.aliases,'shape',r.shape,
       'state_code',r.state_code,'country_code',r.country_code,'trailhead_destination_id',r.trailhead_destination_id,'objective_destination_id',r.objective_destination_id,
-      'external_links',r.external_links,'provenance',r.provenance-ARRAY['elevation_source','elevation_profile'],'description',r.description)=$2::jsonb
+      'external_links',r.external_links,'provenance',wa_catalog_provenance_elevation(r.provenance,'{}'::jsonb),'description',r.description)=$2::jsonb
     AND COALESCE((SELECT jsonb_agg(jsonb_build_object('id',segment_id,'direction',direction) ORDER BY ordinal) FROM route_segments WHERE route_id=r.id),'[]')=$3::jsonb
     AND COALESCE((SELECT jsonb_agg(destination_id ORDER BY ordinal) FROM route_destinations WHERE route_id=r.id),'[]')=$4::jsonb
     AND NOT EXISTS(SELECT 1 FROM jsonb_array_elements($5::jsonb) item LEFT JOIN segments s ON s.id=item->>'id'
       WHERE s.id IS NULL OR s.name IS DISTINCT FROM (item->>'name') OR s.display_name IS DISTINCT FROM(item->>'display_name')
       OR s.description IS DISTINCT FROM(item->>'description') OR s.kind IS DISTINCT FROM(item->>'kind')
-      OR (s.provenance-ARRAY['elevation_source','elevation_profile','wa_catalog']) IS DISTINCT FROM(item->'provenance')
+      OR (wa_catalog_provenance_elevation(s.provenance,'{}'::jsonb)-'wa_catalog') IS DISTINCT FROM(item->'provenance')
       OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_GeomFromGeoJSON(item->>'geometry')),false)) AS valid FROM routes r WHERE r.id=$1`,
     [row.route_id, JSON.stringify({ name: row.name, owner: 'peaks', kind: row.kind, aliases: row.aliases, shape: row.shape, state_code: 'WA', country_code: 'US', trailhead_destination_id: thId, objective_destination_id: objectiveId, external_links: row.wta_url ? [{ type: 'wta', id: row.wta_url }] : [], provenance, description: null }),
       JSON.stringify(refs), JSON.stringify(ordered), JSON.stringify(plan.segment_ids.map(id => { const s = segments.get(id)!, p: any = { ...s.provenance }; delete p.elevation_source; delete p.elevation_profile; delete p.wa_catalog; return { id, name: s.name, display_name: s.display_name === undefined ? s.trail_names[0] || s.relation_names[0] || null : s.display_name, description: s.description ?? null, kind: s.kind, provenance: p, geometry: { type: 'LineString', coordinates: s.coords } }; }))]);
@@ -111,14 +131,14 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
       FROM segments WHERE id=$1`, [id]);
     add('elevation_segment_update', `UPDATE segments SET path=ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography,
       gain=(SELECT gain FROM route_elevation_stats(ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)),gain_loss=(SELECT loss FROM route_elevation_stats(ST_SetSRID(ST_GeomFromGeoJSON($2),4326)::geography)),
-      provenance=provenance||'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb
+      provenance=wa_catalog_provenance_elevation(provenance,'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb)
       WHERE id=$1 AND NOT EXISTS(${PROTECTED}) AND gain IS NULL`, [id, '__TERRARIUM_LINESTRINGZ_AT_APPLY__']);
   }
   else plan.notes.push('Z=0 placeholders: activation requires --elevation and the owned SQL integrity function');
   add('rebuild_route_path', 'SELECT rebuild_route_path($1)', [row.route_id]);
   if (options.elevation) add('elevation_route_metadata', `UPDATE routes SET gain=stats.gain,gain_loss=stats.loss,elevation_source='segment_profiles',
     elevation_source_url='https://registry.opendata.aws/terrain-tiles/',elevation_attribution='Mapzen / AWS Open Data Terrain Tiles',elevation_license_url='https://github.com/tilezen/joerd/blob/master/docs/attribution.md',elevation_retrieved_at=now(),
-    provenance=provenance||'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb
+    provenance=wa_catalog_provenance_elevation(provenance,'{"elevation_source":"terrarium_z14","elevation_profile":"terrain"}'::jsonb)
     FROM route_elevation_stats((SELECT path FROM routes WHERE id=$1)) stats WHERE id=$1`, [row.route_id]);
   if (options.activate && row.status === 'ok') {
     plan.activate = true;
@@ -170,9 +190,10 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
         if (statement.kind === 'replacement_resume_guard' && result.rows[0]?.already_applied === true) { await client.query('ROLLBACK'); return 'skipped: legacy replacement already applied and valid'; }
         if (statement.kind === 'replacement_guard') {
           const r = result.rows[0];
-          if (!r || r.owner !== 'peaks' || r.protected || !r.links_match || !r.source_match || r.name !== plan.legacy_expected?.name || r.status !== plan.legacy_expected?.status) throw new Error('Legacy route changed, is reviewed, or rebase has not completed; replacement refused');
+          if (!r || r.owner !== 'peaks' || r.protected || !r.links_match || !r.source_match || r.name !== plan.legacy_expected?.name || r.status !== plan.legacy_expected?.status) throw new Error('Legacy route changed, is reviewed, or rebase has not completed; replacement refused: '+JSON.stringify({protected:r?.protected,links_match:r?.links_match,source_match:r?.source_match,name:r?.name,status:r?.status}));
         }
-        if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back`);
+        if (statement.kind === 'completed_rebase_guard' && result.rows[0]?.valid !== true) throw new Error('Merge refused: matching completed rebase receipt missing; run --rebase before catalog loading');
+        if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back${result.rows[0]?.diagnostics ? ': '+JSON.stringify(result.rows[0].diagnostics) : ''}`);
         if (statement.kind === 'review_guard') {
           if (result.rows.some(r => r.protected)) { await client.query('ROLLBACK'); return 'skipped: live catalog review protects a matched route'; }
           const own = result.rows.find(r => r.id === plan.route_id);
@@ -244,18 +265,20 @@ export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segmen
   return { plans, supersedes: decisions, dedupe: resolver.events, currentIds: [...currentIds] };
 }
 async function main() {
-  const flags = args(), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
-  for (const flag of ['apply','activate','elevation','only-ok','include-review','prune-pending','rebase']) if (flags.has(flag) && flags.get(flag)![0] !== 'true') throw new Error(`--${flag} is a flag without a value`);
-  if (flags.has('reviews')) throw new Error('--reviews is no longer supported: WA activation uses the owned SQL publish gate');
-  if (flags.has('only-ok') && flags.has('include-review')) throw new Error('Choose --only-ok or --include-review');
+  const flags = loaderArgs(), mode = loaderMode(flags), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
   const batchSize = Number(option(flags, 'batch-size', '50'));
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50) throw new Error('Activation batch size must be 1–50');
   if (flags.has('activate') && !flags.has('elevation')) throw new Error('--activate requires --elevation');
   const segments = new Map((await readRows<Segment>(join(dir, 'segments.ndjson'))).map(s => [s.id, s])), rows = await readRows<ComposedRoute>(join(dir, 'routes.ndjson'));
   let rebases: RebasePlan[] = [], merges: MergePlan[] = [];
   try { rebases = await readRows<RebasePlan>(join(dir, 'rebase-plans.ndjson')); merges = await readRows<MergePlan>(join(dir, 'merge-plans.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
-  if (flags.has('rebase')) {
-    if (flags.has('activate') || flags.has('prune-pending')) throw new Error('--rebase runs before catalog load; do not combine with activation/pruning');
+  if (mode === 'prune') {
+    // Keep the current graph pieces even for rows excluded by load gates; this
+    // preserves their sampled elevation. Prune never executes catalog plans.
+    const keep = [...rows,...rebases.map(r=>r.row)].map(r=>({ segment_ids:r.segments.map(s=>s.id),destination_ids:[r.trailhead,r.objective,r.end_trailhead,...r.waypoints].filter((p):p is PlaceRef=>!!p && !!(p.peaks_id||p.new)).map(placeId) } as RoutePlan));
+    await pruneOnly(dir,keep,rows.flatMap(r=>r.route_id?[r.route_id]:[]),flags.has('apply'));return;
+  }
+  if (mode === 'rebase') {
     if (!rebases.length) throw new Error('No rebase plans: rerun compose with the legacy snapshot');
     await rebaseLoad(dir, rebases, segments, flags.has('apply'), flags.has('elevation')); return;
   }
@@ -270,15 +293,15 @@ async function main() {
       // Session close releases this lock, including on failure.
       await client.query("SELECT pg_advisory_lock(hashtextextended('wa_trail_catalog_loader',0))");
       const live = await readPreflight(client, [...segments.values()], !!options.activate); destinations = live.destinations; legacy = live.routes; options.overlaps = live.overlaps; options.livePreflight = true;
+      if (!(await client.query(SOURCE_SCHEMA_PREFLIGHT)).rows[0]?.ready) throw new Error('Install 20261017_wa_catalog_source_bundles.sql before catalog loading');
     }
-    const result = catalogPlans(rows, segments, destinations, legacy, options), pruning = flags.has('prune-pending') ? prunePlan(result.plans, result.currentIds) : [];
+    const result = catalogPlans(rows, segments, destinations, legacy, options);
     const report = { mode: flags.has('apply') ? 'apply' : 'dry-run', preflight: options.livePreflight ? 'live read-only checks completed before writes' : 'not run: no DB connection; stored segment overlaps, source provenance and current leases remain unverified',
-      counts: planCounts(result.plans), supersedes: result.supersedes, dedupe: result.dedupe, pruning, plans: result.plans.map(({ segment_data, ...p }) => p) };
-    await mkdir(dir, { recursive: true }); await writeFile(join(dir, 'load-plan.json'), JSON.stringify(report, null, 2) + '\n'); console.log(JSON.stringify({ ...report, plans: undefined, supersedes: undefined, dedupe: { matches: result.dedupe.length }, pruning: pruning.map(s => s.kind) }, null, 2));
+      counts: planCounts(result.plans), supersedes: result.supersedes, dedupe: result.dedupe, plans: result.plans.map(({ segment_data, ...p }) => p) };
+    await mkdir(dir, { recursive: true }); await writeFile(join(dir, 'load-plan.json'), JSON.stringify(report, null, 2) + '\n'); console.log(JSON.stringify({ ...report, plans: undefined, supersedes: undefined, dedupe: { matches: result.dedupe.length } }, null, 2));
     if (!client) return;
     const sample = options.elevation ? async (points: { lng: number; lat: number }[]) => { const { sampleTerrariumProfile } = await import('../lib/terrarium-route-profile'); return sampleTerrariumProfile(points, { cacheDir: join(dir, 'terrarium') }); } : undefined;
     await runPlans(client, result.plans, segments, dir, { batchSize, sample });
-    if (pruning.length) { try { for (const s of pruning) await client.query(s.sql, s.values); } catch (e) { await client.query('ROLLBACK'); throw e; } }
   } finally { if (client) await client.end(); }
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exitCode = 1; });

@@ -25,11 +25,14 @@ export class DestinationResolver {
   private inserted = new Set<string>();
   private refs = new Map<string, PlaceRef>();
   private cache = new Map<string, PlaceRef>();
+  private destinations = new Map<string, PeaksDestination>();
   constructor(destinations: PeaksDestination[]) { for (const d of destinations) this.add(d); }
   private add(d: PeaksDestination): void {
+    this.destinations.set(d.id, d);
     const coord: Coord = [d.lng, d.lat]; this.grid.add(coord, coord, { ...d, coord });
     for (const [key, value] of Object.entries(d.external_ids ?? {})) if (/^osm_(node|way|relation)$/.test(key)) this.osm.set(`${key}:${value}`, d.id);
   }
+  get(id: string): PeaksDestination | undefined { return this.destinations.get(id); }
   resolve(ref: PlaceRef): PlaceRef {
     if (ref.peaks_id || !ref.new) return ref;
     const key = JSON.stringify(ref); const cached = this.cache.get(key); if (cached) return cached;

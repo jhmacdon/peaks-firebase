@@ -33,6 +33,7 @@ export interface ComposedRoute {
   route_start: Coord | null; route_end: Coord | null; segment_sources: { id: string; provenance: Provenance }[];
   provenance?: Provenance; route_id?: string; composition_hash?: string; geometry_hash?: string; segment_manifest_hash?: string;
   approximate?: boolean; notes?: string[]; stretches?: { display_name: string | null; kind: Segment['kind']; length_m: number; segment_ids: string[] }[];
+  dropped_links?: { id: string; name: string; gap_m: number; reason: string }[];
 }
 export interface DraftRoute { row: ComposedRoute; walk: RouteStep[]; xc?: RouteStep[] }
 export interface AccessPoint { osm_id: string; coord: Coord; parking: boolean; name?: string }

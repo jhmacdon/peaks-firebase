@@ -1,5 +1,6 @@
 import { join } from 'node:path';
-import { args, DEFAULT_OUT, ndjson, option } from './io';
+import { DEFAULT_OUT, ndjson, option } from './io';
+import { loaderArgs } from './loader-cli';
 import { assertDisplayName, displayName } from './display-names';
 import type { Segment } from './types';
 
@@ -60,5 +61,6 @@ export async function loadSegments(path: string, apply = false): Promise<void> {
   console.log(JSON.stringify(report, null, 2));
 }
 if (require.main === module) {
-  const options = args(); loadSegments(join(option(options, 'out', DEFAULT_OUT), 'segments.ndjson'), options.has('apply')).catch(e => { console.error(e.message); process.exitCode = 1; });
+  try { const options = loaderArgs(process.argv.slice(2), 'segments'); loadSegments(join(option(options, 'out', DEFAULT_OUT), 'segments.ndjson'), options.has('apply')).catch(e => { console.error(e.message); process.exitCode = 1; }); }
+  catch (e) { console.error((e as Error).message); process.exitCode = 1; }
 }

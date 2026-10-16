@@ -15,46 +15,46 @@ IMMUTABLE
 PARALLEL SAFE
 AS $$
   SELECT CASE
-    WHEN jsonb_typeof(value) <> 'object'
-      OR NOT value ?& ARRAY[
+    WHEN jsonb_typeof($1) <> 'object'
+      OR NOT $1 ?& ARRAY[
         'source_kind', 'source_url', 'license_name', 'license_url', 'attribution',
         'retrieved_at', 'osm_way_ids', 'osm_way_urls', 'contains_osm_geometry'
       ]
-      OR jsonb_typeof(value->'source_kind') <> 'string'
-      OR btrim(value->>'source_kind') !~ '^[a-z0-9][a-z0-9_-]*$'
-      OR jsonb_typeof(value->'source_url') <> 'string'
-      OR value->>'source_url' !~ '^https?://[^[:space:]]+$'
-      OR jsonb_typeof(value->'license_name') <> 'string'
-      OR btrim(value->>'license_name') = ''
-      OR jsonb_typeof(value->'license_url') <> 'string'
-      OR value->>'license_url' !~ '^https?://[^[:space:]]+$'
-      OR jsonb_typeof(value->'attribution') <> 'string'
-      OR btrim(value->>'attribution') = ''
-      OR jsonb_typeof(value->'retrieved_at') <> 'string'
-      OR value->>'retrieved_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
-      OR jsonb_typeof(value->'contains_osm_geometry') <> 'boolean'
-      OR jsonb_typeof(value->'osm_way_ids') <> 'array'
-      OR jsonb_typeof(value->'osm_way_urls') <> 'array'
-      OR (value ? 'elevation_source') <> (value ? 'elevation_profile')
+      OR jsonb_typeof($1->'source_kind') <> 'string'
+      OR btrim($1->>'source_kind') !~ '^[a-z0-9][a-z0-9_-]*$'
+      OR jsonb_typeof($1->'source_url') <> 'string'
+      OR $1->>'source_url' !~ '^https?://[^[:space:]]+$'
+      OR jsonb_typeof($1->'license_name') <> 'string'
+      OR btrim($1->>'license_name') = ''
+      OR jsonb_typeof($1->'license_url') <> 'string'
+      OR $1->>'license_url' !~ '^https?://[^[:space:]]+$'
+      OR jsonb_typeof($1->'attribution') <> 'string'
+      OR btrim($1->>'attribution') = ''
+      OR jsonb_typeof($1->'retrieved_at') <> 'string'
+      OR $1->>'retrieved_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+      OR jsonb_typeof($1->'contains_osm_geometry') <> 'boolean'
+      OR jsonb_typeof($1->'osm_way_ids') <> 'array'
+      OR jsonb_typeof($1->'osm_way_urls') <> 'array'
+      OR ($1 ? 'elevation_source') <> ($1 ? 'elevation_profile')
       OR (
-        value ? 'elevation_source'
+        $1 ? 'elevation_source'
         AND (
-          jsonb_typeof(value->'elevation_source') <> 'string'
-          OR btrim(value->>'elevation_source') = ''
-          OR jsonb_typeof(value->'elevation_profile') <> 'string'
-          OR value->>'elevation_profile' NOT IN ('terrain', 'monotonic_ascent')
+          jsonb_typeof($1->'elevation_source') <> 'string'
+          OR btrim($1->>'elevation_source') = ''
+          OR jsonb_typeof($1->'elevation_profile') <> 'string'
+          OR $1->>'elevation_profile' NOT IN ('terrain', 'monotonic_ascent')
         )
       )
     THEN false
     ELSE
-      (SELECT count(*) FROM jsonb_object_keys(value)) IN (9, 11)
-      AND jsonb_array_length(value->'osm_way_ids')
-          = jsonb_array_length(value->'osm_way_urls')
+      (SELECT count(*) FROM jsonb_object_keys($1)) IN (9, 11)
+      AND jsonb_array_length($1->'osm_way_ids')
+          = jsonb_array_length($1->'osm_way_urls')
       AND NOT EXISTS (
         SELECT 1
-        FROM jsonb_array_elements(value->'osm_way_ids')
+        FROM jsonb_array_elements($1->'osm_way_ids')
           WITH ORDINALITY AS way_id(value, ordinal)
-        JOIN jsonb_array_elements(value->'osm_way_urls')
+        JOIN jsonb_array_elements($1->'osm_way_urls')
           WITH ORDINALITY AS way_url(value, ordinal)
           USING (ordinal)
         WHERE jsonb_typeof(way_id.value) <> 'number'
@@ -64,18 +64,18 @@ AS $$
               ('https://www.openstreetmap.org/way/' || (way_id.value #>> '{}'))
       )
       AND (
-        (value->>'contains_osm_geometry')::boolean
-          = (jsonb_array_length(value->'osm_way_ids') > 0)
+        ($1->>'contains_osm_geometry')::boolean
+          = (jsonb_array_length($1->'osm_way_ids') > 0)
       )
       AND (
-        NOT (value->>'contains_osm_geometry')::boolean
+        NOT ($1->>'contains_osm_geometry')::boolean
         OR (
-          value->>'source_kind' = 'openstreetmap'
-          AND value->>'license_name' =
+          $1->>'source_kind' = 'openstreetmap'
+          AND $1->>'license_name' =
               'Open Data Commons Open Database License (ODbL) 1.0'
-          AND value->>'license_url' =
+          AND $1->>'license_url' =
               'https://opendatacommons.org/licenses/odbl/1-0/'
-          AND value->>'attribution' = '© OpenStreetMap contributors'
+          AND $1->>'attribution' = '© OpenStreetMap contributors'
         )
       )
   END;
@@ -83,17 +83,27 @@ $$;
 
 CREATE OR REPLACE FUNCTION is_valid_route_provenance(value JSONB) RETURNS BOOLEAN
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
-  SELECT CASE WHEN jsonb_typeof(value) IS DISTINCT FROM 'object' THEN false ELSE COALESCE(wa_catalog_valid_source_provenance(value-'wa_catalog') AND (
-    CASE WHEN NOT(value?'wa_catalog') THEN true WHEN jsonb_typeof(value->'wa_catalog') IS DISTINCT FROM 'object' THEN false ELSE ( value#>>'{wa_catalog,loader}'='wa-trail-graph-v2'
-      AND NOT EXISTS(SELECT 1 FROM jsonb_object_keys(value->'wa_catalog') k
-        WHERE k NOT IN ('loader','compose_status','composition_hash','approximate','notes','waypoint_names','loaded_binding_hash'))
-      AND (NOT(value->'wa_catalog'?'compose_status') OR value#>>'{wa_catalog,compose_status}' IN ('ok','review'))
-      AND (NOT(value->'wa_catalog'?'composition_hash') OR value#>>'{wa_catalog,composition_hash}' ~ '^[a-f0-9]{64}$')
-      AND (NOT(value->'wa_catalog'?'loaded_binding_hash') OR value#>>'{wa_catalog,loaded_binding_hash}' ~ '^[a-f0-9]{64}$')
-      AND (NOT(value->'wa_catalog'?'approximate') OR jsonb_typeof(value#>'{wa_catalog,approximate}')='boolean')
-      AND (NOT(value->'wa_catalog'?'notes') OR CASE WHEN jsonb_typeof(value#>'{wa_catalog,notes}')='array' THEN
-        NOT EXISTS(SELECT 1 FROM jsonb_array_elements(value#>'{wa_catalog,notes}') n WHERE jsonb_typeof(n)<>'string') ELSE false END)
-      AND (NOT(value->'wa_catalog'?'waypoint_names') OR jsonb_typeof(value#>'{wa_catalog,waypoint_names}')='array')
+  SELECT CASE WHEN jsonb_typeof($1) IS DISTINCT FROM 'object' THEN false ELSE COALESCE(wa_catalog_valid_source_provenance($1-'wa_catalog') AND (
+    CASE WHEN NOT($1?'wa_catalog') THEN true WHEN jsonb_typeof($1->'wa_catalog') IS DISTINCT FROM 'object' THEN false ELSE ( $1#>>'{wa_catalog,loader}'='wa-trail-graph-v2'
+      AND NOT EXISTS(SELECT 1 FROM jsonb_object_keys($1->'wa_catalog') k
+        WHERE k NOT IN ('loader','compose_status','composition_hash','approximate','notes','waypoint_names','loaded_binding_hash','dropped_links'))
+      AND (NOT($1->'wa_catalog'?'compose_status') OR $1#>>'{wa_catalog,compose_status}' IN ('ok','review'))
+      AND (NOT($1->'wa_catalog'?'composition_hash') OR $1#>>'{wa_catalog,composition_hash}' ~ '^[a-f0-9]{64}$')
+      AND (NOT($1->'wa_catalog'?'loaded_binding_hash') OR $1#>>'{wa_catalog,loaded_binding_hash}' ~ '^[a-f0-9]{64}$')
+      AND (NOT($1->'wa_catalog'?'approximate') OR jsonb_typeof($1#>'{wa_catalog,approximate}')='boolean')
+      AND (NOT($1->'wa_catalog'?'notes') OR CASE WHEN jsonb_typeof($1#>'{wa_catalog,notes}')='array' THEN
+        NOT EXISTS(SELECT 1 FROM jsonb_array_elements($1#>'{wa_catalog,notes}') n WHERE jsonb_typeof(n)<>'string') ELSE false END)
+      AND (NOT($1->'wa_catalog'?'waypoint_names') OR jsonb_typeof($1#>'{wa_catalog,waypoint_names}')='array')
+      AND (NOT($1->'wa_catalog'?'dropped_links') OR CASE WHEN jsonb_typeof($1#>'{wa_catalog,dropped_links}')='array' THEN
+        NOT EXISTS(SELECT 1 FROM jsonb_array_elements($1#>'{wa_catalog,dropped_links}') AS dropped(link) WHERE
+          CASE WHEN jsonb_typeof(link)='object' THEN NOT(link ?& ARRAY['id','name','gap_m','reason'])
+          OR (SELECT count(*) FROM jsonb_object_keys(link))<>4
+          OR jsonb_typeof(link->'id') IS DISTINCT FROM 'string'
+          OR jsonb_typeof(link->'name') IS DISTINCT FROM 'string' OR btrim(link->>'name')=''
+          OR jsonb_typeof(link->'reason') IS DISTINCT FROM 'string' OR btrim(link->>'reason')=''
+          OR CASE WHEN jsonb_typeof(link->'gap_m')='number' THEN (link->>'gap_m')::numeric<0 ELSE true END ELSE true END)
+        ELSE false END)
+
     ) END),false) END
 $$;
 
