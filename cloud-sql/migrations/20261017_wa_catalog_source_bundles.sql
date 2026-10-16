@@ -80,7 +80,7 @@ AS $$
   END;
 $$;
 
-CREATE FUNCTION wa_catalog_valid_single_provenance(value JSONB) RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION wa_catalog_valid_single_provenance(value JSONB) RETURNS BOOLEAN
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN jsonb_typeof($1) IS DISTINCT FROM 'object' THEN false ELSE COALESCE(wa_catalog_valid_source_provenance($1-'wa_catalog') AND (
     CASE WHEN NOT($1?'wa_catalog') THEN true WHEN jsonb_typeof($1->'wa_catalog') IS DISTINCT FROM 'object' THEN false ELSE (
@@ -129,12 +129,12 @@ BEGIN
   RETURN (value->'osm_way_ids') @> ids AND ids @> (value->'osm_way_ids');
 END $$;
 
-CREATE FUNCTION wa_catalog_provenance_sources(value JSONB) RETURNS JSONB
+CREATE OR REPLACE FUNCTION wa_catalog_provenance_sources(value JSONB) RETURNS JSONB
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN jsonb_typeof($1->'sources')='array' THEN $1->'sources' ELSE jsonb_build_array($1-'wa_catalog') END
 $$;
 
-CREATE FUNCTION wa_catalog_leaf_compatible(segment_source JSONB,route_source JSONB) RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION wa_catalog_leaf_compatible(segment_source JSONB,route_source JSONB) RETURNS BOOLEAN
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN COALESCE(wa_catalog_valid_source_provenance($1),false) AND COALESCE(wa_catalog_valid_source_provenance($2),false) THEN
     $1->>'source_kind'=$2->>'source_kind'
@@ -187,7 +187,7 @@ LANGUAGE SQL STABLE SET search_path=pg_catalog,public,pg_temp AS $$
     ELSE false END FROM routes r WHERE r.id=$1),false)
 $$;
 
-CREATE FUNCTION wa_catalog_union_provenance(input_sources JSONB) RETURNS JSONB
+CREATE OR REPLACE FUNCTION wa_catalog_union_provenance(input_sources JSONB) RETURNS JSONB
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
 WITH leaves AS (
   SELECT leaf FROM jsonb_array_elements($1) item CROSS JOIN LATERAL jsonb_array_elements(wa_catalog_provenance_sources(item)) leaf
@@ -210,14 +210,14 @@ WITH leaves AS (
 SELECT src||CASE WHEN jsonb_array_length(items)>1 THEN jsonb_build_object('sources',items) ELSE '{}'::jsonb END FROM header
 $$;
 
-CREATE FUNCTION wa_catalog_provenance_elevation(value JSONB,elevation JSONB) RETURNS JSONB
+CREATE OR REPLACE FUNCTION wa_catalog_provenance_elevation(value JSONB,elevation JSONB) RETURNS JSONB
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
   SELECT wa_catalog_union_provenance(jsonb_agg((leaf-ARRAY['elevation_source','elevation_profile'])||$2))
     ||CASE WHEN $1?'wa_catalog' THEN jsonb_build_object('wa_catalog',$1->'wa_catalog') ELSE '{}'::jsonb END
   FROM jsonb_array_elements(wa_catalog_provenance_sources($1)) leaf
 $$;
 
-CREATE TABLE wa_catalog_rebase_receipts (
+CREATE TABLE IF NOT EXISTS wa_catalog_rebase_receipts (
   route_id TEXT PRIMARY KEY REFERENCES routes(id),
   source_hash TEXT NOT NULL CHECK(source_hash ~ '^[a-f0-9]{64}$'),
   binding_hash TEXT NOT NULL CHECK(binding_hash ~ '^[a-f0-9]{64}$'),

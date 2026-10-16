@@ -159,7 +159,7 @@ test('both migrations use positional SQL parameters and preserve explicit column
     }
     assert.ok(checked >= 2); assert.match(sql, /AS way_id\(value, ordinal\)/); assert.match(sql, /way_id\.value/); assert.ok(sql.includes("'dropped_links'"));
     if (file.startsWith('20261017')) {
-      const body = sql.split('CREATE FUNCTION wa_catalog_provenance_elevation')[1];
+      const body = sql.split('CREATE OR REPLACE FUNCTION wa_catalog_provenance_elevation')[1];
       assert.ok(body.includes("CASE WHEN $1?'wa_catalog'")); assert.ok(body.includes('||$2')); assert.ok(!body.includes("CASE WHEN value?'wa_catalog'"));
       assert.ok(sql.includes('CREATE OR REPLACE FUNCTION wa_catalog_valid_source_provenance'), 'fix existing 20261016 installs too');
     }

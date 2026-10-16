@@ -107,13 +107,13 @@ LANGUAGE SQL IMMUTABLE PARALLEL SAFE AS $$
     ) END),false) END
 $$;
 
-CREATE TABLE wa_catalog_activation_receipts (
+CREATE TABLE IF NOT EXISTS wa_catalog_activation_receipts (
   route_id TEXT PRIMARY KEY REFERENCES routes(id),
   composition_hash TEXT NOT NULL CHECK(composition_hash ~ '^[a-f0-9]{64}$'),
   segment_ids TEXT[] NOT NULL, destination_ids TEXT[] NOT NULL,
   activated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
-CREATE TABLE wa_catalog_supersedes (
+CREATE TABLE IF NOT EXISTS wa_catalog_supersedes (
   legacy_route_id TEXT PRIMARY KEY REFERENCES routes(id),
   route_id TEXT NOT NULL REFERENCES routes(id),
   superseded_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
@@ -145,7 +145,11 @@ GRANT UPDATE(id) ON segments,destinations TO "peaks-wa-catalog-publisher";
 GRANT INSERT ON wa_catalog_activation_receipts TO "peaks-wa-catalog-publisher";
 GRANT EXECUTE ON FUNCTION peaks_route_passes_publish_integrity(TEXT,TEXT,TEXT) TO "peaks-wa-catalog-publisher";
 
-CREATE FUNCTION activate_wa_catalog_route(candidate_route_id TEXT) RETURNS VOID
+-- A replay must replace the function already owned by the isolated role.
+-- Grant access before replacement; revoke it again after the ownership transfer.
+DO $$ BEGIN EXECUTE format('GRANT "peaks-wa-catalog-publisher" TO %I',current_user); END $$;
+GRANT CREATE ON SCHEMA public TO "peaks-wa-catalog-publisher";
+CREATE OR REPLACE FUNCTION activate_wa_catalog_route(candidate_route_id TEXT) RETURNS VOID
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
 DECLARE r routes%ROWTYPE;
 BEGIN
@@ -194,8 +198,6 @@ BEGIN
   UPDATE routes SET status='active',updated_at=now() WHERE id=r.id AND status='pending';
 END $$;
 REVOKE ALL ON FUNCTION activate_wa_catalog_route(TEXT) FROM PUBLIC,"peaks-api";
-DO $$ BEGIN EXECUTE format('GRANT "peaks-wa-catalog-publisher" TO %I',current_user); END $$;
-GRANT CREATE ON SCHEMA public TO "peaks-wa-catalog-publisher";
 ALTER FUNCTION activate_wa_catalog_route(TEXT) OWNER TO "peaks-wa-catalog-publisher";
 REVOKE CREATE ON SCHEMA public FROM "peaks-wa-catalog-publisher";
 -- This bulk loader uses the migration operator, not the lease-bound standard
@@ -204,7 +206,7 @@ REVOKE CREATE ON SCHEMA public FROM "peaks-wa-catalog-publisher";
 DO $$ BEGIN EXECUTE format('GRANT EXECUTE ON FUNCTION activate_wa_catalog_route(TEXT) TO %I',current_user); END $$;
 DO $$ BEGIN EXECUTE format('REVOKE "peaks-wa-catalog-publisher" FROM %I',current_user); END $$;
 
-CREATE FUNCTION guard_wa_catalog_activation() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION guard_wa_catalog_activation() RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,public,pg_temp AS $$
 BEGIN
   IF TG_OP='UPDATE' AND OLD.provenance#>>'{wa_catalog,loader}'='wa-trail-graph-v2'
@@ -218,11 +220,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END $$;
+DROP TRIGGER IF EXISTS trg_guard_wa_catalog_activation ON routes;
 CREATE TRIGGER trg_guard_wa_catalog_activation BEFORE INSERT OR UPDATE ON routes FOR EACH ROW EXECUTE FUNCTION guard_wa_catalog_activation();
 
 -- Pruning must preserve references from any table, including user lists and
 -- session facts. Unknown composite foreign keys conservatively prevent deletion.
-CREATE FUNCTION wa_catalog_has_references(target regclass,target_id TEXT,ignored_relations regclass[] DEFAULT '{}'::regclass[]) RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION wa_catalog_has_references(target regclass,target_id TEXT,ignored_relations regclass[] DEFAULT '{}'::regclass[]) RETURNS BOOLEAN
 LANGUAGE plpgsql STABLE SET search_path=pg_catalog,public,pg_temp AS $$
 DECLARE fk RECORD; has_ref BOOLEAN;
 BEGIN
