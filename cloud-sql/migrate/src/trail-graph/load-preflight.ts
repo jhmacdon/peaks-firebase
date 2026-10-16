@@ -35,8 +35,22 @@ export async function readPreflight(client: Pick<Client, 'query'>, segments: Seg
       const result = await client.query(`WITH incoming AS (
         SELECT item->>'id' AS id,ST_SetSRID(ST_GeomFromGeoJSON(item->>'geometry'),4326)::geography AS path FROM jsonb_array_elements($1::jsonb) item
       ), nearby AS (
-        SELECT incoming.id AS new_id,s.*,ST_Length(ST_CollectionExtract(ST_Intersection(ST_Force2D(incoming.path::geometry),ST_Buffer(s.path,15)::geometry),2)::geography)/NULLIF(ST_Length(incoming.path),0) AS coverage
-        FROM incoming JOIN segments s ON ST_DWithin(incoming.path,s.path,15)
+        SELECT incoming.id AS new_id,s.*,
+          -- Clip the existing line to the new segment's box before buffering, and work in
+          -- the WA UTM zone: buffering whole long lines (the 60k-vertex PCT segment) per
+          -- incoming segment took minutes per batch.
+          ST_Length(ST_CollectionExtract(ST_Intersection(incoming.path_m,
+            ST_Buffer(ST_Transform(ST_ClipByBox2D(ST_Force2D(s.path::geometry),incoming.box),incoming.srid),15)),2))
+            /NULLIF(ST_Length(incoming.path_m),0) AS coverage
+        FROM (SELECT i.*, ST_Expand(ST_Envelope(ST_Force2D(i.path::geometry)),0.001) AS box,
+                CASE WHEN ST_X(ST_Centroid(i.path::geometry)) < -120 THEN 32610 ELSE 32611 END AS srid,
+                ST_Transform(ST_Force2D(i.path::geometry), CASE WHEN ST_X(ST_Centroid(i.path::geometry)) < -120 THEN 32610 ELSE 32611 END) AS path_m
+              FROM incoming i) incoming
+        JOIN segments s ON s.id NOT LIKE 'triple-crown-%'
+          -- Triple Crown whole-trail lines (52k-68k vertices) are matched through their own
+          -- point index and overlap the graph's PCT/PNT pieces by design; distance checks
+          -- against them made each batch run for minutes.
+          AND ST_DWithin(incoming.path,s.path,15)
       ) SELECT s.new_id,s.id,s.name,s.display_name,s.description,s.kind,s.trail_names,s.provenance,ST_AsGeoJSON(s.path::geometry)::jsonb AS path,s.coverage,
         COALESCE((SELECT jsonb_agg(jsonb_build_object('id',r.id,'status',r.status,'loader',r.provenance#>>'{wa_catalog,loader}',
           'reviewed',EXISTS(SELECT 1 FROM trail_catalog_review_jobs j WHERE j.route_id=r.id AND j.state IN ('approved','publish_leased','published','verify_leased','verified','rejected'))))
