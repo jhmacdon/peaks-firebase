@@ -14,6 +14,7 @@ import { summitApproach } from './summit-approach';
 import { RESOLUTION_HINTS } from './resolution-hints';
 import { applyCuration, reviewData, type Curation } from './stretches';
 import { refresh, provenance } from './topology';
+import { rebaseDraft, finalizeRebases, rebasePlanHash, mergePlans, type LegacyRoute } from './rebase';
 import type { AccessPoint, CatalogInputs, ComposedRoute, DraftRoute, ExistingMatch, PeaksDestination, PeaksRoute, ResolvedPlace, Seed, Waypoint } from './catalog-types';
 import type { Coord, NamedFeature, Provenance, Segment } from './types';
 
@@ -273,6 +274,7 @@ export function materialize(drafts: DraftRoute[], source: Map<string, Segment>):
       if (from || to !== parent.coords.length - 1) {
         segment = refresh({ ...parent, coords: parent.coords.slice(from, to + 1), node_ids: parent.node_ids.slice(from, to + 1), osm_edge_way_ids: parent.osm_edge_way_ids.slice(from, to), source_segment_ids: unique([parent.id, ...(parent.source_segment_ids ?? [])]) });
         segment.id = `wa-span-${hash(JSON.stringify([parent.id, segment.node_ids]))}`;
+        if (parent.legacy_tail) segment.provenance = parent.provenance;
       }
       if (drafts.some(d => d.xc?.some(step => step.segment_id === id && from >= Math.min(step.start_vertex, step.end_vertex) && to <= Math.max(step.start_vertex, step.end_vertex)))) segment.kind = 'xc';
       parts.push({ from, to, segment, forward: segment.node_ids[0] === parent.node_ids[from] }); all.push(segment);
@@ -319,13 +321,28 @@ export async function composeCatalog(input: string, graph: string, out: string, 
     const draft = composer.compose(inputs.seeds[i], i); drafts.push(draft);
     console.log(`${i + 1}/${inputs.seeds.length} ${draft.row.status}: ${draft.row.name} (${Math.round(draft.row.length_m)} m) ${draft.row.reasons.join('; ')}`);
   }
-  const segments = materialize(drafts, composer.byId), rows = drafts.map(d => d.row);
+  let legacy: LegacyRoute[] = [];
+  try { legacy = await readRows<LegacyRoute>(join(input, 'peaks-snapshot/wa-legacy-routes-with-paths.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+  const rebases = legacy.map((r, i) => {
+    const result = rebaseDraft(r, composer.router, composer.byId, inputs.routes.find(p => p.id === r.id)); result.plan.row.seed_index = -i - 1;
+    console.log(`Rebase ${i + 1}/${legacy.length} ${result.plan.status}: ${r.name}`); return result;
+  });
+  const allDrafts = [...drafts, ...rebases.map(r => r.draft)], segments = materialize(allDrafts, composer.byId), rows = drafts.map(d => d.row), allRows = allDrafts.map(d => d.row);
   let previous: Segment[] = [];
   try { previous = await readRows<Segment>(join(out, 'segments.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
   let curation: Curation = { routes: [] };
   try { curation = JSON.parse(await readFile(join(input, 'seed/curated-stretches.json'), 'utf8')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
-  const audit = applyCuration(rows, segments, curation, inputs.destinations, inputs.features, new Map(previous.map(s => [s.id, s])));
-  finalizeRows(rows, segments);
+  const audit = applyCuration(allRows, segments, curation, inputs.destinations, inputs.features, new Map(previous.map(s => [s.id, s])));
+  finalizeRebases(rebases.map(r => r.plan), segments);
+  finalizeRows(allRows, segments);
+  for (const { plan } of rebases) plan.plan_hash = rebasePlanHash(plan);
+  const merges = mergePlans(rows, rebases.map(r => r.plan), segments);
+  await writeNdjson(join(out, 'rebase-plans.ndjson'), rebases.map(r => r.plan));
+  await writeNdjson(join(out, 'merge-plans.ndjson'), merges);
+  const rebaseSummary = { total: rebases.length, by_status: rebases.reduce((n, r) => { n[r.plan.status]++; return n; }, { ok: 0, review: 0, failed: 0 }), frozen: rebases.filter(r => r.plan.frozen).length,
+    merges: merges.length, merges_ok: merges.filter(m => m.status === 'ok').length, new_ok_candidates: rows.filter(r => r.status === 'ok' && !merges.some(m => m.seed_index === r.seed_index)).length };
+  await writeFile(join(out, 'rebase-summary.json'), JSON.stringify(rebaseSummary, null, 2) + '\n');
+  console.log(JSON.stringify(rebaseSummary, null, 2));
   await writeFile(join(out, 'stretch-audit.json'), JSON.stringify(audit, null, 2) + '\n');
   const review = join(out, '../review'); await mkdir(review, { recursive: true });
   const data = reviewData(rows, segments);

@@ -3,7 +3,7 @@ import { nearestFeatureVertex, vertexIndex } from './features';
 import { trailKey } from './names';
 import type { Coord, Kind, NamedFeature, Segment } from './types';
 
-export interface RouteOptions { preferNames?: string[]; via?: Endpoint[]; avoidKinds?: Kind[]; featureRadii?: Partial<Record<NamedFeature['feature'], number>>; includeFeatures?: boolean; allowedSegmentIds?: Set<string> }
+export interface RouteOptions { preferNames?: string[]; via?: Endpoint[]; avoidKinds?: Kind[]; featureRadii?: Partial<Record<NamedFeature['feature'], number>>; includeFeatures?: boolean; allowedSegmentIds?: Set<string>; segmentPenalty?: (segment: Segment) => number }
 export type Endpoint = Coord | { lon: number; lat: number; boundary?: NamedFeature['boundary'] } | string;
 export interface RouteStep { segment_id: string; direction: 'forward' | 'reverse'; start_vertex: number; end_vertex: number; length_m: number }
 interface Edge { to: string; segment: number; start: number; end: number; length: number }
@@ -127,7 +127,9 @@ export class TrailRouter {
         for (const edge of graph.get(id) ?? []) {
           if (avoid.has(this.segments[edge.segment].kind)) continue;
           if (options.allowedSegmentIds && !options.allowedSegmentIds.has(this.segments[edge.segment].id)) continue;
-          const next = cost + edge.length * multipliers[edge.segment];
+          const penalty = options.segmentPenalty?.(this.segments[edge.segment]) ?? 1;
+          if (!(penalty >= 1) || !Number.isFinite(penalty)) throw new Error('Segment penalty must be finite and >=1');
+          const next = cost + edge.length * multipliers[edge.segment] * penalty;
           if (next >= (distances.get(edge.to) ?? Infinity)) continue;
           distances.set(edge.to, next); previous.set(edge.to, { from: id, edge }); heap.push(next, edge.to);
         }

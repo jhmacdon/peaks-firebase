@@ -1,5 +1,8 @@
 # WA catalog loader
 
+For a legacy WA snapshot, run the [rebase and merge workflow](REBASE.md) first.
+It keeps legacy identities and session links instead of creating duplicates.
+
 The default command makes a local dry-run plan. It opens no database connection:
 
 ```sh

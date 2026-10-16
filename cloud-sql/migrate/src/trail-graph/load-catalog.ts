@@ -13,10 +13,12 @@ import { prunePlan } from './load-prune';
 import { DESTINATION_FEATURES, routeLine } from './stretches';
 import type { ComposedRoute, NewPlace, PeaksDestination, PeaksRoute, PlaceRef } from './catalog-types';
 import type { Coord, Provenance, Segment } from './types';
+import { replacementPlan, rebaseLoad } from './load-rebase';
+import type { MergePlan, RebasePlan } from './rebase';
 
-export interface LoadOptions { activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean }
+export interface LoadOptions { activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
 export interface Statement { kind: string; sql: string; values: unknown[] }
-export interface RoutePlan { route_id: string; seed_index: number; statements: Statement[]; segment_ids: string[]; destination_ids: string[]; activate: boolean; notes: string[]; skipped?: string; reused_segment_ids: string[]; segment_data: Map<string, Segment> }
+export interface RoutePlan { route_id: string; seed_index: number; statements: Statement[]; segment_ids: string[]; destination_ids: string[]; activate: boolean; notes: string[]; skipped?: string; reused_segment_ids: string[]; segment_data: Map<string, Segment>; operation?: 'new' | 'merge' | 'rebase'; legacy_expected?: { name: string; status: string } }
 const STATES = "('approved','publish_leased','published','verify_leased','verified','rejected')";
 const PROTECTED = `SELECT 1 FROM route_segments rs JOIN trail_catalog_review_jobs review ON review.route_id=rs.route_id WHERE rs.segment_id=segments.id AND review.state IN ${STATES}`;
 export const placeId = placeIdentity;
@@ -69,7 +71,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   // Another replacement may fail while this run continues. Its planned claim
   // must not authorize duplicate geometry until that retirement has committed.
   const dependencies = [...new Set((options.overlaps ?? []).filter(o => row.segments.some(r => r.id === o.new_id) && !binding.reused.includes(o.id))
-    .flatMap(o => o.routes.map(r => r.id)).filter(id => id !== (options.supersede?.eligible ? options.supersede.legacy_id : null)))];
+    .flatMap(o => o.routes.map(r => r.id)).filter(id => id !== options.replacementId && id !== (options.supersede?.eligible ? options.supersede.legacy_id : null)))];
   if (dependencies.length) add('overlap_guard', `SELECT NOT EXISTS(SELECT 1 FROM routes WHERE id=ANY($1::text[]) AND status IS DISTINCT FROM 'superseded') AS valid`, [dependencies]);
   for (const ref of places.values()) if (ref.new) plan.statements.push(destinationStatement(ref.new));
   plan.segment_ids = [...new Set(refs.map(s => s.id))];
@@ -145,7 +147,7 @@ export function planCounts(plans: RoutePlan[]) {
   const statements: Record<string, number> = {}, skipped: Record<string, number> = {};
   for (const p of plans) if (p.skipped) skipped[p.skipped] = (skipped[p.skipped] ?? 0) + 1; else for (const s of p.statements) statements[s.kind] = (statements[s.kind] ?? 0) + 1;
   const admitted = plans.filter(p => !p.skipped);
-  return { input_routes: plans.length, planned_routes: admitted.length, skipped, statements, unique_segment_ids: new Set(admitted.flatMap(p => p.segment_ids)).size,
+  return { input_routes: plans.length, planned_routes: admitted.length, new_routes: admitted.filter(p => !p.operation || p.operation === 'new').length, merges: admitted.filter(p => p.operation === 'merge').length, rebases: admitted.filter(p => p.operation === 'rebase').length, skipped, statements, unique_segment_ids: new Set(admitted.flatMap(p => p.segment_ids)).size,
     unique_destination_ids: new Set(admitted.flatMap(p => p.destination_ids)).size, unique_new_destination_ids: new Set(admitted.flatMap(p => p.statements.filter(s => s.kind === 'destination_insert').map(s => s.values[0]))).size,
     reused_segment_ids: [...new Set(admitted.flatMap(p => p.reused_segment_ids))], note: 'SQL statement counts, not affected-row counts. Offline plans require live read-only preflight before writes.' };
 }
@@ -164,6 +166,13 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
         if (result.rowCount !== 1) throw new Error(`Elevation update refused for ${id}`);
       } else {
         const result = await client.query(statement.sql, statement.values);
+        if (statement.kind === 'factory_lock' && result.rows.some(r => r.lease_expires_at && Date.parse(r.lease_expires_at) >= Date.now())) throw new Error('Live route-factory lease: replacement skipped');
+        if (statement.kind === 'replacement_resume_guard' && result.rows[0]?.already_applied === true) { await client.query('ROLLBACK'); return 'skipped: legacy replacement already applied and valid'; }
+        if (statement.kind === 'replacement_guard') {
+          const r = result.rows[0];
+          if (!r || r.owner !== 'peaks' || r.protected || !r.links_match || !r.source_match || r.name !== plan.legacy_expected?.name || r.status !== plan.legacy_expected?.status) throw new Error('Legacy route changed, is reviewed, or rebase has not completed; replacement refused');
+        }
+        if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back`);
         if (statement.kind === 'review_guard') {
           if (result.rows.some(r => r.protected)) { await client.query('ROLLBACK'); return 'skipped: live catalog review protects a matched route'; }
           const own = result.rows.find(r => r.id === plan.route_id);
@@ -183,15 +192,16 @@ export async function waitForRematchDrain(client: Pick<Client, 'query'>, sleep: 
   for (;;) { const result = await client.query('SELECT count(*)::int AS pending FROM session_rematch_queue'); if (result.rows[0]?.pending === 0) return;
     if (now() >= deadline) throw new Error('Rematch queue did not drain within 30 minutes; no further activation batches'); await sleep(30000); }
 }
-export async function runPlans(client: Pick<Client, 'query'>, plans: RoutePlan[], segments: Map<string, Segment>, dir: string, options: { batchSize?: number; drain?: () => Promise<void>; sample?: (points: { lng: number; lat: number }[]) => Promise<number[]> } = {}) {
+export async function runPlans(client: Pick<Client, 'query'>, plans: RoutePlan[], segments: Map<string, Segment>, dir: string, options: { batchSize?: number; drain?: () => Promise<void>; sample?: (points: { lng: number; lat: number }[]) => Promise<number[]>; resultsFile?: string } = {}) {
   const size = options.batchSize ?? 50; if (!Number.isInteger(size) || size < 1 || size > 50) throw new Error('Activation batch size must be 1–50');
-  const results: { seed_index: number; result: string }[] = []; let attempted = 0;
+  const results: { seed_index: number; route_id: string; operation: string; result: string }[] = []; let attempted = 0;
   for (const plan of plans) {
     if (plan.activate && attempted === size) { await (options.drain ?? (() => waitForRematchDrain(client)))(); attempted = 0; }
     if (plan.activate) attempted++;
-    try { results.push({ seed_index: plan.seed_index, result: await executePlan(client, plan, segments, dir, options.sample) }); }
-    catch (e) { results.push({ seed_index: plan.seed_index, result: `failed: ${(e as Error).message}` }); }
-    await writeFile(join(dir, 'load-results.json'), JSON.stringify(results, null, 2) + '\n');
+    const context = { seed_index: plan.seed_index, route_id: plan.route_id, operation: plan.operation ?? 'new' };
+    try { results.push({ ...context, result: await executePlan(client, plan, segments, dir, options.sample) }); }
+    catch (e) { results.push({ ...context, result: `failed: ${(e as Error).message}` }); }
+    await writeFile(join(dir, options.resultsFile ?? 'load-results.json'), JSON.stringify(results, null, 2) + '\n');
   }
   if (attempted) await (options.drain ?? (() => waitForRematchDrain(client)))(); return results;
 }
@@ -207,13 +217,21 @@ export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segmen
     decisions.push(decision);
   }
   claimSupersedes(decisions); const currentIds = new Set(rows.flatMap(r => r.route_id ? [r.route_id] : []));
+  for (const rebase of options.rebases ?? []) { currentIds.add(rebase.legacy.id); for (const d of decisions.filter(d => d.legacy_id === rebase.legacy.id && d.eligible)) { d.eligible = false; d.reasons.push('legacy identity is preserved by rebase; merge required'); } }
+  // Earlier pending loads can share the same canonical graph IDs. The binding
+  // helper still requires exact whole XY and marker-owned routes on every use.
+  for (const overlap of options.overlaps ?? []) for (const owner of overlap.routes) if (owner.loader === IMPORT_MARKER) currentIds.add(owner.id);
   let plans: RoutePlan[] = [];
   // A skipped replacement cannot authorize a second route to duplicate its
   // legacy segments. Remove those claims and repeat until the set is closed.
   for (let pass = 0; pass <= decisions.length; pass++) {
     const supersededIds = new Set(options.activate ? decisions.filter(d => d.eligible).map(d => d.legacy_id) : []);
     plans = rows.map(r => {
-      try { return planRoute(r, segments, { ...options, resolver, supersededIds, currentIds, supersede: decisions.find(d => d.seed_index === r.seed_index && d.eligible) }); }
+      try {
+        const opts = { ...options, resolver, supersededIds, currentIds, supersede: decisions.find(d => d.seed_index === r.seed_index && d.eligible) }, merge = options.merges?.find(m => m.seed_index === r.seed_index);
+        if (merge) { const rebase = options.rebases?.find(p => p.legacy.id === merge.legacy_id); if (!rebase) throw new Error('Merge is missing its rebase plan'); return replacementPlan(r, segments, rebase, opts, merge); }
+        return planRoute(r, segments, opts);
+      }
       catch (e) { return { route_id: r.route_id ?? '', seed_index: r.seed_index, statements: [], segment_ids: [], destination_ids: [], activate: false, reused_segment_ids: [], segment_data: segments, notes: [], skipped: `invalid plan: ${(e as Error).message}` } as RoutePlan; }
     });
     let changed = false;
@@ -227,15 +245,22 @@ export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segmen
 }
 async function main() {
   const flags = args(), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
-  for (const flag of ['apply','activate','elevation','only-ok','include-review','prune-pending']) if (flags.has(flag) && flags.get(flag)![0] !== 'true') throw new Error(`--${flag} is a flag without a value`);
+  for (const flag of ['apply','activate','elevation','only-ok','include-review','prune-pending','rebase']) if (flags.has(flag) && flags.get(flag)![0] !== 'true') throw new Error(`--${flag} is a flag without a value`);
   if (flags.has('reviews')) throw new Error('--reviews is no longer supported: WA activation uses the owned SQL publish gate');
   if (flags.has('only-ok') && flags.has('include-review')) throw new Error('Choose --only-ok or --include-review');
   const batchSize = Number(option(flags, 'batch-size', '50'));
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50) throw new Error('Activation batch size must be 1–50');
   if (flags.has('activate') && !flags.has('elevation')) throw new Error('--activate requires --elevation');
   const segments = new Map((await readRows<Segment>(join(dir, 'segments.ndjson'))).map(s => [s.id, s])), rows = await readRows<ComposedRoute>(join(dir, 'routes.ndjson'));
+  let rebases: RebasePlan[] = [], merges: MergePlan[] = [];
+  try { rebases = await readRows<RebasePlan>(join(dir, 'rebase-plans.ndjson')); merges = await readRows<MergePlan>(join(dir, 'merge-plans.ndjson')); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+  if (flags.has('rebase')) {
+    if (flags.has('activate') || flags.has('prune-pending')) throw new Error('--rebase runs before catalog load; do not combine with activation/pruning');
+    if (!rebases.length) throw new Error('No rebase plans: rerun compose with the legacy snapshot');
+    await rebaseLoad(dir, rebases, segments, flags.has('apply'), flags.has('elevation')); return;
+  }
   let destinations = await readRows<PeaksDestination>(join(input, 'peaks-snapshot/wa-destinations.ndjson')), legacy = await readRows<PeaksRoute>(join(input, 'peaks-snapshot/wa-routes.ndjson'));
-  const options: LoadOptions = { activate: flags.has('activate'), elevation: flags.has('elevation'), includeReview: flags.has('include-review') };
+  const options: LoadOptions = { activate: flags.has('activate'), elevation: flags.has('elevation'), includeReview: flags.has('include-review'), rebases, merges };
   let client: Client | undefined;
   try {
     if (flags.has('apply')) {
@@ -247,7 +272,7 @@ async function main() {
       const live = await readPreflight(client, [...segments.values()], !!options.activate); destinations = live.destinations; legacy = live.routes; options.overlaps = live.overlaps; options.livePreflight = true;
     }
     const result = catalogPlans(rows, segments, destinations, legacy, options), pruning = flags.has('prune-pending') ? prunePlan(result.plans, result.currentIds) : [];
-    const report = { mode: flags.has('apply') ? 'apply' : 'dry-run', preflight: options.livePreflight ? 'live read-only checks completed before writes' : 'not run: no DB connection; overlap and missing snapshot IDs/paths remain unverified',
+    const report = { mode: flags.has('apply') ? 'apply' : 'dry-run', preflight: options.livePreflight ? 'live read-only checks completed before writes' : 'not run: no DB connection; stored segment overlaps, source provenance and current leases remain unverified',
       counts: planCounts(result.plans), supersedes: result.supersedes, dedupe: result.dedupe, pruning, plans: result.plans.map(({ segment_data, ...p }) => p) };
     await mkdir(dir, { recursive: true }); await writeFile(join(dir, 'load-plan.json'), JSON.stringify(report, null, 2) + '\n'); console.log(JSON.stringify({ ...report, plans: undefined, supersedes: undefined, dedupe: { matches: result.dedupe.length }, pruning: pruning.map(s => s.kind) }, null, 2));
     if (!client) return;

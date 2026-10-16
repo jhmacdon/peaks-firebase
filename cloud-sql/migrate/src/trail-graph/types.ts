@@ -17,6 +17,7 @@ export interface Segment {
   relation_names: string[]; relations: Relation[]; start_node: string; end_node: string;
   coords: Coord[]; node_ids: string[]; osm_edge_way_ids: number[]; length_m: number; provenance: Provenance;
   alt_sources: AltSource[];
+  legacy_tail?: { route_id: string; source_hash: string; attachment_gap_m: number };
 }
 export interface GraphNode { id: string; lon: number; lat: number; degree: number }
 export interface NamedFeature {
