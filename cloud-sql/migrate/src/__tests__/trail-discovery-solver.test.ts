@@ -118,6 +118,18 @@ test('reusing a limited native attempt leaves unresolved objective pairs as Type
   assert.equal(solver.stats.calls, 1); assert.equal(solver.stats.cached_limited, 1); assert.equal(solver.stats.cached, 0); assert.equal(solver.stats.infeasible, 0);
 }));
 
+test('a native call cap retains cached proofs and never caches skipped work as a proof', () => temporary(directory => {
+  let calls = 0;
+  const solver = createDiscoverySolver(directory, { maxNewCalls: 1, runner: () => { calls++; return { status: 0, stdout: '{"status":"infeasible"}' }; } });
+  assert.equal(solver.solve(request).status, 'infeasible');
+  assert.equal(solver.solve(request).status, 'infeasible'); assert.equal(solver.stats.cached, 1);
+  const changed = { ...request, maxDistance: request.maxDistance - 1 };
+  assert.equal(solver.solve(changed).status, 'limit'); assert.equal(solver.stats.budget_skipped, 1); assert.equal(calls, 1);
+  const retry = createDiscoverySolver(directory, { maxNewCalls: 1, runner: () => { calls++; return { status: 0, stdout: '{"status":"infeasible"}' }; } });
+  assert.equal(retry.solve(changed).status, 'infeasible'); assert.equal(calls, 2, 'skipped work supplied no cached claim');
+  for (const maxNewCalls of [-1, .5, NaN, Infinity]) assert.throws(() => createDiscoverySolver(directory, { maxNewCalls }), /nonnegative safe integer/);
+}));
+
 test('installed optional solver proves small fixtures, including a longer same-bad bypass', context => temporary(directory => {
   const solver = createDiscoverySolver(directory, { timeLimitSeconds: 10 });
   const first = solver.solve(request);

@@ -13,7 +13,7 @@ export interface PeaksRoute {
   objective_destination_id?: string | null; path?: { type: 'LineString'; coordinates: number[][] } | null; n_sessions: number; destinations: { id: string; ordinal: number }[];
   start: { coordinates: number[] } | null; end: { coordinates: number[] } | null;
 }
-export interface PlaceSource { kind: 'osm' | 'graph' | 'inferred_road_contact' | 'trail_end' | 'curated'; osm_id?: string; node_id?: string; provenance?: Provenance; access_name?: string; access_gap_m?: number; note?: string }
+export interface PlaceSource { kind: 'osm' | 'graph' | 'inferred_road_contact' | 'trail_end' | 'curated'; osm_id?: string; node_id?: string; provenance?: Provenance; access_name?: string; access_gap_m?: number; note?: string; official_name?: boolean; name_is_fallback?: boolean }
 export interface NewPlace { name: string; feature: string; lng: number; lat: number; source: PlaceSource; ele?: number; boundary?: NamedFeature['boundary'] }
 export interface PlaceRef { peaks_id?: string; new?: NewPlace }
 export interface ResolvedPlace { ref: PlaceRef; name: string; feature: string; coord: Coord; osm?: NamedFeature; route_coord: Coord; gap_m: number }
@@ -25,6 +25,9 @@ export interface ComposedRoute {
   discovery_source?: 'relation' | 'objective' | 'named_trail' | 'lollipop';
   discovery_identity?: string;
   popularity_score?: number;
+  popularity?: number;
+  popularity_signals?: Record<string, number>;
+  flags?: string[];
   seed_index: number; name: string; aliases: string[]; kind: Seed['kind']; region: string; tier: number;
   trailhead: PlaceRef | null; objective: PlaceRef | null; end_trailhead?: PlaceRef | null;
   segments: { id: string; direction: 'forward' | 'reverse' }[]; length_m: number;

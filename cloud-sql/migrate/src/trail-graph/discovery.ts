@@ -1,6 +1,6 @@
 import { Grid, haversine, interpolate, nearest, pointDistance, type Vertex } from './geo';
 import { nearestFeatureVertex, vertexIndex } from './features';
-import { displayName } from './display-names';
+import { cleanDiscoveryName, viaTrailName } from './discovery-names';
 import { trailKey } from './names';
 import { MinHeap, type RouteStep } from './router';
 import type { AccessPoint } from './catalog-types';
@@ -50,20 +50,9 @@ const coord = (place: NamedFeature | AccessPoint): Coord => 'coord' in place ? p
 const placeId = (place: NamedFeature | AccessPoint): string => place.osm_id;
 const reversed = (walk: RouteStep[]): RouteStep[] => [...walk].reverse().map(s => ({ ...s, direction: s.direction === 'forward' ? 'reverse' : 'forward', start_vertex: s.end_vertex, end_vertex: s.start_vertex }));
 
-function roadName(name: string): boolean {
-  return /\bforest\s+(?:(?:development|develop|dev\.?|service)\s+)?(?:road|rd)(?=\b|\d)/i.test(name)
-    || /\b(?:road|rd\.?|street|st\.?|avenue|ave\.?|highway|hwy\.?|drive|dr\.?|boulevard|blvd\.?|lane|ln\.?|place|pl\.?)\s*(?:#?\s*\d+[a-z]?(?:\s*[-./]\s*\d+[a-z]?|\s+\d+[a-z]?)*)?(?:\s+(?:north(?:east|west)?|south(?:east|west)?|east|west|n|s|e|w|ne|nw|se|sw))?$/i.test(name)
-    || /\b(?:nfdr|ndfr|nfr|fsr|fdr|fr)\s*[-#]?\s*\d+[a-z]?\b/i.test(name)
-    || /^(?:(?:nfd|nf|fs|usfs)\s*[-#]?\s*|forest\s+service\s+)\d+[a-z]?(?:[.-]\d+[a-z]?)*(?:\s*\((?:abandoned|closed|decommissioned)\))?$/i.test(name)
-    || /^(?:north|south|east|west|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw)\s*\d+(?:st|nd|rd|th)?\s*(?:north|south|east|west|n|s|e|w|way)$/i.test(name)
-    || /\b(?:road|rd\.?)\s+(?:nfdr|ndfr|nfr|nfd|nf|fsr|fs|fdr|fr|usfs)\s*[-#]?\s*\d+[a-z]?(?:[.-]\d+[a-z]?)*\b/i.test(name);
-}
 /** Use the same expanded display names as the graph. Road names cannot become hike titles. */
 export function discoveryName(value: string | null | undefined): string | null {
-  const name = displayName(value ?? null);
-  if (!name || roadName(name) || name.includes('/') && name.split('/').some(part => roadName(part.trim()))) return null;
-  if (/^#?\s*\d+(?:\s*[-./]\s*\d+|\s+\d+)*$/.test(name) || /^\d+\s*(?:north|south|east|west|n|s|e|w|ne|nw|se|sw)$/i.test(name)) return null;
-  return name;
+  return cleanDiscoveryName(value, { kind: 'trail' }).name;
 }
 function trailNames(s: Segment): string[] {
   if (s.kind === 'road') return [];
@@ -84,7 +73,7 @@ function featureRadius(f: NamedFeature): number {
   return f.feature === 'trailhead' ? 150 : f.feature === 'summit' ? 75 : 30;
 }
 function eligibleObjective(f: NamedFeature): boolean {
-  if (!OBJECTIVES.has(f.feature) || !f.name?.trim()) return false;
+  if (!OBJECTIVES.has(f.feature) || !cleanDiscoveryName(f.name, { kind: 'objective' }).name) return false;
   if (f.feature !== 'lake') return true;
   // The legacy graph classifier also labels artificial and flowing water as
   // lakes. Keep sparse lake tags, but exclude these explicit other types.
@@ -610,8 +599,9 @@ export function* discover(input: { segments: Segment[]; features: NamedFeature[]
     if (th % 10 === 0 || elapsed > 5) progress(`Objective search ${th + 1} complete in ${elapsed.toFixed(2)}s: ${search.scalarNodes} scalar nodes, ${search.scalarSettled} scalar settled, ${search.unresolved} fallback goals, ${search.expanded} fallback states, ${search.resourceInfeasible} resource-infeasible, ${search.namedInfeasible} named-infeasible, ${search.maskGoals} mask goals, ${search.ancestorGoals} ancestor goals, ${search.offTargetNodes} off-target nodes, ${search.costExcludedEdges} cost-excluded edges, ${search.badExcludedEdges} bad-excluded edges, ${search.physicalExcludedNodes} physical-excluded nodes, ${search.physicalExcludedEdges} physical-excluded edges, ${search.couplingPasses} coupling passes, ${search.capacityPruned} named-capacity prunes, ${search.priorityPruned} resource-cost prunes, ${search.budgetExhausted} exhausted budgets, ${search.review.size} budget reviews; RSS ${(process.memoryUsage().rss / 1048576).toFixed(0)} MiB`);
     for (const [objective, label] of [...search.goals].sort(([a], [b]) => a.osm_id.localeCompare(b.osm_id))) {
       const walk = graph.walk(label), preferredNames = preferences(walk, graph.namesById), reasons = search.review.get(objective); if (!reasons?.length) markCovered(walk);
-      const name = displayName(objective.name)!; if (!name) continue;
-      yield { source: 'objective', identity: `${placeId(start.place)}/${objective.osm_id}`, name: preferredNames[0] ? `${name} via ${preferredNames[0]}` : name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, objective, preferredNames, junctionNameCount, ...(reasons?.length ? { reasons } : {}) };
+      const name = cleanDiscoveryName(objective.name, { kind: 'objective' }).name; if (!name) continue;
+      const via = viaTrailName(preferredNames[0]);
+      yield { source: 'objective', identity: `${placeId(start.place)}/${objective.osm_id}`, name: via ? `${name} via ${via}` : name, shape: 'out_and_back', walk, trailhead: start.place, trailheadCoord: start.coord, objective, preferredNames, junctionNameCount, ...(reasons?.length ? { reasons } : {}) };
       objectives++;
     }
     if (++th % 100 === 0) progress(`Objective approaches: ${th}/${graph.starts.length} trailheads, ${objectives} candidates`);

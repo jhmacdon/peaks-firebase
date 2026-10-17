@@ -6,11 +6,11 @@ import type { HardGoalRequest, HardGoalResult, HardGoalSolver } from './discover
 
 export interface DiscoverySolverStats {
   calls: number; cached: number; cached_limited: number; hard_timeouts: number; optimal: number; feasible: number; infeasible: number; limited: number;
-  unavailable: number; errors: number; elapsed_seconds: number; peak_rss_mib: number;
+  unavailable: number; errors: number; budget_skipped: number; elapsed_seconds: number; peak_rss_mib: number;
 }
 interface SolverRun { stdout?: string; stderr?: string; status?: number | null; error?: Error }
 interface SolverRunOptions { timeout: number; killSignal: 'SIGKILL' }
-interface SolverOptions { runner?: (input: string, execution: SolverRunOptions) => SolverRun; timeLimitSeconds?: number; reuseLimitedAttempts?: boolean }
+interface SolverOptions { runner?: (input: string, execution: SolverRunOptions) => SolverRun; timeLimitSeconds?: number; reuseLimitedAttempts?: boolean; maxNewCalls?: number }
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const statuses = new Set(['optimal', 'feasible', 'infeasible', 'limit', 'unavailable', 'error']);
 const cacheable = (result: HardGoalResult) => result.status === 'optimal' || result.status === 'infeasible' || result.status === 'feasible' || result.status === 'limit' && !!result.path?.length;
@@ -32,8 +32,9 @@ export function createDiscoverySolver(cacheDir: string, options: SolverOptions =
   const helper = join(__dirname, 'discovery-solver.py');
   const helperHash = existsSync(helper) ? sha(readFileSync(helper)) : 'missing';
   const timeLimitSeconds = options.timeLimitSeconds ?? 60;
+  if (options.maxNewCalls !== undefined && (!Number.isSafeInteger(options.maxNewCalls) || options.maxNewCalls < 0)) throw new Error('maxNewCalls must be a nonnegative safe integer');
   const executionOptions: SolverRunOptions = { timeout: Math.ceil(timeLimitSeconds * 1000) + 5000, killSignal: 'SIGKILL' };
-  const stats: DiscoverySolverStats = { calls: 0, cached: 0, cached_limited: 0, hard_timeouts: 0, optimal: 0, feasible: 0, infeasible: 0, limited: 0, unavailable: 0, errors: 0, elapsed_seconds: 0, peak_rss_mib: 0 };
+  const stats: DiscoverySolverStats = { calls: 0, cached: 0, cached_limited: 0, hard_timeouts: 0, optimal: 0, feasible: 0, infeasible: 0, limited: 0, unavailable: 0, errors: 0, budget_skipped: 0, elapsed_seconds: 0, peak_rss_mib: 0 };
   const count = (result: HardGoalResult) => {
     if (result.status === 'optimal' || result.status === 'infeasible') stats[result.status]++;
     else if (result.status === 'feasible' || result.status === 'limit' && result.path?.length) stats.feasible++;
@@ -71,6 +72,10 @@ export function createDiscoverySolver(cacheDir: string, options: SolverOptions =
           return { status: 'limit', reason: 'Reused prior limited attempt; qualifying path remains unresolved' };
         }
       } catch { /* Advisory attempts cannot supply a proof or a path. */ }
+    }
+    if (stats.calls >= (options.maxNewCalls ?? Infinity)) {
+      stats.budget_skipped++; stats.limited++;
+      return { status: 'limit', reason: 'Optional native solver call budget exhausted; continuing TypeScript search' };
     }
     stats.calls++;
     let result: HardGoalResult, stderr = '';

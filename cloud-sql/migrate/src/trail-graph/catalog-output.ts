@@ -1,4 +1,5 @@
 import type { Segment, Tags } from './types';
+import { cleanDiscoveryName } from './discovery-names';
 
 // Include bare and protocol-relative domain links, and malformed values such
 // as wikipedia=en:https://www.alltrails.com/.... Do not match another host
@@ -26,10 +27,12 @@ function catalogMetadata<T extends { tags?: Tags }>(items: T[]): T[] {
   return result;
 }
 
-/** Remove excluded third-party links only from copied source tags. Geometry,
- * names, source identities and rights remain unchanged. Clean before hashing
- * the complete segment manifest; changed metadata changes that manifest. */
+/** Clean catalog display labels and excluded links before manifest hashing.
+ * Raw trail names, source identities, geometry, and rights remain available. */
 export function catalogSegment(segment: Segment): Segment {
   const relations = catalogMetadata(segment.relations), alt_sources = catalogMetadata(segment.alt_sources);
-  return relations === segment.relations && alt_sources === segment.alt_sources ? segment : { ...segment, relations, alt_sources };
+  const name = segment.kind === 'road' ? segment.name : cleanDiscoveryName(segment.name, { kind: 'trail' }).name;
+  const display = segment.display_name === undefined ? undefined : segment.kind === 'road' ? segment.display_name : cleanDiscoveryName(segment.display_name, { kind: 'trail' }).name;
+  return relations === segment.relations && alt_sources === segment.alt_sources && name === segment.name && display === segment.display_name ? segment
+    : { ...segment, name, ...(display === undefined ? {} : { display_name: display }), relations, alt_sources };
 }

@@ -47,6 +47,18 @@ test('catalog output preserves non-AllTrails tags and segments without copied ta
   }
   const segment = fixture(); delete segment.relations[0].tags; delete segment.alt_sources[0].tags; assert.equal(catalogSegment(segment), segment);
 });
+test('catalog display labels follow route cleanup while raw trail names retain aliases', () => {
+  const segment = fixture(); segment.name = 'Diamond Peak Trail #3699'; segment.display_name = 'Diamond Peak Trail #3699'; segment.trail_names = [segment.name];
+  const result = catalogSegment(segment);
+  assert.equal(result.name, 'Diamond Peak Trail'); assert.equal(result.display_name, 'Diamond Peak Trail');
+  assert.deepEqual(result.trail_names, ['Diamond Peak Trail #3699']); assert.equal(result.coords, segment.coords);
+  assert.equal(catalogSegment(result), result);
+  segment.name = 'Wapati (Cape Mountain Trail)'; segment.display_name = segment.name;
+  assert.equal(catalogSegment(segment).display_name, 'Cape Mountain Trail');
+  segment.name = 'Forest Road 23'; segment.display_name = segment.name;
+  assert.equal(catalogSegment(segment).display_name, null);
+  segment.kind = 'road'; assert.equal(catalogSegment(segment).display_name, 'Forest Road 23');
+});
 test('metadata cleaning preserves geometry and source coverage and re-finalizes valid loader hashes', () => {
   const segment = fixture(), source = new Map([[segment.id, segment]]), clean = catalogSegment(segment), cleaned = new Map([[clean.id, clean]]);
   const draft = composeDiscovery({ source: 'objective', identity: 'fixture', name: 'Alpha Lake', shape: 'out_and_back', walk: [{ segment_id: segment.id, direction: 'forward', start_vertex: 0, end_vertex: 1, length_m: segment.length_m }], trailhead: { osm_id: 'node/1', name: 'Alpha Trailhead', feature: 'trailhead', lon: -121, lat: 47, graph_node: 'a', graph_distance_m: 0, location_method: 'osm_point' }, trailheadCoord: [-121, 47], objective: { osm_id: 'node/2', name: 'Alpha Lake', feature: 'lake', lon: -121, lat: 47.02, graph_node: 'b', graph_distance_m: 0, location_method: 'osm_point' }, preferredNames: ['Alpha Trail'] }, 0, 'CA', source);
