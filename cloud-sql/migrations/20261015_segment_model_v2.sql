@@ -135,6 +135,19 @@ END;
 $$;
 ALTER FUNCTION session_match_bbox(geography,DOUBLE PRECISION) OWNER TO postgres;
 
+-- Transaction-scoped opt-out for every rematch-queue trigger. A bulk writer
+-- (the WA catalog loader) runs SET LOCAL peaks.defer_rematch = 'on' and then
+-- OWNS enqueueing: it must run rematch-all-sessions.ts or call
+-- queue_matching_routes() for what it changed. One single-row link insert
+-- otherwise rescanned every session near the whole route (about 40 s each on
+-- the db-f1-micro). Only triggers check it; the queue helpers ignore it, so a
+-- writer can still enqueue explicitly inside the same transaction.
+CREATE OR REPLACE FUNCTION rematch_deferred()
+RETURNS boolean LANGUAGE sql STABLE SET search_path = pg_catalog AS $$
+  SELECT COALESCE(current_setting('peaks.defer_rematch', true), '') = 'on'
+$$;
+ALTER FUNCTION rematch_deferred() OWNER TO postgres;
+
 -- Queue each distinct route once. Triple Crown routes use the point index;
 -- neither their cached path nor their whole-route segments are scanned here.
 CREATE OR REPLACE FUNCTION queue_matching_routes(route_ids TEXT[], why TEXT)
@@ -169,6 +182,7 @@ CREATE OR REPLACE FUNCTION queue_rematch_on_route_link_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE ids TEXT[]; pieces TEXT[];
 BEGIN
+  IF rematch_deferred() THEN RETURN NULL; END IF;
   IF TG_OP='INSERT' THEN
     SELECT array_agg(DISTINCT l.route_id) INTO ids FROM new_links l
       JOIN routes r ON r.id=l.route_id WHERE r.status='active';
@@ -226,6 +240,7 @@ CREATE OR REPLACE FUNCTION queue_rematch_on_segment_path_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE ids TEXT[];
 BEGIN
+  IF rematch_deferred() THEN RETURN NULL; END IF;
   -- Segments used only by pending or retired routes queue nothing.
   SELECT array_agg(DISTINCT rs.route_id) INTO ids
     FROM old_segments o JOIN new_segments n USING(id)
@@ -258,6 +273,7 @@ FOR EACH STATEMENT EXECUTE FUNCTION queue_rematch_on_segment_path_change();
 CREATE OR REPLACE FUNCTION queue_rematch_on_route_objective_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  IF rematch_deferred() THEN RETURN NULL; END IF;
   PERFORM queue_matching_routes(ARRAY[NEW.id],'route-objective:' || NEW.id);
   RETURN NULL;
 END;
@@ -273,6 +289,7 @@ EXECUTE FUNCTION queue_rematch_on_route_objective_change();
 CREATE OR REPLACE FUNCTION queue_rematch_on_route_change()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  IF rematch_deferred() THEN RETURN NULL; END IF;
   IF TG_OP='INSERT' THEN
     IF NEW.status='active' THEN
       PERFORM queue_matching_routes(ARRAY[NEW.id],'route:' || NEW.id);
@@ -294,5 +311,71 @@ BEGIN
 END;
 $$;
 ALTER FUNCTION queue_rematch_on_route_change() OWNER TO postgres;
+
+-- The two destination queue paths from 20261009_lake_outline_paths.sql, with
+-- only the rematch_deferred() check added. refresh_destination_boundary_parts
+-- still rebuilds the pieces; it skips only the queue.
+CREATE OR REPLACE FUNCTION queue_rematch_on_destination_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF rematch_deferred() THEN RETURN NULL; END IF;
+  -- peaks_destination_rematch_xy_guard_v1
+  -- An elevation-only (Z) repair is not a move: it must not re-match history.
+  -- Outlines compare by bytes: ST_Equals on a 475k-point lake ran on every
+  -- update to the row.
+  IF NOT (
+       (OLD.location IS NULL) IS DISTINCT FROM (NEW.location IS NULL)
+    OR ST_X(OLD.location::geometry) IS DISTINCT FROM ST_X(NEW.location::geometry)
+    OR ST_Y(OLD.location::geometry) IS DISTINCT FROM ST_Y(NEW.location::geometry)
+    OR ST_AsBinary(OLD.boundary) IS DISTINCT FROM ST_AsBinary(NEW.boundary)
+    OR OLD.features IS DISTINCT FROM NEW.features
+    OR OLD.owner IS DISTINCT FROM NEW.owner
+  ) THEN
+    RETURN NULL;
+  END IF;
+
+  -- Old shape. This trigger fires before the pieces are rebuilt, so the
+  -- stored pieces are still the old outline's.
+  IF OLD.boundary IS NOT NULL THEN
+    PERFORM queue_sessions_near_boundary_parts(OLD.id, 'destination:' || NEW.id);
+  ELSE
+    PERFORM queue_sessions_near(OLD.location, 200, 'destination:' || NEW.id);
+  END IF;
+
+  -- New shape. An unchanged outline has the same pieces, queued above; a
+  -- changed one is queued by refresh_destination_boundary_parts after the
+  -- rebuild.
+  IF NEW.boundary IS NULL THEN
+    PERFORM queue_sessions_near(NEW.location, 200, 'destination:' || NEW.id);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+ALTER FUNCTION queue_rematch_on_destination_change() OWNER TO postgres;
+
+CREATE OR REPLACE FUNCTION refresh_destination_boundary_parts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'UPDATE'
+       AND ST_AsBinary(OLD.boundary) IS NOT DISTINCT FROM ST_AsBinary(NEW.boundary) THEN
+        RETURN NEW;
+    END IF;
+    DELETE FROM destination_boundary_parts WHERE destination_id = NEW.id;
+    INSERT INTO destination_boundary_parts (destination_id, ordinal, boundary_part)
+    SELECT NEW.id, (row_number() OVER () - 1)::int, piece
+    FROM destination_boundary_pieces(NEW.boundary) AS piece;
+    -- A changed outline: queue the sessions near its new shape.
+    -- queue_rematch_on_destination_change already queued the old one.
+    IF TG_OP = 'UPDATE' AND NEW.boundary IS NOT NULL AND NOT rematch_deferred() THEN
+        PERFORM queue_sessions_near_boundary_parts(NEW.id, 'destination:' || NEW.id);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+ALTER FUNCTION refresh_destination_boundary_parts() OWNER TO postgres;
 
 COMMIT;

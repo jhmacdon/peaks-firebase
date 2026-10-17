@@ -1405,6 +1405,15 @@ their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
   `trg_route_queue_rematch_insert` / `_update` queue the sessions within 600 m
   of the old and the new path, whenever either side is `active`.
 
+A bulk writer can switch all of these triggers off for one transaction with
+`SET LOCAL peaks.defer_rematch = 'on'` (`rematch_deferred()`,
+`migrations/20261015_segment_model_v2.sql`). The writer then owns enqueueing:
+run `rematch-all-sessions.ts` afterwards, or call `queue_matching_routes()`
+for the routes it changed (the queue helpers ignore the setting). The WA
+catalog loader needs it: each single-row `route_segments` insert otherwise
+rescans every session near the whole route, about 40 s per row on the
+db-f1-micro.
+
 Queued sessions sit in `session_rematch_queue`. Each `/internal/sweep` re-runs
 `processSession(force)` on up to 25 of them within 90 s
 (`drainSessionRematchQueue`), which adds new matches and drops stale `auto`

@@ -302,6 +302,57 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
     await queued();
   });
 
+  test("peaks.defer_rematch = on silences every rematch trigger for its transaction only", async () => {
+    const sid = await session("defer", 2000);
+    const rid = id("defer-route");
+    const queued = async () => (await db.query(`SELECT reason FROM session_rematch_queue WHERE session_id = $1`, [sid])).rows;
+    const clear = () => db.query(`DELETE FROM session_rematch_queue WHERE session_id = $1`, [sid]);
+    await db.query(`INSERT INTO destinations (id, name, search_name, owner, features, location)
+      VALUES ($1, $1, $1, $2, '{summit}', ST_GeogFromText($3))`, [id("defer-peak"), user, `SRID=4326;POINT Z (${point(2000)})`]);
+    await segment("defer-segment", 0, 2000);
+    await clear();
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SET LOCAL peaks.defer_rematch = 'on'");
+      await client.query(`INSERT INTO routes (id, name, owner, path, kind) VALUES ($1, $1, $2, ST_GeogFromText($3), 'destination')`,
+        [rid, user, line(0, 2000)]);
+      await client.query(`INSERT INTO route_segments (route_id, segment_id, ordinal) VALUES ($1, $2, 0)`, [rid, id("defer-segment")]);
+      await client.query(`INSERT INTO route_destinations (route_id, destination_id) VALUES ($1, $2)`, [rid, id("defer-peak")]);
+      await client.query(`UPDATE segments SET path = ST_GeogFromText($2) WHERE id = $1`, [id("defer-segment"), line(0, 1999)]);
+      await client.query(`UPDATE routes SET path = ST_GeogFromText($2), objective_destination_id = $3 WHERE id = $1`,
+        [rid, line(0, 1999), id("defer-peak")]);
+      await client.query(`UPDATE routes SET status = 'superseded' WHERE id = $1`, [rid]);
+      await client.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [rid]);
+      await client.query(`UPDATE destinations SET location = ST_GeogFromText($2) WHERE id = $1`,
+        [id("defer-peak"), `SRID=4326;POINT Z (${point(1990)})`]);
+      assert.deepEqual((await client.query(`SELECT 1 FROM session_rematch_queue WHERE session_id = $1`, [sid])).rows, []);
+      // The writer owns enqueueing; the helpers ignore the setting.
+      await client.query(`SELECT queue_matching_routes(ARRAY[$1], 'loader')`, [rid]);
+      assert.equal((await client.query(`SELECT reason FROM session_rematch_queue WHERE session_id = $1`, [sid])).rows[0]?.reason, "loader");
+      await client.query("COMMIT");
+    } finally { client.release(); }
+    await clear();
+    // SET LOCAL ended with that transaction: the same edits queue again.
+    await db.query(`UPDATE route_segments SET direction = 'reverse' WHERE route_id = $1`, [rid]);
+    assert.equal((await queued()).length, 1); await clear();
+    await db.query(`UPDATE segments SET path = ST_GeogFromText($2) WHERE id = $1`, [id("defer-segment"), line(0, 2000)]);
+    assert.equal((await queued()).length, 1); await clear();
+    await db.query(`UPDATE routes SET status = 'superseded' WHERE id = $1`, [rid]);
+    assert.equal((await queued()).length, 1); await clear();
+    await db.query(`UPDATE destinations SET location = ST_GeogFromText($2) WHERE id = $1`,
+      [id("defer-peak"), `SRID=4326;POINT Z (${point(2000)})`]);
+    assert.equal((await queued()).length, 1); await clear();
+    const off = await db.connect();
+    try {
+      await off.query("BEGIN");
+      await off.query("SET LOCAL peaks.defer_rematch = 'off'");
+      await off.query(`UPDATE routes SET status = 'active' WHERE id = $1`, [rid]);
+      assert.equal((await off.query(`SELECT 1 FROM session_rematch_queue WHERE session_id = $1`, [sid])).rowCount, 1);
+      await off.query("COMMIT");
+    } finally { off.release(); }
+  });
+
   test("pending routes queue nothing until activation queues nearby sessions once", async () => {
     const sid = await session("pending-queue", 3000);
     const rid = id("pending-route");
