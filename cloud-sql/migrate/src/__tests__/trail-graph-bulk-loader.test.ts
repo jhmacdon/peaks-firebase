@@ -8,7 +8,7 @@ import { Composer, catalogRouteId, compositionHash, digest, finalizeRows, materi
 import { compositionValid, planRoute } from '../trail-graph/load-catalog';
 import { digestValue } from '../trail-graph/discovery-catalog';
 import { activateBulkBatch, batches, buildBulkBatch, bulkId, bulkPreflightValues,
-  executeBulkBatch, loadIsolated, planBulkActivation, planBulkBatch, runLoadBulkBatch, type BulkBatch } from '../trail-graph/load-bulk';
+  executeBulkBatch, fatalBulkError, insidePoly, parsePoly, loadIsolated, planBulkActivation, planBulkBatch, runLoadBulkBatch, type BulkBatch } from '../trail-graph/load-bulk';
 import { BULK_PREFLIGHT_SQL, readBulkPreflight, type BulkPreflight } from '../trail-graph/load-bulk-preflight';
 import { IMPORT_MARKER } from '../trail-graph/load-matching';
 import { loaderArgs, loaderMode } from '../trail-graph/loader-cli';
@@ -59,8 +59,8 @@ test('bulk plans keep five collection inserts and twelve transaction statements 
     const plan = planBulkBatch(rows, source, 'OR'), batch = buildBulkBatch(plan, profiles(plan.segments));
     assert.equal(plan.skipped.length, 0);
     assert.equal(batch.ids.length, count);
-    assert.equal(batch.statements.length, 12);
-    assert.deepEqual(batch.statements.map(s => s.kind), ['begin', 'defer_rematch', 'defer_derivations',
+    assert.equal(batch.statements.length, 13);
+    assert.deepEqual(batch.statements.map(s => s.kind), ['begin', 'defer_rematch', 'timeouts', 'defer_derivations',
       'destination_insert', 'segment_insert', 'route_insert', 'route_segment_insert', 'route_destination_insert',
       'binding_guard', 'rebuild', 'refresh', 'commit']);
     const inserts = batch.statements.filter(s => s.sql.startsWith('INSERT'));
@@ -251,8 +251,8 @@ test('one set-based read-only preflight binds all batch routes, segments and pla
   assert.doesNotMatch(BULK_PREFLIGHT_SQL, /\b(?:INSERT INTO|UPDATE|DELETE FROM)\b/);
   assert.match(BULK_PREFLIGHT_SQL, /ST_ClipByBox2D/);
   assert.match(BULK_PREFLIGHT_SQL, /32600\+LEAST/);
-  assert.match(BULK_PREFLIGHT_SQL, /NOT COALESCE\(s\.provenance#>>'\{wa_catalog,loader\}'=\$4,false\)/);
-  assert.match(BULK_PREFLIGHT_SQL, /NOT COALESCE\(r\.provenance#>>'\{wa_catalog,loader\}'=\$4,false\)/);
+  assert.match(BULK_PREFLIGHT_SQL, /NOT \(COALESCE\(s\.provenance#>>'\{wa_catalog,loader\}'=\$4,false\) AND s\.state_code=\$6\)/);
+  assert.match(BULK_PREFLIGHT_SQL, /NOT \(COALESCE\(r\.provenance#>>'\{wa_catalog,loader\}'=\$4,false\) AND r\.state_code=\$6\)/);
   await assert.rejects(() => readBulkPreflight({ query: async () => ({ rows: [live({ ready: false })] }) } as any, values, false), /Install/);
   await assert.rejects(() => readBulkPreflight({ query: async () => ({ rows: [live({ lease_bound_worker: true })] }) } as any, values, false), /operator connection/);
   await assert.rejects(() => readBulkPreflight({ query: async () => ({ rows: [live({ cover_trigger_absent: false })] }) } as any, values, true), /must be absent/);
@@ -313,9 +313,9 @@ test('activation commits per-route successes and failures from one call with at 
   const results = await activateBulkBatch(client, ids, 'OR');
   assert.equal(results[0].success, false); assert.equal(results[0].error, 'elevation incomplete');
   assert.equal(results[1].success, true); assert.ok(results.every(r => r.state_code === 'OR' && r.operation === 'activate'));
-  assert.equal(calls.length, 4); assert.equal(calls.at(-1), 'COMMIT');
+  assert.equal(calls.length, 5); assert.equal(calls.at(-1), 'COMMIT');
   const before = calls.length;
-  await assert.rejects(() => activateBulkBatch(client, Array(201).fill('too-many'), 'OR'), /200/);
+  await assert.rejects(() => activateBulkBatch(client, Array(51).fill('too-many'), 'OR'), /50/);
   assert.equal(calls.length, before);
   assert.deepEqual(await activateBulkBatch(client, [], 'OR'), []);
 });
@@ -337,7 +337,7 @@ test('bulk dry-run and activation preview need no database or tiles; apply requi
     const { row, source } = setup();
     await writeFile(join(dir, 'routes.ndjson'), JSON.stringify(row) + '\n');
     await writeFile(join(dir, 'segments.ndjson'), [...source.values()].map(s => JSON.stringify(s) + '\n').join(''));
-    const env: NodeJS.ProcessEnv = { ...process.env, TSX_DISABLE_CACHE: '1', NODE_OPTIONS: '' }; delete env.DATABASE_URL; delete env.TEST_DATABASE_URL;
+    const env: NodeJS.ProcessEnv = { ...process.env, TSX_DISABLE_CACHE: '1', NODE_OPTIONS: '', BULK_BOUNDARY_FILE: join(dir, 'no-boundary.poly') }; delete env.DATABASE_URL; delete env.TEST_DATABASE_URL;
     const file = resolve(__dirname, '../trail-graph/load-catalog.ts');
     for (const mode of [[], ['--activate']]) {
       const result = spawnSync(process.execPath, ['--import', 'tsx', file, '--bulk', '--state', 'CA', '--dir', dir, ...mode], { env, encoding: 'utf8' });
@@ -397,4 +397,19 @@ test('any other batch failure bisects until the bad route stands alone', async (
   const clean = isolatingClient(new Set(), 'insert');
   assert.ok((await loadIsolated(clean.client, plan, profiles(plan.segments))).every(r => r.success));
   assert.equal(clean.transactions.length, 1, 'a clean batch is one transaction');
+});
+
+test('permission, timeout and connection errors stop the run instead of splitting the batch', () => {
+  for (const code of ['42501', '57014', '55P03', '08006', '53200', '57P01']) assert.equal(fatalBulkError(Object.assign(new Error('x'), { code })), true);
+  assert.equal(fatalBulkError(new Error('Connection terminated unexpectedly')), true);
+  for (const code of ['23505', '22P02', 'P0001']) assert.equal(fatalBulkError(Object.assign(new Error('x'), { code })), false);
+  assert.equal(fatalBulkError(new Error('Stored segment binding, elevation or review guard failed')), false);
+});
+
+test('state boundary keeps routes that start inside and drops a neighbour state start', () => {
+  const poly = parsePoly('oregon\n1\n  -124.0 42.0\n  -117.0 42.0\n  -117.0 46.0\n  -124.0 46.0\nEND\n!2\n  -120.0 44.0\n  -119.0 44.0\n  -119.0 45.0\nEND\nEND\n');
+  assert.equal(poly.outer.length, 1); assert.equal(poly.holes.length, 1);
+  assert.equal(insidePoly([-122.0, 45.0], poly), true);
+  assert.equal(insidePoly([-122.0, 47.0], poly), false);
+  assert.equal(insidePoly([-119.8, 44.2], poly), false);
 });

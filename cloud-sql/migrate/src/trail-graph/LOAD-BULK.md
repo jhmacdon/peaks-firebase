@@ -87,22 +87,22 @@ for catalog_state in OR CA ID; do
     --input "$catalog_input" --graph "$catalog_graph" --out "$catalog_compose"
 
   TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 200
+    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50
 
   TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 200 --apply
+    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --apply
 
   TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 200 --activate
+    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --activate
 
   TSX_DISABLE_CACHE=1 node --import tsx src/trail-graph/load-catalog.ts \
-    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 200 --activate --apply
+    --bulk --state "$catalog_state" --dir "$catalog_compose" --batch-size 50 --activate --apply
 done
 ```
 
 `--activate` selects a separate activation pass over already-loaded pending
 routes for the current composition. It does not load routes. Activation calls
-`activate_wa_catalog_routes(text[])` with at most 200 IDs per call. Each route
+`activate_wa_catalog_routes(text[])` in chunks of at most 50 IDs. Each route
 keeps the owned activation function's composer, elevation, source, geometry and
 publish-integrity checks. One failed activation rolls back that route and leaves
 the other results available. Failures are reported and do not abort the run.
@@ -131,7 +131,7 @@ The loader appends load, skip, failure and activation results to
 after each state and retry failed pending activations after fixing their cause.
 It does not replace the final full-session rematch.
 
-At the default 200 routes, a successful load batch uses one read-only preflight
+At the default 50 routes, a successful load batch uses one read-only preflight
 query plus 12 transaction statements: BEGIN, two local settings, five collection
 inserts, one stored-binding check, rebuild, refresh and COMMIT. Activation uses
 one preflight plus four transaction statements: BEGIN, the rematch setting, one

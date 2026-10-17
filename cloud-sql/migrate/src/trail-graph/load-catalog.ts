@@ -293,7 +293,7 @@ async function main() {
   const flags = loaderArgs(), mode = loaderMode(flags), dir = option(flags, 'out', DEFAULT_COMPOSE), input = option(flags, 'input', DEFAULT_INPUT);
   if (mode === 'bulk') {
     const { loadBulk } = await import('./load-bulk');
-    await loadBulk({ dir: option(flags, 'dir', ''), state: option(flags, 'state', '') as 'OR' | 'CA' | 'ID', apply: flags.has('apply'), activate: flags.has('activate'), batchSize: Number(option(flags, 'batch-size', '200')) });
+    await loadBulk({ dir: option(flags, 'dir', ''), state: option(flags, 'state', '') as 'OR' | 'CA' | 'ID', apply: flags.has('apply'), activate: flags.has('activate'), batchSize: Number(option(flags, 'batch-size', '50')) });
     return;
   }
   const batchSize = Number(option(flags, 'batch-size', '50'));

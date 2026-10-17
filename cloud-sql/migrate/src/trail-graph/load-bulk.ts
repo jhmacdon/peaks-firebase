@@ -1,4 +1,4 @@
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Client } from 'pg';
 import { ndjson } from './io';
@@ -46,7 +46,7 @@ export function bulkPreflightValues(rows: ComposedRoute[], source: Map<string, S
     return [{ id: segmentId(s, state), geometry: JSON.stringify({ type: 'LineString', coordinates: s.coords }), frozen: !!s.frozen_catalog }];
   });
   const places = validRows.flatMap(placeRefs).flatMap(p => p.new && Number.isFinite(p.new.lng) && Number.isFinite(p.new.lat) ? [{ lng: p.new.lng, lat: p.new.lat, external_ids: osmExternalIds(p.new.source.osm_id) }] : []);
-  return [JSON.stringify(segments), validRows.map(r => bulkId(r.route_id ?? '', state)), JSON.stringify(places), IMPORT_MARKER, validRows.flatMap(placeRefs).flatMap(p => p.peaks_id ? [p.peaks_id] : [])];
+  return [JSON.stringify(segments), validRows.map(r => bulkId(r.route_id ?? '', state)), JSON.stringify(places), IMPORT_MARKER, validRows.flatMap(placeRefs).flatMap(p => p.peaks_id ? [p.peaks_id] : []), state];
 }
 
 export function planBulkBatch(rows: ComposedRoute[], source: Map<string, Segment>, state: BulkState, live?: BulkPreflight): BulkPlan {
@@ -127,6 +127,7 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
   return { ids, statements: [
     { kind: 'begin', sql: 'BEGIN', values: [] },
     { kind: 'defer_rematch', sql: "SET LOCAL peaks.defer_rematch = 'on'", values: [] },
+    { kind: 'timeouts', sql: TIMEOUTS_SQL, values: [] },
     { kind: 'defer_derivations', sql: DEFER_DERIVATIONS_SQL, values: [] },
     statement('destination_insert', `INSERT INTO destinations(id,name,search_name,features,activities,state_code,country_code,location,elevation,metadata,external_ids,boundary)
       SELECT d.id,d.name,peaks_search_name(d.name),ARRAY[d.feature]::destination_feature[],ARRAY['outdoor-trek']::activity_type[],d.state_code,'US',
@@ -168,6 +169,15 @@ export function buildBulkBatch(plan: BulkPlan, profiles?: Map<string, number[][]
     { kind: 'refresh', sql: 'SELECT refresh_route_derivations($1::text[])', values: [ids] },
     { kind: 'commit', sql: 'COMMIT', values: [] },
   ] };
+}
+
+/** The database shares one vCPU with the live API: no statement or lock wait may run long. */
+export const TIMEOUTS_SQL = "SELECT set_config('statement_timeout','180s',true), set_config('lock_timeout','10s',true)";
+
+/** Errors no single route causes. Stop the run instead of splitting the batch into hundreds of retries. */
+export function fatalBulkError(error: unknown): boolean {
+  const code = (error as { code?: string }).code ?? '';
+  return code === '42501' || code === '57014' || code === '55P03' || /^(08|53|57P)/.test(code) || /Connection terminated|ECONNRESET|ECONNREFUSED/.test((error as Error).message ?? '');
 }
 
 /** A rebuild failure names the routes that failed; the rest of the batch may retry. */
@@ -222,6 +232,7 @@ export async function loadIsolated(client: Pick<Client, 'query'>, plan: BulkPlan
           ...await loadIsolated(client, subPlan(plan, rest), profiles)];
       }
     }
+    if (fatalBulkError(error)) throw error;
     const message = (error as Error).message;
     if (plan.routes.length === 1) return [result(plan.routes[0].id, message)];
     const half = Math.ceil(plan.routes.length / 2);
@@ -231,17 +242,18 @@ export async function loadIsolated(client: Pick<Client, 'query'>, plan: BulkPlan
 }
 
 export async function activateBulkBatch(client: Pick<Client, 'query'>, ids: string[], state: BulkState): Promise<BulkResult[]> {
-  if (ids.length > 200) throw new Error('Activation batch exceeds 200 routes');
+  if (ids.length > 50) throw new Error('Activation batch exceeds 50 routes');
   if (!ids.length) return [];
   await client.query('BEGIN');
   try {
     await client.query("SET LOCAL peaks.defer_rematch = 'on'");
+    await client.query(TIMEOUTS_SQL);
     const response = await client.query('SELECT activate_wa_catalog_routes($1::text[]) AS results', [ids]);
     const results = response.rows[0]?.results as { route_id: string; success: boolean; error?: string; sqlstate?: string }[] | undefined;
     if (!results || results.length !== ids.length) throw new Error('Activation returned an incomplete result list');
     await client.query('COMMIT');
     return results.map(r => ({ ...r, state_code: state, operation: 'activate' }));
-  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  } catch (error) { try { await client.query('ROLLBACK'); } catch { /* Retain the activation error. */ } throw error; }
 }
 
 export function planBulkActivation(plan: BulkPlan): { ids: string[]; skipped: BulkResult[] } {
@@ -272,16 +284,47 @@ export async function runLoadBulkBatch(client: Pick<Client, 'query'>, plan: Bulk
 }
 
 async function readRows<T>(file: string): Promise<T[]> { const result: T[] = []; for await (const row of ndjson<T>(file)) result.push(row); return result; }
+/** Osmosis .poly (the boundary Geofabrik cut the state extract with): outer rings, then holes marked "!". */
+export function parsePoly(text: string): { outer: [number, number][][]; holes: [number, number][][] } {
+  const outer: [number, number][][] = [], holes: [number, number][][] = [];
+  let ring: [number, number][] | null = null, hole = false;
+  for (const line of text.split('\n').slice(1).map(l => l.trim()).filter(Boolean)) {
+    if (line === 'END') { if (ring) { (hole ? holes : outer).push(ring); ring = null; } continue; }
+    if (!ring) { ring = []; hole = line.startsWith('!'); continue; }
+    const [x, y] = line.split(/\s+/).map(Number); ring.push([x, y]);
+  }
+  return { outer, holes };
+}
+function inRing([x, y]: [number, number], ring: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+export function insidePoly(p: [number, number], poly: ReturnType<typeof parsePoly>): boolean {
+  return poly.outer.some(r => inRing(p, r)) && !poly.holes.some(r => inRing(p, r));
+}
+
 export async function loadBulk(options: BulkOptions): Promise<void> {
-  const { state, dir } = options, size = options.batchSize ?? 200;
+  const { state, dir } = options, size = options.batchSize ?? 50;
   if (!['OR','CA','ID'].includes(state)) throw new Error('--bulk requires --state OR|CA|ID');
   batches([], size);
   if (options.apply && !process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
   const source = new Map((await readRows<Segment>(join(dir,'segments.ndjson'))).map(s => [s.id,s]));
-  const rows = await readRows<ComposedRoute>(join(dir,'routes.ndjson'));
+  const allRows = await readRows<ComposedRoute>(join(dir,'routes.ndjson'));
+  // State graphs keep lines that touch a buffered box, so a neighbour's trail can
+  // compose here. Load a discovered route only from the state its start lies in.
+  const boundaryFile = process.env.BULK_BOUNDARY_FILE || join(ROOT_CACHE,state.toLowerCase(),'boundary.poly');
+  const boundary = await readFile(boundaryFile,'utf8').then(parsePoly).catch(() => null);
+  if (options.apply && !boundary) throw new Error(`--apply requires the state boundary at ${boundaryFile}`);
+  const start = (r: ComposedRoute) => (r as { route_start?: [number, number] }).route_start;
+  const outside = boundary ? allRows.filter(r => { const p = start(r); return !!p && !insidePoly(p, boundary); }) : [];
+  const outsideSet = new Set(outside), rows = boundary ? allRows.filter(r => !outsideSet.has(r)) : allRows;
   // Most popular first, so an interrupted overnight load has published the hikes people look for.
   rows.sort((a, b) => ((b as { popularity?: number }).popularity ?? 0) - ((a as { popularity?: number }).popularity ?? 0));
-  const report = { mode: options.apply ? 'apply' : 'dry-run', state_code: state, operation: options.activate ? 'activate' : 'load', input_routes: rows.length,
+  const report = { mode: options.apply ? 'apply' : 'dry-run', state_code: state, operation: options.activate ? 'activate' : 'load', input_routes: allRows.length, outside_state: outside.length,
     planned_routes: 0, successful_routes: 0, failed_routes: 0, skipped_routes: 0, batches: 0, statements_per_load_batch: 12,
     skipped_reasons: {} as Record<string, number>, planned_route_ids: [] as string[],
     preflight: options.apply ? 'one live read-only query per batch' : 'unverified: dry-run opens no database and fetches no tiles' };
@@ -309,8 +352,8 @@ export async function loadBulk(options: BulkOptions): Promise<void> {
         report.planned_routes += ids.length;
         report.planned_route_ids.push(...ids);
         if (client) {
-          try { await record(await activateBulkBatch(client,ids,state)); }
-          catch (error) { await record(ids.map(id => ({ route_id:id,state_code:state,operation:'activate',success:false,error:(error as Error).message }))); }
+          try { for (let i = 0; i < ids.length; i += 50) await record(await activateBulkBatch(client,ids.slice(i,i+50),state)); }
+          catch (error) { if (fatalBulkError(error)) throw error; await record(ids.map(id => ({ route_id:id,state_code:state,operation:'activate',success:false,error:(error as Error).message }))); }
         }
         await record(skipped);
         continue;
@@ -320,7 +363,7 @@ export async function loadBulk(options: BulkOptions): Promise<void> {
       if (!plan.routes.length) continue;
       if (!client) { buildBulkBatch(plan); continue; }
       try { await record(await runLoadBulkBatch(client, plan, join(dir,'terrarium'))); }
-      catch (error) { await record(plan.routes.map(r => ({route_id:r.id,state_code:state,operation:'load',success:false,error:(error as Error).message}))); }
+      catch (error) { if (fatalBulkError(error)) throw error; await record(plan.routes.map(r => ({route_id:r.id,state_code:state,operation:'load',success:false,error:(error as Error).message}))); }
     }
     await mkdir(dir,{recursive:true}); await writeFile(join(dir,'bulk-plan.json'),JSON.stringify(report,null,2)+'\n');
     console.log(JSON.stringify({...report,planned_route_ids:undefined,results_file:options.apply?resultsFile:undefined},null,2));

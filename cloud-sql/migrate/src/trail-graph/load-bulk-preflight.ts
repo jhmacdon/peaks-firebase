@@ -29,7 +29,9 @@ export const BULK_PREFLIGHT_SQL = `WITH incoming AS MATERIALIZED (
 ), overlap_rows AS (
   SELECT i.id AS new_id,s.id AS existing_id FROM projected i JOIN segments s
     ON s.id NOT LIKE 'triple-crown-%' AND ST_DWithin(i.path,s.path,15)
-    AND NOT COALESCE(s.provenance#>>'{wa_catalog,loader}'=$4,false)
+    -- Skip only this state's own loader rows. Washington and neighbouring
+    -- bulk states share the marker; border trails must still count as overlaps.
+    AND NOT (COALESCE(s.provenance#>>'{wa_catalog,loader}'=$4,false) AND s.state_code=$6)
     -- Frozen assets can outlive their old route. Exact XYZ is checked before
     -- rebuilding; the route arm below still blocks overlapping live Peaks rows.
     AND NOT (i.frozen AND s.id=i.id)
@@ -39,7 +41,7 @@ export const BULK_PREFLIGHT_SQL = `WITH incoming AS MATERIALIZED (
   UNION
   SELECT i.id,r.id FROM projected i JOIN routes r
     ON r.owner='peaks' AND r.status IN ('pending','active') AND r.id NOT LIKE 'triple-crown-%'
-    AND NOT COALESCE(r.provenance#>>'{wa_catalog,loader}'=$4,false) AND ST_DWithin(i.path,r.path,15)
+    AND NOT (COALESCE(r.provenance#>>'{wa_catalog,loader}'=$4,false) AND r.state_code=$6) AND ST_DWithin(i.path,r.path,15)
   WHERE ST_Length(ST_CollectionExtract(ST_Intersection(ST_Transform(ST_Force2D(i.path::geometry),i.srid),
       ST_Buffer(ST_Transform(ST_ClipByBox2D(ST_Force2D(r.path::geometry),i.box),i.srid),15)),2))
     >=0.8*ST_Length(ST_Transform(ST_Force2D(i.path::geometry),i.srid))
@@ -47,7 +49,10 @@ export const BULK_PREFLIGHT_SQL = `WITH incoming AS MATERIALIZED (
 SELECT to_regprocedure('rebuild_route_paths(text[])') IS NOT NULL
   AND to_regprocedure('refresh_route_derivations(text[])') IS NOT NULL
   AND to_regprocedure('activate_wa_catalog_routes(text[])') IS NOT NULL
-  AND to_regprocedure('wa_catalog_provenance_elevation(jsonb,jsonb)') IS NOT NULL AS ready,
+  AND to_regprocedure('wa_catalog_provenance_elevation(jsonb,jsonb)') IS NOT NULL
+  AND has_function_privilege(current_user,'rebuild_route_paths(text[])','EXECUTE')
+  AND has_function_privilege(current_user,'refresh_route_derivations(text[])','EXECUTE')
+  AND has_function_privilege(current_user,'activate_wa_catalog_routes(text[])','EXECUTE') AS ready,
   (pg_has_role(session_user,'peaks-route-factory','member') OR pg_has_role(session_user,'peaks-route-reviewer','member')) AS lease_bound_worker,
   NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='routes'::regclass AND tgname='trg_enforce_peaks_route_cover_activation' AND NOT tgisinternal) AS cover_trigger_absent,
   COALESCE((SELECT jsonb_agg(jsonb_build_object('id',d.id,'name',d.name,'features',d.features,'lng',ST_X(d.location::geometry),'lat',ST_Y(d.location::geometry),'external_ids',d.external_ids))
