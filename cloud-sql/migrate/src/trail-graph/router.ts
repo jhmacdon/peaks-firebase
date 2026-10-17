@@ -30,7 +30,7 @@ export class TrailRouter {
   private costCache = new Map<string, number[]>();
   private componentWeights: number[] = [];
   private positions: number[][];
-  public readonly vertices;
+  public readonly vertices: Grid<Vertex>;
   private featureIndex = new Grid<NamedFeature>(1000);
   constructor(public readonly segments: Segment[], public readonly features: NamedFeature[] = []) {
     this.vertices = vertexIndex(segments);
