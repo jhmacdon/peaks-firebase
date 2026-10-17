@@ -280,7 +280,12 @@ export async function runLoadBulkBatch(client: Pick<Client, 'query'>, plan: Bulk
   const stored = new Set(plan.live?.segments.map(s => s.id));
   // Fetch/decode every needed tile before BEGIN. Stored/frozen XYZ is reused.
   const profiles = await sample([...plan.segments.values()].filter(s => !stored.has(s.id)), { cacheDir, concurrency: 8 });
-  return loadIsolated(client, plan, profiles);
+  const missing = (route: BulkRoute) => route.refs.find(ref => !stored.has(ref.id) && !profiles.has(ref.id))?.id;
+  const failed = plan.routes.filter(missing);
+  const failures: BulkResult[] = failed.map(route => ({ route_id: route.id, state_code: plan.state, operation: 'load', success: false,
+    error: `Incomplete/invalid elevation profile for segment ${missing(route)}` }));
+  const rest = plan.routes.filter(route => !missing(route));
+  return [...failures, ...(rest.length ? await loadIsolated(client, subPlan(plan, rest), profiles) : [])];
 }
 
 async function readRows<T>(file: string): Promise<T[]> { const result: T[] = []; for await (const row of ndjson<T>(file)) result.push(row); return result; }

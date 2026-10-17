@@ -47,12 +47,13 @@ export async function sampleBulkSegments(
   }
   if (points.length === 0) return profiles;
   const elevations = await sampleTerrariumProfile(points, { ...options, concurrency });
-  if (elevations.length !== points.length || elevations.some(value => !validElevation(value))) {
-    throw new Error('Incomplete/invalid bulk elevation profile');
-  }
+  if (elevations.length !== points.length) throw new Error('Incomplete/invalid bulk elevation profile');
+  // A segment with any unusable sample gets no profile; the caller fails only
+  // the routes that use it, not the whole batch.
   let offset = 0;
   for (const segment of sampled) {
-    profiles.set(segment.id, segment.coords.map(([lng, lat]) => [lng, lat, elevations[offset++]]));
+    const xyz = segment.coords.map(([lng, lat]) => [lng, lat, elevations[offset++]]);
+    if (xyz.every(point => validElevation(point[2]))) profiles.set(segment.id, xyz);
   }
   return profiles;
 }

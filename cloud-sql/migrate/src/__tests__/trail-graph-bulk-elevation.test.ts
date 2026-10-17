@@ -101,13 +101,14 @@ test('bulk elevation rejects frozen partials, altered XY, missing, zero and nonf
   await assert.rejects(sampleBulkSegments([partial], { cacheDir: 'unused' }), /review-only/);
 });
 
-test('bulk elevation rejects a whole batch when a sampled profile is zero or out of range', async () => {
+test('bulk elevation leaves out a segment whose sampled profile is zero or out of range', async () => {
   for (const [red, green] of [[128, 0], [166, 0], [0, 0]]) {
     await withCache(async cacheDir => {
       const bytes = await tile(red, green, 0);
-      await assert.rejects(sampleBulkSegments([segment('invalid-sample')], {
+      const profiles = await sampleBulkSegments([segment('invalid-sample')], {
         cacheDir, fetcher: async () => new Response(new Uint8Array(bytes), { status: 200 }),
-      }), /invalid bulk elevation profile/);
+      });
+      assert.equal(profiles.has('invalid-sample'), false);
     });
   }
 });
