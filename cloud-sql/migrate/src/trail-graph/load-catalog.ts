@@ -19,6 +19,8 @@ import type { ComposedRoute, NewPlace, PeaksDestination, PeaksRoute, PlaceRef } 
 import type { Coord, Provenance, Segment } from './types';
 import { replacementPlan, rebaseLoad, SOURCE_SCHEMA_PREFLIGHT } from './load-rebase';
 import type { MergePlan, RebasePlan } from './rebase';
+import { transactionStart, segmentLinks, destinationLinks } from './load-sql';
+import { writeRematchNeeded } from './load-rematch';
 
 export interface LoadOptions { activate?: boolean; elevation?: boolean; includeReview?: boolean; onlyOk?: boolean; resolver?: DestinationResolver; supersede?: SupersedeDecision; overlaps?: ExistingOverlap[]; supersededIds?: Set<string>; currentIds?: Set<string>; livePreflight?: boolean; rebases?: RebasePlan[]; merges?: MergePlan[]; replacementId?: string }
 export interface Statement { kind: string; sql: string; values: unknown[] }
@@ -88,7 +90,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   }
   if (Math.abs(measured - row.length_m) > 0.1) throw new Error(`Composed segment length mismatch for ${row.name}`);
   const add = (kind: string, sql: string, values: unknown[] = []) => plan.statements.push({ kind, sql, values });
-  add('begin', 'BEGIN'); add('lock', "SELECT pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0))");
+  plan.statements.push(...transactionStart()); add('lock', "SELECT pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0))");
   add('review_guard', `SELECT r.id,r.status,EXISTS(SELECT 1 FROM trail_catalog_review_jobs j WHERE j.route_id=r.id AND j.state IN ${STATES}) AS protected
     FROM routes r WHERE r.id=ANY($1::text[]) FOR UPDATE`, [[row.route_id!, ...(options.supersede?.eligible ? [options.supersede.legacy_id] : [])]]);
   // Another replacement may fail while this run continues. Its planned claim
@@ -118,8 +120,7 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
   add('route_insert', `INSERT INTO routes(id,name,status,owner,kind,slug,search_name,aliases,state_code,country_code,external_links,provenance,shape,trailhead_destination_id,objective_destination_id,description)
     VALUES($1,$2,'pending','peaks',$3,peaks_route_catalog_slug($2,$1),peaks_search_name($2),$4,'WA','US',$5::jsonb,$6::jsonb,$7::route_shape,$8,$9,NULL) ON CONFLICT(id) DO NOTHING`,
     [row.route_id, row.name, row.kind, row.aliases, JSON.stringify(row.wta_url ? [{ type: 'wta', id: row.wta_url }] : []), JSON.stringify(provenance), row.shape, thId, objectiveId]);
-  refs.forEach((ref, ordinal) => add('route_segment_insert', 'INSERT INTO route_segments(route_id,segment_id,ordinal,direction) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [row.route_id, ref.id, ordinal, ref.direction]));
-  ordered.forEach((id, ordinal) => add('route_destination_insert', 'INSERT INTO route_destinations(route_id,destination_id,ordinal) VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [row.route_id, id, ordinal]));
+  plan.statements.push(segmentLinks(row.route_id!, refs), destinationLinks(row.route_id!, ordered));
   add('binding_guard', `SELECT jsonb_build_object('name',r.name,'owner',r.owner,'kind',r.kind,'aliases',r.aliases,'shape',r.shape,
       'state_code',r.state_code,'country_code',r.country_code,'trailhead_destination_id',r.trailhead_destination_id,'objective_destination_id',r.objective_destination_id,
       'external_links',r.external_links,'provenance',wa_catalog_provenance_elevation(r.provenance,'{}'::jsonb),'description',r.description)=$2::jsonb
@@ -162,8 +163,6 @@ export function planRoute(row: ComposedRoute, source: Map<string, Segment>, opti
         AND ST_Length(ST_CollectionExtract(ST_Intersection(ST_Force2D(old.path::geometry),ST_Buffer(fresh.path,30)::geometry),2)::geography)>=0.8*ST_Length(old.path)
         AND NOT EXISTS(SELECT 1 FROM trail_catalog_review_jobs j WHERE j.route_id=old.id AND j.state IN ${STATES}) RETURNING old.id`, [legacy.legacy_id, row.route_id, legacy.legacy_name]);
       add('supersede_claim', 'INSERT INTO wa_catalog_supersedes(legacy_route_id,route_id) VALUES($1,$2)', [legacy.legacy_id, row.route_id]);
-      add('session_rematch_queue', `INSERT INTO session_rematch_queue(session_id,reason) SELECT session_id,'wa-catalog-supersede:'||$2 FROM session_routes WHERE route_id=$1
-        ON CONFLICT(session_id) DO UPDATE SET reason=EXCLUDED.reason,queued_at=now()`, [legacy.legacy_id, row.route_id]);
       add('session_routes_move', `INSERT INTO session_routes(session_id,route_id,source,coverage,covered_intervals,is_primary)
         SELECT session_id,$2,'auto',NULL,NULL,false FROM session_routes WHERE route_id=$1 ON CONFLICT(session_id,route_id) DO NOTHING`, [legacy.legacy_id, row.route_id]);
       add('session_routes_delete_legacy', 'DELETE FROM session_routes WHERE route_id=$1', [legacy.legacy_id]);
@@ -180,9 +179,9 @@ export function planCounts(plans: RoutePlan[]) {
     unique_destination_ids: new Set(admitted.flatMap(p => p.destination_ids)).size, unique_new_destination_ids: new Set(admitted.flatMap(p => p.statements.filter(s => s.kind === 'destination_insert').map(s => s.values[0]))).size,
     reused_segment_ids: [...new Set(admitted.flatMap(p => p.reused_segment_ids))], note: 'SQL statement counts, not affected-row counts. Offline plans require live read-only preflight before writes.' };
 }
-export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan, segments: Map<string, Segment>, cacheDir: string, sample?: (points: { lng: number; lat: number }[]) => Promise<number[]>): Promise<string> {
+export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan, segments: Map<string, Segment>, cacheDir: string, sample?: (points: { lng: number; lat: number }[]) => Promise<number[]>, committedActiveRoutes?: Set<string>): Promise<string> {
   if (plan.skipped) return `skipped: ${plan.skipped}`;
-  let existingPending = false; const elevated = new Set<string>();
+  let existingPending = false; const elevated = new Set<string>(), active = new Set<string>();
   try {
     for (const statement of plan.statements) {
       if (existingPending && ['destination_insert','segment_insert','route_insert','route_segment_insert','route_destination_insert'].includes(statement.kind)) continue;
@@ -200,6 +199,7 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
         if (statement.kind === 'replacement_guard') {
           const r = result.rows[0];
           if (!r || r.owner !== 'peaks' || r.protected || !r.links_match || !r.source_match || r.name !== plan.legacy_expected?.name || r.status !== plan.legacy_expected?.status) throw new Error('Legacy route changed, is reviewed, or rebase has not completed; replacement refused: '+JSON.stringify({protected:r?.protected,links_match:r?.links_match,source_match:r?.source_match,name:r?.name,status:r?.status}));
+          if (r.status === 'active') active.add(plan.route_id);
         }
         if (statement.kind === 'completed_rebase_guard' && result.rows[0]?.valid !== true) throw new Error('Merge refused: matching completed rebase receipt missing; run --rebase before catalog loading');
         if (['source_integrity','active_integrity','legacy_source_guard','segment_xy_guard','replacement_links_guard','frozen_segment_guard'].includes(statement.kind) && result.rows[0]?.valid !== true) throw new Error(`${statement.kind} failed; legacy replacement rolled back${result.rows[0]?.diagnostics ? ': '+JSON.stringify(result.rows[0].diagnostics) : ''}`);
@@ -207,33 +207,34 @@ export async function executePlan(client: Pick<Client, 'query'>, plan: RoutePlan
           if (result.rows.some(r => r.protected)) { await client.query('ROLLBACK'); return 'skipped: live catalog review protects a matched route'; }
           const own = result.rows.find(r => r.id === plan.route_id);
           if (own) { if (own.status === 'pending') existingPending = true; else { await client.query('ROLLBACK'); return `skipped: route already exists (${own.status})`; } }
+          for (const r of result.rows) if (r.status === 'active') active.add(r.id);
         }
         if (statement.kind === 'binding_guard' && result.rows[0]?.valid !== true) throw new Error('Stored route/segments differ from the composition binding');
         if (statement.kind === 'overlap_guard' && result.rows[0]?.valid !== true) throw new Error('Overlapping legacy owner has not been superseded; retry after its replacement succeeds');
         if (statement.kind === 'elevation_guard') { const row = result.rows[0]; if (row?.complete) elevated.add(statement.values[0] as string); else if (row?.protected || plan.segment_data.get(statement.values[0] as string)?.frozen_catalog) throw new Error('Protected segment lacks usable elevation'); }
         if (statement.kind === 'legacy_supersede' && result.rowCount !== 1) throw new Error('Legacy supersede refused by live objective/start/end/overlap/review checks');
+        if (statement.kind === 'activate') active.add(plan.route_id);
+        if (statement.kind === 'commit') for (const id of active) committedActiveRoutes?.add(id);
       }
     }
     return 'applied';
   } catch (error) { try { await client.query('ROLLBACK'); } catch { /* Preserve the original error. */ } throw error; }
 }
-export async function waitForRematchDrain(client: Pick<Client, 'query'>, sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)), now: () => number = Date.now): Promise<void> {
-  const deadline = now() + 30 * 60 * 1000;
-  for (;;) { const result = await client.query('SELECT count(*)::int AS pending FROM session_rematch_queue'); if (result.rows[0]?.pending === 0) return;
-    if (now() >= deadline) throw new Error('Rematch queue did not drain within 30 minutes; no further activation batches'); await sleep(30000); }
-}
-export async function runPlans(client: Pick<Client, 'query'>, plans: RoutePlan[], segments: Map<string, Segment>, dir: string, options: { batchSize?: number; drain?: () => Promise<void>; sample?: (points: { lng: number; lat: number }[]) => Promise<number[]>; resultsFile?: string } = {}) {
+export async function runPlans(client: Pick<Client, 'query'>, plans: RoutePlan[], segments: Map<string, Segment>, dir: string, options: { batchSize?: number; pause?: () => Promise<void>; sample?: (points: { lng: number; lat: number }[]) => Promise<number[]>; resultsFile?: string } = {}) {
   const size = options.batchSize ?? 50; if (!Number.isInteger(size) || size < 1 || size > 50) throw new Error('Activation batch size must be 1–50');
-  const results: { seed_index: number; route_id: string; operation: string; result: string }[] = []; let attempted = 0;
-  for (const plan of plans) {
-    if (plan.activate && attempted === size) { await (options.drain ?? (() => waitForRematchDrain(client)))(); attempted = 0; }
+  const results: { seed_index: number; route_id: string; operation: string; result: string }[] = [], affected = new Set<string>(); let attempted = 0;
+  // Validate the prior receipt before writes; preserve all earlier modes' IDs.
+  await writeRematchNeeded(dir, [], false);
+  try { for (const plan of plans) {
+    if (plan.activate && attempted === size) { await (options.pause ?? (() => new Promise<void>(r => setTimeout(r, 1000))))(); attempted = 0; }
     if (plan.activate) attempted++;
     const context = { seed_index: plan.seed_index, route_id: plan.route_id, operation: plan.operation ?? 'new' };
-    try { results.push({ ...context, result: await executePlan(client, plan, segments, dir, options.sample) }); }
+    try { results.push({ ...context, result: await executePlan(client, plan, segments, dir, options.sample, affected) }); }
     catch (e) { results.push({ ...context, result: `failed: ${(e as Error).message}` }); }
     await writeFile(join(dir, options.resultsFile ?? 'load-results.json'), JSON.stringify(results, null, 2) + '\n');
-  }
-  if (attempted) await (options.drain ?? (() => waitForRematchDrain(client)))(); return results;
+    await writeRematchNeeded(dir, affected, false);
+  } } finally { await writeRematchNeeded(dir, affected); }
+  return results;
 }
 async function readRows<T>(file: string): Promise<T[]> { const rows: T[] = []; for await (const row of ndjson<T>(file)) rows.push(row); return rows; }
 export function catalogPlans(rows: ComposedRoute[], segments: Map<string, Segment>, destinations: PeaksDestination[], legacyRoutes: PeaksRoute[], options: LoadOptions = {}) {

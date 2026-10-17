@@ -39,7 +39,7 @@ test('prune mode writes only a prune plan and never dispatches catalog/rebase wo
   const parent=resolve(__dirname,'../../../../.cache/rehearsal-tests');await mkdir(parent,{recursive:true});const dir=await mkdtemp(join(parent,'prune-'));
   try{await writeFile(join(dir,'routes.ndjson'),'');await writeFile(join(dir,'segments.ndjson'),'');const r=spawnSync(process.execPath,['--import','tsx',resolve(__dirname,'../trail-graph/load-catalog.ts'),'--prune-pending','--out',dir],{cwd:resolve(__dirname,'../..'),env:{...process.env,TSX_DISABLE_CACHE:'1'},encoding:'utf8'});
     assert.equal(r.status,0,r.stderr);const out=JSON.parse(r.stdout);assert.equal(out.operation,'prune');assert.equal(out.catalog_routes_loaded,0);assert.equal(out.merges,0);assert.equal(out.rebases,0);
-    const plan=JSON.parse(await readFile(join(dir,'prune-plan.json'),'utf8'));assert.deepEqual(plan.statements.map((s:any)=>s.kind),['begin','lock','prune_routes','prune_segments','prune_places','commit']);await assert.rejects(()=>access(join(dir,'load-plan.json')));
+    const plan=JSON.parse(await readFile(join(dir,'prune-plan.json'),'utf8'));assert.deepEqual(plan.statements.map((s:any)=>s.kind),['begin','defer_rematch','lock','prune_routes','prune_segments','prune_places','commit']);await assert.rejects(()=>access(join(dir,'load-plan.json')));
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 test('prune executor refuses non-prune statements without executing them',async()=>{

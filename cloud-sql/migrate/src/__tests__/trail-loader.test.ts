@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Composer, materialize, catalogRouteId, digest } from '../trail-graph/compose';
-import { catalogPlans, executePlan, planRoute, runPlans, waitForRematchDrain } from '../trail-graph/load-catalog';
+import { catalogPlans, executePlan, planRoute, runPlans } from '../trail-graph/load-catalog';
+import { DEFER_REMATCH_SQL } from '../trail-graph/load-sql';
 import { DestinationResolver, IMPORT_MARKER, checkSupersede, claimSupersedes, compatibleRouteNames, osmExternalIds, placeIdentity } from '../trail-graph/load-matching';
 import { bindExistingSegments, readPreflight, type ExistingOverlap } from '../trail-graph/load-preflight';
 import { prunePlan } from '../trail-graph/load-prune';
@@ -87,12 +88,25 @@ test('a failed replacement cannot authorize another route to duplicate its legac
   await assert.rejects(() => executePlan(client as any, plan, segments, '.'), /has not been superseded/);
   assert.equal(calls.at(-1), 'ROLLBACK'); assert.ok(calls.every(sql => !sql.startsWith('INSERT')));
 });
-test('session moves clear primary and geometric facts, queue before deleting legacy rows, and tolerate PK conflicts', () => {
+test('session moves clear primary and geometric facts, defer rematching, and tolerate PK conflicts', () => {
   const { row, segments, legacy } = setup(), decision = checkSupersede(row, legacy, segments.get(row.segments[0].id)!.coords, 'River Lake', 'lake');
   const plan = planRoute(row, segments, { activate: true, elevation: true, supersede: decision });
   const move = plan.statements.find(s => s.kind === 'session_routes_move')!; assert.match(move.sql, /'auto',NULL,NULL,false/); assert.match(move.sql, /ON CONFLICT\(session_id,route_id\) DO NOTHING/); assert.ok(!move.sql.includes('jsonb_populate_record'));
-  assert.ok(plan.statements.findIndex(s => s.kind === 'session_rematch_queue') < plan.statements.findIndex(s => s.kind === 'session_routes_delete_legacy'));
+  assert.ok(!plan.statements.some(s => s.sql.includes('session_rematch_queue')));
+  assert.ok(plan.statements.findIndex(s => s.kind === 'session_routes_move') < plan.statements.findIndex(s => s.kind === 'session_routes_delete_legacy'));
   assert.match(plan.statements.find(s => s.kind === 'legacy_supersede')!.sql, /0\.8\*ST_Length/); assert.ok(plan.statements.some(s => s.kind === 'supersede_claim'));
+});
+test('committed supersede audit includes the activated route and an old active route, without queueing', async () => {
+  const { row, segments, legacy } = setup(), decision = checkSupersede(row, legacy, segments.get(row.segments[0].id)!.coords, 'River Lake', 'lake');
+  const plan = planRoute(row, segments, { activate: true, elevation: true, supersede: decision });
+  for (const status of ['active', 'pending']) {
+    const affected = new Set<string>(), client = { query: async (sql: string) => {
+      assert.ok(!sql.includes('session_rematch_queue'));
+      return { rows: sql.startsWith('SELECT r.id,r.status,') ? [{ id: legacy.id, status, protected: false }] : [{ valid: true, complete: true }], rowCount: 1 };
+    } };
+    await executePlan(client as any, plan, segments, '.', undefined, affected);
+    assert.deepEqual([...affected].sort(), [plan.route_id, ...(status === 'active' ? [legacy.id] : [])].sort());
+  }
 });
 test('display names expand abbreviations/caps/PCT regions and preserve trail numbers', () => {
   for (const [raw, expected] of [['IRA SPRING Trail #1038', 'Ira Spring Trail #1038'], ['PCT: MBS WHITE RIVER', 'Pacific Crest Trail'], ['PCNST', 'Pacific Crest Trail'], ['MT RAINIER TRAIL', 'Mount Rainier Trail'], ['Chimney Mt Trail #1599', 'Chimney Mountain Trail #1599'], ['Sand Pt Trail', 'Sand Point Trail']]) assert.equal(displayName(raw), expected);
@@ -117,7 +131,7 @@ test('activation migration retains canonical integrity, elevation/contact gate a
 test('lease-bound worker roles cannot enter the bulk loader write path', async () => {
   const calls: string[] = [], client = { query: async (sql: string) => { calls.push(sql); return { rows: sql.includes('rebuild_ready') ? [{ rebuild_ready: true, activation_ready: true, cover_trigger_absent: true, session_primary_ready: true, lease_bound_worker: true }] : [] }; } };
   await assert.rejects(() => readPreflight(client as any, [], false), /operator connection/);
-  assert.deepEqual(calls.map(sql => sql === 'BEGIN READ ONLY' || sql === 'ROLLBACK' ? sql : 'schema check'), ['BEGIN READ ONLY', 'schema check', 'ROLLBACK']);
+  assert.deepEqual(calls.map(sql => ['BEGIN READ ONLY', 'ROLLBACK', DEFER_REMATCH_SQL].includes(sql) ? sql : 'schema check'), ['BEGIN READ ONLY', DEFER_REMATCH_SQL, 'schema check', 'ROLLBACK']);
 });
 test('prune is marker-scoped, pending-only and preserves activation receipts and all foreign-key references', () => {
   const { row, segments } = setup(), plan = planRoute(row, segments), statements = prunePlan([plan], [row.route_id!]);
@@ -125,23 +139,20 @@ test('prune is marker-scoped, pending-only and preserves activation receipts and
   for (const s of statements.filter(s => s.kind.startsWith('prune_'))) { assert.match(s.sql, /wa_catalog_activation_receipts/); assert.ok(JSON.stringify(s.values).includes(IMPORT_MARKER)); }
   assert.match(statements.find(s => s.kind === 'prune_routes')!.sql, /status='pending'/); assert.match(statements.find(s => s.kind === 'prune_places')!.sql, /wa_catalog_has_references/);
 });
-test('rematch drain polls at 30 s, returns only on zero and times out at 30 min', async () => {
-  let time = 0, calls = 0; const sleep = async (ms: number) => { assert.equal(ms, 30000); time += ms; };
-  await waitForRematchDrain({ query: async () => ({ rows: [{ pending: ++calls >= 3 ? 0 : 1 }] }) } as any, sleep, () => time); assert.equal(time, 60000);
-  time = 0; await assert.rejects(() => waitForRematchDrain({ query: async () => ({ rows: [{ pending: 1 }] }) } as any, sleep, () => time), /30 minutes/); assert.equal(time, 1800000);
-});
-test('batches never exceed 50, wait before the next batch, and continue after one route rolls back', async () => {
+test('batches never exceed 50, pause without queue scans, and continue after one route rolls back', async () => {
   const { row, segments } = setup(), plan = planRoute(row, segments, { activate: true, elevation: true });
   const parent = resolve(__dirname, '../../../../.cache/loader-tests'); await mkdir(parent, { recursive: true }); const dir = await mkdtemp(join(parent, 'run-'));
-  let activations = 0, drains = 0, failOnce = true, rollbacks = 0;
+  let activations = 0, pauses = 0, failOnce = true, rollbacks = 0;
   const client = { query: async (sql: string) => {
+    assert.ok(!sql.includes('session_rematch_queue'));
     if (sql === 'ROLLBACK') rollbacks++;
     if (sql.includes('activate_wa_catalog_route')) { activations++; if (failOnce) { failOnce = false; throw new Error('one route failed'); } }
     return { rows: sql.includes('AS valid FROM') ? [{ valid: true }] : sql.includes('AS complete') ? [{ complete: true }] : [], rowCount: 1 };
   } };
   try {
-    const results = await runPlans(client as any, Array.from({ length: 51 }, (_, i) => ({ ...plan, seed_index: i })), segments, dir, { drain: async () => { drains++; assert.equal(activations, drains === 1 ? 50 : 51); } });
-    assert.equal(results.length, 51); assert.match(results[0].result, /failed/); assert.equal(results[50].result, 'applied'); assert.equal(rollbacks, 1); assert.equal(drains, 2);
+    const results = await runPlans(client as any, Array.from({ length: 51 }, (_, i) => ({ ...plan, seed_index: i })), segments, dir, { pause: async () => { pauses++; assert.equal(activations, 50); } });
+    assert.equal(results.length, 51); assert.match(results[0].result, /failed/); assert.equal(results[50].result, 'applied'); assert.equal(rollbacks, 1); assert.equal(pauses, 1);
+    assert.deepEqual(JSON.parse(await readFile(join(dir, 'rematch-needed.json'), 'utf8')).route_ids, [plan.route_id]);
     await assert.rejects(() => runPlans(client as any, [], segments, dir, { batchSize: 51 }), /1–50/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

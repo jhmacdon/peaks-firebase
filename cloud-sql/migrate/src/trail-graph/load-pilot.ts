@@ -4,6 +4,8 @@ import type { Client } from 'pg';
 import type { Statement } from './load-catalog';
 import { ndjson } from './io';
 import { PILOT_BATCH, PILOT_REJECTION, WA_PILOTS } from './pilot-routes';
+import { transactionStart } from './load-sql';
+import { writeRematchNeeded } from './load-rematch';
 
 export const PILOT_SCHEMA = `SELECT to_regprocedure('retire_wa_catalog_pilot(text)') IS NOT NULL AS ready,
   session_user=pg_get_userbyid((SELECT relowner FROM pg_class WHERE oid='trail_catalog_candidate_jobs'::regclass))
@@ -30,7 +32,7 @@ export async function assertPilotsRetired(client: Pick<Client, 'query'>): Promis
 export function pilotPlan(routeId: string): Statement[] {
   if (!WA_PILOTS.some(p => p.id === routeId)) throw new Error(`Not an approved pilot: ${routeId}`);
   return [
-    { kind: 'begin', sql: 'BEGIN', values: [] },
+    ...transactionStart(),
     { kind: 'lock', sql: "SELECT pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0))", values: [] },
     { kind: 'retire_pilot', sql: 'SELECT retire_wa_catalog_pilot($1) AS result', values: [routeId] },
     { kind: 'commit', sql: 'COMMIT', values: [] },
@@ -40,7 +42,7 @@ export async function executePilot(client: Pick<Client, 'query'>, statements: St
   let result: unknown;
   try {
     for (const s of statements) {
-      if (!['begin','lock','retire_pilot','commit'].includes(s.kind)) throw new Error('Non-retirement SQL in retire-pilot mode');
+      if (!['begin','defer_rematch','lock','retire_pilot','commit'].includes(s.kind)) throw new Error('Non-retirement SQL in retire-pilot mode');
       const r = await client.query(s.sql, s.values);
       if (s.kind === 'retire_pilot') {
         const receipt = r.rows[0]?.result;
@@ -68,11 +70,12 @@ export async function retirePilots(dir: string, input: string, apply: boolean): 
   const { Client } = await import('pg'), client = new Client({ connectionString: process.env.DATABASE_URL }); await client.connect();
   try {
     const schema = (await client.query(PILOT_SCHEMA)).rows[0]; if (!schema?.ready || !schema.operator) throw new Error('Retire-pilot requires the corrected 20261017 migration and candidate table owner operator login');
+    await writeRematchNeeded(dir, [], false);
     const results: { id: string; result?: unknown; error?: string }[] = [];
     for (const p of plans) {
       try { results.push({ id: p.id, result: await executePilot(client, p.statements) }); }
       catch (e) { results.push({ id: p.id, error: (e as Error).message }); }
       await writeFile(join(dir, 'retire-pilot-results.json'), JSON.stringify(results, null, 2) + '\n');
     }
-  } finally { await client.end(); }
+  } finally { await client.end(); await writeRematchNeeded(dir, []); }
 }

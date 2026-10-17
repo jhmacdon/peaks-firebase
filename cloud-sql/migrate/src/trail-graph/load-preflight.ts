@@ -3,6 +3,7 @@ import { digest } from './compose';
 import { IMPORT_MARKER } from './load-matching';
 import type { ComposedRoute, PeaksDestination, PeaksRoute } from './catalog-types';
 import type { Coord, Segment } from './types';
+import { DEFER_REMATCH_SQL } from './load-sql';
 
 export interface ExistingOverlap {
   new_id: string; id: string; name: string | null; display_name: string | null; kind: Segment['kind'] | null; trail_names: string[];
@@ -18,6 +19,7 @@ export const SCHEMA_PREFLIGHT = `SELECT to_regprocedure('rebuild_route_path(text
 export async function readPreflight(client: Pick<Client, 'query'>, segments: Segment[], activate: boolean): Promise<LivePreflight> {
   await client.query('BEGIN READ ONLY');
   try {
+    await client.query(DEFER_REMATCH_SQL);
     const schema = (await client.query(SCHEMA_PREFLIGHT)).rows[0];
     if (schema?.lease_bound_worker) throw new Error('WA bulk loading requires an operator connection; standard factory/reviewer logins require their own candidate leases');
     if (!schema?.rebuild_ready || !schema.activation_ready) throw new Error('Apply the segment model and WA activation migrations before loading');

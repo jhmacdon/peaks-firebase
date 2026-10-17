@@ -183,7 +183,7 @@ test('a loop beginning at an interior source vertex rotates without adding a fal
 test('dry-run plan counts insert only consumed segments; reviewed matches skip all SQL', () => {
   const { row, segments } = composed(), plan = planRoute(row, segments), counts = planCounts([plan]);
   assert.equal(counts.planned_routes, 1); assert.equal(counts.statements.segment_insert, 1); assert.equal(counts.statements.route_insert, 1);
-  assert.equal(counts.statements.destination_insert, 1); assert.equal(counts.statements.route_destination_insert, 3);
+  assert.equal(counts.statements.destination_insert, 1); assert.equal(counts.statements.route_destination_insert, 1);
   assert.equal(counts.statements.rebuild_route_path, 1); assert.ok(plan.statements.every(s => !/UPDATE segments/.test(s.sql)));
   row.existing_route_match = { id: 'reviewed', name: 'old', catalog_reviewed: true, n_sessions: 0, start_gap_m: 0, end_gap_m: 0 };
   assert.match(planRoute(row, segments).skipped!, /catalog_reviewed/);

@@ -2,7 +2,8 @@
 
 For a legacy WA snapshot, follow the [rebase and merge workflow](REBASE.md).
 It keeps legacy identities and session links instead of creating duplicates.
-The apply order is migrations, retire-pilot, prune, rebase, catalog, activate.
+The apply order is migrations, retire-pilot, prune, rebase, catalog, activate,
+then the required full session rematch backfill.
 
 The default command makes a local dry-run plan. It opens no database connection:
 
@@ -75,6 +76,10 @@ connectors on non-summit kinds. See the rebase guide for the exact limits.
 
 Each admitted route has its own transaction and rollback. A failure is recorded
 and the run continues. Source geometry and manifest hashes must still match.
+Every transaction sets `SET LOCAL peaks.defer_rematch = 'on'` immediately after
+BEGIN. This requires PR #236's updated rematch triggers, which must all honor
+the transaction setting. Each route inserts its ordered segment links in one
+multi-row statement and its destination links in one multi-row statement.
 Both segment loaders insert only; an existing ID never loses Z, gain or path.
 The separate segment loader reports differing XY instead of replacing it.
 `--elevation` uses the existing Terrarium sampler only during apply. It preserves
@@ -92,9 +97,33 @@ summits within 5 m, and the existing kind-specific objective/loop contact rules.
 The function records activated route and asset IDs so pruning cannot remove
 something that once went live.
 
-The loader caps activation batches at 50 attempts. Between batches, and after
-the last, it polls the existing `session_rematch_queue` every 30 seconds until
-empty. A 30-minute timeout stops further batches. No service or timer is added.
+The loader caps activation batches at 50 attempts and pauses one second between
+batches. It does not poll or wait for the rematch queue during loading.
+
+After each successful active-route change or activation, the loader records the
+route ID locally. It enqueues no sessions per route. At the end it prints and
+writes `.cache/compose/rematch-needed.json` (or `--out/rematch-needed.json`).
+The file accumulates affected IDs across rebase, catalog and activation runs,
+with checkpoints after commits. Failed, rolled-back, skipped and pending-only
+routes add no IDs. A supersede includes the former route if it was active.
+Retire-pilot and prune add none: their guards allow pending routes only.
+Dry-runs never write or clear this receipt.
+
+**Required final step after apply:** run PR #236's
+`cloud-sql/migrate/src/rematch-all-sessions.ts` backfill in batches while the
+sweep drains. From `cloud-sql/migrate`, an authorized operator runs:
+
+```sh
+TSX_DISABLE_CACHE=1 node --import tsx src/rematch-all-sessions.ts --apply --batch-size 100
+```
+
+This is a separate database write; it did not run here. Watch the queue and
+sweep, and pause/resume with the printed `--after <session-id>` cursor as needed.
+The route ID file is an audit list, not a filter: the backfill must rematch all
+eligible sessions, including old route links and sessions near the new paths.
+Wait for the final queue drain before archiving `rematch-needed.json`. Do not
+clear it between loader modes. Session route/segment facts remain stale until
+this backfill and sweep finish.
 
 A legacy supersede also needs the same objective destination, start gap <=300 m,
 end gap <=150 m, >=80% of the old path within 30 m of the new, and compatible
@@ -105,8 +134,9 @@ route. Missing paths are unverified, never an assumed overlap.
 
 Superseding and session moves occur in the activation transaction. New session
 links use `source='auto'`, NULL coverage/intervals and `is_primary=false`; an
-existing new-route PK wins. All affected sessions enter the rematch queue before
-the old rows are deleted. `processSession` computes the new facts.
+existing new-route PK wins. The loader deletes the old rows without queueing
+sessions. The required final backfill queues sessions; `processSession` computes
+the new facts.
 
 `--retire-pilot` is an exclusive mode. It plans four transactions and needs no
 graph outputs. The owned `retire_wa_catalog_pilot` function permits only the
@@ -142,7 +172,8 @@ never deletes active routes or unmarked earlier imports. The latter cannot be
 safely identified from an ID prefix alone. The flag stays dry-run unless apply
 is explicitly requested. `--rebase` is also exclusive. After composing and
 installing migrations, retire the pilots, prune, rebase with elevation, load
-the catalog with elevation, then activate with elevation. A catalog merge requires
+the catalog with elevation, activate with elevation, then run the full rematch
+backfill and wait for its queue to drain. A catalog merge requires
 a matching completed-rebase receipt and the expected rebased geometry/links;
 it refuses the original snapshot even if that source still matches. Each option
 must be a separate shell argument. Unknown, joined and incompatible flags fail
@@ -150,7 +181,7 @@ before input reads or a database connection.
 
 Local checkout limits: the companion segment-model migration, PR #235's cover
 trigger removal, and PR #236's added link-rematch triggers are not present here.
-The existing `20261004_session_rematch_queue.sql` route trigger already ignores
-pending inserts and pending-to-pending path changes. PR #236 must preserve that
-rule for its new link triggers. Apply preflight also checks `session_routes.is_primary`.
+The updated PR #236 migration must preserve its pending-route checks and add
+the `peaks.defer_rematch` opt-out to every rematch trigger. Apply preflight also
+checks `session_routes.is_primary`.
 No migration, live preflight, elevation fetch or activation ran in this task.

@@ -68,9 +68,9 @@ test('retirement dry-run needs no graph files and performs no catalog or rebase 
     const result = spawnSync(process.execPath, ['--import', 'tsx', resolve(__dirname, '../trail-graph/load-catalog.ts'), '--retire-pilot', '--out', dir, '--input', dir], { env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr); const plan = JSON.parse(await readFile(join(dir, 'retire-pilot-plan.json'), 'utf8'));
     assert.equal(plan.mode, 'dry-run'); assert.equal(plan.batch, PILOT_BATCH); assert.equal(plan.rejection_reason, PILOT_REJECTION);
-    assert.equal(plan.counts.transactions, 4); assert.equal(plan.counts.statements, 16);
+    assert.equal(plan.counts.transactions, 4); assert.equal(plan.counts.statements, 20);
     assert.deepEqual(await readdir(dir), ['retire-pilot-plan.json']);
-    for (const p of plan.plans) assert.deepEqual(p.statements.map((s: any) => s.kind), ['begin', 'lock', 'retire_pilot', 'commit']);
+    for (const p of plan.plans) assert.deepEqual(p.statements.map((s: any) => s.kind), ['begin', 'defer_rematch', 'lock', 'retire_pilot', 'commit']);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 test('retirement transactions roll back per candidate and can proceed with the next candidate', async () => {

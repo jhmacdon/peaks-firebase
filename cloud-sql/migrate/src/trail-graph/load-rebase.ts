@@ -9,6 +9,7 @@ import { legacyHash, leased, rebasePlanHash, type MergePlan, type RebasePlan } f
 import type { ComposedRoute } from './catalog-types';
 import type { Segment } from './types';
 import { assertPilotsRetired } from './load-pilot';
+import { transactionStart, plannedSegmentLinks } from './load-sql';
 
 const REVIEWED = "('approved','publish_leased','published','verify_leased','verified','rejected')";
 const links = (r: ComposedRoute) => r.segments.map((s, ordinal) => ({ id: s.id, direction: s.direction, ordinal }));
@@ -36,7 +37,8 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
   if (base.skipped) return { ...base, route_id: rebase.legacy.id, operation: merge ? 'merge' : 'rebase' };
   const id = rebase.legacy.id, oldId = base.route_id, p: RoutePlan = { ...base, route_id: id, operation: merge ? 'merge' : 'rebase', legacy_expected: { name: rebase.legacy.name, status: rebase.legacy.status }, activate: false, statements: [], notes: [...base.notes, ...(merge?.reasons ?? []), 'Preserve legacy route identity, status and session links; live source/lease/integrity checks required'] };
   const add = (kind: string, sql: string, values: unknown[] = []) => p.statements.push({ kind, sql, values });
-  add('begin', 'BEGIN'); add('lock', "SELECT pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0))");
+  p.statements.push(...transactionStart()); add('lock', "SELECT pg_advisory_xact_lock(hashtextextended('wa_trail_catalog_loader',0))");
+  const plannedLinks = plannedSegmentLinks(base.statements);
   add('factory_lock', `SELECT state,lease_expires_at,lease_owner FROM standard_route_backfill_jobs WHERE published_route_id=$1
     OR destination_id IN(SELECT destination_id FROM route_destinations WHERE route_id=$1) ORDER BY destination_id FOR UPDATE`, [id]);
   if (merge) add('completed_rebase_guard', `SELECT EXISTS(SELECT 1 FROM wa_catalog_rebase_receipts WHERE route_id=$1 AND source_hash=$2 AND binding_hash=$3) AS valid`,[id,rebase.source_hash,digest(rebase.row.segments)]);
@@ -47,8 +49,8 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
     AND EXISTS(SELECT 1 FROM wa_catalog_rebase_receipts WHERE route_id=r.id AND source_hash=$7 AND binding_hash=$8)
     AND route_segments_cover_provenance(r.id) AND (r.status<>'active' OR (peaks_route_passes_publish_integrity(r.id,NULL,'active')
       AND NOT EXISTS(SELECT 1 FROM ST_DumpPoints(r.path::geometry) point WHERE ST_Z((point).geom) IS NULL OR ST_Z((point).geom)=0))) AS already_applied
-    FROM routes r WHERE id=$1 FOR UPDATE`, [id, JSON.stringify(base.statements.filter(s => s.kind === 'route_segment_insert').map(s => ({ id: s.values[1], direction: s.values[3], ordinal: s.values[2] }))),
-      digest(base.statements.filter(s => s.kind === 'route_segment_insert').map(s => ({ id: s.values[1], direction: s.values[3] }))), JSON.stringify([`Legacy graph rebase ${rebase.source_hash}`]), rebase.legacy.status, [rebase.legacy.name, displayLegacyName(rebase.legacy.name)],rebase.source_hash,digest(rebase.row.segments)]);
+    FROM routes r WHERE id=$1 FOR UPDATE`, [id, JSON.stringify(plannedLinks),
+      digest(plannedLinks.map(s => ({ id: s.id, direction: s.direction }))), JSON.stringify([`Legacy graph rebase ${rebase.source_hash}`]), rebase.legacy.status, [rebase.legacy.name, displayLegacyName(rebase.legacy.name)],rebase.source_hash,digest(rebase.row.segments)]);
   const originalLinks = (rebase.legacy.segments ?? []).map(s => ({ id: s.id, direction: s.direction, ordinal: s.ordinal }));
   const expected = merge ? links(rebase.row) : originalLinks;
   add('replacement_guard', `SELECT r.id,r.name,r.status,r.owner,r.provenance,
@@ -58,7 +60,7 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
     FROM routes r WHERE id=$1 FOR UPDATE`, [id, JSON.stringify(expected), JSON.stringify({ type: 'LineString', coordinates: merge?routeLine(rebase.row,source):rebase.legacy.coords })]);
   const provenance = JSON.parse((base.statements.find(s => s.kind === 'route_insert')!.values[5] as string));
   const metadata = { ...(provenance.wa_catalog ?? {}), loader: IMPORT_MARKER, notes: [...(provenance.wa_catalog?.notes ?? []), `Legacy graph rebase ${rebase.source_hash}`] };
-  for (const statement of base.statements.filter(s => !omitted.has(s.kind) && !['begin','lock','commit'].includes(s.kind))) {
+  for (const statement of base.statements.filter(s => !omitted.has(s.kind) && !['begin','defer_rematch','lock','commit'].includes(s.kind))) {
     if (statement.kind === 'route_segment_insert' && !p.statements.some(s => s.kind === 'replace_links')) add('replace_links', 'DELETE FROM route_segments WHERE route_id=$1', [id]);
     let next = { ...statement, values: statement.values.map(v => v === oldId ? id : v) };
     if (statement.kind === 'segment_insert') {
@@ -77,7 +79,7 @@ export function replacementPlan(row: ComposedRoute, source: Map<string, Segment>
     }
     if (statement.kind === 'rebuild_route_path') {
       add('replacement_links_guard', `SELECT COALESCE((SELECT jsonb_agg(jsonb_build_object('id',segment_id,'direction',direction,'ordinal',ordinal) ORDER BY ordinal)
-        FROM route_segments WHERE route_id=$1),'[]')=$2::jsonb AS valid`, [id, JSON.stringify(base.statements.filter(s => s.kind === 'route_segment_insert').map(s => ({ id: s.values[1], direction: s.values[3], ordinal: s.values[2] })))]);
+        FROM route_segments WHERE route_id=$1),'[]')=$2::jsonb AS valid`, [id, JSON.stringify(plannedLinks)]);
       add('segment_xy_guard', `SELECT NOT EXISTS(SELECT 1 FROM jsonb_array_elements($1::jsonb) item LEFT JOIN segments s ON s.id=item->>'id'
         WHERE s.id IS NULL OR NOT COALESCE(ST_OrderingEquals(ST_Force2D(s.path::geometry),ST_SetSRID(ST_GeomFromGeoJSON(item->>'geometry'),4326)),false)) AS valid`,
         [JSON.stringify(p.segment_ids.map(id => ({ id, geometry: { type: 'LineString', coordinates: p.segment_data.get(id)!.coords } })))]);

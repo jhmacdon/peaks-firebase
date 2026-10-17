@@ -90,7 +90,7 @@ test('composed links drop an untouched intermediate summit/place and retain exac
   assert.equal(f.row.dropped_links![0].name, 'Crater Rim'); assert.ok(f.row.dropped_links![0].gap_m > 40); assert.equal(f.row.segments.length, 2, 'no spur to intermediate summit');
   finalizeRows([f.row], [...f.byId.values()]); const plan = planRoute(f.row, f.byId, { elevation: true });
   const metadata = JSON.parse(plan.statements.find(s => s.kind === 'route_insert')!.values[5] as string).wa_catalog;
-  assert.equal(metadata.dropped_links[0].name, 'Crater Rim'); assert.deepEqual(plan.statements.filter(s => s.kind === 'route_destination_insert').map(s => s.values[1]), ['th', 'camp', 'goal']);
+  assert.equal(metadata.dropped_links[0].name, 'Crater Rim'); assert.deepEqual(JSON.parse(plan.statements.find(s => s.kind === 'route_destination_insert')!.values[1] as string).map((p: { id: string }) => p.id), ['th', 'camp', 'goal']);
 });
 test('a refused summit objective is not retained as a claimed route destination', () => {
   const f = fixture(), far = { ...summit, lat: 47.001 };

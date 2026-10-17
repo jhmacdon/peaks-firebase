@@ -3,6 +3,7 @@ import { DEFAULT_OUT, ndjson, option } from './io';
 import { loaderArgs } from './loader-cli';
 import { assertDisplayName, displayName } from './display-names';
 import type { Segment } from './types';
+import { DEFER_REMATCH_SQL } from './load-sql';
 
 // Geometry and elevation are immutable here. A conflicting ID is inspected,
 // never reset to Z=0. XY changes require a new segment ID and explicit review.
@@ -37,6 +38,7 @@ export async function loadSegments(path: string, apply = false): Promise<void> {
   await client.connect();
   try {
     await client.query('BEGIN');
+    await client.query(DEFER_REMATCH_SQL);
     for await (const s of ndjson<Segment>(path)) {
       if (s.frozen_catalog || s.frozen_partial) { report.skipped_frozen++; continue; }
       const values = segmentValues(s); report.validated++; await client.query('SAVEPOINT segment_load');

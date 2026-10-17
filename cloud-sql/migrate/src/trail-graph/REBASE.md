@@ -25,8 +25,27 @@ prune only prunes; rebase only rebases; the default only loads the catalog.
 The corrected migrations must run before retire-pilot. All later apply modes
 verify retirement first. See the [loader guide](LOAD-CATALOG.md) for its checks
 and the narrow pending-only guard exception. The hikes remain normal seeds.
+Use PR #236's updated migration with the `peaks.defer_rematch` opt-out in every
+rematch trigger. Every loader transaction sets it locally immediately after
+BEGIN. Segment links and destination links each use one multi-row INSERT per
+route. Activation batches pause one second between groups of at most 50; they
+do not wait for the queue during loading.
 `--elevation` fetches tiles only during apply. No apply or database connection ran
 in this task.
+
+**Required after the final apply mode:** run PR #236's
+`cloud-sql/migrate/src/rematch-all-sessions.ts` with `--apply --batch-size 100`
+while the sweep drains. Watch its progress and use the printed `--after` cursor
+to pause/resume as needed. This is the full rematch, not a route-ID-filtered
+backfill. Wait for the queue to drain when it finishes.
+
+Apply runs print and write `.cache/compose/rematch-needed.json` (or the chosen
+output directory). It accumulates IDs of committed routes that were active or
+became active, and preserves IDs from earlier modes. It excludes failed,
+rolled-back, skipped and pending-only routes. Checkpoints retain earlier
+commits if a later route fails. No per-route rematch scans or explicit session
+queue inserts run in the loader. Keep this receipt across modes; archive it only
+after the full backfill and final queue drain. Dry-runs leave it untouched.
 
 The matcher places anchors about every 400 m along the old route. It penalizes
 graph edges threefold beyond 25 m from the old line, then tenfold beyond the
@@ -111,8 +130,8 @@ and reason in `wa_catalog.dropped_links`. No return spur claims an intermediate
 summit. DC therefore drops its untouched Southeast Crater Rim link. Missing
 required start/objective contact requires review. Names, status and session links
 stay intact in a pure rebase. Active
-routes must pass canonical publish integrity or roll back. The existing path
-trigger queues active-route rematches. Failures report individual guard results
+routes must pass canonical publish integrity or roll back. Trigger rematching
+stays deferred until the required final full backfill. Failures report individual guard results
 and summit gaps; other route transactions continue.
 
 After all checks pass, the same transaction writes a receipt bound to the
