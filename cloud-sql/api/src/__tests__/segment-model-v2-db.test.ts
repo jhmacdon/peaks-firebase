@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { after, before, describe, test } from "node:test";
 import db, { assertTestDatabaseUrl } from "../db";
-import { buildRouteCoverageSql, buildRouteContainmentSql, buildSessionSegmentCoverageSql, processSession, upsertSessionRouteCoverage } from "../processing";
+import { buildRouteCoverageSql, buildRouteContainmentSql, processSession, upsertSessionRouteCoverage, writeSessionSegmentVisits } from "../processing";
+import { buildSessionDetailQuery } from "../routes/sessions";
 import { selectRouteMatches } from "../route-coverage";
 import { dbSkipReason } from "./helpers/test-db";
 
@@ -141,22 +142,21 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
       assert.equal(segments.rowCount, suffix === "muir-day" ? 1 : 2);
       assert.ok(segments.rows.every((r) => r.entered_at <= r.exited_at && r.direction === "forward"));
       await db.query(`INSERT INTO session_segments (session_id, segment_id, covered_m) VALUES ($1, $2, 1)
-        ON CONFLICT (session_id, segment_id) DO UPDATE SET covered_m = 1`, [sid, id("second")]);
+        ON CONFLICT (session_id, segment_id, pass_index) DO UPDATE SET covered_m = 1`, [sid, id("second")]);
       await processSession(sid, user, { force: true });
       const stale = await db.query(`SELECT covered_m FROM session_segments WHERE session_id = $1 AND segment_id = $2`, [sid, id("second")]);
       // This still-near segment is recomputed, not left at its injected value.
       assert.ok(stale.rows.length === 0 || stale.rows[0].covered_m !== 1);
     }
     const reverse = await session("reverse", 8000, true);
-    const q = buildSessionSegmentCoverageSql(reverse, [id("muir")]);
-    await db.query(q.text, q.values);
+    await writeSessionSegmentVisits(db, reverse, [id("muir")]);
     const row = (await db.query(`SELECT * FROM session_segments WHERE session_id = $1 AND segment_id = $2`, [reverse, id("lower")])).rows[0];
     assert.equal(row.direction, "reverse");
     assert.equal(row.entered_at.toISOString(), new Date(1800000000 * 1000).toISOString());
     assert.equal(row.exited_at.toISOString(), new Date((1800000000 + 1200) * 1000).toISOString());
   });
 
-  test("out-and-back segment visits span departure through the final return", async () => {
+  test("an out-and-back stores two passes in opposite directions", async () => {
     await route("outback-route",line(0,1000));
     await segment("outback-segment",0,1000);
     await db.query(`INSERT INTO route_segments (route_id,segment_id) VALUES ($1,$2)`,[id("outback-route"),id("outback-segment")]);
@@ -167,12 +167,79 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
       await db.query(`INSERT INTO tracking_points (session_id,time,location) VALUES ($1,$2,ST_GeogFromText($3))`,
         [sid,Date.parse(`2026-10-15T${time}:00Z`)/1000,`SRID=4326;POINT Z (${point(metres)})`]);
     }
-    const query=buildSessionSegmentCoverageSql(sid,[id("outback-route")]);
-    await db.query(query.text,query.values);
-    const row=(await db.query(`SELECT * FROM session_segments WHERE session_id=$1`,[sid])).rows[0];
-    assert.equal(row.entered_at.toISOString(),"2026-10-15T10:00:00.000Z");
-    assert.equal(row.exited_at.toISOString(),"2026-10-15T15:00:00.000Z");
-    assert.equal(row.direction,"forward");
+    await writeSessionSegmentVisits(db,sid,[id("outback-route")]);
+    const rows=(await db.query(`SELECT * FROM session_segments WHERE session_id=$1 ORDER BY pass_index`,[sid])).rows;
+    assert.deepEqual(rows.map(r=>[r.pass_index,r.direction,r.entered_at.toISOString(),r.exited_at.toISOString()]),[
+      [0,"forward","2026-10-15T10:00:00.000Z","2026-10-15T13:00:00.000Z"],
+      [1,"reverse","2026-10-15T13:00:00.000Z","2026-10-15T15:00:00.000Z"]]);
+    assert.ok(rows.every(r=>r.covered_m>990));
+  });
+
+  // East/north metres from the fixture origin; walked at 50 m a minute.
+  const en = (east: number, north: number) =>
+    `${lng + east / (111320 * Math.cos(lat * Math.PI / 180))} ${lat + north / 111320} 100`;
+  const square = (north0: number): Array<[number, number]> =>
+    [[0, north0], [0, north0 + 1000], [1000, north0 + 1000], [1000, north0], [0, north0]];
+  const lineEN = (pts: Array<[number, number]>) => `SRID=4326;LINESTRING Z (${pts.map(([e, n]) => en(e, n)).join(",")})`;
+  async function walkSession(suffix: string, corners: Array<[number, number]>) {
+    const sid = id(suffix);
+    const pts: Array<[number, number]> = [];
+    for (let i = 0; i + 1 < corners.length; i++) {
+      const [[e0, n0], [e1, n1]] = [corners[i], corners[i + 1]];
+      const steps = Math.ceil(Math.hypot(e1 - e0, n1 - n0) / 50);
+      for (let k = 0; k < steps; k++) pts.push([e0 + (e1 - e0) * k / steps, n0 + (n1 - n0) * k / steps]);
+    }
+    pts.push(corners[corners.length - 1]);
+    await db.query(`INSERT INTO tracking_sessions (id, user_id, start_time, ended, path)
+      VALUES ($1, $2, '2026-07-01T00:00:00Z', true, ST_GeogFromText($3))`, [sid, user, lineEN(pts)]);
+    await db.query(`INSERT INTO tracking_points (session_id, time, location)
+      SELECT $1, 1800000000 + (ord - 1) * 60, ST_GeogFromText('SRID=4326;POINT Z (' || p || ')')
+      FROM unnest($2::text[]) WITH ORDINALITY AS t(p, ord)`, [sid, pts.map(([e, n]) => en(e, n))]);
+    return sid;
+  }
+  async function enSegment(suffix: string, pts: Array<[number, number]>) {
+    await db.query(`INSERT INTO segments (id, path, display_name, kind) VALUES ($1, ST_GeogFromText($2), $1, 'trail')`,
+      [id(suffix), lineEN(pts)]);
+  }
+  const passes = async (sid: string, segmentSuffix: string) => (await db.query(
+    `SELECT pass_index, direction FROM session_segments WHERE session_id = $1 AND segment_id = $2 ORDER BY pass_index`,
+    [sid, id(segmentSuffix)])).rows.map((r) => [r.pass_index, r.direction]);
+
+  test("a loop walked once is one pass across the segment's join", async () => {
+    await enSegment("loop-only", square(20000));
+    await route("loop-route", lineEN(square(20000)), "loop");
+    await db.query(`INSERT INTO route_segments (route_id, segment_id) VALUES ($1, $2)`, [id("loop-route"), id("loop-only")]);
+    const sid = await walkSession("loop-walk", square(20000));
+    await writeSessionSegmentVisits(db, sid, [id("loop-route")]);
+    assert.deepEqual(await passes(sid, "loop-only"), [[0, "forward"]]);
+  });
+
+  test("a lollipop stores two stem passes, one loop pass, and the payload is primary-only", async () => {
+    const stem: Array<[number, number]> = [[0, 29000], [0, 30000]];
+    await enSegment("lolly-stem", stem);
+    await enSegment("lolly-loop", square(30000));
+    await enSegment("lolly-decoy", [[0, 29000], [0, 29600]]);
+    await route("lollipop", lineEN([...stem, ...square(30000).slice(1), [0, 29000]]), "loop");
+    await route("decoy", lineEN([[0, 29000], [0, 29600]]));
+    await db.query(`INSERT INTO route_segments (route_id, segment_id, ordinal, direction) VALUES
+      ($1, $2, 0, 'forward'), ($1, $3, 1, 'forward'), ($1, $2, 2, 'reverse'), ($4, $5, 0, 'forward')`,
+    [id("lollipop"), id("lolly-stem"), id("lolly-loop"), id("decoy"), id("lolly-decoy")]);
+    const sid = await walkSession("lolly-walk", [...stem, ...square(30000).slice(1), [0, 29000]]);
+    await writeSessionSegmentVisits(db, sid, [id("lollipop"), id("decoy")]);
+    assert.deepEqual(await passes(sid, "lolly-stem"), [[0, "forward"], [1, "reverse"]]);
+    assert.deepEqual(await passes(sid, "lolly-loop"), [[0, "forward"]]);
+    assert.equal((await passes(sid, "lolly-decoy")).length, 2, "visits of other routes stay stored");
+
+    const payload = async () => (await db.query(buildSessionDetailQuery(sid, user).text, [sid, user])).rows[0].segments;
+    assert.deepEqual(await payload(), [], "no primary route means no segment timeline");
+    await db.query(`INSERT INTO session_routes (session_id, route_id, source, is_primary) VALUES
+      ($1, $2, 'auto', true), ($1, $3, 'auto', false)`, [sid, id("lollipop"), id("decoy")]);
+    const segments = await payload();
+    assert.deepEqual(segments.map((s: { segment_id: string; pass_index: number; route_ordinal: number; direction: string }) =>
+      [s.segment_id, s.pass_index, s.route_ordinal, s.direction]), [
+      [id("lolly-stem"), 0, 0, "forward"], [id("lolly-loop"), 0, 1, "forward"], [id("lolly-stem"), 1, 2, "reverse"]]);
+    const times = segments.map((s: { entered_at: string }) => Date.parse(s.entered_at));
+    assert.deepEqual(times, [...times].sort((a, b) => a - b));
   });
 
   test("containment uses geodesic sample geometry on a sparse long north-south line", async () => {

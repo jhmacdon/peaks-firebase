@@ -58,7 +58,9 @@ test("session and route detail builders expose the additive segment contract", (
   assert.match(SESSION_ROUTES_SQL, /sr.coverage >= 0.7/);
   assert.match(buildSessionRoutesQuery("s", "u").text, /sr.is_primary, sr.covered_m/);
   assert.match(buildSessionDetailQuery("s", "u").text, /AS segments/);
-  assert.match(SESSION_SEGMENTS_SQL, /ORDER BY ss.entered_at NULLS LAST, seg.id/);
+  assert.match(SESSION_SEGMENTS_SQL, /ORDER BY p.entered_at NULLS LAST, p.route_ordinal, seg.id, p.pass_index/);
+  assert.match(SESSION_SEGMENTS_SQL, /sr.is_primary LIMIT 1/);
+  assert.match(SESSION_SEGMENTS_SQL, /'pass_index', p.pass_index, 'route_ordinal', p.route_ordinal/);
   assert.match(buildRouteDetailQuery("r", "u").text, /'ordinal', rs.ordinal, 'direction', rs.direction/);
 });
 

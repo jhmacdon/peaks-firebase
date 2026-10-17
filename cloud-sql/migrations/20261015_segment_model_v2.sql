@@ -4,6 +4,18 @@
 -- runs here. Use rematch-all-sessions.ts separately after deploying the matcher.
 BEGIN;
 
+-- Take every table lock this file needs up front, in one order. Later steps
+-- would otherwise lock session_segments, then routes, while a processing
+-- transaction holding routes waits on session_segments: a deadlock on replay.
+DO $$ DECLARE tbl TEXT;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY['routes','segments','route_segments','route_destinations','session_routes','session_segments'] LOOP
+    IF to_regclass('public.' || tbl) IS NOT NULL THEN
+      EXECUTE format('LOCK TABLE %I IN ACCESS EXCLUSIVE MODE', tbl);
+    END IF;
+  END LOOP;
+END $$;
+
 ALTER TABLE segments
   ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'trail',
   ADD COLUMN IF NOT EXISTS display_name TEXT,
@@ -31,8 +43,24 @@ CREATE TABLE IF NOT EXISTS session_segments (
   entered_at TIMESTAMPTZ,
   exited_at TIMESTAMPTZ,
   direction TEXT CHECK (direction IN ('forward','reverse')),
-  PRIMARY KEY (session_id, segment_id)
+  -- 0-based; a new pass starts after 10 min outside the 30 m corridor or a
+  -- reversal of more than 100 m along the segment (api/src/segment-passes.ts).
+  pass_index INTEGER NOT NULL DEFAULT 0 CHECK (pass_index >= 0),
+  PRIMARY KEY (session_id, segment_id, pass_index)
 );
+-- A table created by an earlier draft of this file has one row per segment.
+ALTER TABLE session_segments ADD COLUMN IF NOT EXISTS pass_index INTEGER NOT NULL DEFAULT 0;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'session_segments'::regclass
+      AND conname = 'session_segments_pass_index_check') THEN
+    ALTER TABLE session_segments ADD CONSTRAINT session_segments_pass_index_check CHECK (pass_index >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = 'session_segments'::regclass AND i.indisprimary
+      AND i.indnatts = 3) THEN
+    ALTER TABLE session_segments DROP CONSTRAINT IF EXISTS session_segments_pkey,
+      ADD CONSTRAINT session_segments_pkey PRIMARY KEY (session_id, segment_id, pass_index);
+  END IF;
+END $$;
 ALTER TABLE session_segments OWNER TO postgres;
 CREATE INDEX IF NOT EXISTS idx_session_segments_segment ON session_segments (segment_id);
 GRANT SELECT, INSERT, UPDATE, DELETE ON session_segments TO "peaks-api";

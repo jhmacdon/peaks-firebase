@@ -1585,7 +1585,10 @@ CREATE TABLE session_segments (
   entered_at TIMESTAMPTZ,
   exited_at TIMESTAMPTZ,
   direction TEXT CHECK (direction IN ('forward','reverse')),
-  PRIMARY KEY (session_id, segment_id)
+  -- 0-based; a new pass starts after 10 min outside the 30 m corridor or a
+  -- reversal of more than 100 m along the segment (api/src/segment-passes.ts).
+  pass_index INTEGER NOT NULL DEFAULT 0 CHECK (pass_index >= 0),
+  PRIMARY KEY (session_id, segment_id, pass_index)
 );
 ALTER TABLE session_segments OWNER TO postgres;
 CREATE INDEX idx_session_segments_segment ON session_segments (segment_id);

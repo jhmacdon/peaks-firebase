@@ -10,6 +10,7 @@ import {
   type RouteCoverageRow,
   type RouteMatch,
 } from "./route-coverage";
+import { segmentPasses, type SegmentCorridorRow, type SegmentPass } from "./segment-passes";
 
 export function generateId(): string {
   return crypto.randomBytes(10).toString("hex");
@@ -451,7 +452,11 @@ async function measureCandidateRouteCoverage(q: RowQueryable, sessionId: string,
 
 /** Read-only segment measurement, also used by the perf script. Session points
  * are read once through their (session_id,time) PK and projected to the
- * track's UTM zone; each segment's 30 m visit test is planar in that zone. */
+ * track's UTM zone; each segment's 30 m visit test is planar in that zone.
+ * One row per segment that clears the visit gate: its covered 10 m pieces as
+ * touching runs, and the corridor points as [time, metres along, track order]
+ * in time order. segmentPasses splits those into passes in JavaScript, so no
+ * point is read twice. */
 export function buildSessionSegmentCoverageSelectSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
   return {
     text: `WITH ${sessionTrackCte()}, source_lines AS MATERIALIZED (
@@ -460,44 +465,69 @@ export function buildSessionSegmentCoverageSelectSql(sessionId: string, routeIds
       WHERE rs.route_id = ANY($2::text[]) AND NOT (rs.route_id = ANY($3::text[]))
         AND NOT EXISTS (SELECT 1 FROM route_segments tc WHERE tc.segment_id = seg.id AND tc.route_id = ANY($3::text[]))
     ), ${lineCoverageCtes()}, session_points AS MATERIALIZED (
-      SELECT tp.time, tp.location::geometry AS location, ST_Transform(ST_Force2D(tp.location::geometry), st.srid) AS pt_m
+      SELECT tp.time, row_number() OVER (ORDER BY tp.time) AS seq,
+        ST_Transform(ST_Force2D(tp.location::geometry), st.srid) AS pt_m
       FROM tracking_points tp, session_track st WHERE tp.session_id = $1 AND tp.location IS NOT NULL
     ), segment_shapes AS MATERIALIZED (
-      SELECT line_id, geom_m, ST_Expand(ST_Envelope(geom_m), 30) AS box_m FROM (
-        SELECT bp.line_id, ST_Transform(ST_Force2D(ST_Collect(bp.geom)), st.srid) AS geom_m
+      SELECT shapes.line_id, shapes.geom_m, ST_Expand(ST_Envelope(shapes.geom_m), 30) AS box_m,
+        ST_Transform(ST_Force2D(l.path::geometry), shapes.srid) AS line_m,
+        -- Positions use the same 2D geodesic metres as the 10 m pieces.
+        -- ST_Length(geography) adds elevation change; ST_Distance does not.
+        ST_Length(ST_Force2D(l.path::geometry)::geography, false) AS along_length_m
+      FROM (SELECT bp.line_id, st.srid, ST_Transform(ST_Force2D(ST_Collect(bp.geom)), st.srid) AS geom_m
         FROM bounded_parts bp, session_track st GROUP BY bp.line_id, st.srid) shapes
-    ), visited AS (
-      SELECT cs.*, visit.entered, visit.exited, visit.first_location, l.path
-      FROM coverage_stats cs JOIN source_lines l ON l.line_id = cs.line_id
-      JOIN segment_shapes shape ON shape.line_id = cs.line_id
-      CROSS JOIN LATERAL (
-        SELECT min(tp.time) AS entered, max(tp.time) AS exited,
-          (array_agg(tp.location ORDER BY tp.time))[1] AS first_location
-        FROM session_points tp WHERE tp.pt_m && shape.box_m AND ST_DWithin(tp.pt_m, shape.geom_m, 30)
-      ) visit
-      WHERE (cs.covered_m >= 50 OR cs.covered_m / cs.length_m >= 0.5) AND visit.entered IS NOT NULL
+      JOIN source_lines l ON l.line_id = shapes.line_id
+    ), touching_samples AS (
+      SELECT line_id, start_m, end_m, CASE WHEN start_m <= lag(end_m) OVER
+        (PARTITION BY line_id ORDER BY start_m, end_m) + 0.001 THEN 0 ELSE 1 END AS new_run
+      FROM covered_samples
+    ), sample_runs AS (
+      SELECT line_id, json_agg(json_build_array(start_m, end_m) ORDER BY start_m) AS runs
+      FROM (SELECT line_id, min(start_m) AS start_m, max(end_m) AS end_m FROM (
+        SELECT *, sum(new_run) OVER (PARTITION BY line_id ORDER BY start_m, end_m) AS run FROM touching_samples
+      ) r GROUP BY line_id, run) merged GROUP BY line_id
     )
-    SELECT $1::text AS session_id, line_id AS segment_id,
-      LEAST(1.0, covered_m / length_m) AS covered_fraction, LEAST(length_m, covered_m) AS covered_m,
-      to_timestamp(entered) AS entered_at, to_timestamp(exited) AS exited_at,
-      CASE WHEN ST_LineLocatePoint(path::geometry, first_location) < 0.5 THEN 'forward' ELSE 'reverse' END AS direction
-    FROM visited`,
+    SELECT $1::text AS session_id, cs.line_id AS segment_id, cs.length_m, shape.along_length_m,
+      LEAST(cs.length_m, cs.covered_m) AS covered_m, sr.runs, corridor.points,
+      ST_Distance(ST_StartPoint(shape.line_m), ST_EndPoint(shape.line_m)) <= 30 AS closed
+    FROM coverage_stats cs
+    JOIN segment_shapes shape ON shape.line_id = cs.line_id
+    LEFT JOIN sample_runs sr ON sr.line_id = cs.line_id
+    CROSS JOIN LATERAL (
+      SELECT json_agg(json_build_array(tp.time,
+          ST_LineLocatePoint(shape.line_m, tp.pt_m) * shape.along_length_m, tp.seq) ORDER BY tp.time) AS points
+      FROM session_points tp WHERE tp.pt_m && shape.box_m AND ST_DWithin(tp.pt_m, shape.geom_m, 30)
+    ) corridor
+    WHERE (cs.covered_m >= 50 OR cs.covered_m / cs.length_m >= 0.5) AND corridor.points IS NOT NULL`,
     values: [sessionId, routeIds, TRIPLE_CROWN_INDEXED_ROUTE_IDS],
   };
 }
 
-/** Insert exactly the rows returned by the read-only measurement builder. */
-export function buildSessionSegmentCoverageSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
-  const query = buildSessionSegmentCoverageSelectSql(sessionId, routeIds);
-  return {
-    text: `INSERT INTO session_segments (session_id, segment_id, covered_fraction, covered_m, entered_at, exited_at, direction)
-    ${query.text}
-    ON CONFLICT (session_id, segment_id) DO UPDATE SET
-      covered_fraction = EXCLUDED.covered_fraction, covered_m = EXCLUDED.covered_m,
-      entered_at = EXCLUDED.entered_at, exited_at = EXCLUDED.exited_at, direction = EXCLUDED.direction`,
-    values: query.values,
-  };
+/** Passes for every segment the select measured, in segment then time order. */
+export function sessionSegmentPasses(rows: SegmentCorridorRow[]): SegmentPass[] {
+  return rows.flatMap(segmentPasses);
 }
+
+/** Measure, split into passes, and replace the session's segment visits. */
+export async function writeSessionSegmentVisits(q: RowQueryable, sessionId: string, routeIds: string[]): Promise<number> {
+  await q.query(`DELETE FROM session_segments WHERE session_id = $1`, [sessionId]);
+  if (routeIds.length === 0) return 0;
+  const select = buildSessionSegmentCoverageSelectSql(sessionId, routeIds);
+  const passes = sessionSegmentPasses((await q.query(select.text, select.values)).rows as SegmentCorridorRow[]);
+  if (passes.length === 0) return 0;
+  const result = await q.query(SESSION_SEGMENT_INSERT_SQL, [JSON.stringify(passes)]);
+  return result.rowCount ?? 0;
+}
+
+export const SESSION_SEGMENT_INSERT_SQL = `INSERT INTO session_segments
+    (session_id, segment_id, pass_index, covered_fraction, covered_m, entered_at, exited_at, direction)
+  SELECT p.session_id, p.segment_id, p.pass_index, p.covered_fraction, p.covered_m, p.entered_at, p.exited_at, p.direction
+  FROM jsonb_to_recordset($1::jsonb) AS p(session_id text, segment_id text, pass_index integer,
+    covered_fraction double precision, covered_m double precision, entered_at timestamptz,
+    exited_at timestamptz, direction text)
+  ON CONFLICT (session_id, segment_id, pass_index) DO UPDATE SET
+    covered_fraction = EXCLUDED.covered_fraction, covered_m = EXCLUDED.covered_m,
+    entered_at = EXCLUDED.entered_at, exited_at = EXCLUDED.exited_at, direction = EXCLUDED.direction`;
 
 export { TRIPLE_CROWN_INDEXED_ROUTE_IDS };
 
@@ -543,10 +573,8 @@ async function matchRoutes(client: PoolClient, sessionId: string): Promise<numbe
   const candidateSql = buildRouteCandidateSql(sessionId);
   const candidates = await client.query(candidateSql.text, candidateSql.values);
   const routeIds = candidates.rows.map((row: { id: string }) => row.id);
-  await client.query(`DELETE FROM session_segments WHERE session_id = $1`, [sessionId]);
+  await writeSessionSegmentVisits(client, sessionId, routeIds);
   if (routeIds.length === 0) return upsertSessionRouteCoverage(client, sessionId, []);
-  const segmentSql = buildSessionSegmentCoverageSql(sessionId, routeIds);
-  await client.query(segmentSql.text, segmentSql.values);
   const matches = await measureCandidateRouteCoverage(client, sessionId, routeIds);
   return upsertSessionRouteCoverage(client, sessionId, matches);
 }

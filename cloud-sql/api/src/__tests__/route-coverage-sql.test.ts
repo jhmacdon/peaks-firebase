@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-  buildRouteContainmentSql, buildRouteCoverageSql, buildSessionSegmentCoverageSql,
+  buildRouteContainmentSql, buildRouteCoverageSql, SESSION_SEGMENT_INSERT_SQL, writeSessionSegmentVisits,
   buildSessionSegmentCoverageSelectSql, measureSessionRouteCoverage, upsertSessionRouteCoverage,
   TRIPLE_CROWN_INDEXED_ROUTE_IDS,
 } from "../processing";
@@ -40,13 +40,29 @@ test("segment SELECT spans all nearby session points and excludes the whole impo
   assert.match(select.text, /session_points AS MATERIALIZED/);
   assert.match(select.text, /WHERE tp.session_id = \$1 AND tp.location IS NOT NULL/);
   assert.match(select.text, /ST_Transform\(ST_Force2D\(tp.location::geometry\), st.srid\) AS pt_m/);
-  assert.match(select.text, /min\(tp.time\) AS entered, max\(tp.time\) AS exited/);
+  assert.match(select.text, /row_number\(\) OVER \(ORDER BY tp.time\) AS seq/);
   assert.match(select.text, /ST_Transform\(ST_Force2D\(ST_Collect\(bp.geom\)\), st.srid\) AS geom_m/);
-  assert.match(select.text, /ST_DWithin\(tp.pt_m, shape.geom_m, 30\)/);
-  assert.match(select.text, /ST_LineLocatePoint\(path::geometry, first_location\) < 0.5/);
+  assert.match(select.text, /tp.pt_m && shape.box_m AND ST_DWithin\(tp.pt_m, shape.geom_m, 30\)/);
+  assert.match(select.text, /ST_LineLocatePoint\(shape.line_m, tp.pt_m\) \* shape.along_length_m, tp.seq\) ORDER BY tp.time\) AS points/);
+  assert.match(select.text, /json_build_array\(start_m, end_m\) ORDER BY start_m\) AS runs/);
   assert.match(select.text, /NOT \(rs.route_id = ANY\(\$3::text\[\]\)\)/);
-  assert.match(buildSessionSegmentCoverageSql("s", ["r"]).text, /INSERT INTO session_segments/);
-  assert.ok(buildSessionSegmentCoverageSql("s", ["r"]).text.includes(select.text));
+  assert.match(SESSION_SEGMENT_INSERT_SQL, /INSERT INTO session_segments/);
+  assert.match(SESSION_SEGMENT_INSERT_SQL, /ON CONFLICT \(session_id, segment_id, pass_index\)/);
+});
+
+test("visit writer reads the corridor once, then inserts every pass", async () => {
+  const calls: Array<{ text: string; values?: unknown[] }> = [];
+  const q = { query: async (text: string, values?: unknown[]) => {
+    calls.push({ text, values });
+    if (text.startsWith("WITH")) return { rows: [{ session_id: "s", segment_id: "seg", length_m: 1000, covered_m: 1000,
+      runs: [[0, 1000]], closed: false, points: [[0, 0, 1], [3600, 1000, 2], [7200, 0, 3]] }], rowCount: 1 };
+    return { rows: [], rowCount: 2 };
+  } };
+  assert.equal(await writeSessionSegmentVisits(q as never, "s", ["r"]), 2);
+  assert.equal(calls.length, 3);
+  assert.match(calls[0].text, /DELETE FROM session_segments WHERE session_id = \$1/);
+  const passes = JSON.parse(calls[2].values?.[0] as string);
+  assert.deepEqual(passes.map((p: { pass_index: number; direction: string }) => [p.pass_index, p.direction]), [[0, "forward"], [1, "reverse"]]);
 });
 
 test("containment uses actual samples as EWKB, never route substrings or whole trail paths", () => {

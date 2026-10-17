@@ -165,15 +165,43 @@ export const SESSION_ROUTES_SQL = `COALESCE(
   '[]'::json
 )`;
 
+/**
+ * Segment visits of the session's PRIMARY route only, in time order. Visits are
+ * stored for every candidate route's segments, but other routes' segments (a
+ * dropped Camp Muir Route, a rebased tail) do not belong on this timeline.
+ * No primary route means []. route_ordinal pairs the k-th pass in one direction
+ * with the k-th link of that segment in the same direction, so a lollipop stem
+ * walked up and down maps to its outbound and return ordinals; a pass with no
+ * matching link takes the segment's first ordinal.
+ */
 export const SESSION_SEGMENTS_SQL = `COALESCE((
+  WITH primary_route AS (
+    SELECT sr.route_id FROM session_routes sr WHERE sr.session_id = s.id AND sr.is_primary LIMIT 1
+  ), links AS (
+    SELECT rs.segment_id, rs.ordinal, rs.direction,
+      row_number() OVER (PARTITION BY rs.segment_id, rs.direction ORDER BY rs.ordinal) AS dir_rank,
+      min(rs.ordinal) OVER (PARTITION BY rs.segment_id) AS first_ordinal
+    FROM route_segments rs JOIN primary_route pr ON pr.route_id = rs.route_id
+  ), visits AS (
+    SELECT ss.*, row_number() OVER (PARTITION BY ss.segment_id, ss.direction
+      ORDER BY ss.entered_at NULLS LAST, ss.pass_index) AS dir_rank
+    FROM session_segments ss
+    WHERE ss.session_id = s.id AND ss.segment_id IN (SELECT segment_id FROM links)
+  ), placed AS (
+    SELECT v.*, COALESCE(
+      (SELECT l.ordinal FROM links l WHERE l.segment_id = v.segment_id
+        AND l.direction = v.direction AND l.dir_rank = v.dir_rank),
+      (SELECT min(l.first_ordinal) FROM links l WHERE l.segment_id = v.segment_id)
+    ) AS route_ordinal FROM visits v
+  )
   SELECT json_agg(json_build_object(
     'segment_id', seg.id, 'display_name', seg.display_name,
     'trail_names', seg.trail_names, 'kind', seg.kind,
-    'covered_fraction', ss.covered_fraction, 'entered_at', ss.entered_at,
-    'exited_at', ss.exited_at, 'direction', ss.direction
-  ) ORDER BY ss.entered_at NULLS LAST, seg.id)
-  FROM session_segments ss JOIN segments seg ON seg.id = ss.segment_id
-  WHERE ss.session_id = s.id
+    'pass_index', p.pass_index, 'route_ordinal', p.route_ordinal,
+    'covered_fraction', p.covered_fraction, 'entered_at', p.entered_at,
+    'exited_at', p.exited_at, 'direction', p.direction
+  ) ORDER BY p.entered_at NULLS LAST, p.route_ordinal, seg.id, p.pass_index)
+  FROM placed p JOIN segments seg ON seg.id = p.segment_id
 ), '[]'::json)`;
 
 /** Inline protected areas crossed by one saved session track. */
