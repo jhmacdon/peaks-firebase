@@ -26,7 +26,7 @@ export const BULK_PREFLIGHT_SQL = `WITH incoming AS MATERIALIZED (
 ), places AS MATERIALIZED (
   SELECT p.*,ST_SetSRID(ST_MakePoint(p.lng,p.lat),4326)::geography AS location
   FROM jsonb_to_recordset($3::jsonb) AS p(id text,lng float8,lat float8,external_ids jsonb)
-), overlaps AS (
+), overlap_rows AS (
   SELECT i.id AS new_id,s.id AS existing_id FROM projected i JOIN segments s
     ON s.id NOT LIKE 'triple-crown-%' AND ST_DWithin(i.path,s.path,15)
     AND NOT COALESCE(s.provenance#>>'{wa_catalog,loader}'=$4,false)
@@ -51,9 +51,13 @@ SELECT to_regprocedure('rebuild_route_paths(text[])') IS NOT NULL
   (pg_has_role(session_user,'peaks-route-factory','member') OR pg_has_role(session_user,'peaks-route-reviewer','member')) AS lease_bound_worker,
   NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='routes'::regclass AND tgname='trg_enforce_peaks_route_cover_activation' AND NOT tgisinternal) AS cover_trigger_absent,
   COALESCE((SELECT jsonb_agg(jsonb_build_object('id',d.id,'name',d.name,'features',d.features,'lng',ST_X(d.location::geometry),'lat',ST_Y(d.location::geometry),'external_ids',d.external_ids))
-    FROM destinations d WHERE d.owner='peaks' AND (d.id=ANY($5::text[]) OR EXISTS(SELECT 1 FROM places p WHERE
-      ST_DWithin(d.location,p.location,400) OR EXISTS(SELECT 1 FROM jsonb_each_text(p.external_ids) osm
-        WHERE d.external_ids->>osm.key=osm.value)))),'[]') AS destinations,
+    -- Three index lookups, not one OR: the OR scanned every destination (90 s+
+    -- for 20 routes, then an out-of-memory kill on db-f1-micro at 200).
+    FROM destinations d WHERE d.owner='peaks' AND d.id IN (
+      SELECT unnest($5::text[])
+      UNION SELECT near.id FROM places p JOIN destinations near ON ST_DWithin(near.location,p.location,400)
+      UNION SELECT same.id FROM places p CROSS JOIN LATERAL jsonb_each_text(p.external_ids) osm
+        JOIN destinations same ON same.external_ids @> jsonb_build_object(osm.key,osm.value))),'[]') AS destinations,
   COALESCE((SELECT jsonb_agg(jsonb_build_object('id',r.id,'status',r.status,'state_code',r.state_code,'loader',r.provenance#>>'{wa_catalog,loader}',
     'composition_hash',r.provenance#>>'{wa_catalog,composition_hash}',
     'reviewed',EXISTS(SELECT 1 FROM trail_catalog_review_jobs WHERE route_id=r.id) OR EXISTS(SELECT 1 FROM trail_catalog_candidate_jobs WHERE proposed_route_id=r.id)))
@@ -63,7 +67,7 @@ SELECT to_regprocedure('rebuild_route_paths(text[])') IS NOT NULL
     'complete',s.gain IS NOT NULL AND s.gain_loss IS NOT NULL AND NOT EXISTS(SELECT 1 FROM ST_DumpPoints(s.path::geometry) p
       WHERE ST_Z((p).geom) IS NULL OR ST_Z((p).geom)=0 OR NOT(ST_Z((p).geom) BETWEEN -500 AND 9000))))
     FROM segments s WHERE s.id IN (SELECT id FROM incoming)),'[]') AS segments,
-  COALESCE((SELECT jsonb_agg(overlaps) FROM overlaps),'[]') AS overlaps`;
+  COALESCE((SELECT jsonb_agg(o) FROM overlap_rows o),'[]') AS overlaps`;
 
 export async function readBulkPreflight(client: Pick<Client, 'query'>, values: unknown[], activate: boolean): Promise<BulkPreflight> {
   const result = (await client.query(BULK_PREFLIGHT_SQL, values)).rows[0] as BulkPreflight | undefined;

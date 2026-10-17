@@ -279,6 +279,8 @@ export async function loadBulk(options: BulkOptions): Promise<void> {
   if (options.apply && !process.env.DATABASE_URL) throw new Error('--apply requires DATABASE_URL');
   const source = new Map((await readRows<Segment>(join(dir,'segments.ndjson'))).map(s => [s.id,s]));
   const rows = await readRows<ComposedRoute>(join(dir,'routes.ndjson'));
+  // Most popular first, so an interrupted overnight load has published the hikes people look for.
+  rows.sort((a, b) => ((b as { popularity?: number }).popularity ?? 0) - ((a as { popularity?: number }).popularity ?? 0));
   const report = { mode: options.apply ? 'apply' : 'dry-run', state_code: state, operation: options.activate ? 'activate' : 'load', input_routes: rows.length,
     planned_routes: 0, successful_routes: 0, failed_routes: 0, skipped_routes: 0, batches: 0, statements_per_load_batch: 12,
     skipped_reasons: {} as Record<string, number>, planned_route_ids: [] as string[],
