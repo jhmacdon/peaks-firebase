@@ -46,7 +46,7 @@ test("segment SELECT spans all nearby session points and excludes the whole impo
   assert.match(select.text, /row_number\(\) OVER \(ORDER BY tp.time\) AS seq/);
   assert.match(select.text, /ST_Transform\(ST_Force2D\(ST_Collect\(bp.geom\)\), st.srid\) AS geom_m/);
   assert.match(select.text, /tp.pt_m && shape.box_m AND ST_DWithin\(tp.pt_m, shape.geom_m, 30\)/);
-  assert.match(select.text, /ST_LineLocatePoint\(shape.line_m, tp.pt_m\) \* shape.along_length_m, tp.seq\) ORDER BY tp.time\) AS points/);
+  assert.match(select.text, /ST_LineLocatePoint\(shape.line_m, tp.pt_m\) \* shape.along_length_m, tp.seq,\s+round\(ST_X\(tp.pt_m\)::numeric, 1\), round\(ST_Y\(tp.pt_m\)::numeric, 1\)\) ORDER BY tp.time\) AS points/);
   assert.match(select.text, /json_build_array\(start_m, end_m\) ORDER BY start_m\) AS runs/);
   assert.match(select.text, /NOT \(rs.route_id = ANY\(\$3::text\[\]\)\)/);
   assert.match(SESSION_SEGMENT_INSERT_SQL, /INSERT INTO session_segments/);

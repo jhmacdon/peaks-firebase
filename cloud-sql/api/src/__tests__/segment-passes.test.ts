@@ -44,7 +44,8 @@ test("leaving the corridor for over ten minutes starts a pass; pausing inside it
   assert.equal(left.length, 2);
   assert.ok(left.every((p) => p.direction === "forward"));
   // Same timing, but the recording paused in the corridor: no track point between.
-  const paused = [...walk(ramp(0, 400)), ...walk(ramp(450, 1000), 10, T0 + 3600)];
+  // It resumes 200 m on, so this is not a stop either.
+  const paused = [...walk(ramp(0, 400)), ...walk(ramp(600, 1000), 10, T0 + 3600)];
   assert.equal(segmentPasses(row(paused)).length, 1);
 });
 
@@ -78,6 +79,43 @@ test("positions wrap at the 2D length, not the elevation-inflated stored length"
   // ST_Length(geography) counts climb; positions and pieces do not.
   const loop = [...ramp(0, 950), 0];
   const passes = segmentPasses(row(walk(loop), { closed: true, length_m: 1300, along_length_m: 1000 }));
+  assert.equal(passes.length, 1);
+  assert.equal(passes[0].direction, "forward");
+});
+
+/** Points with projected x/y: along the segment northwards from (0, 0). */
+const at = (t: number, along: number, seq: number, east = 0): CorridorPoint => [t, along, seq, east, along];
+
+test("a camp at the segment end ends the pass at arrival; next morning is a new pass", () => {
+  const up = ramp(0, 1000).map((m, i) => at(T0 + i * 60, m, i + 1));
+  const arrive = up[up.length - 1][0];
+  // Ten hours at camp, wandering within 20 m, one point every five minutes.
+  const camp = Array.from({ length: 120 }, (_, k) => at(arrive + (k + 1) * 300, 1000 - (k % 3) * 8, 22 + k, (k % 4) * 5));
+  const leave = camp[camp.length - 1][0];
+  const down = ramp(950, 0).map((m, i) => at(leave + (i + 1) * 60, m, 142 + i));
+  const passes = segmentPasses(row([...up, ...camp, ...down]));
+  assert.deepEqual(passes.map((p) => [p.pass_index, p.direction]), [[0, "forward"], [1, "reverse"]]);
+  assert.equal(passes[0].exited_at, new Date(arrive * 1000).toISOString());
+  assert.equal(passes[1].entered_at, new Date(leave * 1000).toISOString());
+  assert.equal(passes[1].exited_at, new Date((leave + 20 * 60) * 1000).toISOString());
+});
+
+test("a camp beside a short piece leaves only the walked passes, not a 10-hour one", () => {
+  // A 34 m piece ending at camp: walked in, slept beside, then left another way.
+  const walkIn = [at(T0, 0, 1), at(T0 + 30, 17, 2), at(T0 + 60, 34, 3)];
+  const camp = Array.from({ length: 100 }, (_, k) => at(T0 + 60 + (k + 1) * 360, 34, 4 + k, 10));
+  const passes = segmentPasses(row([...walkIn, ...camp], { length_m: 34, covered_m: 34, runs: [[0, 34]] }));
+  assert.equal(passes.length, 1);
+  assert.equal(passes[0].entered_at, new Date(T0 * 1000).toISOString());
+  assert.equal(passes[0].exited_at, new Date((T0 + 60) * 1000).toISOString());
+});
+
+test("a 15-minute rest does not split a pass", () => {
+  const before = ramp(0, 500).map((m, i) => at(T0 + i * 60, m, i + 1));
+  const restStart = before[before.length - 1][0];
+  const rest = Array.from({ length: 15 }, (_, k) => at(restStart + (k + 1) * 60, 500, 12 + k, 3));
+  const after = ramp(550, 1000).map((m, i) => at(restStart + 15 * 60 + (i + 1) * 60, m, 27 + i));
+  const passes = segmentPasses(row([...before, ...rest, ...after]));
   assert.equal(passes.length, 1);
   assert.equal(passes[0].direction, "forward");
 });

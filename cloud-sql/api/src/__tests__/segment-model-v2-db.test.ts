@@ -183,7 +183,8 @@ describe("segment model v2 database", { skip: dbSkipReason ?? undefined, concurr
     await writeSessionSegmentVisits(db,sid,[id("outback-route")]);
     const rows=(await db.query(`SELECT * FROM session_segments WHERE session_id=$1 ORDER BY pass_index`,[sid])).rows;
     assert.deepEqual(rows.map(r=>[r.pass_index,r.direction,r.entered_at.toISOString(),r.exited_at.toISOString()]),[
-      [0,"forward","2026-10-15T10:00:00.000Z","2026-10-15T13:00:00.000Z"],
+      // The hour at the far end is a stop: the outbound pass ends on arrival.
+      [0,"forward","2026-10-15T10:00:00.000Z","2026-10-15T12:00:00.000Z"],
       [1,"reverse","2026-10-15T13:00:00.000Z","2026-10-15T15:00:00.000Z"]]);
     assert.ok(rows.every(r=>r.covered_m>990));
   });

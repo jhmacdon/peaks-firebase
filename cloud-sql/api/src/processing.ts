@@ -454,7 +454,8 @@ async function measureCandidateRouteCoverage(q: RowQueryable, sessionId: string,
  * are read once through their (session_id,time) PK and projected to the
  * track's UTM zone; each segment's 30 m visit test is planar in that zone.
  * One row per segment that clears the visit gate: its covered 10 m pieces as
- * touching runs, and the corridor points as [time, metres along, track order]
+ * touching runs, and the corridor points as [time, metres along, track order,
+ * UTM x, UTM y]
  * in time order. segmentPasses splits those into passes in JavaScript, so no
  * point is read twice. */
 export function buildSessionSegmentCoverageSelectSql(sessionId: string, routeIds: string[]): { text: string; values: unknown[] } {
@@ -495,7 +496,8 @@ export function buildSessionSegmentCoverageSelectSql(sessionId: string, routeIds
     LEFT JOIN sample_runs sr ON sr.line_id = cs.line_id
     CROSS JOIN LATERAL (
       SELECT json_agg(json_build_array(tp.time,
-          ST_LineLocatePoint(shape.line_m, tp.pt_m) * shape.along_length_m, tp.seq) ORDER BY tp.time) AS points
+          ST_LineLocatePoint(shape.line_m, tp.pt_m) * shape.along_length_m, tp.seq,
+          round(ST_X(tp.pt_m)::numeric, 1), round(ST_Y(tp.pt_m)::numeric, 1)) ORDER BY tp.time) AS points
       FROM session_points tp WHERE tp.pt_m && shape.box_m AND ST_DWithin(tp.pt_m, shape.geom_m, 30)
     ) corridor
     WHERE (cs.covered_m >= 50 OR cs.covered_m / cs.length_m >= 0.5) AND corridor.points IS NOT NULL`,
