@@ -13,6 +13,7 @@ import plans from "./routes/plans";
 import search from "./routes/search";
 import tripReports, { drainTripReportPhotoDeletions } from "./routes/trip-reports";
 import account from "./routes/account";
+import adminRoutes from "./routes/admin";
 import publicAirQuality from "./routes/public-air-quality";
 import pool, { processingPool } from "./db";
 import { drainSessionRematchQueue, sweepStuckSessions } from "./processing";
@@ -139,6 +140,8 @@ app.use("/api/plans", plans);
 app.use("/api/search", search);
 app.use("/api/trip-reports", tripReports);
 app.use("/api/account", account);
+// requireAdmin runs inside the router: the Firebase `admin` custom claim.
+app.use("/api/admin", adminRoutes);
 
 // A rejected handler promise lands here via asyncRoute (lib/async-route.ts).
 // Express 4 ignores the promise an async handler returns, so without that

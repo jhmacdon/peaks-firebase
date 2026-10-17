@@ -100,6 +100,15 @@ test("source coverage and kind contact pass only independently valid, exactly as
     await makeRoute("destination", "destination", "out_and_back", "lake", ["start", "lake"]);
     assert.equal(await pass("destination", "lake"), true, "lake shore wins over a distant representative point");
     await isolatedChange(async () => {
+      // A sub-decimetre joint must use the prior end, matching publish assembly.
+      await client.query(`UPDATE segments SET path=ST_SetPoint(path::geometry,0,
+        ST_SetSRID(ST_MakePoint(0.0020004,0,50),4326))::geography WHERE id=$1`, [id("destination-segment-1")]);
+      await client.query(`UPDATE routes SET gain=99999,gain_loss=99999,elevation_string='stale' WHERE id=$1`, [id("destination")]);
+      await client.query("SELECT rebuild_route_path($1)", [id("destination")]);
+      assert.equal(await pass("destination", "lake"), true,
+        "rebuild must refresh elevation, gain, loss and sub-decimetre joints so publish integrity passes");
+    });
+    await isolatedChange(async () => {
       await client.query("UPDATE destinations SET boundary=NULL WHERE id=$1", [id("lake")]);
       assert.equal(await pass("destination"), false, "a missing boundary must fall back to the actual distant point");
       await client.query("UPDATE destinations SET location=ST_GeogFromText('POINT Z (0.004 0 100)') WHERE id=$1", [id("lake")]);
@@ -137,8 +146,9 @@ test("source coverage and kind contact pass only independently valid, exactly as
       assert.equal(await pass("destination"), false, "all kinds retain the 125m start contact");
     });
     await isolatedChange(async () => {
+      // Photos are optional (20261015_route_covers.sql): no deferred cover gate.
       await client.query("UPDATE routes SET status='active' WHERE id=$1", [id("destination")]);
-      await assert.rejects(client.query("SET CONSTRAINTS ALL IMMEDIATE"), /fully credited derived cover/);
+      await client.query("SET CONSTRAINTS ALL IMMEDIATE");
     });
 
     await makeRoute("legacy", null, "out_and_back", null, ["start", "peak"]);

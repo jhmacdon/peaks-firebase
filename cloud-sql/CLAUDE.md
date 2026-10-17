@@ -182,7 +182,7 @@ add background work that relies on an in-process timer (use the Cloud Scheduler 
 `/internal/sweep` pattern instead).
 
 ### Auth pattern
-All `/api/*` routes go through `requireAuth` middleware. Clients send `Authorization: Bearer <firebase-id-token>`. The middleware calls `admin.auth().verifyIdToken()` and sets `req.uid`.
+All `/api/*` routes go through `requireAuth` middleware. Clients send `Authorization: Bearer <firebase-id-token>`. The middleware calls `admin.auth().verifyIdToken()` and sets `req.uid`. `/api/admin/*` adds `requireAdmin`: the verified token must carry the Firebase custom claim `admin: true` (the same source of truth as the web app), else 403.
 
 ### Connection
 - **Cloud Run**: connects via Unix socket at `/cloudsql/INSTANCE_CONNECTION_NAME`
@@ -211,6 +211,8 @@ All `/api/*` routes go through `requireAuth` middleware. Clients send `Authoriza
 | GET | `/api/sessions/:id/comparisons` | "Your Efforts": prior overlapping sessions + shared-segment stats (owner-only) |
 | GET | `/api/sessions/:id/comparisons/:otherId` | Effort curves for the race chart (owner-only) |
 | GET | `/api/lists/...` | List queries |
+| PUT/DELETE | `/api/admin/routes/:id/cover` | Admin only (`admin` custom claim, `requireAdmin`): set or clear a route's own cover from an upload under `covers/routes/{id}/` |
+| PUT/DELETE | `/api/admin/destinations/:id/cover` | Admin only: set a destination's hero cover from an upload under `covers/destinations/{id}/`, or remove it and restore the reviewed hero it replaced. Contract: `docs/trails/admin-cover-api.md` in the `peaks` checkout |
 
 ## Migration
 
@@ -1275,8 +1277,11 @@ carry their exact contributing source IDs, and their union must cover the
 route's source IDs. Source kind, rights, credit, and elevation lineage must
 agree. Josiah approved these rules; they do not waive independent source
 review or permit unmapped connectors.
-The credited-cover gate, source rights, independent source checks, exact segment
-assembly, and elevation checks must remain. OSM (with ODbL credit) and
+Source rights, independent source checks, exact segment assembly, and
+elevation checks must remain. Photos are optional since
+`20261015_route_covers.sql`: `credited_cover` is reported as a measurement, not
+a gate, and no trigger blocks activating a route without one. A photo that is
+shown must carry full credit. OSM (with ODbL credit) and
 `usfs-nfs-trails` may supply new pilot geometry; NPS/USGS are validation only for
 this pilot. Leave descriptions empty without reusable text and all three
 description source fields. Activate at most 500 routes per batch and verify
@@ -1299,8 +1304,8 @@ entrypoint and [operator guide](migrate/docs/trail-catalog-review.md), after
 `20261014_trail_catalog_review_activation.sql`. Dry runs come first; apply binds
 the exact reviewed hash and the authenticated lane. A separate fresh-context
 Sol reviewer sees only the filtered packet and its hash-bound map image. Missing
-visual/source/access/statistics evidence or a credited approved cover blocks
-approval; pending photo candidates do not count. Current source, XYZ, contact,
+visual/source/access/statistics evidence blocks approval. A photo is optional;
+a missing credited cover is reported, not blocking. Current source, XYZ, contact,
 all linked 5 m summit, elevation, reuse and five-point checks remain.
 The runner activates one route at a time through the owned SQL function and
 stops until the existing rematch queue drains and canonical public route/search
@@ -1335,7 +1340,7 @@ features.
 Objective shortest-path searches enforce a 20 km path bound. The request also
 admits explicit named OSM hiking relations near a trailhead, including longer
 loops and traverses; these keep the separate 100 km source-route cap and every
-gain, access, source, review, and cover check. A relation name does not raise the
+gain, access, source, and review check. A relation name does not raise the
 20 km bound on the objective search itself.
 
 This command does not fetch a complete regional source network. An operator
@@ -1413,6 +1418,15 @@ their own matching SQL (`migrations/20261004_session_rematch_queue.sql`):
 - **Route added, activated, reshaped, re-owned, or retired**:
   `trg_route_queue_rematch_insert` / `_update` queue the sessions within 600 m
   of the old and the new path, whenever either side is `active`.
+
+A bulk writer can switch all of these triggers off for one transaction with
+`SET LOCAL peaks.defer_rematch = 'on'` (`rematch_deferred()`,
+`migrations/20261015_segment_model_v2.sql`). The writer then owns enqueueing:
+run `rematch-all-sessions.ts` afterwards, or call `queue_matching_routes()`
+for the routes it changed (the queue helpers ignore the setting). The WA
+catalog loader needs it: each single-row `route_segments` insert otherwise
+rescans every session near the whole route, about 40 s per row on the
+db-f1-micro.
 
 Queued sessions sit in `session_rematch_queue`. Each `/internal/sweep` re-runs
 `processSession(force)` on up to 25 of them within 90 s

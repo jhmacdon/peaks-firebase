@@ -248,8 +248,9 @@ zero:
   --format summary --require-complete
 ```
 
-It also requires a fully credited destination cover and a derived cover for
-every active Peaks-owned route. Run this final gate from an operator checkout;
+It reports destination and route cover gaps but does not require photos: a
+route with no photo is still a finished route. A photo that is shown must carry
+full credit. Run this final gate from an operator checkout;
 factory, repair, and reviewer checkouts reject it. A route-only zero is not the
 finished goal.
 

@@ -15,9 +15,11 @@ usage() {
     "Audits route and cover-photo completeness for every destination on a" \
     "Peaks-owned list and every active Peaks-owned route." \
     "" \
-    "A destination is complete only when it is a summit, has a fully credited" \
-    "cover, has a publish-valid active standard route with a derived cover, and" \
-    "none of its active Peaks routes lacks a derived cover." \
+    "A destination is complete when it is a summit and has a publish-valid" \
+    "active standard route. Photos are optional (20261015_route_covers.sql):" \
+    "destination and route cover gaps are reported but never block completion." \
+    "A cover that is shown must still carry full credit; route_cover_photos" \
+    "only counts a fully credited cover." \
     "" \
     "--require-complete is valid with summary output and exits 1 on any gap." \
     "The route_cover_photos view migration must be applied before this audit."
@@ -166,12 +168,7 @@ goal_rows AS (
          COALESCE(evidence.valid_active_peaks_routes_with_cover, 0) > 0
            AS has_standard_route_cover,
          listed.summit_feature_valid
-           AND listed.destination_cover_complete
-           AND COALESCE(
-             evidence.valid_active_peaks_routes_with_cover,
-             0
-           ) > 0
-           AND COALESCE(evidence.active_peaks_routes_without_cover, 0) = 0
+           AND COALESCE(evidence.valid_active_peaks_routes, 0) > 0
            AS listed_route_cover_complete
   FROM listed_destinations listed
   LEFT JOIN route_evidence evidence
@@ -232,7 +229,7 @@ detail_rows AS (
          NULL::bigint AS active_peaks_routes_without_cover,
          '{}'::text[] AS route_ids_without_cover,
          route_cover_complete,
-         route_cover_complete AS complete
+         true AS complete
   FROM active_peaks_routes
 )
 SQL
@@ -264,9 +261,7 @@ SELECT COUNT(*) AS listed_destinations,
          AS active_peaks_routes_missing_cover,
        COUNT(*) > 0
          AND COUNT(*) FILTER (WHERE NOT listed_route_cover_complete) = 0
-         AND NOT EXISTS (
-           SELECT 1 FROM active_peaks_routes WHERE NOT route_cover_complete
-         ) AS goal_complete
+         AS goal_complete
 FROM goal_rows;
 SQL
 elif [[ "$format" == "json" ]]; then
@@ -411,7 +406,7 @@ printf '%s\n' "$result"
 if [[ "$require_complete" == "true" ]]; then
   audit_complete="${result##*$'\t'}"
   if [[ "$audit_complete" != "t" ]]; then
-    printf '%s\n' "Listed route and cover-photo goal is incomplete" >&2
+    printf '%s\n' "Listed route goal is incomplete" >&2
     exit 1
   fi
 fi
